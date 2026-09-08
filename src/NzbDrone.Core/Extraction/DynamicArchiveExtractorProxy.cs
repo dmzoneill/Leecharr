@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
@@ -209,6 +210,21 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
 
         this.diskProvider.EnsureFolder(targetDir);
 
+        var estimatedSize = this.EstimateArchiveUncompressedSize(archiveFilePath);
+        var requiredSpace = (long)(estimatedSize * 1.5);
+        var availableSpace = this.diskProvider.GetAvailableSpace(targetDir);
+
+        if (availableSpace.HasValue && availableSpace.Value < requiredSpace)
+        {
+            this.logger.Warn(
+                "Insufficient free disk space on '{0}' for extracting '{1}'. Required: {2} bytes (1.5x estimated uncompressed size), Available: {3} bytes.",
+                targetDir,
+                archiveFilePath,
+                requiredSpace,
+                availableSpace.Value);
+            return false;
+        }
+
         var active = Volatile.Read(ref this.activeProvider);
         var success = false;
 
@@ -243,6 +259,63 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
         }
 
         return success;
+    }
+
+    private long EstimateArchiveUncompressedSize(string archiveFilePath)
+    {
+        try
+        {
+            var baseSize = this.diskProvider.GetFileSize(archiveFilePath);
+            var dir = Path.GetDirectoryName(archiveFilePath);
+            if (string.IsNullOrEmpty(dir) || !this.diskProvider.FolderExists(dir))
+            {
+                return Math.Max(0L, baseSize);
+            }
+
+            var fileName = Path.GetFileName(archiveFilePath);
+            var partMatch = Regex.Match(fileName, @"^(.*?)\.part\d+\.(rar|7z|zip)$", RegexOptions.IgnoreCase);
+            if (partMatch.Success)
+            {
+                var prefix = partMatch.Groups[1].Value;
+                var ext = partMatch.Groups[2].Value;
+                var companionFiles = this.diskProvider.GetFiles(dir, false);
+                long totalVolumeSize = 0;
+                foreach (var file in companionFiles)
+                {
+                    var fn = Path.GetFileName(file);
+                    if (Regex.IsMatch(fn, $@"^{Regex.Escape(prefix)}\.part\d+\.{Regex.Escape(ext)}$", RegexOptions.IgnoreCase))
+                    {
+                        totalVolumeSize += this.diskProvider.GetFileSize(file);
+                    }
+                }
+
+                return totalVolumeSize > 0 ? totalVolumeSize : Math.Max(0L, baseSize);
+            }
+
+            var numMatch = Regex.Match(fileName, @"^(.*?)\.(r\d{2}|\d{3}|z\d{2}|001)$", RegexOptions.IgnoreCase);
+            if (numMatch.Success)
+            {
+                var prefix = numMatch.Groups[1].Value;
+                var companionFiles = this.diskProvider.GetFiles(dir, false);
+                long totalVolumeSize = 0;
+                foreach (var file in companionFiles)
+                {
+                    var fn = Path.GetFileName(file);
+                    if (Regex.IsMatch(fn, $@"^{Regex.Escape(prefix)}\.(r\d{{2}}|\d{{3}}|z\d{{2}}|rar)$", RegexOptions.IgnoreCase))
+                    {
+                        totalVolumeSize += this.diskProvider.GetFileSize(file);
+                    }
+                }
+
+                return totalVolumeSize > 0 ? totalVolumeSize : Math.Max(0L, baseSize);
+            }
+
+            return Math.Max(0L, baseSize);
+        }
+        catch
+        {
+            return 0L;
+        }
     }
 
     public void Dispose()

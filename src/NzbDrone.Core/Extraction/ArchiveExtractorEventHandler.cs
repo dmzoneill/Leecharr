@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using NLog;
@@ -20,6 +21,17 @@ public class ArchiveExtractionCompletedEvent : IEvent
     public string ArchivePath { get; set; }
 
     public string DestinationDirectory { get; set; }
+}
+
+public class ArchiveExtractionFailedEvent : IEvent
+{
+    public Torrent Torrent { get; set; }
+
+    public string ArchivePath { get; set; }
+
+    public string DestinationDirectory { get; set; }
+
+    public string ErrorMessage { get; set; }
 }
 
 public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEvent>
@@ -99,10 +111,44 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
                         if (this.diskProvider.FileExists(fullPath))
                         {
                             var destDir = Path.GetDirectoryName(fullPath) ?? rootDir;
-
                             if (this.IsArchiveAlreadyExtracted(destDir, fullPath))
                             {
                                 this.logger.Debug("Archive {0} has already been extracted (receipt found). Skipping auto-extraction for torrent {1}.", fullPath, message.Torrent.Name);
+                                continue;
+                            }
+
+                            var estimatedSize = file.Size > 0 ? file.Size : this.diskProvider.GetFileSize(fullPath);
+                            var basePrefix = Path.GetFileNameWithoutExtension(file.Path);
+                            var relatedFiles = files.Where(f => f.Path.StartsWith(basePrefix, StringComparison.OrdinalIgnoreCase)).ToList();
+                            if (relatedFiles.Count > 1)
+                            {
+                                var sum = relatedFiles.Sum(f => f.Size > 0 ? f.Size : 0);
+                                if (sum > 0)
+                                {
+                                    estimatedSize = sum;
+                                }
+                            }
+
+                            var requiredSpace = (long)(estimatedSize * 1.5);
+                            var availableSpace = this.diskProvider.GetAvailableSpace(destDir);
+
+                            if (availableSpace.HasValue && availableSpace.Value < requiredSpace)
+                            {
+                                this.logger.Warn(
+                                    "Insufficient free disk space on '{0}' for extracting '{1}'. Required: {2} bytes (1.5x estimated size), Available: {3} bytes.",
+                                    destDir,
+                                    fullPath,
+                                    requiredSpace,
+                                    availableSpace.Value);
+
+                                this.eventAggregator.PublishEvent(new ArchiveExtractionFailedEvent
+                                {
+                                    Torrent = message.Torrent,
+                                    ArchivePath = fullPath,
+                                    DestinationDirectory = destDir,
+                                    ErrorMessage = $"Insufficient free disk space on '{destDir}'. Required: {requiredSpace:N0} bytes, Available: {availableSpace.Value:N0} bytes.",
+                                });
+
                                 continue;
                             }
 
@@ -119,6 +165,17 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
                                     DestinationDirectory = destDir,
                                 });
                             }
+                            else
+                            {
+                                this.logger.Warn("Auto-extraction failed for archive {0} in torrent {1}", fullPath, message.Torrent.Name);
+                                this.eventAggregator.PublishEvent(new ArchiveExtractionFailedEvent
+                                {
+                                    Torrent = message.Torrent,
+                                    ArchivePath = fullPath,
+                                    DestinationDirectory = destDir,
+                                    ErrorMessage = $"Extraction failed for archive '{fullPath}' to destination '{destDir}'.",
+                                });
+                            }
                         }
                     }
                 }
@@ -126,6 +183,13 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
             catch (Exception ex)
             {
                 this.logger.Error(ex, "Failed to auto-extract archives for torrent {0}", message.Torrent.Name);
+                this.eventAggregator.PublishEvent(new ArchiveExtractionFailedEvent
+                {
+                    Torrent = message.Torrent,
+                    ArchivePath = message.Torrent.SavePath,
+                    DestinationDirectory = message.Torrent.SavePath,
+                    ErrorMessage = $"Failed to auto-extract archives for torrent {message.Torrent.Name}: {ex.Message}",
+                });
             }
         });
     }

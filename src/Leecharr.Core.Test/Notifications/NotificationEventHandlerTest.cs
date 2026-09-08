@@ -7,6 +7,7 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Extraction;
 using NzbDrone.Core.Lifecycle;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Network;
@@ -888,5 +889,57 @@ public class NotificationEventHandlerTest
         var act = () => NotificationEventHandler.SendEmailNotification(settings, "OnGrab", torrent, meta, null);
 
         act.Should().NotThrow();
+    }
+
+    [Test]
+    public async Task Handle_ArchiveExtractionFailedEvent_DispatchesHealthIssueAndManualInteractionRequiredNotifications()
+    {
+        var healthNotification = new NotificationDefinition
+        {
+            Id = 98,
+            Name = "Health Issue Webhook",
+            Implementation = "Webhook",
+            Settings = "http://test/webhook-health",
+            OnHealthIssue = true,
+            OnManualInteractionRequired = false,
+        };
+
+        var manualNotification = new NotificationDefinition
+        {
+            Id = 99,
+            Name = "Manual Interaction Webhook",
+            Implementation = "Webhook",
+            Settings = "http://test/webhook-manual",
+            OnHealthIssue = false,
+            OnManualInteractionRequired = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { healthNotification, manualNotification });
+
+        var torrent = new Torrent
+        {
+            Id = 55,
+            Name = "Extraction.Failed.Movie",
+            Status = TorrentStatus.Downloading,
+            SavePath = "/downloads/Extraction.Failed.Movie",
+        };
+
+        this.handler.Handle(new ArchiveExtractionFailedEvent
+        {
+            Torrent = torrent,
+            ArchivePath = "/downloads/Extraction.Failed.Movie/movie.rar",
+            DestinationDirectory = "/downloads/Extraction.Failed.Movie",
+            ErrorMessage = "Corrupt archive volume",
+        });
+
+        await Task.Delay(100);
+
+        await this.webhookDispatcher.Received(1).DispatchAsync(
+            "http://test/webhook-health",
+            Arg.Any<object>());
+
+        await this.webhookDispatcher.Received(1).DispatchAsync(
+            "http://test/webhook-manual",
+            Arg.Any<object>());
     }
 }

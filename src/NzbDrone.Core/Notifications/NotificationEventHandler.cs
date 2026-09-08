@@ -26,6 +26,7 @@ public class NotificationEventHandler :
     IHandle<TorrentStatusChangedEvent>,
     IHandle<MediaEnrichedEvent>,
     IHandle<ArchiveExtractionCompletedEvent>,
+    IHandle<ArchiveExtractionFailedEvent>,
     IHandle<VpnKillSwitchTriggeredEvent>,
     IHandle<ApplicationUpdatedEvent>,
     IHandle<HealthIssueEvent>,
@@ -158,6 +159,17 @@ public class NotificationEventHandler :
         }
 
         this.Dispatch(n => n.OnExtractComplete, "OnExtractComplete", message.Torrent);
+    }
+
+    public void Handle(ArchiveExtractionFailedEvent message)
+    {
+        if (message?.Torrent == null)
+        {
+            return;
+        }
+
+        this.Dispatch(n => n.OnHealthIssue, "OnHealthIssue", message.Torrent);
+        this.Dispatch(n => n.OnManualInteractionRequired, "OnManualInteractionRequired", message.Torrent);
     }
 
     public void Handle(TorrentStatusChangedEvent message)
