@@ -97,41 +97,38 @@ public class TorrentEngineControllerTests : IntegrationTestBase
     }
 
     [Test]
-    public async Task SwitchEngine_to_LibTorrent_and_back_to_MonoTorrent()
+    public async Task SwitchEngine_to_invalid_engine_returns_400_and_switch_to_MonoTorrent_returns_200()
     {
-        // 1. Switch to LibTorrent (which is unavailable stub in standard test environment)
-        var switchReq1 = new { engineId = "LibTorrent", preserveTransfers = true };
-        var response1 = await this.PostJsonAsync("/api/v1/torrentengine/switch", switchReq1);
-        var json1 = await response1.Content.ReadAsStringAsync();
-        TestContext.WriteLine($"SWITCH 1 RESPONSE: {response1.StatusCode} -> {json1}");
-        var result1 = Deserialize<JsonElement>(json1);
+        // 1. Switch to an invalid engine -> must return 400 BadRequest with descriptive error
+        var invalidReq = new { engineId = "NonExistentEngine", preserveTransfers = true };
+        var invalidResponse = await this.PostJsonAsync("/api/v1/torrentengine/switch", invalidReq);
+        invalidResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-        if (response1.StatusCode == HttpStatusCode.OK)
-        {
-            result1.GetProperty("success").GetBoolean().Should().BeTrue();
-            result1.GetProperty("activeEngine").GetString().Should().Be("LibTorrent");
+        var invalidJson = await invalidResponse.Content.ReadAsStringAsync();
+        var invalidResult = Deserialize<JsonElement>(invalidJson);
+        invalidResult.GetProperty("success").GetBoolean().Should().BeFalse();
+        invalidResult.GetProperty("error").GetString().Should().Contain("not registered");
 
-            // 2. Verify active engine endpoint reflects LibTorrent
-            var activeResponse1 = await this.Client.GetAsync("/api/v1/torrentengine/active");
-            activeResponse1.StatusCode.Should().Be(HttpStatusCode.OK);
-            var activeJson1 = await activeResponse1.Content.ReadAsStringAsync();
-            var active1 = Deserialize<JsonElement>(activeJson1);
-            active1.GetProperty("engineId").GetString().Should().Be("LibTorrent");
-        }
-        else
-        {
-            response1.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-            result1.GetProperty("success").GetBoolean().Should().BeFalse();
-        }
+        // 2. Switch with empty engine ID -> must return 400 BadRequest
+        var emptyReq = new { engineId = string.Empty, preserveTransfers = true };
+        var emptyResponse = await this.PostJsonAsync("/api/v1/torrentengine/switch", emptyReq);
+        emptyResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-        // 3. Switch to MonoTorrent
-        var switchReq2 = new { engineId = "MonoTorrent", preserveTransfers = true };
-        var response2 = await this.PostJsonAsync("/api/v1/torrentengine/switch", switchReq2);
-        response2.StatusCode.Should().Be(HttpStatusCode.OK);
+        // 3. Switch to MonoTorrent -> must return 200 OK
+        var monoReq = new { engineId = "MonoTorrent", preserveTransfers = true };
+        var monoResponse = await this.PostJsonAsync("/api/v1/torrentengine/switch", monoReq);
+        monoResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var json2 = await response2.Content.ReadAsStringAsync();
-        var result2 = Deserialize<JsonElement>(json2);
-        result2.GetProperty("success").GetBoolean().Should().BeTrue();
-        result2.GetProperty("activeEngine").GetString().Should().Be("MonoTorrent");
+        var monoJson = await monoResponse.Content.ReadAsStringAsync();
+        var monoResult = Deserialize<JsonElement>(monoJson);
+        monoResult.GetProperty("success").GetBoolean().Should().BeTrue();
+        monoResult.GetProperty("activeEngine").GetString().Should().Be("MonoTorrent");
+
+        // 4. Verify active engine endpoint reflects MonoTorrent
+        var activeResponse = await this.Client.GetAsync("/api/v1/torrentengine/active");
+        activeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var activeJson = await activeResponse.Content.ReadAsStringAsync();
+        var active = Deserialize<JsonElement>(activeJson);
+        active.GetProperty("engineId").GetString().Should().Be("MonoTorrent");
     }
 }

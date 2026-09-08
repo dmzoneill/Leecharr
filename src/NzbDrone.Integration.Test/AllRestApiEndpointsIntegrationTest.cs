@@ -67,18 +67,24 @@ public class AllRestApiEndpointsIntegrationTest : IntegrationTestBase
                 }
                 else
                 {
-                    // Assert it returns a success, redirect, or client bad request (for missing required query params)
-                    response.StatusCode.Should().BeOneOf(
-                        new[]
-                        {
-                            HttpStatusCode.OK,
-                            HttpStatusCode.NoContent,
-                            HttpStatusCode.Accepted,
-                            HttpStatusCode.Redirect,
-                            HttpStatusCode.MovedPermanently,
-                            HttpStatusCode.BadRequest,
-                        },
-                        $"Endpoint GET {path} should succeed or return bad request if missing query parameters");
+                    var isQueryParamRequiredEndpoint = path is "/api/v1/files/download" or "/api/v1/files/preview";
+                    if (isQueryParamRequiredEndpoint)
+                    {
+                        response.StatusCode.Should().Be(HttpStatusCode.BadRequest, $"Endpoint GET {path} requires query parameters and should return 400 BadRequest");
+                    }
+                    else
+                    {
+                        response.StatusCode.Should().BeOneOf(
+                            new[]
+                            {
+                                HttpStatusCode.OK,
+                                HttpStatusCode.NoContent,
+                                HttpStatusCode.Accepted,
+                                HttpStatusCode.Redirect,
+                                HttpStatusCode.MovedPermanently,
+                            },
+                            $"Endpoint GET {path} should succeed with 2xx/3xx status code");
+                    }
                 }
             }
             catch (Exception ex)
