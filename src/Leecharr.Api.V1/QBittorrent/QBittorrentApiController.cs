@@ -2458,13 +2458,13 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             try
             {
                 List<TorrentFile> files = null;
-                if (filesByTorrentId != null)
+                if (filesByTorrentId != null && filesByTorrentId.TryGetValue(t.Id, out var fList) && fList != null)
                 {
-                    filesByTorrentId.TryGetValue(t.Id, out files);
+                    files = fList;
                 }
                 else
                 {
-                    files = this.torrentFileService.GetFiles(t.Id)?.ToList();
+                    files = this.torrentFileService?.GetFiles(t.Id)?.ToList();
                 }
 
                 if (files != null && files.Count == 1 && !string.IsNullOrWhiteSpace(files[0].Path))

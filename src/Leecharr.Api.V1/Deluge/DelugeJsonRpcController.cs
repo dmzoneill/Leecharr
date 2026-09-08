@@ -822,6 +822,11 @@ public class DelugeJsonRpcController : ControllerBase
             resultDict[t.InfoHash.ToLowerInvariant()] = this.MapTorrentToDelugeStatus(t, requestedKeys);
         }
 
+        if (isWeb)
+        {
+            return this.DelugeResult(new { result = new { torrents = resultDict }, error = (object)null, id });
+        }
+
         return this.DelugeResult(new { result = resultDict, error = (object)null, id });
     }
 
@@ -1507,7 +1512,11 @@ public class DelugeJsonRpcController : ControllerBase
             .Where(t => t != null)
             .ToList();
 
-        if (dir == "up")
+        if (dir == "top")
+        {
+            matchingTorrents = matchingTorrents.AsEnumerable().Reverse().ToList();
+        }
+        else if (dir == "up")
         {
             matchingTorrents = matchingTorrents.OrderBy(t => t.QueuePosition).ToList();
         }

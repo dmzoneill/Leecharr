@@ -121,6 +121,11 @@ public class AuthRateLimiter : IDisposable
                 var lockout = newFailures >= this.maxFailedAttempts ? (DateTime?)now.Add(this.lockoutDuration) : null;
                 return (newFailures, existing.WindowStart, lockout);
             });
+
+        if (this.attempts.Count > this.maxCapacity)
+        {
+            this.TrimToMaxCapacity();
+        }
     }
 
     public void SweepExpired()
@@ -142,6 +147,11 @@ public class AuthRateLimiter : IDisposable
             }
         }
 
+        this.TrimToMaxCapacity();
+    }
+
+    private void TrimToMaxCapacity()
+    {
         if (this.attempts.Count > this.maxCapacity)
         {
             var excess = this.attempts.Count - this.maxCapacity;
