@@ -6,9 +6,12 @@ using FluentAssertions;
 using FluentMigrator.Runner;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
+using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Datastore;
+using NzbDrone.Core.Datastore.Events;
 using NzbDrone.Core.Datastore.Migration;
+using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Core.Test.Datastore;
@@ -208,5 +211,49 @@ public class BasicRepositoryTest
 
         var all = System.Linq.Enumerable.ToList(System.Linq.Enumerable.Where(this.repository.All(), t => t.Category == "concurrent"));
         all.Should().HaveCount(20);
+    }
+
+    [Test]
+    public void UpsertMany_WhenEventAggregatorThrows_TransactionIsStillCommittedAndDataPersisted()
+    {
+        var eventAggregator = Substitute.For<IEventAggregator>();
+        eventAggregator.When(ea => ea.PublishEvent(Arg.Any<ModelEvent<Torrent>>()))
+            .Do(_ => throw new InvalidOperationException("Event handler crashed"));
+
+        var connectionString = $"Data Source={this.dbPath};";
+        var database = new Database(() => new SqliteConnection(connectionString), DatabaseType.SQLite);
+        var repoWithFailingEvents = new BasicRepository<Torrent>(database, eventAggregator);
+
+        var torrents = new System.Collections.Generic.List<Torrent>
+        {
+            new()
+            {
+                Name = "EventFail.Torrent",
+                InfoHash = "1111222233334444555566667777888899990000",
+                Category = "eventfail",
+                TotalSize = 5000,
+                Status = TorrentStatus.Downloading,
+                DateAdded = DateTime.UtcNow,
+            },
+        };
+
+        var act = () => repoWithFailingEvents.InsertMany(torrents);
+        act.Should().Throw<InvalidOperationException>().WithMessage("Event handler crashed");
+
+        // The transaction must have been committed before event dispatch was attempted
+        var fetched = this.repository.Get(torrents[0].Id);
+        fetched.Should().NotBeNull();
+        fetched.Name.Should().Be("EventFail.Torrent");
+    }
+
+    [Test]
+    public void TableMapping_GetInsertSql_RecognizesCustomTypeHandlers()
+    {
+        TableRegistration.RegisterTypeHandlers();
+        var sql = TableMapping.GetInsertSql("Torrents", new Torrent());
+
+        sql.Should().Contain("\"TagIds\"");
+        sql.Should().Contain("\"Ratio\"");
+        sql.Should().Contain("\"Progress\"");
     }
 }
