@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Http;
+using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.Indexers;
@@ -22,7 +23,7 @@ public interface IRssSyncService
     bool MatchesRule(TorznabSearchResult release, RssRule rule);
 }
 
-public class RssSyncService : IRssSyncService
+public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecuteAsync<RssSyncCommand>
 {
     public const int DefaultMaxGrabbedReleasesCapacity = 5000;
 
@@ -66,6 +67,16 @@ public class RssSyncService : IRssSyncService
             maxGrabbedReleasesCapacity > 0 ? maxGrabbedReleasesCapacity : DefaultMaxGrabbedReleasesCapacity,
             StringComparer.OrdinalIgnoreCase);
         this.logger = LogManager.GetCurrentClassLogger();
+    }
+
+    public async Task ExecuteAsync(RssSyncCommand message, CancellationToken cancellationToken = default)
+    {
+        await this.SyncRssFeedsAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public void Execute(RssSyncCommand message)
+    {
+        this.SyncRssFeedsAsync().GetAwaiter().GetResult();
     }
 
     public async Task<int> SyncRssFeedsAsync(CancellationToken cancellationToken = default)

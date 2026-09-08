@@ -6,9 +6,15 @@ using System.Linq;
 using Leecharr.Http;
 using Leecharr.Http.REST;
 using Microsoft.AspNetCore.Mvc;
+using NzbDrone.Core.Authentication;
+using NzbDrone.Core.Backup;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Jobs;
 using NzbDrone.Core.Messaging.Commands;
+using NzbDrone.Core.Network;
+using NzbDrone.Core.Network.Blocklist;
+using NzbDrone.Core.Network.GeoIp;
+using NzbDrone.Core.WatchFolder;
 
 namespace Leecharr.Api.V1.System;
 
@@ -126,10 +132,45 @@ public class SystemTaskController : Controller
             ? dbTask.TypeName.Replace("Task", string.Empty)
             : "SystemTask";
 
-        if (string.Equals(name, "ProwlarrSync", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(name, "ProwlarrSyncTask", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(name, "WatchFolderScan", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, "WatchFolderScanTask", StringComparison.OrdinalIgnoreCase))
+        {
+            this.commandQueueManager?.Push(new WatchFolderScanCommand(), CommandTrigger.Manual);
+        }
+        else if (string.Equals(name, "RssSync", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "RssSyncTask", StringComparison.OrdinalIgnoreCase))
+        {
+            this.commandQueueManager?.Push(new RssSyncCommand(), CommandTrigger.Manual);
+        }
+        else if (string.Equals(name, "VpnKillSwitchCheck", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "VpnKillSwitchCheckTask", StringComparison.OrdinalIgnoreCase))
+        {
+            this.commandQueueManager?.Push(new VpnKillSwitchCheckCommand(), CommandTrigger.Manual);
+        }
+        else if (string.Equals(name, "ProwlarrSync", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "ProwlarrSyncTask", StringComparison.OrdinalIgnoreCase))
         {
             this.commandQueueManager?.Push(new ProwlarrSyncCommand(), CommandTrigger.Manual);
+        }
+        else if (string.Equals(name, "Backup", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "BackupTask", StringComparison.OrdinalIgnoreCase))
+        {
+            this.commandQueueManager?.Push(new BackupCommand(), CommandTrigger.Manual);
+        }
+        else if (string.Equals(name, "BlocklistUpdate", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "BlocklistUpdateTask", StringComparison.OrdinalIgnoreCase))
+        {
+            this.commandQueueManager?.Push(new BlocklistUpdateCommand(), CommandTrigger.Manual);
+        }
+        else if (string.Equals(name, "SessionCleanup", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "SessionCleanupTask", StringComparison.OrdinalIgnoreCase))
+        {
+            this.commandQueueManager?.Push(new SessionCleanupCommand(), CommandTrigger.Manual);
+        }
+        else if (string.Equals(name, "GeoIpUpdate", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "GeoIpUpdateTask", StringComparison.OrdinalIgnoreCase))
+        {
+            this.commandQueueManager?.Push(new GeoIpUpdateCommand(), CommandTrigger.Manual);
         }
         else
         {

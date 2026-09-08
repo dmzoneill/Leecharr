@@ -75,4 +75,54 @@ public class SystemTaskControllerTest
         list.Should().NotBeNull();
         list.Should().BeEmpty();
     }
+
+    [Test]
+    [TestCase("WatchFolderScanTask", typeof(NzbDrone.Core.WatchFolder.WatchFolderScanCommand))]
+    [TestCase("WatchFolderScan", typeof(NzbDrone.Core.WatchFolder.WatchFolderScanCommand))]
+    [TestCase("RssSyncTask", typeof(NzbDrone.Core.Indexers.RssSyncCommand))]
+    [TestCase("RssSync", typeof(NzbDrone.Core.Indexers.RssSyncCommand))]
+    [TestCase("VpnKillSwitchCheckTask", typeof(NzbDrone.Core.Network.VpnKillSwitchCheckCommand))]
+    [TestCase("VpnKillSwitchCheck", typeof(NzbDrone.Core.Network.VpnKillSwitchCheckCommand))]
+    [TestCase("ProwlarrSyncTask", typeof(NzbDrone.Core.Indexers.ProwlarrSyncCommand))]
+    [TestCase("ProwlarrSync", typeof(NzbDrone.Core.Indexers.ProwlarrSyncCommand))]
+    [TestCase("BackupTask", typeof(NzbDrone.Core.Backup.BackupCommand))]
+    [TestCase("Backup", typeof(NzbDrone.Core.Backup.BackupCommand))]
+    [TestCase("BlocklistUpdateTask", typeof(NzbDrone.Core.Network.Blocklist.BlocklistUpdateCommand))]
+    [TestCase("BlocklistUpdate", typeof(NzbDrone.Core.Network.Blocklist.BlocklistUpdateCommand))]
+    [TestCase("SessionCleanupTask", typeof(NzbDrone.Core.Authentication.SessionCleanupCommand))]
+    [TestCase("SessionCleanup", typeof(NzbDrone.Core.Authentication.SessionCleanupCommand))]
+    [TestCase("GeoIpUpdateTask", typeof(NzbDrone.Core.Network.GeoIp.GeoIpUpdateCommand))]
+    [TestCase("GeoIpUpdate", typeof(NzbDrone.Core.Network.GeoIp.GeoIpUpdateCommand))]
+    public void ExecuteTask_KnownTasks_PushesStronglyTypedCommand(string typeName, Type expectedCommandType)
+    {
+        this.taskManager.Get(1).Returns(new ScheduledTask
+        {
+            Id = 1,
+            TypeName = typeName,
+        });
+
+        var controller = new SystemTaskController(this.commandQueueManager, this.scheduledTaskRepository, this.taskManager);
+        var actionResult = controller.ExecuteTask(1);
+
+        actionResult.Should().BeOfType<OkObjectResult>();
+        this.commandQueueManager.Received(1).Push(
+            Arg.Is<Command>(c => c.GetType() == expectedCommandType),
+            CommandTrigger.Manual);
+    }
+
+    [Test]
+    public void ExecuteTask_UnknownTask_PushesRawCommand()
+    {
+        this.taskManager.Get(99).Returns(new ScheduledTask
+        {
+            Id = 99,
+            TypeName = "CustomUnknownTask",
+        });
+
+        var controller = new SystemTaskController(this.commandQueueManager, this.scheduledTaskRepository, this.taskManager);
+        var actionResult = controller.ExecuteTask(99);
+
+        actionResult.Should().BeOfType<OkObjectResult>();
+        this.commandQueueManager.Received(1).PushRaw("CustomUnknown", "{}", CommandTrigger.Manual);
+    }
 }

@@ -4,8 +4,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.NetworkInformation;
+using System.Threading;
+using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.Network;
@@ -33,7 +36,7 @@ public interface INetworkSecurityService
     void SaveSettings(NetworkSettings settings);
 }
 
-public class NetworkSecurityService : INetworkSecurityService
+public class NetworkSecurityService : INetworkSecurityService, IExecute<VpnKillSwitchCheckCommand>, IExecuteAsync<VpnKillSwitchCheckCommand>
 {
     private readonly INetworkSettingsRepository repository;
     private readonly IConfigService configService;
@@ -53,6 +56,17 @@ public class NetworkSecurityService : INetworkSecurityService
         this.configService = configService;
         this.vpnKillSwitchService = vpnKillSwitchService;
         this.logger = LogManager.GetCurrentClassLogger();
+    }
+
+    public Task ExecuteAsync(VpnKillSwitchCheckCommand message, CancellationToken cancellationToken = default)
+    {
+        this.CheckVpnKillSwitch();
+        return Task.CompletedTask;
+    }
+
+    public void Execute(VpnKillSwitchCheckCommand message)
+    {
+        this.CheckVpnKillSwitch();
     }
 
     public IEnumerable<string> GetAvailableNetworkInterfaces()
