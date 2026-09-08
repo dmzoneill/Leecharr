@@ -402,6 +402,49 @@ public class AppLifetimeTest
             CheckRatioInSpeedPulse(msg.Body, 99, 5.0)));
     }
 
+    [Test]
+    public async Task StartAsync_WhenRssSyncTakesLongTime_DoesNotBlockSpeedPulseBroadcast()
+    {
+        var broadcaster = Substitute.For<IBroadcastSignalRMessage>();
+        broadcaster.IsConnected.Returns(true);
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.TorrentId.Returns(1);
+        mockTask.Status.Returns(TorrentStatus.Downloading);
+        mockTask.DownloadSpeed.Returns(1_000_000L);
+        mockTask.DownloadedBytes.Returns(10_000_000L);
+        mockTask.Progress.Returns(0.1);
+        mockTask.TotalBytes.Returns(100_000_000L);
+
+        this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { mockTask });
+        this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
+
+        this.rssSyncService.SyncRssFeedsAsync().Returns(async _ =>
+        {
+            await Task.Delay(10000);
+            return 0;
+        });
+
+        using var lifetime = new AppLifetime(
+            this.configService,
+            this.eventAggregator,
+            this.downloadEngine,
+            this.torrentRepository,
+            this.watchFolderService,
+            this.networkSecurityService,
+            this.rssSyncService,
+            this.dynamicAuthManager,
+            this.torrentService,
+            signalRBroadcaster: broadcaster);
+
+        await lifetime.StartAsync(CancellationToken.None);
+        await Task.Delay(2500);
+        await lifetime.StopAsync(CancellationToken.None);
+
+        broadcaster.Received().BroadcastMessage(Arg.Is<SignalRMessage>(msg =>
+            msg.Name == "speedPulse"));
+    }
+
     private static bool CheckRatioInSpeedPulse(object body, int expectedId, double expectedRatio)
     {
         if (body is not IEnumerable<object> items)
