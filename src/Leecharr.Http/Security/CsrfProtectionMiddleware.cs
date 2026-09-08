@@ -46,8 +46,23 @@ public class CsrfProtectionMiddleware
         this.next = next;
     }
 
-    public static bool IsAuthPath(string path)
+    public static bool IsAuthPath(string path, string urlBase = null)
     {
+        if (string.IsNullOrEmpty(path))
+        {
+            return false;
+        }
+
+        // Normalize path by stripping urlBase if present
+        if (!string.IsNullOrEmpty(urlBase) && path.StartsWith(urlBase, StringComparison.OrdinalIgnoreCase))
+        {
+            path = path.Substring(urlBase.Length);
+            if (!path.StartsWith('/'))
+            {
+                path = "/" + path;
+            }
+        }
+
         if (string.IsNullOrEmpty(path))
         {
             return false;
@@ -65,8 +80,23 @@ public class CsrfProtectionMiddleware
         return false;
     }
 
-    public static bool IsRpcPath(string path)
+    public static bool IsRpcPath(string path, string urlBase = null)
     {
+        if (string.IsNullOrEmpty(path))
+        {
+            return false;
+        }
+
+        // Normalize path by stripping urlBase if present
+        if (!string.IsNullOrEmpty(urlBase) && path.StartsWith(urlBase, StringComparison.OrdinalIgnoreCase))
+        {
+            path = path.Substring(urlBase.Length);
+            if (!path.StartsWith('/'))
+            {
+                path = "/" + path;
+            }
+        }
+
         if (string.IsNullOrEmpty(path))
         {
             return false;
@@ -107,7 +137,7 @@ public class CsrfProtectionMiddleware
                       authHeader.ToString().StartsWith("Basic ", StringComparison.OrdinalIgnoreCase))) ||
                     context.Request.Headers.ContainsKey("X-Transmission-Session-Id");
 
-                if (!hasExplicitAuthHeader && !IsAuthPath(path) && !IsRpcPath(path))
+                if (!hasExplicitAuthHeader && !IsAuthPath(path, context.Request.PathBase.Value) && !IsRpcPath(path, context.Request.PathBase.Value))
                 {
                     // 1. Check Sec-Fetch-Site (Modern browser defense)
                     if (context.Request.Headers.TryGetValue("Sec-Fetch-Site", out var secFetchSite) &&
