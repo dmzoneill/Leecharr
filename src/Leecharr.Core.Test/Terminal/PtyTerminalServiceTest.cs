@@ -447,4 +447,51 @@ public class PtyTerminalServiceTest
             }
         }
     }
+
+    [Test]
+    public async Task LinuxPtySession_Start_ExecutesCommandsAndTerminatesCleanly()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            Assert.Ignore("LinuxPtySession only applicable on Linux.");
+            return;
+        }
+
+        var session = LinuxPtySession.Start("/tmp", 80, 24);
+        try
+        {
+            session.Should().NotBeNull();
+            session.IsActive.Should().BeTrue();
+            session.ProcessId.Should().BeGreaterThan(0);
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var cmd = Encoding.UTF8.GetBytes("echo LINUX_PTY_DIRECT_TEST\n");
+            await session.WriteAsync(cmd, cts.Token);
+
+            var buffer = new byte[1024];
+            var sb = new StringBuilder();
+
+            while (!cts.IsCancellationRequested && sb.Length < 500)
+            {
+                int bytesRead = await session.ReadAsync(buffer, cts.Token);
+                if (bytesRead <= 0)
+                {
+                    break;
+                }
+
+                sb.Append(Encoding.UTF8.GetString(buffer, 0, bytesRead));
+                if (sb.ToString().Contains("LINUX_PTY_DIRECT_TEST"))
+                {
+                    break;
+                }
+            }
+
+            sb.ToString().Should().Contain("LINUX_PTY_DIRECT_TEST");
+        }
+        finally
+        {
+            session.Kill();
+            await session.DisposeAsync();
+        }
+    }
 }
