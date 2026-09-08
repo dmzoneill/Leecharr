@@ -96,7 +96,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                         info.DurationSeconds = tagFile.Properties.Duration.TotalSeconds;
                     }
 
-                    if (tagFile.Properties.AudioChannels > 0 && string.IsNullOrEmpty(info.AudioChannels))
+                    if (tagFile.Properties.AudioChannels > 0)
                     {
                         info.AudioChannels = tagFile.Properties.AudioChannels switch
                         {
@@ -128,7 +128,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                             }
                             else if (codec.MediaTypes.HasFlag(TagLib.MediaTypes.Audio))
                             {
-                                ApplyAudioCodec(info, codec.Description, string.IsNullOrEmpty(info.AudioChannels) ? "2.0" : info.AudioChannels);
+                                ApplyAudioCodec(info, codec.Description, info.AudioChannels);
                             }
                         }
                     }
@@ -259,6 +259,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         ulong timecodeScale = 1000000UL;
         double durationRaw = 0.0;
         bool isCurrentAudioTrackAccepted = false;
+        int currentTrackChannels = 0;
 
         while (offset < limit)
         {
@@ -277,6 +278,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 if (id == 0xAE)
                 {
                     isCurrentAudioTrackAccepted = false;
+                    currentTrackChannels = 0;
                 }
 
                 // Master element: descend directly into children
@@ -331,6 +333,18 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 case 0x86: // CodecID
                     var codecId = ReadEbmlString(header, offset, elemSize);
                     isCurrentAudioTrackAccepted = ApplyCodecId(info, codecId);
+                    if (isCurrentAudioTrackAccepted && currentTrackChannels > 0)
+                    {
+                        info.AudioChannels = currentTrackChannels switch
+                        {
+                            1 => "1.0",
+                            2 => "2.0",
+                            6 => "5.1",
+                            8 => "7.1",
+                            _ => $"{currentTrackChannels}.0",
+                        };
+                    }
+
                     break;
 
                 case 0xB0: // PixelWidth
@@ -353,6 +367,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
                 case 0x9F: // Channels
                     var channels = (int)ReadEbmlUInt(header, offset, elemSize);
+                    currentTrackChannels = channels;
                     if (channels > 0 && (isCurrentAudioTrackAccepted || string.IsNullOrEmpty(info.AudioCodec)))
                     {
                         info.AudioChannels = channels switch
@@ -387,22 +402,29 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
                 case 0x55B7: // TransferCharacteristics
                     var tc = ReadEbmlUInt(header, offset, elemSize);
-                    if (tc == 16 && (string.IsNullOrEmpty(info.HdrFormat) || info.HdrFormat == "SDR"))
+                    if (tc == 16)
                     {
-                        info.HdrFormat = "HDR10";
+                        info.HdrFormat = info.HdrFormat == "Dolby Vision" ? "Dolby Vision / HDR10" : "HDR10";
                     }
-                    else if (tc == 18 && (string.IsNullOrEmpty(info.HdrFormat) || info.HdrFormat == "SDR"))
+                    else if (tc == 18)
                     {
-                        info.HdrFormat = "HLG";
+                        info.HdrFormat = info.HdrFormat == "Dolby Vision" ? "Dolby Vision / HLG" : "HLG";
                     }
 
                     break;
 
                 case 0x55B8: // Primaries
                     var primaries = ReadEbmlUInt(header, offset, elemSize);
-                    if (primaries == 9 && (string.IsNullOrEmpty(info.HdrFormat) || info.HdrFormat == "SDR"))
+                    if (primaries == 9)
                     {
-                        info.HdrFormat = "HDR10";
+                        if (info.HdrFormat == "Dolby Vision")
+                        {
+                            info.HdrFormat = "Dolby Vision / HDR10";
+                        }
+                        else if (string.IsNullOrEmpty(info.HdrFormat) || info.HdrFormat == "SDR")
+                        {
+                            info.HdrFormat = "HDR10";
+                        }
                     }
 
                     break;
@@ -447,39 +469,39 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             {
                 if (span.IndexOf("A_TRUEHD"u8) >= 0)
                 {
-                    ApplyAudioCodec(info, "Dolby TrueHD / Atmos", "7.1", 50);
+                    ApplyAudioCodec(info, "Dolby TrueHD / Atmos", null, 50);
                 }
                 else if (span.IndexOf("A_EAC3/JOC"u8) >= 0 || span.IndexOf("A_EAC3-JOC"u8) >= 0)
                 {
-                    ApplyAudioCodec(info, "Dolby Atmos", "5.1", 48);
+                    ApplyAudioCodec(info, "Dolby Atmos", null, 48);
                 }
                 else if (span.IndexOf("A_DTS/HD"u8) >= 0 || span.IndexOf("A_DTS-HD"u8) >= 0 || span.IndexOf("A_DTS/LOSSLESS"u8) >= 0)
                 {
-                    ApplyAudioCodec(info, "DTS-HD MA", "7.1", 45);
+                    ApplyAudioCodec(info, "DTS-HD MA", null, 45);
                 }
                 else if (span.IndexOf("A_EAC3"u8) >= 0)
                 {
-                    ApplyAudioCodec(info, "E-AC3 / Dolby Digital Plus", "5.1", 25);
+                    ApplyAudioCodec(info, "E-AC3 / Dolby Digital Plus", null, 25);
                 }
                 else if (span.IndexOf("A_AC3"u8) >= 0)
                 {
-                    ApplyAudioCodec(info, "AC3 / Dolby Digital", "5.1", 15);
+                    ApplyAudioCodec(info, "AC3 / Dolby Digital", null, 15);
                 }
                 else if (span.IndexOf("A_DTS"u8) >= 0)
                 {
-                    ApplyAudioCodec(info, "DTS", "5.1", 20);
+                    ApplyAudioCodec(info, "DTS", null, 20);
                 }
                 else if (span.IndexOf("A_FLAC"u8) >= 0)
                 {
-                    ApplyAudioCodec(info, "FLAC", "2.0", 35);
+                    ApplyAudioCodec(info, "FLAC", null, 35);
                 }
                 else if (span.IndexOf("A_OPUS"u8) >= 0)
                 {
-                    ApplyAudioCodec(info, "Opus", "2.0", 12);
+                    ApplyAudioCodec(info, "Opus", null, 12);
                 }
                 else if (span.IndexOf("A_AAC"u8) >= 0)
                 {
-                    ApplyAudioCodec(info, "AAC", "2.0", 10);
+                    ApplyAudioCodec(info, "AAC", null, 10);
                 }
             }
         }
@@ -879,67 +901,67 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         else if (codecId.StartsWith("A_TRUEHD", StringComparison.OrdinalIgnoreCase) ||
                  codecId.StartsWith("A_MLP", StringComparison.OrdinalIgnoreCase))
         {
-            return ApplyAudioCodec(info, "Dolby TrueHD / Atmos", "7.1", 50);
+            return ApplyAudioCodec(info, "Dolby TrueHD / Atmos", null, 50);
         }
         else if (codecId.StartsWith("A_DTS/X", StringComparison.OrdinalIgnoreCase))
         {
-            return ApplyAudioCodec(info, "DTS:X", "7.1", 46);
+            return ApplyAudioCodec(info, "DTS:X", null, 46);
         }
         else if (codecId.StartsWith("A_DTS/HD", StringComparison.OrdinalIgnoreCase) ||
                  codecId.StartsWith("A_DTS-HD", StringComparison.OrdinalIgnoreCase) ||
                  codecId.StartsWith("A_DTS/LOSSLESS", StringComparison.OrdinalIgnoreCase))
         {
-            return ApplyAudioCodec(info, "DTS-HD MA", "7.1", 45);
+            return ApplyAudioCodec(info, "DTS-HD MA", null, 45);
         }
         else if (codecId.StartsWith("A_EAC3/JOC", StringComparison.OrdinalIgnoreCase) ||
                  codecId.StartsWith("A_EAC3-JOC", StringComparison.OrdinalIgnoreCase))
         {
-            return ApplyAudioCodec(info, "Dolby Atmos", "5.1", 48);
+            return ApplyAudioCodec(info, "Dolby Atmos", null, 48);
         }
         else if (codecId.StartsWith("A_EAC3", StringComparison.OrdinalIgnoreCase) ||
                  codecId.StartsWith("A_EAC-3", StringComparison.OrdinalIgnoreCase) ||
                  codecId.StartsWith("A_DDP", StringComparison.OrdinalIgnoreCase))
         {
-            return ApplyAudioCodec(info, "E-AC3 / Dolby Digital Plus", "5.1", 25);
+            return ApplyAudioCodec(info, "E-AC3 / Dolby Digital Plus", null, 25);
         }
         else if (codecId.StartsWith("A_DTS", StringComparison.OrdinalIgnoreCase))
         {
-            return ApplyAudioCodec(info, "DTS", "5.1", 20);
+            return ApplyAudioCodec(info, "DTS", null, 20);
         }
         else if (codecId.StartsWith("A_AC3", StringComparison.OrdinalIgnoreCase))
         {
-            return ApplyAudioCodec(info, "AC3 / Dolby Digital", "5.1", 15);
+            return ApplyAudioCodec(info, "AC3 / Dolby Digital", null, 15);
         }
         else if (codecId.StartsWith("A_FLAC", StringComparison.OrdinalIgnoreCase))
         {
-            return ApplyAudioCodec(info, "FLAC", "2.0", 35);
+            return ApplyAudioCodec(info, "FLAC", null, 35);
         }
         else if (codecId.StartsWith("A_ALAC", StringComparison.OrdinalIgnoreCase))
         {
-            return ApplyAudioCodec(info, "Apple Lossless (ALAC)", "2.0", 35);
+            return ApplyAudioCodec(info, "Apple Lossless (ALAC)", null, 35);
         }
         else if (codecId.StartsWith("A_OPUS", StringComparison.OrdinalIgnoreCase))
         {
-            return ApplyAudioCodec(info, "Opus", "2.0", 12);
+            return ApplyAudioCodec(info, "Opus", null, 12);
         }
         else if (codecId.StartsWith("A_AAC", StringComparison.OrdinalIgnoreCase))
         {
-            return ApplyAudioCodec(info, "AAC", "2.0", 10);
+            return ApplyAudioCodec(info, "AAC", null, 10);
         }
         else if (codecId.StartsWith("A_VORBIS", StringComparison.OrdinalIgnoreCase))
         {
-            return ApplyAudioCodec(info, "Vorbis", "2.0", 8);
+            return ApplyAudioCodec(info, "Vorbis", null, 8);
         }
         else if (codecId.StartsWith("A_MPEG/L3", StringComparison.OrdinalIgnoreCase) ||
                  codecId.StartsWith("A_MPEG/L2", StringComparison.OrdinalIgnoreCase) ||
                  codecId.StartsWith("A_MPEG/L1", StringComparison.OrdinalIgnoreCase) ||
                  codecId.StartsWith("A_MP3", StringComparison.OrdinalIgnoreCase))
         {
-            return ApplyAudioCodec(info, "MP3", "2.0", 5);
+            return ApplyAudioCodec(info, "MP3", null, 5);
         }
         else if (codecId.StartsWith("A_PCM", StringComparison.OrdinalIgnoreCase))
         {
-            return ApplyAudioCodec(info, "PCM", "2.0", 5);
+            return ApplyAudioCodec(info, "PCM", null, 5);
         }
 
         return false;
@@ -1043,14 +1065,14 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         if (currentScore == 0 || incomingScore > currentScore)
         {
             info.AudioCodec = codecName;
-            if (string.IsNullOrEmpty(info.AudioChannels) || incomingScore > currentScore)
+            if (!string.IsNullOrEmpty(defaultChannels))
             {
                 info.AudioChannels = defaultChannels;
             }
 
             return true;
         }
-        else if (string.IsNullOrEmpty(info.AudioChannels))
+        else if (string.IsNullOrEmpty(info.AudioChannels) && !string.IsNullOrEmpty(defaultChannels))
         {
             info.AudioChannels = defaultChannels;
         }
@@ -1344,11 +1366,6 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                         info.AudioCodec = "E-AC3 / Dolby Digital Plus";
                     }
 
-                    if (string.IsNullOrEmpty(info.AudioChannels))
-                    {
-                        info.AudioChannels = "5.1";
-                    }
-
                     break;
 
                 case "ac-3":
@@ -1356,11 +1373,6 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                     if (string.IsNullOrEmpty(info.AudioCodec))
                     {
                         info.AudioCodec = "AC3 / Dolby Digital";
-                    }
-
-                    if (string.IsNullOrEmpty(info.AudioChannels))
-                    {
-                        info.AudioChannels = "5.1";
                     }
 
                     break;
@@ -1371,22 +1383,12 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                         info.AudioCodec = "Apple Lossless (ALAC)";
                     }
 
-                    if (string.IsNullOrEmpty(info.AudioChannels))
-                    {
-                        info.AudioChannels = "2.0";
-                    }
-
                     break;
 
                 case "mp4a":
                     if (string.IsNullOrEmpty(info.AudioCodec))
                     {
                         info.AudioCodec = "AAC";
-                    }
-
-                    if (string.IsNullOrEmpty(info.AudioChannels))
-                    {
-                        info.AudioChannels = "2.0";
                     }
 
                     break;
@@ -1398,11 +1400,6 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                         info.AudioCodec = "Opus";
                     }
 
-                    if (string.IsNullOrEmpty(info.AudioChannels))
-                    {
-                        info.AudioChannels = "2.0";
-                    }
-
                     break;
 
                 case "fLaC":
@@ -1410,11 +1407,6 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                     if (string.IsNullOrEmpty(info.AudioCodec))
                     {
                         info.AudioCodec = "FLAC";
-                    }
-
-                    if (string.IsNullOrEmpty(info.AudioChannels))
-                    {
-                        info.AudioChannels = "2.0";
                     }
 
                     break;
@@ -1532,30 +1524,30 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
                 case "ec-3":
                 case "ec+3":
-                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "E-AC3 / Dolby Digital Plus", "5.1", 25);
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "E-AC3 / Dolby Digital Plus", null, 25);
                     break;
 
                 case "ac-3":
                 case "ac+3":
-                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "AC3 / Dolby Digital", "5.1", 15);
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "AC3 / Dolby Digital", null, 15);
                     break;
 
                 case "alac":
-                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "Apple Lossless (ALAC)", "2.0", 35);
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "Apple Lossless (ALAC)", null, 35);
                     break;
 
                 case "mp4a":
-                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "AAC", "2.0", 10);
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "AAC", null, 10);
                     break;
 
                 case "Opus":
                 case "opus":
-                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "Opus", "2.0", 12);
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "Opus", null, 12);
                     break;
 
                 case "fLaC":
                 case "flac":
-                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "FLAC", "2.0", 35);
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "FLAC", null, 35);
                     break;
 
                 case "dtsc":
@@ -1564,13 +1556,12 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 case "dtsx":
                 case "DTS ":
                     var dtsName = format == "dtsx" ? "DTS:X" : (format == "dtsh" || format == "dtsl") ? "DTS-HD MA" : "DTS";
-                    var dtsChannels = (format == "dtsx" || format == "dtsh" || format == "dtsl") ? "7.1" : "5.1";
                     var dtsScore = format == "dtsx" ? 46 : (format == "dtsh" || format == "dtsl") ? 45 : 20;
-                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, dtsName, dtsChannels, dtsScore);
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, dtsName, null, dtsScore);
                     break;
 
                 case "mlpa":
-                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "Dolby TrueHD / Atmos", "7.1", 50);
+                    ExtractAudioSampleEntry(data, entryOffset, entrySize, info, "Dolby TrueHD / Atmos", null, 50);
                     break;
 
                 case "tx3g":
@@ -1612,6 +1603,10 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             }
         }
 
+        bool hasDvBox = false;
+        bool hasHdr10 = false;
+        bool hasHlg = false;
+
         // Search child boxes for HDR / Dolby Vision indicators
         int childOffset = entryOffset + 86;
         int childLimit = entryOffset + (int)entrySize;
@@ -1626,7 +1621,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             string cType = System.Text.Encoding.ASCII.GetString(data, childOffset + 4, 4);
             if (cType == "dvcC" || cType == "dvvC")
             {
-                info.HdrFormat = "Dolby Vision";
+                hasDvBox = true;
             }
             else if (cType == "colr" && childOffset + 16 <= childLimit && childOffset + 16 <= data.Length)
             {
@@ -1635,28 +1630,50 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 {
                     ushort primaries = (ushort)((data[childOffset + 12] << 8) | data[childOffset + 13]);
                     ushort transferChar = (ushort)((data[childOffset + 14] << 8) | data[childOffset + 15]);
-                    if (transferChar == 16 && (string.IsNullOrEmpty(info.HdrFormat) || info.HdrFormat == "SDR"))
+                    if (transferChar == 16 || primaries == 9)
                     {
-                        info.HdrFormat = "HDR10";
+                        hasHdr10 = true;
                     }
-                    else if (transferChar == 18 && (string.IsNullOrEmpty(info.HdrFormat) || info.HdrFormat == "SDR"))
+                    else if (transferChar == 18)
                     {
-                        info.HdrFormat = "HLG";
-                    }
-                    else if (primaries == 9 && (string.IsNullOrEmpty(info.HdrFormat) || info.HdrFormat == "SDR"))
-                    {
-                        info.HdrFormat = "HDR10";
+                        hasHlg = true;
                     }
                 }
             }
 
             childOffset += (int)cSize;
         }
+
+        if (info.HdrFormat == "Dolby Vision")
+        {
+            hasDvBox = true;
+        }
+
+        if (hasDvBox && hasHdr10)
+        {
+            info.HdrFormat = "Dolby Vision / HDR10";
+        }
+        else if (hasDvBox && hasHlg)
+        {
+            info.HdrFormat = "Dolby Vision / HLG";
+        }
+        else if (hasDvBox)
+        {
+            info.HdrFormat = "Dolby Vision";
+        }
+        else if (hasHdr10)
+        {
+            info.HdrFormat = "HDR10";
+        }
+        else if (hasHlg)
+        {
+            info.HdrFormat = "HLG";
+        }
     }
 
     private static void ExtractAudioSampleEntry(byte[] data, int entryOffset, uint entrySize, MediaContainerInfo info, string codecName, string defaultChannels, int incomingScore = -1)
     {
-        string channels = defaultChannels;
+        string channels = null;
         int sampleRate = 0;
         int bitDepth = 0;
 
@@ -1685,6 +1702,11 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             }
         }
 
+        if (string.IsNullOrEmpty(channels) && !string.IsNullOrEmpty(defaultChannels))
+        {
+            channels = defaultChannels;
+        }
+
         if (incomingScore < 0)
         {
             incomingScore = GetAudioCodecScore(codecName);
@@ -1695,7 +1717,10 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         if (currentScore == 0 || incomingScore > currentScore)
         {
             info.AudioCodec = codecName;
-            info.AudioChannels = channels;
+            if (!string.IsNullOrEmpty(channels))
+            {
+                info.AudioChannels = channels;
+            }
 
             if (sampleRate > 0)
             {
@@ -1707,7 +1732,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 info.AudioBitDepth = bitDepth;
             }
         }
-        else if (string.IsNullOrEmpty(info.AudioChannels))
+        else if (string.IsNullOrEmpty(info.AudioChannels) && !string.IsNullOrEmpty(channels))
         {
             info.AudioChannels = channels;
         }
@@ -1728,6 +1753,10 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             else if (width >= 1200 || height >= 700)
             {
                 info.Resolution = "720p";
+            }
+            else if (height >= 500 || (width >= 700 && height >= 500))
+            {
+                info.Resolution = "576p";
             }
             else if (width >= 640 || height >= 400)
             {
@@ -2320,7 +2349,20 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                     info.Height = 720;
                 }
             }
-            else if (Regex.IsMatch(normalized, @"\b(480P|576P|SD)\b"))
+            else if (Regex.IsMatch(normalized, @"\b(576P|576I|PAL)\b"))
+            {
+                info.Resolution = "576p";
+                if (info.Width == 0)
+                {
+                    info.Width = 720;
+                }
+
+                if (info.Height == 0)
+                {
+                    info.Height = 576;
+                }
+            }
+            else if (Regex.IsMatch(normalized, @"\b(480P|480I|NTSC|SD)\b"))
             {
                 info.Resolution = "480p";
                 if (info.Width == 0)
@@ -2334,74 +2376,68 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 }
             }
         }
-        else if (info.Width == 0 || info.Height == 0)
+        else if (info.Width == 0 && info.Height == 0)
         {
-            if (Regex.IsMatch(normalized, @"\b(2160P|4K|UHD)\b"))
+            if (info.Resolution.Contains("2160p", StringComparison.OrdinalIgnoreCase) || info.Resolution.Contains("4K", StringComparison.OrdinalIgnoreCase) || Regex.IsMatch(normalized, @"\b(2160P|4K|UHD)\b"))
             {
-                if (info.Width == 0)
-                {
-                    info.Width = 3840;
-                }
-
-                if (info.Height == 0)
-                {
-                    info.Height = 2160;
-                }
+                info.Width = 3840;
+                info.Height = 2160;
             }
-            else if (Regex.IsMatch(normalized, @"\b(1080P|1080I|FHD)\b"))
+            else if (info.Resolution.Contains("1080p", StringComparison.OrdinalIgnoreCase) || Regex.IsMatch(normalized, @"\b(1080P|1080I|FHD)\b"))
             {
-                if (info.Width == 0)
-                {
-                    info.Width = 1920;
-                }
-
-                if (info.Height == 0)
-                {
-                    info.Height = 1080;
-                }
+                info.Width = 1920;
+                info.Height = 1080;
             }
-            else if (Regex.IsMatch(normalized, @"\b720P\b|(?<!\b(DTS|TRUE)\s+)\bHD\b"))
+            else if (info.Resolution.Contains("720p", StringComparison.OrdinalIgnoreCase) || Regex.IsMatch(normalized, @"\b720P\b|(?<!\b(DTS|TRUE)\s+)\bHD\b"))
             {
-                if (info.Width == 0)
-                {
-                    info.Width = 1280;
-                }
-
-                if (info.Height == 0)
-                {
-                    info.Height = 720;
-                }
+                info.Width = 1280;
+                info.Height = 720;
             }
-            else if (Regex.IsMatch(normalized, @"\b(480P|576P|SD)\b"))
+            else if (info.Resolution.Contains("576p", StringComparison.OrdinalIgnoreCase) || Regex.IsMatch(normalized, @"\b(576P|576I|PAL)\b"))
             {
-                if (info.Width == 0)
-                {
-                    info.Width = 854;
-                }
-
-                if (info.Height == 0)
-                {
-                    info.Height = 480;
-                }
+                info.Width = 720;
+                info.Height = 576;
+            }
+            else if (info.Resolution.Contains("480p", StringComparison.OrdinalIgnoreCase) || Regex.IsMatch(normalized, @"\b(480P|480I|NTSC|SD)\b"))
+            {
+                info.Width = 854;
+                info.Height = 480;
             }
         }
 
-        // HDR (only if missing or SDR)
+        // HDR (only if missing or SDR; support hybrid / dual-layer HDR profiles without discarding base format)
         if (string.IsNullOrEmpty(info.HdrFormat) || info.HdrFormat == "SDR")
         {
-            if (Regex.IsMatch(normalized, @"\b(DV|DOVI)\b|\bDOLBY\s+VISION\b"))
+            bool hasDv = Regex.IsMatch(normalized, @"\b(DV|DOVI)\b|\bDOLBY\s*VISION\b");
+            bool hasHdr10Plus = Regex.IsMatch(upper, @"\bHDR10\+") || Regex.IsMatch(normalized, @"\bHDR10\s*PLUS\b");
+            bool hasHdr10 = Regex.IsMatch(normalized, @"\bHDR10\b") || (!hasHdr10Plus && Regex.IsMatch(normalized, @"\bHDR\b"));
+            bool hasHlg = Regex.IsMatch(normalized, @"\bHLG\b");
+
+            if (hasDv && hasHdr10Plus)
+            {
+                info.HdrFormat = "Dolby Vision / HDR10+";
+            }
+            else if (hasDv && hasHdr10)
+            {
+                info.HdrFormat = "Dolby Vision / HDR10";
+            }
+            else if (hasDv && hasHlg)
+            {
+                info.HdrFormat = "Dolby Vision / HLG";
+            }
+            else if (hasDv)
             {
                 info.HdrFormat = "Dolby Vision";
             }
-            else if (Regex.IsMatch(upper, @"\bHDR10\+") || Regex.IsMatch(normalized, @"\bHDR10\s*PLUS\b"))
+            else if (hasHdr10Plus)
             {
                 info.HdrFormat = "HDR10+";
             }
-            else if (Regex.IsMatch(normalized, @"\b(HDR10|HDR)\b"))
+            else if (hasHdr10)
             {
                 info.HdrFormat = "HDR10";
             }
-            else if (Regex.IsMatch(normalized, @"\bHLG\b"))
+            else if (hasHlg)
             {
                 info.HdrFormat = "HLG";
             }
@@ -2446,35 +2482,62 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             string hintedCodec = null;
             string hintedChannels = null;
 
+            if (Regex.IsMatch(normalized, @"\b(7\s*1|8CH)\b") || upper.Contains("7.1"))
+            {
+                hintedChannels = "7.1";
+            }
+            else if (Regex.IsMatch(normalized, @"\b(5\s*1|6CH|DD5\s*1)\b") || upper.Contains("5.1") || upper.Contains("DD5.1"))
+            {
+                hintedChannels = "5.1";
+            }
+            else if (Regex.IsMatch(normalized, @"\b(2\s*0|2CH|STEREO)\b") || upper.Contains("2.0"))
+            {
+                hintedChannels = "2.0";
+            }
+            else if (Regex.IsMatch(normalized, @"\b(1\s*0|1CH|MONO)\b") || upper.Contains("1.0"))
+            {
+                hintedChannels = "1.0";
+            }
+
             if (Regex.IsMatch(normalized, @"\bATMOS\b"))
             {
                 hintedCodec = "Dolby Atmos";
-                hintedChannels = "7.1";
             }
             else if (Regex.IsMatch(normalized, @"\bTRUEHD\b"))
             {
                 hintedCodec = "Dolby TrueHD";
-                hintedChannels = "7.1";
             }
             else if (Regex.IsMatch(normalized, @"\bDTS\s*HD(\s*MA)?\b"))
             {
                 hintedCodec = "DTS-HD MA";
-                hintedChannels = "7.1";
             }
             else if (Regex.IsMatch(normalized, @"\bDTS\b"))
             {
                 hintedCodec = "DTS";
-                hintedChannels = "5.1";
             }
             else if (Regex.IsMatch(normalized, @"\b(EAC3|DDP)\b") || upper.Contains("DD+"))
             {
                 hintedCodec = "E-AC3 / DD+";
-                hintedChannels = "5.1";
             }
             else if (Regex.IsMatch(normalized, @"\b(AC3|DD\s*5\s*1)\b") || upper.Contains("DD5.1") || upper.Contains("DD 5.1"))
             {
                 hintedCodec = "AC3 / Dolby Digital";
-                hintedChannels = "5.1";
+            }
+            else if (Regex.IsMatch(normalized, @"\bFLAC\b"))
+            {
+                hintedCodec = "FLAC";
+            }
+            else if (Regex.IsMatch(normalized, @"\bAAC\b"))
+            {
+                hintedCodec = "AAC";
+            }
+            else if (Regex.IsMatch(normalized, @"\bOPUS\b"))
+            {
+                hintedCodec = "Opus";
+            }
+            else if (Regex.IsMatch(normalized, @"\bMP3\b"))
+            {
+                hintedCodec = "MP3";
             }
 
             if (!string.IsNullOrEmpty(hintedCodec) && string.IsNullOrEmpty(info.AudioCodec))
