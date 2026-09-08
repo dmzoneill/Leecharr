@@ -110,6 +110,36 @@ public class QBittorrentApiControllerTest
     }
 
     [Test]
+    public void GetMainData_IncludesSequentialDownloadAndFirstLastPiecePriority()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "Torrent 1",
+            InfoHash = "hash1",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            SequentialDownload = true,
+            FirstLastPiecePriority = true,
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var actionResult = this.controller.GetMainData(0);
+        var okResult = actionResult.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var data = okResult.Value.Should().BeOfType<Dictionary<string, object>>().Subject;
+
+        var torrents = data["torrents"].Should().BeAssignableTo<System.Collections.IDictionary>().Subject;
+        var torrentObj = torrents["hash1"];
+        torrentObj.Should().NotBeNull();
+
+        var json = JsonSerializer.Serialize(torrentObj);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("seq_dl").GetBoolean().Should().BeTrue();
+        doc.RootElement.GetProperty("f_l_piece_prio").GetBoolean().Should().BeTrue();
+    }
+
+    [Test]
     public void GetMainData_WithSubsequentRid_WhenUnchanged_ReturnsIncrementalUpdateWithEmptyTorrents()
     {
         var torrent1 = new Torrent
@@ -412,6 +442,28 @@ public class QBittorrentApiControllerTest
         var okResult = response.Result.Should().BeOfType<OkObjectResult>().Subject;
         var list = okResult.Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
         list.Should().HaveCount(2);
+    }
+
+    [Test]
+    public void GetTorrentsInfo_IncludesSequentialDownloadAndFirstLastPiecePriority()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            InfoHash = "hash1",
+            Name = "T1",
+            SequentialDownload = true,
+            FirstLastPiecePriority = true,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var response = this.controller.GetTorrentsInfo();
+
+        var okResult = response.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var list = okResult.Value.Should().BeAssignableTo<IEnumerable<Dictionary<string, object>>>().Subject.ToList();
+        list.Should().HaveCount(1);
+        list[0]["seq_dl"].Should().Be(true);
+        list[0]["f_l_piece_prio"].Should().Be(true);
     }
 
     [Test]
@@ -1693,13 +1745,16 @@ public class QBittorrentApiControllerTest
     [Test]
     public async Task ToggleFirstLastPiecePrio_WithHashesAll_CallsEngineAndReturnsOk()
     {
-        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", SequentialDownload = false };
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", FirstLastPiecePriority = false, SequentialDownload = false };
         this.torrentService.GetAll().Returns(new List<Torrent> { torrent1 });
 
         var result = await this.controller.ToggleFirstLastPiecePrio("all");
 
         result.Should().BeOfType<ContentResult>();
-        await this.downloadEngine.Received(1).SetSequentialDownloadAsync(1, false);
+        torrent1.FirstLastPiecePriority.Should().BeTrue();
+        torrent1.SequentialDownload.Should().BeFalse();
+        await this.torrentService.Received(1).UpdateAsync(torrent1);
+        await this.downloadEngine.Received(1).SetFirstLastPiecePriorityAsync(1, true);
     }
 
     [Test]
@@ -1746,13 +1801,14 @@ public class QBittorrentApiControllerTest
     [Test]
     public async Task SetSequentialDownload_ValidParameters_UpdatesTorrentAndEngine()
     {
-        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", SequentialDownload = false };
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", SequentialDownload = false, FirstLastPiecePriority = false };
         this.torrentService.GetByInfoHash("hash1").Returns(torrent1);
 
         var result = await this.controller.SetSequentialDownload("hash1", enable: true);
 
         result.Should().BeOfType<ContentResult>();
         torrent1.SequentialDownload.Should().BeTrue();
+        torrent1.FirstLastPiecePriority.Should().BeFalse();
         await this.torrentService.Received(1).UpdateAsync(torrent1);
         await this.downloadEngine.Received(1).SetSequentialDownloadAsync(1, true);
     }
@@ -1760,15 +1816,16 @@ public class QBittorrentApiControllerTest
     [Test]
     public async Task SetFirstLastPiecePrio_ValidParameters_UpdatesTorrentAndEngine()
     {
-        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", SequentialDownload = false };
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", SequentialDownload = false, FirstLastPiecePriority = false };
         this.torrentService.GetByInfoHash("hash1").Returns(torrent1);
 
         var result = await this.controller.SetFirstLastPiecePrio("hash1", enable: true);
 
         result.Should().BeOfType<ContentResult>();
-        torrent1.SequentialDownload.Should().BeTrue();
+        torrent1.FirstLastPiecePriority.Should().BeTrue();
+        torrent1.SequentialDownload.Should().BeFalse();
         await this.torrentService.Received(1).UpdateAsync(torrent1);
-        await this.downloadEngine.Received(1).SetSequentialDownloadAsync(1, true);
+        await this.downloadEngine.Received(1).SetFirstLastPiecePriorityAsync(1, true);
     }
 
     [Test]
