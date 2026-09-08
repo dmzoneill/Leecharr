@@ -27,9 +27,11 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
     private readonly string boundInterface;
     private readonly IConfigService configService;
 
+    private readonly ConcurrentDictionary<IPAddress, uint> gatewayEpochs = new();
     private int isRunning = 1;
     private int isDisposed;
-    private uint? lastObservedEpoch;
+    private int isForceRenewalRunning;
+    private int rebootRenewalScheduled;
     private IPAddress lastKnownGateway;
 
     public NatPmpPortMapperService(
@@ -50,6 +52,8 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
     }
 
     public IReadOnlyCollection<ActivePortMapping> ActiveMappings => this.activeMappings.Values.ToList();
+
+    internal IReadOnlyDictionary<IPAddress, uint> GatewayEpochs => this.gatewayEpochs;
 
     private static readonly string[] VirtualInterfacePatterns =
     [
@@ -472,7 +476,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             if (resultCode == 0)
             {
                 var epoch = BinaryPrimitives.ReadUInt32BigEndian(buffer.AsSpan(4, 4));
-                this.TrackEpoch(epoch);
+                this.TrackEpoch(targetGateway, epoch);
 
                 var ipBytes = buffer.AsSpan(8, 4).ToArray();
                 return new IPAddress(ipBytes);
@@ -539,7 +543,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                     ExternalPort = result.ExternalPort,
                     LifetimeSeconds = result.LifetimeSeconds,
                     GatewayAddress = targetGateway,
-                    LastEpoch = this.lastObservedEpoch ?? 0,
+                    LastEpoch = targetGateway != null && this.gatewayEpochs.TryGetValue(targetGateway, out var gwEpoch) ? gwEpoch : 0,
                     CreatedUtc = DateTime.UtcNow,
                     NextRenewalUtc = DateTime.UtcNow.AddSeconds(renewalDelaySeconds),
                 };
@@ -598,6 +602,11 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             throw;
         }
 
+        if (force)
+        {
+            Interlocked.Exchange(ref this.isForceRenewalRunning, 1);
+        }
+
         try
         {
             ObjectDisposedException.ThrowIf(this.isDisposed != 0, this);
@@ -622,6 +631,11 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         }
         finally
         {
+            if (force)
+            {
+                Interlocked.Exchange(ref this.isForceRenewalRunning, 0);
+            }
+
             try
             {
                 this.renewalLock.Release();
@@ -843,6 +857,11 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             mapping.ExternalPort = result.ExternalPort;
             mapping.LifetimeSeconds = result.LifetimeSeconds;
             mapping.GatewayAddress = result.GatewayAddress;
+            if (result.GatewayAddress != null && this.gatewayEpochs.TryGetValue(result.GatewayAddress, out var ep))
+            {
+                mapping.LastEpoch = ep;
+            }
+
             var renewalDelay = Math.Max(30, result.LifetimeSeconds / 2);
             mapping.NextRenewalUtc = DateTime.UtcNow.AddSeconds(renewalDelay);
 
@@ -899,7 +918,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         {
             var resultCode = BinaryPrimitives.ReadUInt16BigEndian(buffer.AsSpan(2, 2));
             var epoch = BinaryPrimitives.ReadUInt32BigEndian(buffer.AsSpan(4, 4));
-            this.TrackEpoch(epoch);
+            this.TrackEpoch(targetGateway, epoch);
 
             if (resultCode == 0)
             {
@@ -1018,41 +1037,76 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         return null;
     }
 
-    private void TrackEpoch(uint epoch)
+    internal void TrackEpoch(IPAddress gateway, uint epoch)
     {
-        if (this.isDisposed != 0)
+        if (this.isDisposed != 0 || gateway == null)
         {
             return;
         }
 
-        if (this.lastObservedEpoch.HasValue && epoch < this.lastObservedEpoch.Value)
+        var rebootDetected = false;
+        uint prevEpoch = 0;
+
+        this.gatewayEpochs.AddOrUpdate(
+            gateway,
+            epoch,
+            (key, oldEpoch) =>
+            {
+                if (epoch < oldEpoch)
+                {
+                    rebootDetected = true;
+                    prevEpoch = oldEpoch;
+                }
+
+                return epoch;
+            });
+
+        if (rebootDetected)
         {
             this.logger.Warn(
-                "NAT-PMP gateway epoch decreased from {0} to {1} (gateway reboot detected).",
-                this.lastObservedEpoch.Value,
+                "NAT-PMP gateway {0} epoch decreased from {1} to {2} (gateway reboot detected).",
+                gateway,
+                prevEpoch,
                 epoch);
 
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    if (this.isDisposed != 0)
-                    {
-                        return;
-                    }
+            this.ScheduleRebootRenewal();
+        }
+    }
 
-                    await this.RenewAllMappingsAsync(force: true).ConfigureAwait(false);
-                }
-                catch (ObjectDisposedException)
-                {
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Error(ex, "Error re-creating NAT-PMP mappings after gateway reboot");
-                }
-            });
+    private void ScheduleRebootRenewal()
+    {
+        if (this.isDisposed != 0 || this.isRunning == 0 || this.isForceRenewalRunning != 0)
+        {
+            return;
         }
 
-        this.lastObservedEpoch = epoch;
+        if (Interlocked.CompareExchange(ref this.rebootRenewalScheduled, 1, 0) != 0)
+        {
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                if (this.isDisposed != 0 || this.isRunning == 0)
+                {
+                    return;
+                }
+
+                await this.RenewAllMappingsAsync(force: true).ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+            catch (Exception ex)
+            {
+                this.logger.Error(ex, "Error re-creating NAT-PMP mappings after gateway reboot");
+            }
+            finally
+            {
+                Interlocked.Exchange(ref this.rebootRenewalScheduled, 0);
+            }
+        });
     }
 }
