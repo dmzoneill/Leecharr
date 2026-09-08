@@ -1041,6 +1041,59 @@ public class NotificationEventHandler :
                 to = tProp.GetString();
             }
         }
+        else if (settings.Contains('='))
+        {
+            var pairs = settings.Split('&', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var pair in pairs)
+            {
+                var parts = pair.Split('=', 2);
+                if (parts.Length != 2)
+                {
+                    continue;
+                }
+
+                var key = Uri.UnescapeDataString(parts[0]).Trim().ToLowerInvariant();
+                var val = Uri.UnescapeDataString(parts[1]).Trim();
+                switch (key)
+                {
+                    case "server":
+                    case "host":
+                        host = val;
+                        break;
+                    case "port":
+                        if (int.TryParse(val, out var p))
+                        {
+                            port = p;
+                        }
+
+                        break;
+                    case "ssl":
+                    case "usessl":
+                        if (bool.TryParse(val, out var s))
+                        {
+                            ssl = s;
+                        }
+
+                        break;
+                    case "user":
+                    case "username":
+                        user = val;
+                        break;
+                    case "pass":
+                    case "password":
+                        pass = val;
+                        break;
+                    case "from":
+                    case "sender":
+                        from = val;
+                        break;
+                    case "to":
+                    case "recipient":
+                        to = val;
+                        break;
+                }
+            }
+        }
 
         if (string.IsNullOrWhiteSpace(to))
         {
