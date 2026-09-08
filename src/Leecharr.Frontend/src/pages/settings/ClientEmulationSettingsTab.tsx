@@ -22,12 +22,12 @@ const CLIENT_PRESETS: Record<
   string,
   { userAgent: string; peerIdPrefix: string }
 > = {
-  qBittorrent: { userAgent: "qBittorrent/4.4.2", peerIdPrefix: "-qB4420-" },
+  qBittorrent: { userAgent: "qBittorrent/4.6.5", peerIdPrefix: "-qB4650-" },
   Deluge: {
-    userAgent: "Deluge/2.0.5 libtorrent/1.2.14.0",
-    peerIdPrefix: "-DE2050-",
+    userAgent: "Deluge/2.1.1",
+    peerIdPrefix: "-DE2110-",
   },
-  Transmission: { userAgent: "Transmission/3.00", peerIdPrefix: "-TR3000-" },
+  Transmission: { userAgent: "Transmission/4.0.5", peerIdPrefix: "-TR4050-" },
   uTorrent: { userAgent: "uTorrent/3550", peerIdPrefix: "-UT3550-" },
   BiglyBT: { userAgent: "BiglyBT/3.4.0.0", peerIdPrefix: "-AZ3400-" },
   Leecharr: { userAgent: "Leecharr/1.0.0", peerIdPrefix: "-LC1000-" },
@@ -49,8 +49,8 @@ export function ClientEmulationSettingsTab() {
   const [form, setForm] = useState({
     clientBehaviorEngineEnabled: true,
     primaryClient: "qBittorrent",
-    bitTorrentUserAgent: "qBittorrent/4.4.2",
-    peerIdPrefix: "-qB4420-",
+    bitTorrentUserAgent: "qBittorrent/4.6.5",
+    peerIdPrefix: "-qB4650-",
     behaviorVariation: 0.15,
     clientProfileSwitching: false,
     switchClientProbability: 0.05,

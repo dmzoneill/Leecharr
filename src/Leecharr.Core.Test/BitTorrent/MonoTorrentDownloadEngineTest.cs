@@ -306,7 +306,7 @@ public class MonoTorrentDownloadEngineTest
         var engineProp = typeof(MonoTorrentDownloadEngine).GetField("engine", BindingFlags.NonPublic | BindingFlags.Instance);
         var monoEngine = engineProp!.GetValue(this.engine) as ClientEngine;
         monoEngine.Should().NotBeNull();
-        monoEngine!.PeerId.Text.Should().StartWith("-qB4420-");
+        monoEngine!.PeerId.Text.Should().StartWith("-qB4650-");
         monoEngine.PeerId.Text.Should().NotContain("MO3002");
 
         await this.engine.StopAsync();
@@ -578,6 +578,29 @@ public class MonoTorrentDownloadEngineTest
         var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
 
         task.Should().NotBeNull();
+        task.Manager.Settings.AllowDht.Should().BeFalse();
+        task.Manager.Settings.AllowPeerExchange.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenMagnetTorrentIsPrivate_PreemptivelyDisablesDhtAndPexDuringMetadataFetching()
+    {
+        var infoHashHex = "0123456789abcdef0123456789abcdef01234567";
+        var magnetUri = $"magnet:?xt=urn:btih:{infoHashHex}&dn=PrivateMagnet";
+
+        var torrent = new CoreTorrent
+        {
+            Id = 15,
+            InfoHash = infoHashHex,
+            Name = "PrivateMagnet",
+            IsPrivate = true,
+            Status = TorrentStatus.Downloading,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, magnetUri: magnetUri);
+
+        task.Should().NotBeNull();
+        task.IsPrivate.Should().BeTrue();
         task.Manager.Settings.AllowDht.Should().BeFalse();
         task.Manager.Settings.AllowPeerExchange.Should().BeFalse();
     }

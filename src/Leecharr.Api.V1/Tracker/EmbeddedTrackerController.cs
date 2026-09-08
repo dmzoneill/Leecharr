@@ -159,6 +159,47 @@ public class EmbeddedTrackerController : ControllerBase
             {
                 request.Event = val;
             }
+            else if (string.Equals(key, "no_peer_id", StringComparison.OrdinalIgnoreCase))
+            {
+                request.NoPeerId = val == "1";
+            }
+            else if (string.Equals(key, "trackerid", StringComparison.OrdinalIgnoreCase) || string.Equals(key, "tracker_id", StringComparison.OrdinalIgnoreCase))
+            {
+                request.TrackerId = Uri.UnescapeDataString(val);
+            }
+            else if (string.Equals(key, "ipv6", StringComparison.OrdinalIgnoreCase))
+            {
+                var unescapedVal = Uri.UnescapeDataString(val);
+                var ipStr = unescapedVal;
+                int? explicitPort = null;
+                if (ipStr.StartsWith("[", StringComparison.Ordinal))
+                {
+                    var closeBracket = ipStr.IndexOf(']');
+                    if (closeBracket > 0)
+                    {
+                        if (closeBracket + 2 < ipStr.Length && ipStr[closeBracket + 1] == ':' && int.TryParse(ipStr.Substring(closeBracket + 2), out var p))
+                        {
+                            explicitPort = p;
+                        }
+
+                        ipStr = ipStr.Substring(1, closeBracket - 1);
+                    }
+                }
+
+                if (IPAddress.TryParse(ipStr, out var queryIpv6))
+                {
+                    request.Ipv6 = queryIpv6;
+                    if (explicitPort.HasValue)
+                    {
+                        request.Ipv6Port = explicitPort.Value;
+                    }
+
+                    if (request.RemoteIp == null || IPAddress.IsLoopback(request.RemoteIp) || IsPrivateNetwork(request.RemoteIp))
+                    {
+                        request.RemoteIp = queryIpv6;
+                    }
+                }
+            }
             else if ((string.Equals(key, "ip", StringComparison.OrdinalIgnoreCase) || string.Equals(key, "ipv4", StringComparison.OrdinalIgnoreCase)) &&
                      (request.RemoteIp == null || IPAddress.IsLoopback(request.RemoteIp) || IsPrivateNetwork(request.RemoteIp)) &&
                      IPAddress.TryParse(val, out var queryIp))
