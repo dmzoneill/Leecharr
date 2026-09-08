@@ -9,6 +9,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -2356,10 +2357,18 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
+    [DllImport("libc", EntryPoint = "posix_fallocate", SetLastError = true)]
+    private static extern int PosixFallocate(int fd, long offset, long len);
+
     private async Task PreallocateFilesAsync(TorrentManager manager, string workingPath, MtTorrent parsedTorrent = null)
     {
         var mode = this.configService.PreallocationMode?.Trim();
-        if (string.IsNullOrEmpty(mode) || string.Equals(mode, "Off", StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrEmpty(mode))
+        {
+            mode = "Sparse";
+        }
+
+        if (string.Equals(mode, "Off", StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
@@ -2374,6 +2383,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         try
         {
+            var filesToPreallocate = new List<(string FullPath, long Length)>();
             if (parsedTorrent?.Files != null && parsedTorrent.Files.Count > 0)
             {
                 var isMultiFile = parsedTorrent.Files.Count > 1;
@@ -2382,7 +2392,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     var fullPath = isMultiFile && !string.IsNullOrEmpty(parsedTorrent.Name)
                         ? Path.Combine(workingPath, parsedTorrent.Name, file.Path)
                         : Path.Combine(workingPath, file.Path);
-                    this.PreallocateSingleFile(fullPath, file.Length, isFull);
+                    filesToPreallocate.Add((fullPath, file.Length));
                 }
             }
             else if (manager?.Files != null && manager.Files.Count > 0)
@@ -2396,11 +2406,35 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         : (isMultiFile && !string.IsNullOrEmpty(torrentName)
                             ? Path.Combine(workingPath, torrentName, file.Path)
                             : Path.Combine(workingPath, file.Path));
-                    this.PreallocateSingleFile(fullPath, file.Length, isFull);
+                    filesToPreallocate.Add((fullPath, file.Length));
                 }
             }
 
-            if (manager != null && !manager.HashChecked && manager.InfoHashes != null)
+            if (filesToPreallocate.Count == 0)
+            {
+                return;
+            }
+
+            var hasExistingFiles = false;
+            foreach (var (fullPath, _) in filesToPreallocate)
+            {
+                if (File.Exists(fullPath))
+                {
+                    var fileInfo = new FileInfo(fullPath);
+                    if (fileInfo.Length > 0)
+                    {
+                        hasExistingFiles = true;
+                        break;
+                    }
+                }
+            }
+
+            foreach (var (fullPath, expectedLength) in filesToPreallocate)
+            {
+                await this.PreallocateSingleFileAsync(fullPath, expectedLength, isFull).ConfigureAwait(false);
+            }
+
+            if (!hasExistingFiles && manager != null && !manager.HashChecked && manager.InfoHashes != null)
             {
                 var pieceCount = parsedTorrent?.PieceCount ?? manager.Torrent?.PieceCount ?? 0;
                 if (pieceCount > 0)
@@ -2409,8 +2443,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     var unhashed = new ReadOnlyBitField(pieceCount);
                     var fastResume = new FastResume(manager.InfoHashes, emptyBitfield, unhashed);
                     await manager.LoadFastResumeAsync(fastResume).ConfigureAwait(false);
-                    this.logger.Debug("Initialized empty FastResume for preallocated torrent {0} to skip initial hash check", manager.InfoHashes.V1OrV2?.ToHex());
+                    this.logger.Debug("Initialized empty FastResume for newly created preallocated torrent {0} to skip initial hash check", manager.InfoHashes.V1OrV2?.ToHex());
                 }
+            }
+            else if (hasExistingFiles)
+            {
+                this.logger.Info("Existing files detected on disk for torrent {0}; executing integrity hash check.", manager?.InfoHashes?.V1OrV2?.ToHex() ?? workingPath);
             }
         }
         catch (Exception ex)
@@ -2419,7 +2457,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
-    private void PreallocateSingleFile(string fullPath, long expectedLength, bool isFull)
+    private async Task PreallocateSingleFileAsync(string fullPath, long expectedLength, bool isFull)
     {
         try
         {
@@ -2438,28 +2476,66 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 }
             }
 
-            using var fs = new FileStream(fullPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite);
-            if (fs.Length < expectedLength)
+            var options = new FileStreamOptions
             {
-                if (isFull)
-                {
-                    fs.Seek(0, SeekOrigin.End);
-                    const int bufferSize = 1024 * 1024; // 1 MB buffer
-                    var buffer = new byte[bufferSize];
-                    long bytesRemaining = expectedLength - fs.Length;
-                    while (bytesRemaining > 0)
-                    {
-                        int toWrite = (int)Math.Min(bytesRemaining, bufferSize);
-                        fs.Write(buffer, 0, toWrite);
-                        bytesRemaining -= toWrite;
-                    }
+                Mode = FileMode.OpenOrCreate,
+                Access = FileAccess.ReadWrite,
+                Share = FileShare.ReadWrite | FileShare.Delete,
+                Options = FileOptions.Asynchronous,
+            };
 
-                    fs.Flush(flushToDisk: true);
-                }
-                else
+            await using var fs = new FileStream(fullPath, options);
+            if (fs.Length >= expectedLength)
+            {
+                return;
+            }
+
+            if (isFull)
+            {
+                var allocated = false;
+                if (OsInfo.IsLinux)
                 {
-                    fs.SetLength(expectedLength);
+                    try
+                    {
+                        var fd = fs.SafeFileHandle.DangerousGetHandle().ToInt32();
+                        var ret = PosixFallocate(fd, 0, expectedLength);
+                        if (ret == 0)
+                        {
+                            allocated = true;
+                        }
+                        else
+                        {
+                            this.logger.Debug("posix_fallocate returned error {0} for '{1}', falling back to background allocation", ret, fullPath);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Debug(ex, "posix_fallocate failed for '{0}', falling back to background allocation", fullPath);
+                    }
                 }
+
+                if (!allocated)
+                {
+                    await Task.Run(async () =>
+                    {
+                        fs.Seek(0, SeekOrigin.End);
+                        const int bufferSize = 1024 * 1024; // 1 MB buffer
+                        var buffer = new byte[bufferSize];
+                        long bytesRemaining = expectedLength - fs.Length;
+                        while (bytesRemaining > 0)
+                        {
+                            int toWrite = (int)Math.Min(bytesRemaining, bufferSize);
+                            await fs.WriteAsync(buffer.AsMemory(0, toWrite)).ConfigureAwait(false);
+                            bytesRemaining -= toWrite;
+                        }
+
+                        await fs.FlushAsync().ConfigureAwait(false);
+                    }).ConfigureAwait(false);
+                }
+            }
+            else
+            {
+                fs.SetLength(expectedLength);
             }
         }
         catch (Exception ex)
