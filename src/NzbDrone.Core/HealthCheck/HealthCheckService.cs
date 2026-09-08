@@ -2,12 +2,16 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using NLog;
 
 namespace NzbDrone.Core.HealthCheck;
 
 public interface IHealthCheckService
 {
+    Task<List<HealthCheckResult>> PerformChecksAsync(CancellationToken cancellationToken = default);
+
     List<HealthCheckResult> PerformChecks();
 }
 
@@ -22,14 +26,14 @@ public class HealthCheckService : IHealthCheckService
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
-    public List<HealthCheckResult> PerformChecks()
+    public async Task<List<HealthCheckResult>> PerformChecksAsync(CancellationToken cancellationToken = default)
     {
         var results = new List<HealthCheckResult>();
         foreach (var check in this.healthChecks)
         {
             try
             {
-                var result = check.Check();
+                var result = await check.CheckAsync(cancellationToken).ConfigureAwait(false);
                 if (result.Type != HealthCheckResultType.Ok)
                 {
                     this.logger.Warn("Health check {0}: {1}", result.Source, result.Message);
@@ -46,5 +50,10 @@ public class HealthCheckService : IHealthCheckService
         }
 
         return results;
+    }
+
+    public List<HealthCheckResult> PerformChecks()
+    {
+        return this.PerformChecksAsync().GetAwaiter().GetResult();
     }
 }

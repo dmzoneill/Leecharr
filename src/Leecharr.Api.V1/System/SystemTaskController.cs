@@ -59,98 +59,75 @@ public class SystemTaskController : Controller
 {
     private readonly IManageCommandQueue commandQueueManager;
     private readonly IScheduledTaskRepository scheduledTaskRepository;
+    private readonly ITaskManager taskManager;
 
     public SystemTaskController(
         IManageCommandQueue commandQueueManager = null,
-        IScheduledTaskRepository scheduledTaskRepository = null)
+        IScheduledTaskRepository scheduledTaskRepository = null,
+        ITaskManager taskManager = null)
     {
         this.commandQueueManager = commandQueueManager;
         this.scheduledTaskRepository = scheduledTaskRepository;
+        this.taskManager = taskManager;
     }
 
     [HttpGet]
     public ActionResult<List<ScheduledTaskResource>> GetTasks()
     {
         var now = DateTime.UtcNow;
-        var defaultTasks = new List<ScheduledTaskResource>
-        {
-            new() { Id = 1, TypeName = "WatchFolderScanTask", Name = "Watch Folder Scan", Interval = 0.16, LastExecution = now.AddSeconds(-10), LastStartTime = now.AddSeconds(-12), LastDuration = "00:00:02", NextExecution = now.AddSeconds(10) },
-            new() { Id = 2, TypeName = "RssSyncTask", Name = "RSS Sync", Interval = 15, LastExecution = now.AddMinutes(-5), LastStartTime = now.AddMinutes(-5).AddSeconds(-1), LastDuration = "00:00:01", NextExecution = now.AddMinutes(10) },
-            new() { Id = 3, TypeName = "VpnKillSwitchCheckTask", Name = "VPN Kill Switch Check", Interval = 0.16, LastExecution = now.AddSeconds(-10), LastStartTime = now.AddSeconds(-11), LastDuration = "00:00:01", NextExecution = now.AddSeconds(10) },
-            new() { Id = 4, TypeName = "BackupTask", Name = "Backup Database", Interval = 1440, LastExecution = now.AddHours(-12), LastStartTime = now.AddHours(-12).AddSeconds(-5), LastDuration = "00:00:05", NextExecution = now.AddHours(12) },
-            new() { Id = 5, TypeName = "ProwlarrSyncTask", Name = "Prowlarr Indexer Sync", Interval = 60, LastExecution = now.AddMinutes(-20), LastStartTime = now.AddMinutes(-20).AddSeconds(-3), LastDuration = "00:00:03", NextExecution = now.AddMinutes(40) },
-            new() { Id = 6, TypeName = "SessionCleanupTask", Name = "Session Cleanup", Interval = 15, LastExecution = now.AddMinutes(-5), LastStartTime = now.AddMinutes(-5).AddSeconds(-1), LastDuration = "00:00:01", NextExecution = now.AddMinutes(10) },
-        };
+        var dbTasks = this.taskManager != null
+            ? this.taskManager.GetAll()
+            : (this.scheduledTaskRepository?.All().ToList() ?? new List<ScheduledTask>());
 
-        if (this.scheduledTaskRepository != null)
+        var list = new List<ScheduledTaskResource>();
+        foreach (var t in dbTasks)
         {
-            var dbTasks = this.scheduledTaskRepository.All().ToList();
-            if (dbTasks.Count > 0)
+            var hasRun = t.LastExecution != default && t.LastExecution > DateTime.MinValue;
+            var lastStartTime = t.LastStartTime.HasValue && t.LastStartTime.Value != default && t.LastStartTime.Value > DateTime.MinValue
+                ? t.LastStartTime
+                : null;
+
+            string lastDuration = null;
+            if (hasRun && lastStartTime.HasValue)
             {
-                var list = new List<ScheduledTaskResource>();
-                foreach (var t in dbTasks)
-                {
-                    var hasRun = t.LastExecution != default && t.LastExecution > DateTime.MinValue;
-                    var lastStartTime = t.LastStartTime.HasValue && t.LastStartTime.Value != default && t.LastStartTime.Value > DateTime.MinValue
-                        ? t.LastStartTime
-                        : null;
-
-                    string lastDuration = null;
-                    if (hasRun && lastStartTime.HasValue)
-                    {
-                        var diff = t.LastExecution >= lastStartTime.Value
-                            ? t.LastExecution - lastStartTime.Value
-                            : TimeSpan.Zero;
-                        lastDuration = diff.ToString(@"hh\:mm\:ss");
-                    }
-
-                    var intervalMinutes = t.Interval > 0 ? t.Interval : 15;
-                    var nextExecution = hasRun
-                        ? (t.LastExecution.AddMinutes(intervalMinutes) < now ? now : t.LastExecution.AddMinutes(intervalMinutes))
-                        : now;
-
-                    list.Add(new ScheduledTaskResource
-                    {
-                        Id = t.Id,
-                        TypeName = t.TypeName,
-                        Name = t.TypeName.Replace("Task", string.Empty),
-                        Interval = t.Interval,
-                        LastExecution = hasRun ? t.LastExecution : null,
-                        LastStartTime = lastStartTime,
-                        LastDuration = lastDuration,
-                        NextExecution = nextExecution,
-                    });
-                }
-
-                return this.Ok(list);
+                var diff = t.LastExecution >= lastStartTime.Value
+                    ? t.LastExecution - lastStartTime.Value
+                    : TimeSpan.Zero;
+                lastDuration = diff.ToString(@"hh\:mm\:ss");
             }
+
+            var intervalMinutes = t.Interval > 0 ? t.Interval : 15;
+            var nextExecution = hasRun
+                ? (t.LastExecution.AddMinutes(intervalMinutes) < now ? now : t.LastExecution.AddMinutes(intervalMinutes))
+                : now;
+
+            list.Add(new ScheduledTaskResource
+            {
+                Id = t.Id,
+                TypeName = t.TypeName,
+                Name = t.TypeName.Replace("Task", string.Empty),
+                Interval = t.Interval,
+                LastExecution = hasRun ? t.LastExecution : null,
+                LastStartTime = lastStartTime,
+                LastDuration = lastDuration,
+                NextExecution = nextExecution,
+            });
         }
 
-        return this.Ok(defaultTasks);
+        return this.Ok(list);
     }
 
     [HttpPost("{id:int}")]
     [HttpPost("{id:int}/execute")]
     public ActionResult ExecuteTask(int id)
     {
-        var taskNames = new Dictionary<int, string>
-        {
-            [1] = "WatchFolderScan",
-            [2] = "RssSync",
-            [3] = "VpnKillSwitchCheck",
-            [4] = "Backup",
-            [5] = "ProwlarrSync",
-            [6] = "SessionCleanup",
-        };
-
-        var dbTask = this.scheduledTaskRepository?.Get(id);
+        var dbTask = this.taskManager?.Get(id) ?? this.scheduledTaskRepository?.Get(id);
         var name = dbTask != null && !string.IsNullOrWhiteSpace(dbTask.TypeName)
             ? dbTask.TypeName.Replace("Task", string.Empty)
-            : (taskNames.TryGetValue(id, out var tn) ? tn : "SystemTask");
+            : "SystemTask";
 
         if (string.Equals(name, "ProwlarrSync", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(name, "ProwlarrSyncTask", StringComparison.OrdinalIgnoreCase) ||
-            id == 5)
+            string.Equals(name, "ProwlarrSyncTask", StringComparison.OrdinalIgnoreCase))
         {
             this.commandQueueManager?.Push(new ProwlarrSyncCommand(), CommandTrigger.Manual);
         }

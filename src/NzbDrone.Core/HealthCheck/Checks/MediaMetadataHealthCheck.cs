@@ -1,6 +1,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using NzbDrone.Core.MediaEnrichment.Providers;
 
 namespace NzbDrone.Core.HealthCheck.Checks;
@@ -14,7 +16,7 @@ public class MediaMetadataHealthCheck : IHealthCheck
         this.metadataManager = metadataManager;
     }
 
-    public HealthCheckResult Check()
+    public async Task<HealthCheckResult> CheckAsync(CancellationToken ct = default)
     {
         if (this.metadataManager == null)
         {
@@ -24,7 +26,7 @@ public class MediaMetadataHealthCheck : IHealthCheck
         try
         {
             var activeProviderId = this.metadataManager.ActiveProviderId;
-            var result = this.metadataManager.ProbeProviderAsync(activeProviderId).GetAwaiter().GetResult();
+            var result = await this.metadataManager.ProbeProviderAsync(activeProviderId).ConfigureAwait(false);
             if (result == null || !result.IsHealthy)
             {
                 return HealthCheckResult.Error("MediaMetadataHealth", result?.StatusMessage ?? $"Media metadata provider '{activeProviderId}' is unhealthy.");

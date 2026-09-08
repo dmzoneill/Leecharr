@@ -1,6 +1,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using NzbDrone.Core.BitTorrent;
 
 namespace NzbDrone.Core.HealthCheck.Checks;
@@ -14,7 +16,7 @@ public class EngineHealthCheck : IHealthCheck
         this.engine = engine;
     }
 
-    public HealthCheckResult Check()
+    public async Task<HealthCheckResult> CheckAsync(CancellationToken ct = default)
     {
         if (this.engine == null)
         {
@@ -23,7 +25,7 @@ public class EngineHealthCheck : IHealthCheck
 
         try
         {
-            var result = this.engine.ProbeHealthAsync().GetAwaiter().GetResult();
+            var result = await this.engine.ProbeHealthAsync().ConfigureAwait(false);
             if (result == null || !result.IsHealthy)
             {
                 return HealthCheckResult.Error("EngineHealth", result?.StatusMessage ?? "Download engine is unhealthy.");
