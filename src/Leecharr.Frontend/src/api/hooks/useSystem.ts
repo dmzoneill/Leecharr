@@ -56,9 +56,11 @@ export function useRefetchInterval(
 }
 
 export function useSystemStatus() {
+  const interval = useRefetchInterval();
   return useQuery<SystemStatus>({
     queryKey: ["system", "status"],
     queryFn: () => apiClient.get("/system/status"),
+    refetchInterval: interval,
   });
 }
 
@@ -81,9 +83,11 @@ export function useDiskSpace() {
 }
 
 export function useNetworkStatus() {
+  const interval = useRefetchInterval();
   return useQuery<NetworkStatus>({
     queryKey: ["network", "status"],
     queryFn: () => apiClient.get("/network/status"),
+    refetchInterval: interval,
   });
 }
 
@@ -97,9 +101,11 @@ export function useNetworkDiagnostics() {
 }
 
 export function useBackups() {
+  const interval = useRefetchInterval();
   return useQuery<Backup[]>({
     queryKey: ["backups"],
     queryFn: () => apiClient.get("/backup"),
+    refetchInterval: interval,
   });
 }
 
@@ -127,10 +133,12 @@ export function useRestoreBackup() {
 }
 
 export function useUpdates() {
+  const interval = useRefetchInterval(60_000);
   return useQuery<UpdateEntry[]>({
     queryKey: ["updates"],
     queryFn: () => apiClient.get("/update"),
     staleTime: 60_000,
+    refetchInterval: interval,
   });
 }
 
@@ -194,13 +202,14 @@ export function useSaveAiConfig() {
   });
 }
 
-export function useSystemResources(refetchInterval: number | false = 2000) {
+export function useSystemResources(refetchInterval?: number | false) {
   const isVisible = useIsDocumentVisible();
+  const defaultInterval = useRefetchInterval(2000, { ignoreSignalR: true });
   const effectiveInterval = !isVisible
     ? false
     : refetchInterval === false
       ? false
-      : refetchInterval;
+      : (refetchInterval ?? defaultInterval);
   return useQuery<SystemResourceTelemetrySnapshot>({
     queryKey: ["system", "resources"],
     queryFn: () => apiClient.get("/system/resources"),
@@ -208,13 +217,14 @@ export function useSystemResources(refetchInterval: number | false = 2000) {
   });
 }
 
-export function useHostResources(refetchInterval: number | false = 2000) {
+export function useHostResources(refetchInterval?: number | false) {
   const isVisible = useIsDocumentVisible();
+  const defaultInterval = useRefetchInterval(2000, { ignoreSignalR: true });
   const effectiveInterval = !isVisible
     ? false
     : refetchInterval === false
       ? false
-      : refetchInterval;
+      : (refetchInterval ?? defaultInterval);
   return useQuery<HostProcessResourceMetrics>({
     queryKey: ["system", "resources", "host"],
     queryFn: () => apiClient.get("/system/resources/host"),

@@ -80,10 +80,12 @@ export function useTorrent(id: number) {
 }
 
 export function useTorrentFiles(torrentId: number) {
+  const interval = useRefetchInterval();
   return useQuery<TorrentFileInfo[]>({
     queryKey: ["torrents", torrentId, "files"],
     queryFn: () => apiClient.get(`/torrent/${torrentId}/files`),
     enabled: torrentId > 0,
+    refetchInterval: interval,
   });
 }
 
@@ -158,9 +160,11 @@ export function useDeleteTorrentTracker() {
 }
 
 export function useCategories() {
+  const interval = useRefetchInterval();
   return useQuery<Category[]>({
     queryKey: ["categories"],
     queryFn: () => apiClient.get("/categories"),
+    refetchInterval: interval,
   });
 }
 
@@ -400,19 +404,23 @@ export function useSeedingStats() {
 }
 
 export function useSpeedHistory() {
+  const interval = useRefetchInterval(10_000);
   return useQuery<SpeedSnapshot[]>({
     queryKey: ["seeding", "history"],
     queryFn: () => apiClient.get("/seeding/history"),
     staleTime: 10_000,
+    refetchInterval: interval,
     refetchOnWindowFocus: false,
   });
 }
 
 export function useTorrentSpeedHistory(torrentId: number) {
+  const interval = useRefetchInterval(10_000);
   return useQuery<TorrentSpeedSnapshot[]>({
     queryKey: ["seeding", "history", torrentId],
     queryFn: () => apiClient.get(`/seeding/history/${torrentId}`),
     staleTime: 10_000,
+    refetchInterval: interval,
     refetchOnWindowFocus: false,
     enabled: torrentId > 0,
   });
@@ -442,9 +450,11 @@ export function usePeerGraph(start?: string, end?: string) {
 }
 
 export function useSpeedSchedules() {
+  const interval = useRefetchInterval();
   return useQuery<SpeedScheduleEntry[]>({
     queryKey: ["speedschedule"],
     queryFn: () => apiClient.get("/speedschedule"),
+    refetchInterval: interval,
   });
 }
 
@@ -486,9 +496,11 @@ export function useDeleteSpeedSchedule() {
 }
 
 export function useTags() {
+  const interval = useRefetchInterval();
   return useQuery<Tag[]>({
     queryKey: ["tags"],
     queryFn: () => apiClient.get("/tag"),
+    refetchInterval: interval,
   });
 }
 
@@ -984,10 +996,12 @@ export function useSubsystems() {
 }
 
 export function useSubsystemDetails(subsystemId: string) {
+  const interval = useRefetchInterval(10_000);
   return useQuery<SubsystemOverview>({
     queryKey: ["subsystems", subsystemId],
     queryFn: () => apiClient.get(`/subsystems/${subsystemId}`),
     enabled: !!subsystemId,
+    refetchInterval: interval,
   });
 }
 

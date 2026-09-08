@@ -1,20 +1,76 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useMemo } from "react";
 import { useSpeedHistory, useSeedingStats } from "../api/hooks";
 import { formatSpeed } from "../utils/formatters";
 import { useTranslation } from "../i18n";
 
-interface SpeedDataPoint {
+export type TimeframeOption = "60s" | "5m" | "15m" | "1h" | "24h";
+
+interface RawSpeedPoint {
   uploadSpeed: number;
   downloadSpeed: number;
+  time: number;
 }
 
 interface SpeedGraphProps {
   maxPoints?: number;
+  defaultTimeframe?: TimeframeOption;
 }
 
 const DEFAULT_SVG_WIDTH = 1000;
 const SVG_HEIGHT = 180;
 const PADDING = { top: 12, right: 24, bottom: 26, left: 75 };
+
+interface TimeframeConfig {
+  key: TimeframeOption;
+  label: string;
+  durationMs: number;
+  pointCount: number;
+  startLabel: string;
+  midLabel: string;
+}
+
+const TIMEFRAMES: TimeframeConfig[] = [
+  {
+    key: "60s",
+    label: "60s",
+    durationMs: 60 * 1000,
+    pointCount: 60,
+    startLabel: "60s ago",
+    midLabel: "30s ago",
+  },
+  {
+    key: "5m",
+    label: "5m",
+    durationMs: 5 * 60 * 1000,
+    pointCount: 60,
+    startLabel: "5m ago",
+    midLabel: "2.5m ago",
+  },
+  {
+    key: "15m",
+    label: "15m",
+    durationMs: 15 * 60 * 1000,
+    pointCount: 60,
+    startLabel: "15m ago",
+    midLabel: "7.5m ago",
+  },
+  {
+    key: "1h",
+    label: "1h",
+    durationMs: 60 * 60 * 1000,
+    pointCount: 60,
+    startLabel: "1h ago",
+    midLabel: "30m ago",
+  },
+  {
+    key: "24h",
+    label: "24h",
+    durationMs: 24 * 60 * 60 * 1000,
+    pointCount: 72,
+    startLabel: "24h ago",
+    midLabel: "12h ago",
+  },
+];
 
 function getNiceMax(value: number): number {
   if (value <= 0) return 1024;
@@ -25,24 +81,28 @@ function getNiceMax(value: number): number {
   else if (normalized <= 2) nice = 2;
   else if (normalized <= 5) nice = 5;
   else nice = 10;
-  return nice * magnitude;
+  return Math.max(1024, nice * magnitude);
 }
 
-export function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
+export function SpeedGraph({
+  maxPoints = 60,
+  defaultTimeframe = "60s",
+}: SpeedGraphProps) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] =
     useState<number>(DEFAULT_SVG_WIDTH);
-  const [history, setHistory] = useState<SpeedDataPoint[]>([]);
+  const [timeframe, setTimeframe] = useState<TimeframeOption>(defaultTimeframe);
+  const [rawHistory, setRawHistory] = useState<RawSpeedPoint[]>([]);
   const seededRef = useRef(false);
-  const prevRef = useRef<{
-    totalUploaded: number;
-    totalDownloaded: number;
-    timestamp: number;
-  } | null>(null);
 
   const { data: serverHistory } = useSpeedHistory();
   const { data: stats } = useSeedingStats();
+
+  const currentTfConfig = useMemo(
+    () => TIMEFRAMES.find((tf) => tf.key === timeframe) || TIMEFRAMES[0],
+    [timeframe],
+  );
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -63,39 +123,90 @@ export function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
     return () => observer.disconnect();
   }, []);
 
+  // Seed initial history from server
   useEffect(() => {
     if (!serverHistory || seededRef.current) return;
     seededRef.current = true;
 
-    const points: SpeedDataPoint[] = serverHistory
-      .slice(-maxPoints)
-      .map((s) => ({
+    const now = Date.now();
+    const points: RawSpeedPoint[] = serverHistory.map((s, idx) => {
+      const parsedTime = s.timestamp ? new Date(s.timestamp).getTime() : 0;
+      const pointTime =
+        parsedTime > 0
+          ? parsedTime
+          : now - (serverHistory.length - idx) * 1000;
+      return {
         uploadSpeed: Number(s.uploadSpeed) || 0,
         downloadSpeed: Number(s.downloadSpeed) || 0,
-      }));
-    setHistory(points);
-  }, [serverHistory, maxPoints]);
+        time: pointTime,
+      };
+    });
+    setRawHistory(points);
+  }, [serverHistory]);
 
+  // Append real-time stats
   useEffect(() => {
     if (!stats) return;
 
     const uploadSpeed = Number(stats.uploadSpeed) || 0;
     const downloadSpeed = Number(stats.downloadSpeed) || 0;
+    const now = Date.now();
 
-    setHistory((prev) => {
-      const next = [...prev, { uploadSpeed, downloadSpeed }];
-      if (next.length > maxPoints) {
-        return next.slice(next.length - maxPoints);
-      }
-      return next;
+    setRawHistory((prev) => {
+      const next = [...prev, { uploadSpeed, downloadSpeed, time: now }];
+      // Keep up to 24h of history
+      const cutoff = now - 24 * 60 * 60 * 1000;
+      return next.filter((p) => p.time >= cutoff);
     });
-  }, [stats, maxPoints]);
+  }, [stats]);
+
+  // Resample points according to active timeframe
+  const displayPoints = useMemo(() => {
+    const { durationMs, pointCount } = currentTfConfig;
+    const now = Date.now();
+    const startTime = now - durationMs;
+    const intervalMs = durationMs / Math.max(1, pointCount - 1);
+
+    const relevant = rawHistory.filter((p) => p.time >= startTime - intervalMs);
+
+    if (relevant.length === 0) {
+      const currentUp = Number(stats?.uploadSpeed) || 0;
+      const currentDown = Number(stats?.downloadSpeed) || 0;
+      return Array.from({ length: pointCount }, () => ({
+        uploadSpeed: currentUp,
+        downloadSpeed: currentDown,
+      }));
+    }
+
+    const sampled: Array<{ uploadSpeed: number; downloadSpeed: number }> = [];
+    for (let i = 0; i < pointCount; i++) {
+      const targetTime = startTime + i * intervalMs;
+      // Find nearest point within window
+      let closest = relevant[0];
+      let minDiff = Math.abs(relevant[0].time - targetTime);
+
+      for (let j = 1; j < relevant.length; j++) {
+        const diff = Math.abs(relevant[j].time - targetTime);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closest = relevant[j];
+        }
+      }
+      sampled.push({
+        uploadSpeed: closest.uploadSpeed,
+        downloadSpeed: closest.downloadSpeed,
+      });
+    }
+
+    return sampled;
+  }, [rawHistory, currentTfConfig, stats]);
+
   const svgWidth = Math.max(300, containerWidth);
   const chartWidth = Math.max(100, svgWidth - PADDING.left - PADDING.right);
   const chartHeight = SVG_HEIGHT - PADDING.top - PADDING.bottom;
 
   let maxSpeed = 0;
-  for (const point of history) {
+  for (const point of displayPoints) {
     const up = Number(point.uploadSpeed) || 0;
     const down = Number(point.downloadSpeed) || 0;
     maxSpeed = Math.max(maxSpeed, up, down);
@@ -109,17 +220,18 @@ export function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
     return { value, y };
   });
 
+  const totalPoints = displayPoints.length;
+
   const toPoints = (
-    data: SpeedDataPoint[],
+    data: Array<{ uploadSpeed: number; downloadSpeed: number }>,
     key: "uploadSpeed" | "downloadSpeed",
   ): string => {
     if (data.length === 0) return "";
-    const offset = Math.max(0, maxPoints - data.length);
     return data
       .map((point, i) => {
         const x =
           PADDING.left +
-          ((offset + i) / Math.max(1, maxPoints - 1)) * chartWidth;
+          (i / Math.max(1, totalPoints - 1)) * chartWidth;
         const val = Number(point[key]) || 0;
         const y = PADDING.top + chartHeight - (val / niceMax) * chartHeight;
         return `${x.toFixed(1)},${y.toFixed(1)}`;
@@ -128,24 +240,19 @@ export function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
   };
 
   const toAreaPath = (
-    data: SpeedDataPoint[],
+    data: Array<{ uploadSpeed: number; downloadSpeed: number }>,
     key: "uploadSpeed" | "downloadSpeed",
   ): string => {
     if (data.length < 2) return "";
-    const offset = Math.max(0, maxPoints - data.length);
     const bottom = PADDING.top + chartHeight;
-    const firstX =
-      PADDING.left +
-      (offset / Math.max(1, maxPoints - 1)) * chartWidth;
-    const lastX =
-      PADDING.left +
-      ((offset + data.length - 1) / Math.max(1, maxPoints - 1)) * chartWidth;
+    const firstX = PADDING.left;
+    const lastX = PADDING.left + chartWidth;
 
     const linePoints = data
       .map((point, i) => {
         const x =
           PADDING.left +
-          ((offset + i) / Math.max(1, maxPoints - 1)) * chartWidth;
+          (i / Math.max(1, totalPoints - 1)) * chartWidth;
         const val = Number(point[key]) || 0;
         const y = PADDING.top + chartHeight - (val / niceMax) * chartHeight;
         return `L ${x.toFixed(1)} ${y.toFixed(1)}`;
@@ -155,18 +262,18 @@ export function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
     return `M ${firstX.toFixed(1)} ${bottom.toFixed(1)} ${linePoints} L ${lastX.toFixed(1)} ${bottom.toFixed(1)} Z`;
   };
 
-  const uploadPoints = toPoints(history, "uploadSpeed");
-  const downloadPoints = toPoints(history, "downloadSpeed");
-  const uploadArea = toAreaPath(history, "uploadSpeed");
-  const downloadArea = toAreaPath(history, "downloadSpeed");
+  const uploadPoints = toPoints(displayPoints, "uploadSpeed");
+  const downloadPoints = toPoints(displayPoints, "downloadSpeed");
+  const uploadArea = toAreaPath(displayPoints, "uploadSpeed");
+  const downloadArea = toAreaPath(displayPoints, "downloadSpeed");
 
   const currentUpload =
-    history.length > 0
-      ? Number(history[history.length - 1].uploadSpeed) || 0
+    displayPoints.length > 0
+      ? Number(displayPoints[displayPoints.length - 1].uploadSpeed) || 0
       : Number(stats?.uploadSpeed) || 0;
   const currentDownload =
-    history.length > 0
-      ? Number(history[history.length - 1].downloadSpeed) || 0
+    displayPoints.length > 0
+      ? Number(displayPoints[displayPoints.length - 1].downloadSpeed) || 0
       : Number(stats?.downloadSpeed) || 0;
 
   return (
@@ -187,6 +294,8 @@ export function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
           justifyContent: "space-between",
           alignItems: "center",
           marginBottom: "0.75rem",
+          flexWrap: "wrap",
+          gap: "0.75rem",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
@@ -227,58 +336,75 @@ export function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
           </span>
         </div>
 
-        <div
-          className="speed-graph-legend"
-          style={{ margin: 0, display: "flex", gap: "1rem" }}
-        >
-          <span
-            className="speed-graph-legend-item"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.4rem",
-              fontSize: "0.82rem",
-            }}
+        {/* Timeframe selector toggles */}
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+          <div className="view-toggle" style={{ margin: 0 }}>
+            {TIMEFRAMES.map((tf) => (
+              <button
+                key={tf.key}
+                type="button"
+                className={`view-toggle-btn ${timeframe === tf.key ? "active" : ""}`}
+                onClick={() => setTimeframe(tf.key)}
+                style={{ padding: "0.15rem 0.45rem", fontSize: "0.72rem" }}
+              >
+                {tf.label}
+              </button>
+            ))}
+          </div>
+
+          <div
+            className="speed-graph-legend"
+            style={{ margin: 0, display: "flex", gap: "1rem" }}
           >
             <span
-              className="speed-graph-indicator"
+              className="speed-graph-legend-item"
               style={{
-                width: 10,
-                height: 10,
-                borderRadius: "50%",
-                backgroundColor: "var(--accent, #c8a84e)",
-                display: "inline-block",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.4rem",
+                fontSize: "0.82rem",
               }}
-            />
-            {t("components.upload", "Upload")}:{" "}
-            <strong style={{ color: "var(--accent, #c8a84e)" }}>
-              {formatSpeed(currentUpload)}
-            </strong>
-          </span>
-          <span
-            className="speed-graph-legend-item"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.4rem",
-              fontSize: "0.82rem",
-            }}
-          >
+            >
+              <span
+                className="speed-graph-indicator"
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: "50%",
+                  backgroundColor: "var(--accent, #c8a84e)",
+                  display: "inline-block",
+                }}
+              />
+              {t("components.upload", "Upload")}:{" "}
+              <strong style={{ color: "var(--accent, #c8a84e)" }}>
+                {formatSpeed(currentUpload)}
+              </strong>
+            </span>
             <span
-              className="speed-graph-indicator"
+              className="speed-graph-legend-item"
               style={{
-                width: 10,
-                height: 10,
-                borderRadius: "50%",
-                backgroundColor: "#e74c3c",
-                display: "inline-block",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.4rem",
+                fontSize: "0.82rem",
               }}
-            />
-            {t("components.download", "Download")}:{" "}
-            <strong style={{ color: "#e74c3c" }}>
-              {formatSpeed(currentDownload)}
-            </strong>
-          </span>
+            >
+              <span
+                className="speed-graph-indicator"
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: "50%",
+                  backgroundColor: "#e74c3c",
+                  display: "inline-block",
+                }}
+              />
+              {t("components.download", "Download")}:{" "}
+              <strong style={{ color: "#e74c3c" }}>
+                {formatSpeed(currentDownload)}
+              </strong>
+            </span>
+          </div>
         </div>
       </div>
 
@@ -379,7 +505,7 @@ export function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
             fontSize={9.5}
             textAnchor="start"
           >
-            {t("components.sAgo", "{count}s ago", { count: maxPoints })}
+            {currentTfConfig.startLabel}
           </text>
           <text
             x={PADDING.left + chartWidth / 2}
@@ -388,9 +514,7 @@ export function SpeedGraph({ maxPoints = 60 }: SpeedGraphProps) {
             fontSize={9.5}
             textAnchor="middle"
           >
-            {t("components.sAgo", "{count}s ago", {
-              count: Math.floor(maxPoints / 2),
-            })}
+            {currentTfConfig.midLabel}
           </text>
           <text
             x={svgWidth - PADDING.right}

@@ -8,6 +8,60 @@ import type {
   TrackerBoostLogEntry,
 } from "../types";
 
+export type LogLevel = "Trace" | "Debug" | "Info" | "Warn" | "Error";
+
+export interface EventLogEntry {
+  id: number;
+  timestamp: string;
+  level: LogLevel;
+  component: string;
+  message: string;
+}
+
+export function useEventLogs(levelParam?: LogLevel | null) {
+  const interval = useRefetchInterval();
+  return useQuery<EventLogEntry[]>({
+    queryKey: ["system", "events", levelParam],
+    queryFn: async () => {
+      const query = levelParam
+        ? `?level=${encodeURIComponent(levelParam.toLowerCase())}`
+        : "";
+      const data = await apiClient.get<
+        Array<{
+          id: number;
+          time: string;
+          level: string;
+          logger: string;
+          message: string;
+          exception: string | null;
+        }>
+      >(`/log${query}`);
+      return data.map((entry) => {
+        const normLevel =
+          entry.level.charAt(0).toUpperCase() +
+          entry.level.slice(1).toLowerCase();
+        const validLevel: LogLevel =
+          normLevel === "Trace" ||
+          normLevel === "Debug" ||
+          normLevel === "Warn" ||
+          normLevel === "Error"
+            ? (normLevel as LogLevel)
+            : "Info";
+        return {
+          id: entry.id,
+          timestamp: entry.time,
+          level: validLevel,
+          component: entry.logger,
+          message: entry.exception
+            ? `${entry.message}\n${entry.exception}`
+            : entry.message,
+        };
+      });
+    },
+    refetchInterval: interval,
+  });
+}
+
 export function useTorrentLogs(
   torrentId: number,
   options?: { polling?: boolean },
@@ -24,9 +78,11 @@ export function useTorrentLogs(
 }
 
 export function useLogFiles() {
+  const interval = useRefetchInterval();
   return useQuery<LogFile[]>({
     queryKey: ["logfiles"],
     queryFn: () => apiClient.get("/logfile"),
+    refetchInterval: interval,
   });
 }
 
@@ -43,6 +99,7 @@ export function usePeerConnectionLog(params?: {
   end?: string;
   infoHash?: string;
 }) {
+  const interval = useRefetchInterval();
   const searchParams = new URLSearchParams();
   if (params?.start) searchParams.set("start", params.start);
   if (params?.end) searchParams.set("end", params.end);
@@ -51,6 +108,7 @@ export function usePeerConnectionLog(params?: {
   return useQuery<PeerConnectionLogEntry[]>({
     queryKey: ["peerlog", params?.start, params?.end, params?.infoHash],
     queryFn: () => apiClient.get(`/peerlog${query ? `?${query}` : ""}`),
+    refetchInterval: interval,
   });
 }
 

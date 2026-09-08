@@ -1,5 +1,5 @@
 import { useTranslation } from "../../i18n";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   useAiConfig,
   useSaveAiConfig,
@@ -59,9 +59,21 @@ export function AiTab() {
     formData.activeAiProvider ||
     "RuleHeuristic";
 
-  const isDirty = config
-    ? JSON.stringify(config) !== JSON.stringify(formData)
-    : false;
+  const isDirty = useMemo(() => {
+    if (!config) return false;
+    const keys: (keyof AiConfig)[] = [
+      "activeAiProvider",
+      "ollamaHost",
+      "ollamaModel",
+      "geminiApiKey",
+      "geminiModel",
+      "onnxModelPath",
+      "enableCopilotButton",
+      "enableNaturalSearch",
+      "enableSwarmDiagnostics",
+    ];
+    return keys.some((k) => (config[k] ?? "") !== (formData[k] ?? ""));
+  }, [config, formData]);
 
   const handleSave = () => {
     saveConfig.mutate(formData);
