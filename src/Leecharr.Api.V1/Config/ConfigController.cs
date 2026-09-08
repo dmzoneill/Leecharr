@@ -47,7 +47,7 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
     {
         if (resource == null)
         {
-            return this.BadRequest();
+            return this.BadRequest("Request body cannot be empty.");
         }
 
         if (resource.ApiKey != null && resource.ApiKey.Contains('*'))
@@ -180,6 +180,11 @@ public class NetworkConfigController : ConfigController<NetworkConfigResource>
 
     public override ActionResult<NetworkConfigResource> SaveConfig([FromBody] NetworkConfigResource resource)
     {
+        if (resource == null)
+        {
+            return this.BadRequest("Request body cannot be empty.");
+        }
+
         if (resource.ProxyPassword == "********")
         {
             resource.ProxyPassword = this.configService.ProxyPassword;
@@ -337,6 +342,11 @@ public class TrackerServerConfigController : ConfigController<TrackerServerConfi
 
     public override ActionResult<TrackerServerConfigResource> SaveConfig([FromBody] TrackerServerConfigResource resource)
     {
+        if (resource == null)
+        {
+            return this.BadRequest("Request body cannot be empty.");
+        }
+
         var result = base.SaveConfig(resource);
 
         if (this.udpTrackerService != null)
@@ -432,6 +442,11 @@ public class AiConfigController : ConfigController<AiConfigResource>
 
     public override ActionResult<AiConfigResource> SaveConfig([FromBody] AiConfigResource resource)
     {
+        if (resource == null)
+        {
+            return this.BadRequest("Request body cannot be empty.");
+        }
+
         if (!string.IsNullOrEmpty(resource.GeminiApiKey) && resource.GeminiApiKey.Contains('*'))
         {
             resource.GeminiApiKey = this.configService.GeminiApiKey;
