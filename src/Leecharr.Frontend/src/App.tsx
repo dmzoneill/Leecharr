@@ -271,18 +271,25 @@ export function App() {
     const unsubReconnecting = signalRManager.onReconnecting(() => {
       setConnected(false);
       setIsReconnecting(true);
+      useTorrentStore.getState().clearTelemetry();
     });
 
     const unsubReconnected = signalRManager.onReconnected(() => {
       setConnected(true);
       setIsReconnecting(false);
+      useTorrentStore.getState().clearTelemetry();
       refreshServerData();
     });
 
     const unsubClose = signalRManager.onClose(() => {
       setConnected(false);
       setIsReconnecting(true);
+      useTorrentStore.getState().clearTelemetry();
     });
+
+    const staleInterval = setInterval(() => {
+      useTorrentStore.getState().purgeStaleTelemetry(8000);
+    }, 4000);
 
     signalRManager
       .start()
@@ -388,6 +395,7 @@ export function App() {
     });
 
     return () => {
+      clearInterval(staleInterval);
       unsubscribe();
       unsubReconnecting();
       unsubReconnected();

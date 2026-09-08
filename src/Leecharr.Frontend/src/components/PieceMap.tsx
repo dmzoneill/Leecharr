@@ -8,6 +8,12 @@ import React, {
 import { useTranslation } from "../i18n";
 import { formatBytes } from "../utils/formatters";
 import { useTorrentStore } from "../stores/useTorrentStore";
+import {
+  decodeBase64Bitfield,
+  countVerifiedPieces,
+  binBitfieldBlocks,
+  mergeBitfields,
+} from "../utils/pieceMapUtils";
 
 export interface PieceMapProps {
   torrentId?: number;
@@ -37,126 +43,51 @@ export function PieceMap({
   const layoutRef = useRef({ cols: 0, blockSize: 0, gap: 0 });
 
   // Subscribe to live SignalR piece map bitmap updates
-  const livePieceData = useTorrentStore((state) =>
-    torrentId ? state.pieceMaps[torrentId] : undefined,
+  const liveBitfield = useTorrentStore((state) =>
+    torrentId ? state.pieceMaps[torrentId]?.bitfield : undefined,
   );
 
   const totalPieces = Math.max(1, pieceCount);
+  const isComplete = progress >= 1.0 || isSeeding;
 
-  const bitfieldBytes = useMemo(() => {
-    if (!bitfield || typeof bitfield !== "string") return null;
-    try {
-      const binary = atob(bitfield);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-      }
-      return bytes;
-    } catch {
-      return null;
-    }
+  const propBitfieldBytes = useMemo(() => {
+    return decodeBase64Bitfield(bitfield);
   }, [bitfield]);
 
-  const isPieceVerified = useCallback(
-    (pieceIdx: number): boolean => {
-      if (progress >= 1.0 || isSeeding) {
-        return true;
-      }
-      if (livePieceData?.verifiedIndices?.has(pieceIdx)) {
-        return true;
-      }
-      if (bitfieldBytes && bitfieldBytes.length > 0) {
-        const byteIdx = Math.floor(pieceIdx / 8);
-        if (byteIdx < bitfieldBytes.length) {
-          const bitOffset = 7 - (pieceIdx % 8);
-          return (bitfieldBytes[byteIdx] & (1 << bitOffset)) !== 0;
-        }
-      }
-      return false;
-    },
-    [progress, isSeeding, livePieceData, bitfieldBytes],
-  );
-
-  // Generate a sampled representation of blocks for visualizer
-  const displayBlocks = useMemo(() => {
-    const numBlocks = Math.min(totalPieces, 480);
-    const blocks: {
-      startIndex: number;
-      endIndex: number;
-      status: "complete" | "missing" | "active";
-      completedCount: number;
-      totalInBlock: number;
-    }[] = [];
-
-    const piecesPerBlock = totalPieces / numBlocks;
-
-    for (let i = 0; i < numBlocks; i++) {
-      const startIdx = Math.floor(i * piecesPerBlock);
-      const endIdx = Math.min(
-        totalPieces - 1,
-        Math.floor((i + 1) * piecesPerBlock) - 1,
-      );
-      const totalInBlock = Math.max(1, endIdx - startIdx + 1);
-
-      let completedCount = 0;
-      for (let p = startIdx; p <= endIdx; p++) {
-        if (isPieceVerified(p)) {
-          completedCount++;
-        }
-      }
-
-      let status: "complete" | "missing" | "active" = "missing";
-      if (progress >= 1.0 || isSeeding || completedCount === totalInBlock) {
-        status = "complete";
-      } else if (completedCount > 0) {
-        status = "active";
-      }
-
-      blocks.push({
-        startIndex: startIdx,
-        endIndex: Math.max(startIdx, endIdx),
-        status,
-        completedCount,
-        totalInBlock,
-      });
+  const effectiveBitfield = useMemo(() => {
+    if (liveBitfield && propBitfieldBytes) {
+      return mergeBitfields(propBitfieldBytes, liveBitfield);
     }
+    return liveBitfield || propBitfieldBytes || null;
+  }, [liveBitfield, propBitfieldBytes]);
 
-    return blocks;
-  }, [totalPieces, isPieceVerified, progress, isSeeding]);
+  // Generate a sampled representation of blocks for visualizer via fast bitwise binning
+  const displayBlocks = useMemo(() => {
+    return binBitfieldBlocks(effectiveBitfield, totalPieces, 480, isComplete);
+  }, [effectiveBitfield, totalPieces, isComplete]);
 
   const completedPieces = useMemo(() => {
-    if (progress >= 1.0 || isSeeding) {
+    if (isComplete) {
       return totalPieces;
     }
-    if (livePieceData?.verifiedIndices && livePieceData.verifiedIndices.size > 0) {
-      return Math.min(totalPieces, livePieceData.verifiedIndices.size);
-    }
-    if (bitfieldBytes && bitfieldBytes.length > 0) {
-      let count = 0;
-      for (let i = 0; i < bitfieldBytes.length; i++) {
-        let b = bitfieldBytes[i];
-        while (b > 0) {
-          b &= b - 1;
-          count++;
-        }
-      }
-      return Math.min(count, totalPieces);
+    if (effectiveBitfield && effectiveBitfield.length > 0) {
+      return countVerifiedPieces(effectiveBitfield, totalPieces);
     }
     if (progress > 0) {
       return Math.floor(progress * totalPieces);
     }
     return 0;
-  }, [progress, isSeeding, totalPieces, livePieceData, bitfieldBytes]);
+  }, [isComplete, totalPieces, effectiveBitfield, progress]);
 
   const verifiedPercentage = useMemo(() => {
-    if (progress >= 1.0 || isSeeding) {
+    if (isComplete) {
       return 100;
     }
     if (totalPieces > 0 && completedPieces > 0) {
       return (completedPieces / totalPieces) * 100;
     }
     return Math.min(100, Math.max(0, progress * 100));
-  }, [progress, isSeeding, totalPieces, completedPieces]);
+  }, [isComplete, totalPieces, completedPieces, progress]);
 
   const blockSize = 14;
   const gap = 3;

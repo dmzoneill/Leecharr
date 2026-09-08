@@ -1,5 +1,11 @@
 import { create } from "zustand";
 import { Torrent } from "../api/types";
+import {
+  decodeBase64Bitfield,
+  setPieceBit,
+  setPieceBits,
+  mergeBitfields,
+} from "../utils/pieceMapUtils";
 
 export interface TorrentTelemetry {
   uploadSpeed?: number;
@@ -12,10 +18,11 @@ export interface TorrentTelemetry {
   status?: string;
   seeders?: number;
   leechers?: number;
+  lastUpdated?: number;
 }
 
 export interface PieceMapData {
-  verifiedIndices: Set<number>;
+  bitfield: Uint8Array;
   lastUpdated: number;
 }
 
@@ -24,10 +31,12 @@ export interface TorrentStoreState {
   telemetry: Record<number, TorrentTelemetry>;
   updateTelemetry: (updates: Array<{ id: number; [key: string]: any }>) => void;
   clearTelemetry: () => void;
+  purgeStaleTelemetry: (maxAgeMs?: number) => void;
 
   // Real-time piece map updates per torrent ID (from pieceMapUpdated SignalR events)
   pieceMaps: Record<number, PieceMapData>;
   updatePieceMap: (torrentId: number, data: any) => void;
+  clearPieceMaps: () => void;
 
   // Active Selection State
   selectedTorrentId: number | null;
@@ -45,35 +54,31 @@ export const useTorrentStore = create<TorrentStoreState>((set) => ({
   pieceMaps: {},
   updatePieceMap: (torrentId, data) =>
     set((state) => {
-      const existing = state.pieceMaps[torrentId]?.verifiedIndices;
-      const verified = existing ? new Set(existing) : new Set<number>();
-      if (Array.isArray(data?.pieceIndices)) {
-        for (const idx of data.pieceIndices) {
-          verified.add(idx);
-        }
-      } else if (typeof data?.pieceIndex === "number") {
-        verified.add(data.pieceIndex);
-      }
+      const existing = state.pieceMaps[torrentId]?.bitfield;
+      let nextBitfield: Uint8Array = existing
+        ? new Uint8Array(existing)
+        : new Uint8Array(0);
+
       if (typeof data?.bitfield === "string" && data.bitfield.length > 0) {
-        try {
-          const binary = atob(data.bitfield);
-          for (let i = 0; i < binary.length; i++) {
-            const byte = binary.charCodeAt(i);
-            for (let bit = 0; bit < 8; bit++) {
-              if ((byte & (1 << (7 - bit))) !== 0) {
-                verified.add(i * 8 + bit);
-              }
-            }
-          }
-        } catch {
-          // ignore invalid bitfield
+        const decoded = decodeBase64Bitfield(data.bitfield);
+        if (decoded) {
+          nextBitfield = mergeBitfields(nextBitfield, decoded);
         }
+      } else if (data?.bitfield instanceof Uint8Array) {
+        nextBitfield = mergeBitfields(nextBitfield, data.bitfield);
       }
+
+      if (Array.isArray(data?.pieceIndices) && data.pieceIndices.length > 0) {
+        nextBitfield = setPieceBits(nextBitfield, data.pieceIndices);
+      } else if (typeof data?.pieceIndex === "number" && data.pieceIndex >= 0) {
+        nextBitfield = setPieceBit(nextBitfield, data.pieceIndex);
+      }
+
       return {
         pieceMaps: {
           ...state.pieceMaps,
           [torrentId]: {
-            verifiedIndices: verified,
+            bitfield: nextBitfield,
             lastUpdated: Date.now(),
           },
         },
@@ -83,6 +88,7 @@ export const useTorrentStore = create<TorrentStoreState>((set) => ({
     set((state) => {
       let changed = false;
       const nextTelemetry = { ...state.telemetry };
+      const now = Date.now();
       for (const u of updates) {
         if (u && typeof u.id === "number") {
           changed = true;
@@ -102,12 +108,28 @@ export const useTorrentStore = create<TorrentStoreState>((set) => ({
             status: u.status ?? nextTelemetry[u.id]?.status,
             seeders: u.seeders ?? nextTelemetry[u.id]?.seeders,
             leechers: u.leechers ?? nextTelemetry[u.id]?.leechers,
+            lastUpdated: now,
           };
         }
       }
       return changed ? { telemetry: nextTelemetry } : state;
     }),
   clearTelemetry: () => set({ telemetry: {} }),
+  purgeStaleTelemetry: (maxAgeMs = 5000) =>
+    set((state) => {
+      const now = Date.now();
+      const nextTelemetry: Record<number, TorrentTelemetry> = {};
+      let changed = false;
+      for (const [id, tel] of Object.entries(state.telemetry)) {
+        if (tel.lastUpdated && now - tel.lastUpdated > maxAgeMs) {
+          changed = true;
+        } else {
+          nextTelemetry[Number(id)] = tel;
+        }
+      }
+      return changed ? { telemetry: nextTelemetry } : state;
+    }),
+  clearPieceMaps: () => set({ pieceMaps: {} }),
 
   selectedTorrentId: null,
   selectedIds: new Set<number>(),
@@ -151,14 +173,21 @@ export function applyTelemetry(
   torrent: Torrent,
   telemetry?: TorrentTelemetry,
 ): Torrent {
-  const effectiveStatus = (telemetry?.status ?? torrent.status)?.toLowerCase();
+  const isStale = Boolean(
+    telemetry?.lastUpdated && Date.now() - telemetry.lastUpdated > 10000,
+  );
+
+  const effectiveStatus = (
+    !isStale && telemetry?.status ? telemetry.status : torrent.status
+  )?.toLowerCase();
+
   const isInactive =
     effectiveStatus === "paused" ||
     effectiveStatus === "stopped" ||
     effectiveStatus === "error" ||
     effectiveStatus === "queued";
 
-  if (!telemetry) {
+  if (!telemetry || isStale) {
     if (isInactive) {
       return {
         ...torrent,
