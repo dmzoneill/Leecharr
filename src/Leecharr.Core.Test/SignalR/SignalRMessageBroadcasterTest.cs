@@ -66,11 +66,12 @@ public class SignalRMessageBroadcasterTest
 
         broadcaster.IsConnected.Should().BeTrue();
 
-        // Broadcast first message so worker picks it up and blocks on tcs.Task
+        // Broadcast first messages so each worker picks one up and blocks on tcs.Task
         broadcaster.BroadcastMessage(new SignalRMessage { Name = "speedPulse" });
+        broadcaster.BroadcastMessage(new SignalRMessage { Name = "TorrentStatusChanged" });
         await Task.Delay(50);
 
-        // Broadcast additional messages while worker is blocked
+        // Broadcast additional messages while both workers are blocked
         broadcaster.BroadcastMessage(new SignalRMessage { Name = "speedPulse" });
         broadcaster.BroadcastMessage(new SignalRMessage { Name = "TorrentStatusChanged" });
 
