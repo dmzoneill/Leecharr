@@ -14,16 +14,90 @@ namespace Leecharr.Core.Test.SignalR;
 [TestFixture]
 public class SignalRMessageBroadcasterTest
 {
+    private IHubContext<MessageHub> hubContext;
+    private IHubClients clients;
+    private IClientProxy clientProxy;
+
+    [SetUp]
+    public void SetUp()
+    {
+        MessageHub.ResetForTesting();
+
+        this.hubContext = Substitute.For<IHubContext<MessageHub>>();
+        this.clients = Substitute.For<IHubClients>();
+        this.clientProxy = Substitute.For<IClientProxy>();
+        this.hubContext.Clients.Returns(this.clients);
+        this.clients.All.Returns(this.clientProxy);
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        MessageHub.ResetForTesting();
+    }
+
+    [Test]
+    public void BroadcastMessage_WhenNotConnected_DoesNotEnqueueTelemetryOrGuaranteedMessages()
+    {
+        MessageHub.ResetForTesting();
+        using var broadcaster = new SignalRMessageBroadcaster(this.hubContext);
+
+        broadcaster.IsConnected.Should().BeFalse();
+
+        broadcaster.BroadcastMessage(new SignalRMessage { Name = "speedPulse" });
+        broadcaster.BroadcastMessage(new SignalRMessage { Name = "pieceMapUpdated" });
+        broadcaster.BroadcastMessage(new SignalRMessage { Name = "TorrentStatusChanged" });
+
+        broadcaster.TelemetryChannel.Reader.Count.Should().Be(0);
+        broadcaster.GuaranteedChannel.Reader.Count.Should().Be(0);
+
+        this.clientProxy.DidNotReceiveWithAnyArgs().SendCoreAsync(default, default, default);
+    }
+
+    [Test]
+    public async Task BroadcastMessage_WhenConnected_EnqueuesTelemetryAndGuaranteedMessages()
+    {
+        MessageHub.AddConnectionForTesting();
+        var tcs = new TaskCompletionSource();
+        this.clientProxy.SendCoreAsync(Arg.Any<string>(), Arg.Any<object[]>(), Arg.Any<CancellationToken>())
+            .Returns(_ => tcs.Task);
+
+        using var broadcaster = new SignalRMessageBroadcaster(this.hubContext, telemetryCapacity: 10);
+
+        broadcaster.IsConnected.Should().BeTrue();
+
+        // Broadcast first message so worker picks it up and blocks on tcs.Task
+        broadcaster.BroadcastMessage(new SignalRMessage { Name = "speedPulse" });
+        await Task.Delay(50);
+
+        // Broadcast additional messages while worker is blocked
+        broadcaster.BroadcastMessage(new SignalRMessage { Name = "speedPulse" });
+        broadcaster.BroadcastMessage(new SignalRMessage { Name = "TorrentStatusChanged" });
+
+        broadcaster.TelemetryChannel.Reader.Count.Should().BeGreaterThan(0);
+        broadcaster.GuaranteedChannel.Reader.Count.Should().BeGreaterThan(0);
+
+        tcs.SetResult();
+    }
+
+    [Test]
+    public void BroadcastMessage_WhenMessageIsNull_DoesNotThrowOrEnqueue()
+    {
+        MessageHub.AddConnectionForTesting();
+        using var broadcaster = new SignalRMessageBroadcaster(this.hubContext);
+
+        Action act = () => broadcaster.BroadcastMessage(null);
+        act.Should().NotThrow();
+
+        broadcaster.TelemetryChannel.Reader.Count.Should().Be(0);
+        broadcaster.GuaranteedChannel.Reader.Count.Should().Be(0);
+    }
+
     [Test]
     public void Dispose_WhenCalled_CompletesGracefullyWithoutThrowing()
     {
-        var hubContext = Substitute.For<IHubContext<MessageHub>>();
-        var clients = Substitute.For<IHubClients>();
-        var clientProxy = Substitute.For<IClientProxy>();
-        hubContext.Clients.Returns(clients);
-        clients.All.Returns(clientProxy);
-
-        var broadcaster = new SignalRMessageBroadcaster(hubContext);
+        MessageHub.AddConnectionForTesting();
+        var broadcaster = new SignalRMessageBroadcaster(this.hubContext);
         broadcaster.BroadcastMessage(new SignalRMessage { Name = "testMessage" });
 
         Action act = () => broadcaster.Dispose();
@@ -33,13 +107,7 @@ public class SignalRMessageBroadcasterTest
     [Test]
     public void Dispose_WhenCalledMultipleTimes_IsIdempotent()
     {
-        var hubContext = Substitute.For<IHubContext<MessageHub>>();
-        var clients = Substitute.For<IHubClients>();
-        var clientProxy = Substitute.For<IClientProxy>();
-        hubContext.Clients.Returns(clients);
-        clients.All.Returns(clientProxy);
-
-        var broadcaster = new SignalRMessageBroadcaster(hubContext);
+        var broadcaster = new SignalRMessageBroadcaster(this.hubContext);
         broadcaster.Dispose();
 
         Action act = () => broadcaster.Dispose();
@@ -49,14 +117,9 @@ public class SignalRMessageBroadcasterTest
     [Test]
     public async Task Dispose_WhenBroadcastingInFlight_CompletesCleanlyWithoutObjectDisposedException()
     {
-        var hubContext = Substitute.For<IHubContext<MessageHub>>();
-        var clients = Substitute.For<IHubClients>();
-        var clientProxy = Substitute.For<IClientProxy>();
-        hubContext.Clients.Returns(clients);
-        clients.All.Returns(clientProxy);
-
+        MessageHub.AddConnectionForTesting();
         var tcs = new TaskCompletionSource();
-        clientProxy.SendCoreAsync(Arg.Any<string>(), Arg.Any<object[]>(), Arg.Any<CancellationToken>())
+        this.clientProxy.SendCoreAsync(Arg.Any<string>(), Arg.Any<object[]>(), Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
                 var ct = callInfo.Arg<CancellationToken>();
@@ -64,7 +127,7 @@ public class SignalRMessageBroadcasterTest
                 return tcs.Task;
             });
 
-        var broadcaster = new SignalRMessageBroadcaster(hubContext, telemetryCapacity: 10);
+        var broadcaster = new SignalRMessageBroadcaster(this.hubContext, telemetryCapacity: 10);
         broadcaster.BroadcastMessage(new SignalRMessage { Name = "speedPulse" });
         broadcaster.BroadcastMessage(new SignalRMessage { Name = "guaranteedEvent" });
 
@@ -77,13 +140,8 @@ public class SignalRMessageBroadcasterTest
     [Test]
     public void BroadcastMessage_AfterDispose_IsIgnoredAndDoesNotThrow()
     {
-        var hubContext = Substitute.For<IHubContext<MessageHub>>();
-        var clients = Substitute.For<IHubClients>();
-        var clientProxy = Substitute.For<IClientProxy>();
-        hubContext.Clients.Returns(clients);
-        clients.All.Returns(clientProxy);
-
-        var broadcaster = new SignalRMessageBroadcaster(hubContext);
+        MessageHub.AddConnectionForTesting();
+        var broadcaster = new SignalRMessageBroadcaster(this.hubContext);
         broadcaster.Dispose();
 
         Action act = () =>
@@ -97,16 +155,11 @@ public class SignalRMessageBroadcasterTest
     [Test]
     public async Task ProcessChannelAsync_WhenSendThrowsOperationCanceledException_ExitsGracefully()
     {
-        var hubContext = Substitute.For<IHubContext<MessageHub>>();
-        var clients = Substitute.For<IHubClients>();
-        var clientProxy = Substitute.For<IClientProxy>();
-        hubContext.Clients.Returns(clients);
-        clients.All.Returns(clientProxy);
-
-        clientProxy.SendCoreAsync(Arg.Any<string>(), Arg.Any<object[]>(), Arg.Any<CancellationToken>())
+        MessageHub.AddConnectionForTesting();
+        this.clientProxy.SendCoreAsync(Arg.Any<string>(), Arg.Any<object[]>(), Arg.Any<CancellationToken>())
             .Returns(_ => Task.FromException(new OperationCanceledException()));
 
-        var broadcaster = new SignalRMessageBroadcaster(hubContext);
+        var broadcaster = new SignalRMessageBroadcaster(this.hubContext);
         broadcaster.BroadcastMessage(new SignalRMessage { Name = "regularMessage" });
 
         await Task.Delay(50);
@@ -118,16 +171,11 @@ public class SignalRMessageBroadcasterTest
     [Test]
     public async Task ProcessChannelAsync_WhenSendThrowsObjectDisposedException_ExitsGracefully()
     {
-        var hubContext = Substitute.For<IHubContext<MessageHub>>();
-        var clients = Substitute.For<IHubClients>();
-        var clientProxy = Substitute.For<IClientProxy>();
-        hubContext.Clients.Returns(clients);
-        clients.All.Returns(clientProxy);
-
-        clientProxy.SendCoreAsync(Arg.Any<string>(), Arg.Any<object[]>(), Arg.Any<CancellationToken>())
+        MessageHub.AddConnectionForTesting();
+        this.clientProxy.SendCoreAsync(Arg.Any<string>(), Arg.Any<object[]>(), Arg.Any<CancellationToken>())
             .Returns(_ => Task.FromException(new ObjectDisposedException("MessageHub")));
 
-        var broadcaster = new SignalRMessageBroadcaster(hubContext);
+        var broadcaster = new SignalRMessageBroadcaster(this.hubContext);
         broadcaster.BroadcastMessage(new SignalRMessage { Name = "regularMessage" });
 
         await Task.Delay(50);
