@@ -72,6 +72,34 @@ public class PieceMapSignalREventHandlerTest
     }
 
     [Test]
+    public void Flush_WhenDisconnected_ClearsPendingPiecesAndDoesNotBroadcastOnSubsequentFlush()
+    {
+        using var handler = new PieceMapSignalREventHandler(this.broadcaster);
+        handler.Handle(new PieceVerifiedEvent(1, 10));
+        handler.Handle(new PieceVerifiedEvent(1, 20));
+
+        // Broadcaster disconnects before Flush
+        this.broadcaster.IsConnected.Returns(false);
+        handler.Flush();
+
+        this.broadcaster.DidNotReceive().BroadcastMessage(Arg.Any<SignalRMessage>());
+
+        // Broadcaster reconnects later; verify no stale pieces are broadcast
+        this.broadcaster.IsConnected.Returns(true);
+        handler.Flush();
+
+        this.broadcaster.DidNotReceive().BroadcastMessage(Arg.Any<SignalRMessage>());
+    }
+
+    [Test]
+    public void Flush_WhenBroadcasterIsNull_ReturnsWithoutThrowing()
+    {
+        using var handler = new PieceMapSignalREventHandler(null);
+        Action act = () => handler.Flush();
+        act.Should().NotThrow();
+    }
+
+    [Test]
     public async Task TimerCallback_WhenBroadcasterThrowsException_CatchesAndLogsWithoutCrashing()
     {
         this.broadcaster.When(b => b.BroadcastMessage(Arg.Any<SignalRMessage>()))

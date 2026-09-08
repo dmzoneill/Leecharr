@@ -94,7 +94,7 @@ public class PieceMapSignalREventHandler : IHandle<PieceVerifiedEvent>, IDisposa
 
     public void Flush()
     {
-        if (this.signalRBroadcaster == null || !this.signalRBroadcaster.IsConnected)
+        if (this.signalRBroadcaster == null)
         {
             return;
         }
@@ -104,6 +104,12 @@ public class PieceMapSignalREventHandler : IHandle<PieceVerifiedEvent>, IDisposa
         {
             if (this.pendingPieces.Count == 0)
             {
+                return;
+            }
+
+            if (!this.signalRBroadcaster.IsConnected)
+            {
+                this.pendingPieces.Clear();
                 return;
             }
 
