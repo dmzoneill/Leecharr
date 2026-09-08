@@ -171,4 +171,52 @@ public class QBittorrentApiTests : IntegrationTestBase
         var verifyJson = await verifyResponse.Content.ReadAsStringAsync();
         verifyJson.Should().Be("[]");
     }
+
+    [Test]
+    public async Task GetTorrentsInfo_WithTagAndFilter_ReturnsFilteredResults()
+    {
+        const string hash1 = "1111111111111111111111111111111111111111";
+        var magnet1 = $"magnet:?xt=urn:btih:{hash1}&dn=TagTestTorrent";
+
+        var addForm = new FormUrlEncodedContent(new[]
+        {
+            new KeyValuePair<string, string>("urls", magnet1),
+            new KeyValuePair<string, string>("tags", "testtag, anothertag"),
+            new KeyValuePair<string, string>("paused", "true"),
+        });
+        var addResponse = await this.Client.PostAsync("/api/v2/torrents/add", addForm);
+        addResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Query with matching tag
+        var tagMatchResponse = await this.GetAsync("/api/v2/torrents/info?tag=testtag");
+        tagMatchResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var tagMatchJson = await tagMatchResponse.Content.ReadAsStringAsync();
+        tagMatchJson.Should().Contain(hash1);
+
+        // Query with non-matching tag
+        var tagMismatchResponse = await this.GetAsync("/api/v2/torrents/info?tag=nonexistent");
+        tagMismatchResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var tagMismatchJson = await tagMismatchResponse.Content.ReadAsStringAsync();
+        tagMismatchJson.Should().NotContain(hash1);
+
+        // Query with paused filter
+        var pausedFilterResponse = await this.GetAsync("/api/v2/torrents/info?filter=paused");
+        pausedFilterResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var pausedFilterJson = await pausedFilterResponse.Content.ReadAsStringAsync();
+        pausedFilterJson.Should().Contain(hash1);
+
+        // Query with resumed filter
+        var resumedFilterResponse = await this.GetAsync("/api/v2/torrents/info?filter=resumed");
+        resumedFilterResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var resumedFilterJson = await resumedFilterResponse.Content.ReadAsStringAsync();
+        resumedFilterJson.Should().NotContain(hash1);
+
+        // Clean up
+        var deleteForm = new FormUrlEncodedContent(new[]
+        {
+            new KeyValuePair<string, string>("hashes", hash1),
+            new KeyValuePair<string, string>("deleteFiles", "true"),
+        });
+        await this.Client.PostAsync("/api/v2/torrents/delete", deleteForm);
+    }
 }

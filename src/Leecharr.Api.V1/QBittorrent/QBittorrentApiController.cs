@@ -388,6 +388,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     public ActionResult<List<Dictionary<string, object>>> GetTorrentsInfo(
         [FromQuery] string filter = null,
         [FromQuery] string category = null,
+        [FromQuery] string tag = null,
         [FromQuery] string hashes = null)
     {
         var torrents = this.torrentService.GetAll();
@@ -403,6 +404,31 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         if (!string.IsNullOrEmpty(category))
         {
             torrents = torrents.Where(t => string.Equals(t.Category, category, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(tag))
+        {
+            var filterTags = tag.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(t => t.Trim())
+                .Where(t => !string.IsNullOrEmpty(t))
+                .ToList();
+
+            if (filterTags.Count > 0)
+            {
+                torrents = torrents.Where(t =>
+                {
+                    if (string.IsNullOrEmpty(t.Label))
+                    {
+                        return false;
+                    }
+
+                    var torrentTags = t.Label.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(l => l.Trim())
+                        .Where(l => !string.IsNullOrEmpty(l));
+
+                    return filterTags.Any(ft => torrentTags.Any(tt => string.Equals(tt, ft, StringComparison.OrdinalIgnoreCase)));
+                });
+            }
         }
 
         if (!string.IsNullOrEmpty(filter))
@@ -425,6 +451,26 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     break;
                 case "inactive":
                     torrents = torrents.Where(t => t.DownloadSpeed == 0 && t.UploadSpeed == 0);
+                    break;
+                case "stalled":
+                    torrents = torrents.Where(t => t.Status == TorrentStatus.Stalled || (t.Status == TorrentStatus.Downloading && t.DownloadSpeed == 0) || (t.Status == TorrentStatus.Seeding && t.UploadSpeed == 0));
+                    break;
+                case "stalled_downloading":
+                    torrents = torrents.Where(t => (t.Status == TorrentStatus.Stalled && t.Progress < 1.0) || (t.Status == TorrentStatus.Downloading && t.DownloadSpeed == 0));
+                    break;
+                case "stalled_uploading":
+                    torrents = torrents.Where(t => (t.Status == TorrentStatus.Stalled && t.Progress >= 1.0) || (t.Status == TorrentStatus.Seeding && t.UploadSpeed == 0));
+                    break;
+                case "checking":
+                    torrents = torrents.Where(t => t.Status == TorrentStatus.Checking);
+                    break;
+                case "errored":
+                case "error":
+                    torrents = torrents.Where(t => t.Status == TorrentStatus.Error);
+                    break;
+                case "resumed":
+                case "running":
+                    torrents = torrents.Where(t => t.Status != TorrentStatus.Paused && t.Status != TorrentStatus.Stopped);
                     break;
             }
         }
