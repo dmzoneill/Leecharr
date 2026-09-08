@@ -906,18 +906,33 @@ public class TransmissionRpcController : ControllerBase
                     {
                         if (request.Arguments.TryGetValue("path", out var pathElem))
                         {
-                            oldPath = pathElem.GetString();
+                            oldPath = pathElem.GetString()?.Replace('\\', '/')?.TrimStart('/');
                         }
 
                         if (request.Arguments.TryGetValue("name", out var nameElem))
                         {
-                            newName = nameElem.GetString();
+                            newName = nameElem.GetString()?.Replace('\\', '/')?.Trim('/');
                         }
                     }
 
                     if (targetId > 0 && !string.IsNullOrWhiteSpace(oldPath) && !string.IsNullOrWhiteSpace(newName))
                     {
-                        await this.torrentService.RenameFileAsync(targetId, oldPath, newName);
+                        var parentDir = Path.GetDirectoryName(oldPath)?.Replace('\\', '/');
+                        var newRelativePath = string.IsNullOrEmpty(parentDir) || parentDir == "."
+                            ? newName
+                            : $"{parentDir}/{newName}";
+
+                        var files = this.torrentFileService?.GetFiles(targetId)?.ToList() ?? new List<TorrentFile>();
+                        var isDirectFile = files.Any(f => f.Path != null && f.Path.Replace('\\', '/').TrimStart('/').Equals(oldPath, StringComparison.OrdinalIgnoreCase));
+
+                        if (isDirectFile)
+                        {
+                            await this.torrentService.RenameFileAsync(targetId, oldPath, newRelativePath);
+                        }
+                        else
+                        {
+                            await this.torrentService.RenameFolderAsync(targetId, oldPath, newRelativePath);
+                        }
                     }
 
                     return this.Ok(new TransmissionRpcResponse
