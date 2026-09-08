@@ -2,6 +2,7 @@
 
 using System;
 using System.Linq;
+using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
@@ -15,6 +16,7 @@ namespace NzbDrone.Core.Network.Binding;
 public class LinuxBindToDeviceProvider : INetworkBindingProvider
 {
     private const int SoBindToDevice = 25;
+    private const int Ifnamesiz = 16;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public string ProviderId => "LinuxBindToDevice";
@@ -103,6 +105,11 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
             return;
         }
 
+        if (Encoding.ASCII.GetByteCount(interfaceName) >= Ifnamesiz)
+        {
+            throw new ArgumentException($"Interface name '{interfaceName}' exceeds maximum Linux interface name length (IFNAMSIZ = {Ifnamesiz} bytes).", nameof(interfaceName));
+        }
+
         if (!this.IsAvailable)
         {
             throw new PlatformNotSupportedException("SO_BINDTODEVICE is only supported on Linux platforms.");
@@ -128,12 +135,29 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
             return true;
         }
 
+        if (Encoding.ASCII.GetByteCount(interfaceName) >= Ifnamesiz)
+        {
+            return false;
+        }
+
         try
         {
             var nic = NetworkInterface.GetAllNetworkInterfaces()
-                .FirstOrDefault(n => string.Equals(n.Name, interfaceName, StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(n => string.Equals(n.Name, interfaceName, StringComparison.OrdinalIgnoreCase) ||
+                                     string.Equals(n.Id, interfaceName, StringComparison.OrdinalIgnoreCase));
 
-            return nic != null && nic.OperationalStatus == OperationalStatus.Up;
+            if (nic == null || nic.OperationalStatus != OperationalStatus.Up)
+            {
+                return false;
+            }
+
+            var unicast = nic.GetIPProperties()?.UnicastAddresses;
+            return unicast != null && unicast.Any(a =>
+                !IPAddress.IsLoopback(a.Address) &&
+                !a.Address.Equals(IPAddress.Any) &&
+                !a.Address.Equals(IPAddress.None) &&
+                !a.Address.Equals(IPAddress.IPv6Any) &&
+                !a.Address.Equals(IPAddress.IPv6None));
         }
         catch
         {
