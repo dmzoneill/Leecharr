@@ -34,9 +34,6 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
     private static readonly HttpClient HttpClient = new(new HttpClientHandler { CheckCertificateRevocationList = true }) { Timeout = TimeSpan.FromSeconds(6) };
     private static readonly BencodeParser BParser = new();
-    private static readonly ConcurrentDictionary<string, (DateTime BoostedAt, HashSet<string> InjectedTrackers)> BoostHistory = new(StringComparer.OrdinalIgnoreCase);
-    private static readonly ConcurrentDictionary<string, (IPAddress[] Addresses, DateTime ExpiresUtc)> DnsCache = new(StringComparer.OrdinalIgnoreCase);
-    private static readonly ConcurrentQueue<TrackerBoostLogEntry> LogBuffer = new();
     private static readonly TimeSpan ScrapeCacheTtl = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan DnsCacheTtl = TimeSpan.FromMinutes(10);
 
@@ -56,15 +53,6 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         "https://tracker.tamersunion.org:443/announce",
     };
 
-    private static DateTime? lastScanTime;
-    private static DateTime? lastHarvestTime;
-    private static DateTime? lastProwlarrHarvestTime;
-    private static DateTime? lastAutoBoostTime;
-    private static int totalTorrentsBoosted;
-    private static int totalTrackersInjected;
-    private static int totalVerifiedMatchesCount;
-    private static int nextLogId;
-
     private readonly ITrackerBoostTrackerRepository trackerRepository;
     private readonly ITorrentService torrentService;
     private readonly ITrackerEntryRepository trackerEntryRepository;
@@ -72,6 +60,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
     private readonly IConfigService configService;
     private readonly IDownloadEngine downloadEngine;
     private readonly IDownloadClientRepository downloadClientRepository;
+    private readonly ITrackerBoostStateStore stateStore;
     private readonly SemaphoreSlim globalScrapeThrottle = new(10, 10);
     private readonly ConcurrentDictionary<string, (bool Success, int Seeders, int Leechers, int Downloaded, DateTime CachedUtc)> scrapeCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Logger logger;
@@ -83,7 +72,8 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         IIndexerRepository indexerRepository,
         IConfigService configService,
         IDownloadEngine downloadEngine = null,
-        IDownloadClientRepository downloadClientRepository = null)
+        IDownloadClientRepository downloadClientRepository = null,
+        ITrackerBoostStateStore stateStore = null)
     {
         this.trackerRepository = trackerRepository;
         this.torrentService = torrentService;
@@ -92,9 +82,8 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         this.configService = configService;
         this.downloadEngine = downloadEngine;
         this.downloadClientRepository = downloadClientRepository;
+        this.stateStore = stateStore ?? TrackerBoostStateStore.Shared;
         this.logger = LogManager.GetCurrentClassLogger();
-
-        this.EnsureDefaultTrackersBootstrapped();
     }
 
     public static bool HasPasskey(string url)
@@ -292,7 +281,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
     public IReadOnlyList<TrackerBoostLogEntry> GetLogs(int limit = 100, string category = null, string level = null)
     {
-        var query = LogBuffer.ToArray().AsEnumerable();
+        var query = this.stateStore.LogBuffer.ToArray().AsEnumerable();
 
         if (!string.IsNullOrWhiteSpace(category) && !category.Equals("all", StringComparison.OrdinalIgnoreCase))
         {
@@ -309,7 +298,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
     public void ClearLogs()
     {
-        while (LogBuffer.TryDequeue(out _))
+        while (this.stateStore.LogBuffer.TryDequeue(out _))
         {
         }
 
@@ -320,7 +309,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
     {
         var entry = new TrackerBoostLogEntry
         {
-            Id = Interlocked.Increment(ref nextLogId),
+            Id = this.stateStore.NextLogId(),
             Timestamp = DateTime.UtcNow,
             Level = level ?? "Info",
             Category = category ?? "General",
@@ -329,15 +318,22 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             InfoHash = infoHash ?? string.Empty,
         };
 
-        LogBuffer.Enqueue(entry);
-        while (LogBuffer.Count > MaxLogEntries && LogBuffer.TryDequeue(out _))
+        this.stateStore.LogBuffer.Enqueue(entry);
+        while (this.stateStore.LogBuffer.Count > MaxLogEntries && this.stateStore.LogBuffer.TryDequeue(out _))
         {
         }
     }
 
     public List<TrackerBoostTracker> GetAllTrackers()
     {
-        return this.trackerRepository.All().OrderByDescending(t => t.Status == TrackerHealthStatus.Alive)
+        var all = this.trackerRepository.All().ToList();
+        if (all.Count == 0)
+        {
+            this.EnsureDefaultTrackersBootstrapped();
+            all = this.trackerRepository.All().ToList();
+        }
+
+        return all.OrderByDescending(t => t.Status == TrackerHealthStatus.Alive)
             .ThenBy(t => t.LatencyMs > 0 ? t.LatencyMs : 9999)
             .ToList();
     }
@@ -365,6 +361,12 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
     public Task<TrackerBoostStatusSummary> GetStatusSummaryAsync()
     {
         var all = this.trackerRepository.All().ToList();
+        if (all.Count == 0)
+        {
+            this.EnsureDefaultTrackersBootstrapped();
+            all = this.trackerRepository.All().ToList();
+        }
+
         var settings = this.GetSettings();
         return Task.FromResult(new TrackerBoostStatusSummary
         {
@@ -376,15 +378,15 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             ProwlarrTrackersCount = all.Count(t => t.Source == TrackerSourceType.Prowlarr),
             PublicListTrackersCount = all.Count(t => t.Source == TrackerSourceType.PublicList),
             ActiveTorrentTrackersCount = all.Count(t => t.Source == TrackerSourceType.ActiveTorrent),
-            TorrentsBoostedCount = totalTorrentsBoosted,
-            ExtraTrackersInjectedCount = totalTrackersInjected,
-            TotalVerifiedMatchesCount = totalVerifiedMatchesCount,
+            TorrentsBoostedCount = this.stateStore.TotalTorrentsBoosted,
+            ExtraTrackersInjectedCount = this.stateStore.TotalTrackersInjected,
+            TotalVerifiedMatchesCount = this.stateStore.TotalVerifiedMatchesCount,
             AutoBoostEnabled = settings.AutoBoostEnabled,
             AutoHarvestEnabled = settings.AutoHarvestEnabled,
-            LastScanTime = lastScanTime,
-            LastHarvestTime = lastHarvestTime,
-            LastProwlarrHarvestTime = lastProwlarrHarvestTime,
-            LastAutoBoostTime = lastAutoBoostTime,
+            LastScanTime = this.stateStore.LastScanTime,
+            LastHarvestTime = this.stateStore.LastHarvestTime,
+            LastProwlarrHarvestTime = this.stateStore.LastProwlarrHarvestTime,
+            LastAutoBoostTime = this.stateStore.LastAutoBoostTime,
         });
     }
 
@@ -438,7 +440,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                 }
             }
 
-            lastHarvestTime = DateTime.UtcNow;
+            this.stateStore.LastHarvestTime = DateTime.UtcNow;
             if (discovered > 0)
             {
                 this.logger.Info("Harvested {0} new public trackers from active download swarms", discovered);
@@ -548,7 +550,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                 }
             }
 
-            lastProwlarrHarvestTime = DateTime.UtcNow;
+            this.stateStore.LastProwlarrHarvestTime = DateTime.UtcNow;
             this.logger.Info("Harvested {0} trackers from connected Prowlarr indexers", harvestedCount);
             this.LogActivity(harvestedCount > 0 ? "Success" : "Info", "Discovery", $"Prowlarr sync complete: {harvestedCount} tracker(s) harvested from indexers");
         }
@@ -630,7 +632,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             return new[] { parsedIp };
         }
 
-        if (DnsCache.TryGetValue(host, out var entry) && DateTime.UtcNow < entry.ExpiresUtc)
+        if (TrackerBoostStateStore.Shared.DnsCache.TryGetValue(host, out var entry) && DateTime.UtcNow < entry.ExpiresUtc)
         {
             return entry.Addresses;
         }
@@ -640,7 +642,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken).ConfigureAwait(false);
             if (addresses.Length > 0)
             {
-                DnsCache[host] = (addresses, DateTime.UtcNow.Add(DnsCacheTtl));
+                TrackerBoostStateStore.Shared.DnsCache[host] = (addresses, DateTime.UtcNow.Add(DnsCacheTtl));
             }
 
             return addresses;
@@ -653,7 +655,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
     internal static void ClearDnsCache()
     {
-        DnsCache.Clear();
+        TrackerBoostStateStore.Shared.DnsCache.Clear();
     }
 
     public async Task<int> ProbeTrackerHealthAsync()
@@ -733,7 +735,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         });
 
         await Task.WhenAll(tasks);
-        lastScanTime = DateTime.UtcNow;
+        this.stateStore.LastScanTime = DateTime.UtcNow;
         this.LogActivity("Info", "Health", $"Completed health scan of {testedCount} candidate tracker(s)");
         return testedCount;
     }
@@ -837,9 +839,9 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
         if (addedList.Count > 0)
         {
-            totalTorrentsBoosted++;
-            totalTrackersInjected += addedList.Count;
-            totalVerifiedMatchesCount += addedList.Count;
+            this.stateStore.IncrementTorrentsBoosted();
+            this.stateStore.IncrementTrackersInjected(addedList.Count);
+            this.stateStore.IncrementVerifiedMatches(addedList.Count);
 
             // In-Engine Injection: Add to MonoTorrent / active download engine
             if (this.downloadEngine != null)
@@ -857,13 +859,13 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             // Also inject into any configured external download clients
             var clientCount = await this.InjectIntoDownloadClientsAsync(torrent.InfoHash, addedList).ConfigureAwait(false);
 
-            var existingHistory = BoostHistory.GetOrAdd(torrent.InfoHash, _ => (DateTime.UtcNow, new HashSet<string>(StringComparer.OrdinalIgnoreCase)));
+            var existingHistory = this.stateStore.BoostHistory.GetOrAdd(torrent.InfoHash, _ => (DateTime.UtcNow, new HashSet<string>(StringComparer.OrdinalIgnoreCase)));
             foreach (var url in addedList)
             {
                 existingHistory.InjectedTrackers.Add(url);
             }
 
-            BoostHistory[torrent.InfoHash] = (DateTime.UtcNow, existingHistory.InjectedTrackers);
+            this.stateStore.BoostHistory[torrent.InfoHash] = (DateTime.UtcNow, existingHistory.InjectedTrackers);
 
             this.logger.Info(
                 "Boosted torrent {0} with {1} verified trackers (+{2} seeds, +{3} leeches)",
@@ -932,13 +934,13 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
         if (injected > 0)
         {
-            var existingHistory = BoostHistory.GetOrAdd(infoHash, _ => (DateTime.UtcNow, new HashSet<string>(StringComparer.OrdinalIgnoreCase)));
+            var existingHistory = this.stateStore.BoostHistory.GetOrAdd(infoHash, _ => (DateTime.UtcNow, new HashSet<string>(StringComparer.OrdinalIgnoreCase)));
             foreach (var url in addedList)
             {
                 existingHistory.InjectedTrackers.Add(url);
             }
 
-            BoostHistory[infoHash] = (DateTime.UtcNow, existingHistory.InjectedTrackers);
+            this.stateStore.BoostHistory[infoHash] = (DateTime.UtcNow, existingHistory.InjectedTrackers);
 
             this.LogActivity(
                 "Success",
@@ -1026,7 +1028,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                 AnnounceInterval = defaultAnnounceInterval,
             };
             this.trackerEntryRepository.Insert(entry);
-            totalTrackersInjected++;
+            this.stateStore.IncrementTrackersInjected();
         }
 
         if (this.downloadEngine != null)
@@ -1080,9 +1082,9 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         var injected = await this.InjectIntoDownloadClientsAsync(infoHash, new[] { trackerTrimmed }).ConfigureAwait(false);
         if (injected > 0)
         {
-            var existingHistory = BoostHistory.GetOrAdd(infoHash, _ => (DateTime.UtcNow, new HashSet<string>(StringComparer.OrdinalIgnoreCase)));
+            var existingHistory = this.stateStore.BoostHistory.GetOrAdd(infoHash, _ => (DateTime.UtcNow, new HashSet<string>(StringComparer.OrdinalIgnoreCase)));
             existingHistory.InjectedTrackers.Add(trackerTrimmed);
-            BoostHistory[infoHash] = (DateTime.UtcNow, existingHistory.InjectedTrackers);
+            this.stateStore.BoostHistory[infoHash] = (DateTime.UtcNow, existingHistory.InjectedTrackers);
 
             this.LogActivity("Success", "Inject", $"Injected tracker {trackerTrimmed} into hash {infoHash} across {injected} client(s)", trackerTrimmed, infoHash);
         }
@@ -1114,7 +1116,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             results.Add(res);
         }
 
-        lastAutoBoostTime = DateTime.UtcNow;
+        this.stateStore.LastAutoBoostTime = DateTime.UtcNow;
         return results;
     }
 
@@ -1475,6 +1477,8 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
     {
         this.LogActivity("Info", "Cycle", "Background tracker optimization cycle started");
 
+        this.EnsureDefaultTrackersBootstrapped();
+
         this.CleanExpiredBoostHistory();
 
         await this.RecoverMissingTrackersAsync();
@@ -1486,7 +1490,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         }
 
         var hasUntested = this.trackerRepository.All().Any(t => t.Enabled && t.Status == TrackerHealthStatus.Untested);
-        if (hasUntested || lastScanTime == null || DateTime.UtcNow.Subtract(lastScanTime.Value).TotalMinutes > 5)
+        if (hasUntested || this.stateStore.LastScanTime == null || DateTime.UtcNow.Subtract(this.stateStore.LastScanTime.Value).TotalMinutes > 5)
         {
             await this.ProbeTrackerHealthAsync();
         }
@@ -1768,7 +1772,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             }
         }
 
-        var hasBoost = BoostHistory.TryGetValue(infoHash, out var boostInfo);
+        var hasBoost = this.stateStore.BoostHistory.TryGetValue(infoHash, out var boostInfo);
 
         return new TorrentTrackerInspectionResult
         {
@@ -2038,11 +2042,11 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
     public void CleanExpiredBoostHistory(TimeSpan? maxAge = null)
     {
         var cutoff = DateTime.UtcNow - (maxAge ?? TimeSpan.FromHours(24));
-        foreach (var key in BoostHistory.Keys)
+        foreach (var key in this.stateStore.BoostHistory.Keys)
         {
-            if (BoostHistory.TryGetValue(key, out var entry) && entry.BoostedAt < cutoff)
+            if (this.stateStore.BoostHistory.TryGetValue(key, out var entry) && entry.BoostedAt < cutoff)
             {
-                BoostHistory.TryRemove(key, out _);
+                this.stateStore.BoostHistory.TryRemove(key, out _);
             }
         }
     }
@@ -2051,13 +2055,13 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
     {
         if (!string.IsNullOrWhiteSpace(infoHash))
         {
-            BoostHistory.TryRemove(infoHash, out _);
+            this.stateStore.BoostHistory.TryRemove(infoHash, out _);
         }
     }
 
     public static void ClearBoostHistory()
     {
-        BoostHistory.Clear();
+        TrackerBoostStateStore.Shared.BoostHistory.Clear();
     }
 
     public void Handle(TorrentDeletedEvent message)
