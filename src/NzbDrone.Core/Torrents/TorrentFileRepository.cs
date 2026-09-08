@@ -24,17 +24,17 @@ public class TorrentFileRepository : BasicRepository<TorrentFile>, ITorrentFileR
 
     public Dictionary<int, List<TorrentFile>> GetByTorrentIds(IEnumerable<int> torrentIds)
     {
-        var idList = torrentIds?.Distinct().ToList();
+        var idList = torrentIds?.Distinct().Where(id => id > 0).ToList();
         if (idList == null || idList.Count == 0)
         {
             return new Dictionary<int, List<TorrentFile>>();
         }
 
+        var inClause = string.Join(", ", idList);
         return this.ExecuteWithRetry(connection =>
         {
             var files = connection.Query<TorrentFile>(
-                $"SELECT * FROM \"{this.table}\" WHERE \"TorrentId\" IN (@TorrentIds) ORDER BY \"Id\" ASC",
-                new { TorrentIds = idList });
+                $"SELECT * FROM \"{this.table}\" WHERE \"TorrentId\" IN ({inClause}) ORDER BY \"Id\" ASC");
             return files.GroupBy(f => f.TorrentId).ToDictionary(g => g.Key, g => g.ToList());
         });
     }
