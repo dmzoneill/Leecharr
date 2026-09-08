@@ -22,10 +22,8 @@ import {
 } from "../utils/formatters";
 import { getMediaDeepLink } from "../utils/arrLinks";
 import { getTorrentBadges } from "../utils/milestones";
-import { SkeletonTableRow } from "./Skeleton";
 import TorrentContextMenu from "./TorrentContextMenu";
 import TrackerFavicon from "./TrackerFavicon";
-import { PlayIcon, StopIcon } from "./icons/UIIcons";
 import useEscapeKey from "../hooks/useEscapeKey";
 import type { Torrent, DownloadHistoryEntry } from "../api/types";
 import { useTranslation } from "../i18n";
@@ -237,31 +235,799 @@ function saveColumnWidths(widths: Record<string, number>) {
   localStorage.setItem(PREF_COL_WIDTHS_STORAGE, JSON.stringify(widths));
 }
 
-interface ContextMenuState {
-  x: number;
-  y: number;
-  torrent: Torrent | null;
+// ---------------------------------------------------------------------------
+// Leaf Telemetry Cell Components (Granular React.memo Subscriptions)
+// ---------------------------------------------------------------------------
+
+export const TorrentSpeedCell: React.FC<{
+  torrentId: number;
+  fallbackSpeed?: number;
+  type: "download" | "upload";
+}> = React.memo(({ torrentId, fallbackSpeed = 0, type }) => {
+  const speed = useTorrentStore((state) => {
+    const tel = state.telemetry[torrentId];
+    if (!tel) return fallbackSpeed;
+    const effectiveStatus = (tel.status || "").toLowerCase();
+    const isInactive =
+      effectiveStatus === "paused" ||
+      effectiveStatus === "stopped" ||
+      effectiveStatus === "error" ||
+      effectiveStatus === "queued";
+    if (isInactive) return 0;
+    return type === "download"
+      ? (tel.downloadSpeed ?? fallbackSpeed)
+      : (tel.uploadSpeed ?? fallbackSpeed);
+  });
+
+  const isDownload = type === "download";
+  return (
+    <span
+      style={{
+        color:
+          speed > 0
+            ? isDownload
+              ? "var(--success, #22c55e)"
+              : "var(--accent, #ffd166)"
+            : "var(--text-muted, #7e8092)",
+        fontWeight: speed > 0 ? 600 : 400,
+      }}
+    >
+      {formatSpeed(speed)}
+    </span>
+  );
+});
+TorrentSpeedCell.displayName = "TorrentSpeedCell";
+
+export const TorrentProgressCell: React.FC<{
+  torrentId: number;
+  fallbackProgress?: number;
+  fallbackStatus?: string;
+}> = React.memo(({ torrentId, fallbackProgress = 0, fallbackStatus }) => {
+  const progress = useTorrentStore(
+    (state) => state.telemetry[torrentId]?.progress ?? fallbackProgress,
+  );
+  const status = useTorrentStore(
+    (state) => state.telemetry[torrentId]?.status ?? fallbackStatus,
+  );
+
+  const rawPct = Math.min(100, Math.max(0, progress * 100));
+  const isChecking = (status || "").toLowerCase() === "checking";
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        width: 120,
+      }}
+    >
+      <div
+        style={{
+          flex: 1,
+          height: 6,
+          backgroundColor: "rgba(255, 255, 255, 0.1)",
+          borderRadius: 3,
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            width: `${rawPct}%`,
+            height: "100%",
+            backgroundColor: isChecking
+              ? "var(--info, #38bdf8)"
+              : rawPct >= 100
+                ? "var(--success, #22c55e)"
+                : "var(--accent, #ffd166)",
+            transition: "width 0.3s",
+          }}
+        />
+      </div>
+      <span
+        style={{
+          fontSize: "0.75rem",
+          fontWeight: 600,
+          width: 44,
+          textAlign: "right",
+          color: isChecking ? "var(--info, #38bdf8)" : undefined,
+        }}
+      >
+        {rawPct.toFixed(1)}%
+      </span>
+    </div>
+  );
+});
+TorrentProgressCell.displayName = "TorrentProgressCell";
+
+export const TorrentStatusCell: React.FC<{
+  torrentId: number;
+  fallbackStatus?: string;
+  fallbackProgress?: number;
+}> = React.memo(({ torrentId, fallbackStatus = "idle", fallbackProgress = 0 }) => {
+  const { t } = useTranslation();
+  const rawStatus = useTorrentStore(
+    (state) => state.telemetry[torrentId]?.status ?? fallbackStatus,
+  );
+  const progress = useTorrentStore(
+    (state) => state.telemetry[torrentId]?.progress ?? fallbackProgress,
+  );
+
+  const st = (rawStatus || "idle").toLowerCase();
+  let color = "var(--text-muted, #7e8092)";
+  let bg = "rgba(126, 128, 146, 0.15)";
+
+  if (st === "downloading") {
+    color = "var(--accent, #ffd166)";
+    bg = "rgba(255, 209, 102, 0.15)";
+  } else if (st === "seeding" || st === "completed") {
+    color = "var(--success, #22c55e)";
+    bg = "rgba(34, 197, 94, 0.15)";
+  } else if (st === "checking" || st === "queued") {
+    color = "var(--info, #38bdf8)";
+    bg = "rgba(56, 189, 248, 0.15)";
+  }
+
+  const statusLabel =
+    st === "checking"
+      ? `${t("torrentStatus.checking", "Checking")} (${(progress * 100).toFixed(1)}%)`
+      : t("torrentStatus." + (rawStatus || "idle").toLowerCase(), rawStatus || "Idle");
+
+  return (
+    <span
+      className="badge"
+      style={{
+        backgroundColor: bg,
+        color: color,
+        fontWeight: 600,
+        fontSize: "0.72rem",
+        padding: "0.15rem 0.5rem",
+        textTransform: "capitalize",
+      }}
+    >
+      {statusLabel}
+    </span>
+  );
+});
+TorrentStatusCell.displayName = "TorrentStatusCell";
+
+export const TorrentEtaCell: React.FC<{
+  torrentId: number;
+  totalSize: number;
+  fallbackEta?: number;
+  fallbackProgress?: number;
+  fallbackSpeed?: number;
+  fallbackStatus?: string;
+}> = React.memo(
+  ({
+    torrentId,
+    totalSize,
+    fallbackEta,
+    fallbackProgress = 0,
+    fallbackSpeed = 0,
+    fallbackStatus,
+  }) => {
+    const { t } = useTranslation();
+    const eta = useTorrentStore((state) => state.telemetry[torrentId]?.eta ?? fallbackEta);
+    const progress = useTorrentStore(
+      (state) => state.telemetry[torrentId]?.progress ?? fallbackProgress,
+    );
+    const downloadSpeed = useTorrentStore((state) => {
+      const tel = state.telemetry[torrentId];
+      if (!tel) return fallbackSpeed;
+      const st = (tel.status || fallbackStatus || "").toLowerCase();
+      const isInactive =
+        st === "paused" || st === "stopped" || st === "error" || st === "queued";
+      return isInactive ? 0 : (tel.downloadSpeed ?? fallbackSpeed);
+    });
+    const status = useTorrentStore(
+      (state) => state.telemetry[torrentId]?.status ?? fallbackStatus,
+    );
+
+    if (progress >= 1.0) {
+      return <span>{t("torrents.table.done")}</span>;
+    }
+    const isInactive =
+      status === "paused" ||
+      status === "stopped" ||
+      status === "error" ||
+      status === "queued";
+    if (isInactive) {
+      return <span>∞</span>;
+    }
+
+    const etaSec =
+      eta && eta > 0
+        ? typeof eta === "number"
+          ? eta
+          : Number(eta)
+        : downloadSpeed > 0
+          ? Math.floor((totalSize * (1 - (progress || 0))) / downloadSpeed)
+          : 0;
+
+    return <span>{etaSec > 0 ? formatSeconds(etaSec) : "∞"}</span>;
+  },
+);
+TorrentEtaCell.displayName = "TorrentEtaCell";
+
+export const TorrentDownloadedCell: React.FC<{
+  torrentId: number;
+  totalSize: number;
+  fallbackDownloaded?: number;
+  fallbackProgress?: number;
+}> = React.memo(
+  ({
+    torrentId,
+    totalSize,
+    fallbackDownloaded,
+    fallbackProgress = 0,
+  }) => {
+    const downloaded = useTorrentStore((state) => {
+      const tel = state.telemetry[torrentId];
+      if (tel?.downloaded !== undefined) return tel.downloaded;
+      if (tel?.progress !== undefined) return totalSize * tel.progress;
+      if (fallbackDownloaded !== undefined) return fallbackDownloaded;
+      return totalSize * fallbackProgress;
+    });
+
+    return <span>{formatBytes(downloaded)}</span>;
+  },
+);
+TorrentDownloadedCell.displayName = "TorrentDownloadedCell";
+
+export const TorrentUploadedCell: React.FC<{
+  torrentId: number;
+  fallbackUploaded?: number;
+}> = React.memo(({ torrentId, fallbackUploaded = 0 }) => {
+  const uploaded = useTorrentStore(
+    (state) => state.telemetry[torrentId]?.uploaded ?? fallbackUploaded,
+  );
+  return <span>{formatBytes(uploaded)}</span>;
+});
+TorrentUploadedCell.displayName = "TorrentUploadedCell";
+
+export const TorrentRatioCell: React.FC<{
+  torrentId: number;
+  fallbackRatio?: number;
+}> = React.memo(({ torrentId, fallbackRatio = 0 }) => {
+  const ratio = useTorrentStore(
+    (state) => state.telemetry[torrentId]?.ratio ?? fallbackRatio,
+  );
+  return (
+    <span
+      style={{
+        fontWeight: 600,
+        color:
+          (ratio || 0) >= 1.0
+            ? "var(--success, #22c55e)"
+            : "var(--text-primary, #f8f4ed)",
+      }}
+    >
+      {formatRatio(ratio || 0)}
+    </span>
+  );
+});
+TorrentRatioCell.displayName = "TorrentRatioCell";
+
+export const TorrentSeedsPeersCell: React.FC<{
+  torrentId: number;
+  type: "seeds" | "peers";
+  fallbackCount?: number;
+  fallbackStatus?: string;
+}> = React.memo(({ torrentId, type, fallbackCount = 0, fallbackStatus }) => {
+  const count = useTorrentStore((state) => {
+    const tel = state.telemetry[torrentId];
+    const status = (tel?.status ?? fallbackStatus ?? "").toLowerCase();
+    const isInactive =
+      status === "paused" ||
+      status === "stopped" ||
+      status === "error" ||
+      status === "queued";
+    if (isInactive) return 0;
+    return type === "seeds"
+      ? (tel?.seeders ?? fallbackCount)
+      : (tel?.leechers ?? fallbackCount);
+  });
+
+  if (type === "seeds") {
+    return (
+      <span style={{ color: "var(--success, #22c55e)", fontWeight: 600 }}>
+        {count}
+      </span>
+    );
+  }
+  return <span>{count}</span>;
+});
+TorrentSeedsPeersCell.displayName = "TorrentSeedsPeersCell";
+
+export const TorrentNameCell: React.FC<{
+  torrent: Torrent;
+  historyByHash: Map<string, DownloadHistoryEntry>;
+  historyByTitle: Map<string, DownloadHistoryEntry>;
+  arrConnections?: any;
+}> = React.memo(
+  ({ torrent: tTorrent, historyByHash, historyByTitle, arrConnections }) => {
+    const { t } = useTranslation();
+    const historyMatch =
+      (tTorrent.infoHash
+        ? historyByHash.get(tTorrent.infoHash.toLowerCase())
+        : undefined) ||
+      (tTorrent.name
+        ? historyByTitle.get(tTorrent.name.toLowerCase())
+        : undefined);
+    const meta = historyMatch?.metadata;
+    const arrLink = historyMatch
+      ? getMediaDeepLink(historyMatch, arrConnections)
+      : null;
+    const badges = getTorrentBadges(tTorrent);
+    const posterSrc =
+      tTorrent.posterUrl ||
+      tTorrent.artworkUrl ||
+      tTorrent.bannerUrl ||
+      meta?.posterUrl;
+
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.6rem",
+          minWidth: 200,
+          maxWidth: 460,
+        }}
+      >
+        {posterSrc ? (
+          <img
+            src={posterSrc}
+            alt=""
+            style={{
+              width: "22px",
+              height: "32px",
+              objectFit: "cover",
+              borderRadius: "3px",
+              flexShrink: 0,
+              boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+            }}
+            onError={(e) => {
+              (e.currentTarget as HTMLElement).style.display = "none";
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: "22px",
+              height: "32px",
+              borderRadius: "3px",
+              backgroundColor: "rgba(255, 255, 255, 0.06)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "0.75rem",
+              flexShrink: 0,
+              color: "var(--text-muted)",
+            }}
+          >
+            🎬
+          </div>
+        )}
+
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "2px",
+            minWidth: 0,
+            overflow: "hidden",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            {tTorrent.isPrivate && (
+              <span
+                className="badge"
+                title={t("torrents.table.privateTooltip")}
+                style={{
+                  backgroundColor: "rgba(239, 68, 68, 0.2)",
+                  color: "#f87171",
+                  border: "1px solid rgba(239, 68, 68, 0.4)",
+                  fontSize: "0.65rem",
+                  padding: "0.05rem 0.35rem",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "3px",
+                  flexShrink: 0,
+                }}
+              >
+                <i
+                  className="fas fa-lock"
+                  style={{ fontSize: "0.6rem" }}
+                />{" "}
+                {t("torrents.filters.privateBep27")}
+              </span>
+            )}
+            <span
+              style={{
+                fontWeight: 600,
+                color: "var(--text-primary, #f8f4ed)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+              title={tTorrent.name}
+            >
+              {meta?.title || tTorrent.mediaTitle || tTorrent.name}{" "}
+              {meta?.year ? `(${meta.year})` : ""}
+            </span>
+            {arrLink && (
+              <a
+                href={arrLink.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  fontSize: "0.68rem",
+                  padding: "0.1rem 0.35rem",
+                  borderRadius: "3px",
+                  backgroundColor: "rgba(255, 209, 102, 0.15)",
+                  color: "var(--accent, #ffd166)",
+                  textDecoration: "none",
+                  fontWeight: 600,
+                  flexShrink: 0,
+                }}
+              >
+                {arrLink.label} ↗
+              </a>
+            )}
+          </div>
+
+          {tTorrent.mediaTitle && tTorrent.mediaTitle !== tTorrent.name && (
+            <span
+              style={{
+                fontSize: "0.72rem",
+                color: "var(--text-muted, #7e8092)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+              title={tTorrent.name}
+            >
+              {tTorrent.name}
+            </span>
+          )}
+
+          {badges.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                gap: "4px",
+                flexWrap: "wrap",
+                marginTop: "2px",
+              }}
+            >
+              {badges.slice(0, 3).map((b, i) => (
+                <span
+                  key={i}
+                  className="badge"
+                  title={b.title}
+                  style={{
+                    fontSize: "0.65rem",
+                    padding: "0.05rem 0.3rem",
+                    backgroundColor: `${b.color}22`,
+                    color: b.color,
+                    border: `1px solid ${b.color}44`,
+                  }}
+                >
+                  {b.icon} {b.label}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  },
+);
+TorrentNameCell.displayName = "TorrentNameCell";
+
+export interface TorrentCellProps {
+  columnKey: ColumnKey;
+  torrent: Torrent;
+  rowIndex: number;
+  historyByHash: Map<string, DownloadHistoryEntry>;
+  historyByTitle: Map<string, DownloadHistoryEntry>;
+  arrConnections?: any;
 }
 
-export interface TorrentTableProps {
-  torrents?: Torrent[];
-  filter?: string;
-  stateFilter?: string;
-  trackerFilter?: string;
-  privacyFilter?: string;
-  selectedId?: number | null;
-  selectedTorrentId?: number | null;
-  onSelect?: (torrent: Torrent) => void;
-  onSelectTorrent?: (id: number | null) => void;
-  onPause?: (id: number) => void;
-  onResume?: (id: number) => void;
-  onDelete?: (payload: { id: number; deleteFiles?: boolean }) => void;
-  selectedIds?: Set<number>;
-  onToggleSelect?: (id: number) => void;
-  onSelectAll?: (ids: number[]) => void;
-  onSearchIndexers?: (query: string) => void;
-  onNavigateTab?: (nav: string, subNav?: string) => void;
-}
+export const TorrentCell: React.FC<TorrentCellProps> = React.memo(
+  ({
+    columnKey,
+    torrent: t,
+    rowIndex,
+    historyByHash,
+    historyByTitle,
+    arrConnections,
+  }) => {
+    const { t: translate } = useTranslation();
+
+    switch (columnKey) {
+      case "#":
+        return (
+          <span
+            style={{
+              color: "var(--text-muted, #7e8092)",
+              fontSize: "0.75rem",
+            }}
+          >
+            {t.queuePosition && t.queuePosition > 0
+              ? t.queuePosition
+              : rowIndex + 1}
+          </span>
+        );
+
+      case "name":
+        return (
+          <TorrentNameCell
+            torrent={t}
+            historyByHash={historyByHash}
+            historyByTitle={historyByTitle}
+            arrConnections={arrConnections}
+          />
+        );
+
+      case "category": {
+        const cat = t.category || t.label || translate("torrents.table.none");
+        return (
+          <span
+            className="badge"
+            style={{
+              fontSize: "0.72rem",
+              padding: "0.15rem 0.45rem",
+              backgroundColor: "rgba(255, 255, 255, 0.06)",
+              color: "var(--text-secondary, #c7c5d3)",
+              fontWeight: 600,
+              textTransform: "uppercase",
+            }}
+          >
+            {cat}
+          </span>
+        );
+      }
+
+      case "status":
+        return (
+          <TorrentStatusCell
+            torrentId={t.id}
+            fallbackStatus={t.status}
+            fallbackProgress={t.progress}
+          />
+        );
+
+      case "progress":
+        return (
+          <TorrentProgressCell
+            torrentId={t.id}
+            fallbackProgress={t.progress}
+            fallbackStatus={t.status}
+          />
+        );
+
+      case "totalSize":
+        return <span>{formatBytes(t.totalSize)}</span>;
+
+      case "downloaded":
+        return (
+          <TorrentDownloadedCell
+            torrentId={t.id}
+            totalSize={t.totalSize}
+            fallbackDownloaded={t.downloaded}
+            fallbackProgress={t.progress}
+          />
+        );
+
+      case "uploaded":
+        return (
+          <TorrentUploadedCell
+            torrentId={t.id}
+            fallbackUploaded={t.uploaded}
+          />
+        );
+
+      case "downloadSpeed":
+        return (
+          <TorrentSpeedCell
+            torrentId={t.id}
+            fallbackSpeed={t.downloadSpeed}
+            type="download"
+          />
+        );
+
+      case "uploadSpeed":
+        return (
+          <TorrentSpeedCell
+            torrentId={t.id}
+            fallbackSpeed={t.uploadSpeed}
+            type="upload"
+          />
+        );
+
+      case "ratio":
+        return (
+          <TorrentRatioCell
+            torrentId={t.id}
+            fallbackRatio={t.ratio}
+          />
+        );
+
+      case "seeders":
+        return (
+          <TorrentSeedsPeersCell
+            torrentId={t.id}
+            type="seeds"
+            fallbackCount={t.seeders}
+            fallbackStatus={t.status}
+          />
+        );
+
+      case "leechers":
+        return (
+          <TorrentSeedsPeersCell
+            torrentId={t.id}
+            type="peers"
+            fallbackCount={t.leechers}
+            fallbackStatus={t.status}
+          />
+        );
+
+      case "eta":
+        return (
+          <TorrentEtaCell
+            torrentId={t.id}
+            totalSize={t.totalSize}
+            fallbackEta={t.eta}
+            fallbackProgress={t.progress}
+            fallbackSpeed={t.downloadSpeed}
+            fallbackStatus={t.status}
+          />
+        );
+
+      case "trackerUrl": {
+        const domain = extractTrackerDomain(t.trackerUrl);
+        return (
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.4rem",
+            }}
+          >
+            <TrackerFavicon urlOrHost={domain} size={14} />
+            <span>{domain || "-"}</span>
+          </div>
+        );
+      }
+
+      case "priority":
+        return (
+          <span className="badge" style={{ fontSize: "0.7rem" }}>
+            {t.priority === 2
+              ? translate("torrents.contextMenu.highPriority")
+              : t.priority === 0
+                ? translate("torrents.contextMenu.lowPriority")
+                : translate("torrents.contextMenu.normalPriority")}
+          </span>
+        );
+
+      case "dateAdded":
+        return (
+          <span>{t.dateAdded ? formatDate(t.dateAdded) : "-"}</span>
+        );
+
+      case "pieceCount":
+        return <span>{t.pieceCount ?? "-"}</span>;
+
+      case "pieceLength":
+        return (
+          <span>{t.pieceLength ? formatBytes(t.pieceLength) : "-"}</span>
+        );
+
+      case "infoHash":
+        return (
+          <span style={{ fontFamily: "monospace", fontSize: "0.72rem" }}>
+            {t.infoHash?.substring(0, 10)}...
+          </span>
+        );
+
+      case "isPrivate":
+        return t.isPrivate ? (
+          <span
+            className="badge"
+            style={{
+              backgroundColor: "rgba(239, 68, 68, 0.2)",
+              color: "#f87171",
+              border: "1px solid rgba(239, 68, 68, 0.4)",
+              fontSize: "0.7rem",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+            }}
+            title={translate("torrents.table.privateTooltip")}
+          >
+            <i className="fas fa-lock" style={{ fontSize: "0.65rem" }} />{" "}
+            {translate("torrents.filters.privateBep27")}
+          </span>
+        ) : (
+          <span
+            className="badge"
+            style={{
+              backgroundColor: "rgba(59, 130, 246, 0.15)",
+              color: "#60a5fa",
+              fontSize: "0.7rem",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+            }}
+            title={translate("torrents.table.publicTooltip")}
+          >
+            <i className="fas fa-globe" style={{ fontSize: "0.65rem" }} />{" "}
+            {translate("torrents.filters.publicSwarm")}
+          </span>
+        );
+
+      case "uploadLimit":
+        return (
+          <span>
+            {t.uploadLimit ? formatSpeed(t.uploadLimit) : "∞"}
+          </span>
+        );
+
+      case "downloadLimit":
+        return (
+          <span>
+            {t.downloadLimit ? formatSpeed(t.downloadLimit) : "∞"}
+          </span>
+        );
+
+      case "initialSeeding":
+        return (
+          <span>
+            {t.initialSeeding
+              ? translate("common.yes")
+              : translate("common.no")}
+          </span>
+        );
+
+      case "sequentialDownload":
+        return (
+          <span>
+            {t.sequentialDownload
+              ? translate("common.yes")
+              : translate("common.no")}
+          </span>
+        );
+
+      case "lastActive":
+        return (
+          <span>{t.lastActive ? formatDate(t.lastActive) : "-"}</span>
+        );
+
+      case "comment":
+        return <span>{t.comment || "-"}</span>;
+
+      case "createdBy":
+        return <span>{t.createdBy || "-"}</span>;
+
+      case "label":
+        return <span>{t.label || "-"}</span>;
+
+      default:
+        return <span>{String((t as any)[columnKey] ?? "-")}</span>;
+    }
+  },
+);
+TorrentCell.displayName = "TorrentCell";
+
+// ---------------------------------------------------------------------------
+// Table Row Component
+// ---------------------------------------------------------------------------
 
 interface TorrentTableRowProps {
   torrent: Torrent;
@@ -273,7 +1039,9 @@ interface TorrentTableRowProps {
   onSelect?: (torrent: Torrent) => void;
   onToggleSelect?: (id: number) => void;
   onContextMenu: (e: React.MouseEvent, torrent: Torrent | null) => void;
-  renderCell: (t: Torrent, key: ColumnKey, idx: number) => React.ReactNode;
+  historyByHash: Map<string, DownloadHistoryEntry>;
+  historyByTitle: Map<string, DownloadHistoryEntry>;
+  arrConnections?: any;
   measureElement?: (node: HTMLElement | null) => void;
 }
 
@@ -288,23 +1056,34 @@ const TorrentTableRow = React.memo<TorrentTableRowProps>(
     onSelect,
     onToggleSelect,
     onContextMenu,
-    renderCell,
+    historyByHash,
+    historyByTitle,
+    arrConnections,
     measureElement,
   }) => {
-    const telemetry = useTorrentStore((state) => state.telemetry[t.id]);
-    const mergedTorrent = useMemo(
-      () => applyTelemetry(t, telemetry),
-      [t, telemetry],
-    );
     const rowIndex = virtualRow?.index ?? idx;
+
+    const handleRowClick = useCallback(() => {
+      onSelect?.(applyTelemetry(t, useTorrentStore.getState().telemetry[t.id]));
+    }, [onSelect, t]);
+
+    const handleRowContextMenu = useCallback(
+      (e: React.MouseEvent) => {
+        onContextMenu(
+          e,
+          applyTelemetry(t, useTorrentStore.getState().telemetry[t.id]),
+        );
+      },
+      [onContextMenu, t],
+    );
 
     return (
       <tr
         ref={measureElement}
-        data-index={virtualRow?.index ?? idx}
+        data-index={rowIndex}
         className={`torrent-table-row ${isSelected ? "torrent-table-row-selected" : ""}`}
-        onClick={() => onSelect?.(mergedTorrent)}
-        onContextMenu={(e) => onContextMenu(e, mergedTorrent)}
+        onClick={handleRowClick}
+        onContextMenu={handleRowContextMenu}
         style={{
           cursor: "pointer",
           backgroundColor: isSelected
@@ -337,7 +1116,14 @@ const TorrentTableRow = React.memo<TorrentTableRowProps>(
               whiteSpace: "nowrap",
             }}
           >
-            {renderCell(mergedTorrent, c.key, rowIndex)}
+            <TorrentCell
+              columnKey={c.key}
+              torrent={t}
+              rowIndex={rowIndex}
+              historyByHash={historyByHash}
+              historyByTitle={historyByTitle}
+              arrConnections={arrConnections}
+            />
           </td>
         ))}
       </tr>
@@ -346,6 +1132,36 @@ const TorrentTableRow = React.memo<TorrentTableRowProps>(
 );
 TorrentTableRow.displayName = "TorrentTableRow";
 
+// ---------------------------------------------------------------------------
+// Main TorrentTable Component
+// ---------------------------------------------------------------------------
+
+interface ContextMenuState {
+  x: number;
+  y: number;
+  torrent: Torrent | null;
+}
+
+export interface TorrentTableProps {
+  torrents?: Torrent[];
+  filter?: string;
+  stateFilter?: string;
+  trackerFilter?: string;
+  privacyFilter?: string;
+  selectedId?: number | null;
+  selectedTorrentId?: number | null;
+  onSelect?: (torrent: Torrent) => void;
+  onSelectTorrent?: (id: number | null) => void;
+  onPause?: (id: number) => void;
+  onResume?: (id: number) => void;
+  onDelete?: (payload: { id: number; deleteFiles?: boolean }) => void;
+  selectedIds?: Set<number>;
+  onToggleSelect?: (id: number) => void;
+  onSelectAll?: (ids: number[]) => void;
+  onSearchIndexers?: (query: string) => void;
+  onNavigateTab?: (nav: string, subNav?: string) => void;
+}
+
 export const TorrentTable: React.FC<TorrentTableProps> = ({
   torrents: propTorrents,
   filter,
@@ -353,9 +1169,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   trackerFilter,
   privacyFilter,
   selectedId,
-  selectedTorrentId,
   onSelect,
-  onSelectTorrent,
   onPause,
   onResume,
   onDelete,
@@ -374,8 +1188,6 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   const recheckTorrent = useRecheckTorrent();
   const moveTorrentQueue = useMoveTorrentQueue();
 
-  const telemetry = useTorrentStore((state) => state.telemetry);
-
   const [sortKey, setSortKey] = useState<ColumnKey>("name");
   const [sortAsc, setSortAsc] = useState(true);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
@@ -385,6 +1197,13 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   const [columnOrder, setColumnOrder] = useState<ColumnKey[]>(loadColumnOrder);
   const [columnWidths, setColumnWidths] =
     useState<Record<string, number>>(loadColumnWidths);
+
+  // Hover and Sort snapshot tracking for freeze-on-interaction
+  const [isHovered, setIsHovered] = useState(false);
+  const frozenOrderRef = useRef<number[]>([]);
+  const lastSortKeyRef = useRef<ColumnKey>(sortKey);
+  const lastSortAscRef = useRef<boolean>(sortAsc);
+  const lastFilterKeyRef = useRef<string>("");
 
   // Drag-to-reorder state
   const dragColRef = useRef<ColumnKey | null>(null);
@@ -459,7 +1278,6 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
         return;
       }
       setColumnOrder((prev) => {
-        // Ensure all keys are present (merge any missing from ALL_COLUMNS)
         const allKeys = ALL_COLUMNS.map((c) => c.key);
         const base = [...new Set([...prev, ...allKeys])];
         const fromIdx = base.indexOf(fromKey);
@@ -507,7 +1325,6 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
 
       const onMouseUp = () => {
         if (resizeStateRef.current) {
-          // Persist final widths
           setColumnWidths((prev) => {
             saveColumnWidths(prev);
             return prev;
@@ -541,12 +1358,8 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
 
   const sourceTorrents = propTorrents || [];
 
-  const mergedTorrents = useMemo(() => {
-    return sourceTorrents.map((t) => applyTelemetry(t, telemetry[t.id]));
-  }, [sourceTorrents, telemetry]);
-
   const filteredTorrents = useMemo(() => {
-    return mergedTorrents.filter((t) => {
+    return sourceTorrents.filter((t) => {
       if (filter) {
         const q = filter.toLowerCase();
         const matchName = (t.name || "").toLowerCase().includes(q);
@@ -578,35 +1391,76 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
       }
       return true;
     });
-  }, [mergedTorrents, filter, stateFilter, trackerFilter, privacyFilter]);
+  }, [sourceTorrents, filter, stateFilter, trackerFilter, privacyFilter]);
+
+  const filterSignature = `${filter || ""}|${stateFilter || ""}|${trackerFilter || ""}|${privacyFilter || ""}|${sortKey}|${sortAsc}`;
 
   const sortedTorrents = useMemo(() => {
-    return [...filteredTorrents].sort((a, b) => {
-      let valA: any = (a as any)[sortKey];
-      let valB: any = (b as any)[sortKey];
+    const isExplicitChange =
+      lastSortKeyRef.current !== sortKey ||
+      lastSortAscRef.current !== sortAsc ||
+      lastFilterKeyRef.current !== filterSignature;
+
+    if (isExplicitChange) {
+      lastSortKeyRef.current = sortKey;
+      lastSortAscRef.current = sortAsc;
+      lastFilterKeyRef.current = filterSignature;
+    }
+
+    // Freeze sort order while hovering if sort or filter parameters haven't explicitly changed
+    if (isHovered && !isExplicitChange && frozenOrderRef.current.length > 0) {
+      const torrentMap = new Map(filteredTorrents.map((t) => [t.id, t]));
+      const preserved: Torrent[] = [];
+      const seen = new Set<number>();
+
+      for (const id of frozenOrderRef.current) {
+        const t = torrentMap.get(id);
+        if (t) {
+          preserved.push(t);
+          seen.add(id);
+        }
+      }
+      for (const t of filteredTorrents) {
+        if (!seen.has(t.id)) {
+          preserved.push(t);
+        }
+      }
+      return preserved;
+    }
+
+    // Compute sort using current telemetry snapshot without subscribing to telemetry updates
+    const currentTelemetry = useTorrentStore.getState().telemetry;
+    const sorted = [...filteredTorrents].sort((a, b) => {
+      const telA = currentTelemetry[a.id];
+      const telB = currentTelemetry[b.id];
+      const mergedA = applyTelemetry(a, telA);
+      const mergedB = applyTelemetry(b, telB);
+
+      let valA: any = (mergedA as any)[sortKey];
+      let valB: any = (mergedB as any)[sortKey];
 
       if (sortKey === "#") {
         valA =
-          a.queuePosition && a.queuePosition > 0
-            ? a.queuePosition
-            : (a.id ?? 0);
+          mergedA.queuePosition && mergedA.queuePosition > 0
+            ? mergedA.queuePosition
+            : (mergedA.id ?? 0);
         valB =
-          b.queuePosition && b.queuePosition > 0
-            ? b.queuePosition
-            : (b.id ?? 0);
+          mergedB.queuePosition && mergedB.queuePosition > 0
+            ? mergedB.queuePosition
+            : (mergedB.id ?? 0);
       } else if (sortKey === "category") {
-        valA = a.category ?? a.label ?? "";
-        valB = b.category ?? b.label ?? "";
+        valA = mergedA.category ?? mergedA.label ?? "";
+        valB = mergedB.category ?? mergedB.label ?? "";
       } else if (sortKey === "eta") {
         valA =
-          a.eta ??
-          (a.downloadSpeed > 0
-            ? (a.totalSize * (1 - a.progress)) / a.downloadSpeed
+          mergedA.eta ??
+          (mergedA.downloadSpeed > 0
+            ? (mergedA.totalSize * (1 - mergedA.progress)) / mergedA.downloadSpeed
             : 9999999);
         valB =
-          b.eta ??
-          (b.downloadSpeed > 0
-            ? (b.totalSize * (1 - b.progress)) / b.downloadSpeed
+          mergedB.eta ??
+          (mergedB.downloadSpeed > 0
+            ? (mergedB.totalSize * (1 - mergedB.progress)) / mergedB.downloadSpeed
             : 9999999);
       }
 
@@ -628,7 +1482,10 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
 
       return sortAsc ? valA - valB : valB - valA;
     });
-  }, [filteredTorrents, sortKey, sortAsc]);
+
+    frozenOrderRef.current = sorted.map((t) => t.id);
+    return sorted;
+  }, [filteredTorrents, sortKey, sortAsc, isHovered, filterSignature]);
 
   // Build ordered, visible column list using the user's saved column order.
   const colDefMap = useMemo(
@@ -641,7 +1498,6 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
       .filter(
         (c): c is ColumnDef => c !== undefined && visibleColumns.has(c.key),
       );
-    // Append any visible columns not yet in the saved order (e.g. newly added)
     const inOrder = new Set(ordered.map((c) => c.key));
     for (const c of ALL_COLUMNS) {
       if (visibleColumns.has(c.key) && !inOrder.has(c.key)) ordered.push(c);
@@ -657,9 +1513,6 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     filteredTorrents.some((t) => selectedIds.has(t.id)) &&
     !allSelected;
 
-  // NOTE: Do NOT add an early return here. All hooks (useCallback, useRef, useVirtualizer)
-  // must be called unconditionally before any conditional return (Rules of Hooks).
-  // The empty-state JSX is stored in a variable and returned after all hooks have run.
   const emptyState =
     filteredTorrents.length === 0 ? (
       <div
@@ -706,519 +1559,6 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
       </div>
     ) : null;
 
-  const renderCell = useCallback(
-    (tTorrent: Torrent, key: ColumnKey, idx: number) => {
-      switch (key) {
-        case "#":
-          return (
-            <span
-              style={{
-                color: "var(--text-muted, #7e8092)",
-                fontSize: "0.75rem",
-              }}
-            >
-              {tTorrent.queuePosition && tTorrent.queuePosition > 0
-                ? tTorrent.queuePosition
-                : idx + 1}
-            </span>
-          );
-
-        case "name": {
-          const historyMatch =
-            (tTorrent.infoHash
-              ? historyByHash.get(tTorrent.infoHash.toLowerCase())
-              : undefined) ||
-            (tTorrent.name
-              ? historyByTitle.get(tTorrent.name.toLowerCase())
-              : undefined);
-          const meta = historyMatch?.metadata;
-          const arrLink = historyMatch
-            ? getMediaDeepLink(historyMatch, arrConnections)
-            : null;
-          const badges = getTorrentBadges(tTorrent);
-          const posterSrc =
-            tTorrent.posterUrl ||
-            tTorrent.artworkUrl ||
-            tTorrent.bannerUrl ||
-            meta?.posterUrl;
-
-          return (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.6rem",
-                minWidth: 200,
-                maxWidth: 460,
-              }}
-            >
-              {posterSrc ? (
-                <img
-                  src={posterSrc}
-                  alt=""
-                  style={{
-                    width: "22px",
-                    height: "32px",
-                    objectFit: "cover",
-                    borderRadius: "3px",
-                    flexShrink: 0,
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
-                  }}
-                  onError={(e) => {
-                    (e.currentTarget as HTMLElement).style.display = "none";
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: "22px",
-                    height: "32px",
-                    borderRadius: "3px",
-                    backgroundColor: "rgba(255, 255, 255, 0.06)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "0.75rem",
-                    flexShrink: 0,
-                    color: "var(--text-muted)",
-                  }}
-                >
-                  🎬
-                </div>
-              )}
-
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "2px",
-                  minWidth: 0,
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{ display: "flex", alignItems: "center", gap: "6px" }}
-                >
-                  {tTorrent.isPrivate && (
-                    <span
-                      className="badge"
-                      title={t("torrents.table.privateTooltip")}
-                      style={{
-                        backgroundColor: "rgba(239, 68, 68, 0.2)",
-                        color: "#f87171",
-                        border: "1px solid rgba(239, 68, 68, 0.4)",
-                        fontSize: "0.65rem",
-                        padding: "0.05rem 0.35rem",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "3px",
-                        flexShrink: 0,
-                      }}
-                    >
-                      <i
-                        className="fas fa-lock"
-                        style={{ fontSize: "0.6rem" }}
-                      />{" "}
-                      {t("torrents.filters.privateBep27")}
-                    </span>
-                  )}
-                  <span
-                    style={{
-                      fontWeight: 600,
-                      color: "var(--text-primary, #f8f4ed)",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                    title={tTorrent.name}
-                  >
-                    {meta?.title || tTorrent.mediaTitle || tTorrent.name}{" "}
-                    {meta?.year ? `(${meta.year})` : ""}
-                  </span>
-                  {arrLink && (
-                    <a
-                      href={arrLink.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      style={{
-                        fontSize: "0.68rem",
-                        padding: "0.1rem 0.35rem",
-                        borderRadius: "3px",
-                        backgroundColor: "rgba(255, 209, 102, 0.15)",
-                        color: "var(--accent, #ffd166)",
-                        textDecoration: "none",
-                        fontWeight: 600,
-                        flexShrink: 0,
-                      }}
-                    >
-                      {arrLink.label} ↗
-                    </a>
-                  )}
-                </div>
-
-                {tTorrent.mediaTitle &&
-                  tTorrent.mediaTitle !== tTorrent.name && (
-                    <span
-                      style={{
-                        fontSize: "0.72rem",
-                        color: "var(--text-muted, #7e8092)",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                      title={tTorrent.name}
-                    >
-                      {tTorrent.name}
-                    </span>
-                  )}
-
-                {badges.length > 0 && (
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "4px",
-                      flexWrap: "wrap",
-                      marginTop: "2px",
-                    }}
-                  >
-                    {badges.slice(0, 3).map((b, i) => (
-                      <span
-                        key={i}
-                        className="badge"
-                        title={b.title}
-                        style={{
-                          fontSize: "0.65rem",
-                          padding: "0.05rem 0.3rem",
-                          backgroundColor: `${b.color}22`,
-                          color: b.color,
-                          border: `1px solid ${b.color}44`,
-                        }}
-                      >
-                        {b.icon} {b.label}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        }
-
-        case "category": {
-          const cat =
-            tTorrent.category || tTorrent.label || t("torrents.table.none");
-          return (
-            <span
-              className="badge"
-              style={{
-                fontSize: "0.72rem",
-                padding: "0.15rem 0.45rem",
-                backgroundColor: "rgba(255, 255, 255, 0.06)",
-                color: "var(--text-secondary, #c7c5d3)",
-                fontWeight: 600,
-                textTransform: "uppercase",
-              }}
-            >
-              {cat}
-            </span>
-          );
-        }
-
-        case "status": {
-          const st = (tTorrent.status || "idle").toLowerCase();
-          let color = "var(--text-muted, #7e8092)";
-          let bg = "rgba(126, 128, 146, 0.15)";
-
-          if (st === "downloading") {
-            color = "var(--accent, #ffd166)";
-            bg = "rgba(255, 209, 102, 0.15)";
-          } else if (st === "seeding" || st === "completed") {
-            color = "var(--success, #22c55e)";
-            bg = "rgba(34, 197, 94, 0.15)";
-          } else if (st === "checking" || st === "queued") {
-            color = "var(--info, #38bdf8)";
-            bg = "rgba(56, 189, 248, 0.15)";
-          }
-
-          const statusLabel =
-            st === "checking"
-              ? `${t("torrentStatus.checking", "Checking")} (${((tTorrent.progress || 0) * 100).toFixed(1)}%)`
-              : t(
-                  "torrentStatus." + (tTorrent.status || "idle").toLowerCase(),
-                  tTorrent.status || "Idle",
-                );
-
-          return (
-            <span
-              className="badge"
-              style={{
-                backgroundColor: bg,
-                color: color,
-                fontWeight: 600,
-                fontSize: "0.72rem",
-                padding: "0.15rem 0.5rem",
-                textTransform: "capitalize",
-              }}
-            >
-              {statusLabel}
-            </span>
-          );
-        }
-
-        case "progress": {
-          const rawPct = Math.min(100, Math.max(0, (tTorrent.progress || 0) * 100));
-          const isChecking = (tTorrent.status || "").toLowerCase() === "checking";
-          return (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                width: 120,
-              }}
-            >
-              <div
-                style={{
-                  flex: 1,
-                  height: 6,
-                  backgroundColor: "rgba(255, 255, 255, 0.1)",
-                  borderRadius: 3,
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    width: `${rawPct}%`,
-                    height: "100%",
-                    backgroundColor: isChecking
-                      ? "var(--info, #38bdf8)"
-                      : rawPct >= 100
-                        ? "var(--success, #22c55e)"
-                        : "var(--accent, #ffd166)",
-                    transition: "width 0.3s",
-                  }}
-                />
-              </div>
-              <span
-                style={{
-                  fontSize: "0.75rem",
-                  fontWeight: 600,
-                  width: 44,
-                  textAlign: "right",
-                  color: isChecking ? "var(--info, #38bdf8)" : undefined,
-                }}
-              >
-                {rawPct.toFixed(1)}%
-              </span>
-            </div>
-          );
-        }
-
-        case "totalSize":
-          return <span>{formatBytes(tTorrent.totalSize)}</span>;
-
-        case "downloaded":
-          return (
-            <span>
-              {formatBytes(
-                tTorrent.downloaded ?? tTorrent.totalSize * tTorrent.progress,
-              )}
-            </span>
-          );
-
-        case "uploaded":
-          return <span>{formatBytes(tTorrent.uploaded ?? 0)}</span>;
-
-        case "downloadSpeed":
-          return (
-            <span
-              style={{
-                color:
-                  tTorrent.downloadSpeed > 0
-                    ? "var(--success, #22c55e)"
-                    : "var(--text-muted, #7e8092)",
-                fontWeight: tTorrent.downloadSpeed > 0 ? 600 : 400,
-              }}
-            >
-              {formatSpeed(tTorrent.downloadSpeed)}
-            </span>
-          );
-
-        case "uploadSpeed":
-          return (
-            <span
-              style={{
-                color:
-                  tTorrent.uploadSpeed > 0
-                    ? "var(--accent, #ffd166)"
-                    : "var(--text-muted, #7e8092)",
-                fontWeight: tTorrent.uploadSpeed > 0 ? 600 : 400,
-              }}
-            >
-              {formatSpeed(tTorrent.uploadSpeed)}
-            </span>
-          );
-
-        case "ratio":
-          return (
-            <span
-              style={{
-                fontWeight: 600,
-                color:
-                  (tTorrent.ratio || 0) >= 1.0
-                    ? "var(--success, #22c55e)"
-                    : "var(--text-primary, #f8f4ed)",
-              }}
-            >
-              {formatRatio(tTorrent.ratio || 0)}
-            </span>
-          );
-
-        case "seeders":
-          return (
-            <span style={{ color: "var(--success, #22c55e)", fontWeight: 600 }}>
-              {tTorrent.seeders ?? 0}
-            </span>
-          );
-
-        case "leechers":
-          return <span>{tTorrent.leechers ?? 0}</span>;
-
-        case "eta": {
-          if (tTorrent.progress >= 1.0) {
-            return <span>{t("torrents.table.done")}</span>;
-          }
-          const isInactive =
-            tTorrent.status === "paused" ||
-            tTorrent.status === "stopped" ||
-            tTorrent.status === "error" ||
-            tTorrent.status === "queued";
-          if (isInactive) {
-            return <span>∞</span>;
-          }
-          const etaSec =
-            tTorrent.eta && tTorrent.eta > 0
-              ? tTorrent.eta
-              : tTorrent.downloadSpeed > 0
-                ? Math.floor(
-                    (tTorrent.totalSize * (1 - (tTorrent.progress || 0))) /
-                      tTorrent.downloadSpeed,
-                  )
-                : 0;
-          return <span>{etaSec > 0 ? formatSeconds(etaSec) : "∞"}</span>;
-        }
-
-        case "trackerUrl": {
-          const domain = extractTrackerDomain(tTorrent.trackerUrl);
-          return (
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.4rem",
-              }}
-            >
-              <TrackerFavicon urlOrHost={domain} size={14} />
-              <span>{domain || "-"}</span>
-            </div>
-          );
-        }
-
-        case "priority":
-          return (
-            <span className="badge" style={{ fontSize: "0.7rem" }}>
-              {tTorrent.priority === 2
-                ? t("torrents.contextMenu.highPriority")
-                : tTorrent.priority === 0
-                  ? t("torrents.contextMenu.lowPriority")
-                  : t("torrents.contextMenu.normalPriority")}
-            </span>
-          );
-
-        case "dateAdded":
-          return (
-            <span>
-              {tTorrent.dateAdded ? formatDate(tTorrent.dateAdded) : "-"}
-            </span>
-          );
-
-        case "pieceCount":
-          return <span>{tTorrent.pieceCount ?? "-"}</span>;
-
-        case "pieceLength":
-          return (
-            <span>
-              {tTorrent.pieceLength ? formatBytes(tTorrent.pieceLength) : "-"}
-            </span>
-          );
-
-        case "infoHash":
-          return (
-            <span style={{ fontFamily: "monospace", fontSize: "0.72rem" }}>
-              {tTorrent.infoHash?.substring(0, 10)}...
-            </span>
-          );
-
-        case "isPrivate":
-          return tTorrent.isPrivate ? (
-            <span
-              className="badge"
-              style={{
-                backgroundColor: "rgba(239, 68, 68, 0.2)",
-                color: "#f87171",
-                border: "1px solid rgba(239, 68, 68, 0.4)",
-                fontSize: "0.7rem",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "4px",
-              }}
-              title={t("torrents.table.privateTooltip")}
-            >
-              <i className="fas fa-lock" style={{ fontSize: "0.65rem" }} />{" "}
-              {t("torrents.filters.privateBep27")}
-            </span>
-          ) : (
-            <span
-              className="badge"
-              style={{
-                backgroundColor: "rgba(59, 130, 246, 0.15)",
-                color: "#60a5fa",
-                fontSize: "0.7rem",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "4px",
-              }}
-              title={t("torrents.table.publicTooltip")}
-            >
-              <i className="fas fa-globe" style={{ fontSize: "0.65rem" }} />{" "}
-              {t("torrents.filters.publicSwarm")}
-            </span>
-          );
-
-        default:
-          return <span>{String((tTorrent as any)[key] ?? "-")}</span>;
-      }
-    },
-    [
-      t,
-      historyByHash,
-      historyByTitle,
-      arrConnections,
-      startSeeding,
-      stopSeeding,
-      deleteTorrent,
-      updateTorrent,
-      announceTorrent,
-      recheckTorrent,
-      moveTorrentQueue,
-      onPause,
-      onResume,
-      onSearchIndexers,
-      onNavigateTab,
-    ],
-  );
-
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
   const rowVirtualizer = useVirtualizer({
@@ -1238,7 +1578,6 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
       : 0;
   const totalCols = columns.length + (onToggleSelect ? 1 : 0);
 
-  // All hooks have been called above — safe to return early now.
   if (emptyState) {
     return emptyState;
   }
@@ -1253,6 +1592,8 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
         minHeight: 0,
         position: "relative",
       }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       onContextMenu={(e) => handleContextMenu(e, null)}
     >
       {/* Table Action Controls / Column Customizer Trigger */}
@@ -1381,7 +1722,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                     onChange={() => {
                       if (allSelected) {
                         const filteredIdSet = new Set(
-                          filteredTorrents.map((t) => t.id),
+                          filteredTorrents.map((tor) => tor.id),
                         );
                         onSelectAll(
                           [...selectedIds].filter(
@@ -1390,7 +1731,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                         );
                       } else {
                         const next = new Set(selectedIds);
-                        filteredTorrents.forEach((t) => next.add(t.id));
+                        filteredTorrents.forEach((tor) => next.add(tor.id));
                         onSelectAll(Array.from(next));
                       }
                     }}
@@ -1505,20 +1846,22 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
               </tr>
             )}
             {virtualRows.map((virtualRow) => {
-              const t = sortedTorrents[virtualRow.index];
+              const tor = sortedTorrents[virtualRow.index];
               return (
                 <TorrentTableRow
-                  key={t.id}
-                  torrent={t}
+                  key={tor.id}
+                  torrent={tor}
                   index={virtualRow.index}
                   virtualRow={virtualRow}
                   columns={columns}
-                  isSelected={t.id === selectedId}
-                  isChecked={selectedIds.has(t.id)}
+                  isSelected={tor.id === selectedId}
+                  isChecked={selectedIds.has(tor.id)}
                   onSelect={onSelect}
                   onToggleSelect={onToggleSelect}
                   onContextMenu={handleContextMenu}
-                  renderCell={renderCell}
+                  historyByHash={historyByHash}
+                  historyByTitle={historyByTitle}
+                  arrConnections={arrConnections}
                   measureElement={rowVirtualizer.measureElement}
                 />
               );

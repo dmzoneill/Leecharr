@@ -50,7 +50,6 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   const selectAllIds = useTorrentStore((state) => state.selectAllIds);
   const clearSelection = useTorrentStore((state) => state.clearSelection);
   const removeTorrent = useTorrentStore((state) => state.removeTorrent);
-  const telemetry = useTorrentStore((state) => state.telemetry);
 
   const [bulkPending, setBulkPending] = useState<boolean>(false);
   const confirm = useConfirm();
@@ -150,17 +149,6 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     }
     return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
   }, [torrents]);
-
-  const { totalUploadSpeed, totalDownloadSpeed } = useMemo(() => {
-    let ul = 0;
-    let dl = 0;
-    for (const t of torrents) {
-      const tel = telemetry[t.id];
-      ul += tel?.uploadSpeed ?? t.uploadSpeed ?? 0;
-      dl += tel?.downloadSpeed ?? t.downloadSpeed ?? 0;
-    }
-    return { totalUploadSpeed: ul, totalDownloadSpeed: dl };
-  }, [torrents, telemetry]);
 
   const handleStartAll = () => {
     torrents
@@ -273,8 +261,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     <div className="torrent-index-page">
       <TorrentToolbar
         count={torrents.length}
-        totalUploadSpeed={totalUploadSpeed}
-        totalDownloadSpeed={totalDownloadSpeed}
+        torrents={torrents}
         filter={filter}
         onFilterChange={setFilter}
         viewMode={viewMode}
