@@ -1169,6 +1169,10 @@ export interface MediaMetadata {
   imdbId?: string | null;
   tmdbId?: number | null;
   tvdbId?: number | null;
+  musicBrainzId?: string | null;
+  artistName?: string | null;
+  albumTitle?: string | null;
+  cast?: string[] | null;
   mediaInfoJson?: string | null;
 }
 

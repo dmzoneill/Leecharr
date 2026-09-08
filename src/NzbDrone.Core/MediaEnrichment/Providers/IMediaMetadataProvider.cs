@@ -20,5 +20,5 @@ public interface IMediaMetadataProvider
 
     Task<MediaMetadataHealthCheckResult> ProbeHealthAsync();
 
-    Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null);
+    Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null, string infoHash = null);
 }
