@@ -45,9 +45,10 @@ public class JitUserProvisioningService : IJitUserProvisioningService
                 existingUser.DisplayName = profile.DisplayName;
             }
 
-            if (!string.IsNullOrEmpty(profile.AvatarUrl))
+            var sanitizedAvatar = SanitizeAvatarUrl(profile.AvatarUrl);
+            if (!string.IsNullOrEmpty(sanitizedAvatar))
             {
-                existingUser.AvatarUrl = profile.AvatarUrl;
+                existingUser.AvatarUrl = sanitizedAvatar;
             }
 
             // Recalculate roles if groups provided
@@ -62,7 +63,7 @@ public class JitUserProvisioningService : IJitUserProvisioningService
             return existingUser;
         }
 
-        // 2. Check if user matches existing username or email
+        // 2. Check if user matches existing username or email from the SAME external provider
         User matchedUser = null;
         if (!string.IsNullOrEmpty(profile.Email))
         {
@@ -74,14 +75,16 @@ public class JitUserProvisioningService : IJitUserProvisioningService
             matchedUser = this.userRepository.FindByUsername(profile.Username);
         }
 
-        if (matchedUser != null)
+        if (matchedUser != null &&
+            !string.IsNullOrEmpty(matchedUser.ExternalProviderId) &&
+            string.Equals(matchedUser.ExternalProviderId, profile.ProviderId, StringComparison.OrdinalIgnoreCase))
         {
-            matchedUser.ExternalProviderId = profile.ProviderId;
             matchedUser.ExternalSubjectId = profile.SubjectId;
             matchedUser.LastLogin = DateTime.UtcNow;
-            if (!string.IsNullOrEmpty(profile.AvatarUrl))
+            var sanitizedAvatar = SanitizeAvatarUrl(profile.AvatarUrl);
+            if (!string.IsNullOrEmpty(sanitizedAvatar))
             {
-                matchedUser.AvatarUrl = profile.AvatarUrl;
+                matchedUser.AvatarUrl = sanitizedAvatar;
             }
 
             if (profile.RawGroups != null && profile.RawGroups.Count > 0)
@@ -96,16 +99,21 @@ public class JitUserProvisioningService : IJitUserProvisioningService
             return matchedUser;
         }
 
-        // 3. JIT Provision new user
+        // 3. JIT Provision new user with disambiguated username if collision exists
+        var baseUsername = string.IsNullOrWhiteSpace(profile.Username)
+            ? (!string.IsNullOrWhiteSpace(profile.Email) ? profile.Email.Split('@')[0].Trim() : "user")
+            : profile.Username.Trim();
+
         var assignedRoles = this.roleMapper.ResolveRoles(provider, profile.RawGroups, isFirstUser);
+        var disambiguatedUsername = this.DisambiguateUsername(baseUsername, profile.ProviderId);
 
         var newUser = new User
         {
             Identifier = Guid.NewGuid(),
-            Username = profile.Username.Trim(),
+            Username = disambiguatedUsername,
             Email = profile.Email?.Trim(),
-            DisplayName = profile.DisplayName?.Trim() ?? profile.Username.Trim(),
-            AvatarUrl = profile.AvatarUrl,
+            DisplayName = profile.DisplayName?.Trim() ?? profile.Username?.Trim() ?? disambiguatedUsername,
+            AvatarUrl = SanitizeAvatarUrl(profile.AvatarUrl),
             ExternalProviderId = profile.ProviderId,
             ExternalSubjectId = profile.SubjectId,
             Roles = JsonSerializer.Serialize(assignedRoles),
@@ -117,5 +125,40 @@ public class JitUserProvisioningService : IJitUserProvisioningService
         var created = this.userRepository.Insert(newUser);
         this.logger.Info("JIT provisioned new user {0} via {1}", created.Username, profile.ProviderId);
         return created;
+    }
+
+    private static string SanitizeAvatarUrl(string avatarUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(avatarUrl) &&
+            Uri.TryCreate(avatarUrl.Trim(), UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        {
+            return uri.ToString();
+        }
+
+        return null;
+    }
+
+    private string DisambiguateUsername(string desiredUsername, string providerId)
+    {
+        var trimmed = desiredUsername.Trim();
+        if (this.userRepository.FindByUsername(trimmed) == null)
+        {
+            return trimmed;
+        }
+
+        var candidate = $"{trimmed}_{providerId}";
+        if (this.userRepository.FindByUsername(candidate) == null)
+        {
+            return candidate;
+        }
+
+        var suffix = 2;
+        while (this.userRepository.FindByUsername($"{candidate}_{suffix}") != null)
+        {
+            suffix++;
+        }
+
+        return $"{candidate}_{suffix}";
     }
 }
