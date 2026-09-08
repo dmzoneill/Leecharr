@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using NLog;
 using NzbDrone.Common.Disk;
 using NzbDrone.Core.Authentication;
+using NzbDrone.Core.Bandwidth;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.BitTorrent.Creation;
 using NzbDrone.Core.Categories;
@@ -48,6 +49,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     private readonly IQBittorrentSearchService qbittorrentSearchService;
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly IDownloadEngine downloadEngine;
+    private readonly ISpeedSchedulerService speedSchedulerService;
     private readonly IDiskProvider diskProvider;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
@@ -65,6 +67,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         IQBittorrentSearchService qbittorrentSearchService = null,
         ISafeHttpClientService safeHttpClientService = null,
         IDownloadEngine downloadEngine = null,
+        ISpeedSchedulerService speedSchedulerService = null,
         IDiskProvider diskProvider = null)
     {
         this.torrentService = torrentService;
@@ -80,6 +83,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         this.qbittorrentSearchService = qbittorrentSearchService ?? new QBittorrentSearchService();
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
         this.downloadEngine = downloadEngine;
+        this.speedSchedulerService = speedSchedulerService;
         this.diskProvider = diskProvider;
     }
 
@@ -1790,7 +1794,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     }
 
     [HttpPost("transfer/toggleSpeedLimitsMode")]
-    public ActionResult ToggleSpeedLimitsMode()
+    public async Task<ActionResult> ToggleSpeedLimitsMode()
     {
         var newState = !this.configService.AlternativeSpeedEnabled;
         this.configService.SaveConfigDictionary(new Dictionary<string, object>
@@ -1798,18 +1802,16 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             ["AlternativeSpeedEnabled"] = newState,
         });
 
-        if (this.downloadEngine != null)
+        if (this.speedSchedulerService != null)
         {
-            var dl = newState ? this.configService.AltDownloadSpeedKbps : this.configService.MaxDownloadSpeedKbps;
-            var ul = newState ? this.configService.AltUploadSpeedKbps : this.configService.MaxUploadSpeedKbps;
-            this.downloadEngine.SetRateLimitsAsync(dl, ul).ConfigureAwait(false);
+            await this.speedSchedulerService.ApplyCurrentLimitsAsync();
         }
 
         return this.Content("Ok.", "text/plain");
     }
 
     [HttpPost("transfer/setSpeedLimitsMode")]
-    public ActionResult SetSpeedLimitsMode([FromForm] int mode)
+    public async Task<ActionResult> SetSpeedLimitsMode([FromForm] int mode)
     {
         var enabled = mode == 1;
         this.configService.SaveConfigDictionary(new Dictionary<string, object>
@@ -1817,11 +1819,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             ["AlternativeSpeedEnabled"] = enabled,
         });
 
-        if (this.downloadEngine != null)
+        if (this.speedSchedulerService != null)
         {
-            var dl = enabled ? this.configService.AltDownloadSpeedKbps : this.configService.MaxDownloadSpeedKbps;
-            var ul = enabled ? this.configService.AltUploadSpeedKbps : this.configService.MaxUploadSpeedKbps;
-            this.downloadEngine.SetRateLimitsAsync(dl, ul).ConfigureAwait(false);
+            await this.speedSchedulerService.ApplyCurrentLimitsAsync();
         }
 
         return this.Content("Ok.", "text/plain");
