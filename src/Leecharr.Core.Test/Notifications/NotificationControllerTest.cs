@@ -166,6 +166,33 @@ public class NotificationControllerTest
     }
 
     [Test]
+    public async Task Test_WhenEmailNotificationWithInvalidHost_ReturnsFailureDiagnostic()
+    {
+        var notif = new NotificationDefinition
+        {
+            Id = 4,
+            Name = "Email Alerts Invalid Host",
+            Implementation = "Email",
+            Settings = "{\"server\":\"invalid-nonexistent-smtp.example\",\"port\":587,\"to\":\"user@example.com\"}",
+        };
+
+        this.notificationRepository.Get(4).Returns(notif);
+
+        var actionResult = await this.controller.Test(4);
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as NotificationTestResult;
+        testResult.Should().NotBeNull();
+        testResult!.Success.Should().BeFalse();
+        testResult!.Message.Should().StartWith("Failed to send email test notification:");
+
+        await this.webhookDispatcher.DidNotReceiveWithAnyArgs().DispatchAsync(
+            Arg.Any<string>(),
+            Arg.Any<object>());
+    }
+
+    [Test]
     public async Task Test_WhenWebhookNotificationWithCustomHeaders_ForwardsHeadersToWebhookDispatcher()
     {
         var notif = new NotificationDefinition
