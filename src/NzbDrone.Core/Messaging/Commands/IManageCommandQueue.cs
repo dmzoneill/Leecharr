@@ -16,4 +16,6 @@ public interface IManageCommandQueue
     IEnumerable<CommandModel> GetStarted();
 
     IEnumerable<CommandModel> GetQueued();
+
+    void FailStaleCommands();
 }

@@ -27,6 +27,15 @@ public class CommandWorker : BackgroundService
     {
         this.logger.Info("Command worker started");
 
+        try
+        {
+            this.commandQueue.FailStaleCommands();
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Error failing stale running commands on startup");
+        }
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try
