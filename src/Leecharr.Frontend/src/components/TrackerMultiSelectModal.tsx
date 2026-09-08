@@ -131,6 +131,7 @@ export function TrackerMultiSelectModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="tracker-picker-title"
+      aria-describedby="tracker-picker-desc"
       style={{
         position: "fixed",
         top: 0,
@@ -194,6 +195,7 @@ export function TrackerMultiSelectModal({
                 )}
               </h3>
               <p
+                id="tracker-picker-desc"
                 style={{
                   margin: 0,
                   fontSize: "0.78rem",

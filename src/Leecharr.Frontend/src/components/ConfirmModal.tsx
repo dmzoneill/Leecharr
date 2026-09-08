@@ -1,6 +1,6 @@
 import React from "react";
-import { useEscapeKey } from "../hooks/useEscapeKey";
 import { useTranslation } from "../i18n";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 export interface ConfirmModalProps {
   isOpen: boolean;
@@ -24,7 +24,7 @@ export function ConfirmModal({
   onCancel,
 }: ConfirmModalProps) {
   const { t } = useTranslation();
-  useEscapeKey(onCancel, isOpen);
+  const trapRef = useFocusTrap<HTMLDivElement>({ isOpen, onClose: onCancel });
 
   if (!isOpen) return null;
 
@@ -51,6 +51,7 @@ export function ConfirmModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-modal-title"
+      aria-describedby="confirm-modal-desc"
       style={{
         position: "fixed",
         top: 0,
@@ -68,6 +69,7 @@ export function ConfirmModal({
       }}
     >
       <div
+        ref={trapRef}
         className="modal-content"
         onClick={(e) => e.stopPropagation()}
         style={{
@@ -128,6 +130,7 @@ export function ConfirmModal({
 
         {/* Message */}
         <div
+          id="confirm-modal-desc"
           style={{
             fontSize: "0.95rem",
             lineHeight: 1.55,

@@ -1,6 +1,6 @@
 import { useTranslation } from "../i18n";
 import React, { useState, useEffect, useRef } from "react";
-import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 export interface PromptModalProps {
   isOpen: boolean;
@@ -33,8 +33,6 @@ export function PromptModal({
 }: PromptModalProps) {
   const { t } = useTranslation();
 
-  useEscapeKey(onCancel, isOpen);
-
   const displayTitle = title
     ? title.includes(".")
       ? t(title)
@@ -54,6 +52,12 @@ export function PromptModal({
   const [value, setValue] = useState(defaultValue);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const trapRef = useFocusTrap<HTMLDivElement>({
+    isOpen,
+    onClose: onCancel,
+    initialFocusRef: inputRef,
+  });
 
   useEffect(() => {
     setValue(defaultValue);
@@ -93,6 +97,7 @@ export function PromptModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="prompt-modal-title"
+      aria-describedby={message ? "prompt-modal-desc" : undefined}
       style={{
         position: "fixed",
         top: 0,
@@ -109,6 +114,7 @@ export function PromptModal({
       }}
     >
       <div
+        ref={trapRef}
         className="modal-content"
         onClick={(e) => e.stopPropagation()}
         style={{
@@ -165,6 +171,7 @@ export function PromptModal({
         {/* Message */}
         {message && (
           <div
+            id="prompt-modal-desc"
             style={{
               fontSize: "0.95rem",
               lineHeight: 1.55,

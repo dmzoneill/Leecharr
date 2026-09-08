@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useEscapeKey } from "../hooks/useEscapeKey";
 import { useTranslation } from "../i18n";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 import type { Torrent } from "../api/types";
 
 export interface DeleteTorrentModalProps {
@@ -20,8 +20,7 @@ export function DeleteTorrentModal({
 }: DeleteTorrentModalProps) {
   const { t } = useTranslation();
   const [deleteFiles, setDeleteFiles] = useState(false);
-
-  useEscapeKey(onCancel, isOpen);
+  const trapRef = useFocusTrap<HTMLDivElement>({ isOpen, onClose: onCancel });
 
   useEffect(() => {
     if (isOpen) {
@@ -53,6 +52,7 @@ export function DeleteTorrentModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="delete-torrent-modal-title"
+      aria-describedby="delete-torrent-modal-desc"
       style={{
         position: "fixed",
         top: 0,
@@ -70,6 +70,7 @@ export function DeleteTorrentModal({
       }}
     >
       <div
+        ref={trapRef}
         className="modal-content"
         onClick={(e) => e.stopPropagation()}
         style={{
@@ -126,6 +127,7 @@ export function DeleteTorrentModal({
 
         {/* Message */}
         <div
+          id="delete-torrent-modal-desc"
           style={{
             fontSize: "0.95rem",
             color: "var(--text-secondary, #c7c5d3)",

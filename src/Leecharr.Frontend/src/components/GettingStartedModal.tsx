@@ -17,7 +17,7 @@ import { TextInput, SelectInput, Toggle } from "../pages/settings/shared";
 import { normalizeIndexerPayload } from "../pages/settings/IndexersTab";
 import LeecharrLogo from "./icons/LeecharrLogo";
 import LeecharrText from "./icons/LeecharrText";
-import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 export const STORAGE_KEY_HIDE_GUIDE = "leecharr_hide_getting_started";
 
@@ -80,7 +80,7 @@ export function GettingStartedModal({
   onNavigateIndexers,
 }: GettingStartedModalProps) {
   const { t } = useTranslation();
-  useEscapeKey(onClose, isOpen);
+  const trapRef = useFocusTrap<HTMLDivElement>({ isOpen, onClose });
 
   const [currentStep, setCurrentStep] = useState(0);
   const [mode, setMode] = useState<GuideMode>("readonly");
@@ -274,6 +274,9 @@ export function GettingStartedModal({
   return (
     <div
       className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="getting-started-modal-title"
       style={{
         position: "fixed",
         top: 0,
@@ -291,6 +294,7 @@ export function GettingStartedModal({
       onClick={handleClose}
     >
       <div
+        ref={trapRef}
         className="modal-content"
         style={{
           width: "100%",
@@ -340,6 +344,7 @@ export function GettingStartedModal({
                 </span>
               </div>
               <div
+                id="getting-started-modal-title"
                 style={{
                   fontSize: "0.8rem",
                   color: "var(--text-muted)",
