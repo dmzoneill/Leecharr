@@ -2,10 +2,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Torrents;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
@@ -828,5 +830,164 @@ public class TorrentControllerTest
 
         var badRequestResult = response.Result.Should().BeOfType<BadRequestObjectResult>().Subject;
         badRequestResult.Value.Should().Be("Request body cannot be null");
+    }
+
+    [Test]
+    public async Task Upload_WhenPausedParameterIsTrue_PassesStartPausedTrueToService()
+    {
+        var dummyBytes = new byte[] { 1, 2, 3, 4, 5 };
+        var formFile = Substitute.For<IFormFile>();
+        formFile.Length.Returns(dummyBytes.Length);
+        formFile.FileName.Returns("test.torrent");
+        formFile.CopyToAsync(Arg.Any<Stream>()).Returns(ci =>
+        {
+            var stream = ci.Arg<Stream>();
+            stream.Write(dummyBytes, 0, dummyBytes.Length);
+            return Task.CompletedTask;
+        });
+
+        var parsed = new ParsedTorrent { InfoHash = "hash123", Name = "Test" };
+        var torrent = new Torrent { Id = 50, InfoHash = "hash123", Name = "Test" };
+
+        this.torrentFileParser.Parse(Arg.Is<byte[]>(b => b.SequenceEqual(dummyBytes))).Returns(parsed);
+        this.torrentService.AddFromParsedTorrentAsync(parsed, "tv", "/downloads/tv", true, Arg.Any<byte[]>())
+            .Returns(torrent);
+
+        var result = await this.controller.Upload(
+            files: new List<IFormFile> { formFile },
+            category: "tv",
+            savePath: "/downloads/tv",
+            paused: true);
+
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var uploadResult = okResult.Value.Should().BeOfType<TorrentUploadResult>().Subject;
+        uploadResult.Added.Should().HaveCount(1);
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(parsed, "tv", "/downloads/tv", true, Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task Upload_WhenIsPausedParameterIsTrue_PassesStartPausedTrueToService()
+    {
+        var dummyBytes = new byte[] { 1, 2, 3, 4, 5 };
+        var formFile = Substitute.For<IFormFile>();
+        formFile.Length.Returns(dummyBytes.Length);
+        formFile.FileName.Returns("test.torrent");
+        formFile.CopyToAsync(Arg.Any<Stream>()).Returns(ci =>
+        {
+            var stream = ci.Arg<Stream>();
+            stream.Write(dummyBytes, 0, dummyBytes.Length);
+            return Task.CompletedTask;
+        });
+
+        var parsed = new ParsedTorrent { InfoHash = "hash123", Name = "Test" };
+        var torrent = new Torrent { Id = 51, InfoHash = "hash123", Name = "Test" };
+
+        this.torrentFileParser.Parse(Arg.Is<byte[]>(b => b.SequenceEqual(dummyBytes))).Returns(parsed);
+        this.torrentService.AddFromParsedTorrentAsync(parsed, "movies", null, true, Arg.Any<byte[]>())
+            .Returns(torrent);
+
+        var result = await this.controller.Upload(
+            files: new List<IFormFile> { formFile },
+            category: "movies",
+            isPaused: true);
+
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var uploadResult = okResult.Value.Should().BeOfType<TorrentUploadResult>().Subject;
+        uploadResult.Added.Should().HaveCount(1);
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(parsed, "movies", null, true, Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task Upload_WhenStartPausedParameterIsTrue_PassesStartPausedTrueToService()
+    {
+        var dummyBytes = new byte[] { 1, 2, 3, 4, 5 };
+        var formFile = Substitute.For<IFormFile>();
+        formFile.Length.Returns(dummyBytes.Length);
+        formFile.FileName.Returns("test.torrent");
+        formFile.CopyToAsync(Arg.Any<Stream>()).Returns(ci =>
+        {
+            var stream = ci.Arg<Stream>();
+            stream.Write(dummyBytes, 0, dummyBytes.Length);
+            return Task.CompletedTask;
+        });
+
+        var parsed = new ParsedTorrent { InfoHash = "hash123", Name = "Test" };
+        var torrent = new Torrent { Id = 52, InfoHash = "hash123", Name = "Test" };
+
+        this.torrentFileParser.Parse(Arg.Is<byte[]>(b => b.SequenceEqual(dummyBytes))).Returns(parsed);
+        this.torrentService.AddFromParsedTorrentAsync(parsed, null, null, true, Arg.Any<byte[]>())
+            .Returns(torrent);
+
+        var result = await this.controller.Upload(
+            files: new List<IFormFile> { formFile },
+            startPaused: true);
+
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var uploadResult = okResult.Value.Should().BeOfType<TorrentUploadResult>().Subject;
+        uploadResult.Added.Should().HaveCount(1);
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(parsed, null, null, true, Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task Upload_WhenPausedNotProvided_PassesStartPausedFalseToService()
+    {
+        var dummyBytes = new byte[] { 1, 2, 3, 4, 5 };
+        var formFile = Substitute.For<IFormFile>();
+        formFile.Length.Returns(dummyBytes.Length);
+        formFile.FileName.Returns("test.torrent");
+        formFile.CopyToAsync(Arg.Any<Stream>()).Returns(ci =>
+        {
+            var stream = ci.Arg<Stream>();
+            stream.Write(dummyBytes, 0, dummyBytes.Length);
+            return Task.CompletedTask;
+        });
+
+        var parsed = new ParsedTorrent { InfoHash = "hash123", Name = "Test" };
+        var torrent = new Torrent { Id = 53, InfoHash = "hash123", Name = "Test" };
+
+        this.torrentFileParser.Parse(Arg.Is<byte[]>(b => b.SequenceEqual(dummyBytes))).Returns(parsed);
+        this.torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, Arg.Any<byte[]>())
+            .Returns(torrent);
+
+        var result = await this.controller.Upload(
+            files: new List<IFormFile> { formFile });
+
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var uploadResult = okResult.Value.Should().BeOfType<TorrentUploadResult>().Subject;
+        uploadResult.Added.Should().HaveCount(1);
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(parsed, null, null, false, Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task AddTorrentForm_WhenIsPausedOrPausedOrStartPaused_PassesStartPausedTrue()
+    {
+        var dummyBytes = new byte[] { 1, 2, 3 };
+        var formFile = Substitute.For<IFormFile>();
+        formFile.Length.Returns(dummyBytes.Length);
+        formFile.FileName.Returns("test.torrent");
+        formFile.CopyToAsync(Arg.Any<Stream>()).Returns(ci =>
+        {
+            var stream = ci.Arg<Stream>();
+            stream.Write(dummyBytes, 0, dummyBytes.Length);
+            return Task.CompletedTask;
+        });
+
+        var parsed = new ParsedTorrent { InfoHash = "hashForm", Name = "FormTest" };
+        var torrent = new Torrent { Id = 54, InfoHash = "hashForm", Name = "FormTest" };
+
+        this.torrentFileParser.Parse(Arg.Is<byte[]>(b => b.SequenceEqual(dummyBytes))).Returns(parsed);
+        this.torrentService.AddFromParsedTorrentAsync(parsed, "music", "/music/path", true, Arg.Any<byte[]>())
+            .Returns(torrent);
+
+        var result = await this.controller.AddTorrentForm(
+            file: formFile,
+            category: "music",
+            savePath: "/music/path",
+            isPaused: true);
+
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var resource = okResult.Value.Should().BeOfType<TorrentResource>().Subject;
+        resource.Id.Should().Be(54);
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(parsed, "music", "/music/path", true, Arg.Any<byte[]>());
     }
 }

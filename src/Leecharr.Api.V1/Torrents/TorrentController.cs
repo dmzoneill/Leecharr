@@ -603,10 +603,11 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         [FromForm] string magnetUrl = null,
         [FromForm] string category = null,
         [FromForm] string savePath = null,
-        [FromForm] bool paused = false,
-        [FromForm] bool startPaused = false)
+        [FromForm(Name = "paused")] bool paused = false,
+        [FromForm(Name = "isPaused")] bool isPaused = false,
+        [FromForm(Name = "startPaused")] bool startPaused = false)
     {
-        var isPaused = paused || startPaused;
+        var isPausedFlag = paused || isPaused || startPaused;
 
         if (file != null && file.Length > 0)
         {
@@ -615,7 +616,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             var bytes = ms.ToArray();
             var parsed = this.torrentFileParser.Parse(bytes);
 
-            var torrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
+            var torrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPausedFlag, bytes);
             if (torrent == null)
             {
                 return this.BadRequest("Failed to add torrent");
@@ -627,7 +628,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
         if (!string.IsNullOrWhiteSpace(magnetUrl))
         {
-            var torrent = await this.torrentService.AddFromMagnetAsync(magnetUrl, category, savePath, isPaused);
+            var torrent = await this.torrentService.AddFromMagnetAsync(magnetUrl, category, savePath, isPausedFlag);
             if (torrent == null)
             {
                 return this.BadRequest("Failed to add torrent");
@@ -645,8 +646,11 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     public async Task<IActionResult> Upload(
         [FromForm] List<IFormFile> files = null,
         [FromForm] string category = null,
-        [FromForm] bool isPaused = false,
-        [FromForm] bool startPaused = false)
+        [FromForm(Name = "downloadPath")] string downloadPath = null,
+        [FromForm(Name = "savePath")] string savePath = null,
+        [FromForm(Name = "paused")] bool? paused = null,
+        [FromForm(Name = "isPaused")] bool? isPaused = null,
+        [FromForm(Name = "startPaused")] bool? startPaused = null)
     {
         var formFiles = new List<IFormFile>();
         if (files != null && files.Count > 0)
@@ -654,7 +658,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             formFiles.AddRange(files);
         }
 
-        if (this.Request.HasFormContentType && this.Request.Form.Files.Count > 0)
+        if (this.Request?.HasFormContentType == true && this.Request.Form.Files.Count > 0)
         {
             foreach (var f in this.Request.Form.Files)
             {
@@ -670,7 +674,29 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             return this.BadRequest("No torrent file provided");
         }
 
-        var pausedFlag = isPaused || startPaused;
+        var destination = !string.IsNullOrWhiteSpace(downloadPath) ? downloadPath : savePath;
+        if (string.IsNullOrWhiteSpace(destination) && this.Request?.HasFormContentType == true)
+        {
+            destination = this.Request.Form["savePath"].FirstOrDefault() ?? this.Request.Form["downloadPath"].FirstOrDefault();
+        }
+
+        var pausedFlag = paused ?? isPaused ?? startPaused ?? false;
+        if (!pausedFlag && this.Request?.HasFormContentType == true)
+        {
+            if (bool.TryParse(this.Request.Form["paused"], out var p) && p)
+            {
+                pausedFlag = true;
+            }
+            else if (bool.TryParse(this.Request.Form["isPaused"], out var ip) && ip)
+            {
+                pausedFlag = true;
+            }
+            else if (bool.TryParse(this.Request.Form["startPaused"], out var sp) && sp)
+            {
+                pausedFlag = true;
+            }
+        }
+
         var added = new List<TorrentResource>();
         var failed = new List<TorrentUploadFailure>();
 
@@ -688,7 +714,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                 var bytes = ms.ToArray();
                 var parsed = this.torrentFileParser.Parse(bytes);
 
-                var torrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, null, pausedFlag, bytes);
+                var torrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, destination, pausedFlag, bytes);
                 if (torrent == null)
                 {
                     failed.Add(new TorrentUploadFailure(file.FileName, "Failed to add torrent"));
