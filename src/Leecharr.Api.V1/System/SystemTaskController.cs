@@ -6,6 +6,7 @@ using System.Linq;
 using Leecharr.Http;
 using Leecharr.Http.REST;
 using Microsoft.AspNetCore.Mvc;
+using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Jobs;
 using NzbDrone.Core.Messaging.Commands;
 
@@ -147,7 +148,17 @@ public class SystemTaskController : Controller
             ? dbTask.TypeName.Replace("Task", string.Empty)
             : (taskNames.TryGetValue(id, out var tn) ? tn : "SystemTask");
 
-        this.commandQueueManager?.PushRaw(name, "{}", CommandTrigger.Manual);
+        if (string.Equals(name, "ProwlarrSync", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, "ProwlarrSyncTask", StringComparison.OrdinalIgnoreCase) ||
+            id == 5)
+        {
+            this.commandQueueManager?.Push(new ProwlarrSyncCommand(), CommandTrigger.Manual);
+        }
+        else
+        {
+            this.commandQueueManager?.PushRaw(name, "{}", CommandTrigger.Manual);
+        }
+
         return this.Ok(new { success = true, task = name });
     }
 }
