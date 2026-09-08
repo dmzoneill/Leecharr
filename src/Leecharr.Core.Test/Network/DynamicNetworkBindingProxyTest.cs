@@ -309,4 +309,14 @@ public class DynamicNetworkBindingProxyTest
         var act = () => provider.BindSocket(socket, "any");
         act.Should().NotThrow();
     }
+
+    [Test]
+    public async Task SwitchProviderAsync_DispatchesNetworkBindingProviderSwitchedEvent()
+    {
+        var result = await this.proxy.SwitchProviderAsync("ProxyTunnel");
+
+        result.Success.Should().BeTrue();
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<NetworkBindingProviderSwitchedEvent>(e =>
+            e.PreviousProvider == "ManagedSocket" && e.NewProvider == "ProxyTunnel"));
+    }
 }
