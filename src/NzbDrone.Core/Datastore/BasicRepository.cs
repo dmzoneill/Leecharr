@@ -107,7 +107,7 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
         });
     }
 
-    public TModel Insert(TModel model)
+    public virtual TModel Insert(TModel model)
     {
         RetryPolicy.Execute(() =>
         {
