@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -11,6 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Common.Disk;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Torrents;
@@ -1719,5 +1721,83 @@ public class DelugeJsonRpcControllerTest
         var second = responseDoc.RootElement[1];
         second.GetProperty("result").ValueKind.Should().Be(JsonValueKind.Null);
         second.GetProperty("error").GetProperty("message").GetString().Should().Be("Not authenticated");
+    }
+
+    [Test]
+    public async Task HandleRpc_CorePauseAllTorrents_PausesAllTorrents()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var t1 = new Torrent { Id = 1, InfoHash = "hash1" };
+        var t2 = new Torrent { Id = 2, InfoHash = "hash2" };
+        this.torrentService.GetAll().Returns(new List<Torrent> { t1, t2 });
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.pause_all_torrents\",\"params\":[],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        await this.torrentService.Received(1).PauseAsync(1);
+        await this.torrentService.Received(1).PauseAsync(2);
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreResumeAllTorrents_ResumesAllTorrents()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var t1 = new Torrent { Id = 1, InfoHash = "hash1" };
+        var t2 = new Torrent { Id = 2, InfoHash = "hash2" };
+        this.torrentService.GetAll().Returns(new List<Torrent> { t1, t2 });
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.resume_all_torrents\",\"params\":[],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        await this.torrentService.Received(1).ResumeAsync(1);
+        await this.torrentService.Received(1).ResumeAsync(2);
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreGetTorrentsStatus_IncludesPiecesKey()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 10,
+            InfoHash = "aabb11223344556677889900aabb112233445566",
+            Name = "Pieces Test",
+            PieceCount = 4,
+            PieceLength = 262144,
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.PieceBitfield.Returns(new[] { true, false, true, false });
+        this.torrentService.GetDownloadTask(10).Returns(mockTask);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{},[\"pieces\",\"num_pieces\",\"piece_length\",\"storage_mode\",\"move_completed_path\"]],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        using var respDoc = JsonDocument.Parse(json);
+        var torrents = respDoc.RootElement.GetProperty("result");
+        var tStatus = torrents.GetProperty("aabb11223344556677889900aabb112233445566");
+
+        tStatus.GetProperty("num_pieces").GetInt32().Should().Be(4);
+        tStatus.GetProperty("piece_length").GetInt32().Should().Be(262144);
+        tStatus.GetProperty("storage_mode").GetString().Should().Be("sparse");
+        var pieces = tStatus.GetProperty("pieces").EnumerateArray().Select(x => x.GetInt32()).ToList();
+        pieces.Should().Equal(1, 0, 1, 0);
     }
 }

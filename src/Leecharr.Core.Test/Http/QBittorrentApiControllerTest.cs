@@ -1743,6 +1743,75 @@ public class QBittorrentApiControllerTest
         result2.Should().BeOfType<BadRequestResult>();
     }
 
+    [Test]
+    public async Task SetSequentialDownload_ValidParameters_UpdatesTorrentAndEngine()
+    {
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", SequentialDownload = false };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent1);
+
+        var result = await this.controller.SetSequentialDownload("hash1", enable: true);
+
+        result.Should().BeOfType<ContentResult>();
+        torrent1.SequentialDownload.Should().BeTrue();
+        await this.torrentService.Received(1).UpdateAsync(torrent1);
+        await this.downloadEngine.Received(1).SetSequentialDownloadAsync(1, true);
+    }
+
+    [Test]
+    public async Task SetFirstLastPiecePrio_ValidParameters_UpdatesTorrentAndEngine()
+    {
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", SequentialDownload = false };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent1);
+
+        var result = await this.controller.SetFirstLastPiecePrio("hash1", enable: true);
+
+        result.Should().BeOfType<ContentResult>();
+        torrent1.SequentialDownload.Should().BeTrue();
+        await this.torrentService.Received(1).UpdateAsync(torrent1);
+        await this.downloadEngine.Received(1).SetSequentialDownloadAsync(1, true);
+    }
+
+    [Test]
+    public void SetPiecePriority_ValidParameters_SetsPickerPriority()
+    {
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent1);
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.Picker.Returns(new PiecePicker(5, 16384, 5 * 16384));
+        this.downloadEngine.GetTask(1).Returns(mockTask);
+
+        var result = this.controller.SetPiecePriority(hash: "hash1", piece: 2, priority: 6);
+
+        result.Should().BeOfType<ContentResult>();
+        mockTask.Picker.GetPiecePriority(2).Should().Be(6);
+    }
+
+    [Test]
+    public void GetPieceHashes_NonExistentTorrent_ReturnsNotFound()
+    {
+        this.torrentService.GetByInfoHash("nonexistent").Returns((Torrent)null);
+
+        var result = this.controller.GetPieceHashes("nonexistent");
+
+        result.Result.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Test]
+    public void GetPieceHashes_ExistingTorrent_ReturnsPieceHashes()
+    {
+        var torrent = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", PieceCount = 3 };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent);
+
+        var result = this.controller.GetPieceHashes("hash1");
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result.Result;
+        var list = okResult.Value as List<string>;
+        list.Should().NotBeNull();
+        list!.Count.Should().Be(3);
+    }
+
     private static ActionExecutingContext CreateActionExecutingContext(QBittorrentApiController controller, HttpContext httpContext, string actionName)
     {
         var actionDescriptor = new ControllerActionDescriptor
