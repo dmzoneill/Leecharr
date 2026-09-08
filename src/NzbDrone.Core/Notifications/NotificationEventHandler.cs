@@ -391,11 +391,9 @@ public class NotificationEventHandler :
         var (seasonNum, epNum, epTitle) = ExtractEpisodicInfo(torrent.Name);
         var (container, resolution, videoCodec, hdrFormat, audioCodec, audioChannels, audioLanguage, subtitleLanguages) = ExtractStreamSpecs(meta?.MediaInfoJson);
 
-        var downloadTimeSeconds = torrent.CumulativeSeedingTimeSeconds > 0
-            ? torrent.CumulativeSeedingTimeSeconds
-            : (torrent.DateCompleted.HasValue && torrent.DateAdded != default && torrent.DateCompleted.Value >= torrent.DateAdded
-                ? (long)(torrent.DateCompleted.Value - torrent.DateAdded).TotalSeconds
-                : 0L);
+        var downloadTimeSeconds = torrent.DateCompleted.HasValue && torrent.DateAdded != default && torrent.DateCompleted.Value >= torrent.DateAdded
+            ? (long)(torrent.DateCompleted.Value - torrent.DateAdded).TotalSeconds
+            : 0L;
 
         var payload = new
         {
@@ -427,6 +425,7 @@ public class NotificationEventHandler :
                 dateAdded = torrent.DateAdded != default ? torrent.DateAdded.ToString("o") : null,
                 dateCompleted = torrent.DateCompleted?.ToString("o"),
                 downloadTimeSeconds,
+                seedingTimeSeconds = torrent.CumulativeSeedingTimeSeconds,
                 tags = torrent.TagIds ?? new List<int>(),
             },
             media = new
