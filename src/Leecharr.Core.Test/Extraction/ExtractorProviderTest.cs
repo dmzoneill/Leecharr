@@ -30,6 +30,7 @@ public class ExtractorProviderTest
         startInfo.FileName.Should().Be("unrar");
         startInfo.UseShellExecute.Should().BeFalse();
         startInfo.CreateNoWindow.Should().BeTrue();
+        startInfo.RedirectStandardInput.Should().BeTrue();
         startInfo.RedirectStandardOutput.Should().BeTrue();
         startInfo.RedirectStandardError.Should().BeTrue();
 
@@ -48,21 +49,24 @@ public class ExtractorProviderTest
             destinationPath: "/downloads/extracted/",
             candidatePassword: "SecretPassword123");
 
+        startInfo.RedirectStandardInput.Should().BeTrue();
         var args = startInfo.ArgumentList.ToList();
         args.Should().Contain("-pSecretPassword123");
         args.Should().NotContain("-p-");
         args.Last().Should().Be("/downloads/extracted");
     }
 
-    [Test]
-    public void UnrarExtractorProvider_BuildProcessStartInfo_WithoutPassword_SetsNoPasswordSwitch()
+    [TestCase(null)]
+    [TestCase("")]
+    public void UnrarExtractorProvider_BuildProcessStartInfo_WithoutPassword_SetsNoPasswordSwitch(string candidatePassword)
     {
         var startInfo = UnrarExtractorProvider.BuildProcessStartInfo(
             binary: "/usr/bin/unrar",
             archivePath: "/downloads/archive.rar",
             destinationPath: "/downloads/extracted/",
-            candidatePassword: null);
+            candidatePassword: candidatePassword);
 
+        startInfo.RedirectStandardInput.Should().BeTrue();
         var args = startInfo.ArgumentList.ToList();
         args.Should().Contain("-p-");
         args.Should().NotContain(a => a.StartsWith("-p") && a != "-p-");
@@ -90,6 +94,7 @@ public class ExtractorProviderTest
         startInfo.FileName.Should().Be("7z");
         startInfo.UseShellExecute.Should().BeFalse();
         startInfo.CreateNoWindow.Should().BeTrue();
+        startInfo.RedirectStandardInput.Should().BeTrue();
         startInfo.RedirectStandardOutput.Should().BeTrue();
         startInfo.RedirectStandardError.Should().BeTrue();
 
@@ -108,21 +113,24 @@ public class ExtractorProviderTest
             destinationPath: "/downloads/extracted/",
             candidatePassword: "SecretPassword123");
 
+        startInfo.RedirectStandardInput.Should().BeTrue();
         var args = startInfo.ArgumentList.ToList();
         args.Should().Contain("-pSecretPassword123");
         args.Should().NotContain("-p-");
         args.Should().Contain("-o/downloads/extracted");
     }
 
-    [Test]
-    public void SevenZipExtractorProvider_BuildProcessStartInfo_WithoutPassword_SetsNoPasswordSwitch()
+    [TestCase(null)]
+    [TestCase("")]
+    public void SevenZipExtractorProvider_BuildProcessStartInfo_WithoutPassword_SetsNoPasswordSwitch(string candidatePassword)
     {
         var startInfo = SevenZipExtractorProvider.BuildProcessStartInfo(
             binary: "/usr/bin/7z",
             archivePath: "/downloads/archive.7z",
             destinationPath: "/downloads/extracted/",
-            candidatePassword: null);
+            candidatePassword: candidatePassword);
 
+        startInfo.RedirectStandardInput.Should().BeTrue();
         var args = startInfo.ArgumentList.ToList();
         args.Should().Contain("-p-");
         args.Should().NotContain(a => a.StartsWith("-p") && a != "-p-");
