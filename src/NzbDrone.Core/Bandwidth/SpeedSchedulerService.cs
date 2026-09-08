@@ -40,6 +40,7 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
     private readonly IDownloadEngine downloadEngine;
     private readonly System.Threading.Timer timer;
     private readonly Logger logger;
+    private bool wasPausedByScheduler;
 
     public SpeedSchedulerService(
         ISpeedScheduleRepository repository,
@@ -68,9 +69,21 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
             try
             {
                 var limits = this.GetCurrentLimits();
-                var downloadLimit = limits.IsPaused && limits.MaxDownloadSpeedKbps <= 0 ? 1 : limits.MaxDownloadSpeedKbps;
-                var uploadLimit = limits.IsPaused && limits.MaxUploadSpeedKbps <= 0 ? 1 : limits.MaxUploadSpeedKbps;
-                await this.downloadEngine.SetRateLimitsAsync(downloadLimit, uploadLimit);
+                if (limits.IsPaused)
+                {
+                    this.wasPausedByScheduler = true;
+                    await this.downloadEngine.PauseAllAsync();
+                }
+                else
+                {
+                    if (this.wasPausedByScheduler)
+                    {
+                        this.wasPausedByScheduler = false;
+                        await this.downloadEngine.ResumeAllTorrentsAsync();
+                    }
+
+                    await this.downloadEngine.SetRateLimitsAsync(limits.MaxDownloadSpeedKbps, limits.MaxUploadSpeedKbps);
+                }
             }
             catch (Exception ex)
             {
@@ -86,7 +99,7 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
 
     public EffectiveSpeedLimits GetCurrentLimits(DateTime? currentTime = null)
     {
-        var now = currentTime ?? DateTime.Now;
+        var now = this.GetEffectiveDateTime(currentTime);
         var todayFlag = 1 << (int)now.DayOfWeek;
         var prevDayFlag = 1 << (((int)now.DayOfWeek + 6) % 7);
         var currentTimeOnly = TimeOnly.FromDateTime(now);
@@ -267,6 +280,46 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
                 return this.IsConfigDayActive(prevDay);
             }
 
+            return false;
+        }
+    }
+
+    private DateTime GetEffectiveDateTime(DateTime? currentTime)
+    {
+        if (currentTime.HasValue)
+        {
+            var dt = currentTime.Value;
+            if (dt.Kind == DateTimeKind.Utc && this.TryGetConfiguredTimeZone(out var tzFromUtc))
+            {
+                return TimeZoneInfo.ConvertTimeFromUtc(dt, tzFromUtc);
+            }
+
+            return dt;
+        }
+
+        if (this.TryGetConfiguredTimeZone(out var tz))
+        {
+            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+        }
+
+        return DateTime.Now;
+    }
+
+    private bool TryGetConfiguredTimeZone(out TimeZoneInfo timeZone)
+    {
+        timeZone = null;
+        var tzId = this.configService?.TimeZone;
+        if (string.IsNullOrWhiteSpace(tzId))
+        {
+            return false;
+        }
+
+        try
+        {
+            return TimeZoneInfo.TryFindSystemTimeZoneById(tzId, out timeZone);
+        }
+        catch
+        {
             return false;
         }
     }

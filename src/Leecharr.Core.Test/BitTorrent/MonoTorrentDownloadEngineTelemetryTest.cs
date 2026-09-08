@@ -182,4 +182,24 @@ public class MonoTorrentDownloadEngineTelemetryTest
         var hitRatio = totalCacheAccesses > 0 ? Math.Round(((double)cacheHits / totalCacheAccesses) * 100.0, 1) : 100.0;
         hitRatio.Should().Be(80.0);
     }
+
+    [Test]
+    public void GetEngineMetrics_WhenNoTorrents_ProtocolSpeedsDefaultToZeroAndOverheadZero()
+    {
+        var metrics = this.engine.GetEngineMetrics();
+
+        metrics.TotalProtocolDownloadSpeed.Should().Be(0);
+        metrics.TotalProtocolUploadSpeed.Should().Be(0);
+        metrics.TotalProtocolDownloaded.Should().Be(0);
+        metrics.TotalProtocolUploaded.Should().Be(0);
+        metrics.ProtocolOverheadPercentage.Should().Be(0.0);
+    }
+
+    [Test]
+    public async System.Threading.Tasks.Task PauseAllTorrentsAsync_WhenNoTorrents_CompletesSuccessfully()
+    {
+        await this.engine.PauseAllTorrentsAsync();
+        await this.engine.PauseAllAsync();
+        await this.engine.ResumeAllAsync();
+    }
 }

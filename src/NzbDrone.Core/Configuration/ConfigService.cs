@@ -80,6 +80,8 @@ public interface IConfigService
 
     string DefaultCategory { get; }
 
+    string TimeZone { get; }
+
     // Storage & Disk
     string DownloadDir { get; }
 
@@ -739,6 +741,8 @@ public class ConfigService : IConfigService
     public string ColorScheme => this.GetValue("ColorScheme", "auto");
 
     public string DefaultCategory => this.GetValue("DefaultCategory", string.Empty);
+
+    public string TimeZone => this.GetValue("TimeZone", string.Empty);
 
     // Storage & Disk
     public string DownloadDir => this.GetValue("DownloadDir", string.Empty);
