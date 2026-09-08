@@ -161,7 +161,7 @@ public class BasicRepositoryTest
     }
 
     [Test]
-    public void Database_OpenConnection_AppliesWalModeAndBusyTimeout()
+    public void Database_OpenConnection_AppliesBusyTimeout()
     {
         var connectionString = $"Data Source={this.dbPath};";
         var database = new Database(() => new SqliteConnection(connectionString), DatabaseType.SQLite);
@@ -169,13 +169,9 @@ public class BasicRepositoryTest
         using var connection = database.OpenConnection();
         using var cmd = connection.CreateCommand();
 
-        cmd.CommandText = "PRAGMA journal_mode;";
-        var journalMode = cmd.ExecuteScalar()?.ToString();
-        journalMode.Should().BeEquivalentTo("wal");
-
         cmd.CommandText = "PRAGMA busy_timeout;";
         var busyTimeout = Convert.ToInt32(cmd.ExecuteScalar());
-        busyTimeout.Should().Be(30000);
+        busyTimeout.Should().Be(5000);
 
         cmd.CommandText = "PRAGMA cache_size;";
         var cacheSize = Convert.ToInt32(cmd.ExecuteScalar());
@@ -184,6 +180,20 @@ public class BasicRepositoryTest
         cmd.CommandText = "PRAGMA synchronous;";
         var synchronous = Convert.ToInt32(cmd.ExecuteScalar());
         synchronous.Should().Be(1);
+    }
+
+    [Test]
+    public void Database_OpenConnection_WithCustomBusyTimeout_AppliesCustomValue()
+    {
+        var connectionString = $"Data Source={this.dbPath};";
+        var database = new Database(() => new SqliteConnection(connectionString), DatabaseType.SQLite, busyTimeout: 12000);
+
+        using var connection = database.OpenConnection();
+        using var cmd = connection.CreateCommand();
+
+        cmd.CommandText = "PRAGMA busy_timeout;";
+        var busyTimeout = Convert.ToInt32(cmd.ExecuteScalar());
+        busyTimeout.Should().Be(12000);
     }
 
     [Test]

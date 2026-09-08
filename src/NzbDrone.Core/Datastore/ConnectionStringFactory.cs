@@ -56,10 +56,10 @@ public class ConnectionStringFactory : IConnectionStringFactory
             $"Database={this.configFileProvider.PostgresMainDb};" +
             $"Username={this.configFileProvider.PostgresUser};" +
             $"Password={this.configFileProvider.PostgresPassword};" +
-            $"MinPoolSize=1;" +
-            $"MaxPoolSize=50;" +
-            $"ConnectionIdleLifetime=30;" +
-            $"Timeout=15;" +
-            $"CommandTimeout=30;";
+            $"Pooling=true;" +
+            $"Minimum Pool Size=1;" +
+            $"Maximum Pool Size=50;" +
+            $"Connection Timeout=15;" +
+            $"Command Timeout=30;";
     }
 }

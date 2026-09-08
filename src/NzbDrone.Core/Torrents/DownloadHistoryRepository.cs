@@ -18,6 +18,39 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
         this.database = database;
     }
 
+    public override DownloadHistory Insert(DownloadHistory model)
+    {
+        NormalizeDownloadHistory(model);
+        return base.Insert(model);
+    }
+
+    public override DownloadHistory Update(DownloadHistory model)
+    {
+        NormalizeDownloadHistory(model);
+        return base.Update(model);
+    }
+
+    public override void UpsertMany(IEnumerable<DownloadHistory> toInsert, IEnumerable<DownloadHistory> toUpdate)
+    {
+        if (toInsert != null)
+        {
+            foreach (var item in toInsert)
+            {
+                NormalizeDownloadHistory(item);
+            }
+        }
+
+        if (toUpdate != null)
+        {
+            foreach (var item in toUpdate)
+            {
+                NormalizeDownloadHistory(item);
+            }
+        }
+
+        base.UpsertMany(toInsert, toUpdate);
+    }
+
     public DownloadHistory FindByInfoHash(string infoHash)
     {
         if (string.IsNullOrWhiteSpace(infoHash))
@@ -25,10 +58,11 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
             return null;
         }
 
+        var normalized = infoHash.Trim().ToLowerInvariant();
         using var connection = this.database.OpenConnection();
         return connection.QueryFirstOrDefault<DownloadHistory>(
-            $"SELECT * FROM \"{this.table}\" WHERE LOWER(\"InfoHash\") = LOWER(@InfoHash) ORDER BY \"Id\" DESC",
-            new { InfoHash = infoHash });
+            $"SELECT * FROM \"{this.table}\" WHERE \"InfoHash\" = @InfoHash ORDER BY \"Id\" DESC",
+            new { InfoHash = normalized });
     }
 
     public DownloadHistory FindByTorrentId(int torrentId)
@@ -72,5 +106,13 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
     {
         using var connection = this.database.OpenConnection();
         connection.Execute($"DELETE FROM \"{this.table}\"");
+    }
+
+    private static void NormalizeDownloadHistory(DownloadHistory model)
+    {
+        if (model?.InfoHash != null)
+        {
+            model.InfoHash = model.InfoHash.Trim().ToLowerInvariant();
+        }
     }
 }

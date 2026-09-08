@@ -133,17 +133,17 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
         return model;
     }
 
-    public void InsertMany(IEnumerable<TModel> models)
+    public virtual void InsertMany(IEnumerable<TModel> models)
     {
         this.UpsertMany(models, null);
     }
 
-    public void UpdateMany(IEnumerable<TModel> models)
+    public virtual void UpdateMany(IEnumerable<TModel> models)
     {
         this.UpsertMany(null, models);
     }
 
-    public void UpsertMany(IEnumerable<TModel> toInsert, IEnumerable<TModel> toUpdate)
+    public virtual void UpsertMany(IEnumerable<TModel> toInsert, IEnumerable<TModel> toUpdate)
     {
         var insertList = toInsert as IList<TModel> ?? toInsert?.ToList() ?? new List<TModel>();
         var updateList = toUpdate as IList<TModel> ?? toUpdate?.ToList() ?? new List<TModel>();
@@ -216,7 +216,7 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
         }
     }
 
-    public TModel Update(TModel model)
+    public virtual TModel Update(TModel model)
     {
         RetryPolicy.Execute(() =>
         {
@@ -237,7 +237,7 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
         {
             using var connection = this.database.OpenConnection();
             connection.Execute(
-                $"DELETE FROM \"{this.table}\" WHERE \"Id\" = @Id",
+                TableMapping.GetDeleteSql<TModel>(this.table),
                 new { Id = id });
         });
 

@@ -14,4 +14,6 @@ public interface ITorrentRepository : IBasicRepository<Torrent>
     IEnumerable<Torrent> GetByCategory(string category);
 
     IEnumerable<Torrent> GetByStatus(TorrentStatus status);
+
+    int GetNextQueuePosition();
 }

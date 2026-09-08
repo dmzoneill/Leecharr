@@ -8,11 +8,13 @@ namespace NzbDrone.Core.Datastore;
 public class Database : IDatabase
 {
     private readonly Func<IDbConnection> connectionFactory;
+    private readonly int busyTimeout;
 
-    public Database(Func<IDbConnection> connectionFactory, DatabaseType databaseType)
+    public Database(Func<IDbConnection> connectionFactory, DatabaseType databaseType, int busyTimeout = 5000)
     {
         this.connectionFactory = connectionFactory;
         this.DatabaseType = databaseType;
+        this.busyTimeout = busyTimeout;
     }
 
     public DatabaseType DatabaseType { get; }
@@ -27,7 +29,7 @@ public class Database : IDatabase
         if (this.DatabaseType == DatabaseType.SQLite)
         {
             using var cmd = connection.CreateCommand();
-            cmd.CommandText = "PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 30000; PRAGMA cache_size = -64000; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON;";
+            cmd.CommandText = $"PRAGMA busy_timeout = {this.busyTimeout}; PRAGMA cache_size = -64000; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON;";
             cmd.ExecuteNonQuery();
         }
 

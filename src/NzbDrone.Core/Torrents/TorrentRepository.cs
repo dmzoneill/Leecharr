@@ -21,6 +21,39 @@ public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
         this.eventAggregator = eventAggregator;
     }
 
+    public override Torrent Insert(Torrent model)
+    {
+        NormalizeTorrent(model);
+        return base.Insert(model);
+    }
+
+    public override Torrent Update(Torrent model)
+    {
+        NormalizeTorrent(model);
+        return base.Update(model);
+    }
+
+    public override void UpsertMany(IEnumerable<Torrent> toInsert, IEnumerable<Torrent> toUpdate)
+    {
+        if (toInsert != null)
+        {
+            foreach (var item in toInsert)
+            {
+                NormalizeTorrent(item);
+            }
+        }
+
+        if (toUpdate != null)
+        {
+            foreach (var item in toUpdate)
+            {
+                NormalizeTorrent(item);
+            }
+        }
+
+        base.UpsertMany(toInsert, toUpdate);
+    }
+
     public override void Delete(int id)
     {
         var existing = this.Get(id);
@@ -60,10 +93,11 @@ public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
             return null;
         }
 
+        var normalized = infoHash.Trim().ToLowerInvariant();
         using var connection = this.database.OpenConnection();
         return connection.QueryFirstOrDefault<Torrent>(
-            $"SELECT * FROM \"{this.table}\" WHERE LOWER(\"InfoHash\") = LOWER(@InfoHash)",
-            new { InfoHash = infoHash });
+            $"SELECT * FROM \"{this.table}\" WHERE \"InfoHash\" = @InfoHash",
+            new { InfoHash = normalized });
     }
 
     public bool ExistsByInfoHash(string infoHash)
@@ -73,10 +107,11 @@ public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
             return false;
         }
 
+        var normalized = infoHash.Trim().ToLowerInvariant();
         using var connection = this.database.OpenConnection();
         return connection.QueryFirstOrDefault<int>(
-            $"SELECT COUNT(1) FROM \"{this.table}\" WHERE LOWER(\"InfoHash\") = LOWER(@InfoHash)",
-            new { InfoHash = infoHash }) > 0;
+            $"SELECT COUNT(1) FROM \"{this.table}\" WHERE \"InfoHash\" = @InfoHash",
+            new { InfoHash = normalized }) > 0;
     }
 
     public IEnumerable<Torrent> GetByCategory(string category)
@@ -93,5 +128,19 @@ public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
         return connection.Query<Torrent>(
             $"SELECT * FROM \"{this.table}\" WHERE \"Status\" = @Status",
             new { Status = (int)status });
+    }
+
+    public int GetNextQueuePosition()
+    {
+        using var connection = this.database.OpenConnection();
+        return connection.ExecuteScalar<int>($"SELECT COALESCE(MAX(\"QueuePosition\"), 0) + 1 FROM \"{this.table}\"");
+    }
+
+    private static void NormalizeTorrent(Torrent model)
+    {
+        if (model?.InfoHash != null)
+        {
+            model.InfoHash = model.InfoHash.Trim().ToLowerInvariant();
+        }
     }
 }

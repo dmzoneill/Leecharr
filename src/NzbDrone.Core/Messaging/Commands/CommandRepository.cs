@@ -25,6 +25,14 @@ public class CommandRepository : BasicRepository<CommandModel>, ICommandReposito
             new { Status = (int)status });
     }
 
+    public IEnumerable<CommandModel> GetRecent(int limit = 50)
+    {
+        using var connection = this.database.OpenConnection();
+        return connection.Query<CommandModel>(
+            $"SELECT * FROM \"{this.table}\" ORDER BY \"QueuedAt\" DESC LIMIT @Limit",
+            new { Limit = limit });
+    }
+
     public void DeleteOldTerminalCommands(DateTime cutoff)
     {
         var completed = (int)CommandStatus.Completed;
