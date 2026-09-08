@@ -351,8 +351,8 @@ public class FloodApiController : ControllerBase, IActionFilter
         {
             var dict = this.BuildTorrentDictionary();
             var json = JsonSerializer.Serialize(dict);
-            await this.Response.WriteAsync($"event: TORRENT_LIST_DIFF\ndata: {json}\n\n", cancellationToken);
-            await this.Response.Body.FlushAsync(cancellationToken);
+            await this.Response.WriteAsync($"event: TORRENT_LIST_DIFF\ndata: {json}\n\n", CancellationToken.None);
+            await this.Response.Body.FlushAsync(CancellationToken.None);
 
             while (!cancellationToken.IsCancellationRequested)
             {

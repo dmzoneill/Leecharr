@@ -1428,7 +1428,7 @@ public class NotificationEventHandlerTest
     }
 
     [Test]
-    public async Task Handle_TorrentStatusChangedEvent_WhenDownloadCompletedAndSeeding_CalculatesDownloadTimeAndSeedingTimeIndependently()
+    public async Task Handle_TorrentDownloadCompletedEvent_WhenDownloadCompletedAndSeeding_CalculatesDownloadTimeAndSeedingTimeIndependently()
     {
         var notification = new NotificationDefinition
         {
@@ -1457,12 +1457,7 @@ public class NotificationEventHandlerTest
             CumulativeSeedingTimeSeconds = 3600, // 3600s seeding duration
         };
 
-        this.handler.Handle(new TorrentStatusChangedEvent
-        {
-            Torrent = torrent,
-            OldStatus = TorrentStatus.Downloading,
-            NewStatus = TorrentStatus.Seeding,
-        });
+        this.handler.Handle(new TorrentDownloadCompletedEvent(torrent));
 
         await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
