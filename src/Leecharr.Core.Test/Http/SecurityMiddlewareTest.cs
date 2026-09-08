@@ -305,6 +305,9 @@ public class SecurityMiddlewareTest
     [TestCase("/api/v1/torrents/auth/login")]
     [TestCase("/api/v1/settings/auth/authenticate")]
     [TestCase("/fake/auth/login/action")]
+    [TestCase("/api/v1/config/custom/auth/login")]
+    [TestCase("/api/v1/tags/delete/auth/login")]
+    [TestCase("/api/v1/user/update/auth/callback")]
     public async Task CsrfProtectionMiddleware_BlocksNonAuthEndpointWithoutOriginOrReferer(string path)
     {
         var config = Substitute.For<IConfigService>();
@@ -336,12 +339,30 @@ public class SecurityMiddlewareTest
     [TestCase("/api/v1/auth/callback/saml", true)]
     [TestCase("/api/v1/torrents/add", false)]
     [TestCase("/api/v1/something/auth/login", false)]
+    [TestCase("/api/v1/config/custom/auth/login", false)]
+    [TestCase("/api/v1/tags/delete/auth/login", false)]
+    [TestCase("/api/v1/user/update/auth/callback", false)]
+    [TestCase("/api/v1/torrents/pause/auth/authenticate", false)]
     [TestCase("/api/v1/auth/login-fake", false)]
     [TestCase("/fake/auth/login", false)]
     [TestCase("/not-auth/login", false)]
+    [TestCase("/custom/auth/login", false)]
     public void CsrfProtectionMiddleware_IsAuthPath_StrictMatching(string path, bool expected)
     {
         CsrfProtectionMiddleware.IsAuthPath(path).Should().Be(expected);
+    }
+
+    [TestCase("/leecharr/api/v1/auth/login", "/leecharr", true)]
+    [TestCase("/leecharr/auth/login", "/leecharr", true)]
+    [TestCase("/leecharr/auth/login/subpath", "/leecharr", true)]
+    [TestCase("/leecharr/auth/login", "/leecharr/", true)]
+    [TestCase("/leecharr/api/v1/config/custom/auth/login", "/leecharr", false)]
+    [TestCase("/leecharr/api/v1/torrents", "/leecharr", false)]
+    [TestCase("/leecharr", "/leecharr", false)]
+    [TestCase("", "/leecharr", false)]
+    public void CsrfProtectionMiddleware_IsAuthPath_WithUrlBase(string path, string urlBase, bool expected)
+    {
+        CsrfProtectionMiddleware.IsAuthPath(path, urlBase).Should().Be(expected);
     }
 
     [TestCase("/json", true)]
@@ -363,6 +384,16 @@ public class SecurityMiddlewareTest
     public void CsrfProtectionMiddleware_IsRpcPath_StrictMatching(string path, bool expected)
     {
         CsrfProtectionMiddleware.IsRpcPath(path).Should().Be(expected);
+    }
+
+    [TestCase("/leecharr/json", "/leecharr", true)]
+    [TestCase("/leecharr/transmission/rpc", "/leecharr", true)]
+    [TestCase("/leecharr/api/v1/torrents", "/leecharr", false)]
+    [TestCase("/leecharr", "/leecharr", false)]
+    [TestCase("", "/leecharr", false)]
+    public void CsrfProtectionMiddleware_IsRpcPath_WithUrlBase(string path, string urlBase, bool expected)
+    {
+        CsrfProtectionMiddleware.IsRpcPath(path, urlBase).Should().Be(expected);
     }
 
     [TestCase("/json")]
