@@ -50,6 +50,8 @@ public class BitTorrentConfigResource : RestResource
 
     public string Umask { get; set; }
 
+    public long MaxTorrentFileSizeBytes { get; set; } = 250L * 1024 * 1024;
+
     // Queue & Concurrency Management
     public int DownloadQueueSize { get; set; }
 
@@ -182,6 +184,7 @@ public static class BitTorrentConfigResourceMapper
             DiskPreAllocationMode = model.PreallocationMode,
             RenamePartialFiles = model.RenamePartialFiles,
             Umask = model.Umask,
+            MaxTorrentFileSizeBytes = model.MaxTorrentFileSizeBytes,
 
             DownloadQueueSize = model.DownloadQueueSize,
             SeedQueueSize = model.SeedQueueSize,

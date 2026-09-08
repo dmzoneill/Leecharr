@@ -784,8 +784,8 @@ public class TransmissionRpcController : ControllerBase
                         }
                     }
 
-                    freeBytes ??= this.diskSpaceService?.GetDiskSpace()?.FirstOrDefault()?.FreeSpace ?? (100L * 1024 * 1024 * 1024);
-                    totalBytes ??= this.diskSpaceService?.GetDiskSpace()?.FirstOrDefault()?.TotalSpace ?? (500L * 1024 * 1024 * 1024);
+                    freeBytes ??= this.diskSpaceService?.GetDiskSpace()?.FirstOrDefault()?.FreeSpace ?? 0L;
+                    totalBytes ??= this.diskSpaceService?.GetDiskSpace()?.FirstOrDefault()?.TotalSpace ?? 0L;
 
                     return this.Ok(new TransmissionRpcResponse
                     {
@@ -1059,7 +1059,8 @@ public class TransmissionRpcController : ControllerBase
                     }
                     else if (fn.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || fn.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                     {
-                        var bytes = await this.safeHttpClientService.DownloadBytesAsync(fn);
+                        var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+                        var bytes = await this.safeHttpClientService.DownloadBytesAsync(fn, maxSizeBytes: maxTorrentBytes);
                         var parsed = this.torrentFileParser.Parse(bytes);
                         var existing = !string.IsNullOrWhiteSpace(parsed?.InfoHash)
                             ? this.torrentService.GetByInfoHash(parsed.InfoHash)
@@ -1382,16 +1383,16 @@ public class TransmissionRpcController : ControllerBase
             {
                 address = p.Ip ?? string.Empty,
                 clientName = p.Client ?? string.Empty,
-                clientIsChoked = true,
-                clientIsInterested = true,
+                clientIsChoked = p.ClientIsChoked,
+                clientIsInterested = p.ClientIsInterested,
                 flagStr = p.Flags ?? string.Empty,
                 isDownloadingFrom = p.DownloadSpeed > 0,
                 isEncrypted = p.IsEncrypted,
-                isIncoming = false,
+                isIncoming = p.IsIncoming,
                 isUploadingTo = p.UploadSpeed > 0,
-                isUTP = p.Flags?.Contains("U", StringComparison.OrdinalIgnoreCase) == true,
-                peerIsChoked = false,
-                peerIsInterested = false,
+                isUTP = p.IsUtp || p.Flags?.Contains("U", StringComparison.OrdinalIgnoreCase) == true,
+                peerIsChoked = p.IsChoked,
+                peerIsInterested = p.IsInterested,
                 port = p.Port,
                 progress = p.Progress,
                 rateToClient = p.DownloadSpeed,

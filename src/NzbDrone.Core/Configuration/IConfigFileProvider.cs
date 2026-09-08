@@ -54,5 +54,7 @@ public interface IConfigFileProvider
 
     string ExtractorTempDir { get; }
 
+    long MaxTorrentFileSizeBytes { get; }
+
     void SaveConfigDictionary(Dictionary<string, object> values);
 }

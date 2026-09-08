@@ -3750,6 +3750,12 @@ public class MonoTorrentDownloadTask : IDownloadTask
                     Downloaded = p.Monitor?.DataBytesReceived ?? 0,
                     Uploaded = p.Monitor?.DataBytesSent ?? 0,
                     IsEncrypted = isEncrypted,
+                    IsChoked = p.IsChoking,
+                    IsInterested = p.IsInterested,
+                    ClientIsChoked = p.AmChoking,
+                    ClientIsInterested = p.AmInterested,
+                    IsIncoming = flags.Contains("?"),
+                    IsUtp = p.Uri?.Scheme?.Equals("utp", StringComparison.OrdinalIgnoreCase) == true,
                 });
             }
 

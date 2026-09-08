@@ -405,7 +405,8 @@ public class SabnzbdApiController : ControllerBase
                     }
                     else
                     {
-                        var bytes = await this.safeHttpClientService.DownloadBytesAsync(targetUrl, maxSizeBytes: 10 * 1024 * 1024);
+                        var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024;
+                        var bytes = await this.safeHttpClientService.DownloadBytesAsync(targetUrl, maxSizeBytes: maxTorrentBytes);
                         var parsed = this.torrentFileParser.Parse(bytes);
                         var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, targetCat, null, false, bytes);
                         if (added != null)
@@ -578,13 +579,15 @@ public class SabnzbdApiController : ControllerBase
     {
         try
         {
-            var target = string.IsNullOrWhiteSpace(path) ? "/downloads" : path;
+            var target = string.IsNullOrWhiteSpace(path) ? (this.configService?.DownloadDir ?? "/downloads") : path;
             var fullPath = global::System.IO.Path.GetFullPath(target);
-            return this.diskProvider?.GetAvailableSpace(fullPath) ?? 1099511627776L;
+            return this.diskProvider?.GetAvailableSpace(fullPath)
+                ?? this.diskProvider?.GetAvailableSpace(target)
+                ?? 0L;
         }
         catch
         {
-            return 1099511627776L;
+            return 0L;
         }
     }
 
@@ -592,13 +595,15 @@ public class SabnzbdApiController : ControllerBase
     {
         try
         {
-            var target = string.IsNullOrWhiteSpace(path) ? "/downloads" : path;
+            var target = string.IsNullOrWhiteSpace(path) ? (this.configService?.DownloadDir ?? "/downloads") : path;
             var fullPath = global::System.IO.Path.GetFullPath(target);
-            return this.diskProvider?.GetTotalSize(fullPath) ?? 1099511627776L;
+            return this.diskProvider?.GetTotalSize(fullPath)
+                ?? this.diskProvider?.GetTotalSize(target)
+                ?? 0L;
         }
         catch
         {
-            return 1099511627776L;
+            return 0L;
         }
     }
 

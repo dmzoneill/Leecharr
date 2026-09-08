@@ -306,7 +306,8 @@ public class FreeboxDownloadController : ControllerBase
             }
             else
             {
-                var bytes = await this.safeHttpClientService.DownloadBytesAsync(download_url, maxSizeBytes: 10 * 1024 * 1024);
+                var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+                var bytes = await this.safeHttpClientService.DownloadBytesAsync(download_url, maxSizeBytes: maxTorrentBytes);
                 var parsed = this.torrentFileParser.Parse(bytes);
                 var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, null, effectiveDest, false, bytes);
                 addedId = added?.Id ?? 0;

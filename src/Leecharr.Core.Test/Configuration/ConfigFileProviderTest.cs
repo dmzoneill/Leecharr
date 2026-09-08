@@ -201,4 +201,22 @@ public class ConfigFileProviderTest
             Environment.SetEnvironmentVariable("LEECHARR__URL_BASE", null);
         }
     }
+
+    [Test]
+    public void MaxTorrentFileSizeBytes_DefaultsTo250MB_AndCanBeConfigured()
+    {
+        var provider = new ConfigFileProvider(this.appFolderInfo);
+        provider.MaxTorrentFileSizeBytes.Should().Be(250L * 1024 * 1024);
+
+        try
+        {
+            Environment.SetEnvironmentVariable("LEECHARR__MAX_TORRENT_FILE_SIZE_BYTES", "524288000");
+            var customProvider = new ConfigFileProvider(this.appFolderInfo);
+            customProvider.MaxTorrentFileSizeBytes.Should().Be(524288000L);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("LEECHARR__MAX_TORRENT_FILE_SIZE_BYTES", null);
+        }
+    }
 }
