@@ -356,4 +356,278 @@ public class RTorrentControllerTest
         contentResult.Content.Should().Contain("<i8>29</i8>");
         contentResult.Content.Should().Contain("<i4>2</i4>");
     }
+
+    [Test]
+    public async Task HandleXmlRpc_TrackerAnnounce_WithInfoHash_InvokesForceAnnounceAsync()
+    {
+        var torrent = new Torrent
+        {
+            Id = 55,
+            InfoHash = "1234567890abcdef1234567890abcdef12345678",
+        };
+        this.torrentService.GetByInfoHash("1234567890abcdef1234567890abcdef12345678").Returns(torrent);
+
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.tracker_announce</methodName>
+              <params>
+                <param><value><string>1234567890abcdef1234567890abcdef12345678</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<i4>0</i4>");
+        await this.torrentService.Received(1).ForceAnnounceAsync(55);
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_TrackerAnnounceDotted_WithInfoHash_InvokesForceAnnounceAsync()
+    {
+        var torrent = new Torrent
+        {
+            Id = 56,
+            InfoHash = "abcdefabcdefabcdefabcdefabcdefabcdefabcd",
+        };
+        this.torrentService.GetByInfoHash("abcdefabcdefabcdefabcdefabcdefabcdefabcd").Returns(torrent);
+
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.tracker.announce</methodName>
+              <params>
+                <param><value><string>abcdefabcdefabcdefabcdefabcdefabcdefabcd</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<i4>0</i4>");
+        await this.torrentService.Received(1).ForceAnnounceAsync(56);
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_TorrentDownRateSet_WithBytes_UpdatesTorrentDownloadLimit()
+    {
+        var torrent = new Torrent
+        {
+            Id = 77,
+            InfoHash = "feedbeefcafefeedbeefcafefeedbeefcafefeed",
+            DownloadLimit = 0,
+        };
+        this.torrentService.GetByInfoHash("feedbeefcafefeedbeefcafefeedbeefcafefeed").Returns(torrent);
+
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.down.rate.set</methodName>
+              <params>
+                <param><value><string>feedbeefcafefeedbeefcafefeedbeefcafefeed</string></value></param>
+                <param><value><i8>5242880</i8></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<i4>0</i4>");
+        torrent.DownloadLimit.Should().Be(5120);
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_TorrentDownRateSetKb_WithKb_UpdatesTorrentDownloadLimit()
+    {
+        var torrent = new Torrent
+        {
+            Id = 78,
+            InfoHash = "feedbeefcafefeedbeefcafefeedbeefcafefeed",
+            DownloadLimit = 0,
+        };
+        this.torrentService.GetByInfoHash("feedbeefcafefeedbeefcafefeedbeefcafefeed").Returns(torrent);
+
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.down.rate.set_kb</methodName>
+              <params>
+                <param><value><string>feedbeefcafefeedbeefcafefeedbeefcafefeed</string></value></param>
+                <param><value><i4>3500</i4></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<i4>0</i4>");
+        torrent.DownloadLimit.Should().Be(3500);
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_TorrentUpRateSet_WithBytes_UpdatesTorrentUploadLimit()
+    {
+        var torrent = new Torrent
+        {
+            Id = 79,
+            InfoHash = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            UploadLimit = 0,
+        };
+        this.torrentService.GetByInfoHash("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef").Returns(torrent);
+
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.up.rate.set</methodName>
+              <params>
+                <param><value><string>deadbeefdeadbeefdeadbeefdeadbeefdeadbeef</string></value></param>
+                <param><value><i8>2097152</i8></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<i4>0</i4>");
+        torrent.UploadLimit.Should().Be(2048);
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_TorrentUpRateSetKb_WithKb_UpdatesTorrentUploadLimit()
+    {
+        var torrent = new Torrent
+        {
+            Id = 80,
+            InfoHash = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            UploadLimit = 0,
+        };
+        this.torrentService.GetByInfoHash("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef").Returns(torrent);
+
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.up.rate.set_kb</methodName>
+              <params>
+                <param><value><string>deadbeefdeadbeefdeadbeefdeadbeefdeadbeef</string></value></param>
+                <param><value><i4>1500</i4></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<i4>0</i4>");
+        torrent.UploadLimit.Should().Be(1500);
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_ThrottleGlobalDownMaxRateSetKb_SavesConfig()
+    {
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>throttle.global_down.max_rate.set_kb</methodName>
+              <params>
+                <param><value><i4>12000</i4></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<i4>0</i4>");
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (int)d["MaxDownloadSpeedKbps"] == 12000));
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_ThrottleGlobalUpMaxRateSetKb_SavesConfig()
+    {
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>throttle.global_up.max_rate.set_kb</methodName>
+              <params>
+                <param><value><i4>6000</i4></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<i4>0</i4>");
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (int)d["MaxUploadSpeedKbps"] == 6000));
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_SetDownloadRate_WithBytes_SavesConfigInKb()
+    {
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>set_download_rate</methodName>
+              <params>
+                <param><value><i8>10485760</i8></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<i4>0</i4>");
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (int)d["MaxDownloadSpeedKbps"] == 10240));
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_SetUploadRate_WithBytes_SavesConfigInKb()
+    {
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>set_upload_rate</methodName>
+              <params>
+                <param><value><i8>5242880</i8></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<i4>0</i4>");
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d => (int)d["MaxUploadSpeedKbps"] == 5120));
+    }
 }
