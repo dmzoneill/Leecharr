@@ -1780,11 +1780,14 @@ public class DelugeJsonRpcController : ControllerBase
         var obj = filterObj.Value;
         var result = torrents;
 
-        var idList = ExtractStringOrArrayStrings(obj, "id", "ids", "hash", "hashes", "torrent_id", "torrent_ids");
+        var idList = ExtractStringOrArrayStrings(obj, "id", "ids", "hash", "hashes", "info_hash", "info_hashes", "infohash", "infohashes", "torrent_id", "torrent_ids");
         if (idList != null && idList.Count > 0)
         {
-            var idSet = new HashSet<string>(idList, StringComparer.OrdinalIgnoreCase);
-            result = result.Where(t => idSet.Contains(t.InfoHash));
+            var idSet = new HashSet<string>(idList.Where(s => !string.IsNullOrWhiteSpace(s)), StringComparer.OrdinalIgnoreCase);
+            if (idSet.Count > 0)
+            {
+                result = result.Where(t => (t.InfoHash != null && idSet.Contains(t.InfoHash)) || idSet.Contains(t.Id.ToString()));
+            }
         }
 
         var labelList = ExtractStringOrArrayStrings(obj, "label", "labels", "category", "categories");
@@ -1805,12 +1808,14 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        var trackerList = ExtractStringOrArrayStrings(obj, "tracker_host", "tracker_hosts", "tracker");
+        var trackerList = ExtractStringOrArrayStrings(obj, "tracker_host", "tracker_hosts", "tracker", "trackers");
         if (trackerList != null && trackerList.Count > 0)
         {
             if (!trackerList.Any(th => string.Equals(th, "All", StringComparison.OrdinalIgnoreCase)))
             {
-                result = result.Where(t => trackerList.Any(th => string.Equals(GetTrackerHost(t), th, StringComparison.OrdinalIgnoreCase)));
+                result = result.Where(t => trackerList.Any(th =>
+                    string.Equals(GetTrackerHost(t), th, StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrWhiteSpace(t.TrackerUrl) && t.TrackerUrl.Contains(th, StringComparison.OrdinalIgnoreCase))));
             }
         }
 
@@ -1819,14 +1824,21 @@ public class DelugeJsonRpcController : ControllerBase
 
     private static List<string> ExtractStringOrArrayStrings(JsonElement obj, params string[] propertyNames)
     {
-        foreach (var propName in propertyNames)
+        if (obj.ValueKind != JsonValueKind.Object)
         {
-            if (obj.TryGetProperty(propName, out var prop))
+            return null;
+        }
+
+        var propNameSet = new HashSet<string>(propertyNames, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var prop in obj.EnumerateObject())
+        {
+            if (propNameSet.Contains(prop.Name))
             {
                 var list = new List<string>();
-                if (prop.ValueKind == JsonValueKind.String)
+                if (prop.Value.ValueKind == JsonValueKind.String)
                 {
-                    var val = prop.GetString();
+                    var val = prop.Value.GetString();
                     if (val != null)
                     {
                         list.Add(val);
@@ -1834,9 +1846,14 @@ public class DelugeJsonRpcController : ControllerBase
 
                     return list;
                 }
-                else if (prop.ValueKind == JsonValueKind.Array)
+                else if (prop.Value.ValueKind == JsonValueKind.Number)
                 {
-                    foreach (var item in prop.EnumerateArray())
+                    list.Add(prop.Value.GetRawText());
+                    return list;
+                }
+                else if (prop.Value.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var item in prop.Value.EnumerateArray())
                     {
                         if (item.ValueKind == JsonValueKind.String)
                         {
@@ -1845,6 +1862,10 @@ public class DelugeJsonRpcController : ControllerBase
                             {
                                 list.Add(val);
                             }
+                        }
+                        else if (item.ValueKind == JsonValueKind.Number)
+                        {
+                            list.Add(item.GetRawText());
                         }
                     }
 
