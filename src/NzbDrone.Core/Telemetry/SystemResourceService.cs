@@ -33,6 +33,7 @@ public class SystemResourceService : ISystemResourceService
     private static DateTime lastDriveSampleTime = DateTime.MinValue;
     private static List<DiskMountPointMetrics> cachedDriveMetrics = new();
 
+    private readonly ISubsystemManagerRegistry subsystemManagers;
     private readonly ITorrentEngineManager torrentEngineManager;
     private readonly IArchiveExtractorManager extractorManager;
     private readonly IMediaInspectorManager mediaInspectorManager;
@@ -47,6 +48,26 @@ public class SystemResourceService : ISystemResourceService
     private readonly Logger logger;
 
     public SystemResourceService(
+        ISubsystemManagerRegistry subsystemManagers,
+        IConfigService configService,
+        IAppFolderInfo appFolderInfo = null)
+    {
+        this.subsystemManagers = subsystemManagers;
+        this.torrentEngineManager = subsystemManagers?.TorrentEngineManager;
+        this.extractorManager = subsystemManagers?.ExtractorManager;
+        this.mediaInspectorManager = subsystemManagers?.MediaInspectorManager;
+        this.geoIpManager = geoIpManager ?? subsystemManagers?.GeoIpManager;
+        this.blocklistManager = subsystemManagers?.BlocklistManager;
+        this.networkBindingManager = subsystemManagers?.NetworkBindingManager;
+        this.mediaMetadataManager = subsystemManagers?.MediaMetadataManager;
+        this.httpTransportManager = subsystemManagers?.HttpTransportManager;
+        this.aiManager = subsystemManagers?.AiManager;
+        this.configService = configService;
+        this.appFolderInfo = appFolderInfo;
+        this.logger = LogManager.GetCurrentClassLogger();
+    }
+
+    public SystemResourceService(
         ITorrentEngineManager torrentEngineManager,
         IArchiveExtractorManager extractorManager,
         IMediaInspectorManager mediaInspectorManager,
@@ -58,19 +79,20 @@ public class SystemResourceService : ISystemResourceService
         IAiManager aiManager,
         IConfigService configService,
         IAppFolderInfo appFolderInfo = null)
+        : this(
+            new SubsystemManagerRegistry(
+                torrentEngineManager,
+                extractorManager,
+                mediaInspectorManager,
+                geoIpManager,
+                blocklistManager,
+                networkBindingManager,
+                mediaMetadataManager,
+                httpTransportManager,
+                aiManager),
+            configService,
+            appFolderInfo)
     {
-        this.torrentEngineManager = torrentEngineManager;
-        this.extractorManager = extractorManager;
-        this.mediaInspectorManager = mediaInspectorManager;
-        this.geoIpManager = geoIpManager;
-        this.blocklistManager = blocklistManager;
-        this.networkBindingManager = networkBindingManager;
-        this.mediaMetadataManager = mediaMetadataManager;
-        this.httpTransportManager = httpTransportManager;
-        this.aiManager = aiManager;
-        this.configService = configService;
-        this.appFolderInfo = appFolderInfo;
-        this.logger = LogManager.GetCurrentClassLogger();
     }
 
     internal static Func<List<DiskMountPointMetrics>> DriveMetricsProvider { get; set; } = QuerySystemDrives;

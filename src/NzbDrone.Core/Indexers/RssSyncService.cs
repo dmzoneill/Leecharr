@@ -33,6 +33,7 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
     private readonly IRssRuleRepository rssRuleRepository;
     private readonly ITorznabClient torznabClient;
     private readonly ITorrentService torrentService;
+    private readonly IRssSyncContext context;
     private readonly ITorrentFileParser torrentFileParser;
     private readonly HttpClient httpClient;
     private readonly ISafeHttpClientService safeHttpClientService;
@@ -47,26 +48,49 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
         IRssRuleRepository rssRuleRepository,
         ITorznabClient torznabClient,
         ITorrentService torrentService,
-        ITorrentFileParser torrentFileParser = null,
-        HttpClient httpClient = null,
-        ISafeHttpClientService safeHttpClientService = null,
-        IDownloadHistoryService downloadHistoryService = null,
-        ICategoryService categoryService = null,
+        IRssSyncContext context,
         int maxGrabbedReleasesCapacity = DefaultMaxGrabbedReleasesCapacity)
     {
         this.indexerRepository = indexerRepository;
         this.rssRuleRepository = rssRuleRepository;
         this.torznabClient = torznabClient;
         this.torrentService = torrentService;
-        this.torrentFileParser = torrentFileParser ?? new TorrentFileParser();
-        this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-        this.safeHttpClientService = safeHttpClientService ?? (httpClient != null ? new SafeHttpClientService(httpClient) : new SafeHttpClientService());
-        this.downloadHistoryService = downloadHistoryService;
-        this.categoryService = categoryService;
+        this.context = context ?? new RssSyncContext();
+        this.torrentFileParser = this.context.TorrentFileParser;
+        this.httpClient = this.context.HttpClient;
+        this.safeHttpClientService = this.context.SafeHttpClientService;
+        this.downloadHistoryService = this.context.DownloadHistoryService;
+        this.categoryService = this.context.CategoryService;
         this.grabbedReleaseIds = new BoundedSet<string>(
             maxGrabbedReleasesCapacity > 0 ? maxGrabbedReleasesCapacity : DefaultMaxGrabbedReleasesCapacity,
             StringComparer.OrdinalIgnoreCase);
         this.logger = LogManager.GetCurrentClassLogger();
+    }
+
+    public RssSyncService(
+        IIndexerRepository indexerRepository,
+        IRssRuleRepository rssRuleRepository,
+        ITorznabClient torznabClient,
+        ITorrentService torrentService,
+        ITorrentFileParser torrentFileParser = null,
+        HttpClient httpClient = null,
+        ISafeHttpClientService safeHttpClientService = null,
+        IDownloadHistoryService downloadHistoryService = null,
+        ICategoryService categoryService = null,
+        int maxGrabbedReleasesCapacity = DefaultMaxGrabbedReleasesCapacity)
+        : this(
+            indexerRepository,
+            rssRuleRepository,
+            torznabClient,
+            torrentService,
+            new RssSyncContext(
+                torrentFileParser,
+                httpClient,
+                safeHttpClientService,
+                downloadHistoryService,
+                categoryService),
+            maxGrabbedReleasesCapacity)
+    {
     }
 
     public async Task ExecuteAsync(RssSyncCommand message, CancellationToken cancellationToken = default)

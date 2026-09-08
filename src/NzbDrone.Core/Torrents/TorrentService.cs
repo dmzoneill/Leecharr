@@ -28,11 +28,12 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
     private readonly object deletionLocksSync = new();
     private readonly ITorrentRepository torrentRepository;
     private readonly ITorrentFileRepository fileRepository;
+    private readonly IDownloadEngine downloadEngine;
+    private readonly IEventAggregator eventAggregator;
+    private readonly ITorrentServiceContext context;
     private readonly ICategoryService categoryService;
     private readonly IMediaEnrichmentService mediaEnrichmentService;
     private readonly IConfigService configService;
-    private readonly IDownloadEngine downloadEngine;
-    private readonly IEventAggregator eventAggregator;
     private readonly ITrackerEntryRepository trackerEntryRepository;
     private readonly IQueueManagerService queueManagerService;
     private readonly IStoragePathService storagePathService;
@@ -40,6 +41,30 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
     private readonly ITorrentLogService torrentLogService;
     private readonly ISpeedSchedulerService speedSchedulerService;
     private readonly Logger logger;
+
+    public TorrentService(
+        ITorrentRepository torrentRepository,
+        ITorrentFileRepository fileRepository,
+        IDownloadEngine downloadEngine,
+        IEventAggregator eventAggregator,
+        ITorrentServiceContext context = null)
+    {
+        this.torrentRepository = torrentRepository;
+        this.fileRepository = fileRepository;
+        this.downloadEngine = downloadEngine;
+        this.eventAggregator = eventAggregator;
+        this.context = context ?? new TorrentServiceContext();
+        this.categoryService = this.context.CategoryService;
+        this.mediaEnrichmentService = this.context.MediaEnrichmentService;
+        this.configService = this.context.ConfigService;
+        this.trackerEntryRepository = this.context.TrackerEntryRepository;
+        this.queueManagerService = this.context.QueueManagerService;
+        this.storagePathService = this.context.StoragePathService;
+        this.appFolderInfo = this.context.AppFolderInfo;
+        this.torrentLogService = this.context.TorrentLogService;
+        this.speedSchedulerService = this.context.SpeedSchedulerService;
+        this.logger = LogManager.GetCurrentClassLogger();
+    }
 
     public TorrentService(
         ITorrentRepository torrentRepository,
@@ -55,21 +80,22 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         IAppFolderInfo appFolderInfo = null,
         ITorrentLogService torrentLogService = null,
         ISpeedSchedulerService speedSchedulerService = null)
+        : this(
+            torrentRepository,
+            fileRepository,
+            downloadEngine,
+            eventAggregator,
+            new TorrentServiceContext(
+                categoryService,
+                mediaEnrichmentService,
+                configService,
+                trackerEntryRepository,
+                queueManagerService,
+                storagePathService,
+                appFolderInfo,
+                torrentLogService,
+                speedSchedulerService))
     {
-        this.torrentRepository = torrentRepository;
-        this.fileRepository = fileRepository;
-        this.categoryService = categoryService;
-        this.mediaEnrichmentService = mediaEnrichmentService;
-        this.configService = configService;
-        this.downloadEngine = downloadEngine;
-        this.eventAggregator = eventAggregator;
-        this.trackerEntryRepository = trackerEntryRepository;
-        this.queueManagerService = queueManagerService;
-        this.storagePathService = storagePathService;
-        this.appFolderInfo = appFolderInfo;
-        this.torrentLogService = torrentLogService;
-        this.speedSchedulerService = speedSchedulerService;
-        this.logger = LogManager.GetCurrentClassLogger();
     }
 
     public IEnumerable<Torrent> GetAll()
