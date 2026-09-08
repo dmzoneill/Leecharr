@@ -541,6 +541,66 @@ public class TagLibInspectorProviderTest
         result.HdrFormat.Should().Be("Dolby Vision / HDR10");
     }
 
+    [Test]
+    public void Inspect_Matroska_WithCodecPrivateContainingHdr10PlusSei_DetectsHdr10PlusWithoutFilenameHint()
+    {
+        var hvcCData = CreateHvcCRecordWithHdr10PlusSei();
+        var ebmlData = CreateMatroskaHeaderWithCodecPrivate("matroska", "V_MPEGH/ISO/HEVC", 3840, 2160, hvcCData);
+        using var ms = new MemoryStream(ebmlData);
+
+        var result = this.provider.Inspect(ms, "plain_video_file.mkv");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("Matroska (MKV)");
+        result.VideoCodec.Should().Be("HEVC (H.265)");
+        result.HdrFormat.Should().Be("HDR10+");
+        result.Resolution.Should().Be("4K UHD (2160p)");
+    }
+
+    [Test]
+    public void Inspect_Mp4_WithHvcCBoxContainingHdr10PlusSei_DetectsHdr10PlusWithoutFilenameHint()
+    {
+        var hvcCBox = CreateMp4Box("hvcC", CreateHvcCRecordWithHdr10PlusSei());
+        var videoEntry = CreateVisualSampleEntryWithExtraBox("hvc1", 3840, 2160, hvcCBox);
+        var videoTrak = CreateTrackBox(CreateStsdBox(videoEntry));
+        var moov = CreateMoovBox(videoTrak);
+
+        using var ms = new MemoryStream();
+        ms.Write(moov, 0, moov.Length);
+        ms.Position = 0;
+
+        var result = this.provider.Inspect(ms, "plain_sample.mp4");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("MP4");
+        result.VideoCodec.Should().Be("HEVC (H.265)");
+        result.HdrFormat.Should().Be("HDR10+");
+        result.Resolution.Should().Be("4K UHD (2160p)");
+    }
+
+    [Test]
+    public void Inspect_Mp4_WithDolbyVisionAndHdr10PlusSei_DetectsHybridDolbyVisionAndHdr10Plus()
+    {
+        var hvcCBox = CreateMp4Box("hvcC", CreateHvcCRecordWithHdr10PlusSei());
+        var dvcCBox = CreateMp4Box("dvcC", new byte[8]);
+        using var extraBoxes = new MemoryStream();
+        extraBoxes.Write(dvcCBox, 0, dvcCBox.Length);
+        extraBoxes.Write(hvcCBox, 0, hvcCBox.Length);
+
+        var videoEntry = CreateVisualSampleEntryWithExtraBox("hvc1", 3840, 2160, extraBoxes.ToArray());
+        var videoTrak = CreateTrackBox(CreateStsdBox(videoEntry));
+        var moov = CreateMoovBox(videoTrak);
+
+        using var ms = new MemoryStream();
+        ms.Write(moov, 0, moov.Length);
+        ms.Position = 0;
+
+        var result = this.provider.Inspect(ms, "movie.mp4");
+
+        result.Should().NotBeNull();
+        result.HdrFormat.Should().Be("Dolby Vision / HDR10+");
+    }
+
     [TestCase(720, 576, "576p")]
     [TestCase(1024, 576, "576p")]
     [TestCase(1920, 800, "1080p")]
@@ -1574,6 +1634,77 @@ public class TagLibInspectorProviderTest
         {
             WriteEbmlUInt(ms, 0x55B8, primaries);
         }
+
+        return ms.ToArray();
+    }
+
+    private static byte[] CreateMatroskaHeaderWithCodecPrivate(string docType, string videoCodecId, int width, int height, byte[] codecPrivate)
+    {
+        using var ms = new MemoryStream();
+
+        // 1. EBML Header (0x1A45DFA3)
+        using (var ebmlMs = new MemoryStream())
+        {
+            WriteEbmlString(ebmlMs, 0x4282, docType);
+            var ebmlPayload = ebmlMs.ToArray();
+
+            WriteId(ms, 0x1A45DFA3);
+            WriteSize(ms, ebmlPayload.Length);
+            ms.Write(ebmlPayload);
+        }
+
+        // 2. Segment (0x18538067)
+        WriteId(ms, 0x18538067);
+        WriteSize(ms, -1);
+
+        // 3. Tracks (0x1654AE6B)
+        WriteId(ms, 0x1654AE6B);
+        WriteSize(ms, -1);
+
+        // 4. Video TrackEntry (0xAE)
+        WriteId(ms, 0xAE);
+        WriteSize(ms, -1);
+
+        WriteEbmlUInt(ms, 0x83, 1);
+        WriteEbmlString(ms, 0x86, videoCodecId);
+
+        if (codecPrivate != null && codecPrivate.Length > 0)
+        {
+            WriteId(ms, 0x63A2);
+            WriteSize(ms, codecPrivate.Length);
+            ms.Write(codecPrivate, 0, codecPrivate.Length);
+        }
+
+        // Video Settings (0xE0)
+        WriteId(ms, 0xE0);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0xB0, (ulong)width);
+        WriteEbmlUInt(ms, 0xBA, (ulong)height);
+
+        return ms.ToArray();
+    }
+
+    private static byte[] CreateHvcCRecordWithHdr10PlusSei()
+    {
+        using var ms = new MemoryStream();
+        // 22-byte HEVCDecoderConfigurationRecord header
+        ms.WriteByte(1); // configurationVersion
+        ms.WriteByte(1); // general_profile_space / tier / profile_idc
+        ms.Write(new byte[20]); // profile compatibility, constraint indicator flags, level_idc, etc.
+        ms.WriteByte(1); // numOfArrays = 1
+
+        // Array 0: Prefix SEI (nal_unit_type = 39, 0x80 | 39 = 0xA7)
+        ms.WriteByte(0x80 | 39);
+        ms.WriteByte(0x00); // numNalus (2 bytes) = 1
+        ms.WriteByte(0x01);
+
+        // NAL unit: Prefix SEI with user_data_registered_itu_t_t35 (SMPTE ST 2094-40)
+        // NAL header: 0x4E (39 << 1), 0x01
+        // SEI payload: type=4, size=5, payload = [0xB5, 0x00, 0x3C, 0x00, 0x01]
+        byte[] seiNal = new byte[] { 0x4E, 0x01, 0x04, 0x05, 0xB5, 0x00, 0x3C, 0x00, 0x01 };
+        ms.WriteByte((byte)(seiNal.Length >> 8));
+        ms.WriteByte((byte)(seiNal.Length & 0xFF));
+        ms.Write(seiNal, 0, seiNal.Length);
 
         return ms.ToArray();
     }

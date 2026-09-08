@@ -34,7 +34,7 @@ public class ProwlarrSyncServiceTest
     }
 
     [Test]
-    public async Task SyncFromProwlarrAsync_ParsesProwlarrJson_InsertsNewTorrentIndexers()
+    public async Task SyncFromProwlarrAsync_ParsesProwlarrJson_InsertsTorrentAndUsenetIndexers()
     {
         var json = @"[
           {
@@ -67,7 +67,7 @@ public class ProwlarrSyncServiceTest
 
         var synced = await service.SyncFromProwlarrAsync("http://prowlarr.local:9696", "fake-prowlarr-key");
 
-        synced.Should().Be(1);
+        synced.Should().Be(2);
         this.repository.Received(1).Insert(Arg.Is<IndexerDefinition>(i =>
             i.Name == "Prowlarr Tracker 1" &&
             i.Implementation == "Torznab" &&
@@ -76,6 +76,16 @@ public class ProwlarrSyncServiceTest
             i.Enable == true &&
             i.Priority == 25 &&
             i.ProwlarrIndexerId == 1 &&
+            i.IsProwlarrManaged == true));
+
+        this.repository.Received(1).Insert(Arg.Is<IndexerDefinition>(i =>
+            i.Name == "Prowlarr Usenet 1" &&
+            i.Implementation == "Newznab" &&
+            i.Url == "http://prowlarr.local:9696/2/api" &&
+            i.ApiKey == "fake-prowlarr-key" &&
+            i.Enable == true &&
+            i.Priority == 25 &&
+            i.ProwlarrIndexerId == 2 &&
             i.IsProwlarrManaged == true));
     }
 

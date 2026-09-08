@@ -511,6 +511,10 @@ public interface IConfigService
 
     string TmdbApiKey { get; }
 
+    string TvdbApiKey { get; }
+
+    string TvdbPin { get; }
+
     // Backup & Restore
     int DatabaseBackupTimeoutSeconds { get; }
 
@@ -1226,6 +1230,10 @@ public class ConfigService : IConfigService
     public bool AutoPruneRemovedArtwork => this.GetValueBoolean("AutoPruneRemovedArtwork", true);
 
     public string TmdbApiKey => this.GetValue("TmdbApiKey", Environment.GetEnvironmentVariable("TMDB_API_KEY") ?? string.Empty);
+
+    public string TvdbApiKey => this.GetValue("TvdbApiKey", Environment.GetEnvironmentVariable("TVDB_API_KEY") ?? string.Empty);
+
+    public string TvdbPin => this.GetValue("TvdbPin", Environment.GetEnvironmentVariable("TVDB_PIN") ?? string.Empty);
 
     // Backup & Restore
     public int DatabaseBackupTimeoutSeconds => this.GetValueInt("DatabaseBackupTimeoutSeconds", 600);
