@@ -906,4 +906,64 @@ public class EmbeddedTrackerServiceTest
         var scrape2 = this.trackerService.Scrape(new List<byte[]> { infoHash });
         scrape2.Files[0].Downloaded.Should().Be(1);
     }
+
+    [Test]
+    public void ProcessAnnounce_NonCompactMode_WithNoPeerId_OmitsPeerIdFromPeerDictionary()
+    {
+        var infoHash = new byte[20];
+        infoHash[0] = 0xDE;
+
+        // Peer 1 announces with peer ID
+        var peerId = Encoding.ASCII.GetBytes("-qB4650-123456789012");
+        this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("192.168.1.100"),
+            Port = 6881,
+            PeerIdBytes = peerId,
+            Left = 0,
+            Compact = false,
+        });
+
+        // Peer 2 announces requesting non-compact with no_peer_id=1
+        var resp = this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("192.168.1.200"),
+            Port = 6882,
+            Left = 100,
+            Compact = false,
+            NoPeerId = true,
+        });
+
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(resp);
+        dict.ContainsKey("peers").Should().BeTrue();
+        var peerList = (BEncodedList)dict["peers"];
+        peerList.Should().NotBeEmpty();
+
+        var peerDict = (BEncodedDictionary)peerList[0];
+        peerDict.ContainsKey("ip").Should().BeTrue();
+        peerDict.ContainsKey("port").Should().BeTrue();
+        peerDict.ContainsKey("peer id").Should().BeFalse();
+    }
+
+    [Test]
+    public void ProcessAnnounce_WithTrackerId_EchoesTrackerIdInResponse()
+    {
+        var infoHash = new byte[20];
+        infoHash[0] = 0xDF;
+
+        var resp = this.trackerService.ProcessAnnounce(new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("192.168.1.100"),
+            Port = 6881,
+            Left = 100,
+            TrackerId = "custom-tracker-session-42",
+        });
+
+        var dict = (BEncodedDictionary)BEncodedValue.Decode(resp);
+        dict.ContainsKey("tracker id").Should().BeTrue();
+        dict["tracker id"].ToString().Should().Be("custom-tracker-session-42");
+    }
 }
