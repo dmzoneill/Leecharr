@@ -19,7 +19,7 @@ public class PtyTerminalService : IPtyTerminalService
     public ITerminalSession CreateSession(string cwd, int cols, int rows)
     {
         // 1. Validate security configuration / permissions
-        if (this.configFileProvider != null && !this.IsTerminalAccessPermitted())
+        if (!this.IsTerminalAccessPermitted())
         {
             throw new SecurityException("Terminal process execution is prohibited by security configuration.");
         }
@@ -64,7 +64,7 @@ public class PtyTerminalService : IPtyTerminalService
         return FallbackProcessSession.Start(sanitizedCwd, clampedCols, clampedRows);
     }
 
-    private bool IsTerminalAccessPermitted()
+    public bool IsTerminalAccessPermitted()
     {
         return this.configFileProvider?.TerminalAccessEnabled == true;
     }
