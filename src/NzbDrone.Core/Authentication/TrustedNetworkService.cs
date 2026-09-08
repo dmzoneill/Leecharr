@@ -116,11 +116,18 @@ public class TrustedNetworkService : ITrustedNetworkService
     {
         try
         {
+            if (string.IsNullOrWhiteSpace(cidr))
+            {
+                return false;
+            }
+
             if (cidr.Contains('/'))
             {
                 var parts = cidr.Split('/');
-                var baseIp = IPAddress.Parse(parts[0]);
-                var prefixLength = int.Parse(parts[1]);
+                if (parts.Length != 2 || !IPAddress.TryParse(parts[0], out var baseIp) || !int.TryParse(parts[1], out var prefixLength))
+                {
+                    return false;
+                }
 
                 if (ip.AddressFamily != baseIp.AddressFamily)
                 {
@@ -142,6 +149,11 @@ public class TrustedNetworkService : ITrustedNetworkService
 
                 var ipBytes = ip.GetAddressBytes();
                 var baseBytes = baseIp.GetAddressBytes();
+
+                if (prefixLength < 0 || prefixLength > ipBytes.Length * 8)
+                {
+                    return false;
+                }
 
                 var fullBytes = prefixLength / 8;
                 var remBits = prefixLength % 8;
@@ -167,7 +179,11 @@ public class TrustedNetworkService : ITrustedNetworkService
             }
             else
             {
-                var targetIp = IPAddress.Parse(cidr);
+                if (!IPAddress.TryParse(cidr, out var targetIp))
+                {
+                    return false;
+                }
+
                 if (ip.IsIPv4MappedToIPv6)
                 {
                     ip = ip.MapToIPv4();

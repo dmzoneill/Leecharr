@@ -1,16 +1,21 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using Leecharr.Http.REST;
 
 namespace Leecharr.Api.V1.Notifications;
 
 public class NotificationResource : RestResource
 {
+    [Required]
+    [StringLength(255, MinimumLength = 1)]
     public string Name { get; set; }
 
+    [StringLength(100)]
     public string Implementation { get; set; } = "Webhook";
 
+    [StringLength(100)]
     public string ConfigContract { get; set; }
 
     public string Settings { get; set; }

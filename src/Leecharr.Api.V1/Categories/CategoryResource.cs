@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System.ComponentModel.DataAnnotations;
 using Leecharr.Http.REST;
 using NzbDrone.Core.Categories;
 
@@ -7,16 +8,23 @@ namespace Leecharr.Api.V1.Categories;
 
 public class CategoryResource : RestResource
 {
+    [Required]
+    [StringLength(255, MinimumLength = 1)]
     public string Name { get; set; }
 
+    [StringLength(1024)]
     public string SavePath { get; set; }
 
+    [Range(0, int.MaxValue)]
     public int DefaultUploadLimit { get; set; }
 
+    [Range(0, int.MaxValue)]
     public int DefaultDownloadLimit { get; set; }
 
+    [Range(0.0, 1000.0)]
     public double TargetRatio { get; set; }
 
+    [Range(0, int.MaxValue)]
     public int TargetSeedTimeMinutes { get; set; }
 
     public bool AutoStop { get; set; }
