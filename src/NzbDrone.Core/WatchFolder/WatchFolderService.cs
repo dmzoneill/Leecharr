@@ -350,16 +350,23 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
 
                 this.failedAttempts.TryRemove(fullPath, out _);
 
-                if (this.configService.WatchFolderDeleteAddedTorrents)
+                try
                 {
-                    this.diskProvider.DeleteFile(file);
+                    if (this.configService.WatchFolderDeleteAddedTorrents)
+                    {
+                        this.diskProvider.DeleteFile(file);
+                    }
+                    else
+                    {
+                        var loadedDir = Path.Combine(folder, "loaded");
+                        this.diskProvider.EnsureFolder(loadedDir);
+                        var dest = Path.Combine(loadedDir, Path.GetFileName(file));
+                        this.diskProvider.MoveFile(file, dest, true);
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    var loadedDir = Path.Combine(folder, "loaded");
-                    this.diskProvider.EnsureFolder(loadedDir);
-                    var dest = Path.Combine(loadedDir, Path.GetFileName(file));
-                    this.diskProvider.MoveFile(file, dest, true);
+                    this.logger.Warn(ex, "Failed to cleanup watch folder torrent file '{0}' after successful import", file);
                 }
 
                 return true;
