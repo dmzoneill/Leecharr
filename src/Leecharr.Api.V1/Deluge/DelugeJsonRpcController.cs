@@ -76,9 +76,17 @@ public class DelugeJsonRpcController : ControllerBase
             return true;
         }
 
-        if (this.Request.Cookies.TryGetValue("deluge-session", out var sid) && !string.IsNullOrWhiteSpace(sid))
+        if (this.Request.Cookies.TryGetValue("_session_id", out var sid1) && !string.IsNullOrWhiteSpace(sid1))
         {
-            if (AuthenticatedSessions.IsValid(sid))
+            if (AuthenticatedSessions.IsValid(sid1))
+            {
+                return true;
+            }
+        }
+
+        if (this.Request.Cookies.TryGetValue("deluge-session", out var sid2) && !string.IsNullOrWhiteSpace(sid2))
+        {
+            if (AuthenticatedSessions.IsValid(sid2))
             {
                 return true;
             }
@@ -172,12 +180,14 @@ public class DelugeJsonRpcController : ControllerBase
                 {
                     var sid = Guid.NewGuid().ToString("N");
                     AuthenticatedSessions.SetSession(sid, DateTime.UtcNow.AddDays(7));
-                    this.Response.Cookies.Append("deluge-session", sid, new CookieOptions
+                    var cookieOptions = new CookieOptions
                     {
                         HttpOnly = true,
                         SameSite = SameSiteMode.Lax,
                         Path = "/",
-                    });
+                    };
+                    this.Response.Cookies.Append("_session_id", sid, cookieOptions);
+                    this.Response.Cookies.Append("deluge-session", sid, cookieOptions);
 
                     return this.DelugeResult(new { result = true, error = (object)null, id });
                 }
@@ -193,18 +203,25 @@ public class DelugeJsonRpcController : ControllerBase
 
             if (lowerMethod == "auth.delete_session")
             {
-                if (this.Request.Cookies.TryGetValue("deluge-session", out var sid) && !string.IsNullOrWhiteSpace(sid))
+                if (this.Request.Cookies.TryGetValue("_session_id", out var sid1) && !string.IsNullOrWhiteSpace(sid1))
                 {
-                    AuthenticatedSessions.RemoveSession(sid);
-                    this.Response.Cookies.Delete("deluge-session");
+                    AuthenticatedSessions.RemoveSession(sid1);
                 }
+
+                if (this.Request.Cookies.TryGetValue("deluge-session", out var sid2) && !string.IsNullOrWhiteSpace(sid2))
+                {
+                    AuthenticatedSessions.RemoveSession(sid2);
+                }
+
+                this.Response.Cookies.Delete("_session_id");
+                this.Response.Cookies.Delete("deluge-session");
 
                 return this.DelugeResult(new { result = true, error = (object)null, id });
             }
 
             if (!this.IsDelugeAuthenticated())
             {
-                return this.StatusCode(StatusCodes.Status401Unauthorized, new { result = (object)null, error = new { message = "Not authenticated", code = 1 }, id });
+                return this.DelugeResult(new { result = (object)null, error = new { message = "Not authenticated", code = 1 }, id });
             }
 
             switch (lowerMethod)
@@ -444,36 +461,8 @@ public class DelugeJsonRpcController : ControllerBase
 
                 case "web.update_ui":
                     var allTorrentsForUi = this.torrentService.GetAll().ToList();
-                    var filteredTorrents = allTorrentsForUi;
-
-                    if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() > 1)
-                    {
-                        var filterElem = paramsElem[1];
-                        if (filterElem.ValueKind == JsonValueKind.Object)
-                        {
-                            if (filterElem.TryGetProperty("label", out var labelProp) && labelProp.ValueKind == JsonValueKind.String)
-                            {
-                                var targetLabel = labelProp.GetString();
-                                if (!string.IsNullOrWhiteSpace(targetLabel) && !string.Equals(targetLabel, "All", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    filteredTorrents = filteredTorrents.Where(t => string.Equals(t.Category, targetLabel, StringComparison.OrdinalIgnoreCase) || string.Equals(t.Label, targetLabel, StringComparison.OrdinalIgnoreCase)).ToList();
-                                }
-                            }
-                        }
-                    }
-
-                    HashSet<string> uiKeys = null;
-                    if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() > 0 && paramsElem[0].ValueKind == JsonValueKind.Array)
-                    {
-                        uiKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                        foreach (var elem in paramsElem[0].EnumerateArray())
-                        {
-                            if (elem.ValueKind == JsonValueKind.String)
-                            {
-                                uiKeys.Add(elem.GetString());
-                            }
-                        }
-                    }
+                    var (uiFilterObj, uiKeys) = ParseStatusParams(paramsElem, isWebUpdateUi: true);
+                    var filteredTorrents = FilterTorrents(allTorrentsForUi, uiFilterObj);
 
                     var torrentDict = new Dictionary<string, Dictionary<string, object>>();
                     foreach (var t in filteredTorrents)
@@ -495,7 +484,7 @@ public class DelugeJsonRpcController : ControllerBase
                                 num_connections = allTorrentsForUi.Sum(t => t.Leechers + t.Seeders),
                                 upload_rate = allTorrentsForUi.Sum(t => t.UploadSpeed),
                                 download_rate = allTorrentsForUi.Sum(t => t.DownloadSpeed),
-                                free_space = this.GetDriveFreeSpace(this.configService.DownloadDir)
+                                free_space = this.GetDriveFreeSpace(this.configService.DownloadDir),
                             },
                         },
                         error = (object)null,
@@ -709,58 +698,12 @@ public class DelugeJsonRpcController : ControllerBase
 
                 case "core.get_torrents_status":
                 case "web.get_torrents_status":
-                    var torrents = this.torrentService.GetAll().ToList();
-
-                    if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() > 0 && paramsElem[0].ValueKind == JsonValueKind.Object)
-                    {
-                        var filterObj = paramsElem[0];
-                        if (filterObj.TryGetProperty("label", out var labelProp) && labelProp.ValueKind == JsonValueKind.String)
-                        {
-                            var targetLabel = labelProp.GetString();
-                            if (!string.IsNullOrWhiteSpace(targetLabel))
-                            {
-                                torrents = torrents.Where(t => string.Equals(t.Category, targetLabel, StringComparison.OrdinalIgnoreCase) ||
-                                    string.Equals(t.Label, targetLabel, StringComparison.OrdinalIgnoreCase)).ToList();
-                            }
-                        }
-
-                        if (filterObj.TryGetProperty("state", out var stateProp) && stateProp.ValueKind == JsonValueKind.String)
-                        {
-                            var stateStr = stateProp.GetString()?.ToLowerInvariant();
-                            if (!string.IsNullOrWhiteSpace(stateStr) && stateStr != "all")
-                            {
-                                torrents = torrents.Where(t => t.Status.ToString().ToLowerInvariant() == stateStr).ToList();
-                            }
-                        }
-                    }
-
-                    HashSet<string> requestedKeys = null;
-                    if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() > 1 && paramsElem[1].ValueKind == JsonValueKind.Array)
-                    {
-                        requestedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                        foreach (var elem in paramsElem[1].EnumerateArray())
-                        {
-                            if (elem.ValueKind == JsonValueKind.String)
-                            {
-                                requestedKeys.Add(elem.GetString());
-                            }
-                        }
-                    }
-                    else if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() > 0 && paramsElem[0].ValueKind == JsonValueKind.Array)
-                    {
-                        requestedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                        foreach (var elem in paramsElem[0].EnumerateArray())
-                        {
-                            if (elem.ValueKind == JsonValueKind.String)
-                            {
-                                requestedKeys.Add(elem.GetString());
-                            }
-                        }
-                    }
+                    var allStatusTorrents = this.torrentService.GetAll().ToList();
+                    var (statusFilterObj, requestedKeys) = ParseStatusParams(paramsElem, isWebUpdateUi: false);
+                    var statusFilteredTorrents = FilterTorrents(allStatusTorrents, statusFilterObj);
 
                     var resultDict = new Dictionary<string, Dictionary<string, object>>();
-
-                    foreach (var torrent in torrents)
+                    foreach (var torrent in statusFilteredTorrents)
                     {
                         resultDict[torrent.InfoHash.ToLowerInvariant()] = this.MapTorrentToDelugeStatus(torrent, requestedKeys);
                     }
@@ -1691,7 +1634,7 @@ public class DelugeJsonRpcController : ControllerBase
         var stateList = new List<object[]>
         {
             new object[] { "All", allTorrents.Count },
-            new object[] { "Active", allTorrents.Count(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding) },
+            new object[] { "Active", allTorrents.Count(t => t.DownloadSpeed > 0 || t.UploadSpeed > 0) },
             new object[] { "Downloading", allTorrents.Count(t => t.Status == TorrentStatus.Downloading) },
             new object[] { "Seeding", allTorrents.Count(t => t.Status == TorrentStatus.Seeding) },
             new object[] { "Paused", allTorrents.Count(t => t.Status == TorrentStatus.Paused) },
@@ -1707,16 +1650,261 @@ public class DelugeJsonRpcController : ControllerBase
             .Select(g => new object[] { g.Key, g.Count() })
             .ToList();
 
-        var labels = this.categoryService.GetAll()
-            .Select(c => new object[] { c.Name, allTorrents.Count(t => string.Equals(t.Category, c.Name, StringComparison.OrdinalIgnoreCase)) })
-            .ToList();
+        var unlabelledCount = allTorrents.Count(t => string.IsNullOrWhiteSpace(t.Category) && string.IsNullOrWhiteSpace(t.Label));
+        var labels = new List<object[]>
+        {
+            new object[] { "All", allTorrents.Count },
+            new object[] { "None", unlabelledCount },
+        };
+
+        var categories = this.categoryService.GetAll();
+        foreach (var c in categories)
+        {
+            var count = allTorrents.Count(t => string.Equals(t.Category, c.Name, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(t.Label, c.Name, StringComparison.OrdinalIgnoreCase));
+            labels.Add(new object[] { c.Name, count });
+        }
+
+        var owners = new List<object[]>
+        {
+            new object[] { "All", allTorrents.Count },
+        };
 
         return new Dictionary<string, object>
         {
             { "state", stateList },
             { "tracker_host", trackerHosts },
             { "label", labels },
+            { "owner", owners },
         };
+    }
+
+    private static (JsonElement? FilterObj, HashSet<string> RequestedKeys) ParseStatusParams(JsonElement paramsElem, bool isWebUpdateUi = false)
+    {
+        JsonElement? filterObj = null;
+        HashSet<string> requestedKeys = null;
+
+        if (paramsElem.ValueKind == JsonValueKind.Array)
+        {
+            var len = paramsElem.GetArrayLength();
+            if (isWebUpdateUi)
+            {
+                if (len > 0 && paramsElem[0].ValueKind == JsonValueKind.Array)
+                {
+                    requestedKeys = ExtractStringSet(paramsElem[0]);
+                }
+
+                if (len > 1 && paramsElem[1].ValueKind == JsonValueKind.Object)
+                {
+                    filterObj = paramsElem[1];
+                }
+                else if (len > 0 && paramsElem[0].ValueKind == JsonValueKind.Object)
+                {
+                    filterObj = paramsElem[0];
+                }
+            }
+            else
+            {
+                if (len > 0)
+                {
+                    if (paramsElem[0].ValueKind == JsonValueKind.Object)
+                    {
+                        filterObj = paramsElem[0];
+                        if (len > 1 && paramsElem[1].ValueKind == JsonValueKind.Array)
+                        {
+                            requestedKeys = ExtractStringSet(paramsElem[1]);
+                        }
+                    }
+                    else if (paramsElem[0].ValueKind == JsonValueKind.Array)
+                    {
+                        requestedKeys = ExtractStringSet(paramsElem[0]);
+                        if (len > 1 && paramsElem[1].ValueKind == JsonValueKind.Object)
+                        {
+                            filterObj = paramsElem[1];
+                        }
+                    }
+                }
+            }
+        }
+        else if (paramsElem.ValueKind == JsonValueKind.Object)
+        {
+            filterObj = paramsElem;
+        }
+
+        return (filterObj, requestedKeys);
+    }
+
+    private static HashSet<string> ExtractStringSet(JsonElement arrayElem)
+    {
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (arrayElem.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var elem in arrayElem.EnumerateArray())
+            {
+                if (elem.ValueKind == JsonValueKind.String)
+                {
+                    var s = elem.GetString();
+                    if (s != null)
+                    {
+                        set.Add(s);
+                    }
+                }
+            }
+        }
+
+        return set;
+    }
+
+    private static List<Torrent> FilterTorrents(IEnumerable<Torrent> torrents, JsonElement? filterObj)
+    {
+        if (!filterObj.HasValue || filterObj.Value.ValueKind != JsonValueKind.Object)
+        {
+            return torrents.ToList();
+        }
+
+        var obj = filterObj.Value;
+        var result = torrents;
+
+        var idList = ExtractStringOrArrayStrings(obj, "id", "ids", "hash", "hashes", "torrent_id", "torrent_ids");
+        if (idList != null && idList.Count > 0)
+        {
+            var idSet = new HashSet<string>(idList, StringComparer.OrdinalIgnoreCase);
+            result = result.Where(t => idSet.Contains(t.InfoHash));
+        }
+
+        var labelList = ExtractStringOrArrayStrings(obj, "label", "labels", "category", "categories");
+        if (labelList != null && labelList.Count > 0)
+        {
+            if (!labelList.Any(l => string.Equals(l, "All", StringComparison.OrdinalIgnoreCase)))
+            {
+                result = result.Where(t => labelList.Any(l => MatchesLabel(t, l)));
+            }
+        }
+
+        var stateList = ExtractStringOrArrayStrings(obj, "state", "states");
+        if (stateList != null && stateList.Count > 0)
+        {
+            if (!stateList.Any(s => string.Equals(s, "All", StringComparison.OrdinalIgnoreCase)))
+            {
+                result = result.Where(t => stateList.Any(s => MatchesState(t, s)));
+            }
+        }
+
+        var trackerList = ExtractStringOrArrayStrings(obj, "tracker_host", "tracker_hosts", "tracker");
+        if (trackerList != null && trackerList.Count > 0)
+        {
+            if (!trackerList.Any(th => string.Equals(th, "All", StringComparison.OrdinalIgnoreCase)))
+            {
+                result = result.Where(t => trackerList.Any(th => string.Equals(GetTrackerHost(t), th, StringComparison.OrdinalIgnoreCase)));
+            }
+        }
+
+        return result.ToList();
+    }
+
+    private static List<string> ExtractStringOrArrayStrings(JsonElement obj, params string[] propertyNames)
+    {
+        foreach (var propName in propertyNames)
+        {
+            if (obj.TryGetProperty(propName, out var prop))
+            {
+                var list = new List<string>();
+                if (prop.ValueKind == JsonValueKind.String)
+                {
+                    var val = prop.GetString();
+                    if (val != null)
+                    {
+                        list.Add(val);
+                    }
+
+                    return list;
+                }
+                else if (prop.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var item in prop.EnumerateArray())
+                    {
+                        if (item.ValueKind == JsonValueKind.String)
+                        {
+                            var val = item.GetString();
+                            if (val != null)
+                            {
+                                list.Add(val);
+                            }
+                        }
+                    }
+
+                    return list;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static bool MatchesLabel(Torrent t, string label)
+    {
+        if (label == null || string.Equals(label, "All", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.IsNullOrEmpty(label) || string.Equals(label, "None", StringComparison.OrdinalIgnoreCase) || string.Equals(label, "no_label", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.IsNullOrWhiteSpace(t.Category) && string.IsNullOrWhiteSpace(t.Label);
+        }
+
+        return string.Equals(t.Category, label, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(t.Label, label, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool MatchesState(Torrent t, string state)
+    {
+        if (string.IsNullOrWhiteSpace(state) || string.Equals(state, "All", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.Equals(state, "Active", StringComparison.OrdinalIgnoreCase))
+        {
+            return t.DownloadSpeed > 0 || t.UploadSpeed > 0;
+        }
+
+        if (string.Equals(state, "Inactive", StringComparison.OrdinalIgnoreCase))
+        {
+            return t.DownloadSpeed == 0 && t.UploadSpeed == 0;
+        }
+
+        if (string.Equals(state, "Downloading", StringComparison.OrdinalIgnoreCase))
+        {
+            return t.Status == TorrentStatus.Downloading;
+        }
+
+        if (string.Equals(state, "Seeding", StringComparison.OrdinalIgnoreCase))
+        {
+            return t.Status == TorrentStatus.Seeding;
+        }
+
+        if (string.Equals(state, "Paused", StringComparison.OrdinalIgnoreCase))
+        {
+            return t.Status == TorrentStatus.Paused;
+        }
+
+        if (string.Equals(state, "Checking", StringComparison.OrdinalIgnoreCase))
+        {
+            return t.Status == TorrentStatus.Checking;
+        }
+
+        if (string.Equals(state, "Queued", StringComparison.OrdinalIgnoreCase))
+        {
+            return t.Status == TorrentStatus.Queued;
+        }
+
+        if (string.Equals(state, "Error", StringComparison.OrdinalIgnoreCase))
+        {
+            return t.Status == TorrentStatus.Error;
+        }
+
+        return string.Equals(t.Status.ToString(), state, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string GetTrackerHost(Torrent t)
