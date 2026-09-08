@@ -43,7 +43,10 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
       {
         onError: (err: any) => {
           showToast(
-            t("quickSettings.failedToUpdateSeeding", [err.message]),
+            t("quickSettings.failedToUpdateSeeding", {
+              error: err.message,
+              0: err.message,
+            }),
             "error",
           );
         },
@@ -63,7 +66,10 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
       {
         onError: (err: any) => {
           showToast(
-            t("quickSettings.failedToUpdatePiecePicker", [err.message]),
+            t("quickSettings.failedToUpdatePiecePicker", {
+              error: err.message,
+              0: err.message,
+            }),
             "error",
           );
         },
@@ -122,7 +128,10 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
                   title={
                     p.value === 0
                       ? t("quickSettings.unlimitedRatioTitle")
-                      : t("quickSettings.targetRatioTitle", [p.label])
+                      : t("quickSettings.targetRatioTitle", {
+                          ratio: p.label,
+                          0: p.label,
+                        })
                   }
                 >
                   {p.label}
