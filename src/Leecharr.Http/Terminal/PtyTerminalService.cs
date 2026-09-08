@@ -56,6 +56,18 @@ public class PtyTerminalService : IPtyTerminalService
         int clampedCols = Math.Clamp(cols, 10, 500);
         int clampedRows = Math.Clamp(rows, 5, 200);
 
+        if (OperatingSystem.IsLinux())
+        {
+            try
+            {
+                return LinuxPtySession.Start(sanitizedCwd, clampedCols, clampedRows);
+            }
+            catch
+            {
+                // Fall back to Python or FallbackProcessSession if native Linux PTY fork fails
+            }
+        }
+
         if (File.Exists("/usr/bin/python3") || File.Exists("/bin/python3"))
         {
             return PtyProcessSession.Start(sanitizedCwd, clampedCols, clampedRows);
