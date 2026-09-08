@@ -138,6 +138,17 @@ public class RTorrentController : ControllerBase
                     new XElement("value", new XElement("string", "d.custom1.set")),
                     new XElement("value", new XElement("string", "d.directory.set")),
                     new XElement("value", new XElement("string", "d.directory_base.set")),
+                    new XElement("value", new XElement("string", "d.priority.set")),
+                    new XElement("value", new XElement("string", "d.tracker_announce")),
+                    new XElement("value", new XElement("string", "d.tracker.announce")),
+                    new XElement("value", new XElement("string", "d.down.rate.set")),
+                    new XElement("value", new XElement("string", "d.down.rate.set_kb")),
+                    new XElement("value", new XElement("string", "d.up.rate.set")),
+                    new XElement("value", new XElement("string", "d.up.rate.set_kb")),
+                    new XElement("value", new XElement("string", "throttle.global_down.max_rate.set_kb")),
+                    new XElement("value", new XElement("string", "throttle.global_up.max_rate.set_kb")),
+                    new XElement("value", new XElement("string", "set_download_rate")),
+                    new XElement("value", new XElement("string", "set_upload_rate")),
                     new XElement("value", new XElement("string", "get_directory")),
                     new XElement("value", new XElement("string", "get_down_rate")),
                     new XElement("value", new XElement("string", "get_up_rate"))));
@@ -604,6 +615,94 @@ public class RTorrentController : ControllerBase
             case "d.views.push_back_unique":
                 return new XElement("i4", 0);
 
+            case "d.tracker_announce":
+            case "d.tracker.announce":
+                var annTorrent = this.ResolveTorrent(paramValues, out _);
+                if (annTorrent != null)
+                {
+                    await this.torrentService.ForceAnnounceAsync(annTorrent.Id);
+                }
+
+                return new XElement("i4", 0);
+
+            case "d.down.rate.set":
+            case "d.down.rate.set_kb":
+            case "d.down.throttle.set":
+            case "d.down.throttle.set_kb":
+                var dlTorrent = this.ResolveTorrent(paramValues, out var dlRemaining);
+                if (dlTorrent != null)
+                {
+                    var rawRate = ExtractRateValue(dlRemaining);
+                    var isKb = methodName.EndsWith("_kb", StringComparison.OrdinalIgnoreCase);
+                    var limitKb = isKb ? (int)Math.Max(0, rawRate) : (int)Math.Max(0, rawRate / 1024);
+                    dlTorrent.DownloadLimit = limitKb;
+                    await this.torrentService.UpdateAsync(dlTorrent);
+                }
+
+                return new XElement("i4", 0);
+
+            case "d.up.rate.set":
+            case "d.up.rate.set_kb":
+            case "d.up.throttle.set":
+            case "d.up.throttle.set_kb":
+                var ulTorrent = this.ResolveTorrent(paramValues, out var ulRemaining);
+                if (ulTorrent != null)
+                {
+                    var rawRate = ExtractRateValue(ulRemaining);
+                    var isKb = methodName.EndsWith("_kb", StringComparison.OrdinalIgnoreCase);
+                    var limitKb = isKb ? (int)Math.Max(0, rawRate) : (int)Math.Max(0, rawRate / 1024);
+                    ulTorrent.UploadLimit = limitKb;
+                    await this.torrentService.UpdateAsync(ulTorrent);
+                }
+
+                return new XElement("i4", 0);
+
+            case "throttle.global_down.max_rate.set_kb":
+            case "throttle.global_down.max_rate.set":
+                var globalDownKb = (int)Math.Max(0, ExtractRateValue(paramValues));
+                this.configService.SaveConfigDictionary(new Dictionary<string, object>
+                {
+                    ["MaxDownloadSpeedKbps"] = globalDownKb,
+                });
+                return new XElement("i4", 0);
+
+            case "throttle.global_up.max_rate.set_kb":
+            case "throttle.global_up.max_rate.set":
+                var globalUpKb = (int)Math.Max(0, ExtractRateValue(paramValues));
+                this.configService.SaveConfigDictionary(new Dictionary<string, object>
+                {
+                    ["MaxUploadSpeedKbps"] = globalUpKb,
+                });
+                return new XElement("i4", 0);
+
+            case "set_download_rate":
+                var setDlRaw = ExtractRateValue(paramValues);
+                var setDlKb = setDlRaw > 0 ? (setDlRaw >= 100_000 ? (int)(setDlRaw / 1024) : (int)setDlRaw) : 0;
+                this.configService.SaveConfigDictionary(new Dictionary<string, object>
+                {
+                    ["MaxDownloadSpeedKbps"] = setDlKb,
+                });
+                return new XElement("i4", 0);
+
+            case "set_upload_rate":
+                var setUlRaw = ExtractRateValue(paramValues);
+                var setUlKb = setUlRaw > 0 ? (setUlRaw >= 100_000 ? (int)(setUlRaw / 1024) : (int)setUlRaw) : 0;
+                this.configService.SaveConfigDictionary(new Dictionary<string, object>
+                {
+                    ["MaxUploadSpeedKbps"] = setUlKb,
+                });
+                return new XElement("i4", 0);
+
+            case "throttle.global_down.max_rate.get_kb":
+            case "throttle.global_down.max_rate":
+            case "get_download_rate_limit":
+                return new XElement("i8", this.configService.MaxDownloadSpeedKbps);
+
+            case "throttle.global_up.max_rate.get_kb":
+            case "throttle.global_up.max_rate":
+            case "get_upload_rate_limit":
+                return new XElement("i8", this.configService.MaxUploadSpeedKbps);
+
             default:
                 if (methodName.StartsWith("d.", StringComparison.OrdinalIgnoreCase) && paramValues.Count > 0 && paramValues[0] is string dHash)
                 {
@@ -912,5 +1011,74 @@ public class RTorrentController : ControllerBase
             2 => 4,
             _ => 3,
         };
+    }
+
+    private Torrent ResolveTorrent(List<object> paramValues, out List<object> remainingParams)
+    {
+        remainingParams = new List<object>();
+        if (paramValues == null || paramValues.Count == 0)
+        {
+            return null;
+        }
+
+        for (var i = 0; i < paramValues.Count; i++)
+        {
+            var item = paramValues[i];
+            if (item is string s && !string.IsNullOrWhiteSpace(s))
+            {
+                var target = s.Trim();
+                var t = this.torrentService.GetByInfoHash(target) ??
+                        (int.TryParse(target, out var parsedId) ? this.torrentService.Get(parsedId) : null);
+                if (t != null)
+                {
+                    remainingParams = paramValues.Skip(i + 1).ToList();
+                    return t;
+                }
+            }
+            else if (item is int id)
+            {
+                var t = this.torrentService.Get(id);
+                if (t != null)
+                {
+                    remainingParams = paramValues.Skip(i + 1).ToList();
+                    return t;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static long ExtractRateValue(List<object> paramValues)
+    {
+        if (paramValues == null || paramValues.Count == 0)
+        {
+            return 0;
+        }
+
+        foreach (var p in paramValues)
+        {
+            if (p is int i)
+            {
+                return i;
+            }
+
+            if (p is long l)
+            {
+                return l;
+            }
+
+            if (p is double d)
+            {
+                return (long)d;
+            }
+
+            if (p is string s && !string.IsNullOrWhiteSpace(s) && long.TryParse(s.Trim(), out var parsed))
+            {
+                return parsed;
+            }
+        }
+
+        return 0;
     }
 }
