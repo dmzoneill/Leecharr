@@ -217,7 +217,6 @@ public class FloodApiController : ControllerBase, IActionFilter
 
     [HttpPost]
     [Route("api/auth/authenticate")]
-    [Route("auth/authenticate")]
     public IActionResult Authenticate([FromBody] FloodAuthRequest request = null)
     {
         if (this.configFileProvider != null && this.configFileProvider.AuthenticationEnabled)
@@ -279,7 +278,6 @@ public class FloodApiController : ControllerBase, IActionFilter
     [HttpPost]
     [HttpDelete]
     [Route("api/auth/logout")]
-    [Route("auth/logout")]
     public IActionResult Logout()
     {
         if (this.Request.Cookies.TryGetValue("flood-auth", out var token) && !string.IsNullOrWhiteSpace(token))
@@ -311,7 +309,6 @@ public class FloodApiController : ControllerBase, IActionFilter
 
     [HttpGet]
     [Route("api/auth/verify")]
-    [Route("auth/verify")]
     public IActionResult Verify()
     {
         var isAllowed = this.IsFloodAuthenticated();
@@ -320,7 +317,6 @@ public class FloodApiController : ControllerBase, IActionFilter
 
     [HttpGet]
     [Route("api/client/settings")]
-    [Route("client/settings")]
     public IActionResult GetClientSettings()
     {
         return this.Ok(new
@@ -331,7 +327,6 @@ public class FloodApiController : ControllerBase, IActionFilter
 
     [HttpGet]
     [Route("api/torrents")]
-    [Route("torrents")]
     public IActionResult GetTorrents()
     {
         var dict = this.BuildTorrentDictionary();
@@ -340,7 +335,6 @@ public class FloodApiController : ControllerBase, IActionFilter
 
     [HttpGet]
     [Route("api/activity-stream")]
-    [Route("activity-stream")]
     public async Task ActivityStream(CancellationToken cancellationToken = default)
     {
         this.Response.ContentType = "text/event-stream";
@@ -746,7 +740,6 @@ public class FloodApiController : ControllerBase, IActionFilter
 
     [HttpGet]
     [Route("api/torrents/{hash}/peers")]
-    [Route("torrents/{hash}/peers")]
     public IActionResult GetTorrentPeers([FromRoute] string hash)
     {
         if (string.IsNullOrWhiteSpace(hash))
