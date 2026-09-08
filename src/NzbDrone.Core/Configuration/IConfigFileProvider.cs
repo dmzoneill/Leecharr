@@ -48,5 +48,11 @@ public interface IConfigFileProvider
 
     string AllowedSsrfSubnets { get; }
 
+    int CustomScriptTimeoutSeconds { get; }
+
+    int ArchiveExtractionTimeoutMinutes { get; }
+
+    string ExtractorTempDir { get; }
+
     void SaveConfigDictionary(Dictionary<string, object> values);
 }

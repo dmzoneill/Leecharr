@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using FluentAssertions;
+using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Notifications;
 using NzbDrone.Core.Torrents;
@@ -221,5 +222,15 @@ public class CustomScriptServiceTest
             pyFile.Should().Be("python3");
             pyArgs.Should().Contain("/path/to/script.py");
         }
+    }
+
+    [Test]
+    public void Constructor_WithConfigService_SetsCustomScriptTimeout()
+    {
+        var configService = NSubstitute.Substitute.For<NzbDrone.Core.Configuration.IConfigService>();
+        configService.CustomScriptTimeoutSeconds.Returns(120);
+
+        var customService = new CustomScriptService(configService: configService);
+        customService.ScriptTimeout.Should().Be(TimeSpan.FromSeconds(120));
     }
 }

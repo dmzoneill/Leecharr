@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
+using NzbDrone.Core.Configuration;
 
 namespace NzbDrone.Core.Indexers.Search;
 
@@ -32,6 +33,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
 
     private readonly IIndexerRepository indexerRepository;
     private readonly ITorznabClient torznabClient;
+    private readonly IConfigService configService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private readonly ConcurrentDictionary<int, QBittorrentSearchJob> activeJobs = new();
     private readonly int maxJobs;
@@ -42,11 +44,13 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
     public QBittorrentSearchService(
         IIndexerRepository indexerRepository = null,
         ITorznabClient torznabClient = null,
+        IConfigService configService = null,
         int maxJobs = DefaultMaxJobs,
         TimeSpan? jobTtl = null)
     {
         this.indexerRepository = indexerRepository;
-        this.torznabClient = torznabClient ?? new TorznabClient();
+        this.torznabClient = torznabClient ?? new TorznabClient(configService);
+        this.configService = configService;
         this.maxJobs = maxJobs > 0 ? maxJobs : DefaultMaxJobs;
         this.jobTtl = jobTtl ?? DefaultJobTtl;
     }
@@ -131,17 +135,38 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
                         return;
                     }
 
-                    int? categoryId = category?.ToLowerInvariant() switch
-                    {
-                        "movies" => 2000,
-                        "tv" => 5000,
-                        "music" => 3000,
-                        "games" => 1000,
-                        "anime" => 5070,
-                        "software" => 4000,
-                        "books" => 7000,
-                        _ => null,
-                    };
+                    int? categoryId = int.TryParse(category, out var parsedCat) && parsedCat > 0
+                        ? parsedCat
+                        : category?.ToLowerInvariant() switch
+                        {
+                            "movies" => 2000,
+                            "movies_hd" or "movies-hd" or "movies/hd" => 2040,
+                            "movies_sd" or "movies-sd" or "movies/sd" => 2030,
+                            "movies_uhd" or "movies-uhd" or "movies/uhd" or "movies_4k" => 2045,
+                            "tv" => 5000,
+                            "tv_hd" or "tv-hd" or "tv/hd" => 5040,
+                            "tv_sd" or "tv-sd" or "tv/sd" => 5030,
+                            "tv_uhd" or "tv-uhd" or "tv/uhd" or "tv_4k" => 5045,
+                            "tv_anime" or "anime" => 5070,
+                            "music" => 3000,
+                            "music_mp3" or "music-mp3" or "music/mp3" => 3010,
+                            "music_flac" or "music-flac" or "music/flac" or "music_lossless" => 3040,
+                            "audiobook" or "audiobooks" => 3030,
+                            "games" => 1000,
+                            "games_pc" or "games-pc" or "games/pc" => 1010,
+                            "games_console" or "games-console" => 1020,
+                            "software" => 4000,
+                            "software_pc" or "software-pc" => 4010,
+                            "software_mac" or "software-mac" => 4020,
+                            "books" => 7000,
+                            "books_ebook" or "ebooks" or "ebook" => 7020,
+                            "books_comics" or "comics" => 7030,
+                            _ => null,
+                        };
+
+                    var searchLimit = this.configService?.TorznabMaxPageSize > 0
+                        ? this.configService.TorznabMaxPageSize
+                        : 100;
 
                     var tasks = indexers.Select(async indexer =>
                     {
@@ -152,7 +177,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
                                 return;
                             }
 
-                            var results = await this.torznabClient.SearchAsync(indexer, pattern, categoryId: categoryId, limit: 100);
+                            var results = await this.torznabClient.SearchAsync(indexer, pattern, categoryId: categoryId, limit: searchLimit);
                             if (results == null || results.Count == 0)
                             {
                                 return;
@@ -333,12 +358,22 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
         {
             "all",
             "movies",
+            "movies_hd",
+            "movies_sd",
+            "movies_uhd",
             "tv",
+            "tv_hd",
+            "tv_sd",
+            "tv_uhd",
             "music",
+            "music_mp3",
+            "music_flac",
+            "audiobook",
             "games",
             "anime",
             "software",
             "books",
+            "ebooks",
         };
     }
 

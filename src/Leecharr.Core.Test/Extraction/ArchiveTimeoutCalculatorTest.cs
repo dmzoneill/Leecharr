@@ -140,6 +140,24 @@ public class ArchiveTimeoutCalculatorTest
     }
 
     [Test]
+    public void SevenZipExtractorProvider_WithConfiguredTimeout_UsesConfiguredBaseTimeout()
+    {
+        var configService = Substitute.For<NzbDrone.Core.Configuration.IConfigService>();
+        configService.ArchiveExtractionTimeoutMinutes.Returns(60);
+
+        var archivePath = "/downloads/test.7z";
+        this.diskProvider.FileExists(archivePath).Returns(true);
+        this.diskProvider.FolderExists("/downloads").Returns(false);
+        this.diskProvider.GetFileSize(archivePath).Returns(10L * 1024 * 1024 * 1024); // 10 GB
+
+        var provider = new SevenZipExtractorProvider(this.diskProvider, configService: configService);
+        var timeout = provider.CalculateTimeout(archivePath);
+
+        // 60 base + 10 GB = 70 minutes
+        timeout.Should().Be(TimeSpan.FromMinutes(70));
+    }
+
+    [Test]
     public void UnrarExtractorProvider_CalculateTimeout_UsesArchiveTimeoutCalculator()
     {
         var archivePath = "/downloads/test.rar";
@@ -151,5 +169,23 @@ public class ArchiveTimeoutCalculatorTest
         var timeout = provider.CalculateTimeout(archivePath);
 
         timeout.Should().Be(TimeSpan.FromMinutes(55));
+    }
+
+    [Test]
+    public void UnrarExtractorProvider_WithConfiguredTimeout_UsesConfiguredBaseTimeout()
+    {
+        var configService = Substitute.For<NzbDrone.Core.Configuration.IConfigService>();
+        configService.ArchiveExtractionTimeoutMinutes.Returns(45);
+
+        var archivePath = "/downloads/test.rar";
+        this.diskProvider.FileExists(archivePath).Returns(true);
+        this.diskProvider.FolderExists("/downloads").Returns(false);
+        this.diskProvider.GetFileSize(archivePath).Returns(15L * 1024 * 1024 * 1024); // 15 GB
+
+        var provider = new UnrarExtractorProvider(this.diskProvider, configService: configService);
+        var timeout = provider.CalculateTimeout(archivePath);
+
+        // 45 base + 15 GB = 60 minutes
+        timeout.Should().Be(TimeSpan.FromMinutes(60));
     }
 }

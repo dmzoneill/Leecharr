@@ -54,7 +54,7 @@ public class TvdbMetadataProvider : IMediaMetadataProvider
             Title = cleanTitle,
             Year = parsedYear,
             MediaType = "TV",
-            Overview = $"TheTVDB series details for {cleanTitle}.",
+            Overview = string.Empty,
             Rating = 0.0,
         };
 

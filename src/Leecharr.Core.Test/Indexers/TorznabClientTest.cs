@@ -8,6 +8,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Indexers;
 
@@ -1160,6 +1161,26 @@ public class TorznabClientTest
         results[0].DownloadVolumeFactor.Should().Be(0.5);
         results[0].UploadVolumeFactor.Should().Be(1.5);
         results[0].MinimumRatio.Should().Be(1.25);
+    }
+
+    [Test]
+    public void ResolveEffectiveLimit_WithConfiguredLimits_AppliesDefaultsAndCaps()
+    {
+        var configService = NSubstitute.Substitute.For<NzbDrone.Core.Configuration.IConfigService>();
+        configService.TorznabDefaultPageSize.Returns(75);
+        configService.TorznabMaxPageSize.Returns(150);
+
+        var clientWithConfig = new TorznabClient(configService);
+        var indexer = new IndexerDefinition { Id = 1, Name = "TestIndexer", Url = "http://localhost" };
+
+        // When 0 requested, uses configured default (75)
+        clientWithConfig.ResolveEffectiveLimit(indexer, 0).Should().Be(75);
+
+        // When requested limit is 200, caps at configured max (150)
+        clientWithConfig.ResolveEffectiveLimit(indexer, 200).Should().Be(150);
+
+        // When requested limit is within range (100), preserves requested limit
+        clientWithConfig.ResolveEffectiveLimit(indexer, 100).Should().Be(100);
     }
 
     #endregion

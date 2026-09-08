@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
@@ -33,6 +34,7 @@ public class SystemResourceServiceTest
     private IHttpTransportManager httpTransportManager = null!;
     private IAiManager aiManager = null!;
     private IConfigService configService = null!;
+    private NzbDrone.Common.EnvironmentInfo.IAppFolderInfo appFolderInfo = null!;
     private SystemResourceService service = null!;
 
     [SetUp]
@@ -110,6 +112,9 @@ public class SystemResourceServiceTest
         this.configService = Substitute.For<IConfigService>();
         this.configService.NetworkInterfaceBinding.Returns("tun0");
 
+        this.appFolderInfo = Substitute.For<NzbDrone.Common.EnvironmentInfo.IAppFolderInfo>();
+        this.appFolderInfo.AppDataFolder.Returns("/custom/appdata");
+
         this.service = new SystemResourceService(
             this.torrentEngineManager,
             this.extractorManager,
@@ -120,7 +125,8 @@ public class SystemResourceServiceTest
             this.mediaMetadataManager,
             this.httpTransportManager,
             this.aiManager,
-            this.configService);
+            this.configService,
+            this.appFolderInfo);
     }
 
     [Test]
@@ -210,5 +216,16 @@ public class SystemResourceServiceTest
         snapshot.PerTorrent.Should().NotBeNull();
         snapshot.Subsystems.Should().HaveCount(9);
         snapshot.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+    }
+
+    [Test]
+    public void GetSubsystemTelemetry_IncludesConfiguredMediaCachePath()
+    {
+        var reports = this.service.GetSubsystemTelemetry();
+
+        var mediaReport = reports.Find(r => r.SubsystemId == "mediametadata");
+        mediaReport.Should().NotBeNull();
+        mediaReport!.Metrics.Should().ContainKey("cacheDirectory");
+        mediaReport.Metrics["cacheDirectory"].Should().Be("/custom/appdata/MediaCache");
     }
 }

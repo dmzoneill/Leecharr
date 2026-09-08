@@ -408,6 +408,12 @@ public class CertificateManager : ICertificateManager
 
         public string AllowedSsrfSubnets => string.Empty;
 
+        public int CustomScriptTimeoutSeconds => 60;
+
+        public int ArchiveExtractionTimeoutMinutes => 30;
+
+        public string ExtractorTempDir => string.Empty;
+
         public void SaveConfigDictionary(Dictionary<string, object> values)
         {
         }

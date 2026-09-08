@@ -76,7 +76,7 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
             Title = cleanTitle,
             Year = parsedYear,
             MediaType = isMovie ? "Movie" : "TV",
-            Overview = $"Parsed from local media directory files for {cleanTitle}.",
+            Overview = string.Empty,
         };
 
         var nfoFilePath = this.LocateNfoFile(title);
@@ -235,6 +235,28 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
                     meta.MediaType = "Movie";
                 }
 
+                var actorElems = root.Descendants("actor");
+                var castList = new System.Collections.Generic.List<string>();
+                foreach (var actor in actorElems)
+                {
+                    var name = actor.Element("name")?.Value?.Trim() ?? (!actor.HasElements ? actor.Value?.Trim() : null);
+                    var role = actor.Element("role")?.Value?.Trim();
+                    var entry = !string.IsNullOrWhiteSpace(role) ? $"{name} as {role}" : name;
+                    if (!string.IsNullOrWhiteSpace(entry) && !castList.Contains(entry, StringComparer.OrdinalIgnoreCase))
+                    {
+                        castList.Add(entry);
+                        if (castList.Count >= 10)
+                        {
+                            break;
+                        }
+                    }
+                }
+
+                if (castList.Count > 0)
+                {
+                    meta.Cast = castList;
+                }
+
                 return;
             }
         }
@@ -265,6 +287,31 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
         if (ratingMatch.Success && double.TryParse(ratingMatch.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out var ratingVal))
         {
             meta.Rating = ratingVal;
+        }
+
+        var actorMatches = Regex.Matches(xmlContent, @"<actor>(?:(?!</actor>).)*?<name>(.*?)</name>(?:(?:(?!</actor>).)*?<role>(.*?)</role>)?", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        if (actorMatches.Count > 0)
+        {
+            var castList = new System.Collections.Generic.List<string>();
+            foreach (Match m in actorMatches)
+            {
+                var name = m.Groups[1].Value.Trim();
+                var role = m.Groups.Count > 2 && m.Groups[2].Success ? m.Groups[2].Value.Trim() : null;
+                var entry = !string.IsNullOrWhiteSpace(role) ? $"{name} as {role}" : name;
+                if (!string.IsNullOrWhiteSpace(entry) && !castList.Contains(entry, StringComparer.OrdinalIgnoreCase))
+                {
+                    castList.Add(entry);
+                    if (castList.Count >= 10)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            if (castList.Count > 0)
+            {
+                meta.Cast = castList;
+            }
         }
     }
 

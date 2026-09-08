@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using NLog;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Ai;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
@@ -38,6 +39,7 @@ public class SystemResourceService : ISystemResourceService
     private readonly IHttpTransportManager httpTransportManager;
     private readonly IAiManager aiManager;
     private readonly IConfigService configService;
+    private readonly IAppFolderInfo appFolderInfo;
     private readonly Logger logger;
 
     public SystemResourceService(
@@ -50,7 +52,8 @@ public class SystemResourceService : ISystemResourceService
         IMediaMetadataManager mediaMetadataManager,
         IHttpTransportManager httpTransportManager,
         IAiManager aiManager,
-        IConfigService configService)
+        IConfigService configService,
+        IAppFolderInfo appFolderInfo = null)
     {
         this.torrentEngineManager = torrentEngineManager;
         this.extractorManager = extractorManager;
@@ -62,6 +65,7 @@ public class SystemResourceService : ISystemResourceService
         this.httpTransportManager = httpTransportManager;
         this.aiManager = aiManager;
         this.configService = configService;
+        this.appFolderInfo = appFolderInfo;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -199,12 +203,13 @@ public class SystemResourceService : ISystemResourceService
 
         // 1. BitTorrent Engine Subsystem
         var engineMetrics = this.GetTorrentEngineMetrics();
+        var engine = this.torrentEngineManager.ActiveEngine;
         reports.Add(new SubsystemTelemetryReport
         {
             SubsystemId = "bittorrent",
             SubsystemName = "BitTorrent Engine",
             ActiveProvider = this.torrentEngineManager.ActiveEngineId,
-            Status = engineMetrics.IsRunning ? "Healthy" : "Stopped",
+            Status = engineMetrics.IsRunning ? "Healthy" : (engine?.IsAvailable == true ? "Healthy" : "Stopped"),
             ResourceLoad = engineMetrics.ActiveTorrents > 20 ? "High" : (engineMetrics.ActiveTorrents > 0 ? "Nominal" : "Low"),
             Metrics = new Dictionary<string, object>
             {
@@ -222,134 +227,260 @@ public class SystemResourceService : ISystemResourceService
         });
 
         // 2. Archive Extractor Subsystem
+        var extractor = this.extractorManager.ActiveProvider;
+        bool extractorHealthy;
+        try
+        {
+            var probe = extractor != null ? extractor.ProbeHealthAsync().GetAwaiter().GetResult() : null;
+            extractorHealthy = probe?.IsHealthy ?? (extractor?.IsAvailable ?? false);
+        }
+        catch
+        {
+            extractorHealthy = extractor?.IsAvailable ?? false;
+        }
+
+        var extractorCaps = extractor?.Capabilities;
         reports.Add(new SubsystemTelemetryReport
         {
             SubsystemId = "extractor",
             SubsystemName = "Archive Extractor Pipeline",
             ActiveProvider = this.extractorManager.ActiveProviderId,
-            Status = "Healthy",
+            Status = extractorHealthy ? "Healthy" : "Degraded",
             ResourceLoad = "Nominal",
             Metrics = new Dictionary<string, object>
             {
-                ["supportsRar5"] = true,
-                ["supports7z"] = true,
+                ["supportsRar5"] = extractorCaps?.SupportsRar5 ?? false,
+                ["supports7z"] = extractorCaps?.Supports7z ?? false,
+                ["supportsMultiPart"] = extractorCaps?.SupportsMultiPart ?? false,
+                ["supportsPasswordProtected"] = extractorCaps?.SupportsPasswordProtected ?? false,
                 ["activeExtractions"] = 0,
+                ["isAvailable"] = extractor?.IsAvailable ?? false,
                 ["mode"] = "NonBlockingWorker",
             },
         });
 
         // 3. Media Container Inspector Subsystem
+        var inspector = this.mediaInspectorManager.ActiveProvider;
+        bool inspectorHealthy;
+        try
+        {
+            var probe = inspector != null ? inspector.ProbeHealthAsync().GetAwaiter().GetResult() : null;
+            inspectorHealthy = probe?.IsHealthy ?? (inspector?.IsAvailable ?? false);
+        }
+        catch
+        {
+            inspectorHealthy = inspector?.IsAvailable ?? false;
+        }
+
+        var inspectorCaps = inspector?.Capabilities;
         reports.Add(new SubsystemTelemetryReport
         {
             SubsystemId = "mediainspector",
             SubsystemName = "Media Container & Stream Inspector",
             ActiveProvider = this.mediaInspectorManager.ActiveProviderId,
-            Status = "Healthy",
+            Status = inspectorHealthy ? "Healthy" : "Degraded",
             ResourceLoad = "Nominal",
             Metrics = new Dictionary<string, object>
             {
-                ["pureEbmlParser"] = true,
-                ["supportsDolbyVision"] = true,
-                ["supportsHdr10Plus"] = true,
-                ["supportsEac3Atmos"] = true,
+                ["pureEbmlParser"] = inspectorCaps?.SupportsPureManagedStreams ?? false,
+                ["supportsDolbyVision"] = inspectorCaps?.SupportsDolbyVision ?? false,
+                ["supportsHdr10Plus"] = inspectorCaps?.SupportsHdr10Plus ?? false,
+                ["supportsEac3Atmos"] = inspectorCaps?.SupportsEac3Atmos ?? false,
+                ["supportsSubtitleTracks"] = inspectorCaps?.SupportsSubtitleTracks ?? false,
+                ["isAvailable"] = inspector?.IsAvailable ?? false,
             },
         });
 
         // 4. Swarm GeoIP Geolocation Subsystem
+        var geoIp = this.geoIpManager.ActiveProvider;
+        bool geoIpHealthy;
+        try
+        {
+            var probe = geoIp != null ? geoIp.ProbeHealthAsync().GetAwaiter().GetResult() : null;
+            geoIpHealthy = probe?.IsHealthy ?? (geoIp?.IsAvailable ?? false);
+        }
+        catch
+        {
+            geoIpHealthy = geoIp?.IsAvailable ?? false;
+        }
+
+        var geoCaps = geoIp?.Capabilities ?? GeoIpCapabilities.None;
         reports.Add(new SubsystemTelemetryReport
         {
             SubsystemId = "geoip",
             SubsystemName = "Swarm GeoIP Geolocation",
             ActiveProvider = this.geoIpManager.ActiveProviderId,
-            Status = "Healthy",
+            Status = geoIpHealthy ? "Healthy" : "Degraded",
             ResourceLoad = "Nominal",
             Metrics = new Dictionary<string, object>
             {
-                ["databaseLoaded"] = true,
+                ["databaseLoaded"] = geoIp?.IsAvailable ?? false,
                 ["fastResolutionCache"] = true,
+                ["supportsCountry"] = geoCaps.HasFlag(GeoIpCapabilities.Country),
+                ["supportsCity"] = geoCaps.HasFlag(GeoIpCapabilities.City),
+                ["supportsAsn"] = geoCaps.HasFlag(GeoIpCapabilities.Asn),
             },
         });
 
         // 5. Swarm IP Blocklist Subsystem
-        var totalRules = this.blocklistManager.ActiveProvider?.RuleCount ?? 0;
+        var blocklist = this.blocklistManager.ActiveProvider;
+        bool blocklistHealthy;
+        try
+        {
+            var probe = blocklist != null ? blocklist.ProbeHealthAsync().GetAwaiter().GetResult() : null;
+            blocklistHealthy = probe?.IsHealthy ?? (blocklist?.IsAvailable ?? false);
+        }
+        catch
+        {
+            blocklistHealthy = blocklist?.IsAvailable ?? false;
+        }
+
+        var blockCaps = blocklist?.Capabilities ?? BlocklistCapabilities.None;
+        var totalRules = blocklist?.RuleCount ?? 0;
         reports.Add(new SubsystemTelemetryReport
         {
             SubsystemId = "blocklist",
             SubsystemName = "Swarm IP Blocklist & Filter",
             ActiveProvider = this.blocklistManager.ActiveProviderId,
-            Status = "Healthy",
-            ResourceLoad = "Nominal",
+            Status = blocklistHealthy ? "Healthy" : "Degraded",
+            ResourceLoad = totalRules > 100000 ? "High" : "Nominal",
             Metrics = new Dictionary<string, object>
             {
                 ["rulesActive"] = totalRules > 0,
                 ["ruleCount"] = totalRules,
+                ["supportsIPv4"] = blockCaps.HasFlag(BlocklistCapabilities.IPv4),
+                ["supportsIPv6"] = blockCaps.HasFlag(BlocklistCapabilities.IPv6),
+                ["supportsCidr"] = blockCaps.HasFlag(BlocklistCapabilities.Cidr),
                 ["lookupMode"] = "RadixTreeBinarySearch",
             },
         });
 
         // 6. Network Interface Binding Subsystem
+        var netBinding = this.networkBindingManager.ActiveProvider;
+        bool netBindingHealthy;
+        try
+        {
+            var probe = netBinding != null ? netBinding.ProbeHealthAsync().GetAwaiter().GetResult() : null;
+            netBindingHealthy = probe?.IsHealthy ?? (netBinding?.IsAvailable ?? false);
+        }
+        catch
+        {
+            netBindingHealthy = netBinding?.IsAvailable ?? false;
+        }
+
         var boundIface = !string.IsNullOrWhiteSpace(this.configService.NetworkInterfaceBinding)
             ? this.configService.NetworkInterfaceBinding
             : (this.configService.BindInterface ?? "All Interfaces");
+        var netCaps = netBinding?.Capabilities;
         reports.Add(new SubsystemTelemetryReport
         {
             SubsystemId = "networkbinding",
             SubsystemName = "Network Interface Binding & Kill Switch",
             ActiveProvider = this.networkBindingManager.ActiveProviderId,
-            Status = "Healthy",
+            Status = netBindingHealthy ? "Healthy" : "Degraded",
             ResourceLoad = "Nominal",
             Metrics = new Dictionary<string, object>
             {
                 ["boundInterface"] = boundIface,
                 ["killSwitchArmed"] = !string.Equals(boundIface, "All Interfaces", StringComparison.OrdinalIgnoreCase) && !string.Equals(boundIface, "Any", StringComparison.OrdinalIgnoreCase),
+                ["supportsInterfaceBinding"] = netCaps?.SupportsInterfaceBinding ?? false,
+                ["supportsKernelLock"] = netCaps?.SupportsSoBindToDevice ?? false,
+                ["supportsVpnKillSwitch"] = netCaps?.SupportsVpnKillSwitch ?? false,
             },
         });
 
         // 7. Media Enrichment Metadata Subsystem
+        var mediaMeta = this.mediaMetadataManager.ActiveProvider;
+        bool mediaMetaHealthy;
+        try
+        {
+            var probe = mediaMeta != null ? mediaMeta.ProbeHealthAsync().GetAwaiter().GetResult() : null;
+            mediaMetaHealthy = probe?.IsHealthy ?? (mediaMeta?.IsAvailable ?? false);
+        }
+        catch
+        {
+            mediaMetaHealthy = mediaMeta?.IsAvailable ?? false;
+        }
+
+        var mediaMetaCaps = mediaMeta?.Capabilities;
+        var mediaCacheDir = !string.IsNullOrWhiteSpace(this.configService.MediaCachePath)
+            ? this.configService.MediaCachePath
+            : (this.appFolderInfo != null ? Path.Combine(this.appFolderInfo.AppDataFolder, "MediaCache") : "/config/MediaCache");
+
         reports.Add(new SubsystemTelemetryReport
         {
             SubsystemId = "mediametadata",
             SubsystemName = "Media Enrichment & Servarr Metadata",
             ActiveProvider = this.mediaMetadataManager.ActiveProviderId,
-            Status = "Healthy",
+            Status = mediaMetaHealthy ? "Healthy" : "Degraded",
             ResourceLoad = "Nominal",
             Metrics = new Dictionary<string, object>
             {
-                ["cacheDirectory"] = "/config/MediaCache",
-                ["supportsHighResPosters"] = true,
+                ["cacheDirectory"] = mediaCacheDir,
+                ["supportsHighResPosters"] = mediaMetaCaps?.SupportsPosters ?? false,
+                ["supportsMovies"] = mediaMetaCaps?.SupportsMovies ?? false,
+                ["supportsTvSeries"] = mediaMetaCaps?.SupportsTvSeries ?? false,
                 ["autoCleanupOnDelete"] = true,
             },
         });
 
         // 8. HTTP Transport & Proxy Subsystem
+        var httpTransport = this.httpTransportManager.ActiveProvider;
+        bool httpHealthy;
+        try
+        {
+            var probe = httpTransport != null ? httpTransport.ProbeHealthAsync().GetAwaiter().GetResult() : null;
+            httpHealthy = probe?.IsHealthy ?? (httpTransport?.IsAvailable ?? false);
+        }
+        catch
+        {
+            httpHealthy = httpTransport?.IsAvailable ?? false;
+        }
+
+        var httpCaps = httpTransport?.Capabilities;
         reports.Add(new SubsystemTelemetryReport
         {
             SubsystemId = "httptransport",
             SubsystemName = "HTTP Transport & Anti-Bot Engine",
             ActiveProvider = this.httpTransportManager.ActiveProviderId,
-            Status = "Healthy",
+            Status = httpHealthy ? "Healthy" : "Degraded",
             ResourceLoad = "Nominal",
             Metrics = new Dictionary<string, object>
             {
                 ["connectionPooling"] = true,
-                ["http3QuicSupported"] = true,
-                ["tlsFingerprintEmulation"] = true,
+                ["http3QuicSupported"] = httpCaps?.SupportsHttp3Quic ?? false,
+                ["tlsFingerprintEmulation"] = httpCaps?.SupportsBrowserFingerprintEmulation ?? false,
+                ["supportsFlareSolverr"] = httpCaps?.SupportsFlareSolverr ?? false,
             },
         });
 
         // 9. AI Intelligence Subsystem
+        var ai = this.aiManager.ActiveProvider;
+        bool aiHealthy;
+        try
+        {
+            var probe = ai != null ? ai.ProbeHealthAsync().GetAwaiter().GetResult() : null;
+            aiHealthy = probe?.IsHealthy ?? (ai?.IsAvailable ?? false);
+        }
+        catch
+        {
+            aiHealthy = ai?.IsAvailable ?? false;
+        }
+
+        var aiCaps = ai?.Capabilities ?? AiCapabilities.None;
         reports.Add(new SubsystemTelemetryReport
         {
             SubsystemId = "ai",
             SubsystemName = "Artificial Intelligence & Swarm Copilot",
             ActiveProvider = this.aiManager.ActiveProviderId,
-            Status = "Healthy",
+            Status = aiHealthy ? "Healthy" : "Degraded",
             ResourceLoad = "Nominal",
             Metrics = new Dictionary<string, object>
             {
-                ["swarmDiagnostics"] = true,
-                ["releaseParsing"] = true,
-                ["heuristicOptimization"] = true,
+                ["swarmDiagnostics"] = aiCaps.HasFlag(AiCapabilities.SupportsDiagnosticCopilot),
+                ["releaseParsing"] = aiCaps.HasFlag(AiCapabilities.SupportsReleaseNameParsing),
+                ["heuristicOptimization"] = aiCaps.HasFlag(AiCapabilities.SupportsSwarmOptimization),
+                ["naturalLanguageSearch"] = aiCaps.HasFlag(AiCapabilities.SupportsNaturalLanguageSearch),
             },
         });
 

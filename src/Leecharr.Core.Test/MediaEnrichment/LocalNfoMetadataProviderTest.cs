@@ -127,6 +127,14 @@ public class LocalNfoMetadataProviderTest
     <rating>8.7</rating>
     <id>tt11280740</id>
     <tmdbid>95396</tmdbid>
+    <actor>
+        <name>Adam Scott</name>
+        <role>Mark Scout</role>
+    </actor>
+    <actor>
+        <name>Patricia Arquette</name>
+        <role>Harmony Cobel</role>
+    </actor>
 </tvshow>");
 
             var posterPath = Path.Combine(tempDir, "poster.jpg");
@@ -147,6 +155,8 @@ public class LocalNfoMetadataProviderTest
             metadata.TmdbId.Should().Be("95396");
             metadata.PosterUrl.Should().Be(posterPath);
             metadata.BackdropUrl.Should().Be(fanartPath);
+            metadata.Cast.Should().Contain("Adam Scott as Mark Scout");
+            metadata.Cast.Should().Contain("Patricia Arquette as Harmony Cobel");
         }
         finally
         {

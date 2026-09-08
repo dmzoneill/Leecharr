@@ -205,4 +205,22 @@ public class QBittorrentSearchServiceTest
         results.Results.Should().HaveCount(1);
         results.Results[0].FileName.Should().Be("The Matrix 1999 4K");
     }
+
+    [Test]
+    public async Task StartSearch_WithSubcategoryAndNumericCategory_MapsToTorznabCategoryIds()
+    {
+        var indexer = new IndexerDefinition { Id = 1, Name = "IndexerOne", Enable = true, EnableSearch = true, Url = "http://indexer1" };
+        this.indexerRepository.GetSearchEnabled().Returns(new[] { indexer });
+
+        this.torznabClient.SearchAsync(indexer, "test", categoryId: 2040, limit: 100)
+            .Returns(new List<TorznabSearchResult>());
+
+        var id1 = this.searchService.StartSearch("test", category: "movies_hd");
+        await Task.Delay(200);
+        await this.torznabClient.Received(1).SearchAsync(indexer, "test", categoryId: 2040, limit: 100);
+
+        var id2 = this.searchService.StartSearch("test", category: "5070");
+        await Task.Delay(200);
+        await this.torznabClient.Received(1).SearchAsync(indexer, "test", categoryId: 5070, limit: 100);
+    }
 }
