@@ -4826,6 +4826,14 @@ input[type="number"]::-webkit-inner-spin-button {
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8) !important;
 }
 
+/* Suppress Cubone's internal delete confirmation modal so only Leecharr's styled ConfirmModal appears */
+.leecharr-file-manager dialog:has(.file-delete-confirm),
+.leecharr-file-manager .file-delete-confirm {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 .leecharr-file-manager .fm-modal-header {
   border-bottom: 1px solid var(--border, #23284b) !important;
 }
