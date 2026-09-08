@@ -335,8 +335,16 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 ?? this.ResolveInterfaceIp(iface, AddressFamily.InterNetworkV6);
             if (resolvedIpv6 != null)
             {
-                listenIpv6 = resolvedIpv6;
-                this.logger.Info("Bound MonoTorrent IPv6 listening socket to interface '{0}' ({1})", iface, listenIpv6);
+                if (resolvedIpv6.IsIPv6LinkLocal || resolvedIpv6.IsIPv6SiteLocal || resolvedIpv6.IsIPv6Multicast ||
+                    IPAddress.IsLoopback(resolvedIpv6) || resolvedIpv6.Equals(IPAddress.IPv6Any) || resolvedIpv6.Equals(IPAddress.IPv6None))
+                {
+                    resolvedIpv6 = null;
+                }
+                else
+                {
+                    listenIpv6 = resolvedIpv6;
+                    this.logger.Info("Bound MonoTorrent IPv6 listening socket to interface '{0}' ({1})", iface, listenIpv6);
+                }
             }
         }
         else if (isKillSwitchEnabled)
@@ -2268,6 +2276,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
             resolvedIpv6 = this.vpnKillSwitchService?.GetVpnInterfaceIpAddress(AddressFamily.InterNetworkV6)
                 ?? this.ResolveInterfaceIp(iface, AddressFamily.InterNetworkV6);
+            if (resolvedIpv6 != null && (resolvedIpv6.IsIPv6LinkLocal || resolvedIpv6.IsIPv6SiteLocal || resolvedIpv6.IsIPv6Multicast ||
+                IPAddress.IsLoopback(resolvedIpv6) || resolvedIpv6.Equals(IPAddress.IPv6Any) || resolvedIpv6.Equals(IPAddress.IPv6None)))
+            {
+                resolvedIpv6 = null;
+            }
         }
 
         var listenEndPoints = new Dictionary<string, IPEndPoint>
@@ -2318,6 +2331,15 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var resolved = this.vpnKillSwitchService?.GetVpnInterfaceIpAddress(family)
             ?? this.ResolveInterfaceIp(iface, family);
 
+        if (resolved != null && family == AddressFamily.InterNetworkV6)
+        {
+            if (resolved.IsIPv6LinkLocal || resolved.IsIPv6SiteLocal || resolved.IsIPv6Multicast ||
+                IPAddress.IsLoopback(resolved) || resolved.Equals(IPAddress.IPv6Any) || resolved.Equals(IPAddress.IPv6None))
+            {
+                return null;
+            }
+        }
+
         return resolved;
     }
 
@@ -2340,7 +2362,17 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 return null;
             }
 
-            return ManagedSocketBindingProvider.SelectIpAddress(props.UnicastAddresses.Select(u => u.Address), props, family);
+            var ip = ManagedSocketBindingProvider.SelectIpAddress(props.UnicastAddresses.Select(u => u.Address), props, family);
+            if (ip != null && family == AddressFamily.InterNetworkV6)
+            {
+                if (ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || ip.IsIPv6Multicast ||
+                    IPAddress.IsLoopback(ip) || ip.Equals(IPAddress.IPv6Any) || ip.Equals(IPAddress.IPv6None))
+                {
+                    return null;
+                }
+            }
+
+            return ip;
         }
         catch (Exception ex)
         {
