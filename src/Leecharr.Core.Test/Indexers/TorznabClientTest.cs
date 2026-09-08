@@ -823,15 +823,31 @@ public class TorznabClientTest
         result.ErrorMessage.Should().Contain("Cloudflare / AntiBot challenge detected");
     }
 
+    [TestCase("2024-01-01 12:00:00", "2024-01-01T12:00:00Z")]
+    [TestCase("2024-01-01T12:00:00", "2024-01-01T12:00:00Z")]
+    [TestCase("Mon, 01 Jan 2024 12:00:00", "2024-01-01T12:00:00Z")]
+    [TestCase("Mon, 01 Jan 2024 12:00:00 +00:00", "2024-01-01T12:00:00Z")]
+    [TestCase("Mon, 01 Jan 2024 12:00:00 -05:00", "2024-01-01T17:00:00Z")]
+    [TestCase("Mon, 01 Jan 2024 12:00:00 +05:30", "2024-01-01T06:30:00Z")]
+    [TestCase("2024-01-01T12:00:00-05:00", "2024-01-01T17:00:00Z")]
+    [TestCase("2024-01-01T12:00:00+02:00", "2024-01-01T10:00:00Z")]
     [TestCase("Mon, 01 Jan 2024 12:00:00 EST", "2024-01-01T17:00:00Z")]
     [TestCase("Mon, 01 Jan 2024 12:00:00 EDT", "2024-01-01T16:00:00Z")]
+    [TestCase("Mon, 01 Jan 2024 12:00:00 CST", "2024-01-01T18:00:00Z")]
+    [TestCase("Mon, 01 Jan 2024 12:00:00 CDT", "2024-01-01T17:00:00Z")]
+    [TestCase("Mon, 01 Jan 2024 12:00:00 MST", "2024-01-01T19:00:00Z")]
+    [TestCase("Mon, 01 Jan 2024 12:00:00 MDT", "2024-01-01T18:00:00Z")]
     [TestCase("Mon, 01 Jan 2024 12:00:00 PST", "2024-01-01T20:00:00Z")]
     [TestCase("Mon, 01 Jan 2024 12:00:00 PDT", "2024-01-01T19:00:00Z")]
+    [TestCase("Mon, 01 Jan 2024 12:00:00 CET", "2024-01-01T11:00:00Z")]
     [TestCase("Mon, 01 Jan 2024 12:00:00 CEST", "2024-01-01T10:00:00Z")]
     [TestCase("Mon, 01 Jan 2024 12:00:00 BST", "2024-01-01T11:00:00Z")]
     [TestCase("Mon, 01 Jan 2024 12:00:00 JST", "2024-01-01T03:00:00Z")]
+    [TestCase("Mon, 01 Jan 2024 12:00:00 AEST", "2024-01-01T02:00:00Z")]
+    [TestCase("Mon, 01 Jan 2024 12:00:00 UT", "2024-01-01T12:00:00Z")]
     [TestCase("Mon, 01 Jan 2024 12:00:00 UTC", "2024-01-01T12:00:00Z")]
     [TestCase("Mon, 01 Jan 2024 12:00:00 GMT", "2024-01-01T12:00:00Z")]
+    [TestCase("Mon, 01 Jan 2024 12:00:00 Z", "2024-01-01T12:00:00Z")]
     [TestCase("1704110400", "2024-01-01T12:00:00Z")]
     [TestCase("1704110400000", "2024-01-01T12:00:00Z")]
     public void ParseTorznabFeedXml_TimezonesAndUnixTimestamps_ParsesCorrectly(string pubDateInput, string expectedUtcIso)
@@ -850,6 +866,29 @@ public class TorznabClientTest
         var results = this.client.ParseTorznabFeedXml(xml);
         results.Should().HaveCount(1);
         results[0].PublishDate.Should().Be(DateTime.Parse(expectedUtcIso, null, System.Globalization.DateTimeStyles.AdjustToUniversal));
+        results[0].PublishDate.Kind.Should().Be(DateTimeKind.Utc);
+    }
+
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase("   ")]
+    [TestCase("invalid-date-string")]
+    public void ParsePublishDate_NullEmptyOrInvalid_ReturnsUtcNow(string input)
+    {
+        var before = DateTime.UtcNow.AddSeconds(-1);
+        var parsed = TorznabClient.ParsePublishDate(input);
+        var after = DateTime.UtcNow.AddSeconds(1);
+
+        parsed.Kind.Should().Be(DateTimeKind.Utc);
+        parsed.Should().BeOnOrAfter(before).And.BeOnOrBefore(after);
+    }
+
+    [Test]
+    public void ParsePublishDate_WithoutTimezoneOffset_AssumesUniversalTime()
+    {
+        var parsed = TorznabClient.ParsePublishDate("2026-09-07 12:00:00");
+        parsed.Should().Be(new DateTime(2026, 9, 7, 12, 0, 0, DateTimeKind.Utc));
+        parsed.Kind.Should().Be(DateTimeKind.Utc);
     }
 
     [Test]
