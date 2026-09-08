@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -126,5 +127,38 @@ public class PieceMapSignalREventHandlerTest
 
         this.broadcaster.Received(1).BroadcastMessage(Arg.Is<SignalRMessage>(m =>
             m.Name == "pieceMapUpdated"));
+    }
+
+    [Test]
+    public void CompressToRanges_WhenEmptyOrNull_ReturnsEmptyList()
+    {
+        PieceMapSignalREventHandler.CompressToRanges(null).Should().BeEmpty();
+        PieceMapSignalREventHandler.CompressToRanges(new List<int>()).Should().BeEmpty();
+    }
+
+    [Test]
+    public void CompressToRanges_WhenSinglePiece_ReturnsSingleRange()
+    {
+        var ranges = PieceMapSignalREventHandler.CompressToRanges(new[] { 42 });
+        ranges.Should().HaveCount(1);
+        ranges[0].Should().Equal(42, 42);
+    }
+
+    [Test]
+    public void CompressToRanges_WhenContiguousPieces_CompressesToOneRange()
+    {
+        var ranges = PieceMapSignalREventHandler.CompressToRanges(new[] { 0, 1, 2, 3, 4, 5 });
+        ranges.Should().HaveCount(1);
+        ranges[0].Should().Equal(0, 5);
+    }
+
+    [Test]
+    public void CompressToRanges_WhenDiscontinuousPieces_CompressesToMultipleRanges()
+    {
+        var ranges = PieceMapSignalREventHandler.CompressToRanges(new[] { 0, 1, 2, 10, 11, 20 });
+        ranges.Should().HaveCount(3);
+        ranges[0].Should().Equal(0, 2);
+        ranges[1].Should().Equal(10, 11);
+        ranges[2].Should().Equal(20, 20);
     }
 }

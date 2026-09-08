@@ -39,6 +39,120 @@ export function decodeBase64Bitfield(
 }
 
 /**
+ * Sets a contiguous range of piece bits in-place in a Uint8Array bitfield.
+ */
+export function setPieceRangeInPlace(
+  target: Uint8Array,
+  start: number,
+  end: number,
+): void {
+  if (start < 0 || end < start) return;
+  const startByte = start >> 3;
+  const endByte = end >> 3;
+  if (startByte >= target.length) return;
+
+  const boundedEndByte = Math.min(endByte, target.length - 1);
+  const startBit = start & 7;
+  const endBit = boundedEndByte === endByte ? (end & 7) : 7;
+
+  if (startByte === boundedEndByte) {
+    const mask = ((0xff >> startBit) & ((0xff << (7 - endBit)) & 0xff)) & 0xff;
+    target[startByte] |= mask;
+  } else {
+    const startMask = (0xff >> startBit) & 0xff;
+    target[startByte] |= startMask;
+
+    if (boundedEndByte > startByte + 1) {
+      target.fill(0xff, startByte + 1, boundedEndByte);
+    }
+
+    const endMask = (0xff << (7 - endBit)) & 0xff;
+    target[boundedEndByte] |= endMask;
+  }
+}
+
+/**
+ * Sets multiple ranges of piece bits in-place in a Uint8Array bitfield.
+ */
+export function setPieceRangesInPlace(
+  target: Uint8Array,
+  ranges: Array<[number, number]> | number[][],
+): void {
+  if (!ranges || ranges.length === 0) return;
+  for (let i = 0; i < ranges.length; i++) {
+    const r = ranges[i];
+    if (Array.isArray(r) && r.length >= 2) {
+      setPieceRangeInPlace(target, r[0], r[1]);
+    }
+  }
+}
+
+/**
+ * Sets a single piece bit in-place in a Uint8Array bitfield.
+ */
+export function setPieceBitInPlace(
+  target: Uint8Array,
+  pieceIndex: number,
+): void {
+  if (pieceIndex < 0) return;
+  const byteIdx = pieceIndex >> 3;
+  if (byteIdx < target.length) {
+    const bitOffset = 7 - (pieceIndex & 7);
+    target[byteIdx] |= 1 << bitOffset;
+  }
+}
+
+/**
+ * Sets multiple piece bits in-place in a Uint8Array bitfield.
+ */
+export function setPieceBitsInPlace(
+  target: Uint8Array,
+  pieceIndices: number[],
+): void {
+  if (!pieceIndices || pieceIndices.length === 0) return;
+  for (let i = 0; i < pieceIndices.length; i++) {
+    const idx = pieceIndices[i];
+    if (typeof idx === "number" && idx >= 0) {
+      const byteIdx = idx >> 3;
+      if (byteIdx < target.length) {
+        const bitOffset = 7 - (idx & 7);
+        target[byteIdx] |= 1 << bitOffset;
+      }
+    }
+  }
+}
+
+/**
+ * Sets multiple piece ranges in a Uint8Array bitfield (allocating new buffer if necessary).
+ */
+export function setPieceRanges(
+  current: Uint8Array | undefined,
+  ranges: Array<[number, number]> | number[][],
+): Uint8Array {
+  if (!ranges || ranges.length === 0) {
+    return current ? new Uint8Array(current) : new Uint8Array(0);
+  }
+
+  let maxIdx = -1;
+  for (let i = 0; i < ranges.length; i++) {
+    const r = ranges[i];
+    if (Array.isArray(r) && r.length >= 2 && r[1] > maxIdx) {
+      maxIdx = r[1];
+    }
+  }
+
+  const requiredBytes = maxIdx >= 0 ? (maxIdx >> 3) + 1 : 0;
+  const targetLen = Math.max(requiredBytes, current ? current.length : 0);
+  const target = new Uint8Array(targetLen);
+  if (current) {
+    target.set(current);
+  }
+
+  setPieceRangesInPlace(target, ranges);
+  return target;
+}
+
+/**
  * Sets a specific piece bit in a Uint8Array bitfield (BitTorrent MSB-first convention).
  */
 export function setPieceBit(
@@ -95,15 +209,7 @@ export function setPieceBits(
     target.set(current);
   }
 
-  for (let i = 0; i < pieceIndices.length; i++) {
-    const idx = pieceIndices[i];
-    if (typeof idx === "number" && idx >= 0) {
-      const byteIdx = idx >> 3;
-      const bitOffset = 7 - (idx & 7);
-      target[byteIdx] |= 1 << bitOffset;
-    }
-  }
-
+  setPieceBitsInPlace(target, pieceIndices);
   return target;
 }
 
