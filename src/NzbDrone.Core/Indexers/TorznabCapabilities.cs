@@ -25,11 +25,15 @@ public class TorznabCapabilities
 
     public bool SupportsMusicSearch { get; set; }
 
+    public bool SupportsBookSearch { get; set; }
+
     public List<string> SupportedTvParams { get; set; } = new();
 
     public List<string> SupportedMovieParams { get; set; } = new();
 
     public List<string> SupportedMusicParams { get; set; } = new();
+
+    public List<string> SupportedBookParams { get; set; } = new();
 
     public int DefaultPageSize { get; set; } = 50;
 

@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -30,9 +31,17 @@ public interface ITorznabClient
         int? ep = null,
         string imdbId = null,
         string tmdbId = null,
-        string searchType = null);
+        string searchType = null,
+        string tvdbId = null,
+        string rid = null,
+        int? year = null,
+        string artist = null,
+        string album = null,
+        string author = null,
+        string isbn = null,
+        System.Threading.CancellationToken cancellationToken = default);
 
-    Task<List<TorznabSearchResult>> FetchRssAsync(IndexerDefinition indexer, int limit = 50);
+    Task<List<TorznabSearchResult>> FetchRssAsync(IndexerDefinition indexer, int limit = 50, System.Threading.CancellationToken cancellationToken = default);
 
     List<TorznabSearchResult> ParseTorznabFeedXml(string xml, IndexerDefinition indexer = null);
 
@@ -89,8 +98,23 @@ public class TorznabClient : ITorznabClient
         { "NZDT", "+13:00" },
     };
 
+    private static readonly ConcurrentDictionary<string, (TorznabCapabilities Caps, DateTime ExpiresAt)> CapabilitiesCache = new(StringComparer.OrdinalIgnoreCase);
+
     private readonly HttpClient httpClient;
     private readonly Logger logger;
+
+    public static TimeSpan CapabilitiesTtl { get; set; } = TimeSpan.FromHours(24);
+
+    public static void ClearCapabilitiesCache()
+    {
+        CapabilitiesCache.Clear();
+    }
+
+    public static void InvalidateCapabilities(string url, string apiKey = null)
+    {
+        var key = GetCapabilitiesCacheKey(url, apiKey);
+        CapabilitiesCache.TryRemove(key, out _);
+    }
 
     public TorznabClient(IHttpTransportEngine transportEngine = null, HttpClient httpClient = null)
     {
@@ -133,7 +157,15 @@ public class TorznabClient : ITorznabClient
         int? ep = null,
         string imdbId = null,
         string tmdbId = null,
-        string searchType = null)
+        string searchType = null,
+        string tvdbId = null,
+        string rid = null,
+        int? year = null,
+        string artist = null,
+        string album = null,
+        string author = null,
+        string isbn = null,
+        System.Threading.CancellationToken cancellationToken = default)
     {
         if (indexer == null || string.IsNullOrWhiteSpace(indexer.Url))
         {
@@ -145,7 +177,16 @@ public class TorznabClient : ITorznabClient
             var uriBuilder = new UriBuilder(indexer.Url);
             var mode = !string.IsNullOrWhiteSpace(searchType)
                 ? searchType
-                : (season.HasValue || ep.HasValue ? "tvsearch" : (!string.IsNullOrWhiteSpace(imdbId) ? "movie" : "search"));
+                : (season.HasValue || ep.HasValue || !string.IsNullOrWhiteSpace(tvdbId) || !string.IsNullOrWhiteSpace(rid)
+                    ? "tvsearch"
+                    : (!string.IsNullOrWhiteSpace(imdbId) || !string.IsNullOrWhiteSpace(tmdbId)
+                        ? "movie"
+                        : (!string.IsNullOrWhiteSpace(artist) || !string.IsNullOrWhiteSpace(album)
+                            ? "music"
+                            : (!string.IsNullOrWhiteSpace(author) || !string.IsNullOrWhiteSpace(isbn)
+                                ? "book"
+                                : "search"))));
+
             var queryParams = $"t={mode}&limit={limit}&offset={offset}";
 
             if (!string.IsNullOrWhiteSpace(query))
@@ -165,12 +206,48 @@ public class TorznabClient : ITorznabClient
 
             if (!string.IsNullOrWhiteSpace(imdbId))
             {
-                queryParams += $"&imdbid={Uri.EscapeDataString(imdbId)}";
+                var normalizedImdb = Regex.Replace(imdbId.Trim(), @"^tt", string.Empty, RegexOptions.IgnoreCase);
+                queryParams += $"&imdbid={Uri.EscapeDataString(normalizedImdb)}";
             }
 
             if (!string.IsNullOrWhiteSpace(tmdbId))
             {
-                queryParams += $"&tmdbid={Uri.EscapeDataString(tmdbId)}";
+                queryParams += $"&tmdbid={Uri.EscapeDataString(tmdbId.Trim())}";
+            }
+
+            if (!string.IsNullOrWhiteSpace(tvdbId))
+            {
+                queryParams += $"&tvdbid={Uri.EscapeDataString(tvdbId.Trim())}";
+            }
+
+            if (!string.IsNullOrWhiteSpace(rid))
+            {
+                queryParams += $"&rid={Uri.EscapeDataString(rid.Trim())}";
+            }
+
+            if (year.HasValue)
+            {
+                queryParams += $"&year={year.Value}";
+            }
+
+            if (!string.IsNullOrWhiteSpace(artist))
+            {
+                queryParams += $"&artist={Uri.EscapeDataString(artist.Trim())}";
+            }
+
+            if (!string.IsNullOrWhiteSpace(album))
+            {
+                queryParams += $"&album={Uri.EscapeDataString(album.Trim())}";
+            }
+
+            if (!string.IsNullOrWhiteSpace(author))
+            {
+                queryParams += $"&author={Uri.EscapeDataString(author.Trim())}";
+            }
+
+            if (!string.IsNullOrWhiteSpace(isbn))
+            {
+                queryParams += $"&isbn={Uri.EscapeDataString(isbn.Trim())}";
             }
 
             if (!string.IsNullOrWhiteSpace(indexer.ApiKey))
@@ -191,7 +268,15 @@ public class TorznabClient : ITorznabClient
 
             this.logger.Debug("Torznab querying: {0}", uriBuilder.Uri);
 
-            var xml = await this.httpClient.GetStringAsync(uriBuilder.Uri);
+            using var request = new HttpRequestMessage(HttpMethod.Get, uriBuilder.Uri);
+            using var response = await this.httpClient.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                this.logger.Warn("Torznab query failed for {0}: HTTP {1}", indexer.Name, response.StatusCode);
+                return new List<TorznabSearchResult>();
+            }
+
+            var xml = await response.Content.ReadAsStringAsync(cancellationToken);
             return this.ParseTorznabFeedXml(xml, indexer);
         }
         catch (Exception ex)
@@ -201,7 +286,7 @@ public class TorznabClient : ITorznabClient
         }
     }
 
-    public async Task<List<TorznabSearchResult>> FetchRssAsync(IndexerDefinition indexer, int limit = 50)
+    public async Task<List<TorznabSearchResult>> FetchRssAsync(IndexerDefinition indexer, int limit = 50, System.Threading.CancellationToken cancellationToken = default)
     {
         if (indexer == null || string.IsNullOrWhiteSpace(indexer.Url))
         {
@@ -225,7 +310,15 @@ public class TorznabClient : ITorznabClient
 
             MergeQueryParams(uriBuilder, queryParams);
 
-            var xml = await this.httpClient.GetStringAsync(uriBuilder.Uri);
+            using var request = new HttpRequestMessage(HttpMethod.Get, uriBuilder.Uri);
+            using var response = await this.httpClient.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                this.logger.Warn("Failed to fetch RSS from Torznab indexer: {0}: HTTP {1}", indexer.Name, response.StatusCode);
+                return new List<TorznabSearchResult>();
+            }
+
+            var xml = await response.Content.ReadAsStringAsync(cancellationToken);
             return this.ParseTorznabFeedXml(xml, indexer);
         }
         catch (Exception ex)
@@ -723,6 +816,13 @@ public class TorznabClient : ITorznabClient
             return new TorznabCapabilities();
         }
 
+        var cacheKey = GetCapabilitiesCacheKey(indexer.Url, indexer.ApiKey);
+        if (CapabilitiesCache.TryGetValue(cacheKey, out var cached) && cached.ExpiresAt > DateTime.UtcNow && cached.Caps != null)
+        {
+            this.logger.Debug("Torznab capabilities cache hit for: {0}", indexer.Name ?? indexer.Url);
+            return cached.Caps;
+        }
+
         try
         {
             var uriBuilder = new UriBuilder(indexer.Url);
@@ -745,7 +845,9 @@ public class TorznabClient : ITorznabClient
             }
 
             var xml = await response.Content.ReadAsStringAsync(cancellationToken);
-            return this.ParseCapabilitiesXml(xml);
+            var caps = this.ParseCapabilitiesXml(xml);
+            CapabilitiesCache[cacheKey] = (caps, DateTime.UtcNow.Add(CapabilitiesTtl));
+            return caps;
         }
         catch (Exception ex)
         {
@@ -773,11 +875,12 @@ public class TorznabClient : ITorznabClient
             }
 
             // Limits
-            var limitsElem = capsElem.Element("limits") ?? capsElem.Element("server");
+            var limitsElem = FindElement(capsElem, "limits") ?? FindElement(capsElem, "server")
+                ?? FindDescendant(capsElem, "limits") ?? FindDescendant(capsElem, "server");
             if (limitsElem != null)
             {
-                var defaultAttr = limitsElem.Attribute("default")?.Value;
-                var maxAttr = limitsElem.Attribute("max")?.Value;
+                var defaultAttr = GetAttributeValue(limitsElem, "default");
+                var maxAttr = GetAttributeValue(limitsElem, "max");
                 if (!string.IsNullOrEmpty(defaultAttr))
                 {
                     capabilities.DefaultPageSize = ParseInt(defaultAttr, capabilities.DefaultPageSize);
@@ -790,57 +893,68 @@ public class TorznabClient : ITorznabClient
             }
 
             // Searching modes
-            var searchingElem = capsElem.Element("searching");
+            var searchingElem = FindElement(capsElem, "searching") ?? FindDescendant(capsElem, "searching");
             if (searchingElem != null)
             {
-                var searchMode = searchingElem.Element("search");
+                var searchMode = FindElement(searchingElem, "search");
                 if (searchMode != null)
                 {
-                    capabilities.SupportsSearch = string.Equals(searchMode.Attribute("available")?.Value, "yes", StringComparison.OrdinalIgnoreCase);
+                    capabilities.SupportsSearch = string.Equals(GetAttributeValue(searchMode, "available"), "yes", StringComparison.OrdinalIgnoreCase);
                 }
 
-                var tvMode = searchingElem.Element("tv-search");
+                var tvMode = FindElement(searchingElem, "tv-search") ?? FindElement(searchingElem, "tvsearch");
                 if (tvMode != null)
                 {
-                    capabilities.SupportsTvSearch = string.Equals(tvMode.Attribute("available")?.Value, "yes", StringComparison.OrdinalIgnoreCase);
-                    var tvParams = tvMode.Attribute("supportedParams")?.Value;
+                    capabilities.SupportsTvSearch = string.Equals(GetAttributeValue(tvMode, "available"), "yes", StringComparison.OrdinalIgnoreCase);
+                    var tvParams = GetAttributeValue(tvMode, "supportedParams");
                     if (!string.IsNullOrEmpty(tvParams))
                     {
-                        capabilities.SupportedTvParams = tvParams.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()).ToList();
+                        capabilities.SupportedTvParams = tvParams.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
                     }
                 }
 
-                var movieMode = searchingElem.Element("movie-search");
+                var movieMode = FindElement(searchingElem, "movie-search") ?? FindElement(searchingElem, "moviesearch");
                 if (movieMode != null)
                 {
-                    capabilities.SupportsMovieSearch = string.Equals(movieMode.Attribute("available")?.Value, "yes", StringComparison.OrdinalIgnoreCase);
-                    var movieParams = movieMode.Attribute("supportedParams")?.Value;
+                    capabilities.SupportsMovieSearch = string.Equals(GetAttributeValue(movieMode, "available"), "yes", StringComparison.OrdinalIgnoreCase);
+                    var movieParams = GetAttributeValue(movieMode, "supportedParams");
                     if (!string.IsNullOrEmpty(movieParams))
                     {
-                        capabilities.SupportedMovieParams = movieParams.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()).ToList();
+                        capabilities.SupportedMovieParams = movieParams.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
                     }
                 }
 
-                var musicMode = searchingElem.Element("music-search");
+                var musicMode = FindElement(searchingElem, "music-search") ?? FindElement(searchingElem, "musicsearch");
                 if (musicMode != null)
                 {
-                    capabilities.SupportsMusicSearch = string.Equals(musicMode.Attribute("available")?.Value, "yes", StringComparison.OrdinalIgnoreCase);
-                    var musicParams = musicMode.Attribute("supportedParams")?.Value;
+                    capabilities.SupportsMusicSearch = string.Equals(GetAttributeValue(musicMode, "available"), "yes", StringComparison.OrdinalIgnoreCase);
+                    var musicParams = GetAttributeValue(musicMode, "supportedParams");
                     if (!string.IsNullOrEmpty(musicParams))
                     {
-                        capabilities.SupportedMusicParams = musicParams.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()).ToList();
+                        capabilities.SupportedMusicParams = musicParams.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+                    }
+                }
+
+                var bookMode = FindElement(searchingElem, "book-search") ?? FindElement(searchingElem, "booksearch");
+                if (bookMode != null)
+                {
+                    capabilities.SupportsBookSearch = string.Equals(GetAttributeValue(bookMode, "available"), "yes", StringComparison.OrdinalIgnoreCase);
+                    var bookParams = GetAttributeValue(bookMode, "supportedParams");
+                    if (!string.IsNullOrEmpty(bookParams))
+                    {
+                        capabilities.SupportedBookParams = bookParams.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
                     }
                 }
             }
 
             // Categories
-            var categoriesElem = capsElem.Element("categories");
+            var categoriesElem = FindElement(capsElem, "categories") ?? FindDescendant(capsElem, "categories");
             if (categoriesElem != null)
             {
-                foreach (var catElem in categoriesElem.Elements("category"))
+                foreach (var catElem in FindElements(categoriesElem, "category"))
                 {
-                    var idStr = catElem.Attribute("id")?.Value;
-                    var name = WebUtility.HtmlDecode(catElem.Attribute("name")?.Value ?? string.Empty);
+                    var idStr = GetAttributeValue(catElem, "id");
+                    var name = WebUtility.HtmlDecode(GetAttributeValue(catElem, "name") ?? string.Empty);
                     var id = ParseInt(idStr, -1);
                     if (id < 0)
                     {
@@ -853,10 +967,11 @@ public class TorznabClient : ITorznabClient
                         Name = name,
                     };
 
-                    foreach (var subcatElem in catElem.Elements("subcat"))
+                    var subcats = FindElements(catElem, "subcat").Concat(FindElements(catElem, "subcategory"));
+                    foreach (var subcatElem in subcats)
                     {
-                        var subIdStr = subcatElem.Attribute("id")?.Value;
-                        var subName = WebUtility.HtmlDecode(subcatElem.Attribute("name")?.Value ?? string.Empty);
+                        var subIdStr = GetAttributeValue(subcatElem, "id");
+                        var subName = WebUtility.HtmlDecode(GetAttributeValue(subcatElem, "name") ?? string.Empty);
                         var subId = ParseInt(subIdStr, -1);
                         if (subId >= 0)
                         {
@@ -922,6 +1037,8 @@ public class TorznabClient : ITorznabClient
                 if (capsContent.Contains("<caps", StringComparison.OrdinalIgnoreCase))
                 {
                     var caps = this.ParseCapabilitiesXml(capsContent);
+                    var cacheKey = GetCapabilitiesCacheKey(indexer.Url, indexer.ApiKey);
+                    CapabilitiesCache[cacheKey] = (caps, DateTime.UtcNow.Add(CapabilitiesTtl));
                     return TorznabTestResult.Ok(caps);
                 }
             }
@@ -976,6 +1093,43 @@ public class TorznabClient : ITorznabClient
             this.logger.Warn(ex, "Torznab connection test failed for {0} ({1})", indexer.Name, indexer.Url);
             return TorznabTestResult.Fail(ex.Message);
         }
+    }
+
+    internal static string GetCapabilitiesCacheKey(string url, string apiKey)
+    {
+        var cleanUrl = (url ?? string.Empty).Trim().TrimEnd('/');
+        var cleanKey = (apiKey ?? string.Empty).Trim();
+        return $"{cleanUrl}|{cleanKey}";
+    }
+
+    private static XElement FindElement(XContainer container, string localName)
+    {
+        return container?.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, localName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static XElement FindDescendant(XContainer container, string localName)
+    {
+        return container?.Descendants().FirstOrDefault(e => string.Equals(e.Name.LocalName, localName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static IEnumerable<XElement> FindElements(XContainer container, string localName)
+    {
+        if (container == null)
+        {
+            return Enumerable.Empty<XElement>();
+        }
+
+        return container.Elements().Where(e => string.Equals(e.Name.LocalName, localName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string GetAttributeValue(XElement elem, string localName)
+    {
+        if (elem == null)
+        {
+            return null;
+        }
+
+        return elem.Attributes().FirstOrDefault(a => string.Equals(a.Name.LocalName, localName, StringComparison.OrdinalIgnoreCase))?.Value;
     }
 
     private static void MergeQueryParams(UriBuilder uriBuilder, string queryParams)
