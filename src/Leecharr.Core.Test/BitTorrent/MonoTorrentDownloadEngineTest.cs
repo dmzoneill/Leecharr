@@ -2345,5 +2345,88 @@ public class MonoTorrentDownloadEngineTest
         }
     }
 
+    [Test]
+    public void BoundSocketConnector_CreateDatagramSocket_CreatesAndBindsUdpSocket()
+    {
+        var connector = new BoundSocketConnector(
+            () => IPAddress.Loopback,
+            () => IPAddress.IPv6Loopback);
+
+        using var udpSocket = connector.CreateDatagramSocket(System.Net.Sockets.AddressFamily.InterNetwork);
+
+        udpSocket.Should().NotBeNull();
+        udpSocket.SocketType.Should().Be(System.Net.Sockets.SocketType.Dgram);
+        udpSocket.ProtocolType.Should().Be(System.Net.Sockets.ProtocolType.Udp);
+        udpSocket.IsBound.Should().BeTrue();
+        ((IPEndPoint)udpSocket.LocalEndPoint!).Address.Should().Be(IPAddress.Loopback);
+    }
+
+    [Test]
+    public void BoundSocketConnector_CreateDatagramSocket_WhenLocalIpv4IsNull_ThrowsNetworkUnreachable()
+    {
+        var connector = new BoundSocketConnector(
+            () => (IPAddress)null,
+            () => IPAddress.IPv6Any);
+
+        var act = () => connector.CreateDatagramSocket(System.Net.Sockets.AddressFamily.InterNetwork);
+
+        act.Should().Throw<System.Net.Sockets.SocketException>()
+            .Where(e => e.SocketErrorCode == System.Net.Sockets.SocketError.NetworkUnreachable);
+    }
+
+    [Test]
+    public void BoundSocketConnector_CreateBoundSocket_WithDeviceBinding_InvokesNetworkBindingService()
+    {
+        var mockBindingService = Substitute.For<NzbDrone.Core.Network.Binding.INetworkBindingService>();
+        var connector = new BoundSocketConnector(
+            () => IPAddress.Any,
+            () => IPAddress.IPv6Any,
+            mockBindingService,
+            () => "wg0");
+
+        using var udpSocket = connector.CreateBoundSocket(
+            System.Net.Sockets.AddressFamily.InterNetwork,
+            System.Net.Sockets.SocketType.Dgram,
+            System.Net.Sockets.ProtocolType.Udp);
+
+        udpSocket.Should().NotBeNull();
+        mockBindingService.Received(1).BindSocket(udpSocket, "wg0");
+    }
+
+    [Test]
+    public async Task BoundSocketConnector_ConnectAsync_WithUtpScheme_ConnectsUdpDatagramSocket()
+    {
+        using var udpListener = new System.Net.Sockets.UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var port = ((IPEndPoint)udpListener.Client.LocalEndPoint!).Port;
+
+        var connector = new BoundSocketConnector(
+            () => IPAddress.Loopback,
+            () => IPAddress.IPv6Loopback);
+
+        using var socket = await connector.ConnectAsync(new Uri($"utp://127.0.0.1:{port}"), CancellationToken.None);
+
+        socket.Should().NotBeNull();
+        socket.SocketType.Should().Be(System.Net.Sockets.SocketType.Dgram);
+        socket.ProtocolType.Should().Be(System.Net.Sockets.ProtocolType.Udp);
+        socket.Connected.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task MonoTorrentDownloadEngine_StartsSuccessfully_WithBepConfigs()
+    {
+        this.configService.ExtensionFastExtension.Returns(true);
+        this.configService.UtpEnabled.Returns(true);
+        this.configService.TcpFallback.Returns(true);
+        this.configService.ExtensionLtDontHave.Returns(true);
+        this.configService.TransportConnectionTimeoutSeconds.Returns(45);
+
+        await this.engine.StartAsync();
+
+        this.engine.IsAvailable.Should().BeTrue();
+        this.engine.IsHaltedByKillSwitch.Should().BeFalse();
+
+        await this.engine.StopAsync();
+    }
+
     #endregion
 }

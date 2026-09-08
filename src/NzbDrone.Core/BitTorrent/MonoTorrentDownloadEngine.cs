@@ -390,12 +390,14 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             AllowPortForwarding = this.configService.UpnpEnabled,
             AllowLocalPeerDiscovery = this.configService.EnableLpd,
+            AllowHaveSuppression = this.configService.ExtensionLtDontHave,
             AllowedEncryption = allowedEncryption,
             AutoSaveLoadFastResume = true,
             AutoSaveLoadDhtCache = true,
             UsePartialFiles = this.configService.AppendIncompleteExtension,
             DhtEndPoint = this.configService.EnableDht ? new IPEndPoint(listenIp, port) : null,
             CacheDirectory = cacheDir,
+            ConnectionTimeout = TimeSpan.FromSeconds(this.configService.TransportConnectionTimeoutSeconds > 0 ? this.configService.TransportConnectionTimeoutSeconds : 30),
             DiskCacheBytes = this.configService.DiskWriteCacheSizeMb > 0
                 ? this.configService.DiskWriteCacheSizeMb * 1024 * 1024
                 : (this.configService.DiskCacheBytes > 0 ? this.configService.DiskCacheBytes : 128 * 1024 * 1024),
@@ -404,6 +406,14 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             MaximumUploadRate = this.configService.MaxUploadSpeedKbps > 0 ? this.configService.MaxUploadSpeedKbps * 1024 : 0,
             ListenEndPoints = listenEndPoints,
         };
+
+        this.logger.Info(
+            "Configured protocol extensions: FastExtension={0}, uTP={1}, TcpFallback={2}, HaveSuppression={3}, Timeout={4}s",
+            this.configService.ExtensionFastExtension,
+            this.configService.UtpEnabled,
+            this.configService.TcpFallback,
+            this.configService.ExtensionLtDontHave,
+            this.configService.TransportConnectionTimeoutSeconds);
 
         var engineSettings = engineSettingsBuilder.ToSettings();
         var factories = Factories.Default;
@@ -3188,12 +3198,96 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
         this.getInterfaceName = getInterfaceName ?? (() => null);
     }
 
+    public Socket CreateDatagramSocket(AddressFamily addressFamily = AddressFamily.InterNetwork, int localPort = 0)
+    {
+        return this.CreateBoundSocket(addressFamily, SocketType.Dgram, ProtocolType.Udp, localPort);
+    }
+
+    public Socket CreateBoundSocket(AddressFamily addressFamily, SocketType socketType, ProtocolType protocolType, int localPort = 0)
+    {
+        var localV4 = this.getLocalIpv4();
+        var localV6 = this.getLocalIpv6();
+
+        if (addressFamily == AddressFamily.InterNetwork && localV4 == null)
+        {
+            throw new SocketException((int)SocketError.NetworkUnreachable);
+        }
+
+        if (addressFamily == AddressFamily.InterNetworkV6 && localV6 == null)
+        {
+            throw new SocketException((int)SocketError.NetworkUnreachable);
+        }
+
+        var socket = new Socket(addressFamily, socketType, protocolType);
+        try
+        {
+            this.BindSocket(socket, localPort);
+            return socket;
+        }
+        catch
+        {
+            socket.Dispose();
+            throw;
+        }
+    }
+
+    public void BindSocket(Socket socket, int localPort = 0)
+    {
+        ArgumentNullException.ThrowIfNull(socket);
+
+        var ifaceName = this.getInterfaceName?.Invoke();
+        if (this.networkBindingService != null && !string.IsNullOrWhiteSpace(ifaceName))
+        {
+            this.networkBindingService.BindSocket(socket, ifaceName);
+        }
+
+        var localV4 = this.getLocalIpv4();
+        var localV6 = this.getLocalIpv6();
+
+        if (socket.AddressFamily == AddressFamily.InterNetwork)
+        {
+            if (localV4 == null)
+            {
+                throw new SocketException((int)SocketError.NetworkUnreachable);
+            }
+
+            if (!localV4.Equals(IPAddress.Any) && !localV4.Equals(IPAddress.None))
+            {
+                socket.Bind(new IPEndPoint(localV4, localPort));
+            }
+            else if (localPort > 0)
+            {
+                socket.Bind(new IPEndPoint(IPAddress.Any, localPort));
+            }
+        }
+        else if (socket.AddressFamily == AddressFamily.InterNetworkV6)
+        {
+            if (localV6 == null)
+            {
+                throw new SocketException((int)SocketError.NetworkUnreachable);
+            }
+
+            if (!localV6.Equals(IPAddress.IPv6Any) && !localV6.Equals(IPAddress.None))
+            {
+                socket.Bind(new IPEndPoint(localV6, localPort));
+            }
+            else if (localPort > 0)
+            {
+                socket.Bind(new IPEndPoint(IPAddress.IPv6Any, localPort));
+            }
+        }
+    }
+
     public async ReusableTasks.ReusableTask<System.Net.Sockets.Socket> ConnectAsync(Uri uri, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(uri);
 
+        var isDatagram = string.Equals(uri.Scheme, "udp", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(uri.Scheme, "utp", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(uri.Scheme, "dgram", StringComparison.OrdinalIgnoreCase);
+
         var activeProvider = this.networkBindingService?.ActiveProvider;
-        if (activeProvider is IProxyTunnelBindingProvider proxyProvider)
+        if (!isDatagram && activeProvider is IProxyTunnelBindingProvider proxyProvider)
         {
             return await proxyProvider.ConnectTunnelAsync(uri.Host, uri.Port, token).ConfigureAwait(false);
         }
@@ -3213,6 +3307,9 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
         var ifaceName = this.getInterfaceName?.Invoke();
 
         Exception lastException = null;
+        var socketType = isDatagram ? SocketType.Dgram : SocketType.Stream;
+        var protocolType = isDatagram ? ProtocolType.Udp : ProtocolType.Tcp;
+
         foreach (var address in addresses)
         {
             if (token.IsCancellationRequested)
@@ -3220,7 +3317,17 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
                 break;
             }
 
-            var socket = new System.Net.Sockets.Socket(address.AddressFamily, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp);
+            if (address.AddressFamily == AddressFamily.InterNetwork && localV4 == null)
+            {
+                throw new SocketException((int)SocketError.NetworkUnreachable);
+            }
+
+            if (address.AddressFamily == AddressFamily.InterNetworkV6 && localV6 == null)
+            {
+                throw new SocketException((int)SocketError.NetworkUnreachable);
+            }
+
+            var socket = new System.Net.Sockets.Socket(address.AddressFamily, socketType, protocolType);
             try
             {
                 if (this.networkBindingService != null && !string.IsNullOrWhiteSpace(ifaceName))
@@ -3231,24 +3338,14 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
                 {
                     if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
                     {
-                        if (localV4 == null)
-                        {
-                            throw new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.NetworkUnreachable);
-                        }
-
-                        if (!localV4.Equals(IPAddress.Any) && !localV4.Equals(IPAddress.None))
+                        if (localV4 != null && !localV4.Equals(IPAddress.Any) && !localV4.Equals(IPAddress.None))
                         {
                             socket.Bind(new IPEndPoint(localV4, 0));
                         }
                     }
                     else if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
                     {
-                        if (localV6 == null)
-                        {
-                            throw new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.NetworkUnreachable);
-                        }
-
-                        if (!localV6.Equals(IPAddress.IPv6Any) && !localV6.Equals(IPAddress.None))
+                        if (localV6 != null && !localV6.Equals(IPAddress.IPv6Any) && !localV6.Equals(IPAddress.None))
                         {
                             socket.Bind(new IPEndPoint(localV6, 0));
                         }

@@ -896,4 +896,76 @@ public class PiecePickerTest
     }
 
     #endregion
+
+    #region BEP 6 Fast Extension RejectRequest Tests
+
+    [Test]
+    public void RejectRequest_ImmediatelyEvictsInFlightBlock_WithoutWaitingForTimeout()
+    {
+        // 50 pieces, 16KB each, long timeout of 30 seconds
+        var picker = new PiecePicker(50, 16384, 819200, requestTimeout: TimeSpan.FromSeconds(30));
+        var fullBitfield = Enumerable.Repeat(true, 50).ToArray();
+
+        // Peer A requests 1 block -> piece 0 block 0
+        var requestA = picker.PickBlocks(fullBitfield, 1, peerId: "peerA");
+        requestA.Should().HaveCount(1);
+        picker.InFlightBlockCount.Should().Be(1);
+
+        // Another peer attempts to pick: block is in flight, so it gets piece 1 block 0
+        var nextReq = picker.PickBlocks(fullBitfield, 1, peerId: "peerB");
+        nextReq.Should().HaveCount(1);
+        nextReq[0].PieceIndex.Should().NotBe(requestA[0].PieceIndex);
+
+        // Peer A rejects the request (BEP 6 Reject Request)
+        picker.RejectRequest(requestA[0].PieceIndex, requestA[0].BlockOffset);
+
+        // In-flight count decreases immediately without waiting 30 seconds
+        picker.InFlightBlockCount.Should().Be(1); // Only peerB's block remains in flight
+
+        // Now piece 0 block 0 is immediately pickable again by peer C
+        var retryReq = picker.PickBlocks(fullBitfield, 1, peerId: "peerC");
+        retryReq.Should().HaveCount(1);
+        retryReq[0].PieceIndex.Should().Be(requestA[0].PieceIndex);
+        retryReq[0].BlockOffset.Should().Be(requestA[0].BlockOffset);
+    }
+
+    [Test]
+    public void RejectRequest_WithPeerId_EvictsInFlightBlockForThatSpecificPeer()
+    {
+        var picker = new PiecePicker(2, 16384, 32768);
+        var fullBitfield = new[] { true, true };
+
+        // Enter endgame mode so both peers can request block 0:0
+        picker.PickBlocks(fullBitfield, 2, peerId: "peerA");
+        picker.PickBlocks(fullBitfield, 2, peerId: "peerB");
+
+        picker.GetDuplicateInFlightPeers(0, 0).Should().Contain(new[] { "peerA", "peerB" });
+
+        // Peer A rejects the request
+        picker.RejectRequest(0, 0, peerId: "peerA");
+
+        // Peer A is removed from in-flight tracking for block 0:0, but peerB remains
+        var remainingPeers = picker.GetDuplicateInFlightPeers(0, 0);
+        remainingPeers.Should().ContainSingle().Which.Should().Be("peerB");
+    }
+
+    [Test]
+    public void RejectRequest_WithLengthOverload_EvictsInFlightBlock()
+    {
+        var picker = new PiecePicker(10, 16384, 163840);
+        var fullBitfield = Enumerable.Repeat(true, 10).ToArray();
+
+        var requests = picker.PickBlocks(fullBitfield, 1, peerId: "peerA");
+        requests.Should().HaveCount(1);
+        picker.InFlightBlockCount.Should().Be(1);
+
+        picker.RejectRequest(requests[0].PieceIndex, requests[0].BlockOffset, requests[0].BlockLength, "peerA");
+        picker.InFlightBlockCount.Should().Be(0);
+
+        var retry = picker.PickBlocks(fullBitfield, 1, peerId: "peerB");
+        retry.Should().HaveCount(1);
+        retry[0].PieceIndex.Should().Be(requests[0].PieceIndex);
+    }
+
+    #endregion
 }
