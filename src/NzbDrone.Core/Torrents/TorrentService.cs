@@ -22,6 +22,7 @@ namespace NzbDrone.Core.Torrents;
 
 public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedEvent>, IHandle<CategoryUpdatedEvent>, IHandle<CategoryDeletedEvent>
 {
+    private static readonly SemaphoreSlim QueueLock = new(1, 1);
     private readonly ConcurrentDictionary<int, long> lastSeenSessionUploaded = new();
     private readonly ConcurrentDictionary<int, SemaphoreSlim> deletionLocks = new ConcurrentDictionary<int, SemaphoreSlim>();
     private readonly ITorrentRepository torrentRepository;
@@ -875,50 +876,66 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
     public async Task MoveQueueAsync(int id, string position)
     {
-        var torrent = this.torrentRepository.Get(id);
-        if (torrent == null)
+        await QueueLock.WaitAsync();
+        try
         {
-            return;
+            var torrent = this.torrentRepository.Get(id);
+            if (torrent == null)
+            {
+                return;
+            }
+
+            var allTorrents = this.torrentRepository.All().OrderBy(t => t.QueuePosition).ToList();
+            var index = allTorrents.FindIndex(t => t.Id == id);
+            if (index < 0)
+            {
+                return;
+            }
+
+            allTorrents.RemoveAt(index);
+
+            switch (position?.ToLowerInvariant())
+            {
+                case "top":
+                    allTorrents.Insert(0, torrent);
+                    break;
+                case "up":
+                    allTorrents.Insert(Math.Max(0, index - 1), torrent);
+                    break;
+                case "down":
+                    allTorrents.Insert(Math.Min(allTorrents.Count, index + 1), torrent);
+                    break;
+                case "bottom":
+                    allTorrents.Add(torrent);
+                    break;
+                default:
+                    allTorrents.Insert(index, torrent);
+                    break;
+            }
+
+            for (var i = 0; i < allTorrents.Count; i++)
+            {
+                allTorrents[i].QueuePosition = i + 1;
+            }
+
+            this.torrentRepository.UpdateMany(allTorrents);
+
+            if (this.eventAggregator != null)
+            {
+                foreach (var t in allTorrents)
+                {
+                    this.eventAggregator.PublishEvent(new TorrentUpdatedEvent { Torrent = t });
+                }
+            }
+
+            if (this.queueManagerService != null)
+            {
+                await this.queueManagerService.ProcessQueueAsync();
+            }
         }
-
-        var allTorrents = this.torrentRepository.All().OrderBy(t => t.QueuePosition).ToList();
-        var index = allTorrents.FindIndex(t => t.Id == id);
-        if (index < 0)
+        finally
         {
-            return;
-        }
-
-        allTorrents.RemoveAt(index);
-
-        switch (position?.ToLowerInvariant())
-        {
-            case "top":
-                allTorrents.Insert(0, torrent);
-                break;
-            case "up":
-                allTorrents.Insert(Math.Max(0, index - 1), torrent);
-                break;
-            case "down":
-                allTorrents.Insert(Math.Min(allTorrents.Count, index + 1), torrent);
-                break;
-            case "bottom":
-                allTorrents.Add(torrent);
-                break;
-            default:
-                allTorrents.Insert(index, torrent);
-                break;
-        }
-
-        for (var i = 0; i < allTorrents.Count; i++)
-        {
-            allTorrents[i].QueuePosition = i + 1;
-        }
-
-        this.torrentRepository.UpdateMany(allTorrents);
-
-        if (this.queueManagerService != null)
-        {
-            await this.queueManagerService.ProcessQueueAsync();
+            QueueLock.Release();
         }
     }
 
