@@ -25,18 +25,13 @@ public static class NativePty
     public static extern int Ioctl(int fd, ulong request, ref Winsize winp);
 
     [DllImport("libc", EntryPoint = "chdir", SetLastError = true)]
-    public static extern int Chdir([MarshalAs(UnmanagedType.LPUTF8Str)] string path);
+    public static extern int Chdir(IntPtr path);
 
-    [DllImport("libc", EntryPoint = "setenv", SetLastError = true)]
-    public static extern int Setenv(
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string value,
-        int overwrite);
+    [DllImport("libc", EntryPoint = "execve", SetLastError = true)]
+    public static extern int ExecveRaw(IntPtr file, IntPtr argv, IntPtr envp);
 
     [DllImport("libc", EntryPoint = "execvp", SetLastError = true)]
-    public static extern int ExecvpRaw(
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string file,
-        IntPtr argv);
+    public static extern int ExecvpRaw(IntPtr file, IntPtr argv);
 
     [DllImport("libc", EntryPoint = "read", SetLastError = true)]
     public static extern nint Read(int fd, [Out] byte[] buf, nuint count);
@@ -55,33 +50,4 @@ public static class NativePty
 
     [DllImport("libc", EntryPoint = "_exit", SetLastError = true)]
     public static extern void Exit(int status);
-
-    public static void ExecCommand(string command, string[] arguments)
-    {
-        var argPointers = new IntPtr[arguments.Length + 2];
-        argPointers[0] = Marshal.StringToHGlobalAnsi(command);
-        for (int i = 0; i < arguments.Length; i++)
-        {
-            argPointers[i + 1] = Marshal.StringToHGlobalAnsi(arguments[i]);
-        }
-
-        argPointers[^1] = IntPtr.Zero;
-
-        GCHandle handle = GCHandle.Alloc(argPointers, GCHandleType.Pinned);
-        try
-        {
-            ExecvpRaw(command, handle.AddrOfPinnedObject());
-        }
-        finally
-        {
-            handle.Free();
-            foreach (var ptr in argPointers)
-            {
-                if (ptr != IntPtr.Zero)
-                {
-                    Marshal.FreeHGlobal(ptr);
-                }
-            }
-        }
-    }
 }
