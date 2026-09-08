@@ -80,6 +80,7 @@ public class Startup
         services.AddHttpClient();
         services.AddSingleton<Leecharr.Http.Terminal.IPtyTerminalService, Leecharr.Http.Terminal.PtyTerminalService>();
         services.AddScoped<Leecharr.Http.Authentication.ICookieSessionManager, Leecharr.Http.Authentication.CookieSessionManager>();
+        services.AddScoped<NzbDrone.Core.Authentication.IUserSessionCache>(sp => sp.GetRequiredService<Leecharr.Http.Authentication.ICookieSessionManager>());
         services.AddScoped<Leecharr.Http.Authentication.CookieSessionAuthenticationEvents>();
         services.AddSingleton<NzbDrone.Core.Authentication.ISessionCleanupTask, NzbDrone.Core.Authentication.SessionCleanupTask>();
 

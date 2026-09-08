@@ -2,6 +2,8 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
@@ -12,15 +14,11 @@ using NzbDrone.Core.Authentication;
 
 namespace Leecharr.Http.Authentication;
 
-public interface ICookieSessionManager
+public interface ICookieSessionManager : IUserSessionCache
 {
     Task ValidatePrincipal(CookieValidatePrincipalContext context);
 
     bool ValidateSession(ClaimsPrincipal principal);
-
-    void InvalidateCache(string token);
-
-    void ClearCache();
 }
 
 public class CookieSessionManager : ICookieSessionManager
@@ -28,17 +26,29 @@ public class CookieSessionManager : ICookieSessionManager
     private static readonly ConcurrentDictionary<string, (UserSession Session, DateTime CachedAt)> SharedCache = new();
     private readonly ConcurrentDictionary<string, (UserSession Session, DateTime CachedAt)> sessionCache;
     private readonly IUserSessionRepository userSessionRepository;
+    private readonly IUserRepository userRepository;
     private readonly TimeSpan cacheTtl;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public CookieSessionManager(
         IUserSessionRepository userSessionRepository = null,
         TimeSpan? cacheTtl = null,
-        ConcurrentDictionary<string, (UserSession Session, DateTime CachedAt)> cache = null)
+        ConcurrentDictionary<string, (UserSession Session, DateTime CachedAt)> cache = null,
+        IUserRepository userRepository = null)
     {
         this.userSessionRepository = userSessionRepository;
+        this.userRepository = userRepository;
         this.cacheTtl = cacheTtl ?? TimeSpan.FromMinutes(1);
         this.sessionCache = cache ?? SharedCache;
+    }
+
+    public CookieSessionManager(
+        IUserSessionRepository userSessionRepository,
+        IUserRepository userRepository,
+        TimeSpan? cacheTtl = null,
+        ConcurrentDictionary<string, (UserSession Session, DateTime CachedAt)> cache = null)
+        : this(userSessionRepository, cacheTtl, cache, userRepository)
+    {
     }
 
     public async Task ValidatePrincipal(CookieValidatePrincipalContext context)
@@ -70,6 +80,8 @@ public class CookieSessionManager : ICookieSessionManager
 
         var repository = this.userSessionRepository ??
                          context.HttpContext?.RequestServices?.GetService<IUserSessionRepository>();
+        var userRepo = this.userRepository ??
+                       context.HttpContext?.RequestServices?.GetService<IUserRepository>();
 
         if (repository == null)
         {
@@ -100,6 +112,41 @@ public class CookieSessionManager : ICookieSessionManager
             context.RejectPrincipal();
             await this.SignOutSafelyAsync(context);
             return;
+        }
+
+        if (userRepo != null && session.UserId > 0)
+        {
+            var user = userRepo.Get(session.UserId);
+            if (user == null)
+            {
+                this.sessionCache.TryRemove(token, out _);
+                this.logger.Warn("Rejecting session '{0}' for deleted or non-existent user {1}.", token, session.UserId);
+                context.RejectPrincipal();
+                await this.SignOutSafelyAsync(context);
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(user.Roles))
+            {
+                try
+                {
+                    var userRoles = System.Text.Json.JsonSerializer.Deserialize<List<string>>(user.Roles) ?? new List<string>();
+                    var principalRoles = userPrincipal.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+
+                    if (principalRoles.Any(r => !userRoles.Contains(r, StringComparer.OrdinalIgnoreCase)))
+                    {
+                        this.sessionCache.TryRemove(token, out _);
+                        this.logger.Warn("Rejecting session '{0}' for user {1} due to role mismatch or demotion.", token, session.UserId);
+                        context.RejectPrincipal();
+                        await this.SignOutSafelyAsync(context);
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to parse roles for user {0}", session.UserId);
+                }
+            }
         }
 
         var isPersistent = context.Properties?.IsPersistent == true ||
@@ -168,7 +215,41 @@ public class CookieSessionManager : ICookieSessionManager
 
         if (this.sessionCache.TryGetValue(token, out var cached) && now - cached.CachedAt < this.cacheTtl)
         {
-            return cached.Session != null && !cached.Session.IsRevoked && cached.Session.Expiry >= now && cached.Session.AbsoluteExpiry >= now;
+            if (cached.Session == null || cached.Session.IsRevoked || cached.Session.Expiry < now || cached.Session.AbsoluteExpiry < now)
+            {
+                return false;
+            }
+
+            if (this.userRepository != null && cached.Session.UserId > 0)
+            {
+                var cachedUser = this.userRepository.Get(cached.Session.UserId);
+                if (cachedUser == null)
+                {
+                    this.sessionCache.TryRemove(token, out _);
+                    return false;
+                }
+
+                if (!string.IsNullOrWhiteSpace(cachedUser.Roles))
+                {
+                    try
+                    {
+                        var userRoles = System.Text.Json.JsonSerializer.Deserialize<List<string>>(cachedUser.Roles) ?? new List<string>();
+                        var principalRoles = principal.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+
+                        if (principalRoles.Any(r => !userRoles.Contains(r, StringComparer.OrdinalIgnoreCase)))
+                        {
+                            this.sessionCache.TryRemove(token, out _);
+                            return false;
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore JSON parsing errors
+                    }
+                }
+            }
+
+            return true;
         }
 
         var session = this.userSessionRepository.FindBySessionToken(token);
@@ -177,7 +258,41 @@ public class CookieSessionManager : ICookieSessionManager
             this.sessionCache[token] = (session, now);
         }
 
-        return session != null && !session.IsRevoked && session.Expiry >= now && session.AbsoluteExpiry >= now;
+        if (session == null || session.IsRevoked || session.Expiry < now || session.AbsoluteExpiry < now)
+        {
+            return false;
+        }
+
+        if (this.userRepository != null && session.UserId > 0)
+        {
+            var user = this.userRepository.Get(session.UserId);
+            if (user == null)
+            {
+                this.sessionCache.TryRemove(token, out _);
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(user.Roles))
+            {
+                try
+                {
+                    var userRoles = System.Text.Json.JsonSerializer.Deserialize<List<string>>(user.Roles) ?? new List<string>();
+                    var principalRoles = principal.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+
+                    if (principalRoles.Any(r => !userRoles.Contains(r, StringComparer.OrdinalIgnoreCase)))
+                    {
+                        this.sessionCache.TryRemove(token, out _);
+                        return false;
+                    }
+                }
+                catch
+                {
+                    // Ignore JSON parsing errors
+                }
+            }
+        }
+
+        return true;
     }
 
     public void InvalidateCache(string token)
