@@ -5,10 +5,24 @@ import { useTranslation } from "../i18n";
  */
 export function isPrivateIp(ip?: string | null): boolean {
   if (!ip) return false;
-  const clean = ip
-    .trim()
-    .replace(/^\[|\]$/g, "")
-    .toLowerCase();
+  let clean = ip.trim().toLowerCase();
+
+  // Strip bracketed IPv6 and trailing port: [::1]:6881 -> ::1
+  if (clean.startsWith("[")) {
+    const endBracket = clean.indexOf("]");
+    if (endBracket > 0) {
+      clean = clean.substring(1, endBracket);
+    }
+  } else if (clean.includes(":") && clean.indexOf(":") === clean.lastIndexOf(":")) {
+    // IPv4 with single colon port: 127.0.0.1:6881 or localhost:6881 -> 127.0.0.1 or localhost
+    clean = clean.split(":")[0];
+  }
+
+  // Unwrap IPv4-mapped IPv6: ::ffff:192.168.1.1 -> 192.168.1.1
+  if (clean.startsWith("::ffff:")) {
+    clean = clean.substring(7);
+  }
+
   if (
     clean === "localhost" ||
     clean === "::1" ||
@@ -23,6 +37,7 @@ export function isPrivateIp(ip?: string | null): boolean {
   ) {
     return true;
   }
+
   // Check 172.16.0.0/12 (172.16.0.0 - 172.31.255.255)
   return /^172\.(1[6-9]|2\d|3[0-1])\./.test(clean);
 }
