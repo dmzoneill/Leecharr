@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { FileManager } from "@cubone/react-file-manager";
 import "@cubone/react-file-manager/dist/style.css";
@@ -50,6 +50,29 @@ export function FileBrowser() {
 
   const currentPath = searchParams.get("path") || "";
   const [previewPath, setPreviewPath] = useState<string | null>(null);
+  const fileManagerContainerRef = useRef<HTMLDivElement>(null);
+
+  // Automatically bypass Cubone react-file-manager's internal delete modal
+  // so only Leecharr's styled ConfirmModal appears to the user
+  useEffect(() => {
+    const container = fileManagerContainerRef.current;
+    if (!container) return;
+
+    const observer = new MutationObserver(() => {
+      const deleteDangerBtn = container.querySelector<HTMLButtonElement>(
+        ".file-delete-confirm-actions .fm-button-danger",
+      );
+      if (deleteDangerBtn) {
+        deleteDangerBtn.click();
+      }
+    });
+
+    observer.observe(container, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
 
   const {
     data: listing,
@@ -603,6 +626,7 @@ export function FileBrowser() {
       )}
 
       <div
+        ref={fileManagerContainerRef}
         style={{
           flex: 1,
           minHeight: "550px",
