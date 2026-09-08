@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
@@ -170,5 +171,49 @@ public class ManagedSocketBindingProviderTest
     {
         ManagedSocketBindingProvider.GetInterfaceIp("nonexistent_iface_9999", AddressFamily.InterNetworkV6).Should().BeNull();
         ManagedSocketBindingProvider.GetInterfaceIp("nonexistent_iface_9999", AddressFamily.InterNetwork).Should().BeNull();
+    }
+
+    [Test]
+    public void SelectIpAddress_WhenOnlySiteLocalOrUnspecifiedIPv6_ReturnsNull()
+    {
+        var addresses = new[]
+        {
+            IPAddress.Parse("fec0::1"),
+            IPAddress.IPv6Any,
+            IPAddress.IPv6None,
+        };
+
+        var selected = ManagedSocketBindingProvider.SelectIpAddress(addresses, 3, AddressFamily.InterNetworkV6);
+        selected.Should().BeNull();
+    }
+
+    [Test]
+    public void SelectIpAddress_WhenGivenMixedIpv4AndIpv6_OnlySelectsRequestedFamily()
+    {
+        var addresses = new[]
+        {
+            IPAddress.Parse("192.168.1.100"),
+            IPAddress.Parse("fe80::1"),
+            IPAddress.Parse("2001:4860:4860::8888"),
+        };
+
+        var selectedV4 = ManagedSocketBindingProvider.SelectIpAddress(addresses, (int?)null, AddressFamily.InterNetwork);
+        selectedV4.Should().Be(IPAddress.Parse("192.168.1.100"));
+
+        var selectedV6 = ManagedSocketBindingProvider.SelectIpAddress(addresses, 1, AddressFamily.InterNetworkV6);
+        selectedV6.Should().Be(IPAddress.Parse("2001:4860:4860::8888"));
+    }
+
+    [Test]
+    public void GetInterfaceIp_WhenInterfaceIsDown_ReturnsNull()
+    {
+        var downNic = NetworkInterface.GetAllNetworkInterfaces()
+            .FirstOrDefault(n => n.OperationalStatus != OperationalStatus.Up);
+
+        if (downNic != null)
+        {
+            ManagedSocketBindingProvider.GetInterfaceIp(downNic.Name, AddressFamily.InterNetwork).Should().BeNull();
+            ManagedSocketBindingProvider.GetInterfaceIp(downNic.Name, AddressFamily.InterNetworkV6).Should().BeNull();
+        }
     }
 }
