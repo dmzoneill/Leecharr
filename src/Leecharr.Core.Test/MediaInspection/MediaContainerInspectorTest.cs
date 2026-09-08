@@ -66,7 +66,7 @@ public class MediaContainerInspectorTest
         Assert.That(info.Resolution, Is.EqualTo("4K UHD (2160p)"));
         Assert.That(info.Width, Is.EqualTo(3840));
         Assert.That(info.Height, Is.EqualTo(2160));
-        Assert.That(info.HdrFormat, Is.EqualTo("Dolby Vision"));
+        Assert.That(info.HdrFormat, Is.EqualTo("Dolby Vision / HDR10"));
         Assert.That(info.VideoCodec, Is.EqualTo("HEVC / H.265"));
         Assert.That(info.AudioCodec, Is.EqualTo("Dolby Atmos"));
         Assert.That(info.AudioChannels, Is.EqualTo("7.1"));

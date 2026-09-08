@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
@@ -245,19 +246,36 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
                     if (!string.IsNullOrWhiteSpace(hdrString))
                     {
                         var hdrUpper = hdrString.ToUpperInvariant();
-                        if (hdrUpper.Contains("DOLBY VISION") || hdrUpper.Contains("DV"))
+                        bool hasDv = hdrUpper.Contains("DOLBY VISION") || Regex.IsMatch(hdrUpper, @"\b(DV|DOVI)\b");
+                        bool hasHdr10Plus = hdrUpper.Contains("HDR10+");
+                        bool hasHdr10 = hdrUpper.Contains("HDR10") || (!hasDv && (hdrUpper.Contains("SMPTE ST 2086") || (!hasHdr10Plus && hdrUpper.Contains("HDR"))));
+                        bool hasHlg = hdrUpper.Contains("HLG") || hdrUpper.Contains("ARIB STD-B67");
+
+                        if (hasDv && hasHdr10Plus)
+                        {
+                            info.HdrFormat = "Dolby Vision / HDR10+";
+                        }
+                        else if (hasDv && hasHdr10)
+                        {
+                            info.HdrFormat = "Dolby Vision / HDR10";
+                        }
+                        else if (hasDv && hasHlg)
+                        {
+                            info.HdrFormat = "Dolby Vision / HLG";
+                        }
+                        else if (hasDv)
                         {
                             info.HdrFormat = "Dolby Vision";
                         }
-                        else if (hdrUpper.Contains("HDR10+"))
+                        else if (hasHdr10Plus)
                         {
                             info.HdrFormat = "HDR10+";
                         }
-                        else if (hdrUpper.Contains("HDR10") || hdrUpper.Contains("SMPTE ST 2086"))
+                        else if (hasHdr10)
                         {
                             info.HdrFormat = "HDR10";
                         }
-                        else if (hdrUpper.Contains("HLG"))
+                        else if (hasHlg)
                         {
                             info.HdrFormat = "HLG";
                         }
@@ -354,6 +372,10 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
             else if (info.Width >= 1200 || info.Height >= 700)
             {
                 info.Resolution = "720p";
+            }
+            else if (info.Height >= 500 || (info.Width >= 700 && info.Height >= 500))
+            {
+                info.Resolution = "576p";
             }
             else if (info.Width >= 640 || info.Height >= 400)
             {
