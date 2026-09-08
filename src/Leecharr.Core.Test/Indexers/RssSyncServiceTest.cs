@@ -926,5 +926,26 @@ public class RssSyncServiceTest
         await this.torrentService.DidNotReceive().AddFromMagnetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
     }
 
+    [Test]
+    public void BoundedSet_WhenCapacityExceeded_EvictsOldestItemsToMaintainCapacity()
+    {
+        var boundedSet = new BoundedSet<string>(3, System.StringComparer.OrdinalIgnoreCase);
+
+        boundedSet.TryAdd("item1").Should().BeTrue();
+        boundedSet.TryAdd("item2").Should().BeTrue();
+        boundedSet.TryAdd("item3").Should().BeTrue();
+
+        boundedSet.Count.Should().Be(3);
+        boundedSet.ContainsKey("item1").Should().BeTrue();
+
+        // Adding 4th item evicts oldest (item1)
+        boundedSet.TryAdd("item4").Should().BeTrue();
+        boundedSet.Count.Should().Be(3);
+        boundedSet.ContainsKey("item1").Should().BeFalse();
+        boundedSet.ContainsKey("item2").Should().BeTrue();
+        boundedSet.ContainsKey("item3").Should().BeTrue();
+        boundedSet.ContainsKey("item4").Should().BeTrue();
+    }
+
     #endregion
 }
