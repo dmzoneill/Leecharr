@@ -18,6 +18,7 @@ import {
 import { getTorrentBadges, calculateHnrStatus } from "../../utils/milestones";
 import type { Torrent } from "../../api/types";
 import { InfoRow } from "./shared";
+import { MediaArtworkImage } from "../common/MediaArtworkImage";
 
 export function DetailsTab({ torrent }: { torrent: Torrent }) {
   const { t } = useTranslation();
@@ -81,26 +82,22 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
             flexWrap: "wrap",
             gap: "0.75rem",
             padding: "0.6rem 0.8rem",
-            backgroundColor: "var(--bg-secondary, #222)",
+            backgroundColor: "var(--bg-secondary)",
             borderRadius: "6px",
-            border: "1px solid var(--border-color, #333)",
+            border: "1px solid var(--border)",
           }}
         >
           <div
             style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
           >
-            {meta?.posterUrl && (
-              <img
-                src={meta.posterUrl}
-                alt=""
-                style={{
-                  width: "32px",
-                  height: "46px",
-                  objectFit: "cover",
-                  borderRadius: "3px",
-                }}
-              />
-            )}
+            <MediaArtworkImage
+              src={meta?.posterUrl}
+              alt={meta?.title || torrent.name}
+              width={32}
+              height={46}
+              borderRadius="3px"
+              fallbackIcon="🎬"
+            />
             <div>
               <div style={{ fontWeight: 600, fontSize: "0.85rem" }}>
                 {meta?.title || torrent.name}{" "}
@@ -211,9 +208,9 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
           flexWrap: "wrap",
           gap: "0.5rem",
           padding: "0.4rem 0.75rem",
-          backgroundColor: "var(--bg-secondary, #222)",
+          backgroundColor: "var(--bg-secondary)",
           borderRadius: "4px",
-          border: "1px solid var(--border-color, #333)",
+          border: "1px solid var(--border)",
           fontSize: "0.8rem",
         }}
       >
@@ -276,16 +273,16 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
             flexWrap: "wrap",
             gap: "0.5rem",
             padding: "0.5rem 0.75rem",
-            backgroundColor: "var(--bg-secondary, #222)",
+            backgroundColor: "var(--bg-secondary)",
             borderRadius: "6px",
-            border: "1px solid var(--border-color, #333)",
+            border: "1px solid var(--border)",
           }}
         >
           <span
             style={{
               fontSize: "0.75rem",
               fontWeight: 600,
-              color: "var(--accent, #ffd166)",
+              color: "var(--accent)",
               textTransform: "uppercase",
             }}
           >
@@ -350,9 +347,9 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
       {/* Release Technical Properties */}
       <div
         style={{
-          backgroundColor: "var(--bg-secondary, #222)",
+          backgroundColor: "var(--bg-secondary)",
           borderRadius: "6px",
-          border: "1px solid var(--border-color, #333)",
+          border: "1px solid var(--border)",
           padding: "0.6rem 0.8rem",
         }}
       >
@@ -360,11 +357,10 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
           style={{
             fontSize: "0.75rem",
             fontWeight: 700,
-            color: "var(--accent, #ffd166)",
+            color: "var(--accent)",
             textTransform: "uppercase",
             letterSpacing: "0.05em",
-            borderBottom:
-              "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+            borderBottom: "1px solid var(--border-light)",
             paddingBottom: "0.25rem",
             marginBottom: "0.4rem",
           }}

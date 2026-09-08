@@ -81,20 +81,20 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
       {
         ...torrent,
         priority: parseInt(priority, 10),
-        uploadLimit,
-        downloadLimit,
+        uploadLimit: Math.max(0, uploadLimit),
+        downloadLimit: Math.max(0, downloadLimit),
         initialSeeding,
         forceStart,
         sequentialDownload,
         isPrivate,
         active,
         label: label ?? "",
-        announceInterval,
-        nextUpdate,
-        threshold,
-        smallTorrentLimit,
-        targetRatio,
-        targetSeedTimeMinutes,
+        announceInterval: Math.max(0, announceInterval),
+        nextUpdate: Math.max(0, nextUpdate),
+        threshold: Math.max(0, threshold),
+        smallTorrentLimit: Math.max(0, smallTorrentLimit),
+        targetRatio: Math.max(0, targetRatio),
+        targetSeedTimeMinutes: Math.max(0, targetSeedTimeMinutes),
         shareLimitAction,
       },
       { onSuccess: () => setDirty(false) },
@@ -112,8 +112,15 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
       setDirty(true);
     };
   const numChange =
-    (setter: (v: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) =>
-      mark(setter)(parseInt(e.target.value, 10) || 0);
+    (setter: (v: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+      const parsed = parseInt(e.target.value, 10);
+      mark(setter)(isNaN(parsed) ? 0 : Math.max(0, parsed));
+    };
+  const floatChange =
+    (setter: (v: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+      const parsed = parseFloat(e.target.value);
+      mark(setter)(isNaN(parsed) ? 0 : Math.max(0, parsed));
+    };
 
   const priorityOptions = [
     { value: "0", label: t("torrents.detail.prioLow") },
@@ -393,9 +400,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                 step="0.1"
                 min="0"
                 value={targetRatio}
-                onChange={(e) =>
-                  mark(setTargetRatio)(parseFloat(e.target.value) || 0)
-                }
+                onChange={floatChange(setTargetRatio)}
                 className="input-text"
                 style={{ fontSize: "0.8rem", padding: "0.3rem 0.5rem" }}
                 placeholder={t("components.c0Global", "0 = global")}
@@ -418,11 +423,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                 type="number"
                 min="0"
                 value={targetSeedTimeMinutes}
-                onChange={(e) =>
-                  mark(setTargetSeedTimeMinutes)(
-                    parseInt(e.target.value, 10) || 0,
-                  )
-                }
+                onChange={numChange(setTargetSeedTimeMinutes)}
                 className="input-text"
                 style={{ fontSize: "0.8rem", padding: "0.3rem 0.5rem" }}
                 placeholder={t("components.c0Global", "0 = global")}
@@ -493,7 +494,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               >
                 <i
                   className="fas fa-lock"
-                  style={{ color: "#f87171", fontSize: "0.75rem" }}
+                  style={{ color: "var(--danger)", fontSize: "0.75rem" }}
                 />
                 {t("torrents.detail.privateSwarmOption")}
               </label>
@@ -541,9 +542,9 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
         {/* Card 3: Swarm & Tracker Timing */}
         <div
           style={{
-            backgroundColor: "var(--bg-secondary, rgba(255, 255, 255, 0.03))",
+            backgroundColor: "var(--bg-secondary)",
             borderRadius: "6px",
-            border: "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+            border: "1px solid var(--border-light)",
             padding: "0.7rem 0.9rem",
             display: "flex",
             flexDirection: "column",
@@ -554,11 +555,10 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             style={{
               fontSize: "0.75rem",
               fontWeight: 700,
-              color: "var(--accent, #ffd166)",
+              color: "var(--accent)",
               textTransform: "uppercase",
               letterSpacing: "0.05em",
-              borderBottom:
-                "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+              borderBottom: "1px solid var(--border-light)",
               paddingBottom: "0.25rem",
             }}
           >
@@ -625,11 +625,10 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                 style={{
                   fontSize: "0.78rem",
                   color: "var(--text-primary)",
-                  backgroundColor: "var(--bg-primary, #10111a)",
+                  backgroundColor: "var(--bg-primary)",
                   padding: "0.25rem 0.6rem",
                   borderRadius: "4px",
-                  border:
-                    "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+                  border: "1px solid var(--border-light)",
                   fontFamily: "monospace",
                 }}
               >
@@ -723,15 +722,15 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
           justifyContent: "space-between",
           alignItems: "center",
           padding: "0.5rem 0.8rem",
-          backgroundColor: "var(--bg-secondary, rgba(255, 255, 255, 0.03))",
+          backgroundColor: "var(--bg-secondary)",
           borderRadius: "6px",
-          border: "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+          border: "1px solid var(--border-light)",
         }}
       >
         <div
           style={{
             fontSize: "0.78rem",
-            color: dirty ? "var(--warning, #f59e0b)" : "var(--text-muted)",
+            color: dirty ? "var(--warning)" : "var(--text-muted)",
           }}
         >
           {dirty

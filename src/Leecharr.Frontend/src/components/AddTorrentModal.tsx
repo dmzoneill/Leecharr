@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "../i18n";
 import AddTorrentForm, { InputMode } from "./AddTorrentForm";
-import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 export interface AddTorrentModalProps {
   isOpen?: boolean;
@@ -19,7 +19,7 @@ export function AddTorrentModal({
   onSuccess,
 }: AddTorrentModalProps) {
   const { t } = useTranslation();
-  useEscapeKey(onClose, isOpen);
+  const trapRef = useFocusTrap<HTMLDivElement>({ isOpen, onClose });
 
   if (!isOpen) return null;
 
@@ -27,13 +27,16 @@ export function AddTorrentModal({
     <div
       className="modal-overlay"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="add-torrent-modal-title"
       style={{
         position: "fixed",
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(10, 11, 18, 0.85)",
+        backgroundColor: "var(--overlay, rgba(10, 11, 18, 0.85))",
         backdropFilter: "blur(6px)",
         display: "flex",
         alignItems: "center",
@@ -43,15 +46,16 @@ export function AddTorrentModal({
       }}
     >
       <div
+        ref={trapRef}
         className="modal-content"
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "100%",
           maxWidth: "720px",
           maxHeight: "90vh",
-          backgroundColor: "var(--bg-secondary, #171b35)",
+          backgroundColor: "var(--bg-secondary)",
           borderRadius: "12px",
-          border: "1px solid var(--border-light, #1c203b)",
+          border: "1px solid var(--border-light)",
           boxShadow: "0 20px 50px rgba(0, 0, 0, 0.6)",
           display: "flex",
           flexDirection: "column",
@@ -66,14 +70,15 @@ export function AddTorrentModal({
             alignItems: "center",
             marginBottom: "1rem",
             paddingBottom: "0.75rem",
-            borderBottom: "1px solid var(--border-light, #1c203b)",
+            borderBottom: "1px solid var(--border-light)",
           }}
         >
           <h2
+            id="add-torrent-modal-title"
             style={{
               margin: 0,
               fontSize: "1.25rem",
-              color: "var(--text-primary, #f8f4ed)",
+              color: "var(--text-primary)",
             }}
           >
             {t("addTorrent.title")}
@@ -87,7 +92,7 @@ export function AddTorrentModal({
               background: "none",
               border: "none",
               fontSize: "1.5rem",
-              color: "var(--text-muted, #7e8092)",
+              color: "var(--text-muted)",
               cursor: "pointer",
               lineHeight: 1,
             }}
@@ -119,3 +124,4 @@ export function AddTorrentModal({
 }
 
 export default AddTorrentModal;
+

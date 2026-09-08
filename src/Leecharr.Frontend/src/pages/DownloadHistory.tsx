@@ -29,6 +29,7 @@ import { useToast } from "../context/ToastContext";
 import { useConfirm } from "../context/ConfirmContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import { IndexerSearchModal } from "../components/IndexerSearchModal";
+import { MediaArtworkImage } from "../components/common/MediaArtworkImage";
 import type { DownloadHistoryEntry } from "../api/types";
 
 function formatDuration(seconds: number): string {
@@ -542,70 +543,32 @@ export default function DownloadHistory() {
                     position: "relative",
                     width: "100%",
                     aspectRatio: "2 / 3",
-                    backgroundColor: "#141414",
+                    backgroundColor: "var(--bg-primary)",
                     overflow: "hidden",
                     flexShrink: 0,
                   }}
                 >
-                  {hasPoster ? (
-                    <img
-                      src={posterSrc}
-                      alt={displayTitle}
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                      }}
-                      loading="lazy"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = "none";
-                      }}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        width: "100%",
-                        height: "100%",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        padding: "1rem",
-                        textAlign: "center",
-                        background:
-                          "linear-gradient(180deg, #2a2620 0%, #151412 100%)",
-                      }}
-                    >
-                      <span
-                        style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}
-                      >
-                        {item.source === "Radarr"
-                          ? "🎬"
-                          : item.source === "Sonarr"
-                            ? "📺"
-                            : item.source === "Lidarr"
-                              ? "🎵"
-                              : "📦"}
-                      </span>
-                      <div
-                        style={{
-                          fontSize: "0.82rem",
-                          fontWeight: 600,
-                          wordBreak: "break-word",
-                          color: "var(--text-secondary)",
-                          lineHeight: "1.25",
-                        }}
-                      >
-                        {displayTitle}
-                      </div>
-                    </div>
-                  )}
+                  <MediaArtworkImage
+                    src={posterSrc}
+                    alt={displayTitle}
+                    fallbackIcon={
+                      item.source === "Radarr"
+                        ? "🎬"
+                        : item.source === "Sonarr"
+                          ? "📺"
+                          : item.source === "Lidarr"
+                            ? "🎵"
+                            : "📦"
+                    }
+                    fallbackText={displayTitle}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: "100%",
+                    }}
+                  />
 
                   {/* Top-left Source Badge & Direct Deep Link */}
                   {item.source && (
@@ -990,7 +953,7 @@ export default function DownloadHistory() {
                     <tr
                       key={item.id}
                       style={{
-                        borderBottom: "1px solid var(--border-color, #222)",
+                        borderBottom: "1px solid var(--border)",
                         transition: "background-color 0.15s ease",
                       }}
                     >
@@ -1002,47 +965,28 @@ export default function DownloadHistory() {
                             alignItems: "center",
                           }}
                         >
-                          {meta?.posterUrl || item.torrentId ? (
-                            <img
-                              src={
-                                meta?.posterUrl ||
-                                `/api/v1/media/artwork/${item.torrentId}/poster`
-                              }
-                              alt=""
-                              style={{
-                                width: "38px",
-                                height: "54px",
-                                objectFit: "cover",
-                                borderRadius: "4px",
-                                flexShrink: 0,
-                                cursor: "pointer",
-                              }}
-                              onClick={() => setSelectedDetailItem(item)}
-                              loading="lazy"
-                              onError={(e) => {
-                                (e.target as HTMLElement).style.display =
-                                  "none";
-                              }}
-                            />
-                          ) : (
-                            <div
-                              style={{
-                                width: "38px",
-                                height: "54px",
-                                backgroundColor: "#222",
-                                borderRadius: "4px",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: "1.2rem",
-                                flexShrink: 0,
-                                cursor: "pointer",
-                              }}
-                              onClick={() => setSelectedDetailItem(item)}
-                            >
-                              🎬
-                            </div>
-                          )}
+                          <MediaArtworkImage
+                            src={
+                              meta?.posterUrl ||
+                              (item.torrentId
+                                ? `/api/v1/media/artwork/${item.torrentId}/poster`
+                                : "")
+                            }
+                            alt={displayTitle}
+                            width={38}
+                            height={54}
+                            borderRadius="4px"
+                            fallbackIcon={
+                              item.source === "Radarr"
+                                ? "🎬"
+                                : item.source === "Sonarr"
+                                  ? "📺"
+                                  : item.source === "Lidarr"
+                                    ? "🎵"
+                                    : "📦"
+                            }
+                            onClick={() => setSelectedDetailItem(item)}
+                          />
 
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div
@@ -1298,6 +1242,9 @@ export default function DownloadHistory() {
         <div
           className="modal-overlay"
           onClick={() => setSelectedDetailItem(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="history-detail-modal-title"
         >
           <div
             className="modal-content"
@@ -1307,7 +1254,7 @@ export default function DownloadHistory() {
               padding: 0,
               overflow: "hidden",
               borderRadius: "10px",
-              backgroundColor: "var(--bg-card, #171b35)",
+              backgroundColor: "var(--bg-card)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1323,7 +1270,7 @@ export default function DownloadHistory() {
                     : undefined,
                 backgroundSize: "cover",
                 backgroundPosition: "center",
-                backgroundColor: "#111",
+                backgroundColor: "var(--bg-primary)",
                 display: "flex",
                 alignItems: "flex-end",
                 padding: "1.5rem",
@@ -1367,31 +1314,40 @@ export default function DownloadHistory() {
                   width: "100%",
                 }}
               >
-                {(selectedDetailItem.metadata?.posterUrl ||
-                  selectedDetailItem.torrentId) && (
-                  <img
-                    src={
-                      selectedDetailItem.metadata?.posterUrl ||
-                      `/api/v1/media/artwork/${selectedDetailItem.torrentId}/poster`
-                    }
-                    alt=""
-                    style={{
-                      width: "110px",
-                      height: "160px",
-                      objectFit: "cover",
-                      borderRadius: "6px",
-                      boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      marginBottom: "-1.5rem",
-                    }}
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = "none";
-                    }}
-                  />
-                )}
+                <MediaArtworkImage
+                  src={
+                    selectedDetailItem.metadata?.posterUrl ||
+                    (selectedDetailItem.torrentId
+                      ? `/api/v1/media/artwork/${selectedDetailItem.torrentId}/poster`
+                      : "")
+                  }
+                  alt={
+                    selectedDetailItem.metadata?.title ||
+                    selectedDetailItem.title
+                  }
+                  width={110}
+                  height={160}
+                  borderRadius="6px"
+                  fallbackIcon={
+                    selectedDetailItem.source === "Radarr"
+                      ? "🎬"
+                      : selectedDetailItem.source === "Sonarr"
+                        ? "📺"
+                        : selectedDetailItem.source === "Lidarr"
+                          ? "🎵"
+                          : "📦"
+                  }
+                  style={{
+                    flexShrink: 0,
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
+                    border: "1px solid var(--border)",
+                    marginBottom: "-1.5rem",
+                  }}
+                />
 
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <h2
+                    id="history-detail-modal-title"
                     style={{
                       margin: "0 0 0.35rem 0",
                       fontSize: "1.55rem",
@@ -1404,7 +1360,7 @@ export default function DownloadHistory() {
                     {selectedDetailItem.metadata?.year && (
                       <span
                         style={{
-                          color: "var(--text-muted, #aaa)",
+                          color: "var(--text-muted)",
                           fontWeight: 400,
                           fontSize: "1.1rem",
                           marginLeft: "0.5rem",

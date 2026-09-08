@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { Torrent } from "../api/types";
 import { PlayIcon, StopIcon } from "./icons/UIIcons";
+import { MediaArtworkImage } from "./common/MediaArtworkImage";
 import {
   extractTrackerDomain,
   formatFileSize,
@@ -73,28 +74,15 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
             justifyContent: "center",
           }}
         >
-          {mergedTorrent.posterUrl ? (
-            <img
-              src={mergedTorrent.posterUrl}
-              alt={mergedTorrent.name}
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            />
-          ) : (
-            <div
-              style={{
-                textAlign: "center",
-                padding: "1rem",
-                color: "var(--text-muted)",
-              }}
-            >
-              <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>
-                🎬
-              </div>
-              <div style={{ fontSize: "0.85rem", fontWeight: 600 }}>
-                {mergedTorrent.mediaTitle || mergedTorrent.name}
-              </div>
-            </div>
-          )}
+          <MediaArtworkImage
+            src={mergedTorrent.posterUrl}
+            alt={mergedTorrent.name}
+            height={240}
+            width="100%"
+            fallbackIcon="🎬"
+            fallbackText={mergedTorrent.mediaTitle || mergedTorrent.name}
+            style={{ width: "100%", height: "100%" }}
+          />
 
           {/* Media Badges */}
           <div
@@ -113,7 +101,7 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
                 className="badge"
                 title={t("torrents.table.privateTooltip")}
                 style={{
-                  backgroundColor: "#ef4444",
+                  backgroundColor: "var(--danger)",
                   color: "#fff",
                   fontSize: "0.65rem",
                   fontWeight: 700,
@@ -222,7 +210,7 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
                 className="fas fa-lock"
                 title={t("torrents.table.privateTooltip")}
                 style={{
-                  color: "#f87171",
+                  color: "var(--danger)",
                   marginRight: "6px",
                   fontSize: "0.75rem",
                 }}
