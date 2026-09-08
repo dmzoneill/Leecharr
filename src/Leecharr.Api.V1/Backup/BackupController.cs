@@ -558,6 +558,9 @@ public class BackupController : Controller
                 return false;
             }
 
+            var stderrTask = proc.StandardError.ReadToEndAsync();
+            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+
             var timeoutSeconds = this.GetBackupTimeoutSeconds();
             var exited = proc.WaitForExit(timeoutSeconds * 1000);
             if (!exited)
@@ -565,19 +568,34 @@ public class BackupController : Controller
                 try
                 {
                     proc.Kill(entireProcessTree: true);
+                    proc.WaitForExit(1000);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    this.logger.Warn(ex, "Failed to kill timed out pg_dump process");
                 }
 
                 this.logger.Error("pg_dump process timed out after {0} seconds", timeoutSeconds);
                 return false;
             }
 
-            if (proc.ExitCode != 0)
+            var stderr = stderrTask.GetAwaiter().GetResult();
+            var exitCode = -1;
+            try
             {
-                var stderr = proc.StandardError.ReadToEnd();
-                this.logger.Error("pg_dump failed with exit code {0}: {1}", proc.ExitCode, stderr);
+                if (proc.HasExited)
+                {
+                    exitCode = proc.ExitCode;
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                exitCode = -1;
+            }
+
+            if (exitCode != 0)
+            {
+                this.logger.Error("pg_dump failed with exit code {0}: {1}", exitCode, stderr);
                 return false;
             }
 
@@ -616,6 +634,9 @@ public class BackupController : Controller
                 return false;
             }
 
+            var stderrTask = proc.StandardError.ReadToEndAsync();
+            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+
             var timeoutSeconds = this.GetRestoreTimeoutSeconds();
             var exited = proc.WaitForExit(timeoutSeconds * 1000);
             if (!exited)
@@ -623,19 +644,34 @@ public class BackupController : Controller
                 try
                 {
                     proc.Kill(entireProcessTree: true);
+                    proc.WaitForExit(1000);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    this.logger.Warn(ex, "Failed to kill timed out psql process");
                 }
 
                 this.logger.Error("psql restore process timed out after {0} seconds", timeoutSeconds);
                 return false;
             }
 
-            if (proc.ExitCode != 0)
+            var stderr = stderrTask.GetAwaiter().GetResult();
+            var exitCode = -1;
+            try
             {
-                var stderr = proc.StandardError.ReadToEnd();
-                this.logger.Error("psql restore failed with exit code {0}: {1}", proc.ExitCode, stderr);
+                if (proc.HasExited)
+                {
+                    exitCode = proc.ExitCode;
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                exitCode = -1;
+            }
+
+            if (exitCode != 0)
+            {
+                this.logger.Error("psql restore failed with exit code {0}: {1}", exitCode, stderr);
                 return false;
             }
 
