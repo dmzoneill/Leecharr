@@ -63,9 +63,12 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
     private readonly IConfigService configService;
     private readonly ITorrentRepository torrentRepository;
     private readonly TimeProvider timeProvider;
+    private readonly DateTime startTimeUtc;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private readonly ConcurrentDictionary<string, SwarmState> swarms = new(StringComparer.OrdinalIgnoreCase);
     private readonly Timer cleanupTimer;
+    private long totalAnnounces;
+    private long totalScrapes;
     private int disposed;
 
     public EmbeddedTrackerService(
@@ -77,6 +80,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
         this.configService = configService;
         this.torrentRepository = torrentRepository;
         this.timeProvider = timeProvider ?? TimeProvider.System;
+        this.startTimeUtc = this.timeProvider.GetUtcNow().UtcDateTime;
         this.MaxSwarms = maxSwarms ?? (configService != null && configService.TrackerMaxSwarms > 0
             ? configService.TrackerMaxSwarms
             : DefaultMaxSwarms);
@@ -107,6 +111,46 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
     public int ActivePeersCount => this.swarms.Values.Sum(s => s.Peers.Count);
 
     public int MaxSwarms { get; set; }
+
+    public long TotalAnnounces => Interlocked.Read(ref this.totalAnnounces);
+
+    public long TotalScrapes => Interlocked.Read(ref this.totalScrapes);
+
+    public TimeSpan Uptime => this.UtcNow - this.startTimeUtc;
+
+    public IReadOnlyList<TrackerSwarmInfo> GetAllSwarms()
+    {
+        var list = new List<TrackerSwarmInfo>(this.swarms.Count);
+        foreach (var kvp in this.swarms)
+        {
+            var swarm = kvp.Value;
+            var seeders = 0;
+            var leechers = 0;
+            foreach (var peer in swarm.Peers.Values)
+            {
+                if (peer.IsSeeder)
+                {
+                    seeders++;
+                }
+                else
+                {
+                    leechers++;
+                }
+            }
+
+            list.Add(new TrackerSwarmInfo
+            {
+                InfoHash = kvp.Key,
+                Seeders = seeders,
+                Leechers = leechers,
+                DownloadedCount = swarm.DownloadedCount,
+                LastActivityUtc = swarm.LastActivityUtc,
+                IsRegistered = swarm.IsRegistered,
+            });
+        }
+
+        return list;
+    }
 
     public void Handle(TorrentAddedEvent message)
     {
@@ -225,6 +269,8 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
 
     public TrackerAnnounceResult Announce(TrackerAnnounceRequest request)
     {
+        Interlocked.Increment(ref this.totalAnnounces);
+
         if (!this.IsEnabled)
         {
             return new TrackerAnnounceResult { Success = false, FailureReason = "Embedded tracker is disabled." };
@@ -398,6 +444,8 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
 
     public TrackerScrapeResult Scrape(List<byte[]> infoHashList)
     {
+        Interlocked.Increment(ref this.totalScrapes);
+
         if (!this.IsEnabled)
         {
             return new TrackerScrapeResult { Success = false, FailureReason = "Embedded tracker is disabled." };
