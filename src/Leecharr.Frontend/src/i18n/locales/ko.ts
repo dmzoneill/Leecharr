@@ -1129,6 +1129,10 @@ const ko: I18nTranslations = {
     "allSources": "모든 소스",
     "activeSwarmHarvest": "활발한 떼 수확",
     "publicFeeds": "공개 피드",
+    "healthAlive": "살아 있는",
+    "healthSlow": "느린",
+    "healthOffline": "오프라인",
+    "healthUntested": "테스트되지 않음",
     "copyAllUrls": "모든 트래커 URL을 클립보드에 복사",
     "downloadTxt": "검증되고 활성인 트래커를 .txt 파일로 다운로드",
     "pasteMultiple": "여러 개의 트래커 URL을 한 번에 붙여넣기",
@@ -1286,7 +1290,8 @@ const ko: I18nTranslations = {
       "trackerRadar": "트래커 레이더",
       "activityLogs": "활동 로그",
       "sourcesAutomation": "소스 자동화"
-    }
+    },
+    "allHealth": "모든 건강"
   },
   "terminal": {
     "title": "임베디드 터미널 CLI",
@@ -1793,12 +1798,12 @@ const ko: I18nTranslations = {
     "autoAdd": "자동 추가",
     "webhook": "웹훅",
     "webhookHost": "웹훅 호스트",
+    "externalUrl": "공개/외부 URL(선택사항)",
+    "externalUrlHint": "브라우저 딥 링크를 위한 선택적 공개 URL(예: 내부 컨테이너 주소를 사용하는 동안 원격으로 Leecharr에 액세스하는 경우)",
     "loadingConnections": "연결 로드 중...",
     "apiKey": "API 키",
     "apiKeyCopied": "API 키가 복사되었습니다.",
-    "failedToCopyApiKey": "API 키를 복사하지 못했습니다.",
-    "externalUrl": "공개/외부 URL(선택사항)",
-    "externalUrlHint": "브라우저 딥 링크를 위한 선택적 공개 URL(예: 내부 컨테이너 주소를 사용하는 동안 원격으로 Leecharr에 액세스하는 경우)"
+    "failedToCopyApiKey": "API 키를 복사하지 못했습니다."
   },
   "modals": {
     "confirmTitle": "확인 필요",
@@ -3309,6 +3314,8 @@ const ko: I18nTranslations = {
     "autoAdd": "자동 추가",
     "webhook": "웹훅",
     "webhookHost": "웹훅 호스트",
+    "externalUrl": "공개/외부 URL(선택사항)",
+    "externalUrlHint": "브라우저 딥 링크를 위한 선택적 공개 URL입니다(예: Leecharr에 원격으로 액세스하는 경우).",
     "connectionSuccess": "Sonarr 연결 성공!",
     "connectionFailed": "Sonarr 연결 실패",
     "radarrDescription": "Radarr를 연결하여 영화 다운로드를 Leecharr로 자동 전송하세요.",
@@ -3329,9 +3336,7 @@ const ko: I18nTranslations = {
     "finishAndClose": "완료 및 닫기",
     "webhookHostHintSonarr": "웹훅 호스트 힌트 Sonarr",
     "webhookHostHintRadarr": "웹훅 호스트 힌트 레이더",
-    "webhookHostHintLidarr": "웹훅 호스트 힌트 Lidarr",
-    "externalUrl": "공개/외부 URL(선택사항)",
-    "externalUrlHint": "브라우저 딥 링크를 위한 선택적 공개 URL입니다(예: Leecharr에 원격으로 액세스하는 경우)."
+    "webhookHostHintLidarr": "웹훅 호스트 힌트 Lidarr"
   },
   "promptModal": {
     "defaultTitle": "값 입력",

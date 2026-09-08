@@ -165,7 +165,7 @@ const de: I18nTranslations = {
     "unknownError": "Unbekannter Fehler",
     "status": "Status",
     "name": "Name",
-    "details": "Details",
+    "details": "Einzelheiten",
     "live": "Live"
   },
   "nav": {
@@ -903,7 +903,7 @@ const de: I18nTranslations = {
     "alreadyInLibrary": "Bereits in der Bibliothek",
     "torrentAddedSuccess": "Torrent hinzugefügt Erfolg",
     "status": "Status",
-    "details": "Details",
+    "details": "Einzelheiten",
     "imdb": "Imdb",
     "tmdb": "Tmdb",
     "thetvdb": "Thetvdb"
@@ -1129,6 +1129,9 @@ const de: I18nTranslations = {
     "allSources": "Alle Quellen",
     "activeSwarmHarvest": "Aktive Schwarmernte",
     "publicFeeds": "Öffentliche Feeds",
+    "healthAlive": "Lebendig",
+    "healthSlow": "Langsam",
+    "healthUntested": "Ungetestet",
     "copyAllUrls": "Kopieren Sie alle Tracker-URLs in die Zwischenablage",
     "downloadTxt": "Laden Sie verifizierte und aktive Tracker als TXT-Datei herunter",
     "pasteMultiple": "Fügen Sie mehrere Tracker-URLs gleichzeitig ein",
@@ -1286,6 +1289,8 @@ const de: I18nTranslations = {
       "activityLogs": "Aktivitätsprotokolle",
       "sourcesAutomation": "Quellenautomatisierung"
     },
+    "allHealth": "Alle Gesundheit",
+    "healthOffline": "Offline",
     "offline": "Offline"
   },
   "terminal": {
@@ -1791,14 +1796,14 @@ const de: I18nTranslations = {
     "syncEnabled": "Synchronisierung aktiviert",
     "autoAdd": "Automatisch hinzufügen",
     "webhookHost": "Webhook-Host",
+    "externalUrl": "Öffentliche/externe URL (optional)",
+    "externalUrlHint": "Optionale öffentliche URL für Browser-Deep-Links (z. B. beim Remotezugriff auf Leecharr unter Verwendung interner Containeradressen).",
     "loadingConnections": "Verbindungen werden geladen...",
     "apiKey": "API-Schlüssel",
     "apiKeyCopied": "API-Schlüssel kopiert",
     "failedToCopyApiKey": "Der API-Schlüssel konnte nicht kopiert werden",
     "mainlineDistributedHashTabl": "Mainline Distributed Hash Table (DHT)",
-    "webhook": "Webhook",
-    "externalUrl": "Öffentliche/externe URL (optional)",
-    "externalUrlHint": "Optionale öffentliche URL für Browser-Deep-Links (z. B. beim Remotezugriff auf Leecharr unter Verwendung interner Containeradressen)."
+    "webhook": "Webhook"
   },
   "modals": {
     "confirmTitle": "Bestätigung erforderlich",
@@ -3306,6 +3311,8 @@ const de: I18nTranslations = {
     "syncEnabled": "Synchronisierung aktiviert",
     "autoAdd": "Automatisch hinzufügen",
     "webhookHost": "Webhook-Host",
+    "externalUrl": "Öffentliche/externe URL (optional)",
+    "externalUrlHint": "Optionale öffentliche URL für Browser-Deep-Links (z. B. beim Remotezugriff auf Leecharr).",
     "connectionSuccess": "Verbindungserfolg",
     "connectionFailed": "Verbindung fehlgeschlagen",
     "radarrDescription": "Radarr-Beschreibung",
@@ -3329,9 +3336,7 @@ const de: I18nTranslations = {
     "webhookHostHintLidarr": "Webhook-Host-Hinweis Lidarr",
     "prowlarrDesc": "Prowlarr Desc",
     "name": "Name",
-    "webhook": "Webhook",
-    "externalUrl": "Öffentliche/externe URL (optional)",
-    "externalUrlHint": "Optionale öffentliche URL für Browser-Deep-Links (z. B. beim Remotezugriff auf Leecharr)."
+    "webhook": "Webhook"
   },
   "promptModal": {
     "defaultTitle": "Standardtitel",

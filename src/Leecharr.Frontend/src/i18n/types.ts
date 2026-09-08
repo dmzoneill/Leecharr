@@ -1129,6 +1129,11 @@ export type I18nTranslations = {
     "allSources": string;
     "activeSwarmHarvest": string;
     "publicFeeds": string;
+    "allHealth": string;
+    "healthAlive": string;
+    "healthSlow": string;
+    "healthOffline": string;
+    "healthUntested": string;
     "copyAllUrls": string;
     "downloadTxt": string;
     "pasteMultiple": string;
