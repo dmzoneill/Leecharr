@@ -1129,6 +1129,10 @@ const fr: I18nTranslations = {
     "allSources": "Toutes les sources",
     "activeSwarmHarvest": "Récolte active d’essaims",
     "publicFeeds": "Flux publics",
+    "healthAlive": "Vivant",
+    "healthSlow": "Lent",
+    "healthOffline": "Hors ligne",
+    "healthUntested": "Non testé",
     "copyAllUrls": "Copiez toutes les URL de tracker dans le presse-papiers",
     "downloadTxt": "Téléchargez les trackers vérifiés et actifs sous forme de fichier .txt",
     "pasteMultiple": "Collez plusieurs URL de tracker à la fois",
@@ -1286,6 +1290,7 @@ const fr: I18nTranslations = {
       "activityLogs": "Journaux d'activité",
       "sourcesAutomation": "Automatisation des sources"
     },
+    "allHealth": "Toute la santé",
     "action": "Action"
   },
   "terminal": {
@@ -1792,13 +1797,13 @@ const fr: I18nTranslations = {
     "syncEnabled": "Synchronisation activée",
     "autoAdd": "Ajout automatique",
     "webhookHost": "Hôte du webhook",
+    "externalUrl": "URL publique/externe (facultatif)",
+    "externalUrlHint": "URL publique facultative pour les liens profonds du navigateur (par exemple, lors de l'accès à Leecharr à distance tout en utilisant des adresses de conteneur internes).",
     "loadingConnections": "Chargement des connexions...",
     "apiKey": "Clé API",
     "apiKeyCopied": "Clé API copiée",
     "failedToCopyApiKey": "Échec de la copie de la clé API",
-    "webhook": "Webhook",
-    "externalUrl": "URL publique/externe (facultatif)",
-    "externalUrlHint": "URL publique facultative pour les liens profonds du navigateur (par exemple, lors de l'accès à Leecharr à distance tout en utilisant des adresses de conteneur internes)."
+    "webhook": "Webhook"
   },
   "modals": {
     "confirmTitle": "Confirmation requise",
@@ -3308,6 +3313,8 @@ const fr: I18nTranslations = {
     "syncEnabled": "Synchronisation activée",
     "autoAdd": "Ajout automatique",
     "webhookHost": "Hôte du webhook",
+    "externalUrl": "URL publique/externe (facultatif)",
+    "externalUrlHint": "URL publique facultative pour les liens profonds du navigateur (par exemple lors de l'accès à Leecharr à distance).",
     "connectionSuccess": "Succès de la connexion",
     "connectionFailed": "Échec de la connexion",
     "radarrDescription": "Radarr descriptif",
@@ -3329,9 +3336,7 @@ const fr: I18nTranslations = {
     "webhookHostHintSonarr": "Astuce pour l'hôte Webhook Sonarr",
     "webhookHostHintRadarr": "Astuce pour l'hôte Webhook Radarr",
     "webhookHostHintLidarr": "Astuce pour l'hôte Webhook Lidarr",
-    "webhook": "Webhook",
-    "externalUrl": "URL publique/externe (facultatif)",
-    "externalUrlHint": "URL publique facultative pour les liens profonds du navigateur (par exemple lors de l'accès à Leecharr à distance)."
+    "webhook": "Webhook"
   },
   "promptModal": {
     "defaultTitle": "Titre par défaut",

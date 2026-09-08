@@ -1129,6 +1129,10 @@ const hi: I18nTranslations = {
     "allSources": "सभी स्रोत",
     "activeSwarmHarvest": "सक्रिय झुंड फसल",
     "publicFeeds": "सार्वजनिक फ़ीड",
+    "healthAlive": "जीवित",
+    "healthSlow": "धीमी",
+    "healthOffline": "ऑफ़लाइन",
+    "healthUntested": "परीक्षण नहीं किया गया",
     "copyAllUrls": "सभी ट्रैकर यूआरएल को क्लिपबोर्ड पर कॉपी करें",
     "downloadTxt": "सत्यापित और सक्रिय ट्रैकर्स को .txt फ़ाइल के रूप में डाउनलोड करें",
     "pasteMultiple": "एक साथ अनेक ट्रैकर यूआरएल चिपकाएँ",
@@ -1286,7 +1290,8 @@ const hi: I18nTranslations = {
       "trackerRadar": "ट्रैकर रडार",
       "activityLogs": "गतिविधि लॉग",
       "sourcesAutomation": "स्रोत स्वचालन"
-    }
+    },
+    "allHealth": "सर्व स्वास्थ्य"
   },
   "terminal": {
     "title": "एम्बेडेड टर्मिनल CLI",
@@ -1793,12 +1798,12 @@ const hi: I18nTranslations = {
     "autoAdd": "स्वतः जोड़ें",
     "webhook": "WEbhook",
     "webhookHost": "वेबहुक होस्ट",
+    "externalUrl": "सार्वजनिक/बाहरी यूआरएल (वैकल्पिक)",
+    "externalUrlHint": "ब्राउज़र डीप लिंक के लिए वैकल्पिक सार्वजनिक यूआरएल (उदाहरण के लिए आंतरिक कंटेनर पते का उपयोग करते समय लीचर को दूरस्थ रूप से एक्सेस करते समय)।",
     "loadingConnections": "कनेक्शन लोड हो रहे हैं...",
     "apiKey": "एपीआई कुंजी",
     "apiKeyCopied": "एपीआई कुंजी कॉपी की गई",
-    "failedToCopyApiKey": "एपीआई कुंजी की प्रतिलिपि बनाने में विफल",
-    "externalUrl": "सार्वजनिक/बाहरी यूआरएल (वैकल्पिक)",
-    "externalUrlHint": "ब्राउज़र डीप लिंक के लिए वैकल्पिक सार्वजनिक यूआरएल (उदाहरण के लिए आंतरिक कंटेनर पते का उपयोग करते समय लीचर को दूरस्थ रूप से एक्सेस करते समय)।"
+    "failedToCopyApiKey": "एपीआई कुंजी की प्रतिलिपि बनाने में विफल"
   },
   "modals": {
     "confirmTitle": "पुष्टि आवश्यक है",
@@ -3309,6 +3314,8 @@ const hi: I18nTranslations = {
     "autoAdd": "स्वतः जोड़ें",
     "webhook": "WEbhook",
     "webhookHost": "वेबहुक होस्ट",
+    "externalUrl": "सार्वजनिक/बाहरी यूआरएल (वैकल्पिक)",
+    "externalUrlHint": "ब्राउज़र डीप लिंक के लिए वैकल्पिक सार्वजनिक यूआरएल (उदाहरण के लिए लीचर को दूरस्थ रूप से एक्सेस करते समय)।",
     "connectionSuccess": "कनेक्शन सफलता",
     "connectionFailed": "कनेक्शन विफल",
     "radarrDescription": "रडार विवरण",
@@ -3329,9 +3336,7 @@ const hi: I18nTranslations = {
     "finishAndClose": "समाप्त करें और बंद करें",
     "webhookHostHintSonarr": "वेबहुक होस्ट संकेत सोनार",
     "webhookHostHintRadarr": "वेबहुक होस्ट संकेत राडार",
-    "webhookHostHintLidarr": "वेबहुक होस्ट संकेत लिडार",
-    "externalUrl": "सार्वजनिक/बाहरी यूआरएल (वैकल्पिक)",
-    "externalUrlHint": "ब्राउज़र डीप लिंक के लिए वैकल्पिक सार्वजनिक यूआरएल (उदाहरण के लिए लीचर को दूरस्थ रूप से एक्सेस करते समय)।"
+    "webhookHostHintLidarr": "वेबहुक होस्ट संकेत लिडार"
   },
   "promptModal": {
     "defaultTitle": "डिफ़ॉल्ट शीर्षक",
