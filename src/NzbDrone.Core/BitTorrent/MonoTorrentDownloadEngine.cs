@@ -16,6 +16,7 @@ using System.Threading.Tasks;
 using MonoTorrent;
 using MonoTorrent.BEncoding;
 using MonoTorrent.Client;
+using MonoTorrent.PieceWriter;
 using NLog;
 using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
@@ -63,6 +64,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     private ClientEngine engine;
     private Timer trackerHealthTimer;
+    private Timer diskFlushTimer;
+    private Timer fastResumeAutoSaveTimer;
     private volatile bool isHaltedByKillSwitch;
     private bool disposed;
 
@@ -184,6 +187,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.logger = LogManager.GetCurrentClassLogger();
 
         this.trackerHealthTimer = new Timer(_ => this.CheckTrackerHealth(), null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(5));
+
+        var flushIntervalSec = Math.Max(1, this.configService?.DiskFlushIntervalSeconds > 0 ? this.configService.DiskFlushIntervalSeconds : 30);
+        this.diskFlushTimer = new Timer(_ => this.PerformPeriodicDiskFlushAndCacheScaling(), null, TimeSpan.FromSeconds(flushIntervalSec), TimeSpan.FromSeconds(flushIntervalSec));
+
+        var fastResumeIntervalSec = Math.Max(5, this.configService?.AutoSaveFastResumeIntervalSeconds > 0 ? this.configService.AutoSaveFastResumeIntervalSeconds : 300);
+        this.fastResumeAutoSaveTimer = new Timer(_ => this.PerformPeriodicFastResumeSave(), null, TimeSpan.FromSeconds(fastResumeIntervalSec), TimeSpan.FromSeconds(fastResumeIntervalSec));
     }
 
     public async Task StartAsync()
@@ -387,6 +396,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             });
         }
 
+        var dynamicCacheBytes = this.CalculateDynamicDiskCacheBytes();
+        var cachePolicy = this.GetConfiguredCachePolicy();
+        var fastResumeMode = this.GetConfiguredFastResumeMode();
+
         var engineSettingsBuilder = new EngineSettingsBuilder
         {
             AllowPortForwarding = this.configService.UpnpEnabled,
@@ -399,9 +412,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             DhtEndPoint = this.configService.EnableDht ? new IPEndPoint(listenIp, port) : null,
             CacheDirectory = cacheDir,
             ConnectionTimeout = TimeSpan.FromSeconds(this.configService.TransportConnectionTimeoutSeconds > 0 ? this.configService.TransportConnectionTimeoutSeconds : 30),
-            DiskCacheBytes = this.configService.DiskWriteCacheSizeMb > 0
-                ? this.configService.DiskWriteCacheSizeMb * 1024 * 1024
-                : (this.configService.DiskCacheBytes > 0 ? this.configService.DiskCacheBytes : 128 * 1024 * 1024),
+            DiskCacheBytes = dynamicCacheBytes,
+            DiskCachePolicy = cachePolicy,
+            FastResumeMode = fastResumeMode,
             MaximumConnections = this.configService.MaxGlobalConnections > 0 ? this.configService.MaxGlobalConnections : 300,
             MaximumDownloadRate = this.configService.MaxDownloadSpeedKbps > 0 ? this.configService.MaxDownloadSpeedKbps * 1024 : 0,
             MaximumUploadRate = this.configService.MaxUploadSpeedKbps > 0 ? this.configService.MaxUploadSpeedKbps * 1024 : 0,
@@ -415,6 +428,14 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             this.configService.TcpFallback,
             this.configService.ExtensionLtDontHave,
             this.configService.TransportConnectionTimeoutSeconds);
+
+        this.logger.Info(
+            "Configured disk write cache: {0} MB (policy={1}, fastResumeMode={2}, flushInterval={3}s, autoSaveFastResumeInterval={4}s)",
+            dynamicCacheBytes / (1024 * 1024),
+            cachePolicy,
+            fastResumeMode,
+            this.configService.DiskFlushIntervalSeconds,
+            this.configService.AutoSaveFastResumeIntervalSeconds);
 
         var engineSettings = engineSettingsBuilder.ToSettings();
         var factories = Factories.Default;
@@ -499,6 +520,15 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
 
         this.logger.Info("Stopping MonoTorrent download engine...");
+
+        try
+        {
+            await this.SaveAllFastResumeCheckpointsAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Error saving FastResume checkpoints during engine stop");
+        }
 
         foreach (var task in this.tasks.Values)
         {
@@ -1347,6 +1377,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             {
                 MaximumDownloadRate = maxDownloadKbps > 0 ? maxDownloadKbps * 1024 : 0,
                 MaximumUploadRate = maxUploadKbps > 0 ? maxUploadKbps * 1024 : 0,
+                DiskCacheBytes = this.CalculateDynamicDiskCacheBytes(this.engine.TotalDownloadRate),
+                DiskCachePolicy = this.GetConfiguredCachePolicy(),
+                FastResumeMode = this.GetConfiguredFastResumeMode(),
             };
             await this.engine.UpdateSettingsAsync(settingsBuilder.ToSettings());
             this.logger.Info("Updated MonoTorrent rate limits: Download = {0} KB/s, Upload = {1} KB/s", maxDownloadKbps, maxUploadKbps);
@@ -1526,6 +1559,31 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         var targetCompletedDir = this.storagePathService.GetCompletedDirectory(category);
         string finalDestination = null;
+
+        if (this.engine?.DiskManager != null && manager != null)
+        {
+            try
+            {
+                await this.engine.DiskManager.FlushAsync(manager).ConfigureAwait(false);
+                this.logger.Debug("Flushed dirty write cache blocks for completed torrent {0}", infoHash);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to flush dirty write cache blocks for torrent {0} before moving files", infoHash);
+            }
+        }
+
+        if (manager != null)
+        {
+            try
+            {
+                await this.SaveFastResumeAtomicAsync(manager, this.GetCacheDirectory()).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Failed to save FastResume checkpoint on completion for {0}", infoHash);
+            }
+        }
 
         try
         {
@@ -1715,9 +1773,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.lastPiecesHashedCount = currentHashed;
         var piecesPerSec = Math.Round(piecesDelta / elapsedSec, 1);
 
-        var diskCacheCap = this.configService.DiskWriteCacheSizeMb > 0
-            ? this.configService.DiskWriteCacheSizeMb * 1024L * 1024L
-            : (this.configService.DiskCacheBytes > 0 ? (long)this.configService.DiskCacheBytes : 128L * 1024L * 1024L);
+        var diskCacheCap = this.engine != null
+            ? (long)this.engine.Settings.DiskCacheBytes
+            : (long)this.CalculateDynamicDiskCacheBytes();
 
         long cacheHits = 0;
         long cacheMisses = 0;
@@ -1934,6 +1992,27 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                             {
                             }
                         }
+
+                        if (this.engine?.DiskManager != null)
+                        {
+                            try
+                            {
+                                await this.engine.DiskManager.FlushAsync(task.Manager).ConfigureAwait(false);
+                            }
+                            catch (Exception ex)
+                            {
+                                this.logger.Warn(ex, "Error flushing dirty write cache for torrent {0} during VPN kill switch halt", task.TorrentId);
+                            }
+                        }
+
+                        try
+                        {
+                            await this.SaveFastResumeAtomicAsync(task.Manager, this.GetCacheDirectory()).ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            this.logger.Debug(ex, "Error saving FastResume checkpoint for torrent {0} during VPN kill switch halt", task.TorrentId);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -1942,7 +2021,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 }
             }
 
-            this.logger.Warn("VPN kill switch halt completed. {0} active torrents paused and peer connections aborted.", this.interruptedTorrentIds.Count);
+            this.logger.Warn("VPN kill switch halt completed. {0} active torrents paused, dirty write cache flushed, and peer connections aborted.", this.interruptedTorrentIds.Count);
         }
         finally
         {
@@ -2061,6 +2140,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             ListenEndPoints = listenEndPoints,
             DhtEndPoint = this.configService.EnableDht ? new IPEndPoint(listenIp, port) : null,
+            DiskCacheBytes = this.CalculateDynamicDiskCacheBytes(this.engine.TotalDownloadRate),
+            DiskCachePolicy = this.GetConfiguredCachePolicy(),
+            FastResumeMode = this.GetConfiguredFastResumeMode(),
         };
 
         await this.engine.UpdateSettingsAsync(newSettingsBuilder.ToSettings()).ConfigureAwait(false);
@@ -2128,6 +2210,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.trackerHealthTimer?.Dispose();
         this.trackerHealthTimer = null;
 
+        this.diskFlushTimer?.Dispose();
+        this.diskFlushTimer = null;
+
+        this.fastResumeAutoSaveTimer?.Dispose();
+        this.fastResumeAutoSaveTimer = null;
+
         lock (this.pendingTorrentsLock)
         {
             this.pendingTorrents.Clear();
@@ -2185,6 +2273,24 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         if (this.engine != null)
         {
             this.ApplyCustomPeerId(this.engine, this.configService.PeerIdPrefix);
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var updatedSettings = new EngineSettingsBuilder(this.engine.Settings)
+                    {
+                        DiskCacheBytes = this.CalculateDynamicDiskCacheBytes(this.engine.TotalDownloadRate),
+                        DiskCachePolicy = this.GetConfiguredCachePolicy(),
+                        FastResumeMode = this.GetConfiguredFastResumeMode(),
+                    }.ToSettings();
+                    await this.engine.UpdateSettingsAsync(updatedSettings).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Debug(ex, "Failed to update engine settings on config save");
+                }
+            });
         }
     }
 
@@ -2193,6 +2299,24 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         if (this.engine != null)
         {
             this.ApplyCustomPeerId(this.engine, this.configService.PeerIdPrefix);
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var updatedSettings = new EngineSettingsBuilder(this.engine.Settings)
+                    {
+                        DiskCacheBytes = this.CalculateDynamicDiskCacheBytes(this.engine.TotalDownloadRate),
+                        DiskCachePolicy = this.GetConfiguredCachePolicy(),
+                        FastResumeMode = this.GetConfiguredFastResumeMode(),
+                    }.ToSettings();
+                    await this.engine.UpdateSettingsAsync(updatedSettings).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Debug(ex, "Failed to update engine settings on config file save");
+                }
+            });
         }
     }
 
@@ -2541,6 +2665,218 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         catch (Exception ex)
         {
             this.logger.Warn(ex, "Failed to preallocate file '{0}' (size {1} bytes)", fullPath, expectedLength);
+        }
+    }
+
+    public int CalculateDynamicDiskCacheBytes(long currentDownloadThroughputBytesPerSec = 0)
+    {
+        var configuredMb = this.configService?.DiskWriteCacheSizeMb ?? 128;
+        var configuredBytes = this.configService?.DiskCacheBytes ?? (128 * 1024 * 1024);
+
+        long baseRamCache;
+        long totalSystemRam = 0;
+        try
+        {
+            totalSystemRam = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+        }
+        catch
+        {
+        }
+
+        if (totalSystemRam <= 0)
+        {
+            totalSystemRam = 8L * 1024L * 1024L * 1024L;
+        }
+
+        if (totalSystemRam >= 32L * 1024L * 1024L * 1024L)
+        {
+            baseRamCache = 512L * 1024L * 1024L;
+        }
+        else if (totalSystemRam >= 16L * 1024L * 1024L * 1024L)
+        {
+            baseRamCache = 256L * 1024L * 1024L;
+        }
+        else if (totalSystemRam >= 8L * 1024L * 1024L * 1024L)
+        {
+            baseRamCache = 192L * 1024L * 1024L;
+        }
+        else
+        {
+            baseRamCache = 128L * 1024L * 1024L;
+        }
+
+        var throughputBufferBytes = currentDownloadThroughputBytesPerSec > 0
+            ? currentDownloadThroughputBytesPerSec * 4
+            : 0;
+
+        var dynamicCache = baseRamCache + throughputBufferBytes;
+
+        if (configuredMb > 128)
+        {
+            dynamicCache = Math.Max(dynamicCache, configuredMb * 1024L * 1024L);
+        }
+        else if (configuredBytes > 128 * 1024 * 1024)
+        {
+            dynamicCache = Math.Max(dynamicCache, (long)configuredBytes);
+        }
+
+        var clampedBytes = (int)Math.Clamp(dynamicCache, 128L * 1024L * 1024L, 1024L * 1024L * 1024L);
+        return clampedBytes;
+    }
+
+    private CachePolicy GetConfiguredCachePolicy()
+    {
+        var policy = this.configService?.DiskCachePolicy;
+        if (string.Equals(policy, "WritesOnly", StringComparison.OrdinalIgnoreCase))
+        {
+            return CachePolicy.WritesOnly;
+        }
+
+        return CachePolicy.ReadsAndWrites;
+    }
+
+    private FastResumeMode GetConfiguredFastResumeMode()
+    {
+        var mode = this.configService?.FastResumeMode;
+        if (string.Equals(mode, "Accurate", StringComparison.OrdinalIgnoreCase))
+        {
+            return FastResumeMode.Accurate;
+        }
+
+        return FastResumeMode.BestEffort;
+    }
+
+    private string GetCacheDirectory()
+    {
+        return this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder)
+            ? Path.Combine(this.appFolderInfo.AppDataFolder, "Cache")
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Leecharr", "Cache");
+    }
+
+    private void PerformPeriodicDiskFlushAndCacheScaling()
+    {
+        if (this.engine == null || this.disposed)
+        {
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                if (this.engine?.DiskManager != null)
+                {
+                    foreach (var task in this.tasks.Values)
+                    {
+                        if (task.Manager != null && task.Manager.State != TorrentState.Stopped)
+                        {
+                            try
+                            {
+                                await this.engine.DiskManager.FlushAsync(task.Manager).ConfigureAwait(false);
+                            }
+                            catch (Exception ex)
+                            {
+                                this.logger.Debug(ex, "Error flushing dirty cache for torrent {0}", task.InfoHash);
+                            }
+                        }
+                    }
+                }
+
+                var currentDownloadRate = this.engine != null ? this.engine.TotalDownloadRate : 0;
+                var targetCacheBytes = this.CalculateDynamicDiskCacheBytes(currentDownloadRate);
+                if (this.engine != null && Math.Abs(this.engine.Settings.DiskCacheBytes - targetCacheBytes) >= 32 * 1024 * 1024)
+                {
+                    var updatedSettings = new EngineSettingsBuilder(this.engine.Settings)
+                    {
+                        DiskCacheBytes = targetCacheBytes,
+                        DiskCachePolicy = this.GetConfiguredCachePolicy(),
+                        FastResumeMode = this.GetConfiguredFastResumeMode(),
+                    }.ToSettings();
+                    await this.engine.UpdateSettingsAsync(updatedSettings).ConfigureAwait(false);
+                    this.logger.Debug("Scaled dynamic disk write cache to {0} MB (throughput: {1:F1} MB/s)", targetCacheBytes / (1024 * 1024), currentDownloadRate / (1024.0 * 1024.0));
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Error during periodic disk flush and cache scaling");
+            }
+        });
+    }
+
+    private void PerformPeriodicFastResumeSave()
+    {
+        if (this.engine == null || this.disposed)
+        {
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await this.SaveAllFastResumeCheckpointsAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Error during periodic FastResume checkpoint autosave");
+            }
+        });
+    }
+
+    public async Task SaveAllFastResumeCheckpointsAsync()
+    {
+        var cacheDir = this.GetCacheDirectory();
+        foreach (var task in this.tasks.Values)
+        {
+            if (task.Manager != null)
+            {
+                await this.SaveFastResumeAtomicAsync(task.Manager, cacheDir).ConfigureAwait(false);
+            }
+        }
+    }
+
+    public async Task SaveFastResumeAtomicAsync(TorrentManager manager, string cacheDirectory)
+    {
+        if (manager == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var fastResume = await manager.SaveFastResumeAsync().ConfigureAwait(false);
+            if (fastResume != null)
+            {
+                var fastResumeDir = Path.Combine(cacheDirectory, "FastResume");
+                Directory.CreateDirectory(fastResumeDir);
+
+                var infoHashHex = manager.InfoHashes?.V1OrV2?.ToHex()
+                    ?? manager.InfoHashes?.V1?.ToHex()
+                    ?? manager.InfoHashes?.V2?.ToHex();
+
+                if (string.IsNullOrWhiteSpace(infoHashHex))
+                {
+                    return;
+                }
+
+                var targetFile = Path.Combine(fastResumeDir, $"{infoHashHex}.fastresume");
+                var tempFile = Path.Combine(fastResumeDir, $"{infoHashHex}.fastresume.tmp");
+
+                var encodedBytes = fastResume.Encode();
+                using (var fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
+                {
+                    await fs.WriteAsync(encodedBytes, 0, encodedBytes.Length).ConfigureAwait(false);
+                    await fs.FlushAsync().ConfigureAwait(false);
+                    fs.Flush(flushToDisk: true);
+                }
+
+                File.Move(tempFile, targetFile, overwrite: true);
+                this.logger.Debug("Atomically saved FastResume checkpoint for {0}", infoHashHex);
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to atomically save FastResume checkpoint for {0}", manager?.InfoHashes?.V1OrV2?.ToHex());
         }
     }
 }

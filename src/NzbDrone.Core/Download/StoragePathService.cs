@@ -210,6 +210,7 @@ public class StoragePathService : IStoragePathService
 
         try
         {
+            this.FlushBuffersToDisk(actualSource);
             this.logger.Info("Moving completed torrent from '{0}' to '{1}'", actualSource, finalDestination);
 
             if (this.diskProvider.FileExists(actualSource))
@@ -376,6 +377,53 @@ public class StoragePathService : IStoragePathService
                 var destFile = Path.Combine(destination, fileName);
                 this.diskProvider.CopyFile(file, destFile, overwrite: true);
             }
+        }
+    }
+
+    private void FlushBuffersToDisk(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        try
+        {
+            if (this.diskProvider.FileExists(path))
+            {
+                this.FlushSingleFileBufferToDisk(path);
+            }
+            else if (this.diskProvider.FolderExists(path))
+            {
+                var files = this.diskProvider.GetFiles(path, true);
+                if (files != null)
+                {
+                    foreach (var file in files)
+                    {
+                        this.FlushSingleFileBufferToDisk(file);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Non-critical error while committing disk write cache for '{0}'", path);
+        }
+    }
+
+    private void FlushSingleFileBufferToDisk(string filePath)
+    {
+        try
+        {
+            if (File.Exists(filePath))
+            {
+                using var fs = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
+                fs.Flush(flushToDisk: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Failed to flush OS file buffer for '{0}'", filePath);
         }
     }
 }

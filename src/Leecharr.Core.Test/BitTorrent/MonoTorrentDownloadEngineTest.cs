@@ -2686,5 +2686,86 @@ public class MonoTorrentDownloadEngineTest
         task.Status.Should().Be(TorrentStatus.Paused);
     }
 
+    [Test]
+    public void CalculateDynamicDiskCacheBytes_DefaultConfiguration_ReturnsAtLeast128MB()
+    {
+        var cacheBytes = this.engine.CalculateDynamicDiskCacheBytes();
+        cacheBytes.Should().BeGreaterThanOrEqualTo(128 * 1024 * 1024);
+        cacheBytes.Should().BeLessThanOrEqualTo(1024 * 1024 * 1024);
+    }
+
+    [Test]
+    public void CalculateDynamicDiskCacheBytes_HighDownloadThroughput_ScalesUpTo1GB()
+    {
+        // 500 MB/s download throughput
+        var cacheBytes = this.engine.CalculateDynamicDiskCacheBytes(500L * 1024L * 1024L);
+        cacheBytes.Should().Be(1024 * 1024 * 1024);
+    }
+
+    [Test]
+    public void CalculateDynamicDiskCacheBytes_ExplicitCustomConfig_ScalesAccordingly()
+    {
+        this.configService.DiskWriteCacheSizeMb.Returns(512);
+        var cacheBytes = this.engine.CalculateDynamicDiskCacheBytes();
+        cacheBytes.Should().BeGreaterThanOrEqualTo(512 * 1024 * 1024);
+        cacheBytes.Should().BeLessThanOrEqualTo(1024 * 1024 * 1024);
+    }
+
+    [Test]
+    public async Task SaveFastResumeAtomicAsync_WritesTemporaryFileAndAtomicallyReplacesTarget()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("fast_resume_test.iso", isPrivate: false);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 601,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "fast_resume_test.iso",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(50_000_000_000L);
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        var tempCacheDir = Path.Combine(Path.GetTempPath(), "leecharr_fastresume_test_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            await this.engine.SaveFastResumeAtomicAsync(task.Manager, tempCacheDir);
+
+            var fastResumeDir = Path.Combine(tempCacheDir, "FastResume");
+            var targetFile = Path.Combine(fastResumeDir, $"{torrent.InfoHash}.fastresume");
+            var tempFile = Path.Combine(fastResumeDir, $"{torrent.InfoHash}.fastresume.tmp");
+
+            File.Exists(targetFile).Should().BeTrue();
+            File.Exists(tempFile).Should().BeFalse();
+
+            var fileBytes = await File.ReadAllBytesAsync(targetFile);
+            fileBytes.Length.Should().BeGreaterThan(0);
+        }
+        finally
+        {
+            if (Directory.Exists(tempCacheDir))
+            {
+                Directory.Delete(tempCacheDir, true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task StartAsync_ConfiguresEngineSettingsWithForwardedPolicies()
+    {
+        this.configService.DiskCachePolicy.Returns("WritesOnly");
+        this.configService.FastResumeMode.Returns("Accurate");
+        this.configService.DiskFlushIntervalSeconds.Returns(45);
+        this.configService.AutoSaveFastResumeIntervalSeconds.Returns(120);
+
+        await this.engine.StartAsync();
+
+        var metrics = this.engine.GetEngineMetrics();
+        metrics.DiskCacheCapacityBytes.Should().BeGreaterThanOrEqualTo(128L * 1024L * 1024L);
+        metrics.DiskCacheCapacityBytes.Should().BeLessThanOrEqualTo(1024L * 1024L * 1024L);
+    }
+
     #endregion
 }
