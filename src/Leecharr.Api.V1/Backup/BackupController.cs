@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Threading.Tasks;
 using Leecharr.Http;
 using Leecharr.Http.REST;
 using Microsoft.AspNetCore.Mvc;
@@ -161,7 +162,7 @@ public class BackupController : Controller
     }
 
     [HttpPost]
-    public ActionResult<BackupResource> Create()
+    public async Task<ActionResult<BackupResource>> Create()
     {
         string tempDumpFile = null;
         try
@@ -199,7 +200,7 @@ public class BackupController : Controller
                 }
 
                 tempDumpFile = Path.Combine(Path.GetTempPath(), $"leecharr_postgres_{Guid.NewGuid():N}.sql");
-                var dumpSuccess = this.RunPgDump(pgDumpExe, host, port, user, password, dbName, tempDumpFile);
+                var dumpSuccess = await this.RunPgDump(pgDumpExe, host, port, user, password, dbName, tempDumpFile);
                 if (!dumpSuccess)
                 {
                     this.logger.Error("pg_dump execution failed or timed out during PostgreSQL backup.");
@@ -332,7 +333,7 @@ public class BackupController : Controller
     }
 
     [HttpPost("restore")]
-    public ActionResult Restore([FromBody] RestoreBackupRequest request)
+    public async Task<ActionResult> Restore([FromBody] RestoreBackupRequest request)
     {
         if (request == null)
         {
@@ -398,7 +399,7 @@ public class BackupController : Controller
 
                     if (!string.IsNullOrEmpty(psqlExe) && !string.IsNullOrEmpty(host) && !string.IsNullOrEmpty(dbName))
                     {
-                        var restoreSuccess = this.RunPsqlRestore(psqlExe, host, port, user, password, dbName, stagedPgSql);
+                        var restoreSuccess = await this.RunPsqlRestore(psqlExe, host, port, user, password, dbName, stagedPgSql);
                         if (restoreSuccess)
                         {
                             if (global::System.IO.File.Exists(stagedConfig))
@@ -750,7 +751,7 @@ public class BackupController : Controller
         return timeout > 0 ? timeout : 600;
     }
 
-    protected virtual bool RunPgDump(string pgDumpExe, string host, int port, string user, string password, string dbName, string outputPath)
+    protected virtual async Task<bool> RunPgDump(string pgDumpExe, string host, int port, string user, string password, string dbName, string outputPath)
     {
         try
         {
@@ -780,13 +781,16 @@ public class BackupController : Controller
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
 
             var timeoutSeconds = this.GetBackupTimeoutSeconds();
-            var exited = proc.WaitForExit(timeoutSeconds * 1000);
-            if (!exited)
+            var waitTask = proc.WaitForExitAsync();
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(timeoutSeconds));
+
+            var completedTask = await Task.WhenAny(waitTask, timeoutTask);
+            if (completedTask == timeoutTask)
             {
                 try
                 {
                     proc.Kill(entireProcessTree: true);
-                    proc.WaitForExit(1000);
+                    await proc.WaitForExitAsync();
                 }
                 catch (Exception ex)
                 {
@@ -797,7 +801,9 @@ public class BackupController : Controller
                 return false;
             }
 
-            var stderr = stderrTask.GetAwaiter().GetResult();
+            await Task.WhenAll(stderrTask, stdoutTask);
+            var stderr = await stderrTask;
+
             var exitCode = -1;
             try
             {
@@ -826,7 +832,7 @@ public class BackupController : Controller
         }
     }
 
-    protected virtual bool RunPsqlRestore(string psqlExe, string host, int port, string user, string password, string dbName, string sqlScriptPath)
+    protected virtual async Task<bool> RunPsqlRestore(string psqlExe, string host, int port, string user, string password, string dbName, string sqlScriptPath)
     {
         try
         {
@@ -856,13 +862,16 @@ public class BackupController : Controller
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
 
             var timeoutSeconds = this.GetRestoreTimeoutSeconds();
-            var exited = proc.WaitForExit(timeoutSeconds * 1000);
-            if (!exited)
+            var waitTask = proc.WaitForExitAsync();
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(timeoutSeconds));
+
+            var completedTask = await Task.WhenAny(waitTask, timeoutTask);
+            if (completedTask == timeoutTask)
             {
                 try
                 {
                     proc.Kill(entireProcessTree: true);
-                    proc.WaitForExit(1000);
+                    await proc.WaitForExitAsync();
                 }
                 catch (Exception ex)
                 {
@@ -873,7 +882,9 @@ public class BackupController : Controller
                 return false;
             }
 
-            var stderr = stderrTask.GetAwaiter().GetResult();
+            await Task.WhenAll(stderrTask, stdoutTask);
+            var stderr = await stderrTask;
+
             var exitCode = -1;
             try
             {
