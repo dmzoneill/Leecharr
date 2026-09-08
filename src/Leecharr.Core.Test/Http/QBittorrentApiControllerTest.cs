@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -574,6 +575,147 @@ public class QBittorrentApiControllerTest
 
         result.Should().BeOfType<ContentResult>();
         addedTorrent.SequentialDownload.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task AddTorrents_WithDownloadPath_UsesDownloadPathAsSavepathForMagnet()
+    {
+        var addedTorrent = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+        this.torrentService.AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", "movies", "/custom/download/path", false)
+            .Returns(addedTorrent);
+
+        var result = await this.controller.AddTorrents(
+            urls: "magnet:?xt=urn:btih:hash1",
+            category: "movies",
+            downloadPath: "/custom/download/path");
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.Received(1).AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", "movies", "/custom/download/path", false);
+    }
+
+    [Test]
+    public async Task AddTorrents_WithDownloadUnderscorePath_UsesDownloadPathAsSavepathForMagnet()
+    {
+        var addedTorrent = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+        this.torrentService.AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", "movies", "/custom/download_path", false)
+            .Returns(addedTorrent);
+
+        var result = await this.controller.AddTorrents(
+            urls: "magnet:?xt=urn:btih:hash1",
+            category: "movies",
+            download_path: "/custom/download_path");
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.Received(1).AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", "movies", "/custom/download_path", false);
+    }
+
+    [Test]
+    public async Task AddTorrents_WithSavepathAndDownloadPath_PrefersSavepath()
+    {
+        var addedTorrent = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+        this.torrentService.AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", "movies", "/priority/savepath", false)
+            .Returns(addedTorrent);
+
+        var result = await this.controller.AddTorrents(
+            urls: "magnet:?xt=urn:btih:hash1",
+            category: "movies",
+            savepath: "/priority/savepath",
+            downloadPath: "/ignored/download/path");
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.Received(1).AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", "movies", "/priority/savepath", false);
+    }
+
+    [Test]
+    public async Task AddTorrents_WithHttpUrlAndCookie_PassesCookieHeaderToSafeHttpClientService()
+    {
+        var dummyBytes = new byte[] { 1, 2, 3 };
+        var parsed = new ParsedTorrent { InfoHash = "hash1", Name = "T1" };
+        var addedTorrent = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+
+        this.safeHttpClientService.DownloadBytesAsync(
+            Arg.Is<Uri>(u => u.ToString() == "https://tracker.example.com/torrent.torrent"),
+            Arg.Any<long>(),
+            Arg.Is<IDictionary<string, string>>(h => h != null && h.ContainsKey("Cookie") && h["Cookie"] == "uid=123; pass=secret"),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(dummyBytes);
+
+        this.torrentFileParser.Parse(dummyBytes).Returns(parsed);
+        this.torrentService.AddFromParsedTorrentAsync(parsed, "tv", "/downloads/tv", false, dummyBytes)
+            .Returns(addedTorrent);
+
+        var result = await this.controller.AddTorrents(
+            urls: "https://tracker.example.com/torrent.torrent",
+            category: "tv",
+            downloadPath: "/downloads/tv",
+            cookie: "uid=123; pass=secret");
+
+        result.Should().BeOfType<ContentResult>();
+        await this.safeHttpClientService.Received(1).DownloadBytesAsync(
+            Arg.Is<Uri>(u => u.ToString() == "https://tracker.example.com/torrent.torrent"),
+            Arg.Any<long>(),
+            Arg.Is<IDictionary<string, string>>(h => h["Cookie"] == "uid=123; pass=secret"),
+            Arg.Any<System.Threading.CancellationToken>());
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(parsed, "tv", "/downloads/tv", false, dummyBytes);
+    }
+
+    [Test]
+    public async Task AddTorrents_WithHttpUrlAndCookiesPlural_PassesCookieHeaderToSafeHttpClientService()
+    {
+        var dummyBytes = new byte[] { 1, 2, 3 };
+        var parsed = new ParsedTorrent { InfoHash = "hash1", Name = "T1" };
+        var addedTorrent = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+
+        this.safeHttpClientService.DownloadBytesAsync(
+            Arg.Is<Uri>(u => u.ToString() == "https://tracker.example.com/torrent.torrent"),
+            Arg.Any<long>(),
+            Arg.Is<IDictionary<string, string>>(h => h != null && h.ContainsKey("Cookie") && h["Cookie"] == "auth=token123"),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(dummyBytes);
+
+        this.torrentFileParser.Parse(dummyBytes).Returns(parsed);
+        this.torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, dummyBytes)
+            .Returns(addedTorrent);
+
+        var result = await this.controller.AddTorrents(
+            urls: "https://tracker.example.com/torrent.torrent",
+            cookies: "auth=token123");
+
+        result.Should().BeOfType<ContentResult>();
+        await this.safeHttpClientService.Received(1).DownloadBytesAsync(
+            Arg.Is<Uri>(u => u.ToString() == "https://tracker.example.com/torrent.torrent"),
+            Arg.Any<long>(),
+            Arg.Is<IDictionary<string, string>>(h => h["Cookie"] == "auth=token123"),
+            Arg.Any<System.Threading.CancellationToken>());
+    }
+
+    [Test]
+    public async Task AddTorrents_WithUploadedFileAndDownloadPath_UsesDownloadPathAsSavepath()
+    {
+        var dummyBytes = new byte[] { 4, 5, 6 };
+        var parsed = new ParsedTorrent { InfoHash = "hash2", Name = "T2" };
+        var addedTorrent = new Torrent { Id = 2, InfoHash = "hash2", Name = "T2" };
+
+        var formFile = Substitute.For<IFormFile>();
+        formFile.Length.Returns(dummyBytes.Length);
+        formFile.CopyToAsync(Arg.Any<Stream>()).Returns(ci =>
+        {
+            var stream = ci.Arg<Stream>();
+            stream.Write(dummyBytes, 0, dummyBytes.Length);
+            return Task.CompletedTask;
+        });
+
+        this.torrentFileParser.Parse(Arg.Is<byte[]>(b => b.SequenceEqual(dummyBytes))).Returns(parsed);
+        this.torrentService.AddFromParsedTorrentAsync(parsed, "movies", "/custom/download/path", false, Arg.Any<byte[]>())
+            .Returns(addedTorrent);
+
+        var result = await this.controller.AddTorrents(
+            torrents: new List<IFormFile> { formFile },
+            category: "movies",
+            downloadPath: "/custom/download/path");
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(parsed, "movies", "/custom/download/path", false, Arg.Any<byte[]>());
     }
 
     [Test]
