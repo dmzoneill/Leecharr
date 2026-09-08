@@ -11,7 +11,7 @@ public class AddTrackerEntries : NzbDroneMigrationBase
     {
         this.Create.Table("TrackerEntries")
             .WithColumn("Id").AsInt32().PrimaryKey().Identity()
-            .WithColumn("TorrentId").AsInt32().NotNullable().ForeignKey("Torrents", "Id")
+            .WithColumn("TorrentId").AsInt32().NotNullable().ForeignKey("Torrents", "Id").OnDelete(System.Data.Rule.Cascade)
             .WithColumn("Url").AsString().NotNullable()
             .WithColumn("Tier").AsInt32().NotNullable().WithDefaultValue(0)
             .WithColumn("Status").AsInt32().NotNullable().WithDefaultValue(0)
