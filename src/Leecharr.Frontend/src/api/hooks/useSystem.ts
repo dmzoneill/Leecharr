@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../client";
+import { useIsSignalRConnected, useIsDocumentVisible } from "../signalr";
 import type {
   SystemStatus,
   HealthCheckResult,
@@ -23,16 +24,35 @@ import type {
 
 export const DEFAULT_REFETCH_MS = 5000;
 
-export function useRefetchInterval(): number {
+export function useRefetchInterval(
+  defaultIntervalMs?: number,
+  options?: { ignoreSignalR?: boolean },
+): number | false {
+  const isSignalRConnected = useIsSignalRConnected();
+  const isVisible = useIsDocumentVisible();
+
   const { data } = useQuery<{ uiRefreshRateSec: number }>({
     queryKey: ["config", "advanced"],
     queryFn: () => apiClient.get("/config/advanced"),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
-  return data?.uiRefreshRateSec
-    ? data.uiRefreshRateSec * 1000
-    : DEFAULT_REFETCH_MS;
+
+  if (!isVisible) {
+    return false;
+  }
+
+  if (!options?.ignoreSignalR && isSignalRConnected) {
+    return false;
+  }
+
+  const baseInterval =
+    defaultIntervalMs ??
+    (data?.uiRefreshRateSec
+      ? data.uiRefreshRateSec * 1000
+      : DEFAULT_REFETCH_MS);
+
+  return baseInterval <= 0 ? false : baseInterval;
 }
 
 export function useSystemStatus() {
@@ -43,10 +63,11 @@ export function useSystemStatus() {
 }
 
 export function useHealthChecks() {
+  const interval = useRefetchInterval(30000);
   return useQuery<HealthCheckResult[]>({
     queryKey: ["health"],
     queryFn: () => apiClient.get("/health"),
-    refetchInterval: 30000,
+    refetchInterval: interval,
   });
 }
 
@@ -114,10 +135,11 @@ export function useUpdates() {
 }
 
 export function useAiStatus() {
+  const interval = useRefetchInterval(30_000);
   return useQuery<AiStatus>({
     queryKey: ["ai", "status"],
     queryFn: () => apiClient.get("/ai/status"),
-    refetchInterval: 30_000,
+    refetchInterval: interval,
   });
 }
 
@@ -173,17 +195,29 @@ export function useSaveAiConfig() {
 }
 
 export function useSystemResources(refetchInterval: number | false = 2000) {
+  const isVisible = useIsDocumentVisible();
+  const effectiveInterval = !isVisible
+    ? false
+    : refetchInterval === false
+      ? false
+      : refetchInterval;
   return useQuery<SystemResourceTelemetrySnapshot>({
     queryKey: ["system", "resources"],
     queryFn: () => apiClient.get("/system/resources"),
-    refetchInterval,
+    refetchInterval: effectiveInterval,
   });
 }
 
 export function useHostResources(refetchInterval: number | false = 2000) {
+  const isVisible = useIsDocumentVisible();
+  const effectiveInterval = !isVisible
+    ? false
+    : refetchInterval === false
+      ? false
+      : refetchInterval;
   return useQuery<HostProcessResourceMetrics>({
     queryKey: ["system", "resources", "host"],
     queryFn: () => apiClient.get("/system/resources/host"),
-    refetchInterval,
+    refetchInterval: effectiveInterval,
   });
 }

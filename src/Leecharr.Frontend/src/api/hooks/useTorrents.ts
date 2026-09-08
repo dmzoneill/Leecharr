@@ -403,7 +403,7 @@ export function useSpeedHistory() {
   return useQuery<SpeedSnapshot[]>({
     queryKey: ["seeding", "history"],
     queryFn: () => apiClient.get("/seeding/history"),
-    staleTime: Infinity,
+    staleTime: 10_000,
     refetchOnWindowFocus: false,
   });
 }
@@ -412,7 +412,7 @@ export function useTorrentSpeedHistory(torrentId: number) {
   return useQuery<TorrentSpeedSnapshot[]>({
     queryKey: ["seeding", "history", torrentId],
     queryFn: () => apiClient.get(`/seeding/history/${torrentId}`),
-    staleTime: Infinity,
+    staleTime: 10_000,
     refetchOnWindowFocus: false,
     enabled: torrentId > 0,
   });
@@ -645,10 +645,11 @@ export function useDownloadIndexerRelease() {
 }
 
 export function useTrackerBoostStatus() {
+  const interval = useRefetchInterval(10_000);
   return useQuery<TrackerBoostStatusSummary>({
     queryKey: ["trackerboost", "status"],
     queryFn: () => apiClient.get("/trackerboost/status"),
-    refetchInterval: 10_000,
+    refetchInterval: interval,
   });
 }
 
@@ -700,10 +701,11 @@ export function useUpdateTrackerBoostSettings() {
 }
 
 export function useTrackerBoostMatrix() {
+  const interval = useRefetchInterval(15_000);
   return useQuery<TrackerCrossMatrixResult>({
     queryKey: ["trackerboost", "matrix"],
     queryFn: () => apiClient.get("/trackerboost/matrix"),
-    refetchInterval: 15_000,
+    refetchInterval: interval,
   });
 }
 
@@ -873,20 +875,26 @@ export const useBulkImportDownloadPlusPlusTrackers =
   useBulkImportTrackerBoostTrackers;
 
 export function useTrackerMetrics(refetchInterval: number | false = 4000) {
+  const interval = useRefetchInterval(
+    refetchInterval === false ? 0 : refetchInterval,
+  );
   return useQuery<TrackerMetric[]>({
     queryKey: ["trackermetrics"],
     queryFn: () => apiClient.get("/trackermetrics"),
-    refetchInterval,
+    refetchInterval: refetchInterval === false ? false : interval,
   });
 }
 
 export function useTrackerMetricsSummary(
   refetchInterval: number | false = 4000,
 ) {
+  const interval = useRefetchInterval(
+    refetchInterval === false ? 0 : refetchInterval,
+  );
   return useQuery<TrackerMetricsSummary>({
     queryKey: ["trackermetrics", "summary"],
     queryFn: () => apiClient.get("/trackermetrics/summary"),
-    refetchInterval,
+    refetchInterval: refetchInterval === false ? false : interval,
   });
 }
 
@@ -929,18 +937,20 @@ export function useDeleteTrackerMetric() {
 }
 
 export function useTorrentEngines() {
+  const interval = useRefetchInterval(10_000);
   return useQuery<TorrentEngine[]>({
     queryKey: ["torrentengine", "list"],
     queryFn: () => apiClient.get("/torrentengine"),
-    refetchInterval: 10_000,
+    refetchInterval: interval,
   });
 }
 
 export function useActiveTorrentEngine() {
+  const interval = useRefetchInterval(3_000);
   return useQuery<ActiveEngineStatus>({
     queryKey: ["torrentengine", "active"],
     queryFn: () => apiClient.get("/torrentengine/active"),
-    refetchInterval: 3_000,
+    refetchInterval: interval,
   });
 }
 
@@ -965,10 +975,11 @@ export function useProbeTorrentEngine() {
 }
 
 export function useSubsystems() {
+  const interval = useRefetchInterval(10_000);
   return useQuery<SubsystemOverview[]>({
     queryKey: ["subsystems"],
     queryFn: () => apiClient.get("/subsystems"),
-    refetchInterval: 10_000,
+    refetchInterval: interval,
   });
 }
 
@@ -1018,18 +1029,24 @@ export function useProbeSubsystemProvider() {
 export function useTorrentEngineMetrics(
   refetchInterval: number | false = 2000,
 ) {
+  const interval = useRefetchInterval(
+    refetchInterval === false ? 0 : refetchInterval,
+  );
   return useQuery<TorrentEngineMetrics>({
     queryKey: ["system", "resources", "engine"],
     queryFn: () => apiClient.get("/system/resources/engine"),
-    refetchInterval,
+    refetchInterval: refetchInterval === false ? false : interval,
   });
 }
 
 export function usePerTorrentMetrics(refetchInterval: number | false = 2000) {
+  const interval = useRefetchInterval(
+    refetchInterval === false ? 0 : refetchInterval,
+  );
   return useQuery<TorrentResourceMetrics[]>({
     queryKey: ["system", "resources", "torrents"],
     queryFn: () => apiClient.get("/system/resources/torrents"),
-    refetchInterval,
+    refetchInterval: refetchInterval === false ? false : interval,
   });
 }
 
@@ -1037,10 +1054,13 @@ export function useTorrentResourceMetrics(
   id: number,
   refetchInterval: number | false = 2000,
 ) {
+  const interval = useRefetchInterval(
+    refetchInterval === false ? 0 : refetchInterval,
+  );
   return useQuery<TorrentResourceMetrics>({
     queryKey: ["system", "resources", "torrents", id],
     queryFn: () => apiClient.get(`/system/resources/torrents/${id}`),
-    refetchInterval,
+    refetchInterval: refetchInterval === false ? false : interval,
     enabled: id > 0,
   });
 }
