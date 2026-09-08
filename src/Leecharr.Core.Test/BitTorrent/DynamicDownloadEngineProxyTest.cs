@@ -287,6 +287,45 @@ public class DynamicDownloadEngineProxyTest
         await this.libTorrentEngine.Received(1).StartAsync();
         await this.libTorrentEngine.Received(1).StopAsync();
         await this.monoTorrentEngine.Received(1).StartAsync();
+        await this.monoTorrentEngine.Received(2).AddTorrentAsync(Arg.Any<Torrent>(), Arg.Any<byte[]>(), Arg.Any<string>());
+        await this.monoTorrentEngine.Received(1).PauseTorrentAsync(2);
+    }
+
+    [Test]
+    public async Task SwitchEngineAsync_WhenRollbackOccurs_RehydratesTorrentsIntoRestartedPreviousEngineWithSettings()
+    {
+        this.libTorrentEngine.StartAsync().ThrowsAsync(new InvalidOperationException("Target initialization failed"));
+
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "Rollback Torrent",
+            InfoHash = "1234567890123456789012345678901234567890",
+            Status = TorrentStatus.Downloading,
+            DownloadLimit = 3000,
+            UploadLimit = 1500,
+            InitialSeeding = true,
+            IsPrivate = true,
+            SequentialDownload = true,
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+        this.monoTorrentEngine.Capabilities.Returns(new TorrentEngineCapabilities
+        {
+            SupportsSequentialDownload = true,
+        });
+
+        var result = await this.proxy.SwitchEngineAsync("LibTorrent");
+
+        result.Success.Should().BeFalse();
+        result.ActiveEngine.Should().Be("MonoTorrent");
+
+        await this.monoTorrentEngine.Received(1).StartAsync();
+        await this.monoTorrentEngine.Received(1).AddTorrentAsync(Arg.Is<Torrent>(t => t.Id == 42), null, Arg.Any<string>());
+        await this.monoTorrentEngine.Received(1).SetTorrentRateLimitsAsync(42, 3000, 1500);
+        await this.monoTorrentEngine.Received(1).SetSuperSeedingAsync(42, true);
+        await this.monoTorrentEngine.Received(1).SetTorrentPrivateStatusAsync(42, true);
+        await this.monoTorrentEngine.Received(1).SetSequentialDownloadAsync(42, true);
     }
 
     [Test]
