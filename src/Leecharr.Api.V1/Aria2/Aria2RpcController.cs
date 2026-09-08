@@ -738,12 +738,12 @@ public class Aria2RpcController : ControllerBase
                     var t = this.FindByGid(gidStr);
                     if (t != null && optDictElem.ValueKind == JsonValueKind.Object)
                     {
-                        if (optDictElem.TryGetProperty("max-download-limit", out var tdl) && int.TryParse(tdl.GetString(), out var tdlBps))
+                        if (optDictElem.TryGetProperty("max-download-limit", out var tdl) && TryParseSpeedLimit(tdl, out var tdlBps))
                         {
                             t.DownloadLimit = tdlBps / 1024;
                         }
 
-                        if (optDictElem.TryGetProperty("max-upload-limit", out var tul) && int.TryParse(tul.GetString(), out var tulBps))
+                        if (optDictElem.TryGetProperty("max-upload-limit", out var tul) && TryParseSpeedLimit(tul, out var tulBps))
                         {
                             t.UploadLimit = tulBps / 1024;
                         }
@@ -771,12 +771,12 @@ public class Aria2RpcController : ControllerBase
                 if (optDictElem.ValueKind == JsonValueKind.Object)
                 {
                     var updateDict = new Dictionary<string, object>();
-                    if (optDictElem.TryGetProperty("max-overall-download-limit", out var dlOpt) && int.TryParse(dlOpt.GetString(), out var dlBps))
+                    if (optDictElem.TryGetProperty("max-overall-download-limit", out var dlOpt) && TryParseSpeedLimit(dlOpt, out var dlBps))
                     {
                         updateDict["MaxDownloadSpeedKbps"] = dlBps / 1024;
                     }
 
-                    if (optDictElem.TryGetProperty("max-overall-upload-limit", out var ulOpt) && int.TryParse(ulOpt.GetString(), out var ulBps))
+                    if (optDictElem.TryGetProperty("max-overall-upload-limit", out var ulOpt) && TryParseSpeedLimit(ulOpt, out var ulBps))
                     {
                         updateDict["MaxUploadSpeedKbps"] = ulBps / 1024;
                     }
@@ -905,6 +905,22 @@ public class Aria2RpcController : ControllerBase
         }
 
         return list;
+    }
+
+    private static bool TryParseSpeedLimit(JsonElement elem, out int speedBps)
+    {
+        if (elem.ValueKind == JsonValueKind.Number && elem.TryGetInt32(out speedBps))
+        {
+            return true;
+        }
+
+        if (elem.ValueKind == JsonValueKind.String && int.TryParse(elem.GetString(), out speedBps))
+        {
+            return true;
+        }
+
+        speedBps = 0;
+        return false;
     }
 
     private static string GetFirstXmlRpcToken(global::System.Xml.Linq.XDocument xmlDoc)
