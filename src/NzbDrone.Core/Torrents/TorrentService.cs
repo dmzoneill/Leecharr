@@ -147,9 +147,19 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         }
 
         var effectiveCategory = !string.IsNullOrWhiteSpace(category) ? category : this.configService.DefaultCategory;
+        var defaultDownloadDir = this.storagePathService?.GetCompletedDirectory(effectiveCategory);
+        if (string.IsNullOrWhiteSpace(defaultDownloadDir))
+        {
+            var appData = this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder)
+                ? this.appFolderInfo.AppDataFolder
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Leecharr");
+            var fallbackPath = this.configService.DownloadDir ?? Path.Combine(appData, "downloads");
+            defaultDownloadDir = this.categoryService.GetSavePathForCategory(effectiveCategory, fallbackPath);
+        }
+
         var effectiveSavePath = !string.IsNullOrWhiteSpace(savePath)
             ? savePath
-            : this.categoryService.GetSavePathForCategory(effectiveCategory, this.configService.DownloadDir ?? "/downloads");
+            : defaultDownloadDir;
 
         var torrent = new Torrent
         {
@@ -224,7 +234,11 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             }
         }
 
-        // Insert trackers
+        var defaultAnnounceInterval = this.configService?.AnnounceIntervalSeconds > 0
+            ? this.configService.AnnounceIntervalSeconds
+            : (this.configService?.TrackerAnnounceInterval > 0 ? this.configService.TrackerAnnounceInterval : 1800);
+
+        // Insert trackers from torrent
         if (this.trackerEntryRepository != null)
         {
             if (parsed.AnnounceList != null && parsed.AnnounceList.Count > 0)
@@ -243,9 +257,9 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                                 Tier = tier,
                                 Enabled = true,
                                 Status = 0,
-                                AnnounceInterval = 1800,
+                                AnnounceInterval = defaultAnnounceInterval,
                                 LastAnnounce = null,
-                                NextAnnounce = inserted.DateAdded.AddSeconds(1800),
+                                NextAnnounce = inserted.DateAdded.AddSeconds(defaultAnnounceInterval),
                                 TotalAnnounces = 0,
                                 SuccessfulAnnounces = 0,
                             });
@@ -267,9 +281,9 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                     Tier = 0,
                     Enabled = true,
                     Status = 0,
-                    AnnounceInterval = 1800,
+                    AnnounceInterval = defaultAnnounceInterval,
                     LastAnnounce = null,
-                    NextAnnounce = inserted.DateAdded.AddSeconds(1800),
+                    NextAnnounce = inserted.DateAdded.AddSeconds(defaultAnnounceInterval),
                     TotalAnnounces = 0,
                     SuccessfulAnnounces = 0,
                 });
@@ -355,9 +369,19 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         }
 
         var effectiveCategory = !string.IsNullOrWhiteSpace(category) ? category : this.configService.DefaultCategory;
+        var defaultDownloadDir = this.storagePathService?.GetCompletedDirectory(effectiveCategory);
+        if (string.IsNullOrWhiteSpace(defaultDownloadDir))
+        {
+            var appData = this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder)
+                ? this.appFolderInfo.AppDataFolder
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Leecharr");
+            var fallbackPath = this.configService.DownloadDir ?? Path.Combine(appData, "downloads");
+            defaultDownloadDir = this.categoryService.GetSavePathForCategory(effectiveCategory, fallbackPath);
+        }
+
         var effectiveSavePath = !string.IsNullOrWhiteSpace(savePath)
             ? savePath
-            : this.categoryService.GetSavePathForCategory(effectiveCategory, this.configService.DownloadDir ?? "/downloads");
+            : defaultDownloadDir;
 
         var torrent = new Torrent
         {
@@ -394,6 +418,10 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
         var inserted = this.torrentRepository.Insert(torrent) ?? torrent;
 
+        var defaultAnnounceInterval = this.configService?.AnnounceIntervalSeconds > 0
+            ? this.configService.AnnounceIntervalSeconds
+            : (this.configService?.TrackerAnnounceInterval > 0 ? this.configService.TrackerAnnounceInterval : 1800);
+
         // Insert trackers from magnet
         if (this.trackerEntryRepository != null && parsedMagnet.Trackers != null)
         {
@@ -408,9 +436,9 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                         Tier = 0,
                         Enabled = true,
                         Status = 0,
-                        AnnounceInterval = 1800,
+                        AnnounceInterval = defaultAnnounceInterval,
                         LastAnnounce = null,
-                        NextAnnounce = inserted.DateAdded.AddSeconds(1800),
+                        NextAnnounce = inserted.DateAdded.AddSeconds(defaultAnnounceInterval),
                         TotalAnnounces = 0,
                         SuccessfulAnnounces = 0,
                     });
