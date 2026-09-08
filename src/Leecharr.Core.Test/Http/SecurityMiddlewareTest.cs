@@ -300,15 +300,19 @@ public class SecurityMiddlewareTest
         nextCalled.Should().BeTrue();
     }
 
-    [Test]
-    public async Task CsrfProtectionMiddleware_BlocksNonAuthEndpointWithoutOriginOrReferer()
+    [TestCase("/api/v1/torrents/add")]
+    [TestCase("/api/v1/download/auth/login/custom")]
+    [TestCase("/api/v1/torrents/auth/login")]
+    [TestCase("/api/v1/settings/auth/authenticate")]
+    [TestCase("/fake/auth/login/action")]
+    public async Task CsrfProtectionMiddleware_BlocksNonAuthEndpointWithoutOriginOrReferer(string path)
     {
         var config = Substitute.For<IConfigService>();
         config.CsrfProtectionEnabled.Returns(true);
 
         var context = new DefaultHttpContext();
         context.Request.Method = "POST";
-        context.Request.Path = "/api/v1/torrents/add";
+        context.Request.Path = path;
         context.Request.Host = new HostString("localhost:7889");
         context.Response.Body = new MemoryStream();
 
@@ -323,6 +327,21 @@ public class SecurityMiddlewareTest
 
         nextCalled.Should().BeFalse();
         context.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+    }
+
+    [TestCase("/auth/login", true)]
+    [TestCase("/auth/login/subpath", true)]
+    [TestCase("/api/v1/auth/login", true)]
+    [TestCase("/api/v1/auth/callback", true)]
+    [TestCase("/api/v1/auth/callback/saml", true)]
+    [TestCase("/api/v1/torrents/add", false)]
+    [TestCase("/api/v1/something/auth/login", false)]
+    [TestCase("/api/v1/auth/login-fake", false)]
+    [TestCase("/fake/auth/login", false)]
+    [TestCase("/not-auth/login", false)]
+    public void CsrfProtectionMiddleware_IsAuthPath_StrictMatching(string path, bool expected)
+    {
+        CsrfProtectionMiddleware.IsAuthPath(path).Should().Be(expected);
     }
 
     [Test]
