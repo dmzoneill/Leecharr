@@ -318,6 +318,86 @@ public class RuleHeuristicAiProviderTest
     }
 
     [Test]
+    public async Task ParseReleaseAsync_TitlesWithEmbeddedNumbersAndYears_PreservesNumericTitleAndExtractsReleaseYear()
+    {
+        // Wonder Woman 1984 (2020)
+        var ww = await this.provider.ParseReleaseAsync("Wonder.Woman.1984.2020.1080p.BluRay.x264-GROUP");
+        ww.CleanTitle.Should().Be("Wonder Woman 1984");
+        ww.Year.Should().Be(2020);
+        ww.Resolution.Should().Be("1080p");
+        ww.ReleaseGroup.Should().Be("GROUP");
+
+        // Blade Runner 2049 (2017)
+        var br = await this.provider.ParseReleaseAsync("Blade.Runner.2049.2017.1080p.BluRay.x264-GROUP");
+        br.CleanTitle.Should().Be("Blade Runner 2049");
+        br.Year.Should().Be(2017);
+        br.Resolution.Should().Be("1080p");
+
+        // 2001: A Space Odyssey (1968)
+        var space = await this.provider.ParseReleaseAsync("2001.A.Space.Odyssey.1968.1080p.BluRay-GROUP");
+        space.CleanTitle.Should().Be("2001 A Space Odyssey");
+        space.Year.Should().Be(1968);
+
+        // Death Race 2000 (1975)
+        var dr = await this.provider.ParseReleaseAsync("Death.Race.2000.1975.1080p.BluRay-GROUP");
+        dr.CleanTitle.Should().Be("Death Race 2000");
+        dr.Year.Should().Be(1975);
+
+        // Summer of 1985 (2022)
+        var summer = await this.provider.ParseReleaseAsync("Summer.of.1985.2022.1080p.WEB-DL-GROUP");
+        summer.CleanTitle.Should().Be("Summer of 1985");
+        summer.Year.Should().Be(2022);
+
+        // 1917 (2019)
+        var movie1917 = await this.provider.ParseReleaseAsync("1917.2019.1080p.BluRay-GROUP");
+        movie1917.CleanTitle.Should().Be("1917");
+        movie1917.Year.Should().Be(2019);
+
+        // 1984 (single year at start)
+        var movie1984 = await this.provider.ParseReleaseAsync("1984.1080p.BluRay-GROUP");
+        movie1984.CleanTitle.Should().Be("1984");
+        movie1984.Year.Should().Be(1984);
+    }
+
+    [Test]
+    public async Task ProcessNaturalLanguageSearchAsync_PreservesEssentialEnglishWordsAndTitlePhrasing()
+    {
+        // "The Lord of the Rings"
+        var lotr = await this.provider.ProcessNaturalLanguageSearchAsync("download The Lord of the Rings in 4k");
+        lotr.CleanTitle.Should().Be("The Lord of the Rings");
+        lotr.Resolution.Should().Be("2160p");
+
+        // "Stand by Me"
+        var standByMe = await this.provider.ProcessNaturalLanguageSearchAsync("search for Stand by Me 1986");
+        standByMe.CleanTitle.Should().Be("Stand by Me");
+        standByMe.Year.Should().Be(1986);
+
+        // "Get Out"
+        var getOut = await this.provider.ProcessNaturalLanguageSearchAsync("find Get Out 1080p");
+        getOut.CleanTitle.Should().Be("Get Out");
+        getOut.Resolution.Should().Be("1080p");
+
+        var getOutDirect = await this.provider.ProcessNaturalLanguageSearchAsync("Get Out");
+        getOutDirect.CleanTitle.Should().Be("Get Out");
+
+        // "Beauty and the Beast"
+        var batb = await this.provider.ProcessNaturalLanguageSearchAsync("grab Beauty and the Beast 1080p");
+        batb.CleanTitle.Should().Be("Beauty and the Beast");
+        batb.Resolution.Should().Be("1080p");
+
+        // "Wonder Woman 1984" with year
+        var ww = await this.provider.ProcessNaturalLanguageSearchAsync("Wonder Woman 1984 2020 1080p");
+        ww.CleanTitle.Should().Be("Wonder Woman 1984");
+        ww.Year.Should().Be(2020);
+        ww.Resolution.Should().Be("1080p");
+
+        // "Blade Runner 2049" with year
+        var br = await this.provider.ProcessNaturalLanguageSearchAsync("Blade Runner 2049 2017");
+        br.CleanTitle.Should().Be("Blade Runner 2049");
+        br.Year.Should().Be(2017);
+    }
+
+    [Test]
     public async Task GenerateChatResponseAsync_ProvidesRelevantGuidance()
     {
         var vpnResponse = await this.provider.GenerateChatResponseAsync("Tell me about the VPN kill switch");

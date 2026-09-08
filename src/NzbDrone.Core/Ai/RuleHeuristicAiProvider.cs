@@ -154,10 +154,47 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
 
         // 3. Year
-        var yearMatch = YearRegex.Match(working);
-        if (yearMatch.Success)
+        var techCutoff = working.Length;
+        var groupMatchEarly = ReleaseGroupRegex.Match(working);
+        if (groupMatchEarly.Success && groupMatchEarly.Index > 0)
         {
-            result.Year = int.Parse(yearMatch.Groups["year"].Value, CultureInfo.InvariantCulture);
+            techCutoff = groupMatchEarly.Index;
+        }
+
+        void CheckTech(Regex regex)
+        {
+            var m = regex.Match(working);
+            if (m.Success && m.Index > 0 && m.Index < techCutoff)
+            {
+                techCutoff = m.Index;
+            }
+        }
+
+        CheckTech(SeasonEpisodeRegex);
+        CheckTech(AltSeasonEpisodeRegex);
+        CheckTech(SeasonOnlyRegex);
+        CheckTech(ResolutionRegex);
+        CheckTech(QualityRegex);
+        CheckTech(VideoCodecRegex);
+        CheckTech(AudioCodecRegex);
+        CheckTech(AudioChannelsRegex);
+        CheckTech(DynamicRangeRegex);
+        CheckTech(EditionRegex);
+        CheckTech(LanguageRegex);
+
+        var yearMatches = YearRegex.Matches(working);
+        Match releaseYearMatch = null;
+        foreach (Match ym in yearMatches)
+        {
+            if (ym.Index <= techCutoff)
+            {
+                releaseYearMatch = ym;
+            }
+        }
+
+        if (releaseYearMatch != null)
+        {
+            result.Year = int.Parse(releaseYearMatch.Groups["year"].Value, CultureInfo.InvariantCulture);
         }
 
         // 4. Resolution
@@ -493,7 +530,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
 
         // 2. Min Seeders
-        var seedersMatch = Regex.Match(working, @"(?i)(?:at\s*least|min|minimum|>=|>)\s*(?<seeds>\d+)\s*(?:seeders?|seeds?)");
+        var seedersMatch = Regex.Match(working, @"(?i)(?:with\s+)?(?:at\s*least|min|minimum|>=|>)\s*(?<seeds>\d+)\s*(?:seeders?|seeds?)");
         if (seedersMatch.Success)
         {
             result.MinSeeders = int.Parse(seedersMatch.Groups["seeds"].Value, CultureInfo.InvariantCulture);
@@ -501,7 +538,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
         else
         {
-            var plusSeedsMatch = Regex.Match(working, @"(?i)(?<seeds>\d+)\+\s*(?:seeders?|seeds?)");
+            var plusSeedsMatch = Regex.Match(working, @"(?i)(?:with\s+)?(?<seeds>\d+)\+\s*(?:seeders?|seeds?)");
             if (plusSeedsMatch.Success)
             {
                 result.MinSeeders = int.Parse(plusSeedsMatch.Groups["seeds"].Value, CultureInfo.InvariantCulture);
@@ -518,7 +555,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
 
         // 4. Resolution
-        var resMatch = ResolutionRegex.Match(working);
+        var resMatch = Regex.Match(working, @"(?i)\b(?:in\s+)?(?<res>2160p|4k|1080p|1080i|720p|576p|480p|576i|480i)\b");
         if (resMatch.Success)
         {
             var res = resMatch.Groups["res"].Value;
@@ -527,7 +564,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
 
         // 5. Quality
-        var qualityMatch = QualityRegex.Match(working);
+        var qualityMatch = Regex.Match(working, @"(?i)\b(?:in\s+)?(?<quality>(?:2160p|1080p|720p)?[\s\.]*(?:UHD[\s\.]*)?BluRay|BRRip|BDRip|WEB-?DL|WEBRip|HDTV|DVDRip|DVD-?R|DVD|(?:2160p|1080p|720p)?[\s\.]*(?:UHD[\s\.]*)?REMUX|CAM|TeleSync|TS)\b");
         if (qualityMatch.Success)
         {
             result.Quality = NormalizeQuality(qualityMatch.Groups["quality"].Value, result.Resolution, qualityMatch.Groups["quality"].Value.Contains("remux", StringComparison.OrdinalIgnoreCase));
@@ -535,7 +572,7 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         }
 
         // 6. Codec
-        var codecMatch = VideoCodecRegex.Match(working);
+        var codecMatch = Regex.Match(working, @"(?i)\b(?:in\s+|with\s+)?(?<codec>x265|HEVC|H\.?265|x264|H\.?264|AVC|AV1|VP9|VP8|MPEG-?2|VC-?1|XviD|DivX)\b");
         if (codecMatch.Success)
         {
             result.Codec = NormalizeCodec(codecMatch.Groups["codec"].Value);
@@ -570,22 +607,39 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
             }
         }
 
-        // 8. Year
-        var yearMatch = YearRegex.Match(working);
-        if (yearMatch.Success)
+        // 8. Dynamic Range
+        var hdrMatch = DynamicRangeRegex.Match(working);
+        if (hdrMatch.Success)
         {
-            result.Year = int.Parse(yearMatch.Groups["year"].Value, CultureInfo.InvariantCulture);
-            working = working.Remove(yearMatch.Index, yearMatch.Length);
+            working = working.Remove(hdrMatch.Index, hdrMatch.Length);
         }
 
-        // 9. Default category if resolution/quality present and not specified
+        // 9. Year
+        var yearWithPrepMatch = Regex.Match(working, @"(?i)\b(?:from|in)\s+(?<year>19\d{2}|20\d{2})\b");
+        if (yearWithPrepMatch.Success)
+        {
+            result.Year = int.Parse(yearWithPrepMatch.Groups["year"].Value, CultureInfo.InvariantCulture);
+            working = working.Remove(yearWithPrepMatch.Index, yearWithPrepMatch.Length);
+        }
+        else
+        {
+            var yearMatches = YearRegex.Matches(working);
+            if (yearMatches.Count > 0)
+            {
+                var yearMatch = yearMatches[^1];
+                result.Year = int.Parse(yearMatch.Groups["year"].Value, CultureInfo.InvariantCulture);
+                working = working.Remove(yearMatch.Index, yearMatch.Length);
+            }
+        }
+
+        // 10. Default category if resolution/quality present and not specified
         if (string.IsNullOrEmpty(result.Category) && (!string.IsNullOrEmpty(result.Resolution) || !string.IsNullOrEmpty(result.Quality)))
         {
             result.Category = "movies";
         }
 
-        // 10. Clean Title Extraction
-        var clean = Regex.Replace(working, @"(?i)\b(download|find|search\s*for|search|grab|get|with|in|from|by|for|the|and)\b", " ");
+        // 11. Clean Title Extraction
+        var clean = Regex.Replace(working, @"(?i)^\s*(?:download|find|search\s*for|search|grab|get(?!\s+out\b))\s+", string.Empty);
         clean = Regex.Replace(clean, @"[^\w\s\-\.]", " ");
         clean = Regex.Replace(clean, @"\s+", " ").Trim();
 
@@ -779,20 +833,28 @@ public class RuleHeuristicAiProvider : IAiEngineProvider
         CheckMatch(ResolutionRegex);
         CheckMatch(QualityRegex);
         CheckMatch(VideoCodecRegex);
+        CheckMatch(AudioCodecRegex);
+        CheckMatch(AudioChannelsRegex);
         CheckMatch(LanguageRegex);
         CheckMatch(DynamicRangeRegex);
         CheckMatch(EditionRegex);
 
         if (parsed.Year.HasValue)
         {
+            var yearStr = parsed.Year.Value.ToString(CultureInfo.InvariantCulture);
             var yearMatches = YearRegex.Matches(clean);
+            Match lastYearMatch = null;
             foreach (Match ym in yearMatches)
             {
-                if (ym.Index > 0 && ym.Index < cutoffIndex)
+                if (ym.Index > 0 && ym.Index <= cutoffIndex && ym.Groups["year"].Value == yearStr)
                 {
-                    cutoffIndex = ym.Index;
-                    break;
+                    lastYearMatch = ym;
                 }
+            }
+
+            if (lastYearMatch != null)
+            {
+                cutoffIndex = lastYearMatch.Index;
             }
         }
 
