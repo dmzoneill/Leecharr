@@ -66,6 +66,8 @@ public class Torrent : ModelBase
 
     public bool SequentialDownload { get; set; }
 
+    public bool FirstLastPiecePriority { get; set; }
+
     public bool InitialSeeding { get; set; }
 
     public bool ForceStart { get; set; }

@@ -831,6 +831,11 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             existing.SequentialDownload = resource.SequentialDownload.Value;
         }
 
+        if (resource.FirstLastPiecePriority.HasValue)
+        {
+            existing.FirstLastPiecePriority = resource.FirstLastPiecePriority.Value;
+        }
+
         var isInitialSeedingChanged = resource.InitialSeeding.HasValue && resource.InitialSeeding.Value != existing.InitialSeeding;
         if (resource.InitialSeeding.HasValue)
         {

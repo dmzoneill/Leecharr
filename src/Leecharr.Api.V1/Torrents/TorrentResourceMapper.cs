@@ -70,6 +70,7 @@ public static class TorrentResourceMapper
             DownloadLimit = model.DownloadLimit,
             UploadLimit = model.UploadLimit,
             SequentialDownload = model.SequentialDownload,
+            FirstLastPiecePriority = model.FirstLastPiecePriority,
             InitialSeeding = model.InitialSeeding,
             ForceStart = model.ForceStart,
             TargetRatio = model.TargetRatio,

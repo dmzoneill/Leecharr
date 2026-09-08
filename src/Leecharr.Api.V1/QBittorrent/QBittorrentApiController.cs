@@ -497,6 +497,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 ["eta"] = CalculateEta(t),
                 ["state"] = state,
                 ["seq_dl"] = t.SequentialDownload,
+                ["f_l_piece_prio"] = t.FirstLastPiecePriority,
                 ["category"] = t.Category ?? string.Empty,
                 ["tags"] = t.Label ?? string.Empty,
                 ["save_path"] = resolvedSavePath,
@@ -548,6 +549,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         var isPaused = string.Equals(paused, "true", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(stopped, "true", StringComparison.OrdinalIgnoreCase);
         var isSequential = string.Equals(sequentialDownload, "true", StringComparison.OrdinalIgnoreCase);
+        var isFirstLastPiecePrio = string.Equals(firstLastPiecePrio, "true", StringComparison.OrdinalIgnoreCase);
 
         // 1. URLs (magnets or http/https torrent links)
         if (!string.IsNullOrWhiteSpace(urls))
@@ -571,6 +573,12 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                         if (isSequential)
                         {
                             added.SequentialDownload = true;
+                            needsUpdate = true;
+                        }
+
+                        if (isFirstLastPiecePrio)
+                        {
+                            added.FirstLastPiecePriority = true;
                             needsUpdate = true;
                         }
 
@@ -628,6 +636,12 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                                 needsUpdate = true;
                             }
 
+                            if (isFirstLastPiecePrio)
+                            {
+                                added.FirstLastPiecePriority = true;
+                                needsUpdate = true;
+                            }
+
                             if (ratioLimit.HasValue && ratioLimit.Value > 0)
                             {
                                 added.TargetRatio = ratioLimit.Value;
@@ -678,6 +692,12 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                         if (isSequential)
                         {
                             added.SequentialDownload = true;
+                            needsUpdate = true;
+                        }
+
+                        if (isFirstLastPiecePrio)
+                        {
+                            added.FirstLastPiecePriority = true;
                             needsUpdate = true;
                         }
 
@@ -1569,11 +1589,11 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
         foreach (var torrent in this.ResolveTorrents(hashes))
         {
-            torrent.SequentialDownload = !torrent.SequentialDownload;
+            torrent.FirstLastPiecePriority = !torrent.FirstLastPiecePriority;
             await this.torrentService.UpdateAsync(torrent);
             if (this.downloadEngine != null)
             {
-                await this.downloadEngine.SetSequentialDownloadAsync(torrent.Id, torrent.SequentialDownload);
+                await this.downloadEngine.SetFirstLastPiecePriorityAsync(torrent.Id, torrent.FirstLastPiecePriority);
             }
         }
 
@@ -1595,11 +1615,11 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
         foreach (var torrent in this.ResolveTorrents(hashes))
         {
-            torrent.SequentialDownload = enabled;
+            torrent.FirstLastPiecePriority = enabled;
             await this.torrentService.UpdateAsync(torrent);
             if (this.downloadEngine != null)
             {
-                await this.downloadEngine.SetSequentialDownloadAsync(torrent.Id, torrent.SequentialDownload);
+                await this.downloadEngine.SetFirstLastPiecePriorityAsync(torrent.Id, torrent.FirstLastPiecePriority);
             }
         }
 
@@ -1786,7 +1806,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                         t.Uploaded,
                         amountLeft,
                         addedOn,
-                        completionOn);
+                        completionOn,
+                        t.SequentialDownload,
+                        t.FirstLastPiecePriority);
 
                     sessionState.CachedTorrents[t.InfoHash] = (snapshot, sessionState.CurrentRid);
 
@@ -1814,6 +1836,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                         amount_left = snapshot.AmountLeft,
                         added_on = snapshot.AddedOn,
                         completion_on = snapshot.CompletionOn,
+                        seq_dl = snapshot.SeqDl,
+                        f_l_piece_prio = snapshot.FLPiecePrio,
                     };
                 }
 
@@ -1861,7 +1885,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     t.Uploaded,
                     amountLeft,
                     addedOn,
-                    completionOn);
+                    completionOn,
+                    t.SequentialDownload,
+                    t.FirstLastPiecePriority);
 
                 var isNewOrChanged = !sessionState.CachedTorrents.TryGetValue(t.InfoHash, out var existing) || existing.Snapshot != snapshot;
                 if (isNewOrChanged)
@@ -1895,6 +1921,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                         amount_left = snapshot.AmountLeft,
                         added_on = snapshot.AddedOn,
                         completion_on = snapshot.CompletionOn,
+                        seq_dl = snapshot.SeqDl,
+                        f_l_piece_prio = snapshot.FLPiecePrio,
                     };
                 }
             }
@@ -2548,7 +2576,9 @@ public record QBitTorrentSnapshot(
     long Uploaded,
     long AmountLeft,
     long AddedOn,
-    long CompletionOn);
+    long CompletionOn,
+    bool SeqDl = false,
+    bool FLPiecePrio = false);
 
 public class QBitSessionSyncState
 {
