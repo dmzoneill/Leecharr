@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Common.EnvironmentInfo;
+using NzbDrone.Core.Bandwidth;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
@@ -19,7 +20,7 @@ using NzbDrone.Core.Trackers;
 
 namespace NzbDrone.Core.Torrents;
 
-public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedEvent>
+public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedEvent>, IHandle<CategoryUpdatedEvent>, IHandle<CategoryDeletedEvent>
 {
     private readonly ConcurrentDictionary<int, long> lastSeenSessionUploaded = new();
     private readonly ConcurrentDictionary<int, SemaphoreSlim> deletionLocks = new ConcurrentDictionary<int, SemaphoreSlim>();
@@ -35,6 +36,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
     private readonly IStoragePathService storagePathService;
     private readonly IAppFolderInfo appFolderInfo;
     private readonly ITorrentLogService torrentLogService;
+    private readonly ISpeedSchedulerService speedSchedulerService;
     private readonly Logger logger;
 
     public TorrentService(
@@ -49,7 +51,8 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         IQueueManagerService queueManagerService = null,
         IStoragePathService storagePathService = null,
         IAppFolderInfo appFolderInfo = null,
-        ITorrentLogService torrentLogService = null)
+        ITorrentLogService torrentLogService = null,
+        ISpeedSchedulerService speedSchedulerService = null)
     {
         this.torrentRepository = torrentRepository;
         this.fileRepository = fileRepository;
@@ -63,6 +66,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         this.storagePathService = storagePathService;
         this.appFolderInfo = appFolderInfo;
         this.torrentLogService = torrentLogService;
+        this.speedSchedulerService = speedSchedulerService;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -168,10 +172,15 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
         if (cat != null)
         {
-            torrent.DownloadLimit = cat.DefaultDownloadLimit;
-            torrent.UploadLimit = cat.DefaultUploadLimit;
-            torrent.TargetRatio = cat.TargetRatio;
-            torrent.TargetSeedTimeMinutes = cat.TargetSeedTimeMinutes;
+            if (torrent.TargetRatio <= 0)
+            {
+                torrent.TargetRatio = cat.TargetRatio;
+            }
+
+            if (torrent.TargetSeedTimeMinutes <= 0)
+            {
+                torrent.TargetSeedTimeMinutes = cat.TargetSeedTimeMinutes;
+            }
         }
 
         var inserted = this.torrentRepository.Insert(torrent) ?? torrent;
@@ -289,6 +298,13 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             {
                 await this.downloadEngine.PauseTorrentAsync(inserted.Id);
             }
+
+            var effectiveDl = this.GetEffectiveDownloadLimit(inserted);
+            var effectiveUl = this.GetEffectiveUploadLimit(inserted);
+            if (this.downloadEngine != null && (effectiveDl > 0 || effectiveUl > 0))
+            {
+                await this.downloadEngine.SetTorrentRateLimitsAsync(inserted.Id, effectiveDl, effectiveUl);
+            }
         }
         catch (Exception ex)
         {
@@ -359,10 +375,15 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
         if (cat != null)
         {
-            torrent.DownloadLimit = cat.DefaultDownloadLimit;
-            torrent.UploadLimit = cat.DefaultUploadLimit;
-            torrent.TargetRatio = cat.TargetRatio;
-            torrent.TargetSeedTimeMinutes = cat.TargetSeedTimeMinutes;
+            if (torrent.TargetRatio <= 0)
+            {
+                torrent.TargetRatio = cat.TargetRatio;
+            }
+
+            if (torrent.TargetSeedTimeMinutes <= 0)
+            {
+                torrent.TargetSeedTimeMinutes = cat.TargetSeedTimeMinutes;
+            }
         }
 
         var inserted = this.torrentRepository.Insert(torrent) ?? torrent;
@@ -400,6 +421,13 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             if (startPaused)
             {
                 await this.downloadEngine.PauseTorrentAsync(inserted.Id);
+            }
+
+            var effectiveDl = this.GetEffectiveDownloadLimit(inserted);
+            var effectiveUl = this.GetEffectiveUploadLimit(inserted);
+            if (this.downloadEngine != null && (effectiveDl > 0 || effectiveUl > 0))
+            {
+                await this.downloadEngine.SetTorrentRateLimitsAsync(inserted.Id, effectiveDl, effectiveUl);
             }
         }
         catch (Exception ex)
@@ -441,16 +469,6 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             var cat = this.categoryService.GetByName(torrent.Category);
             if (cat != null)
             {
-                if (torrent.DownloadLimit <= 0)
-                {
-                    torrent.DownloadLimit = cat.DefaultDownloadLimit;
-                }
-
-                if (torrent.UploadLimit <= 0)
-                {
-                    torrent.UploadLimit = cat.DefaultUploadLimit;
-                }
-
                 if (torrent.TargetRatio <= 0)
                 {
                     torrent.TargetRatio = cat.TargetRatio;
@@ -463,11 +481,14 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             }
         }
 
-        if (this.downloadEngine != null && (existing == null || existing.DownloadLimit != torrent.DownloadLimit || existing.UploadLimit != torrent.UploadLimit))
+        var effectiveDl = this.GetEffectiveDownloadLimit(torrent);
+        var effectiveUl = this.GetEffectiveUploadLimit(torrent);
+
+        if (this.downloadEngine != null)
         {
             try
             {
-                await this.downloadEngine.SetTorrentRateLimitsAsync(torrent.Id, torrent.DownloadLimit, torrent.UploadLimit);
+                await this.downloadEngine.SetTorrentRateLimitsAsync(torrent.Id, effectiveDl, effectiveUl);
             }
             catch (Exception ex)
             {
@@ -1134,16 +1155,6 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
         if (cat != null)
         {
-            if (torrent.DownloadLimit <= 0)
-            {
-                torrent.DownloadLimit = cat.DefaultDownloadLimit;
-            }
-
-            if (torrent.UploadLimit <= 0)
-            {
-                torrent.UploadLimit = cat.DefaultUploadLimit;
-            }
-
             if (torrent.TargetRatio <= 0)
             {
                 torrent.TargetRatio = cat.TargetRatio;
@@ -1153,23 +1164,190 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             {
                 torrent.TargetSeedTimeMinutes = cat.TargetSeedTimeMinutes;
             }
+        }
 
-            if (this.downloadEngine != null)
+        var effectiveDl = this.GetEffectiveDownloadLimit(torrent);
+        var effectiveUl = this.GetEffectiveUploadLimit(torrent);
+
+        if (this.downloadEngine != null)
+        {
+            try
             {
-                try
-                {
-                    await this.downloadEngine.SetTorrentRateLimitsAsync(torrent.Id, torrent.DownloadLimit, torrent.UploadLimit);
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Warn(ex, "Failed to apply category rate limits to download engine for torrent {0}", torrent.Id);
-                }
+                await this.downloadEngine.SetTorrentRateLimitsAsync(torrent.Id, effectiveDl, effectiveUl);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to apply category rate limits to download engine for torrent {0}", torrent.Id);
             }
         }
 
         this.torrentRepository.Update(torrent);
         this.eventAggregator.PublishEvent(new TorrentUpdatedEvent { Torrent = torrent });
         this.logger.Info("Updated category for torrent {0} ({1}) to '{2}'", torrent.Id, torrent.Name, category);
+    }
+
+    public int GetEffectiveDownloadLimit(Torrent torrent)
+    {
+        if (torrent == null)
+        {
+            return 0;
+        }
+
+        var cat = !string.IsNullOrWhiteSpace(torrent.Category)
+            ? this.categoryService.GetByName(torrent.Category)
+            : null;
+        var categoryLimit = cat?.DefaultDownloadLimit ?? 0;
+
+        if (this.speedSchedulerService != null)
+        {
+            return this.speedSchedulerService.ResolveEffectiveDownloadLimit(torrent.DownloadLimit, categoryLimit);
+        }
+
+        return torrent.DownloadLimit > 0 ? torrent.DownloadLimit : categoryLimit;
+    }
+
+    public int GetEffectiveUploadLimit(Torrent torrent)
+    {
+        if (torrent == null)
+        {
+            return 0;
+        }
+
+        var cat = !string.IsNullOrWhiteSpace(torrent.Category)
+            ? this.categoryService.GetByName(torrent.Category)
+            : null;
+        var categoryLimit = cat?.DefaultUploadLimit ?? 0;
+
+        if (this.speedSchedulerService != null)
+        {
+            return this.speedSchedulerService.ResolveEffectiveUploadLimit(torrent.UploadLimit, categoryLimit);
+        }
+
+        return torrent.UploadLimit > 0 ? torrent.UploadLimit : categoryLimit;
+    }
+
+    public async Task PropagateCategoryLimitsAsync(Category category)
+    {
+        if (category == null || string.IsNullOrWhiteSpace(category.Name))
+        {
+            return;
+        }
+
+        var torrents = this.torrentRepository.GetByCategory(category.Name);
+        if (torrents == null)
+        {
+            return;
+        }
+
+        foreach (var torrent in torrents)
+        {
+            var effectiveDl = this.speedSchedulerService != null
+                ? this.speedSchedulerService.ResolveEffectiveDownloadLimit(torrent.DownloadLimit, category.DefaultDownloadLimit)
+                : (torrent.DownloadLimit > 0 ? torrent.DownloadLimit : category.DefaultDownloadLimit);
+
+            var effectiveUl = this.speedSchedulerService != null
+                ? this.speedSchedulerService.ResolveEffectiveUploadLimit(torrent.UploadLimit, category.DefaultUploadLimit)
+                : (torrent.UploadLimit > 0 ? torrent.UploadLimit : category.DefaultUploadLimit);
+
+            if (this.downloadEngine != null)
+            {
+                try
+                {
+                    await this.downloadEngine.SetTorrentRateLimitsAsync(torrent.Id, effectiveDl, effectiveUl);
+                    this.logger.Info(
+                        "Propagated category limit updates for category '{0}' to torrent {1} ({2}) - DL: {3} KB/s, UL: {4} KB/s",
+                        category.Name,
+                        torrent.Id,
+                        torrent.Name,
+                        effectiveDl,
+                        effectiveUl);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to propagate category rate limits to download engine for torrent {0}", torrent.Id);
+                }
+            }
+        }
+    }
+
+    public async Task PropagateCategoryDeletedAsync(CategoryDeletedEvent message)
+    {
+        if (message == null)
+        {
+            return;
+        }
+
+        var torrentsToUpdate = new List<Torrent>();
+
+        if (message.AffectedTorrentIds != null && message.AffectedTorrentIds.Count > 0)
+        {
+            foreach (var id in message.AffectedTorrentIds)
+            {
+                var t = this.torrentRepository.Get(id);
+                if (t != null)
+                {
+                    torrentsToUpdate.Add(t);
+                }
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(message.CategoryName))
+        {
+            var torrents = this.torrentRepository.GetByCategory(message.CategoryName);
+            if (torrents != null)
+            {
+                torrentsToUpdate.AddRange(torrents);
+            }
+        }
+
+        foreach (var torrent in torrentsToUpdate)
+        {
+            var effectiveDl = this.speedSchedulerService != null
+                ? this.speedSchedulerService.ResolveEffectiveDownloadLimit(torrent.DownloadLimit, 0)
+                : (torrent.DownloadLimit > 0 ? torrent.DownloadLimit : 0);
+
+            var effectiveUl = this.speedSchedulerService != null
+                ? this.speedSchedulerService.ResolveEffectiveUploadLimit(torrent.UploadLimit, 0)
+                : (torrent.UploadLimit > 0 ? torrent.UploadLimit : 0);
+
+            if (this.downloadEngine != null)
+            {
+                try
+                {
+                    await this.downloadEngine.SetTorrentRateLimitsAsync(torrent.Id, effectiveDl, effectiveUl);
+                    this.logger.Info(
+                        "Propagated category deletion for category '{0}' to torrent {1} ({2}) - DL: {3} KB/s, UL: {4} KB/s",
+                        message.CategoryName,
+                        torrent.Id,
+                        torrent.Name,
+                        effectiveDl,
+                        effectiveUl);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to propagate category deletion rate limits to download engine for torrent {0}", torrent.Id);
+                }
+            }
+        }
+    }
+
+    public void Handle(CategoryUpdatedEvent message)
+    {
+        if (message?.Category == null || string.IsNullOrWhiteSpace(message.Category.Name))
+        {
+            return;
+        }
+
+        _ = this.PropagateCategoryLimitsAsync(message.Category);
+    }
+
+    public void Handle(CategoryDeletedEvent message)
+    {
+        if (message == null)
+        {
+            return;
+        }
+
+        _ = this.PropagateCategoryDeletedAsync(message);
     }
 
     public void Handle(TorrentDownloadCompletedEvent message)
