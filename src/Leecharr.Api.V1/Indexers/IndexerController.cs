@@ -515,6 +515,8 @@ public class IndexerController : Controller
             MinSeeders = model.MinSeeders,
             DownloadClientId = model.DownloadClientId,
             Tags = model.Tags ?? new List<int>(),
+            ProwlarrIndexerId = model.ProwlarrIndexerId,
+            IsProwlarrManaged = model.IsProwlarrManaged,
         };
     }
 
@@ -538,6 +540,8 @@ public class IndexerController : Controller
             MinSeeders = resource.MinSeeders,
             DownloadClientId = resource.DownloadClientId,
             Tags = resource.Tags ?? new List<int>(),
+            ProwlarrIndexerId = resource.ProwlarrIndexerId,
+            IsProwlarrManaged = resource.IsProwlarrManaged,
         };
     }
 }
