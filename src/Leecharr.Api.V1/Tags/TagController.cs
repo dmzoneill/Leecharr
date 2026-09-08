@@ -5,7 +5,9 @@ using System.Linq;
 using Leecharr.Http;
 using Leecharr.Http.REST;
 using Microsoft.AspNetCore.Mvc;
+using NzbDrone.Core.Notifications;
 using NzbDrone.Core.Tags;
+using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.Tags;
 
@@ -18,10 +20,17 @@ public class TagResource : RestResource
 public class TagController : Controller
 {
     private readonly ITagRepository tagRepository;
+    private readonly ITorrentRepository torrentRepository;
+    private readonly INotificationRepository notificationRepository;
 
-    public TagController(ITagRepository tagRepository)
+    public TagController(
+        ITagRepository tagRepository,
+        ITorrentRepository torrentRepository,
+        INotificationRepository notificationRepository)
     {
         this.tagRepository = tagRepository;
+        this.torrentRepository = torrentRepository;
+        this.notificationRepository = notificationRepository;
     }
 
     [HttpGet]
@@ -118,6 +127,37 @@ public class TagController : Controller
     public ActionResult Delete(int id)
     {
         this.tagRepository.Delete(id);
+
+        if (this.torrentRepository != null)
+        {
+            var torrents = this.torrentRepository.All();
+            if (torrents != null)
+            {
+                foreach (var torrent in torrents)
+                {
+                    if (torrent.TagIds != null && torrent.TagIds.RemoveAll(t => t == id) > 0)
+                    {
+                        this.torrentRepository.Update(torrent);
+                    }
+                }
+            }
+        }
+
+        if (this.notificationRepository != null)
+        {
+            var notifications = this.notificationRepository.All();
+            if (notifications != null)
+            {
+                foreach (var notification in notifications)
+                {
+                    if (notification.Tags != null && notification.Tags.RemoveAll(t => t == id) > 0)
+                    {
+                        this.notificationRepository.Update(notification);
+                    }
+                }
+            }
+        }
+
         return this.Ok();
     }
 }
