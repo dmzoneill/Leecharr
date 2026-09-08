@@ -199,6 +199,8 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
     public async Task<IPAddress> GetExternalIpAddressAsync(IPAddress gateway = null, CancellationToken cancellationToken = default)
     {
+        ObjectDisposedException.ThrowIf(this.isDisposed != 0, this);
+
         var targetGateway = this.ResolveGateway(gateway);
         if (targetGateway == null)
         {
@@ -233,6 +235,8 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         IPAddress gateway = null,
         CancellationToken cancellationToken = default)
     {
+        ObjectDisposedException.ThrowIf(this.isDisposed != 0, this);
+
         var targetGateway = this.ResolveGateway(gateway);
         if (targetGateway == null)
         {
@@ -252,13 +256,24 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             targetGateway,
             cancellationToken).ConfigureAwait(false);
 
+        if (this.isDisposed != 0)
+        {
+            throw new ObjectDisposedException(nameof(NatPmpPortMapperService));
+        }
+
         if (result.Success)
         {
             if (lifetimeSeconds > 0)
             {
-                if (Interlocked.CompareExchange(ref this.isRunning, 1, 0) == 0)
+                if (this.isDisposed == 0 && Interlocked.CompareExchange(ref this.isRunning, 1, 0) == 0)
                 {
-                    this.renewalTimer?.Change(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+                    try
+                    {
+                        this.renewalTimer?.Change(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                    }
                 }
 
                 var renewalDelaySeconds = Math.Max(30, result.LifetimeSeconds / 2);
@@ -292,6 +307,8 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         IPAddress gateway = null,
         CancellationToken cancellationToken = default)
     {
+        ObjectDisposedException.ThrowIf(this.isDisposed != 0, this);
+
         var targetGateway = gateway;
         if (targetGateway == null && this.activeMappings.TryGetValue((internalPort, protocol), out var active))
         {
@@ -305,19 +322,41 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
     public async Task RenewAllMappingsAsync(bool force = false, CancellationToken cancellationToken = default)
     {
+        ObjectDisposedException.ThrowIf(this.isDisposed != 0, this);
+
         if (this.activeMappings.IsEmpty)
         {
             return;
         }
 
-        await this.renewalLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            await this.renewalLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (ObjectDisposedException)
+        {
+            if (this.isDisposed != 0)
+            {
+                throw new ObjectDisposedException(nameof(NatPmpPortMapperService));
+            }
+
+            throw;
+        }
+
+        try
+        {
+            ObjectDisposedException.ThrowIf(this.isDisposed != 0, this);
+
             var now = DateTime.UtcNow;
             var currentGateway = this.ResolveGateway();
 
             foreach (var kvp in this.activeMappings)
             {
+                if (this.isDisposed != 0)
+                {
+                    break;
+                }
+
                 var mapping = kvp.Value;
                 if (force || now >= mapping.NextRenewalUtc)
                 {
@@ -328,7 +367,13 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         }
         finally
         {
-            this.renewalLock.Release();
+            try
+            {
+                this.renewalLock.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
         }
     }
 
@@ -339,7 +384,13 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             return;
         }
 
-        this.renewalTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+        try
+        {
+            this.renewalTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+        }
+        catch (ObjectDisposedException)
+        {
+        }
 
         var mappingsToRevoke = this.activeMappings.Values.ToList();
         this.activeMappings.Clear();
@@ -382,6 +433,14 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
         try
         {
+            this.renewalTimer?.Dispose();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+
+        try
+        {
             using var cts = new CancellationTokenSource(1000);
             this.StopAsync(cts.Token).GetAwaiter().GetResult();
         }
@@ -389,8 +448,13 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         {
         }
 
-        this.renewalTimer?.Dispose();
-        this.renewalLock?.Dispose();
+        try
+        {
+            this.renewalLock?.Dispose();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
     }
 
     public async ValueTask DisposeAsync()
@@ -402,6 +466,14 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
         try
         {
+            this.renewalTimer?.Dispose();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+
+        try
+        {
             using var cts = new CancellationTokenSource(2000);
             await this.StopAsync(cts.Token).ConfigureAwait(false);
         }
@@ -409,24 +481,41 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         {
         }
 
-        this.renewalTimer?.Dispose();
-        this.renewalLock?.Dispose();
+        try
+        {
+            this.renewalLock?.Dispose();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
     }
 
     private async Task CheckAndRenewMappingsAsync()
     {
-        if (this.isRunning == 0 || this.activeMappings.IsEmpty)
-        {
-            return;
-        }
-
-        if (!await this.renewalLock.WaitAsync(0).ConfigureAwait(false))
+        if (this.isDisposed != 0 || this.isRunning == 0 || this.activeMappings.IsEmpty)
         {
             return;
         }
 
         try
         {
+            if (!await this.renewalLock.WaitAsync(0).ConfigureAwait(false))
+            {
+                return;
+            }
+        }
+        catch (ObjectDisposedException)
+        {
+            return;
+        }
+
+        try
+        {
+            if (this.isDisposed != 0 || this.isRunning == 0)
+            {
+                return;
+            }
+
             var now = DateTime.UtcNow;
             var currentGateway = this.ResolveGateway();
 
@@ -441,6 +530,11 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
             foreach (var kvp in this.activeMappings)
             {
+                if (this.isDisposed != 0 || this.isRunning == 0)
+                {
+                    break;
+                }
+
                 var mapping = kvp.Value;
                 var targetGateway = gatewayChanged ? currentGateway : (mapping.GatewayAddress ?? currentGateway);
                 if (now >= mapping.NextRenewalUtc || gatewayChanged)
@@ -449,13 +543,22 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 }
             }
         }
+        catch (ObjectDisposedException)
+        {
+        }
         catch (Exception ex)
         {
             this.logger.Debug(ex, "Error occurred during NAT-PMP lease renewal check");
         }
         finally
         {
-            this.renewalLock.Release();
+            try
+            {
+                this.renewalLock.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
         }
     }
 
@@ -662,6 +765,11 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
     private void TrackEpoch(uint epoch)
     {
+        if (this.isDisposed != 0)
+        {
+            return;
+        }
+
         if (this.lastObservedEpoch.HasValue && epoch < this.lastObservedEpoch.Value)
         {
             this.logger.Warn(
@@ -673,7 +781,15 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             {
                 try
                 {
+                    if (this.isDisposed != 0)
+                    {
+                        return;
+                    }
+
                     await this.RenewAllMappingsAsync(force: true).ConfigureAwait(false);
+                }
+                catch (ObjectDisposedException)
+                {
                 }
                 catch (Exception ex)
                 {

@@ -3,6 +3,7 @@
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -344,5 +345,74 @@ public class NatPmpPortMapperServiceTest
         var ip = await service.GetExternalIpAddressAsync(IPAddress.Loopback, cts.Token);
 
         ip.Should().BeNull();
+    }
+
+    [Test]
+    public async Task MapPortAsync_WhenDisposed_ThrowsObjectDisposedException()
+    {
+        var service = new NatPmpPortMapperService(5351);
+        service.Dispose();
+
+        var act = async () => await service.MapPortAsync(51413, NatPmpProtocol.Tcp, gateway: IPAddress.Loopback);
+        await act.Should().ThrowAsync<ObjectDisposedException>();
+    }
+
+    [Test]
+    public async Task UnmapPortAsync_WhenDisposed_ThrowsObjectDisposedException()
+    {
+        var service = new NatPmpPortMapperService(5351);
+        service.Dispose();
+
+        var act = async () => await service.UnmapPortAsync(51413, NatPmpProtocol.Tcp, gateway: IPAddress.Loopback);
+        await act.Should().ThrowAsync<ObjectDisposedException>();
+    }
+
+    [Test]
+    public async Task GetExternalIpAddressAsync_WhenDisposed_ThrowsObjectDisposedException()
+    {
+        var service = new NatPmpPortMapperService(5351);
+        service.Dispose();
+
+        var act = async () => await service.GetExternalIpAddressAsync(IPAddress.Loopback);
+        await act.Should().ThrowAsync<ObjectDisposedException>();
+    }
+
+    [Test]
+    public async Task RenewAllMappingsAsync_WhenDisposed_ThrowsObjectDisposedException()
+    {
+        var service = new NatPmpPortMapperService(5351);
+        service.Dispose();
+
+        var act = async () => await service.RenewAllMappingsAsync();
+        await act.Should().ThrowAsync<ObjectDisposedException>();
+    }
+
+    [Test]
+    public void Dispose_MultipleCallsAndConcurrentCalls_DoesNotThrow()
+    {
+        var service = new NatPmpPortMapperService(5351);
+
+        // Multiple sequential calls
+        service.Dispose();
+        service.Dispose();
+
+        // Concurrent dispose calls
+        var tasks = Enumerable.Range(0, 10).Select(_ => Task.Run(() => service.Dispose())).ToArray();
+        Assert.DoesNotThrow(() => Task.WaitAll(tasks));
+    }
+
+    [Test]
+    public async Task DisposeAsync_MultipleCallsAndConcurrentCalls_DoesNotThrow()
+    {
+        var service = new NatPmpPortMapperService(5351);
+
+        // Multiple sequential calls
+        await service.DisposeAsync();
+        await service.DisposeAsync();
+
+        // Concurrent dispose calls
+        var tasks = Enumerable.Range(0, 10).Select(_ => Task.Run(async () => await service.DisposeAsync())).ToArray();
+        var act = async () => await Task.WhenAll(tasks);
+        await act.Should().NotThrowAsync();
     }
 }
