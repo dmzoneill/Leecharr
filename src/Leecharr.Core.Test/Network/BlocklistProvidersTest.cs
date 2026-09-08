@@ -243,6 +243,98 @@ public class BlocklistProvidersTest
         health.Warnings.Should().Contain(w => w.Contains("Operation not permitted"));
     }
 
+    [Test]
+    public async Task RadixTreeBlocklistProvider_ParentCidrAfterChildCidr_PrunesSubtreeNodesAndBlocksBroadRange()
+    {
+        var provider = new RadixTreeBlocklistProvider();
+
+        // 10.1.2.0/24 alone creates 25 nodes (root + 24 depth)
+        var singleCount = await provider.LoadRulesAsync(new[] { "10.1.2.0/24" });
+        singleCount.Should().Be(1);
+        provider.GetNodeCounts().Ipv4Nodes.Should().Be(25);
+
+        // Loading 10.1.2.0/24 followed by parent 10.0.0.0/8 prunes the /24 subtree to 9 nodes (root + 8 depth)
+        var rules = new List<string>
+        {
+            "10.1.2.0/24",
+            "10.0.0.0/8",
+        };
+
+        var count = await provider.LoadRulesAsync(rules);
+        count.Should().Be(2);
+        provider.GetNodeCounts().Ipv4Nodes.Should().Be(9);
+
+        provider.IsIpBlocked("10.1.2.5").Should().BeTrue();
+        provider.IsIpBlocked("10.200.50.1").Should().BeTrue();
+        provider.IsIpBlocked("192.168.1.1").Should().BeFalse();
+    }
+
+    [Test]
+    public async Task RadixTreeBlocklistProvider_ChildCidrAfterParentCidr_ShortCircuitsDescentWithoutAllocatingNodes()
+    {
+        var provider = new RadixTreeBlocklistProvider();
+
+        // Parent /8 loaded before /24 and /32 should short-circuit and not allocate any extra nodes
+        var rules = new List<string>
+        {
+            "10.0.0.0/8",
+            "10.1.2.0/24",
+            "10.1.2.3/32",
+        };
+
+        var count = await provider.LoadRulesAsync(rules);
+        count.Should().Be(3);
+        provider.GetNodeCounts().Ipv4Nodes.Should().Be(9);
+
+        provider.IsIpBlocked("10.1.2.3").Should().BeTrue();
+        provider.IsIpBlocked("10.254.1.1").Should().BeTrue();
+        provider.IsIpBlocked("172.16.0.1").Should().BeFalse();
+    }
+
+    [Test]
+    public async Task RadixTreeBlocklistProvider_IPv6ParentAndChildSubnetPruning_PrunesAndShortCircuitsCorrectly()
+    {
+        var provider = new RadixTreeBlocklistProvider();
+
+        // Child /48 then parent /32 then child /64
+        var rules = new List<string>
+        {
+            "2001:db8:1234::/48",
+            "2001:db8::/32",
+            "2001:db8:5678::/64",
+        };
+
+        var count = await provider.LoadRulesAsync(rules);
+        count.Should().Be(3);
+        provider.GetNodeCounts().Ipv6Nodes.Should().Be(33); // root + 32 levels
+
+        provider.IsIpBlocked("2001:db8:1234::1").Should().BeTrue();
+        provider.IsIpBlocked("2001:db8:9999::1").Should().BeTrue();
+        provider.IsIpBlocked("2001:db9::1").Should().BeFalse();
+    }
+
+    [Test]
+    public async Task RadixTreeBlocklistProvider_ZeroPrefixLength_BlocksAllAndPrunesTree()
+    {
+        var provider = new RadixTreeBlocklistProvider();
+
+        var rules = new List<string>
+        {
+            "192.168.1.0/24",
+            "10.0.0.0/8",
+            "0.0.0.0/0",
+            "172.16.0.0/12",
+        };
+
+        var count = await provider.LoadRulesAsync(rules);
+        count.Should().Be(4);
+        provider.GetNodeCounts().Ipv4Nodes.Should().Be(1); // root only
+
+        provider.IsIpBlocked("1.2.3.4").Should().BeTrue();
+        provider.IsIpBlocked("203.0.113.1").Should().BeTrue();
+        provider.IsIpBlocked("10.5.5.5").Should().BeTrue();
+    }
+
     private class TestableLinuxIpSetBlocklistProvider : LinuxIpSetBlocklistProvider
     {
         private readonly Func<string, string, Task<(int ExitCode, string StdOut, string StdErr)>> commandExecutor;
