@@ -2271,6 +2271,63 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task AddTorrentAsync_WhenExistingFileWithDataOnDisk_ExecutesHashCheckAndDoesNotInitializeSyntheticFastResume()
+    {
+        this.configService.PreallocationMode.Returns("Sparse");
+        var fileSize = 65536;
+        var fileName = "prealloc_existing_data.bin";
+        var torrentBytes = CreateSampleSingleFileTorrentBytes(fileName, fileSize);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        Directory.CreateDirectory(this.testIncompleteDir);
+        var existingFilePath = Path.Combine(this.testIncompleteDir, fileName);
+        await File.WriteAllBytesAsync(existingFilePath, new byte[16384]);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 207,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = fileName,
+            Status = TorrentStatus.Stopped,
+            SavePath = this.testIncompleteDir,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.Should().NotBeNull();
+        task.Manager.HashChecked.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenExistingFileWithZeroLengthOnDisk_InitializesEmptyFastResume()
+    {
+        this.configService.PreallocationMode.Returns("Sparse");
+        var fileSize = 65536;
+        var fileName = "prealloc_existing_zero_len.bin";
+        var torrentBytes = CreateSampleSingleFileTorrentBytes(fileName, fileSize);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        Directory.CreateDirectory(this.testIncompleteDir);
+        var existingFilePath = Path.Combine(this.testIncompleteDir, fileName);
+        await File.WriteAllBytesAsync(existingFilePath, Array.Empty<byte>());
+
+        var torrent = new CoreTorrent
+        {
+            Id = 208,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = fileName,
+            Status = TorrentStatus.Downloading,
+            SavePath = this.testIncompleteDir,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.Should().NotBeNull();
+        task.Manager.HashChecked.Should().BeTrue();
+        task.Manager.Bitfield.PercentComplete.Should().Be(0.0);
+    }
+
+    [Test]
     public async Task AddTorrentAsync_WhenVpnKillSwitchActiveAndEngineHalted_QueuesTorrentAndDrainsOnVpnRestored()
     {
         var mockVpnService = Substitute.For<IVpnKillSwitchService>();
