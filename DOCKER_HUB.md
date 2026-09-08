@@ -40,13 +40,16 @@ services:
       - leecharr-downloads:/downloads
     restart: unless-stopped
     environment:
+      - PUID=1000
+      - PGID=1000
+      - UMASK=022
       - TZ=UTC
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7889/api/v1/system/status"]
+      test: ["CMD", "curl", "-f", "http://localhost:7889/ping"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 20s
 
 volumes:
   leecharr-config:
@@ -68,10 +71,13 @@ podman-compose up -d
 
 ## Environment
 
-| Variable             | Default   | Description      |
-| -------------------- | --------- | ---------------- |
-| `LEECHARR__APP_DATA` | `/config` | Config directory |
-| `TZ`                 | `UTC`     | Timezone         |
+| Variable             | Default   | Description                   |
+| -------------------- | --------- | ----------------------------- |
+| `LEECHARR__APP_DATA` | `/config` | Config directory              |
+| `PUID`               | `1000`    | User ID for file permissions  |
+| `PGID`               | `1000`    | Group ID for file permissions |
+| `UMASK`              | `022`     | File mode creation mask       |
+| `TZ`                 | `UTC`     | Timezone                      |
 
 ## Ports
 

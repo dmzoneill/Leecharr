@@ -53,6 +53,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         curl \
+        gosu \
         python3 \
         transmission-daemon \
         transmission-cli \
@@ -88,5 +89,7 @@ ENV PATH="$PATH:/root/.dotnet/tools"
 EXPOSE 7889 7890
 
 VOLUME ["/config", "/downloads"]
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 CMD curl -f http://localhost:7889/ping || exit 1
 
 ENTRYPOINT ["/docker-entrypoint.sh"]

@@ -2,6 +2,8 @@
 
 using System.Threading.Tasks;
 using FluentAssertions;
+using Microsoft.Extensions.Hosting;
+using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.SystemServices;
 
@@ -23,5 +25,17 @@ public class PowerManagementServiceTest
     {
         var service = new PowerManagementService();
         _ = service.IsInContainer;
+    }
+
+    [Test]
+    public async Task ExecutePowerActionAsync_WithExitApplicationAndHostLifetime_CallsStopApplication()
+    {
+        var lifetime = Substitute.For<IHostApplicationLifetime>();
+        var service = new PowerManagementService(lifetime);
+
+        var result = await service.ExecutePowerActionAsync(PowerAction.ExitApplication);
+
+        result.Should().BeTrue();
+        lifetime.Received(1).StopApplication();
     }
 }

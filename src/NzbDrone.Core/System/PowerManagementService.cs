@@ -5,13 +5,20 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
 using NLog;
 
 namespace NzbDrone.Core.SystemServices;
 
 public class PowerManagementService : IPowerManagementService
 {
+    private readonly IHostApplicationLifetime hostLifetime;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
+
+    public PowerManagementService(IHostApplicationLifetime hostLifetime = null)
+    {
+        this.hostLifetime = hostLifetime;
+    }
 
     public bool IsInContainer
     {
@@ -41,7 +48,7 @@ public class PowerManagementService : IPowerManagementService
         if (this.IsInContainer && action != PowerAction.ExitApplication)
         {
             this.logger.Warn("Host power actions ({0}) are restricted inside container environment. Exiting process instead.", action);
-            Environment.Exit(0);
+            this.StopApplication();
             return true;
         }
 
@@ -49,7 +56,7 @@ public class PowerManagementService : IPowerManagementService
         {
             if (action == PowerAction.ExitApplication)
             {
-                Environment.Exit(0);
+                this.StopApplication();
                 return true;
             }
 
@@ -75,6 +82,20 @@ public class PowerManagementService : IPowerManagementService
         {
             this.logger.Error(ex, "Failed to execute power action: {0}", action);
             return false;
+        }
+    }
+
+    private void StopApplication()
+    {
+        if (this.hostLifetime != null)
+        {
+            this.logger.Info("Requesting graceful host application shutdown");
+            this.hostLifetime.StopApplication();
+        }
+        else
+        {
+            this.logger.Info("Stopping application via Environment.Exit(0)");
+            Environment.Exit(0);
         }
     }
 

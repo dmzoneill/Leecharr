@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Common.Instrumentation;
@@ -14,6 +15,24 @@ public static class ConsoleApp
 
     public static void Main(string[] args)
     {
+        AppDomain.CurrentDomain.UnhandledException += (sender, eventArgs) =>
+        {
+            if (eventArgs.ExceptionObject is Exception ex)
+            {
+                Logger.Fatal(ex, "Unhandled AppDomain exception: {0}", ex.Message);
+            }
+            else
+            {
+                Logger.Fatal("Unhandled AppDomain exception: {0}", eventArgs.ExceptionObject);
+            }
+        };
+
+        TaskScheduler.UnobservedTaskException += (sender, eventArgs) =>
+        {
+            Logger.Error(eventArgs.Exception, "Unobserved task exception: {0}", eventArgs.Exception.Message);
+            eventArgs.SetObserved();
+        };
+
         try
         {
             var startupContext = new StartupContext(args);
