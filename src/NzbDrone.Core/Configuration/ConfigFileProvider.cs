@@ -75,6 +75,12 @@ public class ConfigFileProvider : IConfigFileProvider
 
     public string PostgresPassword => this.GetValue("PostgresPassword", string.Empty);
 
+    public bool AllowPrivateNetworkRequests => this.GetValueBool("AllowPrivateNetworkRequests", false);
+
+    public string AllowedSsrfHostnames => this.GetValue("AllowedSsrfHostnames", string.Empty);
+
+    public string AllowedSsrfSubnets => this.GetValue("AllowedSsrfSubnets", string.Empty);
+
     private void LoadFromFile()
     {
         lock (Mutex)

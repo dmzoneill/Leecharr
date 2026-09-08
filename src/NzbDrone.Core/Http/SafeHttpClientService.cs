@@ -7,9 +7,11 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Security;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
+using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http.Transport;
 
 namespace NzbDrone.Core.Http;
@@ -21,10 +23,40 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
     private readonly HttpClient httpClient;
     private readonly bool ownsClient;
     private readonly Logger logger;
+    private readonly IConfigService configService;
+    private readonly IConfigFileProvider configFileProvider;
 
-    public SafeHttpClientService(IHttpTransportEngine transportEngine, HttpClient httpClient = null)
+    private bool? allowPrivateNetworkRequestsOverride;
+    private string allowedSsrfHostnamesOverride;
+    private string allowedSsrfSubnetsOverride;
+
+    public bool AllowPrivateNetworkRequests
+    {
+        get => this.allowPrivateNetworkRequestsOverride ?? this.configService?.AllowPrivateNetworkRequests ?? this.configFileProvider?.AllowPrivateNetworkRequests ?? false;
+        set => this.allowPrivateNetworkRequestsOverride = value;
+    }
+
+    public string AllowedSsrfHostnames
+    {
+        get => this.allowedSsrfHostnamesOverride ?? this.configService?.AllowedSsrfHostnames ?? this.configFileProvider?.AllowedSsrfHostnames ?? string.Empty;
+        set => this.allowedSsrfHostnamesOverride = value;
+    }
+
+    public string AllowedSsrfSubnets
+    {
+        get => this.allowedSsrfSubnetsOverride ?? this.configService?.AllowedSsrfSubnets ?? this.configFileProvider?.AllowedSsrfSubnets ?? string.Empty;
+        set => this.allowedSsrfSubnetsOverride = value;
+    }
+
+    public SafeHttpClientService(
+        IHttpTransportEngine transportEngine = null,
+        IConfigService configService = null,
+        IConfigFileProvider configFileProvider = null,
+        HttpClient httpClient = null)
     {
         this.logger = LogManager.GetCurrentClassLogger();
+        this.configService = configService;
+        this.configFileProvider = configFileProvider;
 
         if (httpClient != null)
         {
@@ -51,8 +83,8 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
         }
     }
 
-    public SafeHttpClientService(HttpClient httpClient = null)
-        : this(null, httpClient)
+    public SafeHttpClientService(HttpClient httpClient)
+        : this(null, null, null, httpClient)
     {
     }
 
@@ -68,6 +100,11 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
 
     public async Task<byte[]> DownloadBytesAsync(string url, long maxSizeBytes = DefaultMaxSizeBytes, CancellationToken cancellationToken = default)
     {
+        return await this.DownloadBytesAsync(url, maxSizeBytes, null, cancellationToken);
+    }
+
+    public async Task<byte[]> DownloadBytesAsync(string url, long maxSizeBytes, TimeSpan? timeout, CancellationToken cancellationToken = default)
+    {
         if (string.IsNullOrWhiteSpace(url))
         {
             throw new ArgumentException("URL cannot be empty.", nameof(url));
@@ -78,17 +115,28 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
             throw new ArgumentException($"Invalid URL format: '{url}'", nameof(url));
         }
 
-        return await this.DownloadBytesAsync(uri, maxSizeBytes, cancellationToken);
+        return await this.DownloadBytesAsync(uri, maxSizeBytes, null, timeout, cancellationToken);
     }
 
     public async Task<byte[]> DownloadBytesAsync(Uri uri, long maxSizeBytes = DefaultMaxSizeBytes, CancellationToken cancellationToken = default)
     {
-        return await this.DownloadBytesAsync(uri, maxSizeBytes, null, cancellationToken);
+        return await this.DownloadBytesAsync(uri, maxSizeBytes, null, null, cancellationToken);
     }
 
     public async Task<byte[]> DownloadBytesAsync(Uri uri, long maxSizeBytes, IDictionary<string, string> customHeaders, CancellationToken cancellationToken = default)
     {
+        return await this.DownloadBytesAsync(uri, maxSizeBytes, customHeaders, null, cancellationToken);
+    }
+
+    public async Task<byte[]> DownloadBytesAsync(Uri uri, long maxSizeBytes, IDictionary<string, string> customHeaders, TimeSpan? timeout, CancellationToken cancellationToken = default)
+    {
         this.ValidateUri(uri);
+
+        using var timeoutCts = timeout.HasValue ? new CancellationTokenSource(timeout.Value) : null;
+        using var linkedCts = timeoutCts != null
+            ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token)
+            : null;
+        var token = linkedCts?.Token ?? cancellationToken;
 
         using var request = new HttpRequestMessage(HttpMethod.Get, uri);
         if (customHeaders != null)
@@ -99,7 +147,7 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
             }
         }
 
-        using var response = await this.httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        using var response = await this.httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
         response.EnsureSuccessStatusCode();
 
         if (response.Content.Headers.ContentLength.HasValue)
@@ -111,13 +159,13 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
             }
         }
 
-        await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        await using var responseStream = await response.Content.ReadAsStreamAsync(token);
         using var memoryStream = new MemoryStream();
         var buffer = new byte[81920];
         long totalBytesRead = 0;
 
         int bytesRead;
-        while ((bytesRead = await responseStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0)
+        while ((bytesRead = await responseStream.ReadAsync(buffer, 0, buffer.Length, token)) > 0)
         {
             totalBytesRead += bytesRead;
             if (totalBytesRead > maxSizeBytes)
@@ -129,6 +177,27 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
         }
 
         return memoryStream.ToArray();
+    }
+
+    public async Task<string> DownloadStringAsync(string url, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            throw new ArgumentException("URL cannot be empty.", nameof(url));
+        }
+
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            throw new ArgumentException($"Invalid URL format: '{url}'", nameof(url));
+        }
+
+        return await this.DownloadStringAsync(uri, null, timeout, cancellationToken);
+    }
+
+    public async Task<string> DownloadStringAsync(Uri uri, IDictionary<string, string> customHeaders = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    {
+        var bytes = await this.DownloadBytesAsync(uri, DefaultMaxSizeBytes, customHeaders, timeout, cancellationToken);
+        return Encoding.UTF8.GetString(bytes);
     }
 
     public void ValidateUrl(string url)
@@ -160,16 +229,27 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
         }
 
         var host = uri.DnsSafeHost;
+
+        if (this.IsAllowedHost(host))
+        {
+            if (IPAddress.TryParse(host, out var directIp) && this.IsBlockedIp(directIp))
+            {
+                throw new SecurityException($"SSRF blocked: IP address '{directIp}' is prohibited.");
+            }
+
+            return;
+        }
+
         if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase))
         {
             throw new SecurityException("SSRF blocked: 'localhost' is prohibited.");
         }
 
-        if (IPAddress.TryParse(host, out var directIp))
+        if (IPAddress.TryParse(host, out var ip))
         {
-            if (this.IsBlockedIp(directIp))
+            if (this.IsBlockedIp(ip))
             {
-                throw new SecurityException($"SSRF blocked: IP address '{directIp}' is prohibited.");
+                throw new SecurityException($"SSRF blocked: IP address '{ip}' is prohibited.");
             }
         }
         else
@@ -195,11 +275,194 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
         }
     }
 
+    public bool IsAllowedHost(string host)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return false;
+        }
+
+        var normalizedHost = host.Trim();
+
+        if (this.AllowPrivateNetworkRequests)
+        {
+            if (string.Equals(normalizedHost, "localhost", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(normalizedHost, "127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(normalizedHost, "::1", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(normalizedHost, "[::1]", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        var allowedHostnames = this.AllowedSsrfHostnames;
+        if (string.IsNullOrWhiteSpace(allowedHostnames))
+        {
+            return false;
+        }
+
+        var entries = allowedHostnames.Split(new[] { ',', ';', ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var entry in entries)
+        {
+            var pattern = entry.Trim();
+            if (string.IsNullOrEmpty(pattern))
+            {
+                continue;
+            }
+
+            if (string.Equals(pattern, "*", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (pattern.StartsWith("*.", StringComparison.OrdinalIgnoreCase))
+            {
+                var suffix = pattern[1..]; // .example.com
+                var root = pattern[2..];   // example.com
+                if (normalizedHost.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(normalizedHost, root, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            else if (string.Equals(pattern, normalizedHost, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public bool IsAllowedIp(IPAddress ip)
+    {
+        if (ip == null)
+        {
+            return false;
+        }
+
+        if (ip.IsIPv4MappedToIPv6)
+        {
+            ip = ip.MapToIPv4();
+        }
+
+        var allowedSubnets = this.AllowedSsrfSubnets;
+        if (!string.IsNullOrWhiteSpace(allowedSubnets))
+        {
+            var entries = allowedSubnets.Split(new[] { ',', ';', ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var entry in entries)
+            {
+                var trimmed = entry.Trim();
+                if (string.IsNullOrEmpty(trimmed))
+                {
+                    continue;
+                }
+
+                if (trimmed.Contains('/'))
+                {
+                    if (IPNetwork.TryParse(trimmed, out var network) && network.Contains(ip))
+                    {
+                        return true;
+                    }
+                }
+                else if (IPAddress.TryParse(trimmed, out var parsedIp))
+                {
+                    if (parsedIp.IsIPv4MappedToIPv6)
+                    {
+                        parsedIp = parsedIp.MapToIPv4();
+                    }
+
+                    if (parsedIp.Equals(ip))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        if (this.AllowPrivateNetworkRequests)
+        {
+            if (IPAddress.IsLoopback(ip))
+            {
+                return true;
+            }
+
+            if (ip.AddressFamily == AddressFamily.InterNetwork)
+            {
+                var bytes = ip.GetAddressBytes();
+
+                // 10.0.0.0/8
+                if (bytes[0] == 10)
+                {
+                    return true;
+                }
+
+                // 100.64.0.0/10 (CGNAT)
+                if (bytes[0] == 100 && bytes[1] >= 64 && bytes[1] <= 127)
+                {
+                    return true;
+                }
+
+                // 127.0.0.0/8 (Loopback)
+                if (bytes[0] == 127)
+                {
+                    return true;
+                }
+
+                // 172.16.0.0/12
+                if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31)
+                {
+                    return true;
+                }
+
+                // 192.168.0.0/16
+                if (bytes[0] == 192 && bytes[1] == 168)
+                {
+                    return true;
+                }
+            }
+            else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                if (ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || IPAddress.IsLoopback(ip))
+                {
+                    return true;
+                }
+
+                var bytes = ip.GetAddressBytes();
+
+                // fc00::/7 (Unique Local Address)
+                if ((bytes[0] & 0xfe) == 0xfc)
+                {
+                    return true;
+                }
+
+                // fe80::/10 (Link-local)
+                if (bytes[0] == 0xfe && (bytes[1] & 0xc0) == 0x80)
+                {
+                    return true;
+                }
+
+                // fec0::/10 (Site-local)
+                if (bytes[0] == 0xfe && (bytes[1] & 0xc0) == 0xc0)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     public bool IsBlockedIp(IPAddress ip)
     {
         if (ip == null)
         {
             return true;
+        }
+
+        if (this.IsAllowedIp(ip))
+        {
+            return false;
         }
 
         if (ip.IsIPv4MappedToIPv6)
@@ -316,11 +579,12 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
             {
                 var host = context.DnsEndPoint.Host;
                 var port = context.DnsEndPoint.Port;
+                var isAllowedHost = this.IsAllowedHost(host);
 
                 IPAddress[] addresses;
                 if (IPAddress.TryParse(host, out var parsedIp))
                 {
-                    addresses = new[] { parsedIp };
+                    addresses = [parsedIp];
                 }
                 else
                 {
@@ -334,7 +598,7 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
 
                 foreach (var addr in addresses)
                 {
-                    if (this.IsBlockedIp(addr))
+                    if (!isAllowedHost && this.IsBlockedIp(addr))
                     {
                         throw new SecurityException($"SSRF blocked: IP address '{addr}' for host '{host}' is prohibited.");
                     }
@@ -357,7 +621,7 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
                     throw;
                 }
             },
-            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+            PooledConnectionLifetime = TimeSpan.FromMinutes(15),
             PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
             AutomaticDecompression = DecompressionMethods.All,
             AllowAutoRedirect = true,

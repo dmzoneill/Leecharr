@@ -522,6 +522,13 @@ public interface IConfigService
     bool DebugMode { get; }
 
     int UiRefreshRateSec { get; }
+
+    // SSRF & Security
+    bool AllowPrivateNetworkRequests { get; }
+
+    string AllowedSsrfHostnames { get; }
+
+    string AllowedSsrfSubnets { get; }
 }
 
 public class ConfigService : IConfigService
@@ -1217,6 +1224,13 @@ public class ConfigService : IConfigService
     public bool DebugMode => this.GetValueBoolean("DebugMode", false);
 
     public int UiRefreshRateSec => this.GetValueInt("UiRefreshRateSec", 2);
+
+    // SSRF & Security
+    public bool AllowPrivateNetworkRequests => this.GetValueBoolean("AllowPrivateNetworkRequests", false);
+
+    public string AllowedSsrfHostnames => this.GetValue("AllowedSsrfHostnames", string.Empty);
+
+    public string AllowedSsrfSubnets => this.GetValue("AllowedSsrfSubnets", string.Empty);
 }
 
 public class ConfigSavedEvent : IEvent
