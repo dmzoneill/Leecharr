@@ -55,7 +55,7 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex TvPattern = new(
-        @"(\bS\d{1,2}(?:[-._]?(?:E|EP)\d{1,3}(?:(?:[-_~]|e|E|\.E)\d{1,3})*)?\b|\b\d{1,2}x\d{1,3}\b|\b(19\d{2}|20\d{2})[.\-_ ](0[1-9]|1[0-2])[.\-_ ](0[1-9]|[12]\d|3[01])\b|\bSeason[\s\._]*\d+|\bComplete[\s\._]*Series\b|\b(EZTV|ETTV)\b)",
+        @"(\bS\d{1,2}(?:[-._]?(?:E|EP)\d{1,4}(?:(?:[-_~]|e|E|\.E)\d{1,4})*)?\b|\b(?:E|EP)\d{1,4}(?:(?:[-_~]|e|E|\.E)\d{1,4})*\b|\b\d{1,2}x\d{1,4}\b|\b(19\d{2}|20\d{2})[.\-_ ](0[1-9]|1[0-2])[.\-_ ](0[1-9]|[12]\d|3[01])\b|\bSeason[\s\._]*\d+|\bComplete[\s\._]*Series\b|\b(EZTV|ETTV)\b)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex MoviePattern = new(
