@@ -1519,9 +1519,10 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
             var currentHashes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            // If rid == 0, or cached state is unavailable, or rid is out of sequence, perform a full update
-            if (rid <= 0 || sessionState.CachedTorrents.Count == 0 || rid > sessionState.CurrentRid)
+            // If rid == 0, or cached session is not initialized, or rid is out of sequence, perform a full update
+            if (rid <= 0 || !sessionState.Initialized || rid > sessionState.CurrentRid)
             {
+                sessionState.Initialized = true;
                 sessionState.CurrentRid = rid <= 0 ? 1 : rid + 1;
                 sessionState.CachedTorrents.Clear();
                 sessionState.RemovedTorrents.Clear();
@@ -1632,9 +1633,14 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     addedOn,
                     completionOn);
 
-                if (!sessionState.CachedTorrents.TryGetValue(t.InfoHash, out var existing) || existing.Snapshot != snapshot)
+                var isNewOrChanged = !sessionState.CachedTorrents.TryGetValue(t.InfoHash, out var existing) || existing.Snapshot != snapshot;
+                if (isNewOrChanged)
                 {
                     sessionState.CachedTorrents[t.InfoHash] = (snapshot, nextRid);
+                }
+
+                if (isNewOrChanged || existing.ChangedAtRid > rid)
+                {
                     updatedTorrents[t.InfoHash] = new
                     {
                         name = snapshot.Name,
@@ -2265,6 +2271,8 @@ public record QBitTorrentSnapshot(
 
 public class QBitSessionSyncState
 {
+    public bool Initialized { get; set; }
+
     public int CurrentRid { get; set; }
 
     public Dictionary<string, (QBitTorrentSnapshot Snapshot, int ChangedAtRid)> CachedTorrents { get; } = new(StringComparer.OrdinalIgnoreCase);
