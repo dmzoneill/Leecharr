@@ -409,4 +409,42 @@ public class PtyTerminalServiceTest
 
         procExistsAndAlive.Should().BeFalse("child shell process should have been terminated with SIGHUP and reaped");
     }
+
+    [Test]
+    public void CreateFifo_CreatesFifoWithUserOnlyPermissions()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
+        {
+            Assert.Ignore("FIFO permissions test only applicable on Linux/macOS.");
+            return;
+        }
+
+        if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+        {
+            var tempFifoPath = Path.Combine(Path.GetTempPath(), $"leecharr_test_fifo_{Guid.NewGuid():N}.pipe");
+
+            try
+            {
+                PtyProcessSession.CreateFifo(tempFifoPath);
+
+                File.Exists(tempFifoPath).Should().BeTrue("FIFO should be created on disk");
+
+                var mode = File.GetUnixFileMode(tempFifoPath);
+                mode.HasFlag(UnixFileMode.UserRead).Should().BeTrue("user read permission must be set");
+                mode.HasFlag(UnixFileMode.UserWrite).Should().BeTrue("user write permission must be set");
+
+                // Group and others must not have read, write, or execute permissions (0600 mode)
+                var groupAndOtherPermissions = UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.GroupExecute |
+                                               UnixFileMode.OtherRead | UnixFileMode.OtherWrite | UnixFileMode.OtherExecute;
+                (mode & groupAndOtherPermissions).Should().Be(UnixFileMode.None, "FIFO must not have group or other permissions");
+            }
+            finally
+            {
+                if (File.Exists(tempFifoPath))
+                {
+                    File.Delete(tempFifoPath);
+                }
+            }
+        }
+    }
 }
