@@ -145,6 +145,7 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
                 startInfo.ArgumentList.Add("x");
                 startInfo.ArgumentList.Add("-o+");
                 startInfo.ArgumentList.Add("-y");
+                startInfo.ArgumentList.Add("-inul");
                 if (!string.IsNullOrEmpty(candidatePassword))
                 {
                     startInfo.ArgumentList.Add($"-p{candidatePassword}");

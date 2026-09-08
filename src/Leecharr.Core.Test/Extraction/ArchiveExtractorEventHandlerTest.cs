@@ -149,7 +149,7 @@ public class ArchiveExtractorEventHandlerTest
     }
 
     [Test]
-    public void Handle_WhenExtractionFails_DoesNotPublishEvent()
+    public void Handle_WhenExtractionFails_PublishesArchiveExtractionFailedEvent()
     {
         this.configService.AutoExtractArchives.Returns(true);
 
@@ -168,12 +168,53 @@ public class ArchiveExtractorEventHandlerTest
         });
         this.extractorService.ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult(false));
 
+        var signal = new ManualResetEventSlim(false);
+        this.eventAggregator.When(e => e.PublishEvent(Arg.Any<ArchiveExtractionFailedEvent>())).Do(_ => signal.Set());
+
         this.handler.Handle(new TorrentDownloadCompletedEvent(torrent));
 
-        // Wait a short duration for the async task to execute
-        Thread.Sleep(200);
+        var received = signal.Wait(TimeSpan.FromSeconds(3));
+        received.Should().BeTrue();
 
         this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<ArchiveExtractionCompletedEvent>());
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<ArchiveExtractionFailedEvent>(e =>
+            e.Torrent.Id == 20 &&
+            e.ArchivePath.EndsWith("corrupt.zip")));
+    }
+
+    [Test]
+    public void Handle_WhenDiskSpaceInsufficient_AbortsExtractionAndPublishesFailedEvent()
+    {
+        this.configService.AutoExtractArchives.Returns(true);
+
+        var torrent = new Torrent { Id = 25, Name = "Large.Archive", SavePath = "/downloads/Large.Archive" };
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 1, TorrentId = 25, Path = "large.zip", Size = 100_000_000 },
+        };
+
+        this.torrentFileService.GetFiles(25).Returns(files);
+        this.extractorService.IsArchiveFile("large.zip").Returns(true);
+        this.diskProvider.FileExists(Arg.Any<string>()).Returns(call =>
+        {
+            var path = call.Arg<string>();
+            return !path.Contains(".leecharr_extracted");
+        });
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(140_000_000L);
+
+        var signal = new ManualResetEventSlim(false);
+        this.eventAggregator.When(e => e.PublishEvent(Arg.Any<ArchiveExtractionFailedEvent>())).Do(_ => signal.Set());
+
+        this.handler.Handle(new TorrentDownloadCompletedEvent(torrent));
+
+        var received = signal.Wait(TimeSpan.FromSeconds(3));
+        received.Should().BeTrue();
+
+        this.extractorService.DidNotReceive().ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<ArchiveExtractionCompletedEvent>());
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<ArchiveExtractionFailedEvent>(e =>
+            e.Torrent.Id == 25 &&
+            e.ErrorMessage.Contains("Insufficient free disk space")));
     }
 
     [Test]
