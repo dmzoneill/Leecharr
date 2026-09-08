@@ -1268,6 +1268,145 @@ public class QBittorrentApiControllerTest
         doc.RootElement.GetProperty("eta").GetInt64().Should().Be(8);
     }
 
+    [Test]
+    public void GetTorrentsInfo_WithTag_FiltersMatchingTorrents()
+    {
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", Label = "movies, 4k" };
+        var torrent2 = new Torrent { Id = 2, InfoHash = "hash2", Name = "T2", Label = "tv, 1080p" };
+        var torrent3 = new Torrent { Id = 3, InfoHash = "hash3", Name = "T3", Label = null };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent1, torrent2, torrent3 });
+
+        var response = this.controller.GetTorrentsInfo(tag: "4k");
+        var okResult = response.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var list = okResult.Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        list.Should().HaveCount(1);
+        list[0]["hash"].Should().Be("hash1");
+
+        var responseCaseInsensitive = this.controller.GetTorrentsInfo(tag: "  TV  ");
+        var listCaseInsensitive = responseCaseInsensitive.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        listCaseInsensitive.Should().HaveCount(1);
+        listCaseInsensitive[0]["hash"].Should().Be("hash2");
+
+        var responseNone = this.controller.GetTorrentsInfo(tag: "nonexistent");
+        var listNone = responseNone.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        listNone.Should().BeEmpty();
+    }
+
+    [Test]
+    public void GetTorrentsInfo_WithFilterStalled_FiltersStalledAndZeroSpeedTransfers()
+    {
+        var t1 = new Torrent { Id = 1, InfoHash = "h1", Status = TorrentStatus.Stalled };
+        var t2 = new Torrent { Id = 2, InfoHash = "h2", Status = TorrentStatus.Downloading, DownloadSpeed = 0 };
+        var t3 = new Torrent { Id = 3, InfoHash = "h3", Status = TorrentStatus.Seeding, UploadSpeed = 0 };
+        var t4 = new Torrent { Id = 4, InfoHash = "h4", Status = TorrentStatus.Downloading, DownloadSpeed = 500 };
+        var t5 = new Torrent { Id = 5, InfoHash = "h5", Status = TorrentStatus.Seeding, UploadSpeed = 500 };
+        this.torrentService.GetAll().Returns(new List<Torrent> { t1, t2, t3, t4, t5 });
+
+        var response = this.controller.GetTorrentsInfo(filter: "stalled");
+        var list = response.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+
+        list.Should().HaveCount(3);
+        list.Select(d => d["hash"]).Should().BeEquivalentTo(new[] { "h1", "h2", "h3" });
+    }
+
+    [Test]
+    public void GetTorrentsInfo_WithFilterStalledDownloading_FiltersCorrectly()
+    {
+        var t1 = new Torrent { Id = 1, InfoHash = "h1", Status = TorrentStatus.Stalled, Progress = 0.5 };
+        var t2 = new Torrent { Id = 2, InfoHash = "h2", Status = TorrentStatus.Downloading, DownloadSpeed = 0, Progress = 0.5 };
+        var t3 = new Torrent { Id = 3, InfoHash = "h3", Status = TorrentStatus.Stalled, Progress = 1.0 };
+        var t4 = new Torrent { Id = 4, InfoHash = "h4", Status = TorrentStatus.Seeding, UploadSpeed = 0, Progress = 1.0 };
+        this.torrentService.GetAll().Returns(new List<Torrent> { t1, t2, t3, t4 });
+
+        var response = this.controller.GetTorrentsInfo(filter: "stalled_downloading");
+        var list = response.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+
+        list.Should().HaveCount(2);
+        list.Select(d => d["hash"]).Should().BeEquivalentTo(new[] { "h1", "h2" });
+    }
+
+    [Test]
+    public void GetTorrentsInfo_WithFilterStalledUploading_FiltersCorrectly()
+    {
+        var t1 = new Torrent { Id = 1, InfoHash = "h1", Status = TorrentStatus.Stalled, Progress = 1.0 };
+        var t2 = new Torrent { Id = 2, InfoHash = "h2", Status = TorrentStatus.Seeding, UploadSpeed = 0, Progress = 1.0 };
+        var t3 = new Torrent { Id = 3, InfoHash = "h3", Status = TorrentStatus.Stalled, Progress = 0.5 };
+        var t4 = new Torrent { Id = 4, InfoHash = "h4", Status = TorrentStatus.Downloading, DownloadSpeed = 0, Progress = 0.5 };
+        this.torrentService.GetAll().Returns(new List<Torrent> { t1, t2, t3, t4 });
+
+        var response = this.controller.GetTorrentsInfo(filter: "stalled_uploading");
+        var list = response.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+
+        list.Should().HaveCount(2);
+        list.Select(d => d["hash"]).Should().BeEquivalentTo(new[] { "h1", "h2" });
+    }
+
+    [Test]
+    public void GetTorrentsInfo_WithFilterChecking_FiltersCorrectly()
+    {
+        var t1 = new Torrent { Id = 1, InfoHash = "h1", Status = TorrentStatus.Checking };
+        var t2 = new Torrent { Id = 2, InfoHash = "h2", Status = TorrentStatus.Downloading };
+        this.torrentService.GetAll().Returns(new List<Torrent> { t1, t2 });
+
+        var response = this.controller.GetTorrentsInfo(filter: "checking");
+        var list = response.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+
+        list.Should().HaveCount(1);
+        list[0]["hash"].Should().Be("h1");
+    }
+
+    [Test]
+    public void GetTorrentsInfo_WithFilterErrored_FiltersCorrectly()
+    {
+        var t1 = new Torrent { Id = 1, InfoHash = "h1", Status = TorrentStatus.Error };
+        var t2 = new Torrent { Id = 2, InfoHash = "h2", Status = TorrentStatus.Downloading };
+        this.torrentService.GetAll().Returns(new List<Torrent> { t1, t2 });
+
+        var response = this.controller.GetTorrentsInfo(filter: "errored");
+        var list = response.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+
+        list.Should().HaveCount(1);
+        list[0]["hash"].Should().Be("h1");
+
+        var responseError = this.controller.GetTorrentsInfo(filter: "error");
+        var listError = responseError.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+
+        listError.Should().HaveCount(1);
+        listError[0]["hash"].Should().Be("h1");
+    }
+
+    [Test]
+    public void GetTorrentsInfo_WithFilterResumed_FiltersCorrectly()
+    {
+        var t1 = new Torrent { Id = 1, InfoHash = "h1", Status = TorrentStatus.Downloading };
+        var t2 = new Torrent { Id = 2, InfoHash = "h2", Status = TorrentStatus.Seeding };
+        var t3 = new Torrent { Id = 3, InfoHash = "h3", Status = TorrentStatus.Paused };
+        var t4 = new Torrent { Id = 4, InfoHash = "h4", Status = TorrentStatus.Stopped };
+        this.torrentService.GetAll().Returns(new List<Torrent> { t1, t2, t3, t4 });
+
+        var response = this.controller.GetTorrentsInfo(filter: "resumed");
+        var list = response.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+
+        list.Should().HaveCount(2);
+        list.Select(d => d["hash"]).Should().BeEquivalentTo(new[] { "h1", "h2" });
+
+        var responseRunning = this.controller.GetTorrentsInfo(filter: "running");
+        var listRunning = responseRunning.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+
+        listRunning.Should().HaveCount(2);
+        listRunning.Select(d => d["hash"]).Should().BeEquivalentTo(new[] { "h1", "h2" });
+    }
+
     private static ActionExecutingContext CreateActionExecutingContext(QBittorrentApiController controller, HttpContext httpContext, string actionName)
     {
         var actionDescriptor = new ControllerActionDescriptor
