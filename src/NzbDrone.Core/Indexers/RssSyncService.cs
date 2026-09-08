@@ -24,6 +24,8 @@ public interface IRssSyncService
 
 public class RssSyncService : IRssSyncService
 {
+    public const int DefaultMaxGrabbedReleasesCapacity = 5000;
+
     private static readonly TimeSpan DefaultRegexTimeout = TimeSpan.FromMilliseconds(500);
 
     private readonly IIndexerRepository indexerRepository;
@@ -35,7 +37,7 @@ public class RssSyncService : IRssSyncService
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly IDownloadHistoryService downloadHistoryService;
     private readonly ICategoryService categoryService;
-    private readonly BoundedSet<string> grabbedReleaseIds = new(10000, StringComparer.OrdinalIgnoreCase);
+    private readonly BoundedSet<string> grabbedReleaseIds;
     private readonly SemaphoreSlim syncLock = new(1, 1);
     private readonly Logger logger;
 
@@ -48,7 +50,8 @@ public class RssSyncService : IRssSyncService
         HttpClient httpClient = null,
         ISafeHttpClientService safeHttpClientService = null,
         IDownloadHistoryService downloadHistoryService = null,
-        ICategoryService categoryService = null)
+        ICategoryService categoryService = null,
+        int maxGrabbedReleasesCapacity = DefaultMaxGrabbedReleasesCapacity)
     {
         this.indexerRepository = indexerRepository;
         this.rssRuleRepository = rssRuleRepository;
@@ -59,6 +62,9 @@ public class RssSyncService : IRssSyncService
         this.safeHttpClientService = safeHttpClientService ?? (httpClient != null ? new SafeHttpClientService(httpClient) : new SafeHttpClientService());
         this.downloadHistoryService = downloadHistoryService;
         this.categoryService = categoryService;
+        this.grabbedReleaseIds = new BoundedSet<string>(
+            maxGrabbedReleasesCapacity > 0 ? maxGrabbedReleasesCapacity : DefaultMaxGrabbedReleasesCapacity,
+            StringComparer.OrdinalIgnoreCase);
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -165,12 +171,7 @@ public class RssSyncService : IRssSyncService
 
                                             if (existingTorrent != null || existingHistory != null)
                                             {
-                                                if (!string.IsNullOrEmpty(releaseId))
-                                                {
-                                                    this.grabbedReleaseIds.TryAdd(releaseId, 0);
-                                                }
-
-                                                this.grabbedReleaseIds.TryAdd(magnetInfoHash, 0);
+                                                this.RecordGrabbed(releaseId, magnetInfoHash);
                                                 this.logger.Info("Release '{0}' with infohash '{1}' has already been grabbed. Skipping duplicate.", release.Title, magnetInfoHash);
                                                 break;
                                             }
@@ -191,12 +192,7 @@ public class RssSyncService : IRssSyncService
 
                                                 if (existingTorrent != null || existingHistory != null)
                                                 {
-                                                    if (!string.IsNullOrEmpty(releaseId))
-                                                    {
-                                                        this.grabbedReleaseIds.TryAdd(releaseId, 0);
-                                                    }
-
-                                                    this.grabbedReleaseIds.TryAdd(magnetInfoHash, 0);
+                                                    this.RecordGrabbed(releaseId, magnetInfoHash);
                                                     this.logger.Info("Release '{0}' with infohash '{1}' has already been grabbed. Skipping duplicate.", release.Title, magnetInfoHash);
                                                     break;
                                                 }
@@ -218,12 +214,7 @@ public class RssSyncService : IRssSyncService
 
                                                 if (existingTorrent != null || existingHistory != null)
                                                 {
-                                                    if (!string.IsNullOrEmpty(releaseId))
-                                                    {
-                                                        this.grabbedReleaseIds.TryAdd(releaseId, 0);
-                                                    }
-
-                                                    this.grabbedReleaseIds.TryAdd(parsedInfoHash, 0);
+                                                    this.RecordGrabbed(releaseId, parsedInfoHash);
                                                     this.logger.Info("Release '{0}' with infohash '{1}' has already been grabbed. Skipping duplicate.", release.Title, parsedInfoHash);
                                                     break;
                                                 }
@@ -248,16 +239,7 @@ public class RssSyncService : IRssSyncService
 
                                     if (existingHistoryEntry != null)
                                     {
-                                        if (!string.IsNullOrEmpty(releaseId))
-                                        {
-                                            this.grabbedReleaseIds.TryAdd(releaseId, 0);
-                                        }
-
-                                        if (!string.IsNullOrEmpty(normalizedAddedHash))
-                                        {
-                                            this.grabbedReleaseIds.TryAdd(normalizedAddedHash, 0);
-                                        }
-
+                                        this.RecordGrabbed(releaseId, normalizedAddedHash);
                                         this.logger.Info("Release '{0}' with infohash '{1}' already exists in download history. Skipping duplicate recording.", release.Title, normalizedAddedHash);
                                         break;
                                     }
@@ -273,15 +255,7 @@ public class RssSyncService : IRssSyncService
                                         downloadUrl: release.DownloadUrl,
                                         indexerName: indexer.Name);
 
-                                    if (!string.IsNullOrEmpty(releaseId))
-                                    {
-                                        this.grabbedReleaseIds.TryAdd(releaseId, 0);
-                                    }
-
-                                    if (!string.IsNullOrEmpty(normalizedAddedHash))
-                                    {
-                                        this.grabbedReleaseIds.TryAdd(normalizedAddedHash, 0);
-                                    }
+                                    this.RecordGrabbed(releaseId, normalizedAddedHash);
 
                                     grabbedCount++;
                                     break;
@@ -301,6 +275,19 @@ public class RssSyncService : IRssSyncService
         finally
         {
             this.syncLock.Release();
+        }
+    }
+
+    private void RecordGrabbed(string releaseId, string infoHash = null)
+    {
+        if (!string.IsNullOrEmpty(releaseId))
+        {
+            this.grabbedReleaseIds.TryAdd(releaseId);
+        }
+
+        if (!string.IsNullOrEmpty(infoHash))
+        {
+            this.grabbedReleaseIds.TryAdd(infoHash);
         }
     }
 
@@ -343,12 +330,7 @@ public class RssSyncService : IRssSyncService
             if (this.torrentService?.GetByInfoHash(candidateHash) != null ||
                 this.downloadHistoryService?.GetByInfoHash(candidateHash) != null)
             {
-                if (!string.IsNullOrEmpty(releaseId))
-                {
-                    this.grabbedReleaseIds.TryAdd(releaseId, 0);
-                }
-
-                this.grabbedReleaseIds.TryAdd(candidateHash, 0);
+                this.RecordGrabbed(releaseId, candidateHash);
                 return true;
             }
         }
@@ -499,9 +481,18 @@ public class BoundedSet<T>
 
     public BoundedSet(int capacity, IEqualityComparer<T> comparer = null)
     {
+        if (capacity <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(capacity), "Capacity must be greater than zero.");
+        }
+
         this.capacity = capacity;
         this.set = new ConcurrentDictionary<T, byte>(comparer ?? EqualityComparer<T>.Default);
     }
+
+    public int Capacity => this.capacity;
+
+    public int Count => this.set.Count;
 
     public bool ContainsKey(T item) => item != null && this.set.ContainsKey(item);
 
@@ -526,5 +517,21 @@ public class BoundedSet<T>
         return false;
     }
 
-    public int Count => this.set.Count;
+    public bool TryRemove(T item)
+    {
+        if (item == null)
+        {
+            return false;
+        }
+
+        return this.set.TryRemove(item, out _);
+    }
+
+    public void Clear()
+    {
+        this.set.Clear();
+        while (this.queue.TryDequeue(out _))
+        {
+        }
+    }
 }
