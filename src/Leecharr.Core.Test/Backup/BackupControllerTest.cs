@@ -591,4 +591,149 @@ public class BackupControllerTest
         File.Exists(restoredConfig).Should().BeTrue();
         File.ReadAllText(restoredConfig).Should().Be("<pg-config/>");
     }
+
+    private class TestableDirectProcessBackupController : BackupController
+    {
+        public TestableDirectProcessBackupController(
+            IAppFolderInfo appFolderInfo,
+            IDiskProvider diskProvider = null,
+            IConnectionStringFactory connectionStringFactory = null,
+            IConfigFileProvider configFileProvider = null,
+            IConfigService configService = null)
+            : base(appFolderInfo, diskProvider, connectionStringFactory, configFileProvider, configService)
+        {
+        }
+
+        public bool TestRunPgDump(string pgDumpExe, string host, int port, string user, string password, string dbName, string outputPath)
+            => this.RunPgDump(pgDumpExe, host, port, user, password, dbName, outputPath);
+
+        public bool TestRunPsqlRestore(string psqlExe, string host, int port, string user, string password, string dbName, string sqlScriptPath)
+            => this.RunPsqlRestore(psqlExe, host, port, user, password, dbName, sqlScriptPath);
+    }
+
+    private string CreateExecutableScript(string content)
+    {
+        var ext = OperatingSystem.IsWindows() ? ".cmd" : ".sh";
+        var scriptPath = Path.Combine(this.testTempDir, "test_proc_" + Guid.NewGuid().ToString("N") + ext);
+        File.WriteAllText(scriptPath, content);
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(scriptPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+
+        return scriptPath;
+    }
+
+    [Test]
+    public void RunPgDump_WhenExecutableDoesNotExist_ReturnsFalse()
+    {
+        var controller = new TestableDirectProcessBackupController(this.appFolderInfo);
+        var result = controller.TestRunPgDump("non_existent_binary_for_pg_dump", "localhost", 5432, "postgres", "pass", "db", Path.Combine(this.testTempDir, "out.sql"));
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public void RunPsqlRestore_WhenExecutableDoesNotExist_ReturnsFalse()
+    {
+        var controller = new TestableDirectProcessBackupController(this.appFolderInfo);
+        var result = controller.TestRunPsqlRestore("non_existent_binary_for_psql", "localhost", 5432, "postgres", "pass", "db", Path.Combine(this.testTempDir, "in.sql"));
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public void RunPgDump_WhenProcessTimesOut_KillsProcessAndReturnsFalse()
+    {
+        var configService = Substitute.For<IConfigService>();
+        configService.DatabaseBackupTimeoutSeconds.Returns(1);
+
+        var controller = new TestableDirectProcessBackupController(this.appFolderInfo, configService: configService);
+        var script = this.CreateExecutableScript(OperatingSystem.IsWindows()
+            ? "@echo off\r\nping 127.0.0.1 -n 10 >nul"
+            : "#!/bin/sh\nsleep 10\n");
+
+        var outputPath = Path.Combine(this.testTempDir, "timeout_dump.sql");
+        var result = controller.TestRunPgDump(script, "localhost", 5432, "postgres", null, "db", outputPath);
+
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public void RunPsqlRestore_WhenProcessTimesOut_KillsProcessAndReturnsFalse()
+    {
+        var configService = Substitute.For<IConfigService>();
+        configService.DatabaseRestoreTimeoutSeconds.Returns(1);
+
+        var controller = new TestableDirectProcessBackupController(this.appFolderInfo, configService: configService);
+        var script = this.CreateExecutableScript(OperatingSystem.IsWindows()
+            ? "@echo off\r\nping 127.0.0.1 -n 10 >nul"
+            : "#!/bin/sh\nsleep 10\n");
+
+        var sqlPath = Path.Combine(this.testTempDir, "restore.sql");
+        File.WriteAllText(sqlPath, "-- sql script");
+        var result = controller.TestRunPsqlRestore(script, "localhost", 5432, "postgres", null, "db", sqlPath);
+
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public void RunPgDump_WhenProcessFailsWithNonZeroExitCode_ReturnsFalse()
+    {
+        var controller = new TestableDirectProcessBackupController(this.appFolderInfo);
+        var script = this.CreateExecutableScript(OperatingSystem.IsWindows()
+            ? "@echo off\r\necho pg_dump error 1>&2\r\nexit /b 1"
+            : "#!/bin/sh\necho 'pg_dump error' >&2\nexit 1\n");
+
+        var outputPath = Path.Combine(this.testTempDir, "failed_dump.sql");
+        var result = controller.TestRunPgDump(script, "localhost", 5432, "postgres", "secret", "db", outputPath);
+
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public void RunPsqlRestore_WhenProcessFailsWithNonZeroExitCode_ReturnsFalse()
+    {
+        var controller = new TestableDirectProcessBackupController(this.appFolderInfo);
+        var script = this.CreateExecutableScript(OperatingSystem.IsWindows()
+            ? "@echo off\r\necho psql restore error 1>&2\r\nexit /b 2"
+            : "#!/bin/sh\necho 'psql restore error' >&2\nexit 2\n");
+
+        var sqlPath = Path.Combine(this.testTempDir, "restore_fail.sql");
+        File.WriteAllText(sqlPath, "-- sql script");
+        var result = controller.TestRunPsqlRestore(script, "localhost", 5432, "postgres", "secret", "db", sqlPath);
+
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public void RunPgDump_WhenProcessSucceedsAndProducesOutput_ReturnsTrue()
+    {
+        var controller = new TestableDirectProcessBackupController(this.appFolderInfo);
+        var outputPath = Path.Combine(this.testTempDir, "success_dump.sql");
+
+        var script = this.CreateExecutableScript(OperatingSystem.IsWindows()
+            ? $"@echo off\r\necho pg_dump success > \"{outputPath}\"\r\nexit /b 0"
+            : $"#!/bin/sh\necho 'pg_dump success' > \"{outputPath}\"\nexit 0\n");
+
+        var result = controller.TestRunPgDump(script, "localhost", 5432, "postgres", "secret", "db", outputPath);
+
+        result.Should().BeTrue();
+        File.Exists(outputPath).Should().BeTrue();
+        File.ReadAllText(outputPath).Trim().Should().Be("pg_dump success");
+    }
+
+    [Test]
+    public void RunPsqlRestore_WhenProcessSucceeds_ReturnsTrue()
+    {
+        var controller = new TestableDirectProcessBackupController(this.appFolderInfo);
+        var sqlPath = Path.Combine(this.testTempDir, "restore_success.sql");
+        File.WriteAllText(sqlPath, "-- sql script");
+
+        var script = this.CreateExecutableScript(OperatingSystem.IsWindows()
+            ? "@echo off\r\necho restore success\r\nexit /b 0"
+            : "#!/bin/sh\necho 'restore success'\nexit 0\n");
+
+        var result = controller.TestRunPsqlRestore(script, "localhost", 5432, "postgres", "secret", "db", sqlPath);
+
+        result.Should().BeTrue();
+    }
 }
