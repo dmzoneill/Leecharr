@@ -546,6 +546,8 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
             this.logger.Info("Deleting torrent {0} (DeleteFiles={1})", torrent.Name, deleteFiles);
 
+            var torrentFiles = this.fileRepository?.GetByTorrentId(id)?.ToList() ?? new List<TorrentFile>();
+
             try
             {
                 await this.downloadEngine.RemoveTorrentAsync(id, deleteFiles);
@@ -596,56 +598,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
             if (deleteFiles)
             {
-                var isIncomplete = torrent.Progress < 1.0 ||
-                                   torrent.Status == TorrentStatus.Downloading ||
-                                   torrent.Status == TorrentStatus.Queued;
-
-                if (isIncomplete)
-                {
-                    await this.PurgeIncompleteChunksAsync(torrent);
-                }
-
-                if (!string.IsNullOrWhiteSpace(torrent.SavePath) && !string.IsNullOrWhiteSpace(torrent.Name) && Directory.Exists(torrent.SavePath))
-                {
-                    try
-                    {
-                        var torrentFolder = Path.Combine(torrent.SavePath, torrent.Name);
-                        if (!TorrentPathValidator.IsStrictSubPath(torrent.SavePath, torrentFolder))
-                        {
-                            this.logger.Warn("Refusing to delete files for torrent {0}: target path '{1}' escapes or equals save path '{2}'", torrent.Name, torrentFolder, torrent.SavePath);
-                        }
-                        else if (Directory.Exists(torrentFolder))
-                        {
-                            await DeletePathWithRetryAsync(torrentFolder, isDirectory: true);
-                        }
-                        else if (File.Exists(torrentFolder))
-                        {
-                            await DeletePathWithRetryAsync(torrentFolder, isDirectory: false);
-                        }
-
-                        if (isIncomplete)
-                        {
-                            var candidateExtensions = new[] { ".!mt", ".!leech", this.configService?.IncompleteExtension };
-                            foreach (var ext in candidateExtensions)
-                            {
-                                if (string.IsNullOrWhiteSpace(ext))
-                                {
-                                    continue;
-                                }
-
-                                var extFile = Path.Combine(torrent.SavePath, torrent.Name + ext);
-                                if (TorrentPathValidator.IsStrictSubPath(torrent.SavePath, extFile) && File.Exists(extFile))
-                                {
-                                    await DeletePathWithRetryAsync(extFile, isDirectory: false);
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Warn(ex, "Failed to delete files for torrent {0}", torrent.Name);
-                    }
-                }
+                await this.DeleteTorrentDataOnDiskAsync(torrent, torrentFiles);
             }
 
             this.eventAggregator.PublishEvent(new TorrentDeletedEvent { Torrent = torrent, DeleteFiles = deleteFiles });
@@ -658,6 +611,294 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 this.deletionLocks.TryRemove(id, out _);
             }
         }
+    }
+
+    private async Task DeleteTorrentDataOnDiskAsync(Torrent torrent, List<TorrentFile> torrentFiles)
+    {
+        var isIncomplete = torrent.Progress < 1.0 ||
+                           torrent.Status == TorrentStatus.Downloading ||
+                           torrent.Status == TorrentStatus.Queued;
+
+        if (isIncomplete)
+        {
+            await this.PurgeIncompleteChunksAsync(torrent);
+        }
+
+        if (string.IsNullOrWhiteSpace(torrent.Name))
+        {
+            return;
+        }
+
+        try
+        {
+            var sanitizedName = TorrentPathValidator.SanitizeRelativePath(torrent.Name);
+
+            // 1. If torrent.SavePath is directly a file, delete it
+            if (!string.IsNullOrWhiteSpace(torrent.SavePath) && File.Exists(torrent.SavePath))
+            {
+                if (!this.IsProtectedRoot(torrent.SavePath))
+                {
+                    await DeletePathWithRetryAsync(torrent.SavePath, isDirectory: false);
+                }
+            }
+
+            // 2. If torrent.SavePath is a directory
+            if (!string.IsNullOrWhiteSpace(torrent.SavePath) && Directory.Exists(torrent.SavePath))
+            {
+                var savePathDirName = Path.GetFileName(torrent.SavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                var isDedicatedFolder = string.Equals(savePathDirName, torrent.Name, StringComparison.OrdinalIgnoreCase) ||
+                                       (!string.IsNullOrWhiteSpace(sanitizedName) && string.Equals(savePathDirName, sanitizedName, StringComparison.OrdinalIgnoreCase));
+
+                if (isDedicatedFolder && !this.IsProtectedRoot(torrent.SavePath))
+                {
+                    await DeletePathWithRetryAsync(torrent.SavePath, isDirectory: true);
+                }
+                else
+                {
+                    // SavePath is a parent/root directory (e.g. /downloads/tv), check child folder or file matching torrent name
+                    var childCandidates = new List<string> { Path.Combine(torrent.SavePath, torrent.Name) };
+                    if (!string.IsNullOrWhiteSpace(sanitizedName))
+                    {
+                        childCandidates.Add(Path.Combine(torrent.SavePath, sanitizedName));
+                    }
+
+                    foreach (var childPath in childCandidates.Distinct())
+                    {
+                        if (TorrentPathValidator.IsStrictSubPath(torrent.SavePath, childPath) && !this.IsProtectedRoot(childPath))
+                        {
+                            if (Directory.Exists(childPath))
+                            {
+                                await DeletePathWithRetryAsync(childPath, isDirectory: true);
+                            }
+                            else if (File.Exists(childPath))
+                            {
+                                await DeletePathWithRetryAsync(childPath, isDirectory: false);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Check category completed directory and global completed directory
+            var candidateRoots = new List<string>();
+            if (this.storagePathService != null)
+            {
+                var catCompleted = this.storagePathService.GetCompletedDirectory(torrent.Category);
+                if (!string.IsNullOrWhiteSpace(catCompleted))
+                {
+                    candidateRoots.Add(catCompleted);
+                }
+
+                var globalCompleted = this.storagePathService.GetCompletedDirectory(null);
+                if (!string.IsNullOrWhiteSpace(globalCompleted))
+                {
+                    candidateRoots.Add(globalCompleted);
+                }
+            }
+
+            foreach (var root in candidateRoots.Distinct())
+            {
+                if (Directory.Exists(root))
+                {
+                    var targets = new List<string> { Path.Combine(root, torrent.Name) };
+                    if (!string.IsNullOrWhiteSpace(sanitizedName))
+                    {
+                        targets.Add(Path.Combine(root, sanitizedName));
+                    }
+
+                    foreach (var target in targets.Distinct())
+                    {
+                        if (TorrentPathValidator.IsStrictSubPath(root, target) && !this.IsProtectedRoot(target))
+                        {
+                            if (Directory.Exists(target))
+                            {
+                                await DeletePathWithRetryAsync(target, isDirectory: true);
+                            }
+                            else if (File.Exists(target))
+                            {
+                                await DeletePathWithRetryAsync(target, isDirectory: false);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 4. Delete individual files known from torrent file list if any remain
+            if (torrentFiles != null && torrentFiles.Count > 0)
+            {
+                var searchDirs = new List<string>();
+                if (!string.IsNullOrWhiteSpace(torrent.SavePath) && Directory.Exists(torrent.SavePath))
+                {
+                    searchDirs.Add(torrent.SavePath);
+                }
+
+                if (this.storagePathService != null)
+                {
+                    var catDir = this.storagePathService.GetCompletedDirectory(torrent.Category);
+                    if (!string.IsNullOrWhiteSpace(catDir) && Directory.Exists(catDir))
+                    {
+                        searchDirs.Add(catDir);
+                    }
+
+                    var incDir = this.storagePathService.GetIncompleteDirectory();
+                    if (!string.IsNullOrWhiteSpace(incDir) && Directory.Exists(incDir))
+                    {
+                        searchDirs.Add(incDir);
+                    }
+                }
+
+                foreach (var file in torrentFiles)
+                {
+                    if (string.IsNullOrWhiteSpace(file?.Path))
+                    {
+                        continue;
+                    }
+
+                    foreach (var searchDir in searchDirs.Distinct())
+                    {
+                        var candidateFilePaths = new List<string>
+                        {
+                            Path.Combine(searchDir, file.Path),
+                            Path.Combine(searchDir, torrent.Name, file.Path),
+                        };
+
+                        if (!string.IsNullOrWhiteSpace(sanitizedName))
+                        {
+                            candidateFilePaths.Add(Path.Combine(searchDir, sanitizedName, file.Path));
+                        }
+
+                        foreach (var cand in candidateFilePaths.Distinct())
+                        {
+                            if (File.Exists(cand) && !this.IsProtectedRoot(cand))
+                            {
+                                await DeletePathWithRetryAsync(cand, isDirectory: false);
+                            }
+
+                            var candidateExtensions = new[] { ".!mt", ".!leech", ".incomplete", this.configService?.IncompleteExtension };
+                            foreach (var ext in candidateExtensions)
+                            {
+                                if (string.IsNullOrWhiteSpace(ext))
+                                {
+                                    continue;
+                                }
+
+                                var extFile = cand + ext;
+                                if (File.Exists(extFile) && !this.IsProtectedRoot(extFile))
+                                {
+                                    await DeletePathWithRetryAsync(extFile, isDirectory: false);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to delete files for torrent {0}", torrent.Name);
+        }
+    }
+
+    private bool IsProtectedRoot(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return true;
+        }
+
+        try
+        {
+            var canonical = TorrentPathValidator.ResolveCanonicalPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var root = Path.GetPathRoot(canonical)?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+
+            if (string.Equals(canonical, root, comparison) || string.IsNullOrEmpty(canonical))
+            {
+                return true;
+            }
+
+            var protectedRoots = new List<string>();
+
+            if (this.storagePathService != null)
+            {
+                var incomplete = this.storagePathService.GetIncompleteDirectory();
+                if (!string.IsNullOrWhiteSpace(incomplete))
+                {
+                    protectedRoots.Add(incomplete);
+                }
+
+                var completed = this.storagePathService.GetCompletedDirectory(null);
+                if (!string.IsNullOrWhiteSpace(completed))
+                {
+                    protectedRoots.Add(completed);
+                }
+            }
+
+            if (this.configService != null)
+            {
+                if (!string.IsNullOrWhiteSpace(this.configService.DownloadDir))
+                {
+                    protectedRoots.Add(this.configService.DownloadDir);
+                }
+
+                if (!string.IsNullOrWhiteSpace(this.configService.IncompleteDownloadDir))
+                {
+                    protectedRoots.Add(this.configService.IncompleteDownloadDir);
+                }
+            }
+
+            if (this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder))
+            {
+                protectedRoots.Add(this.appFolderInfo.AppDataFolder);
+                protectedRoots.Add(Path.Combine(this.appFolderInfo.AppDataFolder, "downloads"));
+                protectedRoots.Add(Path.Combine(this.appFolderInfo.AppDataFolder, "downloads", "incomplete"));
+                protectedRoots.Add(Path.Combine(this.appFolderInfo.AppDataFolder, "downloads", "complete"));
+            }
+
+            if (this.categoryService != null)
+            {
+                var categories = this.categoryService.GetAll();
+                if (categories != null)
+                {
+                    foreach (var cat in categories)
+                    {
+                        if (!string.IsNullOrWhiteSpace(cat.SavePath))
+                        {
+                            protectedRoots.Add(cat.SavePath);
+                        }
+
+                        if (this.storagePathService != null && !string.IsNullOrWhiteSpace(cat.Name))
+                        {
+                            var catDir = this.storagePathService.GetCompletedDirectory(cat.Name);
+                            if (!string.IsNullOrWhiteSpace(catDir))
+                            {
+                                protectedRoots.Add(catDir);
+                            }
+                        }
+                    }
+                }
+            }
+
+            foreach (var protectedRoot in protectedRoots)
+            {
+                if (string.IsNullOrWhiteSpace(protectedRoot))
+                {
+                    continue;
+                }
+
+                var canonicalProtected = TorrentPathValidator.ResolveCanonicalPath(protectedRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                if (string.Equals(canonical, canonicalProtected, comparison))
+                {
+                    return true;
+                }
+            }
+        }
+        catch
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private async Task PurgeIncompleteChunksAsync(Torrent torrent)
