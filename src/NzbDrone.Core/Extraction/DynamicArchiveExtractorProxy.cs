@@ -211,7 +211,14 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
         var targetDir = destinationDirectory;
         if (string.IsNullOrWhiteSpace(targetDir))
         {
-            targetDir = Path.GetDirectoryName(archiveFilePath) ?? "/tmp";
+            var dir = Path.GetDirectoryName(archiveFilePath);
+            targetDir = !string.IsNullOrWhiteSpace(dir)
+                ? dir
+                : (!string.IsNullOrWhiteSpace(this.configService?.ExtractorTempDir)
+                    ? this.configService.ExtractorTempDir
+                    : (!string.IsNullOrWhiteSpace(this.configService?.IncompleteDownloadDir)
+                        ? this.configService.IncompleteDownloadDir
+                        : Path.GetTempPath()));
         }
 
         this.diskProvider.EnsureFolder(targetDir);
