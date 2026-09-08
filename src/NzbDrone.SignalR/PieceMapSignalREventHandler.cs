@@ -118,6 +118,7 @@ public class PieceMapSignalREventHandler : IHandle<PieceVerifiedEvent>, IDisposa
         {
             if (kvp.Value.Count > 0)
             {
+                var ranges = CompressToRanges(kvp.Value);
                 this.signalRBroadcaster.BroadcastMessage(new SignalRMessage
                 {
                     Name = "pieceMapUpdated",
@@ -125,12 +126,48 @@ public class PieceMapSignalREventHandler : IHandle<PieceVerifiedEvent>, IDisposa
                     {
                         torrentId = kvp.Key,
                         pieceIndex = kvp.Value.Last(),
-                        pieceIndices = kvp.Value,
+                        ranges = ranges,
                         isVerified = true,
                     },
                 });
             }
         }
+    }
+
+    public static List<int[]> CompressToRanges(IEnumerable<int> sortedIndices)
+    {
+        var ranges = new List<int[]>();
+        if (sortedIndices == null)
+        {
+            return ranges;
+        }
+
+        using var enumerator = sortedIndices.GetEnumerator();
+        if (!enumerator.MoveNext())
+        {
+            return ranges;
+        }
+
+        int start = enumerator.Current;
+        int end = start;
+
+        while (enumerator.MoveNext())
+        {
+            int current = enumerator.Current;
+            if (current == end + 1)
+            {
+                end = current;
+            }
+            else if (current > end + 1)
+            {
+                ranges.Add(new[] { start, end });
+                start = current;
+                end = current;
+            }
+        }
+
+        ranges.Add(new[] { start, end });
+        return ranges;
     }
 
     public void Dispose()

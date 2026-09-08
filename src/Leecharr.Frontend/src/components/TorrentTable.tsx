@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef } from "react";
+import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useVirtualizer, type VirtualItem } from "@tanstack/react-virtual";
 import { useTorrentStore, applyTelemetry } from "../stores/useTorrentStore";
 import {
@@ -1195,6 +1195,23 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     startX: number;
     startWidth: number;
   } | null>(null);
+  const resizeListenersRef = useRef<{
+    move: (e: MouseEvent) => void;
+    up: (e: MouseEvent) => void;
+  } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (resizeListenersRef.current) {
+        document.removeEventListener(
+          "mousemove",
+          resizeListenersRef.current.move,
+        );
+        document.removeEventListener("mouseup", resizeListenersRef.current.up);
+        resizeListenersRef.current = null;
+      }
+    };
+  }, []);
 
   useEscapeKey(() => setShowColumnModal(false), showColumnModal);
 
@@ -1286,6 +1303,16 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     (e: React.MouseEvent, key: string, thEl: HTMLElement) => {
       e.preventDefault();
       e.stopPropagation();
+
+      if (resizeListenersRef.current) {
+        document.removeEventListener(
+          "mousemove",
+          resizeListenersRef.current.move,
+        );
+        document.removeEventListener("mouseup", resizeListenersRef.current.up);
+        resizeListenersRef.current = null;
+      }
+
       const startWidth = thEl.getBoundingClientRect().width;
       resizeStateRef.current = { key, startX: e.clientX, startWidth };
 
@@ -1312,8 +1339,10 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
         }
         document.removeEventListener("mousemove", onMouseMove);
         document.removeEventListener("mouseup", onMouseUp);
+        resizeListenersRef.current = null;
       };
 
+      resizeListenersRef.current = { move: onMouseMove, up: onMouseUp };
       document.addEventListener("mousemove", onMouseMove);
       document.addEventListener("mouseup", onMouseUp);
     },

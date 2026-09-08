@@ -52,7 +52,20 @@ public class Startup
                 }
             });
 
-        services.AddSignalR();
+        services.AddSignalR(options =>
+        {
+            options.MaximumReceiveMessageSize = 10 * 1024 * 1024; // 10 MB
+        })
+        .AddJsonProtocol(options =>
+        {
+            var settings = STJson.GetSerializerSettings();
+            options.PayloadSerializerOptions.PropertyNamingPolicy = settings.PropertyNamingPolicy;
+            options.PayloadSerializerOptions.DefaultIgnoreCondition = settings.DefaultIgnoreCondition;
+            foreach (var converter in settings.Converters)
+            {
+                options.PayloadSerializerOptions.Converters.Add(converter);
+            }
+        });
         services.AddDataProtection();
         services.AddHttpClient();
         services.AddSingleton<Leecharr.Http.Terminal.IPtyTerminalService, Leecharr.Http.Terminal.PtyTerminalService>();

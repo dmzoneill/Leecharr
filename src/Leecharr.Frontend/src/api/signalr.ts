@@ -11,9 +11,32 @@ export type ReconnectingHandler = (error?: Error) => void;
 export type ReconnectedHandler = (connectionId?: string) => void;
 export type CloseHandler = (error?: Error) => void;
 
+export function isUnauthorizedError(error: unknown): boolean {
+  if (!error) return false;
+  if (error instanceof signalR.HttpError) {
+    return error.statusCode === 401 || error.statusCode === 403;
+  }
+  const err = error as any;
+  if (
+    err.statusCode === 401 ||
+    err.statusCode === 403 ||
+    err.status === 401 ||
+    err.status === 403
+  ) {
+    return true;
+  }
+  const msg = typeof err.message === "string" ? err.message : String(error);
+  return (
+    msg.includes("401") ||
+    msg.includes("403") ||
+    msg.includes("Unauthorized") ||
+    msg.includes("Forbidden")
+  );
+}
+
 /**
  * Resilient SignalR retry policy implementing exponential backoff with jitter up to 30 seconds,
- * continuing indefinitely without permanently giving up.
+ * continuing indefinitely without permanently giving up (unless HTTP 401/403 is received).
  */
 export class ExponentialBackoffRetryPolicy implements signalR.IRetryPolicy {
   private readonly maxDelayMs: number;
@@ -27,6 +50,14 @@ export class ExponentialBackoffRetryPolicy implements signalR.IRetryPolicy {
   public nextRetryDelayInMilliseconds(
     retryContext: signalR.RetryContext,
   ): number | null {
+    // Abort reconnect loop if authentication failed (HTTP 401/403)
+    if (isUnauthorizedError(retryContext.retryReason)) {
+      console.warn(
+        "SignalR reconnection aborted: HTTP 401/403 unauthorized or forbidden",
+      );
+      return null;
+    }
+
     // Immediate retry on initial disconnect
     if (retryContext.previousRetryCount === 0) {
       return 0;
@@ -121,8 +152,8 @@ class SignalRManager {
         }
 
         // If connection closed unexpectedly and was not intentionally stopped,
-        // continuously retry establishing the connection
-        if (!this.isStopped) {
+        // continuously retry establishing the connection (unless unauthorized/forbidden)
+        if (!this.isStopped && !isUnauthorizedError(error)) {
           this.scheduleColdStartRetry();
         }
       });
@@ -213,12 +244,20 @@ class SignalRManager {
         this.isStarting = false;
       }
     } catch (err) {
-      console.warn("SignalR connection attempt failed, will retry:", err);
       this.isStarting = false;
 
       const errorObj = err instanceof Error ? err : new Error(String(err));
       this.notifyReconnecting(errorObj);
 
+      if (isUnauthorizedError(err)) {
+        console.warn(
+          "SignalR connection aborted due to 401/403 authorization failure:",
+          err,
+        );
+        return;
+      }
+
+      console.warn("SignalR connection attempt failed, will retry:", err);
       this.scheduleColdStartRetry();
     }
   }

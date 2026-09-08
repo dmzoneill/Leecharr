@@ -42,10 +42,12 @@ export function PieceMap({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const layoutRef = useRef({ cols: 0, blockSize: 0, gap: 0 });
 
-  // Subscribe to live SignalR piece map bitmap updates
-  const liveBitfield = useTorrentStore((state) =>
-    torrentId ? state.pieceMaps[torrentId]?.bitfield : undefined,
+  // Subscribe to live SignalR piece map bitmap updates with version counter
+  const livePieceData = useTorrentStore((state) =>
+    torrentId ? state.pieceMaps[torrentId] : undefined,
   );
+  const liveBitfield = livePieceData?.bitfield;
+  const liveVersion = livePieceData?.version ?? 0;
 
   const totalPieces = Math.max(1, pieceCount);
   const isComplete = progress >= 1.0 || isSeeding;
@@ -59,7 +61,8 @@ export function PieceMap({
       return mergeBitfields(propBitfieldBytes, liveBitfield);
     }
     return liveBitfield || propBitfieldBytes || null;
-  }, [liveBitfield, propBitfieldBytes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveBitfield, liveVersion, propBitfieldBytes]);
 
   // Generate a sampled representation of blocks for visualizer via fast bitwise binning
   const displayBlocks = useMemo(() => {
