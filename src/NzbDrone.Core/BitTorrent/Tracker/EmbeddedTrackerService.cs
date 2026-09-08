@@ -235,6 +235,16 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
             return new TrackerAnnounceResult { Success = false, FailureReason = "Missing request." };
         }
 
+        if (request.RemoteIp != null && request.RemoteIp.IsIPv4MappedToIPv6)
+        {
+            request.RemoteIp = request.RemoteIp.MapToIPv4();
+        }
+
+        if (request.Ipv6 != null && request.Ipv6.IsIPv4MappedToIPv6)
+        {
+            request.Ipv6 = request.Ipv6.MapToIPv4();
+        }
+
         if (!TryValidateInfoHash(request.InfoHashBytes, request.InfoHashHex, out var hexKey, out var validBytes, out var hashError))
         {
             return new TrackerAnnounceResult { Success = false, FailureReason = hashError };
@@ -348,7 +358,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
         var leechers = swarm.Peers.Values.Count(p => !p.IsSeeder);
 
         var eligiblePeers = swarm.Peers.Values
-            .Where(p => !Equals(p.Ip, request.RemoteIp) || p.Port != request.Port)
+            .Where(p => !AreIpAddressesEqual(p.Ip, request.RemoteIp) || p.Port != request.Port)
             .Where(p => request.Left != 0 || !p.IsSeeder)
             .ToArray();
 
@@ -873,5 +883,30 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
         }
 
         return Convert.FromHexString(hex);
+    }
+
+    private static bool AreIpAddressesEqual(IPAddress ip1, IPAddress ip2)
+    {
+        if (ip1 == null && ip2 == null)
+        {
+            return true;
+        }
+
+        if (ip1 == null || ip2 == null)
+        {
+            return false;
+        }
+
+        if (ip1.IsIPv4MappedToIPv6)
+        {
+            ip1 = ip1.MapToIPv4();
+        }
+
+        if (ip2.IsIPv4MappedToIPv6)
+        {
+            ip2 = ip2.MapToIPv4();
+        }
+
+        return ip1.Equals(ip2);
     }
 }

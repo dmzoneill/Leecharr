@@ -1110,6 +1110,84 @@ public class EmbeddedTrackerServiceTest
         peerList.Count.Should().Be(3);
     }
 
+    [Test]
+    public void Announce_WithIPv4MappedIPv6Address_NormalizesToIPv4AndExcludesSelf()
+    {
+        var infoHash = new byte[20];
+        infoHash[0] = 0xFE;
+
+        // Peer 1 registers with standard IPv4
+        var req1 = new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("192.168.1.100"),
+            Port = 6881,
+            PeerIdBytes = new byte[20],
+            Left = 0, // Seeder
+            Compact = true,
+        };
+        var res1 = this.trackerService.Announce(req1);
+        res1.Success.Should().BeTrue();
+        res1.Seeders.Should().Be(1);
+        this.trackerService.ActivePeersCount.Should().Be(1);
+
+        // Peer 1 announces again with IPv4-mapped IPv6 (e.g. over HTTP dual-stack)
+        var req1DualStack = new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("::ffff:192.168.1.100"),
+            Port = 6881,
+            PeerIdBytes = new byte[20],
+            Left = 0,
+            Compact = true,
+        };
+        var res1DualStack = this.trackerService.Announce(req1DualStack);
+        res1DualStack.Success.Should().BeTrue();
+
+        // Swarm must NOT duplicate peer 1
+        res1DualStack.Seeders.Should().Be(1);
+        this.trackerService.ActivePeersCount.Should().Be(1);
+
+        // Peer 1 must NOT be included in its own returned peers list
+        res1DualStack.Peers.Should().BeEmpty();
+
+        // Peer 2 announces with standard IPv4 (leecher)
+        var req2 = new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("192.168.1.102"),
+            Port = 6882,
+            PeerIdBytes = new byte[20],
+            Left = 500,
+            Compact = true,
+        };
+        var res2 = this.trackerService.Announce(req2);
+        res2.Success.Should().BeTrue();
+        res2.Seeders.Should().Be(1);
+        res2.Leechers.Should().Be(1);
+        this.trackerService.ActivePeersCount.Should().Be(2);
+
+        // Peer 2 receives Peer 1
+        res2.Peers.Should().HaveCount(1);
+        res2.Peers.First().Ip.ToString().Should().Be("192.168.1.100");
+        res2.Peers.First().Port.Should().Be(6881);
+
+        // Peer 1 sends stopped event using IPv4-mapped IPv6 address
+        var req1Stop = new TrackerAnnounceRequest
+        {
+            InfoHashBytes = infoHash,
+            RemoteIp = IPAddress.Parse("::ffff:192.168.1.100"),
+            Port = 6881,
+            Event = "stopped",
+            Compact = true,
+        };
+        var res1Stop = this.trackerService.Announce(req1Stop);
+        res1Stop.Success.Should().BeTrue();
+
+        // Peer 1 is removed, only Peer 2 remains
+        this.trackerService.ActivePeersCount.Should().Be(1);
+    }
+
     private sealed class FakeTimeProvider : TimeProvider
     {
         private DateTimeOffset now = DateTimeOffset.UtcNow;

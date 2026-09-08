@@ -28,6 +28,11 @@ public class EmbeddedTrackerController : ControllerBase
     {
         var rawQuery = this.Request.QueryString.Value;
         var remoteIp = this.HttpContext.Connection.RemoteIpAddress;
+        if (remoteIp != null && remoteIp.IsIPv4MappedToIPv6)
+        {
+            remoteIp = remoteIp.MapToIPv4();
+        }
+
         if (remoteIp == null || IPAddress.IsLoopback(remoteIp) || IsPrivateNetwork(remoteIp))
         {
             if (this.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor) && !string.IsNullOrWhiteSpace(forwardedFor))
@@ -35,14 +40,14 @@ public class EmbeddedTrackerController : ControllerBase
                 var firstIp = forwardedFor.ToString().Split(',')[0].Trim();
                 if (IPAddress.TryParse(firstIp, out var parsedFwd))
                 {
-                    remoteIp = parsedFwd;
+                    remoteIp = parsedFwd.IsIPv4MappedToIPv6 ? parsedFwd.MapToIPv4() : parsedFwd;
                 }
             }
             else if (this.Request.Headers.TryGetValue("X-Real-IP", out var realIp) && !string.IsNullOrWhiteSpace(realIp))
             {
                 if (IPAddress.TryParse(realIp.ToString().Trim(), out var parsedReal))
                 {
-                    remoteIp = parsedReal;
+                    remoteIp = parsedReal.IsIPv4MappedToIPv6 ? parsedReal.MapToIPv4() : parsedReal;
                 }
             }
         }
@@ -89,6 +94,11 @@ public class EmbeddedTrackerController : ControllerBase
 
     private static TrackerAnnounceRequest ParseAnnounceQuery(string rawQuery, IPAddress remoteIp)
     {
+        if (remoteIp != null && remoteIp.IsIPv4MappedToIPv6)
+        {
+            remoteIp = remoteIp.MapToIPv4();
+        }
+
         var request = new TrackerAnnounceRequest
         {
             RemoteIp = remoteIp ?? IPAddress.Loopback,
@@ -187,6 +197,11 @@ public class EmbeddedTrackerController : ControllerBase
 
                 if (IPAddress.TryParse(ipStr, out var queryIpv6))
                 {
+                    if (queryIpv6.IsIPv4MappedToIPv6)
+                    {
+                        queryIpv6 = queryIpv6.MapToIPv4();
+                    }
+
                     request.Ipv6 = queryIpv6;
                     if (explicitPort.HasValue)
                     {
@@ -203,8 +218,18 @@ public class EmbeddedTrackerController : ControllerBase
                      (request.RemoteIp == null || IPAddress.IsLoopback(request.RemoteIp) || IsPrivateNetwork(request.RemoteIp)) &&
                      IPAddress.TryParse(val, out var queryIp))
             {
+                if (queryIp.IsIPv4MappedToIPv6)
+                {
+                    queryIp = queryIp.MapToIPv4();
+                }
+
                 request.RemoteIp = queryIp;
             }
+        }
+
+        if (request.RemoteIp != null && request.RemoteIp.IsIPv4MappedToIPv6)
+        {
+            request.RemoteIp = request.RemoteIp.MapToIPv4();
         }
 
         return request;
