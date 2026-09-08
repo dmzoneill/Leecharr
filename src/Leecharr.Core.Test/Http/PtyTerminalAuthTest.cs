@@ -134,6 +134,16 @@ public class PtyTerminalAuthTest
     }
 
     [Test]
+    public void PtyTerminalService_CreateSession_WhenConfigFileProviderIsNull_ThrowsSecurityException()
+    {
+        var service = new PtyTerminalService(null);
+
+        Action act = () => service.CreateSession("/tmp", 80, 24);
+
+        act.Should().Throw<System.Security.SecurityException>();
+    }
+
+    [Test]
     public void PtyTerminalService_CreateSession_WhenPathContainsNullBytes_ThrowsArgumentException()
     {
         var service = new PtyTerminalService(this.configFileProvider);
