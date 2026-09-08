@@ -628,10 +628,12 @@ public class QBittorrentApiControllerTest
         this.torrentService.AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>())
             .Returns(addedTorrent);
 
-        var result = await this.controller.AddTorrents(
-            urls: "magnet:?xt=urn:btih:hash1",
-            sequentialDownload: "true",
-            firstLastPiecePrio: "false");
+        var result = await this.controller.AddTorrents(new QBitAddTorrentsRequest
+        {
+            Urls = "magnet:?xt=urn:btih:hash1",
+            SequentialDownload = "true",
+            FirstLastPiecePrio = "false",
+        });
 
         result.Should().BeOfType<ContentResult>();
         addedTorrent.SequentialDownload.Should().BeTrue();
@@ -645,10 +647,12 @@ public class QBittorrentApiControllerTest
         this.torrentService.AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>())
             .Returns(addedTorrent);
 
-        var result = await this.controller.AddTorrents(
-            urls: "magnet:?xt=urn:btih:hash1",
-            sequentialDownload: "false",
-            firstLastPiecePrio: "true");
+        var result = await this.controller.AddTorrents(new QBitAddTorrentsRequest
+        {
+            Urls = "magnet:?xt=urn:btih:hash1",
+            SequentialDownload = "false",
+            FirstLastPiecePrio = "true",
+        });
 
         result.Should().BeOfType<ContentResult>();
         addedTorrent.SequentialDownload.Should().BeFalse();
@@ -661,10 +665,12 @@ public class QBittorrentApiControllerTest
         this.torrentService.AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", "movies", "/custom/download/path", false)
             .Returns(addedTorrent);
 
-        var result = await this.controller.AddTorrents(
-            urls: "magnet:?xt=urn:btih:hash1",
-            category: "movies",
-            downloadPath: "/custom/download/path");
+        var result = await this.controller.AddTorrents(new QBitAddTorrentsRequest
+        {
+            Urls = "magnet:?xt=urn:btih:hash1",
+            Category = "movies",
+            DownloadPath = "/custom/download/path",
+        });
 
         result.Should().BeOfType<ContentResult>();
         await this.torrentService.Received(1).AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", "movies", "/custom/download/path", false);
@@ -677,10 +683,12 @@ public class QBittorrentApiControllerTest
         this.torrentService.AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", "movies", "/custom/download_path", false)
             .Returns(addedTorrent);
 
-        var result = await this.controller.AddTorrents(
-            urls: "magnet:?xt=urn:btih:hash1",
-            category: "movies",
-            download_path: "/custom/download_path");
+        var result = await this.controller.AddTorrents(new QBitAddTorrentsRequest
+        {
+            Urls = "magnet:?xt=urn:btih:hash1",
+            Category = "movies",
+            Download_path = "/custom/download_path",
+        });
 
         result.Should().BeOfType<ContentResult>();
         await this.torrentService.Received(1).AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", "movies", "/custom/download_path", false);
@@ -693,11 +701,13 @@ public class QBittorrentApiControllerTest
         this.torrentService.AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", "movies", "/priority/savepath", false)
             .Returns(addedTorrent);
 
-        var result = await this.controller.AddTorrents(
-            urls: "magnet:?xt=urn:btih:hash1",
-            category: "movies",
-            savepath: "/priority/savepath",
-            downloadPath: "/ignored/download/path");
+        var result = await this.controller.AddTorrents(new QBitAddTorrentsRequest
+        {
+            Urls = "magnet:?xt=urn:btih:hash1",
+            Category = "movies",
+            Savepath = "/priority/savepath",
+            DownloadPath = "/ignored/download/path",
+        });
 
         result.Should().BeOfType<ContentResult>();
         await this.torrentService.Received(1).AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", "movies", "/priority/savepath", false);
@@ -721,11 +731,13 @@ public class QBittorrentApiControllerTest
         this.torrentService.AddFromParsedTorrentAsync(parsed, "tv", "/downloads/tv", false, dummyBytes)
             .Returns(addedTorrent);
 
-        var result = await this.controller.AddTorrents(
-            urls: "https://tracker.example.com/torrent.torrent",
-            category: "tv",
-            downloadPath: "/downloads/tv",
-            cookie: "uid=123; pass=secret");
+        var result = await this.controller.AddTorrents(new QBitAddTorrentsRequest
+        {
+            Urls = "https://tracker.example.com/torrent.torrent",
+            Category = "tv",
+            DownloadPath = "/downloads/tv",
+            Cookie = "uid=123; pass=secret",
+        });
 
         result.Should().BeOfType<ContentResult>();
         await this.safeHttpClientService.Received(1).DownloadBytesAsync(
@@ -754,9 +766,11 @@ public class QBittorrentApiControllerTest
         this.torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, dummyBytes)
             .Returns(addedTorrent);
 
-        var result = await this.controller.AddTorrents(
-            urls: "https://tracker.example.com/torrent.torrent",
-            cookies: "auth=token123");
+        var result = await this.controller.AddTorrents(new QBitAddTorrentsRequest
+        {
+            Urls = "https://tracker.example.com/torrent.torrent",
+            Cookies = "auth=token123",
+        });
 
         result.Should().BeOfType<ContentResult>();
         await this.safeHttpClientService.Received(1).DownloadBytesAsync(
@@ -786,10 +800,12 @@ public class QBittorrentApiControllerTest
         this.torrentService.AddFromParsedTorrentAsync(parsed, "movies", "/custom/download/path", false, Arg.Any<byte[]>())
             .Returns(addedTorrent);
 
-        var result = await this.controller.AddTorrents(
-            torrents: new List<IFormFile> { formFile },
-            category: "movies",
-            downloadPath: "/custom/download/path");
+        var result = await this.controller.AddTorrents(new QBitAddTorrentsRequest
+        {
+            Torrents = new List<IFormFile> { formFile },
+            Category = "movies",
+            DownloadPath = "/custom/download/path",
+        });
 
         result.Should().BeOfType<ContentResult>();
         await this.torrentService.Received(1).AddFromParsedTorrentAsync(parsed, "movies", "/custom/download/path", false, Arg.Any<byte[]>());
@@ -974,10 +990,10 @@ public class QBittorrentApiControllerTest
     }
 
     [Test]
-    public void SetPreferences_UpdatesConfigService()
+    public async Task SetPreferences_UpdatesConfigService()
     {
         var json = "{\"dl_limit\":10485760,\"up_limit\":5242880,\"dht\":true,\"pex\":true,\"save_path\":\"/data/downloads\"}";
-        var result = this.controller.SetPreferences(json);
+        var result = await this.controller.SetPreferencesAsync(json);
         result.Should().BeOfType<ContentResult>();
 
         this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
