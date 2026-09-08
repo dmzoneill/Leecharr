@@ -264,8 +264,15 @@ public class DelugeJsonRpcController : ControllerBase
                             "core.remove_torrent",
                             "core.remove_torrents",
                             "core.force_recheck",
+                            "core.force_reannounce",
                             "core.set_torrent_options",
+                            "core.set_torrent_file_priorities",
+                            "core.rename_files",
                             "core.move_storage",
+                            "core.queue_top",
+                            "core.queue_up",
+                            "core.queue_down",
+                            "core.queue_bottom",
                             "core.get_filter_tree",
                             "web.get_filter_tree",
                             "core.get_enabled_plugins",
@@ -273,7 +280,13 @@ public class DelugeJsonRpcController : ControllerBase
                             "core.enable_plugin",
                             "core.disable_plugin",
                             "label.get_labels",
+                            "label.get_torrents",
                             "label.set_torrent",
+                            "label.add",
+                            "label.add_label",
+                            "label.remove",
+                            "label.get_options",
+                            "label.set_options",
                         },
                         error = (object)null,
                         id,
@@ -288,6 +301,29 @@ public class DelugeJsonRpcController : ControllerBase
                 case "label.get_labels":
                     var labels = this.categoryService.GetAll().Select(c => c.Name).ToArray();
                     return this.DelugeResult(new { result = labels, error = (object)null, id });
+
+                case "label.get_torrents":
+                    {
+                        var targetLabel = GetFirstStringParam(paramsElem);
+                        var allLabelTorrents = this.torrentService.GetAll();
+                        IEnumerable<Torrent> matching;
+                        if (targetLabel == null || string.Equals(targetLabel, "All", StringComparison.OrdinalIgnoreCase))
+                        {
+                            matching = allLabelTorrents;
+                        }
+                        else if (string.IsNullOrEmpty(targetLabel) || string.Equals(targetLabel, "no_label", StringComparison.OrdinalIgnoreCase) || string.Equals(targetLabel, "None", StringComparison.OrdinalIgnoreCase))
+                        {
+                            matching = allLabelTorrents.Where(t => string.IsNullOrWhiteSpace(t.Category) && string.IsNullOrWhiteSpace(t.Label));
+                        }
+                        else
+                        {
+                            matching = allLabelTorrents.Where(t => string.Equals(t.Category, targetLabel, StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(t.Label, targetLabel, StringComparison.OrdinalIgnoreCase));
+                        }
+
+                        var torrentHashes = matching.Select(t => t.InfoHash.ToLowerInvariant()).ToArray();
+                        return this.DelugeResult(new { result = torrentHashes, error = (object)null, id });
+                    }
 
                 case "label.add":
                 case "label.add_label":
@@ -470,40 +506,13 @@ public class DelugeJsonRpcController : ControllerBase
                 case "web.get_config":
                     return this.DelugeResult(new
                     {
-                        result = new Dictionary<string, object>
-                        {
-                            { "download_location", this.configService.DownloadDir ?? "/downloads" },
-                            { "move_completed", false },
-                            { "move_completed_path", this.configService.DownloadDir ?? "/downloads" },
-                            { "max_connections_global", this.configService.MaxGlobalConnections },
-                            { "max_download_speed", (double)this.configService.MaxDownloadSpeedKbps },
-                            { "max_upload_speed", (double)this.configService.MaxUploadSpeedKbps },
-                            { "max_active_limit", this.configService.MaxActiveDownloads > 0 ? this.configService.MaxActiveDownloads : 8 },
-                            { "max_active_downloading", this.configService.MaxActiveDownloads > 0 ? this.configService.MaxActiveDownloads : 8 },
-                            { "max_active_seeding", this.configService.MaxActiveUploads > 0 ? this.configService.MaxActiveUploads : 5 },
-                            { "compact_allocation", false },
-                            { "prioritize_first_last_pieces", true },
-                        },
+                        result = this.GetDelugeConfigDictionary(),
                         error = (object)null,
                         id,
                     });
 
                 case "core.get_config_values":
-                    var fullConfig = new Dictionary<string, object>
-                    {
-                        { "download_location", this.configService.DownloadDir ?? "/downloads" },
-                        { "move_completed", false },
-                        { "move_completed_path", this.configService.DownloadDir ?? "/downloads" },
-                        { "max_connections_global", this.configService.MaxGlobalConnections },
-                        { "max_download_speed", (double)this.configService.MaxDownloadSpeedKbps },
-                        { "max_upload_speed", (double)this.configService.MaxUploadSpeedKbps },
-                        { "max_active_limit", this.configService.MaxActiveDownloads > 0 ? this.configService.MaxActiveDownloads : 8 },
-                        { "max_active_downloading", this.configService.MaxActiveDownloads > 0 ? this.configService.MaxActiveDownloads : 8 },
-                        { "max_active_seeding", this.configService.MaxActiveUploads > 0 ? this.configService.MaxActiveUploads : 5 },
-                        { "compact_allocation", false },
-                        { "prioritize_first_last_pieces", true },
-                    };
-
+                    var fullConfig = this.GetDelugeConfigDictionary();
                     var requestedConfig = new Dictionary<string, object>();
                     if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() > 0 && paramsElem[0].ValueKind == JsonValueKind.Array)
                     {
@@ -521,20 +530,7 @@ public class DelugeJsonRpcController : ControllerBase
 
                 case "core.get_config_value":
                     var singleCfgKey = GetFirstStringParam(paramsElem);
-                    var singleFullConfig = new Dictionary<string, object>
-                    {
-                        { "download_location", this.configService.DownloadDir ?? "/downloads" },
-                        { "move_completed", false },
-                        { "move_completed_path", this.configService.DownloadDir ?? "/downloads" },
-                        { "max_connections_global", this.configService.MaxGlobalConnections },
-                        { "max_download_speed", (double)this.configService.MaxDownloadSpeedKbps },
-                        { "max_upload_speed", (double)this.configService.MaxUploadSpeedKbps },
-                        { "max_active_limit", this.configService.MaxActiveDownloads > 0 ? this.configService.MaxActiveDownloads : 8 },
-                        { "max_active_downloading", this.configService.MaxActiveDownloads > 0 ? this.configService.MaxActiveDownloads : 8 },
-                        { "max_active_seeding", this.configService.MaxActiveUploads > 0 ? this.configService.MaxActiveUploads : 5 },
-                        { "compact_allocation", false },
-                        { "prioritize_first_last_pieces", true },
-                    };
+                    var singleFullConfig = this.GetDelugeConfigDictionary();
                     singleFullConfig.TryGetValue(singleCfgKey ?? string.Empty, out var foundVal);
                     return this.DelugeResult(new { result = foundVal, error = (object)null, id });
 
@@ -581,8 +577,19 @@ public class DelugeJsonRpcController : ControllerBase
                                 cfgUpdates["MaxGlobalConnections"] = mcgVal;
                             }
 
+                            if (cfgElem.TryGetProperty("max_connections_per_torrent", out var mcptProp) && mcptProp.ValueKind == JsonValueKind.Number && mcptProp.TryGetInt32(out var mcptVal))
+                            {
+                                cfgUpdates["MaxPerTorrentConnections"] = mcptVal;
+                            }
+
+                            if (cfgElem.TryGetProperty("max_upload_slots_global", out var musgProp) && musgProp.ValueKind == JsonValueKind.Number && musgProp.TryGetInt32(out var musgVal))
+                            {
+                                cfgUpdates["MaxUploadSlots"] = musgVal;
+                            }
+
                             if (cfgElem.TryGetProperty("max_active_limit", out var malProp) && malProp.ValueKind == JsonValueKind.Number && malProp.TryGetInt32(out var malVal))
                             {
+                                cfgUpdates["MaxActiveTorrents"] = malVal;
                                 cfgUpdates["MaxActiveDownloads"] = malVal;
                             }
                             else if (cfgElem.TryGetProperty("max_active_downloading", out var madProp) && madProp.ValueKind == JsonValueKind.Number && madProp.TryGetInt32(out var madVal))
@@ -606,6 +613,64 @@ public class DelugeJsonRpcController : ControllerBase
                                     cfgUpdates["ListeningPort"] = pVal;
                                 }
                             }
+                            else if (cfgElem.TryGetProperty("listen_port", out var lpSingle) && lpSingle.ValueKind == JsonValueKind.Number && lpSingle.TryGetInt32(out var pSingleVal))
+                            {
+                                cfgUpdates["ListeningPort"] = pSingleVal;
+                            }
+
+                            if (cfgElem.TryGetProperty("dht", out var dhtProp))
+                            {
+                                cfgUpdates["EnableDht"] = SafeGetBoolean(dhtProp);
+                            }
+
+                            if (cfgElem.TryGetProperty("upnp", out var upnpProp))
+                            {
+                                cfgUpdates["UpnpEnabled"] = SafeGetBoolean(upnpProp);
+                            }
+
+                            if (cfgElem.TryGetProperty("natpmp", out var natpmpProp))
+                            {
+                                cfgUpdates["UpnpEnabled"] = SafeGetBoolean(natpmpProp);
+                            }
+
+                            if (cfgElem.TryGetProperty("lsd", out var lsdProp))
+                            {
+                                cfgUpdates["EnableLpd"] = SafeGetBoolean(lsdProp);
+                            }
+
+                            if (cfgElem.TryGetProperty("listen_interface", out var liProp) && liProp.ValueKind == JsonValueKind.String)
+                            {
+                                cfgUpdates["BindInterface"] = liProp.GetString();
+                            }
+
+                            if (cfgElem.TryGetProperty("random_port", out var rpProp))
+                            {
+                                cfgUpdates["PeerPortRandomOnStart"] = SafeGetBoolean(rpProp);
+                            }
+
+                            if (cfgElem.TryGetProperty("stop_seed_ratio", out var ssrProp) && ssrProp.ValueKind == JsonValueKind.Number && ssrProp.TryGetDouble(out var ssrVal))
+                            {
+                                cfgUpdates["GlobalSeedRatioLimit"] = ssrVal;
+                            }
+
+                            if (cfgElem.TryGetProperty("seed_time_limit", out var stlProp) && stlProp.ValueKind == JsonValueKind.Number && stlProp.TryGetInt32(out var stlVal))
+                            {
+                                cfgUpdates["IdleSeedingLimitMinutes"] = stlVal / 60;
+                            }
+
+                            if (cfgElem.TryGetProperty("dont_count_slow_torrents", out var dcstProp))
+                            {
+                                cfgUpdates["IgnoreSlowTorrents"] = SafeGetBoolean(dcstProp);
+                            }
+
+                            if (cfgElem.TryGetProperty("enc_in_policy", out var encInProp) && encInProp.ValueKind == JsonValueKind.Number && encInProp.TryGetInt32(out var encVal))
+                            {
+                                cfgUpdates["EncryptionMode"] = encVal == 0 ? "Forced" : (encVal == 2 ? "Disabled" : "Enabled");
+                            }
+                            else if (cfgElem.TryGetProperty("enc_out_policy", out var encOutProp) && encOutProp.ValueKind == JsonValueKind.Number && encOutProp.TryGetInt32(out var encOutVal))
+                            {
+                                cfgUpdates["EncryptionMode"] = encOutVal == 0 ? "Forced" : (encOutVal == 2 ? "Disabled" : "Enabled");
+                            }
 
                             if (cfgUpdates.Count > 0)
                             {
@@ -624,7 +689,8 @@ public class DelugeJsonRpcController : ControllerBase
                         {
                             { "download_rate", allT.Sum(t => t.DownloadSpeed) },
                             { "upload_rate", allT.Sum(t => t.UploadSpeed) },
-                            { "num_peers", allT.Sum(t => t.Seeders + t.Leechers) },
+                            { "num_peers", allT.Sum(t => t.Leechers) },
+                            { "total_peers", allT.Sum(t => t.Seeders + t.Leechers) },
                             { "payload_download_rate", allT.Sum(t => t.DownloadSpeed) },
                             { "payload_upload_rate", allT.Sum(t => t.UploadSpeed) },
                             { "total_download", allT.Sum(t => t.Downloaded) },
@@ -726,6 +792,7 @@ public class DelugeJsonRpcController : ControllerBase
                     return this.DelugeResult(new { result = this.MapTorrentToDelugeStatus(found, singleTorrentKeys), error = (object)null, id });
 
                 case "core.add_torrent_file":
+                case "core.add_torrent_file_async":
                     string addedHash = null;
                     if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 2)
                     {
@@ -1083,6 +1150,20 @@ public class DelugeJsonRpcController : ControllerBase
 
                     return this.DelugeResult(new { result = true, error = (object)null, id });
 
+                case "core.force_reannounce":
+                    var reannounceHashes = ExtractHashes(paramsElem);
+                    foreach (var hash in reannounceHashes)
+                    {
+                        var t = this.torrentService.GetByInfoHash(hash) ??
+                            (int.TryParse(hash, out var tid) ? this.torrentService.Get(tid) : null);
+                        if (t != null)
+                        {
+                            await this.torrentService.ForceAnnounceAsync(t.Id);
+                        }
+                    }
+
+                    return this.DelugeResult(new { result = true, error = (object)null, id });
+
                 case "core.move_storage":
                     List<string> moveHashes = null;
                     string dest = null;
@@ -1232,6 +1313,60 @@ public class DelugeJsonRpcController : ControllerBase
                                     }
 
                                     fIdx++;
+                                }
+                            }
+                        }
+                    }
+
+                    return this.DelugeResult(new { result = true, error = (object)null, id });
+
+                case "core.rename_files":
+                    if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 2)
+                    {
+                        var torrentIdentifier = paramsElem[0].ValueKind == JsonValueKind.String ? paramsElem[0].GetString() : paramsElem[0].ToString();
+                        var t = this.torrentService.GetByInfoHash(torrentIdentifier) ??
+                            (int.TryParse(torrentIdentifier, out var tid) ? this.torrentService.Get(tid) : null);
+
+                        if (t != null && paramsElem[1].ValueKind == JsonValueKind.Array)
+                        {
+                            var files = this.torrentFileService.GetFiles(t.Id).ToList();
+                            foreach (var fileEntry in paramsElem[1].EnumerateArray())
+                            {
+                                var fileIndex = -1;
+                                string newPath = null;
+
+                                if (fileEntry.ValueKind == JsonValueKind.Array && fileEntry.GetArrayLength() >= 2)
+                                {
+                                    if (fileEntry[0].TryGetInt32(out var idx))
+                                    {
+                                        fileIndex = idx;
+                                    }
+
+                                    if (fileEntry[1].ValueKind == JsonValueKind.String)
+                                    {
+                                        newPath = fileEntry[1].GetString();
+                                    }
+                                }
+                                else if (fileEntry.ValueKind == JsonValueKind.Object)
+                                {
+                                    if (fileEntry.TryGetProperty("index", out var idxProp) && idxProp.TryGetInt32(out var idx))
+                                    {
+                                        fileIndex = idx;
+                                    }
+
+                                    if (fileEntry.TryGetProperty("path", out var pathProp) && pathProp.ValueKind == JsonValueKind.String)
+                                    {
+                                        newPath = pathProp.GetString();
+                                    }
+                                    else if (fileEntry.TryGetProperty("new_path", out var npProp) && npProp.ValueKind == JsonValueKind.String)
+                                    {
+                                        newPath = npProp.GetString();
+                                    }
+                                }
+
+                                if (fileIndex >= 0 && fileIndex < files.Count && !string.IsNullOrWhiteSpace(newPath))
+                                {
+                                    await this.torrentService.RenameFileAsync(t.Id, files[fileIndex].Path, newPath);
                                 }
                             }
                         }
@@ -1464,6 +1599,7 @@ public class DelugeJsonRpcController : ControllerBase
             { "total_remaining", (long)(t.TotalSize * (1.0 - t.Progress)) },
             { "total_payload_download", t.Downloaded },
             { "total_payload_upload", t.Uploaded },
+            { "total_uploaded", t.Uploaded },
             { "progress", t.Progress * 100.0 },
             { "state", stateStr },
             { "download_payload_rate", (long)t.DownloadSpeed },
@@ -1472,8 +1608,19 @@ public class DelugeJsonRpcController : ControllerBase
             { "ratio", t.Ratio },
             { "num_seeds", t.Seeders },
             { "total_seeds", t.Seeders },
-            { "num_peers", t.Seeders + t.Leechers },
+            { "num_peers", t.Leechers },
             { "total_peers", t.Seeders + t.Leechers },
+            { "seeds_peers_ratio", t.Leechers > 0 ? (double)t.Seeders / t.Leechers : (t.Seeders > 0 ? -1.0 : 0.0) },
+            { "tracker", t.TrackerUrl ?? string.Empty },
+            { "tracker_host", GetTrackerHost(t) },
+            { "trackers", !string.IsNullOrWhiteSpace(t.TrackerUrl) ? new List<Dictionary<string, object>> { new() { { "url", t.TrackerUrl }, { "tier", 0 } } } : new List<Dictionary<string, object>>() },
+            { "tracker_status", !string.IsNullOrWhiteSpace(t.ErrorMessage) ? t.ErrorMessage : (!string.IsNullOrWhiteSpace(t.TrackerUrl) ? $"{t.TrackerUrl}: Announce OK" : "Announce OK") },
+            { "next_announce", 1800 },
+            { "finished_time", t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : (t.Status == TorrentStatus.Seeding || t.Progress >= 1.0 ? new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds() : 0L) },
+            { "time_since_transfer", t.LastActive.HasValue ? (long)Math.Max(0, (DateTime.UtcNow - t.LastActive.Value).TotalSeconds) : 0L },
+            { "num_pieces", t.PieceCount },
+            { "piece_length", t.PieceLength },
+            { "distributed_copies", t.Progress >= 1.0 ? 1.0 : (double)t.Progress },
             { "num_files", numFiles },
             { "files", filesList },
             { "file_priorities", filePriorities },
@@ -1481,6 +1628,14 @@ public class DelugeJsonRpcController : ControllerBase
             { "save_path", savePath },
             { "download_location", savePath },
             { "label", t.Category ?? string.Empty },
+            { "queue_position", t.QueuePosition },
+            { "storage_mode", "sparse" },
+            { "move_completed", false },
+            { "move_completed_path", savePath },
+            { "prioritize_first_last_pieces", false },
+            { "sequential_download", t.SequentialDownload },
+            { "max_connections", -1 },
+            { "max_upload_slots", -1 },
             { "is_finished", t.Status == TorrentStatus.Seeding || t.Progress >= 1.0 },
             { "is_seed", t.Status == TorrentStatus.Seeding },
             { "paused", t.Status == TorrentStatus.Paused },
@@ -1616,6 +1771,69 @@ public class DelugeJsonRpcController : ControllerBase
             JsonValueKind.Number => element.TryGetInt64(out var n) ? n != 0 : (element.TryGetDouble(out var d) && Math.Abs(d) > double.Epsilon),
             JsonValueKind.String => bool.TryParse(element.GetString(), out var b) ? b : (element.GetString() == "1"),
             _ => defaultValue,
+        };
+    }
+
+    private Dictionary<string, object> GetDelugeConfigDictionary()
+    {
+        var encPolicy = 1; // 1 = Enabled
+        if (!string.IsNullOrWhiteSpace(this.configService.EncryptionMode))
+        {
+            if (this.configService.EncryptionMode.Equals("Forced", StringComparison.OrdinalIgnoreCase) ||
+                this.configService.EncryptionMode.Equals("RequireEncrypted", StringComparison.OrdinalIgnoreCase) ||
+                this.configService.EncryptionMode.Equals("ForcedEncryption", StringComparison.OrdinalIgnoreCase))
+            {
+                encPolicy = 0; // Forced
+            }
+            else if (this.configService.EncryptionMode.Equals("Disabled", StringComparison.OrdinalIgnoreCase) ||
+                     this.configService.EncryptionMode.Equals("Plaintext", StringComparison.OrdinalIgnoreCase))
+            {
+                encPolicy = 2; // Disabled
+            }
+        }
+
+        var isStopAtRatio = this.configService.GlobalSeedRatioLimit > 0;
+        var stopRatio = this.configService.GlobalSeedRatioLimit > 0 ? this.configService.GlobalSeedRatioLimit : 2.0;
+        var isRemoveAtRatio = string.Equals(this.configService.GlobalShareLimitAction, "Delete", StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(this.configService.GlobalShareLimitAction, "Remove", StringComparison.OrdinalIgnoreCase);
+
+        var listenPort = this.configService.ListeningPort > 0 ? this.configService.ListeningPort : 58846;
+
+        return new Dictionary<string, object>
+        {
+            { "download_location", this.configService.DownloadDir ?? "/downloads" },
+            { "move_completed", false },
+            { "move_completed_path", this.configService.DownloadDir ?? "/downloads" },
+            { "max_connections_global", this.configService.MaxGlobalConnections },
+            { "max_connections_per_torrent", this.configService.MaxPerTorrentConnections > 0 ? this.configService.MaxPerTorrentConnections : 50 },
+            { "max_upload_slots_global", this.configService.MaxUploadSlots > 0 ? this.configService.MaxUploadSlots : 4 },
+            { "max_upload_slots_per_torrent", 4 },
+            { "max_download_speed", (double)this.configService.MaxDownloadSpeedKbps },
+            { "max_upload_speed", (double)this.configService.MaxUploadSpeedKbps },
+            { "max_active_limit", this.configService.MaxActiveTorrents > 0 ? this.configService.MaxActiveTorrents : (this.configService.MaxActiveDownloads > 0 ? this.configService.MaxActiveDownloads : 8) },
+            { "max_active_downloading", this.configService.MaxActiveDownloads > 0 ? this.configService.MaxActiveDownloads : 8 },
+            { "max_active_seeding", this.configService.MaxActiveUploads > 0 ? this.configService.MaxActiveUploads : 5 },
+            { "compact_allocation", false },
+            { "prioritize_first_last_pieces", true },
+            { "dht", this.configService.EnableDht },
+            { "upnp", this.configService.UpnpEnabled },
+            { "natpmp", this.configService.UpnpEnabled },
+            { "lsd", this.configService.EnableLpd },
+            { "listen_interface", this.configService.BindInterface ?? string.Empty },
+            { "random_port", this.configService.PeerPortRandomOnStart },
+            { "listen_ports", new[] { listenPort, listenPort } },
+            { "enc_in_policy", encPolicy },
+            { "enc_out_policy", encPolicy },
+            { "enc_prefer_rc4", true },
+            { "enc_level", 2 },
+            { "stop_seed_at_ratio", isStopAtRatio },
+            { "stop_seed_ratio", stopRatio },
+            { "seed_time_limit", this.configService.IdleSeedingLimitMinutes > 0 ? this.configService.IdleSeedingLimitMinutes * 60 : 180 },
+            { "remove_at_ratio", isRemoveAtRatio },
+            { "queue_complete", true },
+            { "dont_count_slow_torrents", this.configService.IgnoreSlowTorrents },
+            { "auto_manage_prefer_seeds", false },
+            { "shared", false },
         };
     }
 }
