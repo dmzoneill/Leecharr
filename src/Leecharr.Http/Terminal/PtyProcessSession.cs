@@ -349,7 +349,7 @@ else:
         return ValueTask.CompletedTask;
     }
 
-    private static void CreateFifo(string path)
+    internal static void CreateFifo(string path)
     {
         try
         {
@@ -360,7 +360,7 @@ else:
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                if (MkFifo(path, 438 /* 0666 */) == 0)
+                if (MkFifo(path, 384 /* 0600 */) == 0)
                 {
                     return;
                 }
@@ -376,7 +376,7 @@ else:
             using var proc = Process.Start(new ProcessStartInfo
             {
                 FileName = "mkfifo",
-                Arguments = $"\"{path}\"",
+                Arguments = $"-m 0600 \"{path}\"",
                 CreateNoWindow = true,
                 UseShellExecute = false,
             });
