@@ -141,10 +141,40 @@ public class IndexerController : Controller
     {
         try
         {
-            var targetUrl = !string.IsNullOrWhiteSpace(request?.Url) ? request.Url : (!string.IsNullOrWhiteSpace(url) ? url : "http://localhost:9696");
-            var targetApiKey = !string.IsNullOrWhiteSpace(request?.ApiKey) ? request.ApiKey : (apiKey ?? string.Empty);
-            var count = await this.prowlarrSyncService.SyncFromProwlarrAsync(targetUrl, targetApiKey);
-            return this.Ok(new { success = true, syncedCount = count });
+            var targetUrl = !string.IsNullOrWhiteSpace(request?.Url) ? request.Url : (!string.IsNullOrWhiteSpace(url) ? url : null);
+            var targetApiKey = !string.IsNullOrWhiteSpace(request?.ApiKey) ? request.ApiKey : (!string.IsNullOrWhiteSpace(apiKey) ? apiKey : null);
+
+            if (targetUrl != null && targetApiKey != null)
+            {
+                var count = await this.prowlarrSyncService.SyncFromProwlarrAsync(targetUrl, targetApiKey);
+                return this.Ok(new { success = true, syncedCount = count });
+            }
+
+            if (this.prowlarrSyncService.IsConfigured())
+            {
+                var count = await this.prowlarrSyncService.SyncAllAsync();
+                return this.Ok(new { success = true, syncedCount = count });
+            }
+
+            if (string.IsNullOrWhiteSpace(targetApiKey))
+            {
+                return this.BadRequest(new { success = false, message = "Prowlarr API key is required." });
+            }
+
+            var defaultUrl = "http://localhost:9696";
+            var directCount = await this.prowlarrSyncService.SyncFromProwlarrAsync(defaultUrl, targetApiKey);
+            return this.Ok(new { success = true, syncedCount = directCount });
+        }
+        catch (HttpRequestException ex)
+        {
+            this.logger.Error(ex, "Failed to communicate with Prowlarr");
+            var statusCode = ex.StatusCode.HasValue ? (int)ex.StatusCode.Value : 502;
+            if (statusCode == 400 || statusCode == 401 || statusCode == 403)
+            {
+                return this.BadRequest(new { success = false, message = ex.Message });
+            }
+
+            return this.StatusCode(502, new { success = false, message = ex.Message });
         }
         catch (Exception ex)
         {

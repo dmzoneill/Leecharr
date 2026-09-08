@@ -384,4 +384,63 @@ public class IndexerControllerTest
         testResult.Message.Should().Contain("Connected successfully to LiveIndexer");
         this.indexerRepository.Received(1).Update(Arg.Is<IndexerDefinition>(idx => idx.Categories.Contains(2000) && idx.Categories.Contains(5000)));
     }
+
+    [Test]
+    public async Task SyncProwlarr_WithValidCredentials_ReturnsOkWithCount()
+    {
+        var request = new ProwlarrSyncRequest { Url = "http://localhost:9696", ApiKey = "valid-key" };
+        this.prowlarrSyncService.SyncFromProwlarrAsync(request.Url, request.ApiKey).Returns(Task.FromResult(5));
+
+        var result = await this.controller.SyncProwlarr(request);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+    }
+
+    [Test]
+    public async Task SyncProwlarr_WhenNoCredentialsAndNotConfigured_ReturnsBadRequest()
+    {
+        this.prowlarrSyncService.IsConfigured().Returns(false);
+
+        var result = await this.controller.SyncProwlarr(new ProwlarrSyncRequest());
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Test]
+    public async Task SyncProwlarr_WhenNoCredentialsAndConfigured_CallsSyncAll()
+    {
+        this.prowlarrSyncService.IsConfigured().Returns(true);
+        this.prowlarrSyncService.SyncAllAsync().Returns(Task.FromResult(3));
+
+        var result = await this.controller.SyncProwlarr(null);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        await this.prowlarrSyncService.Received(1).SyncAllAsync();
+    }
+
+    [Test]
+    public async Task SyncProwlarr_WhenProwlarrReturns401_ReturnsBadRequest()
+    {
+        var request = new ProwlarrSyncRequest { Url = "http://localhost:9696", ApiKey = "bad-key" };
+        this.prowlarrSyncService.SyncFromProwlarrAsync(request.Url, request.ApiKey)
+            .Returns(Task.FromException<int>(new HttpRequestException("Unauthorized", null, System.Net.HttpStatusCode.Unauthorized)));
+
+        var result = await this.controller.SyncProwlarr(request);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Test]
+    public async Task SyncProwlarr_WhenProwlarrConnectivityFails_ReturnsBadGateway502()
+    {
+        var request = new ProwlarrSyncRequest { Url = "http://localhost:9696", ApiKey = "key" };
+        this.prowlarrSyncService.SyncFromProwlarrAsync(request.Url, request.ApiKey)
+            .Returns(Task.FromException<int>(new HttpRequestException("Connection refused")));
+
+        var result = await this.controller.SyncProwlarr(request);
+
+        result.Result.Should().BeOfType<ObjectResult>();
+        var objResult = (ObjectResult)result.Result!;
+        objResult.StatusCode.Should().Be(502);
+    }
 }

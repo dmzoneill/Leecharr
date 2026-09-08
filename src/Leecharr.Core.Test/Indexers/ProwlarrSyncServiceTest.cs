@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Core.ArrIntegration;
 using NzbDrone.Core.Indexers;
 
 namespace Leecharr.Core.Test.Indexers;
@@ -400,6 +401,128 @@ public class ProwlarrSyncServiceTest
             i.Name == "Search Only Tracker" &&
             i.EnableRss == false &&
             i.EnableSearch == true));
+    }
+
+    [Test]
+    public async Task SyncFromProwlarrAsync_WhenHttpError_ThrowsHttpRequestException()
+    {
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.BadGateway)
+        {
+            ReasonPhrase = "Bad Gateway",
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var service = new ProwlarrSyncService(this.repository, httpClient);
+
+        var act = async () => await service.SyncFromProwlarrAsync("http://prowlarr.local:9696", "prowlarr-key");
+
+        await act.Should().ThrowAsync<HttpRequestException>()
+            .WithMessage("*502*");
+    }
+
+    [Test]
+    public void IsConfigured_WhenNoProwlarrConfigured_ReturnsFalse()
+    {
+        var arrRepo = Substitute.For<IArrConnectionRepository>();
+        arrRepo.GetEnabled().Returns(new List<ArrConnectionDefinition>());
+        this.repository.All().Returns(new List<IndexerDefinition>());
+
+        var service = new ProwlarrSyncService(this.repository, null, null, arrRepo);
+
+        service.IsConfigured().Should().BeFalse();
+    }
+
+    [Test]
+    public void IsConfigured_WhenProwlarrIndexerExists_ReturnsTrue()
+    {
+        this.repository.All().Returns(new List<IndexerDefinition>
+        {
+            new()
+            {
+                Name = "Prowlarr",
+                Url = "http://localhost:9696",
+                ApiKey = "somekey",
+                Implementation = "Torznab",
+            },
+        });
+
+        var service = new ProwlarrSyncService(this.repository);
+
+        service.IsConfigured().Should().BeTrue();
+    }
+
+    [Test]
+    public void IsConfigured_WhenProwlarrArrConnectionExists_ReturnsTrue()
+    {
+        this.repository.All().Returns(new List<IndexerDefinition>());
+        var arrRepo = Substitute.For<IArrConnectionRepository>();
+        arrRepo.GetEnabled().Returns(new List<ArrConnectionDefinition>
+        {
+            new()
+            {
+                ArrType = "Prowlarr",
+                Url = "http://localhost:9696",
+                ApiKey = "somekey",
+                Enable = true,
+            },
+        });
+
+        var service = new ProwlarrSyncService(this.repository, null, null, arrRepo);
+
+        service.IsConfigured().Should().BeTrue();
+    }
+
+    [Test]
+    public async Task SyncAllAsync_WhenConfigured_SyncsConfiguredInstances()
+    {
+        var json = @"[
+          {
+            ""id"": 1,
+            ""name"": ""Prowlarr Tracker 1"",
+            ""implementation"": ""Torznab"",
+            ""enable"": true,
+            ""priority"": 25,
+            ""protocol"": ""torrent""
+          }
+        ]";
+
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json),
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var arrRepo = Substitute.For<IArrConnectionRepository>();
+        arrRepo.GetEnabled().Returns(new List<ArrConnectionDefinition>
+        {
+            new()
+            {
+                ArrType = "Prowlarr",
+                Url = "http://prowlarr.local:9696",
+                ApiKey = "prowlarr-key",
+                Enable = true,
+            },
+        });
+
+        this.repository.All().Returns(new List<IndexerDefinition>());
+
+        var service = new ProwlarrSyncService(this.repository, httpClient, null, arrRepo);
+
+        var total = await service.SyncAllAsync();
+
+        total.Should().Be(1);
+        this.repository.Received(1).Insert(Arg.Is<IndexerDefinition>(i => i.Name == "Prowlarr Tracker 1"));
+    }
+
+    [Test]
+    public void Execute_WhenInvoked_ExecutesSyncAll()
+    {
+        var service = Substitute.ForPartsOf<ProwlarrSyncService>(this.repository, new HttpClient(), null, null);
+        this.repository.All().Returns(new List<IndexerDefinition>());
+
+        service.Execute(new ProwlarrSyncCommand());
+
+        this.repository.Received(1).All();
     }
 
     private class MockHttpMessageHandler : HttpMessageHandler

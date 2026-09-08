@@ -16,6 +16,7 @@ using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Lifecycle;
+using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Network;
 using NzbDrone.Core.SystemServices;
@@ -42,10 +43,13 @@ public class AppLifetime : IHostedService, IDisposable
     private readonly IUdpTrackerService udpTrackerService;
     private readonly IAppFolderInfo appFolderInfo;
     private readonly ICategoryService categoryService;
+    private readonly IProwlarrSyncService prowlarrSyncService;
+    private readonly IManageCommandQueue commandQueueManager;
     private readonly Logger logger;
     private CancellationTokenSource cts;
     private Task backgroundLoopTask;
     private Task rssLoopTask;
+    private Task prowlarrLoopTask;
     private bool downloadStartedThisSession;
 
     public AppLifetime(
@@ -63,7 +67,9 @@ public class AppLifetime : IHostedService, IDisposable
         IPowerManagementService powerManagementService = null,
         IUdpTrackerService udpTrackerService = null,
         IAppFolderInfo appFolderInfo = null,
-        ICategoryService categoryService = null)
+        ICategoryService categoryService = null,
+        IProwlarrSyncService prowlarrSyncService = null,
+        IManageCommandQueue commandQueueManager = null)
     {
         this.configService = configService;
         this.eventAggregator = eventAggregator;
@@ -80,6 +86,8 @@ public class AppLifetime : IHostedService, IDisposable
         this.udpTrackerService = udpTrackerService;
         this.appFolderInfo = appFolderInfo;
         this.categoryService = categoryService;
+        this.prowlarrSyncService = prowlarrSyncService;
+        this.commandQueueManager = commandQueueManager;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -178,11 +186,46 @@ public class AppLifetime : IHostedService, IDisposable
             this.logger.Warn(ex, "Error initializing watch folder service on startup");
         }
 
+        try
+        {
+            if (this.prowlarrSyncService != null && this.prowlarrSyncService.IsConfigured())
+            {
+                this.logger.Info("Prowlarr is configured; triggering startup Prowlarr sync...");
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        if (this.commandQueueManager != null)
+                        {
+                            this.commandQueueManager.Push(new ProwlarrSyncCommand(), CommandTrigger.Scheduled);
+                        }
+                        else
+                        {
+                            await this.prowlarrSyncService.SyncAllAsync();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Warn(ex, "Failed to execute startup Prowlarr sync");
+                    }
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Error checking Prowlarr configuration on startup");
+        }
+
         this.cts = new CancellationTokenSource();
         this.backgroundLoopTask = Task.Run(() => this.RunBackgroundLoopAsync(this.cts.Token), this.cts.Token);
         if (this.rssSyncService != null)
         {
             this.rssLoopTask = Task.Run(() => this.RunRssSyncLoopAsync(this.cts.Token), this.cts.Token);
+        }
+
+        if (this.prowlarrSyncService != null)
+        {
+            this.prowlarrLoopTask = Task.Run(() => this.RunProwlarrSyncLoopAsync(this.cts.Token), this.cts.Token);
         }
 
         this.logger.Info("Leecharr application started");
@@ -230,6 +273,11 @@ public class AppLifetime : IHostedService, IDisposable
             if (this.rssLoopTask != null)
             {
                 tasksToWait.Add(this.rssLoopTask);
+            }
+
+            if (this.prowlarrLoopTask != null)
+            {
+                tasksToWait.Add(this.prowlarrLoopTask);
             }
 
             if (tasksToWait.Count > 0)
@@ -516,6 +564,39 @@ public class AppLifetime : IHostedService, IDisposable
             catch (Exception ex)
             {
                 this.logger.Error(ex, "Error in background RSS sync loop");
+            }
+        }
+    }
+
+    private async Task RunProwlarrSyncLoopAsync(CancellationToken token)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromHours(1));
+        while (!token.IsCancellationRequested)
+        {
+            try
+            {
+                await timer.WaitForNextTickAsync(token);
+
+                if (this.prowlarrSyncService != null && this.prowlarrSyncService.IsConfigured())
+                {
+                    this.logger.Info("Executing scheduled hourly Prowlarr sync...");
+                    if (this.commandQueueManager != null)
+                    {
+                        this.commandQueueManager.Push(new ProwlarrSyncCommand(), CommandTrigger.Scheduled);
+                    }
+                    else
+                    {
+                        await this.prowlarrSyncService.SyncAllAsync();
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                this.logger.Error(ex, "Error in background Prowlarr sync loop");
             }
         }
     }
