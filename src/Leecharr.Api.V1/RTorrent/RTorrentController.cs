@@ -136,9 +136,13 @@ public class RTorrentController : ControllerBase
                     new XElement("value", new XElement("string", "d.open")),
                     new XElement("value", new XElement("string", "d.check_hash")),
                     new XElement("value", new XElement("string", "d.custom1.set")),
+                    new XElement("value", new XElement("string", "d.set_custom1")),
                     new XElement("value", new XElement("string", "d.directory.set")),
                     new XElement("value", new XElement("string", "d.directory_base.set")),
+                    new XElement("value", new XElement("string", "d.set_directory")),
+                    new XElement("value", new XElement("string", "d.set_directory_base")),
                     new XElement("value", new XElement("string", "d.priority.set")),
+                    new XElement("value", new XElement("string", "d.set_priority")),
                     new XElement("value", new XElement("string", "d.tracker_announce")),
                     new XElement("value", new XElement("string", "d.tracker.announce")),
                     new XElement("value", new XElement("string", "d.down.rate.set")),
@@ -362,17 +366,36 @@ public class RTorrentController : ControllerBase
                             {
                                 customCategory = arg["d.custom1.set=".Length..].Trim('\"', '\'');
                             }
+                            else if (arg.StartsWith("d.set_custom1=", StringComparison.OrdinalIgnoreCase))
+                            {
+                                customCategory = arg["d.set_custom1=".Length..].Trim('\"', '\'');
+                            }
                             else if (arg.StartsWith("d.directory.set=", StringComparison.OrdinalIgnoreCase))
                             {
                                 customDir = arg["d.directory.set=".Length..].Trim('\"', '\'');
+                            }
+                            else if (arg.StartsWith("d.set_directory=", StringComparison.OrdinalIgnoreCase))
+                            {
+                                customDir = arg["d.set_directory=".Length..].Trim('\"', '\'');
                             }
                             else if (arg.StartsWith("d.directory_base.set=", StringComparison.OrdinalIgnoreCase))
                             {
                                 customDir = arg["d.directory_base.set=".Length..].Trim('\"', '\'');
                             }
+                            else if (arg.StartsWith("d.set_directory_base=", StringComparison.OrdinalIgnoreCase))
+                            {
+                                customDir = arg["d.set_directory_base=".Length..].Trim('\"', '\'');
+                            }
                             else if (arg.StartsWith("d.priority.set=", StringComparison.OrdinalIgnoreCase))
                             {
                                 if (int.TryParse(arg["d.priority.set=".Length..].Trim('\"', '\''), out var prio))
+                                {
+                                    customPriority = prio;
+                                }
+                            }
+                            else if (arg.StartsWith("d.set_priority=", StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (int.TryParse(arg["d.set_priority=".Length..].Trim('\"', '\''), out var prio))
                                 {
                                     customPriority = prio;
                                 }
@@ -530,6 +553,7 @@ public class RTorrentController : ControllerBase
                 return new XElement("i4", 0);
 
             case "d.custom1.set":
+            case "d.set_custom1":
                 var targetCat = string.Empty;
                 if (paramValues.Count >= 2 && paramValues[0] is string targetHash && paramValues[1] is string newCategory)
                 {
@@ -546,6 +570,8 @@ public class RTorrentController : ControllerBase
 
             case "d.directory.set":
             case "d.directory_base.set":
+            case "d.set_directory":
+            case "d.set_directory_base":
                 if (paramValues.Count >= 2 && paramValues[0] != null)
                 {
                     Torrent t = null;
@@ -573,6 +599,7 @@ public class RTorrentController : ControllerBase
                 return new XElement("i4", 0);
 
             case "d.priority.set":
+            case "d.set_priority":
                 if (paramValues.Count >= 2 && paramValues[0] is string prioHash)
                 {
                     var t = this.torrentService.GetByInfoHash(prioHash);
