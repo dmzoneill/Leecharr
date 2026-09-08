@@ -987,4 +987,82 @@ public class NatPmpPortMapperServiceTest
         ip.Should().NotBeNull();
         ip.ToString().Should().Be("198.51.100.20");
     }
+
+    [Test]
+    public async Task MapPortAsync_With8ByteErrorResponse_TracksEpochAndReturnsFailure()
+    {
+        using var mockGateway = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var mockPort = ((IPEndPoint)mockGateway.Client.LocalEndPoint).Port;
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        var serverTask = Task.Run(async () =>
+        {
+            var received = await mockGateway.ReceiveAsync(cts.Token);
+            var req = received.Buffer;
+
+            req.Length.Should().Be(12);
+            var opcode = req[1];
+
+            // RFC 6886 8-byte error response
+            var resp = new byte[8];
+            resp[0] = 0x00;
+            resp[1] = (byte)(0x80 + opcode);
+            BinaryPrimitives.WriteUInt16BigEndian(resp.AsSpan(2, 2), 2); // Result code 2 = Not Authorized/Refused
+            BinaryPrimitives.WriteUInt32BigEndian(resp.AsSpan(4, 4), 987654); // Gateway epoch
+
+            await mockGateway.SendAsync(resp, resp.Length, received.RemoteEndPoint);
+        });
+
+        using var service = new NatPmpPortMapperService(mockPort);
+        var result = await service.MapPortAsync(51413, NatPmpProtocol.Tcp, suggestedExternalPort: 51413, lifetimeSeconds: 3600, gateway: IPAddress.Loopback, cancellationToken: cts.Token);
+
+        await serverTask;
+
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Be("NAT-PMP gateway returned error code: 2.");
+        result.InternalPort.Should().Be(51413);
+
+        // Verify epoch was tracked despite error response
+        service.GatewayEpochs.Should().ContainKey(IPAddress.Loopback);
+        service.GatewayEpochs[IPAddress.Loopback].Should().Be(987654);
+    }
+
+    [Test]
+    public async Task GetExternalIpAddressAsync_With8ByteErrorResponse_TracksEpochAndReturnsNull()
+    {
+        using var mockGateway = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var mockPort = ((IPEndPoint)mockGateway.Client.LocalEndPoint).Port;
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        var serverTask = Task.Run(async () =>
+        {
+            var received = await mockGateway.ReceiveAsync(cts.Token);
+            var req = received.Buffer;
+
+            req.Length.Should().Be(2);
+
+            // RFC 6886 8-byte error response
+            var resp = new byte[8];
+            resp[0] = 0x00;
+            resp[1] = 0x80;
+            BinaryPrimitives.WriteUInt16BigEndian(resp.AsSpan(2, 2), 1); // Result code 1 = Unsupported Version
+            BinaryPrimitives.WriteUInt32BigEndian(resp.AsSpan(4, 4), 456789); // Gateway epoch
+
+            await mockGateway.SendAsync(resp, resp.Length, received.RemoteEndPoint);
+        });
+
+        using var service = new NatPmpPortMapperService(mockPort);
+        var ip = await service.GetExternalIpAddressAsync(IPAddress.Loopback, cts.Token);
+
+        await serverTask;
+
+        ip.Should().BeNull();
+
+        // Verify epoch was tracked despite error response
+        service.GatewayEpochs.Should().ContainKey(IPAddress.Loopback);
+        service.GatewayEpochs[IPAddress.Loopback].Should().Be(456789);
+    }
 }
