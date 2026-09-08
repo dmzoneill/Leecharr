@@ -475,10 +475,13 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             }
         }
 
-        var result = torrents.Select(t =>
+        var torrentList = torrents.ToList();
+        var filesByTorrent = this.torrentFileService?.GetFilesForTorrents(torrentList.Select(t => t.Id)) ?? new Dictionary<int, List<TorrentFile>>();
+
+        var result = torrentList.Select(t =>
         {
             var state = MapToQBitState(t.Status, t.Progress);
-            var (resolvedSavePath, resolvedContentPath) = ResolvePaths(t);
+            var (resolvedSavePath, resolvedContentPath) = this.ResolvePaths(t, filesByTorrent);
             return new Dictionary<string, object>
             {
                 ["hash"] = t.InfoHash,
@@ -1768,6 +1771,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             };
 
             var currentHashes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var torrentList = torrents.ToList();
+            var filesByTorrent = this.torrentFileService?.GetFilesForTorrents(torrentList.Select(t => t.Id)) ?? new Dictionary<int, List<TorrentFile>>();
 
             // If rid == 0, or cached session is not initialized, or rid is out of sequence, perform a full update
             if (rid <= 0 || !sessionState.Initialized || rid > sessionState.CurrentRid)
@@ -1778,11 +1783,11 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 sessionState.RemovedTorrents.Clear();
 
                 var torrentDict = new Dictionary<string, object>();
-                foreach (var t in torrents)
+                foreach (var t in torrentList)
                 {
                     currentHashes.Add(t.InfoHash);
                     var state = MapToQBitState(t.Status, t.Progress);
-                    var (resolvedSavePath, resolvedContentPath) = ResolvePaths(t);
+                    var (resolvedSavePath, resolvedContentPath) = this.ResolvePaths(t, filesByTorrent);
                     var addedOn = new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds();
                     var completionOn = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : 0L;
                     var amountLeft = Math.Max(0, t.TotalSize - t.Downloaded);
@@ -1857,11 +1862,11 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             var nextRid = sessionState.CurrentRid + 1;
             var updatedTorrents = new Dictionary<string, object>();
 
-            foreach (var t in torrents)
+            foreach (var t in torrentList)
             {
                 currentHashes.Add(t.InfoHash);
                 var state = MapToQBitState(t.Status, t.Progress);
-                var (resolvedSavePath, resolvedContentPath) = ResolvePaths(t);
+                var (resolvedSavePath, resolvedContentPath) = this.ResolvePaths(t, filesByTorrent);
                 var addedOn = new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds();
                 var completionOn = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : 0L;
                 var amountLeft = Math.Max(0, t.TotalSize - t.Downloaded);
@@ -2435,7 +2440,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         return result;
     }
 
-    private (string SavePath, string ContentPath) ResolvePaths(Torrent t)
+    private (string SavePath, string ContentPath) ResolvePaths(Torrent t, IReadOnlyDictionary<int, List<TorrentFile>> filesByTorrentId = null)
     {
         var rawSavePath = t?.SavePath ?? string.Empty;
         if (string.IsNullOrWhiteSpace(rawSavePath))
@@ -2471,7 +2476,16 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         {
             try
             {
-                var files = this.torrentFileService.GetFiles(t.Id)?.ToList();
+                List<TorrentFile> files = null;
+                if (filesByTorrentId != null)
+                {
+                    filesByTorrentId.TryGetValue(t.Id, out files);
+                }
+                else
+                {
+                    files = this.torrentFileService.GetFiles(t.Id)?.ToList();
+                }
+
                 if (files != null && files.Count == 1 && !string.IsNullOrWhiteSpace(files[0].Path))
                 {
                     var singleFilePath = Path.Combine(trimmedSave, files[0].Path);
