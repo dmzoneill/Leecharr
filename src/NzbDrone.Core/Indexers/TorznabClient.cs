@@ -577,7 +577,7 @@ public class TorznabClient : ITorznabClient
                             if (!string.IsNullOrWhiteSpace(catAttrVal))
                             {
                                 var decoded = WebUtility.HtmlDecode(catAttrVal);
-                                var splitCategories = decoded.Split(new[] { ',', '|', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                                var splitCategories = decoded.Split(new[] { ',', '|', ';' }, StringSplitOptions.RemoveEmptyEntries);
                                 foreach (var cat in splitCategories)
                                 {
                                     var trimmedCat = cat.Trim();

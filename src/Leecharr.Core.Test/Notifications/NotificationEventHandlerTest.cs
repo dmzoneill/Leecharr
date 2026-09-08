@@ -1437,6 +1437,7 @@ public class NotificationEventHandlerTest
             Implementation = "Webhook",
             ConfigContract = "WebhookSettings",
             Settings = "http://test/webhook-seeding",
+            OnDownloadComplete = true,
             OnSeedGoalReached = true,
         };
 

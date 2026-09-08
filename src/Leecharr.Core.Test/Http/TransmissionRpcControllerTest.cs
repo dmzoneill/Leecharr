@@ -1034,7 +1034,7 @@ public class TransmissionRpcControllerTest
         var args = new Dictionary<string, JsonElement>();
         using var idsDoc = JsonDocument.Parse("[42]");
         args["ids"] = idsDoc.RootElement.Clone();
-        using var pathDoc = JsonDocument.Parse(@"""Season 1\Episode 01.mkv""");
+        using var pathDoc = JsonDocument.Parse(@"""Season 1\\Episode 01.mkv""");
         args["path"] = pathDoc.RootElement.Clone();
         using var nameDoc = JsonDocument.Parse("\"Episode 01 - Pilot.mkv\"");
         args["name"] = nameDoc.RootElement.Clone();
