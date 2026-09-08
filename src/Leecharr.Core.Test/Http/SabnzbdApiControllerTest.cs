@@ -410,4 +410,181 @@ public class SabnzbdApiControllerTest
         torrent.Priority.Should().Be(1);
         await this.torrentService.Received(1).UpdateAsync(torrent);
     }
+
+    [Test]
+    public async Task HandleApi_Queue_WithStartAndLimit_ReturnsPagedSlotsWhilePreservingTotalCount()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Query = new QueryCollection(new Dictionary<string, StringValues>
+        {
+            { "start", "1" },
+            { "limit", "2" }
+        });
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.DownloadDir.Returns("/downloads");
+        this.configService.IncompleteDownloadDir.Returns("/incomplete");
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, InfoHash = "h1", Name = "T1", Status = TorrentStatus.Downloading },
+            new Torrent { Id = 2, InfoHash = "h2", Name = "T2", Status = TorrentStatus.Downloading },
+            new Torrent { Id = 3, InfoHash = "h3", Name = "T3", Status = TorrentStatus.Downloading },
+            new Torrent { Id = 4, InfoHash = "h4", Name = "T4", Status = TorrentStatus.Downloading },
+            new Torrent { Id = 5, InfoHash = "h5", Name = "T5", Status = TorrentStatus.Downloading },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+
+        var result = await this.controller.HandleApi(
+            mode: "queue",
+            name: null,
+            value: null,
+            cat: null,
+            priority: null,
+            output: null);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+
+        var queue = doc.RootElement.GetProperty("queue");
+        queue.GetProperty("noofslots_total").GetInt32().Should().Be(5);
+        queue.GetProperty("noofslots").GetInt32().Should().Be(5);
+
+        var slots = queue.GetProperty("slots");
+        slots.GetArrayLength().Should().Be(2);
+        slots[0].GetProperty("nzo_id").GetString().Should().Be("h2");
+        slots[1].GetProperty("nzo_id").GetString().Should().Be("h3");
+    }
+
+    [Test]
+    public async Task HandleApi_Queue_WithStartBeyondCount_ReturnsEmptySlotsWhilePreservingTotalCount()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Query = new QueryCollection(new Dictionary<string, StringValues>
+        {
+            { "start", "10" },
+            { "limit", "5" }
+        });
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.DownloadDir.Returns("/downloads");
+        this.configService.IncompleteDownloadDir.Returns("/incomplete");
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, InfoHash = "h1", Name = "T1", Status = TorrentStatus.Downloading },
+            new Torrent { Id = 2, InfoHash = "h2", Name = "T2", Status = TorrentStatus.Downloading },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+
+        var result = await this.controller.HandleApi(
+            mode: "queue",
+            name: null,
+            value: null,
+            cat: null,
+            priority: null,
+            output: null);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+
+        var queue = doc.RootElement.GetProperty("queue");
+        queue.GetProperty("noofslots_total").GetInt32().Should().Be(2);
+        queue.GetProperty("slots").GetArrayLength().Should().Be(0);
+    }
+
+    [Test]
+    public async Task HandleApi_History_WithStartAndLimit_ReturnsPagedSlotsWhilePreservingTotalCount()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Query = new QueryCollection(new Dictionary<string, StringValues>
+        {
+            { "start", "2" },
+            { "limit", "2" }
+        });
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.DownloadDir.Returns("/downloads");
+        var completedDate = new DateTime(2025, 1, 15, 12, 0, 0, DateTimeKind.Utc);
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, InfoHash = "h1", Name = "T1", Status = TorrentStatus.Completed, Progress = 1.0, TotalSize = 1000, DateCompleted = completedDate },
+            new Torrent { Id = 2, InfoHash = "h2", Name = "T2", Status = TorrentStatus.Completed, Progress = 1.0, TotalSize = 2000, DateCompleted = completedDate },
+            new Torrent { Id = 3, InfoHash = "h3", Name = "T3", Status = TorrentStatus.Completed, Progress = 1.0, TotalSize = 3000, DateCompleted = completedDate },
+            new Torrent { Id = 4, InfoHash = "h4", Name = "T4", Status = TorrentStatus.Completed, Progress = 1.0, TotalSize = 4000, DateCompleted = completedDate },
+            new Torrent { Id = 5, InfoHash = "h5", Name = "T5", Status = TorrentStatus.Completed, Progress = 1.0, TotalSize = 5000, DateCompleted = completedDate },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+
+        var result = await this.controller.HandleApi(
+            mode: "history",
+            name: null,
+            value: null,
+            cat: null,
+            priority: null,
+            output: null);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+
+        var history = doc.RootElement.GetProperty("history");
+        history.GetProperty("noofslots").GetInt32().Should().Be(5);
+
+        var slots = history.GetProperty("slots");
+        slots.GetArrayLength().Should().Be(2);
+        slots[0].GetProperty("nzo_id").GetString().Should().Be("h3");
+        slots[1].GetProperty("nzo_id").GetString().Should().Be("h4");
+    }
+
+    [Test]
+    public async Task HandleApi_History_WithFormParametersStartAndLimit_ReturnsPagedSlots()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.ContentType = "application/x-www-form-urlencoded";
+        context.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            { "start", "1" },
+            { "limit", "2" }
+        });
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.DownloadDir.Returns("/downloads");
+        var completedDate = new DateTime(2025, 1, 15, 12, 0, 0, DateTimeKind.Utc);
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, InfoHash = "h1", Name = "T1", Status = TorrentStatus.Completed, Progress = 1.0, TotalSize = 1000, DateCompleted = completedDate },
+            new Torrent { Id = 2, InfoHash = "h2", Name = "T2", Status = TorrentStatus.Completed, Progress = 1.0, TotalSize = 2000, DateCompleted = completedDate },
+            new Torrent { Id = 3, InfoHash = "h3", Name = "T3", Status = TorrentStatus.Completed, Progress = 1.0, TotalSize = 3000, DateCompleted = completedDate },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+
+        var result = await this.controller.HandleApi(
+            mode: "history",
+            name: null,
+            value: null,
+            cat: null,
+            priority: null,
+            output: null);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+
+        var history = doc.RootElement.GetProperty("history");
+        history.GetProperty("noofslots").GetInt32().Should().Be(3);
+
+        var slots = history.GetProperty("slots");
+        slots.GetArrayLength().Should().Be(2);
+        slots[0].GetProperty("nzo_id").GetString().Should().Be("h2");
+        slots[1].GetProperty("nzo_id").GetString().Should().Be("h3");
+    }
 }
