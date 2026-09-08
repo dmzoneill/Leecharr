@@ -23,7 +23,7 @@ public interface ISessionCleanupTask
     void StartLoop();
 }
 
-public class SessionCleanupTask : ISessionCleanupTask, IHandle<ApplicationStartedEvent>, IExecute<SessionCleanupCommand>, IDisposable
+public class SessionCleanupTask : ISessionCleanupTask, IHandle<ApplicationStartedEvent>, IExecute<SessionCleanupCommand>, IExecuteAsync<SessionCleanupCommand>, IDisposable
 {
     private readonly IUserSessionRepository userSessionRepository;
     private readonly Logger logger;
@@ -42,9 +42,14 @@ public class SessionCleanupTask : ISessionCleanupTask, IHandle<ApplicationStarte
         this.StartLoop();
     }
 
+    public Task ExecuteAsync(SessionCleanupCommand message, CancellationToken cancellationToken = default)
+    {
+        return this.ExecuteAsync(cancellationToken);
+    }
+
     public void Execute(SessionCleanupCommand message)
     {
-        this.ExecuteAsync().GetAwaiter().GetResult();
+        this.ExecuteAsync(message).GetAwaiter().GetResult();
     }
 
     public void StartLoop()

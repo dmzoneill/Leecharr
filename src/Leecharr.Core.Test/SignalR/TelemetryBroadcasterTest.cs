@@ -94,21 +94,54 @@ public class TelemetryBroadcasterTest
         clientProxy.SendCoreAsync(Arg.Any<string>(), Arg.Any<object[]>(), Arg.Any<CancellationToken>())
             .Returns(_ => tcs.Task);
 
-        // Create broadcaster with capacity 3
-        using var broadcaster = new SignalRMessageBroadcaster(hubContext, capacity: 3);
+        // Create broadcaster with telemetry capacity 3
+        using var broadcaster = new SignalRMessageBroadcaster(hubContext, telemetryCapacity: 3);
 
-        // Broadcast first message so worker picks it up and blocks on tcs.Task
-        broadcaster.BroadcastMessage(new SignalRMessage { Name = "msg_0" });
+        // Broadcast first telemetry message so worker picks it up and blocks on tcs.Task
+        broadcaster.BroadcastMessage(new SignalRMessage { Name = "speedPulse" });
         await Task.Delay(50);
 
-        // Push 5 more messages while worker is blocked
+        // Push 5 more telemetry messages while worker is blocked
         for (int i = 1; i <= 5; i++)
         {
-            broadcaster.BroadcastMessage(new SignalRMessage { Name = $"msg_{i}" });
+            broadcaster.BroadcastMessage(new SignalRMessage { Name = "speedPulse" });
         }
 
-        // Channel capacity is 3 and configured with DropOldest, so count cannot exceed 3
-        broadcaster.BoundedChannel.Reader.Count.Should().BeLessThanOrEqualTo(3);
+        // Telemetry channel capacity is 3 and configured with DropOldest, so count cannot exceed 3
+        broadcaster.TelemetryChannel.Reader.Count.Should().BeLessThanOrEqualTo(3);
+
+        // Unblock worker to clean up
+        tcs.SetResult();
+    }
+
+    [Test]
+    public async Task SignalRMessageBroadcaster_GuaranteedEvents_AreSentToGuaranteedChannel()
+    {
+        var hubContext = Substitute.For<IHubContext<MessageHub>>();
+        var clients = Substitute.For<IHubClients>();
+        var clientProxy = Substitute.For<IClientProxy>();
+        hubContext.Clients.Returns(clients);
+        clients.All.Returns(clientProxy);
+
+        var tcs = new TaskCompletionSource();
+        clientProxy.SendCoreAsync(Arg.Any<string>(), Arg.Any<object[]>(), Arg.Any<CancellationToken>())
+            .Returns(_ => tcs.Task);
+
+        // Create broadcaster with telemetry capacity 3
+        using var broadcaster = new SignalRMessageBroadcaster(hubContext, telemetryCapacity: 3);
+
+        // Broadcast first domain message so worker picks it up and blocks on tcs.Task
+        broadcaster.BroadcastMessage(new SignalRMessage { Name = "TorrentStatusChanged" });
+        await Task.Delay(50);
+
+        // Push 5 more domain messages while worker is blocked
+        for (int i = 1; i <= 5; i++)
+        {
+            broadcaster.BroadcastMessage(new SignalRMessage { Name = $"TorrentDownloadCompleted_{i}" });
+        }
+
+        // Guaranteed channel does not drop oldest; all 5 pending messages remain in the queue
+        broadcaster.GuaranteedChannel.Reader.Count.Should().Be(5);
 
         // Unblock worker to clean up
         tcs.SetResult();

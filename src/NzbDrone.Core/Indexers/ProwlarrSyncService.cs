@@ -69,7 +69,7 @@ public interface IProwlarrSyncService
     bool IsConfigured();
 }
 
-public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCommand>
+public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCommand>, IExecuteAsync<ProwlarrSyncCommand>
 {
     private readonly IIndexerRepository repository;
     private readonly IArrConnectionRepository arrRepository;
@@ -114,6 +114,11 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
         IArrConnectionRepository arrRepository = null)
         : this(repository, null, httpClient, torznabClient, arrRepository)
     {
+    }
+
+    public Task ExecuteAsync(ProwlarrSyncCommand message, CancellationToken cancellationToken = default)
+    {
+        return this.SyncAllAsync();
     }
 
     public void Execute(ProwlarrSyncCommand message)
