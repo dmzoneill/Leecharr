@@ -186,7 +186,7 @@ else:
             {
                 try
                 {
-                    controlPipeStream = new FileStream(controlPipePath, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
+                    controlPipeStream = new FileStream(controlPipePath, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, FileOptions.Asynchronous);
                 }
                 catch
                 {
