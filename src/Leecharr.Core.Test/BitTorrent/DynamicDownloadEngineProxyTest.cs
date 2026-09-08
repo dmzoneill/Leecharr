@@ -440,4 +440,53 @@ public class DynamicDownloadEngineProxyTest
         await this.libTorrentEngine.DidNotReceive().SetFilePriorityAsync(55, "file_normal.txt", 3);
         await this.libTorrentEngine.Received(1).SetFilePriorityAsync(55, "file_high.txt", 4);
     }
+
+    [Test]
+    public async Task SwitchEngineAsync_WhenProbeHealthTimesOut_AbortsSwitchWithTimeoutError()
+    {
+        var hangingTcs = new TaskCompletionSource<EngineHealthCheckResult>();
+        this.libTorrentEngine.ProbeHealthAsync().Returns(hangingTcs.Task);
+
+        var switchTask = this.proxy.SwitchEngineAsync("LibTorrent");
+
+        // Wait a bit to ensure timeout happens
+        var result = await switchTask;
+
+        result.Success.Should().BeFalse();
+        result.Error.Should().Contain("timed out");
+        result.ActiveEngine.Should().Be("MonoTorrent");
+        this.proxy.ActiveEngineId.Should().Be("MonoTorrent");
+    }
+
+    [Test]
+    public async Task SwitchEngineAsync_IncomingOperationsDuringMigration_DirectToTargetEngine()
+    {
+        var targetEngineStartTcs = new TaskCompletionSource();
+        this.libTorrentEngine.StartAsync().Returns(async _ =>
+        {
+            await targetEngineStartTcs.Task;
+        });
+
+        var switchTask = this.proxy.SwitchEngineAsync("LibTorrent");
+
+        // While target engine is starting, call AddTorrentAsync and PauseTorrentAsync
+        var torrent = new Torrent { Id = 99, InfoHash = "NEW_TORRENT" };
+        var addTorrentTask = this.proxy.AddTorrentAsync(torrent, null, "magnet:?");
+        var pauseTorrentTask = this.proxy.PauseTorrentAsync(99);
+
+        // Before targetEngine finishes starting, addTorrentTask and pauseTorrentTask should be pending
+        addTorrentTask.IsCompleted.Should().BeFalse();
+        pauseTorrentTask.IsCompleted.Should().BeFalse();
+
+        // Complete target engine start
+        targetEngineStartTcs.SetResult();
+
+        await switchTask;
+        await addTorrentTask;
+        await pauseTorrentTask;
+
+        // Target engine (newly started) should receive the queued operations, not the stopped MonoTorrent engine
+        await this.libTorrentEngine.Received(1).AddTorrentAsync(torrent, null, "magnet:?");
+        await this.libTorrentEngine.Received(1).PauseTorrentAsync(99);
+    }
 }
