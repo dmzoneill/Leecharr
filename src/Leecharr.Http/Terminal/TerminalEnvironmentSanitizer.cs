@@ -3,12 +3,60 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 namespace Leecharr.Http.Terminal;
 
 public static class TerminalEnvironmentSanitizer
 {
+    private static readonly string[] SensitivePatterns =
+    [
+        "PASSWORD",
+        "SECRET",
+        "POSTGRES",
+        "API_KEY",
+        "TOKEN",
+        "DATABASE_URL",
+        "JWT",
+        "AUTH",
+        "CREDENTIAL",
+        "PRIVATE_KEY",
+        "LEECHARR_",
+    ];
+
+    public static bool IsSensitiveKey(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            return false;
+        }
+
+        foreach (var pattern in SensitivePatterns)
+        {
+            if (key.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static void StripSensitiveKeys(ProcessStartInfo startInfo)
+    {
+        ArgumentNullException.ThrowIfNull(startInfo);
+
+        var sensitiveKeys = startInfo.EnvironmentVariables.Keys.Cast<string>()
+            .Where(IsSensitiveKey)
+            .ToList();
+
+        foreach (var key in sensitiveKeys)
+        {
+            startInfo.EnvironmentVariables.Remove(key);
+        }
+    }
+
     public static void Sanitize(ProcessStartInfo startInfo)
     {
         ArgumentNullException.ThrowIfNull(startInfo);
@@ -19,6 +67,9 @@ public static class TerminalEnvironmentSanitizer
         var shell = Environment.GetEnvironmentVariable("SHELL") ?? (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "powershell.exe" : (File.Exists("/bin/bash") ? "/bin/bash" : "/bin/sh"));
         var tmpdir = Environment.GetEnvironmentVariable("TMPDIR") ?? Path.GetTempPath();
         var lang = Environment.GetEnvironmentVariable("LANG") ?? "en_US.UTF-8";
+        var pwd = !string.IsNullOrWhiteSpace(startInfo.WorkingDirectory)
+            ? startInfo.WorkingDirectory
+            : (Environment.GetEnvironmentVariable("PWD") ?? Directory.GetCurrentDirectory());
 
         startInfo.Environment.Clear();
 
@@ -45,6 +96,11 @@ public static class TerminalEnvironmentSanitizer
         if (!string.IsNullOrEmpty(tmpdir))
         {
             startInfo.Environment["TMPDIR"] = tmpdir;
+        }
+
+        if (!string.IsNullOrEmpty(pwd))
+        {
+            startInfo.Environment["PWD"] = pwd;
         }
 
         startInfo.Environment["TERM"] = "xterm-256color";
@@ -78,5 +134,7 @@ public static class TerminalEnvironmentSanitizer
                 startInfo.Environment["USERPROFILE"] = userProfile;
             }
         }
+
+        StripSensitiveKeys(startInfo);
     }
 }
