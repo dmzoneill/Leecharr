@@ -13,12 +13,9 @@ namespace NzbDrone.Core.Authentication;
 
 public class UserSessionRepository : BasicRepository<UserSession>, IUserSessionRepository
 {
-    private readonly IDatabase database;
-
     public UserSessionRepository(IDatabase database)
         : base(database)
     {
-        this.database = database;
     }
 
     public static string HashToken(string token)
@@ -45,76 +42,76 @@ public class UserSessionRepository : BasicRepository<UserSession>, IUserSessionR
     public UserSession FindBySessionToken(string token)
     {
         var hashedToken = HashToken(token);
-        using var connection = this.database.OpenConnection();
-        return connection.QueryFirstOrDefault<UserSession>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"SessionToken\" = @Token",
-            new { Token = hashedToken });
+        return this.ExecuteWithRetry(connection =>
+            connection.QueryFirstOrDefault<UserSession>(
+                $"SELECT * FROM \"{this.table}\" WHERE \"SessionToken\" = @Token",
+                new { Token = hashedToken }));
     }
 
     public UserSession FindByRefreshToken(string refreshToken)
     {
-        using var connection = this.database.OpenConnection();
-        return connection.QueryFirstOrDefault<UserSession>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"RefreshToken\" = @RefreshToken",
-            new { RefreshToken = refreshToken });
+        return this.ExecuteWithRetry(connection =>
+            connection.QueryFirstOrDefault<UserSession>(
+                $"SELECT * FROM \"{this.table}\" WHERE \"RefreshToken\" = @RefreshToken",
+                new { RefreshToken = refreshToken }));
     }
 
     public IEnumerable<UserSession> FindByUserId(int userId)
     {
-        using var connection = this.database.OpenConnection();
-        return connection.Query<UserSession>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"UserId\" = @UserId ORDER BY \"LastActivity\" DESC",
-            new { UserId = userId });
+        return this.ExecuteWithRetry(connection =>
+            connection.Query<UserSession>(
+                $"SELECT * FROM \"{this.table}\" WHERE \"UserId\" = @UserId ORDER BY \"LastActivity\" DESC",
+                new { UserId = userId }));
     }
 
     public void DeleteExpiredSessions()
     {
-        using var connection = this.database.OpenConnection();
-        connection.Execute(
-            $"DELETE FROM \"{this.table}\" WHERE \"Expiry\" < @Now",
-            new { Now = DateTime.UtcNow });
+        this.ExecuteWithRetry(connection =>
+            connection.Execute(
+                $"DELETE FROM \"{this.table}\" WHERE \"Expiry\" < @Now",
+                new { Now = DateTime.UtcNow }));
     }
 
     public async Task<int> PruneExpiredSessionsAsync(CancellationToken cancellationToken = default)
     {
-        using var connection = this.database.OpenConnection();
-        return await connection.ExecuteAsync(
-            $"DELETE FROM \"{this.table}\" WHERE \"Expiry\" < @Now",
-            new { Now = DateTime.UtcNow });
+        return await this.ExecuteWithRetryAsync(async connection =>
+            await connection.ExecuteAsync(
+                $"DELETE FROM \"{this.table}\" WHERE \"Expiry\" < @Now",
+                new { Now = DateTime.UtcNow }));
     }
 
     public void DeleteByUserId(int userId)
     {
-        using var connection = this.database.OpenConnection();
-        connection.Execute(
-            $"DELETE FROM \"{this.table}\" WHERE \"UserId\" = @UserId",
-            new { UserId = userId });
+        this.ExecuteWithRetry(connection =>
+            connection.Execute(
+                $"DELETE FROM \"{this.table}\" WHERE \"UserId\" = @UserId",
+                new { UserId = userId }));
     }
 
     public void RevokeSession(string token)
     {
         var hashedToken = HashToken(token);
-        using var connection = this.database.OpenConnection();
-        connection.Execute(
-            $"DELETE FROM \"{this.table}\" WHERE \"SessionToken\" = @Token",
-            new { Token = hashedToken });
+        this.ExecuteWithRetry(connection =>
+            connection.Execute(
+                $"DELETE FROM \"{this.table}\" WHERE \"SessionToken\" = @Token",
+                new { Token = hashedToken }));
     }
 
     public async Task UpdateExpiryAndActivityAsync(string sessionToken, DateTime expiry, DateTime lastActivity)
     {
         var hashedToken = HashToken(sessionToken);
-        using var connection = this.database.OpenConnection();
-        await connection.ExecuteAsync(
-            $"UPDATE \"{this.table}\" SET \"Expiry\" = @Expiry, \"LastActivity\" = @LastActivity WHERE \"SessionToken\" = @Token",
-            new { Expiry = expiry, LastActivity = lastActivity, Token = hashedToken });
+        await this.ExecuteWithRetryAsync(async connection =>
+            await connection.ExecuteAsync(
+                $"UPDATE \"{this.table}\" SET \"Expiry\" = @Expiry, \"LastActivity\" = @LastActivity WHERE \"SessionToken\" = @Token",
+                new { Expiry = expiry, LastActivity = lastActivity, Token = hashedToken }));
     }
 
     public async Task UpdateLastActivityAsync(string sessionToken, DateTime lastActivity)
     {
         var hashedToken = HashToken(sessionToken);
-        using var connection = this.database.OpenConnection();
-        await connection.ExecuteAsync(
-            $"UPDATE \"{this.table}\" SET \"LastActivity\" = @LastActivity WHERE \"SessionToken\" = @Token",
-            new { LastActivity = lastActivity, Token = hashedToken });
+        await this.ExecuteWithRetryAsync(async connection =>
+            await connection.ExecuteAsync(
+                $"UPDATE \"{this.table}\" SET \"LastActivity\" = @LastActivity WHERE \"SessionToken\" = @Token",
+                new { LastActivity = lastActivity, Token = hashedToken }));
     }
 }

@@ -8,27 +8,24 @@ namespace NzbDrone.Core.Trackers;
 
 public class TrackerEntryRepository : BasicRepository<TrackerEntry>, ITrackerEntryRepository
 {
-    private readonly IDatabase database;
-
     public TrackerEntryRepository(IDatabase database)
         : base(database)
     {
-        this.database = database;
     }
 
     public IEnumerable<TrackerEntry> GetByTorrentId(int torrentId)
     {
-        using var connection = this.database.OpenConnection();
-        return connection.Query<TrackerEntry>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"TorrentId\" = @TorrentId ORDER BY \"Tier\", \"Id\"",
-            new { TorrentId = torrentId });
+        return this.ExecuteWithRetry(connection =>
+            connection.Query<TrackerEntry>(
+                $"SELECT * FROM \"{this.table}\" WHERE \"TorrentId\" = @TorrentId ORDER BY \"Tier\", \"Id\"",
+                new { TorrentId = torrentId }));
     }
 
     public void DeleteByTorrentId(int torrentId)
     {
-        using var connection = this.database.OpenConnection();
-        connection.Execute(
-            $"DELETE FROM \"{this.table}\" WHERE \"TorrentId\" = @TorrentId",
-            new { TorrentId = torrentId });
+        this.ExecuteWithRetry(connection =>
+            connection.Execute(
+                $"DELETE FROM \"{this.table}\" WHERE \"TorrentId\" = @TorrentId",
+                new { TorrentId = torrentId }));
     }
 }

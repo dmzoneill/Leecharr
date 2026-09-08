@@ -8,27 +8,24 @@ namespace NzbDrone.Core.Torrents;
 
 public class TorrentFileRepository : BasicRepository<TorrentFile>, ITorrentFileRepository
 {
-    private readonly IDatabase database;
-
     public TorrentFileRepository(IDatabase database)
         : base(database)
     {
-        this.database = database;
     }
 
     public IEnumerable<TorrentFile> GetByTorrentId(int torrentId)
     {
-        using var connection = this.database.OpenConnection();
-        return connection.Query<TorrentFile>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"TorrentId\" = @TorrentId ORDER BY \"Id\" ASC",
-            new { TorrentId = torrentId });
+        return this.ExecuteWithRetry(connection =>
+            connection.Query<TorrentFile>(
+                $"SELECT * FROM \"{this.table}\" WHERE \"TorrentId\" = @TorrentId ORDER BY \"Id\" ASC",
+                new { TorrentId = torrentId }));
     }
 
     public void DeleteByTorrentId(int torrentId)
     {
-        using var connection = this.database.OpenConnection();
-        connection.Execute(
-            $"DELETE FROM \"{this.table}\" WHERE \"TorrentId\" = @TorrentId",
-            new { TorrentId = torrentId });
+        this.ExecuteWithRetry(connection =>
+            connection.Execute(
+                $"DELETE FROM \"{this.table}\" WHERE \"TorrentId\" = @TorrentId",
+                new { TorrentId = torrentId }));
     }
 }
