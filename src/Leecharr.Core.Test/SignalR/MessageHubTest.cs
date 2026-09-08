@@ -178,4 +178,71 @@ public class MessageHubTest
             Arg.Any<object[]>(),
             Arg.Any<CancellationToken>());
     }
+
+    [Test]
+    public async Task OnConnectedAsync_WhenAuthEnabledAndBearerTokenHeader_AcceptsConnection()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("secret-key");
+        this.httpContext.Request.Headers["Authorization"] = "Bearer secret-key";
+
+        var hub = new MessageHub(this.configFileProvider)
+        {
+            Context = this.hubCallerContext,
+            Clients = this.clients,
+        };
+
+        await hub.OnConnectedAsync();
+
+        this.hubCallerContext.DidNotReceive().Abort();
+        await this.callerProxy.Received(1).SendCoreAsync(
+            "receiveMessage",
+            Arg.Is<object[]>(args => args.Length == 1 && ((SignalRMessage)args[0]).Name == "version"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task OnConnectedAsync_WhenAuthEnabledAndBasicAuthHeader_AcceptsConnection()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("secret-key");
+        var base64Credentials = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("admin:secret-key"));
+        this.httpContext.Request.Headers["Authorization"] = $"Basic {base64Credentials}";
+
+        var hub = new MessageHub(this.configFileProvider)
+        {
+            Context = this.hubCallerContext,
+            Clients = this.clients,
+        };
+
+        await hub.OnConnectedAsync();
+
+        this.hubCallerContext.DidNotReceive().Abort();
+        await this.callerProxy.Received(1).SendCoreAsync(
+            "receiveMessage",
+            Arg.Is<object[]>(args => args.Length == 1 && ((SignalRMessage)args[0]).Name == "version"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task OnConnectedAsync_WhenAuthEnabledAndWrongBearerToken_AbortsConnection()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("secret-key");
+        this.httpContext.Request.Headers["Authorization"] = "Bearer wrong-key";
+
+        var hub = new MessageHub(this.configFileProvider)
+        {
+            Context = this.hubCallerContext,
+            Clients = this.clients,
+        };
+
+        await hub.OnConnectedAsync();
+
+        this.hubCallerContext.Received(1).Abort();
+        await this.callerProxy.DidNotReceive().SendCoreAsync(
+            Arg.Any<string>(),
+            Arg.Any<object[]>(),
+            Arg.Any<CancellationToken>());
+    }
 }

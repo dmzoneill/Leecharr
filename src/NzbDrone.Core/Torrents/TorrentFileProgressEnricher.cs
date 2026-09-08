@@ -29,9 +29,12 @@ public static class TorrentFileProgressEnricher
 
         if (downloadTask?.PieceBitfield != null && downloadTask.PieceBitfield.Length > 0)
         {
+            long runningByteOffset = 0;
             foreach (var file in files)
             {
-                EnrichFromFilePieceBitfield(torrent, file, downloadTask);
+                var fileOffset = file.ByteOffset != 0 ? file.ByteOffset : (runningByteOffset > 0 ? runningByteOffset : (long)file.PieceOffset * (downloadTask.PieceLength > 0 ? downloadTask.PieceLength : torrent.PieceLength));
+                EnrichFromFilePieceBitfield(torrent, file, fileOffset, downloadTask);
+                runningByteOffset = fileOffset + Math.Max(0L, file.Size);
             }
 
             return;
@@ -41,6 +44,20 @@ public static class TorrentFileProgressEnricher
         var torrentProgress = Math.Clamp(torrent.Progress, 0.0, 1.0);
         foreach (var file in files)
         {
+            if (file.Priority == 0)
+            {
+                file.BytesCompleted = 0;
+                file.Progress = 0.0;
+                continue;
+            }
+
+            if (file.Size <= 0)
+            {
+                file.BytesCompleted = 0;
+                file.Progress = 1.0;
+                continue;
+            }
+
             if (torrentProgress >= 1.0)
             {
                 file.Progress = 1.0;
@@ -49,25 +66,17 @@ public static class TorrentFileProgressEnricher
             else
             {
                 file.BytesCompleted = (long)Math.Round(file.Size * torrentProgress);
-                file.Progress = file.Size > 0 ? Math.Clamp((double)file.BytesCompleted / file.Size, 0.0, 1.0) : 1.0;
+                file.Progress = Math.Clamp((double)file.BytesCompleted / file.Size, 0.0, 1.0);
             }
         }
     }
 
-    private static void EnrichFromFilePieceBitfield(Torrent torrent, TorrentFile file, IDownloadTask downloadTask)
+    private static void EnrichFromFilePieceBitfield(Torrent torrent, TorrentFile file, long byteOffset, IDownloadTask downloadTask)
     {
         if (file.Size <= 0)
         {
             file.BytesCompleted = 0;
             file.Progress = 1.0;
-            return;
-        }
-
-        if (file.PieceCount <= 0 || downloadTask.PieceBitfield == null || downloadTask.PieceBitfield.Length == 0)
-        {
-            var torrentProgress = Math.Clamp(torrent.Progress, 0.0, 1.0);
-            file.BytesCompleted = (long)Math.Round(file.Size * torrentProgress);
-            file.Progress = Math.Clamp((double)file.BytesCompleted / file.Size, 0.0, 1.0);
             return;
         }
 
@@ -82,42 +91,55 @@ public static class TorrentFileProgressEnricher
             pieceLength = (int)Math.Ceiling((double)torrent.TotalSize / torrent.PieceCount);
         }
 
-        if (pieceLength <= 0 && downloadTask.PieceBitfield.Length > 0 && torrent.TotalSize > 0)
+        if (pieceLength <= 0 && downloadTask.PieceBitfield != null && downloadTask.PieceBitfield.Length > 0 && torrent.TotalSize > 0)
         {
             pieceLength = (int)Math.Ceiling((double)torrent.TotalSize / downloadTask.PieceBitfield.Length);
         }
 
+        if (pieceLength <= 0 || downloadTask.PieceBitfield == null || downloadTask.PieceBitfield.Length == 0)
+        {
+            if (file.Priority == 0)
+            {
+                file.BytesCompleted = 0;
+                file.Progress = 0.0;
+                return;
+            }
+
+            var torrentProgress = Math.Clamp(torrent.Progress, 0.0, 1.0);
+            file.BytesCompleted = (long)Math.Round(file.Size * torrentProgress);
+            file.Progress = Math.Clamp((double)file.BytesCompleted / file.Size, 0.0, 1.0);
+            return;
+        }
+
         var bitfield = downloadTask.PieceBitfield;
-        var completedPieces = 0;
-        for (var i = file.PieceOffset; i < file.PieceOffset + file.PieceCount && i < bitfield.Length; i++)
+        var fileStart = byteOffset;
+        var fileEnd = byteOffset + file.Size;
+
+        var startPiece = (int)(fileStart / pieceLength);
+        var endPiece = (int)((fileEnd - 1) / pieceLength);
+
+        long completedBytes = 0;
+        for (var i = startPiece; i <= endPiece && i < bitfield.Length; i++)
         {
             if (bitfield[i])
             {
-                completedPieces++;
+                var pieceStart = (long)i * pieceLength;
+                var pieceEnd = pieceStart + pieceLength;
+                if (torrent.TotalSize > 0 && pieceEnd > torrent.TotalSize)
+                {
+                    pieceEnd = torrent.TotalSize;
+                }
+
+                var intersectionStart = Math.Max(fileStart, pieceStart);
+                var intersectionEnd = Math.Min(fileEnd, pieceEnd);
+                if (intersectionEnd > intersectionStart)
+                {
+                    completedBytes += intersectionEnd - intersectionStart;
+                }
             }
         }
 
-        if (completedPieces == file.PieceCount)
-        {
-            file.BytesCompleted = file.Size;
-            file.Progress = 1.0;
-        }
-        else if (completedPieces == 0)
-        {
-            file.BytesCompleted = 0;
-            file.Progress = 0.0;
-        }
-        else if (pieceLength > 0)
-        {
-            var bytes = (long)completedPieces * pieceLength;
-            file.BytesCompleted = Math.Clamp(bytes, 0, file.Size);
-            file.Progress = Math.Clamp((double)file.BytesCompleted / file.Size, 0.0, 1.0);
-        }
-        else
-        {
-            var fraction = (double)completedPieces / file.PieceCount;
-            file.BytesCompleted = Math.Clamp((long)Math.Round(file.Size * fraction), 0, file.Size);
-            file.Progress = Math.Clamp((double)file.BytesCompleted / file.Size, 0.0, 1.0);
-        }
+        file.BytesCompleted = Math.Clamp(completedBytes, 0, file.Size);
+        file.Progress = Math.Clamp((double)file.BytesCompleted / file.Size, 0.0, 1.0);
     }
 }

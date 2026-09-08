@@ -73,6 +73,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
     public IEnumerable<Torrent> GetAll()
     {
         var torrents = this.torrentRepository.All().OrderBy(t => t.QueuePosition > 0 ? t.QueuePosition : t.Id).ToList();
+        var toUpdate = new List<Torrent>();
         for (var i = 0; i < torrents.Count; i++)
         {
             var torrent = torrents[i];
@@ -80,8 +81,13 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             if (torrent.QueuePosition <= 0)
             {
                 torrent.QueuePosition = i + 1;
-                this.torrentRepository.Update(torrent);
+                toUpdate.Add(torrent);
             }
+        }
+
+        if (toUpdate.Count > 0)
+        {
+            this.torrentRepository.UpdateMany(toUpdate);
         }
 
         return torrents;
@@ -205,6 +211,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                     Size = file.Size,
                     PieceOffset = startPiece,
                     PieceCount = pieceCount,
+                    ByteOffset = currentByteOffset,
                     Priority = 3,
                     Progress = 0.0,
                 };
@@ -878,8 +885,9 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         for (var i = 0; i < allTorrents.Count; i++)
         {
             allTorrents[i].QueuePosition = i + 1;
-            this.torrentRepository.Update(allTorrents[i]);
         }
+
+        this.torrentRepository.UpdateMany(allTorrents);
 
         if (this.queueManagerService != null)
         {

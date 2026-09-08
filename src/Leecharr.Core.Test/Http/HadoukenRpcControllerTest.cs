@@ -69,7 +69,7 @@ public class HadoukenRpcControllerTest
         this.torrentFileService.GetFiles(1).Returns(files);
 
         var downloadTask = Substitute.For<IDownloadTask>();
-        downloadTask.PieceBitfield.Returns(new bool[] { true, true });
+        downloadTask.PieceBitfield.Returns(new bool[] { true, false });
         this.torrentService.GetDownloadTask(1).Returns(downloadTask);
 
         var requestJson = $"{{\"method\":\"{method}\",\"params\":[\"{infoHash}\"],\"id\":1}}";

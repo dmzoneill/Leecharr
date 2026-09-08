@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -1097,5 +1098,25 @@ public class TorrentServiceTest
         var result = this.service.Get(703);
 
         result.Ratio.Should().Be(0.0);
+    }
+
+    [Test]
+    public async Task MoveQueueAsync_UpdatesQueuePositionsViaBatchUpdateMany()
+    {
+        var t1 = new Torrent { Id = 1, Name = "T1", QueuePosition = 1 };
+        var t2 = new Torrent { Id = 2, Name = "T2", QueuePosition = 2 };
+        var t3 = new Torrent { Id = 3, Name = "T3", QueuePosition = 3 };
+
+        this.torrentRepository.Get(3).Returns(t3);
+        this.torrentRepository.All().Returns(new List<Torrent> { t1, t2, t3 });
+
+        await this.service.MoveQueueAsync(3, "top");
+
+        this.torrentRepository.Received(1).UpdateMany(Arg.Is<IEnumerable<Torrent>>(torrents =>
+            torrents != null &&
+            torrents.Count() == 3 &&
+            torrents.ElementAt(0).Id == 3 && torrents.ElementAt(0).QueuePosition == 1 &&
+            torrents.ElementAt(1).Id == 1 && torrents.ElementAt(1).QueuePosition == 2 &&
+            torrents.ElementAt(2).Id == 2 && torrents.ElementAt(2).QueuePosition == 3));
     }
 }

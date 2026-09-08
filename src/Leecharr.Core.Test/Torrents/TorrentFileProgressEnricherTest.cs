@@ -160,4 +160,71 @@ public class TorrentFileProgressEnricherTest
         files[1].Progress.Should().Be(0.75);
         files[1].BytesCompleted.Should().Be(1500);
     }
+
+    [Test]
+    public void Enrich_WithoutPieceBitfield_WhenFilePriorityIsZero_SetsZeroProgress()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            TotalSize = 4000,
+        };
+
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 1, Path = "a.bin", Size = 2000, Priority = 3 },
+            new() { Id = 2, Path = "b.bin", Size = 2000, Priority = 0 }, // Skipped
+        };
+
+        TorrentFileProgressEnricher.Enrich(torrent, files, null);
+
+        files[0].Progress.Should().Be(0.5);
+        files[0].BytesCompleted.Should().Be(1000);
+
+        files[1].Progress.Should().Be(0.0);
+        files[1].BytesCompleted.Should().Be(0);
+    }
+
+    [Test]
+    public void Enrich_WithPieceBitfield_CalculatesExactBoundaryOverlapAcrossSharedPieces()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            PieceLength = 256,
+            PieceCount = 4,
+            TotalSize = 1024,
+        };
+
+        var task = Substitute.For<IDownloadTask>();
+        // Piece 0: [0..256), Piece 1: [256..512), Piece 2: [512..768), Piece 3: [768..1024)
+        // Pieces 0 and 1 are downloaded
+        task.PieceBitfield.Returns(new[] { true, true, false, false });
+        task.PieceLength.Returns(256);
+
+        var files = new List<TorrentFile>
+        {
+            // File 1: [0..300) -> spans Piece 0 [0..256) (256 bytes) and Piece 1 [256..300) (44 bytes). Both pieces downloaded -> 300 bytes (100%)
+            new() { Id = 1, Path = "file1.dat", Size = 300, ByteOffset = 0 },
+            // File 2: [300..600) -> spans Piece 1 [300..512) (212 bytes, downloaded) and Piece 2 [512..600) (88 bytes, not downloaded). Total completed = 212 bytes
+            new() { Id = 2, Path = "file2.dat", Size = 300, ByteOffset = 300 },
+            // File 3: [600..1024) -> spans Piece 2 [600..768) and Piece 3 [768..1024). Neither downloaded -> 0 bytes (0%)
+            new() { Id = 3, Path = "file3.dat", Size = 424, ByteOffset = 600 },
+        };
+
+        TorrentFileProgressEnricher.Enrich(torrent, files, task);
+
+        files[0].Progress.Should().Be(1.0);
+        files[0].BytesCompleted.Should().Be(300);
+
+        files[1].BytesCompleted.Should().Be(212);
+        files[1].Progress.Should().BeApproximately(212.0 / 300.0, 0.0001);
+
+        files[2].Progress.Should().Be(0.0);
+        files[2].BytesCompleted.Should().Be(0);
+    }
 }
