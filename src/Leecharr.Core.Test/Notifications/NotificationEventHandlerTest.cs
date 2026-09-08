@@ -376,6 +376,33 @@ public class NotificationEventHandlerTest
     }
 
     [Test]
+    public void SendEmailNotification_WithQueryStringSettings_ParsesAndExecutesSuccessfully()
+    {
+        var settings = "server=smtp.mailgun.org&port=465&ssl=true&user=myuser&pass=mypass&from=alerts%40leecharr.local&to=admin%40example.com";
+        var senderCalled = false;
+        NotificationEventHandler.SendEmailNotification(settings, "OnDownloadComplete", null, null, new { Message = "Test Download Complete" }, (client, mail) =>
+        {
+            senderCalled = true;
+            client.Host.Should().Be("smtp.mailgun.org");
+            client.Port.Should().Be(465);
+            client.EnableSsl.Should().BeTrue();
+            mail.To[0].Address.Should().Be("admin@example.com");
+            mail.From!.Address.Should().Be("alerts@leecharr.local");
+        });
+
+        senderCalled.Should().BeTrue();
+    }
+
+    [Test]
+    public void SendEmailNotification_WithQueryStringSettings_WithoutRecipient_ThrowsInvalidOperationException()
+    {
+        var settings = "server=smtp.example.com&port=587&ssl=false";
+        var act = () => NotificationEventHandler.SendEmailNotification(settings, "Test", null, null, new { Message = "Test" });
+
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Test]
     public async Task Handle_TorrentStatusChangedEvent_WhenStoppedAndCompleted_DoesNotFireSeedGoalReached()
     {
         var notification = new NotificationDefinition
