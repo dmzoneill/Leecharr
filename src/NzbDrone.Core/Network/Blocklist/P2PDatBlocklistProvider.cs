@@ -1,8 +1,10 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Net;
+using System.Net.Sockets;
 using System.Threading.Tasks;
 using NLog;
 
@@ -13,7 +15,8 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
     private readonly Logger logger;
     private readonly object @lock = new();
 
-    private List<IpRange> ranges = new();
+    private List<IpRangeV4> v4Ranges = new();
+    private List<IpRangeV6> v6Ranges = new();
     private int ruleCount;
 
     public string ProviderId => "P2PDat";
@@ -24,7 +27,7 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
 
     public bool IsAvailable => true;
 
-    public BlocklistCapabilities Capabilities => BlocklistCapabilities.IPv4 | BlocklistCapabilities.P2PDat | BlocklistCapabilities.LiveAutoRefresh;
+    public BlocklistCapabilities Capabilities => BlocklistCapabilities.IPv4 | BlocklistCapabilities.IPv6 | BlocklistCapabilities.Cidr | BlocklistCapabilities.P2PDat | BlocklistCapabilities.LiveAutoRefresh;
 
     public int RuleCount => this.ruleCount;
 
@@ -60,51 +63,98 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
             parsedIp = parsedIp.MapToIPv4();
         }
 
-        if (parsedIp.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+        if (parsedIp.AddressFamily == AddressFamily.InterNetwork)
         {
+            Span<byte> ipBytes = stackalloc byte[4];
+            if (!parsedIp.TryWriteBytes(ipBytes, out _))
+            {
+                return false;
+            }
+
+            var ipNum = ((uint)ipBytes[0] << 24) | ((uint)ipBytes[1] << 16) | ((uint)ipBytes[2] << 8) | ipBytes[3];
+
+            List<IpRangeV4> snapshot;
+            lock (this.@lock)
+            {
+                snapshot = this.v4Ranges;
+            }
+
+            if (snapshot.Count == 0)
+            {
+                return false;
+            }
+
+            var low = 0;
+            var high = snapshot.Count - 1;
+
+            while (low <= high)
+            {
+                var mid = low + ((high - low) / 2);
+                var range = snapshot[mid];
+
+                if (ipNum >= range.Start && ipNum <= range.End)
+                {
+                    return true;
+                }
+
+                if (ipNum < range.Start)
+                {
+                    high = mid - 1;
+                }
+                else
+                {
+                    low = mid + 1;
+                }
+            }
+
             return false;
         }
 
-        Span<byte> ipBytes = stackalloc byte[4];
-        if (!parsedIp.TryWriteBytes(ipBytes, out _))
+        if (parsedIp.AddressFamily == AddressFamily.InterNetworkV6)
         {
+            Span<byte> ipBytes = stackalloc byte[16];
+            if (!parsedIp.TryWriteBytes(ipBytes, out _))
+            {
+                return false;
+            }
+
+            var ipNum = BinaryPrimitives.ReadUInt128BigEndian(ipBytes);
+
+            List<IpRangeV6> snapshot;
+            lock (this.@lock)
+            {
+                snapshot = this.v6Ranges;
+            }
+
+            if (snapshot.Count == 0)
+            {
+                return false;
+            }
+
+            var low = 0;
+            var high = snapshot.Count - 1;
+
+            while (low <= high)
+            {
+                var mid = low + ((high - low) / 2);
+                var range = snapshot[mid];
+
+                if (ipNum >= range.Start && ipNum <= range.End)
+                {
+                    return true;
+                }
+
+                if (ipNum < range.Start)
+                {
+                    high = mid - 1;
+                }
+                else
+                {
+                    low = mid + 1;
+                }
+            }
+
             return false;
-        }
-
-        var ipNum = ((uint)ipBytes[0] << 24) | ((uint)ipBytes[1] << 16) | ((uint)ipBytes[2] << 8) | ipBytes[3];
-
-        List<IpRange> snapshot;
-        lock (this.@lock)
-        {
-            snapshot = this.ranges;
-        }
-
-        if (snapshot.Count == 0)
-        {
-            return false;
-        }
-
-        var low = 0;
-        var high = snapshot.Count - 1;
-
-        while (low <= high)
-        {
-            var mid = low + ((high - low) / 2);
-            var range = snapshot[mid];
-
-            if (ipNum >= range.Start && ipNum <= range.End)
-            {
-                return true;
-            }
-
-            if (ipNum < range.Start)
-            {
-                high = mid - 1;
-            }
-            else
-            {
-                low = mid + 1;
-            }
         }
 
         return false;
@@ -117,7 +167,8 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
             return Task.FromResult(0);
         }
 
-        var parsedRanges = new List<IpRange>();
+        var parsedV4Ranges = new List<IpRangeV4>();
+        var parsedV6Ranges = new List<IpRangeV6>();
 
         foreach (var rawLine in rules)
         {
@@ -132,30 +183,36 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
                 continue;
             }
 
-            if (TryParseP2PLine(line, out var range))
+            if (TryParseP2PLine(line, parsedV4Ranges, parsedV6Ranges))
             {
-                parsedRanges.Add(range);
             }
         }
 
-        parsedRanges.Sort((a, b) => a.Start.CompareTo(b.Start));
-        var merged = MergeRanges(parsedRanges);
+        parsedV4Ranges.Sort((a, b) => a.Start.CompareTo(b.Start));
+        var mergedV4 = MergeRangesV4(parsedV4Ranges);
+
+        parsedV6Ranges.Sort((a, b) => a.Start.CompareTo(b.Start));
+        var mergedV6 = MergeRangesV6(parsedV6Ranges);
+
+        var totalCount = mergedV4.Count + mergedV6.Count;
 
         lock (this.@lock)
         {
-            this.ranges = merged;
-            this.ruleCount = merged.Count;
+            this.v4Ranges = mergedV4;
+            this.v6Ranges = mergedV6;
+            this.ruleCount = totalCount;
         }
 
-        this.logger.Info("Loaded and merged {0} IP ranges into P2P blocklist.", merged.Count);
-        return Task.FromResult(merged.Count);
+        this.logger.Info("Loaded and merged {0} IP ranges ({1} IPv4, {2} IPv6) into P2P blocklist.", totalCount, mergedV4.Count, mergedV6.Count);
+        return Task.FromResult(totalCount);
     }
 
     public void ClearRules()
     {
         lock (this.@lock)
         {
-            this.ranges = new List<IpRange>();
+            this.v4Ranges = new List<IpRangeV4>();
+            this.v6Ranges = new List<IpRangeV6>();
             this.ruleCount = 0;
         }
     }
@@ -169,7 +226,7 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
 
         var commentIdx = -1;
         var hashIdx = line.IndexOf('#');
-        var slashSlashIdx = line.IndexOf("//", System.StringComparison.Ordinal);
+        var slashSlashIdx = line.IndexOf("//", StringComparison.Ordinal);
         var semiIdx = line.IndexOf(';');
 
         if (hashIdx >= 0)
@@ -195,57 +252,24 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
         return line.Trim();
     }
 
-    private static bool TryParseP2PLine(string line, out IpRange range)
+    private static bool TryParseP2PLine(string line, List<IpRangeV4> v4List, List<IpRangeV6> v6List)
     {
-        range = default;
         line = StripComments(line);
         if (string.IsNullOrWhiteSpace(line))
         {
             return false;
         }
 
-        var name = string.Empty;
-
         var hyphenIdx = line.IndexOf('-');
         if (hyphenIdx >= 0)
         {
-            var startCandidate = line[..hyphenIdx].Trim();
-            var endStr = line[(hyphenIdx + 1)..].Trim();
-            var startStr = startCandidate;
+            var leftCandidate = line[..hyphenIdx].Trim();
+            var rightCandidate = line[(hyphenIdx + 1)..].Trim();
 
-            if (!IPAddress.TryParse(startCandidate, out var startIp))
+            if (!TryExtractStartIp(leftCandidate, out var startIp, out var name) ||
+                !TryExtractEndIp(rightCandidate, out var endIp))
             {
-                var colonIdx = startCandidate.IndexOf(':');
-                if (colonIdx >= 0)
-                {
-                    name = startCandidate[..colonIdx].Trim();
-                    startStr = startCandidate[(colonIdx + 1)..].Trim();
-                    if (!IPAddress.TryParse(startStr, out startIp))
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    return false;
-                }
-            }
-
-            if (!IPAddress.TryParse(endStr, out var endIp))
-            {
-                var lastColon = endStr.LastIndexOf(':');
-                if (lastColon >= 0)
-                {
-                    var candidateEnd = endStr[..lastColon].Trim();
-                    if (!IPAddress.TryParse(candidateEnd, out endIp))
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    return false;
-                }
+                return false;
             }
 
             if (startIp.IsIPv4MappedToIPv6)
@@ -258,8 +282,7 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
                 endIp = endIp.MapToIPv4();
             }
 
-            if (startIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork &&
-                endIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+            if (startIp.AddressFamily == AddressFamily.InterNetwork && endIp.AddressFamily == AddressFamily.InterNetwork)
             {
                 Span<byte> sBytes = stackalloc byte[4];
                 Span<byte> eBytes = stackalloc byte[4];
@@ -273,74 +296,292 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
 
                 if (startNum <= endNum)
                 {
-                    range = new IpRange(startNum, endNum, name);
+                    v4List.Add(new IpRangeV4(startNum, endNum, name));
                     return true;
                 }
+
+                return false;
+            }
+
+            if (startIp.AddressFamily == AddressFamily.InterNetworkV6 && endIp.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                Span<byte> sBytes = stackalloc byte[16];
+                Span<byte> eBytes = stackalloc byte[16];
+                if (!startIp.TryWriteBytes(sBytes, out _) || !endIp.TryWriteBytes(eBytes, out _))
+                {
+                    return false;
+                }
+
+                var startNum = BinaryPrimitives.ReadUInt128BigEndian(sBytes);
+                var endNum = BinaryPrimitives.ReadUInt128BigEndian(eBytes);
+
+                if (startNum <= endNum)
+                {
+                    v6List.Add(new IpRangeV6(startNum, endNum, name));
+                    return true;
+                }
+
+                return false;
             }
 
             return false;
         }
 
-        var singleCandidate = line;
-        if (!IPAddress.TryParse(singleCandidate, out var singleIp))
+        if (TryExtractIpOrCidr(line, out var singleIp, out var prefixLength, out var singleName))
         {
-            var colonIdx = singleCandidate.IndexOf(':');
-            if (colonIdx >= 0)
+            if (singleIp.IsIPv4MappedToIPv6)
             {
-                name = singleCandidate[..colonIdx].Trim();
-                singleCandidate = singleCandidate[(colonIdx + 1)..].Trim();
-                if (!IPAddress.TryParse(singleCandidate, out singleIp))
+                singleIp = singleIp.MapToIPv4();
+                if (prefixLength > 32)
                 {
-                    var lastColon = singleCandidate.LastIndexOf(':');
-                    if (lastColon >= 0)
-                    {
-                        var candidateSingle = singleCandidate[..lastColon].Trim();
-                        if (!IPAddress.TryParse(candidateSingle, out singleIp))
-                        {
-                            return false;
-                        }
-                    }
-                    else
-                    {
-                        return false;
-                    }
+                    prefixLength = Math.Clamp(prefixLength - 96, 0, 32);
                 }
             }
-            else
+
+            if (singleIp.AddressFamily == AddressFamily.InterNetwork)
             {
-                return false;
+                Span<byte> bytes = stackalloc byte[4];
+                if (!singleIp.TryWriteBytes(bytes, out _))
+                {
+                    return false;
+                }
+
+                var ipNum = ((uint)bytes[0] << 24) | ((uint)bytes[1] << 16) | ((uint)bytes[2] << 8) | bytes[3];
+                var mask = prefixLength == 0 ? 0 : (uint.MaxValue << (32 - prefixLength));
+                var start = ipNum & mask;
+                var end = start | ~mask;
+
+                v4List.Add(new IpRangeV4(start, end, singleName));
+                return true;
+            }
+
+            if (singleIp.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                Span<byte> bytes = stackalloc byte[16];
+                if (!singleIp.TryWriteBytes(bytes, out _))
+                {
+                    return false;
+                }
+
+                var ipNum = BinaryPrimitives.ReadUInt128BigEndian(bytes);
+                var mask = prefixLength == 0 ? UInt128.Zero : (UInt128.MaxValue << (128 - prefixLength));
+                var start = ipNum & mask;
+                var end = start | ~mask;
+
+                v6List.Add(new IpRangeV6(start, end, singleName));
+                return true;
             }
         }
 
-        if (singleIp.IsIPv4MappedToIPv6)
+        return false;
+    }
+
+    private static bool TryExtractStartIp(string candidate, out IPAddress startIp, out string name)
+    {
+        startIp = null;
+        name = string.Empty;
+
+        candidate = candidate.Trim();
+        if (string.IsNullOrEmpty(candidate))
         {
-            singleIp = singleIp.MapToIPv4();
+            return false;
         }
 
-        if (singleIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+        if (TryParseStrictIp(candidate, out startIp))
         {
-            Span<byte> bytes = stackalloc byte[4];
-            if (!singleIp.TryWriteBytes(bytes, out _))
-            {
-                return false;
-            }
+            return true;
+        }
 
-            var num = ((uint)bytes[0] << 24) | ((uint)bytes[1] << 16) | ((uint)bytes[2] << 8) | bytes[3];
-            range = new IpRange(num, num, name);
+        for (var i = 0; i < candidate.Length; i++)
+        {
+            if (candidate[i] == ':')
+            {
+                var subCandidate = candidate[(i + 1)..].Trim();
+                if (TryParseStrictIp(subCandidate, out startIp))
+                {
+                    name = candidate[..i].Trim();
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryExtractEndIp(string candidate, out IPAddress endIp)
+    {
+        endIp = null;
+
+        candidate = candidate.Trim();
+        if (string.IsNullOrEmpty(candidate))
+        {
+            return false;
+        }
+
+        var lastColon = candidate.LastIndexOf(':');
+        if (lastColon >= 0 && lastColon < candidate.Length - 1)
+        {
+            var levelStr = candidate[(lastColon + 1)..].Trim();
+            if (int.TryParse(levelStr, out _) && !levelStr.Contains('.') && !candidate[..lastColon].EndsWith(':'))
+            {
+                var withoutLevel = candidate[..lastColon].Trim();
+                if (TryParseStrictIp(withoutLevel, out endIp))
+                {
+                    return true;
+                }
+            }
+        }
+
+        if (TryParseStrictIp(candidate, out endIp))
+        {
             return true;
         }
 
         return false;
     }
 
-    private static List<IpRange> MergeRanges(List<IpRange> sorted)
+    private static bool TryExtractIpOrCidr(string candidate, out IPAddress ip, out int prefixLength, out string name)
+    {
+        ip = null;
+        prefixLength = 0;
+        name = string.Empty;
+
+        candidate = candidate.Trim();
+        if (string.IsNullOrEmpty(candidate))
+        {
+            return false;
+        }
+
+        var lastColon = candidate.LastIndexOf(':');
+        if (lastColon >= 0 && lastColon < candidate.Length - 1)
+        {
+            var levelStr = candidate[(lastColon + 1)..].Trim();
+            if (int.TryParse(levelStr, out _) && !levelStr.Contains('.') && !candidate[..lastColon].EndsWith(':'))
+            {
+                var withoutLevel = candidate[..lastColon].Trim();
+                if (TryExtractIpOrCidrCore(withoutLevel, out ip, out prefixLength, out name))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return TryExtractIpOrCidrCore(candidate, out ip, out prefixLength, out name);
+    }
+
+    private static bool TryExtractIpOrCidrCore(string candidate, out IPAddress ip, out int prefixLength, out string name)
+    {
+        ip = null;
+        prefixLength = 0;
+        name = string.Empty;
+
+        candidate = candidate.Trim();
+        if (string.IsNullOrEmpty(candidate))
+        {
+            return false;
+        }
+
+        if (TryParseCidrOrIp(candidate, out ip, out prefixLength))
+        {
+            return true;
+        }
+
+        for (var i = 0; i < candidate.Length; i++)
+        {
+            if (candidate[i] == ':')
+            {
+                var subCandidate = candidate[(i + 1)..].Trim();
+                if (TryParseCidrOrIp(subCandidate, out ip, out prefixLength))
+                {
+                    name = candidate[..i].Trim();
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryParseStrictIp(string str, out IPAddress ip)
+    {
+        ip = null;
+        if (string.IsNullOrWhiteSpace(str))
+        {
+            return false;
+        }
+
+        if (IPAddress.TryParse(str, out ip))
+        {
+            if (ip.AddressFamily == AddressFamily.InterNetwork && str.Contains('.'))
+            {
+                return true;
+            }
+
+            if (ip.AddressFamily == AddressFamily.InterNetworkV6 && str.Contains(':'))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryParseCidrOrIp(string str, out IPAddress ip, out int prefixLength)
+    {
+        ip = null;
+        prefixLength = 0;
+
+        if (string.IsNullOrWhiteSpace(str))
+        {
+            return false;
+        }
+
+        var slashIdx = str.IndexOf('/');
+        if (slashIdx >= 0)
+        {
+            var ipStr = str[..slashIdx].Trim();
+            var lenStr = str[(slashIdx + 1)..].Trim();
+
+            if (TryParseStrictIp(ipStr, out ip) && int.TryParse(lenStr, out prefixLength))
+            {
+                if (ip.IsIPv4MappedToIPv6)
+                {
+                    ip = ip.MapToIPv4();
+                    if (prefixLength > 32)
+                    {
+                        prefixLength = Math.Clamp(prefixLength - 96, 0, 32);
+                    }
+                }
+
+                var maxLen = ip.AddressFamily == AddressFamily.InterNetwork ? 32 : 128;
+                return prefixLength >= 0 && prefixLength <= maxLen;
+            }
+
+            return false;
+        }
+
+        if (TryParseStrictIp(str, out ip))
+        {
+            if (ip.IsIPv4MappedToIPv6)
+            {
+                ip = ip.MapToIPv4();
+            }
+
+            prefixLength = ip.AddressFamily == AddressFamily.InterNetwork ? 32 : 128;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static List<IpRangeV4> MergeRangesV4(List<IpRangeV4> sorted)
     {
         if (sorted.Count <= 1)
         {
             return sorted;
         }
 
-        var result = new List<IpRange>();
+        var result = new List<IpRangeV4>();
         var current = sorted[0];
 
         for (var i = 1; i < sorted.Count; i++)
@@ -348,7 +589,7 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
             var next = sorted[i];
             if (current.End == uint.MaxValue || next.Start <= current.End + 1)
             {
-                current = new IpRange(current.Start, Math.Max(current.End, next.End), current.Name);
+                current = new IpRangeV4(current.Start, Math.Max(current.End, next.End), current.Name);
             }
             else
             {
@@ -361,7 +602,35 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
         return result;
     }
 
-    private readonly struct IpRange
+    private static List<IpRangeV6> MergeRangesV6(List<IpRangeV6> sorted)
+    {
+        if (sorted.Count <= 1)
+        {
+            return sorted;
+        }
+
+        var result = new List<IpRangeV6>();
+        var current = sorted[0];
+
+        for (var i = 1; i < sorted.Count; i++)
+        {
+            var next = sorted[i];
+            if (current.End == UInt128.MaxValue || next.Start <= current.End + 1)
+            {
+                current = new IpRangeV6(current.Start, current.End > next.End ? current.End : next.End, current.Name);
+            }
+            else
+            {
+                result.Add(current);
+                current = next;
+            }
+        }
+
+        result.Add(current);
+        return result;
+    }
+
+    private readonly struct IpRangeV4
     {
         public uint Start { get; }
 
@@ -369,7 +638,23 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
 
         public string Name { get; }
 
-        public IpRange(uint start, uint end, string name)
+        public IpRangeV4(uint start, uint end, string name)
+        {
+            this.Start = start;
+            this.End = end;
+            this.Name = name;
+        }
+    }
+
+    private readonly struct IpRangeV6
+    {
+        public UInt128 Start { get; }
+
+        public UInt128 End { get; }
+
+        public string Name { get; }
+
+        public IpRangeV6(UInt128 start, UInt128 end, string name)
         {
             this.Start = start;
             this.End = end;

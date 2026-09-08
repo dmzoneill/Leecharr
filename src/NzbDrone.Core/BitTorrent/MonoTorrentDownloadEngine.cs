@@ -468,11 +468,19 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             return client;
         });
 
+        var baseFactories = factories;
         factories = factories.WithSocketConnectorCreator(() => new BoundSocketConnector(
             () => this.GetBoundLocalIp(AddressFamily.InterNetwork),
             () => this.GetBoundLocalIp(AddressFamily.InterNetworkV6),
             this.networkBindingService,
-            () => this.configService.BindInterface));
+            () => this.configService.BindInterface,
+            this.blocklistService,
+            () => Interlocked.Increment(ref this.blockedPeersCount)));
+
+        factories = factories.WithPeerConnectionListenerCreator(endPoint => new FilteringPeerConnectionListener(
+            baseFactories.CreatePeerConnectionListener(endPoint),
+            this.blocklistService,
+            () => Interlocked.Increment(ref this.blockedPeersCount)));
 
         this.engine = new ClientEngine(engineSettings, factories);
         this.ApplyCustomPeerId(this.engine, peerIdPrefix);
@@ -2596,11 +2604,6 @@ public class MonoTorrentDownloadTask : IDownloadTask
                 try
                 {
                     (e.Peer as IDisposable)?.Dispose();
-                    var connProp = e.Peer?.GetType().GetProperty("Connection", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                    if (connProp?.GetValue(e.Peer) is IDisposable connDisp)
-                    {
-                        connDisp.Dispose();
-                    }
                 }
                 catch
                 {
@@ -3347,19 +3350,85 @@ public class PieceVerifiedEvent : IEvent
     }
 }
 
+public class FilteringPeerConnectionListener : MonoTorrent.Connections.Peer.IPeerConnectionListener
+{
+    private readonly MonoTorrent.Connections.Peer.IPeerConnectionListener inner;
+    private readonly IBlocklistService blocklistService;
+    private readonly Action onPeerBlocked;
+
+    public FilteringPeerConnectionListener(
+        MonoTorrent.Connections.Peer.IPeerConnectionListener inner,
+        IBlocklistService blocklistService = null,
+        Action onPeerBlocked = null)
+    {
+        this.inner = inner ?? throw new ArgumentNullException(nameof(inner));
+        this.blocklistService = blocklistService;
+        this.onPeerBlocked = onPeerBlocked;
+        this.inner.ConnectionReceived += this.OnInnerConnectionReceived;
+    }
+
+    public IPEndPoint LocalEndPoint => this.inner.LocalEndPoint;
+
+    public IPEndPoint PreferredLocalEndPoint => this.inner.PreferredLocalEndPoint;
+
+    public MonoTorrent.Connections.ListenerStatus Status => this.inner.Status;
+
+    public event EventHandler<EventArgs> StatusChanged
+    {
+        add => this.inner.StatusChanged += value;
+        remove => this.inner.StatusChanged -= value;
+    }
+
+    public event EventHandler<MonoTorrent.Connections.Peer.PeerConnectionEventArgs> ConnectionReceived;
+
+    public void Start() => this.inner.Start();
+
+    public void Stop() => this.inner.Stop();
+
+    private void OnInnerConnectionReceived(object sender, MonoTorrent.Connections.Peer.PeerConnectionEventArgs e)
+    {
+        try
+        {
+            var ip = e.Connection?.Uri?.Host ?? e.Connection?.EndPoint?.Address?.ToString();
+            if (!string.IsNullOrEmpty(ip) && this.blocklistService != null && this.blocklistService.IsIpBlocked(ip))
+            {
+                this.onPeerBlocked?.Invoke();
+                try
+                {
+                    (e.Connection as IDisposable)?.Dispose();
+                }
+                catch
+                {
+                }
+
+                return;
+            }
+        }
+        catch
+        {
+        }
+
+        this.ConnectionReceived?.Invoke(this, e);
+    }
+}
+
 public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
 {
     private readonly Func<IPAddress> getLocalIpv4;
     private readonly Func<IPAddress> getLocalIpv6;
     private readonly INetworkBindingService networkBindingService;
     private readonly Func<string> getInterfaceName;
+    private readonly IBlocklistService blocklistService;
+    private readonly Action onPeerBlocked;
 
     public BoundSocketConnector(
         IPAddress localIpv4,
         IPAddress localIpv6 = null,
         INetworkBindingService networkBindingService = null,
-        Func<string> getInterfaceName = null)
-        : this(() => localIpv4, () => localIpv6, networkBindingService, getInterfaceName)
+        Func<string> getInterfaceName = null,
+        IBlocklistService blocklistService = null,
+        Action onPeerBlocked = null)
+        : this(() => localIpv4, () => localIpv6, networkBindingService, getInterfaceName, blocklistService, onPeerBlocked)
     {
     }
 
@@ -3367,12 +3436,16 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
         Func<IPAddress> getLocalIpv4,
         Func<IPAddress> getLocalIpv6 = null,
         INetworkBindingService networkBindingService = null,
-        Func<string> getInterfaceName = null)
+        Func<string> getInterfaceName = null,
+        IBlocklistService blocklistService = null,
+        Action onPeerBlocked = null)
     {
         this.getLocalIpv4 = getLocalIpv4 ?? (() => IPAddress.Any);
         this.getLocalIpv6 = getLocalIpv6 ?? (() => IPAddress.IPv6Any);
         this.networkBindingService = networkBindingService;
         this.getInterfaceName = getInterfaceName ?? (() => null);
+        this.blocklistService = blocklistService;
+        this.onPeerBlocked = onPeerBlocked;
     }
 
     public Socket CreateDatagramSocket(AddressFamily addressFamily = AddressFamily.InterNetwork, int localPort = 0)
@@ -3459,6 +3532,12 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
     {
         ArgumentNullException.ThrowIfNull(uri);
 
+        if (this.blocklistService != null && !string.IsNullOrWhiteSpace(uri.Host) && this.blocklistService.IsIpBlocked(uri.Host))
+        {
+            this.onPeerBlocked?.Invoke();
+            throw new SocketException((int)SocketError.AccessDenied);
+        }
+
         var isDatagram = string.Equals(uri.Scheme, "udp", StringComparison.OrdinalIgnoreCase) ||
                          string.Equals(uri.Scheme, "utp", StringComparison.OrdinalIgnoreCase) ||
                          string.Equals(uri.Scheme, "dgram", StringComparison.OrdinalIgnoreCase);
@@ -3477,6 +3556,12 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
         else
         {
             addresses = await Dns.GetHostAddressesAsync(uri.Host, token).ConfigureAwait(false);
+        }
+
+        if (this.blocklistService != null && addresses.Any(a => this.blocklistService.IsIpBlocked(a.ToString())))
+        {
+            this.onPeerBlocked?.Invoke();
+            throw new SocketException((int)SocketError.AccessDenied);
         }
 
         var localV4 = this.getLocalIpv4();
