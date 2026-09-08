@@ -434,8 +434,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             DiskCachePolicy = cachePolicy,
             FastResumeMode = fastResumeMode,
             MaximumConnections = this.configService.MaxGlobalConnections > 0 ? this.configService.MaxGlobalConnections : 300,
-            MaximumDownloadRate = this.configService.MaxDownloadSpeedKbps > 0 ? this.configService.MaxDownloadSpeedKbps * 1024 : 0,
-            MaximumUploadRate = this.configService.MaxUploadSpeedKbps > 0 ? this.configService.MaxUploadSpeedKbps * 1024 : 0,
+            MaximumDownloadRate = this.configService.MaxDownloadSpeedKbps > 0
+                ? (int)Math.Min((long)this.configService.MaxDownloadSpeedKbps * 1024, int.MaxValue)
+                : 0,
+            MaximumUploadRate = this.configService.MaxUploadSpeedKbps > 0
+                ? (int)Math.Min((long)this.configService.MaxUploadSpeedKbps * 1024, int.MaxValue)
+                : 0,
             ListenEndPoints = listenEndPoints,
         };
 
@@ -695,8 +699,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             MaximumConnections = this.configService.MaxPerTorrentConnections > 0 ? this.configService.MaxPerTorrentConnections : 50,
             UploadSlots = this.configService.MaxUploadSlots > 0 ? this.configService.MaxUploadSlots : 4,
-            MaximumDownloadRate = torrent.DownloadLimit > 0 ? torrent.DownloadLimit * 1024 : 0,
-            MaximumUploadRate = torrent.UploadLimit > 0 ? torrent.UploadLimit * 1024 : 0,
+            MaximumDownloadRate = torrent.DownloadLimit > 0
+                ? (int)Math.Min((long)torrent.DownloadLimit * 1024, int.MaxValue)
+                : 0,
+            MaximumUploadRate = torrent.UploadLimit > 0
+                ? (int)Math.Min((long)torrent.UploadLimit * 1024, int.MaxValue)
+                : 0,
             AllowInitialSeeding = torrent.InitialSeeding,
         };
 
@@ -1468,8 +1476,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             var settingsBuilder = new EngineSettingsBuilder(this.engine.Settings)
             {
-                MaximumDownloadRate = maxDownloadKbps > 0 ? maxDownloadKbps * 1024 : 0,
-                MaximumUploadRate = maxUploadKbps > 0 ? maxUploadKbps * 1024 : 0,
+                MaximumDownloadRate = maxDownloadKbps > 0
+                    ? (int)Math.Min((long)maxDownloadKbps * 1024, int.MaxValue)
+                    : 0,
+                MaximumUploadRate = maxUploadKbps > 0
+                    ? (int)Math.Min((long)maxUploadKbps * 1024, int.MaxValue)
+                    : 0,
                 DiskCacheBytes = this.CalculateDynamicDiskCacheBytes(this.engine.TotalDownloadRate),
                 DiskCachePolicy = this.GetConfiguredCachePolicy(),
                 FastResumeMode = this.GetConfiguredFastResumeMode(),
@@ -1485,8 +1497,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             var settingsBuilder = new TorrentSettingsBuilder(task.Manager.Settings)
             {
-                MaximumDownloadRate = maxDownloadKbps > 0 ? maxDownloadKbps * 1024 : 0,
-                MaximumUploadRate = maxUploadKbps > 0 ? maxUploadKbps * 1024 : 0,
+                MaximumDownloadRate = maxDownloadKbps > 0
+                    ? (int)Math.Min((long)maxDownloadKbps * 1024, int.MaxValue)
+                    : 0,
+                MaximumUploadRate = maxUploadKbps > 0
+                    ? (int)Math.Min((long)maxUploadKbps * 1024, int.MaxValue)
+                    : 0,
             };
             await task.Manager.UpdateSettingsAsync(settingsBuilder.ToSettings());
             this.logger.Info("Updated MonoTorrent per-torrent rate limits for {0}: Download = {1} KB/s, Upload = {2} KB/s", task.InfoHash, maxDownloadKbps, maxUploadKbps);
