@@ -24,10 +24,18 @@ public class NetworkSecurityServiceTest
     }
 
     [Test]
-    public void IsInterfaceActive_WhenInterfaceEmpty_ReturnsTrue()
+    public void IsInterfaceActive_WhenInterfaceNullOrWhitespace_ReturnsTrue()
     {
-        var result = this.service.IsInterfaceActive(string.Empty);
-        result.Should().BeTrue();
+        this.service.IsInterfaceActive(null).Should().BeTrue();
+        this.service.IsInterfaceActive(string.Empty).Should().BeTrue();
+        this.service.IsInterfaceActive("   ").Should().BeTrue();
+    }
+
+    [Test]
+    public void IsInterfaceActive_WhenInterfaceDoesNotExist_ReturnsFalse()
+    {
+        var result = this.service.IsInterfaceActive("nonexistent_interface_guid_12345");
+        result.Should().BeFalse();
     }
 
     [Test]
