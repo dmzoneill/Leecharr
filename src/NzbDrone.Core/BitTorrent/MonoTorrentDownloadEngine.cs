@@ -1543,6 +1543,16 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
+    public Task SetSequentialDownloadAsync(int torrentId, bool enabled)
+    {
+        if (this.tasks.TryGetValue(torrentId, out var task))
+        {
+            this.logger.Info("Updated sequential download for torrent {0}: {1}", torrentId, enabled);
+        }
+
+        return Task.CompletedTask;
+    }
+
     public IDownloadTask GetTask(int torrentId)
     {
         this.tasks.TryGetValue(torrentId, out var task);

@@ -260,6 +260,9 @@ public class DynamicDownloadEngineProxyTest
         await this.proxy.SetSuperSeedingAsync(10, true);
         await this.monoTorrentEngine.Received(1).SetSuperSeedingAsync(10, true);
 
+        await this.proxy.SetSequentialDownloadAsync(10, true);
+        await this.monoTorrentEngine.Received(1).SetSequentialDownloadAsync(10, true);
+
         await this.proxy.MoveTorrentFilesAsync(10, "/new/save/path", false);
         await this.monoTorrentEngine.Received(1).MoveTorrentFilesAsync(10, "/new/save/path", false);
 
@@ -500,5 +503,98 @@ public class DynamicDownloadEngineProxyTest
         await Task.Delay(100);
 
         this.proxy.ActiveEngineId.Should().Be("LibTorrent");
+    }
+
+    [Test]
+    public async Task SwitchEngineAsync_WhenPreservingTransfers_AppliesSequentialDownload_WhenTorrentHasSequentialDownloadAndEngineSupportsIt()
+    {
+        this.libTorrentEngine.Capabilities.Returns(new TorrentEngineCapabilities
+        {
+            SupportsSequentialDownload = true,
+        });
+
+        var torrent = new Torrent
+        {
+            Id = 55,
+            Name = "Sequential ISO",
+            InfoHash = "5555555555555555555555555555555555555555",
+            Status = TorrentStatus.Downloading,
+            SequentialDownload = true,
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+
+        using var testProxy = new DynamicDownloadEngineProxy(
+            new List<ITorrentEngine> { this.monoTorrentEngine, this.libTorrentEngine },
+            this.configService,
+            this.torrentRepository,
+            this.eventAggregator);
+
+        var result = await testProxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
+
+        result.Success.Should().BeTrue();
+        await this.libTorrentEngine.Received(1).SetSequentialDownloadAsync(55, true);
+    }
+
+    [Test]
+    public async Task SwitchEngineAsync_WhenPreservingTransfers_DoesNotApplySequentialDownload_WhenTorrentSequentialDownloadIsFalse()
+    {
+        this.libTorrentEngine.Capabilities.Returns(new TorrentEngineCapabilities
+        {
+            SupportsSequentialDownload = true,
+        });
+
+        var torrent = new Torrent
+        {
+            Id = 56,
+            Name = "Standard ISO",
+            InfoHash = "6666666666666666666666666666666666666666",
+            Status = TorrentStatus.Downloading,
+            SequentialDownload = false,
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+
+        using var testProxy = new DynamicDownloadEngineProxy(
+            new List<ITorrentEngine> { this.monoTorrentEngine, this.libTorrentEngine },
+            this.configService,
+            this.torrentRepository,
+            this.eventAggregator);
+
+        var result = await testProxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
+
+        result.Success.Should().BeTrue();
+        await this.libTorrentEngine.DidNotReceive().SetSequentialDownloadAsync(Arg.Any<int>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task SwitchEngineAsync_WhenPreservingTransfers_DoesNotApplySequentialDownload_WhenTargetEngineDoesNotSupportSequential()
+    {
+        this.libTorrentEngine.Capabilities.Returns(new TorrentEngineCapabilities
+        {
+            SupportsSequentialDownload = false,
+        });
+
+        var torrent = new Torrent
+        {
+            Id = 57,
+            Name = "Sequential Unsupported ISO",
+            InfoHash = "7777777777777777777777777777777777777777",
+            Status = TorrentStatus.Downloading,
+            SequentialDownload = true,
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+
+        using var testProxy = new DynamicDownloadEngineProxy(
+            new List<ITorrentEngine> { this.monoTorrentEngine, this.libTorrentEngine },
+            this.configService,
+            this.torrentRepository,
+            this.eventAggregator);
+
+        var result = await testProxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
+
+        result.Success.Should().BeTrue();
+        await this.libTorrentEngine.DidNotReceive().SetSequentialDownloadAsync(Arg.Any<int>(), Arg.Any<bool>());
     }
 }

@@ -52,6 +52,8 @@ public interface IDownloadEngine
 
     Task SetSuperSeedingAsync(int torrentId, bool enabled) => Task.CompletedTask;
 
+    Task SetSequentialDownloadAsync(int torrentId, bool enabled) => Task.CompletedTask;
+
     Task<bool> RenameFileAsync(int torrentId, string oldRelativePath, string newRelativePath) => Task.FromResult(false);
 
     Task<bool> RenameFolderAsync(int torrentId, string oldRelativeFolder, string newRelativeFolder) => Task.FromResult(false);

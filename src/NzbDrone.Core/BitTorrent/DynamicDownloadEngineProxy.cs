@@ -284,6 +284,11 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
                             await targetEngine.SetTorrentPrivateStatusAsync(torrent.Id, true);
                         }
 
+                        if (torrent.SequentialDownload && (targetEngine.Capabilities?.SupportsSequentialDownload ?? false))
+                        {
+                            await targetEngine.SetSequentialDownloadAsync(torrent.Id, true);
+                        }
+
                         if (torrentBytes == null && this.trackerEntryRepository != null)
                         {
                             var extraTrackers = this.trackerEntryRepository.GetByTorrentId(torrent.Id)
@@ -514,6 +519,15 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
         if (engine != null)
         {
             await engine.SetSuperSeedingAsync(torrentId, enabled);
+        }
+    }
+
+    public async Task SetSequentialDownloadAsync(int torrentId, bool enabled)
+    {
+        var engine = await this.GetReadyEngineAsync();
+        if (engine != null)
+        {
+            await engine.SetSequentialDownloadAsync(torrentId, enabled);
         }
     }
 
