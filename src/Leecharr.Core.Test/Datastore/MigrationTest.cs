@@ -219,4 +219,44 @@ public class MigrationTest
         columns.Should().Contain("ImportedByArr");
         columns.Should().Contain("ImportPath");
     }
+
+    [Test]
+    public void Migration025_AddsMusicbrainzAndMediaFieldsToTorrentMediaMetadata()
+    {
+        var connectionString = $"Data Source={this.tempDbPath};";
+
+        var serviceProvider = new ServiceCollection()
+            .AddFluentMigratorCore()
+            .ConfigureRunner(rb => rb
+                .AddSQLite()
+                .WithGlobalConnectionString(connectionString)
+                .ScanIn(typeof(InitialSetup).Assembly).For.Migrations())
+            .AddLogging(lb => lb.AddFluentMigratorConsole())
+            .BuildServiceProvider(false);
+
+        using (var scope = serviceProvider.CreateScope())
+        {
+            var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+            runner.MigrateUp();
+        }
+
+        using var connection = new SqliteConnection(connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA table_info(TorrentMediaMetadata);";
+
+        var columns = new List<string>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            columns.Add(reader.GetString(1));
+        }
+
+        columns.Should().Contain("MusicBrainzId");
+        columns.Should().Contain("ArtistName");
+        columns.Should().Contain("AlbumTitle");
+        columns.Should().Contain("Cast");
+        columns.Should().Contain("BannerUrl");
+    }
 }

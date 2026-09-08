@@ -118,7 +118,7 @@ public class MediaEnrichmentService : IMediaEnrichmentService
         {
             try
             {
-                var dynamicMeta = await this.mediaMetadataService.GetMetadataAsync(torrent.Name, torrent.Category);
+                var dynamicMeta = await this.mediaMetadataService.GetMetadataAsync(torrent.Name, torrent.Category, null, torrent.InfoHash);
                 if (dynamicMeta != null)
                 {
                     if (!string.IsNullOrEmpty(dynamicMeta.Title))
@@ -144,6 +144,11 @@ public class MediaEnrichmentService : IMediaEnrichmentService
                     if (!string.IsNullOrEmpty(dynamicMeta.BackdropUrl))
                     {
                         metadata.BackdropUrl = dynamicMeta.BackdropUrl;
+                    }
+
+                    if (!string.IsNullOrEmpty(dynamicMeta.BannerUrl))
+                    {
+                        metadata.BannerUrl = dynamicMeta.BannerUrl;
                     }
 
                     if (!string.IsNullOrEmpty(dynamicMeta.Genres))
@@ -174,6 +179,31 @@ public class MediaEnrichmentService : IMediaEnrichmentService
                     if (!string.IsNullOrEmpty(dynamicMeta.MediaType))
                     {
                         metadata.ArrType = dynamicMeta.MediaType;
+                    }
+
+                    if (dynamicMeta.ArrMediaId > 0)
+                    {
+                        metadata.ArrMediaId = dynamicMeta.ArrMediaId;
+                    }
+
+                    if (!string.IsNullOrEmpty(dynamicMeta.MusicBrainzId))
+                    {
+                        metadata.MusicBrainzId = dynamicMeta.MusicBrainzId;
+                    }
+
+                    if (!string.IsNullOrEmpty(dynamicMeta.ArtistName))
+                    {
+                        metadata.ArtistName = dynamicMeta.ArtistName;
+                    }
+
+                    if (!string.IsNullOrEmpty(dynamicMeta.AlbumTitle))
+                    {
+                        metadata.AlbumTitle = dynamicMeta.AlbumTitle;
+                    }
+
+                    if (dynamicMeta.Cast != null && dynamicMeta.Cast.Count > 0)
+                    {
+                        metadata.Cast = string.Join(", ", dynamicMeta.Cast);
                     }
                 }
             }

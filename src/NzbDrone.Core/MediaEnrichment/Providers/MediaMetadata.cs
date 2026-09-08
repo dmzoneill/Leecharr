@@ -30,6 +30,14 @@ public class MediaMetadata
 
     public string MediaType { get; set; }
 
+    public int ArrMediaId { get; set; }
+
+    public string MusicBrainzId { get; set; }
+
+    public string ArtistName { get; set; }
+
+    public string AlbumTitle { get; set; }
+
     public List<string> Cast { get; set; } = new();
 
     public Dictionary<string, string> ExtraData { get; set; } = new();

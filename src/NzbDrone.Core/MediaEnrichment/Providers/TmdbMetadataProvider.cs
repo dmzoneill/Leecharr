@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -58,7 +59,7 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
         });
     }
 
-    public async Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null)
+    public async Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null, string infoHash = null)
     {
         if (string.IsNullOrWhiteSpace(title))
         {
@@ -175,6 +176,102 @@ public class TmdbMetadataProvider : IMediaMetadataProvider
         if (first.TryGetProperty("backdrop_path", out var backdrop) && !string.IsNullOrWhiteSpace(backdrop.GetString()))
         {
             meta.BackdropUrl = $"https://image.tmdb.org/t/p/original{backdrop.GetString()}";
+        }
+
+        if (!string.IsNullOrEmpty(id))
+        {
+            try
+            {
+                var detailsEndpoint = isMovie
+                    ? $"https://api.themoviedb.org/3/movie/{Uri.EscapeDataString(id)}?api_key={Uri.EscapeDataString(apiKey)}&append_to_response=credits,external_ids"
+                    : $"https://api.themoviedb.org/3/tv/{Uri.EscapeDataString(id)}?api_key={Uri.EscapeDataString(apiKey)}&append_to_response=credits,external_ids";
+
+                using var detailsReq = new HttpRequestMessage(HttpMethod.Get, detailsEndpoint);
+                using var detailsResp = await this.httpClient.SendAsync(detailsReq);
+                if (detailsResp.IsSuccessStatusCode)
+                {
+                    var detailsJson = await detailsResp.Content.ReadAsStringAsync();
+                    using var detailsDoc = JsonDocument.Parse(detailsJson);
+                    var root = detailsDoc.RootElement;
+
+                    if (root.TryGetProperty(titleProperty, out var dt) && !string.IsNullOrWhiteSpace(dt.GetString()))
+                    {
+                        meta.Title = dt.GetString();
+                    }
+
+                    if (root.TryGetProperty("overview", out var dov) && !string.IsNullOrWhiteSpace(dov.GetString()))
+                    {
+                        meta.Overview = dov.GetString();
+                    }
+
+                    if (root.TryGetProperty("vote_average", out var dr) && dr.TryGetDouble(out var drate))
+                    {
+                        meta.Rating = drate;
+                    }
+
+                    if (root.TryGetProperty(releaseDateProperty, out var drd) && !string.IsNullOrWhiteSpace(drd.GetString()))
+                    {
+                        var match = Regex.Match(drd.GetString(), @"^(19\d\d|20\d\d)");
+                        if (match.Success && int.TryParse(match.Value, out var y))
+                        {
+                            meta.Year = y;
+                        }
+                    }
+
+                    if (root.TryGetProperty("poster_path", out var dp) && !string.IsNullOrWhiteSpace(dp.GetString()))
+                    {
+                        meta.PosterUrl = $"https://image.tmdb.org/t/p/original{dp.GetString()}";
+                    }
+
+                    if (root.TryGetProperty("backdrop_path", out var db) && !string.IsNullOrWhiteSpace(db.GetString()))
+                    {
+                        meta.BackdropUrl = $"https://image.tmdb.org/t/p/original{db.GetString()}";
+                    }
+
+                    if (root.TryGetProperty("genres", out var g) && g.ValueKind == JsonValueKind.Array)
+                    {
+                        meta.Genres = string.Join(", ", g.EnumerateArray()
+                            .Where(x => x.TryGetProperty("name", out var gn) && gn.ValueKind == JsonValueKind.String)
+                            .Select(x => x.GetProperty("name").GetString()));
+                    }
+
+                    if (root.TryGetProperty("external_ids", out var extIds) && extIds.ValueKind == JsonValueKind.Object)
+                    {
+                        if (extIds.TryGetProperty("imdb_id", out var imdbProp) && imdbProp.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(imdbProp.GetString()))
+                        {
+                            meta.ImdbId = imdbProp.GetString();
+                        }
+
+                        if (extIds.TryGetProperty("tvdb_id", out var tvdbProp))
+                        {
+                            if (tvdbProp.ValueKind == JsonValueKind.Number && tvdbProp.TryGetInt32(out var tvdbInt) && tvdbInt > 0)
+                            {
+                                meta.TvdbId = tvdbInt.ToString();
+                            }
+                            else if (tvdbProp.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(tvdbProp.GetString()))
+                            {
+                                meta.TvdbId = tvdbProp.GetString();
+                            }
+                        }
+                    }
+
+                    if (root.TryGetProperty("credits", out var credits) && credits.ValueKind == JsonValueKind.Object)
+                    {
+                        if (credits.TryGetProperty("cast", out var castArray) && castArray.ValueKind == JsonValueKind.Array)
+                        {
+                            meta.Cast = castArray.EnumerateArray()
+                                .Where(c => c.TryGetProperty("name", out var cn) && cn.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(cn.GetString()))
+                                .Select(c => c.GetProperty("name").GetString())
+                                .Take(10)
+                                .ToList();
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Failed to fetch extended details from TMDB API for id {0}", id);
+            }
         }
 
         return meta;

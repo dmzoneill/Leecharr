@@ -417,6 +417,86 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
     }
 
     [Test]
+    public async Task TmdbProvider_FetchMetadataAsync_WithApiKey_QueriesSearchAndExtendedDetails()
+    {
+        var mockConfig = Substitute.For<IConfigService>();
+        mockConfig.TmdbApiKey.Returns("tmdb-test-api-key");
+
+        var searchResponse = @"{
+            ""results"": [
+                {
+                    ""id"": 872585,
+                    ""title"": ""Oppenheimer"",
+                    ""release_date"": ""2023-07-19"",
+                    ""vote_average"": 8.1,
+                    ""overview"": ""Short search overview""
+                }
+            ]
+        }";
+
+        var detailsResponse = @"{
+            ""id"": 872585,
+            ""title"": ""Oppenheimer"",
+            ""release_date"": ""2023-07-21"",
+            ""overview"": ""The story of American scientist J. Robert Oppenheimer."",
+            ""vote_average"": 8.1,
+            ""poster_path"": ""/ptpr0kGAckfQkJeVUmjTVqz3Bnf.jpg"",
+            ""backdrop_path"": ""/fm6KqXpk3M2HVveHwCrBSSBaO0V.jpg"",
+            ""genres"": [
+                { ""id"": 18, ""name"": ""Drama"" },
+                { ""id"": 36, ""name"": ""History"" }
+            ],
+            ""external_ids"": {
+                ""imdb_id"": ""tt15398776"",
+                ""tvdb_id"": null
+            },
+            ""credits"": {
+                ""cast"": [
+                    { ""id"": 2037, ""name"": ""Cillian Murphy"", ""character"": ""J. Robert Oppenheimer"" },
+                    { ""id"": 5081, ""name"": ""Emily Blunt"", ""character"": ""Katherine 'Kitty' Oppenheimer"" },
+                    { ""id"": 1892, ""name"": ""Matt Damon"", ""character"": ""Leslie Groves"" },
+                    { ""id"": 3223, ""name"": ""Robert Downey Jr."", ""character"": ""Lewis Strauss"" }
+                ]
+            }
+        }";
+
+        var handler = new TestHttpMessageHandler();
+        var httpClient = new HttpClient(new TestHttpMessageHandlerWrapper(req =>
+        {
+            if (req.RequestUri!.AbsolutePath.Contains("/search/movie"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(searchResponse, System.Text.Encoding.UTF8, "application/json"),
+                };
+            }
+
+            if (req.RequestUri!.AbsolutePath.Contains("/movie/872585"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(detailsResponse, System.Text.Encoding.UTF8, "application/json"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+
+        var provider = new TmdbMetadataProvider(mockConfig, httpClient);
+        var result = await provider.FetchMetadataAsync("Oppenheimer.2023.2160p", "movies");
+
+        result.Should().NotBeNull();
+        result!.Title.Should().Be("Oppenheimer");
+        result.Year.Should().Be(2023);
+        result.ImdbId.Should().Be("tt15398776");
+        result.TmdbId.Should().Be("872585");
+        result.Genres.Should().Be("Drama, History");
+        result.PosterUrl.Should().Be("https://image.tmdb.org/t/p/original/ptpr0kGAckfQkJeVUmjTVqz3Bnf.jpg");
+        result.BackdropUrl.Should().Be("https://image.tmdb.org/t/p/original/fm6KqXpk3M2HVveHwCrBSSBaO0V.jpg");
+        result.Cast.Should().Contain(new[] { "Cillian Murphy", "Emily Blunt", "Matt Damon", "Robert Downey Jr." });
+    }
+
+    [Test]
     public async Task TvdbProvider_FetchMetadataAsync_CleansTvTitleAndExtractsMetadata()
     {
         var provider = new TvdbMetadataProvider();
@@ -865,6 +945,21 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
                 Content = new ByteArrayContent(this.ResponseBytes),
             };
             return Task.FromResult(response);
+        }
+    }
+
+    private class TestHttpMessageHandlerWrapper : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, HttpResponseMessage> handler;
+
+        public TestHttpMessageHandlerWrapper(Func<HttpRequestMessage, HttpResponseMessage> handler)
+        {
+            this.handler = handler;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(this.handler(request));
         }
     }
 

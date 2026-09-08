@@ -162,12 +162,12 @@ public class DynamicMediaMetadataProxy : IMediaMetadataService, IMediaMetadataMa
         }
     }
 
-    public async Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null)
+    public async Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null, string infoHash = null)
     {
         var provider = Volatile.Read(ref this.activeProvider);
         if (provider != null)
         {
-            var result = await provider.FetchMetadataAsync(title, category, year);
+            var result = await provider.FetchMetadataAsync(title, category, year, infoHash);
             if (result != null && !string.IsNullOrEmpty(result.PosterUrl))
             {
                 return result;
@@ -177,16 +177,33 @@ public class DynamicMediaMetadataProxy : IMediaMetadataService, IMediaMetadataMa
             {
                 try
                 {
-                    var fallbackResult = await fallback.FetchMetadataAsync(title, category, year);
+                    var fallbackResult = await fallback.FetchMetadataAsync(title, category, year, infoHash);
                     if (fallbackResult != null && !string.IsNullOrEmpty(fallbackResult.PosterUrl))
                     {
                         if (result != null)
                         {
                             result.PosterUrl ??= fallbackResult.PosterUrl;
                             result.BackdropUrl ??= fallbackResult.BackdropUrl;
+                            result.BannerUrl ??= fallbackResult.BannerUrl;
                             result.Overview = string.IsNullOrEmpty(result.Overview) ? fallbackResult.Overview : result.Overview;
                             result.Rating = result.Rating > 0 ? result.Rating : fallbackResult.Rating;
                             result.Genres = string.IsNullOrEmpty(result.Genres) ? fallbackResult.Genres : result.Genres;
+                            result.ImdbId ??= fallbackResult.ImdbId;
+                            result.TmdbId ??= fallbackResult.TmdbId;
+                            result.TvdbId ??= fallbackResult.TvdbId;
+                            result.MusicBrainzId ??= fallbackResult.MusicBrainzId;
+                            result.ArtistName ??= fallbackResult.ArtistName;
+                            result.AlbumTitle ??= fallbackResult.AlbumTitle;
+                            if (result.ArrMediaId <= 0 && fallbackResult.ArrMediaId > 0)
+                            {
+                                result.ArrMediaId = fallbackResult.ArrMediaId;
+                            }
+
+                            if ((result.Cast == null || result.Cast.Count == 0) && fallbackResult.Cast != null && fallbackResult.Cast.Count > 0)
+                            {
+                                result.Cast = fallbackResult.Cast;
+                            }
+
                             return result;
                         }
 
