@@ -33,6 +33,8 @@ public interface IWatchFolderService : IDisposable
 
     void OnFileSystemWatcherCreated(object sender, FileSystemEventArgs e);
 
+    void OnFileSystemWatcherChanged(object sender, FileSystemEventArgs e);
+
     void OnFileSystemWatcherRenamed(object sender, RenamedEventArgs e);
 }
 
@@ -189,9 +191,10 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
             this.watcher = new FileSystemWatcher(folder, "*.torrent")
             {
                 EnableRaisingEvents = true,
-                NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size,
             };
             this.watcher.Created += this.OnFileSystemWatcherCreated;
+            this.watcher.Changed += this.OnFileSystemWatcherChanged;
             this.watcher.Renamed += this.OnFileSystemWatcherRenamed;
         }
         catch (Exception ex)
@@ -208,6 +211,7 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
             {
                 this.watcher.EnableRaisingEvents = false;
                 this.watcher.Created -= this.OnFileSystemWatcherCreated;
+                this.watcher.Changed -= this.OnFileSystemWatcherChanged;
                 this.watcher.Renamed -= this.OnFileSystemWatcherRenamed;
                 this.watcher.Dispose();
             }
@@ -253,6 +257,37 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
     }
 
     public async Task HandleFileSystemWatcherCreatedAsync(FileSystemEventArgs e)
+    {
+        if (e == null || string.IsNullOrWhiteSpace(e.FullPath))
+        {
+            return;
+        }
+
+        if (!e.FullPath.EndsWith(".torrent", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var folder = Path.GetDirectoryName(e.FullPath) ?? this.configService.WatchFolderPath;
+        await this.ProcessFileAsync(e.FullPath, folder).ConfigureAwait(false);
+    }
+
+    public void OnFileSystemWatcherChanged(object sender, FileSystemEventArgs e)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await this.HandleFileSystemWatcherChangedAsync(e).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Error(ex, "Error processing changed watch folder file: {0}", e?.FullPath);
+            }
+        });
+    }
+
+    public async Task HandleFileSystemWatcherChangedAsync(FileSystemEventArgs e)
     {
         if (e == null || string.IsNullOrWhiteSpace(e.FullPath))
         {
