@@ -221,11 +221,19 @@ public class DynamicNetworkBindingProxyTest
     {
         using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         this.proxy.BindSocket(socket, "eth0");
-        this.managedSocketProvider.Received(1).BindSocket(socket, "eth0");
+        this.managedSocketProvider.Received(1).BindSocket(socket, "eth0", 0);
 
         var isUp = this.proxy.IsInterfaceUp("eth0");
         isUp.Should().BeTrue();
         this.managedSocketProvider.Received(1).IsInterfaceUp("eth0");
+    }
+
+    [Test]
+    public void Delegation_ForwardsBindSocketWithPortToActiveProvider()
+    {
+        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        this.proxy.BindSocket(socket, "eth0", 6881);
+        this.managedSocketProvider.Received(1).BindSocket(socket, "eth0", 6881);
     }
 
     [Test]

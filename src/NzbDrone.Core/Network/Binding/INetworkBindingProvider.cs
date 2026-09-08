@@ -21,7 +21,7 @@ public interface INetworkBindingProvider
 
     Task<NetworkBindingHealthCheckResult> ProbeHealthAsync();
 
-    void BindSocket(Socket socket, string interfaceName);
+    void BindSocket(Socket socket, string interfaceName, int localPort = 0);
 
     bool IsInterfaceUp(string interfaceName);
 }

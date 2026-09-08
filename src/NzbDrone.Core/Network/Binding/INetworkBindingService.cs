@@ -10,7 +10,7 @@ public interface INetworkBindingService
 
     string ActiveProviderId { get; }
 
-    void BindSocket(Socket socket, string interfaceName);
+    void BindSocket(Socket socket, string interfaceName, int localPort = 0);
 
     bool IsInterfaceUp(string interfaceName);
 
