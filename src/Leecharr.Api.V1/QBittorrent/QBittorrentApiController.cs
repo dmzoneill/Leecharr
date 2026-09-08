@@ -527,6 +527,10 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         [FromForm] List<IFormFile> torrents = null,
         [FromForm] string category = null,
         [FromForm] string savepath = null,
+        [FromForm] string downloadPath = null,
+        [FromForm] string download_path = null,
+        [FromForm] string cookie = null,
+        [FromForm] string cookies = null,
         [FromForm] string paused = null,
         [FromForm] string stopped = null,
         [FromForm] string tags = null,
@@ -536,6 +540,11 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         [FromForm] int? seedingTimeLimit = null,
         [FromForm] string contentLayout = null)
     {
+        var effectiveSavePath = !string.IsNullOrWhiteSpace(savepath)
+            ? savepath
+            : (!string.IsNullOrWhiteSpace(downloadPath) ? downloadPath : download_path);
+        var effectiveCookie = !string.IsNullOrWhiteSpace(cookie) ? cookie : cookies;
+
         var isPaused = string.Equals(paused, "true", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(stopped, "true", StringComparison.OrdinalIgnoreCase);
         var isSequential = string.Equals(sequentialDownload, "true", StringComparison.OrdinalIgnoreCase);
@@ -549,7 +558,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 var trimmed = url.Trim();
                 if (trimmed.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                 {
-                    var added = await this.torrentService.AddFromMagnetAsync(trimmed, category, savepath, isPaused);
+                    var added = await this.torrentService.AddFromMagnetAsync(trimmed, category, effectiveSavePath, isPaused);
                     if (added != null)
                     {
                         var needsUpdate = false;
@@ -588,9 +597,22 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     try
                     {
                         var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
-                        var bytes = await this.safeHttpClientService.DownloadBytesAsync(trimmed, maxSizeBytes: maxTorrentBytes);
+                        byte[] bytes;
+                        if (!string.IsNullOrWhiteSpace(effectiveCookie) && Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
+                        {
+                            var customHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                            {
+                                ["Cookie"] = effectiveCookie,
+                            };
+                            bytes = await this.safeHttpClientService.DownloadBytesAsync(uri, maxSizeBytes: maxTorrentBytes, customHeaders: customHeaders);
+                        }
+                        else
+                        {
+                            bytes = await this.safeHttpClientService.DownloadBytesAsync(trimmed, maxSizeBytes: maxTorrentBytes);
+                        }
+
                         var parsed = this.torrentFileParser.Parse(bytes);
-                        var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savepath, isPaused, bytes);
+                        var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, effectiveSavePath, isPaused, bytes);
                         if (added != null)
                         {
                             var needsUpdate = false;
@@ -643,7 +665,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     await file.CopyToAsync(ms);
                     var bytes = ms.ToArray();
                     var parsed = this.torrentFileParser.Parse(bytes);
-                    var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savepath, isPaused, bytes);
+                    var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, effectiveSavePath, isPaused, bytes);
                     if (added != null)
                     {
                         var needsUpdate = false;
