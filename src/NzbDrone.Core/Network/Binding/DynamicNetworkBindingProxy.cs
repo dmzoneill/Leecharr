@@ -114,6 +114,9 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
             };
         }
 
+        NetworkBindingProviderSwitchedEvent switchedEvent = null;
+        NetworkBindingSwitchResult result;
+
         await this.switchLock.WaitAsync();
         try
         {
@@ -138,9 +141,9 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
             });
 
             this.logger.Info("Network binding provider switched: {0} -> {1}", previousProvider.ProviderId, targetProvider.ProviderId);
-            this.eventAggregator?.PublishEvent(new NetworkBindingProviderSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId));
+            switchedEvent = new NetworkBindingProviderSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId);
 
-            return new NetworkBindingSwitchResult
+            result = new NetworkBindingSwitchResult
             {
                 Success = true,
                 PreviousProvider = previousProvider.ProviderId,
@@ -163,6 +166,13 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
         {
             this.switchLock.Release();
         }
+
+        if (switchedEvent != null)
+        {
+            this.eventAggregator?.PublishEvent(switchedEvent);
+        }
+
+        return result;
     }
 
     public void BindSocket(Socket socket, string interfaceName, int localPort = 0)
