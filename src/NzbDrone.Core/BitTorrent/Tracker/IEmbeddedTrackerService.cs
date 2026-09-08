@@ -32,7 +32,7 @@ public class TrackerAnnounceRequest
 
     public bool NoPeerId { get; set; }
 
-    public int NumWant { get; set; } = 50;
+    public int? NumWant { get; set; }
 
     public string TrackerId { get; set; }
 

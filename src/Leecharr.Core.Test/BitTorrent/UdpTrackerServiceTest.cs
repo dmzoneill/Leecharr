@@ -166,6 +166,52 @@ public class UdpTrackerServiceTest
     }
 
     [Test]
+    public void HandlePacket_Announce_WhenNumWantZero_ReturnsZeroPeers()
+    {
+        var connectPacket = new byte[16];
+        BinaryPrimitives.WriteInt64BigEndian(connectPacket.AsSpan(0, 8), 0x41727101980L);
+        BinaryPrimitives.WriteInt32BigEndian(connectPacket.AsSpan(8, 4), 0);
+        BinaryPrimitives.WriteInt32BigEndian(connectPacket.AsSpan(12, 4), 1);
+
+        var connectResp = this.udpTrackerService.HandlePacket(connectPacket, new IPEndPoint(IPAddress.Loopback, 12345));
+        var connectionId = BinaryPrimitives.ReadInt64BigEndian(connectResp.AsSpan(8, 8));
+
+        this.trackerService.Announce(Arg.Any<TrackerAnnounceRequest>()).Returns(new TrackerAnnounceResult
+        {
+            Success = true,
+            Interval = 1800,
+            Leechers = 5,
+            Seeders = 3,
+            Peers = new List<TrackerPeerState>(),
+        });
+
+        var announcePacket = new byte[98];
+        BinaryPrimitives.WriteInt64BigEndian(announcePacket.AsSpan(0, 8), connectionId);
+        BinaryPrimitives.WriteInt32BigEndian(announcePacket.AsSpan(8, 4), 1);
+        BinaryPrimitives.WriteInt32BigEndian(announcePacket.AsSpan(12, 4), 43);
+        BinaryPrimitives.WriteInt64BigEndian(announcePacket.AsSpan(56, 8), 0);
+        BinaryPrimitives.WriteInt64BigEndian(announcePacket.AsSpan(64, 8), 0);
+        BinaryPrimitives.WriteInt64BigEndian(announcePacket.AsSpan(72, 8), 0);
+        BinaryPrimitives.WriteInt32BigEndian(announcePacket.AsSpan(80, 4), 0);
+        BinaryPrimitives.WriteUInt32BigEndian(announcePacket.AsSpan(84, 4), 0);
+        BinaryPrimitives.WriteUInt32BigEndian(announcePacket.AsSpan(88, 4), 1234);
+        BinaryPrimitives.WriteInt32BigEndian(announcePacket.AsSpan(92, 4), 0); // num_want = 0
+        BinaryPrimitives.WriteUInt16BigEndian(announcePacket.AsSpan(96, 2), 6881);
+
+        var response = this.udpTrackerService.HandlePacket(announcePacket, new IPEndPoint(IPAddress.Loopback, 12345));
+        response.Should().NotBeNull();
+        response.Length.Should().Be(20); // 20 header bytes only, 0 peer bytes
+
+        BinaryPrimitives.ReadInt32BigEndian(response.AsSpan(0, 4)).Should().Be(1);
+        BinaryPrimitives.ReadInt32BigEndian(response.AsSpan(4, 4)).Should().Be(43);
+        BinaryPrimitives.ReadInt32BigEndian(response.AsSpan(8, 4)).Should().Be(1800);
+        BinaryPrimitives.ReadInt32BigEndian(response.AsSpan(12, 4)).Should().Be(5);
+        BinaryPrimitives.ReadInt32BigEndian(response.AsSpan(16, 4)).Should().Be(3);
+
+        this.trackerService.Received(1).Announce(Arg.Is<TrackerAnnounceRequest>(r => r.NumWant == 0));
+    }
+
+    [Test]
     public void HandlePacket_Announce_InvalidConnectionId_ReturnsErrorResponse()
     {
         var announcePacket = new byte[98];

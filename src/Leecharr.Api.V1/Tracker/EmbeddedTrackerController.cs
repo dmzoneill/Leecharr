@@ -93,7 +93,6 @@ public class EmbeddedTrackerController : ControllerBase
         {
             RemoteIp = remoteIp ?? IPAddress.Loopback,
             Compact = true,
-            NumWant = 50,
         };
 
         if (string.IsNullOrWhiteSpace(rawQuery))
@@ -151,7 +150,7 @@ public class EmbeddedTrackerController : ControllerBase
             {
                 request.Compact = val == "1";
             }
-            else if (string.Equals(key, "numwant", StringComparison.OrdinalIgnoreCase) && int.TryParse(val, out var want))
+            else if ((string.Equals(key, "numwant", StringComparison.OrdinalIgnoreCase) || string.Equals(key, "num_want", StringComparison.OrdinalIgnoreCase)) && int.TryParse(val, out var want))
             {
                 request.NumWant = want;
             }

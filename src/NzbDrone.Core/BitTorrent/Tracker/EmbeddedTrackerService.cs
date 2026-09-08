@@ -354,7 +354,14 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
 
         Random.Shared.Shuffle(eligiblePeers);
 
-        var numWant = request.NumWant > 0 ? request.NumWant : (this.configService?.TrackerMaxPeersPerAnnounce ?? 50);
+        var maxPerAnnounce = this.configService?.TrackerMaxPeersPerAnnounce ?? 50;
+        var numWant = request.NumWant switch
+        {
+            0 => 0,
+            > 0 => Math.Min(request.NumWant.Value, maxPerAnnounce),
+            _ => maxPerAnnounce,
+        };
+
         var candidatePeers = eligiblePeers.Take(numWant).ToList();
 
         return new TrackerAnnounceResult
