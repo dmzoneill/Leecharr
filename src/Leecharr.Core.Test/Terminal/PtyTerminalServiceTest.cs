@@ -146,4 +146,55 @@ public class PtyTerminalServiceTest
         sb.Length.Should().BeGreaterThan(0);
         session.Kill();
     }
+
+    [Test]
+    public void StatefulUtf8Decoding_AcrossChunkBoundaries_DecodesWithoutReplacementCharacters()
+    {
+        var decoder = Encoding.UTF8.GetDecoder();
+        var fullString = "🚀 Hello, 世界! Testing ┌─┐ unicode borders 💻";
+        var fullBytes = Encoding.UTF8.GetBytes(fullString);
+
+        // Intentionally split the bytes across chunks right in the middle of multi-byte sequences
+        var charBuffer = new char[1024];
+        var sb = new StringBuilder();
+
+        int chunkSize = 7;
+        for (int offset = 0; offset < fullBytes.Length; offset += chunkSize)
+        {
+            int count = Math.Min(chunkSize, fullBytes.Length - offset);
+            int charsDecoded = decoder.GetChars(fullBytes, offset, count, charBuffer, 0, flush: false);
+            if (charsDecoded > 0)
+            {
+                sb.Append(charBuffer, 0, charsDecoded);
+            }
+        }
+
+        int finalChars = decoder.GetChars(Array.Empty<byte>(), 0, 0, charBuffer, 0, flush: true);
+        if (finalChars > 0)
+        {
+            sb.Append(charBuffer, 0, finalChars);
+        }
+
+        var result = sb.ToString();
+        result.Should().Be(fullString);
+        result.Should().NotContain("\uFFFD");
+    }
+
+    [Test]
+    public async Task Kill_TerminatesSessionAndMarksInactive()
+    {
+        var service = new PtyTerminalService();
+        var session = service.CreateSession("/tmp", 80, 24);
+
+        session.IsActive.Should().BeTrue();
+        session.Kill();
+
+        session.IsActive.Should().BeFalse();
+
+        // Repeated kill should be idempotent
+        Action act = () => session.Kill();
+        act.Should().NotThrow();
+
+        await session.DisposeAsync();
+    }
 }
