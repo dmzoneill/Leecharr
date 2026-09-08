@@ -570,6 +570,21 @@ public class FloodApiController : ControllerBase, IActionFilter
         return this.Ok(new { success = true });
     }
 
+    public static int ToFloodPriority(int internalPriority) => internalPriority switch
+    {
+        <= 0 => 0,
+        1 or 2 or 3 => 1,
+        >= 4 => 2,
+    };
+
+    public static int FromFloodPriority(int floodPriority) => floodPriority switch
+    {
+        0 => 0,
+        1 => 3,
+        2 => 4,
+        _ => 3,
+    };
+
     [HttpGet]
     [Route("api/torrents/{hash}/contents")]
     public IActionResult GetContents([FromRoute] string hash)
@@ -589,7 +604,7 @@ public class FloodApiController : ControllerBase, IActionFilter
             path = f.Path,
             sizeBytes = f.Size,
             percentComplete = f.Progress * 100.0,
-            priority = f.Priority,
+            priority = ToFloodPriority(f.Priority),
         });
 
         return this.Ok(result);
@@ -614,6 +629,7 @@ public class FloodApiController : ControllerBase, IActionFilter
 
         if (request?.Indices != null)
         {
+            var internalPrio = FromFloodPriority(request.Priority);
             foreach (var h in targetHashes)
             {
                 var t = this.torrentService.GetByInfoHash(h);
@@ -624,9 +640,48 @@ public class FloodApiController : ControllerBase, IActionFilter
                     {
                         if (idx >= 0 && idx < files.Count)
                         {
-                            await this.torrentFileService.SetPriorityAsync(files[idx].Id, request.Priority);
+                            await this.torrentFileService.SetPriorityAsync(files[idx].Id, internalPrio);
                         }
                     }
+                }
+            }
+        }
+
+        return this.Ok(new { success = true });
+    }
+
+    [HttpPost]
+    [HttpPatch]
+    [Route("api/torrents/set-location")]
+    public async Task<IActionResult> SetLocation([FromBody] FloodSetLocationRequest request)
+    {
+        if (request?.Hashes != null && !string.IsNullOrWhiteSpace(request.Destination))
+        {
+            foreach (var hash in request.Hashes)
+            {
+                var t = this.torrentService.GetByInfoHash(hash);
+                if (t != null)
+                {
+                    await this.torrentService.SetLocationAsync(t.Id, request.Destination, request.MoveFiles);
+                }
+            }
+        }
+
+        return this.Ok(new { success = true });
+    }
+
+    [HttpPost]
+    [Route("api/torrents/reannounce")]
+    public async Task<IActionResult> Reannounce([FromBody] FloodReannounceRequest request)
+    {
+        if (request?.Hashes != null)
+        {
+            foreach (var hash in request.Hashes)
+            {
+                var t = this.torrentService.GetByInfoHash(hash);
+                if (t != null)
+                {
+                    await this.torrentService.ForceAnnounceAsync(t.Id);
                 }
             }
         }
@@ -681,4 +736,18 @@ public class FloodSetPriorityRequest
     public List<int> Indices { get; set; } = new();
 
     public int Priority { get; set; } = 1;
+}
+
+public class FloodSetLocationRequest
+{
+    public List<string> Hashes { get; set; } = new();
+
+    public string Destination { get; set; }
+
+    public bool MoveFiles { get; set; } = true;
+}
+
+public class FloodReannounceRequest
+{
+    public List<string> Hashes { get; set; } = new();
 }
