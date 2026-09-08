@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -2631,7 +2632,75 @@ public class MonoTorrentDownloadEngineTest
             System.Net.Sockets.ProtocolType.Udp);
 
         udpSocket.Should().NotBeNull();
-        mockBindingService.Received(1).BindSocket(udpSocket, "wg0");
+        mockBindingService.Received(1).BindSocket(udpSocket, "wg0", 0);
+    }
+
+    [Test]
+    public void BoundSocketConnector_BindSocket_WhenNetworkBindingBindsSocket_AvoidsDoubleBindSocketException()
+    {
+        var mockBindingService = Substitute.For<NzbDrone.Core.Network.Binding.INetworkBindingService>();
+        mockBindingService.When(x => x.BindSocket(Arg.Any<Socket>(), Arg.Any<string>(), Arg.Any<int>()))
+            .Do(ci =>
+            {
+                var s = ci.Arg<Socket>();
+                s.Bind(new IPEndPoint(IPAddress.Loopback, ci.Arg<int>()));
+            });
+
+        var connector = new BoundSocketConnector(
+            () => IPAddress.Loopback,
+            () => IPAddress.IPv6Loopback,
+            mockBindingService,
+            () => "tun0");
+
+        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+        var act = () => connector.BindSocket(socket, 0);
+
+        act.Should().NotThrow();
+        socket.IsBound.Should().BeTrue();
+        mockBindingService.Received(1).BindSocket(socket, "tun0", 0);
+    }
+
+    [Test]
+    public void BoundSocketConnector_BindSocket_PassesSpecifiedLocalPortToNetworkBindingService()
+    {
+        var mockBindingService = Substitute.For<NzbDrone.Core.Network.Binding.INetworkBindingService>();
+        var connector = new BoundSocketConnector(
+            () => IPAddress.Any,
+            () => IPAddress.IPv6Any,
+            mockBindingService,
+            () => "wg0");
+
+        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        connector.BindSocket(socket, 6881);
+
+        mockBindingService.Received(1).BindSocket(socket, "wg0", 6881);
+    }
+
+    [Test]
+    public void BoundSocketConnector_CreateBoundSocket_WhenNetworkBindingBinds_DoesNotThrowDoubleBind()
+    {
+        var mockBindingService = Substitute.For<NzbDrone.Core.Network.Binding.INetworkBindingService>();
+        mockBindingService.When(x => x.BindSocket(Arg.Any<Socket>(), Arg.Any<string>(), Arg.Any<int>()))
+            .Do(ci =>
+            {
+                var s = ci.Arg<Socket>();
+                s.Bind(new IPEndPoint(IPAddress.Loopback, ci.Arg<int>()));
+            });
+
+        var connector = new BoundSocketConnector(
+            () => IPAddress.Loopback,
+            () => IPAddress.IPv6Loopback,
+            mockBindingService,
+            () => "tun0");
+
+        using var socket = connector.CreateBoundSocket(
+            AddressFamily.InterNetwork,
+            SocketType.Dgram,
+            ProtocolType.Udp,
+            0);
+
+        socket.Should().NotBeNull();
+        socket.IsBound.Should().BeTrue();
     }
 
     [Test]

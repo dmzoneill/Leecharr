@@ -4210,7 +4210,12 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
         var ifaceName = this.getInterfaceName?.Invoke();
         if (this.networkBindingService != null && !string.IsNullOrWhiteSpace(ifaceName))
         {
-            this.networkBindingService.BindSocket(socket, ifaceName);
+            this.networkBindingService.BindSocket(socket, ifaceName, localPort);
+        }
+
+        if (socket.IsBound)
+        {
+            return;
         }
 
         var localV4 = this.getLocalIpv4();

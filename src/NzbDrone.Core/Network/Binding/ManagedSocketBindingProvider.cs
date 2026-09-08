@@ -58,7 +58,7 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
         }
     }
 
-    public void BindSocket(Socket socket, string interfaceName)
+    public void BindSocket(Socket socket, string interfaceName, int localPort = 0)
     {
         if (socket == null)
         {
@@ -73,8 +73,8 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
         var ip = GetInterfaceIp(interfaceName, socket.AddressFamily);
         if (ip != null)
         {
-            socket.Bind(new IPEndPoint(ip, 0));
-            this.logger.Debug("Bound socket to interface '{0}' ({1})", interfaceName, ip);
+            socket.Bind(new IPEndPoint(ip, localPort));
+            this.logger.Debug("Bound socket to interface '{0}' ({1}:{2})", interfaceName, ip, localPort);
         }
         else
         {

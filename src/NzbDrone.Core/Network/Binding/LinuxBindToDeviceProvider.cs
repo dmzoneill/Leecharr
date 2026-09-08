@@ -93,7 +93,7 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
         }
     }
 
-    public void BindSocket(Socket socket, string interfaceName)
+    public void BindSocket(Socket socket, string interfaceName, int localPort = 0)
     {
         if (socket == null)
         {
