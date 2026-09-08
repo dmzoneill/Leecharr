@@ -723,6 +723,7 @@ export interface RssRule {
   minSeeders: number;
   minSizeBytes: number;
   maxSizeBytes: number;
+  maxAgeDays?: number;
   freeleechOnly: boolean;
   categoryId: number;
   indexerIds: number[];
