@@ -283,6 +283,16 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
         }
     }
 
+    public void Reload()
+    {
+        lock (this.@lock)
+        {
+            this.reader?.Dispose();
+            this.reader = null;
+            this.resolvedDatabasePath = null;
+        }
+    }
+
     public void Dispose()
     {
         if (!this.disposed)

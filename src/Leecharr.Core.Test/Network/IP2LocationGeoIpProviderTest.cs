@@ -157,6 +157,100 @@ public class IP2LocationGeoIpProviderTest
     }
 
     [Test]
+    public async Task LookupAsync_WithDatabaseWithoutTerminatorRecord_EvaluatesLastRecordWithoutSeekingPastTableBoundary()
+    {
+        CreateSampleBinaryDatabaseWithoutTerminators(this.tempDbFile);
+        var diskMock = Substitute.For<IDiskProvider>();
+        diskMock.FileExists(this.tempDbFile).Returns(true);
+
+        using var provider = new TestableIP2LocationGeoIpProvider(this.tempDbFile, diskMock, this.appFolderInfo);
+
+        var ipv4Result = await provider.LookupAsync("150.0.0.1");
+        ipv4Result.Should().NotBeNull();
+        ipv4Result.CountryCode.Should().Be("GB");
+
+        var ipv4BoundaryResult = await provider.LookupAsync("255.255.255.255");
+        ipv4BoundaryResult.Should().NotBeNull();
+        ipv4BoundaryResult.CountryCode.Should().Be("GB");
+
+        var ipv6Result = await provider.LookupAsync("2001:db8:2::1");
+        ipv6Result.Should().NotBeNull();
+        ipv6Result.CountryCode.Should().Be("GB");
+
+        var ipv6BoundaryResult = await provider.LookupAsync("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff");
+        ipv6BoundaryResult.Should().NotBeNull();
+        ipv6BoundaryResult.CountryCode.Should().Be("GB");
+    }
+
+    private static void CreateSampleBinaryDatabaseWithoutTerminators(string filePath)
+    {
+        using var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write);
+        using var writer = new BinaryWriter(stream);
+
+        // Header: 21 bytes (offsets 0..20)
+        // IPv4 Records: exactly 2 entries * 8 bytes = 16 bytes (offsets 21..36). Base address (1-based) = 22
+        // IPv6 Records: exactly 2 entries * 20 bytes = 40 bytes (offsets 37..76). Base address (1-based) = 38
+        // Country String 1 (US): offset 77
+        // Country String 2 (GB): offset 94
+        const uint baseAddrIPv4 = 22;
+        const uint baseAddrIPv6 = 38;
+        const uint countryOffsetUS = 77;
+        const uint countryOffsetGB = 94;
+
+        // Header
+        writer.Write((byte)1); // dbType
+        writer.Write((byte)2); // dbColumn (IP From + Country)
+        writer.Write((byte)26); // year
+        writer.Write((byte)9); // month
+        writer.Write((byte)5); // day
+        writer.Write(2u); // ipv4Count (exactly 2)
+        writer.Write(baseAddrIPv4); // baseAddress (1-based)
+        writer.Write(2u); // ipv6Count (exactly 2)
+        writer.Write(baseAddrIPv6); // baseAddressIPv6 (1-based)
+
+        // IPv4 Record 0: 0.0.0.0 -> US
+        var ipBytes1 = IPAddress.Parse("0.0.0.0").GetAddressBytes();
+        Array.Reverse(ipBytes1);
+        writer.Write(BitConverter.ToUInt32(ipBytes1, 0));
+        writer.Write(countryOffsetUS);
+
+        // IPv4 Record 1: 9.0.0.0 -> GB (last record, NO terminator following it!)
+        var ipBytes2 = IPAddress.Parse("9.0.0.0").GetAddressBytes();
+        Array.Reverse(ipBytes2);
+        writer.Write(BitConverter.ToUInt32(ipBytes2, 0));
+        writer.Write(countryOffsetGB);
+
+        // IPv6 Record 0: :: -> US
+        var ipv6Bytes0 = new byte[16];
+        writer.Write(ipv6Bytes0);
+        writer.Write(countryOffsetUS);
+
+        // IPv6 Record 1: 2001:db8:1:: -> GB (last record, NO terminator following it!)
+        var ipv6Addr1 = IPAddress.Parse("2001:db8:1::").GetAddressBytes();
+        var ip1BigInt = new BigInteger(ipv6Addr1, isUnsigned: true, isBigEndian: true);
+        var ip1LeBytes = new byte[16];
+        var exported = ip1BigInt.ToByteArray(isUnsigned: true, isBigEndian: false);
+        Array.Copy(exported, ip1LeBytes, Math.Min(exported.Length, 16));
+        writer.Write(ip1LeBytes);
+        writer.Write(countryOffsetGB);
+
+        // Country Strings (directly after records, any seek past row 1 would read strings or fail)
+        var usCode = Encoding.ASCII.GetBytes("US");
+        var usName = Encoding.ASCII.GetBytes("United States");
+        writer.Write((byte)usCode.Length);
+        writer.Write(usCode);
+        writer.Write((byte)usName.Length);
+        writer.Write(usName);
+
+        var gbCode = Encoding.ASCII.GetBytes("GB");
+        var gbName = Encoding.ASCII.GetBytes("United Kingdom");
+        writer.Write((byte)gbCode.Length);
+        writer.Write(gbCode);
+        writer.Write((byte)gbName.Length);
+        writer.Write(gbName);
+    }
+
+    [Test]
     public async Task ProbeHealthAsync_WhenDatabaseValid_ReturnsHealthy()
     {
         CreateSampleBinaryDatabase(this.tempDbFile);
