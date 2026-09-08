@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,16 +22,27 @@ public interface IArchiveExtractorService
 
 public class ArchiveExtractorService : IArchiveExtractorService
 {
-    private readonly IArchiveExtractorProvider provider;
+    public const int DefaultMaxConcurrentExtractions = 2;
 
-    public ArchiveExtractorService(IDiskProvider diskProvider)
+    private readonly IArchiveExtractorProvider provider;
+    private readonly SemaphoreSlim extractionSemaphore;
+
+    public SemaphoreSlim ConcurrencySemaphore => this.extractionSemaphore;
+
+    public int ConcurrencyLimit { get; }
+
+    public ArchiveExtractorService(IDiskProvider diskProvider, int maxConcurrentExtractions = DefaultMaxConcurrentExtractions)
     {
         this.provider = new SharpCompressExtractorProvider(diskProvider);
+        this.ConcurrencyLimit = Math.Max(1, maxConcurrentExtractions);
+        this.extractionSemaphore = new SemaphoreSlim(this.ConcurrencyLimit, this.ConcurrencyLimit);
     }
 
-    public ArchiveExtractorService(IArchiveExtractorProvider provider)
+    public ArchiveExtractorService(IArchiveExtractorProvider provider, int maxConcurrentExtractions = DefaultMaxConcurrentExtractions)
     {
         this.provider = provider;
+        this.ConcurrencyLimit = Math.Max(1, maxConcurrentExtractions);
+        this.extractionSemaphore = new SemaphoreSlim(this.ConcurrencyLimit, this.ConcurrencyLimit);
     }
 
     public bool IsArchiveFile(string filePath)
@@ -38,13 +50,21 @@ public class ArchiveExtractorService : IArchiveExtractorService
         return this.provider.CanExtract(filePath);
     }
 
-    public Task<bool> ExtractArchiveAsync(
+    public async Task<bool> ExtractArchiveAsync(
         string archiveFilePath,
         string destinationDirectory = null,
         string password = null,
         IReadOnlyList<string> passwordCandidates = null,
         CancellationToken cancellationToken = default)
     {
-        return this.provider.ExtractAsync(archiveFilePath, destinationDirectory, password, passwordCandidates, cancellationToken);
+        await this.extractionSemaphore.WaitAsync(cancellationToken);
+        try
+        {
+            return await this.provider.ExtractAsync(archiveFilePath, destinationDirectory, password, passwordCandidates, cancellationToken);
+        }
+        finally
+        {
+            this.extractionSemaphore.Release();
+        }
     }
 }

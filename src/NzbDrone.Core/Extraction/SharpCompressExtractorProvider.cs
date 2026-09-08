@@ -15,7 +15,10 @@ namespace NzbDrone.Core.Extraction;
 
 public class SharpCompressExtractorProvider : IArchiveExtractorProvider
 {
+    public const int DefaultBufferSize = 128 * 1024; // 128 KB high-throughput chunk buffer
+
     private readonly IDiskProvider diskProvider;
+    private readonly int bufferSize;
     private readonly Logger logger;
 
     private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -33,6 +36,8 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
 
     public bool IsAvailable => true;
 
+    public int BufferSize => this.bufferSize;
+
     public ArchiveExtractorCapabilities Capabilities { get; } = new()
     {
         SupportsRar5 = true,
@@ -45,9 +50,10 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
         SupportsRecoveryVolumes = false,
     };
 
-    public SharpCompressExtractorProvider(IDiskProvider diskProvider)
+    public SharpCompressExtractorProvider(IDiskProvider diskProvider, int bufferSize = DefaultBufferSize)
     {
         this.diskProvider = diskProvider;
+        this.bufferSize = bufferSize > 0 ? bufferSize : DefaultBufferSize;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -102,9 +108,15 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
 
         this.diskProvider.EnsureFolder(targetDir);
 
+        var canonicalTarget = Path.GetFullPath(targetDir);
+        if (!canonicalTarget.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal))
+        {
+            canonicalTarget += Path.DirectorySeparatorChar;
+        }
+
         var passwordsToTry = BuildPasswordCandidateList(password, passwordCandidates);
 
-        bool ExtractAction()
+        async Task<bool> ExtractActionAsync()
         {
             Exception lastException = null;
 
@@ -127,16 +139,54 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
 
                     using var archive = ArchiveFactory.OpenArchive(archivePath, readerOptions);
 
-                    var options = new ExtractionOptions
-                    {
-                        ExtractFullPath = true,
-                        Overwrite = true,
-                    };
-
                     foreach (var entry in archive.Entries.Where(entry => !entry.IsDirectory))
                     {
                         cancellationToken.ThrowIfCancellationRequested();
-                        entry.WriteToDirectory(targetDir, options);
+
+                        var entryKey = entry.Key;
+                        if (string.IsNullOrEmpty(entryKey))
+                        {
+                            continue;
+                        }
+
+                        var entryPath = entryKey.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
+                        var targetFilePath = Path.GetFullPath(Path.Combine(targetDir, entryPath));
+
+                        if (!targetFilePath.StartsWith(canonicalTarget, StringComparison.OrdinalIgnoreCase))
+                        {
+                            this.logger.Warn("ZipSlip traversal detected in archive '{0}' for entry '{1}'. Skipping entry.", archivePath, entryKey);
+                            continue;
+                        }
+
+                        var entryDir = Path.GetDirectoryName(targetFilePath);
+                        if (!string.IsNullOrEmpty(entryDir))
+                        {
+                            this.diskProvider.EnsureFolder(entryDir);
+                        }
+
+                        using (var entryStream = entry.OpenEntryStream())
+                        using (var fileStream = new FileStream(
+                            targetFilePath,
+                            FileMode.Create,
+                            FileAccess.Write,
+                            FileShare.None,
+                            this.bufferSize,
+                            FileOptions.Asynchronous | FileOptions.SequentialScan))
+                        {
+                            await entryStream.CopyToAsync(fileStream, this.bufferSize, cancellationToken);
+                        }
+
+                        if (entry.LastModifiedTime.HasValue)
+                        {
+                            try
+                            {
+                                File.SetLastWriteTimeUtc(targetFilePath, entry.LastModifiedTime.Value.ToUniversalTime());
+                            }
+                            catch
+                            {
+                                // Ignore failure updating file timestamp
+                            }
+                        }
                     }
 
                     this.logger.Info("SharpCompress successfully extracted archive '{0}'.", archivePath);
@@ -165,7 +215,7 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
             return false;
         }
 
-        return await Task.Run(ExtractAction, cancellationToken);
+        return await ExtractActionAsync();
     }
 
     private static List<string> BuildPasswordCandidateList(string password, IReadOnlyList<string> passwordCandidates)

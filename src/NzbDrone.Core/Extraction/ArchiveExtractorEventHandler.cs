@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Common.Disk;
@@ -41,20 +42,31 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
     private readonly IDiskProvider diskProvider;
     private readonly IEventAggregator eventAggregator;
     private readonly IConfigService configService;
+    private readonly SemaphoreSlim extractionSemaphore;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
+
+    public SemaphoreSlim ConcurrencySemaphore => this.extractionSemaphore;
+
+    public int ConcurrencyLimit { get; }
 
     public ArchiveExtractorEventHandler(
         IArchiveExtractorService extractorService,
         ITorrentFileService torrentFileService,
         IDiskProvider diskProvider,
         IEventAggregator eventAggregator,
-        IConfigService configService = null)
+        IConfigService configService = null,
+        int? maxConcurrentExtractions = null)
     {
         this.extractorService = extractorService;
         this.torrentFileService = torrentFileService;
         this.diskProvider = diskProvider;
         this.eventAggregator = eventAggregator;
         this.configService = configService;
+
+        var concurrency = maxConcurrentExtractions
+            ?? (configService != null && configService.MaxConcurrentExtractions > 0 ? configService.MaxConcurrentExtractions : 2);
+        this.ConcurrencyLimit = Math.Max(1, concurrency);
+        this.extractionSemaphore = new SemaphoreSlim(this.ConcurrencyLimit, this.ConcurrencyLimit);
     }
 
     public void Handle(TorrentDownloadCompletedEvent message)
@@ -152,8 +164,19 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
                                 continue;
                             }
 
-                            this.logger.Info("Auto-extracting archive {0} for completed torrent {1}", fullPath, message.Torrent.Name);
-                            var success = await this.extractorService.ExtractArchiveAsync(fullPath, destDir, password, candidatePasswords);
+                            this.logger.Info("Queuing auto-extraction for archive {0} for completed torrent {1}", fullPath, message.Torrent.Name);
+                            await this.extractionSemaphore.WaitAsync();
+                            bool success;
+                            try
+                            {
+                                this.logger.Info("Auto-extracting archive {0} for completed torrent {1}", fullPath, message.Torrent.Name);
+                                success = await this.extractorService.ExtractArchiveAsync(fullPath, destDir, password, candidatePasswords);
+                            }
+                            finally
+                            {
+                                this.extractionSemaphore.Release();
+                            }
+
                             if (success)
                             {
                                 this.RecordExtractionReceipt(destDir, fullPath);
