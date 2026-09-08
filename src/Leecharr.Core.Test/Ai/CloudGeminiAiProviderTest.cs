@@ -159,6 +159,253 @@ public class CloudGeminiAiProviderTest
         parsed.ConfidenceScore.Should().Be(0.98);
     }
 
+    [Test]
+    public async Task ProbeHealthAsync_EscapesModelAndApiKeyInUri()
+    {
+        this.configService.GetValue("GeminiApiKey", Arg.Any<string>()).Returns("key+123/456=&");
+        this.configService.GetValue("GeminiModel", Arg.Any<string>()).Returns("tunedModels/release-parser+v1");
+
+        string requestedUrl = null;
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            requestedUrl = req.RequestUri?.ToString();
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new CloudGeminiAiProvider(this.configService, client);
+
+        var health = await provider.ProbeHealthAsync();
+        health.IsHealthy.Should().BeTrue();
+        requestedUrl.Should().NotBeNull();
+        requestedUrl.Should().Contain("models/tunedModels%2Frelease-parser%2Bv1?key=key%2B123%2F456%3D%26");
+    }
+
+    [Test]
+    public async Task GenerateChatResponseAsync_EscapesModelAndApiKeyInUri()
+    {
+        this.configService.GetValue("GeminiApiKey", Arg.Any<string>()).Returns("key+123/456=&");
+        this.configService.GetValue("GeminiModel", Arg.Any<string>()).Returns("tunedModels/release-parser+v1");
+
+        string requestedUrl = null;
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            requestedUrl = req.RequestUri?.ToString();
+            var responseJson = @"{
+                ""candidates"": [
+                    {
+                        ""content"": {
+                            ""parts"": [
+                                {
+                                    ""text"": ""Hello!""
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }";
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseJson),
+            });
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new CloudGeminiAiProvider(this.configService, client);
+
+        var response = await provider.GenerateChatResponseAsync("test");
+        response.Should().Be("Hello!");
+        requestedUrl.Should().NotBeNull();
+        requestedUrl.Should().Contain("models/tunedModels%2Frelease-parser%2Bv1:generateContent?key=key%2B123%2F456%3D%26");
+    }
+
+    [Test]
+    public async Task ParseReleaseAsync_WhenBooleansAreStringsNumbersOrNull_ParsesCorrectlyWithoutException()
+    {
+        var innerJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            cleanTitle = "Dune Part Two",
+            isProper = "true",
+            isRepack = 0,
+            isRemux = 1,
+            confidenceScore = 0.95,
+        });
+
+        var responseJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            candidates = new[]
+            {
+                new
+                {
+                    content = new
+                    {
+                        parts = new[]
+                        {
+                            new { text = innerJson },
+                        },
+                    },
+                },
+            },
+        });
+
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseJson),
+            });
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new CloudGeminiAiProvider(this.configService, client);
+
+        var parsed = await provider.ParseReleaseAsync("Dune.Part.Two.2024.2160p-FLUX");
+        parsed.CleanTitle.Should().Be("Dune Part Two");
+        parsed.IsProper.Should().BeTrue();
+        parsed.IsRepack.Should().BeFalse();
+        parsed.IsRemux.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task ParseReleaseAsync_WhenBooleansAreYesOrNull_ParsesCorrectly()
+    {
+        var innerJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            cleanTitle = "Dune Part Two",
+            isProper = "yes",
+            isRepack = (object)null,
+            isRemux = "false",
+            confidenceScore = 0.95,
+        });
+
+        var responseJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            candidates = new[]
+            {
+                new
+                {
+                    content = new
+                    {
+                        parts = new[]
+                        {
+                            new { text = innerJson },
+                        },
+                    },
+                },
+            },
+        });
+
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseJson),
+            });
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new CloudGeminiAiProvider(this.configService, client);
+
+        var parsed = await provider.ParseReleaseAsync("Dune.Part.Two.2024.2160p-FLUX");
+        parsed.CleanTitle.Should().Be("Dune Part Two");
+        parsed.IsProper.Should().BeTrue();
+        parsed.IsRepack.Should().BeFalse();
+        parsed.IsRemux.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task AnalyzeMalwareRiskAsync_WhenIsSuspiciousIsNonBooleanOrNull_ParsesCorrectly()
+    {
+        var innerJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            riskLevel = "Suspicious",
+            riskScore = 0.1,
+            isSuspicious = "true",
+            suspiciousFiles = new[] { "payload.exe" },
+            threatReasons = new[] { "Executable found" },
+            recommendations = new[] { "Do not run" },
+        });
+
+        var responseJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            candidates = new[]
+            {
+                new
+                {
+                    content = new
+                    {
+                        parts = new[]
+                        {
+                            new { text = innerJson },
+                        },
+                    },
+                },
+            },
+        });
+
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseJson),
+            });
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new CloudGeminiAiProvider(this.configService, client);
+
+        var assessment = await provider.AnalyzeMalwareRiskAsync("TestTorrent", Array.Empty<NzbDrone.Core.Torrents.TorrentFile>());
+        assessment.IsSuspicious.Should().BeTrue();
+        assessment.RiskLevel.Should().Be("Suspicious");
+        assessment.SuspiciousFileNames.Should().Contain("payload.exe");
+    }
+
+    [Test]
+    public async Task AnalyzeMalwareRiskAsync_WhenIsSuspiciousIsNull_FallsBackToRiskScore()
+    {
+        var innerJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            riskLevel = "Suspicious",
+            riskScore = 0.8,
+            isSuspicious = (object)null,
+            suspiciousFiles = Array.Empty<string>(),
+            threatReasons = Array.Empty<string>(),
+            recommendations = Array.Empty<string>(),
+        });
+
+        var responseJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            candidates = new[]
+            {
+                new
+                {
+                    content = new
+                    {
+                        parts = new[]
+                        {
+                            new { text = innerJson },
+                        },
+                    },
+                },
+            },
+        });
+
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseJson),
+            });
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new CloudGeminiAiProvider(this.configService, client);
+
+        var assessment = await provider.AnalyzeMalwareRiskAsync("TestTorrent", Array.Empty<NzbDrone.Core.Torrents.TorrentFile>());
+        assessment.IsSuspicious.Should().BeTrue();
+        assessment.RiskScore.Should().Be(0.8);
+    }
+
     private class MockHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handler;
