@@ -428,4 +428,73 @@ public class ProxyTunnelBindingProviderTest
             await proxyServerTask;
         }
     }
+
+    [Test]
+    public async Task ConnectTunnelAsync_Http_WithIPv6TargetHost_EnclosesTargetInBracketsInConnectAndHostHeader()
+    {
+        var proxyListener = new TcpListener(IPAddress.Loopback, 0);
+        proxyListener.Start();
+        var proxyPort = ((IPEndPoint)proxyListener.LocalEndpoint).Port;
+
+        var proxyServerTask = Task.Run(async () =>
+        {
+            using var client = await proxyListener.AcceptTcpClientAsync();
+            using var stream = client.GetStream();
+
+            var reader = new StreamReader(stream, Encoding.ASCII);
+            var connectLine = await reader.ReadLineAsync();
+            connectLine.Should().Be("CONNECT [2001:db8::1]:8080 HTTP/1.1");
+
+            var hostLine = await reader.ReadLineAsync();
+            hostLine.Should().Be("Host: [2001:db8::1]:8080");
+
+            string line;
+            while (!string.IsNullOrEmpty(line = await reader.ReadLineAsync()))
+            {
+            }
+
+            // Send 200 Connection established
+            var response = Encoding.ASCII.GetBytes("HTTP/1.1 200 Connection Established\r\n\r\n");
+            await stream.WriteAsync(response, 0, response.Length);
+
+            // Send payload data
+            await stream.WriteAsync(Encoding.ASCII.GetBytes("PONG"));
+        });
+
+        try
+        {
+            var config = Substitute.For<IConfigService>();
+            config.ProxyType.Returns("http");
+            config.ProxyHost.Returns("127.0.0.1");
+            config.ProxyPort.Returns(proxyPort);
+
+            var provider = new ProxyTunnelBindingProvider(config);
+            using var socket = await provider.ConnectTunnelAsync("2001:db8::1", 8080);
+            socket.Connected.Should().BeTrue();
+
+            using var stream = new NetworkStream(socket, ownsSocket: false);
+            var reply = new byte[4];
+            await stream.ReadExactlyAsync(reply, 0, 4);
+            Encoding.ASCII.GetString(reply).Should().Be("PONG");
+        }
+        finally
+        {
+            proxyListener.Stop();
+            await proxyServerTask;
+        }
+    }
+
+    [TestCase("2001:db8::1", "[2001:db8::1]")]
+    [TestCase("[2001:db8::1]", "[2001:db8::1]")]
+    [TestCase("::1", "[::1]")]
+    [TestCase("::ffff:192.0.2.1", "[::ffff:192.0.2.1]")]
+    [TestCase("192.168.1.1", "192.168.1.1")]
+    [TestCase("tracker.domain.org", "tracker.domain.org")]
+    [TestCase("", "")]
+    [TestCase(null, "")]
+    public void FormatHostForAuthority_FormatsExpectedHost(string input, string expected)
+    {
+        var result = ProxyTunnelBindingProvider.FormatHostForAuthority(input);
+        result.Should().Be(expected);
+    }
 }

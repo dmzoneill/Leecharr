@@ -276,9 +276,11 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         var username = this.configService?.ProxyUsername;
         var password = this.configService?.ProxyPassword;
 
+        var formattedHost = FormatHostForAuthority(targetHost);
+
         var sb = new StringBuilder();
-        sb.Append($"CONNECT {targetHost}:{targetPort} HTTP/1.1\r\n");
-        sb.Append($"Host: {targetHost}:{targetPort}\r\n");
+        sb.Append($"CONNECT {formattedHost}:{targetPort} HTTP/1.1\r\n");
+        sb.Append($"Host: {formattedHost}:{targetPort}\r\n");
 
         if (!string.IsNullOrEmpty(username))
         {
@@ -347,5 +349,26 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
 
             totalRead += read;
         }
+    }
+
+    internal static string FormatHostForAuthority(string targetHost)
+    {
+        if (string.IsNullOrEmpty(targetHost))
+        {
+            return string.Empty;
+        }
+
+        if (targetHost.StartsWith("[", StringComparison.Ordinal) && targetHost.EndsWith("]", StringComparison.Ordinal))
+        {
+            return targetHost;
+        }
+
+        if ((IPAddress.TryParse(targetHost, out var ip) && ip.AddressFamily == AddressFamily.InterNetworkV6) ||
+            (targetHost.Contains(':') && !targetHost.StartsWith("[", StringComparison.Ordinal)))
+        {
+            return $"[{targetHost}]";
+        }
+
+        return targetHost;
     }
 }
