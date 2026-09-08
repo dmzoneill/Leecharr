@@ -382,9 +382,9 @@ public class BackupControllerTest
 
         // Corrupt pages after sqlite header
         var dbBytes = File.ReadAllBytes(tempDbPath);
-        if (dbBytes.Length > 200)
+        if (dbBytes.Length > 100)
         {
-            for (var i = 120; i < 200 && i < dbBytes.Length; i++)
+            for (var i = 100; i < dbBytes.Length; i++)
             {
                 dbBytes[i] = 0xAA;
             }

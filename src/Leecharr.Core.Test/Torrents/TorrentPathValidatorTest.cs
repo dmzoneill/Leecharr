@@ -52,8 +52,8 @@ public class TorrentPathValidatorTest
     [TestCase("folder/movie<less.mp4", false)]
     [TestCase("folder/movie>greater.mp4", false)]
     [TestCase("folder/movie|pipe.mp4", false)]
-    [TestCase("folder/movie\x01ctrl.mp4", false)]
-    [TestCase("folder/movie\x1Fctrl.mp4", false)]
+    [TestCase("folder/movie\u0001ctrl.mp4", false)]
+    [TestCase("folder/movie\u001Fctrl.mp4", false)]
     [TestCase("folder:name/movie.mp4", false)]
     [TestCase("folder*/movie.mp4", false)]
     [TestCase("folder?/movie.mp4", false)]
@@ -82,8 +82,8 @@ public class TorrentPathValidatorTest
     [TestCase("file<name.mkv", true)]
     [TestCase("file>name.mkv", true)]
     [TestCase("file|name.mkv", true)]
-    [TestCase("file\x05name.mkv", true)]
-    [TestCase("file\x1Ename.mkv", true)]
+    [TestCase("file\u0005name.mkv", true)]
+    [TestCase("file\u001Ename.mkv", true)]
     public void HasUniversalInvalidChars_DetectsInvalidCharsCorrectly(string text, bool expected)
     {
         TorrentPathValidator.HasUniversalInvalidChars(text).Should().Be(expected);

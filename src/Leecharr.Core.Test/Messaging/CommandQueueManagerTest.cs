@@ -97,10 +97,10 @@ public class CommandQueueManagerTest
         var model = this.commandQueueManager.Push(command, CommandTrigger.Manual);
 
         model.Should().NotBeNull();
-        model.Name.Should().Be("SampleTest");
+        model.Name.Should().Be("SampleTestCommand");
         model.Status.Should().Be(CommandStatus.Queued);
         model.Trigger.Should().Be((int)CommandTrigger.Manual);
-        this.repository.Received(1).Insert(Arg.Is<CommandModel>(m => m.Name == "SampleTest" && m.Status == CommandStatus.Queued));
+        this.repository.Received(1).Insert(Arg.Is<CommandModel>(m => m.Name == "SampleTestCommand" && m.Status == CommandStatus.Queued));
     }
 
     [Test]

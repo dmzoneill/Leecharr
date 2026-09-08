@@ -347,13 +347,13 @@ public class FloodApiController : ControllerBase, IActionFilter
         this.Response.Headers.CacheControl = "no-cache";
         this.Response.Headers.Connection = "keep-alive";
 
-        var dict = this.BuildTorrentDictionary();
-        var json = JsonSerializer.Serialize(dict);
-        await this.Response.WriteAsync($"event: TORRENT_LIST_DIFF\ndata: {json}\n\n", cancellationToken);
-        await this.Response.Body.FlushAsync(cancellationToken);
-
         try
         {
+            var dict = this.BuildTorrentDictionary();
+            var json = JsonSerializer.Serialize(dict);
+            await this.Response.WriteAsync($"event: TORRENT_LIST_DIFF\ndata: {json}\n\n", cancellationToken);
+            await this.Response.Body.FlushAsync(cancellationToken);
+
             while (!cancellationToken.IsCancellationRequested)
             {
                 await Task.Delay(2000, cancellationToken);
@@ -369,7 +369,7 @@ public class FloodApiController : ControllerBase, IActionFilter
         }
     }
 
-    public Dictionary<string, object> BuildTorrentDictionary()
+    private Dictionary<string, object> BuildTorrentDictionary()
     {
         var torrents = this.torrentService.GetAll().ToList();
         var dict = new Dictionary<string, object>();

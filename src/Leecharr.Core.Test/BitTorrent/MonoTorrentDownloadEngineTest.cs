@@ -46,6 +46,8 @@ public class MonoTorrentDownloadEngineTest
     {
         this.testIncompleteDir = Path.Combine(Path.GetTempPath(), "leecharr_test_incomplete_" + Guid.NewGuid().ToString("N"));
         this.testDownloadDir = Path.Combine(Path.GetTempPath(), "leecharr_test_downloads_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(this.testIncompleteDir);
+        Directory.CreateDirectory(this.testDownloadDir);
 
         this.configService = Substitute.For<IConfigService>();
         this.configService.ListeningPort.Returns(0); // dynamic port

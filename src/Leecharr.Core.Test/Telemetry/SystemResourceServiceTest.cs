@@ -41,6 +41,7 @@ public class SystemResourceServiceTest
     public void SetUp()
     {
         SystemResourceService.ResetDriveMetricsCache();
+        SystemResourceService.DriveMetricsProvider = SystemResourceService.QuerySystemDrives;
         this.activeEngine = Substitute.For<ITorrentEngine>();
         this.activeEngine.EngineId.Returns("MonoTorrent");
         this.activeEngine.DisplayName.Returns("MonoTorrent (Pure .NET)");

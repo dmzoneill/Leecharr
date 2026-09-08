@@ -559,6 +559,7 @@ public class QBittorrentApiControllerTest
     {
         var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", ForceStart = true };
         this.torrentService.GetAll().Returns(new List<Torrent> { torrent1 });
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent1);
 
         var result = await this.controller.SetForceStart("hash1", "false");
 

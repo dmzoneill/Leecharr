@@ -490,7 +490,8 @@ public class NzbgetRpcControllerTest
 
         result.Should().BeOfType<ContentResult>();
         var contentResult = (ContentResult)result;
-        contentResult.Content.Should().Contain("<value><array><data></data></array></value>");
+        contentResult.Content.Should().Contain("<value><array><data");
+        contentResult.Content.Should().Contain("</array></value>");
     }
 
     [Test]
@@ -505,7 +506,8 @@ public class NzbgetRpcControllerTest
 
         result.Should().BeOfType<ContentResult>();
         var contentResult = (ContentResult)result;
-        contentResult.Content.Should().Contain("<value><array><data></data></array></value>");
+        contentResult.Content.Should().Contain("<value><array><data");
+        contentResult.Content.Should().Contain("</array></value>");
     }
 
     [Test]

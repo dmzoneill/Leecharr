@@ -718,7 +718,6 @@ public class DelugeJsonRpcController : ControllerBase
                     return this.DelugeResult(new { result = this.GetDriveFreeSpace(targetPath), error = (object)null, id });
 
                 case "core.get_torrents_status":
-                case "web.get_torrents_status":
                     var allStatusTorrents = this.torrentService.GetAll().ToList();
                     var (statusFilterObj, requestedKeys) = ParseStatusParams(paramsElem, isWebUpdateUi: false);
                     var statusFilteredTorrents = FilterTorrents(allStatusTorrents, statusFilterObj);
@@ -730,6 +729,19 @@ public class DelugeJsonRpcController : ControllerBase
                     }
 
                     return this.DelugeResult(new { result = resultDict, error = (object)null, id });
+
+                case "web.get_torrents_status":
+                    var allWebStatusTorrents = this.torrentService.GetAll().ToList();
+                    var (webStatusFilterObj, webRequestedKeys) = ParseStatusParams(paramsElem, isWebUpdateUi: false);
+                    var webStatusFilteredTorrents = FilterTorrents(allWebStatusTorrents, webStatusFilterObj);
+
+                    var webResultDict = new Dictionary<string, Dictionary<string, object>>();
+                    foreach (var torrent in webStatusFilteredTorrents)
+                    {
+                        webResultDict[torrent.InfoHash.ToLowerInvariant()] = this.MapTorrentToDelugeStatus(torrent, webRequestedKeys);
+                    }
+
+                    return this.DelugeResult(new { result = new { torrents = webResultDict, filters = this.BuildFilterTree(allWebStatusTorrents) }, error = (object)null, id });
 
                 case "web.get_torrent_status":
                 case "core.get_torrent_status":
