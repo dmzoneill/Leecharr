@@ -1327,6 +1327,7 @@ export interface AiParsedRelease {
   dynamicRange?: string;
   releaseGroup?: string;
   language?: string;
+  languages?: string[];
   edition?: string;
   isProper: boolean;
   isRepack: boolean;

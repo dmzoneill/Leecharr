@@ -54,7 +54,7 @@ public class RuleHeuristicAiProviderTest
         result.CleanTitle.Should().Be("Oppenheimer");
         result.Year.Should().Be(2023);
         result.Resolution.Should().Be("2160p");
-        result.Quality.Should().Be("BluRay");
+        result.Quality.Should().Be("2160p UHD BluRay");
         result.VideoCodec.Should().Be("x265");
         result.DynamicRange.Should().Be("HDR");
         result.AudioCodec.Should().Be("DTS-HD MA");
@@ -99,11 +99,82 @@ public class RuleHeuristicAiProviderTest
 
         result.Year.Should().Be(1999);
         result.IsRemux.Should().BeTrue();
+        result.Quality.Should().Be("2160p Remux");
         result.IsProper.Should().BeTrue();
         result.DynamicRange.Should().Be("Dolby Vision");
         result.AudioCodec.Should().Be("TRUEHD ATMOS");
         result.AudioChannels.Should().Be("7.1");
         result.ReleaseGroup.Should().Be("SPARKS");
+    }
+
+    [Test]
+    public async Task ParseReleaseAsync_QualityDistinctions_MaintainsExplicitDistinction()
+    {
+        var uhdRemux = await this.provider.ParseReleaseAsync("Avatar.2009.2160p.UHD.Remux.HEVC.TrueHD-GROUP");
+        uhdRemux.Quality.Should().Be("2160p Remux");
+        uhdRemux.IsRemux.Should().BeTrue();
+
+        var fhdRemux = await this.provider.ParseReleaseAsync("Inception.2010.1080p.Remux.AVC.DTS-HD-GROUP");
+        fhdRemux.Quality.Should().Be("1080p Remux");
+        fhdRemux.IsRemux.Should().BeTrue();
+
+        var uhdBluRay = await this.provider.ParseReleaseAsync("Dune.2021.2160p.UHD.BluRay.x265-GROUP");
+        uhdBluRay.Quality.Should().Be("2160p UHD BluRay");
+        uhdBluRay.IsRemux.Should().BeFalse();
+
+        var fhdBluRay = await this.provider.ParseReleaseAsync("Gladiator.2000.1080p.BluRay.x264-GROUP");
+        fhdBluRay.Quality.Should().Be("1080p BluRay");
+
+        var webRip = await this.provider.ParseReleaseAsync("Ted.Lasso.S03E01.1080p.WEBRip.x265-GROUP");
+        webRip.Quality.Should().Be("WEBRip");
+
+        var dvd = await this.provider.ParseReleaseAsync("Seinfeld.S01E01.DVDRip.XviD-GROUP");
+        dvd.Quality.Should().Be("DVDRip");
+    }
+
+    [Test]
+    public async Task ParseReleaseAsync_MultiLanguageTokens_TokenizesIso639AndSceneTags()
+    {
+        var release = "Parasite.2019.2160p.UHD.Remux.HDR.KOR.CHI.ZHO.JPN.HIN.POR.DUT.POL.SWE.NOR.UKR.TUR.ARA.Multi-Audio.Dual-Audio-FLUX";
+        var result = await this.provider.ParseReleaseAsync(release);
+
+        result.CleanTitle.Should().Be("Parasite");
+        result.Languages.Should().Contain(new[]
+        {
+            "Korean", "Chinese", "Japanese", "Hindi", "Portuguese",
+            "Dutch", "Polish", "Swedish", "Norwegian", "Ukrainian",
+            "Turkish", "Arabic", "Multi-Audio", "Dual-Audio"
+        });
+        result.Language.Should().Be("Korean");
+    }
+
+    [Test]
+    public async Task ParseReleaseAsync_FrenchAndSpanishSceneTags_TokenizesCorrectly()
+    {
+        var releaseFrench = "Le.Fabuleux.Destin.d.Amelie.Poulain.2001.VOSTFR.TRUEFRENCH.VFF.1080p.BluRay-GROUP";
+        var resultFrench = await this.provider.ParseReleaseAsync(releaseFrench);
+        resultFrench.Languages.Should().Contain(new[] { "VOSTFR", "TRUEFRENCH", "VFF" });
+
+        var releaseSpanish = "Pan.s.Labyrinth.2006.1080p.BluRay.Castellano.Latino-GROUP";
+        var resultSpanish = await this.provider.ParseReleaseAsync(releaseSpanish);
+        resultSpanish.Languages.Should().Contain(new[] { "Castellano", "Latino" });
+    }
+
+    [Test]
+    public async Task ParseReleaseAsync_AdditionalCodecsAndHdr_ParsesCorrectly()
+    {
+        var vp9Release = await this.provider.ParseReleaseAsync("Sample.Video.2023.2160p.VP9.HLG-GROUP");
+        vp9Release.VideoCodec.Should().Be("VP9");
+        vp9Release.DynamicRange.Should().Be("HLG");
+
+        var vp8Release = await this.provider.ParseReleaseAsync("Sample.Animation.1080p.VP8.WEB-DL-GROUP");
+        vp8Release.VideoCodec.Should().Be("VP8");
+
+        var mpeg2Release = await this.provider.ParseReleaseAsync("Classic.Movie.1980.1080i.MPEG-2.HDTV-GROUP");
+        mpeg2Release.VideoCodec.Should().Be("MPEG-2");
+
+        var vc1Release = await this.provider.ParseReleaseAsync("Old.BluRay.2007.1080p.VC-1.DTS-HD-GROUP");
+        vc1Release.VideoCodec.Should().Be("VC-1");
     }
 
     [Test]
@@ -209,7 +280,7 @@ public class RuleHeuristicAiProviderTest
 
         result.Category.Should().Be("movies");
         result.Resolution.Should().Be("2160p");
-        result.Quality.Should().Be("REMUX");
+        result.Quality.Should().Be("2160p Remux");
         result.CleanTitle.Should().Contain("oppenheimer");
     }
 
