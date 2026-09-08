@@ -6,20 +6,24 @@ using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Leecharr.Http;
+using Leecharr.Http.REST;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Bandwidth;
+using NzbDrone.SignalR;
 
 namespace Leecharr.Api.V1.Seeding;
 
 [V1ApiController("speedschedule")]
-public class SpeedScheduleController : Controller
+public class SpeedScheduleController : RestControllerWithSignalR<SpeedScheduleResource, SpeedSchedule>
 {
     private readonly ISpeedScheduleRepository speedScheduleRepository;
     private readonly ISpeedSchedulerService speedSchedulerService;
 
     public SpeedScheduleController(
         ISpeedScheduleRepository speedScheduleRepository,
-        ISpeedSchedulerService speedSchedulerService)
+        ISpeedSchedulerService speedSchedulerService,
+        IBroadcastSignalRMessage signalRBroadcaster)
+        : base(signalRBroadcaster)
     {
         this.speedScheduleRepository = speedScheduleRepository;
         this.speedSchedulerService = speedSchedulerService;
@@ -111,8 +115,18 @@ public class SpeedScheduleController : Controller
         return this.Ok();
     }
 
+    protected override SpeedScheduleResource GetResourceById(SpeedSchedule model)
+    {
+        return ToResource(model);
+    }
+
     private static SpeedScheduleResource ToResource(SpeedSchedule s)
     {
+        if (s == null)
+        {
+            return null;
+        }
+
         return new SpeedScheduleResource
         {
             Id = s.Id,

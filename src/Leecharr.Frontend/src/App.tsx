@@ -249,6 +249,7 @@ export function App() {
   const refreshServerData = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["torrents"] });
     queryClient.invalidateQueries({ queryKey: ["categories"] });
+    queryClient.invalidateQueries({ queryKey: ["speedschedule"] });
     queryClient.invalidateQueries({ queryKey: ["subsystems"] });
     queryClient.invalidateQueries({ queryKey: ["config"] });
     queryClient.invalidateQueries({ queryKey: ["torrentengine"] });
@@ -350,6 +351,10 @@ export function App() {
         msg.name === "categoryAdded" ||
         msg.name === "categoryUpdated" ||
         msg.name === "categoryDeleted" ||
+        msg.name === "speedschedule" ||
+        msg.name === "speedscheduleAdded" ||
+        msg.name === "speedscheduleUpdated" ||
+        msg.name === "speedscheduleDeleted" ||
         msg.name === "subsystemSwitched"
       ) {
         if (
