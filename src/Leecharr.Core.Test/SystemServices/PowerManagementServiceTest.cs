@@ -361,4 +361,198 @@ public class PowerManagementServiceTest
 
         result.Should().BeFalse();
     }
+
+    [Test]
+    public void InhibitSleep_IncrementsLeaseCount_AndReturnsDisposable()
+    {
+        var service = new PowerManagementService
+        {
+            ContainerDetector = () => true,
+        };
+
+        service.ActiveSleepInhibitionLeases.Should().Be(0);
+        service.IsSleepInhibited.Should().BeFalse();
+
+        using (var token = service.InhibitSleep("Download in progress"))
+        {
+            token.Should().NotBeNull();
+            service.ActiveSleepInhibitionLeases.Should().Be(1);
+            service.IsSleepInhibited.Should().BeTrue();
+        }
+
+        service.ActiveSleepInhibitionLeases.Should().Be(0);
+        service.IsSleepInhibited.Should().BeFalse();
+    }
+
+    [Test]
+    public void InhibitSleep_MultipleLeases_TracksRefCountAndReleasesOnlyWhenAllDisposed()
+    {
+        var service = new PowerManagementService
+        {
+            ContainerDetector = () => true,
+        };
+
+        var token1 = service.InhibitSleep("Download 1");
+        service.ActiveSleepInhibitionLeases.Should().Be(1);
+        service.IsSleepInhibited.Should().BeTrue();
+
+        var token2 = service.InhibitSleep("Download 2");
+        service.ActiveSleepInhibitionLeases.Should().Be(2);
+        service.IsSleepInhibited.Should().BeTrue();
+
+        token1.Dispose();
+        service.ActiveSleepInhibitionLeases.Should().Be(1);
+        service.IsSleepInhibited.Should().BeTrue();
+
+        // Idempotent dispose
+        token1.Dispose();
+        service.ActiveSleepInhibitionLeases.Should().Be(1);
+        service.IsSleepInhibited.Should().BeTrue();
+
+        token2.Dispose();
+        service.ActiveSleepInhibitionLeases.Should().Be(0);
+        service.IsSleepInhibited.Should().BeFalse();
+    }
+
+    [Test]
+    public void SetSleepInhibited_TrueAndFalse_UpdatesInhibitionStateAndLeases()
+    {
+        var service = new PowerManagementService
+        {
+            ContainerDetector = () => true,
+        };
+
+        service.SetSleepInhibited(true, "Manual enable");
+        service.IsSleepInhibited.Should().BeTrue();
+        service.ActiveSleepInhibitionLeases.Should().Be(1);
+
+        // Calling true again when already inhibited does not create redundant leases
+        service.SetSleepInhibited(true, "Manual enable 2");
+        service.IsSleepInhibited.Should().BeTrue();
+        service.ActiveSleepInhibitionLeases.Should().Be(1);
+
+        service.SetSleepInhibited(false, "Manual disable");
+        service.IsSleepInhibited.Should().BeFalse();
+        service.ActiveSleepInhibitionLeases.Should().Be(0);
+    }
+
+    [Test]
+    public void InhibitSleep_OnWindows_CallsSetThreadExecutionStateWithRequiredFlagsAndContinuousOnRelease()
+    {
+        var capturedFlags = new List<uint>();
+
+        var service = new PowerManagementService
+        {
+            TargetPlatformOverride = OSPlatform.Windows,
+            ContainerDetector = () => false,
+            WindowsSetExecutionStateInvoker = flags =>
+            {
+                capturedFlags.Add(flags);
+                return 1;
+            },
+        };
+
+        using (service.InhibitSleep("Active torrent"))
+        {
+            capturedFlags.Should().HaveCount(1);
+            // Should contain ES_CONTINUOUS (0x80000000) and ES_SYSTEM_REQUIRED (0x1)
+            (capturedFlags[0] & 0x80000000).Should().NotBe(0);
+            (capturedFlags[0] & 0x00000001).Should().NotBe(0);
+        }
+
+        capturedFlags.Should().HaveCount(2);
+        capturedFlags[1].Should().Be(0x80000000); // ES_CONTINUOUS alone to reset
+    }
+
+    [Test]
+    public void InhibitSleep_OnOsx_CallsCreateAndReleaseAssertion()
+    {
+        string capturedType = null;
+        string capturedReason = null;
+        uint? releasedAssertionId = null;
+
+        var service = new PowerManagementService
+        {
+            TargetPlatformOverride = OSPlatform.OSX,
+            ContainerDetector = () => false,
+            OsxCreateAssertionInvoker = (type, reason) =>
+            {
+                capturedType = type;
+                capturedReason = reason;
+                return 42;
+            },
+            OsxReleaseAssertionInvoker = assertionId =>
+            {
+                releasedAssertionId = assertionId;
+                return true;
+            },
+        };
+
+        using (service.InhibitSleep("Seeding torrent"))
+        {
+            service.IsSleepInhibited.Should().BeTrue();
+            capturedType.Should().Be("PreventUserIdleSystemSleep");
+            capturedReason.Should().Be("Seeding torrent");
+        }
+
+        service.IsSleepInhibited.Should().BeFalse();
+        releasedAssertionId.Should().Be(42);
+    }
+
+    [Test]
+    public void InhibitSleep_OnLinux_StartsAndStopsProcess()
+    {
+        string executedCommand = null;
+        string[] executedArgs = null;
+
+        var service = new PowerManagementService
+        {
+            TargetPlatformOverride = OSPlatform.Linux,
+            ContainerDetector = () => false,
+            LinuxProcessStarter = (cmd, args) =>
+            {
+                executedCommand = cmd;
+                executedArgs = args;
+                // Return a dummy stopped process or mock
+                return new System.Diagnostics.Process();
+            },
+        };
+
+        using (service.InhibitSleep("Linux torrent download"))
+        {
+            service.IsSleepInhibited.Should().BeTrue();
+            executedCommand.Should().Be("systemd-inhibit");
+            executedArgs.Should().Contain("--what=idle:sleep");
+            executedArgs.Should().Contain("--why=Linux torrent download");
+        }
+
+        service.IsSleepInhibited.Should().BeFalse();
+    }
+
+    [Test]
+    public void Dispose_WhenInhibited_SafelyReleasesResources()
+    {
+        var capturedFlags = new List<uint>();
+
+        var service = new PowerManagementService
+        {
+            TargetPlatformOverride = OSPlatform.Windows,
+            ContainerDetector = () => false,
+            WindowsSetExecutionStateInvoker = flags =>
+            {
+                capturedFlags.Add(flags);
+                return 1;
+            },
+        };
+
+        _ = service.InhibitSleep("Will be disposed");
+        service.IsSleepInhibited.Should().BeTrue();
+
+        service.Dispose();
+
+        service.IsSleepInhibited.Should().BeFalse();
+        service.ActiveSleepInhibitionLeases.Should().Be(0);
+        capturedFlags.Should().HaveCount(2);
+        capturedFlags[1].Should().Be(0x80000000); // ES_CONTINUOUS
+    }
 }
