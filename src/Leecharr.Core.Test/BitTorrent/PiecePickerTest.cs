@@ -706,7 +706,10 @@ public class PiecePickerTest
     public async Task PickBlocks_WhenBlockRequestTimesOutAndIsReRequested_RefreshesTimestampAndDoesNotReRequestToSubsequentPeersUntilNewTimeoutExpires()
     {
         // 2 pieces, 16KB each (1 block per piece), requestTimeout: 50ms
-        var picker = new PiecePicker(2, 16384, 32768, requestTimeout: TimeSpan.FromMilliseconds(50));
+        var picker = new PiecePicker(2, 16384, 32768, requestTimeout: TimeSpan.FromMilliseconds(50))
+        {
+            EndGamePickerEnabled = false,
+        };
         var fullBitfield = new[] { true, true };
 
         // Peer 1 requests block 0:0

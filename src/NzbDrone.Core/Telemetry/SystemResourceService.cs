@@ -98,7 +98,6 @@ public class SystemResourceService : ISystemResourceService
         {
             lastDriveSampleTime = DateTime.MinValue;
             cachedDriveMetrics = new List<DiskMountPointMetrics>();
-            DriveMetricsProvider = QuerySystemDrives;
         }
     }
 
@@ -557,7 +556,7 @@ public class SystemResourceService : ISystemResourceService
         }
     }
 
-    private static List<DiskMountPointMetrics> QuerySystemDrives()
+    internal static List<DiskMountPointMetrics> QuerySystemDrives()
     {
         var drives = new List<DiskMountPointMetrics>();
         try
