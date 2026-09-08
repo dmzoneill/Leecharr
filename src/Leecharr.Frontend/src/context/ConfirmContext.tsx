@@ -24,6 +24,11 @@ interface ConfirmContextType {
   confirm: ConfirmDialogFn;
 }
 
+interface QueueItem {
+  options: ConfirmOptions;
+  resolve: (value: boolean) => void;
+}
+
 const ConfirmContext = createContext<ConfirmContextType | undefined>(undefined);
 
 export const ConfirmProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -37,36 +42,53 @@ export const ConfirmProvider: React.FC<{ children: React.ReactNode }> = ({
     options: { message: "" },
   });
 
-  const resolverRef = useRef<((value: boolean) => void) | null>(null);
+  const queueRef = useRef<QueueItem[]>([]);
+  const activeItemRef = useRef<QueueItem | null>(null);
 
   const confirm: ConfirmDialogFn = useCallback((options) => {
     const parsedOptions: ConfirmOptions =
       typeof options === "string" ? { message: options } : options;
 
     return new Promise<boolean>((resolve) => {
-      resolverRef.current = resolve;
-      setModalState({
-        isOpen: true,
-        options: parsedOptions,
-      });
+      const item: QueueItem = { options: parsedOptions, resolve };
+      if (!activeItemRef.current) {
+        activeItemRef.current = item;
+        setModalState({
+          isOpen: true,
+          options: parsedOptions,
+        });
+      } else {
+        queueRef.current.push(item);
+      }
     });
   }, []);
 
-  const handleConfirm = useCallback(() => {
-    setModalState((prev) => ({ ...prev, isOpen: false }));
-    if (resolverRef.current) {
-      resolverRef.current(true);
-      resolverRef.current = null;
+  const processNext = useCallback((confirmed: boolean) => {
+    const current = activeItemRef.current;
+    if (current) {
+      current.resolve(confirmed);
+      activeItemRef.current = null;
+    }
+
+    if (queueRef.current.length > 0) {
+      const nextItem = queueRef.current.shift()!;
+      activeItemRef.current = nextItem;
+      setModalState({
+        isOpen: true,
+        options: nextItem.options,
+      });
+    } else {
+      setModalState((prev) => ({ ...prev, isOpen: false }));
     }
   }, []);
 
+  const handleConfirm = useCallback(() => {
+    processNext(true);
+  }, [processNext]);
+
   const handleCancel = useCallback(() => {
-    setModalState((prev) => ({ ...prev, isOpen: false }));
-    if (resolverRef.current) {
-      resolverRef.current(false);
-      resolverRef.current = null;
-    }
-  }, []);
+    processNext(false);
+  }, [processNext]);
 
   return (
     <ConfirmContext.Provider value={{ confirm }}>
