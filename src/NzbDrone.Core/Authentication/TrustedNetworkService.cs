@@ -129,31 +129,32 @@ public class TrustedNetworkService : ITrustedNetworkService
                     return false;
                 }
 
+                var maxBits = baseIp.AddressFamily == AddressFamily.InterNetworkV6 ? 128 : 32;
+                if (prefixLength < 0 || prefixLength > maxBits)
+                {
+                    return false;
+                }
+
+                if (ip.IsIPv4MappedToIPv6)
+                {
+                    ip = ip.MapToIPv4();
+                }
+
+                if (baseIp.IsIPv4MappedToIPv6)
+                {
+                    baseIp = baseIp.MapToIPv4();
+                    prefixLength = Math.Max(0, prefixLength - 96);
+                }
+
                 if (ip.AddressFamily != baseIp.AddressFamily)
                 {
-                    if (ip.IsIPv4MappedToIPv6)
-                    {
-                        ip = ip.MapToIPv4();
-                    }
-
-                    if (baseIp.IsIPv4MappedToIPv6)
-                    {
-                        baseIp = baseIp.MapToIPv4();
-                    }
-
-                    if (ip.AddressFamily != baseIp.AddressFamily)
-                    {
-                        return false;
-                    }
+                    return false;
                 }
 
                 var ipBytes = ip.GetAddressBytes();
                 var baseBytes = baseIp.GetAddressBytes();
 
-                if (prefixLength < 0 || prefixLength > ipBytes.Length * 8)
-                {
-                    return false;
-                }
+                prefixLength = Math.Clamp(prefixLength, 0, ipBytes.Length * 8);
 
                 var fullBytes = prefixLength / 8;
                 var remBits = prefixLength % 8;
