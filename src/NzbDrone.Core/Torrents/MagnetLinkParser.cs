@@ -132,7 +132,35 @@ public static class MagnetLinkParser
         return result;
     }
 
-    private static string Base32ToHex(string base32)
+    public static string NormalizeInfoHash(string infoHash)
+    {
+        if (string.IsNullOrWhiteSpace(infoHash))
+        {
+            return string.Empty;
+        }
+
+        var clean = infoHash.Trim();
+        if (clean.Length == 32)
+        {
+            try
+            {
+                return Base32ToHex(clean).ToLowerInvariant();
+            }
+            catch
+            {
+                return clean.ToLowerInvariant();
+            }
+        }
+
+        if (clean.Length == 68 && clean.StartsWith("1220", StringComparison.OrdinalIgnoreCase) && IsValidHex(clean))
+        {
+            return clean.Substring(4).ToLowerInvariant();
+        }
+
+        return clean.ToLowerInvariant();
+    }
+
+    public static string Base32ToHex(string base32)
     {
         const string b32Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
         var clean = base32.ToUpperInvariant().TrimEnd('=');
@@ -167,7 +195,7 @@ public static class MagnetLinkParser
         return Convert.ToHexString(bytes);
     }
 
-    private static bool IsValidHex(string hex)
+    public static bool IsValidHex(string hex)
     {
         if (string.IsNullOrEmpty(hex))
         {

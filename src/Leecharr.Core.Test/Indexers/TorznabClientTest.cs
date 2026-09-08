@@ -82,7 +82,7 @@ public class TorznabClientTest
         first.DownloadVolumeFactor.Should().Be(0.0);
         first.UploadVolumeFactor.Should().Be(2.0);
         first.IsFreeleech.Should().BeTrue();
-        first.InfoHash.Should().Be("0123456789ABCDEF0123456789ABCDEF01234567");
+        first.InfoHash.Should().Be("0123456789abcdef0123456789abcdef01234567");
         first.MagnetUrl.Should().StartWith("magnet:?");
         first.Category.Should().Be("Movies > UHD");
         first.IndexerName.Should().Be("TrackerAlpha");
@@ -754,6 +754,110 @@ public class TorznabClientTest
         result.Should().NotBeNull();
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("Cloudflare / AntiBot challenge detected");
+    }
+
+    [TestCase("Mon, 01 Jan 2024 12:00:00 EST", "2024-01-01T17:00:00Z")]
+    [TestCase("Mon, 01 Jan 2024 12:00:00 EDT", "2024-01-01T16:00:00Z")]
+    [TestCase("Mon, 01 Jan 2024 12:00:00 PST", "2024-01-01T20:00:00Z")]
+    [TestCase("Mon, 01 Jan 2024 12:00:00 PDT", "2024-01-01T19:00:00Z")]
+    [TestCase("Mon, 01 Jan 2024 12:00:00 CEST", "2024-01-01T10:00:00Z")]
+    [TestCase("Mon, 01 Jan 2024 12:00:00 BST", "2024-01-01T11:00:00Z")]
+    [TestCase("Mon, 01 Jan 2024 12:00:00 JST", "2024-01-01T03:00:00Z")]
+    [TestCase("Mon, 01 Jan 2024 12:00:00 UTC", "2024-01-01T12:00:00Z")]
+    [TestCase("Mon, 01 Jan 2024 12:00:00 GMT", "2024-01-01T12:00:00Z")]
+    [TestCase("1704110400", "2024-01-01T12:00:00Z")]
+    [TestCase("1704110400000", "2024-01-01T12:00:00Z")]
+    public void ParseTorznabFeedXml_TimezonesAndUnixTimestamps_ParsesCorrectly(string pubDateInput, string expectedUtcIso)
+    {
+        var xml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>Timezone Test Release</title>
+      <pubDate>{pubDateInput}</pubDate>
+      <torznab:attr name=""seeders"" value=""10""/>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml);
+        results.Should().HaveCount(1);
+        results[0].PublishDate.Should().Be(DateTime.Parse(expectedUtcIso, null, System.Globalization.DateTimeStyles.AdjustToUniversal));
+    }
+
+    [Test]
+    public void ParseTorznabFeedXml_Base32InfoHash_NormalizesToLowercaseHex()
+    {
+        // Base32 "JBSWY3DPEBLW64TMMQQQ====" -> hex "48656c6c6f21deadbeef" (40 chars)
+        // 32 chars: "4R7W26T6Z2B4X5J4L7OQ6Z2B4X5J4L7O" -> 40 chars hex
+        var base32Hash = "4R7W26T6Z2B4X5J4L7OQ6Z2B4X5J4L7O";
+        var expectedHex = NzbDrone.Core.Torrents.MagnetLinkParser.Base32ToHex(base32Hash).ToLowerInvariant();
+
+        var xml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>Base32 Infohash Release</title>
+      <torznab:attr name=""infohash"" value=""{base32Hash}""/>
+      <torznab:attr name=""seeders"" value=""10""/>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml);
+        results.Should().HaveCount(1);
+        results[0].InfoHash.Should().Be(expectedHex);
+        results[0].InfoHash.Length.Should().Be(40);
+    }
+
+    [Test]
+    public void ParseTorznabFeedXml_WhenInfoHashOmitted_AutoPopulatesFromMagnetUrl()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>Omitted Infohash Release</title>
+      <torznab:attr name=""magneturl"" value=""magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01&amp;dn=Release""/>
+      <torznab:attr name=""seeders"" value=""10""/>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml);
+        results.Should().HaveCount(1);
+        results[0].InfoHash.Should().Be("abcdef0123456789abcdef0123456789abcdef01");
+    }
+
+    [Test]
+    public void ParseTorznabFeedXml_WhenNoEnclosureOrMagnetAttrAndLinkIsHtml_ExtractsMagnetFromDescriptionAndContentEncoded()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:content=""http://purl.org/rss/1.0/modules/content/"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>Description HTML Magnet Release</title>
+      <link>https://indexer.local/viewtopic.php?t=12345</link>
+      <description>&lt;p&gt;Download: &lt;a href=""magnet:?xt=urn:btih:1111111111222222222233333333334444444444&amp;amp;dn=Test1""&gt;Magnet&lt;/a&gt;&lt;/p&gt;</description>
+      <torznab:attr name=""seeders"" value=""10""/>
+    </item>
+    <item>
+      <title>Content Encoded HTML Magnet Release</title>
+      <link>https://indexer.local/details.php?id=999</link>
+      <content:encoded><![CDATA[<div>Direct magnet: magnet:?xt=urn:btih:5555555555666666666677777777778888888888&dn=Test2</div>]]></content:encoded>
+      <torznab:attr name=""seeders"" value=""5""/>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml);
+        results.Should().HaveCount(2);
+
+        results[0].MagnetUrl.Should().Be("magnet:?xt=urn:btih:1111111111222222222233333333334444444444&dn=Test1");
+        results[0].InfoHash.Should().Be("1111111111222222222233333333334444444444");
+
+        results[1].MagnetUrl.Should().Be("magnet:?xt=urn:btih:5555555555666666666677777777778888888888&dn=Test2");
+        results[1].InfoHash.Should().Be("5555555555666666666677777777778888888888");
     }
 
     private class TestHttpMessageHandler : HttpMessageHandler
