@@ -169,7 +169,7 @@ public class BandwidthHierarchyTest
     }
 
     [Test]
-    public void ResolveEffectiveDownloadLimit_WhenScheduleOnlyLimitsUpload_FallsBackToGlobalLimit()
+    public void ResolveEffectiveDownloadLimit_WhenScheduleOnlyLimitsUpload_SetsDownloadToUnlimitedOverride()
     {
         var schedules = new List<SpeedSchedule>
         {
@@ -190,12 +190,12 @@ public class BandwidthHierarchyTest
         var downloadEffective = _service.ResolveEffectiveDownloadLimit(torrentLimit: 0, categoryLimit: 0);
         var uploadEffective = _service.ResolveEffectiveUploadLimit(torrentLimit: 0, categoryLimit: 0);
 
-        downloadEffective.Should().Be(50000); // Global download limit fallback
+        downloadEffective.Should().Be(0); // Schedule download limit (unlimited override)
         uploadEffective.Should().Be(1500); // Schedule upload limit
     }
 
     [Test]
-    public void ResolveEffectiveUploadLimit_WhenScheduleOnlyLimitsDownload_FallsBackToGlobalLimit()
+    public void ResolveEffectiveUploadLimit_WhenScheduleOnlyLimitsDownload_SetsUploadToUnlimitedOverride()
     {
         var schedules = new List<SpeedSchedule>
         {
@@ -217,7 +217,36 @@ public class BandwidthHierarchyTest
         var uploadEffective = _service.ResolveEffectiveUploadLimit(torrentLimit: 0, categoryLimit: 0);
 
         downloadEffective.Should().Be(3000); // Schedule download limit
-        uploadEffective.Should().Be(20000); // Global upload limit fallback
+        uploadEffective.Should().Be(0); // Schedule upload limit (unlimited override)
+    }
+
+    [Test]
+    public void ResolveEffectiveLimits_WhenActiveScheduleHasZeroSpeed_OverridesGlobalThrottledLimits()
+    {
+        _configService.MaxDownloadSpeedKbps.Returns(1000);
+        _configService.MaxUploadSpeedKbps.Returns(500);
+
+        var schedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Unthrottled Window",
+                Days = 127,
+                StartTime = "00:00:00",
+                EndTime = "23:59:59",
+                MaxDownloadSpeed = 0,
+                MaxUploadSpeed = 0,
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+        _repository.GetEnabled().Returns(schedules);
+
+        var downloadEffective = _service.ResolveEffectiveDownloadLimit(torrentLimit: 0, categoryLimit: 0);
+        var uploadEffective = _service.ResolveEffectiveUploadLimit(torrentLimit: 0, categoryLimit: 0);
+
+        downloadEffective.Should().Be(0);
+        uploadEffective.Should().Be(0);
     }
 
     #endregion
