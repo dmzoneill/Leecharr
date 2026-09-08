@@ -30,7 +30,15 @@ public class TrackerAnnounceRequest
 
     public bool Compact { get; set; } = true;
 
+    public bool NoPeerId { get; set; }
+
     public int NumWant { get; set; } = 50;
+
+    public string TrackerId { get; set; }
+
+    public IPAddress Ipv6 { get; set; }
+
+    public int? Ipv6Port { get; set; }
 }
 
 public class TrackerAnnounceResult

@@ -684,7 +684,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
                     { "ip", new BEncodedString(ip.ToString()) },
                     { "port", new BEncodedNumber(p.Port) },
                 };
-                if (p.PeerId != null && p.PeerId.Length > 0)
+                if (!request.NoPeerId && p.PeerId != null && p.PeerId.Length > 0)
                 {
                     pDict["peer id"] = new BEncodedString(p.PeerId);
                 }
@@ -693,6 +693,11 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
             }
 
             dict["peers"] = peerList;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.TrackerId))
+        {
+            dict["tracker id"] = new BEncodedString(request.TrackerId);
         }
 
         return dict.Encode();

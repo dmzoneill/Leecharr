@@ -14,14 +14,14 @@ namespace Leecharr.Core.Test.BitTorrent;
 [TestFixture]
 public class ClientEmulationPresetsTest
 {
-    [TestCase("qBittorrent", "qBittorrent/4.4.2", "-qB4420-")]
-    [TestCase("Deluge", "Deluge/2.0.5 libtorrent/1.2.14.0", "-DE2050-")]
-    [TestCase("Transmission", "Transmission/3.00", "-TR3000-")]
+    [TestCase("qBittorrent", "qBittorrent/4.6.5", "-qB4650-")]
+    [TestCase("Deluge", "Deluge/2.1.1", "-DE2110-")]
+    [TestCase("Transmission", "Transmission/4.0.5", "-TR4050-")]
     [TestCase("uTorrent", "uTorrent/3550", "-UT3550-")]
     [TestCase("BiglyBT", "BiglyBT/3.4.0.0", "-AZ3400-")]
     [TestCase("Leecharr", "Leecharr/1.0.0", "-LC1000-")]
-    [TestCase(null, "qBittorrent/4.4.2", "-qB4420-")]
-    [TestCase("unknown", "qBittorrent/4.4.2", "-qB4420-")]
+    [TestCase(null, "qBittorrent/4.6.5", "-qB4650-")]
+    [TestCase("unknown", "qBittorrent/4.6.5", "-qB4650-")]
     public void GetPreset_ReturnsExpectedUserAgentAndPeerId(string client, string expectedUserAgent, string expectedPeerIdPrefix)
     {
         var (userAgent, peerIdPrefix) = ClientEmulationPresets.GetPreset(client);
@@ -30,22 +30,22 @@ public class ClientEmulationPresetsTest
         peerIdPrefix.Should().Be(expectedPeerIdPrefix);
     }
 
-    [TestCase("-qB4420-", "qB4420")]
-    [TestCase("-DE2050-", "DE2050")]
-    [TestCase("-TR3000-", "TR3000")]
+    [TestCase("-qB4650-", "qB4650")]
+    [TestCase("-DE2110-", "DE2110")]
+    [TestCase("-TR4050-", "TR4050")]
     [TestCase("-UT3550-", "UT3550")]
     [TestCase("-AZ3400-", "AZ3400")]
     [TestCase("-LC1000-", "LC1000")]
-    [TestCase("", "qB4420")]
-    [TestCase(null, "qB4420")]
+    [TestCase("", "qB4650")]
+    [TestCase(null, "qB4650")]
     public void CleanClientVersion_ExtractsExpectedVersion(string peerIdPrefix, string expectedVersion)
     {
         ClientEmulationPresets.CleanClientVersion(peerIdPrefix).Should().Be(expectedVersion);
     }
 
-    [TestCase("-qB4420-", "qB")]
-    [TestCase("-DE2050-", "DE")]
-    [TestCase("-TR3000-", "TR")]
+    [TestCase("-qB4650-", "qB")]
+    [TestCase("-DE2110-", "DE")]
+    [TestCase("-TR4050-", "TR")]
     [TestCase("-UT3550-", "UT")]
     [TestCase("-AZ3400-", "AZ")]
     [TestCase("-LC1000-", "LC")]
