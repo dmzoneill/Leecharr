@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useMemo } from "react";
 import {
   useSeedingStats,
   useNetworkStatus,
@@ -13,6 +13,7 @@ import {
   formatUptime,
 } from "../utils/formatters";
 import { useTranslation } from "../i18n";
+import { useTorrentStore } from "../stores/useTorrentStore";
 import {
   SeedingIcon,
   UploadIcon,
@@ -38,54 +39,72 @@ export function StatusBar({ connected, isReconnecting }: StatusBarProps = {}) {
   const { data: systemStatus } = useSystemStatus();
   const { data: healthChecks } = useHealthChecks();
 
-  // Instantaneous speed from live polling deltas
-  const prevRef = useRef<{
-    totalUploaded: number;
-    totalDownloaded: number;
-    timestamp: number;
-  } | null>(null);
-  const [speeds, setSpeeds] = useState({ uploadSpeed: 0, downloadSpeed: 0 });
+  const telemetry = useTorrentStore((state) => state.telemetry);
 
-  useEffect(() => {
-    if (!stats) return;
+  const {
+    totalDlSpeed,
+    totalUlSpeed,
+    activeCount,
+    totalSeeders,
+    totalLeechers,
+    totalUploaded,
+    totalDownloaded,
+    averageRatio,
+  } = useMemo(() => {
+    let dl = 0;
+    let ul = 0;
+    let active = 0;
+    let seeders = 0;
+    let leechers = 0;
+    let uploadedSum = 0;
+    let downloadedSum = 0;
+    let ratioSum = 0;
 
-    const now = Date.now();
-    const prev = prevRef.current;
+    const torrentList = torrents ?? [];
 
-    if (prev) {
-      const timeDelta = (now - prev.timestamp) / 1000;
-      if (timeDelta >= 1) {
-        setSpeeds({
-          uploadSpeed: Math.max(
-            0,
-            (stats.totalUploaded - prev.totalUploaded) / timeDelta,
-          ),
-          downloadSpeed: Math.max(
-            0,
-            (stats.totalDownloaded - prev.totalDownloaded) / timeDelta,
-          ),
-        });
+    for (const t of torrentList) {
+      const tel = telemetry[t.id];
+      const effectiveDl = tel?.downloadSpeed ?? t.downloadSpeed ?? 0;
+      const effectiveUl = tel?.uploadSpeed ?? t.uploadSpeed ?? 0;
+      const effectiveStatus = (tel?.status ?? t.status ?? "").toLowerCase();
+      const effectiveSeeders = tel?.seeders ?? t.seeders ?? 0;
+      const effectiveLeechers = tel?.leechers ?? t.leechers ?? 0;
+      const effectiveUploaded = tel?.uploaded ?? t.uploaded ?? 0;
+      const effectiveDownloaded = tel?.downloaded ?? t.downloaded ?? 0;
+      const effectiveRatio = tel?.ratio ?? t.ratio ?? 0;
+
+      dl += effectiveDl;
+      ul += effectiveUl;
+      seeders += effectiveSeeders;
+      leechers += effectiveLeechers;
+      uploadedSum += effectiveUploaded;
+      downloadedSum += effectiveDownloaded;
+      ratioSum += effectiveRatio;
+
+      if (
+        effectiveStatus === "downloading" ||
+        effectiveStatus === "seeding"
+      ) {
+        active++;
       }
     }
 
-    prevRef.current = {
-      totalUploaded: stats.totalUploaded,
-      totalDownloaded: stats.totalDownloaded,
-      timestamp: now,
+    const calculatedAvgRatio =
+      torrentList.length > 0 ? ratioSum / torrentList.length : 0;
+
+    return {
+      totalDlSpeed: dl,
+      totalUlSpeed: ul,
+      activeCount:
+        torrentList.length > 0 ? active : (stats?.activeTorrents ?? 0),
+      totalSeeders: seeders,
+      totalLeechers: leechers,
+      totalUploaded: Math.max(stats?.totalUploaded ?? 0, uploadedSum),
+      totalDownloaded: Math.max(stats?.totalDownloaded ?? 0, downloadedSum),
+      averageRatio: stats?.averageRatio ?? calculatedAvgRatio,
     };
-  }, [stats]);
+  }, [torrents, telemetry, stats]);
 
-  const { uploadSpeed, downloadSpeed } = speeds;
-
-  // Aggregate real peer counts across all torrents
-  const totalSeeders = (torrents ?? []).reduce(
-    (sum, t) => sum + (t.seeders ?? 0),
-    0,
-  );
-  const totalLeechers = (torrents ?? []).reduce(
-    (sum, t) => sum + (t.leechers ?? 0),
-    0,
-  );
   const totalPeers = totalSeeders + totalLeechers;
 
   const hasIssues =
@@ -155,35 +174,13 @@ export function StatusBar({ connected, isReconnecting }: StatusBarProps = {}) {
         <div className="status-bar-separator" style={{ flexGrow: 1 }} />
 
         <span className="status-bar-item">
-          <SeedingIcon size={14} /> {t("statusBar.active")}{" "}
-          {stats?.activeTorrents ??
-            torrents?.filter((t) => {
-              const s = (t.status || "").toLowerCase();
-              return s === "downloading" || s === "seeding";
-            }).length ??
-            0}
+          <SeedingIcon size={14} /> {t("statusBar.active")} {activeCount}
         </span>
         <span className="status-bar-item status-bar-download">
-          <DownloadIcon size={14} />{" "}
-          {formatSpeed(
-            downloadSpeed > 0
-              ? downloadSpeed
-              : (torrents ?? []).reduce(
-                  (acc, t) => acc + (t.downloadSpeed || 0),
-                  0,
-                ),
-          )}
+          <DownloadIcon size={14} /> {formatSpeed(totalDlSpeed)}
         </span>
         <span className="status-bar-item status-bar-upload">
-          <UploadIcon size={14} />{" "}
-          {formatSpeed(
-            uploadSpeed > 0
-              ? uploadSpeed
-              : (torrents ?? []).reduce(
-                  (acc, t) => acc + (t.uploadSpeed || 0),
-                  0,
-                ),
-          )}
+          <UploadIcon size={14} /> {formatSpeed(totalUlSpeed)}
         </span>
         <span className="status-bar-item">
           <UsersIcon size={14} /> {t("statusBar.peers")} {totalSeeders} /{" "}
@@ -191,14 +188,14 @@ export function StatusBar({ connected, isReconnecting }: StatusBarProps = {}) {
         </span>
         <span className="status-bar-item">
           <UploadIcon size={14} /> {t("statusBar.totalUp")}{" "}
-          {formatBytes(stats?.totalUploaded ?? 0)}
+          {formatBytes(totalUploaded)}
         </span>
         <span className="status-bar-item">
           <DownloadIcon size={14} /> {t("statusBar.totalDown")}{" "}
-          {formatBytes(stats?.totalDownloaded ?? 0)}
+          {formatBytes(totalDownloaded)}
         </span>
         <span className="status-bar-item">
-          {t("statusBar.ratio")} {formatRatio(stats?.averageRatio ?? 0)}
+          {t("statusBar.ratio")} {formatRatio(averageRatio)}
         </span>
         <span className="status-bar-item">
           <WifiIcon size={14} /> {t("statusBar.ip")}{" "}
