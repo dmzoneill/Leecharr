@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
@@ -1126,6 +1127,418 @@ public class Aria2RpcControllerTest
         structs!.Count.Should().Be(2);
         GetStructMember(structs[0]!, "gid").Should().Be(torrents[2].InfoHash.Substring(0, 16));
         GetStructMember(structs[1]!, "gid").Should().Be(torrents[3].InfoHash.Substring(0, 16));
+    }
+
+    [Test]
+    public async Task GetSessionInfo_JsonRpc_ReturnsValidSessionId()
+    {
+        this.SetJsonRequestBody("""
+            {
+              "jsonrpc": "2.0",
+              "id": 101,
+              "method": "aria2.getSessionInfo",
+              "params": []
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var sessionId = doc.RootElement.GetProperty("result").GetProperty("sessionId").GetString();
+        sessionId.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Test]
+    public async Task GetSessionInfo_XmlRpc_ReturnsValidSessionId()
+    {
+        this.SetXmlRpcRequest("aria2.getSessionInfo");
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)actionResult;
+        var doc = XDocument.Parse(contentResult.Content);
+
+        var structElem = doc.Root?.Element("params")?.Element("param")?.Element("value")?.Element("struct");
+        structElem.Should().NotBeNull();
+        var sessionId = GetStructMember(structElem!, "sessionId");
+        sessionId.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Test]
+    public async Task GetPeers_JsonRpc_WhenTorrentFoundWithPeers_ReturnsPeerList()
+    {
+        var torrent = new Torrent
+        {
+            Id = 10,
+            Name = "PeersTorrent",
+            InfoHash = FullInfoHash,
+            Status = TorrentStatus.Downloading,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        var peerInfo = new PeerInfo
+        {
+            Client = "qBittorrent/4.5.0",
+            Ip = "192.168.1.50",
+            Port = 6881,
+            ClientIsChoked = false,
+            IsChoked = true,
+            DownloadSpeed = 102400,
+            UploadSpeed = 51200,
+            Progress = 1.0,
+        };
+        mockTask.GetPeers().Returns(new List<PeerInfo> { peerInfo });
+        this.torrentService.GetDownloadTask(torrent.Id).Returns(mockTask);
+
+        this.SetJsonRequestBody($$"""
+            {
+              "jsonrpc": "2.0",
+              "id": 102,
+              "method": "aria2.getPeers",
+              "params": ["{{ExpectedGid}}"]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var array = doc.RootElement.GetProperty("result").EnumerateArray().ToList();
+        array.Count.Should().Be(1);
+        array[0].GetProperty("peerId").GetString().Should().Be("qBittorrent/4.5.0");
+        array[0].GetProperty("ip").GetString().Should().Be("192.168.1.50");
+        array[0].GetProperty("port").GetString().Should().Be("6881");
+        array[0].GetProperty("amChoking").GetString().Should().Be("false");
+        array[0].GetProperty("peerChoking").GetString().Should().Be("true");
+        array[0].GetProperty("downloadSpeed").GetString().Should().Be("102400");
+        array[0].GetProperty("uploadSpeed").GetString().Should().Be("51200");
+        array[0].GetProperty("seeder").GetString().Should().Be("true");
+    }
+
+    [Test]
+    public async Task GetPeers_JsonRpc_WhenTorrentNotFound_ReturnsEmptyArray()
+    {
+        this.torrentService.GetAll().Returns(new List<Torrent>());
+
+        this.SetJsonRequestBody("""
+            {
+              "jsonrpc": "2.0",
+              "id": 103,
+              "method": "aria2.getPeers",
+              "params": ["nonexistentgid123"]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var array = doc.RootElement.GetProperty("result").EnumerateArray().ToList();
+        array.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task GetPeers_XmlRpc_WhenTorrentFoundWithPeers_ReturnsPeersArray()
+    {
+        var torrent = new Torrent
+        {
+            Id = 11,
+            Name = "PeersTorrentXml",
+            InfoHash = FullInfoHash,
+            Status = TorrentStatus.Downloading,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        var peerInfo = new PeerInfo
+        {
+            Client = "Transmission/3.00",
+            Ip = "10.0.0.5",
+            Port = 51413,
+            ClientIsChoked = true,
+            IsChoked = false,
+            DownloadSpeed = 204800,
+            UploadSpeed = 0,
+            Progress = 0.5,
+        };
+        mockTask.GetPeers().Returns(new List<PeerInfo> { peerInfo });
+        this.torrentService.GetDownloadTask(torrent.Id).Returns(mockTask);
+
+        this.SetXmlRpcRequest("aria2.getPeers", ExpectedGid);
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)actionResult;
+        var doc = XDocument.Parse(contentResult.Content);
+
+        var structs = doc.Root?.Element("params")?.Element("param")?.Element("value")
+            ?.Element("array")?.Element("data")?.Elements("value")
+            .Select(v => v.Element("struct"))
+            .ToList();
+
+        structs.Should().NotBeNull();
+        structs!.Count.Should().Be(1);
+        GetStructMember(structs[0]!, "peerId").Should().Be("Transmission/3.00");
+        GetStructMember(structs[0]!, "ip").Should().Be("10.0.0.5");
+        GetStructMember(structs[0]!, "port").Should().Be("51413");
+        GetStructMember(structs[0]!, "amChoking").Should().Be("true");
+        GetStructMember(structs[0]!, "peerChoking").Should().Be("false");
+        GetStructMember(structs[0]!, "seeder").Should().Be("false");
+    }
+
+    [Test]
+    public async Task GetServers_JsonRpc_ReturnsEmptyArray()
+    {
+        this.SetJsonRequestBody($$"""
+            {
+              "jsonrpc": "2.0",
+              "id": 104,
+              "method": "aria2.getServers",
+              "params": ["{{ExpectedGid}}"]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var array = doc.RootElement.GetProperty("result").EnumerateArray().ToList();
+        array.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task GetServers_XmlRpc_ReturnsEmptyArray()
+    {
+        this.SetXmlRpcRequest("aria2.getServers", ExpectedGid);
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)actionResult;
+        var doc = XDocument.Parse(contentResult.Content);
+
+        var dataElem = doc.Root?.Element("params")?.Element("param")?.Element("value")
+            ?.Element("array")?.Element("data");
+        dataElem.Should().NotBeNull();
+        dataElem!.Elements("value").Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task GetUris_JsonRpc_WhenTorrentHasTracker_ReturnsTrackerUri()
+    {
+        var torrent = new Torrent
+        {
+            Id = 12,
+            Name = "TrackerTorrent",
+            InfoHash = FullInfoHash,
+            TrackerUrl = "http://tracker.example.com/announce",
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        this.SetJsonRequestBody($$"""
+            {
+              "jsonrpc": "2.0",
+              "id": 105,
+              "method": "aria2.getUris",
+              "params": ["{{ExpectedGid}}"]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var array = doc.RootElement.GetProperty("result").EnumerateArray().ToList();
+        array.Count.Should().Be(1);
+        array[0].GetProperty("uri").GetString().Should().Be("http://tracker.example.com/announce");
+        array[0].GetProperty("status").GetString().Should().Be("used");
+    }
+
+    [Test]
+    public async Task GetUris_JsonRpc_WhenTorrentNotFound_ReturnsEmptyArray()
+    {
+        this.torrentService.GetAll().Returns(new List<Torrent>());
+
+        this.SetJsonRequestBody("""
+            {
+              "jsonrpc": "2.0",
+              "id": 106,
+              "method": "aria2.getUris",
+              "params": ["nonexistentgid"]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var array = doc.RootElement.GetProperty("result").EnumerateArray().ToList();
+        array.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task GetUris_XmlRpc_WhenTorrentHasTracker_ReturnsTrackerUriArray()
+    {
+        var torrent = new Torrent
+        {
+            Id = 13,
+            Name = "TrackerTorrentXml",
+            InfoHash = FullInfoHash,
+            TrackerUrl = "udp://tracker.openbittorrent.com:80/announce",
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        this.SetXmlRpcRequest("aria2.getUris", ExpectedGid);
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)actionResult;
+        var doc = XDocument.Parse(contentResult.Content);
+
+        var structs = doc.Root?.Element("params")?.Element("param")?.Element("value")
+            ?.Element("array")?.Element("data")?.Elements("value")
+            .Select(v => v.Element("struct"))
+            .ToList();
+
+        structs.Should().NotBeNull();
+        structs!.Count.Should().Be(1);
+        GetStructMember(structs[0]!, "uri").Should().Be("udp://tracker.openbittorrent.com:80/announce");
+        GetStructMember(structs[0]!, "status").Should().Be("used");
+    }
+
+    [Test]
+    public async Task PurgeDownloadResult_JsonRpc_ReturnsOK()
+    {
+        this.SetJsonRequestBody("""
+            {
+              "jsonrpc": "2.0",
+              "id": 107,
+              "method": "aria2.purgeDownloadResult",
+              "params": []
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        var okStr = GetJsonRpcResultString(result);
+        okStr.Should().Be("OK");
+    }
+
+    [Test]
+    public async Task PurgeDownloadResult_XmlRpc_ReturnsOK()
+    {
+        this.SetXmlRpcRequest("aria2.purgeDownloadResult");
+
+        var actionResult = await this.controller.HandleRpc();
+        var okStr = GetXmlRpcResultString(actionResult);
+        okStr.Should().Be("OK");
+    }
+
+    [Test]
+    public async Task RemoveDownloadResult_JsonRpc_DeletesTorrentAndReturnsOK()
+    {
+        var torrent = new Torrent
+        {
+            Id = 14,
+            Name = "FinishedTorrent",
+            InfoHash = FullInfoHash,
+            Status = TorrentStatus.Stopped,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        this.SetJsonRequestBody($$"""
+            {
+              "jsonrpc": "2.0",
+              "id": 108,
+              "method": "aria2.removeDownloadResult",
+              "params": ["{{ExpectedGid}}"]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        var okStr = GetJsonRpcResultString(result);
+        okStr.Should().Be("OK");
+
+        await this.torrentService.Received(1).DeleteAsync(torrent.Id, false);
+    }
+
+    [Test]
+    public async Task RemoveDownloadResult_XmlRpc_DeletesTorrentAndReturnsOK()
+    {
+        var torrent = new Torrent
+        {
+            Id = 15,
+            Name = "FinishedTorrentXml",
+            InfoHash = FullInfoHash,
+            Status = TorrentStatus.Stopped,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        this.SetXmlRpcRequest("aria2.removeDownloadResult", ExpectedGid);
+
+        var actionResult = await this.controller.HandleRpc();
+        var okStr = GetXmlRpcResultString(actionResult);
+        okStr.Should().Be("OK");
+
+        await this.torrentService.Received(1).DeleteAsync(torrent.Id, false);
+    }
+
+    [Test]
+    public async Task SystemListMethods_JsonRpc_ReturnsExpectedMethods()
+    {
+        this.SetJsonRequestBody("""
+            {
+              "jsonrpc": "2.0",
+              "id": 109,
+              "method": "system.listMethods",
+              "params": []
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var methods = doc.RootElement.GetProperty("result").EnumerateArray().Select(e => e.GetString()).ToList();
+
+        methods.Should().Contain(new[]
+        {
+            "aria2.getPeers",
+            "aria2.getServers",
+            "aria2.getUris",
+            "aria2.getSessionInfo",
+            "aria2.purgeDownloadResult",
+            "aria2.removeDownloadResult",
+            "system.listMethods",
+        });
+    }
+
+    [Test]
+    public async Task SystemListMethods_XmlRpc_ReturnsExpectedMethods()
+    {
+        this.SetXmlRpcRequest("system.listMethods");
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)actionResult;
+        var doc = XDocument.Parse(contentResult.Content);
+
+        var values = doc.Root?.Element("params")?.Element("param")?.Element("value")
+            ?.Element("array")?.Element("data")?.Elements("value")
+            .Select(v => v.Element("string")?.Value)
+            .ToList();
+
+        values.Should().NotBeNull();
+        values.Should().Contain(new[]
+        {
+            "aria2.getPeers",
+            "aria2.getServers",
+            "aria2.getUris",
+            "aria2.getSessionInfo",
+            "aria2.purgeDownloadResult",
+            "aria2.removeDownloadResult",
+            "system.listMethods",
+        });
     }
 
     private static string GetStructMember(XElement structElem, string memberName)
