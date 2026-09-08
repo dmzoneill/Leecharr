@@ -778,7 +778,9 @@ export function useBoostTorrent() {
         queryKey: ["trackerboost", "check", torrentId],
       });
       queryClient.invalidateQueries({ queryKey: ["torrents"] });
-      queryClient.invalidateQueries({ queryKey: ["trackers", torrentId] });
+      queryClient.invalidateQueries({
+        queryKey: ["torrents", torrentId, "trackers"],
+      });
     },
   });
 }
@@ -819,6 +821,9 @@ export function useInjectTrackerToTorrent() {
       if (vars.torrentId) {
         queryClient.invalidateQueries({
           queryKey: ["trackerboost", "check", vars.torrentId],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["torrents", vars.torrentId, "trackers"],
         });
       }
       if (vars.infoHash) {
