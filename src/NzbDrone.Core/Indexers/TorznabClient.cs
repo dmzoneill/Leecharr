@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -216,7 +217,7 @@ public class TorznabClient : ITorznabClient
                     "Torznab indexer '{0}' returned error code {1}: {2}",
                     indexer?.Name ?? "Unknown",
                     errorElem.Attribute("code")?.Value ?? "unknown",
-                    errorElem.Attribute("description")?.Value ?? errorElem.Value);
+                    WebUtility.HtmlDecode(errorElem.Attribute("description")?.Value ?? errorElem.Value));
                 return results;
             }
 
@@ -227,14 +228,25 @@ public class TorznabClient : ITorznabClient
 
             foreach (var item in items)
             {
-                var title = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("title", StringComparison.OrdinalIgnoreCase))?.Value ?? string.Empty;
-                var guid = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("guid", StringComparison.OrdinalIgnoreCase) || e.Name.LocalName.Equals("id", StringComparison.OrdinalIgnoreCase))?.Value ?? string.Empty;
-                var link = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("link", StringComparison.OrdinalIgnoreCase))?.Value
-                    ?? item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("link", StringComparison.OrdinalIgnoreCase))?.Attribute("href")?.Value
-                    ?? string.Empty;
+                var rawTitle = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("title", StringComparison.OrdinalIgnoreCase))?.Value ?? string.Empty;
+                var title = WebUtility.HtmlDecode(rawTitle?.Trim() ?? string.Empty);
+
+                var rawGuid = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("guid", StringComparison.OrdinalIgnoreCase) || e.Name.LocalName.Equals("id", StringComparison.OrdinalIgnoreCase))?.Value ?? string.Empty;
+                var guid = WebUtility.HtmlDecode(rawGuid?.Trim() ?? string.Empty);
+
+                var linkElem = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("link", StringComparison.OrdinalIgnoreCase));
+                var rawLink = linkElem?.Value ?? linkElem?.Attribute("href")?.Value ?? string.Empty;
+                var link = WebUtility.HtmlDecode(rawLink?.Trim() ?? string.Empty);
+
                 var enclosure = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("enclosure", StringComparison.OrdinalIgnoreCase));
                 var enclosureUrl = enclosure?.Attribute("url")?.Value;
-                var downloadUrl = !string.IsNullOrWhiteSpace(enclosureUrl) ? enclosureUrl : link;
+                var downloadUrl = !string.IsNullOrWhiteSpace(enclosureUrl) ? WebUtility.HtmlDecode(enclosureUrl.Trim()) : link;
+
+                var rawDescription = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("description", StringComparison.OrdinalIgnoreCase))?.Value;
+                var description = !string.IsNullOrWhiteSpace(rawDescription) ? WebUtility.HtmlDecode(rawDescription.Trim()) : string.Empty;
+
+                var rawDetails = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("comments", StringComparison.OrdinalIgnoreCase) || e.Name.LocalName.Equals("details", StringComparison.OrdinalIgnoreCase))?.Value;
+                var details = !string.IsNullOrWhiteSpace(rawDetails) ? WebUtility.HtmlDecode(rawDetails.Trim()) : string.Empty;
 
                 var pubDateStr = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("pubDate", StringComparison.OrdinalIgnoreCase)
                     || e.Name.LocalName.Equals("published", StringComparison.OrdinalIgnoreCase)
@@ -267,20 +279,35 @@ public class TorznabClient : ITorznabClient
                 }
 
                 var seeders = 0;
-                var leechers = 0;
+                int? rawLeechers = null;
+                int? rawPeers = null;
                 var downloadVolumeFactor = 1.0;
                 var uploadVolumeFactor = 1.0;
                 var isFreeleechAttr = false;
                 var infoHash = string.Empty;
                 var magnetUrl = string.Empty;
+                double? minimumRatio = null;
+                long? minimumSeedTime = null;
                 var categories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 foreach (var catElem in item.Elements().Where(e => e.Name.LocalName.Equals("category", StringComparison.OrdinalIgnoreCase)))
                 {
+                    var catId = catElem.Attribute("id")?.Value?.Trim() ?? catElem.Attribute("domain")?.Value?.Trim();
+                    if (!string.IsNullOrWhiteSpace(catId))
+                    {
+                        categories.Add(WebUtility.HtmlDecode(catId));
+                    }
+
+                    var catName = catElem.Attribute("name")?.Value?.Trim();
+                    if (!string.IsNullOrWhiteSpace(catName))
+                    {
+                        categories.Add(WebUtility.HtmlDecode(catName));
+                    }
+
                     var catVal = catElem.Value?.Trim();
                     if (!string.IsNullOrWhiteSpace(catVal))
                     {
-                        categories.Add(catVal);
+                        categories.Add(WebUtility.HtmlDecode(catVal));
                     }
                 }
 
@@ -310,9 +337,17 @@ public class TorznabClient : ITorznabClient
                         case "seeders":
                             seeders = ParseInt(value, seeders);
                             break;
-                        case "peers":
                         case "leechers":
-                            leechers = ParseInt(value, leechers);
+                            rawLeechers = ParseInt(value, 0);
+                            break;
+                        case "peers":
+                            rawPeers = ParseInt(value, 0);
+                            break;
+                        case "minimumratio":
+                            minimumRatio = ParseNullableDouble(value);
+                            break;
+                        case "minimumseedtime":
+                            minimumSeedTime = ParseNullableLong(value);
                             break;
                         case "freeleech":
                             var trimmedVal = value?.Trim();
@@ -344,7 +379,7 @@ public class TorznabClient : ITorznabClient
                             var catAttrVal = value?.Trim();
                             if (!string.IsNullOrWhiteSpace(catAttrVal))
                             {
-                                categories.Add(catAttrVal);
+                                categories.Add(WebUtility.HtmlDecode(catAttrVal));
                             }
 
                             break;
@@ -357,6 +392,10 @@ public class TorznabClient : ITorznabClient
                             break;
                     }
                 }
+
+                var leechers = rawLeechers.HasValue
+                    ? rawLeechers.Value
+                    : (rawPeers.HasValue ? Math.Max(0, rawPeers.Value - seeders) : 0);
 
                 if (string.IsNullOrWhiteSpace(magnetUrl))
                 {
@@ -386,6 +425,11 @@ public class TorznabClient : ITorznabClient
                     PublishDate = publishDate,
                     IndexerName = indexer?.Name ?? "Indexer",
                     IndexerId = indexer?.Id ?? 0,
+                    MinimumRatio = minimumRatio,
+                    MinimumSeedTime = minimumSeedTime,
+                    Description = description,
+                    DetailsUrl = details,
+                    Comments = details,
                 };
 
                 if (indexer != null && indexer.FreeleechOnly && !result.IsFreeleech)
@@ -490,6 +534,38 @@ public class TorznabClient : ITorznabClient
         }
 
         return defaultValue;
+    }
+
+    internal static double? ParseNullableDouble(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var match = Regex.Match(value, @"-?\d+(?:\.\d+)?");
+        if (match.Success && double.TryParse(match.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var result))
+        {
+            return result;
+        }
+
+        return null;
+    }
+
+    internal static long? ParseNullableLong(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var match = Regex.Match(value, @"-?\d+");
+        if (match.Success && long.TryParse(match.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result))
+        {
+            return result;
+        }
+
+        return null;
     }
 
     public async Task<TorznabCapabilities> FetchCapabilitiesAsync(IndexerDefinition indexer, System.Threading.CancellationToken cancellationToken = default)
@@ -616,7 +692,7 @@ public class TorznabClient : ITorznabClient
                 foreach (var catElem in categoriesElem.Elements("category"))
                 {
                     var idStr = catElem.Attribute("id")?.Value;
-                    var name = catElem.Attribute("name")?.Value ?? string.Empty;
+                    var name = WebUtility.HtmlDecode(catElem.Attribute("name")?.Value ?? string.Empty);
                     var id = ParseInt(idStr, -1);
                     if (id < 0)
                     {
@@ -632,7 +708,7 @@ public class TorznabClient : ITorznabClient
                     foreach (var subcatElem in catElem.Elements("subcat"))
                     {
                         var subIdStr = subcatElem.Attribute("id")?.Value;
-                        var subName = subcatElem.Attribute("name")?.Value ?? string.Empty;
+                        var subName = WebUtility.HtmlDecode(subcatElem.Attribute("name")?.Value ?? string.Empty);
                         var subId = ParseInt(subIdStr, -1);
                         if (subId >= 0)
                         {
@@ -691,7 +767,7 @@ public class TorznabClient : ITorznabClient
                     var doc = SafeParseXml(capsContent);
                     var errorElem = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("error", StringComparison.OrdinalIgnoreCase));
                     var code = errorElem?.Attribute("code")?.Value ?? "unknown";
-                    var desc = errorElem?.Attribute("description")?.Value ?? "Torznab error";
+                    var desc = WebUtility.HtmlDecode(errorElem?.Attribute("description")?.Value ?? "Torznab error");
                     return TorznabTestResult.Fail($"Torznab error ({code}): {desc}");
                 }
 
@@ -736,7 +812,7 @@ public class TorznabClient : ITorznabClient
                 var doc = SafeParseXml(searchContent);
                 var errorElem = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("error", StringComparison.OrdinalIgnoreCase));
                 var code = errorElem?.Attribute("code")?.Value ?? "unknown";
-                var desc = errorElem?.Attribute("description")?.Value ?? "Torznab error";
+                var desc = WebUtility.HtmlDecode(errorElem?.Attribute("description")?.Value ?? "Torznab error");
                 return TorznabTestResult.Fail($"Torznab error ({code}): {desc}");
             }
 
