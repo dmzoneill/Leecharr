@@ -707,7 +707,7 @@ public class IndexerControllerTest
     }
 
     [Test]
-    public async Task SearchGet_MultiIndexerPaginationAtOffset100_QueriesIndexersAtOffset100AndReturnsResults()
+    public async Task SearchGet_MultiIndexerPagination_QueriesIndexersFromOffsetZeroAndPaginatesGlobally()
     {
         var indexer1 = new IndexerDefinition { Id = 1, Name = "Tracker1", Enable = true, EnableSearch = true, Url = "http://t1" };
         var indexer2 = new IndexerDefinition { Id = 2, Name = "Tracker2", Enable = true, EnableSearch = true, Url = "http://t2" };
@@ -717,8 +717,8 @@ public class IndexerControllerTest
             indexer1,
             "popular movie",
             Arg.Any<int?>(),
-            limit: 50,
-            offset: 100,
+            limit: 3,
+            offset: 0,
             Arg.Any<int?>(),
             Arg.Any<int?>(),
             Arg.Any<string>(),
@@ -734,15 +734,17 @@ public class IndexerControllerTest
             Arg.Any<System.Threading.CancellationToken>())
             .Returns(Task.FromResult(new List<TorznabSearchResult>
             {
-                new() { Title = "Page 3 Movie Release A", Seeders = 120, DownloadUrl = "http://dl-a" },
+                new() { Title = "Movie T1 High", Seeders = 100, DownloadUrl = "http://dl-t1-1" },
+                new() { Title = "Movie T1 Mid", Seeders = 70, DownloadUrl = "http://dl-t1-2" },
+                new() { Title = "Movie T1 Low", Seeders = 40, DownloadUrl = "http://dl-t1-3" },
             }));
 
         this.torznabClient.SearchAsync(
             indexer2,
             "popular movie",
             Arg.Any<int?>(),
-            limit: 50,
-            offset: 100,
+            limit: 3,
+            offset: 0,
             Arg.Any<int?>(),
             Arg.Any<int?>(),
             Arg.Any<string>(),
@@ -758,18 +760,22 @@ public class IndexerControllerTest
             Arg.Any<System.Threading.CancellationToken>())
             .Returns(Task.FromResult(new List<TorznabSearchResult>
             {
-                new() { Title = "Page 3 Movie Release B", Seeders = 80, DownloadUrl = "http://dl-b" },
+                new() { Title = "Movie T2 High", Seeders = 90, DownloadUrl = "http://dl-t2-1" },
+                new() { Title = "Movie T2 Mid", Seeders = 60, DownloadUrl = "http://dl-t2-2" },
+                new() { Title = "Movie T2 Low", Seeders = 30, DownloadUrl = "http://dl-t2-3" },
             }));
 
-        var actionResult = await this.controller.SearchGet(query: "popular movie", offset: 100, limit: 50);
+        var actionResult = await this.controller.SearchGet(query: "popular movie", offset: 1, limit: 2);
 
         actionResult.Result.Should().BeOfType<OkObjectResult>();
         var okResult = (OkObjectResult)actionResult.Result!;
         var results = (List<ReleaseInfoResource>)okResult.Value!;
 
         results.Should().HaveCount(2);
-        results[0].Title.Should().Be("Page 3 Movie Release A");
-        results[1].Title.Should().Be("Page 3 Movie Release B");
+        results[0].Title.Should().Be("Movie T2 High");
+        results[0].Seeders.Should().Be(90);
+        results[1].Title.Should().Be("Movie T1 Mid");
+        results[1].Seeders.Should().Be(70);
     }
 
     [Test]
