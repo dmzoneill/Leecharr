@@ -623,6 +623,107 @@ public class Aria2RpcControllerTest
     }
 
     [Test]
+    public async Task ChangeGlobalOption_JsonRpc_WithNumericLimits_SucceedsAndUpdatesConfig()
+    {
+        this.SetJsonRequestBody($$"""
+            {
+              "jsonrpc": "2.0",
+              "id": 2,
+              "method": "aria2.changeGlobalOption",
+              "params": [
+                {
+                  "max-overall-download-limit": 2097152,
+                  "max-overall-upload-limit": 1048576
+                }
+              ]
+            }
+            """);
+
+        var actionResult = await this.controller.HandleRpc();
+        var res = GetJsonRpcResultString(actionResult);
+        res.Should().Be("OK");
+
+        this.configService.Received().SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            (int)d["MaxDownloadSpeedKbps"] == 2048 && (int)d["MaxUploadSpeedKbps"] == 1024));
+    }
+
+    [Test]
+    public async Task ChangeOption_JsonRpc_WithNumericLimits_UpdatesTorrentLimits()
+    {
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "LimitTorrent",
+            InfoHash = FullInfoHash,
+            DownloadLimit = 0,
+            UploadLimit = 0,
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        this.SetJsonRequestBody($$"""
+            {
+              "jsonrpc": "2.0",
+              "id": 3,
+              "method": "aria2.changeOption",
+              "params": [
+                "{{ExpectedGid}}",
+                {
+                  "max-download-limit": 2097152,
+                  "max-upload-limit": 1048576
+                }
+              ]
+            }
+            """);
+
+        var actionResult = await this.controller.HandleRpc();
+        var res = GetJsonRpcResultString(actionResult);
+        res.Should().Be("OK");
+
+        torrent.DownloadLimit.Should().Be(2048);
+        torrent.UploadLimit.Should().Be(1024);
+        await this.torrentService.Received().UpdateAsync(torrent);
+    }
+
+    [Test]
+    public async Task ChangeOption_JsonRpc_WithStringLimits_UpdatesTorrentLimits()
+    {
+        var torrent = new Torrent
+        {
+            Id = 43,
+            Name = "LimitTorrentStr",
+            InfoHash = FullInfoHash,
+            DownloadLimit = 0,
+            UploadLimit = 0,
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        this.SetJsonRequestBody($$"""
+            {
+              "jsonrpc": "2.0",
+              "id": 4,
+              "method": "aria2.changeOption",
+              "params": [
+                "{{ExpectedGid}}",
+                {
+                  "max-download-limit": "1048576",
+                  "max-upload-limit": "524288"
+                }
+              ]
+            }
+            """);
+
+        var actionResult = await this.controller.HandleRpc();
+        var res = GetJsonRpcResultString(actionResult);
+        res.Should().Be("OK");
+
+        torrent.DownloadLimit.Should().Be(1024);
+        torrent.UploadLimit.Should().Be(512);
+        await this.torrentService.Received().UpdateAsync(torrent);
+    }
+
+    [Test]
     public async Task GetGlobalOption_XmlRpc_ReturnsConfiguredLimits()
     {
         this.configService.DownloadDir.Returns("/custom/downloads");
