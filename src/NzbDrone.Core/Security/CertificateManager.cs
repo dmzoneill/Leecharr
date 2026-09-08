@@ -358,6 +358,18 @@ public class CertificateManager : ICertificateManager
             sanBuilder.AddIpAddress(bindIp);
         }
 
+        req.CertificateExtensions.Add(
+            new X509BasicConstraintsExtension(
+                certificateAuthority: false,
+                hasPathLengthConstraint: false,
+                pathLengthConstraint: 0,
+                critical: true));
+
+        req.CertificateExtensions.Add(
+            new X509SubjectKeyIdentifierExtension(
+                req.PublicKey,
+                critical: false));
+
         req.CertificateExtensions.Add(sanBuilder.Build());
 
         req.CertificateExtensions.Add(
@@ -371,7 +383,7 @@ public class CertificateManager : ICertificateManager
                 critical: false));
 
         var notBefore = DateTimeOffset.UtcNow.AddMinutes(-5);
-        var notAfter = DateTimeOffset.UtcNow.AddYears(5);
+        var notAfter = DateTimeOffset.UtcNow.AddDays(397);
 
         using var cert = req.CreateSelfSigned(notBefore, notAfter);
         var pfxBytes = cert.Export(X509ContentType.Pfx, pfxPassword);
