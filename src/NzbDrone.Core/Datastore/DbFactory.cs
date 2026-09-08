@@ -72,7 +72,7 @@ public class DbFactory : IDbFactory
             using var conn = new SqliteConnection(connectionString);
             conn.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON;";
+            cmd.CommandText = "PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 30000; PRAGMA cache_size = -64000; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON;";
             cmd.ExecuteNonQuery();
         }
 
