@@ -318,6 +318,9 @@ public class PiecePicker
                             {
                                 continue;
                             }
+
+                            existingInfo.FirstRequestedAt = now;
+                            existingInfo.PeerRequests.Clear();
                         }
                         else
                         {

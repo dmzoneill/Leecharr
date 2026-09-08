@@ -703,6 +703,55 @@ public class PiecePickerTest
     }
 
     [Test]
+    public async Task PickBlocks_WhenBlockRequestTimesOutAndIsReRequested_RefreshesTimestampAndDoesNotReRequestToSubsequentPeersUntilNewTimeoutExpires()
+    {
+        // 2 pieces, 16KB each (1 block per piece), requestTimeout: 50ms
+        var picker = new PiecePicker(2, 16384, 32768, requestTimeout: TimeSpan.FromMilliseconds(50));
+        var fullBitfield = new[] { true, true };
+
+        // Peer 1 requests block 0:0
+        var req1 = picker.PickBlocks(fullBitfield, 1, peerId: "peer-1");
+        req1.Should().HaveCount(1);
+        req1[0].PieceIndex.Should().Be(0);
+
+        // Peer 2 requests block 1:0
+        var req2 = picker.PickBlocks(fullBitfield, 1, peerId: "peer-2");
+        req2.Should().HaveCount(1);
+        req2[0].PieceIndex.Should().Be(1);
+
+        // Peer 3 immediately attempts to pick: both blocks in-flight, returns empty
+        var req3 = picker.PickBlocks(fullBitfield, 1, peerId: "peer-3");
+        req3.Should().BeEmpty();
+
+        // Wait for requests to time out
+        await Task.Delay(75);
+
+        // Peer 3 now picks the timed-out block 0:0
+        var retryPeer3 = picker.PickBlocks(fullBitfield, 1, peerId: "peer-3");
+        retryPeer3.Should().HaveCount(1);
+        retryPeer3[0].PieceIndex.Should().Be(0);
+
+        // Immediately (before new timeout), Peer 4 picks: block 0:0 timestamp is refreshed to now,
+        // so Peer 4 does NOT get block 0:0; it gets timed-out block 1:0 instead
+        var retryPeer4 = picker.PickBlocks(fullBitfield, 1, peerId: "peer-4");
+        retryPeer4.Should().HaveCount(1);
+        retryPeer4[0].PieceIndex.Should().Be(1);
+
+        // Immediately, Peer 5 attempts to pick: both blocks have had their timestamps refreshed,
+        // so no more blocks are available or timed out
+        var retryPeer5 = picker.PickBlocks(fullBitfield, 1, peerId: "peer-5");
+        retryPeer5.Should().BeEmpty();
+
+        // Check that peer-1 was cleared from block 0:0 peer requests and replaced by peer-3
+        var inFlightPeersPiece0 = picker.GetDuplicateInFlightPeers(0, 0, excludingPeerId: null);
+        inFlightPeersPiece0.Should().ContainSingle().Which.Should().Be("peer-3");
+
+        // Check that peer-2 was cleared from block 1:0 peer requests and replaced by peer-4
+        var inFlightPeersPiece1 = picker.GetDuplicateInFlightPeers(1, 0, excludingPeerId: null);
+        inFlightPeersPiece1.Should().ContainSingle().Which.Should().Be("peer-4");
+    }
+
+    [Test]
     public async Task PruneTimedOutRequests_RemovesExpiredEntries()
     {
         var picker = new PiecePicker(50, 16384, 819200, requestTimeout: TimeSpan.FromMilliseconds(50));
