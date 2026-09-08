@@ -358,8 +358,9 @@ function validateNotificationForm(form: NotificationFormState): string | null {
 
 function getNotificationSummary(
   notif: NotificationResource,
-  t: (key: string, ...args: any[]) => string,
+  tParam?: (key: string, ...args: any[]) => string,
 ): string {
+  const t = tParam || translate;
   try {
     const s = JSON.parse(notif.settings || "{}");
     if (notif.implementation === "Telegram") {
