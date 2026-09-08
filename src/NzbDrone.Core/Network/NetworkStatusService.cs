@@ -7,6 +7,7 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using NLog;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Network.PortMapping;
 
 namespace NzbDrone.Core.Network;
 
@@ -58,16 +59,19 @@ public class NetworkStatusService : INetworkStatusService
     private readonly IExternalIpService externalIpService;
     private readonly IConfigFileProvider configFileProvider;
     private readonly IConfigService configService;
+    private readonly INatPmpPortMapperService natPmpPortMapperService;
     private readonly Logger logger;
 
     public NetworkStatusService(
         IExternalIpService externalIpService,
         IConfigFileProvider configFileProvider,
-        IConfigService configService = null)
+        IConfigService configService = null,
+        INatPmpPortMapperService natPmpPortMapperService = null)
     {
         this.externalIpService = externalIpService;
         this.configFileProvider = configFileProvider;
         this.configService = configService;
+        this.natPmpPortMapperService = natPmpPortMapperService;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -85,6 +89,52 @@ public class NetworkStatusService : INetworkStatusService
         var btPort = this.configService?.ListeningPort > 0 ? this.configService.ListeningPort : 51413;
         var activeInterface = !string.IsNullOrWhiteSpace(this.configService?.BindInterface) ? this.configService.BindInterface : "Auto";
 
+        var portMappings = new List<PortMappingInfo>();
+        if (this.natPmpPortMapperService?.ActiveMappings != null && this.natPmpPortMapperService.ActiveMappings.Count > 0)
+        {
+            foreach (var mapping in this.natPmpPortMapperService.ActiveMappings)
+            {
+                var protocolStr = mapping.Protocol switch
+                {
+                    NatPmpProtocol.Tcp => "TCP",
+                    NatPmpProtocol.Udp => "UDP",
+                    _ => mapping.Protocol.ToString().ToUpperInvariant(),
+                };
+
+                var description = mapping.InternalPort == port
+                    ? "Leecharr Web UI & API"
+                    : (mapping.InternalPort == btPort ? "BitTorrent Peer Swarm & DHT" : $"NAT-PMP Port Mapping ({protocolStr})");
+
+                portMappings.Add(new PortMappingInfo
+                {
+                    InternalPort = mapping.InternalPort,
+                    ExternalPort = mapping.ExternalPort,
+                    Protocol = protocolStr,
+                    Description = description,
+                    IsActive = true,
+                });
+            }
+        }
+        else
+        {
+            portMappings.Add(new PortMappingInfo
+            {
+                InternalPort = port,
+                ExternalPort = port,
+                Protocol = "TCP",
+                Description = "Leecharr Web UI & API",
+                IsActive = true,
+            });
+            portMappings.Add(new PortMappingInfo
+            {
+                InternalPort = btPort,
+                ExternalPort = btPort,
+                Protocol = "TCP/UDP",
+                Description = "BitTorrent Peer Swarm & DHT",
+                IsActive = true,
+            });
+        }
+
         return new NetworkStatus
         {
             LocalIp = primaryLocal,
@@ -95,25 +145,7 @@ public class NetworkStatusService : INetworkStatusService
             UpnpAvailable = this.configService?.UpnpEnabled ?? true,
             ProxyEnabled = this.configService?.ProxyType != null && this.configService.ProxyType != "none",
             LocalAddresses = localAddresses,
-            PortMappings = new List<PortMappingInfo>
-            {
-                new()
-                {
-                    InternalPort = port,
-                    ExternalPort = port,
-                    Protocol = "TCP",
-                    Description = "Leecharr Web UI & API",
-                    IsActive = true
-                },
-                new()
-                {
-                    InternalPort = btPort,
-                    ExternalPort = btPort,
-                    Protocol = "TCP/UDP",
-                    Description = "BitTorrent Peer Swarm & DHT",
-                    IsActive = true
-                }
-            },
+            PortMappings = portMappings,
         };
     }
 

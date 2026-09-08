@@ -533,20 +533,164 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
     {
         if (this.tasks.TryGetValue(torrentId, out var task))
         {
-            this.logger.Debug("Transmission: Remove trackers triggered for torrent id {0}", torrentId);
-        }
+            try
+            {
+                var rpcIds = this.GetRpcIdsForTorrent(torrentId, task.InfoHash);
+                if (rpcIds.Count > 0)
+                {
+                    var trackerList = trackers.ToList();
+                    var trackerIdsToRemove = new List<int>();
+                    var nonIntTrackers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        await Task.CompletedTask;
+                    foreach (var tr in trackerList)
+                    {
+                        if (int.TryParse(tr, out var trId))
+                        {
+                            trackerIdsToRemove.Add(trId);
+                        }
+                        else
+                        {
+                            nonIntTrackers.Add(tr);
+                        }
+                    }
+
+                    if (nonIntTrackers.Count > 0)
+                    {
+                        var getResp = await this.SendRpcRequestAsync("torrent-get", new Dictionary<string, object>
+                        {
+                            ["ids"] = rpcIds,
+                            ["fields"] = new[] { "trackers" },
+                        });
+
+                        if (getResp.TryGetValue("arguments", out var argsObj) && argsObj is JsonElement args && args.TryGetProperty("torrents", out var torrentsArray))
+                        {
+                            foreach (var item in torrentsArray.EnumerateArray())
+                            {
+                                if (item.TryGetProperty("trackers", out var tArr))
+                                {
+                                    foreach (var trackerObj in tArr.EnumerateArray())
+                                    {
+                                        var announce = trackerObj.TryGetProperty("announce", out var a) ? a.GetString() : null;
+                                        var tId = trackerObj.TryGetProperty("id", out var idProp) ? idProp.GetInt32() : -1;
+                                        if (tId >= 0 && announce != null && nonIntTrackers.Contains(announce))
+                                        {
+                                            trackerIdsToRemove.Add(tId);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (trackerIdsToRemove.Count > 0)
+                    {
+                        await this.SendRpcRequestAsync("torrent-set", new Dictionary<string, object>
+                        {
+                            ["ids"] = rpcIds,
+                            ["trackerRemove"] = trackerIdsToRemove.Distinct().ToArray(),
+                        });
+                    }
+                    else
+                    {
+                        await this.SendRpcRequestAsync("torrent-set", new Dictionary<string, object>
+                        {
+                            ["ids"] = rpcIds,
+                            ["trackerRemove"] = trackerList.ToArray(),
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error removing trackers in Transmission for {0}", torrentId);
+            }
+        }
     }
 
     public async Task SetFilePriorityAsync(int torrentId, string filePath, int priority)
     {
         if (this.tasks.TryGetValue(torrentId, out var task))
         {
-            this.logger.Debug("Transmission: Set file priority for torrent {0} (path: {1}, priority: {2})", torrentId, filePath, priority);
-        }
+            try
+            {
+                var rpcIds = this.GetRpcIdsForTorrent(torrentId, task.InfoHash);
+                if (rpcIds.Count > 0)
+                {
+                    int fileIndex = -1;
+                    if (!int.TryParse(filePath, out fileIndex))
+                    {
+                        var getResp = await this.SendRpcRequestAsync("torrent-get", new Dictionary<string, object>
+                        {
+                            ["ids"] = rpcIds,
+                            ["fields"] = new[] { "files" },
+                        });
 
-        await Task.CompletedTask;
+                        if (getResp.TryGetValue("arguments", out var argsObj) && argsObj is JsonElement args && args.TryGetProperty("torrents", out var torrentsArray))
+                        {
+                            var normalized = filePath?.Replace('\\', '/').TrimStart('/');
+                            foreach (var item in torrentsArray.EnumerateArray())
+                            {
+                                if (item.TryGetProperty("files", out var fArr))
+                                {
+                                    int idx = 0;
+                                    foreach (var f in fArr.EnumerateArray())
+                                    {
+                                        var name = f.TryGetProperty("name", out var n) ? n.GetString()?.Replace('\\', '/').TrimStart('/') : null;
+                                        if (name != null && (name.Equals(normalized, StringComparison.OrdinalIgnoreCase) || name.EndsWith("/" + normalized, StringComparison.OrdinalIgnoreCase) || normalized.EndsWith("/" + name, StringComparison.OrdinalIgnoreCase)))
+                                        {
+                                            fileIndex = idx;
+                                            break;
+                                        }
+
+                                        idx++;
+                                    }
+                                }
+
+                                if (fileIndex >= 0)
+                                {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (fileIndex >= 0)
+                    {
+                        var setArgs = new Dictionary<string, object>
+                        {
+                            ["ids"] = rpcIds,
+                        };
+
+                        if (priority == 0)
+                        {
+                            setArgs["files-unwanted"] = new[] { fileIndex };
+                        }
+                        else
+                        {
+                            setArgs["files-wanted"] = new[] { fileIndex };
+                            if (priority >= 4)
+                            {
+                                setArgs["priority-high"] = new[] { fileIndex };
+                            }
+                            else if (priority <= 2)
+                            {
+                                setArgs["priority-low"] = new[] { fileIndex };
+                            }
+                            else
+                            {
+                                setArgs["priority-normal"] = new[] { fileIndex };
+                            }
+                        }
+
+                        await this.SendRpcRequestAsync("torrent-set", setArgs);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error setting file priority in Transmission for {0} (file: {1}, priority: {2})", torrentId, filePath, priority);
+            }
+        }
     }
 
     public async Task SetRateLimitsAsync(int maxDownloadKbps, int maxUploadKbps)
@@ -698,7 +842,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                     "id", "hashString", "name", "status", "percentDone",
                     "rateDownload", "rateUpload", "peersConnected", "peersSendingToUs",
                     "peersGettingFromUs", "totalSize", "downloadedEver", "uploadedEver",
-                    "pieceCount", "pieces",
+                    "pieceCount", "pieces", "peers",
                 };
 
                 var response = await this.SendRpcRequestAsync("torrent-get", new Dictionary<string, object>
@@ -750,6 +894,52 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                             if (item.TryGetProperty("peersGettingFromUs", out var leechers))
                             {
                                 task.ConnectedLeechers = leechers.GetInt32();
+                            }
+
+                            if (item.TryGetProperty("peers", out var peersArray) && peersArray.ValueKind == JsonValueKind.Array)
+                            {
+                                var peerList = new List<PeerInfo>();
+                                foreach (var p in peersArray.EnumerateArray())
+                                {
+                                    var ip = p.TryGetProperty("address", out var addr) ? addr.GetString() : "unknown";
+                                    var port = p.TryGetProperty("port", out var prt) ? prt.GetInt32() : 0;
+                                    var client = p.TryGetProperty("clientName", out var cn) ? cn.GetString() : string.Empty;
+                                    var flags = p.TryGetProperty("flagStr", out var fs) ? fs.GetString() : string.Empty;
+                                    var progress = p.TryGetProperty("progress", out var prg) ? prg.GetDouble() : 0.0;
+                                    var rateToClient = p.TryGetProperty("rateToClient", out var rtc) ? rtc.GetInt64() : 0;
+                                    var rateToPeer = p.TryGetProperty("rateToPeer", out var rtp) ? rtp.GetInt64() : 0;
+                                    var isEncrypted = p.TryGetProperty("isEncrypted", out var enc) && enc.GetBoolean();
+                                    var isUtp = p.TryGetProperty("isUTP", out var utp) && utp.GetBoolean();
+                                    var isIncoming = p.TryGetProperty("isIncoming", out var inc) && inc.GetBoolean();
+                                    var peerIsChoked = p.TryGetProperty("peerIsChoked", out var pic) && pic.GetBoolean();
+                                    var peerIsInterested = p.TryGetProperty("peerIsInterested", out var pii) && pii.GetBoolean();
+                                    var clientIsChoked = p.TryGetProperty("clientIsChoked", out var cic) && cic.GetBoolean();
+                                    var clientIsInterested = p.TryGetProperty("clientIsInterested", out var cii) && cii.GetBoolean();
+                                    var downloaded = p.TryGetProperty("bytesToClient", out var btc) ? btc.GetInt64() : 0;
+                                    var uploaded = p.TryGetProperty("bytesToPeer", out var btp) ? btp.GetInt64() : 0;
+
+                                    peerList.Add(new PeerInfo
+                                    {
+                                        Ip = ip ?? "unknown",
+                                        Port = port,
+                                        Client = client ?? string.Empty,
+                                        Flags = flags ?? string.Empty,
+                                        Progress = progress,
+                                        DownloadSpeed = rateToClient,
+                                        UploadSpeed = rateToPeer,
+                                        Downloaded = downloaded,
+                                        Uploaded = uploaded,
+                                        IsEncrypted = isEncrypted,
+                                        IsChoked = peerIsChoked,
+                                        IsInterested = peerIsInterested,
+                                        ClientIsChoked = clientIsChoked,
+                                        ClientIsInterested = clientIsInterested,
+                                        IsIncoming = isIncoming,
+                                        IsUtp = isUtp,
+                                    });
+                                }
+
+                                task.SetPeers(peerList);
                             }
                         }
                     }
@@ -982,8 +1172,9 @@ public class TransmissionDownloadTask : IDownloadTask
 
     private long downloadSpeed;
     private long uploadSpeed;
-    private int connectedSeeders = 8;
-    private int connectedLeechers = 3;
+    private int connectedSeeders;
+    private int connectedLeechers;
+    private IReadOnlyList<PeerInfo> peers = Array.Empty<PeerInfo>();
 
     public bool[] PieceBitfield { get; set; } = Array.Empty<bool>();
 
@@ -1018,6 +1209,11 @@ public class TransmissionDownloadTask : IDownloadTask
 
     public IReadOnlyList<PeerInfo> GetPeers()
     {
-        return Array.Empty<PeerInfo>();
+        return this.peers;
+    }
+
+    public void SetPeers(IEnumerable<PeerInfo> peerList)
+    {
+        this.peers = peerList?.ToList() ?? (IReadOnlyList<PeerInfo>)Array.Empty<PeerInfo>();
     }
 }
