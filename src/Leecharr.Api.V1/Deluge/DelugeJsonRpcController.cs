@@ -292,8 +292,10 @@ public class DelugeJsonRpcController : ControllerBase
                             "core.add_torrent_url",
                             "core.pause_torrent",
                             "core.pause_torrents",
+                            "core.pause_all_torrents",
                             "core.resume_torrent",
                             "core.resume_torrents",
+                            "core.resume_all_torrents",
                             "core.remove_torrent",
                             "core.remove_torrents",
                             "core.force_recheck",
@@ -1063,13 +1065,25 @@ public class DelugeJsonRpcController : ControllerBase
 
                 case "core.pause_torrent":
                 case "core.pause_torrents":
+                case "core.pause_all_torrents":
                     var pauseHashes = ExtractHashes(paramsElem);
-                    foreach (var hash in pauseHashes)
+                    if (pauseHashes.Count == 0 && string.Equals(method, "core.pause_all_torrents", StringComparison.OrdinalIgnoreCase))
                     {
-                        var t = this.torrentService.GetByInfoHash(hash);
-                        if (t != null)
+                        foreach (var t in this.torrentService.GetAll())
                         {
                             await this.torrentService.PauseAsync(t.Id);
+                        }
+                    }
+                    else
+                    {
+                        foreach (var hash in pauseHashes)
+                        {
+                            var t = this.torrentService.GetByInfoHash(hash) ??
+                                (int.TryParse(hash, out var tid) ? this.torrentService.Get(tid) : null);
+                            if (t != null)
+                            {
+                                await this.torrentService.PauseAsync(t.Id);
+                            }
                         }
                     }
 
@@ -1077,13 +1091,25 @@ public class DelugeJsonRpcController : ControllerBase
 
                 case "core.resume_torrent":
                 case "core.resume_torrents":
+                case "core.resume_all_torrents":
                     var resumeHashes = ExtractHashes(paramsElem);
-                    foreach (var hash in resumeHashes)
+                    if (resumeHashes.Count == 0 && string.Equals(method, "core.resume_all_torrents", StringComparison.OrdinalIgnoreCase))
                     {
-                        var t = this.torrentService.GetByInfoHash(hash);
-                        if (t != null)
+                        foreach (var t in this.torrentService.GetAll())
                         {
                             await this.torrentService.ResumeAsync(t.Id);
+                        }
+                    }
+                    else
+                    {
+                        foreach (var hash in resumeHashes)
+                        {
+                            var t = this.torrentService.GetByInfoHash(hash) ??
+                                (int.TryParse(hash, out var tid) ? this.torrentService.Get(tid) : null);
+                            if (t != null)
+                            {
+                                await this.torrentService.ResumeAsync(t.Id);
+                            }
                         }
                     }
 
@@ -1118,14 +1144,25 @@ public class DelugeJsonRpcController : ControllerBase
                     return this.DelugeResult(new { result = true, error = (object)null, id });
 
                 case "core.force_reannounce":
+                case "core.reannounce":
                     var reannounceHashes = ExtractHashes(paramsElem);
-                    foreach (var hash in reannounceHashes)
+                    if (reannounceHashes.Count == 0)
                     {
-                        var t = this.torrentService.GetByInfoHash(hash) ??
-                            (int.TryParse(hash, out var tid) ? this.torrentService.Get(tid) : null);
-                        if (t != null)
+                        foreach (var t in this.torrentService.GetAll())
                         {
                             await this.torrentService.ForceAnnounceAsync(t.Id);
+                        }
+                    }
+                    else
+                    {
+                        foreach (var hash in reannounceHashes)
+                        {
+                            var t = this.torrentService.GetByInfoHash(hash) ??
+                                (int.TryParse(hash, out var tid) ? this.torrentService.Get(tid) : null);
+                            if (t != null)
+                            {
+                                await this.torrentService.ForceAnnounceAsync(t.Id);
+                            }
                         }
                     }
 
@@ -1557,6 +1594,27 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
+        var needsPieces = requestedKeys == null || requestedKeys.Count == 0 || requestedKeys.Contains("pieces");
+        List<int> piecesList;
+        if (needsPieces)
+        {
+            var downloadTask = this.torrentService?.GetDownloadTask(t.Id);
+            var bitfield = downloadTask?.PieceBitfield;
+            if (bitfield != null && bitfield.Length > 0)
+            {
+                piecesList = bitfield.Select(b => b ? 1 : 0).ToList();
+            }
+            else
+            {
+                var pieceVal = t.Progress >= 1.0 || t.Status == TorrentStatus.Seeding ? 1 : 0;
+                piecesList = t.PieceCount > 0 ? Enumerable.Repeat(pieceVal, t.PieceCount).ToList() : new List<int>();
+            }
+        }
+        else
+        {
+            piecesList = new List<int>();
+        }
+
         var status = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             { "name", t.Name },
@@ -1587,6 +1645,7 @@ public class DelugeJsonRpcController : ControllerBase
             { "time_since_transfer", t.LastActive.HasValue ? (long)Math.Max(0, (DateTime.UtcNow - t.LastActive.Value).TotalSeconds) : 0L },
             { "num_pieces", t.PieceCount },
             { "piece_length", t.PieceLength },
+            { "pieces", piecesList },
             { "distributed_copies", t.Progress >= 1.0 ? 1.0 : (double)t.Progress },
             { "num_files", numFiles },
             { "files", filesList },

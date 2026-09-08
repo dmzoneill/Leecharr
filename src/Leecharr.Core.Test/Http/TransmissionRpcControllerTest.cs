@@ -2082,4 +2082,24 @@ public class TransmissionRpcControllerTest
         peerElem.GetProperty("clientIsChoked").GetBoolean().Should().BeTrue();
         peerElem.GetProperty("clientIsInterested").GetBoolean().Should().BeFalse();
     }
+
+    [Test]
+    public async Task HandleRpc_UnhandledMethod_ReturnsUnknownMethodError()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "secret_api_key_123";
+        context.Request.Headers["X-Transmission-Session-Id"] = "valid_session";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "nonexistent-custom-method",
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("result").GetString().Should().Be("unknown method: nonexistent-custom-method");
+    }
 }

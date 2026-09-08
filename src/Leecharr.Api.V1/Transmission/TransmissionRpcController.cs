@@ -985,7 +985,7 @@ public class TransmissionRpcController : ControllerBase
 
                 default:
                     this.logger.Debug("Unhandled Transmission RPC method: {0}", request.Method);
-                    return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
+                    return this.Ok(new TransmissionRpcResponse { Result = $"unknown method: {request.Method}", Tag = tag });
             }
         }
         catch (Exception ex)

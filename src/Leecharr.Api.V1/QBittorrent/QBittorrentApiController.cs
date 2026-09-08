@@ -1532,6 +1532,33 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         return this.Content("Ok.", "text/plain");
     }
 
+    [HttpPost("torrents/setSequentialDownload")]
+    public async Task<ActionResult> SetSequentialDownload(
+        [FromForm] string hashes,
+        [FromForm] string value = null,
+        [FromForm] bool? enable = null,
+        [FromForm] bool? sequential = null)
+    {
+        if (string.IsNullOrWhiteSpace(hashes))
+        {
+            return this.BadRequest();
+        }
+
+        var enabled = enable ?? sequential ?? (bool.TryParse(value, out var b) ? b : true);
+
+        foreach (var torrent in this.ResolveTorrents(hashes))
+        {
+            torrent.SequentialDownload = enabled;
+            await this.torrentService.UpdateAsync(torrent);
+            if (this.downloadEngine != null)
+            {
+                await this.downloadEngine.SetSequentialDownloadAsync(torrent.Id, torrent.SequentialDownload);
+            }
+        }
+
+        return this.Content("Ok.", "text/plain");
+    }
+
     [HttpPost("torrents/toggleFirstLastPiecePrio")]
     public async Task<ActionResult> ToggleFirstLastPiecePrio([FromForm] string hashes)
     {
@@ -1542,9 +1569,67 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
         foreach (var torrent in this.ResolveTorrents(hashes))
         {
+            torrent.SequentialDownload = !torrent.SequentialDownload;
+            await this.torrentService.UpdateAsync(torrent);
             if (this.downloadEngine != null)
             {
                 await this.downloadEngine.SetSequentialDownloadAsync(torrent.Id, torrent.SequentialDownload);
+            }
+        }
+
+        return this.Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("torrents/setFirstLastPiecePrio")]
+    public async Task<ActionResult> SetFirstLastPiecePrio(
+        [FromForm] string hashes,
+        [FromForm] string value = null,
+        [FromForm] bool? enable = null)
+    {
+        if (string.IsNullOrWhiteSpace(hashes))
+        {
+            return this.BadRequest();
+        }
+
+        var enabled = enable ?? (bool.TryParse(value, out var b) ? b : true);
+
+        foreach (var torrent in this.ResolveTorrents(hashes))
+        {
+            torrent.SequentialDownload = enabled;
+            await this.torrentService.UpdateAsync(torrent);
+            if (this.downloadEngine != null)
+            {
+                await this.downloadEngine.SetSequentialDownloadAsync(torrent.Id, torrent.SequentialDownload);
+            }
+        }
+
+        return this.Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("torrents/setPiecePriority")]
+    public ActionResult SetPiecePriority(
+        [FromForm] string hash = null,
+        [FromForm] string hashes = null,
+        [FromForm] int? piece = null,
+        [FromForm] int? pieceIndex = null,
+        [FromForm] int? pieces = null,
+        [FromForm] int? priority = null)
+    {
+        var targetHash = !string.IsNullOrWhiteSpace(hash) ? hash : hashes;
+        if (string.IsNullOrWhiteSpace(targetHash) || (!piece.HasValue && !pieceIndex.HasValue && !pieces.HasValue) || !priority.HasValue)
+        {
+            return this.BadRequest();
+        }
+
+        var idx = piece ?? pieceIndex ?? pieces.Value;
+        var prio = priority.Value;
+
+        foreach (var torrent in this.ResolveTorrents(targetHash))
+        {
+            var task = this.downloadEngine?.GetTask(torrent.Id);
+            if (task?.Picker != null && idx >= 0)
+            {
+                task.Picker.SetPiecePriority(idx, prio);
             }
         }
 
@@ -1924,6 +2009,57 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         }
 
         return this.Ok(states);
+    }
+
+    [HttpGet("torrents/pieceHashes")]
+    public ActionResult<List<string>> GetPieceHashes([FromQuery] string hash)
+    {
+        if (string.IsNullOrWhiteSpace(hash))
+        {
+            return this.NotFound();
+        }
+
+        var torrent = this.torrentService.GetByInfoHash(hash);
+        if (torrent == null)
+        {
+            return this.NotFound();
+        }
+
+        var result = new List<string>();
+
+        try
+        {
+            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            var filePath = Path.Combine(appData, "Torrents", $"{torrent.InfoHash.ToLowerInvariant()}.torrent");
+            if (global::System.IO.File.Exists(filePath))
+            {
+                var bytes = global::System.IO.File.ReadAllBytes(filePath);
+                var parsed = this.torrentFileParser.Parse(bytes);
+                if (parsed.PieceHashes != null && parsed.PieceHashes.Length >= 20)
+                {
+                    for (int i = 0; i + 20 <= parsed.PieceHashes.Length; i += 20)
+                    {
+                        var hex = Convert.ToHexString(parsed.PieceHashes, i, 20).ToLowerInvariant();
+                        result.Add(hex);
+                    }
+
+                    return this.Ok(result);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Failed to read piece hashes from torrent file for {0}", hash);
+        }
+
+        var task = this.downloadEngine?.GetTask(torrent.Id);
+        var pieceCount = torrent.PieceCount > 0 ? torrent.PieceCount : (task?.PieceBitfield?.Length ?? 0);
+        for (int i = 0; i < pieceCount; i++)
+        {
+            result.Add(new string('0', 40));
+        }
+
+        return this.Ok(result);
     }
 
     [HttpGet("transfer/info")]
