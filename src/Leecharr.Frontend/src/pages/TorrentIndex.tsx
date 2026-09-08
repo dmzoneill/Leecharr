@@ -6,9 +6,9 @@ import { TorrentDetailPanel } from "../components/TorrentDetailPanel";
 import { TorrentToolbar } from "./torrentindex/TorrentToolbar";
 import { TorrentFilterPanel } from "./torrentindex/TorrentFilterPanel";
 import { QuickSettingsDrawer } from "../components/quicksettings/QuickSettingsDrawer";
+import { DeleteTorrentModal } from "../components/DeleteTorrentModal";
 import { ViewMode } from "./torrentindex/types";
 import { extractTrackerDomain } from "../utils/formatters";
-import { useConfirm } from "../context/ConfirmContext";
 import { useTorrentStore } from "../stores/useTorrentStore";
 import { useTranslation } from "../i18n";
 
@@ -52,7 +52,11 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   const removeTorrent = useTorrentStore((state) => state.removeTorrent);
 
   const [bulkPending, setBulkPending] = useState<boolean>(false);
-  const confirm = useConfirm();
+  const [deleteModalState, setDeleteModalState] = useState<{
+    isOpen: boolean;
+    torrent?: Torrent | null;
+    count?: number;
+  }>({ isOpen: false });
   const [showQuickSettings, setShowQuickSettings] = useState<boolean>(() => {
     return localStorage.getItem("leecharr_quick_settings_open") === "true";
   });
@@ -170,9 +174,17 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     selectAllIds(ids);
   };
 
-  const handleDelete = (payload: { id: number; deleteFiles?: boolean }) => {
-    removeTorrent(payload.id);
-    onDelete(payload);
+  const handleRequestDelete = (payload: {
+    id: number;
+    deleteFiles?: boolean;
+  }) => {
+    const targetTorrent = torrents.find((t) => t.id === payload.id);
+    setDeleteModalState({
+      isOpen: true,
+      torrent:
+        targetTorrent ||
+        ({ id: payload.id, name: `Torrent #${payload.id}` } as Torrent),
+    });
   };
 
   const handleBulkStart = async () => {
@@ -213,7 +225,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     }
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     const activeIds = new Set(torrents.map((t) => t.id));
     const validSelectedIds = Array.from(selectedIds).filter((id) =>
       activeIds.has(id),
@@ -228,28 +240,34 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
       return;
     }
 
-    const ok = await confirm({
-      title: t("torrents.toolbar.bulkDeleteTitle", {
-        count: validSelectedIds.length,
-      }),
-      message: t("torrents.toolbar.bulkDeleteConfirm", {
-        count: validSelectedIds.length,
-      }),
-      danger: true,
-      confirmText: t("common.delete"),
+    setDeleteModalState({
+      isOpen: true,
+      count: validSelectedIds.length,
     });
-    if (!ok) return;
+  };
 
-    setBulkPending(true);
-    try {
-      validSelectedIds.forEach((id) => {
-        removeTorrent(id);
-        onDelete({ id, deleteFiles: false });
-      });
-      clearSelection();
-    } finally {
-      setBulkPending(false);
+  const handleConfirmDelete = (deleteFiles: boolean) => {
+    if (deleteModalState.count && deleteModalState.count > 1) {
+      const activeIds = new Set(torrents.map((t) => t.id));
+      const validSelectedIds = Array.from(selectedIds).filter((id) =>
+        activeIds.has(id),
+      );
+      setBulkPending(true);
+      try {
+        validSelectedIds.forEach((id) => {
+          removeTorrent(id);
+          onDelete({ id, deleteFiles });
+        });
+        clearSelection();
+      } finally {
+        setBulkPending(false);
+      }
+    } else if (deleteModalState.torrent) {
+      const id = deleteModalState.torrent.id;
+      removeTorrent(id);
+      onDelete({ id, deleteFiles });
     }
+    setDeleteModalState({ isOpen: false });
   };
 
   const currentSelectedTorrent = useMemo(() => {
@@ -321,7 +339,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
                   onSelect={(t) => setSelectedTorrentId(t ? t.id : null)}
                   onPause={onPause}
                   onResume={onResume}
-                  onDelete={handleDelete}
+                  onDelete={handleRequestDelete}
                   selectedIds={selectedIds}
                   onToggleSelect={handleToggleSelect}
                   onSelectAll={handleSelectAll}
@@ -339,7 +357,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
                   onSelect={(t) => setSelectedTorrentId(t ? t.id : null)}
                   onPause={onPause}
                   onResume={onResume}
-                  onDelete={handleDelete}
+                  onDelete={handleRequestDelete}
                 />
               )}
             </div>
@@ -353,6 +371,13 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
           </div>
         </div>
       </div>
+      <DeleteTorrentModal
+        isOpen={deleteModalState.isOpen}
+        torrent={deleteModalState.torrent}
+        count={deleteModalState.count}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteModalState({ isOpen: false })}
+      />
     </div>
   );
 };
