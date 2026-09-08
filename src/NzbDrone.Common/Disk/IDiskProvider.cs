@@ -55,4 +55,10 @@ public interface IDiskProvider
     FileStream OpenReadStream(string path);
 
     FileStream OpenWriteStream(string path);
+
+    string SanitizeNtfsFileName(string fileName, string replacement = "_");
+
+    string SanitizeNtfsPath(string path, string replacement = "_");
+
+    string EnsureLongPathPrefix(string path);
 }

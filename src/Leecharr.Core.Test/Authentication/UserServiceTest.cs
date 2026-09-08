@@ -57,6 +57,27 @@ public class UserServiceTest
     }
 
     [Test]
+    public void Constructor_WithCustomIterations_UsesConfiguredIterations()
+    {
+        var customService = new UserService(this.userRepository, this.logger, 700000);
+        Assert.That(customService.Iterations, Is.EqualTo(700000));
+
+        var user = customService.CreateUser("customuser", "Pass1234!", "custom@example.com", "Custom User");
+        Assert.That(user.Iterations, Is.EqualTo(700000));
+    }
+
+    [Test]
+    public void HashPassword_WithExplicitIterations_GeneratesHash()
+    {
+        var password = "SecurePassword123!";
+        var hash = this.userService.HashPassword(password, out var salt, 10000);
+
+        Assert.That(hash, Is.Not.Null.And.Not.Empty);
+        Assert.That(salt, Is.Not.Null.And.Not.Empty);
+        Assert.That(this.userService.VerifyPassword(password, hash, salt, 10000), Is.True);
+    }
+
+    [Test]
     public void Authenticate_WithLegacyIterations_RehashesPasswordTo600kAndUpdatesUser()
     {
         var saltBytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(16);
