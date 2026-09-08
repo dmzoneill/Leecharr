@@ -1534,7 +1534,7 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        var status = new Dictionary<string, object>
+        var status = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             { "name", t.Name },
             { "total_size", t.TotalSize },
@@ -1573,6 +1573,10 @@ public class DelugeJsonRpcController : ControllerBase
             { "download_location", savePath },
             { "label", t.Category ?? string.Empty },
             { "queue_position", t.QueuePosition },
+            { "queue", t.QueuePosition },
+            { "comment", t.Comment ?? string.Empty },
+            { "creator", t.CreatedBy ?? string.Empty },
+            { "owner", "admin" },
             { "storage_mode", "sparse" },
             { "move_completed", false },
             { "move_completed_path", savePath },
@@ -1590,6 +1594,7 @@ public class DelugeJsonRpcController : ControllerBase
             { "seeding_time", t.SeedingTimeSeconds },
             { "message", t.Status == TorrentStatus.Error ? "Error" : "OK" },
             { "is_auto_managed", true },
+            { "auto_managed", true },
             { "stop_at_ratio", t.TargetRatio > 0 },
             { "remove_at_ratio", false },
             { "stop_ratio", t.TargetRatio },

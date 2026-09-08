@@ -151,4 +151,70 @@ public class DelugeRpcTests : IntegrationTestBase
         using var verifyDoc = JsonDocument.Parse(verifyJson);
         verifyDoc.RootElement.GetProperty("result").ValueKind.Should().Be(JsonValueKind.Null);
     }
+
+    [Test]
+    public async Task CoreGetTorrentsStatus_WithStandardMetrics_ReturnsRequestedFields()
+    {
+        const string hash = "fedcba9876543210fedcba9876543210fedcba98";
+        var magnet = $"magnet:?xt=urn:btih:{hash}&dn=DelugeMetricsTorrent&tr=http%3A%2F%2Ftracker.test.org%2Fannounce";
+
+        var addRpc = new
+        {
+            method = "core.add_torrent_magnet",
+            @params = new object[] { magnet, new { add_paused = true, label = "tv" } },
+            id = 20,
+        };
+        var addResp = await this.PostJsonAsync("/json", addRpc);
+        addResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var statusRpc = new
+        {
+            method = "core.get_torrents_status",
+            @params = new object[]
+            {
+                new { },
+                new[]
+                {
+                    "name",
+                    "download_location",
+                    "queue",
+                    "queue_position",
+                    "num_pieces",
+                    "piece_length",
+                    "tracker_host",
+                    "trackers",
+                    "total_wanted",
+                    "comment",
+                },
+            },
+            id = 21,
+        };
+
+        var statusResp = await this.PostJsonAsync("/json", statusRpc);
+        statusResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var statusJson = await statusResp.Content.ReadAsStringAsync();
+        using var statusDoc = JsonDocument.Parse(statusJson);
+        var root = statusDoc.RootElement;
+        var result = root.GetProperty("result");
+
+        result.TryGetProperty(hash.ToLowerInvariant(), out var torrentElem).Should().BeTrue();
+        torrentElem.TryGetProperty("download_location", out _).Should().BeTrue();
+        torrentElem.TryGetProperty("queue", out _).Should().BeTrue();
+        torrentElem.TryGetProperty("num_pieces", out _).Should().BeTrue();
+        torrentElem.TryGetProperty("piece_length", out _).Should().BeTrue();
+        torrentElem.TryGetProperty("tracker_host", out _).Should().BeTrue();
+        torrentElem.TryGetProperty("trackers", out _).Should().BeTrue();
+        torrentElem.TryGetProperty("total_wanted", out _).Should().BeTrue();
+        torrentElem.TryGetProperty("comment", out _).Should().BeTrue();
+
+        // Cleanup
+        var removeRpc = new
+        {
+            method = "core.remove_torrent",
+            @params = new object[] { hash, true },
+            id = 22,
+        };
+        await this.PostJsonAsync("/json", removeRpc);
+    }
 }
