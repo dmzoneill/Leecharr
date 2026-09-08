@@ -158,6 +158,12 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
 
         this.diskProvider.EnsureFolder(targetDir);
 
+        var normalizedDest = targetDir.TrimEnd('\\', '/');
+        if (string.IsNullOrEmpty(normalizedDest))
+        {
+            normalizedDest = targetDir;
+        }
+
         var passwordsToTry = BuildPasswordCandidateList(password, passwordCandidates);
 
         foreach (var candidatePassword in passwordsToTry)
@@ -167,36 +173,11 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var normalizedDest = targetDir.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
-                    ? targetDir
-                    : targetDir + Path.DirectorySeparatorChar;
 
                 var timeout = this.CalculateTimeout(archivePath);
                 this.logger.Info("UnRAR extracting '{0}' (timeout: {1:N0}m) to '{2}' using '{3}'...", archivePath, timeout.TotalMinutes, normalizedDest, binary);
 
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = binary,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true,
-                };
-                startInfo.ArgumentList.Add("x");
-                startInfo.ArgumentList.Add("-o+");
-                startInfo.ArgumentList.Add("-y");
-                startInfo.ArgumentList.Add("-inul");
-                if (!string.IsNullOrEmpty(candidatePassword))
-                {
-                    startInfo.ArgumentList.Add($"-p{candidatePassword}");
-                }
-                else
-                {
-                    startInfo.ArgumentList.Add("-p-");
-                }
-
-                startInfo.ArgumentList.Add(archivePath);
-                startInfo.ArgumentList.Add(normalizedDest);
+                var startInfo = BuildProcessStartInfo(binary, archivePath, normalizedDest, candidatePassword);
 
                 process = new Process { StartInfo = startInfo };
                 process.Start();
@@ -275,6 +256,44 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
         }
 
         return false;
+    }
+
+    internal static ProcessStartInfo BuildProcessStartInfo(string binary, string archivePath, string destinationPath, string candidatePassword = null)
+    {
+        var normalizedDest = destinationPath?.TrimEnd('\\', '/');
+        if (string.IsNullOrEmpty(normalizedDest) && !string.IsNullOrEmpty(destinationPath))
+        {
+            normalizedDest = destinationPath;
+        }
+
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = binary,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+        };
+        startInfo.ArgumentList.Add("x");
+        startInfo.ArgumentList.Add("-o+");
+        startInfo.ArgumentList.Add("-y");
+        startInfo.ArgumentList.Add("-inul");
+        if (!string.IsNullOrEmpty(candidatePassword))
+        {
+            startInfo.ArgumentList.Add($"-p{candidatePassword}");
+        }
+        else
+        {
+            startInfo.ArgumentList.Add("-p-");
+        }
+
+        startInfo.ArgumentList.Add(archivePath);
+        if (normalizedDest != null)
+        {
+            startInfo.ArgumentList.Add(normalizedDest);
+        }
+
+        return startInfo;
     }
 
     private static List<string> BuildPasswordCandidateList(string password, IReadOnlyList<string> passwordCandidates)
