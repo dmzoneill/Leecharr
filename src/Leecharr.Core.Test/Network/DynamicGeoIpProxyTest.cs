@@ -253,6 +253,72 @@ public class DynamicGeoIpProxyTest
     }
 
     [Test]
+    public async Task MaxMindGeoIpProvider_PrivateAndLoopback_ReturnsLAN()
+    {
+        var diskProvider = Substitute.For<IDiskProvider>();
+        diskProvider.FileExists(Arg.Any<string>()).Returns(false);
+
+        var appFolderInfo = Substitute.For<IAppFolderInfo>();
+        appFolderInfo.AppDataFolder.Returns("/tmp/leecharr-appdata");
+        appFolderInfo.StartUpFolder.Returns("/tmp/leecharr-startup");
+
+        using var provider = new MaxMindGeoIpProvider(diskProvider, appFolderInfo);
+
+        var testIps = new[]
+        {
+            "127.0.0.1",
+            "10.0.0.1",
+            "172.16.0.5",
+            "192.168.1.1",
+            "::1",
+            "fc00::1",
+            "fd00::1",
+            "::ffff:192.168.1.100",
+        };
+
+        foreach (var ip in testIps)
+        {
+            var result = await provider.LookupAsync(ip);
+            result.Should().NotBeNull();
+            result.CountryCode.Should().Be("LAN");
+            result.CountryName.Should().Be("Local Network");
+        }
+    }
+
+    [Test]
+    public async Task IP2LocationGeoIpProvider_PrivateAndLoopback_ReturnsLAN()
+    {
+        var diskProvider = Substitute.For<IDiskProvider>();
+        diskProvider.FileExists(Arg.Any<string>()).Returns(false);
+
+        var appFolderInfo = Substitute.For<IAppFolderInfo>();
+        appFolderInfo.AppDataFolder.Returns("/tmp/leecharr-appdata");
+        appFolderInfo.StartUpFolder.Returns("/tmp/leecharr-startup");
+
+        using var provider = new IP2LocationGeoIpProvider(diskProvider, appFolderInfo);
+
+        var testIps = new[]
+        {
+            "127.0.0.1",
+            "10.0.0.1",
+            "172.16.0.5",
+            "192.168.1.1",
+            "::1",
+            "fc00::1",
+            "fd00::1",
+            "::ffff:192.168.1.100",
+        };
+
+        foreach (var ip in testIps)
+        {
+            var result = await provider.LookupAsync(ip);
+            result.Should().NotBeNull();
+            result.CountryCode.Should().Be("LAN");
+            result.CountryName.Should().Be("Local Network");
+        }
+    }
+
+    [Test]
     public async Task OnlineApiGeoIpProvider_OnlineLookupAndCaching()
     {
         var handler = new MockHttpMessageHandler(@"{
