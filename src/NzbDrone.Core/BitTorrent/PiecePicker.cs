@@ -463,6 +463,7 @@ public class PiecePicker
     public bool MarkBlockReceived(int pieceIndex, int blockOffset, int length, string receivedFromPeerId, out List<string> cancelledPeers)
     {
         cancelledPeers = new List<string>();
+        var isPieceComplete = false;
 
         lock (this.syncLock)
         {
@@ -504,17 +505,6 @@ public class PiecePicker
                 this.inFlightBlocks.Remove(blockKey);
             }
 
-            if (cancelledPeers.Count > 0)
-            {
-                this.BlockCancelled?.Invoke(new BlockCancelledEventArgs
-                {
-                    PieceIndex = pieceIndex,
-                    BlockOffset = blockOffset,
-                    BlockLength = length,
-                    CancelledPeerIds = new List<string>(cancelledPeers),
-                });
-            }
-
             if (!piece.BlockBitfield[blockIdx])
             {
                 piece.BlockBitfield[blockIdx] = true;
@@ -523,12 +513,23 @@ public class PiecePicker
                 if (piece.ReceivedBlocks >= piece.TotalBlocks)
                 {
                     piece.IsComplete = true;
-                    return true; // Whole piece complete, ready for hash verification
+                    isPieceComplete = true;
                 }
             }
-
-            return false;
         }
+
+        if (cancelledPeers.Count > 0)
+        {
+            this.BlockCancelled?.Invoke(new BlockCancelledEventArgs
+            {
+                PieceIndex = pieceIndex,
+                BlockOffset = blockOffset,
+                BlockLength = length,
+                CancelledPeerIds = new List<string>(cancelledPeers),
+            });
+        }
+
+        return isPieceComplete;
     }
 
     public List<string> GetDuplicateInFlightPeers(int pieceIndex, int blockOffset, string excludingPeerId = null)
