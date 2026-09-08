@@ -160,7 +160,14 @@ public class CertificateManager : ICertificateManager
                         Timeout = TimeSpan.FromSeconds(2),
                     };
 
-                    var testUrl = $"https://127.0.0.1:{sslPort}/";
+                    var probeHost = bindAddress switch
+                    {
+                        null or "" or "*" or "0.0.0.0" => "127.0.0.1",
+                        "::" => "[::1]",
+                        var addr => addr,
+                    };
+
+                    var testUrl = $"https://{probeHost}:{sslPort}/";
                     using var response = await httpClient.GetAsync(testUrl);
                     result.HandshakeSucceeded = true;
                     result.Message = $"Certificate is valid and active on HTTPS port {sslPort} (TLS handshake succeeded).";
@@ -348,14 +355,29 @@ public class CertificateManager : ICertificateManager
         sanBuilder.AddIpAddress(IPAddress.Loopback);
         sanBuilder.AddIpAddress(IPAddress.IPv6Loopback);
 
-        if (!string.IsNullOrWhiteSpace(config.BindAddress) &&
-            IPAddress.TryParse(config.BindAddress, out var bindIp) &&
-            !IPAddress.Any.Equals(bindIp) &&
-            !IPAddress.IPv6Any.Equals(bindIp) &&
-            !IPAddress.Loopback.Equals(bindIp) &&
-            !IPAddress.IPv6Loopback.Equals(bindIp))
+        if (!string.IsNullOrWhiteSpace(config.BindAddress) && config.BindAddress != "*")
         {
-            sanBuilder.AddIpAddress(bindIp);
+            if (IPAddress.TryParse(config.BindAddress, out var bindIp))
+            {
+                if (!IPAddress.Any.Equals(bindIp) &&
+                    !IPAddress.IPv6Any.Equals(bindIp) &&
+                    !IPAddress.Loopback.Equals(bindIp) &&
+                    !IPAddress.IPv6Loopback.Equals(bindIp))
+                {
+                    sanBuilder.AddIpAddress(bindIp);
+                }
+            }
+            else
+            {
+                try
+                {
+                    sanBuilder.AddDnsName(config.BindAddress);
+                }
+                catch
+                {
+                    // Ignore invalid DNS name characters
+                }
+            }
         }
 
         req.CertificateExtensions.Add(
