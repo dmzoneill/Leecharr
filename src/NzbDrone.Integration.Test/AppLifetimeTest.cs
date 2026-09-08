@@ -502,9 +502,46 @@ public class AppLifetimeTest
             this.dynamicAuthManager,
             this.torrentService);
 
+        callOrder.Should().ContainInOrder("ShutdownEvent", "EngineStop");
+    }
+
+    [Test]
+    public async Task BackgroundLoop_WhenDownloading_AcquiresSleepInhibitionToken_AndDisposesWhenStopped()
+    {
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.TorrentId.Returns(1);
+        mockTask.Status.Returns(TorrentStatus.Downloading);
+
+        this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { mockTask });
+        this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
+
+        var mockToken = Substitute.For<IDisposable>();
+        this.powerManagementService.InhibitSleep(Arg.Any<string>()).Returns(mockToken);
+
+        using var lifetime = new AppLifetime(
+            this.configService,
+            this.eventAggregator,
+            this.downloadEngine,
+            this.torrentRepository,
+            this.watchFolderService,
+            this.networkSecurityService,
+            this.rssSyncService,
+            this.dynamicAuthManager,
+            this.torrentService,
+            powerManagementService: this.powerManagementService,
+            backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
+
+        await lifetime.StartAsync(CancellationToken.None);
+
+        // Wait for background loop tick
+        await Task.Delay(25);
+
+        this.powerManagementService.Received(1).InhibitSleep(Arg.Any<string>());
+        mockToken.DidNotReceive().Dispose();
+
         await lifetime.StopAsync(CancellationToken.None);
 
-        callOrder.Should().ContainInOrder("ShutdownEvent", "EngineStop");
+        mockToken.Received(1).Dispose();
     }
 
     private static bool CheckRatioInSpeedPulse(object body, int expectedId, double expectedRatio)

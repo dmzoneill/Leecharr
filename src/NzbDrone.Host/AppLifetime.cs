@@ -52,6 +52,7 @@ public class AppLifetime : IHostedService, IDisposable
     private Task rssLoopTask;
     private Task prowlarrLoopTask;
     private bool downloadStartedThisSession;
+    private IDisposable activeSleepInhibitToken;
 
     public AppLifetime(
         IConfigService configService,
@@ -303,6 +304,15 @@ public class AppLifetime : IHostedService, IDisposable
 
         try
         {
+            this.activeSleepInhibitToken?.Dispose();
+            this.activeSleepInhibitToken = null;
+        }
+        catch
+        {
+        }
+
+        try
+        {
             await this.downloadEngine.StopAsync();
         }
         catch (Exception ex)
@@ -325,9 +335,22 @@ public class AppLifetime : IHostedService, IDisposable
                 await Task.Delay(this.backgroundLoopInterval, token);
 
                 var tasks = this.downloadEngine?.GetAllTasks()?.ToList();
-                if (tasks != null && tasks.Any(t => t.Status == TorrentStatus.Downloading))
+                var hasDownloadingTasks = tasks != null && tasks.Any(t => t.Status == TorrentStatus.Downloading);
+                if (hasDownloadingTasks)
                 {
                     this.downloadStartedThisSession = true;
+                    if (this.activeSleepInhibitToken == null && this.powerManagementService != null)
+                    {
+                        this.activeSleepInhibitToken = this.powerManagementService.InhibitSleep("Leecharr active torrent downloads in progress");
+                    }
+                }
+                else
+                {
+                    if (this.activeSleepInhibitToken != null)
+                    {
+                        this.activeSleepInhibitToken.Dispose();
+                        this.activeSleepInhibitToken = null;
+                    }
                 }
 
                 // Broadcast 1-second speedPulse telemetry to SignalR clients
@@ -613,6 +636,8 @@ public class AppLifetime : IHostedService, IDisposable
 
     public void Dispose()
     {
+        this.activeSleepInhibitToken?.Dispose();
+        this.activeSleepInhibitToken = null;
         this.cts?.Dispose();
     }
 }
