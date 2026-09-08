@@ -18,6 +18,190 @@ export interface ImportToolsProps {
   onCloseModal?: () => void;
 }
 
+export interface BulkImportModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
+  const { t } = useTranslation();
+  const bulkImportTrackers = useBulkImportTrackerBoostTrackers();
+  const { showToast } = useToast();
+  const [bulkImportText, setBulkImportText] = useState("");
+  const [isBulkImporting, setIsBulkImporting] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleBulkImportTrackers = async () => {
+    if (!bulkImportText.trim()) return;
+    const lines = bulkImportText
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(
+        (l) =>
+          l.startsWith("http://") ||
+          l.startsWith("https://") ||
+          l.startsWith("udp://"),
+      );
+
+    if (lines.length === 0) {
+      showToast(
+        t(
+          "trackerBoost.settings.noValidUrlsFound",
+          "No valid http://, https://, or udp:// tracker URLs found.",
+        ),
+        "error",
+      );
+      return;
+    }
+
+    setIsBulkImporting(true);
+    try {
+      const res = await bulkImportTrackers.mutateAsync({
+        trackersText: lines.join("\n"),
+      });
+      onClose();
+      setBulkImportText("");
+      showToast(
+        t(
+          "trackerBoost.settings.processedTrackersToast",
+          "Successfully processed {total} trackers ({imported} added)!",
+          {
+            total: lines.length,
+            imported: res.importedCount,
+          },
+        ),
+        "success",
+      );
+    } catch (err: any) {
+      showToast(
+        t(
+          "trackerBoost.settings.bulkImportFailed",
+          "Failed to bulk import trackers: {error}",
+          {
+            error: err?.message || t("common.unknownError", "Unknown error"),
+          },
+        ),
+        "error",
+      );
+    } finally {
+      setIsBulkImporting(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(0, 0, 0, 0.75)",
+        backdropFilter: "blur(6px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1000,
+        padding: "1rem",
+      }}
+    >
+      <div
+        className="card"
+        style={{
+          width: "100%",
+          maxWidth: "560px",
+          padding: "1.5rem",
+          borderRadius: "8px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "1rem",
+          backgroundColor: "var(--bg-card)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+          border: "1px solid var(--border)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <h3 style={{ margin: 0 }}>
+            {t(
+              "trackerBoost.settings.bulkImportModalTitle",
+              "📥 Bulk Import Tracker URLs",
+            )}
+          </h3>
+          <button
+            type="button"
+            className="btn btn-outline"
+            style={{ padding: "0.2rem 0.5rem" }}
+            onClick={onClose}
+          >
+            ✕
+          </button>
+        </div>
+
+        <p
+          style={{
+            fontSize: "0.85rem",
+            color: "var(--text-muted)",
+            margin: 0,
+          }}
+        >
+          {t(
+            "trackerBoost.settings.bulkImportModalHint",
+            "Paste tracker announce URLs (one per line). Supported protocols: udp://, http://, https://.",
+          )}
+        </p>
+
+        <textarea
+          className="form-control"
+          rows={8}
+          placeholder="udp://tracker.opentrackr.org:1337/announce&#10;http://tracker.example.com/announce&#10;udp://open.stealth.si:80/announce"
+          value={bulkImportText}
+          onChange={(e) => setBulkImportText(e.target.value)}
+          style={{ fontFamily: "monospace", fontSize: "0.82rem" }}
+        />
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: "0.5rem",
+          }}
+        >
+          <button
+            type="button"
+            className="btn btn-action"
+            onClick={onClose}
+          >
+            {t("common.cancel", "Cancel")}
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handleBulkImportTrackers}
+            disabled={isBulkImporting || !bulkImportText.trim()}
+          >
+            {isBulkImporting
+              ? t(
+                  "trackerBoost.settings.importingTrackers",
+                  "Importing Trackers...",
+                )
+              : t(
+                  "trackerBoost.settings.importTrackersBtn",
+                  "Import Trackers",
+                )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
   const { t } = useTranslation();
   const { data: settings } = useTrackerBoostSettings();
@@ -29,11 +213,8 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
   const harvestProwlarr = useHarvestProwlarrTrackers();
   const harvestFeeds = useHarvestFeedTrackers();
   const scanTrackers = useScanTrackerBoostTrackers();
-  const bulkImportTrackers = useBulkImportTrackerBoostTrackers();
 
   const [localShowModal, setLocalShowModal] = useState(false);
-  const [bulkImportText, setBulkImportText] = useState("");
-  const [isBulkImporting, setIsBulkImporting] = useState(false);
 
   const isModalOpen = showModal ?? localShowModal;
   const handleClose = onCloseModal ?? (() => setLocalShowModal(false));
@@ -152,63 +333,6 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
         );
       },
     });
-  };
-
-  const handleBulkImportTrackers = async () => {
-    if (!bulkImportText.trim()) return;
-    const lines = bulkImportText
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(
-        (l) =>
-          l.startsWith("http://") ||
-          l.startsWith("https://") ||
-          l.startsWith("udp://"),
-      );
-
-    if (lines.length === 0) {
-      showToast(
-        t(
-          "trackerBoost.settings.noValidUrlsFound",
-          "No valid http://, https://, or udp:// tracker URLs found.",
-        ),
-        "error",
-      );
-      return;
-    }
-
-    setIsBulkImporting(true);
-    try {
-      const res = await bulkImportTrackers.mutateAsync({
-        trackersText: lines.join("\n"),
-      });
-      handleClose();
-      setBulkImportText("");
-      showToast(
-        t(
-          "trackerBoost.settings.processedTrackersToast",
-          "Successfully processed {total} trackers ({imported} added)!",
-          {
-            total: lines.length,
-            imported: res.importedCount,
-          },
-        ),
-        "success",
-      );
-    } catch (err: any) {
-      showToast(
-        t(
-          "trackerBoost.settings.bulkImportFailed",
-          "Failed to bulk import trackers: {error}",
-          {
-            error: err?.message || t("common.unknownError", "Unknown error"),
-          },
-        ),
-        "error",
-      );
-    } finally {
-      setIsBulkImporting(false);
-    }
   };
 
   const enabledClientsCount = useMemo(() => {
@@ -470,117 +594,7 @@ export function ImportTools({ showModal, onCloseModal }: ImportToolsProps) {
       </div>
 
       {/* BULK IMPORT MODAL */}
-      {isModalOpen && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.75)",
-            backdropFilter: "blur(6px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: "1rem",
-          }}
-        >
-          <div
-            className="card"
-            style={{
-              width: "100%",
-              maxWidth: "560px",
-              padding: "1.5rem",
-              borderRadius: "8px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "1rem",
-              backgroundColor: "var(--bg-card)",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-              border: "1px solid var(--border)",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <h3 style={{ margin: 0 }}>
-                {t(
-                  "trackerBoost.settings.bulkImportModalTitle",
-                  "📥 Bulk Import Tracker URLs",
-                )}
-              </h3>
-              <button
-                type="button"
-                className="btn btn-outline"
-                style={{ padding: "0.2rem 0.5rem" }}
-                onClick={handleClose}
-              >
-                ✕
-              </button>
-            </div>
-
-            <p
-              style={{
-                fontSize: "0.85rem",
-                color: "var(--text-muted)",
-                margin: 0,
-              }}
-            >
-              {t(
-                "trackerBoost.settings.bulkImportModalHint",
-                "Paste tracker announce URLs (one per line). Supported protocols: udp://, http://, https://.",
-              )}
-            </p>
-
-            <textarea
-              className="form-control"
-              rows={8}
-              placeholder="udp://tracker.opentrackr.org:1337/announce&#10;http://tracker.example.com/announce&#10;udp://open.stealth.si:80/announce"
-              value={bulkImportText}
-              onChange={(e) => setBulkImportText(e.target.value)}
-              style={{ fontFamily: "monospace", fontSize: "0.82rem" }}
-            />
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: "0.5rem",
-              }}
-            >
-              <button
-                type="button"
-                className="btn btn-action"
-                onClick={handleClose}
-              >
-                {t("common.cancel", "Cancel")}
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleBulkImportTrackers}
-                disabled={isBulkImporting || !bulkImportText.trim()}
-              >
-                {isBulkImporting
-                  ? t(
-                      "trackerBoost.settings.importingTrackers",
-                      "Importing Trackers...",
-                    )
-                  : t(
-                      "trackerBoost.settings.importTrackersBtn",
-                      "Import Trackers",
-                    )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <BulkImportModal isOpen={isModalOpen} onClose={handleClose} />
     </div>
   );
 }
