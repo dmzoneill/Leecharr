@@ -2,9 +2,9 @@ import { create } from "zustand";
 import { Torrent } from "../api/types";
 import {
   decodeBase64Bitfield,
-  setPieceBit,
-  setPieceBits,
-  mergeBitfields,
+  setPieceBitInPlace,
+  setPieceBitsInPlace,
+  setPieceRangesInPlace,
 } from "../utils/pieceMapUtils";
 
 export interface TorrentTelemetry {
@@ -23,6 +23,7 @@ export interface TorrentTelemetry {
 
 export interface PieceMapData {
   bitfield: Uint8Array;
+  version: number;
   lastUpdated: number;
 }
 
@@ -54,31 +55,84 @@ export const useTorrentStore = create<TorrentStoreState>((set) => ({
   pieceMaps: {},
   updatePieceMap: (torrentId, data) =>
     set((state) => {
-      const existing = state.pieceMaps[torrentId]?.bitfield;
-      let nextBitfield: Uint8Array = existing
-        ? new Uint8Array(existing)
-        : new Uint8Array(0);
+      const prevData = state.pieceMaps[torrentId];
+      let bitfield = prevData?.bitfield;
+      const prevVersion = prevData?.version ?? 0;
+
+      // Determine required max piece index from data
+      let maxIdx = -1;
+      if (Array.isArray(data?.ranges)) {
+        for (let i = 0; i < data.ranges.length; i++) {
+          const r = data.ranges[i];
+          if (Array.isArray(r) && r.length >= 2 && r[1] > maxIdx) {
+            maxIdx = r[1];
+          }
+        }
+      }
+      if (Array.isArray(data?.pieceIndices)) {
+        for (let i = 0; i < data.pieceIndices.length; i++) {
+          const idx = data.pieceIndices[i];
+          if (typeof idx === "number" && idx > maxIdx) {
+            maxIdx = idx;
+          }
+        }
+      }
+      if (typeof data?.pieceIndex === "number" && data.pieceIndex > maxIdx) {
+        maxIdx = data.pieceIndex;
+      }
+
+      const requiredBytes = maxIdx >= 0 ? (maxIdx >> 3) + 1 : 0;
+      if (!bitfield || bitfield.length < requiredBytes) {
+        const newCap = Math.max(
+          requiredBytes,
+          bitfield ? bitfield.length * 2 : 64,
+        );
+        const newBuf = new Uint8Array(newCap);
+        if (bitfield) {
+          newBuf.set(bitfield);
+        }
+        bitfield = newBuf;
+      }
 
       if (typeof data?.bitfield === "string" && data.bitfield.length > 0) {
         const decoded = decodeBase64Bitfield(data.bitfield);
         if (decoded) {
-          nextBitfield = mergeBitfields(nextBitfield, decoded);
+          if (bitfield.length < decoded.length) {
+            const newBuf = new Uint8Array(decoded.length);
+            newBuf.set(bitfield);
+            bitfield = newBuf;
+          }
+          for (let i = 0; i < decoded.length; i++) {
+            bitfield[i] |= decoded[i];
+          }
         }
       } else if (data?.bitfield instanceof Uint8Array) {
-        nextBitfield = mergeBitfields(nextBitfield, data.bitfield);
+        if (bitfield.length < data.bitfield.length) {
+          const newBuf = new Uint8Array(data.bitfield.length);
+          newBuf.set(bitfield);
+          bitfield = newBuf;
+        }
+        for (let i = 0; i < data.bitfield.length; i++) {
+          bitfield[i] |= data.bitfield[i];
+        }
       }
 
+      if (Array.isArray(data?.ranges) && data.ranges.length > 0) {
+        setPieceRangesInPlace(bitfield, data.ranges);
+      }
       if (Array.isArray(data?.pieceIndices) && data.pieceIndices.length > 0) {
-        nextBitfield = setPieceBits(nextBitfield, data.pieceIndices);
-      } else if (typeof data?.pieceIndex === "number" && data.pieceIndex >= 0) {
-        nextBitfield = setPieceBit(nextBitfield, data.pieceIndex);
+        setPieceBitsInPlace(bitfield, data.pieceIndices);
+      }
+      if (typeof data?.pieceIndex === "number" && data.pieceIndex >= 0) {
+        setPieceBitInPlace(bitfield, data.pieceIndex);
       }
 
       return {
         pieceMaps: {
           ...state.pieceMaps,
           [torrentId]: {
-            bitfield: nextBitfield,
+            bitfield,
+            version: prevVersion + 1,
             lastUpdated: Date.now(),
           },
         },
