@@ -172,10 +172,41 @@ public class BasicRepositoryTest
 
         cmd.CommandText = "PRAGMA busy_timeout;";
         var busyTimeout = Convert.ToInt32(cmd.ExecuteScalar());
-        busyTimeout.Should().Be(5000);
+        busyTimeout.Should().Be(30000);
+
+        cmd.CommandText = "PRAGMA cache_size;";
+        var cacheSize = Convert.ToInt32(cmd.ExecuteScalar());
+        cacheSize.Should().Be(-64000);
 
         cmd.CommandText = "PRAGMA synchronous;";
         var synchronous = Convert.ToInt32(cmd.ExecuteScalar());
         synchronous.Should().Be(1);
+    }
+
+    [Test]
+    public void Concurrent_Inserts_Succeed_Under_Concurrency()
+    {
+        var tasks = new System.Collections.Generic.List<System.Threading.Tasks.Task>();
+        for (var i = 0; i < 20; i++)
+        {
+            var index = i;
+            tasks.Add(System.Threading.Tasks.Task.Run(() =>
+            {
+                this.repository.Insert(new Torrent
+                {
+                    Name = $"Concurrent.Torrent.{index}",
+                    InfoHash = $"0123456789abcdef0123456789abcdef{index:D8}",
+                    Category = "concurrent",
+                    TotalSize = 1000 * (index + 1),
+                    Status = TorrentStatus.Downloading,
+                    DateAdded = DateTime.UtcNow,
+                });
+            }));
+        }
+
+        System.Threading.Tasks.Task.WaitAll(tasks.ToArray());
+
+        var all = System.Linq.Enumerable.ToList(System.Linq.Enumerable.Where(this.repository.All(), t => t.Category == "concurrent"));
+        all.Should().HaveCount(20);
     }
 }
