@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
+using NzbDrone.Core.Configuration;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Torrents;
 
@@ -28,13 +29,23 @@ public class CustomScriptService : ICustomScriptService
 
     public CustomScriptService(
         IMediaEnrichmentService mediaEnrichmentService = null,
+        IConfigService configService = null,
+        IConfigFileProvider configFileProvider = null,
         TimeSpan? scriptTimeout = null,
         TimeSpan? streamDrainTimeout = null)
     {
         this.mediaEnrichmentService = mediaEnrichmentService;
-        this.scriptTimeout = scriptTimeout ?? TimeSpan.FromSeconds(60);
+        var timeoutSec = (configService != null && configService.CustomScriptTimeoutSeconds > 0)
+            ? configService.CustomScriptTimeoutSeconds
+            : (configFileProvider != null && configFileProvider.CustomScriptTimeoutSeconds > 0
+                ? configFileProvider.CustomScriptTimeoutSeconds
+                : 60);
+
+        this.scriptTimeout = scriptTimeout ?? TimeSpan.FromSeconds(timeoutSec);
         this.streamDrainTimeout = streamDrainTimeout ?? TimeSpan.FromSeconds(3);
     }
+
+    public TimeSpan ScriptTimeout => this.scriptTimeout;
 
     internal static (string FileName, string Arguments) ResolveInterpreter(string scriptPath, string arguments)
     {

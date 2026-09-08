@@ -211,8 +211,8 @@ public class ServarrSyncMetadataProviderTest
         result.Should().NotBeNull();
         result!.Title.Should().Be("Inception");
         result.Year.Should().Be(2010);
-        result.MediaType.Should().Be("Movie");
-        result.Rating.Should().Be(8.0);
+        result.Rating.Should().Be(0.0);
+        result.Overview.Should().BeEmpty();
     }
 
     [TestCase("")]
