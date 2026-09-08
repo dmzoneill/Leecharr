@@ -260,6 +260,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         double durationRaw = 0.0;
         bool isCurrentAudioTrackAccepted = false;
         int currentTrackChannels = 0;
+        bool hasHdr10Plus = false;
 
         while (offset < limit)
         {
@@ -413,6 +414,14 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
                     break;
 
+                case 0x63A2: // CodecPrivate
+                    if (ParseHvcCForHdr10Plus(header, offset, elemSize) || ScanBufferForHdr10PlusSei(header, offset, elemSize))
+                    {
+                        hasHdr10Plus = true;
+                    }
+
+                    break;
+
                 case 0x55B8: // Primaries
                     var primaries = ReadEbmlUInt(header, offset, elemSize);
                     if (primaries == 9)
@@ -431,6 +440,23 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             }
 
             offset += elemSize;
+        }
+
+        if (!hasHdr10Plus && ScanBufferForHdr10PlusSei(header, 0, header.Length))
+        {
+            hasHdr10Plus = true;
+        }
+
+        if (hasHdr10Plus)
+        {
+            if (info.HdrFormat == "Dolby Vision" || info.HdrFormat == "Dolby Vision / HDR10")
+            {
+                info.HdrFormat = "Dolby Vision / HDR10+";
+            }
+            else
+            {
+                info.HdrFormat = "HDR10+";
+            }
         }
 
         if (info.Width > 0 && string.IsNullOrEmpty(info.Resolution))
@@ -1605,6 +1631,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
         bool hasDvBox = false;
         bool hasHdr10 = false;
+        bool hasHdr10Plus = false;
         bool hasHlg = false;
 
         // Search child boxes for HDR / Dolby Vision indicators
@@ -1622,6 +1649,13 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             if (cType == "dvcC" || cType == "dvvC")
             {
                 hasDvBox = true;
+            }
+            else if (cType == "hvcC" || cType == "avcC")
+            {
+                if (ParseHvcCForHdr10Plus(data, childOffset + 8, (int)cSize - 8) || ScanBufferForHdr10PlusSei(data, childOffset + 8, (int)cSize - 8))
+                {
+                    hasHdr10Plus = true;
+                }
             }
             else if (cType == "colr" && childOffset + 16 <= childLimit && childOffset + 16 <= data.Length)
             {
@@ -1644,12 +1678,21 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             childOffset += (int)cSize;
         }
 
+        if (!hasHdr10Plus && ScanBufferForHdr10PlusSei(data, entryOffset, (int)entrySize))
+        {
+            hasHdr10Plus = true;
+        }
+
         if (info.HdrFormat == "Dolby Vision")
         {
             hasDvBox = true;
         }
 
-        if (hasDvBox && hasHdr10)
+        if (hasDvBox && hasHdr10Plus)
+        {
+            info.HdrFormat = "Dolby Vision / HDR10+";
+        }
+        else if (hasDvBox && hasHdr10)
         {
             info.HdrFormat = "Dolby Vision / HDR10";
         }
@@ -1660,6 +1703,10 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         else if (hasDvBox)
         {
             info.HdrFormat = "Dolby Vision";
+        }
+        else if (hasHdr10Plus)
+        {
+            info.HdrFormat = "HDR10+";
         }
         else if (hasHdr10)
         {
@@ -2550,5 +2597,228 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 info.AudioChannels = hintedChannels;
             }
         }
+    }
+
+    internal static byte[] UnescapeNalUnit(byte[] data, int offset, int length)
+    {
+        if (data == null || length <= 0 || offset + length > data.Length)
+        {
+            return Array.Empty<byte>();
+        }
+
+        var unescaped = new List<byte>(length);
+        int end = offset + length;
+        for (int i = offset; i < end; i++)
+        {
+            if (i + 2 < end && data[i] == 0x00 && data[i + 1] == 0x00 && data[i + 2] == 0x03)
+            {
+                unescaped.Add(0x00);
+                unescaped.Add(0x00);
+                i += 2;
+            }
+            else
+            {
+                unescaped.Add(data[i]);
+            }
+        }
+
+        return unescaped.ToArray();
+    }
+
+    internal static bool ContainsHdr10PlusSei(byte[] nalPayload, int offset, int length)
+    {
+        if (nalPayload == null || length < 4 || offset + length > nalPayload.Length)
+        {
+            return false;
+        }
+
+        int pos = offset;
+        int end = offset + length;
+
+        while (pos < end)
+        {
+            int payloadType = 0;
+            while (pos < end && nalPayload[pos] == 0xFF)
+            {
+                payloadType += 255;
+                pos++;
+            }
+
+            if (pos >= end)
+            {
+                break;
+            }
+
+            payloadType += nalPayload[pos++];
+
+            int payloadSize = 0;
+            while (pos < end && nalPayload[pos] == 0xFF)
+            {
+                payloadSize += 255;
+                pos++;
+            }
+
+            if (pos >= end)
+            {
+                break;
+            }
+
+            payloadSize += nalPayload[pos++];
+
+            int effectiveSize = Math.Min(payloadSize, end - pos);
+
+            // payloadType 4: user_data_registered_itu_t_t35 (SMPTE ST 2094-40 / HDR10+)
+            if (payloadType == 4 && effectiveSize >= 3)
+            {
+                byte countryCode = nalPayload[pos];
+                if (countryCode == 0xB5)
+                {
+                    ushort providerCode = (ushort)((nalPayload[pos + 1] << 8) | nalPayload[pos + 2]);
+                    if (providerCode == 0x003C)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            pos += payloadSize;
+        }
+
+        return false;
+    }
+
+    internal static bool ParseHvcCForHdr10Plus(byte[] hvcCData, int offset, int length)
+    {
+        if (hvcCData == null || length < 23 || offset + length > hvcCData.Length)
+        {
+            return false;
+        }
+
+        int pos = offset + 22;
+        int numOfArrays = hvcCData[pos++];
+
+        for (int i = 0; i < numOfArrays && pos + 3 <= offset + length; i++)
+        {
+            byte arrayInfo = hvcCData[pos++];
+            int nalUnitType = arrayInfo & 0x3F;
+            int numNalus = (hvcCData[pos] << 8) | hvcCData[pos + 1];
+            pos += 2;
+
+            for (int j = 0; j < numNalus && pos + 2 <= offset + length; j++)
+            {
+                int nalLength = (hvcCData[pos] << 8) | hvcCData[pos + 1];
+                pos += 2;
+
+                if (nalLength > 0 && pos + nalLength <= offset + length)
+                {
+                    if (nalUnitType == 39 || nalUnitType == 40)
+                    {
+                        var unescaped = UnescapeNalUnit(hvcCData, pos, nalLength);
+                        if (unescaped.Length > 2 && ContainsHdr10PlusSei(unescaped, 2, unescaped.Length - 2))
+                        {
+                            return true;
+                        }
+                    }
+                    else if (nalLength > 2)
+                    {
+                        int nType = (hvcCData[pos] >> 1) & 0x3F;
+                        if (nType == 39 || nType == 40)
+                        {
+                            var unescaped = UnescapeNalUnit(hvcCData, pos, nalLength);
+                            if (unescaped.Length > 2 && ContainsHdr10PlusSei(unescaped, 2, unescaped.Length - 2))
+                            {
+                                return true;
+                            }
+                        }
+                    }
+
+                    pos += nalLength;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    internal static bool ScanBufferForHdr10PlusSei(byte[] data, int offset, int length)
+    {
+        if (data == null || length < 8 || offset + length > data.Length)
+        {
+            return false;
+        }
+
+        int end = offset + length;
+
+        for (int i = offset; i + 4 < end; i++)
+        {
+            int startCodeLen = 0;
+            if (data[i] == 0x00 && data[i + 1] == 0x00 && data[i + 2] == 0x01)
+            {
+                startCodeLen = 3;
+            }
+            else if (data[i] == 0x00 && data[i + 1] == 0x00 && data[i + 2] == 0x00 && data[i + 3] == 0x01)
+            {
+                startCodeLen = 4;
+            }
+
+            if (startCodeLen > 0)
+            {
+                int nalStart = i + startCodeLen;
+                if (nalStart < end)
+                {
+                    int nalType = (data[nalStart] >> 1) & 0x3F;
+                    if (nalType == 39 || nalType == 40)
+                    {
+                        int nalEnd = end;
+                        for (int k = nalStart + 2; k + 2 < end; k++)
+                        {
+                            if (data[k] == 0x00 && data[k + 1] == 0x00 && (data[k + 2] == 0x01 || (k + 3 < end && data[k + 2] == 0x00 && data[k + 3] == 0x01)))
+                            {
+                                nalEnd = k;
+                                break;
+                            }
+                        }
+
+                        int nalLen = nalEnd - nalStart;
+                        if (nalLen > 2)
+                        {
+                            var unescaped = UnescapeNalUnit(data, nalStart, nalLen);
+                            if (unescaped.Length > 2 && ContainsHdr10PlusSei(unescaped, 2, unescaped.Length - 2))
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        int avcNalType = data[nalStart] & 0x1F;
+                        if (avcNalType == 6)
+                        {
+                            int nalEnd = end;
+                            for (int k = nalStart + 1; k + 2 < end; k++)
+                            {
+                                if (data[k] == 0x00 && data[k + 1] == 0x00 && (data[k + 2] == 0x01 || (k + 3 < end && data[k + 2] == 0x00 && data[k + 3] == 0x01)))
+                                {
+                                    nalEnd = k;
+                                    break;
+                                }
+                            }
+
+                            int nalLen = nalEnd - nalStart;
+                            if (nalLen > 1)
+                            {
+                                var unescaped = UnescapeNalUnit(data, nalStart, nalLen);
+                                if (unescaped.Length > 1 && ContainsHdr10PlusSei(unescaped, 1, unescaped.Length - 1))
+                                {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 }
