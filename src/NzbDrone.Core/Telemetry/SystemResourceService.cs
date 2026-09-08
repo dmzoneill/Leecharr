@@ -25,9 +25,13 @@ public class SystemResourceService : ISystemResourceService
 {
     private static readonly Process CurrentProcess = Process.GetCurrentProcess();
     private static readonly object CpuLock = new();
+    private static readonly object DriveLock = new();
+    private static readonly TimeSpan DriveCacheDuration = TimeSpan.FromSeconds(30);
     private static DateTime lastSampleTime = DateTime.UtcNow;
     private static TimeSpan lastTotalProcessorTime = CurrentProcess.TotalProcessorTime;
     private static double cachedCpuPercent;
+    private static DateTime lastDriveSampleTime = DateTime.MinValue;
+    private static List<DiskMountPointMetrics> cachedDriveMetrics = new();
 
     private readonly ITorrentEngineManager torrentEngineManager;
     private readonly IArchiveExtractorManager extractorManager;
@@ -69,6 +73,18 @@ public class SystemResourceService : ISystemResourceService
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
+    internal static Func<List<DiskMountPointMetrics>> DriveMetricsProvider { get; set; } = QuerySystemDrives;
+
+    public static void ResetDriveMetricsCache()
+    {
+        lock (DriveLock)
+        {
+            lastDriveSampleTime = DateTime.MinValue;
+            cachedDriveMetrics = new List<DiskMountPointMetrics>();
+            DriveMetricsProvider = QuerySystemDrives;
+        }
+    }
+
     public HostProcessResourceMetrics GetHostMetrics()
     {
         var now = DateTime.UtcNow;
@@ -107,32 +123,7 @@ public class SystemResourceService : ISystemResourceService
         ThreadPool.GetAvailableThreads(out var availWorker, out var availCompletion);
         ThreadPool.GetMaxThreads(out var maxWorker, out var maxCompletion);
 
-        var drives = new List<DiskMountPointMetrics>();
-        try
-        {
-            foreach (var drive in DriveInfo.GetDrives())
-            {
-                if (drive.IsReady)
-                {
-                    var total = drive.TotalSize;
-                    var free = drive.AvailableFreeSpace;
-                    var used = total - free;
-                    var pct = total > 0 ? Math.Round(((double)used / total) * 100.0, 1) : 0.0;
-                    drives.Add(new DiskMountPointMetrics
-                    {
-                        MountPoint = drive.RootDirectory.FullName,
-                        DriveType = drive.DriveType.ToString(),
-                        TotalSpaceBytes = total,
-                        FreeSpaceBytes = free,
-                        UsedSpaceBytes = used,
-                        UsedPercent = pct,
-                    });
-                }
-            }
-        }
-        catch
-        {
-        }
+        var drives = GetDiskMetrics(now);
 
         long uptimeSec = 0;
         try
@@ -504,5 +495,64 @@ public class SystemResourceService : ISystemResourceService
             Subsystems = this.GetSubsystemTelemetry(),
             Timestamp = DateTime.UtcNow,
         };
+    }
+
+    private static List<DiskMountPointMetrics> GetDiskMetrics(DateTime now)
+    {
+        lock (DriveLock)
+        {
+            var elapsed = now - lastDriveSampleTime;
+            if (lastDriveSampleTime != DateTime.MinValue && elapsed < DriveCacheDuration && elapsed >= TimeSpan.Zero)
+            {
+                return new List<DiskMountPointMetrics>(cachedDriveMetrics);
+            }
+
+            try
+            {
+                cachedDriveMetrics = DriveMetricsProvider() ?? new List<DiskMountPointMetrics>();
+            }
+            catch
+            {
+                cachedDriveMetrics = new List<DiskMountPointMetrics>();
+            }
+            finally
+            {
+                lastDriveSampleTime = now;
+            }
+
+            return new List<DiskMountPointMetrics>(cachedDriveMetrics);
+        }
+    }
+
+    private static List<DiskMountPointMetrics> QuerySystemDrives()
+    {
+        var drives = new List<DiskMountPointMetrics>();
+        try
+        {
+            foreach (var drive in DriveInfo.GetDrives())
+            {
+                if (drive.IsReady)
+                {
+                    var total = drive.TotalSize;
+                    var free = drive.AvailableFreeSpace;
+                    var used = total - free;
+                    var pct = total > 0 ? Math.Round(((double)used / total) * 100.0, 1) : 0.0;
+                    drives.Add(new DiskMountPointMetrics
+                    {
+                        MountPoint = drive.RootDirectory.FullName,
+                        DriveType = drive.DriveType.ToString(),
+                        TotalSpaceBytes = total,
+                        FreeSpaceBytes = free,
+                        UsedSpaceBytes = used,
+                        UsedPercent = pct,
+                    });
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return drives;
     }
 }
