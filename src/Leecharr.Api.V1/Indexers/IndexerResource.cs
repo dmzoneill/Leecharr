@@ -59,6 +59,10 @@ public class IndexerResource : RestResource
     public int DownloadClientId { get; set; }
 
     public List<int> Tags { get; set; } = new();
+
+    public int? ProwlarrIndexerId { get; set; }
+
+    public bool IsProwlarrManaged { get; set; }
 }
 
 public class IntListOrCommaSeparatedConverter : JsonConverter<List<int>>

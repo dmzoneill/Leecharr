@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.Http.Transport;
@@ -131,14 +132,54 @@ public class ProwlarrSyncService : IProwlarrSyncService
                 return 0;
             }
 
-            var syncedCount = 0;
-            var existingIndexers = this.repository.All().ToList();
-
-            foreach (var pIndexer in indexers.Where(i => string.Equals(i.Protocol, "torrent", StringComparison.OrdinalIgnoreCase)))
+            var torrentIndexers = indexers.Where(i => string.Equals(i.Protocol, "torrent", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (torrentIndexers.Count == 0)
             {
-                var existing = existingIndexers.FirstOrDefault(e => string.Equals(e.Name, pIndexer.Name, StringComparison.OrdinalIgnoreCase));
-                var feedUrl = $"{baseUri}/{pIndexer.Id}/api";
-                var categories = await this.ExtractOrFetchCategoriesAsync(pIndexer, feedUrl, apiKey);
+                var allExisting = this.repository.All().ToList();
+                var prowlarrToDelete = allExisting
+                    .Where(e => e.IsProwlarrManaged || e.ProwlarrIndexerId.HasValue)
+                    .ToList();
+                foreach (var indexerToPrune in prowlarrToDelete)
+                {
+                    this.logger.Info("Pruning deleted Prowlarr indexer: {0} (ProwlarrIndexerId: {1})", indexerToPrune.Name, indexerToPrune.ProwlarrIndexerId);
+                    this.repository.Delete(indexerToPrune.Id);
+                }
+
+                return 0;
+            }
+
+            using var semaphore = new SemaphoreSlim(8);
+            var tasks = torrentIndexers.Select(async pIndexer =>
+            {
+                await semaphore.WaitAsync();
+                try
+                {
+                    var feedUrl = $"{baseUri}/{pIndexer.Id}/api";
+                    var categories = await this.ExtractOrFetchCategoriesAsync(pIndexer, feedUrl, apiKey);
+                    return (Indexer: pIndexer, FeedUrl: feedUrl, Categories: categories);
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            });
+
+            var processed = await Task.WhenAll(tasks);
+
+            var existingIndexers = this.repository.All().ToList();
+            var syncedProwlarrIds = new HashSet<int>();
+            var syncedCount = 0;
+
+            foreach (var item in processed)
+            {
+                var pIndexer = item.Indexer;
+                var feedUrl = item.FeedUrl;
+                var categories = item.Categories;
+
+                syncedProwlarrIds.Add(pIndexer.Id);
+
+                var existing = existingIndexers.FirstOrDefault(e => e.ProwlarrIndexerId == pIndexer.Id)
+                               ?? existingIndexers.FirstOrDefault(e => e.ProwlarrIndexerId == null && string.Equals(e.Name, pIndexer.Name, StringComparison.OrdinalIgnoreCase));
 
                 if (existing == null)
                 {
@@ -153,17 +194,24 @@ public class ProwlarrSyncService : IProwlarrSyncService
                         EnableRss = pIndexer.EnableRss,
                         EnableSearch = pIndexer.EnableAutomaticSearch || pIndexer.EnableInteractiveSearch,
                         Categories = categories,
+                        ProwlarrIndexerId = pIndexer.Id,
+                        IsProwlarrManaged = true,
                     });
                 }
                 else
                 {
+                    existing.Name = pIndexer.Name;
                     existing.Url = feedUrl;
                     existing.ApiKey = apiKey;
                     existing.Enable = pIndexer.Enable;
-                    existing.Priority = pIndexer.Priority;
                     existing.EnableRss = pIndexer.EnableRss;
                     existing.EnableSearch = pIndexer.EnableAutomaticSearch || pIndexer.EnableInteractiveSearch;
-                    if (categories.Count > 0 || existing.Categories == null || existing.Categories.Count == 0)
+                    existing.ProwlarrIndexerId = pIndexer.Id;
+                    existing.IsProwlarrManaged = true;
+
+                    // Preserve local custom overrides: Priority, FreeleechOnly, MinSeeders, DownloadClientId, Tags
+                    // and category filters if already configured locally
+                    if (existing.Categories == null || existing.Categories.Count == 0)
                     {
                         existing.Categories = categories;
                     }
@@ -172,6 +220,16 @@ public class ProwlarrSyncService : IProwlarrSyncService
                 }
 
                 syncedCount++;
+            }
+
+            var toPrune = existingIndexers
+                .Where(e => (e.IsProwlarrManaged || e.ProwlarrIndexerId.HasValue) && (!e.ProwlarrIndexerId.HasValue || !syncedProwlarrIds.Contains(e.ProwlarrIndexerId.Value)))
+                .ToList();
+
+            foreach (var indexerToPrune in toPrune)
+            {
+                this.logger.Info("Pruning deleted Prowlarr indexer: {0} (ProwlarrIndexerId: {1})", indexerToPrune.Name, indexerToPrune.ProwlarrIndexerId);
+                this.repository.Delete(indexerToPrune.Id);
             }
 
             this.logger.Info("Successfully synchronized {0} indexers from Prowlarr.", syncedCount);
