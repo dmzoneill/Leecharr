@@ -274,14 +274,42 @@ public class MediaEnrichmentServiceTest
     }
 
     [Test]
-    public void DeleteMetadata_WhenMetadataNotFound_DoesNotThrow()
+    public void DeleteMetadata_WhenMetadataNotFound_DoesNotThrowAndCleansUpCache()
     {
+        var cacheDir = Path.Combine(this.tempDirectory, "MediaCache", "999");
+        Directory.CreateDirectory(cacheDir);
+        File.WriteAllText(Path.Combine(cacheDir, "cached_poster.jpg"), "test data");
+
         this.repository.GetByTorrentId(999).Returns((TorrentMediaMetadata)null!);
 
         var act = () => this.service.DeleteMetadata(999);
 
         act.Should().NotThrow();
+        Directory.Exists(cacheDir).Should().BeFalse();
         this.repository.DidNotReceive().DeleteByTorrentId(Arg.Any<int>());
+    }
+
+    [Test]
+    public void DeleteMetadata_WhenAutoPruneDisabled_StillCleansUpTorrentCacheDirectory()
+    {
+        this.configService.AutoPruneRemovedArtwork.Returns(false);
+
+        var cacheDir = Path.Combine(this.tempDirectory, "MediaCache", "56");
+        Directory.CreateDirectory(cacheDir);
+        File.WriteAllText(Path.Combine(cacheDir, "cached_poster.jpg"), "cache data");
+
+        var meta = new TorrentMediaMetadata
+        {
+            Id = 2,
+            TorrentId = 56,
+        };
+
+        this.repository.GetByTorrentId(56).Returns(meta);
+
+        this.service.DeleteMetadata(56);
+
+        Directory.Exists(cacheDir).Should().BeFalse();
+        this.repository.Received(1).DeleteByTorrentId(56);
     }
 
     #endregion
