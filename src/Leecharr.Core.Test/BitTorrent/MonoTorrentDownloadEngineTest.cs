@@ -198,6 +198,67 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task BoundSocketConnector_WhenPeerIpIsBlocklisted_ThrowsAndIncrementsBlockedCount()
+    {
+        var blocklistService = Substitute.For<NzbDrone.Core.Network.Blocklist.IBlocklistService>();
+        blocklistService.IsIpBlocked("198.51.100.1").Returns(true);
+        blocklistService.IsIpBlocked("198.51.100.2").Returns(false);
+
+        var blockedCount = 0;
+        var connector = new BoundSocketConnector(
+            IPAddress.Any,
+            IPAddress.IPv6Any,
+            blocklistService: blocklistService,
+            onPeerBlocked: () => Interlocked.Increment(ref blockedCount));
+
+        Func<Task> actBlocked = async () => await connector.ConnectAsync(new Uri("tcp://198.51.100.1:6881"), CancellationToken.None);
+        await actBlocked.Should().ThrowAsync<System.Net.Sockets.SocketException>();
+        blockedCount.Should().Be(1);
+    }
+
+    [Test]
+    public void FilteringPeerConnectionListener_WhenIncomingPeerIsBlocklisted_DisposesConnectionAndDropsEvent()
+    {
+        var blocklistService = Substitute.For<NzbDrone.Core.Network.Blocklist.IBlocklistService>();
+        blocklistService.IsIpBlocked("203.0.113.5").Returns(true);
+        blocklistService.IsIpBlocked("203.0.113.6").Returns(false);
+
+        var innerListener = Substitute.For<MonoTorrent.Connections.Peer.IPeerConnectionListener>();
+        var blockedCount = 0;
+        var filteringListener = new FilteringPeerConnectionListener(
+            innerListener,
+            blocklistService,
+            () => Interlocked.Increment(ref blockedCount));
+
+        var eventRaised = false;
+        filteringListener.ConnectionReceived += (_, _) => eventRaised = true;
+
+        var mockConn = Substitute.For<MonoTorrent.Connections.Peer.IPeerConnection, IDisposable>();
+        mockConn.IsIncoming.Returns(true);
+        mockConn.Uri.Returns(new Uri("ipv4://203.0.113.5:12345"));
+        var args = new MonoTorrent.Connections.Peer.PeerConnectionEventArgs(mockConn, null);
+
+        // Raise incoming connection from blocked peer on inner listener
+        innerListener.ConnectionReceived += Raise.Event<EventHandler<MonoTorrent.Connections.Peer.PeerConnectionEventArgs>>(innerListener, args);
+
+        eventRaised.Should().BeFalse();
+        blockedCount.Should().Be(1);
+        ((IDisposable)mockConn).Received(1).Dispose();
+
+        // Raise incoming connection from allowed peer
+        var mockConnAllowed = Substitute.For<MonoTorrent.Connections.Peer.IPeerConnection, IDisposable>();
+        mockConnAllowed.IsIncoming.Returns(true);
+        mockConnAllowed.Uri.Returns(new Uri("ipv4://203.0.113.6:12345"));
+        var allowedArgs = new MonoTorrent.Connections.Peer.PeerConnectionEventArgs(mockConnAllowed, null);
+
+        innerListener.ConnectionReceived += Raise.Event<EventHandler<MonoTorrent.Connections.Peer.PeerConnectionEventArgs>>(innerListener, allowedArgs);
+
+        eventRaised.Should().BeTrue();
+        blockedCount.Should().Be(1);
+        ((IDisposable)mockConnAllowed).DidNotReceive().Dispose();
+    }
+
+    [Test]
     public async Task ProbeHealthAsync_ReturnsHealthy()
     {
         var health = await this.engine.ProbeHealthAsync();
