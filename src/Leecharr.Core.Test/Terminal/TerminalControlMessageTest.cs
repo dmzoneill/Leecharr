@@ -159,10 +159,90 @@ public class TerminalControlMessageTest
             Arg.Any<CancellationToken>());
     }
 
+    [Test]
+    public async Task HandleWebSocket_WhenMalformedTypeProperty_DoesNotCrashAndDoesNotLeakToStdin()
+    {
+        var fakeWs = new FakeWebSocket();
+        fakeWs.EnqueueMessage("{\"type\":123}");
+        fakeWs.EnqueueMessage("{\"type\":true}");
+        fakeWs.EnqueueMessage("{\"type\":null}");
+        fakeWs.EnqueueMessage("{\"type\":{\"nested\":\"type\"}}");
+        fakeWs.EnqueueMessage("{\"type\":[1,2,3]}");
+
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/ws/terminal";
+        context.Response.Body = new MemoryStream();
+        context.SetFakeWebSocketManager(new FakeWebSocketManager(fakeWs));
+
+        await TerminalWebSocketHandler.HandleWebSocket(context, this.ptyService, this.configService, this.configFileProvider);
+
+        await this.session.DidNotReceive().WriteAsync(
+            Arg.Any<ReadOnlyMemory<byte>>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task HandleWebSocket_WhenMalformedDataPropertyInInputMessage_DoesNotCrashAndDoesNotLeakToStdin()
+    {
+        var fakeWs = new FakeWebSocket();
+        fakeWs.EnqueueMessage("{\"type\":\"input\",\"data\":12345}");
+        fakeWs.EnqueueMessage("{\"type\":\"input\",\"data\":null}");
+        fakeWs.EnqueueMessage("{\"type\":\"input\",\"data\":{\"object\":\"value\"}}");
+        fakeWs.EnqueueMessage("{\"type\":\"input\",\"data\":[\"array\"]}");
+
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/ws/terminal";
+        context.Response.Body = new MemoryStream();
+        context.SetFakeWebSocketManager(new FakeWebSocketManager(fakeWs));
+
+        await TerminalWebSocketHandler.HandleWebSocket(context, this.ptyService, this.configService, this.configFileProvider);
+
+        await this.session.DidNotReceive().WriteAsync(
+            Arg.Any<ReadOnlyMemory<byte>>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task HandleWebSocket_WhenJsonObjectWithoutTypePropertySent_DoesNotLeakToStdin()
+    {
+        var fakeWs = new FakeWebSocket();
+        fakeWs.EnqueueMessage("{\"command\":\"whoami\",\"args\":[\"-a\"]}");
+        fakeWs.EnqueueMessage("{}");
+
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/ws/terminal";
+        context.Response.Body = new MemoryStream();
+        context.SetFakeWebSocketManager(new FakeWebSocketManager(fakeWs));
+
+        await TerminalWebSocketHandler.HandleWebSocket(context, this.ptyService, this.configService, this.configFileProvider);
+
+        await this.session.DidNotReceive().WriteAsync(
+            Arg.Any<ReadOnlyMemory<byte>>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task HandleWebSocket_WhenPingMessageSent_RespondsWithPong()
+    {
+        var fakeWs = new FakeWebSocket();
+        fakeWs.EnqueueMessage("{\"type\":\"ping\"}");
+
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/ws/terminal";
+        context.Response.Body = new MemoryStream();
+        context.SetFakeWebSocketManager(new FakeWebSocketManager(fakeWs));
+
+        await TerminalWebSocketHandler.HandleWebSocket(context, this.ptyService, this.configService, this.configFileProvider);
+
+        fakeWs.SentMessages.Should().Contain("{\"type\":\"pong\"}");
+    }
+
     private sealed class FakeWebSocket : WebSocket
     {
         private readonly Queue<byte[]> incomingMessages = new();
         private WebSocketState state = WebSocketState.Open;
+
+        public List<string> SentMessages { get; } = new();
 
         public void EnqueueMessage(string text) => this.incomingMessages.Enqueue(Encoding.UTF8.GetBytes(text));
 
@@ -207,6 +287,11 @@ public class TerminalControlMessageTest
 
         public override Task SendAsync(ArraySegment<byte> buffer, WebSocketMessageType messageType, bool endOfMessage, CancellationToken cancellationToken)
         {
+            if (buffer.Array != null)
+            {
+                this.SentMessages.Add(Encoding.UTF8.GetString(buffer.Array, buffer.Offset, buffer.Count));
+            }
+
             return Task.CompletedTask;
         }
     }
