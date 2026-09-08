@@ -1271,6 +1271,68 @@ public class DelugeJsonRpcControllerTest
         jsonIdList.Should().Contain(t1.InfoHash);
         jsonIdList.Should().NotContain(t2.InfoHash);
         jsonIdList.Should().Contain(t3.InfoHash);
+
+        // Filter: hash scalar query
+        using var docHash = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{\"hash\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"},[\"name\"]],\"id\":5}");
+        var resHash = await this.controller.HandleRpc(docHash.RootElement);
+        var jsonHash = JsonSerializer.Serialize(((JsonResult)resHash).Value);
+        jsonHash.Should().NotContain(t1.InfoHash);
+        jsonHash.Should().Contain(t2.InfoHash);
+        jsonHash.Should().NotContain(t3.InfoHash);
+
+        // Filter: info_hash query
+        using var docInfoHash = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{\"info_hash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},[\"name\"]],\"id\":6}");
+        var resInfoHash = await this.controller.HandleRpc(docInfoHash.RootElement);
+        var jsonInfoHash = JsonSerializer.Serialize(((JsonResult)resInfoHash).Value);
+        jsonInfoHash.Should().Contain(t1.InfoHash);
+        jsonInfoHash.Should().NotContain(t2.InfoHash);
+        jsonInfoHash.Should().NotContain(t3.InfoHash);
+
+        // Filter: label array query
+        using var docLabelArray = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{\"label\":[\"tv\",\"movies\"]},[\"name\"]],\"id\":7}");
+        var resLabelArray = await this.controller.HandleRpc(docLabelArray.RootElement);
+        var jsonLabelArray = JsonSerializer.Serialize(((JsonResult)resLabelArray).Value);
+        jsonLabelArray.Should().Contain(t1.InfoHash);
+        jsonLabelArray.Should().Contain(t2.InfoHash);
+        jsonLabelArray.Should().NotContain(t3.InfoHash);
+
+        // Filter: integer ID matching t.Id.ToString()
+        using var docIntId = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{\"id\":[1,3]},[\"name\"]],\"id\":8}");
+        var resIntId = await this.controller.HandleRpc(docIntId.RootElement);
+        var jsonIntId = JsonSerializer.Serialize(((JsonResult)resIntId).Value);
+        jsonIntId.Should().Contain(t1.InfoHash);
+        jsonIntId.Should().NotContain(t2.InfoHash);
+        jsonIntId.Should().Contain(t3.InfoHash);
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreGetTorrentsStatus_WithTrackerHostFilters_ReturnsMatchingTorrents()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var t1 = new Torrent { Id = 1, InfoHash = "1111111111111111111111111111111111111111", TrackerUrl = "http://tracker1.example.com:8080/announce" };
+        var t2 = new Torrent { Id = 2, InfoHash = "2222222222222222222222222222222222222222", TrackerUrl = "http://tracker2.example.com:8080/announce" };
+        var t3 = new Torrent { Id = 3, InfoHash = "3333333333333333333333333333333333333333", TrackerUrl = null };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { t1, t2, t3 });
+
+        // Filter: tracker_host scalar
+        using var docScalar = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{\"tracker_host\":\"tracker1.example.com\"},[\"name\"]],\"id\":1}");
+        var resScalar = await this.controller.HandleRpc(docScalar.RootElement);
+        var jsonScalar = JsonSerializer.Serialize(((JsonResult)resScalar).Value);
+        jsonScalar.Should().Contain(t1.InfoHash);
+        jsonScalar.Should().NotContain(t2.InfoHash);
+        jsonScalar.Should().NotContain(t3.InfoHash);
+
+        // Filter: tracker_host array
+        using var docArray = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{\"tracker_host\":[\"tracker1.example.com\",\"tracker2.example.com\"]},[\"name\"]],\"id\":2}");
+        var resArray = await this.controller.HandleRpc(docArray.RootElement);
+        var jsonArray = JsonSerializer.Serialize(((JsonResult)resArray).Value);
+        jsonArray.Should().Contain(t1.InfoHash);
+        jsonArray.Should().Contain(t2.InfoHash);
+        jsonArray.Should().NotContain(t3.InfoHash);
     }
 
     [Test]
