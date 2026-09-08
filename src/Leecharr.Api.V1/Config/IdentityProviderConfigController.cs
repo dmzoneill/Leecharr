@@ -43,6 +43,9 @@ public class IdentityProviderResource : RestResource
 [V1ApiController("config/auth/providers")]
 public class IdentityProviderConfigController : RestController<IdentityProviderResource>
 {
+    private const string MaskedSecret = "********";
+    private const string AlternateMaskedSecret = "******";
+
     private readonly IIdentityProviderService providerService;
     private readonly IDynamicAuthSchemeManager dynamicAuthManager;
 
@@ -120,8 +123,10 @@ public class IdentityProviderConfigController : RestController<IdentityProviderR
         var model = ToModel(resource);
         model.Id = id;
 
-        // If client secret is masked (e.g. "******"), preserve original
-        if (string.IsNullOrEmpty(model.ClientSecretEncrypted) || model.ClientSecretEncrypted.Contains('*'))
+        // If client secret is masked (e.g. "********" or "******"), preserve original
+        if (string.IsNullOrEmpty(model.ClientSecretEncrypted) ||
+            model.ClientSecretEncrypted == MaskedSecret ||
+            model.ClientSecretEncrypted == AlternateMaskedSecret)
         {
             model.ClientSecretEncrypted = existing.ClientSecretEncrypted;
         }
@@ -164,6 +169,18 @@ public class IdentityProviderConfigController : RestController<IdentityProviderR
         }
 
         var model = ToModel(resource);
+        if (resource.Id > 0 &&
+            (string.IsNullOrEmpty(model.ClientSecretEncrypted) ||
+             model.ClientSecretEncrypted == MaskedSecret ||
+             model.ClientSecretEncrypted == AlternateMaskedSecret))
+        {
+            var existing = this.providerService.GetById(resource.Id);
+            if (existing != null)
+            {
+                model.ClientSecretEncrypted = existing.ClientSecretEncrypted;
+            }
+        }
+
         var success = await this.providerService.TestConnectionAsync(model);
 
         return this.Ok(new { success, message = success ? "Connection successful" : "Failed to reach provider endpoint" });
@@ -179,7 +196,7 @@ public class IdentityProviderConfigController : RestController<IdentityProviderR
             ProviderType = model.ProviderType,
             IsEnabled = model.IsEnabled,
             ClientId = model.ClientId,
-            ClientSecret = string.IsNullOrEmpty(model.ClientSecretEncrypted) ? null : "********",
+            ClientSecret = string.IsNullOrEmpty(model.ClientSecretEncrypted) ? null : MaskedSecret,
             IssuerUrl = model.IssuerUrl,
             MetadataUrl = model.MetadataUrl,
             Scopes = model.Scopes,
