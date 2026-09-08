@@ -7,27 +7,24 @@ namespace NzbDrone.Core.MediaEnrichment;
 
 public class TorrentMediaMetadataRepository : BasicRepository<TorrentMediaMetadata>, ITorrentMediaMetadataRepository
 {
-    private readonly IDatabase database;
-
     public TorrentMediaMetadataRepository(IDatabase database)
         : base(database)
     {
-        this.database = database;
     }
 
     public TorrentMediaMetadata GetByTorrentId(int torrentId)
     {
-        using var connection = this.database.OpenConnection();
-        return connection.QueryFirstOrDefault<TorrentMediaMetadata>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"TorrentId\" = @TorrentId",
-            new { TorrentId = torrentId });
+        return this.ExecuteWithRetry(connection =>
+            connection.QueryFirstOrDefault<TorrentMediaMetadata>(
+                $"SELECT * FROM \"{this.table}\" WHERE \"TorrentId\" = @TorrentId",
+                new { TorrentId = torrentId }));
     }
 
     public void DeleteByTorrentId(int torrentId)
     {
-        using var connection = this.database.OpenConnection();
-        connection.Execute(
-            $"DELETE FROM \"{this.table}\" WHERE \"TorrentId\" = @TorrentId",
-            new { TorrentId = torrentId });
+        this.ExecuteWithRetry(connection =>
+            connection.Execute(
+                $"DELETE FROM \"{this.table}\" WHERE \"TorrentId\" = @TorrentId",
+                new { TorrentId = torrentId }));
     }
 }

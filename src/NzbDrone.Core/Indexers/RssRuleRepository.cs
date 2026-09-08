@@ -13,19 +13,16 @@ public interface IRssRuleRepository : IBasicRepository<RssRule>
 
 public class RssRuleRepository : BasicRepository<RssRule>, IRssRuleRepository
 {
-    private readonly IDatabase database;
-
     public RssRuleRepository(IDatabase database)
         : base(database)
     {
-        this.database = database;
     }
 
     public IEnumerable<RssRule> GetEnabled()
     {
-        using var connection = this.database.OpenConnection();
-        return connection.Query<RssRule>(
-            $"SELECT * FROM \"{this.table}\" WHERE \"IsEnabled\" = @IsEnabled",
-            new { IsEnabled = true });
+        return this.ExecuteWithRetry(connection =>
+            connection.Query<RssRule>(
+                $"SELECT * FROM \"{this.table}\" WHERE \"IsEnabled\" = @IsEnabled",
+                new { IsEnabled = true }));
     }
 }

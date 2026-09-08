@@ -1,8 +1,8 @@
-// Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
+using System.Threading.Tasks;
 using Dapper;
 using Microsoft.Data.Sqlite;
 using NzbDrone.Core.Datastore.Events;
@@ -76,7 +76,13 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
             3,
             retryAttempt => TimeSpan.FromMilliseconds(50 * Math.Pow(2, retryAttempt - 1)));
 
-    private readonly IDatabase database;
+    private static readonly AsyncRetryPolicy AsyncRetryPolicy = Policy
+        .Handle<SqliteException>(ex => ex.SqliteErrorCode == 5)
+        .WaitAndRetryAsync(
+            3,
+            retryAttempt => TimeSpan.FromMilliseconds(50 * Math.Pow(2, retryAttempt - 1)));
+
+    protected readonly IDatabase database;
     private readonly IEventAggregator eventAggregator;
     protected readonly string table;
 
@@ -87,32 +93,60 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
         this.table = TableMapping.GetTableName(typeof(TModel));
     }
 
-    public IEnumerable<TModel> All()
+    protected TResult ExecuteWithRetry<TResult>(Func<IDbConnection, TResult> action)
     {
         return RetryPolicy.Execute(() =>
         {
             using var connection = this.database.OpenConnection();
-            return connection.Query<TModel>($"SELECT * FROM \"{this.table}\"").ToList();
+            return action(connection);
         });
     }
 
-    public TModel Get(int id)
-    {
-        return RetryPolicy.Execute(() =>
-        {
-            using var connection = this.database.OpenConnection();
-            return connection.QueryFirstOrDefault<TModel>(
-                $"SELECT * FROM \"{this.table}\" WHERE \"Id\" = @Id",
-                new { Id = id });
-        });
-    }
-
-    public virtual TModel Insert(TModel model)
+    protected void ExecuteWithRetry(Action<IDbConnection> action)
     {
         RetryPolicy.Execute(() =>
         {
             using var connection = this.database.OpenConnection();
+            action(connection);
+        });
+    }
 
+    protected async Task<TResult> ExecuteWithRetryAsync<TResult>(Func<IDbConnection, Task<TResult>> action)
+    {
+        return await AsyncRetryPolicy.ExecuteAsync(async () =>
+        {
+            using var connection = this.database.OpenConnection();
+            return await action(connection);
+        });
+    }
+
+    protected async Task ExecuteWithRetryAsync(Func<IDbConnection, Task> action)
+    {
+        await AsyncRetryPolicy.ExecuteAsync(async () =>
+        {
+            using var connection = this.database.OpenConnection();
+            await action(connection);
+        });
+    }
+
+    public IEnumerable<TModel> All()
+    {
+        return this.ExecuteWithRetry(connection =>
+            connection.Query<TModel>($"SELECT * FROM \"{this.table}\"").ToList());
+    }
+
+    public TModel Get(int id)
+    {
+        return this.ExecuteWithRetry(connection =>
+            connection.QueryFirstOrDefault<TModel>(
+                $"SELECT * FROM \"{this.table}\" WHERE \"Id\" = @Id",
+                new { Id = id }));
+    }
+
+    public virtual TModel Insert(TModel model)
+    {
+        this.ExecuteWithRetry(connection =>
+        {
             if (this.database.DatabaseType == DatabaseType.SQLite)
             {
                 var id = connection.ExecuteScalar<int>(
@@ -153,9 +187,8 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
             return;
         }
 
-        RetryPolicy.Execute(() =>
+        this.ExecuteWithRetry(connection =>
         {
-            using var connection = this.database.OpenConnection();
             using var transaction = connection.BeginTransaction();
 
             try
@@ -218,9 +251,8 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
 
     public virtual TModel Update(TModel model)
     {
-        RetryPolicy.Execute(() =>
+        this.ExecuteWithRetry(connection =>
         {
-            using var connection = this.database.OpenConnection();
             connection.Execute(
                 TableMapping.GetUpdateSql(this.table, model),
                 model);
@@ -233,9 +265,8 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
     public virtual void Delete(int id)
     {
         var existing = this.Get(id);
-        RetryPolicy.Execute(() =>
+        this.ExecuteWithRetry(connection =>
         {
-            using var connection = this.database.OpenConnection();
             connection.Execute(
                 TableMapping.GetDeleteSql<TModel>(this.table),
                 new { Id = id });
