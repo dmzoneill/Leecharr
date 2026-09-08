@@ -52,7 +52,7 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
         this.guaranteedProcessingTask = Task.Run(() => this.ProcessChannelAsync(this.guaranteedChannel, "guaranteed"));
     }
 
-    public bool IsConnected => MessageHub.IsConnected;
+    public virtual bool IsConnected => MessageHub.IsConnected;
 
     public Channel<SignalRMessage> BoundedChannel => this.telemetryChannel;
 
@@ -62,7 +62,7 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
 
     public void BroadcastMessage(SignalRMessage message)
     {
-        if (message == null || this.disposed)
+        if (message == null || this.disposed || !this.IsConnected)
         {
             return;
         }

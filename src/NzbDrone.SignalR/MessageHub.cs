@@ -34,6 +34,30 @@ public class MessageHub : Hub
         }
     }
 
+    public static void ResetForTesting()
+    {
+        lock (Connections)
+        {
+            Connections.Clear();
+        }
+    }
+
+    public static void AddConnectionForTesting(string connectionId = "test-connection")
+    {
+        lock (Connections)
+        {
+            Connections.Add(connectionId);
+        }
+    }
+
+    public static void RemoveConnectionForTesting(string connectionId = "test-connection")
+    {
+        lock (Connections)
+        {
+            Connections.Remove(connectionId);
+        }
+    }
+
     public override Task OnConnectedAsync()
     {
         var httpContext = this.Context.GetHttpContext();
