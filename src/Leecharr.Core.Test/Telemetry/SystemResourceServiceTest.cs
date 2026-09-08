@@ -143,6 +143,24 @@ public class SystemResourceServiceTest
     }
 
     [Test]
+    public void GetHostMetrics_ConsecutiveCallsFasterThan350ms_ReturnsUpdatedProcessMetrics()
+    {
+        var first = this.service.GetHostMetrics();
+        var second = this.service.GetHostMetrics();
+
+        first.Should().NotBeNull();
+        second.Should().NotBeNull();
+        first.WorkingSetBytes.Should().BeGreaterThan(0);
+        second.WorkingSetBytes.Should().BeGreaterThan(0);
+        first.ThreadCount.Should().BeGreaterThan(0);
+        second.ThreadCount.Should().BeGreaterThan(0);
+        first.VirtualMemoryBytes.Should().BeGreaterThan(0);
+        second.VirtualMemoryBytes.Should().BeGreaterThan(0);
+        first.PrivateMemoryBytes.Should().BeGreaterThan(0);
+        second.PrivateMemoryBytes.Should().BeGreaterThan(0);
+    }
+
+    [Test]
     public void GetTorrentEngineMetrics_ReturnsMetricsFromActiveEngine()
     {
         var metrics = this.service.GetTorrentEngineMetrics();
