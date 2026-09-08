@@ -695,7 +695,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             torrent.Category,
             parsedTorrent,
             this.blocklistService,
-            () => Interlocked.Increment(ref this.blockedPeersCount));
+            () => Interlocked.Increment(ref this.blockedPeersCount),
+            this.configService);
         this.tasks[torrent.Id] = downloadTask;
         this.infoHashToId[torrent.InfoHash] = torrent.Id;
         if (manager.InfoHashes?.V1 != null)
@@ -2380,10 +2381,19 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
     public PiecePicker Picker { get; private set; }
 
+    private class PeerActivityState
+    {
+        public long LastReceivedBytes { get; set; }
+
+        public DateTime LastActivityUtc { get; set; }
+    }
+
     private readonly IBlocklistService blocklistService;
     private readonly Action onPeerBlocked;
     private readonly MtTorrent initialTorrent;
+    private readonly IConfigService configService;
     private readonly object peerLock = new();
+    private readonly Dictionary<string, PeerActivityState> peerActivity = new(StringComparer.OrdinalIgnoreCase);
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     private bool isTrackerStalled;
@@ -2399,7 +2409,8 @@ public class MonoTorrentDownloadTask : IDownloadTask
         string category = null,
         MtTorrent initialTorrent = null,
         IBlocklistService blocklistService = null,
-        Action onPeerBlocked = null)
+        Action onPeerBlocked = null,
+        IConfigService configService = null)
     {
         this.TorrentId = torrentId;
         this.InfoHash = infoHash;
@@ -2408,13 +2419,14 @@ public class MonoTorrentDownloadTask : IDownloadTask
         this.initialTorrent = initialTorrent;
         this.blocklistService = blocklistService;
         this.onPeerBlocked = onPeerBlocked;
+        this.configService = configService;
 
         if (manager != null)
         {
             if (manager.Torrent != null)
             {
                 var t = manager.Torrent;
-                this.Picker = new PiecePicker(t.PieceCount, t.PieceLength, t.Size);
+                this.Picker = new PiecePicker(t.PieceCount, t.PieceLength, t.Size, configService: configService);
                 if (manager.Bitfield != null)
                 {
                     for (var i = 0; i < Math.Min(manager.Bitfield.Length, t.PieceCount); i++)
@@ -2452,7 +2464,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
             if (this.Manager?.Torrent != null && this.Picker == null)
             {
                 var t = this.Manager.Torrent;
-                this.Picker = new PiecePicker(t.PieceCount, t.PieceLength, t.Size);
+                this.Picker = new PiecePicker(t.PieceCount, t.PieceLength, t.Size, configService: this.configService);
                 if (this.Manager.Bitfield != null)
                 {
                     for (var i = 0; i < Math.Min(this.Manager.Bitfield.Length, t.PieceCount); i++)
@@ -2897,6 +2909,8 @@ public class MonoTorrentDownloadTask : IDownloadTask
         {
             var peers = this.GetCachedPeers();
             var list = new List<PeerInfo>();
+            var now = DateTime.UtcNow;
+
             foreach (var p in peers)
             {
                 var ip = p.Uri?.Host;
@@ -2905,7 +2919,41 @@ public class MonoTorrentDownloadTask : IDownloadTask
                     continue;
                 }
 
+                var peerKey = $"{p.Uri?.Host}:{p.Uri?.Port}";
+                var isSnubbed = false;
+                lock (this.peerLock)
+                {
+                    var currentBytes = p.Monitor?.DataBytesReceived ?? 0;
+                    if (!this.peerActivity.TryGetValue(peerKey, out var act))
+                    {
+                        act = new PeerActivityState
+                        {
+                            LastReceivedBytes = currentBytes,
+                            LastActivityUtc = now,
+                        };
+                        this.peerActivity[peerKey] = act;
+                    }
+                    else
+                    {
+                        if (currentBytes > act.LastReceivedBytes || (p.Monitor?.DownloadRate ?? 0) > 0)
+                        {
+                            act.LastReceivedBytes = currentBytes;
+                            act.LastActivityUtc = now;
+                        }
+
+                        if ((now - act.LastActivityUtc).TotalSeconds > 60)
+                        {
+                            isSnubbed = true;
+                        }
+                    }
+                }
+
                 var flags = string.Empty;
+                if (isSnubbed)
+                {
+                    flags += p.IsChoking ? "S" : "s";
+                }
+
                 if (p.AmInterested)
                 {
                     flags += "I";
