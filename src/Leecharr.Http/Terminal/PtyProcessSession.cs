@@ -54,47 +54,57 @@ else:
     if ctrl_fd is not None:
         rfds.append(ctrl_fd)
 
-    while True:
+    try:
+        while True:
+            try:
+                r, _, _ = select.select(rfds, [], [])
+            except (InterruptedError, select.error):
+                continue
+            if 0 in r:
+                try:
+                    data = os.read(0, 4096)
+                    if not data:
+                        break
+                    os.write(master, data)
+                except OSError:
+                    break
+            if master in r:
+                try:
+                    data = os.read(master, 4096)
+                    if not data:
+                        break
+                    os.write(1, data)
+                except OSError:
+                    break
+            if ctrl_fd is not None and ctrl_fd in r:
+                try:
+                    ctrl_data = os.read(ctrl_fd, 512).decode('utf-8', errors='ignore')
+                    if ctrl_data:
+                        for line in ctrl_data.strip().split('\n'):
+                            line = line.strip()
+                            if ':' in line:
+                                parts = line.split(':')
+                                r_rows, r_cols = int(parts[0]), int(parts[1])
+                                winsize = struct.pack('HHHH', r_rows, r_cols, 0, 0)
+                                try:
+                                    fcntl.ioctl(master, termios.TIOCSWINSZ, winsize)
+                                except:
+                                    pass
+                                try:
+                                    os.kill(pid, signal.SIGWINCH)
+                                except:
+                                    pass
+                except:
+                    pass
+    finally:
         try:
-            r, _, _ = select.select(rfds, [], [])
-        except (InterruptedError, select.error):
-            continue
-        if 0 in r:
-            try:
-                data = os.read(0, 4096)
-                if not data:
-                    break
-                os.write(master, data)
-            except OSError:
-                break
-        if master in r:
-            try:
-                data = os.read(master, 4096)
-                if not data:
-                    break
-                os.write(1, data)
-            except OSError:
-                break
-        if ctrl_fd is not None and ctrl_fd in r:
-            try:
-                ctrl_data = os.read(ctrl_fd, 512).decode('utf-8', errors='ignore')
-                if ctrl_data:
-                    for line in ctrl_data.strip().split('\n'):
-                        line = line.strip()
-                        if ':' in line:
-                            parts = line.split(':')
-                            r_rows, r_cols = int(parts[0]), int(parts[1])
-                            winsize = struct.pack('HHHH', r_rows, r_cols, 0, 0)
-                            try:
-                                fcntl.ioctl(master, termios.TIOCSWINSZ, winsize)
-                            except:
-                                pass
-                            try:
-                                os.kill(pid, signal.SIGWINCH)
-                            except:
-                                pass
-            except:
-                pass
+            os.kill(pid, signal.SIGHUP)
+        except OSError:
+            pass
+        try:
+            os.waitpid(pid, 0)
+        except OSError:
+            pass
 ";
 
     private readonly Process process;
