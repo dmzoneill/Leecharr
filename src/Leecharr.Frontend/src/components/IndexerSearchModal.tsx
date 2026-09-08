@@ -14,7 +14,7 @@ import {
   useDownloadIndexerRelease,
 } from "../api/hooks";
 import { useToast } from "../context/ToastContext";
-import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useTranslation } from "../i18n";
 
 interface IndexerSearchModalProps {
@@ -31,7 +31,10 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
   isOpen,
 }) => {
   const { t } = useTranslation();
-  useEscapeKey(onClose, isOpen ?? true);
+  const trapRef = useFocusTrap<HTMLDivElement>({
+    isOpen: isOpen ?? true,
+    onClose,
+  });
 
   const [query, setQuery] = useState<string>(initialQuery || "");
   const [activeSearchTerm, setActiveSearchTerm] = useState<string>(
@@ -178,8 +181,15 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
   });
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div
+      className="modal-overlay"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="indexer-search-modal-title"
+    >
       <div
+        ref={trapRef}
         className="modal-content indexer-search-modal"
         onClick={(e) => e.stopPropagation()}
         style={{ maxWidth: "800px", width: "100%" }}
@@ -188,9 +198,9 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
             <SparklesIcon
               size={18}
-              style={{ color: "var(--accent-gold, #FFD166)" }}
+              style={{ color: "var(--accent-gold)" }}
             />
-            <h3>{t("indexers.indexerDiscoverySearch")}</h3>
+            <h3 id="indexer-search-modal-title">{t("indexers.indexerDiscoverySearch")}</h3>
           </div>
           <button
             type="button"
@@ -211,8 +221,8 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
             <div
               style={{
                 borderRadius: "8px",
-                border: "1px solid var(--border-color, #23284B)",
-                backgroundColor: "var(--bg-secondary, #171B35)",
+                border: "1px solid var(--border)",
+                backgroundColor: "var(--bg-secondary)",
                 overflow: "hidden",
               }}
             >
@@ -228,7 +238,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                   backgroundColor: "transparent",
                   border: "none",
                   cursor: "pointer",
-                  color: "var(--text-primary, #F8F4ED)",
+                  color: "var(--text-primary)",
                   fontSize: "0.75rem",
                   fontWeight: 600,
                 }}
@@ -242,7 +252,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                 >
                   <SparklesIcon
                     size={14}
-                    style={{ color: "var(--accent-gold, #FFD166)" }}
+                    style={{ color: "var(--accent-gold)" }}
                   />
                   <span>{t("indexers.aiSmartSearch")}</span>
                   <span
@@ -250,8 +260,8 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                       fontSize: "0.65rem",
                       padding: "0.1rem 0.35rem",
                       borderRadius: "4px",
-                      backgroundColor: "#23284B",
-                      color: "#FFD166",
+                      backgroundColor: "var(--border)",
+                      color: "var(--accent-gold)",
                       fontFamily: "monospace",
                     }}
                   >
@@ -263,7 +273,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                     display: "flex",
                     alignItems: "center",
                     gap: "0.3rem",
-                    color: "var(--text-muted, #C7C5D3)",
+                    color: "var(--text-muted)",
                   }}
                 >
                   <span style={{ fontSize: "0.7rem", fontWeight: 400 }}>
@@ -283,8 +293,8 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                 <div
                   style={{
                     padding: "0.75rem",
-                    borderTop: "1px solid var(--border-color, #23284B)",
-                    backgroundColor: "var(--bg-primary, #10111A)",
+                    borderTop: "1px solid var(--border)",
+                    backgroundColor: "var(--bg-primary)",
                     display: "flex",
                     flexDirection: "column",
                     gap: "0.6rem",
@@ -294,11 +304,11 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                     style={{
                       margin: 0,
                       fontSize: "0.75rem",
-                      color: "var(--text-muted, #C7C5D3)",
+                      color: "var(--text-muted)",
                     }}
                   >
                     {t("indexers.describeNaturalQuery")}{" "}
-                    <em style={{ color: "var(--accent-gold, #FFD166)" }}>
+                    <em style={{ color: "var(--accent-gold)" }}>
                       {'"'}
                       {t("indexers.naturalQueryExample")}
                       {'"'}
@@ -323,12 +333,12 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                       placeholder={t("indexers.typeNaturalQuery")}
                       style={{
                         flex: 1,
-                        backgroundColor: "var(--bg-secondary, #171B35)",
-                        border: "1px solid var(--border-color, #23284B)",
+                        backgroundColor: "var(--bg-secondary)",
+                        border: "1px solid var(--border)",
                         borderRadius: "6px",
                         padding: "0.4rem 0.6rem",
                         fontSize: "0.75rem",
-                        color: "var(--text-primary, #F8F4ED)",
+                        color: "var(--text-primary)",
                         outline: "none",
                       }}
                     />
@@ -340,9 +350,9 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                       }
                       style={{
                         padding: "0.4rem 0.75rem",
-                        backgroundColor: "#23284B",
-                        color: "#FFD166",
-                        border: "1px solid rgba(255, 209, 102, 0.3)",
+                        backgroundColor: "var(--border)",
+                        color: "var(--accent-gold)",
+                        border: "1px solid var(--accent-border-alert)",
                         borderRadius: "6px",
                         fontSize: "0.75rem",
                         fontWeight: 600,
@@ -370,8 +380,8 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                   {aiParams && (
                     <div
                       style={{
-                        backgroundColor: "var(--bg-secondary, #171B35)",
-                        border: "1px solid var(--border-color, #23284B)",
+                        backgroundColor: "var(--bg-secondary)",
+                        border: "1px solid var(--border)",
                         borderRadius: "6px",
                         padding: "0.6rem",
                         display: "flex",
@@ -390,7 +400,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                           style={{
                             fontSize: "0.75rem",
                             fontWeight: 700,
-                            color: "var(--text-primary, #F8F4ED)",
+                            color: "var(--text-primary)",
                             display: "flex",
                             alignItems: "center",
                             gap: "0.3rem",
@@ -398,7 +408,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                         >
                           <CheckCircleIcon
                             size={14}
-                            style={{ color: "#34d399" }}
+                            style={{ color: "var(--success)" }}
                           />
                           {t("indexers.extractedFiltersConfidence")}{" "}
                           {Math.round(aiParams.confidenceScore * 100)}%):
@@ -408,8 +418,8 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                           onClick={handleApplyAiParams}
                           style={{
                             padding: "0.25rem 0.6rem",
-                            backgroundColor: "var(--accent-gold, #FFD166)",
-                            color: "#10111A",
+                            backgroundColor: "var(--accent-gold)",
+                            color: "var(--bg-primary)",
                             border: "none",
                             borderRadius: "4px",
                             fontSize: "0.75rem",
@@ -434,8 +444,8 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                               fontSize: "0.7rem",
                               padding: "0.15rem 0.4rem",
                               borderRadius: "4px",
-                              backgroundColor: "#23284B",
-                              color: "#F8F4ED",
+                              backgroundColor: "var(--border)",
+                              color: "var(--text-primary)",
                               fontFamily: "monospace",
                             }}
                           >
@@ -449,8 +459,8 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                               fontSize: "0.7rem",
                               padding: "0.15rem 0.4rem",
                               borderRadius: "4px",
-                              backgroundColor: "#23284B",
-                              color: "#FFD166",
+                              backgroundColor: "var(--border)",
+                              color: "var(--accent-gold)",
                               fontFamily: "monospace",
                             }}
                           >
@@ -464,8 +474,8 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                               fontSize: "0.7rem",
                               padding: "0.15rem 0.4rem",
                               borderRadius: "4px",
-                              backgroundColor: "#23284B",
-                              color: "#7dd3fc",
+                              backgroundColor: "var(--border)",
+                              color: "var(--info, #7dd3fc)",
                               fontFamily: "monospace",
                             }}
                           >
@@ -479,7 +489,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                               fontSize: "0.7rem",
                               padding: "0.15rem 0.4rem",
                               borderRadius: "4px",
-                              backgroundColor: "#23284B",
+                              backgroundColor: "var(--border)",
                               color: "#d8b4fe",
                               fontFamily: "monospace",
                             }}
@@ -494,8 +504,8 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                               fontSize: "0.7rem",
                               padding: "0.15rem 0.4rem",
                               borderRadius: "4px",
-                              backgroundColor: "rgba(52, 211, 153, 0.2)",
-                              color: "#6ee7b7",
+                              backgroundColor: "var(--success-bg)",
+                              color: "var(--success)",
                               fontFamily: "monospace",
                             }}
                           >
@@ -509,8 +519,8 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
                               fontSize: "0.7rem",
                               padding: "0.15rem 0.4rem",
                               borderRadius: "4px",
-                              backgroundColor: "rgba(245, 158, 11, 0.2)",
-                              color: "#fcd34d",
+                              backgroundColor: "var(--accent-bg)",
+                              color: "var(--accent-gold)",
                               fontFamily: "monospace",
                               fontWeight: 700,
                             }}

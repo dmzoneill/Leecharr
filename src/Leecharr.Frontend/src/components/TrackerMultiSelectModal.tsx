@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useTranslation } from "../i18n";
 import TrackerFavicon from "./TrackerFavicon";
-import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 export interface TrackerPickerItem {
   url: string;
@@ -42,7 +42,7 @@ export function TrackerMultiSelectModal({
   isAdding = false,
 }: TrackerMultiSelectModalProps) {
   const { t } = useTranslation();
-  useEscapeKey(onClose, isOpen);
+  const trapRef = useFocusTrap<HTMLDivElement>({ isOpen, onClose });
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -128,13 +128,16 @@ export function TrackerMultiSelectModal({
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="tracker-picker-title"
       style={{
         position: "fixed",
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.78)",
+        backgroundColor: "var(--overlay, rgba(0, 0, 0, 0.78))",
         backdropFilter: "blur(6px)",
         display: "flex",
         alignItems: "center",
@@ -145,6 +148,7 @@ export function TrackerMultiSelectModal({
       onClick={onClose}
     >
       <div
+        ref={trapRef}
         className="card"
         style={{
           width: "720px",
@@ -155,9 +159,9 @@ export function TrackerMultiSelectModal({
           borderRadius: "10px",
           padding: 0,
           overflow: "hidden",
-          border: "1px solid rgba(255, 255, 255, 0.16)",
+          border: "1px solid var(--border)",
           boxShadow: "0 20px 45px rgba(0, 0, 0, 0.6)",
-          backgroundColor: "var(--bg-secondary, #171b35)",
+          backgroundColor: "var(--bg-secondary)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -165,8 +169,8 @@ export function TrackerMultiSelectModal({
         <div
           style={{
             padding: "1rem 1.25rem",
-            backgroundColor: "var(--bg-secondary, #171b35)",
-            borderBottom: "1px solid var(--border-light, #1c203b)",
+            backgroundColor: "var(--bg-secondary)",
+            borderBottom: "1px solid var(--border-light)",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
@@ -176,11 +180,12 @@ export function TrackerMultiSelectModal({
             <span style={{ fontSize: "1.3rem" }}>🎯</span>
             <div>
               <h3
+                id="tracker-picker-title"
                 style={{
                   margin: 0,
                   fontSize: "1.05rem",
                   fontWeight: 600,
-                  color: "var(--text-primary, #f8f4ed)",
+                  color: "var(--text-primary)",
                 }}
               >
                 {t(
@@ -192,7 +197,7 @@ export function TrackerMultiSelectModal({
                 style={{
                   margin: 0,
                   fontSize: "0.78rem",
-                  color: "var(--text-muted, #7e8092)",
+                  color: "var(--text-muted)",
                 }}
               >
                 {t(
@@ -217,7 +222,7 @@ export function TrackerMultiSelectModal({
           style={{
             padding: "0.75rem 1.25rem",
             backgroundColor: "rgba(0, 0, 0, 0.15)",
-            borderBottom: "1px solid var(--border-light, #1c203b)",
+            borderBottom: "1px solid var(--border-light)",
             display: "flex",
             flexDirection: "column",
             gap: "0.6rem",
@@ -256,9 +261,9 @@ export function TrackerMultiSelectModal({
                 width: "160px",
                 padding: "0.4rem 0.6rem",
                 fontSize: "0.82rem",
-                backgroundColor: "var(--bg-card, #171b35)",
-                color: "var(--text-primary, #f8f4ed)",
-                border: "1px solid var(--border-light, #1c203b)",
+                backgroundColor: "var(--bg-card)",
+                color: "var(--text-primary)",
+                border: "1px solid var(--border-light)",
               }}
             >
               <option value="all">
@@ -297,7 +302,7 @@ export function TrackerMultiSelectModal({
           >
             <span
               style={{
-                color: "var(--text-muted, #7e8092)",
+                color: "var(--text-muted)",
                 marginRight: "0.2rem",
               }}
             >
@@ -351,7 +356,7 @@ export function TrackerMultiSelectModal({
                 style={{
                   fontSize: "0.75rem",
                   padding: "0.2rem 0.5rem",
-                  color: "var(--danger, #ef4444)",
+                  color: "var(--danger)",
                 }}
                 onClick={onClearSelection}
               >
@@ -394,15 +399,15 @@ export function TrackerMultiSelectModal({
                   padding: "0.5rem 0.75rem",
                   borderRadius: "6px",
                   backgroundColor: isSelected
-                    ? "rgba(34, 197, 94, 0.12)"
+                    ? "var(--success-bg-subtle, rgba(34, 197, 94, 0.12))"
                     : isAttached
                       ? "rgba(255, 255, 255, 0.03)"
                       : "rgba(255, 255, 255, 0.05)",
                   border: isSelected
-                    ? "1px solid rgba(34, 197, 94, 0.45)"
+                    ? "1px solid var(--success)"
                     : isAttached
                       ? "1px solid rgba(255, 255, 255, 0.05)"
-                      : "1px solid var(--border-light, #1c203b)",
+                      : "1px solid var(--border-light)",
                   cursor: isAttached ? "default" : "pointer",
                   transition: "background 0.15s ease",
                   opacity: isAttached ? 0.65 : 1,
@@ -442,8 +447,8 @@ export function TrackerMultiSelectModal({
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
                         color: isSelected
-                          ? "var(--accent, #ffd166)"
-                          : "var(--text-primary, #f8f4ed)",
+                          ? "var(--accent)"
+                          : "var(--text-primary)",
                       }}
                     >
                       {item.url}
@@ -456,7 +461,7 @@ export function TrackerMultiSelectModal({
                         gap: "0.4rem",
                         marginTop: "0.15rem",
                         fontSize: "0.72rem",
-                        color: "var(--text-muted, #7e8092)",
+                        color: "var(--text-muted)",
                       }}
                     >
                       {item.protocol && (
@@ -476,7 +481,7 @@ export function TrackerMultiSelectModal({
                       )}
 
                       {item.seeders !== undefined && item.seeders > 0 && (
-                        <span style={{ color: "var(--accent, #ffd166)" }}>
+                        <span style={{ color: "var(--accent)" }}>
                           ⚡ {item.seeders} {t("torrentDetail.seeds", "seeds")}{" "}
                           {item.leechers ?? 0}{" "}
                           {t("torrentDetail.leeches", "leeches")}
@@ -504,8 +509,8 @@ export function TrackerMultiSelectModal({
                       className="badge"
                       style={{
                         fontSize: "0.72rem",
-                        backgroundColor: "rgba(34, 197, 94, 0.15)",
-                        color: "var(--success, #22c55e)",
+                        backgroundColor: "var(--success-bg)",
+                        color: "var(--success)",
                       }}
                     >
                       {t("torrentDetail.verifiedSwarm", "Verified Swarm")}
@@ -515,8 +520,8 @@ export function TrackerMultiSelectModal({
                       className="badge"
                       style={{
                         fontSize: "0.72rem",
-                        backgroundColor: "rgba(34, 197, 94, 0.15)",
-                        color: "var(--success, #22c55e)",
+                        backgroundColor: "var(--success-bg)",
+                        color: "var(--success)",
                       }}
                     >
                       {t("torrentDetail.alive", "Alive")}
@@ -526,8 +531,8 @@ export function TrackerMultiSelectModal({
                       className="badge"
                       style={{
                         fontSize: "0.72rem",
-                        backgroundColor: "rgba(234, 179, 8, 0.15)",
-                        color: "var(--warning, #eab308)",
+                        backgroundColor: "var(--warning-bg-alert)",
+                        color: "var(--warning)",
                       }}
                     >
                       {t("torrentDetail.slow", "Slow")}
@@ -537,8 +542,8 @@ export function TrackerMultiSelectModal({
                       className="badge"
                       style={{
                         fontSize: "0.72rem",
-                        backgroundColor: "rgba(239, 68, 68, 0.15)",
-                        color: "var(--danger, #ef4444)",
+                        backgroundColor: "var(--danger-bg)",
+                        color: "var(--danger)",
                       }}
                     >
                       {t("torrentDetail.offline", "Offline")}
@@ -558,7 +563,7 @@ export function TrackerMultiSelectModal({
               style={{
                 padding: "2.5rem 1rem",
                 textAlign: "center",
-                color: "var(--text-muted, #7e8092)",
+                color: "var(--text-muted)",
                 fontSize: "0.85rem",
               }}
             >
@@ -576,7 +581,7 @@ export function TrackerMultiSelectModal({
           style={{
             padding: "0.6rem 1.25rem",
             backgroundColor: "rgba(0, 0, 0, 0.1)",
-            borderTop: "1px solid var(--border-light, #1c203b)",
+            borderTop: "1px solid var(--border-light)",
             display: "flex",
             gap: "0.5rem",
             alignItems: "center",
@@ -606,8 +611,8 @@ export function TrackerMultiSelectModal({
         <div
           style={{
             padding: "0.75rem 1.25rem",
-            backgroundColor: "var(--bg-secondary, #171b35)",
-            borderTop: "1px solid var(--border-light, #1c203b)",
+            backgroundColor: "var(--bg-secondary)",
+            borderTop: "1px solid var(--border-light)",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
@@ -615,11 +620,11 @@ export function TrackerMultiSelectModal({
         >
           <div style={{ fontSize: "0.85rem", fontWeight: 500 }}>
             {selectedUrls.size === 0 ? (
-              <span style={{ color: "var(--text-muted, #7e8092)" }}>
+              <span style={{ color: "var(--text-muted)" }}>
                 {t("torrentDetail.zeroTrackersSelected", "0 trackers selected")}
               </span>
             ) : (
-              <span style={{ color: "var(--accent, #ffd166)" }}>
+              <span style={{ color: "var(--accent)" }}>
                 {t("torrentDetail.trackersSelectedCount", {
                   count: selectedUrls.size,
                   defaultValue: `✓ ${selectedUrls.size} tracker(s) selected`,
