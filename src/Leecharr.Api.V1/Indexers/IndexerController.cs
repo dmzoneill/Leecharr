@@ -187,46 +187,57 @@ public class IndexerController : Controller
 
     [HttpGet("search")]
     public async Task<ActionResult<List<ReleaseInfoResource>>> SearchGet(
-        [FromQuery] string query = null,
-        [FromQuery] string category = null,
-        [FromQuery] int? indexerId = null,
-        [FromQuery] bool freeleechOnly = false,
-        [FromQuery] int? season = null,
-        [FromQuery] int? ep = null,
-        [FromQuery] string imdbId = null,
-        [FromQuery] string tmdbId = null,
-        [FromQuery] string tvdbId = null,
-        [FromQuery] string rid = null,
-        [FromQuery] int? year = null,
-        [FromQuery] string artist = null,
-        [FromQuery] string album = null,
-        [FromQuery] string author = null,
-        [FromQuery] string isbn = null,
-        [FromQuery] int offset = 0,
-        [FromQuery] int limit = 50,
-        [FromQuery] string type = null,
+        [FromQuery] IndexerSearchRequest request,
         CancellationToken cancellationToken = default)
     {
-        return await this.ExecuteSearch(
-            query,
-            category,
-            indexerId,
-            freeleechOnly,
-            season,
-            ep,
-            imdbId,
-            tmdbId,
-            tvdbId,
-            rid,
-            year,
-            artist,
-            album,
-            author,
-            isbn,
-            offset,
-            limit,
-            type,
-            cancellationToken);
+        return await this.ExecuteSearch(request, cancellationToken);
+    }
+
+    [NonAction]
+    public Task<ActionResult<List<ReleaseInfoResource>>> SearchGet(
+        string query = null,
+        int? indexerId = null,
+        string category = null,
+        int limit = 50,
+        int offset = 0,
+        int? season = null,
+        int? ep = null,
+        string imdbId = null,
+        string tmdbId = null,
+        string type = null,
+        string tvdbId = null,
+        string rid = null,
+        int? year = null,
+        string artist = null,
+        string album = null,
+        string author = null,
+        string isbn = null,
+        bool freeleechOnly = false,
+        CancellationToken cancellationToken = default)
+    {
+        var req = new IndexerSearchRequest
+        {
+            Query = query,
+            IndexerId = indexerId,
+            Category = category,
+            Limit = limit,
+            Offset = offset,
+            Season = season,
+            Ep = ep,
+            ImdbId = imdbId,
+            TmdbId = tmdbId,
+            Type = type,
+            TvdbId = tvdbId,
+            Rid = rid,
+            Year = year,
+            Artist = artist,
+            Album = album,
+            Author = author,
+            Isbn = isbn,
+            FreeleechOnly = freeleechOnly,
+        };
+
+        return this.SearchGet(req, cancellationToken);
     }
 
     [HttpPost("search")]
@@ -234,60 +245,25 @@ public class IndexerController : Controller
         [FromBody] IndexerSearchRequest request = null,
         CancellationToken cancellationToken = default)
     {
-        return await this.ExecuteSearch(
-            request?.Query,
-            request?.Category,
-            request?.IndexerId,
-            request?.FreeleechOnly ?? false,
-            request?.Season,
-            request?.Ep,
-            request?.ImdbId,
-            request?.TmdbId,
-            request?.TvdbId,
-            request?.Rid,
-            request?.Year,
-            request?.Artist,
-            request?.Album,
-            request?.Author,
-            request?.Isbn,
-            request?.Offset ?? 0,
-            request?.Limit ?? 50,
-            request?.Type,
-            cancellationToken);
+        return await this.ExecuteSearch(request, cancellationToken);
     }
 
     private async Task<ActionResult<List<ReleaseInfoResource>>> ExecuteSearch(
-        string query,
-        string category,
-        int? indexerId,
-        bool freeleechOnly,
-        int? season,
-        int? ep,
-        string imdbId,
-        string tmdbId,
-        string tvdbId,
-        string rid,
-        int? year,
-        string artist,
-        string album,
-        string author,
-        string isbn,
-        int offset,
-        int limit,
-        string type,
+        IndexerSearchRequest request,
         CancellationToken cancellationToken = default)
     {
-        var effectiveOffset = offset > 0 ? offset : 0;
-        var effectiveLimit = Math.Clamp(limit <= 0 ? 50 : limit, 1, 250);
+        request ??= new IndexerSearchRequest();
+        var effectiveOffset = request.Offset > 0 ? request.Offset : 0;
+        var effectiveLimit = Math.Clamp(request.Limit <= 0 ? 50 : request.Limit, 1, 250);
 
         var searchEnabled = this.indexerRepository.GetSearchEnabled().ToList();
-        var indexers = indexerId.HasValue
-            ? new List<IndexerDefinition> { this.indexerRepository.Get(indexerId.Value) }.Where(i => i != null).ToList()
+        var indexers = request.IndexerId.HasValue
+            ? new List<IndexerDefinition> { this.indexerRepository.Get(request.IndexerId.Value) }.Where(i => i != null).ToList()
             : (searchEnabled.Count > 0 ? searchEnabled : this.indexerRepository.GetEnabled().ToList());
 
         if (indexers.Count == 0)
         {
-            this.logger.Warn("Indexer search requested for query '{0}' but no search-enabled or active indexers are configured in repository.", query);
+            this.logger.Warn("Indexer search requested for query '{0}' but no search-enabled or active indexers are configured in repository.", request.Query);
             if (this.Response?.Headers != null)
             {
                 this.Response.Headers["X-Leecharr-Indexers-Configured"] = "0";
@@ -296,7 +272,7 @@ public class IndexerController : Controller
             return this.Ok(new List<ReleaseInfoResource>());
         }
 
-        var catId = ParseCategoryId(category);
+        var catId = ParseCategoryId(request.Category);
         var isMulti = indexers.Count > 1;
         var fetchLimit = isMulti
             ? (effectiveOffset > 0 && effectiveOffset < 100 ? Math.Min(effectiveOffset + effectiveLimit, 100) : Math.Min(effectiveLimit, 100))
@@ -315,24 +291,29 @@ public class IndexerController : Controller
 
             try
             {
+                var criteria = new TorznabSearchCriteria
+                {
+                    Query = request.Query ?? string.Empty,
+                    CategoryId = catId,
+                    Limit = fetchLimit,
+                    Offset = fetchOffset,
+                    Season = request.Season,
+                    Ep = request.Ep,
+                    ImdbId = request.ImdbId,
+                    TmdbId = request.TmdbId,
+                    SearchType = request.Type,
+                    TvdbId = request.TvdbId,
+                    Rid = request.Rid,
+                    Year = request.Year,
+                    Artist = request.Artist,
+                    Album = request.Album,
+                    Author = request.Author,
+                    Isbn = request.Isbn,
+                };
+
                 var results = await this.torznabClient.SearchAsync(
                     idx,
-                    query ?? string.Empty,
-                    catId,
-                    fetchLimit,
-                    fetchOffset,
-                    season,
-                    ep,
-                    imdbId,
-                    tmdbId,
-                    type,
-                    tvdbId,
-                    rid,
-                    year,
-                    artist,
-                    album,
-                    author,
-                    isbn,
+                    criteria,
                     combinedCts.Token).ConfigureAwait(false);
 
                 foreach (var r in results)
@@ -375,7 +356,7 @@ public class IndexerController : Controller
         await Task.WhenAll(searchTasks).ConfigureAwait(false);
 
         var filteredResults = allResults.ToList();
-        if (freeleechOnly)
+        if (request.FreeleechOnly)
         {
             filteredResults = filteredResults.Where(r => r.IsFreeleech).ToList();
         }

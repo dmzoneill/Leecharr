@@ -494,38 +494,33 @@ public class IndexerControllerTest
 
         this.torznabClient.SearchAsync(
             indexer,
-            "Mr Robot",
-            categoryId: null,
-            limit: 50,
-            offset: 0,
-            season: 1,
-            ep: 1,
-            imdbId: "tt4158110",
-            tmdbId: "62560",
-            searchType: null,
-            tvdbId: "289590",
-            rid: "4050",
-            year: 2015,
-            artist: null,
-            album: null,
-            author: null,
-            isbn: null,
-            cancellationToken: Arg.Any<System.Threading.CancellationToken>())
+            Arg.Is<TorznabSearchCriteria>(c =>
+                c.Query == "Mr Robot" &&
+                c.Season == 1 &&
+                c.Ep == 1 &&
+                c.ImdbId == "tt4158110" &&
+                c.TmdbId == "62560" &&
+                c.TvdbId == "289590" &&
+                c.Rid == "4050" &&
+                c.Year == 2015),
+            Arg.Any<System.Threading.CancellationToken>())
             .Returns(Task.FromResult(new List<TorznabSearchResult>
             {
                 new() { Title = "Mr.Robot.S01E01.1080p", Seeders = 100, DownloadUrl = "http://dl" },
             }));
 
-        var actionResult = await this.controller.SearchGet(
-            query: "Mr Robot",
-            indexerId: 1,
-            season: 1,
-            ep: 1,
-            imdbId: "tt4158110",
-            tmdbId: "62560",
-            tvdbId: "289590",
-            rid: "4050",
-            year: 2015);
+        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest
+        {
+            Query = "Mr Robot",
+            IndexerId = 1,
+            Season = 1,
+            Ep = 1,
+            ImdbId = "tt4158110",
+            TmdbId = "62560",
+            TvdbId = "289590",
+            Rid = "4050",
+            Year = 2015,
+        });
 
         actionResult.Result.Should().BeOfType<OkObjectResult>();
         var okResult = (OkObjectResult)actionResult.Result!;
@@ -542,23 +537,13 @@ public class IndexerControllerTest
 
         this.torznabClient.SearchAsync(
             indexer,
-            "Dune",
-            categoryId: null,
-            limit: 50,
-            offset: 0,
-            season: null,
-            ep: null,
-            imdbId: null,
-            tmdbId: null,
-            searchType: "book",
-            tvdbId: null,
-            rid: null,
-            year: 1965,
-            artist: null,
-            album: null,
-            author: "Frank Herbert",
-            isbn: "9780441172719",
-            cancellationToken: Arg.Any<System.Threading.CancellationToken>())
+            Arg.Is<TorznabSearchCriteria>(c =>
+                c.Query == "Dune" &&
+                c.SearchType == "book" &&
+                c.Author == "Frank Herbert" &&
+                c.Isbn == "9780441172719" &&
+                c.Year == 1965),
+            Arg.Any<System.Threading.CancellationToken>())
             .Returns(Task.FromResult(new List<TorznabSearchResult>
             {
                 new() { Title = "Dune - Frank Herbert (1965)", Seeders = 25, DownloadUrl = "http://dl-book" },
@@ -592,22 +577,7 @@ public class IndexerControllerTest
 
         this.torznabClient.SearchAsync(
             indexer1,
-            "test",
-            Arg.Any<int?>(),
-            Arg.Any<int>(),
-            Arg.Any<int>(),
-            Arg.Any<int?>(),
-            Arg.Any<int?>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<int?>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "test"),
             Arg.Any<System.Threading.CancellationToken>())
             .Returns(Task.FromResult(new List<TorznabSearchResult>
             {
@@ -616,26 +586,11 @@ public class IndexerControllerTest
 
         this.torznabClient.SearchAsync(
             indexer2,
-            "test",
-            Arg.Any<int?>(),
-            Arg.Any<int>(),
-            Arg.Any<int>(),
-            Arg.Any<int?>(),
-            Arg.Any<int?>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<int?>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "test"),
             Arg.Any<System.Threading.CancellationToken>())
             .Returns(Task.FromException<List<TorznabSearchResult>>(new HttpRequestException("Indexer connection timeout")));
 
-        var actionResult = await this.controller.SearchGet(query: "test");
+        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest { Query = "test" });
 
         actionResult.Result.Should().BeOfType<OkObjectResult>();
         var okResult = (OkObjectResult)actionResult.Result!;
@@ -660,50 +615,20 @@ public class IndexerControllerTest
 
         this.torznabClient.SearchAsync(
             indexer,
-            "test query",
-            categoryId: expectedCategoryId,
-            limit: 50,
-            offset: 0,
-            season: null,
-            ep: null,
-            imdbId: null,
-            tmdbId: null,
-            searchType: null,
-            tvdbId: null,
-            rid: null,
-            year: null,
-            artist: null,
-            album: null,
-            author: null,
-            isbn: null,
-            cancellationToken: Arg.Any<System.Threading.CancellationToken>())
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "test query" && c.CategoryId == expectedCategoryId),
+            Arg.Any<System.Threading.CancellationToken>())
             .Returns(Task.FromResult(new List<TorznabSearchResult>
             {
                 new() { Title = "Result 1", Seeders = 10, DownloadUrl = "http://dl" },
             }));
 
-        var actionResult = await this.controller.SearchGet(query: "test query", indexerId: 1, category: categoryInput);
+        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest { Query = "test query", IndexerId = 1, Category = categoryInput });
 
         actionResult.Result.Should().BeOfType<OkObjectResult>();
         await this.torznabClient.Received(1).SearchAsync(
             indexer,
-            "test query",
-            categoryId: expectedCategoryId,
-            limit: 50,
-            offset: 0,
-            season: null,
-            ep: null,
-            imdbId: null,
-            tmdbId: null,
-            searchType: null,
-            tvdbId: null,
-            rid: null,
-            year: null,
-            artist: null,
-            album: null,
-            author: null,
-            isbn: null,
-            cancellationToken: Arg.Any<System.Threading.CancellationToken>());
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "test query" && c.CategoryId == expectedCategoryId),
+            Arg.Any<System.Threading.CancellationToken>());
     }
 
     [Test]
@@ -715,22 +640,7 @@ public class IndexerControllerTest
 
         this.torznabClient.SearchAsync(
             indexer1,
-            "popular movie",
-            Arg.Any<int?>(),
-            limit: 3,
-            offset: 0,
-            Arg.Any<int?>(),
-            Arg.Any<int?>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<int?>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "popular movie" && c.Limit == 3 && c.Offset == 0),
             Arg.Any<System.Threading.CancellationToken>())
             .Returns(Task.FromResult(new List<TorznabSearchResult>
             {
@@ -741,22 +651,7 @@ public class IndexerControllerTest
 
         this.torznabClient.SearchAsync(
             indexer2,
-            "popular movie",
-            Arg.Any<int?>(),
-            limit: 3,
-            offset: 0,
-            Arg.Any<int?>(),
-            Arg.Any<int?>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<int?>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "popular movie" && c.Limit == 3 && c.Offset == 0),
             Arg.Any<System.Threading.CancellationToken>())
             .Returns(Task.FromResult(new List<TorznabSearchResult>
             {
@@ -765,7 +660,7 @@ public class IndexerControllerTest
                 new() { Title = "Movie T2 Low", Seeders = 30, DownloadUrl = "http://dl-t2-3" },
             }));
 
-        var actionResult = await this.controller.SearchGet(query: "popular movie", offset: 1, limit: 2);
+        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest { Query = "popular movie", Offset = 1, Limit = 2 });
 
         actionResult.Result.Should().BeOfType<OkObjectResult>();
         var okResult = (OkObjectResult)actionResult.Result!;
@@ -786,50 +681,20 @@ public class IndexerControllerTest
 
         this.torznabClient.SearchAsync(
             indexer,
-            "test",
-            categoryId: null,
-            limit: 250,
-            offset: 0,
-            season: null,
-            ep: null,
-            imdbId: null,
-            tmdbId: null,
-            searchType: null,
-            tvdbId: null,
-            rid: null,
-            year: null,
-            artist: null,
-            album: null,
-            author: null,
-            isbn: null,
-            cancellationToken: Arg.Any<System.Threading.CancellationToken>())
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "test" && c.Limit == 250),
+            Arg.Any<System.Threading.CancellationToken>())
             .Returns(Task.FromResult(new List<TorznabSearchResult>
             {
                 new() { Title = "Result 1", Seeders = 10, DownloadUrl = "http://dl" },
             }));
 
-        var actionResult = await this.controller.SearchGet(query: "test", indexerId: 1, limit: 1000);
+        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest { Query = "test", IndexerId = 1, Limit = 1000 });
 
         actionResult.Result.Should().BeOfType<OkObjectResult>();
         await this.torznabClient.Received(1).SearchAsync(
             indexer,
-            "test",
-            categoryId: null,
-            limit: 250,
-            offset: 0,
-            season: null,
-            ep: null,
-            imdbId: null,
-            tmdbId: null,
-            searchType: null,
-            tvdbId: null,
-            rid: null,
-            year: null,
-            artist: null,
-            album: null,
-            author: null,
-            isbn: null,
-            cancellationToken: Arg.Any<System.Threading.CancellationToken>());
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "test" && c.Limit == 250),
+            Arg.Any<System.Threading.CancellationToken>());
     }
 
     [Test]
@@ -840,50 +705,20 @@ public class IndexerControllerTest
 
         this.torznabClient.SearchAsync(
             indexer,
-            "test",
-            categoryId: null,
-            limit: 50,
-            offset: 0,
-            season: null,
-            ep: null,
-            imdbId: null,
-            tmdbId: null,
-            searchType: null,
-            tvdbId: null,
-            rid: null,
-            year: null,
-            artist: null,
-            album: null,
-            author: null,
-            isbn: null,
-            cancellationToken: Arg.Any<System.Threading.CancellationToken>())
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "test" && c.Limit == 50),
+            Arg.Any<System.Threading.CancellationToken>())
             .Returns(Task.FromResult(new List<TorznabSearchResult>
             {
                 new() { Title = "Result 1", Seeders = 10, DownloadUrl = "http://dl" },
             }));
 
-        var actionResult = await this.controller.SearchGet(query: "test", indexerId: 1, limit: -5);
+        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest { Query = "test", IndexerId = 1, Limit = -5 });
 
         actionResult.Result.Should().BeOfType<OkObjectResult>();
         await this.torznabClient.Received(1).SearchAsync(
             indexer,
-            "test",
-            categoryId: null,
-            limit: 50,
-            offset: 0,
-            season: null,
-            ep: null,
-            imdbId: null,
-            tmdbId: null,
-            searchType: null,
-            tvdbId: null,
-            rid: null,
-            year: null,
-            artist: null,
-            album: null,
-            author: null,
-            isbn: null,
-            cancellationToken: Arg.Any<System.Threading.CancellationToken>());
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "test" && c.Limit == 50),
+            Arg.Any<System.Threading.CancellationToken>());
     }
 
     [Test]
@@ -895,22 +730,7 @@ public class IndexerControllerTest
 
         this.torznabClient.SearchAsync(
             indexer1,
-            "popular release",
-            Arg.Any<int?>(),
-            limit: 100,
-            offset: 0,
-            Arg.Any<int?>(),
-            Arg.Any<int?>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<int?>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "popular release" && c.Limit == 100),
             Arg.Any<System.Threading.CancellationToken>())
             .Returns(Task.FromResult(new List<TorznabSearchResult>
             {
@@ -919,29 +739,14 @@ public class IndexerControllerTest
 
         this.torznabClient.SearchAsync(
             indexer2,
-            "popular release",
-            Arg.Any<int?>(),
-            limit: 100,
-            offset: 0,
-            Arg.Any<int?>(),
-            Arg.Any<int?>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<int?>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "popular release" && c.Limit == 100),
             Arg.Any<System.Threading.CancellationToken>())
             .Returns(Task.FromResult(new List<TorznabSearchResult>
             {
                 new() { Title = "Popular Release B", Seeders = 100, DownloadUrl = "http://dl-b" },
             }));
 
-        var actionResult = await this.controller.SearchGet(query: "popular release", limit: 250);
+        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest { Query = "popular release", Limit = 250 });
 
         actionResult.Result.Should().BeOfType<OkObjectResult>();
         var okResult = (OkObjectResult)actionResult.Result!;
@@ -953,42 +758,12 @@ public class IndexerControllerTest
 
         await this.torznabClient.Received(1).SearchAsync(
             indexer1,
-            "popular release",
-            Arg.Any<int?>(),
-            limit: 100,
-            offset: 0,
-            Arg.Any<int?>(),
-            Arg.Any<int?>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<int?>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "popular release" && c.Limit == 100),
             Arg.Any<System.Threading.CancellationToken>());
 
         await this.torznabClient.Received(1).SearchAsync(
             indexer2,
-            "popular release",
-            Arg.Any<int?>(),
-            limit: 100,
-            offset: 0,
-            Arg.Any<int?>(),
-            Arg.Any<int?>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<int?>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "popular release" && c.Limit == 100),
             Arg.Any<System.Threading.CancellationToken>());
     }
 
@@ -1001,22 +776,7 @@ public class IndexerControllerTest
 
         this.torznabClient.SearchAsync(
             indexer1,
-            "deep search",
-            Arg.Any<int?>(),
-            limit: 50,
-            offset: 500,
-            Arg.Any<int?>(),
-            Arg.Any<int?>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<int?>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "deep search" && c.Limit == 50 && c.Offset == 500),
             Arg.Any<System.Threading.CancellationToken>())
             .Returns(Task.FromResult(new List<TorznabSearchResult>
             {
@@ -1025,29 +785,14 @@ public class IndexerControllerTest
 
         this.torznabClient.SearchAsync(
             indexer2,
-            "deep search",
-            Arg.Any<int?>(),
-            limit: 50,
-            offset: 500,
-            Arg.Any<int?>(),
-            Arg.Any<int?>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<int?>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "deep search" && c.Limit == 50 && c.Offset == 500),
             Arg.Any<System.Threading.CancellationToken>())
             .Returns(Task.FromResult(new List<TorznabSearchResult>
             {
                 new() { Title = "Deep Release Beta", Seeders = 20, DownloadUrl = "http://dl-beta" },
             }));
 
-        var actionResult = await this.controller.SearchGet(query: "deep search", offset: 500, limit: 50);
+        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest { Query = "deep search", Offset = 500, Limit = 50 });
 
         actionResult.Result.Should().BeOfType<OkObjectResult>();
         var okResult = (OkObjectResult)actionResult.Result!;
