@@ -1,6 +1,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
@@ -859,6 +861,217 @@ public class TorznabClientTest
         results[1].MagnetUrl.Should().Be("magnet:?xt=urn:btih:5555555555666666666677777777778888888888&dn=Test2");
         results[1].InfoHash.Should().Be("5555555555666666666677777777778888888888");
     }
+
+    #region Capabilities TTL Cache & Namespace Resilience & Newznab Mappings
+
+    [Test]
+    public async Task FetchCapabilitiesAsync_WithTtlCache_CachesResultAndAvoidsDuplicateHttpRequests()
+    {
+        TorznabClient.ClearCapabilitiesCache();
+
+        var requestCount = 0;
+        var capsXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<caps>
+  <server version=""1.0"" title=""CachedTracker"" />
+  <limits default=""25"" max=""75"" />
+  <searching>
+    <search available=""yes"" />
+    <tv-search available=""yes"" supportedParams=""q,season,ep"" />
+  </searching>
+  <categories>
+    <category id=""5000"" name=""TV"" />
+  </categories>
+</caps>";
+
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            requestCount++;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(capsXml),
+            };
+        });
+
+        var customClient = new TorznabClient(new HttpClient(handler));
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "CacheTestTracker",
+            Url = "https://cache.indexer.local/api",
+            ApiKey = "secret123",
+        };
+
+        var caps1 = await customClient.FetchCapabilitiesAsync(indexer);
+        caps1.Should().NotBeNull();
+        caps1.DefaultPageSize.Should().Be(25);
+        caps1.MaxPageSize.Should().Be(75);
+        caps1.SupportsTvSearch.Should().BeTrue();
+        requestCount.Should().Be(1);
+
+        // Second call should hit the in-memory cache and not make an HTTP request
+        var caps2 = await customClient.FetchCapabilitiesAsync(indexer);
+        caps2.Should().NotBeNull();
+        caps2.DefaultPageSize.Should().Be(25);
+        requestCount.Should().Be(1);
+
+        // Invalidate and verify a new request is made
+        TorznabClient.InvalidateCapabilities(indexer.Url, indexer.ApiKey);
+        var caps3 = await customClient.FetchCapabilitiesAsync(indexer);
+        caps3.Should().NotBeNull();
+        requestCount.Should().Be(2);
+    }
+
+    [Test]
+    public void ParseCapabilitiesXml_WithArbitraryXmlNamespacesAndPascalCaseTags_ParsesCorrectly()
+    {
+        var xmlWithNamespaces = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<Caps xmlns=""http://torznab.com/schemas/2015/feed"" xmlns:newznab=""http://www.newznab.com/DTD/2010/feeds/attributes/"" xmlns:custom=""http://custom.namespace/org"">
+  <Server version=""2.0"" title=""NamespacedTracker"" />
+  <Limits Default=""30"" Max=""150"" />
+  <Searching>
+    <Search Available=""yes"" SupportedParams=""q"" />
+    <Tv-Search Available=""yes"" SupportedParams=""q,season,ep,tvdbid,rid"" />
+    <Movie-Search Available=""yes"" SupportedParams=""q,imdbid,tmdbid,year"" />
+    <Music-Search Available=""yes"" SupportedParams=""q,artist,album"" />
+    <Book-Search Available=""yes"" SupportedParams=""q,author,isbn"" />
+  </Searching>
+  <Categories>
+    <Category Id=""2000"" Name=""Movies"">
+      <SubCat Id=""2040"" Name=""Movies/HD"" />
+      <SubCategory Id=""2050"" Name=""Movies/3D"" />
+    </Category>
+    <Category Id=""5000"" Name=""TV"">
+      <SubCat Id=""5040"" Name=""TV/HD"" />
+    </Category>
+    <Category Id=""7000"" Name=""Books"">
+      <SubCat Id=""7020"" Name=""EBook"" />
+    </Category>
+  </Categories>
+</Caps>";
+
+        var caps = this.client.ParseCapabilitiesXml(xmlWithNamespaces);
+
+        caps.Should().NotBeNull();
+        caps.DefaultPageSize.Should().Be(30);
+        caps.MaxPageSize.Should().Be(150);
+        caps.SupportsSearch.Should().BeTrue();
+        caps.SupportsTvSearch.Should().BeTrue();
+        caps.SupportedTvParams.Should().Contain(new[] { "q", "season", "ep", "tvdbid", "rid" });
+        caps.SupportsMovieSearch.Should().BeTrue();
+        caps.SupportedMovieParams.Should().Contain(new[] { "q", "imdbid", "tmdbid", "year" });
+        caps.SupportsMusicSearch.Should().BeTrue();
+        caps.SupportedMusicParams.Should().Contain(new[] { "q", "artist", "album" });
+        caps.SupportsBookSearch.Should().BeTrue();
+        caps.SupportedBookParams.Should().Contain(new[] { "q", "author", "isbn" });
+
+        caps.Categories.Should().HaveCount(3);
+        var movieCat = caps.Categories.FirstOrDefault(c => c.Id == 2000);
+        movieCat.Should().NotBeNull();
+        movieCat!.SubCategories.Should().HaveCount(2);
+        movieCat.SubCategories[0].Id.Should().Be(2040);
+        movieCat.SubCategories[1].Id.Should().Be(2050);
+    }
+
+    [Test]
+    public async Task SearchAsync_WithNewznabUsenetParameters_BuildsCorrectQueryString()
+    {
+        Uri capturedUri = null!;
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            capturedUri = req.RequestUri!;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("<rss><channel><title>Results</title></channel></rss>"),
+            };
+        });
+
+        var customClient = new TorznabClient(new HttpClient(handler));
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "NewznabTracker",
+            Url = "https://newznab.local/api",
+            ApiKey = "api123",
+        };
+
+        // Test with TV parameters (tvdbid, rid, season, ep)
+        await customClient.SearchAsync(
+            indexer,
+            query: "Breaking Bad",
+            season: 5,
+            ep: 14,
+            tvdbId: "81189",
+            rid: "1234",
+            year: 2013);
+
+        capturedUri.Should().NotBeNull();
+        capturedUri.Query.Should().Contain("t=tvsearch");
+        capturedUri.Query.Should().Contain("tvdbid=81189");
+        capturedUri.Query.Should().Contain("rid=1234");
+        capturedUri.Query.Should().Contain("season=5");
+        capturedUri.Query.Should().Contain("ep=14");
+        capturedUri.Query.Should().Contain("year=2013");
+        capturedUri.Query.Should().MatchRegex(@"q=Breaking(\+|%20)Bad");
+
+        // Test with Music parameters (artist, album)
+        await customClient.SearchAsync(
+            indexer,
+            query: "The Dark Side of the Moon",
+            artist: "Pink Floyd",
+            album: "The Dark Side of the Moon",
+            year: 1973);
+
+        capturedUri.Query.Should().Contain("t=music");
+        capturedUri.Query.Should().MatchRegex(@"artist=Pink(\+|%20)Floyd");
+        capturedUri.Query.Should().MatchRegex(@"album=The(\+|%20)Dark(\+|%20)Side(\+|%20)of(\+|%20)the(\+|%20)Moon");
+        capturedUri.Query.Should().Contain("year=1973");
+
+        // Test with Book parameters (author, isbn)
+        await customClient.SearchAsync(
+            indexer,
+            query: "Dune",
+            author: "Frank Herbert",
+            isbn: "9780441172719");
+
+        capturedUri.Query.Should().Contain("t=book");
+        capturedUri.Query.Should().MatchRegex(@"author=Frank(\+|%20)Herbert");
+        capturedUri.Query.Should().Contain("isbn=9780441172719");
+    }
+
+    [Test]
+    public async Task SearchAsync_WithImdbId_NormalizesAndStripsTtPrefix()
+    {
+        Uri capturedUri = null!;
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            capturedUri = req.RequestUri!;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("<rss><channel><title>Results</title></channel></rss>"),
+            };
+        });
+
+        var customClient = new TorznabClient(new HttpClient(handler));
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "MovieTracker",
+            Url = "https://movies.local/api",
+            ApiKey = "key",
+        };
+
+        // IMDb with tt prefix
+        await customClient.SearchAsync(indexer, query: "Inception", imdbId: "tt1375666");
+        capturedUri.Query.Should().Contain("t=movie");
+        capturedUri.Query.Should().Contain("imdbid=1375666");
+        capturedUri.Query.Should().NotContain("imdbid=tt1375666");
+
+        // IMDb without tt prefix (already numeric)
+        await customClient.SearchAsync(indexer, query: "Inception", imdbId: "1375666");
+        capturedUri.Query.Should().Contain("imdbid=1375666");
+    }
+
+    #endregion
 
     private class TestHttpMessageHandler : HttpMessageHandler
     {

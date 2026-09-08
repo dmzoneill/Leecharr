@@ -1,6 +1,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -442,5 +444,204 @@ public class IndexerControllerTest
         result.Result.Should().BeOfType<ObjectResult>();
         var objResult = (ObjectResult)result.Result!;
         objResult.StatusCode.Should().Be(502);
+    }
+
+    [Test]
+    public void GetAll_MapsCapabilitiesFromSettingsToResource()
+    {
+        var settingsJson = System.Text.Json.JsonSerializer.Serialize(new IndexerSettings
+        {
+            SupportsTvSearch = true,
+            SupportsMovieSearch = true,
+            SupportsMusicSearch = false,
+            SupportsBookSearch = true,
+            SupportedTvParams = new List<string> { "q", "season", "ep", "tvdbid" },
+            SupportedMovieParams = new List<string> { "q", "imdbid" },
+            DefaultPageSize = 35,
+            MaxPageSize = 120,
+        });
+
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "TrackerWithCaps",
+            Settings = settingsJson,
+            Enable = true,
+        };
+
+        this.indexerRepository.All().Returns(new List<IndexerDefinition> { indexer });
+
+        var result = this.controller.GetAll();
+        result.Result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result.Result!;
+        var list = (List<IndexerResource>)okResult.Value!;
+
+        list.Should().HaveCount(1);
+        var res = list[0];
+        res.SupportsTvSearch.Should().BeTrue();
+        res.SupportsMovieSearch.Should().BeTrue();
+        res.SupportsBookSearch.Should().BeTrue();
+        res.SupportedTvParams.Should().Contain(new[] { "q", "season", "ep", "tvdbid" });
+        res.DefaultPageSize.Should().Be(35);
+        res.MaxPageSize.Should().Be(120);
+    }
+
+    [Test]
+    public async Task SearchGet_WithNewznabParams_PassesParametersToTorznabClient()
+    {
+        var indexer = new IndexerDefinition { Id = 1, Name = "Alpha", Enable = true, EnableSearch = true, Url = "http://alpha" };
+        this.indexerRepository.Get(1).Returns(indexer);
+
+        this.torznabClient.SearchAsync(
+            indexer,
+            "Mr Robot",
+            categoryId: null,
+            limit: 50,
+            offset: 0,
+            season: 1,
+            ep: 1,
+            imdbId: "tt4158110",
+            tmdbId: "62560",
+            searchType: null,
+            tvdbId: "289590",
+            rid: "4050",
+            year: 2015,
+            artist: null,
+            album: null,
+            author: null,
+            isbn: null,
+            cancellationToken: Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new() { Title = "Mr.Robot.S01E01.1080p", Seeders = 100, DownloadUrl = "http://dl" },
+            }));
+
+        var actionResult = await this.controller.SearchGet(
+            query: "Mr Robot",
+            indexerId: 1,
+            season: 1,
+            ep: 1,
+            imdbId: "tt4158110",
+            tmdbId: "62560",
+            tvdbId: "289590",
+            rid: "4050",
+            year: 2015);
+
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult.Result!;
+        var results = (List<ReleaseInfoResource>)okResult.Value!;
+        results.Should().HaveCount(1);
+        results[0].Title.Should().Be("Mr.Robot.S01E01.1080p");
+    }
+
+    [Test]
+    public async Task SearchPost_WithNewznabParams_PassesParametersToTorznabClient()
+    {
+        var indexer = new IndexerDefinition { Id = 2, Name = "Beta", Enable = true, EnableSearch = true, Url = "http://beta" };
+        this.indexerRepository.Get(2).Returns(indexer);
+
+        this.torznabClient.SearchAsync(
+            indexer,
+            "Dune",
+            categoryId: null,
+            limit: 50,
+            offset: 0,
+            season: null,
+            ep: null,
+            imdbId: null,
+            tmdbId: null,
+            searchType: "book",
+            tvdbId: null,
+            rid: null,
+            year: 1965,
+            artist: null,
+            album: null,
+            author: "Frank Herbert",
+            isbn: "9780441172719",
+            cancellationToken: Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new() { Title = "Dune - Frank Herbert (1965)", Seeders = 25, DownloadUrl = "http://dl-book" },
+            }));
+
+        var request = new IndexerSearchRequest
+        {
+            Query = "Dune",
+            IndexerId = 2,
+            Type = "book",
+            Author = "Frank Herbert",
+            Isbn = "9780441172719",
+            Year = 1965,
+        };
+
+        var actionResult = await this.controller.SearchPost(request);
+
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult.Result!;
+        var results = (List<ReleaseInfoResource>)okResult.Value!;
+        results.Should().HaveCount(1);
+        results[0].Title.Should().Be("Dune - Frank Herbert (1965)");
+    }
+
+    [Test]
+    public async Task ExecuteSearch_MultiIndexer_FastFailsOnOneIndexerWhileReturningResultsFromOthers()
+    {
+        var indexer1 = new IndexerDefinition { Id = 1, Name = "FastTracker", Enable = true, EnableSearch = true, Url = "http://fast" };
+        var indexer2 = new IndexerDefinition { Id = 2, Name = "FailingTracker", Enable = true, EnableSearch = true, Url = "http://failing" };
+        this.indexerRepository.GetSearchEnabled().Returns(new List<IndexerDefinition> { indexer1, indexer2 });
+
+        this.torznabClient.SearchAsync(
+            indexer1,
+            "test",
+            Arg.Any<int?>(),
+            Arg.Any<int>(),
+            Arg.Any<int>(),
+            Arg.Any<int?>(),
+            Arg.Any<int?>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<int?>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new() { Title = "Fast Result", Seeders = 50, DownloadUrl = "http://dl-fast" },
+            }));
+
+        this.torznabClient.SearchAsync(
+            indexer2,
+            "test",
+            Arg.Any<int?>(),
+            Arg.Any<int>(),
+            Arg.Any<int>(),
+            Arg.Any<int?>(),
+            Arg.Any<int?>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<int?>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromException<List<TorznabSearchResult>>(new HttpRequestException("Indexer connection timeout")));
+
+        var actionResult = await this.controller.SearchGet(query: "test");
+
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult.Result!;
+        var results = (List<ReleaseInfoResource>)okResult.Value!;
+
+        results.Should().HaveCount(1);
+        results[0].Title.Should().Be("Fast Result");
     }
 }

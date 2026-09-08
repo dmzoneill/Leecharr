@@ -63,6 +63,28 @@ public class IndexerResource : RestResource
     public int? ProwlarrIndexerId { get; set; }
 
     public bool IsProwlarrManaged { get; set; }
+
+    public bool SupportsSearch { get; set; } = true;
+
+    public bool SupportsTvSearch { get; set; }
+
+    public bool SupportsMovieSearch { get; set; }
+
+    public bool SupportsMusicSearch { get; set; }
+
+    public bool SupportsBookSearch { get; set; }
+
+    public List<string> SupportedTvParams { get; set; } = new();
+
+    public List<string> SupportedMovieParams { get; set; } = new();
+
+    public List<string> SupportedMusicParams { get; set; } = new();
+
+    public List<string> SupportedBookParams { get; set; } = new();
+
+    public int DefaultPageSize { get; set; } = 50;
+
+    public int MaxPageSize { get; set; } = 100;
 }
 
 public class IntListOrCommaSeparatedConverter : JsonConverter<List<int>>
@@ -233,6 +255,20 @@ public class IndexerSearchRequest
     public string ImdbId { get; set; }
 
     public string TmdbId { get; set; }
+
+    public string TvdbId { get; set; }
+
+    public string Rid { get; set; }
+
+    public int? Year { get; set; }
+
+    public string Artist { get; set; }
+
+    public string Album { get; set; }
+
+    public string Author { get; set; }
+
+    public string Isbn { get; set; }
 
     public int Offset { get; set; } = 0;
 

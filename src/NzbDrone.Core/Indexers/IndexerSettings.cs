@@ -4,19 +4,8 @@ using System.Collections.Generic;
 
 namespace NzbDrone.Core.Indexers;
 
-public class TorznabCategory
+public class IndexerSettings
 {
-    public int Id { get; set; }
-
-    public string Name { get; set; } = string.Empty;
-
-    public List<TorznabCategory> SubCategories { get; set; } = new();
-}
-
-public class TorznabCapabilities
-{
-    public List<TorznabCategory> Categories { get; set; } = new();
-
     public bool SupportsSearch { get; set; } = true;
 
     public bool SupportsTvSearch { get; set; }
@@ -38,17 +27,4 @@ public class TorznabCapabilities
     public int DefaultPageSize { get; set; } = 50;
 
     public int MaxPageSize { get; set; } = 100;
-}
-
-public class TorznabTestResult
-{
-    public bool Success { get; set; }
-
-    public string ErrorMessage { get; set; }
-
-    public TorznabCapabilities Capabilities { get; set; }
-
-    public static TorznabTestResult Ok(TorznabCapabilities capabilities = null) => new() { Success = true, Capabilities = capabilities };
-
-    public static TorznabTestResult Fail(string message) => new() { Success = false, ErrorMessage = message };
 }

@@ -1,10 +1,12 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Api.V1.Torrents;
 using Leecharr.Http;
@@ -193,9 +195,17 @@ public class IndexerController : Controller
         [FromQuery] int? ep = null,
         [FromQuery] string imdbId = null,
         [FromQuery] string tmdbId = null,
+        [FromQuery] string tvdbId = null,
+        [FromQuery] string rid = null,
+        [FromQuery] int? year = null,
+        [FromQuery] string artist = null,
+        [FromQuery] string album = null,
+        [FromQuery] string author = null,
+        [FromQuery] string isbn = null,
         [FromQuery] int offset = 0,
         [FromQuery] int limit = 50,
-        [FromQuery] string type = null)
+        [FromQuery] string type = null,
+        CancellationToken cancellationToken = default)
     {
         return await this.ExecuteSearch(
             query,
@@ -206,14 +216,23 @@ public class IndexerController : Controller
             ep,
             imdbId,
             tmdbId,
+            tvdbId,
+            rid,
+            year,
+            artist,
+            album,
+            author,
+            isbn,
             offset,
             limit,
-            type);
+            type,
+            cancellationToken);
     }
 
     [HttpPost("search")]
     public async Task<ActionResult<List<ReleaseInfoResource>>> SearchPost(
-        [FromBody] IndexerSearchRequest request = null)
+        [FromBody] IndexerSearchRequest request = null,
+        CancellationToken cancellationToken = default)
     {
         return await this.ExecuteSearch(
             request?.Query,
@@ -224,9 +243,17 @@ public class IndexerController : Controller
             request?.Ep,
             request?.ImdbId,
             request?.TmdbId,
+            request?.TvdbId,
+            request?.Rid,
+            request?.Year,
+            request?.Artist,
+            request?.Album,
+            request?.Author,
+            request?.Isbn,
             request?.Offset ?? 0,
             request?.Limit ?? 50,
-            request?.Type);
+            request?.Type,
+            cancellationToken);
     }
 
     private async Task<ActionResult<List<ReleaseInfoResource>>> ExecuteSearch(
@@ -238,9 +265,17 @@ public class IndexerController : Controller
         int? ep,
         string imdbId,
         string tmdbId,
+        string tvdbId,
+        string rid,
+        int? year,
+        string artist,
+        string album,
+        string author,
+        string isbn,
         int offset,
         int limit,
-        string type)
+        string type,
+        CancellationToken cancellationToken = default)
     {
         var effectiveOffset = offset > 0 ? offset : 0;
         var effectiveLimit = limit > 0 ? limit : 50;
@@ -266,51 +301,84 @@ public class IndexerController : Controller
         var fetchLimit = isMulti ? effectiveOffset + effectiveLimit : effectiveLimit;
         var fetchOffset = isMulti ? 0 : effectiveOffset;
 
-        var allResults = new List<ReleaseInfoResource>();
+        using var semaphore = new SemaphoreSlim(6);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        var allResults = new ConcurrentBag<ReleaseInfoResource>();
         var searchTasks = indexers.Select(async idx =>
         {
+            await semaphore.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+            using var perIndexerCts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            using var combinedCts = CancellationTokenSource.CreateLinkedTokenSource(linkedCts.Token, perIndexerCts.Token);
+
             try
             {
-                var results = await this.torznabClient.SearchAsync(idx, query ?? string.Empty, catId, fetchLimit, fetchOffset, season, ep, imdbId, tmdbId, type);
-                return results.Select(r => new ReleaseInfoResource
+                var results = await this.torznabClient.SearchAsync(
+                    idx,
+                    query ?? string.Empty,
+                    catId,
+                    fetchLimit,
+                    fetchOffset,
+                    season,
+                    ep,
+                    imdbId,
+                    tmdbId,
+                    type,
+                    tvdbId,
+                    rid,
+                    year,
+                    artist,
+                    album,
+                    author,
+                    isbn,
+                    combinedCts.Token).ConfigureAwait(false);
+
+                foreach (var r in results)
                 {
-                    Title = r.Title,
-                    Guid = r.Guid,
-                    Link = r.DownloadUrl ?? r.MagnetUrl,
-                    Comments = string.Empty,
-                    PublishDate = r.PublishDate,
-                    Category = r.Category,
-                    Size = r.Size,
-                    DownloadUrl = r.DownloadUrl,
-                    MagnetUrl = r.MagnetUrl,
-                    InfoHash = r.InfoHash,
-                    Seeders = r.Seeders,
-                    Leechers = r.Leechers,
-                    IndexerId = idx.Id,
-                    IndexerName = idx.Name,
-                    DownloadVolumeFactor = r.DownloadVolumeFactor,
-                    UploadVolumeFactor = r.UploadVolumeFactor,
-                }).ToList();
+                    allResults.Add(new ReleaseInfoResource
+                    {
+                        Title = r.Title,
+                        Guid = r.Guid,
+                        Link = r.DownloadUrl ?? r.MagnetUrl,
+                        Comments = string.Empty,
+                        PublishDate = r.PublishDate,
+                        Category = r.Category,
+                        Size = r.Size,
+                        DownloadUrl = r.DownloadUrl,
+                        MagnetUrl = r.MagnetUrl,
+                        InfoHash = r.InfoHash,
+                        Seeders = r.Seeders,
+                        Leechers = r.Leechers,
+                        IndexerId = idx.Id,
+                        IndexerName = idx.Name,
+                        DownloadVolumeFactor = r.DownloadVolumeFactor,
+                        UploadVolumeFactor = r.UploadVolumeFactor,
+                    });
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                this.logger.Warn("Search timed out or cancelled for indexer {0}", idx.Name);
             }
             catch (Exception ex)
             {
                 this.logger.Warn(ex, "Failed to search indexer {0}", idx.Name);
-                return new List<ReleaseInfoResource>();
+            }
+            finally
+            {
+                semaphore.Release();
             }
         });
 
-        var resultsArray = await Task.WhenAll(searchTasks);
-        foreach (var rList in resultsArray)
-        {
-            allResults.AddRange(rList);
-        }
+        await Task.WhenAll(searchTasks).ConfigureAwait(false);
 
+        var filteredResults = allResults.ToList();
         if (freeleechOnly)
         {
-            allResults = allResults.Where(r => r.IsFreeleech).ToList();
+            filteredResults = filteredResults.Where(r => r.IsFreeleech).ToList();
         }
 
-        var sortedResults = allResults.OrderByDescending(r => r.Seeders).ToList();
+        var sortedResults = filteredResults.OrderByDescending(r => r.Seeders).ToList();
         var paginatedResults = isMulti
             ? sortedResults.Skip(effectiveOffset).Take(effectiveLimit).ToList()
             : sortedResults.Take(effectiveLimit).ToList();
@@ -492,10 +560,30 @@ public class IndexerController : Controller
                     }
 
                     indexer.Categories = catIds.OrderBy(c => c).ToList();
-                    if (indexer.Id > 0)
+                }
+
+                if (testResult.Capabilities != null)
+                {
+                    var settings = new IndexerSettings
                     {
-                        this.indexerRepository.Update(indexer);
-                    }
+                        SupportsSearch = testResult.Capabilities.SupportsSearch,
+                        SupportsTvSearch = testResult.Capabilities.SupportsTvSearch,
+                        SupportsMovieSearch = testResult.Capabilities.SupportsMovieSearch,
+                        SupportsMusicSearch = testResult.Capabilities.SupportsMusicSearch,
+                        SupportsBookSearch = testResult.Capabilities.SupportsBookSearch,
+                        SupportedTvParams = testResult.Capabilities.SupportedTvParams,
+                        SupportedMovieParams = testResult.Capabilities.SupportedMovieParams,
+                        SupportedMusicParams = testResult.Capabilities.SupportedMusicParams,
+                        SupportedBookParams = testResult.Capabilities.SupportedBookParams,
+                        DefaultPageSize = testResult.Capabilities.DefaultPageSize,
+                        MaxPageSize = testResult.Capabilities.MaxPageSize,
+                    };
+                    indexer.Settings = JsonSerializer.Serialize(settings);
+                }
+
+                if (indexer.Id > 0)
+                {
+                    this.indexerRepository.Update(indexer);
                 }
 
                 var msg = testResult.Capabilities != null
@@ -527,7 +615,7 @@ public class IndexerController : Controller
 
     private static IndexerResource ToResource(IndexerDefinition model)
     {
-        return new IndexerResource
+        var res = new IndexerResource
         {
             Id = model.Id,
             Name = model.Name,
@@ -548,17 +636,72 @@ public class IndexerController : Controller
             ProwlarrIndexerId = model.ProwlarrIndexerId,
             IsProwlarrManaged = model.IsProwlarrManaged,
         };
+
+        if (!string.IsNullOrWhiteSpace(model.Settings))
+        {
+            try
+            {
+                var settings = JsonSerializer.Deserialize<IndexerSettings>(model.Settings, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (settings != null)
+                {
+                    res.SupportsSearch = settings.SupportsSearch;
+                    res.SupportsTvSearch = settings.SupportsTvSearch;
+                    res.SupportsMovieSearch = settings.SupportsMovieSearch;
+                    res.SupportsMusicSearch = settings.SupportsMusicSearch;
+                    res.SupportsBookSearch = settings.SupportsBookSearch;
+                    res.SupportedTvParams = settings.SupportedTvParams ?? new();
+                    res.SupportedMovieParams = settings.SupportedMovieParams ?? new();
+                    res.SupportedMusicParams = settings.SupportedMusicParams ?? new();
+                    res.SupportedBookParams = settings.SupportedBookParams ?? new();
+                    if (settings.DefaultPageSize > 0)
+                    {
+                        res.DefaultPageSize = settings.DefaultPageSize;
+                    }
+
+                    if (settings.MaxPageSize > 0)
+                    {
+                        res.MaxPageSize = settings.MaxPageSize;
+                    }
+                }
+            }
+            catch
+            {
+                // Ignore settings parsing errors
+            }
+        }
+
+        return res;
     }
 
     private static IndexerDefinition ToModel(IndexerResource resource)
     {
+        var settingsJson = resource.Settings;
+        if (string.IsNullOrWhiteSpace(settingsJson))
+        {
+            var settings = new IndexerSettings
+            {
+                SupportsSearch = resource.SupportsSearch,
+                SupportsTvSearch = resource.SupportsTvSearch,
+                SupportsMovieSearch = resource.SupportsMovieSearch,
+                SupportsMusicSearch = resource.SupportsMusicSearch,
+                SupportsBookSearch = resource.SupportsBookSearch,
+                SupportedTvParams = resource.SupportedTvParams ?? new(),
+                SupportedMovieParams = resource.SupportedMovieParams ?? new(),
+                SupportedMusicParams = resource.SupportedMusicParams ?? new(),
+                SupportedBookParams = resource.SupportedBookParams ?? new(),
+                DefaultPageSize = resource.DefaultPageSize > 0 ? resource.DefaultPageSize : 50,
+                MaxPageSize = resource.MaxPageSize > 0 ? resource.MaxPageSize : 100,
+            };
+            settingsJson = JsonSerializer.Serialize(settings);
+        }
+
         return new IndexerDefinition
         {
             Id = resource.Id,
             Name = resource.Name,
             Implementation = resource.Implementation ?? "Torznab",
             ConfigContract = resource.ConfigContract,
-            Settings = resource.Settings,
+            Settings = settingsJson,
             Enable = resource.Enable,
             Priority = resource.Priority,
             Url = resource.Url,
