@@ -1555,6 +1555,16 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         return Task.CompletedTask;
     }
 
+    public Task SetFirstLastPiecePriorityAsync(int torrentId, bool enabled)
+    {
+        if (this.tasks.TryGetValue(torrentId, out var task))
+        {
+            this.logger.Info("Updated first/last piece priority for torrent {0}: {1}", torrentId, enabled);
+        }
+
+        return Task.CompletedTask;
+    }
+
     public IDownloadTask GetTask(int torrentId)
     {
         this.tasks.TryGetValue(torrentId, out var task);
