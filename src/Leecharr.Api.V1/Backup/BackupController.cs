@@ -349,166 +349,263 @@ public class BackupController : Controller
             return this.BadRequest(new { success = false, message = "Backup not found." });
         }
 
+        var stagingDir = Path.Combine(Path.GetTempPath(), $"leecharr_restore_staging_{Guid.NewGuid():N}");
         try
         {
-            var isPostgres = this.IsPostgreSql();
+            Directory.CreateDirectory(stagingDir);
 
-            if (isPostgres)
+            try
             {
-                string tempSqlPath = null;
-                try
-                {
-                    using (var zip = ZipFile.OpenRead(backup.Path))
-                    {
-                        foreach (var entry in zip.Entries)
-                        {
-                            var fileName = Path.GetFileName(entry.FullName);
-                            if (string.Equals(fileName, "config.xml", StringComparison.OrdinalIgnoreCase))
-                            {
-                                var destPath = Path.Combine(this.appFolderInfo.AppDataFolder, fileName);
-                                entry.ExtractToFile(destPath, overwrite: true);
-                            }
-                            else if (string.Equals(fileName, "leecharr_postgres.sql", StringComparison.OrdinalIgnoreCase))
-                            {
-                                tempSqlPath = Path.Combine(Path.GetTempPath(), $"leecharr_restore_{Guid.NewGuid():N}.sql");
-                                entry.ExtractToFile(tempSqlPath, overwrite: true);
-                            }
-                        }
-                    }
-
-                    if (tempSqlPath != null && global::System.IO.File.Exists(tempSqlPath))
-                    {
-                        var psqlExe = this.FindPsqlExecutable();
-                        var host = this.configFileProvider?.PostgresHost;
-                        var port = this.configFileProvider?.PostgresPort ?? 5432;
-                        var user = this.configFileProvider?.PostgresUser;
-                        var password = this.configFileProvider?.PostgresPassword;
-                        var dbName = this.configFileProvider?.PostgresMainDb;
-
-                        if (!string.IsNullOrEmpty(psqlExe) && !string.IsNullOrEmpty(host) && !string.IsNullOrEmpty(dbName))
-                        {
-                            var restoreSuccess = this.RunPsqlRestore(psqlExe, host, port, user, password, dbName, tempSqlPath);
-                            if (restoreSuccess)
-                            {
-                                this.logger.Info("PostgreSQL database successfully restored via psql from backup {0}", backup.Path);
-                                return this.Ok(new { success = true, message = "Backup and PostgreSQL database restored successfully. Please restart Leecharr." });
-                            }
-                            else
-                            {
-                                this.logger.Error("Failed to execute psql restore from backup {0}", backup.Path);
-                                return this.StatusCode(500, new { success = false, message = "psql database restoration failed or timed out. Please inspect database logs." });
-                            }
-                        }
-                        else
-                        {
-                            var appDataDump = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr_postgres.sql");
-                            global::System.IO.File.Copy(tempSqlPath, appDataDump, overwrite: true);
-                            this.logger.Info("psql executable not found; PostgreSQL dump extracted to {0}", appDataDump);
-                            return this.Ok(new { success = true, message = "Config restored. PostgreSQL database dump 'leecharr_postgres.sql' extracted to application folder; please restore via psql. Please restart Leecharr." });
-                        }
-                    }
-
-                    return this.Ok(new { success = true, message = "Config restored successfully. (Backup did not contain a PostgreSQL database dump). Please restart Leecharr." });
-                }
-                finally
-                {
-                    if (tempSqlPath != null && global::System.IO.File.Exists(tempSqlPath))
-                    {
-                        try
-                        {
-                            global::System.IO.File.Delete(tempSqlPath);
-                        }
-                        catch
-                        {
-                            // Ignore temp cleanup error
-                        }
-                    }
-                }
-            }
-            else
-            {
-                // Clear active SQLite connection pools to release file locks before file replacement
-                SqliteConnection.ClearAllPools();
-
-                // Before extracting restored files, cleanly delete existing stale WAL and shared memory files
-                // so they do not conflict with the restored main database header salt.
-                var walPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db-wal");
-                var shmPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db-shm");
-
-                if (global::System.IO.File.Exists(walPath))
-                {
-                    global::System.IO.File.Delete(walPath);
-                }
-
-                if (global::System.IO.File.Exists(shmPath))
-                {
-                    global::System.IO.File.Delete(shmPath);
-                }
-
                 using (var zip = ZipFile.OpenRead(backup.Path))
                 {
                     foreach (var entry in zip.Entries)
                     {
                         var fileName = Path.GetFileName(entry.FullName);
                         if (string.Equals(fileName, "leecharr.db", StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(fileName, "config.xml", StringComparison.OrdinalIgnoreCase))
+                            string.Equals(fileName, "leecharr.db-wal", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(fileName, "config.xml", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(fileName, "leecharr_postgres.sql", StringComparison.OrdinalIgnoreCase))
                         {
-                            var destPath = Path.Combine(this.appFolderInfo.AppDataFolder, fileName);
+                            var destPath = Path.Combine(stagingDir, fileName);
                             entry.ExtractToFile(destPath, overwrite: true);
                         }
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Error(ex, "Failed to extract backup archive {0}", backup.Path);
+                return this.StatusCode(500, new { success = false, message = $"Failed to extract backup archive: {ex.Message}" });
+            }
 
-                // Execute an integrity check on the restored SQLite database to verify validity
-                var dbPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db");
-                if (global::System.IO.File.Exists(dbPath))
+            var stagedDb = Path.Combine(stagingDir, "leecharr.db");
+            var stagedWal = Path.Combine(stagingDir, "leecharr.db-wal");
+            var stagedConfig = Path.Combine(stagingDir, "config.xml");
+            var stagedPgSql = Path.Combine(stagingDir, "leecharr_postgres.sql");
+
+            var isPostgres = this.IsPostgreSql();
+
+            if (isPostgres)
+            {
+                if (global::System.IO.File.Exists(stagedPgSql))
                 {
+                    var psqlExe = this.FindPsqlExecutable();
+                    var host = this.configFileProvider?.PostgresHost;
+                    var port = this.configFileProvider?.PostgresPort ?? 5432;
+                    var user = this.configFileProvider?.PostgresUser;
+                    var password = this.configFileProvider?.PostgresPassword;
+                    var dbName = this.configFileProvider?.PostgresMainDb;
+
+                    if (!string.IsNullOrEmpty(psqlExe) && !string.IsNullOrEmpty(host) && !string.IsNullOrEmpty(dbName))
+                    {
+                        var restoreSuccess = this.RunPsqlRestore(psqlExe, host, port, user, password, dbName, stagedPgSql);
+                        if (restoreSuccess)
+                        {
+                            if (global::System.IO.File.Exists(stagedConfig))
+                            {
+                                var destConfig = Path.Combine(this.appFolderInfo.AppDataFolder, "config.xml");
+                                global::System.IO.File.Copy(stagedConfig, destConfig, overwrite: true);
+                            }
+
+                            this.logger.Info("PostgreSQL database successfully restored via psql from backup {0}", backup.Path);
+                            return this.Ok(new { success = true, message = "Backup and PostgreSQL database restored successfully. Please restart Leecharr." });
+                        }
+                        else
+                        {
+                            this.logger.Error("Failed to execute psql restore from backup {0}", backup.Path);
+                            return this.StatusCode(500, new { success = false, message = "psql database restoration failed or timed out. Please inspect database logs." });
+                        }
+                    }
+                    else
+                    {
+                        var appDataDump = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr_postgres.sql");
+                        global::System.IO.File.Copy(stagedPgSql, appDataDump, overwrite: true);
+                        if (global::System.IO.File.Exists(stagedConfig))
+                        {
+                            var destConfig = Path.Combine(this.appFolderInfo.AppDataFolder, "config.xml");
+                            global::System.IO.File.Copy(stagedConfig, destConfig, overwrite: true);
+                        }
+
+                        this.logger.Info("psql executable not found; PostgreSQL dump extracted to {0}", appDataDump);
+                        return this.Ok(new { success = true, message = "Config restored. PostgreSQL database dump 'leecharr_postgres.sql' extracted to application folder; please restore via psql. Please restart Leecharr." });
+                    }
+                }
+
+                if (global::System.IO.File.Exists(stagedConfig))
+                {
+                    var destConfig = Path.Combine(this.appFolderInfo.AppDataFolder, "config.xml");
+                    global::System.IO.File.Copy(stagedConfig, destConfig, overwrite: true);
+                }
+
+                return this.Ok(new { success = true, message = "Config restored successfully. (Backup did not contain a PostgreSQL database dump). Please restart Leecharr." });
+            }
+            else
+            {
+                // SQLite restore workflow
+                if (global::System.IO.File.Exists(stagedDb))
+                {
+                    // 1. Verify SQLite integrity on the staged database before touching active database
                     try
                     {
-                        using (var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly"))
+                        var fileInfo = new FileInfo(stagedDb);
+                        if (fileInfo.Length == 0)
+                        {
+                            this.logger.Error("SQLite database file in backup is empty: {0}", stagedDb);
+                            return this.StatusCode(500, new { success = false, message = "SQLite database in backup is empty and invalid." });
+                        }
+
+                        using (var conn = new SqliteConnection($"Data Source={stagedDb};Mode=ReadOnly"))
                         {
                             conn.Open();
                             using var cmd = conn.CreateCommand();
                             cmd.CommandText = "PRAGMA integrity_check;";
                             var checkResult = cmd.ExecuteScalar()?.ToString();
-                            if (string.Equals(checkResult, "ok", StringComparison.OrdinalIgnoreCase))
+                            if (!string.Equals(checkResult, "ok", StringComparison.OrdinalIgnoreCase))
                             {
-                                this.logger.Info("SQLite database integrity check passed for restored database at {0}", dbPath);
-                            }
-                            else
-                            {
-                                this.logger.Warn("SQLite database integrity check returned non-ok result for {0}: {1}", dbPath, checkResult);
+                                this.logger.Error("SQLite database integrity check failed for staged backup at {0}: {1}", stagedDb, checkResult);
+                                return this.StatusCode(500, new { success = false, message = $"SQLite database integrity check failed: {checkResult}" });
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        this.logger.Warn(ex, "Failed to verify SQLite integrity check for {0}", dbPath);
+                        this.logger.Error(ex, "Failed to verify SQLite integrity check for staged backup at {0}", stagedDb);
+                        return this.StatusCode(500, new { success = false, message = $"Corrupted database in backup archive: {ex.Message}" });
                     }
                     finally
                     {
                         SqliteConnection.ClearAllPools();
-                        if (global::System.IO.File.Exists(walPath))
+                    }
+                }
+
+                // 2. Prepare pre-restore safety snapshot of active database and config for rollback
+                var backupDir = Path.Combine(Path.GetTempPath(), $"leecharr_prerestore_bak_{Guid.NewGuid():N}");
+                Directory.CreateDirectory(backupDir);
+
+                var liveDb = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db");
+                var liveWal = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db-wal");
+                var liveShm = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db-shm");
+                var liveConfig = Path.Combine(this.appFolderInfo.AppDataFolder, "config.xml");
+
+                var bakDb = Path.Combine(backupDir, "leecharr.db");
+                var bakWal = Path.Combine(backupDir, "leecharr.db-wal");
+                var bakShm = Path.Combine(backupDir, "leecharr.db-shm");
+                var bakConfig = Path.Combine(backupDir, "config.xml");
+
+                try
+                {
+                    // Clear active SQLite connection pools to release file locks before file replacement
+                    SqliteConnection.ClearAllPools();
+
+                    if (global::System.IO.File.Exists(liveDb))
+                    {
+                        global::System.IO.File.Copy(liveDb, bakDb, overwrite: true);
+                    }
+
+                    if (global::System.IO.File.Exists(liveWal))
+                    {
+                        global::System.IO.File.Copy(liveWal, bakWal, overwrite: true);
+                    }
+
+                    if (global::System.IO.File.Exists(liveShm))
+                    {
+                        global::System.IO.File.Copy(liveShm, bakShm, overwrite: true);
+                    }
+
+                    if (global::System.IO.File.Exists(liveConfig))
+                    {
+                        global::System.IO.File.Copy(liveConfig, bakConfig, overwrite: true);
+                    }
+
+                    // 3. Atomically replace active files
+                    // Delete existing stale WAL and SHM files so they do not conflict with restored database
+                    if (global::System.IO.File.Exists(liveWal))
+                    {
+                        global::System.IO.File.Delete(liveWal);
+                    }
+
+                    if (global::System.IO.File.Exists(liveShm))
+                    {
+                        global::System.IO.File.Delete(liveShm);
+                    }
+
+                    if (global::System.IO.File.Exists(stagedDb))
+                    {
+                        global::System.IO.File.Copy(stagedDb, liveDb, overwrite: true);
+                    }
+
+                    if (global::System.IO.File.Exists(stagedWal))
+                    {
+                        global::System.IO.File.Copy(stagedWal, liveWal, overwrite: true);
+                    }
+
+                    if (global::System.IO.File.Exists(stagedConfig))
+                    {
+                        global::System.IO.File.Copy(stagedConfig, liveConfig, overwrite: true);
+                    }
+                }
+                catch (Exception copyEx)
+                {
+                    this.logger.Error(copyEx, "Error replacing database files during restore; rolling back active files.");
+                    try
+                    {
+                        SqliteConnection.ClearAllPools();
+                        if (global::System.IO.File.Exists(bakDb))
                         {
-                            try
-                            {
-                                global::System.IO.File.Delete(walPath);
-                            }
-                            catch
-                            {
-                            }
+                            global::System.IO.File.Copy(bakDb, liveDb, overwrite: true);
+                        }
+                        else if (global::System.IO.File.Exists(liveDb))
+                        {
+                            global::System.IO.File.Delete(liveDb);
                         }
 
-                        if (global::System.IO.File.Exists(shmPath))
+                        if (global::System.IO.File.Exists(bakWal))
                         {
-                            try
-                            {
-                                global::System.IO.File.Delete(shmPath);
-                            }
-                            catch
-                            {
-                            }
+                            global::System.IO.File.Copy(bakWal, liveWal, overwrite: true);
                         }
+                        else if (global::System.IO.File.Exists(liveWal))
+                        {
+                            global::System.IO.File.Delete(liveWal);
+                        }
+
+                        if (global::System.IO.File.Exists(bakShm))
+                        {
+                            global::System.IO.File.Copy(bakShm, liveShm, overwrite: true);
+                        }
+                        else if (global::System.IO.File.Exists(liveShm))
+                        {
+                            global::System.IO.File.Delete(liveShm);
+                        }
+
+                        if (global::System.IO.File.Exists(bakConfig))
+                        {
+                            global::System.IO.File.Copy(bakConfig, liveConfig, overwrite: true);
+                        }
+                        else if (global::System.IO.File.Exists(liveConfig))
+                        {
+                            global::System.IO.File.Delete(liveConfig);
+                        }
+                    }
+                    catch (Exception rollbackEx)
+                    {
+                        this.logger.Fatal(rollbackEx, "Critical error during rollback of restored files.");
+                    }
+
+                    return this.StatusCode(500, new { success = false, message = $"Failed to restore database files: {copyEx.Message}" });
+                }
+                finally
+                {
+                    SqliteConnection.ClearAllPools();
+                    try
+                    {
+                        if (Directory.Exists(backupDir))
+                        {
+                            Directory.Delete(backupDir, recursive: true);
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore temp cleanup error
                     }
                 }
 
@@ -520,6 +617,20 @@ public class BackupController : Controller
         {
             this.logger.Error(ex, "Failed to restore backup archive from {0}", backup.Path);
             return this.StatusCode(500, new { success = false, message = ex.Message });
+        }
+        finally
+        {
+            try
+            {
+                if (Directory.Exists(stagingDir))
+                {
+                    Directory.Delete(stagingDir, recursive: true);
+                }
+            }
+            catch
+            {
+                // Ignore temp staging cleanup error
+            }
         }
     }
 

@@ -53,7 +53,7 @@ public class BackupControllerTest
         }
     }
 
-    private string CreateSampleBackup(string fileName, string dbContent = "sample-db-data", string configContent = "<config/>")
+    private string CreateSampleBackup(string fileName, string dbContent = "sample-db-data", string configContent = "<config/>", bool rawDbContent = false)
     {
         var backupDir = Path.Combine(this.testTempDir, "Backups", "manual");
         Directory.CreateDirectory(backupDir);
@@ -63,9 +63,38 @@ public class BackupControllerTest
         {
             if (dbContent != null)
             {
-                var entry = zip.CreateEntry("leecharr.db");
-                using var writer = new StreamWriter(entry.Open());
-                writer.Write(dbContent);
+                if (rawDbContent)
+                {
+                    var entry = zip.CreateEntry("leecharr.db");
+                    using var writer = new StreamWriter(entry.Open());
+                    writer.Write(dbContent);
+                }
+                else
+                {
+                    var tempDbPath = Path.Combine(this.testTempDir, $"temp_source_{Guid.NewGuid():N}.db");
+                    using (var conn = new SqliteConnection($"Data Source={tempDbPath}"))
+                    {
+                        conn.Open();
+                        using var cmd = conn.CreateCommand();
+                        cmd.CommandText = "CREATE TABLE records (id INTEGER PRIMARY KEY, note TEXT); INSERT INTO records (note) VALUES (@note);";
+                        cmd.Parameters.AddWithValue("@note", dbContent);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    SqliteConnection.ClearAllPools();
+                    zip.CreateEntryFromFile(tempDbPath, "leecharr.db");
+
+                    try
+                    {
+                        if (File.Exists(tempDbPath))
+                        {
+                            File.Delete(tempDbPath);
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
             }
 
             if (configContent != null)
@@ -128,7 +157,16 @@ public class BackupControllerTest
         var restoredConfig = Path.Combine(this.testTempDir, "config.xml");
 
         File.Exists(restoredDb).Should().BeTrue();
-        File.ReadAllText(restoredDb).Should().Be("restored-db-data");
+        using (var conn = new SqliteConnection($"Data Source={restoredDb}"))
+        {
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT note FROM records WHERE id = 1;";
+            var val = cmd.ExecuteScalar()?.ToString();
+            val.Should().Be("restored-db-data");
+        }
+
+        SqliteConnection.ClearAllPools();
 
         File.Exists(restoredConfig).Should().BeTrue();
         File.ReadAllText(restoredConfig).Should().Be("<restored-config/>");
@@ -144,7 +182,16 @@ public class BackupControllerTest
         result.Should().BeOfType<OkObjectResult>();
 
         var restoredDb = Path.Combine(this.testTempDir, "leecharr.db");
-        File.ReadAllText(restoredDb).Should().Be("restored-by-filename");
+        using (var conn = new SqliteConnection($"Data Source={restoredDb}"))
+        {
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT note FROM records WHERE id = 1;";
+            var val = cmd.ExecuteScalar()?.ToString();
+            val.Should().Be("restored-by-filename");
+        }
+
+        SqliteConnection.ClearAllPools();
     }
 
     [Test]
@@ -157,7 +204,226 @@ public class BackupControllerTest
         result.Should().BeOfType<OkObjectResult>();
 
         var restoredDb = Path.Combine(this.testTempDir, "leecharr.db");
-        File.ReadAllText(restoredDb).Should().Be("restored-by-path");
+        using (var conn = new SqliteConnection($"Data Source={restoredDb}"))
+        {
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT note FROM records WHERE id = 1;";
+            var val = cmd.ExecuteScalar()?.ToString();
+            val.Should().Be("restored-by-path");
+        }
+
+        SqliteConnection.ClearAllPools();
+    }
+
+    [Test]
+    public void Restore_WhenBackupDatabaseIsCorruptedText_Returns500AndPreservesLiveDatabaseAndConfig()
+    {
+        // 1. Setup live database and config
+        var liveDb = Path.Combine(this.testTempDir, "leecharr.db");
+        var liveConfig = Path.Combine(this.testTempDir, "config.xml");
+        using (var conn = new SqliteConnection($"Data Source={liveDb}"))
+        {
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "CREATE TABLE records (id INTEGER PRIMARY KEY, note TEXT); INSERT INTO records (note) VALUES ('live-database-record');";
+            cmd.ExecuteNonQuery();
+        }
+
+        SqliteConnection.ClearAllPools();
+        File.WriteAllText(liveConfig, "<live-config-content/>");
+
+        // 2. Create corrupted backup containing non-sqlite raw text in leecharr.db
+        var fileName = "Leecharr_corrupt_text_backup.zip";
+        this.CreateSampleBackup(fileName, dbContent: "this is corrupt non-sqlite text", configContent: "<corrupted-config/>", rawDbContent: true);
+
+        // 3. Attempt restore
+        var result = this.controller.Restore(new RestoreBackupRequest { FileName = fileName });
+        result.Should().BeOfType<ObjectResult>();
+        var objResult = (ObjectResult)result;
+        objResult.StatusCode.Should().Be(500);
+
+        // 4. Verify live database and config are unmodified
+        File.Exists(liveDb).Should().BeTrue();
+        using (var conn = new SqliteConnection($"Data Source={liveDb}"))
+        {
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT note FROM records WHERE id = 1;";
+            var val = cmd.ExecuteScalar()?.ToString();
+            val.Should().Be("live-database-record");
+        }
+
+        SqliteConnection.ClearAllPools();
+        File.ReadAllText(liveConfig).Should().Be("<live-config-content/>");
+    }
+
+    [Test]
+    public void Restore_WhenBackupDatabaseIsEmpty_Returns500AndPreservesLiveDatabaseAndConfig()
+    {
+        // 1. Setup live database and config
+        var liveDb = Path.Combine(this.testTempDir, "leecharr.db");
+        var liveConfig = Path.Combine(this.testTempDir, "config.xml");
+        using (var conn = new SqliteConnection($"Data Source={liveDb}"))
+        {
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "CREATE TABLE records (id INTEGER PRIMARY KEY, note TEXT); INSERT INTO records (note) VALUES ('live-data');";
+            cmd.ExecuteNonQuery();
+        }
+
+        SqliteConnection.ClearAllPools();
+        File.WriteAllText(liveConfig, "<live-config/>");
+
+        // 2. Create backup with empty 0-byte leecharr.db
+        var backupDir = Path.Combine(this.testTempDir, "Backups", "manual");
+        Directory.CreateDirectory(backupDir);
+        var zipPath = Path.Combine(backupDir, "Leecharr_empty_db_backup.zip");
+
+        using (var zip = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            zip.CreateEntry("leecharr.db");
+            var configEntry = zip.CreateEntry("config.xml");
+            using var writer = new StreamWriter(configEntry.Open());
+            writer.Write("<new-config/>");
+        }
+
+        // 3. Attempt restore
+        var result = this.controller.Restore(new RestoreBackupRequest { Path = zipPath });
+        result.Should().BeOfType<ObjectResult>();
+        var objResult = (ObjectResult)result;
+        objResult.StatusCode.Should().Be(500);
+
+        // 4. Verify live database and config remain intact
+        using (var conn = new SqliteConnection($"Data Source={liveDb}"))
+        {
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT note FROM records WHERE id = 1;";
+            var val = cmd.ExecuteScalar()?.ToString();
+            val.Should().Be("live-data");
+        }
+
+        SqliteConnection.ClearAllPools();
+        File.ReadAllText(liveConfig).Should().Be("<live-config/>");
+    }
+
+    [Test]
+    public void Restore_WhenBackupArchiveIsCorruptedZip_Returns500AndPreservesLiveDatabaseAndConfig()
+    {
+        // 1. Setup live database and config
+        var liveDb = Path.Combine(this.testTempDir, "leecharr.db");
+        var liveConfig = Path.Combine(this.testTempDir, "config.xml");
+        using (var conn = new SqliteConnection($"Data Source={liveDb}"))
+        {
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "CREATE TABLE records (id INTEGER PRIMARY KEY, note TEXT); INSERT INTO records (note) VALUES ('live-database-ok');";
+            cmd.ExecuteNonQuery();
+        }
+
+        SqliteConnection.ClearAllPools();
+        File.WriteAllText(liveConfig, "<live-config/>");
+
+        // 2. Create corrupted / truncated zip file
+        var backupDir = Path.Combine(this.testTempDir, "Backups", "manual");
+        Directory.CreateDirectory(backupDir);
+        var corruptZipPath = Path.Combine(backupDir, "Leecharr_corrupt_archive.zip");
+        File.WriteAllBytes(corruptZipPath, new byte[] { 0x50, 0x4B, 0x03, 0x04, 0xFF, 0xFE, 0x00, 0x00 });
+
+        // 3. Attempt restore
+        var result = this.controller.Restore(new RestoreBackupRequest { Path = corruptZipPath });
+        result.Should().BeOfType<ObjectResult>();
+        var objResult = (ObjectResult)result;
+        objResult.StatusCode.Should().Be(500);
+
+        // 4. Verify live database and config are untouched
+        using (var conn = new SqliteConnection($"Data Source={liveDb}"))
+        {
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT note FROM records WHERE id = 1;";
+            var val = cmd.ExecuteScalar()?.ToString();
+            val.Should().Be("live-database-ok");
+        }
+
+        SqliteConnection.ClearAllPools();
+        File.ReadAllText(liveConfig).Should().Be("<live-config/>");
+    }
+
+    [Test]
+    public void Restore_WhenBackupDatabaseIntegrityCheckFails_Returns500AndPreservesLiveDatabaseAndConfig()
+    {
+        // 1. Setup live database and config
+        var liveDb = Path.Combine(this.testTempDir, "leecharr.db");
+        var liveConfig = Path.Combine(this.testTempDir, "config.xml");
+        using (var conn = new SqliteConnection($"Data Source={liveDb}"))
+        {
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "CREATE TABLE records (id INTEGER PRIMARY KEY, note TEXT); INSERT INTO records (note) VALUES ('live-data-integrity-test');";
+            cmd.ExecuteNonQuery();
+        }
+
+        SqliteConnection.ClearAllPools();
+        File.WriteAllText(liveConfig, "<live-config/>");
+
+        // 2. Create SQLite db with valid header but corrupted B-tree page payload
+        var tempDbPath = Path.Combine(this.testTempDir, $"corrupt_page_{Guid.NewGuid():N}.db");
+        using (var conn = new SqliteConnection($"Data Source={tempDbPath}"))
+        {
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "CREATE TABLE records (id INTEGER PRIMARY KEY, note TEXT); INSERT INTO records (note) VALUES ('corrupt-page-data');";
+            cmd.ExecuteNonQuery();
+        }
+
+        SqliteConnection.ClearAllPools();
+
+        // Corrupt pages after sqlite header
+        var dbBytes = File.ReadAllBytes(tempDbPath);
+        if (dbBytes.Length > 200)
+        {
+            for (var i = 120; i < 200 && i < dbBytes.Length; i++)
+            {
+                dbBytes[i] = 0xAA;
+            }
+
+            File.WriteAllBytes(tempDbPath, dbBytes);
+        }
+
+        var backupDir = Path.Combine(this.testTempDir, "Backups", "manual");
+        Directory.CreateDirectory(backupDir);
+        var zipPath = Path.Combine(backupDir, "Leecharr_corrupt_page_backup.zip");
+
+        using (var zip = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            zip.CreateEntryFromFile(tempDbPath, "leecharr.db");
+            var configEntry = zip.CreateEntry("config.xml");
+            using var writer = new StreamWriter(configEntry.Open());
+            writer.Write("<new-config/>");
+        }
+
+        File.Delete(tempDbPath);
+
+        // 3. Attempt restore
+        var result = this.controller.Restore(new RestoreBackupRequest { Path = zipPath });
+        result.Should().BeOfType<ObjectResult>();
+        var objResult = (ObjectResult)result;
+        objResult.StatusCode.Should().Be(500);
+
+        // 4. Verify live database and config are untouched
+        using (var conn = new SqliteConnection($"Data Source={liveDb}"))
+        {
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT note FROM records WHERE id = 1;";
+            var val = cmd.ExecuteScalar()?.ToString();
+            val.Should().Be("live-data-integrity-test");
+        }
+
+        SqliteConnection.ClearAllPools();
+        File.ReadAllText(liveConfig).Should().Be("<live-config/>");
     }
 
     [Test]
@@ -241,7 +507,16 @@ public class BackupControllerTest
         File.Exists(shmPath).Should().BeFalse("Stale SHM file must be deleted before extracting restored DB");
 
         var restoredDb = Path.Combine(this.testTempDir, "leecharr.db");
-        File.ReadAllText(restoredDb).Should().Be("fresh-db-data");
+        using (var conn = new SqliteConnection($"Data Source={restoredDb}"))
+        {
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT note FROM records WHERE id = 1;";
+            var val = cmd.ExecuteScalar()?.ToString();
+            val.Should().Be("fresh-db-data");
+        }
+
+        SqliteConnection.ClearAllPools();
     }
 
     [Test]
