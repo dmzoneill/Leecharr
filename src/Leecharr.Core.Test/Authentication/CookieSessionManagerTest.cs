@@ -343,6 +343,136 @@ public class CookieSessionManagerTest
         this.sessionManager.ValidateSession(principal).Should().BeFalse();
     }
 
+    [Test]
+    public async Task ValidatePrincipal_WhenUserDeletedFromDatabase_RejectsPrincipalAndRemovesFromCache()
+    {
+        const string token = "deleted-user-session-token";
+        var now = DateTime.UtcNow;
+        var session = new UserSession
+        {
+            Id = 14,
+            UserId = 999,
+            SessionToken = token,
+            Expiry = now.AddHours(5),
+            LastActivity = now,
+            IsRevoked = false,
+        };
+        this.sessionRepository.FindBySessionToken(token).Returns(session);
+
+        var userRepo = Substitute.For<IUserRepository>();
+        userRepo.Get(999).Returns((User)null);
+
+        var manager = new CookieSessionManager(this.sessionRepository, TimeSpan.FromMinutes(2), this.testCache, userRepo);
+        var principal = CreatePrincipal(new Claim("SessionId", token));
+        var context = CreateContext(principal);
+
+        await manager.ValidatePrincipal(context);
+
+        context.Principal.Should().BeNull();
+        this.testCache.ContainsKey(token).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task ValidatePrincipal_WhenUserRolesDemoted_RejectsPrincipalAndRemovesFromCache()
+    {
+        const string token = "demoted-user-session-token";
+        var now = DateTime.UtcNow;
+        var session = new UserSession
+        {
+            Id = 15,
+            UserId = 100,
+            SessionToken = token,
+            Expiry = now.AddHours(5),
+            LastActivity = now,
+            IsRevoked = false,
+        };
+        this.sessionRepository.FindBySessionToken(token).Returns(session);
+
+        var userRepo = Substitute.For<IUserRepository>();
+        userRepo.Get(100).Returns(new User
+        {
+            Id = 100,
+            Username = "testuser",
+            Roles = "[\"User\"]", // Demoted from Admin to User
+        });
+
+        var manager = new CookieSessionManager(this.sessionRepository, TimeSpan.FromMinutes(2), this.testCache, userRepo);
+        // Principal claims Admin role
+        var principal = CreatePrincipal(new Claim("SessionId", token));
+        var context = CreateContext(principal);
+
+        await manager.ValidatePrincipal(context);
+
+        context.Principal.Should().BeNull();
+        this.testCache.ContainsKey(token).Should().BeFalse();
+    }
+
+    [Test]
+    public void ValidateSession_WhenUserDeletedFromDatabase_ReturnsFalse()
+    {
+        const string token = "deleted-user-val-token";
+        var now = DateTime.UtcNow;
+        var session = new UserSession
+        {
+            Id = 16,
+            UserId = 888,
+            SessionToken = token,
+            Expiry = now.AddHours(5),
+            LastActivity = now,
+            IsRevoked = false,
+        };
+        this.sessionRepository.FindBySessionToken(token).Returns(session);
+
+        var userRepo = Substitute.For<IUserRepository>();
+        userRepo.Get(888).Returns((User)null);
+
+        var manager = new CookieSessionManager(this.sessionRepository, TimeSpan.FromMinutes(2), this.testCache, userRepo);
+        var principal = CreatePrincipal(new Claim("SessionId", token));
+
+        manager.ValidateSession(principal).Should().BeFalse();
+    }
+
+    [Test]
+    public void ValidateSession_WhenUserRolesDemoted_ReturnsFalse()
+    {
+        const string token = "demoted-user-val-token";
+        var now = DateTime.UtcNow;
+        var session = new UserSession
+        {
+            Id = 17,
+            UserId = 200,
+            SessionToken = token,
+            Expiry = now.AddHours(5),
+            LastActivity = now,
+            IsRevoked = false,
+        };
+        this.sessionRepository.FindBySessionToken(token).Returns(session);
+
+        var userRepo = Substitute.For<IUserRepository>();
+        userRepo.Get(200).Returns(new User
+        {
+            Id = 200,
+            Username = "demoteduser",
+            Roles = "[\"User\"]",
+        });
+
+        var manager = new CookieSessionManager(this.sessionRepository, TimeSpan.FromMinutes(2), this.testCache, userRepo);
+        var principal = CreatePrincipal(new Claim("SessionId", token));
+
+        manager.ValidateSession(principal).Should().BeFalse();
+    }
+
+    [Test]
+    public void ClearCache_WhenInvoked_RemovesAllCachedEntries()
+    {
+        this.testCache["token1"] = (new UserSession(), DateTime.UtcNow);
+        this.testCache["token2"] = (new UserSession(), DateTime.UtcNow);
+
+        this.sessionManager.ClearCache();
+
+        this.testCache.Should().BeEmpty();
+    }
+
     private static ClaimsPrincipal CreatePrincipal(params Claim[] additionalClaims)
     {
         var claims = new List<Claim>

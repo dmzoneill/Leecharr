@@ -16,19 +16,42 @@ public class UserService : IUserService
     private const int HashByteSize = 32;
 
     private readonly IUserRepository userRepository;
+    private readonly IUserSessionRepository userSessionRepository;
+    private readonly IUserSessionCache userSessionCache;
     private readonly Logger logger;
     private readonly int defaultIterations;
 
     public UserService(IUserRepository userRepository, Logger logger)
-        : this(userRepository, logger, DefaultPbkdf2Iterations)
+        : this(userRepository, logger, DefaultPbkdf2Iterations, null, null)
     {
     }
 
     public UserService(IUserRepository userRepository, Logger logger, int defaultIterations)
+        : this(userRepository, logger, defaultIterations, null, null)
+    {
+    }
+
+    public UserService(
+        IUserRepository userRepository,
+        Logger logger,
+        IUserSessionRepository userSessionRepository,
+        IUserSessionCache userSessionCache = null)
+        : this(userRepository, logger, DefaultPbkdf2Iterations, userSessionRepository, userSessionCache)
+    {
+    }
+
+    public UserService(
+        IUserRepository userRepository,
+        Logger logger,
+        int defaultIterations,
+        IUserSessionRepository userSessionRepository,
+        IUserSessionCache userSessionCache = null)
     {
         this.userRepository = userRepository;
         this.logger = logger;
         this.defaultIterations = defaultIterations > 0 ? defaultIterations : DefaultPbkdf2Iterations;
+        this.userSessionRepository = userSessionRepository;
+        this.userSessionCache = userSessionCache;
     }
 
     public int Iterations => this.defaultIterations;
@@ -118,6 +141,8 @@ public class UserService : IUserService
     {
         user.UpdatedAt = DateTime.UtcNow;
         this.userRepository.Update(user);
+        this.userSessionRepository?.DeleteByUserId(user.Id);
+        this.userSessionCache?.ClearCache();
         return user;
     }
 
@@ -135,10 +160,14 @@ public class UserService : IUserService
         user.UpdatedAt = DateTime.UtcNow;
 
         this.userRepository.Update(user);
+        this.userSessionRepository?.DeleteByUserId(userId);
+        this.userSessionCache?.ClearCache();
     }
 
     public void Delete(int id)
     {
+        this.userSessionRepository?.DeleteByUserId(id);
+        this.userSessionCache?.ClearCache();
         this.userRepository.Delete(id);
     }
 
