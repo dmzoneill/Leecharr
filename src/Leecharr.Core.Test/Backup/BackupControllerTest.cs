@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore;
@@ -347,8 +348,49 @@ public class BackupControllerTest
         SqliteConnection.ClearAllPools();
     }
 
+    private class TestableBackupController : BackupController
+    {
+        public bool SimulatePgDumpSuccess { get; set; } = true;
+
+        public bool SimulatePsqlRestoreSuccess { get; set; } = true;
+
+        public bool SimulatePgDumpExecutableFound { get; set; } = true;
+
+        public bool SimulatePsqlExecutableFound { get; set; } = true;
+
+        public TestableBackupController(
+            IAppFolderInfo appFolderInfo,
+            IDiskProvider diskProvider = null,
+            IConnectionStringFactory connectionStringFactory = null,
+            IConfigFileProvider configFileProvider = null,
+            IConfigService configService = null)
+            : base(appFolderInfo, diskProvider, connectionStringFactory, configFileProvider, configService)
+        {
+        }
+
+        protected override string FindPgDumpExecutable() => this.SimulatePgDumpExecutableFound ? "pg_dump" : null!;
+
+        protected override string FindPsqlExecutable() => this.SimulatePsqlExecutableFound ? "psql" : null!;
+
+        protected override bool RunPgDump(string pgDumpExe, string host, int port, string user, string password, string dbName, string outputPath)
+        {
+            if (!this.SimulatePgDumpSuccess)
+            {
+                return false;
+            }
+
+            global::System.IO.File.WriteAllText(outputPath, "-- PostgreSQL test database dump");
+            return true;
+        }
+
+        protected override bool RunPsqlRestore(string psqlExe, string host, int port, string user, string password, string dbName, string sqlScriptPath)
+        {
+            return this.SimulatePsqlRestoreSuccess;
+        }
+    }
+
     [Test]
-    public void Create_WhenPostgreSqlConfiguredAndStaleSqliteExists_IgnoresStaleSqliteFiles()
+    public void Create_WhenPostgreSqlConfiguredAndPgDumpSucceeds_IncludesPostgresDumpAndIgnoresStaleSqliteFiles()
     {
         var configProvider = Substitute.For<IConfigFileProvider>();
         configProvider.PostgresHost.Returns("localhost");
@@ -359,7 +401,7 @@ public class BackupControllerTest
         var connFactory = Substitute.For<IConnectionStringFactory>();
         connFactory.DatabaseType.Returns(DatabaseType.PostgreSQL);
 
-        var pgController = new BackupController(this.appFolderInfo, connectionStringFactory: connFactory, configFileProvider: configProvider);
+        var pgController = new TestableBackupController(this.appFolderInfo, connectionStringFactory: connFactory, configFileProvider: configProvider);
 
         // Create stale SQLite files
         var staleDb = Path.Combine(this.testTempDir, "leecharr.db");
@@ -377,11 +419,144 @@ public class BackupControllerTest
         var backup = (BackupResource)okResult.Value!;
         backup.Should().NotBeNull();
         backup.DatabaseType.Should().Be("PostgreSQL");
+        backup.IncludesDatabase.Should().BeTrue();
 
         using var zip = ZipFile.OpenRead(backup.Path);
         zip.Entries.Should().Contain(e => e.FullName == "config.xml");
+        zip.Entries.Should().Contain(e => e.FullName == "leecharr_postgres.sql", "PostgreSQL backup must include postgres dump file");
         zip.Entries.Should().NotContain(e => e.FullName == "leecharr.db", "PostgreSQL backup must not include stale SQLite database");
         zip.Entries.Should().NotContain(e => e.FullName == "leecharr.db-wal", "PostgreSQL backup must not include stale SQLite WAL");
+    }
+
+    [Test]
+    public void Create_WhenPostgreSqlConfiguredAndPgDumpExecutableNotFound_FailsLoudlyWith500()
+    {
+        var configProvider = Substitute.For<IConfigFileProvider>();
+        configProvider.PostgresHost.Returns("localhost");
+        configProvider.PostgresPort.Returns(5432);
+        configProvider.PostgresMainDb.Returns("leecharr_test");
+        configProvider.PostgresUser.Returns("postgres");
+
+        var connFactory = Substitute.For<IConnectionStringFactory>();
+        connFactory.DatabaseType.Returns(DatabaseType.PostgreSQL);
+
+        var pgController = new TestableBackupController(this.appFolderInfo, connectionStringFactory: connFactory, configFileProvider: configProvider)
+        {
+            SimulatePgDumpExecutableFound = false,
+        };
+
+        var result = pgController.Create();
+        result.Result.Should().BeOfType<ObjectResult>();
+
+        var objResult = (ObjectResult)result.Result!;
+        objResult.StatusCode.Should().Be(500);
+    }
+
+    [Test]
+    public void Create_WhenPostgreSqlConfiguredAndPgDumpFails_FailsLoudlyWith500()
+    {
+        var configProvider = Substitute.For<IConfigFileProvider>();
+        configProvider.PostgresHost.Returns("localhost");
+        configProvider.PostgresPort.Returns(5432);
+        configProvider.PostgresMainDb.Returns("leecharr_test");
+        configProvider.PostgresUser.Returns("postgres");
+
+        var connFactory = Substitute.For<IConnectionStringFactory>();
+        connFactory.DatabaseType.Returns(DatabaseType.PostgreSQL);
+
+        var pgController = new TestableBackupController(this.appFolderInfo, connectionStringFactory: connFactory, configFileProvider: configProvider)
+        {
+            SimulatePgDumpSuccess = false,
+        };
+
+        var result = pgController.Create();
+        result.Result.Should().BeOfType<ObjectResult>();
+
+        var objResult = (ObjectResult)result.Result!;
+        objResult.StatusCode.Should().Be(500);
+    }
+
+    [Test]
+    public void Restore_WhenPostgreSqlConfiguredAndPsqlRestoreFails_FailsLoudlyWith500()
+    {
+        var configProvider = Substitute.For<IConfigFileProvider>();
+        configProvider.PostgresHost.Returns("localhost");
+        configProvider.PostgresPort.Returns(5432);
+        configProvider.PostgresMainDb.Returns("leecharr_test");
+        configProvider.PostgresUser.Returns("postgres");
+
+        var connFactory = Substitute.For<IConnectionStringFactory>();
+        connFactory.DatabaseType.Returns(DatabaseType.PostgreSQL);
+
+        var pgController = new TestableBackupController(this.appFolderInfo, connectionStringFactory: connFactory, configFileProvider: configProvider)
+        {
+            SimulatePsqlRestoreSuccess = false,
+        };
+
+        var backupDir = Path.Combine(this.testTempDir, "Backups", "manual");
+        Directory.CreateDirectory(backupDir);
+        var zipPath = Path.Combine(backupDir, "Leecharr_backup_pg_restore.zip");
+
+        using (var zip = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            var entry = zip.CreateEntry("config.xml");
+            using (var writer = new StreamWriter(entry.Open()))
+            {
+                writer.Write("<pg-config/>");
+            }
+
+            var sqlEntry = zip.CreateEntry("leecharr_postgres.sql");
+            using (var writer = new StreamWriter(sqlEntry.Open()))
+            {
+                writer.Write("-- sql dump");
+            }
+        }
+
+        var result = pgController.Restore(new RestoreBackupRequest { Path = zipPath });
+        result.Should().BeOfType<ObjectResult>();
+
+        var objResult = (ObjectResult)result;
+        objResult.StatusCode.Should().Be(500);
+    }
+
+    [Test]
+    public void Restore_WhenPostgreSqlConfiguredAndPsqlRestoreSucceeds_RestoresSuccessfully()
+    {
+        var configProvider = Substitute.For<IConfigFileProvider>();
+        configProvider.PostgresHost.Returns("localhost");
+        configProvider.PostgresPort.Returns(5432);
+        configProvider.PostgresMainDb.Returns("leecharr_test");
+        configProvider.PostgresUser.Returns("postgres");
+
+        var connFactory = Substitute.For<IConnectionStringFactory>();
+        connFactory.DatabaseType.Returns(DatabaseType.PostgreSQL);
+
+        var pgController = new TestableBackupController(this.appFolderInfo, connectionStringFactory: connFactory, configFileProvider: configProvider)
+        {
+            SimulatePsqlRestoreSuccess = true,
+        };
+
+        var backupDir = Path.Combine(this.testTempDir, "Backups", "manual");
+        Directory.CreateDirectory(backupDir);
+        var zipPath = Path.Combine(backupDir, "Leecharr_backup_pg_restore_ok.zip");
+
+        using (var zip = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            var entry = zip.CreateEntry("config.xml");
+            using (var writer = new StreamWriter(entry.Open()))
+            {
+                writer.Write("<pg-config/>");
+            }
+
+            var sqlEntry = zip.CreateEntry("leecharr_postgres.sql");
+            using (var writer = new StreamWriter(sqlEntry.Open()))
+            {
+                writer.Write("-- sql dump");
+            }
+        }
+
+        var result = pgController.Restore(new RestoreBackupRequest { Path = zipPath });
+        result.Should().BeOfType<OkObjectResult>();
     }
 
     [Test]
