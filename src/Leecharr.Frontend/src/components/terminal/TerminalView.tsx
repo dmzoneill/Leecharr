@@ -25,86 +25,102 @@ export function TerminalView({
   const wsRef = useRef<WebSocket | null>(null);
   const pingIntervalRef = useRef<number | null>(null);
   const resizeTimeoutRef = useRef<number | null>(null);
+  const reconnectTimeoutRef = useRef<number | null>(null);
+  const reconnectAttemptRef = useRef<number>(0);
+  const isExplicitExitRef = useRef<boolean>(false);
+  const isUnmountedRef = useRef<boolean>(false);
 
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(true);
   const [copied, setCopied] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const connect = useCallback(() => {
-    if (!containerRef.current) return;
+  const connectWebSocket = useCallback(() => {
+    if (isUnmountedRef.current || !containerRef.current) return;
 
-    // Clean up existing session if any
-    if (resizeTimeoutRef.current) {
-      window.clearTimeout(resizeTimeoutRef.current);
-      resizeTimeoutRef.current = null;
+    if (reconnectTimeoutRef.current) {
+      window.clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
     }
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-    if (termRef.current) {
-      termRef.current.dispose();
-      termRef.current = null;
-    }
+
     if (pingIntervalRef.current) {
       window.clearInterval(pingIntervalRef.current);
       pingIntervalRef.current = null;
     }
 
+    if (wsRef.current) {
+      wsRef.current.onopen = null;
+      wsRef.current.onmessage = null;
+      wsRef.current.onerror = null;
+      wsRef.current.onclose = null;
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+
     setConnecting(true);
     setConnected(false);
 
-    // Create xterm instance matching Leecharr dark aesthetics
-    const term = new Terminal({
-      cursorBlink: true,
-      cursorStyle: "block",
-      fontSize: 13,
-      lineHeight: 1.25,
-      fontFamily:
-        'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
-      theme: {
-        background: "#0c0e1a",
-        foreground: "#f8f4ed",
-        cursor: "#ffd166",
-        cursorAccent: "#0c0e1a",
-        selectionBackground: "rgba(255, 209, 102, 0.35)",
-        black: "#171b35",
-        red: "#ef4444",
-        green: "#22c55e",
-        yellow: "#ffd166",
-        blue: "#38bdf8",
-        magenta: "#c084fc",
-        cyan: "#06b6d4",
-        white: "#f8f4ed",
-        brightBlack: "#4b5563",
-        brightRed: "#f87171",
-        brightGreen: "#4ade80",
-        brightYellow: "#fde047",
-        brightBlue: "#60a5fa",
-        brightMagenta: "#d8b4fe",
-        brightCyan: "#22d3ee",
-        brightWhite: "#ffffff",
-      },
-      convertEol: true,
-      scrollback: 5000,
-    });
+    // Create xterm instance matching Leecharr dark aesthetics if not already initialized
+    if (!termRef.current) {
+      const term = new Terminal({
+        cursorBlink: true,
+        cursorStyle: "block",
+        fontSize: 13,
+        lineHeight: 1.25,
+        fontFamily:
+          'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+        theme: {
+          background: "#0c0e1a",
+          foreground: "#f8f4ed",
+          cursor: "#ffd166",
+          cursorAccent: "#0c0e1a",
+          selectionBackground: "rgba(255, 209, 102, 0.35)",
+          black: "#171b35",
+          red: "#ef4444",
+          green: "#22c55e",
+          yellow: "#ffd166",
+          blue: "#38bdf8",
+          magenta: "#c084fc",
+          cyan: "#06b6d4",
+          white: "#f8f4ed",
+          brightBlack: "#4b5563",
+          brightRed: "#f87171",
+          brightGreen: "#4ade80",
+          brightYellow: "#fde047",
+          brightBlue: "#60a5fa",
+          brightMagenta: "#d8b4fe",
+          brightCyan: "#22d3ee",
+          brightWhite: "#ffffff",
+        },
+        convertEol: true,
+        scrollback: 5000,
+      });
 
-    const fitAddon = new FitAddon();
-    term.loadAddon(fitAddon);
+      const fitAddon = new FitAddon();
+      term.loadAddon(fitAddon);
+      term.open(containerRef.current);
 
-    term.open(containerRef.current);
+      term.onData((data) => {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({ type: "input", data }));
+        }
+      });
+
+      termRef.current = term;
+      fitAddonRef.current = fitAddon;
+    }
+
+    const term = termRef.current;
+    const fitAddon = fitAddonRef.current;
+
     try {
-      fitAddon.fit();
+      fitAddon?.fit();
     } catch {
       // Ignored if hidden
     }
 
-    termRef.current = term;
-    fitAddonRef.current = fitAddon;
-
     if (autoFocus) {
-      term.focus();
+      term?.focus();
     }
 
     // Build WebSocket URL
@@ -112,8 +128,8 @@ export function TerminalView({
     const apiKey = apiClient.getApiKey();
     const params = new URLSearchParams({
       cwd: cwd || "",
-      cols: Math.max(10, term.cols || 80).toString(),
-      rows: Math.max(5, term.rows || 24).toString(),
+      cols: Math.max(10, term?.cols || 80).toString(),
+      rows: Math.max(5, term?.rows || 24).toString(),
     });
 
     if (apiKey) {
@@ -130,25 +146,37 @@ export function TerminalView({
     wsRef.current = ws;
 
     ws.onopen = () => {
+      if (isUnmountedRef.current) {
+        ws.close();
+        return;
+      }
+      reconnectAttemptRef.current = 0;
+      isExplicitExitRef.current = false;
       setConnected(true);
       setConnecting(false);
-      term.writeln("\x1b[1;33m⚡ Connected to Leecharr Native Shell\x1b[0m");
+      term?.writeln("\x1b[1;33m⚡ Connected to Leecharr Native Shell\x1b[0m");
       if (cwd) {
-        term.writeln(`\x1b[90m📂 Working directory: ${cwd}\x1b[0m\r\n`);
+        term?.writeln(`\x1b[90m📂 Working directory: ${cwd}\x1b[0m\r\n`);
       }
-      fitAddon.fit();
+      try {
+        fitAddon?.fit();
+      } catch {
+        // Ignored
+      }
       if (autoFocus) {
-        term.focus();
+        term?.focus();
       }
 
       // Send initial size
-      ws.send(
-        JSON.stringify({
-          type: "resize",
-          cols: term.cols,
-          rows: term.rows,
-        }),
-      );
+      if (term) {
+        ws.send(
+          JSON.stringify({
+            type: "resize",
+            cols: term.cols,
+            rows: term.rows,
+          }),
+        );
+      }
 
       // Start ping heartbeat
       pingIntervalRef.current = window.setInterval(() => {
@@ -162,40 +190,63 @@ export function TerminalView({
       try {
         const msg = JSON.parse(event.data);
         if (msg.type === "output" && msg.data) {
-          term.write(msg.data);
+          term?.write(msg.data);
         } else if (msg.type === "exit") {
-          term.writeln("\r\n\x1b[1;31m[Session terminated by host]\x1b[0m");
+          isExplicitExitRef.current = true;
+          term?.writeln("\r\n\x1b[1;31m[Session terminated by host]\x1b[0m");
           setConnected(false);
+          setConnecting(false);
         }
       } catch {
-        term.write(event.data);
+        term?.write(event.data);
       }
     };
 
     ws.onerror = () => {
+      if (isUnmountedRef.current) return;
       setConnected(false);
-      setConnecting(false);
-      term.writeln(
-        "\r\n\x1b[1;31m⚠️ Terminal WebSocket connection error.\x1b[0m",
-      );
+      if (!isExplicitExitRef.current) {
+        term?.writeln(
+          "\r\n\x1b[1;31m⚠️ Terminal WebSocket connection error.\x1b[0m",
+        );
+      }
     };
 
     ws.onclose = () => {
+      if (isUnmountedRef.current) return;
       setConnected(false);
-      setConnecting(false);
       if (pingIntervalRef.current) {
         clearInterval(pingIntervalRef.current);
         pingIntervalRef.current = null;
       }
-    };
 
-    // Forward terminal input to backend
-    term.onData((data) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "input", data }));
+      if (isExplicitExitRef.current) {
+        setConnecting(false);
+        return;
       }
-    });
+
+      setConnecting(true);
+      const attempt = reconnectAttemptRef.current;
+      const baseDelay = Math.min(30000, 1000 * Math.pow(2, attempt));
+      const jitterFactor = 0.8 + Math.random() * 0.4; // ±20% jitter
+      const delay = Math.round(baseDelay * jitterFactor);
+      reconnectAttemptRef.current = attempt + 1;
+
+      term?.writeln(
+        `\r\n\x1b[90m⚡ Connection dropped. Reconnecting in ${(delay / 1000).toFixed(1)}s (attempt ${attempt + 1})...\x1b[0m`,
+      );
+
+      reconnectTimeoutRef.current = window.setTimeout(() => {
+        connectWebSocket();
+      }, delay);
+    };
   }, [cwd, autoFocus]);
+
+  const handleManualReconnect = useCallback(() => {
+    isExplicitExitRef.current = false;
+    reconnectAttemptRef.current = 0;
+    connectWebSocket();
+  }, [connectWebSocket]);
 
   const handleResize = useCallback(() => {
     if (resizeTimeoutRef.current) {
@@ -223,26 +274,41 @@ export function TerminalView({
   }, []);
 
   useEffect(() => {
-    connect();
+    isUnmountedRef.current = false;
+    connectWebSocket();
 
     window.addEventListener("resize", handleResize);
 
     return () => {
+      isUnmountedRef.current = true;
       window.removeEventListener("resize", handleResize);
+      if (reconnectTimeoutRef.current) {
+        window.clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
       if (resizeTimeoutRef.current) {
         window.clearTimeout(resizeTimeoutRef.current);
+        resizeTimeoutRef.current = null;
       }
       if (pingIntervalRef.current) {
         clearInterval(pingIntervalRef.current);
+        pingIntervalRef.current = null;
       }
       if (wsRef.current) {
+        wsRef.current.onopen = null;
+        wsRef.current.onmessage = null;
+        wsRef.current.onerror = null;
+        wsRef.current.onclose = null;
         wsRef.current.close();
+        wsRef.current = null;
       }
       if (termRef.current) {
         termRef.current.dispose();
+        termRef.current = null;
       }
+      fitAddonRef.current = null;
     };
-  }, [connect, handleResize]);
+  }, [connectWebSocket, handleResize]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -389,7 +455,7 @@ export function TerminalView({
           {!connected && (
             <button
               type="button"
-              onClick={connect}
+              onClick={handleManualReconnect}
               className="btn btn-primary"
               style={{
                 padding: "0.2rem 0.5rem",
