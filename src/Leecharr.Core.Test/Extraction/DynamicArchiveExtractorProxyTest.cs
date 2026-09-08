@@ -315,4 +315,61 @@ public class DynamicArchiveExtractorProxyTest
         this.proxy.IsArchiveFile("movie.7z").Should().BeTrue();
         this.proxy.IsArchiveFile("movie.mkv").Should().BeFalse();
     }
+
+    [Test]
+    public async Task ExtractArchiveAsync_WhenDiskSpaceInsufficient_AbortsAndReturnsFalse()
+    {
+        var archivePath = "/downloads/movie.zip";
+        var destDir = "/downloads/extracted";
+
+        this.diskProvider.FileExists(archivePath).Returns(true);
+        this.diskProvider.GetFileSize(archivePath).Returns(100_000_000L);
+        this.diskProvider.GetAvailableSpace(destDir).Returns(140_000_000L);
+
+        var result = await this.proxy.ExtractArchiveAsync(archivePath, destDir);
+
+        result.Should().BeFalse();
+        await this.sharpCompressProvider.DidNotReceive().ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task ExtractArchiveAsync_WhenDiskSpaceSufficient_ProceedsWithExtraction()
+    {
+        var archivePath = "/downloads/movie.zip";
+        var destDir = "/downloads/extracted";
+
+        this.diskProvider.FileExists(archivePath).Returns(true);
+        this.diskProvider.GetFileSize(archivePath).Returns(100_000_000L);
+        this.diskProvider.GetAvailableSpace(destDir).Returns(200_000_000L);
+
+        var result = await this.proxy.ExtractArchiveAsync(archivePath, destDir);
+
+        result.Should().BeTrue();
+        await this.sharpCompressProvider.Received(1).ExtractAsync(archivePath, destDir, Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task ExtractArchiveAsync_MultiPartArchive_ValidatesAgainstTotalVolumeSize()
+    {
+        var archivePath = "/downloads/movie.part01.rar";
+        var destDir = "/downloads/extracted";
+
+        this.diskProvider.FileExists(archivePath).Returns(true);
+        this.diskProvider.FolderExists("/downloads").Returns(true);
+        this.diskProvider.GetFiles("/downloads", false).Returns(new[]
+        {
+            "/downloads/movie.part01.rar",
+            "/downloads/movie.part02.rar",
+            "/downloads/movie.part03.rar",
+        });
+        this.diskProvider.GetFileSize("/downloads/movie.part01.rar").Returns(50_000_000L);
+        this.diskProvider.GetFileSize("/downloads/movie.part02.rar").Returns(50_000_000L);
+        this.diskProvider.GetFileSize("/downloads/movie.part03.rar").Returns(50_000_000L);
+        this.diskProvider.GetAvailableSpace(destDir).Returns(200_000_000L);
+
+        var result = await this.proxy.ExtractArchiveAsync(archivePath, destDir);
+
+        result.Should().BeFalse();
+        await this.sharpCompressProvider.DidNotReceive().ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
+    }
 }
