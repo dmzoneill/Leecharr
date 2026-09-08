@@ -40,6 +40,16 @@ public class MediaMetadataResource : RestResource
     public string TmdbId { get; set; }
 
     public string TvdbId { get; set; }
+
+    public string BannerUrl { get; set; }
+
+    public string MusicBrainzId { get; set; }
+
+    public string ArtistName { get; set; }
+
+    public string AlbumTitle { get; set; }
+
+    public List<string> Cast { get; set; }
 }
 
 public static class MediaMetadataResourceMapper
@@ -72,6 +82,7 @@ public static class MediaMetadataResourceMapper
             PosterLocalPath = model.PosterLocalPath,
             BackdropUrl = backdropUrl,
             BackdropLocalPath = model.BackdropLocalPath,
+            BannerUrl = model.BannerUrl,
             MediaInfoJson = model.MediaInfoJson,
             Genres = string.IsNullOrWhiteSpace(model.Genres)
                 ? new List<string>()
@@ -80,6 +91,12 @@ public static class MediaMetadataResourceMapper
             ImdbId = model.ImdbId,
             TmdbId = model.TmdbId,
             TvdbId = model.TvdbId,
+            MusicBrainzId = model.MusicBrainzId,
+            ArtistName = model.ArtistName,
+            AlbumTitle = model.AlbumTitle,
+            Cast = string.IsNullOrWhiteSpace(model.Cast)
+                ? new List<string>()
+                : model.Cast.Split(',').Select(c => c.Trim()).Where(c => c.Length > 0).ToList(),
         };
     }
 }

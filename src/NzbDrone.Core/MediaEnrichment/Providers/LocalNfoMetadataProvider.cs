@@ -53,7 +53,7 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
         });
     }
 
-    public async Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null)
+    public async Task<MediaMetadata> FetchMetadataAsync(string title, string category = null, int? year = null, string infoHash = null)
     {
         if (string.IsNullOrWhiteSpace(title))
         {
