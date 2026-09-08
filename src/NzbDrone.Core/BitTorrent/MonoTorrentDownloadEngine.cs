@@ -521,7 +521,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             () => this.GetBoundLocalIp(AddressFamily.InterNetwork),
             () => this.GetBoundLocalIp(AddressFamily.InterNetworkV6),
             this.networkBindingService,
-            () => this.configService.BindInterface,
+            () => !string.IsNullOrWhiteSpace(this.configService.NetworkInterfaceBinding)
+                ? this.configService.NetworkInterfaceBinding
+                : this.configService.BindInterface,
             this.blocklistService,
             () => Interlocked.Increment(ref this.blockedPeersCount),
             this.configService));
