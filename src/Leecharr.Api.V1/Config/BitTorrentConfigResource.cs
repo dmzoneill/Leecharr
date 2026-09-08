@@ -89,7 +89,7 @@ public class BitTorrentConfigResource : RestResource
     public int PeerPortRandomHigh { get; set; }
 
     // MonoTorrent Specific
-    public int DiskCacheBytes { get; set; }
+    public long DiskCacheBytes { get; set; }
 
     public string DiskCachePolicy { get; set; }
 

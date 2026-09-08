@@ -489,4 +489,16 @@ public class DynamicDownloadEngineProxyTest
         await this.libTorrentEngine.Received(1).AddTorrentAsync(torrent, null, "magnet:?");
         await this.libTorrentEngine.Received(1).PauseTorrentAsync(99);
     }
+
+    [Test]
+    public async Task Handle_ConfigSavedEvent_WhenEngineChangedInConfig_TriggersSwitch()
+    {
+        this.configService.ActiveTorrentEngine.Returns("LibTorrent");
+
+        this.proxy.Handle(new ConfigSavedEvent());
+
+        await Task.Delay(100);
+
+        this.proxy.ActiveEngineId.Should().Be("LibTorrent");
+    }
 }

@@ -148,5 +148,22 @@ public class NetworkSecurityService : INetworkSecurityService
         {
             this.repository.Update(settings);
         }
+
+        if (this.configService != null)
+        {
+            var dict = new Dictionary<string, object>
+            {
+                { "EnableVpnKillSwitch", settings.EnableVpnKillSwitch },
+            };
+
+            if (!string.IsNullOrWhiteSpace(settings.BindInterface))
+            {
+                dict["BindInterface"] = settings.BindInterface;
+            }
+
+            this.configService.SaveConfigDictionary(dict);
+        }
+
+        this.vpnKillSwitchService?.CheckVpnState();
     }
 }

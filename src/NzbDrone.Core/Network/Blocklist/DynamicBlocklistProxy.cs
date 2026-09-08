@@ -11,7 +11,7 @@ using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.Network.Blocklist;
 
-public class DynamicBlocklistProxy : IBlocklistService, IBlocklistManager, IDisposable
+public class DynamicBlocklistProxy : IBlocklistService, IBlocklistManager, IHandle<ConfigSavedEvent>, IDisposable
 {
     private readonly IEnumerable<IBlocklistProvider> availableProviders;
     private readonly IConfigService configService;
@@ -196,6 +196,26 @@ public class DynamicBlocklistProxy : IBlocklistService, IBlocklistManager, IDisp
         }
 
         Volatile.Read(ref this.activeProvider)?.ClearRules();
+    }
+
+    public void Handle(ConfigSavedEvent message)
+    {
+        var desiredId = this.configService?.ActiveBlocklistProvider;
+        if (!string.IsNullOrWhiteSpace(desiredId) &&
+            !string.Equals(this.ActiveProviderId, desiredId, StringComparison.OrdinalIgnoreCase))
+        {
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await this.SwitchProviderAsync(desiredId);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Error(ex, "Failed to switch active blocklist provider on ConfigSavedEvent to {0}", desiredId);
+                }
+            });
+        }
     }
 
     public void Dispose()

@@ -12,7 +12,7 @@ using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.MediaInspection;
 
-public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspectorManager, IDisposable
+public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspectorManager, IHandle<ConfigSavedEvent>, IDisposable
 {
     private readonly IEnumerable<IMediaInspectorProvider> availableProviders;
     private readonly IConfigService configService;
@@ -292,6 +292,26 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
         {
             ContainerFormat = string.IsNullOrWhiteSpace(mediaPath) ? "Unknown" : Path.GetExtension(mediaPath).TrimStart('.').ToUpperInvariant(),
         };
+    }
+
+    public void Handle(ConfigSavedEvent message)
+    {
+        var desiredProviderId = this.configService?.ActiveMediaInspector;
+        if (!string.IsNullOrWhiteSpace(desiredProviderId) &&
+            !string.Equals(this.ActiveProviderId, desiredProviderId, StringComparison.OrdinalIgnoreCase))
+        {
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await this.SwitchProviderAsync(desiredProviderId);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Error(ex, "Failed to switch active media inspector on ConfigSavedEvent to {0}", desiredProviderId);
+                }
+            });
+        }
     }
 
     public void Dispose()

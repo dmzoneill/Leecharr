@@ -29,15 +29,16 @@ public class AppFolderInfoTest
     }
 
     [Test]
-    public void Constructor_WhenLeecharrAppDataEnvSet_OverridesCliAndDefaultPaths()
+    public void Constructor_WhenCliDataArgAndEnvSet_CliTakesPrecedenceOverEnvVar()
     {
         var customEnvPath = Path.Combine(Path.GetTempPath(), "leecharr-env-" + Guid.NewGuid().ToString("N"));
+        var cliPath = Path.Combine(Path.GetTempPath(), "leecharr-cli-" + Guid.NewGuid().ToString("N"));
         Environment.SetEnvironmentVariable("LEECHARR__APP_DATA", customEnvPath);
 
-        var context = new StartupContext("--data=/different/cli/path");
+        var context = new StartupContext($"--data={cliPath}");
         var appFolderInfo = new AppFolderInfo(context);
 
-        appFolderInfo.AppDataFolder.Should().Be(customEnvPath);
+        appFolderInfo.AppDataFolder.Should().Be(cliPath);
     }
 
     [Test]

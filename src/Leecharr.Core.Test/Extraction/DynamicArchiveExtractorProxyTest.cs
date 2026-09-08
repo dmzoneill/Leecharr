@@ -372,4 +372,17 @@ public class DynamicArchiveExtractorProxyTest
         result.Should().BeFalse();
         await this.sharpCompressProvider.DidNotReceive().ExtractAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
     }
+
+    [Test]
+    public async Task Handle_ConfigSavedEvent_WhenProviderChangedInConfig_TriggersSwitch()
+    {
+        this.configService.ActiveArchiveExtractor.Returns("SevenZip");
+
+        this.proxy.Handle(new ConfigSavedEvent());
+
+        // Give async switch a moment
+        await Task.Delay(100);
+
+        this.proxy.ActiveProviderId.Should().Be("SevenZip");
+    }
 }

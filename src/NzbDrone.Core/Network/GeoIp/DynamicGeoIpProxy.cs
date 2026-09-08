@@ -12,7 +12,7 @@ using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.Network.GeoIp;
 
-public class DynamicGeoIpProxy : IGeoIpService, IGeoIpManager, IDisposable
+public class DynamicGeoIpProxy : IGeoIpService, IGeoIpManager, IHandle<ConfigSavedEvent>, IDisposable
 {
     private readonly IEnumerable<IGeoIpProvider> availableProviders;
     private readonly IConfigService configService;
@@ -211,6 +211,26 @@ public class DynamicGeoIpProxy : IGeoIpService, IGeoIpManager, IDisposable
         }
 
         return new GeoLocationInfo { IpAddress = ipAddress };
+    }
+
+    public void Handle(ConfigSavedEvent message)
+    {
+        var desiredId = this.configService?.ActiveGeoIpProvider;
+        if (!string.IsNullOrWhiteSpace(desiredId) &&
+            !string.Equals(this.ActiveProviderId, desiredId, StringComparison.OrdinalIgnoreCase))
+        {
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await this.SwitchProviderAsync(desiredId);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Error(ex, "Failed to switch active GeoIP provider on ConfigSavedEvent to {0}", desiredId);
+                }
+            });
+        }
     }
 
     public void Dispose()

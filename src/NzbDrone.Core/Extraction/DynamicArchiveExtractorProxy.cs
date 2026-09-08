@@ -14,7 +14,7 @@ using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.Extraction;
 
-public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveExtractorManager, IDisposable
+public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveExtractorManager, IHandle<ConfigSavedEvent>, IDisposable
 {
     private readonly IEnumerable<IArchiveExtractorProvider> availableProviders;
     private readonly IConfigService configService;
@@ -315,6 +315,26 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
         catch
         {
             return 0L;
+        }
+    }
+
+    public void Handle(ConfigSavedEvent message)
+    {
+        var desiredProviderId = this.configService?.ActiveArchiveExtractor;
+        if (!string.IsNullOrWhiteSpace(desiredProviderId) &&
+            !string.Equals(this.ActiveProviderId, desiredProviderId, StringComparison.OrdinalIgnoreCase))
+        {
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await this.SwitchProviderAsync(desiredProviderId);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Error(ex, "Failed to switch active archive extractor on ConfigSavedEvent to {0}", desiredProviderId);
+                }
+            });
         }
     }
 

@@ -11,7 +11,7 @@ using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.MediaEnrichment.Providers;
 
-public class DynamicMediaMetadataProxy : IMediaMetadataService, IMediaMetadataManager, IDisposable
+public class DynamicMediaMetadataProxy : IMediaMetadataService, IMediaMetadataManager, IHandle<ConfigSavedEvent>, IDisposable
 {
     private readonly IEnumerable<IMediaMetadataProvider> availableProviders;
     private readonly IConfigService configService;
@@ -223,6 +223,26 @@ public class DynamicMediaMetadataProxy : IMediaMetadataService, IMediaMetadataMa
         }
 
         return null;
+    }
+
+    public void Handle(ConfigSavedEvent message)
+    {
+        var desiredProviderId = this.configService?.ActiveMediaMetadataProvider;
+        if (!string.IsNullOrWhiteSpace(desiredProviderId) &&
+            !string.Equals(this.ActiveProviderId, desiredProviderId, StringComparison.OrdinalIgnoreCase))
+        {
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await this.SwitchProviderAsync(desiredProviderId);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Error(ex, "Failed to switch active media metadata provider on ConfigSavedEvent to {0}", desiredProviderId);
+                }
+            });
+        }
     }
 
     public void Dispose()

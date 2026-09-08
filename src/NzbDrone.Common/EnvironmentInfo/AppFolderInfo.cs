@@ -16,48 +16,52 @@ public class AppFolderInfo : IAppFolderInfo
 {
     public AppFolderInfo(StartupContext startupContext)
     {
-        var envAppData = Environment.GetEnvironmentVariable("LEECHARR__APP_DATA");
-        if (!string.IsNullOrWhiteSpace(envAppData))
-        {
-            this.AppDataFolder = envAppData;
-        }
-        else if (startupContext?.Args != null && startupContext.Args.TryGetValue("data", out var dataDir) && !string.IsNullOrWhiteSpace(dataDir))
+        if (startupContext?.Args != null && startupContext.Args.TryGetValue("data", out var dataDir) && !string.IsNullOrWhiteSpace(dataDir))
         {
             this.AppDataFolder = dataDir;
         }
-        else if (OperatingSystem.IsLinux() || OperatingSystem.IsFreeBSD())
+        else
         {
-            var xdgConfigHome = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
-            if (!string.IsNullOrWhiteSpace(xdgConfigHome))
+            var envAppData = Environment.GetEnvironmentVariable("LEECHARR__APP_DATA")
+                ?? Environment.GetEnvironmentVariable("LEECHARR_APP_DATA");
+            if (!string.IsNullOrWhiteSpace(envAppData))
             {
-                this.AppDataFolder = Path.Combine(xdgConfigHome, "Leecharr");
+                this.AppDataFolder = envAppData;
             }
-            else
+            else if (OperatingSystem.IsLinux() || OperatingSystem.IsFreeBSD())
+            {
+                var xdgConfigHome = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
+                if (!string.IsNullOrWhiteSpace(xdgConfigHome))
+                {
+                    this.AppDataFolder = Path.Combine(xdgConfigHome, "Leecharr");
+                }
+                else
+                {
+                    var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                    if (string.IsNullOrWhiteSpace(home))
+                    {
+                        home = Environment.GetEnvironmentVariable("HOME") ?? "/root";
+                    }
+
+                    this.AppDataFolder = Path.Combine(home, ".config", "Leecharr");
+                }
+            }
+            else if (OperatingSystem.IsMacOS())
             {
                 var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
                 if (string.IsNullOrWhiteSpace(home))
                 {
-                    home = Environment.GetEnvironmentVariable("HOME") ?? "/root";
+                    home = Environment.GetEnvironmentVariable("HOME") ?? "~";
                 }
 
                 this.AppDataFolder = Path.Combine(home, ".config", "Leecharr");
             }
-        }
-        else if (OperatingSystem.IsMacOS())
-        {
-            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            if (string.IsNullOrWhiteSpace(home))
+            else
             {
-                home = Environment.GetEnvironmentVariable("HOME") ?? "~";
+                this.AppDataFolder = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                    "Leecharr");
             }
-
-            this.AppDataFolder = Path.Combine(home, ".config", "Leecharr");
-        }
-        else
-        {
-            this.AppDataFolder = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-                "Leecharr");
         }
 
         this.StartUpFolder = AppDomain.CurrentDomain.BaseDirectory;
