@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Network.Vpn;
 
 namespace NzbDrone.Core.Network.Binding;
 
@@ -20,6 +21,7 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
     private readonly Logger logger;
     private readonly SemaphoreSlim switchLock = new(1, 1);
     private INetworkBindingProvider activeProvider;
+    private bool isKillSwitchActive;
     private bool disposed;
 
     public INetworkBindingProvider ActiveProvider => Volatile.Read(ref this.activeProvider);
@@ -175,20 +177,43 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
 
     public bool CheckVpnKillSwitch(string interfaceName)
     {
-        if (string.IsNullOrWhiteSpace(interfaceName))
+        if (string.IsNullOrWhiteSpace(interfaceName) ||
+            string.Equals(interfaceName, "any", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(interfaceName, "all", StringComparison.OrdinalIgnoreCase))
         {
+            if (this.isKillSwitchActive)
+            {
+                this.isKillSwitchActive = false;
+                this.logger.Info("VPN Kill Switch disengaged for interface '{0}'.", interfaceName);
+                this.eventAggregator?.PublishEvent(new VpnInterfaceRestoredEvent(interfaceName ?? string.Empty));
+            }
+
             return false;
         }
 
         var isUp = this.IsInterfaceUp(interfaceName);
         if (!isUp)
         {
-            this.logger.Error("VPN Kill Switch triggered! Interface '{0}' dropped.", interfaceName);
-            this.eventAggregator?.PublishEvent(new VpnKillSwitchTriggeredEvent(interfaceName));
+            if (!this.isKillSwitchActive)
+            {
+                this.isKillSwitchActive = true;
+                this.logger.Error("VPN Kill Switch triggered! Interface '{0}' dropped.", interfaceName);
+                this.eventAggregator?.PublishEvent(new VpnKillSwitchTriggeredEvent(interfaceName));
+            }
+
             return true;
         }
+        else
+        {
+            if (this.isKillSwitchActive)
+            {
+                this.isKillSwitchActive = false;
+                this.logger.Info("VPN interface '{0}' restored and operational.", interfaceName);
+                this.eventAggregator?.PublishEvent(new VpnInterfaceRestoredEvent(interfaceName));
+            }
 
-        return false;
+            return false;
+        }
     }
 
     public void Handle(ConfigSavedEvent message)

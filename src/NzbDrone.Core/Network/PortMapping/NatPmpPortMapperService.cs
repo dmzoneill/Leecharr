@@ -11,6 +11,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
+using NzbDrone.Core.Configuration;
 
 namespace NzbDrone.Core.Network.PortMapping;
 
@@ -23,15 +24,22 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
     private readonly Timer renewalTimer;
     private readonly SemaphoreSlim renewalLock = new(1, 1);
     private readonly int gatewayPort;
+    private readonly string boundInterface;
+    private readonly IConfigService configService;
 
     private int isRunning = 1;
     private int isDisposed;
     private uint? lastObservedEpoch;
     private IPAddress lastKnownGateway;
 
-    public NatPmpPortMapperService(int gatewayPort = NatPmpPort)
+    public NatPmpPortMapperService(
+        int gatewayPort = NatPmpPort,
+        string boundInterface = null,
+        IConfigService configService = null)
     {
         this.gatewayPort = gatewayPort > 0 ? gatewayPort : NatPmpPort;
+        this.boundInterface = boundInterface;
+        this.configService = configService;
 
         // Periodic lease renewal check every 30 seconds
         this.renewalTimer = new Timer(
@@ -43,22 +51,120 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
     public IReadOnlyCollection<ActivePortMapping> ActiveMappings => this.activeMappings.Values.ToList();
 
-    public static IPAddress DiscoverDefaultGateway()
+    public static IPAddress DiscoverDefaultGateway(string boundInterface = null)
     {
         try
         {
-            foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
-            {
-                if (ni.OperationalStatus == OperationalStatus.Up &&
-                    ni.NetworkInterfaceType != NetworkInterfaceType.Loopback)
-                {
-                    var props = ni.GetIPProperties();
-                    var gw = props.GatewayAddresses
-                        .FirstOrDefault(g => g.Address.AddressFamily == AddressFamily.InterNetwork);
+            var interfaces = NetworkInterface.GetAllNetworkInterfaces()
+                .Where(ni => ni.OperationalStatus == OperationalStatus.Up &&
+                             ni.NetworkInterfaceType != NetworkInterfaceType.Loopback)
+                .ToList();
 
-                    if (gw != null && !IPAddress.IsLoopback(gw.Address) && !Equals(gw.Address, IPAddress.Any))
+            // 1. If a specific bound interface is provided and active, prioritize its gateway
+            if (!string.IsNullOrWhiteSpace(boundInterface) &&
+                !string.Equals(boundInterface, "any", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(boundInterface, "all", StringComparison.OrdinalIgnoreCase))
+            {
+                var boundNic = interfaces.FirstOrDefault(n =>
+                    string.Equals(n.Name, boundInterface, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(n.Id, boundInterface, StringComparison.OrdinalIgnoreCase));
+
+                if (boundNic != null)
+                {
+                    var gw = GetGatewayFromInterface(boundNic);
+                    if (gw != null)
                     {
-                        return gw.Address;
+                        return gw;
+                    }
+                }
+            }
+
+            // 2. Look for VPN / Tunnel interfaces first (tun, wg, ppp, tap, vpn, utun, etc.)
+            var vpnNic = interfaces.FirstOrDefault(n =>
+                n.Name.StartsWith("tun", StringComparison.OrdinalIgnoreCase) ||
+                n.Name.StartsWith("wg", StringComparison.OrdinalIgnoreCase) ||
+                n.Name.StartsWith("ppp", StringComparison.OrdinalIgnoreCase) ||
+                n.Name.StartsWith("tap", StringComparison.OrdinalIgnoreCase) ||
+                n.Name.StartsWith("vpn", StringComparison.OrdinalIgnoreCase) ||
+                n.Name.StartsWith("utun", StringComparison.OrdinalIgnoreCase));
+
+            if (vpnNic != null)
+            {
+                var vpnGw = GetGatewayFromInterface(vpnNic);
+                if (vpnGw != null)
+                {
+                    return vpnGw;
+                }
+            }
+
+            // 3. Fall back to non-Docker interfaces or any interface with a gateway
+            // Filter out default Docker bridge IP 172.17.0.1 if other non-docker gateways are available
+            IPAddress fallbackGateway = null;
+            foreach (var ni in interfaces)
+            {
+                var gw = GetGatewayFromInterface(ni);
+                if (gw != null)
+                {
+                    var gwStr = gw.ToString();
+                    if (gwStr == "172.17.0.1")
+                    {
+                        fallbackGateway ??= gw;
+                    }
+                    else
+                    {
+                        return gw;
+                    }
+                }
+            }
+
+            return fallbackGateway;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static IPAddress GetGatewayFromInterface(NetworkInterface ni)
+    {
+        try
+        {
+            var props = ni.GetIPProperties();
+            var gw = props.GatewayAddresses
+                .FirstOrDefault(g => g.Address.AddressFamily == AddressFamily.InterNetwork &&
+                                     !IPAddress.IsLoopback(g.Address) &&
+                                     !Equals(g.Address, IPAddress.Any) &&
+                                     !Equals(g.Address, IPAddress.None));
+
+            if (gw != null)
+            {
+                return gw.Address;
+            }
+
+            // For VPN / point-to-point interfaces where GatewayAddresses is empty in Linux,
+            // check if there is a unicast IPv4 address and resolve the default subnet gateway (e.g. .1)
+            var isVpnOrPointToPoint = ni.NetworkInterfaceType == NetworkInterfaceType.Ppp ||
+                                      ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel ||
+                                      ni.Name.StartsWith("tun", StringComparison.OrdinalIgnoreCase) ||
+                                      ni.Name.StartsWith("wg", StringComparison.OrdinalIgnoreCase) ||
+                                      ni.Name.StartsWith("tap", StringComparison.OrdinalIgnoreCase) ||
+                                      ni.Name.StartsWith("utun", StringComparison.OrdinalIgnoreCase);
+
+            if (isVpnOrPointToPoint)
+            {
+                var unicast = props.UnicastAddresses
+                    .FirstOrDefault(u => u.Address.AddressFamily == AddressFamily.InterNetwork &&
+                                         !IPAddress.IsLoopback(u.Address) &&
+                                         !Equals(u.Address, IPAddress.Any));
+
+                if (unicast != null)
+                {
+                    var bytes = unicast.Address.GetAddressBytes();
+                    if (bytes[3] != 1)
+                    {
+                        var gwBytes = (byte[])bytes.Clone();
+                        gwBytes[3] = 1;
+                        return new IPAddress(gwBytes);
                     }
                 }
             }
@@ -70,9 +176,30 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         return null;
     }
 
+    private string GetEffectiveBoundInterface()
+    {
+        var iface = this.boundInterface;
+        if (string.IsNullOrWhiteSpace(iface))
+        {
+            iface = this.configService?.BindInterface;
+        }
+
+        if (string.IsNullOrWhiteSpace(iface))
+        {
+            iface = this.configService?.NetworkInterfaceBinding;
+        }
+
+        return iface;
+    }
+
+    private IPAddress ResolveGateway(IPAddress explicitGateway = null)
+    {
+        return explicitGateway ?? DiscoverDefaultGateway(this.GetEffectiveBoundInterface());
+    }
+
     public async Task<IPAddress> GetExternalIpAddressAsync(IPAddress gateway = null, CancellationToken cancellationToken = default)
     {
-        var targetGateway = gateway ?? DiscoverDefaultGateway();
+        var targetGateway = this.ResolveGateway(gateway);
         if (targetGateway == null)
         {
             return null;
@@ -106,7 +233,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         IPAddress gateway = null,
         CancellationToken cancellationToken = default)
     {
-        var targetGateway = gateway ?? DiscoverDefaultGateway();
+        var targetGateway = this.ResolveGateway(gateway);
         if (targetGateway == null)
         {
             return new NatPmpMappingResult
@@ -187,7 +314,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         try
         {
             var now = DateTime.UtcNow;
-            var currentGateway = DiscoverDefaultGateway();
+            var currentGateway = this.ResolveGateway();
 
             foreach (var kvp in this.activeMappings)
             {
@@ -221,7 +348,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         {
             try
             {
-                var targetGateway = mapping.GatewayAddress ?? DiscoverDefaultGateway();
+                var targetGateway = mapping.GatewayAddress ?? this.ResolveGateway();
                 if (targetGateway != null)
                 {
                     await this.SendMappingRequestAsync(
@@ -301,7 +428,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         try
         {
             var now = DateTime.UtcNow;
-            var currentGateway = DiscoverDefaultGateway();
+            var currentGateway = this.ResolveGateway();
 
             var gatewayChanged = currentGateway != null &&
                                  this.lastKnownGateway != null &&
@@ -337,7 +464,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         IPAddress gateway,
         CancellationToken cancellationToken)
     {
-        var targetGateway = gateway ?? mapping.GatewayAddress ?? DiscoverDefaultGateway();
+        var targetGateway = gateway ?? mapping.GatewayAddress ?? this.ResolveGateway();
         if (targetGateway == null)
         {
             this.logger.Warn("Cannot renew NAT-PMP mapping for {0} {1}: No gateway found.", mapping.Protocol, mapping.InternalPort);

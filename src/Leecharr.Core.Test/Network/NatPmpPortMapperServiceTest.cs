@@ -8,6 +8,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Network.PortMapping;
 
@@ -24,6 +25,26 @@ public class NatPmpPortMapperServiceTest
         {
             gw.AddressFamily.Should().Be(AddressFamily.InterNetwork);
         }
+    }
+
+    [Test]
+    public void DiscoverDefaultGateway_WithBoundInterface_DoesNotThrow()
+    {
+        var gw = NatPmpPortMapperService.DiscoverDefaultGateway("tun0");
+        if (gw != null)
+        {
+            gw.AddressFamily.Should().Be(AddressFamily.InterNetwork);
+        }
+    }
+
+    [Test]
+    public void Constructor_WithBoundInterfaceAndConfigService_InitializesCorrectly()
+    {
+        var config = NSubstitute.Substitute.For<NzbDrone.Core.Configuration.IConfigService>();
+        config.BindInterface.Returns("tun0");
+
+        using var service = new NatPmpPortMapperService(5351, "tun0", config);
+        service.ActiveMappings.Should().BeEmpty();
     }
 
     [Test]
