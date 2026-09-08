@@ -142,10 +142,10 @@ public static class TerminalWebSocketHandler
                         break;
                     }
 
-                    int charCount = decoder.GetChars(buffer, 0, bytesRead, charBuffer, 0, flush: false);
-                    if (charCount > 0)
+                    int charsRead = decoder.GetChars(buffer, 0, bytesRead, charBuffer, 0, flush: false);
+                    if (charsRead > 0)
                     {
-                        string text = new string(charBuffer, 0, charCount);
+                        string text = new string(charBuffer, 0, charsRead);
                         var payload = JsonSerializer.Serialize(new { type = "output", data = text });
                         await SafeSendTextAsync(payload, cts.Token);
                     }
