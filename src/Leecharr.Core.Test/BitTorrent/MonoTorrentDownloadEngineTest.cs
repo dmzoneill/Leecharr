@@ -1365,6 +1365,18 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task SetRateLimitsAsync_WhenSpeedsExceedTwoGbps_ClampsToIntMaxValueWithoutOverflow()
+    {
+        await this.engine.StartAsync();
+
+        var act = async () => await this.engine.SetRateLimitsAsync(2_500_000, 10_000_000);
+        await act.Should().NotThrowAsync();
+
+        var actMax = async () => await this.engine.SetRateLimitsAsync(int.MaxValue, int.MaxValue);
+        await actMax.Should().NotThrowAsync();
+    }
+
+    [Test]
     public async Task SetTorrentRateLimitsAsync_WhenTorrentActive_UpdatesSettings()
     {
         var torrentBytes = CreateSampleSingleFileTorrentBytes("limits.iso");
@@ -1384,6 +1396,56 @@ public class MonoTorrentDownloadEngineTest
 
         task.Manager.Settings.MaximumDownloadRate.Should().Be(1500 * 1024);
         task.Manager.Settings.MaximumUploadRate.Should().Be(500 * 1024);
+    }
+
+    [Test]
+    public async Task SetTorrentRateLimitsAsync_WhenSpeedsExceedTwoGbps_ClampsToIntMaxValueWithoutOverflow()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("limits_overflow.iso");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 71,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "limits_overflow.iso",
+            Status = TorrentStatus.Stopped,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        // 2,500,000 KB/s (~2.5 Gbps) and 10,000,000 KB/s (~10 Gbps) would overflow a 32-bit signed int if multiplied directly by 1024
+        await this.engine.SetTorrentRateLimitsAsync(71, 2_500_000, 10_000_000);
+
+        task.Manager.Settings.MaximumDownloadRate.Should().Be(int.MaxValue);
+        task.Manager.Settings.MaximumUploadRate.Should().Be(int.MaxValue);
+
+        await this.engine.SetTorrentRateLimitsAsync(71, int.MaxValue, int.MaxValue);
+
+        task.Manager.Settings.MaximumDownloadRate.Should().Be(int.MaxValue);
+        task.Manager.Settings.MaximumUploadRate.Should().Be(int.MaxValue);
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenLimitsExceedTwoGbps_ClampsToIntMaxValueWithoutOverflow()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("add_limits_overflow.iso");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 72,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "add_limits_overflow.iso",
+            Status = TorrentStatus.Stopped,
+            DownloadLimit = 2_500_000,
+            UploadLimit = 10_000_000,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.Manager.Settings.MaximumDownloadRate.Should().Be(int.MaxValue);
+        task.Manager.Settings.MaximumUploadRate.Should().Be(int.MaxValue);
     }
 
     [Test]
