@@ -67,6 +67,7 @@ public class PiecePicker
     private readonly PieceState[] pieces;
     private readonly int[] swarmAvailability;
     private readonly Dictionary<string, BlockInFlightInfo> inFlightBlocks = new();
+    private TimeSpan? requestTimeout;
 
     public PiecePicker(int pieceCount, int pieceLength, long totalSize, TimeSpan? requestTimeout = null, IConfigService configService = null)
     {
@@ -91,7 +92,7 @@ public class PiecePicker
         this.configService = configService;
         if (requestTimeout.HasValue)
         {
-            this.RequestTimeout = requestTimeout.Value;
+            this.requestTimeout = requestTimeout.Value;
         }
 
         this.pieces = new PieceState[pieceCount];
@@ -119,7 +120,24 @@ public class PiecePicker
 
     public event Action<BlockCancelledEventArgs> BlockCancelled;
 
-    public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(30);
+    public TimeSpan RequestTimeout
+    {
+        get
+        {
+            if (this.requestTimeout.HasValue)
+            {
+                return this.requestTimeout.Value;
+            }
+
+            if (this.configService != null && this.configService.StaleRequestTimeoutSeconds > 0)
+            {
+                return TimeSpan.FromSeconds(this.configService.StaleRequestTimeoutSeconds);
+            }
+
+            return TimeSpan.FromSeconds(20);
+        }
+        set => this.requestTimeout = value;
+    }
 
     public bool EndGamePickerEnabled { get; set; } = true;
 
@@ -222,14 +240,18 @@ public class PiecePicker
                 return false;
             }
 
+            var totalBlocks = this.pieces.Where(p => p.Priority > 0).Sum(p => p.TotalBlocks);
             var remainingPieces = activePieces.Count;
             var totalActiveBytes = this.pieces.Where(p => p.Priority > 0).Sum(p => (long)p.Length);
             var remainingBytes = activePieces.Sum(p => (long)(p.TotalBlocks - p.ReceivedBlocks) * DefaultBlockSize > p.Length ? p.Length : (long)(p.TotalBlocks - p.ReceivedBlocks) * DefaultBlockSize);
 
-            // Endgame mode triggers when remaining pieces <= 20 (and nearing completion if total pieces > 20)
-            // or when remaining bytes < 2% of total active bytes, or when all remaining blocks are in flight.
-            var isNearEnd = (totalActivePieces > 20 && remainingPieces <= 20) ||
-                            (totalActiveBytes > 0 && remainingBytes < totalActiveBytes && ((double)remainingBytes / totalActiveBytes) < 0.02);
+            // Endgame mode triggers when:
+            // 1. All remaining blocks are currently in flight across peers
+            // 2. Remaining active pieces <= 20 (and total pieces > 20)
+            // 3. Dynamic percentage scaling: remaining bytes or blocks <= 2% of total active content
+            var isBlockPercentageTriggered = totalBlocks > 0 && ((double)remainingBlocks / totalBlocks) <= 0.02 && totalBlocks > remainingBlocks;
+            var isBytePercentageTriggered = totalActiveBytes > 0 && remainingBytes < totalActiveBytes && ((double)remainingBytes / totalActiveBytes) <= 0.02;
+            var isNearEnd = (totalActivePieces > 20 && remainingPieces <= 20) || isBlockPercentageTriggered || isBytePercentageTriggered;
 
             return isNearEnd || (this.inFlightBlocks.Count >= remainingBlocks);
         }
@@ -327,6 +349,55 @@ public class PiecePicker
         return requests;
     }
 
+    private (int HeadThreshold, int TailThreshold) CalculateSequentialHeadTailThresholds()
+    {
+        if (this.pieceCount <= 2)
+        {
+            return (this.pieceCount, this.pieceCount);
+        }
+
+        if (this.pieceCount <= 4)
+        {
+            return (1, Math.Max(1, this.pieceCount - 2));
+        }
+
+        if (this.pieceCount <= 6)
+        {
+            return (2, Math.Max(2, this.pieceCount - 2));
+        }
+
+        // For small files (< 2MB) or standard small piece sets, default to 4 head pieces and 2 tail pieces
+        int headPieces;
+        int tailPieces;
+
+        if (this.totalSize > 2L * 1024 * 1024)
+        {
+            // Dynamic byte-size calculation: prioritize 2MB to 8MB head and 1MB to 4MB tail
+            var targetHeadBytes = Math.Min(8L * 1024 * 1024, Math.Max(2L * 1024 * 1024, (long)(this.totalSize * 0.05)));
+            var targetTailBytes = Math.Min(4L * 1024 * 1024, Math.Max(1L * 1024 * 1024, (long)(this.totalSize * 0.025)));
+
+            var computedHead = (int)Math.Ceiling((double)targetHeadBytes / this.pieceLength);
+            var computedTail = (int)Math.Ceiling((double)targetTailBytes / this.pieceLength);
+
+            var maxHead = Math.Max(4, this.pieceCount / 10);
+            var maxTail = Math.Max(2, this.pieceCount / 20);
+
+            headPieces = Math.Min(Math.Max(4, computedHead), Math.Min(maxHead, this.pieceCount - 3));
+            tailPieces = Math.Min(Math.Max(2, computedTail), Math.Min(maxTail, this.pieceCount - headPieces - 1));
+        }
+        else
+        {
+            headPieces = 4;
+            tailPieces = 2;
+        }
+
+        headPieces = Math.Max(1, Math.Min(headPieces, this.pieceCount - 2));
+        tailPieces = Math.Max(1, Math.Min(tailPieces, this.pieceCount - headPieces));
+        var tailStart = Math.Max(headPieces, this.pieceCount - tailPieces);
+
+        return (headPieces, tailStart);
+    }
+
     private List<int> GetCandidatePieceIndices(bool[] peerBitfield, bool sequentialMode)
     {
         var validPieces = new List<int>();
@@ -347,30 +418,8 @@ public class PiecePicker
 
         if (sequentialMode)
         {
-            // Sequential with Head / Tail priority
-            int headThreshold;
-            int tailThreshold;
-
-            if (this.pieceCount <= 2)
-            {
-                headThreshold = this.pieceCount;
-                tailThreshold = this.pieceCount;
-            }
-            else if (this.pieceCount <= 4)
-            {
-                headThreshold = 1;
-                tailThreshold = Math.Max(headThreshold, this.pieceCount - 2);
-            }
-            else if (this.pieceCount <= 6)
-            {
-                headThreshold = 2;
-                tailThreshold = Math.Max(headThreshold, this.pieceCount - 2);
-            }
-            else
-            {
-                headThreshold = 4;
-                tailThreshold = Math.Max(headThreshold, this.pieceCount - 2);
-            }
+            // Sequential with dynamic Head / Tail priority
+            var (headThreshold, tailThreshold) = this.CalculateSequentialHeadTailThresholds();
 
             var headPieces = validPieces.Where(i => i < headThreshold).OrderBy(i => i);
             var tailPieces = validPieces.Where(i => i >= tailThreshold).OrderBy(i => i);

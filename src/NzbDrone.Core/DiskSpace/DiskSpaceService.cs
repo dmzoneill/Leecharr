@@ -44,9 +44,10 @@ public class DiskSpaceService : IDiskSpaceService
         var downloadDir = this.configService?.DownloadDir;
         if (string.IsNullOrWhiteSpace(downloadDir))
         {
-            downloadDir = Directory.Exists("/downloads")
-                ? "/downloads"
-                : Path.Combine(this.appFolderInfo?.AppDataFolder ?? string.Empty, "downloads");
+            var appData = this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder)
+                ? this.appFolderInfo.AppDataFolder
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Leecharr");
+            downloadDir = Path.Combine(appData, "downloads");
         }
 
         this.AddDriveInfo(result, seen, downloadDir, "Downloads");
