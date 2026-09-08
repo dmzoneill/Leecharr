@@ -99,4 +99,68 @@ public class BlocklistProvidersTest
         provider.IsIpBlocked("1.1.1.1").Should().BeTrue();
         provider.IsIpBlocked("203.0.113.1").Should().BeTrue();
     }
+
+    [Test]
+    public async Task P2PDatBlocklistProvider_WithColonsInDescriptionHeaders_ParsesRulesCorrectly()
+    {
+        var provider = new P2PDatBlocklistProvider();
+        var rules = new List<string>
+        {
+            "US:ISP:1.2.3.4-1.2.3.10:0",
+            "Bad:Org:ISP:10.0.0.1-10.0.0.100:0",
+            "US:ISP:172.16.0.5:0",
+            "US:ISP:192.168.1.0/24:0",
+        };
+
+        var count = await provider.LoadRulesAsync(rules);
+
+        count.Should().Be(4);
+        provider.IsIpBlocked("1.2.3.5").Should().BeTrue();
+        provider.IsIpBlocked("1.2.3.10").Should().BeTrue();
+        provider.IsIpBlocked("1.2.3.11").Should().BeFalse();
+        provider.IsIpBlocked("10.0.0.50").Should().BeTrue();
+        provider.IsIpBlocked("172.16.0.5").Should().BeTrue();
+        provider.IsIpBlocked("172.16.0.6").Should().BeFalse();
+        provider.IsIpBlocked("192.168.1.100").Should().BeTrue();
+        provider.IsIpBlocked("192.168.2.1").Should().BeFalse();
+    }
+
+    [Test]
+    public async Task P2PDatBlocklistProvider_WithIPv6RangesAndCidrs_ParsesAndMatchesCorrectly()
+    {
+        var provider = new P2PDatBlocklistProvider();
+        var rules = new List<string>
+        {
+            "2001:db8::1-2001:db8::10",
+            "US:ISP:2001:db8:1234::1-2001:db8:1234::100:0",
+            "2001:db8:abcd::/48",
+            "US:ISP:fe80::/10:0",
+            "::ffff:192.168.1.0/120", // IPv4-mapped IPv6 CIDR normalized to 192.168.1.0/24
+        };
+
+        var count = await provider.LoadRulesAsync(rules);
+
+        count.Should().Be(5);
+
+        // IPv6 range match
+        provider.IsIpBlocked("2001:db8::5").Should().BeTrue();
+        provider.IsIpBlocked("2001:db8::10").Should().BeTrue();
+        provider.IsIpBlocked("2001:db8::11").Should().BeFalse();
+
+        // IPv6 range with colon header and level suffix
+        provider.IsIpBlocked("2001:db8:1234::50").Should().BeTrue();
+        provider.IsIpBlocked("2001:db8:1234::101").Should().BeFalse();
+
+        // IPv6 CIDR match
+        provider.IsIpBlocked("2001:db8:abcd:1::1").Should().BeTrue();
+        provider.IsIpBlocked("2001:db8:abce::1").Should().BeFalse();
+
+        // IPv6 CIDR with colon header
+        provider.IsIpBlocked("fe80::1ff:fe00:1").Should().BeTrue();
+
+        // IPv4-mapped IPv6 CIDR match on both IPv4 and mapped IPv6
+        provider.IsIpBlocked("192.168.1.50").Should().BeTrue();
+        provider.IsIpBlocked("::ffff:192.168.1.50").Should().BeTrue();
+        provider.IsIpBlocked("192.168.2.50").Should().BeFalse();
+    }
 }
