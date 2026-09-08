@@ -1,8 +1,10 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -34,39 +36,87 @@ public sealed class LinuxPtySession : ITerminalSession
             WsRow = (ushort)Math.Max(5, Math.Min(rows, 200)),
         };
 
-        int pid = NativePty.Forkpty(out int masterFd, IntPtr.Zero, IntPtr.Zero, ref ws);
-        if (pid < 0)
+        string safeCwd = !string.IsNullOrWhiteSpace(cwd) && Directory.Exists(cwd) ? Path.GetFullPath(cwd) : null;
+        string shell = File.Exists("/bin/bash") ? "/bin/bash" : "/bin/sh";
+        string[] argv = [shell, "-i"];
+
+        var envVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables())
         {
-            throw new InvalidOperationException($"Failed to fork pseudo-terminal (errno: {Marshal.GetLastWin32Error()})");
+            var key = entry.Key?.ToString();
+            var val = entry.Value?.ToString();
+            if (!string.IsNullOrEmpty(key) && !TerminalEnvironmentSanitizer.IsSensitiveKey(key))
+            {
+                envVars[key] = val ?? string.Empty;
+            }
         }
 
-        if (pid == 0)
+        envVars["TERM"] = "xterm-256color";
+        envVars["COLORTERM"] = "truecolor";
+        if (!envVars.ContainsKey("LANG"))
         {
-            // Child process: set directory, environment and launch shell
-            try
+            envVars["LANG"] = "en_US.UTF-8";
+        }
+
+        if (!envVars.ContainsKey("PATH"))
+        {
+            envVars["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+        }
+
+        if (!string.IsNullOrEmpty(safeCwd))
+        {
+            envVars["PWD"] = safeCwd;
+        }
+
+        var envStrings = envVars.Select(kv => $"{kv.Key}={kv.Value}").ToArray();
+
+        IntPtr cwdPtr = safeCwd != null ? Marshal.StringToCoTaskMemUTF8(safeCwd) : IntPtr.Zero;
+        IntPtr shellPtr = Marshal.StringToCoTaskMemUTF8(shell);
+        IntPtr argvArrayPtr = AllocateNativeStringArray(argv, out var argvPointers);
+        IntPtr envArrayPtr = AllocateNativeStringArray(envStrings, out var envPointers);
+
+        int masterFd = -1;
+        int pid = -1;
+
+        try
+        {
+            pid = NativePty.Forkpty(out masterFd, IntPtr.Zero, IntPtr.Zero, ref ws);
+            if (pid < 0)
             {
-                if (!string.IsNullOrWhiteSpace(cwd) && Directory.Exists(cwd))
+                throw new InvalidOperationException($"Failed to fork pseudo-terminal (errno: {Marshal.GetLastWin32Error()})");
+            }
+
+            if (pid == 0)
+            {
+                // Child process: Only invoke async-signal-safe functions (chdir, execve, _exit).
+                // Zero managed memory allocations, zero runtime locks, zero setenv/malloc calls.
+                if (cwdPtr != IntPtr.Zero)
                 {
-                    NativePty.Chdir(cwd);
+                    NativePty.Chdir(cwdPtr);
                 }
 
-                NativePty.Setenv("TERM", "xterm-256color", 1);
-                NativePty.Setenv("COLORTERM", "truecolor", 1);
-                NativePty.Setenv("LANG", "en_US.UTF-8", 0);
+                NativePty.ExecveRaw(shellPtr, argvArrayPtr, envArrayPtr);
 
-                if (File.Exists("/bin/bash"))
-                {
-                    NativePty.ExecCommand("/bin/bash", new[] { "-i" });
-                }
+                // Fallback if execve fails
+                NativePty.ExecvpRaw(shellPtr, argvArrayPtr);
 
-                NativePty.ExecCommand("/bin/sh", new[] { "-i" });
+                NativePty.Exit(1);
             }
-            catch
+        }
+        finally
+        {
+            if (cwdPtr != IntPtr.Zero)
             {
-                // Fallthrough to exit
+                Marshal.FreeCoTaskMem(cwdPtr);
             }
 
-            NativePty.Exit(1);
+            if (shellPtr != IntPtr.Zero)
+            {
+                Marshal.FreeCoTaskMem(shellPtr);
+            }
+
+            FreeNativeStringArray(argvArrayPtr, argvPointers);
+            FreeNativeStringArray(envArrayPtr, envPointers);
         }
 
         return new LinuxPtySession(masterFd, pid);
@@ -197,6 +247,40 @@ public sealed class LinuxPtySession : ITerminalSession
     {
         this.Kill();
         return ValueTask.CompletedTask;
+    }
+
+    private static IntPtr AllocateNativeStringArray(string[] array, out IntPtr[] elementPointers)
+    {
+        elementPointers = new IntPtr[array.Length + 1];
+        for (int i = 0; i < array.Length; i++)
+        {
+            elementPointers[i] = Marshal.StringToCoTaskMemUTF8(array[i]);
+        }
+
+        elementPointers[^1] = IntPtr.Zero;
+
+        IntPtr arrayPtr = Marshal.AllocHGlobal(IntPtr.Size * elementPointers.Length);
+        Marshal.Copy(elementPointers, 0, arrayPtr, elementPointers.Length);
+        return arrayPtr;
+    }
+
+    private static void FreeNativeStringArray(IntPtr arrayPtr, IntPtr[] elementPointers)
+    {
+        if (elementPointers != null)
+        {
+            foreach (var ptr in elementPointers)
+            {
+                if (ptr != IntPtr.Zero)
+                {
+                    Marshal.FreeCoTaskMem(ptr);
+                }
+            }
+        }
+
+        if (arrayPtr != IntPtr.Zero)
+        {
+            Marshal.FreeHGlobal(arrayPtr);
+        }
     }
 
     private void StartWatcher()
