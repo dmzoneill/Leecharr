@@ -40,6 +40,7 @@ public class SystemResourceServiceTest
     [SetUp]
     public void SetUp()
     {
+        SystemResourceService.ResetDriveMetricsCache();
         this.activeEngine = Substitute.For<ITorrentEngine>();
         this.activeEngine.EngineId.Returns("MonoTorrent");
         this.activeEngine.DisplayName.Returns("MonoTorrent (Pure .NET)");
@@ -245,5 +246,89 @@ public class SystemResourceServiceTest
         mediaReport.Should().NotBeNull();
         mediaReport!.Metrics.Should().ContainKey("cacheDirectory");
         mediaReport.Metrics["cacheDirectory"].Should().Be("/custom/appdata/MediaCache");
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        SystemResourceService.ResetDriveMetricsCache();
+    }
+
+    [Test]
+    public void GetHostMetrics_CachesDiskMountPointMetrics_OnConsecutiveCallsWithoutRequerying()
+    {
+        var providerCalls = 0;
+        SystemResourceService.DriveMetricsProvider = () =>
+        {
+            providerCalls++;
+            return new List<DiskMountPointMetrics>
+            {
+                new()
+                {
+                    MountPoint = "/mock/drive",
+                    DriveType = "Fixed",
+                    TotalSpaceBytes = 1000000000,
+                    FreeSpaceBytes = 500000000,
+                    UsedSpaceBytes = 500000000,
+                    UsedPercent = 50.0,
+                },
+            };
+        };
+
+        var first = this.service.GetHostMetrics();
+        var second = this.service.GetHostMetrics();
+        var third = this.service.GetHostMetrics();
+
+        providerCalls.Should().Be(1);
+        first.DiskDrives.Should().HaveCount(1);
+        first.DiskDrives[0].MountPoint.Should().Be("/mock/drive");
+        second.DiskDrives.Should().HaveCount(1);
+        second.DiskDrives[0].MountPoint.Should().Be("/mock/drive");
+        third.DiskDrives.Should().HaveCount(1);
+        third.DiskDrives[0].MountPoint.Should().Be("/mock/drive");
+    }
+
+    [Test]
+    public void GetHostMetrics_RefreshesDriveMetrics_WhenCacheIsReset()
+    {
+        var providerCalls = 0;
+        SystemResourceService.DriveMetricsProvider = () =>
+        {
+            providerCalls++;
+            return new List<DiskMountPointMetrics>
+            {
+                new()
+                {
+                    MountPoint = $"/mock/drive_{providerCalls}",
+                    DriveType = "Fixed",
+                    TotalSpaceBytes = 1000000000,
+                    FreeSpaceBytes = 500000000,
+                    UsedSpaceBytes = 500000000,
+                    UsedPercent = 50.0,
+                },
+            };
+        };
+
+        var first = this.service.GetHostMetrics();
+        providerCalls.Should().Be(1);
+        first.DiskDrives[0].MountPoint.Should().Be("/mock/drive_1");
+
+        SystemResourceService.ResetDriveMetricsCache();
+
+        var second = this.service.GetHostMetrics();
+        providerCalls.Should().Be(2);
+        second.DiskDrives[0].MountPoint.Should().Be("/mock/drive_2");
+    }
+
+    [Test]
+    public void GetHostMetrics_WhenDriveMetricsProviderThrows_HandlesGracefullyAndReturnsEmptyMetrics()
+    {
+        SystemResourceService.DriveMetricsProvider = () => throw new System.IO.IOException("Drive not ready");
+
+        var host = this.service.GetHostMetrics();
+
+        host.Should().NotBeNull();
+        host.DiskDrives.Should().NotBeNull();
+        host.DiskDrives.Should().BeEmpty();
     }
 }
