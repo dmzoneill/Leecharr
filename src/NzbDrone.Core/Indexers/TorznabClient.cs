@@ -199,6 +199,12 @@ public class TorznabClient : ITorznabClient
             return results;
         }
 
+        if (AntiBotChallengeDetector.IsChallenge(xml))
+        {
+            this.logger.Warn("Torznab XML response from indexer '{0}' is an AntiBot / Cloudflare challenge page.", indexer?.Name ?? "Unknown");
+            return results;
+        }
+
         try
         {
             var doc = SafeParseXml(xml);
@@ -673,6 +679,11 @@ public class TorznabClient : ITorznabClient
             var capsResp = await this.httpClient.SendAsync(capsReq, cancellationToken).ConfigureAwait(false);
             var capsContent = await capsResp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
+            if (AntiBotChallengeDetector.IsChallenge(capsResp.StatusCode, capsContent, capsResp))
+            {
+                return TorznabTestResult.Fail("Cloudflare / AntiBot challenge detected. FlareSolverr may be required.");
+            }
+
             if (capsResp.IsSuccessStatusCode && !string.IsNullOrWhiteSpace(capsContent))
             {
                 if (capsContent.Contains("<error", StringComparison.OrdinalIgnoreCase))
@@ -704,12 +715,17 @@ public class TorznabClient : ITorznabClient
             using var searchReq = new HttpRequestMessage(HttpMethod.Get, searchUriBuilder.Uri);
             var searchResp = await this.httpClient.SendAsync(searchReq, cancellationToken).ConfigureAwait(false);
 
+            var searchContent = await searchResp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            if (AntiBotChallengeDetector.IsChallenge(searchResp.StatusCode, searchContent, searchResp))
+            {
+                return TorznabTestResult.Fail("Cloudflare / AntiBot challenge detected. FlareSolverr may be required.");
+            }
+
             if (!searchResp.IsSuccessStatusCode)
             {
                 return TorznabTestResult.Fail($"HTTP {(int)searchResp.StatusCode} {searchResp.ReasonPhrase}");
             }
 
-            var searchContent = await searchResp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(searchContent))
             {
                 return TorznabTestResult.Fail("Empty response received from indexer.");

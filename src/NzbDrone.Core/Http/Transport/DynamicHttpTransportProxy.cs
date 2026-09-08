@@ -163,9 +163,116 @@ public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportMan
         }
     }
 
-    public Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken = default)
+    public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken = default)
     {
-        return Volatile.Read(ref this.activeProvider).SendAsync(request, cancellationToken);
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        var currentProvider = Volatile.Read(ref this.activeProvider);
+        if (currentProvider is FlareSolverrTransportProvider ||
+            string.Equals(currentProvider.ProviderId, "FlareSolverr", StringComparison.OrdinalIgnoreCase))
+        {
+            return await currentProvider.SendAsync(request, cancellationToken);
+        }
+
+        var flareSolverr = this.GetProvider("FlareSolverr");
+        if (flareSolverr == null)
+        {
+            return await currentProvider.SendAsync(request, cancellationToken);
+        }
+
+        HttpRequestMessage clonedRequest = null;
+        try
+        {
+            clonedRequest = await CloneHttpRequestMessageAsync(request, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Failed to clone HttpRequestMessage for potential FlareSolverr failover");
+        }
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await currentProvider.SendAsync(request, cancellationToken);
+        }
+        catch (Exception)
+        {
+            clonedRequest?.Dispose();
+            throw;
+        }
+
+        try
+        {
+            if (await AntiBotChallengeDetector.IsChallengeAsync(response))
+            {
+                var health = await flareSolverr.ProbeHealthAsync();
+                if (health.IsHealthy && clonedRequest != null)
+                {
+                    this.logger.Warn(
+                        "Anti-bot / Cloudflare challenge detected (HTTP {0}) for {1}. Transparently failing over to FlareSolverr.",
+                        (int)response.StatusCode,
+                        request.RequestUri);
+
+                    response.Dispose();
+                    var failoverRequest = clonedRequest;
+                    clonedRequest = null; // Ownership transferred to FlareSolverr
+                    return await flareSolverr.SendAsync(failoverRequest, cancellationToken);
+                }
+                else
+                {
+                    this.logger.Debug(
+                        "Anti-bot challenge detected for {0}, but FlareSolverr is not healthy ({1}). Returning original response.",
+                        request.RequestUri,
+                        health.StatusMessage);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Error during AntiBot challenge detection or FlareSolverr failover for {0}", request.RequestUri);
+        }
+        finally
+        {
+            clonedRequest?.Dispose();
+        }
+
+        return response;
+    }
+
+    private static async Task<HttpRequestMessage> CloneHttpRequestMessageAsync(HttpRequestMessage req, CancellationToken cancellationToken = default)
+    {
+        var clone = new HttpRequestMessage(req.Method, req.RequestUri)
+        {
+            Version = req.Version,
+            VersionPolicy = req.VersionPolicy,
+        };
+
+        foreach (var header in req.Headers)
+        {
+            clone.Headers.TryAddWithoutValidation(header.Key, header.Value);
+        }
+
+        if (req.Content != null)
+        {
+            var contentBytes = await req.Content.ReadAsByteArrayAsync(cancellationToken);
+            var cloneContent = new ByteArrayContent(contentBytes);
+            foreach (var header in req.Content.Headers)
+            {
+                cloneContent.Headers.TryAddWithoutValidation(header.Key, header.Value);
+            }
+
+            clone.Content = cloneContent;
+        }
+
+        foreach (var option in req.Options)
+        {
+            clone.Options.TryAdd(option.Key, option.Value);
+        }
+
+        return clone;
     }
 
     public void Dispose()
