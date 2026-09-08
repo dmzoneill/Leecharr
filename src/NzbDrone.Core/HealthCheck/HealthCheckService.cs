@@ -11,8 +11,6 @@ namespace NzbDrone.Core.HealthCheck;
 public interface IHealthCheckService
 {
     Task<List<HealthCheckResult>> PerformChecksAsync(CancellationToken cancellationToken = default);
-
-    List<HealthCheckResult> PerformChecks();
 }
 
 public class HealthCheckService : IHealthCheckService
@@ -50,10 +48,5 @@ public class HealthCheckService : IHealthCheckService
         }
 
         return results;
-    }
-
-    public List<HealthCheckResult> PerformChecks()
-    {
-        return this.PerformChecksAsync().GetAwaiter().GetResult();
     }
 }
