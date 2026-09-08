@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../client";
+import { useRefetchInterval } from "./useSystem";
 import type {
   LogFile,
   TorrentEventLogEntry,
@@ -11,11 +12,14 @@ export function useTorrentLogs(
   torrentId: number,
   options?: { polling?: boolean },
 ) {
+  const interval = useRefetchInterval(options?.polling === false ? 0 : 3000);
+  const effectiveInterval =
+    options?.polling === false ? false : interval;
   return useQuery<TorrentEventLogEntry[]>({
     queryKey: ["torrents", torrentId, "logs"],
     queryFn: () => apiClient.get(`/torrent/${torrentId}/logs?count=100`),
     enabled: torrentId > 0,
-    refetchInterval: options?.polling === false ? false : 3000,
+    refetchInterval: effectiveInterval,
   });
 }
 
@@ -56,6 +60,10 @@ export function useTrackerBoostLogs(
   level?: string,
   refetchInterval?: number | false,
 ) {
+  const interval = useRefetchInterval(
+    refetchInterval === false ? 0 : (refetchInterval ?? 3000),
+  );
+  const effectiveInterval = refetchInterval === false ? false : interval;
   return useQuery<TrackerBoostLogEntry[]>({
     queryKey: ["trackerboost", "logs", limit, category, level],
     queryFn: () => {
@@ -68,7 +76,7 @@ export function useTrackerBoostLogs(
         `/trackerboost/logs${queryStr ? `?${queryStr}` : ""}`,
       );
     },
-    refetchInterval: refetchInterval ?? 3000,
+    refetchInterval: effectiveInterval,
   });
 }
 
