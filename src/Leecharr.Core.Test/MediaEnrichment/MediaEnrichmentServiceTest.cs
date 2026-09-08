@@ -755,6 +755,33 @@ Unclosed tags and arbitrary scene ascii art <<<<< ===== >>>>>";
     }
 
     [Test]
+    public void DeleteMediaCache_DeletesCacheFolderAndPreEnrichmentHashDirectories()
+    {
+        var cacheDir = Path.Combine(this.tempDirectory, "MediaCache", "404");
+        Directory.CreateDirectory(cacheDir);
+        File.WriteAllText(Path.Combine(cacheDir, "poster.jpg"), "dummy data");
+
+        var posterUrl = "https://example.com/movie/poster.jpg";
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(posterUrl)))[..16].ToLowerInvariant();
+        var hashDir = Path.Combine(this.tempDirectory, "MediaCache", hash);
+        Directory.CreateDirectory(hashDir);
+        File.WriteAllText(Path.Combine(hashDir, "poster.jpg"), "hash cached data");
+
+        var meta = new TorrentMediaMetadata
+        {
+            TorrentId = 404,
+            PosterUrl = posterUrl,
+            PosterLocalPath = Path.Combine(hashDir, "poster.jpg"),
+        };
+        this.repository.GetByTorrentId(404).Returns(meta);
+
+        this.service.DeleteMediaCache(404);
+
+        Directory.Exists(cacheDir).Should().BeFalse();
+        Directory.Exists(hashDir).Should().BeFalse();
+    }
+
+    [Test]
     public void GetServarrApiKey_WhenUrlMatchesConfiguredArr_ReturnsApiKey()
     {
         var mockArrRepo = Substitute.For<IArrConnectionRepository>();

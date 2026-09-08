@@ -66,10 +66,12 @@ public class MediaControllerTest
         result.Result.Should().BeOfType<NotFoundResult>();
     }
 
-    [Test]
-    public void GetArtwork_WhenTypeIsInvalid_ReturnsNotFound()
+    [TestCase("invalid_type")]
+    [TestCase("unknown")]
+    [TestCase("exe")]
+    public void GetArtwork_WhenTypeIsInvalid_ReturnsNotFound(string invalidType)
     {
-        var result = this.controller.GetArtwork(42, "banner");
+        var result = this.controller.GetArtwork(42, invalidType);
 
         result.Should().BeOfType<NotFoundResult>();
     }
@@ -107,6 +109,9 @@ public class MediaControllerTest
     [TestCase("poster.jpeg", "image/jpeg", "poster")]
     [TestCase("backdrop.png", "image/png", "backdrop")]
     [TestCase("backdrop.bin", "application/octet-stream", "backdrop")]
+    [TestCase("fanart.jpg", "image/jpeg", "fanart")]
+    [TestCase("thumb.jpg", "image/jpeg", "thumb")]
+    [TestCase("banner.jpg", "image/jpeg", "banner")]
     public void GetArtwork_WhenFileExists_ReturnsPhysicalFileWithCorrectContentType(string fileName, string expectedContentType, string type)
     {
         var filePath = Path.Combine(this.tempDir, fileName);
@@ -115,8 +120,8 @@ public class MediaControllerTest
         var meta = new TorrentMediaMetadata
         {
             TorrentId = 42,
-            PosterLocalPath = type == "poster" ? filePath : null!,
-            BackdropLocalPath = type == "backdrop" ? filePath : null!,
+            PosterLocalPath = (type == "poster" || type == "thumb") ? filePath : Path.Combine(this.tempDir, "poster.jpg"),
+            BackdropLocalPath = (type == "backdrop" || type == "fanart" || type == "banner") ? filePath : Path.Combine(this.tempDir, "backdrop.jpg"),
         };
         this.mediaEnrichmentService.GetMetadata(42).Returns(meta);
 

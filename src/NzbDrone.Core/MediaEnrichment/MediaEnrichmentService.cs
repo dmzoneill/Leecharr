@@ -44,6 +44,8 @@ public interface IMediaEnrichmentService
 
     void CleanupTorrentCache(int torrentId);
 
+    void DeleteMediaCache(int torrentId);
+
     Task<string> CacheArtworkAsync(string url, int torrentId, string type);
 }
 
@@ -258,15 +260,54 @@ public class MediaEnrichmentService : IMediaEnrichmentService
         }
     }
 
+    public void DeleteMediaCache(int torrentId)
+    {
+        this.CleanupTorrentCache(torrentId);
+    }
+
     public void CleanupTorrentCache(int torrentId)
     {
         try
         {
-            var cacheDir = Path.Combine(this.appFolderInfo.AppDataFolder, "MediaCache", torrentId.ToString());
-            if (Directory.Exists(cacheDir))
+            var mediaCacheBase = Path.Combine(this.appFolderInfo.AppDataFolder, "MediaCache");
+            if (Directory.Exists(mediaCacheBase))
             {
-                Directory.Delete(cacheDir, recursive: true);
-                this.logger.Debug("Cleaned up media cache directory for torrent {0}", torrentId);
+                var cacheDir = Path.Combine(mediaCacheBase, torrentId.ToString());
+                if (Directory.Exists(cacheDir))
+                {
+                    Directory.Delete(cacheDir, recursive: true);
+                    this.logger.Debug("Cleaned up media cache directory for torrent {0}", torrentId);
+                }
+
+                // Prune hash-named cache directories associated with that torrent or pre-enrichment lookups
+                var metadata = this.repository?.GetByTorrentId(torrentId);
+                if (metadata != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(metadata.PosterUrl))
+                    {
+                        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(metadata.PosterUrl)))[..16].ToLowerInvariant();
+                        var hashDir = Path.Combine(mediaCacheBase, hash);
+                        if (Directory.Exists(hashDir))
+                        {
+                            Directory.Delete(hashDir, recursive: true);
+                            this.logger.Debug("Pruned pre-enrichment poster cache directory {0} for torrent {1}", hash, torrentId);
+                        }
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(metadata.BackdropUrl))
+                    {
+                        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(metadata.BackdropUrl)))[..16].ToLowerInvariant();
+                        var hashDir = Path.Combine(mediaCacheBase, hash);
+                        if (Directory.Exists(hashDir))
+                        {
+                            Directory.Delete(hashDir, recursive: true);
+                            this.logger.Debug("Pruned pre-enrichment backdrop cache directory {0} for torrent {1}", hash, torrentId);
+                        }
+                    }
+
+                    PruneCacheDirForFilePath(mediaCacheBase, metadata.PosterLocalPath);
+                    PruneCacheDirForFilePath(mediaCacheBase, metadata.BackdropLocalPath);
+                }
             }
         }
         catch (Exception ex)
@@ -485,6 +526,31 @@ public class MediaEnrichmentService : IMediaEnrichmentService
             if (!string.IsNullOrEmpty(path) && File.Exists(path))
             {
                 File.Delete(path);
+            }
+        }
+        catch
+        {
+            // Suppress cleanup failure
+        }
+    }
+
+    private static void PruneCacheDirForFilePath(string mediaCacheBase, string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath) || string.IsNullOrWhiteSpace(mediaCacheBase))
+        {
+            return;
+        }
+
+        try
+        {
+            var dir = Path.GetDirectoryName(Path.GetFullPath(filePath));
+            var fullCacheBase = Path.GetFullPath(mediaCacheBase);
+            if (dir != null &&
+                dir.StartsWith(fullCacheBase, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(dir, fullCacheBase, StringComparison.OrdinalIgnoreCase) &&
+                Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
             }
         }
         catch

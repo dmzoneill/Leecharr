@@ -942,4 +942,77 @@ public class NotificationEventHandlerTest
             "http://test/webhook-manual",
             Arg.Any<object>());
     }
+
+    [Test]
+    public async Task Handle_TorrentDownloadCompletedEvent_DispatchesNestedWebhookPayloadSchema()
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 101,
+            Name = "Nested Webhook",
+            Implementation = "Webhook",
+            Settings = "http://test/webhook-nested",
+            OnDownloadComplete = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "House.of.the.Dragon.S02E08.2160p.HMAX.WEB-DL.DDP5.1.Atmos.DV.HDR10.H.265-FLUX",
+            InfoHash = "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+            Category = "tv",
+            SavePath = "/downloads/tv/House.of.the.Dragon.S02E08.2160p.HMAX.WEB-DL.DDP5.1.Atmos.DV.HDR10.H.265-FLUX",
+            TotalSize = 8589934592,
+            Downloaded = 8589934592,
+            Uploaded = 4294967296,
+            Ratio = 0.5,
+            Progress = 1.0,
+            Status = TorrentStatus.Seeding,
+            DownloadSpeed = 0,
+            UploadSpeed = 1048576,
+            Eta = 0,
+            Seeders = 50,
+            Leechers = 10,
+        };
+
+        var meta = new TorrentMediaMetadata
+        {
+            TorrentId = 42,
+            Title = "House of the Dragon",
+            Year = 2022,
+            Overview = "As the season reaches its climax...",
+            PosterUrl = "http://localhost:7889/api/v1/media/artwork/42/poster",
+            BackdropUrl = "http://localhost:7889/api/v1/media/artwork/42/backdrop",
+            Rating = 8.5,
+            ImdbId = "tt11198330",
+            TmdbId = "94997",
+            TvdbId = "371572",
+            MediaInfoJson = "{\"ContainerFormat\":\"Matroska\",\"Resolution\":\"3840x2160 (4K UHD)\",\"VideoCodec\":\"HEVC (H.265)\",\"HdrFormat\":\"Dolby Vision / HDR10\",\"AudioCodec\":\"E-AC-3 (Dolby Digital Plus)\",\"AudioChannels\":\"5.1 Surround\",\"SubtitleTracks\":[\"eng\",\"fre\"]}",
+        };
+
+        this.mediaEnrichmentService.GetMetadata(42).Returns(meta);
+
+        this.handler.Handle(new TorrentDownloadCompletedEvent(torrent));
+
+        await Task.Delay(150);
+
+        await this.webhookDispatcher.Received(1).DispatchAsync(
+            "http://test/webhook-nested",
+            Arg.Is<object>(payload =>
+                payload != null &&
+                (string)payload.GetType().GetProperty("eventType")!.GetValue(payload)! == "OnDownloadComplete" &&
+                (string)payload.GetType().GetProperty("instanceName")!.GetValue(payload)! == "Leecharr" &&
+                payload.GetType().GetProperty("torrent") != null &&
+                payload.GetType().GetProperty("media") != null &&
+                payload.GetType().GetProperty("streamSpecs") != null &&
+                (int)payload.GetType().GetProperty("torrent")!.GetValue(payload)!.GetType().GetProperty("id")!.GetValue(payload.GetType().GetProperty("torrent")!.GetValue(payload)!)! == 42 &&
+                (string)payload.GetType().GetProperty("torrent")!.GetValue(payload)!.GetType().GetProperty("state")!.GetValue(payload.GetType().GetProperty("torrent")!.GetValue(payload)!)! == "Seeding" &&
+                (string)payload.GetType().GetProperty("media")!.GetValue(payload)!.GetType().GetProperty("title")!.GetValue(payload.GetType().GetProperty("media")!.GetValue(payload)!)! == "House of the Dragon" &&
+                (int?)payload.GetType().GetProperty("media")!.GetValue(payload)!.GetType().GetProperty("seasonNumber")!.GetValue(payload.GetType().GetProperty("media")!.GetValue(payload)!) == 2 &&
+                (int?)payload.GetType().GetProperty("media")!.GetValue(payload)!.GetType().GetProperty("episodeNumber")!.GetValue(payload.GetType().GetProperty("media")!.GetValue(payload)!) == 8 &&
+                (string)payload.GetType().GetProperty("streamSpecs")!.GetValue(payload)!.GetType().GetProperty("videoCodec")!.GetValue(payload.GetType().GetProperty("streamSpecs")!.GetValue(payload)!)! == "HEVC (H.265)" &&
+                (string)payload.GetType().GetProperty("streamSpecs")!.GetValue(payload)!.GetType().GetProperty("containerFormat")!.GetValue(payload.GetType().GetProperty("streamSpecs")!.GetValue(payload)!)! == "Matroska"));
+    }
 }
