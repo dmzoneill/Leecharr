@@ -52,18 +52,11 @@ public class TimeOnlyTypeHandler : SqlMapper.TypeHandler<TimeOnly>
 
 public class DbFactory : IDbFactory
 {
-    private static bool typeHandlersRegistered;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public IDatabase Create(DatabaseType dbType, string connectionString)
     {
-        if (!typeHandlersRegistered)
-        {
-            SqlMapper.AddTypeHandler(new SqliteDoubleTypeHandler());
-            SqlMapper.AddTypeHandler(new TimeOnlyTypeHandler());
-            SqlMapper.AddTypeHandler(new EmbeddedDocumentConverter<List<int>>());
-            typeHandlersRegistered = true;
-        }
+        TableRegistration.RegisterTypeHandlers();
 
         this.logger.Info("Creating {0} database: {1}", dbType, RedactConnectionString(dbType, connectionString));
 

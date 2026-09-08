@@ -53,14 +53,34 @@ public class EmbeddedDocumentConverterTest
     }
 
     [Test]
-    public void SetValue_WhenValueIsNull_SerializesDefaultInstanceJson()
+    public void Parse_WhenValueIsMalformedJson_ReturnsDefaultInstanceWithoutThrowing()
+    {
+        var handler = new EmbeddedDocumentConverter<List<int>>();
+        var result = handler.Parse("{invalid json:::");
+
+        result.Should().NotBeNull();
+        result.Should().BeEmpty();
+    }
+
+    [Test]
+    public void Parse_WhenValueIsDBNull_ReturnsDefaultInstance()
+    {
+        var handler = new EmbeddedDocumentConverter<List<int>>();
+        var result = handler.Parse(System.DBNull.Value);
+
+        result.Should().NotBeNull();
+        result.Should().BeEmpty();
+    }
+
+    [Test]
+    public void SetValue_WhenValueIsNull_SetsDBNullValue()
     {
         var handler = new EmbeddedDocumentConverter<List<int>>();
         var parameter = Substitute.For<IDbDataParameter>();
 
         handler.SetValue(parameter, null!);
 
-        parameter.Received(1).Value = "[]";
+        parameter.Received(1).Value = System.DBNull.Value;
     }
 
     [Test]
