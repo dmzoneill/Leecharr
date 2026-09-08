@@ -50,6 +50,13 @@ public class DiskSpaceService : IDiskSpaceService
         }
 
         this.AddDriveInfo(result, seen, downloadDir, "Downloads");
+
+        var incompleteDir = this.configService?.IncompleteDownloadDir;
+        if (!string.IsNullOrWhiteSpace(incompleteDir))
+        {
+            this.AddDriveInfo(result, seen, incompleteDir, "Incomplete Downloads");
+        }
+
         this.AddDriveInfo(result, seen, this.appFolderInfo?.AppDataFolder, "AppData");
         this.AddDriveInfo(result, seen, this.appFolderInfo?.StartUpFolder, "Startup");
 

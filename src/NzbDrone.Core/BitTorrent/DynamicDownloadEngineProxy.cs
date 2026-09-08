@@ -428,6 +428,9 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
     public void CheckTrackerHealth()
         => Volatile.Read(ref this.activeEngine)?.CheckTrackerHealth();
 
+    public void CheckDiskSpaceHealth()
+        => Volatile.Read(ref this.activeEngine)?.CheckDiskSpaceHealth();
+
     public void Dispose()
     {
         if (!this.disposed)

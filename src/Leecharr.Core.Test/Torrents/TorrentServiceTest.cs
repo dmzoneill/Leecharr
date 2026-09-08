@@ -423,7 +423,7 @@ public class TorrentServiceTest
     }
 
     [Test]
-    public void SyncWithEngine_WhenTaskIsStalled_UpdatesTorrentStatusToStalledAndDispatchesHealthIssueEvent()
+    public void SyncWithEngine_WhenTaskIsStalled_UpdatesTorrentStatusToStalledWithoutDuplicateHealthIssueEvent()
     {
         var task = Substitute.For<IDownloadTask>();
         task.Status.Returns(TorrentStatus.Stalled);
@@ -465,14 +465,11 @@ public class TorrentServiceTest
             e.OldStatus == TorrentStatus.Downloading &&
             e.NewStatus == TorrentStatus.Stalled));
 
-        this.eventAggregator.Received(1).PublishEvent(Arg.Is<HealthIssueEvent>(e =>
-            e.TorrentId == 301 &&
-            !e.IsResolved &&
-            e.Source == "Tracker"));
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<HealthIssueEvent>());
     }
 
     [Test]
-    public void SyncWithEngine_WhenTaskRecoversFromStalled_RestoresDownloadingAndDispatchesResolvedHealthIssueEvent()
+    public void SyncWithEngine_WhenTaskRecoversFromStalled_RestoresDownloadingWithoutDuplicateHealthIssueEvent()
     {
         var task = Substitute.For<IDownloadTask>();
         task.Status.Returns(TorrentStatus.Downloading);
@@ -515,10 +512,7 @@ public class TorrentServiceTest
             e.OldStatus == TorrentStatus.Stalled &&
             e.NewStatus == TorrentStatus.Downloading));
 
-        this.eventAggregator.Received(1).PublishEvent(Arg.Is<HealthIssueEvent>(e =>
-            e.Torrent.Id == 302 &&
-            e.IsResolved &&
-            e.Source == "Tracker"));
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<HealthIssueEvent>());
     }
 
     [Test]
