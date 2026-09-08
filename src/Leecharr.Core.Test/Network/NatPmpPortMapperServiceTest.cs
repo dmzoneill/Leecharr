@@ -868,4 +868,123 @@ public class NatPmpPortMapperServiceTest
         // No redundant cascading renewal runs after the force renewal.
         totalRequestsReceived.Should().Be(4);
     }
+
+    [Test]
+    public async Task GetExternalIpAddressAsync_WithIPv6Gateway_ReturnsNullSafely()
+    {
+        using var service = new NatPmpPortMapperService();
+        var result = await service.GetExternalIpAddressAsync(IPAddress.IPv6Loopback);
+        result.Should().BeNull();
+    }
+
+    [Test]
+    public async Task MapPortAsync_WithIPv6Gateway_ReturnsFailureSafely()
+    {
+        using var service = new NatPmpPortMapperService();
+        var result = await service.MapPortAsync(51413, NatPmpProtocol.Tcp, gateway: IPAddress.IPv6Loopback);
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("IPv4");
+    }
+
+    [Test]
+    public async Task SendAndReceive_DiscardsPacketsFromNonGatewayEndpoint_AndAcceptsValidGatewayResponse()
+    {
+        using var mockGateway = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var mockPort = ((IPEndPoint)mockGateway.Client.LocalEndPoint).Port;
+
+        using var rogueSender = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        var serverTask = Task.Run(async () =>
+        {
+            var received = await mockGateway.ReceiveAsync(cts.Token);
+            var clientEndpoint = received.RemoteEndPoint;
+
+            // 1. Send forged packet from rogue sender with spoofed IP (1.2.3.4) in buffer
+            var spoofedResp = new byte[12];
+            spoofedResp[0] = 0x00;
+            spoofedResp[1] = 0x80;
+            BinaryPrimitives.WriteUInt16BigEndian(spoofedResp.AsSpan(2, 2), 0);
+            BinaryPrimitives.WriteUInt32BigEndian(spoofedResp.AsSpan(4, 4), 100);
+            spoofedResp[8] = 1;
+            spoofedResp[9] = 2;
+            spoofedResp[10] = 3;
+            spoofedResp[11] = 4;
+            await rogueSender.SendAsync(spoofedResp, spoofedResp.Length, clientEndpoint);
+
+            // Give a tiny moment before sending legitimate gateway response
+            await Task.Delay(50, cts.Token);
+
+            // 2. Send legitimate packet from expected gateway with real IP (203.0.113.10)
+            var legitResp = new byte[12];
+            legitResp[0] = 0x00;
+            legitResp[1] = 0x80;
+            BinaryPrimitives.WriteUInt16BigEndian(legitResp.AsSpan(2, 2), 0);
+            BinaryPrimitives.WriteUInt32BigEndian(legitResp.AsSpan(4, 4), 100);
+            legitResp[8] = 203;
+            legitResp[9] = 0;
+            legitResp[10] = 113;
+            legitResp[11] = 10;
+            await mockGateway.SendAsync(legitResp, legitResp.Length, clientEndpoint);
+        });
+
+        using var service = new NatPmpPortMapperService(mockPort);
+        var ip = await service.GetExternalIpAddressAsync(IPAddress.Loopback, cts.Token);
+
+        await serverTask;
+
+        ip.Should().NotBeNull();
+        ip.ToString().Should().Be("203.0.113.10");
+    }
+
+    [Test]
+    public async Task SendAndReceive_DiscardsPacketsWithNonMatchingOpcode_AndAcceptsValidMatchingResponse()
+    {
+        using var mockGateway = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var mockPort = ((IPEndPoint)mockGateway.Client.LocalEndPoint).Port;
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        var serverTask = Task.Run(async () =>
+        {
+            var received = await mockGateway.ReceiveAsync(cts.Token);
+            var clientEndpoint = received.RemoteEndPoint;
+
+            // 1. Send packet with non-matching opcode (0x82 instead of 0x80)
+            var strayResp = new byte[16];
+            strayResp[0] = 0x00;
+            strayResp[1] = 0x82;
+            BinaryPrimitives.WriteUInt16BigEndian(strayResp.AsSpan(2, 2), 0);
+            BinaryPrimitives.WriteUInt32BigEndian(strayResp.AsSpan(4, 4), 100);
+            BinaryPrimitives.WriteUInt16BigEndian(strayResp.AsSpan(8, 2), 51413);
+            BinaryPrimitives.WriteUInt16BigEndian(strayResp.AsSpan(10, 2), 51413);
+            BinaryPrimitives.WriteUInt32BigEndian(strayResp.AsSpan(12, 4), 3600);
+            await mockGateway.SendAsync(strayResp, strayResp.Length, clientEndpoint);
+
+            // Give a tiny moment before sending legitimate opcode response
+            await Task.Delay(50, cts.Token);
+
+            // 2. Send expected opcode 0x80 response
+            var legitResp = new byte[12];
+            legitResp[0] = 0x00;
+            legitResp[1] = 0x80;
+            BinaryPrimitives.WriteUInt16BigEndian(legitResp.AsSpan(2, 2), 0);
+            BinaryPrimitives.WriteUInt32BigEndian(legitResp.AsSpan(4, 4), 100);
+            legitResp[8] = 198;
+            legitResp[9] = 51;
+            legitResp[10] = 100;
+            legitResp[11] = 20;
+            await mockGateway.SendAsync(legitResp, legitResp.Length, clientEndpoint);
+        });
+
+        using var service = new NatPmpPortMapperService(mockPort);
+        var ip = await service.GetExternalIpAddressAsync(IPAddress.Loopback, cts.Token);
+
+        await serverTask;
+
+        ip.Should().NotBeNull();
+        ip.ToString().Should().Be("198.51.100.20");
+    }
 }
