@@ -24,6 +24,7 @@ import { getMediaDeepLink } from "../utils/arrLinks";
 import { getTorrentBadges } from "../utils/milestones";
 import TorrentContextMenu from "./TorrentContextMenu";
 import TrackerFavicon from "./TrackerFavicon";
+import { MediaArtworkImage } from "./common/MediaArtworkImage";
 import useEscapeKey from "../hooks/useEscapeKey";
 import type { Torrent, DownloadHistoryEntry } from "../api/types";
 import { useTranslation } from "../i18n";
@@ -576,40 +577,18 @@ export const TorrentNameCell: React.FC<{
           maxWidth: 460,
         }}
       >
-        {posterSrc ? (
-          <img
-            src={posterSrc}
-            alt=""
-            style={{
-              width: "22px",
-              height: "32px",
-              objectFit: "cover",
-              borderRadius: "3px",
-              flexShrink: 0,
-              boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
-            }}
-            onError={(e) => {
-              (e.currentTarget as HTMLElement).style.display = "none";
-            }}
-          />
-        ) : (
-          <div
-            style={{
-              width: "22px",
-              height: "32px",
-              borderRadius: "3px",
-              backgroundColor: "rgba(255, 255, 255, 0.06)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "0.75rem",
-              flexShrink: 0,
-              color: "var(--text-muted)",
-            }}
-          >
-            🎬
-          </div>
-        )}
+        <MediaArtworkImage
+          src={posterSrc}
+          alt={tTorrent.name}
+          width={22}
+          height={32}
+          borderRadius="3px"
+          fallbackIcon="🎬"
+          style={{
+            flexShrink: 0,
+            boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+          }}
+        />
 
         <div
           style={{
