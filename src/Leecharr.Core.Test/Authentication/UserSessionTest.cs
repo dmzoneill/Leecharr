@@ -244,6 +244,19 @@ public class UserSessionTest
         session.AbsoluteExpiry.Should().Be(customAbsolute);
     }
 
+    [Test]
+    public void UserSessionRepository_HashToken_ComputesDeterministicSha256Hex()
+    {
+        const string token = "super-secret-session-token-123";
+        var hash1 = UserSessionRepository.HashToken(token);
+        var hash2 = UserSessionRepository.HashToken(token);
+
+        hash1.Should().NotBeNullOrEmpty();
+        hash1.Should().Be(hash2);
+        hash1.Should().NotBe(token);
+        hash1.Length.Should().Be(64); // 256-bit SHA256 hex length
+    }
+
     #endregion
 
     private static ClaimsPrincipal CreatePrincipal(params Claim[] additionalClaims)

@@ -97,7 +97,7 @@ public class TrustedNetworkService : ITrustedNetworkService
 
         if (string.IsNullOrWhiteSpace(configuredCidrs))
         {
-            return this.IsLocalOrPrivateNetwork(remoteIp);
+            return false;
         }
 
         var cidrList = configuredCidrs.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);

@@ -136,7 +136,7 @@ public class DynamicAuthSchemeManager : IDynamicAuthSchemeManager
                     var finalDisplayName = user?.DisplayName ?? displayName;
                     var finalEmail = user?.Email ?? email;
 
-                    var sessionToken = Guid.NewGuid().ToString("N");
+                    var sessionToken = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
                     var userClaims = new List<Claim>
                     {
                         new(ClaimTypes.NameIdentifier, userId),

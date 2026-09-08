@@ -2,6 +2,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
@@ -19,12 +21,34 @@ public class UserSessionRepository : BasicRepository<UserSession>, IUserSessionR
         this.database = database;
     }
 
+    public static string HashToken(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return token;
+        }
+
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
+    }
+
+    public override UserSession Insert(UserSession model)
+    {
+        if (model != null && !string.IsNullOrEmpty(model.SessionToken))
+        {
+            model.SessionToken = HashToken(model.SessionToken);
+        }
+
+        return base.Insert(model);
+    }
+
     public UserSession FindBySessionToken(string token)
     {
+        var hashedToken = HashToken(token);
         using var connection = this.database.OpenConnection();
         return connection.QueryFirstOrDefault<UserSession>(
             $"SELECT * FROM \"{this.table}\" WHERE \"SessionToken\" = @Token",
-            new { Token = token });
+            new { Token = hashedToken });
     }
 
     public UserSession FindByRefreshToken(string refreshToken)
@@ -69,25 +93,28 @@ public class UserSessionRepository : BasicRepository<UserSession>, IUserSessionR
 
     public void RevokeSession(string token)
     {
+        var hashedToken = HashToken(token);
         using var connection = this.database.OpenConnection();
         connection.Execute(
             $"DELETE FROM \"{this.table}\" WHERE \"SessionToken\" = @Token",
-            new { Token = token });
+            new { Token = hashedToken });
     }
 
     public async Task UpdateExpiryAndActivityAsync(string sessionToken, DateTime expiry, DateTime lastActivity)
     {
+        var hashedToken = HashToken(sessionToken);
         using var connection = this.database.OpenConnection();
         await connection.ExecuteAsync(
             $"UPDATE \"{this.table}\" SET \"Expiry\" = @Expiry, \"LastActivity\" = @LastActivity WHERE \"SessionToken\" = @Token",
-            new { Expiry = expiry, LastActivity = lastActivity, Token = sessionToken });
+            new { Expiry = expiry, LastActivity = lastActivity, Token = hashedToken });
     }
 
     public async Task UpdateLastActivityAsync(string sessionToken, DateTime lastActivity)
     {
+        var hashedToken = HashToken(sessionToken);
         using var connection = this.database.OpenConnection();
         await connection.ExecuteAsync(
             $"UPDATE \"{this.table}\" SET \"LastActivity\" = @LastActivity WHERE \"SessionToken\" = @Token",
-            new { LastActivity = lastActivity, Token = sessionToken });
+            new { LastActivity = lastActivity, Token = hashedToken });
     }
 }

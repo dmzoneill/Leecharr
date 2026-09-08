@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography.Xml;
 using System.Text;
@@ -29,7 +30,11 @@ public class AuthController : ControllerBase
     private const int MaxFailedAttempts = 5;
     private static readonly TimeSpan AttemptWindow = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan SamlRequestTtl = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan SamlReplayTtl = TimeSpan.FromMinutes(15);
     private static readonly ConcurrentDictionary<string, (int Failures, DateTime WindowStart, DateTime? LockoutUntil)> LoginAttempts = new();
+    private static readonly ConcurrentDictionary<string, DateTime> PendingSamlRequests = new();
+    private static readonly ConcurrentDictionary<string, DateTime> ProcessedSamlAssertions = new();
 
     private readonly IUserService userService;
     private readonly IIdentityProviderService identityProviderService;
@@ -138,7 +143,7 @@ public class AuthController : ControllerBase
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
 
-        var sessionToken = Guid.NewGuid().ToString("N");
+        var sessionToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
         claims.Add(new Claim("SessionId", sessionToken));
         claims.Add(new Claim("TicketId", sessionToken));
         claims.Add(new Claim("SessionToken", sessionToken));
@@ -291,8 +296,10 @@ public class AuthController : ControllerBase
 
         var baseUrl = $"{this.Request.Scheme}://{this.Request.Host}{this.Request.PathBase}";
         var acsUrl = $"{baseUrl}/api/v1/auth/callback/saml/{providerId}";
-        var id = "_" + Guid.NewGuid().ToString("N");
+        var id = "_" + Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
         var issueInstant = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+
+        RegisterPendingSamlRequest(id);
 
         var samlRequest = $@"<samlp:AuthnRequest xmlns:samlp=""urn:oasis:names:tc:SAML:2.0:protocol"" xmlns:saml=""urn:oasis:names:tc:SAML:2.0:assertion"" ID=""{id}"" Version=""2.0"" IssueInstant=""{issueInstant}"" Destination=""{provider.IssuerUrl}"" AssertionConsumerServiceURL=""{acsUrl}""><saml:Issuer>{baseUrl}/saml/metadata</saml:Issuer><samlp:NameIDPolicy Format=""urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"" AllowCreate=""true""/></samlp:AuthnRequest>";
 
@@ -320,6 +327,25 @@ public class AuthController : ControllerBase
             var rawXml = Encoding.UTF8.GetString(Convert.FromBase64String(samlResponse));
             var xmlDoc = new XmlDocument { PreserveWhitespace = true, XmlResolver = null };
             xmlDoc.LoadXml(rawXml);
+
+            // 0. Validate InResponseTo if present to prevent Login CSRF
+            var inResponseTo = xmlDoc.DocumentElement?.GetAttribute("InResponseTo");
+            if (string.IsNullOrWhiteSpace(inResponseTo))
+            {
+                var subjectConfirmationNodes = xmlDoc.GetElementsByTagName("SubjectConfirmationData");
+                if (subjectConfirmationNodes.Count > 0 && subjectConfirmationNodes[0] is XmlElement scElem)
+                {
+                    inResponseTo = scElem.GetAttribute("InResponseTo");
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(inResponseTo))
+            {
+                if (!ValidateAndConsumePendingSamlRequest(inResponseTo))
+                {
+                    return this.Unauthorized("Invalid or expired SAML InResponseTo value (Login CSRF detected)");
+                }
+            }
 
             // 1. Resolve Identity Provider
             IdentityProviderDefinition provider = null;
@@ -486,6 +512,17 @@ public class AuthController : ControllerBase
                 }
             }
 
+            var assertionId = targetAssertion.GetAttribute("ID");
+            if (string.IsNullOrWhiteSpace(assertionId))
+            {
+                assertionId = targetAssertion.GetAttribute("id");
+            }
+
+            if (!string.IsNullOrWhiteSpace(assertionId) && !TryRecordSamlAssertion(assertionId))
+            {
+                return this.Unauthorized("SAML assertion has already been processed (replay detected)");
+            }
+
             // Parse ONLY the verified assertion subtree
             var assertionDoc = XElement.Parse(targetAssertion.OuterXml);
 
@@ -591,7 +628,7 @@ public class AuthController : ControllerBase
                 claims.Add(new Claim(ClaimTypes.Role, role));
             }
 
-            var sessionToken = Guid.NewGuid().ToString("N");
+            var sessionToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
             claims.Add(new Claim("SessionId", sessionToken));
             claims.Add(new Claim("TicketId", sessionToken));
             claims.Add(new Claim("SessionToken", sessionToken));
@@ -761,6 +798,53 @@ public class AuthController : ControllerBase
     public static void ResetThrottling()
     {
         LoginAttempts.Clear();
+        PendingSamlRequests.Clear();
+        ProcessedSamlAssertions.Clear();
+    }
+
+    public static void RegisterPendingSamlRequest(string requestId)
+    {
+        if (!string.IsNullOrWhiteSpace(requestId))
+        {
+            PendingSamlRequests[requestId] = DateTime.UtcNow.Add(SamlRequestTtl);
+        }
+    }
+
+    public static bool ValidateAndConsumePendingSamlRequest(string inResponseTo)
+    {
+        if (string.IsNullOrWhiteSpace(inResponseTo))
+        {
+            return false;
+        }
+
+        if (PendingSamlRequests.TryRemove(inResponseTo, out var expiry))
+        {
+            return DateTime.UtcNow <= expiry;
+        }
+
+        return false;
+    }
+
+    public static bool TryRecordSamlAssertion(string assertionId)
+    {
+        if (string.IsNullOrWhiteSpace(assertionId))
+        {
+            return true;
+        }
+
+        var now = DateTime.UtcNow;
+        if (ProcessedSamlAssertions.TryGetValue(assertionId, out var expiry))
+        {
+            if (now <= expiry)
+            {
+                return false;
+            }
+
+            ProcessedSamlAssertions.TryRemove(assertionId, out _);
+        }
+
+        ProcessedSamlAssertions[assertionId] = now.Add(SamlReplayTtl);
+        return true;
     }
 
     private bool IsLoginThrottled(string ipAddress)
