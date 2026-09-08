@@ -40,6 +40,8 @@ export function PieceMap({
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const barContainerRef = useRef<HTMLDivElement | null>(null);
+  const barCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const layoutRef = useRef({ cols: 0, blockSize: 0, gap: 0 });
 
   // Subscribe to live SignalR piece map bitmap updates with version counter
@@ -100,7 +102,81 @@ export function PieceMap({
   const hoveredIndexRef = useRef<number | null>(null);
   hoveredIndexRef.current = hoveredIndex;
 
-  const render = useCallback(() => {
+  // Render Bar View directly to HTML5 Canvas
+  const renderBar = useCallback(() => {
+    if (viewMode !== "bar") return;
+    const canvas = barCanvasRef.current;
+    const container = barContainerRef.current;
+    if (!canvas || !container) return;
+
+    const currentBlocks = displayBlocksRef.current;
+    const currentHovered = hoveredIndexRef.current;
+    const availWidth = Math.max(100, container.clientWidth);
+    const height = 22;
+
+    const dpr = window.devicePixelRatio || 1;
+    const targetW = Math.floor(availWidth * dpr);
+    const targetH = Math.floor(height * dpr);
+
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      canvas.width = targetW;
+      canvas.height = targetH;
+      canvas.style.width = `${availWidth}px`;
+      canvas.style.height = `${height}px`;
+    }
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, availWidth, height);
+
+    if (isComplete) {
+      ctx.fillStyle = "#27ae60";
+      ctx.fillRect(0, 0, availWidth, height);
+    } else if (currentBlocks.length > 0) {
+      const numBlocks = currentBlocks.length;
+      for (let i = 0; i < numBlocks; i++) {
+        const b = currentBlocks[i];
+        const x0 = (i / numBlocks) * availWidth;
+        const x1 = ((i + 1) / numBlocks) * availWidth;
+        const blockW = Math.max(0.5, x1 - x0);
+
+        if (b.status === "complete") {
+          ctx.fillStyle = currentHovered === i ? "#2ecc71" : "#27ae60";
+          ctx.fillRect(x0, 0, blockW, height);
+        } else if (b.status === "active") {
+          ctx.fillStyle = currentHovered === i ? "#60a5fa" : "#3b82f6";
+          ctx.fillRect(x0, 0, blockW, height);
+        } else {
+          ctx.fillStyle =
+            currentHovered === i
+              ? "rgba(255, 255, 255, 0.12)"
+              : "rgba(255, 255, 255, 0.04)";
+          ctx.fillRect(x0, 0, blockW, height);
+        }
+      }
+
+      if (
+        currentHovered !== null &&
+        currentHovered >= 0 &&
+        currentHovered < numBlocks
+      ) {
+        const hx0 = (currentHovered / numBlocks) * availWidth;
+        const hx1 = ((currentHovered + 1) / numBlocks) * availWidth;
+        const hW = Math.max(2, hx1 - hx0);
+        ctx.strokeStyle = "#ffd166";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(hx0, 1, hW, height - 2);
+      }
+    }
+
+    ctx.restore();
+  }, [viewMode, isComplete]);
+
+  // Render Matrix Grid View with virtualized Canvas drawing
+  const renderGrid = useCallback(() => {
     if (viewMode !== "grid") return;
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -114,9 +190,9 @@ export function PieceMap({
       1,
       Math.floor((availWidth + gap) / (blockSize + gap)),
     );
-    const rows = Math.ceil(currentBlocks.length / cols);
+    const totalRows = Math.ceil(currentBlocks.length / cols);
     const width = cols * (blockSize + gap) - gap;
-    const height = rows * (blockSize + gap) - gap;
+    const height = totalRows * (blockSize + gap) - gap;
 
     layoutRef.current = { cols, blockSize, gap };
 
@@ -138,8 +214,27 @@ export function PieceMap({
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, width, height);
 
-    for (let i = 0; i < currentBlocks.length; i++) {
+    // Viewport row virtualization
+    const scrollTop = container.scrollTop;
+    const clientHeight = container.clientHeight || 240;
+    const startRow = Math.max(
+      0,
+      Math.floor(scrollTop / (blockSize + gap)) - 2,
+    );
+    const endRow = Math.min(
+      totalRows - 1,
+      Math.ceil((scrollTop + clientHeight) / (blockSize + gap)) + 2,
+    );
+
+    const startIdx = startRow * cols;
+    const endIdx = Math.min(
+      currentBlocks.length - 1,
+      (endRow + 1) * cols - 1,
+    );
+
+    for (let i = startIdx; i <= endIdx; i++) {
       const b = currentBlocks[i];
+      if (!b) continue;
       const col = i % cols;
       const row = Math.floor(i / cols);
       const x = col * (blockSize + gap);
@@ -189,12 +284,16 @@ export function PieceMap({
 
   // Redraw canvas on data or hover change
   useEffect(() => {
-    if (viewMode !== "grid") return;
-    const animId = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(animId);
-  }, [viewMode, displayBlocks, hoveredIndex, render]);
+    if (viewMode === "bar") {
+      const animId = requestAnimationFrame(renderBar);
+      return () => cancelAnimationFrame(animId);
+    } else {
+      const animId = requestAnimationFrame(renderGrid);
+      return () => cancelAnimationFrame(animId);
+    }
+  }, [viewMode, displayBlocks, hoveredIndex, renderBar, renderGrid]);
 
-  // Dedicated container ResizeObserver lifecycle
+  // ResizeObserver for Grid container
   useEffect(() => {
     if (viewMode !== "grid") return;
     const container = containerRef.current;
@@ -203,7 +302,7 @@ export function PieceMap({
     let animId: number | null = null;
     const resizeObserver = new ResizeObserver(() => {
       if (animId !== null) cancelAnimationFrame(animId);
-      animId = requestAnimationFrame(render);
+      animId = requestAnimationFrame(renderGrid);
     });
     resizeObserver.observe(container);
 
@@ -211,9 +310,28 @@ export function PieceMap({
       if (animId !== null) cancelAnimationFrame(animId);
       resizeObserver.disconnect();
     };
-  }, [viewMode, render]);
+  }, [viewMode, renderGrid]);
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  // ResizeObserver for Bar container
+  useEffect(() => {
+    if (viewMode !== "bar") return;
+    const container = barContainerRef.current;
+    if (!container || typeof ResizeObserver === "undefined") return;
+
+    let animId: number | null = null;
+    const resizeObserver = new ResizeObserver(() => {
+      if (animId !== null) cancelAnimationFrame(animId);
+      animId = requestAnimationFrame(renderBar);
+    });
+    resizeObserver.observe(container);
+
+    return () => {
+      if (animId !== null) cancelAnimationFrame(animId);
+      resizeObserver.disconnect();
+    };
+  }, [viewMode, renderBar]);
+
+  const handleGridMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
@@ -240,8 +358,27 @@ export function PieceMap({
     setHoveredIndex(null);
   };
 
+  const handleBarMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = barCanvasRef.current;
+    if (!canvas || displayBlocks.length === 0) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const pct = Math.max(0, Math.min(1, x / rect.width));
+    const idx = Math.min(
+      displayBlocks.length - 1,
+      Math.floor(pct * displayBlocks.length),
+    );
+    setHoveredIndex(idx);
+  };
+
   const handleMouseLeave = () => {
     setHoveredIndex(null);
+  };
+
+  const handleGridScroll = () => {
+    if (viewMode === "grid") {
+      renderGrid();
+    }
   };
 
   const hoveredBlock =
@@ -322,48 +459,38 @@ export function PieceMap({
         </div>
       </div>
 
-      {/* Bar Mode */}
+      {/* Bar Mode - rendered via HTML5 Canvas */}
       {viewMode === "bar" ? (
         <div
-          style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}
+          ref={barContainerRef}
+          style={{
+            position: "relative",
+            width: "100%",
+            height: "22px",
+            backgroundColor: "rgba(255, 255, 255, 0.06)",
+            borderRadius: "4px",
+            overflow: "hidden",
+            border: "1px solid var(--border-light)",
+            display: "flex",
+          }}
         >
-          <div
+          <canvas
+            ref={barCanvasRef}
+            onMouseMove={handleBarMouseMove}
+            onMouseLeave={handleMouseLeave}
             style={{
-              position: "relative",
+              display: "block",
               width: "100%",
               height: "22px",
-              backgroundColor: "rgba(255, 255, 255, 0.06)",
-              borderRadius: "4px",
-              overflow: "hidden",
-              border: "1px solid var(--border-light)",
-              display: "flex",
+              cursor: "pointer",
             }}
-          >
-            {displayBlocks.map((b, idx) => (
-              <div
-                key={idx}
-                onMouseEnter={() => setHoveredIndex(idx)}
-                onMouseLeave={() => setHoveredIndex(null)}
-                style={{
-                  flex: 1,
-                  height: "100%",
-                  backgroundColor:
-                    b.status === "complete"
-                      ? "#27ae60"
-                      : b.status === "active"
-                        ? "#3b82f6"
-                        : "transparent",
-                  outline: hoveredIndex === idx ? "1px solid #ffd166" : "none",
-                  zIndex: hoveredIndex === idx ? 2 : 1,
-                }}
-              />
-            ))}
-          </div>
+          />
         </div>
       ) : (
         /* Matrix Grid Canvas Mode */
         <div
           ref={containerRef}
+          onScroll={handleGridScroll}
           style={{
             position: "relative",
             padding: "0.6rem",
@@ -379,7 +506,7 @@ export function PieceMap({
         >
           <canvas
             ref={canvasRef}
-            onMouseMove={handleMouseMove}
+            onMouseMove={handleGridMouseMove}
             onMouseLeave={handleMouseLeave}
             style={{
               display: "block",
