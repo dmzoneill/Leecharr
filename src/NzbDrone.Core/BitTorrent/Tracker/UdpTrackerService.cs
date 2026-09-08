@@ -235,7 +235,7 @@ public class UdpTrackerService : IUdpTrackerService
                 Left = left,
                 Event = eventStr,
                 Compact = true,
-                NumWant = numWant < 0 ? (this.configService?.TrackerMaxPeersPerAnnounce ?? 50) : numWant,
+                NumWant = numWant,
             };
 
             var result = this.trackerService.Announce(req);

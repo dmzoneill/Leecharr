@@ -146,4 +146,55 @@ public class EmbeddedTrackerControllerTest
             r.Ipv6Port == 6882 &&
             r.RemoteIp.ToString() == "2001:db8::1"));
     }
+
+    [Test]
+    public void Announce_ParsesNumWantZero_WhenSpecified()
+    {
+        var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        httpContext.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881&uploaded=0&downloaded=0&left=100&numwant=0");
+        httpContext.Connection.RemoteIpAddress = System.Net.IPAddress.Loopback;
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        this.trackerService.ProcessAnnounce(Arg.Any<TrackerAnnounceRequest>()).Returns(Array.Empty<byte>());
+
+        var result = this.controller.Announce();
+        result.Should().BeOfType<FileContentResult>();
+
+        this.trackerService.Received(1).ProcessAnnounce(Arg.Is<TrackerAnnounceRequest>(r =>
+            r.NumWant == 0));
+    }
+
+    [Test]
+    public void Announce_LeavesNumWantNull_WhenOmitted()
+    {
+        var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        httpContext.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881&uploaded=0&downloaded=0&left=100");
+        httpContext.Connection.RemoteIpAddress = System.Net.IPAddress.Loopback;
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        this.trackerService.ProcessAnnounce(Arg.Any<TrackerAnnounceRequest>()).Returns(Array.Empty<byte>());
+
+        var result = this.controller.Announce();
+        result.Should().BeOfType<FileContentResult>();
+
+        this.trackerService.Received(1).ProcessAnnounce(Arg.Is<TrackerAnnounceRequest>(r =>
+            r.NumWant == null));
+    }
+
+    [Test]
+    public void Announce_ParsesNumWantWithUnderscore_WhenSpecified()
+    {
+        var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        httpContext.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881&uploaded=0&downloaded=0&left=100&num_want=0");
+        httpContext.Connection.RemoteIpAddress = System.Net.IPAddress.Loopback;
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        this.trackerService.ProcessAnnounce(Arg.Any<TrackerAnnounceRequest>()).Returns(Array.Empty<byte>());
+
+        var result = this.controller.Announce();
+        result.Should().BeOfType<FileContentResult>();
+
+        this.trackerService.Received(1).ProcessAnnounce(Arg.Is<TrackerAnnounceRequest>(r =>
+            r.NumWant == 0));
+    }
 }
