@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
@@ -206,6 +207,12 @@ public class WebhookDispatcher : IWebhookDispatcher
         }
     }
 
+    private static readonly JsonSerializerOptions DefaultJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
+    };
+
     private HttpRequestMessage BuildHttpRequest(string targetUrl, object payload, string customHeadersJson)
     {
         HttpContent content;
@@ -224,7 +231,7 @@ public class WebhookDispatcher : IWebhookDispatcher
         }
         else
         {
-            var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+            var json = JsonSerializer.Serialize(payload, DefaultJsonOptions);
             content = new StringContent(json, Encoding.UTF8, "application/json");
         }
 
