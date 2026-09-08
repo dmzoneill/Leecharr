@@ -402,27 +402,91 @@ public class TorznabClientTest
       <title>Only.Seeders.Release</title>
       <torznab:attr name=""seeders"" value=""40""/>
     </item>
+    <item>
+      <title>Peers.And.Leechers.Only.Release</title>
+      <torznab:attr name=""peers"" value=""80""/>
+      <torznab:attr name=""leechers"" value=""15""/>
+    </item>
+    <item>
+      <title>Direct.Elements.Release</title>
+      <seeders>75</seeders>
+      <peers>100</peers>
+    </item>
   </channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition());
 
-        results.Should().HaveCount(4);
+        results.Should().HaveCount(6);
         // Item 1: Explicit leechers takes precedence over rawPeers
         results[0].Seeders.Should().Be(40);
         results[0].Leechers.Should().Be(12);
+        results[0].Peers.Should().Be(100);
 
         // Item 2: rawPeers - seeders = 60 - 40 = 20
         results[1].Seeders.Should().Be(40);
         results[1].Leechers.Should().Be(20);
+        results[1].Peers.Should().Be(60);
 
         // Item 3: rawPeers (10) < seeders (40) => Math.Max(0, 10 - 40) = 0
         results[2].Seeders.Should().Be(40);
         results[2].Leechers.Should().Be(0);
+        results[2].Peers.Should().Be(40);
 
-        // Item 4: No peers or leechers => 0
+        // Item 4: Only seeders => leechers = 0, peers = 40
         results[3].Seeders.Should().Be(40);
         results[3].Leechers.Should().Be(0);
+        results[3].Peers.Should().Be(40);
+
+        // Item 5: Peers and leechers without explicit seeders => seeders = 80 - 15 = 65
+        results[4].Seeders.Should().Be(65);
+        results[4].Leechers.Should().Be(15);
+        results[4].Peers.Should().Be(80);
+
+        // Item 6: Direct XML elements => seeders = 75, leechers = 25, peers = 100
+        results[5].Seeders.Should().Be(75);
+        results[5].Leechers.Should().Be(25);
+        results[5].Peers.Should().Be(100);
+    }
+
+    [Test]
+    public void ParseTorznabFeedXml_AttributeOrderDoesNotAffectPeerAndLeecherCalculations()
+    {
+        var peersFirstXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>Peers.First</title>
+      <torznab:attr name=""peers"" value=""100""/>
+      <torznab:attr name=""seeders"" value=""70""/>
+    </item>
+  </channel>
+</rss>";
+
+        var seedersFirstXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>Seeders.First</title>
+      <torznab:attr name=""seeders"" value=""70""/>
+      <torznab:attr name=""peers"" value=""100""/>
+    </item>
+  </channel>
+</rss>";
+
+        var resultsPeersFirst = this.client.ParseTorznabFeedXml(peersFirstXml);
+        var resultsSeedersFirst = this.client.ParseTorznabFeedXml(seedersFirstXml);
+
+        resultsPeersFirst.Should().HaveCount(1);
+        resultsSeedersFirst.Should().HaveCount(1);
+
+        resultsPeersFirst[0].Seeders.Should().Be(70);
+        resultsPeersFirst[0].Leechers.Should().Be(30);
+        resultsPeersFirst[0].Peers.Should().Be(100);
+
+        resultsSeedersFirst[0].Seeders.Should().Be(70);
+        resultsSeedersFirst[0].Leechers.Should().Be(30);
+        resultsSeedersFirst[0].Peers.Should().Be(100);
     }
 
     [Test]

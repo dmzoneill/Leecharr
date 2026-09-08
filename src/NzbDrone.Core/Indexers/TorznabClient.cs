@@ -457,7 +457,7 @@ public class TorznabClient : ITorznabClient
                     }
                 }
 
-                var seeders = 0;
+                int? rawSeeders = null;
                 int? rawLeechers = null;
                 int? rawPeers = null;
                 var downloadVolumeFactor = 1.0;
@@ -469,6 +469,24 @@ public class TorznabClient : ITorznabClient
                 double? minimumRatio = null;
                 long? minimumSeedTime = null;
                 var categories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                var seedersElem = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("seeders", StringComparison.OrdinalIgnoreCase) || e.Name.LocalName.Equals("numseeders", StringComparison.OrdinalIgnoreCase));
+                if (seedersElem != null)
+                {
+                    rawSeeders = ParseInt(seedersElem.Value, 0);
+                }
+
+                var leechersElem = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("leechers", StringComparison.OrdinalIgnoreCase) || e.Name.LocalName.Equals("numleechers", StringComparison.OrdinalIgnoreCase));
+                if (leechersElem != null)
+                {
+                    rawLeechers = ParseInt(leechersElem.Value, 0);
+                }
+
+                var peersElem = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("peers", StringComparison.OrdinalIgnoreCase) || e.Name.LocalName.Equals("numpeers", StringComparison.OrdinalIgnoreCase));
+                if (peersElem != null)
+                {
+                    rawPeers = ParseInt(peersElem.Value, 0);
+                }
 
                 foreach (var catElem in item.Elements().Where(e => e.Name.LocalName.Equals("category", StringComparison.OrdinalIgnoreCase)))
                 {
@@ -514,13 +532,16 @@ public class TorznabClient : ITorznabClient
                     switch (name)
                     {
                         case "seeders":
-                            seeders = ParseInt(value, seeders);
+                        case "numseeders":
+                            rawSeeders = ParseInt(value, rawSeeders ?? 0);
                             break;
                         case "leechers":
-                            rawLeechers = ParseInt(value, 0);
+                        case "numleechers":
+                            rawLeechers = ParseInt(value, rawLeechers ?? 0);
                             break;
                         case "peers":
-                            rawPeers = ParseInt(value, 0);
+                        case "numpeers":
+                            rawPeers = ParseInt(value, rawPeers ?? 0);
                             break;
                         case "minimumratio":
                             minimumRatio = ParseNullableDouble(value);
@@ -576,9 +597,52 @@ public class TorznabClient : ITorznabClient
                     downloadVolumeFactor = 0.0;
                 }
 
-                var leechers = rawLeechers.HasValue
-                    ? rawLeechers.Value
-                    : (rawPeers.HasValue ? Math.Max(0, rawPeers.Value - seeders) : 0);
+                int seeders;
+                int leechers;
+                int peers;
+
+                if (rawSeeders.HasValue && rawLeechers.HasValue)
+                {
+                    seeders = Math.Max(0, rawSeeders.Value);
+                    leechers = Math.Max(0, rawLeechers.Value);
+                    peers = rawPeers.HasValue ? Math.Max(rawPeers.Value, seeders + leechers) : (seeders + leechers);
+                }
+                else if (rawSeeders.HasValue && rawPeers.HasValue)
+                {
+                    seeders = Math.Max(0, rawSeeders.Value);
+                    leechers = Math.Max(0, rawPeers.Value - seeders);
+                    peers = Math.Max(rawPeers.Value, seeders + leechers);
+                }
+                else if (rawLeechers.HasValue && rawPeers.HasValue)
+                {
+                    leechers = Math.Max(0, rawLeechers.Value);
+                    seeders = Math.Max(0, rawPeers.Value - leechers);
+                    peers = Math.Max(rawPeers.Value, seeders + leechers);
+                }
+                else if (rawSeeders.HasValue)
+                {
+                    seeders = Math.Max(0, rawSeeders.Value);
+                    leechers = 0;
+                    peers = seeders;
+                }
+                else if (rawLeechers.HasValue)
+                {
+                    seeders = 0;
+                    leechers = Math.Max(0, rawLeechers.Value);
+                    peers = leechers;
+                }
+                else if (rawPeers.HasValue)
+                {
+                    seeders = 0;
+                    leechers = Math.Max(0, rawPeers.Value);
+                    peers = rawPeers.Value;
+                }
+                else
+                {
+                    seeders = 0;
+                    leechers = 0;
+                    peers = 0;
+                }
 
                 if (string.IsNullOrWhiteSpace(magnetUrl))
                 {
@@ -630,6 +694,7 @@ public class TorznabClient : ITorznabClient
                     Size = size,
                     Seeders = seeders,
                     Leechers = leechers,
+                    Peers = peers,
                     DownloadVolumeFactor = downloadVolumeFactor,
                     UploadVolumeFactor = uploadVolumeFactor,
                     Category = string.Join(", ", categories),
