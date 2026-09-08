@@ -1249,6 +1249,24 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     });
   };
 
+  // Build ordered, visible column list using the user's saved column order.
+  const colDefMap = useMemo(
+    () => new Map(ALL_COLUMNS.map((c) => [c.key, c])),
+    [],
+  );
+  const columns = useMemo(() => {
+    const ordered = columnOrder
+      .map((k) => colDefMap.get(k))
+      .filter(
+        (c): c is ColumnDef => c !== undefined && visibleColumns.has(c.key),
+      );
+    const inOrder = new Set(ordered.map((c) => c.key));
+    for (const c of ALL_COLUMNS) {
+      if (visibleColumns.has(c.key) && !inOrder.has(c.key)) ordered.push(c);
+    }
+    return ordered;
+  }, [columnOrder, visibleColumns, colDefMap]);
+
   // --- Column drag-to-reorder ---
   const handleColDragStart = useCallback((key: ColumnKey) => {
     dragColRef.current = key;
@@ -1273,23 +1291,41 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
         setDragOverKey(null);
         return;
       }
+
+      const visibleKeys = columns.map((c) => c.key);
+      const fromIdx = visibleKeys.indexOf(fromKey);
+      const toIdx = visibleKeys.indexOf(targetKey);
+      if (fromIdx === -1 || toIdx === -1) {
+        dragColRef.current = null;
+        dragOverColRef.current = null;
+        setDragOverKey(null);
+        return;
+      }
+
+      const newVisibleOrder = [...visibleKeys];
+      const [movedKey] = newVisibleOrder.splice(fromIdx, 1);
+      newVisibleOrder.splice(toIdx, 0, movedKey);
+
       setColumnOrder((prev) => {
         const allKeys = ALL_COLUMNS.map((c) => c.key);
-        const base = [...new Set([...prev, ...allKeys])];
-        const fromIdx = base.indexOf(fromKey);
-        const toIdx = base.indexOf(targetKey);
-        if (fromIdx === -1 || toIdx === -1) return prev;
-        const next = [...base];
-        next.splice(fromIdx, 1);
-        next.splice(toIdx, 0, fromKey);
+        const fullBase = [...new Set([...prev, ...allKeys])];
+        const visibleSet = new Set(newVisibleOrder);
+        let visibleIdx = 0;
+        const next = fullBase.map((key) => {
+          if (visibleSet.has(key)) {
+            return newVisibleOrder[visibleIdx++];
+          }
+          return key;
+        });
         saveColumnOrder(next);
         return next;
       });
+
       dragColRef.current = null;
       dragOverColRef.current = null;
       setDragOverKey(null);
     },
-    [],
+    [columns],
   );
 
   const handleColDragEnd = useCallback(() => {
@@ -1494,24 +1530,6 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     frozenOrderRef.current = sorted.map((t) => t.id);
     return sorted;
   }, [filteredTorrents, sortKey, sortAsc, isHovered, filterSignature]);
-
-  // Build ordered, visible column list using the user's saved column order.
-  const colDefMap = useMemo(
-    () => new Map(ALL_COLUMNS.map((c) => [c.key, c])),
-    [],
-  );
-  const columns = useMemo(() => {
-    const ordered = columnOrder
-      .map((k) => colDefMap.get(k))
-      .filter(
-        (c): c is ColumnDef => c !== undefined && visibleColumns.has(c.key),
-      );
-    const inOrder = new Set(ordered.map((c) => c.key));
-    for (const c of ALL_COLUMNS) {
-      if (visibleColumns.has(c.key) && !inOrder.has(c.key)) ordered.push(c);
-    }
-    return ordered;
-  }, [columnOrder, visibleColumns, colDefMap]);
 
   const allSelected =
     filteredTorrents.length > 0 &&
