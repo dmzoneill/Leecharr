@@ -114,6 +114,9 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
             };
         }
 
+        MediaInspectorSwitchedEvent switchedEvent = null;
+        MediaInspectorSwitchResult result;
+
         await this.switchLock.WaitAsync(cancellationToken);
         try
         {
@@ -139,11 +142,11 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
                 { "ActiveMediaInspector", targetProvider.ProviderId },
             });
 
-            this.eventAggregator.PublishEvent(new MediaInspectorSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId));
+            switchedEvent = new MediaInspectorSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId);
 
             this.logger.Info("Media inspector hot-swap completed: {0} -> {1}", previousProvider.ProviderId, targetProvider.ProviderId);
 
-            return new MediaInspectorSwitchResult
+            result = new MediaInspectorSwitchResult
             {
                 Success = true,
                 PreviousProvider = previousProvider.ProviderId,
@@ -166,6 +169,13 @@ public class DynamicMediaInspectorProxy : IMediaContainerInspector, IMediaInspec
         {
             this.switchLock.Release();
         }
+
+        if (switchedEvent != null)
+        {
+            this.eventAggregator.PublishEvent(switchedEvent);
+        }
+
+        return result;
     }
 
     public MediaContainerInfo InspectFile(string filePath)

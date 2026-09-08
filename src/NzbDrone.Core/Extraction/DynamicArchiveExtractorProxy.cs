@@ -125,6 +125,9 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
             };
         }
 
+        ArchiveExtractorSwitchedEvent switchedEvent = null;
+        ExtractorSwitchResult result;
+
         await this.switchLock.WaitAsync(cancellationToken);
         try
         {
@@ -150,11 +153,11 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
                 { "ActiveArchiveExtractor", targetProvider.ProviderId },
             });
 
-            this.eventAggregator.PublishEvent(new ArchiveExtractorSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId));
+            switchedEvent = new ArchiveExtractorSwitchedEvent(previousProvider.ProviderId, targetProvider.ProviderId);
 
             this.logger.Info("Archive extractor hot-swap completed: {0} -> {1}", previousProvider.ProviderId, targetProvider.ProviderId);
 
-            return new ExtractorSwitchResult
+            result = new ExtractorSwitchResult
             {
                 Success = true,
                 PreviousProvider = previousProvider.ProviderId,
@@ -170,13 +173,20 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
                 Success = false,
                 PreviousProvider = Volatile.Read(ref this.activeProvider)?.ProviderId,
                 ActiveProvider = Volatile.Read(ref this.activeProvider)?.ProviderId,
-                Error = $"Extractor switch failed: {ex.Message}",
+                Error = $"Archive extractor switch failed: {ex.Message}",
             };
         }
         finally
         {
             this.switchLock.Release();
         }
+
+        if (switchedEvent != null)
+        {
+            this.eventAggregator.PublishEvent(switchedEvent);
+        }
+
+        return result;
     }
 
     public bool IsArchiveFile(string filePath)
