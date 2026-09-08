@@ -196,8 +196,9 @@ public static class TerminalWebSocketHandler
                             using var doc = await JsonDocument.ParseAsync(ms, cancellationToken: cts.Token);
                             var root = doc.RootElement;
 
-                            if (root.TryGetProperty("type", out var typeProp))
+                            if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("type", out var typeProp))
                             {
+                                isHandled = true;
                                 var type = typeProp.GetString();
                                 if (type == "input" && root.TryGetProperty("data", out var dataProp))
                                 {
@@ -207,20 +208,18 @@ public static class TerminalWebSocketHandler
                                         var inputBytes = Encoding.UTF8.GetBytes(inputStr);
                                         await session.WriteAsync(inputBytes, cts.Token);
                                     }
-
-                                    isHandled = true;
                                 }
                                 else if (type == "resize" &&
                                          root.TryGetProperty("cols", out var colsProp) &&
-                                         root.TryGetProperty("rows", out var rowsProp))
+                                         root.TryGetProperty("rows", out var rowsProp) &&
+                                         colsProp.TryGetInt32(out var cols) &&
+                                         rowsProp.TryGetInt32(out var rows))
                                 {
-                                    session.Resize(colsProp.GetInt32(), rowsProp.GetInt32());
-                                    isHandled = true;
+                                    session.Resize(cols, rows);
                                 }
                                 else if (type == "ping")
                                 {
                                     await SafeSendTextAsync("{\"type\":\"pong\"}", cts.Token);
-                                    isHandled = true;
                                 }
                             }
                         }

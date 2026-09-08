@@ -197,4 +197,51 @@ public class PtyTerminalServiceTest
 
         await session.DisposeAsync();
     }
+
+    [Test]
+    public async Task CreateSession_PreventsHostEnvironmentVariableLeakage()
+    {
+        Environment.SetEnvironmentVariable("LEECHARR_TEST_SECRET_TOKEN", "super_secret_leak_12345");
+        try
+        {
+            var service = new PtyTerminalService();
+            await using var session = service.CreateSession("/tmp", 80, 24);
+
+            session.Should().NotBeNull();
+            session.IsActive.Should().BeTrue();
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+            var cmd = Encoding.UTF8.GetBytes("echo TOKEN_${LEECHARR_TEST_SECRET_TOKEN}_END\n");
+            await session.WriteAsync(cmd, cts.Token);
+
+            var buffer = new byte[1024];
+            var sb = new StringBuilder();
+
+            while (!cts.IsCancellationRequested && sb.Length < 500)
+            {
+                int bytesRead = await session.ReadAsync(buffer, cts.Token);
+                if (bytesRead <= 0)
+                {
+                    break;
+                }
+
+                sb.Append(Encoding.UTF8.GetString(buffer, 0, bytesRead));
+                if (sb.ToString().Contains("TOKEN__END"))
+                {
+                    break;
+                }
+            }
+
+            var output = sb.ToString();
+            output.Should().NotContain("super_secret_leak_12345");
+            output.Should().Contain("TOKEN__END");
+
+            session.Kill();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("LEECHARR_TEST_SECRET_TOKEN", null);
+        }
+    }
 }
