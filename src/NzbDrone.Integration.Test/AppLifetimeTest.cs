@@ -12,6 +12,7 @@ using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.BitTorrent.Tracker;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Indexers;
+using NzbDrone.Core.Lifecycle;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Network;
 using NzbDrone.Core.SystemServices;
@@ -477,6 +478,33 @@ public class AppLifetimeTest
 
         broadcaster.Received().BroadcastMessage(Arg.Is<SignalRMessage>(msg =>
             msg.Name == "speedPulse"));
+    }
+
+    [Test]
+    public async Task StopAsync_PublishesApplicationShutdownRequestedBeforeStoppingEngines()
+    {
+        var callOrder = new List<string>();
+
+        this.eventAggregator.When(e => e.PublishEvent(Arg.Any<ApplicationShutdownRequested>()))
+            .Do(_ => callOrder.Add("ShutdownEvent"));
+
+        this.downloadEngine.When(d => d.StopAsync())
+            .Do(_ => callOrder.Add("EngineStop"));
+
+        using var lifetime = new AppLifetime(
+            this.configService,
+            this.eventAggregator,
+            this.downloadEngine,
+            this.torrentRepository,
+            this.watchFolderService,
+            this.networkSecurityService,
+            this.rssSyncService,
+            this.dynamicAuthManager,
+            this.torrentService);
+
+        await lifetime.StopAsync(CancellationToken.None);
+
+        callOrder.Should().ContainInOrder("ShutdownEvent", "EngineStop");
     }
 
     private static bool CheckRatioInSpeedPulse(object body, int expectedId, double expectedRatio)

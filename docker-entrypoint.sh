@@ -40,7 +40,8 @@ if [ "${COVERAGE_ENABLED}" = "1" ]; then
     exec $EXEC_PREFIX dotnet-coverage collect \
         --output /coverage/coverage.xml \
         --output-format xml \
-        -- dotnet /app/Leecharr.Console.dll --data=/config
+        -- dotnet /app/Leecharr.Console.dll --data=/config "$@"
 else
-    exec $EXEC_PREFIX dotnet /app/Leecharr.Console.dll --data=/config
+    exec $EXEC_PREFIX dotnet /app/Leecharr.Console.dll --data=/config "$@"
 fi
+

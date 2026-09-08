@@ -239,6 +239,15 @@ public class AppLifetime : IHostedService, IDisposable
     {
         this.logger.Info("Leecharr application shutting down...");
 
+        try
+        {
+            this.eventAggregator.PublishEvent(new ApplicationShutdownRequested());
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Error publishing ApplicationShutdownRequested event");
+        }
+
         if (this.udpTrackerService != null)
         {
             try
@@ -300,8 +309,6 @@ public class AppLifetime : IHostedService, IDisposable
         {
             this.logger.Error(ex, "Error shutting down download engine");
         }
-
-        this.eventAggregator.PublishEvent(new ApplicationShutdownRequested());
     }
 
     private async Task RunBackgroundLoopAsync(CancellationToken token)
