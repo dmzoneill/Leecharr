@@ -256,10 +256,138 @@ public class ArchiveExtractorServiceTest
         var diskProvider = new DiskProvider();
         var provider = new SharpCompressExtractorProvider(diskProvider);
 
-        // Extracting should either sanitize the filename inside safe_target or fail
+        // Extracting should skip the malicious entry and prevent write outside target
         await provider.ExtractAsync(zipPath, outputDir);
 
         // Verify that the file was NOT created outside the destination directory
+        File.Exists(outsideTarget).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task SharpCompressExtractor_ProtectsAgainstDirectoryTraversal_ZipSlip_AbsolutePath()
+    {
+        var zipPath = Path.Combine(this.tempDirectory, "malicious_absolute.zip");
+        var outputDir = Path.Combine(this.tempDirectory, "safe_target_abs");
+        Directory.CreateDirectory(outputDir);
+
+        var absoluteTarget = Path.Combine(Path.GetTempPath(), "leecharr_evil_absolute_" + Guid.NewGuid().ToString("N") + ".txt");
+
+        try
+        {
+            using (var zipStream = new FileStream(zipPath, FileMode.Create))
+            using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create))
+            {
+                var maliciousEntry = archive.CreateEntry(absoluteTarget);
+                using var entryStream = maliciousEntry.Open();
+                using var writer = new StreamWriter(entryStream);
+                await writer.WriteAsync("Malicious payload via absolute path");
+            }
+
+            var diskProvider = new DiskProvider();
+            var provider = new SharpCompressExtractorProvider(diskProvider);
+
+            await provider.ExtractAsync(zipPath, outputDir);
+
+            File.Exists(absoluteTarget).Should().BeFalse();
+        }
+        finally
+        {
+            if (File.Exists(absoluteTarget))
+            {
+                File.Delete(absoluteTarget);
+            }
+        }
+    }
+
+    [Test]
+    public async Task SharpCompressExtractor_ProtectsAgainstDirectoryTraversal_ZipSlip_WindowsStyleBackslashes()
+    {
+        var zipPath = Path.Combine(this.tempDirectory, "malicious_win_traversal.zip");
+        var outputDir = Path.Combine(this.tempDirectory, "safe_target_win");
+        Directory.CreateDirectory(outputDir);
+
+        var outsideTarget = Path.Combine(this.tempDirectory, "win_outside.txt");
+
+        using (var zipStream = new FileStream(zipPath, FileMode.Create))
+        using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create))
+        {
+            var maliciousEntry = archive.CreateEntry(@"..\..\win_outside.txt");
+            using var entryStream = maliciousEntry.Open();
+            using var writer = new StreamWriter(entryStream);
+            await writer.WriteAsync("Malicious payload via backslash traversal");
+        }
+
+        var diskProvider = new DiskProvider();
+        var provider = new SharpCompressExtractorProvider(diskProvider);
+
+        await provider.ExtractAsync(zipPath, outputDir);
+
+        File.Exists(outsideTarget).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task SharpCompressExtractor_ProtectsAgainstReservedDeviceNames()
+    {
+        var zipPath = Path.Combine(this.tempDirectory, "reserved_dev.zip");
+        var outputDir = Path.Combine(this.tempDirectory, "safe_target_dev");
+        Directory.CreateDirectory(outputDir);
+
+        using (var zipStream = new FileStream(zipPath, FileMode.Create))
+        using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create))
+        {
+            var devEntry = archive.CreateEntry("CON.txt");
+            using var entryStream = devEntry.Open();
+            using var writer = new StreamWriter(entryStream);
+            await writer.WriteAsync("Windows reserved device name payload");
+        }
+
+        var diskProvider = new DiskProvider();
+        var provider = new SharpCompressExtractorProvider(diskProvider);
+
+        await provider.ExtractAsync(zipPath, outputDir);
+
+        File.Exists(Path.Combine(outputDir, "CON.txt")).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task SharpCompressExtractor_ExtractsValidEntries_WhileSkippingMaliciousEntries()
+    {
+        var zipPath = Path.Combine(this.tempDirectory, "mixed_entries.zip");
+        var outputDir = Path.Combine(this.tempDirectory, "mixed_output");
+        Directory.CreateDirectory(outputDir);
+
+        var outsideTarget = Path.Combine(this.tempDirectory, "mixed_evil.txt");
+
+        using (var zipStream = new FileStream(zipPath, FileMode.Create))
+        using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create))
+        {
+            // Valid entry
+            var validEntry = archive.CreateEntry("valid_folder/safe_file.txt");
+            using (var stream = validEntry.Open())
+            using (var writer = new StreamWriter(stream))
+            {
+                await writer.WriteAsync("Safe legitimate content");
+            }
+
+            // Malicious entry
+            var evilEntry = archive.CreateEntry("../../mixed_evil.txt");
+            using (var stream = evilEntry.Open())
+            using (var writer = new StreamWriter(stream))
+            {
+                await writer.WriteAsync("Malicious traversal payload");
+            }
+        }
+
+        var diskProvider = new DiskProvider();
+        var provider = new SharpCompressExtractorProvider(diskProvider);
+
+        var result = await provider.ExtractAsync(zipPath, outputDir);
+        result.Should().BeTrue();
+
+        var extractedSafeFile = Path.Combine(outputDir, "valid_folder", "safe_file.txt");
+        File.Exists(extractedSafeFile).Should().BeTrue();
+        (await File.ReadAllTextAsync(extractedSafeFile)).Should().Be("Safe legitimate content");
+
         File.Exists(outsideTarget).Should().BeFalse();
     }
 
