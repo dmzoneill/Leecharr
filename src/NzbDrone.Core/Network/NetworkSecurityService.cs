@@ -149,6 +149,11 @@ public class NetworkSecurityService : INetworkSecurityService
                 settings.BindInterface = this.configService.BindInterface;
             }
 
+            if (!string.IsNullOrWhiteSpace(this.configService.NetworkInterfaceBinding))
+            {
+                settings.BindInterface = this.configService.NetworkInterfaceBinding;
+            }
+
             if (this.configService.EnableVpnKillSwitch)
             {
                 settings.EnableVpnKillSwitch = this.configService.EnableVpnKillSwitch;
