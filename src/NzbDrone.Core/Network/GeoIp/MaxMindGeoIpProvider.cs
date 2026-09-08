@@ -44,21 +44,38 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
 
     public string GetDatabasePath()
     {
-        var candidates = new List<string>
+        var databaseNames = new[]
         {
-            "/config/GeoIP/GeoLite2-City.mmdb",
-            "/config/GeoLite2-City.mmdb",
-            Path.Combine(this.appFolderInfo.AppDataFolder, "GeoIP", "GeoLite2-City.mmdb"),
-            Path.Combine(this.appFolderInfo.AppDataFolder, "GeoLite2-City.mmdb"),
-            Path.Combine(this.appFolderInfo.StartUpFolder, "GeoIP", "GeoLite2-City.mmdb"),
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "GeoLite2-City.mmdb"),
+            "GeoLite2-City.mmdb",
+            "GeoLite2-Country.mmdb",
+            "GeoIP2-City.mmdb",
+            "GeoIP2-Country.mmdb",
         };
 
-        foreach (var path in candidates)
+        var searchDirectories = new List<string>
         {
-            if (!string.IsNullOrWhiteSpace(path) && this.diskProvider.FileExists(path))
+            "/config/GeoIP",
+            "/config",
+            Path.Combine(this.appFolderInfo.AppDataFolder, "GeoIP"),
+            this.appFolderInfo.AppDataFolder,
+            Path.Combine(this.appFolderInfo.StartUpFolder, "GeoIP"),
+            AppDomain.CurrentDomain.BaseDirectory,
+        };
+
+        foreach (var dbName in databaseNames)
+        {
+            foreach (var dir in searchDirectories)
             {
-                return path;
+                if (string.IsNullOrWhiteSpace(dir))
+                {
+                    continue;
+                }
+
+                var fullPath = Path.Combine(dir, dbName);
+                if (this.diskProvider.FileExists(fullPath))
+                {
+                    return fullPath;
+                }
             }
         }
 
@@ -73,7 +90,7 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
             return Task.FromResult(new GeoIpHealthResult
             {
                 IsHealthy = false,
-                StatusMessage = "MaxMind GeoLite2-City.mmdb database not found. Place the file in /config/GeoIP/GeoLite2-City.mmdb or AppData.",
+                StatusMessage = "MaxMind database (.mmdb) not found. Place GeoLite2-City.mmdb or GeoLite2-Country.mmdb in /config/GeoIP or AppData.",
                 Warnings = new List<string> { "Database file missing." },
             });
         }
@@ -135,18 +152,35 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
                 return Task.FromResult(new GeoLocationInfo { IpAddress = ipAddress });
             }
 
-            if (reader.TryCity(parsedIp, out var city))
+            try
+            {
+                if (reader.TryCity(parsedIp, out var city))
+                {
+                    return Task.FromResult(new GeoLocationInfo
+                    {
+                        IpAddress = ipAddress,
+                        CountryCode = city.Country?.IsoCode ?? string.Empty,
+                        CountryName = city.Country?.Name ?? string.Empty,
+                        City = city.City?.Name ?? string.Empty,
+                        Region = city.MostSpecificSubdivision?.Name ?? string.Empty,
+                        Latitude = city.Location?.Latitude,
+                        Longitude = city.Location?.Longitude,
+                        TimeZone = city.Location?.TimeZone ?? string.Empty,
+                    });
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // Thrown if the MMDB database is a Country database rather than City
+            }
+
+            if (reader.TryCountry(parsedIp, out var country))
             {
                 return Task.FromResult(new GeoLocationInfo
                 {
                     IpAddress = ipAddress,
-                    CountryCode = city.Country?.IsoCode ?? string.Empty,
-                    CountryName = city.Country?.Name ?? string.Empty,
-                    City = city.City?.Name ?? string.Empty,
-                    Region = city.MostSpecificSubdivision?.Name ?? string.Empty,
-                    Latitude = city.Location?.Latitude,
-                    Longitude = city.Location?.Longitude,
-                    TimeZone = city.Location?.TimeZone ?? string.Empty,
+                    CountryCode = country.Country?.IsoCode ?? string.Empty,
+                    CountryName = country.Country?.Name ?? string.Empty,
                 });
             }
         }
