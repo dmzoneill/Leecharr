@@ -455,20 +455,39 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
     {
         if (this.tasks.TryGetValue(torrentId, out var task))
         {
-            this.logger.Debug("libtorrent: Remove trackers triggered for torrent id {0}", torrentId);
+            try
+            {
+                await this.SendRpcRequestAsync("remove_trackers", new Dictionary<string, object>
+                {
+                    ["info_hash"] = task.InfoHash,
+                    ["trackers"] = trackers.ToArray(),
+                });
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error removing trackers in libtorrent for {0}", torrentId);
+            }
         }
-
-        await Task.CompletedTask;
     }
 
     public async Task SetFilePriorityAsync(int torrentId, string filePath, int priority)
     {
         if (this.tasks.TryGetValue(torrentId, out var task))
         {
-            this.logger.Debug("libtorrent: Set file priority for torrent {0} (path: {1}, priority: {2})", torrentId, filePath, priority);
+            try
+            {
+                await this.SendRpcRequestAsync("set_file_priorities", new Dictionary<string, object>
+                {
+                    ["info_hash"] = task.InfoHash,
+                    ["file_path"] = filePath,
+                    ["priority"] = priority,
+                });
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error setting file priority in libtorrent for {0} (file: {1}, priority: {2})", torrentId, filePath, priority);
+            }
         }
-
-        await Task.CompletedTask;
     }
 
     public async Task SetRateLimitsAsync(int maxDownloadKbps, int maxUploadKbps)
@@ -614,6 +633,52 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                             if (item.TryGetProperty("num_peers", out var peers))
                             {
                                 task.ConnectedLeechers = Math.Max(0, peers.GetInt32() - task.ConnectedSeeders);
+                            }
+
+                            if (item.TryGetProperty("peers", out var peersArray) && peersArray.ValueKind == JsonValueKind.Array)
+                            {
+                                var peerList = new List<PeerInfo>();
+                                foreach (var peerElem in peersArray.EnumerateArray())
+                                {
+                                    var ip = peerElem.TryGetProperty("ip", out var addr) ? addr.GetString() : (peerElem.TryGetProperty("address", out addr) ? addr.GetString() : "unknown");
+                                    var port = peerElem.TryGetProperty("port", out var prt) ? prt.GetInt32() : 0;
+                                    var client = peerElem.TryGetProperty("client", out var cn) ? cn.GetString() : (peerElem.TryGetProperty("client_name", out cn) ? cn.GetString() : string.Empty);
+                                    var flags = peerElem.TryGetProperty("flags", out var fs) ? (fs.ValueKind == JsonValueKind.String ? fs.GetString() : fs.ToString()) : string.Empty;
+                                    var progress = peerElem.TryGetProperty("progress", out var prg) ? prg.GetDouble() : 0.0;
+                                    var downSpeed = peerElem.TryGetProperty("download_rate", out var pdr) ? pdr.GetInt64() : (peerElem.TryGetProperty("down_speed", out pdr) ? pdr.GetInt64() : 0);
+                                    var upSpeed = peerElem.TryGetProperty("upload_rate", out var pur) ? pur.GetInt64() : (peerElem.TryGetProperty("up_speed", out pur) ? pur.GetInt64() : 0);
+                                    var totalDown = peerElem.TryGetProperty("total_download", out var ptd) ? ptd.GetInt64() : (peerElem.TryGetProperty("total_done", out ptd) ? ptd.GetInt64() : 0);
+                                    var totalUp = peerElem.TryGetProperty("total_upload", out var ptu) ? ptu.GetInt64() : (peerElem.TryGetProperty("total_uploaded", out ptu) ? ptu.GetInt64() : 0);
+                                    var isEncrypted = (peerElem.TryGetProperty("is_encrypted", out var enc) && enc.GetBoolean()) || (peerElem.TryGetProperty("encrypted", out enc) && enc.GetBoolean());
+                                    var isUtp = (peerElem.TryGetProperty("is_utp", out var utp) && utp.GetBoolean()) || (peerElem.TryGetProperty("utp", out utp) && utp.GetBoolean());
+                                    var isIncoming = (peerElem.TryGetProperty("is_incoming", out var inc) && inc.GetBoolean()) || (peerElem.TryGetProperty("incoming", out inc) && inc.GetBoolean());
+                                    var isChoked = (peerElem.TryGetProperty("is_choked", out var chk) && chk.GetBoolean()) || (peerElem.TryGetProperty("peer_choking", out chk) && chk.GetBoolean());
+                                    var isInterested = (peerElem.TryGetProperty("is_interested", out var inst) && inst.GetBoolean()) || (peerElem.TryGetProperty("peer_interested", out inst) && inst.GetBoolean());
+                                    var clientIsChoked = (peerElem.TryGetProperty("client_is_choked", out var cchk) && cchk.GetBoolean()) || (peerElem.TryGetProperty("client_choking", out cchk) && cchk.GetBoolean());
+                                    var clientIsInterested = (peerElem.TryGetProperty("client_is_interested", out var cinst) && cinst.GetBoolean()) || (peerElem.TryGetProperty("client_interested", out cinst) && cinst.GetBoolean());
+
+                                    peerList.Add(new PeerInfo
+                                    {
+                                        Ip = ip ?? "unknown",
+                                        Port = port,
+                                        Client = client ?? string.Empty,
+                                        Flags = flags ?? string.Empty,
+                                        Progress = progress,
+                                        DownloadSpeed = downSpeed,
+                                        UploadSpeed = upSpeed,
+                                        Downloaded = totalDown,
+                                        Uploaded = totalUp,
+                                        IsEncrypted = isEncrypted,
+                                        IsChoked = isChoked,
+                                        IsInterested = isInterested,
+                                        ClientIsChoked = clientIsChoked,
+                                        ClientIsInterested = clientIsInterested,
+                                        IsIncoming = isIncoming,
+                                        IsUtp = isUtp,
+                                    });
+                                }
+
+                                task.SetPeers(peerList);
                             }
                         }
                     }
@@ -773,8 +838,9 @@ public class LibTorrentDownloadTask : IDownloadTask
 
     private long downloadSpeed;
     private long uploadSpeed;
-    private int connectedSeeders = 5;
-    private int connectedLeechers = 2;
+    private int connectedSeeders;
+    private int connectedLeechers;
+    private IReadOnlyList<PeerInfo> peers = Array.Empty<PeerInfo>();
 
     public bool[] PieceBitfield { get; set; } = Array.Empty<bool>();
 
@@ -809,6 +875,11 @@ public class LibTorrentDownloadTask : IDownloadTask
 
     public IReadOnlyList<PeerInfo> GetPeers()
     {
-        return Array.Empty<PeerInfo>();
+        return this.peers;
+    }
+
+    public void SetPeers(IEnumerable<PeerInfo> peerList)
+    {
+        this.peers = peerList?.ToList() ?? (IReadOnlyList<PeerInfo>)Array.Empty<PeerInfo>();
     }
 }
