@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -480,6 +481,60 @@ public class ArchiveExtractorServiceTest
         var results = await Task.WhenAll(task1, task2, task3);
         results.Should().AllBeEquivalentTo(true);
         maxObservedConcurrency.Should().Be(1);
+    }
+
+    [Test]
+    public async Task ArchiveExtractorService_ExtractArchiveAsync_WhenDiskSpaceInsufficient_SkipsExtractionAndReturnsFalse()
+    {
+        var provider = Substitute.For<IArchiveExtractorProvider>();
+        var diskMock = Substitute.For<IDiskProvider>();
+
+        diskMock.FileExists("/downloads/movie.zip").Returns(true);
+        diskMock.GetFileSize("/downloads/movie.zip").Returns(100_000_000L);
+        diskMock.GetAvailableSpace("/downloads/extracted").Returns(140_000_000L); // Needs 150 MB (1.5x)
+
+        var serviceWithDisk = new ArchiveExtractorService(provider, diskMock);
+
+        var result = await serviceWithDisk.ExtractArchiveAsync("/downloads/movie.zip", "/downloads/extracted");
+
+        result.Should().BeFalse();
+        await provider.DidNotReceive().ExtractAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<IReadOnlyList<string>>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task ArchiveExtractorService_ExtractArchiveAsync_WhenDiskSpaceSufficient_ProceedsWithExtraction()
+    {
+        var provider = Substitute.For<IArchiveExtractorProvider>();
+        var diskMock = Substitute.For<IDiskProvider>();
+
+        diskMock.FileExists("/downloads/movie.zip").Returns(true);
+        diskMock.GetFileSize("/downloads/movie.zip").Returns(100_000_000L);
+        diskMock.GetAvailableSpace("/downloads/extracted").Returns(200_000_000L); // 200 MB > 150 MB
+
+        provider.ExtractAsync(
+            "/downloads/movie.zip",
+            "/downloads/extracted",
+            Arg.Any<string>(),
+            Arg.Any<IReadOnlyList<string>>(),
+            Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(true));
+
+        var serviceWithDisk = new ArchiveExtractorService(provider, diskMock);
+
+        var result = await serviceWithDisk.ExtractArchiveAsync("/downloads/movie.zip", "/downloads/extracted");
+
+        result.Should().BeTrue();
+        await provider.Received(1).ExtractAsync(
+            "/downloads/movie.zip",
+            "/downloads/extracted",
+            Arg.Any<string>(),
+            Arg.Any<IReadOnlyList<string>>(),
+            Arg.Any<CancellationToken>());
     }
 
     #endregion

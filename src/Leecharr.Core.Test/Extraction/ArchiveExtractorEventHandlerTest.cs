@@ -218,6 +218,117 @@ public class ArchiveExtractorEventHandlerTest
     }
 
     [Test]
+    public async Task Handle_WhenDiskSpaceSufficient_ProceedsWithExtraction()
+    {
+        this.configService.AutoExtractArchives.Returns(true);
+
+        var torrent = new Torrent { Id = 26, Name = "Sufficient.Space.Archive", SavePath = "/downloads/Sufficient.Space.Archive" };
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 1, TorrentId = 26, Path = "archive.zip", Size = 100_000_000 },
+        };
+
+        this.torrentFileService.GetFiles(26).Returns(files);
+        this.extractorService.IsArchiveFile("archive.zip").Returns(true);
+        this.diskProvider.FileExists(Arg.Any<string>()).Returns(call =>
+        {
+            var path = call.Arg<string>();
+            return !path.Contains(".leecharr_extracted");
+        });
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(200_000_000L); // 200 MB > 150 MB required
+        this.extractorService.ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(true));
+
+        var signal = new ManualResetEventSlim(false);
+        this.eventAggregator.When(e => e.PublishEvent(Arg.Any<ArchiveExtractionCompletedEvent>())).Do(_ => signal.Set());
+
+        this.handler.Handle(new TorrentDownloadCompletedEvent(torrent));
+
+        var received = signal.Wait(TimeSpan.FromSeconds(3));
+        received.Should().BeTrue();
+
+        await this.extractorService.Received(1).ExtractArchiveAsync(
+            Arg.Is<string>(p => p.EndsWith("archive.zip")),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<IReadOnlyList<string>>(),
+            Arg.Any<CancellationToken>());
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<ArchiveExtractionCompletedEvent>(e => e.Torrent.Id == 26));
+    }
+
+    [Test]
+    public async Task Handle_WhenAvailableDiskSpaceIsNull_ProceedsWithExtraction()
+    {
+        this.configService.AutoExtractArchives.Returns(true);
+
+        var torrent = new Torrent { Id = 27, Name = "Unknown.Space.Archive", SavePath = "/downloads/Unknown.Space.Archive" };
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 1, TorrentId = 27, Path = "archive.zip", Size = 100_000_000 },
+        };
+
+        this.torrentFileService.GetFiles(27).Returns(files);
+        this.extractorService.IsArchiveFile("archive.zip").Returns(true);
+        this.diskProvider.FileExists(Arg.Any<string>()).Returns(call =>
+        {
+            var path = call.Arg<string>();
+            return !path.Contains(".leecharr_extracted");
+        });
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns((long?)null); // Space cannot be determined
+        this.extractorService.ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(true));
+
+        var signal = new ManualResetEventSlim(false);
+        this.eventAggregator.When(e => e.PublishEvent(Arg.Any<ArchiveExtractionCompletedEvent>())).Do(_ => signal.Set());
+
+        this.handler.Handle(new TorrentDownloadCompletedEvent(torrent));
+
+        var received = signal.Wait(TimeSpan.FromSeconds(3));
+        received.Should().BeTrue();
+
+        await this.extractorService.Received(1).ExtractArchiveAsync(
+            Arg.Is<string>(p => p.EndsWith("archive.zip")),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<IReadOnlyList<string>>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public void Handle_WhenMultiPartArchiveTotalSizeExceedsDiskSpace_AbortsExtraction()
+    {
+        this.configService.AutoExtractArchives.Returns(true);
+
+        var torrent = new Torrent { Id = 28, Name = "MultiPart.Large", SavePath = "/downloads/MultiPart.Large" };
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 1, TorrentId = 28, Path = "large.part01.rar", Size = 50_000_000 },
+            new() { Id = 2, TorrentId = 28, Path = "large.part02.rar", Size = 50_000_000 },
+            new() { Id = 3, TorrentId = 28, Path = "large.part03.rar", Size = 50_000_000 },
+        };
+
+        this.torrentFileService.GetFiles(28).Returns(files);
+        this.extractorService.IsArchiveFile("large.part01.rar").Returns(true);
+        this.extractorService.IsArchiveFile("large.part02.rar").Returns(true);
+        this.extractorService.IsArchiveFile("large.part03.rar").Returns(true);
+        this.diskProvider.FileExists(Arg.Any<string>()).Returns(call => !call.Arg<string>().Contains(".leecharr_extracted"));
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(200_000_000L); // 3 * 50 MB = 150 MB * 1.5 = 225 MB required > 200 MB available
+
+        var signal = new ManualResetEventSlim(false);
+        this.eventAggregator.When(e => e.PublishEvent(Arg.Any<ArchiveExtractionFailedEvent>())).Do(_ => signal.Set());
+
+        this.handler.Handle(new TorrentDownloadCompletedEvent(torrent));
+
+        var received = signal.Wait(TimeSpan.FromSeconds(3));
+        received.Should().BeTrue();
+
+        this.extractorService.DidNotReceive().ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<ArchiveExtractionFailedEvent>(e =>
+            e.Torrent.Id == 28 &&
+            e.ErrorMessage.Contains("Insufficient free disk space")));
+    }
+
+    [Test]
     public async Task Handle_WhenSingleFileTorrent_ExtractsToParentDirectoryAndPublishesEvent()
     {
         this.configService.AutoExtractArchives.Returns(true);
