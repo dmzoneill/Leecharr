@@ -258,6 +258,24 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
         return current.IsBlocked;
     }
 
+    internal (int Ipv4Nodes, int Ipv6Nodes) GetNodeCounts()
+    {
+        lock (this.@lock)
+        {
+            return (CountNodes(this.ipv4Root), CountNodes(this.ipv6Root));
+        }
+    }
+
+    private static int CountNodes(RadixNode node)
+    {
+        if (node == null)
+        {
+            return 0;
+        }
+
+        return 1 + CountNodes(node.Zero) + CountNodes(node.One);
+    }
+
     private static void InsertIpv4(RadixNode root, IPAddress ip, int prefixLength)
     {
         Span<byte> bytes = stackalloc byte[4];
@@ -271,6 +289,11 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
         var current = root;
         for (var i = 31; i >= 32 - prefixLength; i--)
         {
+            if (current.IsBlocked)
+            {
+                return;
+            }
+
             var bit = (ipNum >> i) & 1;
             if (bit == 0)
             {
@@ -285,6 +308,8 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
         }
 
         current.IsBlocked = true;
+        current.Zero = null;
+        current.One = null;
     }
 
     private static void InsertIpv6(RadixNode root, IPAddress ip, int prefixLength)
@@ -298,6 +323,11 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
         var current = root;
         for (var bitIndex = 0; bitIndex < prefixLength; bitIndex++)
         {
+            if (current.IsBlocked)
+            {
+                return;
+            }
+
             var byteIndex = bitIndex / 8;
             var bitInByte = 7 - (bitIndex % 8);
             var bit = (bytes[byteIndex] >> bitInByte) & 1;
@@ -315,6 +345,8 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
         }
 
         current.IsBlocked = true;
+        current.Zero = null;
+        current.One = null;
     }
 
     private static bool TryParseCidr(string cidr, out IPAddress ip, out int prefixLength)
