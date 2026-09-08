@@ -171,7 +171,6 @@ public class QBittorrentApiTests : IntegrationTestBase
         var verifyJson = await verifyResponse.Content.ReadAsStringAsync();
         verifyJson.Should().Be("[]");
     }
-<<<<<<< HEAD
 
     [Test]
     public async Task GetTorrentsInfo_WithTagAndFilter_ReturnsFilteredResults()
