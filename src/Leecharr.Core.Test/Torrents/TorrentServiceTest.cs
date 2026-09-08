@@ -263,6 +263,122 @@ public class TorrentServiceTest
         }
     }
 
+    [Test]
+    public async Task DeleteAsync_WhenSavePathPointsDirectlyToTorrentFolder_DeletesFolderAndContents()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), "leecharr_delete_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+        var torrentDir = Path.Combine(tempRoot, "MyShow");
+        Directory.CreateDirectory(torrentDir);
+        var payload = Path.Combine(torrentDir, "episode1.mkv");
+        File.WriteAllText(payload, "video-data");
+
+        try
+        {
+            var torrent = new Torrent
+            {
+                Id = 102,
+                Name = "MyShow",
+                SavePath = torrentDir,
+                InfoHash = "11223344556677889900aabbccddeeff00112244",
+                Progress = 1.0,
+                Status = TorrentStatus.Seeding,
+            };
+            this.torrentRepository.Get(102).Returns(torrent);
+
+            await this.service.DeleteAsync(102, deleteFiles: true);
+
+            Directory.Exists(torrentDir).Should().BeFalse();
+            File.Exists(payload).Should().BeFalse();
+            Directory.Exists(tempRoot).Should().BeTrue();
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task DeleteAsync_WhenSavePathPointsDirectlyToSingleFile_DeletesFileProperly()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), "leecharr_delete_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+        var singleFile = Path.Combine(tempRoot, "SingleMovie.mkv");
+        File.WriteAllText(singleFile, "movie-data");
+
+        try
+        {
+            var torrent = new Torrent
+            {
+                Id = 103,
+                Name = "SingleMovie.mkv",
+                SavePath = singleFile,
+                InfoHash = "11223344556677889900aabbccddeeff00112255",
+                Progress = 1.0,
+                Status = TorrentStatus.Seeding,
+            };
+            this.torrentRepository.Get(103).Returns(torrent);
+
+            await this.service.DeleteAsync(103, deleteFiles: true);
+
+            File.Exists(singleFile).Should().BeFalse();
+            Directory.Exists(tempRoot).Should().BeTrue();
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task DeleteAsync_WhenTorrentHasIndividualFiles_DeletesAllFilesOnDisk()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), "leecharr_delete_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+        var file1 = Path.Combine(tempRoot, "track1.flac");
+        var file2 = Path.Combine(tempRoot, "track2.flac");
+        File.WriteAllText(file1, "audio1");
+        File.WriteAllText(file2, "audio2");
+
+        try
+        {
+            var torrent = new Torrent
+            {
+                Id = 104,
+                Name = "Album",
+                SavePath = tempRoot,
+                InfoHash = "11223344556677889900aabbccddeeff00112266",
+                Progress = 1.0,
+                Status = TorrentStatus.Seeding,
+            };
+            this.torrentRepository.Get(104).Returns(torrent);
+            this.fileRepository.GetByTorrentId(104).Returns(new List<TorrentFile>
+            {
+                new() { TorrentId = 104, Path = "track1.flac", Size = 100 },
+                new() { TorrentId = 104, Path = "track2.flac", Size = 100 },
+            });
+
+            await this.service.DeleteAsync(104, deleteFiles: true);
+
+            File.Exists(file1).Should().BeFalse();
+            File.Exists(file2).Should().BeFalse();
+            Directory.Exists(tempRoot).Should().BeTrue();
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, true);
+            }
+        }
+    }
+
     [TestCase("../../etc/cron.d/payload.sh")]
     [TestCase("/etc/shadow")]
     [TestCase("..")]

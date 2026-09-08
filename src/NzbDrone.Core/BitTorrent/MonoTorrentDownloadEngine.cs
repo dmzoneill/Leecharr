@@ -917,6 +917,15 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                                 {
                                     var filePath = file.FullPath;
                                     await this.DeleteFileWithRetryAsync(filePath);
+
+                                    if (!string.IsNullOrWhiteSpace(task.Manager.SavePath) && !string.IsNullOrWhiteSpace(file.Path))
+                                    {
+                                        var altPath = Path.Combine(task.Manager.SavePath, file.Path);
+                                        if (!string.Equals(altPath, filePath, StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            await this.DeleteFileWithRetryAsync(altPath);
+                                        }
+                                    }
                                 }
                                 catch (Exception ex)
                                 {
@@ -933,7 +942,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                             var downloadDir = this.storagePathService.GetCompletedDirectory(null);
                             var categoryDownloadDir = !string.IsNullOrWhiteSpace(task.Category) ? this.storagePathService.GetCompletedDirectory(task.Category) : null;
 
-                            var isMatchingName = string.Equals(dirName, task.Manager.Torrent?.Name ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+                            var torrentName = task.Manager.Torrent?.Name ?? string.Empty;
+                            var sanitizedTorrentName = TorrentPathValidator.SanitizeRelativePath(torrentName);
+
+                            var isMatchingName = string.Equals(dirName, torrentName, StringComparison.OrdinalIgnoreCase) ||
+                                                 (!string.IsNullOrWhiteSpace(sanitizedTorrentName) && string.Equals(dirName, sanitizedTorrentName, StringComparison.OrdinalIgnoreCase));
                             var isRootIncomplete = !string.IsNullOrWhiteSpace(incompleteDir) &&
                                 string.Equals(
                                     Path.GetFullPath(containingDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),

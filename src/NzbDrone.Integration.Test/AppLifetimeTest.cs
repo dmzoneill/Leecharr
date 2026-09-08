@@ -502,6 +502,8 @@ public class AppLifetimeTest
             this.dynamicAuthManager,
             this.torrentService);
 
+        await lifetime.StopAsync(CancellationToken.None);
+
         callOrder.Should().ContainInOrder("ShutdownEvent", "EngineStop");
     }
 

@@ -534,7 +534,7 @@ public class BackupController : Controller
                         global::System.IO.File.Copy(stagedDb, liveDb, overwrite: true);
                     }
 
-                    if (global::System.IO.File.Exists(stagedWal))
+                    if (global::System.IO.File.Exists(stagedWal) && new FileInfo(stagedWal).Length > 0)
                     {
                         global::System.IO.File.Copy(stagedWal, liveWal, overwrite: true);
                     }
@@ -634,6 +634,7 @@ public class BackupController : Controller
         }
     }
 
+    [NonAction]
     public int PruneOldBackups(string backupDirectory, int maxBackupsToKeep = 14, int maxAgeDays = 28)
     {
         if (string.IsNullOrWhiteSpace(backupDirectory) || !Directory.Exists(backupDirectory))
