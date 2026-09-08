@@ -190,11 +190,101 @@ public class CustomScriptService : ICustomScriptService
         return env;
     }
 
+    public static (string ScriptPath, string Arguments) ParseSettings(string settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings))
+        {
+            return (string.Empty, null);
+        }
+
+        var trimmed = settings.Trim();
+        if (trimmed.StartsWith("{", StringComparison.Ordinal))
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(trimmed);
+                var root = doc.RootElement;
+                string path = null;
+                string arguments = null;
+
+                var pathProps = new[] { "path", "Path", "scriptPath", "ScriptPath", "script", "Script", "filename", "Filename" };
+                foreach (var prop in pathProps)
+                {
+                    if (root.TryGetProperty(prop, out var val))
+                    {
+                        path = val.GetString() ?? val.ToString();
+                        if (!string.IsNullOrWhiteSpace(path))
+                        {
+                            break;
+                        }
+                    }
+                }
+
+                var argProps = new[] { "arguments", "Arguments", "args", "Args", "extraArguments", "ExtraArguments" };
+                foreach (var prop in argProps)
+                {
+                    if (root.TryGetProperty(prop, out var val))
+                    {
+                        arguments = val.GetString() ?? val.ToString();
+                        if (!string.IsNullOrWhiteSpace(arguments))
+                        {
+                            break;
+                        }
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(path))
+                {
+                    return (path, string.IsNullOrWhiteSpace(arguments) ? null : arguments);
+                }
+            }
+            catch
+            {
+                // Fall back to query string / raw string
+            }
+        }
+
+        if (trimmed.Contains("path=", StringComparison.OrdinalIgnoreCase))
+        {
+            var matchPath = System.Text.RegularExpressions.Regex.Match(trimmed, @"path=([^&]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (matchPath.Success)
+            {
+                var path = Uri.UnescapeDataString(matchPath.Groups[1].Value);
+                string args = null;
+                var matchArgs = System.Text.RegularExpressions.Regex.Match(trimmed, @"arguments=([^&]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (matchArgs.Success)
+                {
+                    args = Uri.UnescapeDataString(matchArgs.Groups[1].Value);
+                }
+
+                return (path, string.IsNullOrWhiteSpace(args) ? null : args);
+            }
+        }
+
+        return (trimmed, null);
+    }
+
     public async Task<bool> ExecuteScriptAsync(string scriptPath, Torrent torrent, string eventType, string arguments = null)
     {
-        if (string.IsNullOrWhiteSpace(scriptPath) || !File.Exists(scriptPath))
+        var resolvedScriptPath = scriptPath;
+        var resolvedArguments = arguments;
+
+        if (!string.IsNullOrWhiteSpace(scriptPath) && scriptPath.TrimStart().StartsWith("{", StringComparison.Ordinal))
         {
-            this.logger.Warn("Custom script path does not exist: {0}", scriptPath);
+            var (parsedPath, parsedArgs) = ParseSettings(scriptPath);
+            if (!string.IsNullOrWhiteSpace(parsedPath))
+            {
+                resolvedScriptPath = parsedPath;
+                if (string.IsNullOrWhiteSpace(resolvedArguments))
+                {
+                    resolvedArguments = parsedArgs;
+                }
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(resolvedScriptPath) || !File.Exists(resolvedScriptPath))
+        {
+            this.logger.Warn("Custom script path does not exist: {0}", resolvedScriptPath);
             return false;
         }
 
@@ -202,9 +292,9 @@ public class CustomScriptService : ICustomScriptService
         {
             var workingDir = !string.IsNullOrWhiteSpace(torrent?.SavePath) && Directory.Exists(torrent.SavePath)
                 ? torrent.SavePath
-                : (Path.GetDirectoryName(scriptPath) ?? Environment.CurrentDirectory);
+                : (Path.GetDirectoryName(resolvedScriptPath) ?? Environment.CurrentDirectory);
 
-            var (resolvedFileName, resolvedArgs) = ResolveInterpreter(scriptPath, arguments);
+            var (resolvedFileName, resolvedArgs) = ResolveInterpreter(resolvedScriptPath, resolvedArguments);
 
             var startInfo = new ProcessStartInfo
             {
@@ -228,7 +318,7 @@ public class CustomScriptService : ICustomScriptService
                 startInfo.EnvironmentVariables[kvp.Key] = kvp.Value;
             }
 
-            this.logger.Info("Executing custom script '{0}' for event '{1}' in working directory '{2}'...", scriptPath, eventType, workingDir);
+            this.logger.Info("Executing custom script '{0}' for event '{1}' in working directory '{2}'...", resolvedScriptPath, eventType, workingDir);
 
             using var process = new Process { StartInfo = startInfo };
             process.Start();
@@ -243,7 +333,7 @@ public class CustomScriptService : ICustomScriptService
             }
             catch (OperationCanceledException)
             {
-                this.logger.Error("Custom script timed out after {0}s: {1}", this.scriptTimeout.TotalSeconds, scriptPath);
+                this.logger.Error("Custom script timed out after {0}s: {1}", this.scriptTimeout.TotalSeconds, resolvedScriptPath);
                 try
                 {
                     if (!process.HasExited)
@@ -273,7 +363,7 @@ public class CustomScriptService : ICustomScriptService
                 }
                 catch (Exception ex) when (ex is OperationCanceledException or TimeoutException)
                 {
-                    this.logger.Debug("Custom script stream draining timed out after process exit: {0}", scriptPath);
+                    this.logger.Debug("Custom script stream draining timed out after process exit: {0}", resolvedScriptPath);
                 }
 
                 if (stdoutTask.IsCompletedSuccessfully)
@@ -288,7 +378,7 @@ public class CustomScriptService : ICustomScriptService
             }
             catch (Exception ex)
             {
-                this.logger.Debug(ex, "Exception while draining custom script streams: {0}", scriptPath);
+                this.logger.Debug(ex, "Exception while draining custom script streams: {0}", resolvedScriptPath);
             }
 
             if (!string.IsNullOrWhiteSpace(stdout))
@@ -301,12 +391,12 @@ public class CustomScriptService : ICustomScriptService
                 this.logger.Warn("Custom script stderr: {0}", stderr.Trim());
             }
 
-            this.logger.Info("Custom script '{0}' completed with exit code: {1}", scriptPath, process.ExitCode);
+            this.logger.Info("Custom script '{0}' completed with exit code: {1}", resolvedScriptPath, process.ExitCode);
             return process.ExitCode == 0;
         }
         catch (Exception ex)
         {
-            this.logger.Error(ex, "Failed to execute custom script: {0}", scriptPath);
+            this.logger.Error(ex, "Failed to execute custom script: {0}", resolvedScriptPath);
             return false;
         }
     }
