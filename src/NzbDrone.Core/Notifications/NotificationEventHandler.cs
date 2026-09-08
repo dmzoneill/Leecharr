@@ -356,7 +356,7 @@ public class NotificationEventHandler :
             {
                 var providerPayload = BuildProviderPayload(notif.Implementation, eventType, null, null, payload, notif.Settings);
                 var targetUrl = ResolveTargetUrl(notif.Implementation, notif.Settings);
-                var customHeaders = ResolveCustomHeaders(notif.Settings);
+                var customHeaders = ResolveCustomHeaders(notif.Implementation, notif.Settings);
                 Task.Run(async () =>
                 {
                     try
@@ -506,7 +506,7 @@ public class NotificationEventHandler :
             {
                 var providerPayload = BuildProviderPayload(notif.Implementation, eventType, torrent, meta, payload, notif.Settings);
                 var targetUrl = ResolveTargetUrl(notif.Implementation, notif.Settings);
-                var customHeaders = ResolveCustomHeaders(notif.Settings);
+                var customHeaders = ResolveCustomHeaders(notif.Implementation, notif.Settings);
                 Task.Run(async () =>
                 {
                     try
@@ -544,7 +544,7 @@ public class NotificationEventHandler :
                     chatId = c.GetString() ?? c.ToString();
                 }
 
-                if (root.TryGetProperty("token", out var t) || root.TryGetProperty("botToken", out t) || root.TryGetProperty("apiKey", out t))
+                if (root.TryGetProperty("token", out var t) || root.TryGetProperty("botToken", out t) || root.TryGetProperty("apiKey", out t) || root.TryGetProperty("appToken", out t))
                 {
                     token = t.GetString() ?? t.ToString();
                 }
@@ -568,9 +568,9 @@ public class NotificationEventHandler :
             }
         }
 
-        if (string.IsNullOrEmpty(token) && settings.Contains("token="))
+        if (string.IsNullOrEmpty(token))
         {
-            var match = System.Text.RegularExpressions.Regex.Match(settings, @"token=([^&]+)");
+            var match = System.Text.RegularExpressions.Regex.Match(settings, @"(?:token|appToken|botToken|apiKey)=([^&]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
             if (match.Success)
             {
                 token = Uri.UnescapeDataString(match.Groups[1].Value);
@@ -621,7 +621,8 @@ public class NotificationEventHandler :
                 var root = doc.RootElement;
                 if (root.TryGetProperty("url", out var u) ||
                     root.TryGetProperty("webhookUrl", out u) ||
-                    root.TryGetProperty("targetUrl", out u))
+                    root.TryGetProperty("targetUrl", out u) ||
+                    root.TryGetProperty("serverUrl", out u))
                 {
                     var resolved = u.GetString();
                     if (!string.IsNullOrWhiteSpace(resolved))
@@ -642,10 +643,21 @@ public class NotificationEventHandler :
             return clean.EndsWith("/notify", StringComparison.OrdinalIgnoreCase) ? clean : $"{clean}/notify";
         }
 
+        if (string.Equals(implementation, "Gotify", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(candidateUrl))
+        {
+            var clean = candidateUrl.TrimEnd('/');
+            return clean.EndsWith("/message", StringComparison.OrdinalIgnoreCase) ? clean : $"{clean}/message";
+        }
+
         return candidateUrl;
     }
 
     public static string ResolveCustomHeaders(string settings)
+    {
+        return ResolveCustomHeaders(null, settings);
+    }
+
+    public static string ResolveCustomHeaders(string implementation, string settings)
     {
         if (string.IsNullOrWhiteSpace(settings))
         {
@@ -653,6 +665,7 @@ public class NotificationEventHandler :
         }
 
         var trimmed = settings.Trim();
+        string explicitHeaders = null;
 
         if (trimmed.StartsWith("{"))
         {
@@ -669,19 +682,22 @@ public class NotificationEventHandler :
                         if (prop.ValueKind == JsonValueKind.Object)
                         {
                             var raw = prop.GetRawText()?.Trim();
-                            return string.IsNullOrWhiteSpace(raw) || raw == "{}" ? null : raw;
+                            explicitHeaders = string.IsNullOrWhiteSpace(raw) || raw == "{}" ? null : raw;
+                            break;
                         }
 
                         if (prop.ValueKind == JsonValueKind.String)
                         {
                             var str = prop.GetString()?.Trim();
-                            return string.IsNullOrWhiteSpace(str) || str == "{}" ? null : str;
+                            explicitHeaders = string.IsNullOrWhiteSpace(str) || str == "{}" ? null : str;
+                            break;
                         }
 
                         if (prop.ValueKind == JsonValueKind.Array)
                         {
                             var raw = prop.GetRawText()?.Trim();
-                            return string.IsNullOrWhiteSpace(raw) || raw == "[]" ? null : raw;
+                            explicitHeaders = string.IsNullOrWhiteSpace(raw) || raw == "[]" ? null : raw;
+                            break;
                         }
                     }
                 }
@@ -692,21 +708,65 @@ public class NotificationEventHandler :
             }
         }
 
-        var matchKeys = new[] { "headers=", "customHeaders=", "custom_headers=" };
-        foreach (var key in matchKeys)
+        if (explicitHeaders == null)
         {
-            if (settings.Contains(key, StringComparison.OrdinalIgnoreCase))
+            var matchKeys = new[] { "headers=", "customHeaders=", "custom_headers=" };
+            foreach (var key in matchKeys)
             {
-                var match = Regex.Match(settings, $@"{key}([^&]+)", RegexOptions.IgnoreCase);
-                if (match.Success)
+                if (settings.Contains(key, StringComparison.OrdinalIgnoreCase))
                 {
-                    var val = Uri.UnescapeDataString(match.Groups[1].Value).Trim();
-                    return string.IsNullOrWhiteSpace(val) || val == "{}" ? null : val;
+                    var match = Regex.Match(settings, $@"{key}([^&]+)", RegexOptions.IgnoreCase);
+                    if (match.Success)
+                    {
+                        var val = Uri.UnescapeDataString(match.Groups[1].Value).Trim();
+                        explicitHeaders = string.IsNullOrWhiteSpace(val) || val == "{}" ? null : val;
+                        break;
+                    }
                 }
             }
         }
 
-        return null;
+        if (string.Equals(implementation, "Gotify", StringComparison.OrdinalIgnoreCase))
+        {
+            var (_, token, _) = ExtractProviderSettings(trimmed);
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                if (string.IsNullOrWhiteSpace(explicitHeaders))
+                {
+                    return $"{{\"X-Gotify-Key\":\"{token}\"}}";
+                }
+
+                if (explicitHeaders.StartsWith("{"))
+                {
+                    try
+                    {
+                        using var doc = JsonDocument.Parse(explicitHeaders);
+                        if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                        {
+                            var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                            foreach (var p in doc.RootElement.EnumerateObject())
+                            {
+                                dict[p.Name] = p.Value.GetString() ?? p.Value.GetRawText();
+                            }
+
+                            if (!dict.ContainsKey("X-Gotify-Key"))
+                            {
+                                dict["X-Gotify-Key"] = token;
+                            }
+
+                            return JsonSerializer.Serialize(dict);
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                return $"{explicitHeaders}\nX-Gotify-Key: {token}";
+            }
+        }
+
+        return explicitHeaders;
     }
 
     public static string EscapeMarkdown(string text)

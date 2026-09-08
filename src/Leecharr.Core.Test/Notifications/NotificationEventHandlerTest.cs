@@ -1330,4 +1330,73 @@ public class NotificationEventHandlerTest
         var act = () => this.handler.Handle((HealthIssueEvent)null!);
         act.Should().NotThrow();
     }
+
+    [Test]
+    public void ResolveTargetUrl_Gotify_NormalizesUrlToIncludeMessageEndpoint()
+    {
+        NotificationEventHandler.ResolveTargetUrl("Gotify", "http://gotify-server:8080")
+            .Should().Be("http://gotify-server:8080/message");
+
+        NotificationEventHandler.ResolveTargetUrl("Gotify", "http://gotify-server:8080/")
+            .Should().Be("http://gotify-server:8080/message");
+
+        NotificationEventHandler.ResolveTargetUrl("Gotify", "http://gotify-server:8080/message")
+            .Should().Be("http://gotify-server:8080/message");
+
+        NotificationEventHandler.ResolveTargetUrl("Gotify", "{\"url\":\"http://gotify-server:8080\"}")
+            .Should().Be("http://gotify-server:8080/message");
+
+        NotificationEventHandler.ResolveTargetUrl("Gotify", "{\"serverUrl\":\"http://gotify-server:8080\"}")
+            .Should().Be("http://gotify-server:8080/message");
+    }
+
+    [Test]
+    public void ResolveCustomHeaders_Gotify_InjectsXGotifyKeyHeader()
+    {
+        NotificationEventHandler.ResolveCustomHeaders("Gotify", "{\"url\":\"http://gotify-server:8080\",\"token\":\"A12345678\"}")
+            .Should().Be("{\"X-Gotify-Key\":\"A12345678\"}");
+
+        NotificationEventHandler.ResolveCustomHeaders("Gotify", "{\"url\":\"http://gotify-server:8080\",\"appToken\":\"B98765432\"}")
+            .Should().Be("{\"X-Gotify-Key\":\"B98765432\"}");
+
+        NotificationEventHandler.ResolveCustomHeaders("Gotify", "url=http://gotify-server:8080&token=C11223344")
+            .Should().Be("{\"X-Gotify-Key\":\"C11223344\"}");
+
+        var combined = NotificationEventHandler.ResolveCustomHeaders("Gotify", "{\"url\":\"http://gotify-server:8080\",\"token\":\"A123\",\"headers\":{\"Custom-Header\":\"Value\"}}");
+        combined.Should().Contain("\"Custom-Header\":\"Value\"");
+        combined.Should().Contain("\"X-Gotify-Key\":\"A123\"");
+    }
+
+    [Test]
+    public async Task Handle_TorrentAddedEvent_WhenGotifyNotification_DispatchesToNormalizedUrlWithAuthHeader()
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 80,
+            Name = "Gotify Alert",
+            Implementation = "Gotify",
+            ConfigContract = "GotifySettings",
+            Settings = "{\"url\":\"http://gotify-server:8080\",\"token\":\"secret-app-token\"}",
+            OnGrab = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+
+        var torrent = new Torrent
+        {
+            Id = 81,
+            Name = "Gotify Test Torrent",
+            Category = "TV",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.handler.Handle(new TorrentAddedEvent { Torrent = torrent });
+
+        await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        await this.webhookDispatcher.Received(1).DispatchAsync(
+            "http://gotify-server:8080/message",
+            Arg.Is<object>(p => p != null),
+            "{\"X-Gotify-Key\":\"secret-app-token\"}");
+    }
 }
