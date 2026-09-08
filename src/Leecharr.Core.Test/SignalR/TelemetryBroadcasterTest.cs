@@ -15,6 +15,12 @@ namespace Leecharr.Core.Test.SignalR;
 [TestFixture]
 public class TelemetryBroadcasterTest
 {
+    [TearDown]
+    public void TearDown()
+    {
+        MessageHub.ResetForTesting();
+    }
+
     [Test]
     public void PieceMapSignalREventHandler_BroadcastsWhenConnected()
     {
@@ -84,6 +90,8 @@ public class TelemetryBroadcasterTest
     [Test]
     public async Task SignalRMessageBroadcaster_UsesBoundedChannelWithDropOldestUnderHighLoad()
     {
+        MessageHub.AddConnectionForTesting();
+
         var hubContext = Substitute.For<IHubContext<MessageHub>>();
         var clients = Substitute.For<IHubClients>();
         var clientProxy = Substitute.For<IClientProxy>();
@@ -117,6 +125,8 @@ public class TelemetryBroadcasterTest
     [Test]
     public async Task SignalRMessageBroadcaster_GuaranteedEvents_AreSentToGuaranteedChannel()
     {
+        MessageHub.AddConnectionForTesting();
+
         var hubContext = Substitute.For<IHubContext<MessageHub>>();
         var clients = Substitute.For<IHubClients>();
         var clientProxy = Substitute.For<IClientProxy>();
