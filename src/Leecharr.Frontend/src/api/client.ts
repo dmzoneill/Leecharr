@@ -56,22 +56,38 @@ class ApiClient {
     return this.apiKey || localStorage.getItem("leecharr_apikey");
   }
 
-  private async request<T>(
+  async request<T>(
     endpoint: string,
     options: RequestInit = {},
   ): Promise<T> {
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
+    const headers: Record<string, string> = {
       Accept: "application/json",
-      ...options.headers,
+      ...(options.headers as Record<string, string>),
     };
+
+    if (
+      options.body &&
+      typeof options.body === "string" &&
+      !headers["Content-Type"]
+    ) {
+      headers["Content-Type"] = "application/json";
+    }
 
     const key = this.getApiKey();
     if (key) {
-      (headers as Record<string, string>)["X-Api-Key"] = key;
+      headers["X-Api-Key"] = key;
     }
 
-    const response = await fetch(`${BASE_URL}${endpoint}`, {
+    const url =
+      endpoint.startsWith("http://") || endpoint.startsWith("https://")
+        ? endpoint
+        : endpoint.startsWith("/api/")
+          ? `${getUrlBase()}${endpoint}`
+          : endpoint.startsWith("/")
+            ? `${BASE_URL}${endpoint}`
+            : `${BASE_URL}/${endpoint}`;
+
+    const response = await fetch(url, {
       ...options,
       headers,
     });
@@ -112,38 +128,55 @@ class ApiClient {
   }
 
   post<T>(endpoint: string, body?: unknown): Promise<T> {
+    const isSpecialBody =
+      body instanceof FormData || body instanceof URLSearchParams;
     return this.request<T>(endpoint, {
       method: "POST",
-      body: body ? JSON.stringify(body) : undefined,
+      headers:
+        body !== undefined && !isSpecialBody
+          ? { "Content-Type": "application/json" }
+          : undefined,
+      body:
+        body !== undefined
+          ? (typeof body === "string" || isSpecialBody
+              ? (body as BodyInit)
+              : JSON.stringify(body))
+          : undefined,
     });
   }
 
-  async postForm<T>(endpoint: string, formData: FormData): Promise<T> {
-    const headers: HeadersInit = {
-      Accept: "application/json",
-    };
-
-    if (this.apiKey) {
-      (headers as Record<string, string>)["X-Api-Key"] = this.apiKey;
-    }
-
-    const response = await fetch(`${BASE_URL}${endpoint}`, {
+  postForm<T>(endpoint: string, formData: FormData): Promise<T> {
+    return this.request<T>(endpoint, {
       method: "POST",
-      headers,
       body: formData,
     });
+  }
 
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status} ${response.statusText}`);
-    }
-
-    return parseResponseBody<T>(response);
+  postUrlEncoded<T>(endpoint: string, params: URLSearchParams): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params.toString(),
+    });
   }
 
   put<T>(endpoint: string, body?: unknown): Promise<T> {
+    const isSpecialBody =
+      body instanceof FormData || body instanceof URLSearchParams;
     return this.request<T>(endpoint, {
       method: "PUT",
-      body: body ? JSON.stringify(body) : undefined,
+      headers:
+        body !== undefined && !isSpecialBody
+          ? { "Content-Type": "application/json" }
+          : undefined,
+      body:
+        body !== undefined
+          ? (typeof body === "string" || isSpecialBody
+              ? (body as BodyInit)
+              : JSON.stringify(body))
+          : undefined,
     });
   }
 
@@ -154,69 +187,20 @@ class ApiClient {
 
 export const apiClient = new ApiClient();
 
-async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const apiKey = apiClient.getApiKey();
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-    ...(options?.headers as Record<string, string>),
-  };
-
-  if (apiKey) {
-    headers["X-Api-Key"] = apiKey;
-  }
-
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
-
-  if (!response.ok) {
-    let message = `HTTP Error ${response.status}`;
-    let data: any = null;
-    try {
-      const text = await response.text();
-      if (text) {
-        data = text;
-        try {
-          const json = JSON.parse(text);
-          data = json;
-          message = json.message || json.title || text;
-        } catch {
-          message = text;
-        }
-      }
-    } catch {
-      // ignore
-    }
-    const error: any = new Error(message);
-    error.status = response.status;
-    error.response = {
-      status: response.status,
-      statusText: response.statusText,
-      data,
-    };
-    throw error;
-  }
-
-  return parseResponseBody<T>(response);
-}
-
 export const api = {
   // Torrents
-  getTorrents: () => fetchJson<Torrent[]>(`${BASE_URL}/torrents`),
-  getTorrent: (id: number) => fetchJson<Torrent>(`${BASE_URL}/torrents/${id}`),
+  getTorrents: () => apiClient.get<Torrent[]>("/torrents"),
+  getTorrent: (id: number) => apiClient.get<Torrent>(`/torrents/${id}`),
   getTorrentFiles: (id: number) =>
-    fetchJson<TorrentFile[]>(`${BASE_URL}/torrents/${id}/files`),
+    apiClient.get<TorrentFile[]>(`/torrents/${id}/files`),
   pauseTorrent: (id: number) =>
-    fetchJson<Torrent>(`${BASE_URL}/torrents/${id}/pause`, { method: "POST" }),
+    apiClient.post<Torrent>(`/torrents/${id}/pause`),
   resumeTorrent: (id: number) =>
-    fetchJson<Torrent>(`${BASE_URL}/torrents/${id}/resume`, { method: "POST" }),
+    apiClient.post<Torrent>(`/torrents/${id}/resume`),
   recheckTorrent: (id: number) =>
-    fetchJson<Torrent>(`${BASE_URL}/torrents/${id}/recheck`, { method: "POST" }),
+    apiClient.post<Torrent>(`/torrents/${id}/recheck`),
   deleteTorrent: (id: number, deleteFiles = false) =>
-    fetchJson<void>(`${BASE_URL}/torrents/${id}?deleteFiles=${deleteFiles}`, {
-      method: "DELETE",
-    }),
+    apiClient.delete<void>(`/torrents/${id}?deleteFiles=${deleteFiles}`),
 
   addTorrentMagnet: (
     magnetUrl: string,
@@ -229,10 +213,7 @@ export const api = {
     if (category) data.append("category", category);
     if (savePath) data.append("savePath", savePath);
     if (paused) data.append("paused", "true");
-    return fetchJson<Torrent>(`${BASE_URL}/torrents`, {
-      method: "POST",
-      body: data,
-    });
+    return apiClient.postForm<Torrent>("/torrents", data);
   },
 
   addTorrentFile: (
@@ -246,173 +227,117 @@ export const api = {
     if (category) data.append("category", category);
     if (savePath) data.append("savePath", savePath);
     if (paused) data.append("paused", "true");
-    return fetchJson<Torrent>(`${BASE_URL}/torrents`, {
-      method: "POST",
-      body: data,
-    });
+    return apiClient.postForm<Torrent>("/torrents", data);
   },
 
   // Categories
-  getCategories: () => fetchJson<Category[]>(`${BASE_URL}/categories`),
+  getCategories: () => apiClient.get<Category[]>("/categories"),
   addCategory: (category: Partial<Category>) =>
-    fetchJson<Category>(`${BASE_URL}/categories`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(category),
-    }),
+    apiClient.post<Category>("/categories", category),
   updateCategory: (id: number, category: Partial<Category>) =>
-    fetchJson<Category>(`${BASE_URL}/categories/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(category),
-    }),
+    apiClient.put<Category>(`/categories/${id}`, category),
   deleteCategory: (id: number) =>
-    fetchJson<void>(`${BASE_URL}/categories/${id}`, { method: "DELETE" }),
+    apiClient.delete<void>(`/categories/${id}`),
 
   // System
-  getSystemStatus: () => fetchJson<SystemStatus>(`${BASE_URL}/system/status`),
+  getSystemStatus: () => apiClient.get<SystemStatus>("/system/status"),
 
   // Authentication & SSO
   getAuthProviders: () =>
-    fetchJson<import("./types").AuthProvider[]>(`${BASE_URL}/auth/providers`),
+    apiClient.get<import("./types").AuthProvider[]>("/auth/providers"),
   getCurrentUser: () =>
-    fetchJson<import("./types").CurrentUser>(`${BASE_URL}/auth/me`),
+    apiClient.get<import("./types").CurrentUser>("/auth/me"),
   login: (credentials: {
     username: string;
     password: string;
     rememberMe?: boolean;
   }) =>
-    fetchJson<import("./types").CurrentUser>(`${BASE_URL}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(credentials),
-    }),
+    apiClient.post<import("./types").CurrentUser>("/auth/login", credentials),
   logout: () =>
-    fetchJson<{ message: string }>(`${BASE_URL}/auth/logout`, {
-      method: "POST",
-    }),
+    apiClient.post<{ message: string }>("/auth/logout"),
 
   // Identity Provider Config (Admin)
   getIdProviders: () =>
-    fetchJson<import("./types").IdentityProviderDefinition[]>(
-      `${BASE_URL}/config/auth/providers`,
+    apiClient.get<import("./types").IdentityProviderDefinition[]>(
+      "/config/auth/providers",
     ),
   getIdProvider: (id: number) =>
-    fetchJson<import("./types").IdentityProviderDefinition>(
-      `${BASE_URL}/config/auth/providers/${id}`,
+    apiClient.get<import("./types").IdentityProviderDefinition>(
+      `/config/auth/providers/${id}`,
     ),
   createIdProvider: (
     provider: Partial<import("./types").IdentityProviderDefinition>,
   ) =>
-    fetchJson<import("./types").IdentityProviderDefinition>(
-      `${BASE_URL}/config/auth/providers`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(provider),
-      },
+    apiClient.post<import("./types").IdentityProviderDefinition>(
+      "/config/auth/providers",
+      provider,
     ),
   updateIdProvider: (
     id: number,
     provider: Partial<import("./types").IdentityProviderDefinition>,
   ) =>
-    fetchJson<import("./types").IdentityProviderDefinition>(
-      `${BASE_URL}/config/auth/providers/${id}`,
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(provider),
-      },
+    apiClient.put<import("./types").IdentityProviderDefinition>(
+      `/config/auth/providers/${id}`,
+      provider,
     ),
   deleteIdProvider: (id: number) =>
-    fetchJson<void>(`${BASE_URL}/config/auth/providers/${id}`, {
-      method: "DELETE",
-    }),
+    apiClient.delete<void>(`/config/auth/providers/${id}`),
   testIdProvider: (
     provider: Partial<import("./types").IdentityProviderDefinition>,
   ) =>
-    fetchJson<{ success: boolean; message: string }>(
-      `${BASE_URL}/config/auth/providers/test`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(provider),
-      },
+    apiClient.post<{ success: boolean; message: string }>(
+      "/config/auth/providers/test",
+      provider,
     ),
   testSsl: (request: import("./types").SslTestRequest) =>
-    fetchJson<import("./types").SslCertificateValidationResult>(
-      `${BASE_URL}/config/general/test-ssl`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(request),
-      },
+    apiClient.post<import("./types").SslCertificateValidationResult>(
+      "/config/general/test-ssl",
+      request,
     ),
   getApiKey: () =>
-    fetchJson<import("./types").ApiKeyResource>(
-      `${BASE_URL}/config/general/api-key`,
+    apiClient.get<import("./types").ApiKeyResource>(
+      "/config/general/api-key",
     ),
   getSystemResources: () =>
-    fetchJson<import("./types").SystemResourceTelemetrySnapshot>(
-      `${BASE_URL}/system/resources`,
+    apiClient.get<import("./types").SystemResourceTelemetrySnapshot>(
+      "/system/resources",
     ),
   getHostResources: () =>
-    fetchJson<import("./types").HostProcessResourceMetrics>(
-      `${BASE_URL}/system/resources/host`,
+    apiClient.get<import("./types").HostProcessResourceMetrics>(
+      "/system/resources/host",
     ),
   getTorrentEngineMetrics: () =>
-    fetchJson<import("./types").TorrentEngineMetrics>(
-      `${BASE_URL}/system/resources/engine`,
+    apiClient.get<import("./types").TorrentEngineMetrics>(
+      "/system/resources/engine",
     ),
   getPerTorrentMetrics: () =>
-    fetchJson<import("./types").TorrentResourceMetrics[]>(
-      `${BASE_URL}/system/resources/torrents`,
+    apiClient.get<import("./types").TorrentResourceMetrics[]>(
+      "/system/resources/torrents",
     ),
   getTorrentResourceMetrics: (id: number) =>
-    fetchJson<import("./types").TorrentResourceMetrics>(
-      `${BASE_URL}/system/resources/torrents/${id}`,
+    apiClient.get<import("./types").TorrentResourceMetrics>(
+      `/system/resources/torrents/${id}`,
     ),
   getSubsystemsTelemetry: () =>
-    fetchJson<import("./types").SubsystemTelemetryReport[]>(
-      `${BASE_URL}/system/resources/subsystems`,
+    apiClient.get<import("./types").SubsystemTelemetryReport[]>(
+      "/system/resources/subsystems",
     ),
   createTorrent: (request: import("./types").TorrentCreationRequest) =>
-    fetchJson<import("./types").TorrentCreationResult>(
-      `${BASE_URL}/torrents/create`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(request),
-      },
+    apiClient.post<import("./types").TorrentCreationResult>(
+      "/torrents/create",
+      request,
     ),
-  renameTorrentFile: async (hash: string, oldPath: string, newPath: string) => {
+  renameTorrentFile: (hash: string, oldPath: string, newPath: string) => {
     const params = new URLSearchParams();
     params.append("hash", hash);
     params.append("oldPath", oldPath);
     params.append("newPath", newPath);
-    const headers: HeadersInit = {
-      "Content-Type": "application/x-www-form-urlencoded",
-    };
-    const key = apiClient.getApiKey();
-    if (key) {
-      (headers as Record<string, string>)["X-Api-Key"] = key;
-    }
-    const response = await fetch(`${getUrlBase()}/api/v2/torrents/renameFile`, {
-      method: "POST",
-      headers,
-      body: params.toString(),
-    });
-    if (!response.ok) {
-      const text = await response.text().catch(() => response.statusText);
-      const error: any = new Error(
-        text || `Failed to rename (${response.status})`,
-      );
-      error.status = response.status;
-      throw error;
-    }
-    return response;
+    return apiClient.postUrlEncoded<void>(
+      "/api/v2/torrents/renameFile",
+      params,
+    );
   },
-  renameTorrentFolder: async (
+  renameTorrentFolder: (
     hash: string,
     oldPath: string,
     newPath: string,
@@ -421,27 +346,10 @@ export const api = {
     params.append("hash", hash);
     params.append("oldPath", oldPath);
     params.append("newPath", newPath);
-    const headers: HeadersInit = {
-      "Content-Type": "application/x-www-form-urlencoded",
-    };
-    const key = apiClient.getApiKey();
-    if (key) {
-      (headers as Record<string, string>)["X-Api-Key"] = key;
-    }
-    const response = await fetch(`${getUrlBase()}/api/v2/torrents/renameFolder`, {
-      method: "POST",
-      headers,
-      body: params.toString(),
-    });
-    if (!response.ok) {
-      const text = await response.text().catch(() => response.statusText);
-      const error: any = new Error(
-        text || `Failed to rename (${response.status})`,
-      );
-      error.status = response.status;
-      throw error;
-    }
-    return response;
+    return apiClient.postUrlEncoded<void>(
+      "/api/v2/torrents/renameFolder",
+      params,
+    );
   },
 };
 
