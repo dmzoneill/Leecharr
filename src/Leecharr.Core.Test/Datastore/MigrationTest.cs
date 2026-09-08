@@ -296,4 +296,26 @@ public class MigrationTest
         var count = Convert.ToInt32(command.ExecuteScalar());
         count.Should().Be(4);
     }
+
+    [Test]
+    public void Migration027_ExecutesSuccessfully()
+    {
+        var connectionString = $"Data Source={this.tempDbPath};";
+
+        var serviceProvider = new ServiceCollection()
+            .AddFluentMigratorCore()
+            .ConfigureRunner(rb => rb
+                .AddSQLite()
+                .WithGlobalConnectionString(connectionString)
+                .ScanIn(typeof(InitialSetup).Assembly).For.Migrations())
+            .AddLogging(lb => lb.AddFluentMigratorConsole())
+            .BuildServiceProvider(false);
+
+        using (var scope = serviceProvider.CreateScope())
+        {
+            var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+            var act = () => runner.MigrateUp();
+            act.Should().NotThrow();
+        }
+    }
 }
