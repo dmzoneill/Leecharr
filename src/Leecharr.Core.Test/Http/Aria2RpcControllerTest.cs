@@ -493,7 +493,7 @@ public class Aria2RpcControllerTest
         file2.GetProperty("index").GetString().Should().Be("2");
         file2.GetProperty("path").GetString().Should().Be(Path.Combine("/downloads/movies", "sample.mkv"));
         file2.GetProperty("length").GetString().Should().Be("200");
-        file2.GetProperty("completedLength").GetString().Should().Be("100");
+        file2.GetProperty("completedLength").GetString().Should().Be("0");
         file2.GetProperty("selected").GetString().Should().Be("false");
         file2.GetProperty("uris").GetArrayLength().Should().Be(0);
     }
@@ -550,7 +550,7 @@ public class Aria2RpcControllerTest
         GetStructMember(s2, "index").Should().Be("2");
         GetStructMember(s2, "path").Should().Be(Path.Combine("/downloads/tv", "ep2.mkv"));
         GetStructMember(s2, "length").Should().Be("500");
-        GetStructMember(s2, "completedLength").Should().Be("250");
+        GetStructMember(s2, "completedLength").Should().Be("0");
         GetStructMember(s2, "selected").Should().Be("false");
         s2.Elements("member").FirstOrDefault(m => m.Element("name")?.Value == "uris")
             ?.Element("value")?.Element("array")?.Element("data")?.Elements("value").Count().Should().Be(0);

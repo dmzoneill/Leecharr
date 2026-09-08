@@ -122,9 +122,6 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                         if (torrent.Status == TorrentStatus.Queued)
                         {
                             var oldStatus = torrent.Status;
-                            torrent.Status = TorrentStatus.Downloading;
-                            this.torrentRepository.Update(torrent);
-
                             try
                             {
                                 if (this.downloadEngine != null)
@@ -132,19 +129,21 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                     await this.downloadEngine.ResumeTorrentAsync(torrent.Id);
                                 }
 
+                                torrent.Status = TorrentStatus.Downloading;
+                                this.torrentRepository.Update(torrent);
                                 this.logger.Info("Queue manager promoted torrent {0} ({1}) from Queued to Downloading", torrent.Name, torrent.Id);
+
+                                this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+                                {
+                                    Torrent = torrent,
+                                    OldStatus = oldStatus,
+                                    NewStatus = TorrentStatus.Downloading,
+                                });
                             }
                             catch (Exception ex)
                             {
                                 this.logger.Warn(ex, "Failed to resume torrent {0} in download engine", torrent.Id);
                             }
-
-                            this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
-                            {
-                                Torrent = torrent,
-                                OldStatus = oldStatus,
-                                NewStatus = TorrentStatus.Downloading,
-                            });
                         }
 
                         if (!isIgnoredDownload)
@@ -159,14 +158,6 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                         if (torrent.Status == TorrentStatus.Downloading)
                         {
                             var oldStatus = torrent.Status;
-                            torrent.Status = TorrentStatus.Queued;
-                            torrent.DownloadSpeed = 0;
-                            torrent.UploadSpeed = 0;
-                            torrent.Eta = 0;
-                            torrent.Seeders = 0;
-                            torrent.Leechers = 0;
-                            this.torrentRepository.Update(torrent);
-
                             try
                             {
                                 if (this.downloadEngine != null)
@@ -174,19 +165,26 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                     await this.downloadEngine.PauseTorrentAsync(torrent.Id);
                                 }
 
+                                torrent.Status = TorrentStatus.Queued;
+                                torrent.DownloadSpeed = 0;
+                                torrent.UploadSpeed = 0;
+                                torrent.Eta = 0;
+                                torrent.Seeders = 0;
+                                torrent.Leechers = 0;
+                                this.torrentRepository.Update(torrent);
                                 this.logger.Info("Queue manager demoted torrent {0} ({1}) to Queued (Active downloads: {2}/{3})", torrent.Name, torrent.Id, activeDownloads, maxDownloads);
+
+                                this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+                                {
+                                    Torrent = torrent,
+                                    OldStatus = oldStatus,
+                                    NewStatus = TorrentStatus.Queued,
+                                });
                             }
                             catch (Exception ex)
                             {
                                 this.logger.Warn(ex, "Failed to pause torrent {0} in download engine", torrent.Id);
                             }
-
-                            this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
-                            {
-                                Torrent = torrent,
-                                OldStatus = oldStatus,
-                                NewStatus = TorrentStatus.Queued,
-                            });
                         }
                     }
                 }
@@ -218,9 +216,6 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                         if (torrent.Status == TorrentStatus.Queued)
                         {
                             var oldStatus = torrent.Status;
-                            torrent.Status = TorrentStatus.Seeding;
-                            this.torrentRepository.Update(torrent);
-
                             try
                             {
                                 if (this.downloadEngine != null)
@@ -228,19 +223,21 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                     await this.downloadEngine.ResumeTorrentAsync(torrent.Id);
                                 }
 
+                                torrent.Status = TorrentStatus.Seeding;
+                                this.torrentRepository.Update(torrent);
                                 this.logger.Info("Queue manager promoted torrent {0} ({1}) from Queued to Seeding", torrent.Name, torrent.Id);
+
+                                this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+                                {
+                                    Torrent = torrent,
+                                    OldStatus = oldStatus,
+                                    NewStatus = TorrentStatus.Seeding,
+                                });
                             }
                             catch (Exception ex)
                             {
                                 this.logger.Warn(ex, "Failed to resume seeding torrent {0} in download engine", torrent.Id);
                             }
-
-                            this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
-                            {
-                                Torrent = torrent,
-                                OldStatus = oldStatus,
-                                NewStatus = TorrentStatus.Seeding,
-                            });
                         }
 
                         if (!isIgnoredUpload)
@@ -255,14 +252,6 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                         if (torrent.Status == TorrentStatus.Seeding)
                         {
                             var oldStatus = torrent.Status;
-                            torrent.Status = TorrentStatus.Queued;
-                            torrent.DownloadSpeed = 0;
-                            torrent.UploadSpeed = 0;
-                            torrent.Eta = 0;
-                            torrent.Seeders = 0;
-                            torrent.Leechers = 0;
-                            this.torrentRepository.Update(torrent);
-
                             try
                             {
                                 if (this.downloadEngine != null)
@@ -270,19 +259,26 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                     await this.downloadEngine.PauseTorrentAsync(torrent.Id);
                                 }
 
+                                torrent.Status = TorrentStatus.Queued;
+                                torrent.DownloadSpeed = 0;
+                                torrent.UploadSpeed = 0;
+                                torrent.Eta = 0;
+                                torrent.Seeders = 0;
+                                torrent.Leechers = 0;
+                                this.torrentRepository.Update(torrent);
                                 this.logger.Info("Queue manager demoted torrent {0} ({1}) to Queued (Active uploads: {2}/{3})", torrent.Name, torrent.Id, activeUploads, maxUploads);
+
+                                this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+                                {
+                                    Torrent = torrent,
+                                    OldStatus = oldStatus,
+                                    NewStatus = TorrentStatus.Queued,
+                                });
                             }
                             catch (Exception ex)
                             {
                                 this.logger.Warn(ex, "Failed to pause seeding torrent {0} in download engine", torrent.Id);
                             }
-
-                            this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
-                            {
-                                Torrent = torrent,
-                                OldStatus = oldStatus,
-                                NewStatus = TorrentStatus.Queued,
-                            });
                         }
                     }
                 }
