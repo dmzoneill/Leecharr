@@ -10,4 +10,6 @@ public interface IArrConnectionRepository : IBasicRepository<ArrConnectionDefini
     IEnumerable<ArrConnectionDefinition> GetEnabled();
 
     ArrConnectionDefinition GetByType(string arrType);
+
+    ArrConnectionDefinition GetByAffinity(string arrType, string category = null, string tag = null);
 }

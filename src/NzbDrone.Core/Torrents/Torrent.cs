@@ -84,6 +84,14 @@ public class Torrent : ModelBase
 
     public List<int> TagIds { get; set; } = new();
 
+    public bool IsImported { get; set; }
+
+    public DateTime? ImportedAt { get; set; }
+
+    public string ImportedByArr { get; set; }
+
+    public string ImportPath { get; set; }
+
     public long CumulativeSeedingTimeSeconds { get; set; }
 
     public int SeedTimeMinutes => (int)(this.CumulativeSeedingTimeSeconds / 60);
