@@ -14,7 +14,7 @@ using NzbDrone.Core.Trackers;
 
 namespace NzbDrone.Core.Ai;
 
-public class DynamicAiProxy : IAiService, IAiManager, IDisposable
+public class DynamicAiProxy : IAiService, IAiManager, IHandle<ConfigSavedEvent>, IDisposable
 {
     private readonly IEnumerable<IAiEngineProvider> availableProviders;
     private readonly IConfigService configService;
@@ -279,6 +279,26 @@ public class DynamicAiProxy : IAiService, IAiManager, IDisposable
                     }
                 }
             }
+        }
+    }
+
+    public void Handle(ConfigSavedEvent message)
+    {
+        var desiredId = this.configService?.ActiveAiProvider;
+        if (!string.IsNullOrWhiteSpace(desiredId) &&
+            !string.Equals(this.ActiveProviderId, desiredId, StringComparison.OrdinalIgnoreCase))
+        {
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await this.SwitchProviderAsync(desiredId);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Error(ex, "Failed to switch active AI provider on ConfigSavedEvent to {0}", desiredId);
+                }
+            });
         }
     }
 }

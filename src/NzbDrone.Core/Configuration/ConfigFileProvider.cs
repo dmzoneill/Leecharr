@@ -145,14 +145,34 @@ public class ConfigFileProvider : IConfigFileProvider
 
     private string GetValue(string key, string defaultValue)
     {
-        var envVal = Environment.GetEnvironmentVariable("LEECHARR__" + key.ToUpperInvariant())
-            ?? Environment.GetEnvironmentVariable("LEECHARR_" + key.ToUpperInvariant());
+        var snakeKey = ToSnakeCaseUpper(key);
+        var upperKey = key.ToUpperInvariant();
+
+        var envVal = Environment.GetEnvironmentVariable("LEECHARR__" + snakeKey)
+            ?? Environment.GetEnvironmentVariable("LEECHARR_" + snakeKey)
+            ?? Environment.GetEnvironmentVariable("LEECHARR__" + upperKey)
+            ?? Environment.GetEnvironmentVariable("LEECHARR_" + upperKey)
+            ?? Environment.GetEnvironmentVariable("LEECHARR__" + key)
+            ?? Environment.GetEnvironmentVariable("LEECHARR_" + key);
+
         if (!string.IsNullOrWhiteSpace(envVal))
         {
             return envVal;
         }
 
         return this.config.TryGetValue(key, out var value) ? value : defaultValue;
+    }
+
+    private static string ToSnakeCaseUpper(string input)
+    {
+        if (string.IsNullOrEmpty(input))
+        {
+            return input;
+        }
+
+        var result = System.Text.RegularExpressions.Regex.Replace(input, @"([a-z0-9])([A-Z])", "$1_$2");
+        result = System.Text.RegularExpressions.Regex.Replace(result, @"([A-Z]+)([A-Z][a-z])", "$1_$2");
+        return result.ToUpperInvariant();
     }
 
     private int GetValueInt(string key, int defaultValue)

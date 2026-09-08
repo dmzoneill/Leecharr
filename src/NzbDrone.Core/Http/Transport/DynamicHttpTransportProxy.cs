@@ -12,7 +12,7 @@ using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.Http.Transport;
 
-public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportManager, IDisposable
+public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportManager, IHandle<ConfigSavedEvent>, IDisposable
 {
     private readonly IEnumerable<IHttpTransportProvider> availableProviders;
     private readonly IConfigService configService;
@@ -273,6 +273,26 @@ public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportMan
         }
 
         return clone;
+    }
+
+    public void Handle(ConfigSavedEvent message)
+    {
+        var desiredProviderId = this.configService?.ActiveHttpTransportProvider;
+        if (!string.IsNullOrWhiteSpace(desiredProviderId) &&
+            !string.Equals(this.ActiveProviderId, desiredProviderId, StringComparison.OrdinalIgnoreCase))
+        {
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await this.SwitchProviderAsync(desiredProviderId);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Error(ex, "Failed to switch active HTTP transport on ConfigSavedEvent to {0}", desiredProviderId);
+                }
+            });
+        }
     }
 
     public void Dispose()

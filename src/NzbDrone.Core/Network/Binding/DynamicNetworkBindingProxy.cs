@@ -12,7 +12,7 @@ using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.Network.Binding;
 
-public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindingManager, IDisposable
+public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindingManager, IHandle<ConfigSavedEvent>, IDisposable
 {
     private readonly IEnumerable<INetworkBindingProvider> availableProviders;
     private readonly IConfigService configService;
@@ -189,6 +189,26 @@ public class DynamicNetworkBindingProxy : INetworkBindingService, INetworkBindin
         }
 
         return false;
+    }
+
+    public void Handle(ConfigSavedEvent message)
+    {
+        var desiredProviderId = this.configService?.ActiveNetworkBindingProvider;
+        if (!string.IsNullOrWhiteSpace(desiredProviderId) &&
+            !string.Equals(this.ActiveProviderId, desiredProviderId, StringComparison.OrdinalIgnoreCase))
+        {
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await this.SwitchProviderAsync(desiredProviderId);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Error(ex, "Failed to switch active network binding provider on ConfigSavedEvent to {0}", desiredProviderId);
+                }
+            });
+        }
     }
 
     public void Dispose()
