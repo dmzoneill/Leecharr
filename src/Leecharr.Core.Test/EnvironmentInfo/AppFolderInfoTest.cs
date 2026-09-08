@@ -120,4 +120,25 @@ public class AppFolderInfoTest
 
         appFolderInfo.StartUpFolder.Should().Be(AppDomain.CurrentDomain.BaseDirectory);
     }
+
+    [Test]
+    public void Constructor_WhenCliDataArgHasTilde_ExpandsHomeDirectory()
+    {
+        var context = new StartupContext("--data=~/my-custom-leecharr-folder");
+        var appFolderInfo = new AppFolderInfo(context);
+
+        appFolderInfo.AppDataFolder.Should().NotStartWith("~");
+        appFolderInfo.AppDataFolder.Should().EndWith("my-custom-leecharr-folder");
+    }
+
+    [Test]
+    public void Constructor_WhenEnvDataHasTilde_ExpandsHomeDirectory()
+    {
+        Environment.SetEnvironmentVariable("LEECHARR__APP_DATA", "~/my-custom-env-folder");
+
+        var appFolderInfo = new AppFolderInfo(new StartupContext());
+
+        appFolderInfo.AppDataFolder.Should().NotStartWith("~");
+        appFolderInfo.AppDataFolder.Should().EndWith("my-custom-env-folder");
+    }
 }

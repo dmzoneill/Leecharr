@@ -55,6 +55,9 @@ public class Startup
         services.AddSignalR(options =>
         {
             options.MaximumReceiveMessageSize = 10 * 1024 * 1024; // 10 MB
+            options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+            options.HandshakeTimeout = TimeSpan.FromSeconds(15);
+            options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
         })
         .AddJsonProtocol(options =>
         {
@@ -65,6 +68,10 @@ public class Startup
             {
                 options.PayloadSerializerOptions.Converters.Add(converter);
             }
+        });
+        services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+        {
+            options.MultipartBodyLengthLimit = 250 * 1024 * 1024;
         });
         services.AddDataProtection();
         services.AddHttpClient();

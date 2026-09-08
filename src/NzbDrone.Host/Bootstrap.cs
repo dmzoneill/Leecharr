@@ -70,6 +70,9 @@ public static class Bootstrap
         builder.WebHost.ConfigureKestrel(serverOptions =>
         {
             serverOptions.AddServerHeader = false;
+            serverOptions.Limits.MaxRequestBodySize = 250 * 1024 * 1024; // 250MB
+            serverOptions.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(30);
+            serverOptions.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(2);
 
             if (urls == null)
             {
