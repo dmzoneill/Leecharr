@@ -167,8 +167,7 @@ else:
                 };
             }
 
-            startInfo.EnvironmentVariables["TERM"] = "xterm-256color";
-            startInfo.EnvironmentVariables["COLORTERM"] = "truecolor";
+            TerminalEnvironmentSanitizer.Sanitize(startInfo);
 
             proc = Process.Start(startInfo)
                 ?? throw new InvalidOperationException("Failed to launch terminal process");

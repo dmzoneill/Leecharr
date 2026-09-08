@@ -62,10 +62,7 @@ public sealed class FallbackProcessSession : ITerminalSession
             startInfo.WorkingDirectory = cwd;
         }
 
-        startInfo.EnvironmentVariables["TERM"] = "xterm-256color";
-        startInfo.EnvironmentVariables["COLORTERM"] = "truecolor";
-        startInfo.EnvironmentVariables["LANG"] = "en_US.UTF-8";
-        startInfo.EnvironmentVariables["PS1"] = @"\[\e[1;32m\]\u@leecharr\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]\$ ";
+        TerminalEnvironmentSanitizer.Sanitize(startInfo);
 
         var proc = Process.Start(startInfo)
             ?? throw new InvalidOperationException("Failed to launch fallback terminal process");
