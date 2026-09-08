@@ -166,4 +166,37 @@ public class TorrentFileRepositoryTest
 
         this.fileRepository.GetByTorrentId(torrent.Id).Should().BeEmpty();
     }
+
+    [Test]
+    public void GetByTorrentIds_ReturnsFilesGroupedByTorrentId()
+    {
+        var torrent1 = this.torrentRepository.Insert(new Torrent
+        {
+            Name = "Torrent 1",
+            InfoHash = "4444444444444444444444444444444444444444",
+            Category = "movies",
+            TotalSize = 1000,
+            DateAdded = DateTime.UtcNow,
+        });
+
+        var torrent2 = this.torrentRepository.Insert(new Torrent
+        {
+            Name = "Torrent 2",
+            InfoHash = "5555555555555555555555555555555555555555",
+            Category = "tv",
+            TotalSize = 2000,
+            DateAdded = DateTime.UtcNow,
+        });
+
+        this.fileRepository.Insert(new TorrentFile { TorrentId = torrent1.Id, Path = "file1.mkv", Size = 1000 });
+        this.fileRepository.Insert(new TorrentFile { TorrentId = torrent2.Id, Path = "file2.mkv", Size = 1000 });
+        this.fileRepository.Insert(new TorrentFile { TorrentId = torrent2.Id, Path = "file3.mkv", Size = 1000 });
+
+        var dict = this.fileRepository.GetByTorrentIds(new[] { torrent1.Id, torrent2.Id });
+
+        dict.Should().ContainKey(torrent1.Id);
+        dict.Should().ContainKey(torrent2.Id);
+        dict[torrent1.Id].Should().HaveCount(1);
+        dict[torrent2.Id].Should().HaveCount(2);
+    }
 }
