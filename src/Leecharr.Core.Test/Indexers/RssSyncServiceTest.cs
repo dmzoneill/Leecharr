@@ -863,5 +863,68 @@ public class RssSyncServiceTest
         firstCount.Should().Be(1);
     }
 
+    [Test]
+    public async Task SyncRssFeedsAsync_WhenReleaseHasBase32InfoHash_NormalizesAndDetectsExistingInHistory()
+    {
+        var base32Hash = "4R7W26T6Z2B4X5J4L7OQ6Z2B4X5J4L7O";
+        var hexHash = MagnetLinkParser.NormalizeInfoHash(base32Hash);
+
+        var existingHistory = new DownloadHistory { Id = 100, InfoHash = hexHash, Title = "Existing" };
+        this.downloadHistoryService.GetByInfoHash(Arg.Is<string>(h => string.Equals(h, hexHash, System.StringComparison.OrdinalIgnoreCase)))
+            .Returns(existingHistory);
+
+        var indexer = new IndexerDefinition { Id = 1, Name = "AlphaTracker", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
+
+        var rule = new RssRule { Id = 1, Name = "Catch All", IsEnabled = true, MinSeeders = 1 };
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { rule });
+
+        var release = new TorznabSearchResult
+        {
+            Guid = "urn:guid:base32-duplicate",
+            Title = "Base32.Release",
+            InfoHash = base32Hash,
+            Seeders = 10,
+        };
+
+        this.torznabClient.FetchRssAsync(indexer).Returns(Task.FromResult(new List<TorznabSearchResult> { release }));
+
+        var count = await this.service.SyncRssFeedsAsync();
+        count.Should().Be(0);
+
+        this.downloadHistoryService.DidNotReceive().RecordTorrentAdded(Arg.Any<Torrent>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>());
+    }
+
+    [Test]
+    public async Task SyncRssFeedsAsync_WhenReleaseInfoHashOmittedButMagnetProvided_AutoPopulatesInfoHashAndDetectsDuplicate()
+    {
+        var hexHash = "aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd";
+        var existingTorrent = new Torrent { Id = 99, InfoHash = hexHash, Name = "Existing Magnet" };
+        this.torrentService.GetByInfoHash(Arg.Is<string>(h => string.Equals(h, hexHash, System.StringComparison.OrdinalIgnoreCase)))
+            .Returns(existingTorrent);
+
+        var indexer = new IndexerDefinition { Id = 1, Name = "AlphaTracker", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
+
+        var rule = new RssRule { Id = 1, Name = "Catch All", IsEnabled = true, MinSeeders = 1 };
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { rule });
+
+        var release = new TorznabSearchResult
+        {
+            Guid = "urn:guid:magnet-hash-omitted",
+            Title = "AutoPopulate.Release",
+            InfoHash = null,
+            MagnetUrl = $"magnet:?xt=urn:btih:{hexHash}&dn=Test",
+            Seeders = 10,
+        };
+
+        this.torznabClient.FetchRssAsync(indexer).Returns(Task.FromResult(new List<TorznabSearchResult> { release }));
+
+        var count = await this.service.SyncRssFeedsAsync();
+        count.Should().Be(0);
+
+        await this.torrentService.DidNotReceive().AddFromMagnetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
+    }
+
     #endregion
 }

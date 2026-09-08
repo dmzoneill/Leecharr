@@ -88,6 +88,42 @@ public class RssSyncService : IRssSyncService
                 var releases = await this.torznabClient.FetchRssAsync(indexer);
                 foreach (var release in releases)
                 {
+                    if (release != null)
+                    {
+                        if (!string.IsNullOrWhiteSpace(release.InfoHash))
+                        {
+                            release.InfoHash = MagnetLinkParser.NormalizeInfoHash(release.InfoHash);
+                        }
+                        else if (!string.IsNullOrWhiteSpace(release.MagnetUrl))
+                        {
+                            try
+                            {
+                                var parsed = MagnetLinkParser.Parse(release.MagnetUrl);
+                                if (!string.IsNullOrWhiteSpace(parsed?.InfoHash))
+                                {
+                                    release.InfoHash = MagnetLinkParser.NormalizeInfoHash(parsed.InfoHash);
+                                }
+                            }
+                            catch
+                            {
+                            }
+                        }
+                        else if (release.DownloadUrl?.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase) == true)
+                        {
+                            try
+                            {
+                                var parsed = MagnetLinkParser.Parse(release.DownloadUrl);
+                                if (!string.IsNullOrWhiteSpace(parsed?.InfoHash))
+                                {
+                                    release.InfoHash = MagnetLinkParser.NormalizeInfoHash(parsed.InfoHash);
+                                }
+                            }
+                            catch
+                            {
+                            }
+                        }
+                    }
+
                     var releaseId = GetReleaseId(release);
                     if (this.IsAlreadyGrabbed(release, releaseId))
                     {
@@ -120,7 +156,7 @@ public class RssSyncService : IRssSyncService
                             {
                                 if (!string.IsNullOrEmpty(release.MagnetUrl))
                                 {
-                                    var magnetInfoHash = MagnetLinkParser.Parse(release.MagnetUrl)?.InfoHash;
+                                    var magnetInfoHash = MagnetLinkParser.NormalizeInfoHash(MagnetLinkParser.Parse(release.MagnetUrl)?.InfoHash);
                                     if (!string.IsNullOrWhiteSpace(magnetInfoHash))
                                     {
                                         var existingTorrent = this.torrentService?.GetByInfoHash(magnetInfoHash);
@@ -133,7 +169,7 @@ public class RssSyncService : IRssSyncService
                                                 this.grabbedReleaseIds.TryAdd(releaseId, 0);
                                             }
 
-                                            this.grabbedReleaseIds.TryAdd(magnetInfoHash.ToLowerInvariant(), 0);
+                                            this.grabbedReleaseIds.TryAdd(magnetInfoHash, 0);
                                             this.logger.Info("Release '{0}' with infohash '{1}' has already been grabbed. Skipping duplicate.", release.Title, magnetInfoHash);
                                             break;
                                         }
@@ -146,7 +182,7 @@ public class RssSyncService : IRssSyncService
                                 {
                                     if (release.DownloadUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                                     {
-                                        var magnetInfoHash = MagnetLinkParser.Parse(release.DownloadUrl)?.InfoHash;
+                                        var magnetInfoHash = MagnetLinkParser.NormalizeInfoHash(MagnetLinkParser.Parse(release.DownloadUrl)?.InfoHash);
                                         if (!string.IsNullOrWhiteSpace(magnetInfoHash))
                                         {
                                             var existingTorrent = this.torrentService?.GetByInfoHash(magnetInfoHash);
@@ -159,7 +195,7 @@ public class RssSyncService : IRssSyncService
                                                     this.grabbedReleaseIds.TryAdd(releaseId, 0);
                                                 }
 
-                                                this.grabbedReleaseIds.TryAdd(magnetInfoHash.ToLowerInvariant(), 0);
+                                                this.grabbedReleaseIds.TryAdd(magnetInfoHash, 0);
                                                 this.logger.Info("Release '{0}' with infohash '{1}' has already been grabbed. Skipping duplicate.", release.Title, magnetInfoHash);
                                                 break;
                                             }
@@ -172,11 +208,12 @@ public class RssSyncService : IRssSyncService
                                     {
                                         var torrentBytes = await this.safeHttpClientService.DownloadBytesAsync(release.DownloadUrl, maxSizeBytes: 10 * 1024 * 1024);
                                         var parsed = this.torrentFileParser.Parse(torrentBytes);
+                                        var parsedInfoHash = MagnetLinkParser.NormalizeInfoHash(parsed?.InfoHash);
 
-                                        if (!string.IsNullOrWhiteSpace(parsed?.InfoHash))
+                                        if (!string.IsNullOrWhiteSpace(parsedInfoHash))
                                         {
-                                            var existingTorrent = this.torrentService?.GetByInfoHash(parsed.InfoHash);
-                                            var existingHistory = this.downloadHistoryService?.GetByInfoHash(parsed.InfoHash);
+                                            var existingTorrent = this.torrentService?.GetByInfoHash(parsedInfoHash);
+                                            var existingHistory = this.downloadHistoryService?.GetByInfoHash(parsedInfoHash);
 
                                             if (existingTorrent != null || existingHistory != null)
                                             {
@@ -185,8 +222,8 @@ public class RssSyncService : IRssSyncService
                                                     this.grabbedReleaseIds.TryAdd(releaseId, 0);
                                                 }
 
-                                                this.grabbedReleaseIds.TryAdd(parsed.InfoHash.ToLowerInvariant(), 0);
-                                                this.logger.Info("Release '{0}' with infohash '{1}' has already been grabbed. Skipping duplicate.", release.Title, parsed.InfoHash);
+                                                this.grabbedReleaseIds.TryAdd(parsedInfoHash, 0);
+                                                this.logger.Info("Release '{0}' with infohash '{1}' has already been grabbed. Skipping duplicate.", release.Title, parsedInfoHash);
                                                 break;
                                             }
                                         }
@@ -203,8 +240,9 @@ public class RssSyncService : IRssSyncService
 
                             if (grabbed && addedTorrent != null)
                             {
-                                var existingHistoryEntry = !string.IsNullOrEmpty(addedTorrent.InfoHash)
-                                    ? this.downloadHistoryService?.GetByInfoHash(addedTorrent.InfoHash)
+                                var normalizedAddedHash = MagnetLinkParser.NormalizeInfoHash(addedTorrent.InfoHash);
+                                var existingHistoryEntry = !string.IsNullOrEmpty(normalizedAddedHash)
+                                    ? this.downloadHistoryService?.GetByInfoHash(normalizedAddedHash)
                                     : null;
 
                                 if (existingHistoryEntry != null)
@@ -214,12 +252,12 @@ public class RssSyncService : IRssSyncService
                                         this.grabbedReleaseIds.TryAdd(releaseId, 0);
                                     }
 
-                                    if (!string.IsNullOrEmpty(addedTorrent.InfoHash))
+                                    if (!string.IsNullOrEmpty(normalizedAddedHash))
                                     {
-                                        this.grabbedReleaseIds.TryAdd(addedTorrent.InfoHash.ToLowerInvariant(), 0);
+                                        this.grabbedReleaseIds.TryAdd(normalizedAddedHash, 0);
                                     }
 
-                                    this.logger.Info("Release '{0}' with infohash '{1}' already exists in download history. Skipping duplicate recording.", release.Title, addedTorrent.InfoHash);
+                                    this.logger.Info("Release '{0}' with infohash '{1}' already exists in download history. Skipping duplicate recording.", release.Title, normalizedAddedHash);
                                     break;
                                 }
 
@@ -239,9 +277,9 @@ public class RssSyncService : IRssSyncService
                                     this.grabbedReleaseIds.TryAdd(releaseId, 0);
                                 }
 
-                                if (!string.IsNullOrEmpty(addedTorrent.InfoHash))
+                                if (!string.IsNullOrEmpty(normalizedAddedHash))
                                 {
-                                    this.grabbedReleaseIds.TryAdd(addedTorrent.InfoHash.ToLowerInvariant(), 0);
+                                    this.grabbedReleaseIds.TryAdd(normalizedAddedHash, 0);
                                 }
 
                                 grabbedCount++;
@@ -300,7 +338,7 @@ public class RssSyncService : IRssSyncService
 
         if (!string.IsNullOrWhiteSpace(candidateHash))
         {
-            candidateHash = candidateHash.ToLowerInvariant();
+            candidateHash = MagnetLinkParser.NormalizeInfoHash(candidateHash);
             if (this.torrentService?.GetByInfoHash(candidateHash) != null ||
                 this.downloadHistoryService?.GetByInfoHash(candidateHash) != null)
             {
@@ -331,7 +369,7 @@ public class RssSyncService : IRssSyncService
 
         if (!string.IsNullOrWhiteSpace(release.InfoHash))
         {
-            return release.InfoHash;
+            return MagnetLinkParser.NormalizeInfoHash(release.InfoHash);
         }
 
         if (!string.IsNullOrWhiteSpace(release.DownloadUrl))

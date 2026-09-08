@@ -14,6 +14,7 @@ using System.Xml;
 using System.Xml.Linq;
 using NLog;
 using NzbDrone.Core.Http.Transport;
+using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.Indexers;
 
@@ -46,6 +47,48 @@ public class TorznabClient : ITorznabClient
 {
     private static readonly XNamespace TorznabNs = "http://torznab.com/schemas/2015/feed";
     private static readonly XNamespace NewznabNs = "http://www.newznab.com/DTD/2010/feeds/attributes/";
+    private static readonly Regex MagnetRegex = new(@"magnet:\?xt=urn:bt[im]h:[^\s""'<>`\]\[]+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    private static readonly Dictionary<string, string> TimeZoneOffsets = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { "UTC", "+00:00" },
+        { "GMT", "+00:00" },
+        { "Z", "+00:00" },
+        { "EST", "-05:00" },
+        { "EDT", "-04:00" },
+        { "CST", "-06:00" },
+        { "CDT", "-05:00" },
+        { "MST", "-07:00" },
+        { "MDT", "-06:00" },
+        { "PST", "-08:00" },
+        { "PDT", "-07:00" },
+        { "AKST", "-09:00" },
+        { "AKDT", "-08:00" },
+        { "HST", "-10:00" },
+        { "HDT", "-09:00" },
+        { "WET", "+00:00" },
+        { "WEST", "+01:00" },
+        { "CET", "+01:00" },
+        { "CEST", "+02:00" },
+        { "EET", "+02:00" },
+        { "EEST", "+03:00" },
+        { "MSK", "+03:00" },
+        { "MSD", "+04:00" },
+        { "BST", "+01:00" },
+        { "IST", "+05:30" },
+        { "JST", "+09:00" },
+        { "KST", "+09:00" },
+        { "HKT", "+08:00" },
+        { "SGT", "+08:00" },
+        { "AEST", "+10:00" },
+        { "AEDT", "+11:00" },
+        { "ACST", "+09:30" },
+        { "ACDT", "+10:30" },
+        { "AWST", "+08:00" },
+        { "NZST", "+12:00" },
+        { "NZDT", "+13:00" },
+    };
+
     private readonly HttpClient httpClient;
     private readonly Logger logger;
 
@@ -245,24 +288,16 @@ public class TorznabClient : ITorznabClient
                 var rawDescription = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("description", StringComparison.OrdinalIgnoreCase))?.Value;
                 var description = !string.IsNullOrWhiteSpace(rawDescription) ? WebUtility.HtmlDecode(rawDescription.Trim()) : string.Empty;
 
+                var rawEncoded = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("encoded", StringComparison.OrdinalIgnoreCase) || e.Name.LocalName.Equals("content", StringComparison.OrdinalIgnoreCase))?.Value;
+                var encodedContent = !string.IsNullOrWhiteSpace(rawEncoded) ? WebUtility.HtmlDecode(rawEncoded.Trim()) : string.Empty;
+
                 var rawDetails = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("comments", StringComparison.OrdinalIgnoreCase) || e.Name.LocalName.Equals("details", StringComparison.OrdinalIgnoreCase))?.Value;
                 var details = !string.IsNullOrWhiteSpace(rawDetails) ? WebUtility.HtmlDecode(rawDetails.Trim()) : string.Empty;
 
                 var pubDateStr = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("pubDate", StringComparison.OrdinalIgnoreCase)
                     || e.Name.LocalName.Equals("published", StringComparison.OrdinalIgnoreCase)
                     || e.Name.LocalName.Equals("updated", StringComparison.OrdinalIgnoreCase))?.Value;
-                var publishDate = DateTime.UtcNow;
-                if (!string.IsNullOrWhiteSpace(pubDateStr))
-                {
-                    if (DateTimeOffset.TryParse(pubDateStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDto))
-                    {
-                        publishDate = parsedDto.UtcDateTime;
-                    }
-                    else if (DateTime.TryParse(pubDateStr, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out var parsedPubDate))
-                    {
-                        publishDate = parsedPubDate;
-                    }
-                }
+                var publishDate = ParsePublishDate(pubDateStr);
 
                 long size = 0;
                 if (enclosure != null && !string.IsNullOrWhiteSpace(enclosure.Attribute("length")?.Value))
@@ -370,7 +405,7 @@ public class TorznabClient : ITorznabClient
                             uploadVolumeFactor = ParseDouble(value, uploadVolumeFactor);
                             break;
                         case "infohash":
-                            infoHash = value?.Trim() ?? string.Empty;
+                            infoHash = MagnetLinkParser.NormalizeInfoHash(value);
                             break;
                         case "magneturl":
                             magnetUrl = value?.Trim() ?? string.Empty;
@@ -407,6 +442,34 @@ public class TorznabClient : ITorznabClient
                     {
                         magnetUrl = link;
                     }
+                    else
+                    {
+                        var extracted = ExtractMagnetUri(description, encodedContent, rawDescription, rawEncoded);
+                        if (!string.IsNullOrWhiteSpace(extracted))
+                        {
+                            magnetUrl = extracted;
+                        }
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(infoHash) && !string.IsNullOrWhiteSpace(magnetUrl))
+                {
+                    try
+                    {
+                        var parsedMagnet = MagnetLinkParser.Parse(magnetUrl);
+                        if (!string.IsNullOrWhiteSpace(parsedMagnet?.InfoHash))
+                        {
+                            infoHash = MagnetLinkParser.NormalizeInfoHash(parsedMagnet.InfoHash);
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore parse failure
+                    }
+                }
+                else if (!string.IsNullOrWhiteSpace(infoHash))
+                {
+                    infoHash = MagnetLinkParser.NormalizeInfoHash(infoHash);
                 }
 
                 var result = new TorznabSearchResult
@@ -451,6 +514,91 @@ public class TorznabClient : ITorznabClient
         }
 
         return results;
+    }
+
+    internal static DateTime ParsePublishDate(string pubDateStr)
+    {
+        if (string.IsNullOrWhiteSpace(pubDateStr))
+        {
+            return DateTime.UtcNow;
+        }
+
+        var trimmed = pubDateStr.Trim();
+
+        if (long.TryParse(trimmed, NumberStyles.Integer, CultureInfo.InvariantCulture, out var unixTimestamp) && unixTimestamp > 0)
+        {
+            try
+            {
+                if (unixTimestamp > 100_000_000_000L)
+                {
+                    return DateTimeOffset.FromUnixTimeMilliseconds(unixTimestamp).UtcDateTime;
+                }
+
+                return DateTimeOffset.FromUnixTimeSeconds(unixTimestamp).UtcDateTime;
+            }
+            catch
+            {
+                // If out of range, fall through
+            }
+        }
+
+        if (DateTimeOffset.TryParse(trimmed, CultureInfo.InvariantCulture, DateTimeStyles.None, out var directDto))
+        {
+            return directDto.UtcDateTime;
+        }
+
+        var normalized = Regex.Replace(
+            trimmed,
+            @"\b([A-Za-z]{1,5})\b",
+            m => TimeZoneOffsets.TryGetValue(m.Value, out var offset) ? offset : m.Value);
+
+        if (DateTimeOffset.TryParse(normalized, CultureInfo.InvariantCulture, DateTimeStyles.None, out var normalizedDto))
+        {
+            return normalizedDto.UtcDateTime;
+        }
+
+        if (DateTime.TryParse(normalized, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var parsedPubDate))
+        {
+            return DateTime.SpecifyKind(parsedPubDate, DateTimeKind.Utc);
+        }
+
+        if (DateTime.TryParse(trimmed, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var parsedOriginal))
+        {
+            return DateTime.SpecifyKind(parsedOriginal, DateTimeKind.Utc);
+        }
+
+        return DateTime.UtcNow;
+    }
+
+    internal static string ExtractMagnetUri(params string[] candidates)
+    {
+        if (candidates == null)
+        {
+            return string.Empty;
+        }
+
+        foreach (var candidate in candidates)
+        {
+            if (string.IsNullOrWhiteSpace(candidate))
+            {
+                continue;
+            }
+
+            var decoded = WebUtility.HtmlDecode(candidate);
+            var match = MagnetRegex.Match(decoded);
+            if (match.Success)
+            {
+                return match.Value.Trim();
+            }
+
+            var rawMatch = MagnetRegex.Match(candidate);
+            if (rawMatch.Success)
+            {
+                return WebUtility.HtmlDecode(rawMatch.Value).Trim();
+            }
+        }
+
+        return string.Empty;
     }
 
     internal static string SanitizeXml(string xml)
