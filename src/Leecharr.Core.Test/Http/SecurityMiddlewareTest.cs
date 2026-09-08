@@ -18,13 +18,49 @@ public class SecurityMiddlewareTest
     [TestCase("localhost", true)]
     [TestCase("127.0.0.1", true)]
     [TestCase("::1", true)]
+    [TestCase("[::1]", true)]
     [TestCase("192.168.1.100", true)]
     [TestCase("10.0.0.5", true)]
     [TestCase("172.20.0.2", true)]
+    [TestCase("169.254.1.1", true)]
+    [TestCase("100.64.0.1", true)]
+    [TestCase("100.100.50.25", true)]
+    [TestCase("100.127.255.254", true)]
+    [TestCase("100.63.255.255", false)]
+    [TestCase("100.128.0.1", false)]
+    [TestCase("fe80::1", true)]
+    [TestCase("[fe80::1]", true)]
+    [TestCase("[fe80::215:5dff:fe00:402]", true)]
+    [TestCase("fd00::1", true)]
+    [TestCase("[fd00::1]", true)]
+    [TestCase("fc00::1", true)]
+    [TestCase("[fc00::1]", true)]
+    [TestCase("fec0::1", true)]
+    [TestCase("[fec0::1]", true)]
+    [TestCase("2001:db8::1", false)]
+    [TestCase("[2001:db8::1]", false)]
+    [TestCase("8.8.8.8", false)]
     [TestCase("evil.attacker.com", false)]
+    [TestCase("", false)]
+    [TestCase("   ", false)]
     public void HostHeaderValidation_IsHostAllowed_ValidatesCorrectly(string host, bool expectedAllowed)
     {
         var allowed = HostHeaderValidationMiddleware.IsHostAllowed(host, string.Empty);
+        allowed.Should().Be(expectedAllowed);
+    }
+
+    [TestCase("sub.example.com", "*.example.com", true)]
+    [TestCase("deep.sub.example.com", "*.example.com", true)]
+    [TestCase("example.com", "*.example.com", false)]
+    [TestCase("badexample.com", "*.example.com", false)]
+    [TestCase("sub.local", "*.local", true)]
+    [TestCase("myhost.lan", "*.lan", true)]
+    [TestCase("app.home.arpa", ".home.arpa", true)]
+    [TestCase("any.domain.org", "*", true)]
+    [TestCase("my.customdomain.org", "leecharr.local, *.customdomain.org", true)]
+    public void HostHeaderValidation_WildcardAllowedHosts(string host, string allowedHosts, bool expectedAllowed)
+    {
+        var allowed = HostHeaderValidationMiddleware.IsHostAllowed(host, allowedHosts);
         allowed.Should().Be(expectedAllowed);
     }
 
@@ -33,6 +69,33 @@ public class SecurityMiddlewareTest
     {
         var allowed = HostHeaderValidationMiddleware.IsHostAllowed("my.customdomain.org", "leecharr.local, my.customdomain.org");
         allowed.Should().BeTrue();
+    }
+
+    [TestCase("[fe80::1]")]
+    [TestCase("[fd00::1]")]
+    [TestCase("100.100.1.1")]
+    [TestCase("app.leecharr.lan")]
+    public async Task HostHeaderValidationMiddleware_AllowsValidPrivateAndWildcardHostsWhenEnabled(string hostHeader)
+    {
+        var config = Substitute.For<IConfigService>();
+        config.HostHeaderValidationEnabled.Returns(true);
+        config.AllowedHosts.Returns("*.leecharr.lan");
+
+        var context = new DefaultHttpContext();
+        context.Request.Host = new HostString(hostHeader);
+        context.Response.Body = new MemoryStream();
+
+        var nextCalled = false;
+        var middleware = new HostHeaderValidationMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+
+        await middleware.InvokeAsync(context, config);
+
+        nextCalled.Should().BeTrue();
+        context.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
     }
 
     [Test]
