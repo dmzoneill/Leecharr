@@ -30,4 +30,27 @@ public static class InfoHashCalculator
         var encoded = infoDictionary.EncodeAsBytes();
         return SHA1.HashData(encoded);
     }
+
+    public static string CalculateV2(BDictionary infoDictionary)
+    {
+        if (infoDictionary == null)
+        {
+            throw new ArgumentNullException(nameof(infoDictionary));
+        }
+
+        var encoded = infoDictionary.EncodeAsBytes();
+        var hash = SHA256.HashData(encoded);
+        return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    public static byte[] CalculateV2Bytes(BDictionary infoDictionary)
+    {
+        if (infoDictionary == null)
+        {
+            throw new ArgumentNullException(nameof(infoDictionary));
+        }
+
+        var encoded = infoDictionary.EncodeAsBytes();
+        return SHA256.HashData(encoded);
+    }
 }
