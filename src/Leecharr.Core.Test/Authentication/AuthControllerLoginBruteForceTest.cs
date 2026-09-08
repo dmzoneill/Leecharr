@@ -128,4 +128,72 @@ public class AuthControllerLoginBruteForceTest
             result.Result.Should().BeOfType<UnauthorizedObjectResult>();
         }
     }
+
+    [Test]
+    public void PruneExpiredLoginAttempts_WhenEntriesExpired_RemovesExpiredAndRetainsActive()
+    {
+        var now = DateTime.UtcNow;
+
+        // Expired window (no lockout)
+        AuthController.RecordFailedLoginAttempt("192.168.1.10", failures: 2, windowStart: now.AddMinutes(-20));
+
+        // Active window (no lockout)
+        AuthController.RecordFailedLoginAttempt("192.168.1.20", failures: 2, windowStart: now.AddMinutes(-5));
+
+        // Expired lockout
+        AuthController.RecordFailedLoginAttempt("192.168.1.30", failures: 5, windowStart: now.AddMinutes(-30), lockoutUntil: now.AddMinutes(-1));
+
+        // Active lockout
+        AuthController.RecordFailedLoginAttempt("192.168.1.40", failures: 5, windowStart: now.AddMinutes(-5), lockoutUntil: now.AddMinutes(10));
+
+        AuthController.TrackedLoginAttemptsCount.Should().Be(4);
+
+        AuthController.PruneExpiredLoginAttempts(now);
+
+        AuthController.TrackedLoginAttemptsCount.Should().Be(2);
+    }
+
+    [Test]
+    public void PruneExpiredLoginAttempts_WhenExceedingCapacity_EvictsOldestEntries()
+    {
+        var now = DateTime.UtcNow;
+
+        // Record 10 active entries with staggered timestamps
+        for (var i = 0; i < 10; i++)
+        {
+            AuthController.RecordFailedLoginAttempt($"10.0.0.{i}", failures: 1, windowStart: now.AddMinutes(-10 + i));
+        }
+
+        AuthController.TrackedLoginAttemptsCount.Should().Be(10);
+
+        // Cap at 6: should evict oldest entries down to maxTrackedIps / 2 (3 entries)
+        AuthController.PruneExpiredLoginAttempts(now, maxTrackedIps: 6);
+
+        AuthController.TrackedLoginAttemptsCount.Should().Be(3);
+    }
+
+    [Test]
+    public async Task Login_WhenFailedLoginOccurs_AutomaticallyPrunesExpiredRecords()
+    {
+        var now = DateTime.UtcNow;
+
+        // Populate expired entries
+        AuthController.RecordFailedLoginAttempt("192.168.100.1", failures: 1, windowStart: now.AddMinutes(-25));
+        AuthController.RecordFailedLoginAttempt("192.168.100.2", failures: 5, windowStart: now.AddMinutes(-40), lockoutUntil: now.AddMinutes(-5));
+
+        AuthController.TrackedLoginAttemptsCount.Should().Be(2);
+
+        this.userService.Authenticate("admin", "wrongpassword").Returns((User)null!);
+        var request = new LoginRequestResource
+        {
+            Username = "admin",
+            Password = "wrongpassword",
+        };
+
+        var result = await this.controller.Login(request);
+        result.Result.Should().BeOfType<UnauthorizedObjectResult>();
+
+        // Expired entries were pruned and current request IP was recorded
+        AuthController.TrackedLoginAttemptsCount.Should().Be(1);
+    }
 }
