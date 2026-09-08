@@ -227,4 +227,116 @@ public class TorrentFileProgressEnricherTest
         files[2].Progress.Should().Be(0.0);
         files[2].BytesCompleted.Should().Be(0);
     }
+
+    [Test]
+    public void Enrich_WhenCompletedPiecesMultiplyPieceLengthExceedsFileSize_KeepsIncompleteFileBelow100Percent()
+    {
+        // Issue #494: 1 MB file spanning 2 pieces in torrent with 2 MB piece length.
+        // Piece 0 is completed, Piece 1 is missing -> completedPieces = 1, file.PieceCount = 2.
+        // pieceLength * completedPieces = 2 MB >= file.Size (1 MB).
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Status = TorrentStatus.Downloading,
+            Progress = 0.25,
+            PieceLength = 2 * 1024 * 1024,
+            PieceCount = 4,
+            TotalSize = 8 * 1024 * 1024,
+        };
+
+        var task = Substitute.For<IDownloadTask>();
+        task.PieceBitfield.Returns(new[] { true, false, false, false });
+        task.PieceLength.Returns(2 * 1024 * 1024);
+
+        var files = new List<TorrentFile>
+        {
+            new()
+            {
+                Id = 1,
+                Path = "small_video.mkv",
+                Size = 1 * 1024 * 1024,
+                PieceOffset = 0,
+                PieceCount = 2,
+            },
+        };
+
+        TorrentFileProgressEnricher.Enrich(torrent, files, task);
+
+        // completedPieces (1) < PieceCount (2), so must be strictly < 1.0 and < file.Size
+        files[0].Progress.Should().BeLessThan(1.0);
+        files[0].Progress.Should().Be(0.5);
+        files[0].BytesCompleted.Should().BeLessThan(files[0].Size);
+        files[0].BytesCompleted.Should().Be(512 * 1024);
+    }
+
+    [Test]
+    public void Enrich_WhenIncompleteFileSpansMultiplePieces_ProportionsBytesAndCapsProgressStrictlyBelowOne()
+    {
+        // 5 MB file spanning 3 pieces of 2 MB each (total 6 MB capacity)
+        // 2 of 3 pieces are complete -> pieceLength * completedPieces = 4 MB < 5 MB
+        // When 1 piece is complete: 1/3 progress
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            PieceLength = 2 * 1024 * 1024,
+            PieceCount = 5,
+            TotalSize = 10 * 1024 * 1024,
+        };
+
+        var task = Substitute.For<IDownloadTask>();
+        // Pieces 0 and 1 are completed, Piece 2 is missing
+        task.PieceBitfield.Returns(new[] { true, true, false, false, false });
+        task.PieceLength.Returns(2 * 1024 * 1024);
+
+        var file = new TorrentFile
+        {
+            Id = 1,
+            Path = "movie.mp4",
+            Size = 5 * 1024 * 1024,
+            PieceOffset = 0,
+            PieceCount = 3,
+            ByteOffset = 0,
+        };
+
+        TorrentFileProgressEnricher.Enrich(torrent, new List<TorrentFile> { file }, task);
+
+        file.Progress.Should().BeLessThan(1.0);
+        file.BytesCompleted.Should().BeLessThan(file.Size);
+        file.BytesCompleted.Should().Be(4 * 1024 * 1024); // Exactly 4 MB from pieces 0 and 1
+        file.Progress.Should().BeApproximately((4.0 * 1024 * 1024) / (5.0 * 1024 * 1024), 0.0001);
+    }
+
+    [Test]
+    public void Enrich_WhenAllPiecesCompleted_Sets100PercentAndFullFileSize()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            PieceLength = 256,
+            PieceCount = 4,
+            TotalSize = 1024,
+        };
+
+        var task = Substitute.For<IDownloadTask>();
+        task.PieceBitfield.Returns(new[] { true, true, false, false });
+        task.PieceLength.Returns(256);
+
+        var file = new TorrentFile
+        {
+            Id = 1,
+            Path = "file.bin",
+            Size = 512,
+            PieceOffset = 0,
+            PieceCount = 2,
+        };
+
+        TorrentFileProgressEnricher.Enrich(torrent, new List<TorrentFile> { file }, task);
+
+        file.Progress.Should().Be(1.0);
+        file.BytesCompleted.Should().Be(512);
+    }
 }

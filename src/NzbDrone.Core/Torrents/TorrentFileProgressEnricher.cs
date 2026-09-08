@@ -118,11 +118,20 @@ public static class TorrentFileProgressEnricher
         var startPiece = (int)(fileStart / pieceLength);
         var endPiece = (int)((fileEnd - 1) / pieceLength);
 
+        var pieceOffset = file.PieceOffset;
+        var pieceCount = file.PieceCount;
+
+        var startIdx = pieceCount > 0 ? Math.Min(startPiece, pieceOffset) : startPiece;
+        var endIdx = pieceCount > 0 ? Math.Max(endPiece, pieceOffset + pieceCount - 1) : endPiece;
+        var totalPieces = pieceCount > 0 ? Math.Max(pieceCount, endPiece - startPiece + 1) : Math.Max(1, endPiece - startPiece + 1);
+
+        var completedPieces = 0;
         long completedBytes = 0;
-        for (var i = startPiece; i <= endPiece && i < bitfield.Length; i++)
+        for (var i = startIdx; i <= endIdx && i < bitfield.Length; i++)
         {
             if (bitfield[i])
             {
+                completedPieces++;
                 var pieceStart = (long)i * pieceLength;
                 var pieceEnd = pieceStart + pieceLength;
                 if (torrent.TotalSize > 0 && pieceEnd > torrent.TotalSize)
@@ -139,7 +148,28 @@ public static class TorrentFileProgressEnricher
             }
         }
 
-        file.BytesCompleted = Math.Clamp(completedBytes, 0, file.Size);
-        file.Progress = Math.Clamp((double)file.BytesCompleted / file.Size, 0.0, 1.0);
+        if (completedPieces == 0)
+        {
+            file.BytesCompleted = 0;
+            file.Progress = 0.0;
+        }
+        else if (completedPieces >= totalPieces)
+        {
+            file.BytesCompleted = file.Size;
+            file.Progress = 1.0;
+        }
+        else
+        {
+            var fraction = (double)completedPieces / totalPieces;
+            var proportionedBytes = (long)Math.Floor(file.Size * fraction);
+            var bytes = (completedBytes > 0 && completedBytes < file.Size)
+                ? completedBytes
+                : proportionedBytes;
+
+            file.BytesCompleted = Math.Clamp(bytes, 0, Math.Max(0, file.Size - 1));
+            file.Progress = file.Size > 0
+                ? Math.Clamp((double)file.BytesCompleted / file.Size, 0.0, 0.9999)
+                : 0.0;
+        }
     }
 }
