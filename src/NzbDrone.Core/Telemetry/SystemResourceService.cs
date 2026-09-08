@@ -27,7 +27,7 @@ public class SystemResourceService : ISystemResourceService
     private static readonly object CpuLock = new();
     private static readonly object DriveLock = new();
     private static readonly TimeSpan DriveCacheDuration = TimeSpan.FromSeconds(30);
-    private static DateTime lastSampleTime = DateTime.UtcNow;
+    private static long lastSampleTimestamp = Stopwatch.GetTimestamp();
     private static TimeSpan lastTotalProcessorTime = CurrentProcess.TotalProcessorTime;
     private static double cachedCpuPercent;
     private static DateTime lastDriveSampleTime = DateTime.MinValue;
@@ -75,6 +75,23 @@ public class SystemResourceService : ISystemResourceService
 
     internal static Func<List<DiskMountPointMetrics>> DriveMetricsProvider { get; set; } = QuerySystemDrives;
 
+    public static void ResetCpuMetricsCache()
+    {
+        lock (CpuLock)
+        {
+            lastSampleTimestamp = Stopwatch.GetTimestamp();
+            try
+            {
+                lastTotalProcessorTime = CurrentProcess.TotalProcessorTime;
+            }
+            catch
+            {
+            }
+
+            cachedCpuPercent = 0.0;
+        }
+    }
+
     public static void ResetDriveMetricsCache()
     {
         lock (DriveLock)
@@ -100,17 +117,33 @@ public class SystemResourceService : ISystemResourceService
 
         lock (CpuLock)
         {
-            var elapsed = (now - lastSampleTime).TotalMilliseconds;
-            if (elapsed >= 350)
+            var currentTimestamp = Stopwatch.GetTimestamp();
+            var elapsedMs = Stopwatch.GetElapsedTime(lastSampleTimestamp, currentTimestamp).TotalMilliseconds;
+
+            if (elapsedMs < 0)
+            {
+                lastSampleTimestamp = currentTimestamp;
+                try
+                {
+                    lastTotalProcessorTime = CurrentProcess.TotalProcessorTime;
+                }
+                catch
+                {
+                }
+            }
+            else if (elapsedMs >= 350)
             {
                 try
                 {
                     var totalTime = CurrentProcess.TotalProcessorTime;
                     var cpuUsedMs = (totalTime - lastTotalProcessorTime).TotalMilliseconds;
-                    lastSampleTime = now;
+                    lastSampleTimestamp = currentTimestamp;
                     lastTotalProcessorTime = totalTime;
                     var cores = Math.Max(1, Environment.ProcessorCount);
-                    cachedCpuPercent = Math.Clamp((cpuUsedMs / (elapsed * cores)) * 100.0, 0.0, 100.0);
+                    if (cpuUsedMs >= 0)
+                    {
+                        cachedCpuPercent = Math.Clamp((cpuUsedMs / (elapsedMs * cores)) * 100.0, 0.0, 100.0);
+                    }
                 }
                 catch
                 {
