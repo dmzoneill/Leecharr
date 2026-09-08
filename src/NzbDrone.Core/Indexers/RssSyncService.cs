@@ -17,7 +17,7 @@ namespace NzbDrone.Core.Indexers;
 
 public interface IRssSyncService
 {
-    Task<int> SyncRssFeedsAsync();
+    Task<int> SyncRssFeedsAsync(CancellationToken cancellationToken = default);
 
     bool MatchesRule(TorznabSearchResult release, RssRule rule);
 }
@@ -68,13 +68,9 @@ public class RssSyncService : IRssSyncService
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
-    public async Task<int> SyncRssFeedsAsync()
+    public async Task<int> SyncRssFeedsAsync(CancellationToken cancellationToken = default)
     {
-        if (!this.syncLock.Wait(0))
-        {
-            this.logger.Warn("RSS sync is already in progress. Skipping duplicate execution.");
-            return 0;
-        }
+        await this.syncLock.WaitAsync(cancellationToken);
 
         try
         {
