@@ -208,112 +208,7 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
             // 3. Migrate active torrents if requested
             if (preserveTransfers)
             {
-                var allTorrents = this.torrentRepository.All();
-                foreach (var torrent in allTorrents)
-                {
-                    try
-                    {
-                        byte[] torrentBytes = null;
-                        if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
-                        {
-                            var hash = torrent.InfoHash.ToLowerInvariant();
-                            var pathsToTry = new List<string>();
-
-                            if (this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder))
-                            {
-                                pathsToTry.Add(Path.Combine(this.appFolderInfo.AppDataFolder, "Torrents", $"{hash}.torrent"));
-                            }
-
-                            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                            if (!string.IsNullOrWhiteSpace(appData))
-                            {
-                                pathsToTry.Add(Path.Combine(appData, "Torrents", $"{hash}.torrent"));
-                                pathsToTry.Add(Path.Combine(appData, "Leecharr", "Torrents", $"{hash}.torrent"));
-                            }
-
-                            foreach (var path in pathsToTry)
-                            {
-                                if (File.Exists(path))
-                                {
-                                    try
-                                    {
-                                        torrentBytes = await File.ReadAllBytesAsync(path);
-                                        if (torrentBytes != null && torrentBytes.Length > 0)
-                                        {
-                                            break;
-                                        }
-                                    }
-                                    catch
-                                    {
-                                        // Fallback to next path or magnet
-                                    }
-                                }
-                            }
-                        }
-
-                        var magnetUri = !string.IsNullOrWhiteSpace(torrent.TrackerUrl)
-                            ? $"magnet:?xt=urn:btih:{torrent.InfoHash}&tr={Uri.EscapeDataString(torrent.TrackerUrl)}"
-                            : $"magnet:?xt=urn:btih:{torrent.InfoHash}";
-
-                        await targetEngine.AddTorrentAsync(torrent, torrentBytes, magnetUri);
-
-                        if (this.torrentFileRepository != null)
-                        {
-                            var files = this.torrentFileRepository.GetByTorrentId(torrent.Id);
-                            foreach (var file in files)
-                            {
-                                if (file.Priority != 3)
-                                {
-                                    await targetEngine.SetFilePriorityAsync(torrent.Id, file.Path, file.Priority);
-                                }
-                            }
-                        }
-
-                        if (torrent.DownloadLimit > 0 || torrent.UploadLimit > 0)
-                        {
-                            await targetEngine.SetTorrentRateLimitsAsync(torrent.Id, torrent.DownloadLimit, torrent.UploadLimit);
-                        }
-
-                        if (torrent.InitialSeeding)
-                        {
-                            await targetEngine.SetSuperSeedingAsync(torrent.Id, true);
-                        }
-
-                        if (torrent.IsPrivate)
-                        {
-                            await targetEngine.SetTorrentPrivateStatusAsync(torrent.Id, true);
-                        }
-
-                        if (torrent.SequentialDownload && (targetEngine.Capabilities?.SupportsSequentialDownload ?? false))
-                        {
-                            await targetEngine.SetSequentialDownloadAsync(torrent.Id, true);
-                        }
-
-                        if (torrentBytes == null && this.trackerEntryRepository != null)
-                        {
-                            var extraTrackers = this.trackerEntryRepository.GetByTorrentId(torrent.Id)
-                                .Select(t => t.Url)
-                                .Where(u => !string.IsNullOrWhiteSpace(u) && !string.Equals(u, torrent.TrackerUrl, StringComparison.OrdinalIgnoreCase))
-                                .ToList();
-
-                            if (extraTrackers.Count > 0)
-                            {
-                                await targetEngine.AddTrackersAsync(torrent.Id, extraTrackers);
-                            }
-                        }
-
-                        if (torrent.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Queued or TorrentStatus.Error or TorrentStatus.Stalled)
-                        {
-                            await targetEngine.PauseTorrentAsync(torrent.Id);
-                        }
-
-                        rehydrated++;
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Warn(ex, "Failed to rehydrate torrent {0} ({1}) into new engine", torrent.Name, torrent.InfoHash);
-                    }
-                }
+                rehydrated = await this.RehydrateTorrentsIntoEngineAsync(targetEngine);
             }
 
             // 4. Persist setting to configuration
@@ -357,6 +252,7 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
                 try
                 {
                     await previousEngine.StartAsync();
+                    await this.RehydrateTorrentsIntoEngineAsync(previousEngine);
                 }
                 catch (Exception rollbackEx)
                 {
@@ -606,6 +502,132 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
                 }
             });
         }
+    }
+
+    private async Task<int> RehydrateTorrentsIntoEngineAsync(ITorrentEngine engine)
+    {
+        if (engine == null || this.torrentRepository == null)
+        {
+            return 0;
+        }
+
+        var allTorrents = this.torrentRepository.All();
+        if (allTorrents == null)
+        {
+            return 0;
+        }
+
+        var rehydrated = 0;
+        foreach (var torrent in allTorrents)
+        {
+            try
+            {
+                byte[] torrentBytes = null;
+                if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
+                {
+                    var hash = torrent.InfoHash.ToLowerInvariant();
+                    var pathsToTry = new List<string>();
+
+                    if (this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder))
+                    {
+                        pathsToTry.Add(Path.Combine(this.appFolderInfo.AppDataFolder, "Torrents", $"{hash}.torrent"));
+                    }
+
+                    var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                    if (!string.IsNullOrWhiteSpace(appData))
+                    {
+                        pathsToTry.Add(Path.Combine(appData, "Torrents", $"{hash}.torrent"));
+                        pathsToTry.Add(Path.Combine(appData, "Leecharr", "Torrents", $"{hash}.torrent"));
+                    }
+
+                    foreach (var path in pathsToTry)
+                    {
+                        if (File.Exists(path))
+                        {
+                            try
+                            {
+                                torrentBytes = await File.ReadAllBytesAsync(path);
+                                if (torrentBytes != null && torrentBytes.Length > 0)
+                                {
+                                    break;
+                                }
+                            }
+                            catch
+                            {
+                                // Fallback to next path or magnet
+                            }
+                        }
+                    }
+                }
+
+                var magnetUri = !string.IsNullOrWhiteSpace(torrent.TrackerUrl)
+                    ? $"magnet:?xt=urn:btih:{torrent.InfoHash}&tr={Uri.EscapeDataString(torrent.TrackerUrl)}"
+                    : $"magnet:?xt=urn:btih:{torrent.InfoHash}";
+
+                await engine.AddTorrentAsync(torrent, torrentBytes, magnetUri);
+
+                if (this.torrentFileRepository != null)
+                {
+                    var files = this.torrentFileRepository.GetByTorrentId(torrent.Id);
+                    if (files != null)
+                    {
+                        foreach (var file in files)
+                        {
+                            if (file.Priority != 3)
+                            {
+                                await engine.SetFilePriorityAsync(torrent.Id, file.Path, file.Priority);
+                            }
+                        }
+                    }
+                }
+
+                if (torrent.DownloadLimit > 0 || torrent.UploadLimit > 0)
+                {
+                    await engine.SetTorrentRateLimitsAsync(torrent.Id, torrent.DownloadLimit, torrent.UploadLimit);
+                }
+
+                if (torrent.InitialSeeding)
+                {
+                    await engine.SetSuperSeedingAsync(torrent.Id, true);
+                }
+
+                if (torrent.IsPrivate)
+                {
+                    await engine.SetTorrentPrivateStatusAsync(torrent.Id, true);
+                }
+
+                if (torrent.SequentialDownload && (engine.Capabilities?.SupportsSequentialDownload ?? false))
+                {
+                    await engine.SetSequentialDownloadAsync(torrent.Id, true);
+                }
+
+                if (torrentBytes == null && this.trackerEntryRepository != null)
+                {
+                    var extraTrackers = this.trackerEntryRepository.GetByTorrentId(torrent.Id)?
+                        .Select(t => t.Url)
+                        .Where(u => !string.IsNullOrWhiteSpace(u) && !string.Equals(u, torrent.TrackerUrl, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+
+                    if (extraTrackers != null && extraTrackers.Count > 0)
+                    {
+                        await engine.AddTrackersAsync(torrent.Id, extraTrackers);
+                    }
+                }
+
+                if (torrent.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Queued or TorrentStatus.Error or TorrentStatus.Stalled)
+                {
+                    await engine.PauseTorrentAsync(torrent.Id);
+                }
+
+                rehydrated++;
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to rehydrate torrent {0} ({1}) into engine {2}", torrent.Name, torrent.InfoHash, engine.EngineId);
+            }
+        }
+
+        return rehydrated;
     }
 
     private ITorrentEngine GetActiveOrMigratingEngine()
