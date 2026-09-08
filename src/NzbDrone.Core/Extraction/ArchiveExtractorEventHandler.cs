@@ -130,8 +130,13 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
                             }
 
                             var estimatedSize = file.Size > 0 ? file.Size : this.diskProvider.GetFileSize(fullPath);
-                            var basePrefix = Path.GetFileNameWithoutExtension(file.Path);
-                            var relatedFiles = files.Where(f => f.Path.StartsWith(basePrefix, StringComparison.OrdinalIgnoreCase)).ToList();
+                            var basePrefix = GetArchiveBasePrefix(file.Path);
+                            var relatedFiles = files.Where(f =>
+                            {
+                                var fn = Path.GetFileName(f.Path);
+                                return !string.IsNullOrEmpty(basePrefix) && fn.StartsWith(basePrefix, StringComparison.OrdinalIgnoreCase);
+                            }).ToList();
+
                             if (relatedFiles.Count > 1)
                             {
                                 var sum = relatedFiles.Sum(f => f.Size > 0 ? f.Size : 0);
@@ -139,6 +144,11 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
                                 {
                                     estimatedSize = sum;
                                 }
+                            }
+
+                            if (estimatedSize <= 0)
+                            {
+                                estimatedSize = ArchiveTimeoutCalculator.EstimateTotalArchiveSize(fullPath, this.diskProvider);
                             }
 
                             var requiredSpace = (long)(estimatedSize * 1.5);
@@ -243,6 +253,35 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
         }
 
         return false;
+    }
+
+    public static string GetArchiveBasePrefix(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return string.Empty;
+        }
+
+        var fileName = Path.GetFileName(path);
+        var partMatch = Regex.Match(fileName, @"^(.*?)\.part\d+\.(rar|7z|zip)$", RegexOptions.IgnoreCase);
+        if (partMatch.Success)
+        {
+            return partMatch.Groups[1].Value;
+        }
+
+        var numMatch = Regex.Match(fileName, @"^(.*?)\.(r\d{2}|\d{3}|z\d{2}|001|rar|zip|7z)$", RegexOptions.IgnoreCase);
+        if (numMatch.Success)
+        {
+            return numMatch.Groups[1].Value;
+        }
+
+        var splitMatch = Regex.Match(fileName, @"^(.*?)\.(7z|tar|zip|rar)\.\d+$", RegexOptions.IgnoreCase);
+        if (splitMatch.Success)
+        {
+            return splitMatch.Groups[1].Value;
+        }
+
+        return Path.GetFileNameWithoutExtension(fileName);
     }
 
     private bool IsArchiveAlreadyExtracted(string destinationDirectory, string archiveFilePath)
