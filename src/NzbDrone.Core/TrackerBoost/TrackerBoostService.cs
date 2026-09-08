@@ -84,6 +84,8 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         this.downloadClientRepository = downloadClientRepository;
         this.stateStore = stateStore ?? TrackerBoostStateStore.Shared;
         this.logger = LogManager.GetCurrentClassLogger();
+
+        this.EnsureDefaultTrackersBootstrapped();
     }
 
     public static bool HasPasskey(string url)

@@ -33,7 +33,7 @@ public class TorrentFileRepository : BasicRepository<TorrentFile>, ITorrentFileR
         return this.ExecuteWithRetry(connection =>
         {
             var files = connection.Query<TorrentFile>(
-                $"SELECT * FROM \"{this.table}\" WHERE \"TorrentId\" IN @TorrentIds ORDER BY \"Id\" ASC",
+                $"SELECT * FROM \"{this.table}\" WHERE \"TorrentId\" IN (@TorrentIds) ORDER BY \"Id\" ASC",
                 new { TorrentIds = idList });
             return files.GroupBy(f => f.TorrentId).ToDictionary(g => g.Key, g => g.ToList());
         });
