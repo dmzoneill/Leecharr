@@ -3,6 +3,7 @@
 using System;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using Leecharr.Http.REST;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Configuration;
@@ -43,7 +44,7 @@ public abstract class ConfigController<TResource> : Controller
     [HttpPut("{id:int}")]
     [Consumes("application/json")]
     [Produces("application/json")]
-    public virtual ActionResult<TResource> SaveConfig([FromBody] TResource resource)
+    public virtual async Task<ActionResult<TResource>> SaveConfig([FromBody] TResource resource)
     {
         if (resource == null)
         {
@@ -68,7 +69,7 @@ public abstract class ConfigController<TResource> : Controller
 
             this.configService.SaveConfigDictionary(dictionary);
 
-            return this.Accepted(resource);
+            return await Task.FromResult(this.Accepted(resource));
         }
         catch (Exception ex)
         {

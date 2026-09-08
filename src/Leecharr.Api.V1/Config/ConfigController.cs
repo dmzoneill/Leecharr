@@ -43,7 +43,7 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
             .WithMessage("SSL Port cannot be the same as HTTP Port.");
     }
 
-    public override ActionResult<GeneralConfigResource> SaveConfig([FromBody] GeneralConfigResource resource)
+    public override async Task<ActionResult<GeneralConfigResource>> SaveConfig([FromBody] GeneralConfigResource resource)
     {
         if (resource == null)
         {
@@ -81,7 +81,7 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
 
         this.configFileProvider.SaveConfigDictionary(fileUpdates);
 
-        return base.SaveConfig(resource);
+        return await base.SaveConfig(resource);
     }
 
     [HttpGet("api-key")]
@@ -178,7 +178,7 @@ public class NetworkConfigController : ConfigController<NetworkConfigResource>
             .InclusiveBetween(1, 65535);
     }
 
-    public override ActionResult<NetworkConfigResource> SaveConfig([FromBody] NetworkConfigResource resource)
+    public override async Task<ActionResult<NetworkConfigResource>> SaveConfig([FromBody] NetworkConfigResource resource)
     {
         if (resource == null)
         {
@@ -190,7 +190,7 @@ public class NetworkConfigController : ConfigController<NetworkConfigResource>
             resource.ProxyPassword = this.configService.ProxyPassword;
         }
 
-        return base.SaveConfig(resource);
+        return await base.SaveConfig(resource);
     }
 
     protected override NetworkConfigResource ToResource(IConfigService model)
@@ -340,20 +340,20 @@ public class TrackerServerConfigController : ConfigController<TrackerServerConfi
             .GreaterThanOrEqualTo(1);
     }
 
-    public override ActionResult<TrackerServerConfigResource> SaveConfig([FromBody] TrackerServerConfigResource resource)
+    public override async Task<ActionResult<TrackerServerConfigResource>> SaveConfig([FromBody] TrackerServerConfigResource resource)
     {
         if (resource == null)
         {
             return this.BadRequest("Request body cannot be empty.");
         }
 
-        var result = base.SaveConfig(resource);
+        var result = await base.SaveConfig(resource);
 
         if (this.udpTrackerService != null)
         {
             if (resource != null && resource.TrackerServerEnabled && resource.TrackerUdpEnabled)
             {
-                Task.Run(async () =>
+                _ = Task.Run(async () =>
                 {
                     try
                     {
@@ -366,7 +366,7 @@ public class TrackerServerConfigController : ConfigController<TrackerServerConfi
             }
             else
             {
-                Task.Run(async () =>
+                _ = Task.Run(async () =>
                 {
                     try
                     {
@@ -440,35 +440,60 @@ public class AiConfigController : ConfigController<AiConfigResource>
         this.aiManager = aiManager;
     }
 
-    public override ActionResult<AiConfigResource> SaveConfig([FromBody] AiConfigResource resource)
+    public override async Task<ActionResult<AiConfigResource>> SaveConfig([FromBody] AiConfigResource resource)
     {
         if (resource == null)
         {
             return this.BadRequest("Request body cannot be empty.");
         }
 
-        if (!string.IsNullOrEmpty(resource.GeminiApiKey) && resource.GeminiApiKey.Contains('*'))
+        var currentResource = this.ToResource(this.configService);
+
+        if (!string.IsNullOrEmpty(resource.GeminiApiKey) &&
+            (resource.GeminiApiKey == currentResource.GeminiApiKey || resource.GeminiApiKey == "********"))
         {
             resource.GeminiApiKey = this.configService.GeminiApiKey;
         }
 
-        var result = base.SaveConfig(resource);
-
-        if (this.aiManager != null && !string.IsNullOrWhiteSpace(resource.ActiveAiProvider) && !string.Equals(this.aiManager.ActiveProviderId, resource.ActiveAiProvider, StringComparison.OrdinalIgnoreCase))
+        if (this.SharedValidator != null)
         {
-            Task.Run(async () =>
+            var validation = this.SharedValidator.Validate(resource);
+            if (!validation.IsValid)
             {
-                try
-                {
-                    await this.aiManager.SwitchProviderAsync(resource.ActiveAiProvider);
-                }
-                catch
-                {
-                }
-            });
+                return this.BadRequest(validation.Errors);
+            }
         }
 
-        return result;
+        var currentActiveProvider = this.aiManager?.ActiveProviderId ?? this.configService.ActiveAiProvider ?? "RuleHeuristic";
+        var targetProvider = resource.ActiveAiProvider;
+
+        var isSwitchingProvider = this.aiManager != null &&
+                                  !string.IsNullOrWhiteSpace(targetProvider) &&
+                                  !string.Equals(currentActiveProvider, targetProvider, StringComparison.OrdinalIgnoreCase);
+
+        if (isSwitchingProvider)
+        {
+            // Persist credentials and non-provider settings first so target provider can use updated config during probe
+            var previousProvider = currentActiveProvider;
+            resource.ActiveAiProvider = previousProvider;
+            await base.SaveConfig(resource);
+
+            var switchSucceeded = await this.aiManager.SwitchProviderAsync(targetProvider);
+            if (!switchSucceeded)
+            {
+                var probe = await this.aiManager.ProbeProviderAsync(targetProvider);
+                var failureReason = !string.IsNullOrWhiteSpace(probe?.StatusMessage)
+                    ? probe.StatusMessage
+                    : $"Failed to switch AI provider to '{targetProvider}'.";
+
+                return this.BadRequest(failureReason);
+            }
+
+            resource.ActiveAiProvider = this.aiManager.ActiveProviderId;
+            return this.Accepted(resource);
+        }
+
+        return await base.SaveConfig(resource);
     }
 
     protected override AiConfigResource ToResource(IConfigService model)
