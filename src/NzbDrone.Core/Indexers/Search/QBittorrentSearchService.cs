@@ -101,6 +101,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
 
         var id = Interlocked.Increment(ref this.nextJobId);
         var cts = new CancellationTokenSource();
+        var token = cts.Token;
         var job = new QBittorrentSearchJob
         {
             Id = id,
@@ -177,18 +178,24 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
                     {
                         try
                         {
-                            if (cts.IsCancellationRequested)
+                            if (token.IsCancellationRequested)
                             {
                                 return;
                             }
 
-                            var results = await this.torznabClient.SearchAsync(indexer, pattern, categoryId: categoryId, limit: searchLimit);
+                            var results = await this.torznabClient.SearchAsync(
+                                indexer,
+                                pattern,
+                                categoryId: categoryId,
+                                limit: searchLimit,
+                                cancellationToken: token);
+
                             if (results == null || results.Count == 0)
                             {
                                 return;
                             }
 
-                            if (cts.IsCancellationRequested)
+                            if (token.IsCancellationRequested)
                             {
                                 return;
                             }
@@ -210,6 +217,14 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
                                 }
                             }
                         }
+                        catch (OperationCanceledException)
+                        {
+                            // Search cancelled gracefully
+                        }
+                        catch (ObjectDisposedException)
+                        {
+                            // CTS disposed during cancellation
+                        }
                         catch (Exception ex)
                         {
                             this.logger.Warn(ex, "Search failed on indexer {0}", indexer.Name);
@@ -217,6 +232,14 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
                     });
 
                     await Task.WhenAll(tasks);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Search job cancelled gracefully
+                }
+                catch (ObjectDisposedException)
+                {
+                    // CTS disposed during cancellation
                 }
                 catch (Exception ex)
                 {
@@ -418,10 +441,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
         {
             try
             {
-                if (!job.Cts.IsCancellationRequested)
-                {
-                    job.Cts.Cancel();
-                }
+                job.Cts.Cancel();
             }
             catch (Exception)
             {
