@@ -903,7 +903,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 task.Manager.PieceHashed -= this.OnPieceHashed;
 
                 await task.Manager.StopAsync();
-                await this.engine.RemoveAsync(task.Manager);
+                if (this.engine != null)
+                {
+                    await this.engine.RemoveAsync(task.Manager);
+                }
 
                 if (deleteFiles)
                 {
@@ -4347,12 +4350,14 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
 
             if (address.AddressFamily == AddressFamily.InterNetwork && localV4 == null)
             {
-                throw new SocketException((int)SocketError.NetworkUnreachable);
+                lastException = new SocketException((int)SocketError.NetworkUnreachable);
+                continue;
             }
 
             if (address.AddressFamily == AddressFamily.InterNetworkV6 && localV6 == null)
             {
-                throw new SocketException((int)SocketError.NetworkUnreachable);
+                lastException = new SocketException((int)SocketError.NetworkUnreachable);
+                continue;
             }
 
             var socket = new System.Net.Sockets.Socket(address.AddressFamily, socketType, protocolType);
