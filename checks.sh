@@ -7,6 +7,8 @@ if [ -n "$GITHUB_ENV" ]; then
   echo "VALIDATE_CSS_STYLELINT=false" >> "$GITHUB_ENV"
   echo "VALIDATE_GITLEAKS=false" >> "$GITHUB_ENV"
   echo "VALIDATE_TYPESCRIPT_PRETTIER=false" >> "$GITHUB_ENV"
+  echo "VALIDATE_MARKDOWN_PRETTIER=false" >> "$GITHUB_ENV"
+  echo "VALIDATE_SPELL_CODESPELL=false" >> "$GITHUB_ENV"
   echo "VALIDATE_PRETTIER=false" >> "$GITHUB_ENV"
 fi
 
