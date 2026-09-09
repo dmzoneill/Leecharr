@@ -7,7 +7,7 @@ COPY src/Leecharr.Frontend/ ./
 RUN npm run build
 
 # Stage 2: Build backend
-FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS backend
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS backend
 WORKDIR /build
 
 ARG COVERAGE_TOOLS=false
@@ -48,15 +48,26 @@ RUN mkdir -p /root/.dotnet/tools && \
     fi
 
 # Stage 3: Runtime
-FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 
-RUN apk add --no-cache \
+# Install all runtime utilities, engines, media inspectors, and tools
+# hadolint ignore=DL3008
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
         curl \
-        su-exec \
-        icu-libs \
-        tzdata \
-        ca-certificates && \
-    mkdir -p /config /downloads
+        gosu \
+        python3 \
+        transmission-daemon \
+        transmission-cli \
+        python3-libtorrent \
+        p7zip-full \
+        unrar-free \
+        mediainfo \
+        ffmpeg \
+        ipset && \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/* /usr/share/doc/* /usr/share/man/*
+
+RUN mkdir -p /config /downloads
 
 LABEL org.opencontainers.image.title="Leecharr" \
       org.opencontainers.image.description="High-Performance BitTorrent & Media Downloader for Servarr" \
@@ -75,7 +86,6 @@ RUN chmod +x /docker-entrypoint.sh
 
 ENV LEECHARR__APP_DATA=/config
 ENV PATH="$PATH:/root/.dotnet/tools"
-ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 
 EXPOSE 7889 7890
 
