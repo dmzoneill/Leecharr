@@ -2,12 +2,14 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Http.Authentication;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.BitTorrent.Tracker;
 using NzbDrone.Core.Configuration;
@@ -70,16 +72,7 @@ public class AppLifetimeTest
         this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask>());
 
         using var lifetime = new AppLifetime(
-            this.configService,
-            this.eventAggregator,
-            this.downloadEngine,
-            this.torrentRepository,
-            this.watchFolderService,
-            this.networkSecurityService,
-            this.rssSyncService,
-            this.dynamicAuthManager,
-            this.torrentService,
-            powerManagementService: this.powerManagementService,
+            this.CreateServices(),
             backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
 
         await lifetime.StartAsync(CancellationToken.None);
@@ -120,16 +113,7 @@ public class AppLifetimeTest
         });
 
         using var lifetime = new AppLifetime(
-            this.configService,
-            this.eventAggregator,
-            this.downloadEngine,
-            this.torrentRepository,
-            this.watchFolderService,
-            this.networkSecurityService,
-            this.rssSyncService,
-            this.dynamicAuthManager,
-            this.torrentService,
-            powerManagementService: this.powerManagementService,
+            this.CreateServices(),
             backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
 
         await lifetime.StartAsync(CancellationToken.None);
@@ -168,16 +152,7 @@ public class AppLifetimeTest
         this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask>());
 
         using var lifetime = new AppLifetime(
-            this.configService,
-            this.eventAggregator,
-            this.downloadEngine,
-            this.torrentRepository,
-            this.watchFolderService,
-            this.networkSecurityService,
-            this.rssSyncService,
-            this.dynamicAuthManager,
-            this.torrentService,
-            powerManagementService: this.powerManagementService,
+            this.CreateServices(),
             backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
 
         await lifetime.StartAsync(CancellationToken.None);
@@ -217,16 +192,7 @@ public class AppLifetimeTest
         });
 
         using var lifetime = new AppLifetime(
-            this.configService,
-            this.eventAggregator,
-            this.downloadEngine,
-            this.torrentRepository,
-            this.watchFolderService,
-            this.networkSecurityService,
-            this.rssSyncService,
-            this.dynamicAuthManager,
-            this.torrentService,
-            powerManagementService: this.powerManagementService,
+            this.CreateServices(),
             backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
 
         await lifetime.StartAsync(CancellationToken.None);
@@ -250,17 +216,17 @@ public class AppLifetimeTest
     [Test]
     public async Task StartAsync_WhenAutoStartEnabledAndAppFolderInfoProvided_RestoresTorrentsFromAppDataFolder()
     {
-        var tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "leecharr_lifetime_test_" + System.Guid.NewGuid().ToString("N"));
+        var tempDir = Path.Combine(Path.GetTempPath(), "leecharr_lifetime_test_" + Guid.NewGuid().ToString("N"));
         try
         {
-            var torrentsDir = System.IO.Path.Combine(tempDir, "Torrents");
-            System.IO.Directory.CreateDirectory(torrentsDir);
+            var torrentsDir = Path.Combine(tempDir, "Torrents");
+            Directory.CreateDirectory(torrentsDir);
             var hash = "99887766554433221100aabbccddeeff00112233";
-            var torrentFile = System.IO.Path.Combine(torrentsDir, $"{hash}.torrent");
+            var torrentFile = Path.Combine(torrentsDir, $"{hash}.torrent");
             var expectedBytes = new byte[] { 42, 43, 44 };
-            await System.IO.File.WriteAllBytesAsync(torrentFile, expectedBytes);
+            await File.WriteAllBytesAsync(torrentFile, expectedBytes);
 
-            var appFolderInfo = Substitute.For<NzbDrone.Common.EnvironmentInfo.IAppFolderInfo>();
+            var appFolderInfo = Substitute.For<IAppFolderInfo>();
             appFolderInfo.AppDataFolder.Returns(tempDir);
 
             this.configService.AutoStart.Returns(true);
@@ -276,16 +242,7 @@ public class AppLifetimeTest
             this.torrentRepository.All().Returns(new List<Torrent> { torrent });
 
             using var lifetime = new AppLifetime(
-                this.configService,
-                this.eventAggregator,
-                this.downloadEngine,
-                this.torrentRepository,
-                this.watchFolderService,
-                this.networkSecurityService,
-                this.rssSyncService,
-                this.dynamicAuthManager,
-                this.torrentService,
-                appFolderInfo: appFolderInfo);
+                this.CreateServices(appFolderInfo: appFolderInfo));
 
             await lifetime.StartAsync(CancellationToken.None);
             await lifetime.StopAsync(CancellationToken.None);
@@ -296,9 +253,9 @@ public class AppLifetimeTest
         }
         finally
         {
-            if (System.IO.Directory.Exists(tempDir))
+            if (Directory.Exists(tempDir))
             {
-                System.IO.Directory.Delete(tempDir, true);
+                Directory.Delete(tempDir, true);
             }
         }
     }
@@ -324,16 +281,7 @@ public class AppLifetimeTest
         broadcaster.When(b => b.BroadcastMessage(Arg.Is<SignalRMessage>(msg => msg.Name == "speedPulse"))).Do(_ => tcs.TrySetResult(true));
 
         using var lifetime = new AppLifetime(
-            this.configService,
-            this.eventAggregator,
-            this.downloadEngine,
-            this.torrentRepository,
-            this.watchFolderService,
-            this.networkSecurityService,
-            this.rssSyncService,
-            this.dynamicAuthManager,
-            this.torrentService,
-            signalRBroadcaster: broadcaster,
+            this.CreateServices(signalRBroadcaster: broadcaster),
             backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
 
         await lifetime.StartAsync(CancellationToken.None);
@@ -368,16 +316,7 @@ public class AppLifetimeTest
         broadcaster.When(b => b.BroadcastMessage(Arg.Is<SignalRMessage>(msg => msg.Name == "speedPulse" && CheckRatioInSpeedPulse(msg.Body, 42, 2.0)))).Do(_ => tcs.TrySetResult(true));
 
         using var lifetime = new AppLifetime(
-            this.configService,
-            this.eventAggregator,
-            this.downloadEngine,
-            this.torrentRepository,
-            this.watchFolderService,
-            this.networkSecurityService,
-            this.rssSyncService,
-            this.dynamicAuthManager,
-            this.torrentService,
-            signalRBroadcaster: broadcaster,
+            this.CreateServices(signalRBroadcaster: broadcaster),
             backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
 
         await lifetime.StartAsync(CancellationToken.None);
@@ -412,16 +351,7 @@ public class AppLifetimeTest
         broadcaster.When(b => b.BroadcastMessage(Arg.Is<SignalRMessage>(msg => msg.Name == "speedPulse" && CheckRatioInSpeedPulse(msg.Body, 99, 5.0)))).Do(_ => tcs.TrySetResult(true));
 
         using var lifetime = new AppLifetime(
-            this.configService,
-            this.eventAggregator,
-            this.downloadEngine,
-            this.torrentRepository,
-            this.watchFolderService,
-            this.networkSecurityService,
-            this.rssSyncService,
-            this.dynamicAuthManager,
-            this.torrentService,
-            signalRBroadcaster: broadcaster,
+            this.CreateServices(signalRBroadcaster: broadcaster),
             backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
 
         await lifetime.StartAsync(CancellationToken.None);
@@ -460,16 +390,7 @@ public class AppLifetimeTest
         broadcaster.When(b => b.BroadcastMessage(Arg.Is<SignalRMessage>(msg => msg.Name == "speedPulse"))).Do(_ => tcs.TrySetResult(true));
 
         using var lifetime = new AppLifetime(
-            this.configService,
-            this.eventAggregator,
-            this.downloadEngine,
-            this.torrentRepository,
-            this.watchFolderService,
-            this.networkSecurityService,
-            this.rssSyncService,
-            this.dynamicAuthManager,
-            this.torrentService,
-            signalRBroadcaster: broadcaster,
+            this.CreateServices(signalRBroadcaster: broadcaster),
             backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
 
         await lifetime.StartAsync(CancellationToken.None);
@@ -492,15 +413,7 @@ public class AppLifetimeTest
             .Do(_ => callOrder.Add("EngineStop"));
 
         using var lifetime = new AppLifetime(
-            this.configService,
-            this.eventAggregator,
-            this.downloadEngine,
-            this.torrentRepository,
-            this.watchFolderService,
-            this.networkSecurityService,
-            this.rssSyncService,
-            this.dynamicAuthManager,
-            this.torrentService);
+            this.CreateServices());
 
         await lifetime.StopAsync(CancellationToken.None);
 
@@ -521,16 +434,7 @@ public class AppLifetimeTest
         this.powerManagementService.InhibitSleep(Arg.Any<string>()).Returns(mockToken);
 
         using var lifetime = new AppLifetime(
-            this.configService,
-            this.eventAggregator,
-            this.downloadEngine,
-            this.torrentRepository,
-            this.watchFolderService,
-            this.networkSecurityService,
-            this.rssSyncService,
-            this.dynamicAuthManager,
-            this.torrentService,
-            powerManagementService: this.powerManagementService,
+            this.CreateServices(),
             backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
 
         await lifetime.StartAsync(CancellationToken.None);
@@ -561,7 +465,7 @@ public class AppLifetimeTest
             {
                 var id = (int)idProp.GetValue(item)!;
                 var ratio = (double)ratioProp.GetValue(item)!;
-                if (id == expectedId && System.Math.Abs(ratio - expectedRatio) < 0.001)
+                if (id == expectedId && Math.Abs(ratio - expectedRatio) < 0.001)
                 {
                     return true;
                 }
@@ -569,5 +473,25 @@ public class AppLifetimeTest
         }
 
         return false;
+    }
+
+    private AppLifetimeServices CreateServices(
+        IBroadcastSignalRMessage signalRBroadcaster = null,
+        IPowerManagementService powerManagementService = null,
+        IAppFolderInfo appFolderInfo = null)
+    {
+        return new AppLifetimeServices(
+            this.configService,
+            this.eventAggregator,
+            this.downloadEngine,
+            this.torrentRepository,
+            this.watchFolderService,
+            this.networkSecurityService,
+            this.rssSyncService,
+            this.dynamicAuthManager,
+            this.torrentService,
+            signalRBroadcaster: signalRBroadcaster,
+            powerManagementService: powerManagementService ?? this.powerManagementService,
+            appFolderInfo: appFolderInfo);
     }
 }

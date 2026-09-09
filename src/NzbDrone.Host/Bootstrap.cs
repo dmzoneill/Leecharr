@@ -62,6 +62,7 @@ public static class Bootstrap
         container.RegisterSingletonWithInterfaces<DynamicArchiveExtractorProxy>();
         container.RegisterSingletonWithInterfaces<DynamicMediaInspectorProxy>();
         container.RegisterSingletonWithInterfaces<DynamicAiProxy>();
+        container.RegisterSingletonWithInterfaces<AppLifetimeServices>();
 
         var builder = WebApplication.CreateBuilder();
         var configProvider = container.Resolve<IConfigFileProvider>();
