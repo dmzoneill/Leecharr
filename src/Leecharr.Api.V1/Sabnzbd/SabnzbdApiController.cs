@@ -78,567 +78,652 @@ public class SabnzbdApiController : ControllerBase
             }
         }
 
-        switch (effectiveMode)
+        return effectiveMode switch
         {
-            case "version":
-                return this.Ok(new { version = "4.3.2" });
+            "version" => this.HandleVersionMode(),
+            "fullstatus" or "status" => this.HandleStatusMode(),
+            "auth" or "get_config" or "set_config" or "config" => this.HandleConfigMode(),
+            "get_cats" => this.HandleGetCatsMode(),
+            "warnings" => this.HandleWarningsMode(),
+            "queue" => await this.HandleQueueModeAsync(name, value, cat, priority, formName, formValue, formValue2, formCat, formPriority),
+            "history" => await this.HandleHistoryModeAsync(name, value, formName, formValue),
+            "addurl" => await this.HandleAddUrlModeAsync(name, cat, priority, formName, formCat, formPriority),
+            "addlocalfile" => await this.HandleAddLocalFileModeAsync(name, cat, priority, formName, formCat, formPriority),
+            "addfile" => await this.HandleAddFileModeAsync(cat, priority, formCat, formPriority),
+            "pause" => await this.HandlePauseModeAsync(value),
+            "resume" => await this.HandleResumeModeAsync(value),
+            "delete" => await this.HandleDeleteModeAsync(value),
+            "change_cat" or "set_category" => await this.HandleSetCategoryModeAsync(value, cat),
+            "priority" or "set_priority" => await this.HandleSetPriorityModeAsync(value, priority, formValue, formValue2, formPriority),
+            _ => this.HandleDefaultMode(),
+        };
+    }
 
-            case "fullstatus":
-            case "status":
-                var allTorrentsStatus = this.torrentService.GetAll().ToList();
-                var isAllPausedStatus = allTorrentsStatus.Count > 0 &&
-                                        allTorrentsStatus.All(t => t.Status is TorrentStatus.Paused or TorrentStatus.Stopped);
-                return this.Ok(new
-                {
-                    status = new
-                    {
-                        version = "4.3.2",
-                        paused = isAllPausedStatus,
-                        restart_req = false,
-                        power_options = true,
-                        speedlimit = this.configService.MaxDownloadSpeedKbps.ToString(CultureInfo.InvariantCulture),
-                        color_scheme = "gold",
-                    },
-                    version = "4.3.2",
-                });
+    private IActionResult HandleVersionMode()
+    {
+        return this.Ok(new { version = "4.3.2" });
+    }
 
-            case "auth":
-            case "get_config":
-            case "set_config":
-            case "config":
-                var paramName = this.Request.Query["name"].ToString();
-                var paramVal = this.Request.Query["value"].ToString();
-                if (string.IsNullOrEmpty(paramName) && this.Request.HasFormContentType)
+    private IActionResult HandleStatusMode()
+    {
+        var allTorrentsStatus = this.torrentService.GetAll().ToList();
+        var isAllPausedStatus = allTorrentsStatus.Count > 0 &&
+                                allTorrentsStatus.All(t => t.Status is TorrentStatus.Paused or TorrentStatus.Stopped);
+
+        return this.Ok(new
+        {
+            status = new
+            {
+                version = "4.3.2",
+                paused = isAllPausedStatus,
+                restart_req = false,
+                power_options = true,
+                speedlimit = this.configService.MaxDownloadSpeedKbps.ToString(CultureInfo.InvariantCulture),
+                color_scheme = "gold",
+            },
+            version = "4.3.2",
+        });
+    }
+
+    private IActionResult HandleConfigMode()
+    {
+        var paramName = this.Request.Query["name"].ToString();
+        var paramVal = this.Request.Query["value"].ToString();
+        if (string.IsNullOrEmpty(paramName) && this.Request.HasFormContentType)
+        {
+            paramName = this.Request.Form["name"].ToString();
+            paramVal = this.Request.Form["value"].ToString();
+        }
+
+        if (!string.IsNullOrWhiteSpace(paramName) && !string.IsNullOrWhiteSpace(paramVal))
+        {
+            var cfgDict = new Dictionary<string, object>();
+            if (string.Equals(paramName, "speedlimit", StringComparison.OrdinalIgnoreCase) && int.TryParse(paramVal, out var speedKb))
+            {
+                cfgDict["MaxDownloadSpeedKbps"] = speedKb;
+            }
+            else if (string.Equals(paramName, "complete_dir", StringComparison.OrdinalIgnoreCase) || string.Equals(paramName, "dir_completed_download", StringComparison.OrdinalIgnoreCase))
+            {
+                cfgDict["DownloadDir"] = paramVal;
+            }
+            else if (string.Equals(paramName, "download_dir", StringComparison.OrdinalIgnoreCase) || string.Equals(paramName, "dir_inprogress_download", StringComparison.OrdinalIgnoreCase))
+            {
+                cfgDict["IncompleteDownloadDir"] = paramVal;
+            }
+
+            if (cfgDict.Count > 0)
+            {
+                this.configService.SaveConfigDictionary(cfgDict);
+            }
+        }
+
+        var configuredCats = this.categoryService.GetAll().ToList();
+        var catNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "*", "tv", "tv-sonarr", "movies", "music", "anime", "default" };
+        foreach (var c in configuredCats)
+        {
+            catNames.Add(c.Name);
+        }
+
+        return this.Ok(new
+        {
+            config = new
+            {
+                version = "4.3.2",
+                misc = new
                 {
-                    paramName = this.Request.Form["name"].ToString();
-                    paramVal = this.Request.Form["value"].ToString();
+                    complete_dir = this.configService.DownloadDir ?? "/downloads",
+                    download_dir = this.configService.IncompleteDownloadDir ?? "/downloads/incomplete"
+                },
+                categories = catNames.Select(name => new { name, dir = this.configService.DownloadDir ?? "/downloads", order = 0 }).ToList()
+            },
+        });
+    }
+
+    private IActionResult HandleGetCatsMode()
+    {
+        var allCats = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "*", "tv", "tv-sonarr", "movies", "music", "anime", "default" };
+        foreach (var c in this.categoryService.GetAll())
+        {
+            allCats.Add(c.Name);
+        }
+
+        return this.Ok(new { categories = allCats.ToList() });
+    }
+
+    private IActionResult HandleWarningsMode()
+    {
+        return this.Ok(new { warnings = Array.Empty<object>() });
+    }
+
+    private async Task<IActionResult> HandleQueueModeAsync(
+        string name,
+        string value,
+        string cat,
+        string priority,
+        string formName,
+        string formValue,
+        string formValue2,
+        string formCat,
+        string formPriority)
+    {
+        var queueSubAction = (!string.IsNullOrWhiteSpace(name) ? name : formName).ToLowerInvariant();
+        var queueVal = !string.IsNullOrWhiteSpace(value) ? value : formValue;
+        var queueVal2 = !string.IsNullOrWhiteSpace(this.Request.Query["value2"].ToString())
+            ? this.Request.Query["value2"].ToString()
+            : (!string.IsNullOrWhiteSpace(formValue2) ? formValue2 : (!string.IsNullOrWhiteSpace(cat) ? cat : formCat));
+
+        var delFiles = this.Request.Query["del_files"] == "1" ||
+            (this.Request.HasFormContentType && this.Request.Form["del_files"] == "1") ||
+            string.Equals(value, "del_files", StringComparison.OrdinalIgnoreCase);
+
+        var actionResult = await this.ExecuteQueueActionAsync(queueSubAction, queueVal, queueVal2, delFiles, priority, formPriority);
+        if (actionResult != null)
+        {
+            return actionResult;
+        }
+
+        return this.BuildQueueResponse();
+    }
+
+    private async Task<IActionResult> ExecuteQueueActionAsync(
+        string queueSubAction,
+        string queueVal,
+        string queueVal2,
+        bool delFiles,
+        string priority,
+        string formPriority)
+    {
+        if (queueSubAction == "delete")
+        {
+            var target = this.torrentService.GetByInfoHash(CleanNzoId(queueVal));
+            if (target != null)
+            {
+                await this.torrentService.DeleteAsync(target.Id, delFiles);
+            }
+
+            return this.Ok(new { status = true });
+        }
+
+        if (queueSubAction == "pause")
+        {
+            await this.PauseTorrentsAsync(queueVal);
+            return this.Ok(new { status = true });
+        }
+
+        if (queueSubAction == "resume")
+        {
+            await this.ResumeTorrentsAsync(queueVal);
+            return this.Ok(new { status = true });
+        }
+
+        if (queueSubAction == "change_cat")
+        {
+            var target = this.torrentService.GetByInfoHash(CleanNzoId(queueVal));
+            if (target != null && !string.IsNullOrWhiteSpace(queueVal2))
+            {
+                target.Category = queueVal2;
+                await this.torrentService.UpdateAsync(target);
+            }
+
+            return this.Ok(new { status = true });
+        }
+
+        if (queueSubAction == "priority")
+        {
+            var target = this.torrentService.GetByInfoHash(CleanNzoId(queueVal));
+            if (target != null)
+            {
+                var prioStr = !string.IsNullOrWhiteSpace(queueVal2)
+                    ? queueVal2
+                    : (!string.IsNullOrWhiteSpace(priority) ? priority : formPriority);
+
+                if (TryParsePriority(prioStr, out var prio))
+                {
+                    target.Priority = prio;
+                    await this.torrentService.UpdateAsync(target);
                 }
+            }
 
-                if (!string.IsNullOrWhiteSpace(paramName) && !string.IsNullOrWhiteSpace(paramVal))
+            return this.Ok(new { status = true });
+        }
+
+        if (queueSubAction.StartsWith("move_") || queueSubAction.StartsWith("move") || queueSubAction == "switch")
+        {
+            await this.MoveQueueTorrentAsync(queueSubAction, queueVal, queueVal2);
+            return this.Ok(new { status = true });
+        }
+
+        return null;
+    }
+
+    private async Task MoveQueueTorrentAsync(string queueSubAction, string queueVal, string queueVal2)
+    {
+        var target = this.torrentService.GetByInfoHash(CleanNzoId(queueVal));
+        if (target == null)
+        {
+            return;
+        }
+
+        if (queueSubAction.Contains("top") || queueVal2 == "0")
+        {
+            await this.torrentService.MoveQueueAsync(target.Id, "top");
+        }
+        else if (queueSubAction.Contains("bottom") || queueSubAction.Contains("end"))
+        {
+            await this.torrentService.MoveQueueAsync(target.Id, "bottom");
+        }
+        else if (queueSubAction.Contains("up"))
+        {
+            await this.torrentService.MoveQueueAsync(target.Id, "up");
+        }
+        else if (queueSubAction.Contains("down"))
+        {
+            await this.torrentService.MoveQueueAsync(target.Id, "down");
+        }
+    }
+
+    private IActionResult BuildQueueResponse()
+    {
+        var allTorrents = this.torrentService.GetAll().ToList();
+        var queueSlots = allTorrents
+            .Where(t => t.Status == TorrentStatus.Downloading ||
+                        t.Status == TorrentStatus.Queued ||
+                        t.Status == TorrentStatus.Paused ||
+                        (t.Status == TorrentStatus.Stopped && !IsComplete(t)))
+            .OrderBy(t => t.QueuePosition)
+            .ThenBy(t => t.DateAdded)
+            .Select(t =>
+            {
+                var remainingBytes = Math.Max(0, t.TotalSize - t.Downloaded);
+                var secondsLeft = t.DownloadSpeed > 0 ? remainingBytes / t.DownloadSpeed : 0;
+                var ts = TimeSpan.FromSeconds(secondsLeft);
+                var timeleftStr = $"{(int)ts.TotalHours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}";
+
+                return new
                 {
-                    var cfgDict = new Dictionary<string, object>();
-                    if (string.Equals(paramName, "speedlimit", StringComparison.OrdinalIgnoreCase) && int.TryParse(paramVal, out var speedKb))
-                    {
-                        cfgDict["MaxDownloadSpeedKbps"] = speedKb;
-                    }
-                    else if (string.Equals(paramName, "complete_dir", StringComparison.OrdinalIgnoreCase) || string.Equals(paramName, "dir_completed_download", StringComparison.OrdinalIgnoreCase))
-                    {
-                        cfgDict["DownloadDir"] = paramVal;
-                    }
-                    else if (string.Equals(paramName, "download_dir", StringComparison.OrdinalIgnoreCase) || string.Equals(paramName, "dir_inprogress_download", StringComparison.OrdinalIgnoreCase))
-                    {
-                        cfgDict["IncompleteDownloadDir"] = paramVal;
-                    }
+                    nzo_id = t.InfoHash,
+                    filename = t.Name ?? string.Empty,
+                    size = (t.TotalSize / (1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture) + " MB",
+                    sizeleft = (remainingBytes / (1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture) + " MB",
+                    mb = (t.TotalSize / (1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture),
+                    mbleft = (remainingBytes / (1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture),
+                    status = (t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped) ? "Paused" : "Downloading",
+                    cat = t.Category ?? "default",
+                    priority = GetPriorityString(t.Priority),
+                    timeleft = timeleftStr,
+                    percentage = ((int)(t.Progress * 100)).ToString(CultureInfo.InvariantCulture),
+                };
+            }).ToList();
 
-                    if (cfgDict.Count > 0)
-                    {
-                        this.configService.SaveConfigDictionary(cfgDict);
-                    }
+        var totalDlSpeed = allTorrents.Sum(t => t.DownloadSpeed);
+        var totalRemainingBytes = allTorrents.Sum(t => Math.Max(0, t.TotalSize - t.Downloaded));
+
+        var isAllPaused = allTorrents.Count > 0 &&
+                          allTorrents.All(t => t.Status is TorrentStatus.Paused or TorrentStatus.Stopped);
+        var isAnyDownloading = allTorrents.Any(t => t.Status == TorrentStatus.Downloading && t.DownloadSpeed > 0);
+        var queueStatus = isAllPaused ? "Paused" : (isAnyDownloading ? "Downloading" : "Idle");
+
+        var kbpersec = totalDlSpeed / 1024.0;
+        var timeleftSeconds = totalDlSpeed > 0 ? totalRemainingBytes / totalDlSpeed : 0;
+        var mbleft = totalRemainingBytes / (1024.0 * 1024.0);
+        var queueTimeleftTs = TimeSpan.FromSeconds(timeleftSeconds);
+        var queueTimeleftStr = $"{(int)queueTimeleftTs.TotalHours:D2}:{queueTimeleftTs.Minutes:D2}:{queueTimeleftTs.Seconds:D2}";
+
+        var freeSpaceGb = (this.GetDriveFreeSpace(this.configService.DownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture);
+        var incFreeSpaceGb = (this.GetDriveFreeSpace(this.configService.IncompleteDownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture);
+        var totalSpaceGb = (this.GetDriveTotalSpace(this.configService.DownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture);
+        var incTotalSpaceGb = (this.GetDriveTotalSpace(this.configService.IncompleteDownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture);
+
+        var queueStart = this.GetStartParam();
+        var queueLimit = this.GetLimitParam();
+        var pagedQueueSlots = queueSlots.Skip(queueStart).Take(queueLimit).ToList();
+
+        return this.Ok(new
+        {
+            queue = new
+            {
+                status = queueStatus,
+                speed = kbpersec.ToString("F1", CultureInfo.InvariantCulture) + " KB/s",
+                speedlimit = this.configService.MaxDownloadSpeedKbps.ToString(CultureInfo.InvariantCulture),
+                paused = isAllPaused,
+                kbpersec = kbpersec.ToString("F2", CultureInfo.InvariantCulture),
+                bytespersec = totalDlSpeed.ToString(CultureInfo.InvariantCulture),
+                timeleft = queueTimeleftStr,
+                mbleft = mbleft.ToString("F2", CultureInfo.InvariantCulture),
+                noofslots_total = queueSlots.Count,
+                noofslots = queueSlots.Count,
+                diskspace1 = freeSpaceGb,
+                diskspace2 = incFreeSpaceGb,
+                diskspacetotal1 = totalSpaceGb,
+                diskspacetotal2 = incTotalSpaceGb,
+                slots = pagedQueueSlots,
+            },
+        });
+    }
+
+    private async Task<IActionResult> HandleHistoryModeAsync(string name, string value, string formName, string formValue)
+    {
+        var historySubAction = (!string.IsNullOrWhiteSpace(name) ? name : formName).ToLowerInvariant();
+        var historyVal = !string.IsNullOrWhiteSpace(value) ? value : formValue;
+        var histDelFiles = this.Request.Query["del_files"] == "1" ||
+            (this.Request.HasFormContentType && this.Request.Form["del_files"] == "1") ||
+            string.Equals(value, "del_files", StringComparison.OrdinalIgnoreCase);
+
+        if (historySubAction == "delete")
+        {
+            var target = this.torrentService.GetByInfoHash(CleanNzoId(historyVal));
+            if (target != null)
+            {
+                await this.torrentService.DeleteAsync(target.Id, histDelFiles);
+            }
+
+            return this.Ok(new { status = true });
+        }
+
+        return this.BuildHistoryResponse();
+    }
+
+    private IActionResult BuildHistoryResponse()
+    {
+        var nowUtc = DateTime.UtcNow;
+        var finishedTorrents = this.torrentService.GetAll()
+            .Where(t => (t.Status == TorrentStatus.Stopped || t.Status == TorrentStatus.Seeding || t.Status == TorrentStatus.Completed) && IsComplete(t))
+            .OrderByDescending(t => t.DateCompleted ?? t.DateAdded)
+            .Select(t =>
+            {
+                var downloadSeconds = t.DateCompleted.HasValue && t.DateAdded != default
+                    ? (int)Math.Max(1, (t.DateCompleted.Value - t.DateAdded).TotalSeconds)
+                    : (t.DateAdded != default ? (int)Math.Max(1, (nowUtc - t.DateAdded).TotalSeconds) : 60);
+
+                var storagePath = t.SavePath ?? (this.configService.DownloadDir ?? "/downloads");
+                var completePath = !string.IsNullOrWhiteSpace(t.Name) ? Path.Combine(storagePath, t.Name) : storagePath;
+                var completedEpoch = new DateTimeOffset(t.DateCompleted ?? (t.DateAdded != default ? t.DateAdded : nowUtc)).ToUnixTimeSeconds();
+
+                return new
+                {
+                    nzo_id = t.InfoHash,
+                    name = t.Name ?? string.Empty,
+                    nzb_name = t.Name ?? string.Empty,
+                    size = (t.TotalSize / (1024.0 * 1024.0)).ToString("F2") + " MB",
+                    bytes = t.TotalSize,
+                    category = t.Category ?? "default",
+                    status = "Completed",
+                    storage = storagePath,
+                    path = storagePath,
+                    download_time = downloadSeconds,
+                    completename = completePath,
+                    completed = completedEpoch,
+                };
+            }).ToList();
+
+        var totalHistoryBytes = finishedTorrents.Sum(f => f.bytes);
+        var monthCutoff = new DateTimeOffset(nowUtc.AddDays(-30)).ToUnixTimeSeconds();
+        var weekCutoff = new DateTimeOffset(nowUtc.AddDays(-7)).ToUnixTimeSeconds();
+        var monthBytes = finishedTorrents.Where(f => f.completed >= monthCutoff).Sum(f => f.bytes);
+        var weekBytes = finishedTorrents.Where(f => f.completed >= weekCutoff).Sum(f => f.bytes);
+
+        var historyStart = this.GetStartParam();
+        var historyLimit = this.GetLimitParam();
+        var pagedFinishedTorrents = finishedTorrents.Skip(historyStart).Take(historyLimit).ToList();
+
+        return this.Ok(new
+        {
+            history = new
+            {
+                total_size = (totalHistoryBytes / (1024.0 * 1024.0)).ToString("F2") + " MB",
+                month_size = (monthBytes / (1024.0 * 1024.0)).ToString("F2") + " MB",
+                week_size = (weekBytes / (1024.0 * 1024.0)).ToString("F2") + " MB",
+                noofslots = finishedTorrents.Count,
+                slots = pagedFinishedTorrents,
+            },
+        });
+    }
+
+    private async Task<IActionResult> HandleAddUrlModeAsync(
+        string name,
+        string cat,
+        string priority,
+        string formName,
+        string formCat,
+        string formPriority)
+    {
+        var targetUrl = !string.IsNullOrWhiteSpace(name) ? name : formName;
+        var targetCat = !string.IsNullOrWhiteSpace(cat) ? cat : formCat;
+        var addedId = Guid.NewGuid().ToString("N");
+
+        if (!string.IsNullOrWhiteSpace(targetUrl))
+        {
+            if (targetUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+            {
+                var added = await this.torrentService.AddFromMagnetAsync(targetUrl, targetCat, null, false);
+                if (added != null)
+                {
+                    await this.ApplyPriorityIfSpecifiedAsync(added, priority, formPriority);
+                    addedId = added.InfoHash;
                 }
-
-                var configuredCats = this.categoryService.GetAll().ToList();
-                var catNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "*", "tv", "tv-sonarr", "movies", "music", "anime", "default" };
-                foreach (var c in configuredCats)
+            }
+            else
+            {
+                var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024;
+                var bytes = await this.safeHttpClientService.DownloadBytesAsync(targetUrl, maxSizeBytes: maxTorrentBytes);
+                var parsed = this.torrentFileParser.Parse(bytes);
+                var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, targetCat, null, false, bytes);
+                if (added != null)
                 {
-                    catNames.Add(c.Name);
+                    await this.ApplyPriorityIfSpecifiedAsync(added, priority, formPriority);
+                    addedId = added.InfoHash;
                 }
+            }
+        }
 
-                return this.Ok(new
-                {
-                    config = new
-                    {
-                        version = "4.3.2",
-                        misc = new
-                        {
-                            complete_dir = this.configService.DownloadDir ?? "/downloads",
-                            download_dir = this.configService.IncompleteDownloadDir ?? "/downloads/incomplete"
-                        },
-                        categories = catNames.Select(name => new { name, dir = this.configService.DownloadDir ?? "/downloads", order = 0 }).ToList()
-                    },
-                });
+        return this.Ok(new { status = true, nzo_ids = new[] { addedId } });
+    }
 
-            case "get_cats":
-                var allCats = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "*", "tv", "tv-sonarr", "movies", "music", "anime", "default" };
-                foreach (var c in this.categoryService.GetAll())
-                {
-                    allCats.Add(c.Name);
-                }
+    private async Task<IActionResult> HandleAddLocalFileModeAsync(
+        string name,
+        string cat,
+        string priority,
+        string formName,
+        string formCat,
+        string formPriority)
+    {
+        var localPath = !string.IsNullOrWhiteSpace(name) ? name : formName;
 
-                return this.Ok(new { categories = allCats.ToList() });
+        if (!string.IsNullOrWhiteSpace(localPath) && global::System.IO.File.Exists(localPath))
+        {
+            var bytes = await global::System.IO.File.ReadAllBytesAsync(localPath);
+            var parsed = this.torrentFileParser.Parse(bytes);
+            var added = await this.torrentService.AddFromParsedTorrentAsync(
+                parsed,
+                !string.IsNullOrWhiteSpace(cat) ? cat : formCat,
+                null,
+                false,
+                bytes);
 
-            case "queue":
-                var queueSubAction = (!string.IsNullOrWhiteSpace(name) ? name : formName).ToLowerInvariant();
-                var queueVal = !string.IsNullOrWhiteSpace(value) ? value : formValue;
-                var queueVal2 = !string.IsNullOrWhiteSpace(this.Request.Query["value2"].ToString())
-                    ? this.Request.Query["value2"].ToString()
-                    : (!string.IsNullOrWhiteSpace(formValue2) ? formValue2 : (!string.IsNullOrWhiteSpace(cat) ? cat : formCat));
+            if (added != null)
+            {
+                await this.ApplyPriorityIfSpecifiedAsync(added, priority, formPriority);
+            }
 
-                var delFiles = this.Request.Query["del_files"] == "1" ||
-                    (this.Request.HasFormContentType && this.Request.Form["del_files"] == "1") ||
-                    string.Equals(value, "del_files", StringComparison.OrdinalIgnoreCase);
+            return this.Ok(new
+            {
+                status = true,
+                nzo_ids = new[] { added?.InfoHash ?? Guid.NewGuid().ToString("N") },
+            });
+        }
 
-                if (queueSubAction == "delete")
-                {
-                    var target = this.torrentService.GetByInfoHash(CleanNzoId(queueVal));
-                    if (target != null)
-                    {
-                        await this.torrentService.DeleteAsync(target.Id, delFiles);
-                    }
+        if (this.Request.HasFormContentType && this.Request.Form.Files.Count > 0)
+        {
+            var file = this.Request.Form.Files[0];
+            var fileCat = !string.IsNullOrWhiteSpace(cat) ? cat : formCat;
+            using var ms = new MemoryStream();
+            await file.CopyToAsync(ms);
+            var bytes = ms.ToArray();
+            var parsed = this.torrentFileParser.Parse(bytes);
+            var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, fileCat, null, false, bytes);
+            if (added != null)
+            {
+                await this.ApplyPriorityIfSpecifiedAsync(added, priority, formPriority);
+            }
 
-                    return this.Ok(new { status = true });
-                }
-                else if (queueSubAction == "pause")
-                {
-                    if (string.IsNullOrWhiteSpace(queueVal) || queueVal.Equals("all", StringComparison.OrdinalIgnoreCase))
-                    {
-                        foreach (var t in this.torrentService.GetAll())
-                        {
-                            await this.torrentService.PauseAsync(t.Id);
-                        }
-                    }
-                    else
-                    {
-                        var target = this.torrentService.GetByInfoHash(CleanNzoId(queueVal));
-                        if (target != null)
-                        {
-                            await this.torrentService.PauseAsync(target.Id);
-                        }
-                    }
+            return this.Ok(new { status = true, nzo_ids = new[] { added?.InfoHash ?? Guid.NewGuid().ToString("N") } });
+        }
 
-                    return this.Ok(new { status = true });
-                }
-                else if (queueSubAction == "resume")
-                {
-                    if (string.IsNullOrWhiteSpace(queueVal) || queueVal.Equals("all", StringComparison.OrdinalIgnoreCase))
-                    {
-                        foreach (var t in this.torrentService.GetAll())
-                        {
-                            await this.torrentService.ResumeAsync(t.Id);
-                        }
-                    }
-                    else
-                    {
-                        var target = this.torrentService.GetByInfoHash(CleanNzoId(queueVal));
-                        if (target != null)
-                        {
-                            await this.torrentService.ResumeAsync(target.Id);
-                        }
-                    }
+        return this.BadRequest(new { status = false, error = "No local file path or uploaded file provided." });
+    }
 
-                    return this.Ok(new { status = true });
-                }
-                else if (queueSubAction == "change_cat")
-                {
-                    var target = this.torrentService.GetByInfoHash(CleanNzoId(queueVal));
-                    if (target != null && !string.IsNullOrWhiteSpace(queueVal2))
-                    {
-                        target.Category = queueVal2;
-                        await this.torrentService.UpdateAsync(target);
-                    }
+    private async Task<IActionResult> HandleAddFileModeAsync(
+        string cat,
+        string priority,
+        string formCat,
+        string formPriority)
+    {
+        if (this.Request.HasFormContentType && this.Request.Form.Files.Count > 0)
+        {
+            var file = this.Request.Form.Files[0];
+            var fileCat = !string.IsNullOrWhiteSpace(cat) ? cat : formCat;
+            using var ms = new MemoryStream();
+            await file.CopyToAsync(ms);
+            var bytes = ms.ToArray();
+            var parsed = this.torrentFileParser.Parse(bytes);
+            var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, fileCat, null, false, bytes);
+            if (added != null)
+            {
+                await this.ApplyPriorityIfSpecifiedAsync(added, priority, formPriority);
+            }
 
-                    return this.Ok(new { status = true });
-                }
-                else if (queueSubAction == "priority")
-                {
-                    var target = this.torrentService.GetByInfoHash(CleanNzoId(queueVal));
-                    if (target != null)
-                    {
-                        var prioStr = !string.IsNullOrWhiteSpace(queueVal2)
-                            ? queueVal2
-                            : (!string.IsNullOrWhiteSpace(priority) ? priority : formPriority);
+            return this.Ok(new { status = true, nzo_ids = new[] { added?.InfoHash ?? Guid.NewGuid().ToString("N") } });
+        }
 
-                        if (TryParsePriority(prioStr, out var prio))
-                        {
-                            target.Priority = prio;
-                            await this.torrentService.UpdateAsync(target);
-                        }
-                    }
+        return this.Ok(new { status = true, nzo_ids = new[] { Guid.NewGuid().ToString("N") } });
+    }
 
-                    return this.Ok(new { status = true });
-                }
-                else if (queueSubAction.StartsWith("move_") || queueSubAction.StartsWith("move") || queueSubAction == "switch")
-                {
-                    var target = this.torrentService.GetByInfoHash(CleanNzoId(queueVal));
-                    if (target != null)
-                    {
-                        if (queueSubAction.Contains("top") || queueVal2 == "0")
-                        {
-                            await this.torrentService.MoveQueueAsync(target.Id, "top");
-                        }
-                        else if (queueSubAction.Contains("bottom") || queueSubAction.Contains("end"))
-                        {
-                            await this.torrentService.MoveQueueAsync(target.Id, "bottom");
-                        }
-                        else if (queueSubAction.Contains("up"))
-                        {
-                            await this.torrentService.MoveQueueAsync(target.Id, "up");
-                        }
-                        else if (queueSubAction.Contains("down"))
-                        {
-                            await this.torrentService.MoveQueueAsync(target.Id, "down");
-                        }
-                    }
+    private async Task<IActionResult> HandlePauseModeAsync(string value)
+    {
+        await this.PauseTorrentsAsync(value);
+        return this.Ok(new { status = true });
+    }
 
-                    return this.Ok(new { status = true });
-                }
+    private async Task<IActionResult> HandleResumeModeAsync(string value)
+    {
+        await this.ResumeTorrentsAsync(value);
+        return this.Ok(new { status = true });
+    }
 
-                var allTorrents = this.torrentService.GetAll().ToList();
-                var queueSlots = allTorrents
-                    .Where(t => t.Status == TorrentStatus.Downloading ||
-                                t.Status == TorrentStatus.Queued ||
-                                t.Status == TorrentStatus.Paused ||
-                                (t.Status == TorrentStatus.Stopped && !IsComplete(t)))
-                    .OrderBy(t => t.QueuePosition)
-                    .ThenBy(t => t.DateAdded)
-                    .Select(t =>
-                    {
-                        var remainingBytes = Math.Max(0, t.TotalSize - t.Downloaded);
-                        var secondsLeft = t.DownloadSpeed > 0 ? remainingBytes / t.DownloadSpeed : 0;
-                        var ts = TimeSpan.FromSeconds(secondsLeft);
-                        var timeleftStr = $"{(int)ts.TotalHours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}";
+    private async Task<IActionResult> HandleDeleteModeAsync(string value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            var directDelFiles = this.Request.Query["del_files"] == "1" ||
+                (this.Request.HasFormContentType && this.Request.Form["del_files"] == "1");
+            var t = this.torrentService.GetByInfoHash(CleanNzoId(value));
+            if (t != null)
+            {
+                await this.torrentService.DeleteAsync(t.Id, directDelFiles);
+            }
+        }
 
-                        return new
-                        {
-                            nzo_id = t.InfoHash,
-                            filename = t.Name ?? string.Empty,
-                            size = (t.TotalSize / (1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture) + " MB",
-                            sizeleft = (remainingBytes / (1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture) + " MB",
-                            mb = (t.TotalSize / (1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture),
-                            mbleft = (remainingBytes / (1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture),
-                            status = (t.Status == TorrentStatus.Paused || t.Status == TorrentStatus.Stopped) ? "Paused" : "Downloading",
-                            cat = t.Category ?? "default",
-                            priority = GetPriorityString(t.Priority),
-                            timeleft = timeleftStr,
-                            percentage = ((int)(t.Progress * 100)).ToString(CultureInfo.InvariantCulture),
-                        };
-                    }).ToList();
+        return this.Ok(new { status = true });
+    }
 
-                var totalDlSpeed = allTorrents.Sum(t => t.DownloadSpeed);
-                var totalRemainingBytes = allTorrents.Sum(t => Math.Max(0, t.TotalSize - t.Downloaded));
+    private async Task<IActionResult> HandleSetCategoryModeAsync(string value, string cat)
+    {
+        if (!string.IsNullOrWhiteSpace(value) && !string.IsNullOrWhiteSpace(cat))
+        {
+            var t = this.torrentService.GetByInfoHash(CleanNzoId(value));
+            if (t != null)
+            {
+                t.Category = cat;
+                await this.torrentService.UpdateAsync(t);
+            }
+        }
 
-                var isAllPaused = allTorrents.Count > 0 &&
-                                  allTorrents.All(t => t.Status is TorrentStatus.Paused or TorrentStatus.Stopped);
-                var isAnyDownloading = allTorrents.Any(t => t.Status == TorrentStatus.Downloading && t.DownloadSpeed > 0);
-                var queueStatus = isAllPaused ? "Paused" : (isAnyDownloading ? "Downloading" : "Idle");
+        return this.Ok(new { status = true });
+    }
 
-                var kbpersec = totalDlSpeed / 1024.0;
-                var timeleftSeconds = totalDlSpeed > 0 ? totalRemainingBytes / totalDlSpeed : 0;
-                var mbleft = totalRemainingBytes / (1024.0 * 1024.0);
-                var queueTimeleftTs = TimeSpan.FromSeconds(timeleftSeconds);
-                var queueTimeleftStr = $"{(int)queueTimeleftTs.TotalHours:D2}:{queueTimeleftTs.Minutes:D2}:{queueTimeleftTs.Seconds:D2}";
+    private async Task<IActionResult> HandleSetPriorityModeAsync(
+        string value,
+        string priority,
+        string formValue,
+        string formValue2,
+        string formPriority)
+    {
+        var directPrioVal = !string.IsNullOrWhiteSpace(value) ? value : formValue;
+        var directPrioVal2 = !string.IsNullOrWhiteSpace(this.Request.Query["value2"].ToString())
+            ? this.Request.Query["value2"].ToString()
+            : (!string.IsNullOrWhiteSpace(formValue2) ? formValue2 : (!string.IsNullOrWhiteSpace(priority) ? priority : formPriority));
 
-                var freeSpaceGb = (this.GetDriveFreeSpace(this.configService.DownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture);
-                var incFreeSpaceGb = (this.GetDriveFreeSpace(this.configService.IncompleteDownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture);
-                var totalSpaceGb = (this.GetDriveTotalSpace(this.configService.DownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture);
-                var incTotalSpaceGb = (this.GetDriveTotalSpace(this.configService.IncompleteDownloadDir) / (1024.0 * 1024.0 * 1024.0)).ToString("F2", CultureInfo.InvariantCulture);
+        if (!string.IsNullOrWhiteSpace(directPrioVal))
+        {
+            var t = this.torrentService.GetByInfoHash(CleanNzoId(directPrioVal));
+            if (t != null && TryParsePriority(directPrioVal2, out var directPrio))
+            {
+                t.Priority = directPrio;
+                await this.torrentService.UpdateAsync(t);
+            }
+        }
 
-                var queueStart = this.GetStartParam();
-                var queueLimit = this.GetLimitParam();
-                var pagedQueueSlots = queueSlots.Skip(queueStart).Take(queueLimit).ToList();
+        return this.Ok(new { status = true });
+    }
 
-                return this.Ok(new
-                {
-                    queue = new
-                    {
-                        status = queueStatus,
-                        speed = kbpersec.ToString("F1", CultureInfo.InvariantCulture) + " KB/s",
-                        speedlimit = this.configService.MaxDownloadSpeedKbps.ToString(CultureInfo.InvariantCulture),
-                        paused = isAllPaused,
-                        kbpersec = kbpersec.ToString("F2", CultureInfo.InvariantCulture),
-                        bytespersec = totalDlSpeed.ToString(CultureInfo.InvariantCulture),
-                        timeleft = queueTimeleftStr,
-                        mbleft = mbleft.ToString("F2", CultureInfo.InvariantCulture),
-                        noofslots_total = queueSlots.Count,
-                        noofslots = queueSlots.Count,
-                        diskspace1 = freeSpaceGb,
-                        diskspace2 = incFreeSpaceGb,
-                        diskspacetotal1 = totalSpaceGb,
-                        diskspacetotal2 = incTotalSpaceGb,
-                        slots = pagedQueueSlots,
-                    },
-                });
+    private IActionResult HandleDefaultMode()
+    {
+        return this.Ok(new { status = true, version = "4.3.2" });
+    }
 
-            case "history":
-                var historySubAction = (!string.IsNullOrWhiteSpace(name) ? name : formName).ToLowerInvariant();
-                var historyVal = !string.IsNullOrWhiteSpace(value) ? value : formValue;
-                var histDelFiles = this.Request.Query["del_files"] == "1" ||
-                    (this.Request.HasFormContentType && this.Request.Form["del_files"] == "1") ||
-                    string.Equals(value, "del_files", StringComparison.OrdinalIgnoreCase);
+    private async Task PauseTorrentsAsync(string queueVal)
+    {
+        if (string.IsNullOrWhiteSpace(queueVal) || queueVal.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            foreach (var t in this.torrentService.GetAll())
+            {
+                await this.torrentService.PauseAsync(t.Id);
+            }
+        }
+        else
+        {
+            var target = this.torrentService.GetByInfoHash(CleanNzoId(queueVal));
+            if (target != null)
+            {
+                await this.torrentService.PauseAsync(target.Id);
+            }
+        }
+    }
 
-                if (historySubAction == "delete")
-                {
-                    var target = this.torrentService.GetByInfoHash(CleanNzoId(historyVal));
-                    if (target != null)
-                    {
-                        await this.torrentService.DeleteAsync(target.Id, histDelFiles);
-                    }
+    private async Task ResumeTorrentsAsync(string queueVal)
+    {
+        if (string.IsNullOrWhiteSpace(queueVal) || queueVal.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            foreach (var t in this.torrentService.GetAll())
+            {
+                await this.torrentService.ResumeAsync(t.Id);
+            }
+        }
+        else
+        {
+            var target = this.torrentService.GetByInfoHash(CleanNzoId(queueVal));
+            if (target != null)
+            {
+                await this.torrentService.ResumeAsync(target.Id);
+            }
+        }
+    }
 
-                    return this.Ok(new { status = true });
-                }
+    private async Task ApplyPriorityIfSpecifiedAsync(Torrent added, string priority, string formPriority)
+    {
+        if (added == null)
+        {
+            return;
+        }
 
-                var nowUtc = DateTime.UtcNow;
-                var finishedTorrents = this.torrentService.GetAll()
-                    .Where(t => (t.Status == TorrentStatus.Stopped || t.Status == TorrentStatus.Seeding || t.Status == TorrentStatus.Completed) && IsComplete(t))
-                    .OrderByDescending(t => t.DateCompleted ?? t.DateAdded)
-                    .Select(t =>
-                    {
-                        var downloadSeconds = t.DateCompleted.HasValue && t.DateAdded != default
-                            ? (int)Math.Max(1, (t.DateCompleted.Value - t.DateAdded).TotalSeconds)
-                            : (t.DateAdded != default ? (int)Math.Max(1, (nowUtc - t.DateAdded).TotalSeconds) : 60);
+        var prioStr = !string.IsNullOrWhiteSpace(priority)
+            ? priority
+            : (!string.IsNullOrWhiteSpace(formPriority) ? formPriority : this.Request.Query["priority"].ToString());
 
-                        var storagePath = t.SavePath ?? (this.configService.DownloadDir ?? "/downloads");
-                        var completePath = !string.IsNullOrWhiteSpace(t.Name) ? Path.Combine(storagePath, t.Name) : storagePath;
-                        var completedEpoch = new DateTimeOffset(t.DateCompleted ?? (t.DateAdded != default ? t.DateAdded : nowUtc)).ToUnixTimeSeconds();
-
-                        return new
-                        {
-                            nzo_id = t.InfoHash,
-                            name = t.Name ?? string.Empty,
-                            nzb_name = t.Name ?? string.Empty,
-                            size = (t.TotalSize / (1024.0 * 1024.0)).ToString("F2") + " MB",
-                            bytes = t.TotalSize,
-                            category = t.Category ?? "default",
-                            status = "Completed",
-                            storage = storagePath,
-                            path = storagePath,
-                            download_time = downloadSeconds,
-                            completename = completePath,
-                            completed = completedEpoch,
-                        };
-                    }).ToList();
-
-                var totalHistoryBytes = finishedTorrents.Sum(f => f.bytes);
-                var monthCutoff = new DateTimeOffset(nowUtc.AddDays(-30)).ToUnixTimeSeconds();
-                var weekCutoff = new DateTimeOffset(nowUtc.AddDays(-7)).ToUnixTimeSeconds();
-                var monthBytes = finishedTorrents.Where(f => f.completed >= monthCutoff).Sum(f => f.bytes);
-                var weekBytes = finishedTorrents.Where(f => f.completed >= weekCutoff).Sum(f => f.bytes);
-
-                var historyStart = this.GetStartParam();
-                var historyLimit = this.GetLimitParam();
-                var pagedFinishedTorrents = finishedTorrents.Skip(historyStart).Take(historyLimit).ToList();
-
-                return this.Ok(new
-                {
-                    history = new
-                    {
-                        total_size = (totalHistoryBytes / (1024.0 * 1024.0)).ToString("F2") + " MB",
-                        month_size = (monthBytes / (1024.0 * 1024.0)).ToString("F2") + " MB",
-                        week_size = (weekBytes / (1024.0 * 1024.0)).ToString("F2") + " MB",
-                        noofslots = finishedTorrents.Count,
-                        slots = pagedFinishedTorrents,
-                    },
-                });
-
-            case "addurl":
-                var targetUrl = !string.IsNullOrWhiteSpace(name) ? name : formName;
-                var targetCat = !string.IsNullOrWhiteSpace(cat) ? cat : formCat;
-                var addedId = Guid.NewGuid().ToString("N");
-
-                if (!string.IsNullOrWhiteSpace(targetUrl))
-                {
-                    if (targetUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var added = await this.torrentService.AddFromMagnetAsync(targetUrl, targetCat, null, false);
-                        if (added != null)
-                        {
-                            var prioStr = !string.IsNullOrWhiteSpace(priority) ? priority : (!string.IsNullOrWhiteSpace(formPriority) ? formPriority : this.Request.Query["priority"].ToString());
-                            if (TryParsePriority(prioStr, out var pVal))
-                            {
-                                added.Priority = pVal;
-                                await this.torrentService.UpdateAsync(added);
-                            }
-
-                            addedId = added.InfoHash;
-                        }
-                    }
-                    else
-                    {
-                        var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024;
-                        var bytes = await this.safeHttpClientService.DownloadBytesAsync(targetUrl, maxSizeBytes: maxTorrentBytes);
-                        var parsed = this.torrentFileParser.Parse(bytes);
-                        var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, targetCat, null, false, bytes);
-                        if (added != null)
-                        {
-                            var prioStr = !string.IsNullOrWhiteSpace(priority) ? priority : (!string.IsNullOrWhiteSpace(formPriority) ? formPriority : this.Request.Query["priority"].ToString());
-                            if (TryParsePriority(prioStr, out var pVal))
-                            {
-                                added.Priority = pVal;
-                                await this.torrentService.UpdateAsync(added);
-                            }
-
-                            addedId = added.InfoHash;
-                        }
-                    }
-                }
-
-                return this.Ok(new { status = true, nzo_ids = new[] { addedId } });
-
-            case "addlocalfile":
-                var localPath = !string.IsNullOrWhiteSpace(name) ? name : formName;
-
-                if (!string.IsNullOrWhiteSpace(localPath) && global::System.IO.File.Exists(localPath))
-                {
-                    var bytes = await global::System.IO.File.ReadAllBytesAsync(localPath);
-                    var parsed = this.torrentFileParser.Parse(bytes);
-                    var added = await this.torrentService.AddFromParsedTorrentAsync(
-                        parsed,
-                        !string.IsNullOrWhiteSpace(cat) ? cat : formCat,
-                        null,
-                        false,
-                        bytes);
-
-                    if (added != null)
-                    {
-                        var prioStr = !string.IsNullOrWhiteSpace(priority) ? priority : (!string.IsNullOrWhiteSpace(formPriority) ? formPriority : this.Request.Query["priority"].ToString());
-                        if (TryParsePriority(prioStr, out var pVal))
-                        {
-                            added.Priority = pVal;
-                            await this.torrentService.UpdateAsync(added);
-                        }
-                    }
-
-                    return this.Ok(new
-                    {
-                        status = true,
-                        nzo_ids = new[] { added?.InfoHash ?? Guid.NewGuid().ToString("N") }
-                    });
-                }
-
-                if (this.Request.HasFormContentType && this.Request.Form.Files.Count > 0)
-                {
-                    var file = this.Request.Form.Files[0];
-                    var fileCat = !string.IsNullOrWhiteSpace(cat) ? cat : formCat;
-                    using var ms = new MemoryStream();
-                    await file.CopyToAsync(ms);
-                    var bytes = ms.ToArray();
-                    var parsed = this.torrentFileParser.Parse(bytes);
-                    var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, fileCat, null, false, bytes);
-                    if (added != null)
-                    {
-                        var prioStr = !string.IsNullOrWhiteSpace(priority) ? priority : (!string.IsNullOrWhiteSpace(formPriority) ? formPriority : this.Request.Query["priority"].ToString());
-                        if (TryParsePriority(prioStr, out var pVal))
-                        {
-                            added.Priority = pVal;
-                            await this.torrentService.UpdateAsync(added);
-                        }
-                    }
-
-                    return this.Ok(new { status = true, nzo_ids = new[] { added?.InfoHash ?? Guid.NewGuid().ToString("N") } });
-                }
-
-                return this.BadRequest(new { status = false, error = "No local file path or uploaded file provided." });
-
-            case "addfile":
-                if (this.Request.HasFormContentType && this.Request.Form.Files.Count > 0)
-                {
-                    var file = this.Request.Form.Files[0];
-                    var fileCat = !string.IsNullOrWhiteSpace(cat) ? cat : formCat;
-                    using var ms = new MemoryStream();
-                    await file.CopyToAsync(ms);
-                    var bytes = ms.ToArray();
-                    var parsed = this.torrentFileParser.Parse(bytes);
-                    var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, fileCat, null, false, bytes);
-                    if (added != null)
-                    {
-                        var prioStr = !string.IsNullOrWhiteSpace(priority) ? priority : (!string.IsNullOrWhiteSpace(formPriority) ? formPriority : this.Request.Query["priority"].ToString());
-                        if (TryParsePriority(prioStr, out var pVal))
-                        {
-                            added.Priority = pVal;
-                            await this.torrentService.UpdateAsync(added);
-                        }
-                    }
-
-                    return this.Ok(new { status = true, nzo_ids = new[] { added?.InfoHash ?? Guid.NewGuid().ToString("N") } });
-                }
-
-                return this.Ok(new { status = true, nzo_ids = new[] { Guid.NewGuid().ToString("N") } });
-
-            case "pause":
-                if (!string.IsNullOrWhiteSpace(value))
-                {
-                    var t = this.torrentService.GetByInfoHash(CleanNzoId(value));
-                    if (t != null)
-                    {
-                        await this.torrentService.PauseAsync(t.Id);
-                    }
-                }
-                else
-                {
-                    foreach (var t in this.torrentService.GetAll())
-                    {
-                        await this.torrentService.PauseAsync(t.Id);
-                    }
-                }
-
-                return this.Ok(new { status = true });
-
-            case "resume":
-                if (!string.IsNullOrWhiteSpace(value))
-                {
-                    var t = this.torrentService.GetByInfoHash(CleanNzoId(value));
-                    if (t != null)
-                    {
-                        await this.torrentService.ResumeAsync(t.Id);
-                    }
-                }
-                else
-                {
-                    foreach (var t in this.torrentService.GetAll())
-                    {
-                        await this.torrentService.ResumeAsync(t.Id);
-                    }
-                }
-
-                return this.Ok(new { status = true });
-
-            case "delete":
-                if (!string.IsNullOrWhiteSpace(value))
-                {
-                    var directDelFiles = this.Request.Query["del_files"] == "1" || (this.Request.HasFormContentType && this.Request.Form["del_files"] == "1");
-                    var t = this.torrentService.GetByInfoHash(CleanNzoId(value));
-                    if (t != null)
-                    {
-                        await this.torrentService.DeleteAsync(t.Id, directDelFiles);
-                    }
-                }
-
-                return this.Ok(new { status = true });
-
-            case "change_cat":
-            case "set_category":
-                if (!string.IsNullOrWhiteSpace(value) && !string.IsNullOrWhiteSpace(cat))
-                {
-                    var t = this.torrentService.GetByInfoHash(CleanNzoId(value));
-                    if (t != null)
-                    {
-                        t.Category = cat;
-                        await this.torrentService.UpdateAsync(t);
-                    }
-                }
-
-                return this.Ok(new { status = true });
-
-            case "priority":
-            case "set_priority":
-                var directPrioVal = !string.IsNullOrWhiteSpace(value) ? value : formValue;
-                var directPrioVal2 = !string.IsNullOrWhiteSpace(this.Request.Query["value2"].ToString())
-                    ? this.Request.Query["value2"].ToString()
-                    : (!string.IsNullOrWhiteSpace(formValue2) ? formValue2 : (!string.IsNullOrWhiteSpace(priority) ? priority : formPriority));
-
-                if (!string.IsNullOrWhiteSpace(directPrioVal))
-                {
-                    var t = this.torrentService.GetByInfoHash(CleanNzoId(directPrioVal));
-                    if (t != null && TryParsePriority(directPrioVal2, out var directPrio))
-                    {
-                        t.Priority = directPrio;
-                        await this.torrentService.UpdateAsync(t);
-                    }
-                }
-
-                return this.Ok(new { status = true });
-
-            default:
-                return this.Ok(new { status = true, version = "4.3.2" });
+        if (TryParsePriority(prioStr, out var pVal))
+        {
+            added.Priority = pVal;
+            await this.torrentService.UpdateAsync(added);
         }
     }
 
