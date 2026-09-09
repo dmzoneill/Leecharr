@@ -289,6 +289,7 @@ public class PiecePicker
         lock (this.syncLock)
         {
             var candidateIndices = this.GetCandidatePieceIndices(peerBitfield, sequentialMode);
+            var isEndgame = this.IsEndgameMode();
 
             foreach (var pieceIndex in candidateIndices)
             {
@@ -306,7 +307,6 @@ public class PiecePicker
                     }
 
                     var blockKey = $"{pieceIndex}:{blockIdx}";
-                    var isEndgame = this.IsEndgameMode();
                     var now = DateTime.UtcNow;
 
                     if (this.inFlightBlocks.TryGetValue(blockKey, out var existingInfo))
