@@ -79,8 +79,9 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./App.css";
 import { LanguageSelector } from "./components/LanguageSelector";
 import { useTranslation } from "./i18n";
+import { getErrorMessage } from "./utils/errorUtils";
 
-function getSystemSubItems(t: any) {
+function getSystemSubItems(t: (key: string) => string) {
   return [
     { id: "status", label: t("system.status") },
     { id: "resources", label: t("system.resources") },
@@ -140,7 +141,7 @@ export function App() {
     try {
       const user = await api.getCurrentUser();
       setCurrentUser(user);
-    } catch {
+    } catch (err: unknown) {
       // Auth might not be enabled or user not logged in
     }
   };
@@ -154,8 +155,8 @@ export function App() {
       await api.logout();
       setCurrentUser(null);
       navigate("/login");
-    } catch (err) {
-      console.error("Logout failed", err);
+    } catch (err: unknown) {
+      console.error("Logout failed", getErrorMessage(err));
     }
   };
 
@@ -300,8 +301,8 @@ export function App() {
           setIsReconnecting(false);
         }
       })
-      .catch((err) => {
-        console.warn("SignalR start error:", err);
+      .catch((err: unknown) => {
+        console.warn("SignalR start error:", getErrorMessage(err));
         setConnected(false);
         setIsReconnecting(true);
       });
@@ -309,16 +310,20 @@ export function App() {
     const unsubscribe = signalRManager.subscribe((msg) => {
       if (msg.name === "speedPulse") {
         if (msg.body) {
-          const updates: any[] = Array.isArray(msg.body)
-            ? msg.body
-            : Array.isArray((msg.body as any).torrents)
-              ? (msg.body as any).torrents
-              : typeof (msg.body as any).id === "number"
-                ? [msg.body]
-                : typeof msg.body === "object"
-                  ? Object.entries(msg.body).map(
-                      ([id, data]: [string, any]) => ({
-                        id: Number(id) || data?.id,
+          const body = msg.body as
+            | Array<{ id: number; [key: string]: unknown }>
+            | { torrents?: Array<{ id: number; [key: string]: unknown }>; id?: number }
+            | Record<string, { id?: number; [key: string]: unknown }>;
+          const updates: Array<{ id: number; [key: string]: unknown }> = Array.isArray(body)
+            ? (body as Array<{ id: number; [key: string]: unknown }>)
+            : Array.isArray((body as { torrents?: Array<{ id: number; [key: string]: unknown }> }).torrents)
+              ? ((body as { torrents: Array<{ id: number; [key: string]: unknown }> }).torrents)
+              : typeof (body as { id?: number }).id === "number"
+                ? [body as { id: number; [key: string]: unknown }]
+                : typeof body === "object"
+                  ? Object.entries(body as Record<string, { id?: number; [key: string]: unknown }>).map(
+                      ([id, data]: [string, { id?: number; [key: string]: unknown }]) => ({
+                        id: Number(id) || data?.id || 0,
                         ...(typeof data === "object" ? data : {}),
                       }),
                     )
@@ -333,7 +338,7 @@ export function App() {
 
       if (msg.name === "pieceMapUpdated") {
         if (msg.body) {
-          const body = msg.body as any;
+          const body = msg.body as { torrentId?: number; id?: number };
           const tid = Number(body.torrentId || body.id);
           if (tid) {
             useTorrentStore.getState().updatePieceMap(tid, body);
@@ -361,12 +366,13 @@ export function App() {
           msg.name === "torrentDeleted" ||
           (msg.name === "torrent" && (msg.action as unknown) === "Deleted")
         ) {
-          const body = msg.body as any;
+          const body = msg.body as unknown;
           if (Array.isArray(body)) {
             for (const item of body) {
               const tid = Number(
                 typeof item === "object" && item !== null
-                  ? (item.id ?? item.torrentId)
+                  ? ((item as { id?: number; torrentId?: number }).id ??
+                    (item as { id?: number; torrentId?: number }).torrentId)
                   : item,
               );
               if (!Number.isNaN(tid) && tid > 0) {
@@ -375,7 +381,10 @@ export function App() {
             }
           } else if (body !== undefined && body !== null) {
             const tid = Number(
-              typeof body === "object" ? (body.id ?? body.torrentId) : body,
+              typeof body === "object"
+                ? ((body as { id?: number; torrentId?: number }).id ??
+                  (body as { id?: number; torrentId?: number }).torrentId)
+                : body,
             );
             if (!Number.isNaN(tid) && tid > 0) {
               useTorrentStore.getState().removeTorrent(tid);
@@ -383,7 +392,7 @@ export function App() {
           }
         }
         if (msg.name === "subsystemSwitched") {
-          const body = msg.body as any;
+          const body = msg.body as { subsystemId?: string; id?: string } | null;
           const subsystemId =
             typeof body === "object" && body !== null
               ? (body.subsystemId ?? body.id)
@@ -413,8 +422,8 @@ export function App() {
       await api.pauseTorrent(id);
       showToast("Torrent paused", "info");
       refreshServerData();
-    } catch (err: any) {
-      showToast(err?.message || "Failed to pause torrent", "error");
+    } catch (err: unknown) {
+      showToast(getErrorMessage(err, "Failed to pause torrent"), "error");
     }
   };
 
@@ -423,8 +432,8 @@ export function App() {
       await api.resumeTorrent(id);
       showToast("Torrent resumed", "success");
       refreshServerData();
-    } catch (err: any) {
-      showToast(err?.message || "Failed to resume torrent", "error");
+    } catch (err: unknown) {
+      showToast(getErrorMessage(err, "Failed to resume torrent"), "error");
     }
   };
 
@@ -443,8 +452,8 @@ export function App() {
         "info",
       );
       refreshServerData();
-    } catch (err: any) {
-      showToast(err?.message || "Failed to delete torrent", "error");
+    } catch (err: unknown) {
+      showToast(getErrorMessage(err, "Failed to delete torrent"), "error");
     }
   };
 
