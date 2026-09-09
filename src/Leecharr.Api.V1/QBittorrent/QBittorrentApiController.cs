@@ -529,184 +529,137 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     public async Task<ActionResult> AddTorrents([FromForm] QBitAddTorrentsRequest request = null)
     {
         request ??= new QBitAddTorrentsRequest();
-        var effectiveSavePath = request.EffectiveSavePath;
-        var effectiveCookie = request.EffectiveCookie;
-        var isPaused = request.IsPaused;
-        var isSequential = request.IsSequential;
-        var isFirstLastPiecePrio = request.IsFirstLastPiecePrio;
 
-        // 1. URLs (magnets or http/https torrent links)
-        if (!string.IsNullOrWhiteSpace(request.Urls))
-        {
-            var lines = request.Urls.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            foreach (var url in lines)
-            {
-                var trimmed = url.Trim();
-                if (trimmed.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
-                {
-                    var added = await this.torrentService.AddFromMagnetAsync(trimmed, request.Category, effectiveSavePath, isPaused);
-                    if (added != null)
-                    {
-                        var needsUpdate = false;
-                        if (!string.IsNullOrWhiteSpace(request.Tags))
-                        {
-                            added.Label = request.Tags;
-                            needsUpdate = true;
-                        }
-
-                        if (isSequential)
-                        {
-                            added.SequentialDownload = true;
-                            needsUpdate = true;
-                        }
-
-                        if (isFirstLastPiecePrio)
-                        {
-                            added.FirstLastPiecePriority = true;
-                            needsUpdate = true;
-                        }
-
-                        if (request.RatioLimit.HasValue && request.RatioLimit.Value > 0)
-                        {
-                            added.TargetRatio = request.RatioLimit.Value;
-                            needsUpdate = true;
-                        }
-
-                        if (request.SeedingTimeLimit.HasValue && request.SeedingTimeLimit.Value > 0)
-                        {
-                            added.TargetSeedTimeMinutes = (int)(request.SeedingTimeLimit.Value / 60);
-                            needsUpdate = true;
-                        }
-
-                        if (needsUpdate)
-                        {
-                            await this.torrentService.UpdateAsync(added);
-                        }
-                    }
-                }
-                else if (trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-                {
-                    try
-                    {
-                        var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
-                        byte[] bytes;
-                        if (!string.IsNullOrWhiteSpace(effectiveCookie) && Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
-                        {
-                            var customHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                            {
-                                ["Cookie"] = effectiveCookie,
-                            };
-                            bytes = await this.safeHttpClientService.DownloadBytesAsync(uri, maxSizeBytes: maxTorrentBytes, customHeaders: customHeaders);
-                        }
-                        else
-                        {
-                            bytes = await this.safeHttpClientService.DownloadBytesAsync(trimmed, maxSizeBytes: maxTorrentBytes);
-                        }
-
-                        var parsed = this.torrentFileParser.Parse(bytes);
-                        var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, effectiveSavePath, isPaused, bytes);
-                        if (added != null)
-                        {
-                            var needsUpdate = false;
-                            if (!string.IsNullOrWhiteSpace(request.Tags))
-                            {
-                                added.Label = request.Tags;
-                                needsUpdate = true;
-                            }
-
-                            if (isSequential)
-                            {
-                                added.SequentialDownload = true;
-                                needsUpdate = true;
-                            }
-
-                            if (isFirstLastPiecePrio)
-                            {
-                                added.FirstLastPiecePriority = true;
-                                needsUpdate = true;
-                            }
-
-                            if (request.RatioLimit.HasValue && request.RatioLimit.Value > 0)
-                            {
-                                added.TargetRatio = request.RatioLimit.Value;
-                                needsUpdate = true;
-                            }
-
-                            if (request.SeedingTimeLimit.HasValue && request.SeedingTimeLimit.Value > 0)
-                            {
-                                added.TargetSeedTimeMinutes = (int)(request.SeedingTimeLimit.Value / 60);
-                                needsUpdate = true;
-                            }
-
-                            if (needsUpdate)
-                            {
-                                await this.torrentService.UpdateAsync(added);
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Error(ex, "Failed to download torrent file from URL: {0}", trimmed);
-                    }
-                }
-            }
-        }
-
-        // 2. Uploaded files
-        if (request.Torrents != null && request.Torrents.Count > 0)
-        {
-            foreach (var file in request.Torrents)
-            {
-                if (file.Length > 0)
-                {
-                    using var ms = new MemoryStream();
-                    await file.CopyToAsync(ms);
-                    var bytes = ms.ToArray();
-                    var parsed = this.torrentFileParser.Parse(bytes);
-                    var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, effectiveSavePath, isPaused, bytes);
-                    if (added != null)
-                    {
-                        var needsUpdate = false;
-                        if (!string.IsNullOrWhiteSpace(request.Tags))
-                        {
-                            added.Label = request.Tags;
-                            needsUpdate = true;
-                        }
-
-                        if (isSequential)
-                        {
-                            added.SequentialDownload = true;
-                            needsUpdate = true;
-                        }
-
-                        if (isFirstLastPiecePrio)
-                        {
-                            added.FirstLastPiecePriority = true;
-                            needsUpdate = true;
-                        }
-
-                        if (request.RatioLimit.HasValue && request.RatioLimit.Value > 0)
-                        {
-                            added.TargetRatio = request.RatioLimit.Value;
-                            needsUpdate = true;
-                        }
-
-                        if (request.SeedingTimeLimit.HasValue && request.SeedingTimeLimit.Value > 0)
-                        {
-                            added.TargetSeedTimeMinutes = (int)(request.SeedingTimeLimit.Value / 60);
-                            needsUpdate = true;
-                        }
-
-                        if (needsUpdate)
-                        {
-                            await this.torrentService.UpdateAsync(added);
-                        }
-                    }
-                }
-            }
-        }
+        await this.AddTorrentsFromUrlsAsync(request);
+        await this.AddTorrentsFromFilesAsync(request);
 
         return this.Content("Ok.", "text/plain");
+    }
+
+    private async Task AddTorrentsFromUrlsAsync(QBitAddTorrentsRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request?.Urls))
+        {
+            return;
+        }
+
+        var lines = request.Urls.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var url in lines)
+        {
+            var trimmed = url.Trim();
+            if (string.IsNullOrWhiteSpace(trimmed))
+            {
+                continue;
+            }
+
+            if (trimmed.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+            {
+                var added = await this.torrentService.AddFromMagnetAsync(trimmed, request.Category, request.EffectiveSavePath, request.IsPaused);
+                await this.ApplyTorrentRequestOptionsAsync(added, request);
+                continue;
+            }
+
+            if (trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                await this.AddTorrentFromHttpUrlAsync(trimmed, request);
+            }
+        }
+    }
+
+    private async Task AddTorrentFromHttpUrlAsync(string url, QBitAddTorrentsRequest request)
+    {
+        try
+        {
+            var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+            byte[] bytes;
+            if (!string.IsNullOrWhiteSpace(request.EffectiveCookie) && Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            {
+                var customHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["Cookie"] = request.EffectiveCookie,
+                };
+                bytes = await this.safeHttpClientService.DownloadBytesAsync(uri, maxSizeBytes: maxTorrentBytes, customHeaders: customHeaders);
+            }
+            else
+            {
+                bytes = await this.safeHttpClientService.DownloadBytesAsync(url, maxSizeBytes: maxTorrentBytes);
+            }
+
+            var parsed = this.torrentFileParser.Parse(bytes);
+            var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.EffectiveSavePath, request.IsPaused, bytes);
+            await this.ApplyTorrentRequestOptionsAsync(added, request);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Failed to download torrent file from URL: {0}", url);
+        }
+    }
+
+    private async Task AddTorrentsFromFilesAsync(QBitAddTorrentsRequest request)
+    {
+        if (request?.Torrents == null || request.Torrents.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var file in request.Torrents)
+        {
+            if (file == null || file.Length <= 0)
+            {
+                continue;
+            }
+
+            using var ms = new MemoryStream();
+            await file.CopyToAsync(ms);
+            var bytes = ms.ToArray();
+            var parsed = this.torrentFileParser.Parse(bytes);
+            var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.EffectiveSavePath, request.IsPaused, bytes);
+            await this.ApplyTorrentRequestOptionsAsync(added, request);
+        }
+    }
+
+    private async Task ApplyTorrentRequestOptionsAsync(Torrent added, QBitAddTorrentsRequest request)
+    {
+        if (added == null || request == null)
+        {
+            return;
+        }
+
+        var needsUpdate = false;
+        if (!string.IsNullOrWhiteSpace(request.Tags))
+        {
+            added.Label = request.Tags;
+            needsUpdate = true;
+        }
+
+        if (request.IsSequential)
+        {
+            added.SequentialDownload = true;
+            needsUpdate = true;
+        }
+
+        if (request.IsFirstLastPiecePrio)
+        {
+            added.FirstLastPiecePriority = true;
+            needsUpdate = true;
+        }
+
+        if (request.RatioLimit.HasValue && request.RatioLimit.Value > 0)
+        {
+            added.TargetRatio = request.RatioLimit.Value;
+            needsUpdate = true;
+        }
+
+        if (request.SeedingTimeLimit.HasValue && request.SeedingTimeLimit.Value > 0)
+        {
+            added.TargetSeedTimeMinutes = (int)(request.SeedingTimeLimit.Value / 60);
+            needsUpdate = true;
+        }
+
+        if (needsUpdate)
+        {
+            await this.torrentService.UpdateAsync(added);
+        }
     }
 
     [HttpPost("torrents/setShareLimits")]
@@ -1767,34 +1720,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 foreach (var t in torrentList)
                 {
                     currentHashes.Add(t.InfoHash);
-                    var state = MapToQBitState(t.Status, t.Progress);
                     var (resolvedSavePath, resolvedContentPath) = this.ResolvePaths(t, filesByTorrent);
-                    var addedOn = new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds();
-                    var completionOn = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : 0L;
-                    var amountLeft = Math.Max(0, t.TotalSize - t.Downloaded);
-
-                    var snapshot = new QBitTorrentSnapshot(
-                        t.Name,
-                        t.TotalSize,
-                        t.Progress,
-                        t.DownloadSpeed,
-                        t.UploadSpeed,
-                        state,
-                        t.Category ?? string.Empty,
-                        t.Label ?? string.Empty,
-                        resolvedSavePath,
-                        resolvedContentPath,
-                        CalculateEta(t),
-                        t.Ratio,
-                        t.Seeders,
-                        t.Leechers,
-                        t.Downloaded,
-                        t.Uploaded,
-                        amountLeft,
-                        addedOn,
-                        completionOn,
-                        t.SequentialDownload,
-                        t.FirstLastPiecePriority);
+                    var snapshot = QBitTorrentSnapshot.FromTorrent(t, resolvedSavePath, resolvedContentPath);
 
                     sessionState.CachedTorrents[t.InfoHash] = (snapshot, sessionState.CurrentRid);
 
@@ -1846,34 +1773,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             foreach (var t in torrentList)
             {
                 currentHashes.Add(t.InfoHash);
-                var state = MapToQBitState(t.Status, t.Progress);
                 var (resolvedSavePath, resolvedContentPath) = this.ResolvePaths(t, filesByTorrent);
-                var addedOn = new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds();
-                var completionOn = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : 0L;
-                var amountLeft = Math.Max(0, t.TotalSize - t.Downloaded);
-
-                var snapshot = new QBitTorrentSnapshot(
-                    t.Name,
-                    t.TotalSize,
-                    t.Progress,
-                    t.DownloadSpeed,
-                    t.UploadSpeed,
-                    state,
-                    t.Category ?? string.Empty,
-                    t.Label ?? string.Empty,
-                    resolvedSavePath,
-                    resolvedContentPath,
-                    CalculateEta(t),
-                    t.Ratio,
-                    t.Seeders,
-                    t.Leechers,
-                    t.Downloaded,
-                    t.Uploaded,
-                    amountLeft,
-                    addedOn,
-                    completionOn,
-                    t.SequentialDownload,
-                    t.FirstLastPiecePriority);
+                var snapshot = QBitTorrentSnapshot.FromTorrent(t, resolvedSavePath, resolvedContentPath);
 
                 var isNewOrChanged = !sessionState.CachedTorrents.TryGetValue(t.InfoHash, out var existing) || existing.Snapshot != snapshot;
                 if (isNewOrChanged)
@@ -2482,7 +2383,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         return (trimmedSave, Path.Combine(trimmedSave, t.Name));
     }
 
-    private static string MapToQBitState(TorrentStatus status, double progress)
+    internal static string MapToQBitState(TorrentStatus status, double progress)
     {
         return status switch
         {
@@ -2499,7 +2400,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         };
     }
 
-    private static long CalculateEta(Torrent t)
+    internal static long CalculateEta(Torrent t)
     {
         if (t == null)
         {
@@ -2552,28 +2453,84 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     }
 }
 
-public record QBitTorrentSnapshot(
-    string Name,
-    long Size,
-    double Progress,
-    long DlSpeed,
-    long UpSpeed,
-    string State,
-    string Category,
-    string Tags,
-    string SavePath,
-    string ContentPath,
-    long Eta,
-    double Ratio,
-    int NumSeeds,
-    int NumLeechs,
-    long Downloaded,
-    long Uploaded,
-    long AmountLeft,
-    long AddedOn,
-    long CompletionOn,
-    bool SeqDl = false,
-    bool FLPiecePrio = false);
+public record QBitTorrentSnapshot
+{
+    public string Name { get; init; } = string.Empty;
+
+    public long Size { get; init; }
+
+    public double Progress { get; init; }
+
+    public long DlSpeed { get; init; }
+
+    public long UpSpeed { get; init; }
+
+    public string State { get; init; } = string.Empty;
+
+    public string Category { get; init; } = string.Empty;
+
+    public string Tags { get; init; } = string.Empty;
+
+    public string SavePath { get; init; } = string.Empty;
+
+    public string ContentPath { get; init; } = string.Empty;
+
+    public long Eta { get; init; }
+
+    public double Ratio { get; init; }
+
+    public int NumSeeds { get; init; }
+
+    public int NumLeechs { get; init; }
+
+    public long Downloaded { get; init; }
+
+    public long Uploaded { get; init; }
+
+    public long AmountLeft { get; init; }
+
+    public long AddedOn { get; init; }
+
+    public long CompletionOn { get; init; }
+
+    public bool SeqDl { get; init; }
+
+    public bool FLPiecePrio { get; init; }
+
+    public static QBitTorrentSnapshot FromTorrent(Torrent torrent, string savePath = "", string contentPath = "")
+    {
+        ArgumentNullException.ThrowIfNull(torrent);
+
+        var addedOn = new DateTimeOffset(torrent.DateAdded).ToUnixTimeSeconds();
+        var completionOn = torrent.DateCompleted.HasValue ? new DateTimeOffset(torrent.DateCompleted.Value).ToUnixTimeSeconds() : 0L;
+        var amountLeft = Math.Max(0, torrent.TotalSize - torrent.Downloaded);
+
+        return new QBitTorrentSnapshot
+        {
+            Name = torrent.Name ?? string.Empty,
+            Size = torrent.TotalSize,
+            Progress = torrent.Progress,
+            DlSpeed = torrent.DownloadSpeed,
+            UpSpeed = torrent.UploadSpeed,
+            State = QBittorrentApiController.MapToQBitState(torrent.Status, torrent.Progress),
+            Category = torrent.Category ?? string.Empty,
+            Tags = torrent.Label ?? string.Empty,
+            SavePath = savePath ?? string.Empty,
+            ContentPath = contentPath ?? string.Empty,
+            Eta = QBittorrentApiController.CalculateEta(torrent),
+            Ratio = torrent.Ratio,
+            NumSeeds = torrent.Seeders,
+            NumLeechs = torrent.Leechers,
+            Downloaded = torrent.Downloaded,
+            Uploaded = torrent.Uploaded,
+            AmountLeft = amountLeft,
+            AddedOn = addedOn,
+            CompletionOn = completionOn,
+            SeqDl = torrent.SequentialDownload,
+            FLPiecePrio = torrent.FirstLastPiecePriority,
+        };
+    }
+}
 
 public class QBitSessionSyncState
 {
