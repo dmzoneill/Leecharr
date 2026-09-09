@@ -141,7 +141,7 @@ export function App() {
     try {
       const user = await api.getCurrentUser();
       setCurrentUser(user);
-    } catch (err: unknown) {
+    } catch (_err: unknown) {
       // Auth might not be enabled or user not logged in
     }
   };
