@@ -183,58 +183,116 @@ public class DelugeJsonRpcController : ControllerBase
                 return this.DelugeResult(new { result = (object)null, error = new { message = "Not authenticated", code = 1 }, id });
             }
 
-            return lowerMethod switch
+            if (lowerMethod.StartsWith("core."))
             {
-                "web.connected" or "web.connect" => this.HandleWebConnected(id),
-                "system.listmethods" or "system.list_methods" or "daemon.get_method_list" or "system.get_methods" => this.HandleSystemListMethods(id),
-                "daemon.get_version" or "daemon.info" or "core.get_version" or "web.get_version" => this.HandleGetVersion(id),
-                "label.get_labels" => this.HandleLabelGetLabels(id),
-                "label.get_torrents" => this.HandleLabelGetTorrents(paramsElem, id),
-                "label.add" or "label.add_label" => this.HandleLabelAdd(paramsElem, id),
-                "label.remove" => this.HandleLabelRemove(paramsElem, id),
-                "label.get_options" => this.HandleLabelGetOptions(paramsElem, id),
-                "label.set_options" => this.HandleLabelSetOptions(paramsElem, id),
-                "label.set_torrent" => await this.HandleLabelSetTorrentAsync(paramsElem, id),
-                "core.get_enabled_plugins" or "web.get_plugins" or "web.get_installed_plugins" or "core.get_available_plugins" => this.HandleGetPlugins(id),
-                "core.enable_plugin" or "core.disable_plugin" => this.HandleTogglePlugin(id),
-                "web.get_hosts" => this.HandleWebGetHosts(id),
-                "web.get_host_status" => this.HandleWebGetHostStatus(id),
-                "web.update_ui" => this.HandleWebUpdateUi(paramsElem, id),
-                "core.get_config" or "web.get_config" => this.HandleCoreGetConfig(id),
-                "core.get_config_values" => this.HandleCoreGetConfigValues(paramsElem, id),
-                "core.get_config_value" => this.HandleCoreGetConfigValue(paramsElem, id),
-                "core.set_config" or "core.set_config_values" or "web.set_config" => this.HandleCoreSetConfig(paramsElem, id),
-                "core.get_session_status" => this.HandleCoreGetSessionStatus(id),
-                "core.get_free_space" or "core.get_path_free_space" or "core.get_free_space_bytes" => this.HandleCoreGetFreeSpace(paramsElem, id),
-                "core.get_torrents_status" => this.HandleGetTorrentsStatus(paramsElem, id, isWeb: false),
-                "web.get_torrents_status" => this.HandleGetTorrentsStatus(paramsElem, id, isWeb: true),
-                "web.get_torrent_status" or "core.get_torrent_status" => this.HandleGetTorrentStatus(paramsElem, id),
-                "core.add_torrent_file" or "core.add_torrent_file_async" => await this.HandleCoreAddTorrentFileAsync(paramsElem, id),
-                "core.add_torrent_magnet" => await this.HandleCoreAddTorrentMagnetAsync(paramsElem, id),
-                "core.add_torrent_url" => await this.HandleCoreAddTorrentUrlAsync(paramsElem, id),
-                "web.upload_torrent" => await this.HandleWebUploadTorrentAsync(paramsElem, id),
-                "web.get_torrent_info" => await this.HandleWebGetTorrentInfoAsync(paramsElem, id),
-                "web.add_torrents" => await this.HandleWebAddTorrentsAsync(paramsElem, id),
-                "core.pause_torrent" or "core.pause_torrents" or "core.pause_all_torrents" => await this.HandleCorePauseTorrentsAsync(lowerMethod, paramsElem, id),
-                "core.resume_torrent" or "core.resume_torrents" or "core.resume_all_torrents" => await this.HandleCoreResumeTorrentsAsync(lowerMethod, paramsElem, id),
-                "core.remove_torrent" or "core.remove_torrents" => await this.HandleCoreRemoveTorrentsAsync(lowerMethod, paramsElem, id),
-                "core.force_recheck" => await this.HandleCoreForceRecheckAsync(paramsElem, id),
-                "core.force_reannounce" or "core.reannounce" => await this.HandleCoreForceReannounceAsync(paramsElem, id),
-                "core.move_storage" => await this.HandleCoreMoveStorageAsync(paramsElem, id),
-                "core.set_torrent_options" => await this.HandleCoreSetTorrentOptionsAsync(paramsElem, id),
-                "core.set_torrent_file_priorities" => await this.HandleCoreSetTorrentFilePrioritiesAsync(paramsElem, id),
-                "core.rename_files" => await this.HandleCoreRenameFilesAsync(paramsElem, id),
-                "web.disconnect" => this.HandleWebDisconnect(id),
-                "core.queue_top" or "core.queue_up" or "core.queue_down" or "core.queue_bottom" => await this.HandleCoreQueueAsync(lowerMethod, paramsElem, id),
-                "core.get_filter_tree" or "web.get_filter_tree" => this.HandleGetFilterTree(id),
-                _ => this.HandleUnknownMethod(method, id),
-            };
+                return await this.DispatchCoreRpcAsync(lowerMethod, paramsElem, id);
+            }
+
+            if (lowerMethod.StartsWith("web."))
+            {
+                return await this.DispatchWebRpcAsync(lowerMethod, paramsElem, id);
+            }
+
+            if (lowerMethod.StartsWith("daemon.") || lowerMethod.StartsWith("system."))
+            {
+                return await this.DispatchDaemonRpcAsync(lowerMethod, paramsElem, id);
+            }
+
+            if (lowerMethod.StartsWith("label."))
+            {
+                return await this.DispatchLabelRpcAsync(lowerMethod, paramsElem, id);
+            }
+
+            return this.HandleUnknownMethod(method, id);
         }
         catch (Exception ex)
         {
             this.logger.Error(ex, "Error handling Deluge RPC method: {0}", method);
             return this.DelugeResult(new { result = (object)null, error = ex.Message, id });
         }
+    }
+
+    private async Task<IActionResult> DispatchCoreRpcAsync(string method, JsonElement args, object id)
+    {
+        return method switch
+        {
+            "core.get_version" => this.HandleGetVersion(id),
+            "core.get_enabled_plugins" or "core.get_available_plugins" => this.HandleGetPlugins(id),
+            "core.enable_plugin" or "core.disable_plugin" => this.HandleTogglePlugin(id),
+            "core.get_config" => this.HandleCoreGetConfig(id),
+            "core.get_config_values" => this.HandleCoreGetConfigValues(args, id),
+            "core.get_config_value" => this.HandleCoreGetConfigValue(args, id),
+            "core.set_config" or "core.set_config_values" => this.HandleCoreSetConfig(args, id),
+            "core.get_session_status" => this.HandleCoreGetSessionStatus(id),
+            "core.get_free_space" or "core.get_path_free_space" or "core.get_free_space_bytes" => this.HandleCoreGetFreeSpace(args, id),
+            "core.get_torrents_status" => this.HandleGetTorrentsStatus(args, id, isWeb: false),
+            "core.get_torrent_status" => this.HandleGetTorrentStatus(args, id),
+            "core.add_torrent_file" or "core.add_torrent_file_async" => await this.HandleCoreAddTorrentFileAsync(args, id),
+            "core.add_torrent_magnet" => await this.HandleCoreAddTorrentMagnetAsync(args, id),
+            "core.add_torrent_url" => await this.HandleCoreAddTorrentUrlAsync(args, id),
+            "core.pause_torrent" or "core.pause_torrents" or "core.pause_all_torrents" => await this.HandleCorePauseTorrentsAsync(method, args, id),
+            "core.resume_torrent" or "core.resume_torrents" or "core.resume_all_torrents" => await this.HandleCoreResumeTorrentsAsync(method, args, id),
+            "core.remove_torrent" or "core.remove_torrents" => await this.HandleCoreRemoveTorrentsAsync(method, args, id),
+            "core.force_recheck" => await this.HandleCoreForceRecheckAsync(args, id),
+            "core.force_reannounce" or "core.reannounce" => await this.HandleCoreForceReannounceAsync(args, id),
+            "core.move_storage" => await this.HandleCoreMoveStorageAsync(args, id),
+            "core.set_torrent_options" => await this.HandleCoreSetTorrentOptionsAsync(args, id),
+            "core.set_torrent_file_priorities" => await this.HandleCoreSetTorrentFilePrioritiesAsync(args, id),
+            "core.rename_files" => await this.HandleCoreRenameFilesAsync(args, id),
+            "core.queue_top" or "core.queue_up" or "core.queue_down" or "core.queue_bottom" => await this.HandleCoreQueueAsync(method, args, id),
+            "core.get_filter_tree" => this.HandleGetFilterTree(id),
+            _ => this.HandleUnknownMethod(method, id),
+        };
+    }
+
+    private async Task<IActionResult> DispatchWebRpcAsync(string method, JsonElement args, object id)
+    {
+        return method switch
+        {
+            "web.connected" or "web.connect" => this.HandleWebConnected(id),
+            "web.get_version" => this.HandleGetVersion(id),
+            "web.get_plugins" or "web.get_installed_plugins" => this.HandleGetPlugins(id),
+            "web.get_hosts" => this.HandleWebGetHosts(id),
+            "web.get_host_status" => this.HandleWebGetHostStatus(id),
+            "web.update_ui" => this.HandleWebUpdateUi(args, id),
+            "web.get_config" => this.HandleCoreGetConfig(id),
+            "web.set_config" => this.HandleCoreSetConfig(args, id),
+            "web.get_torrents_status" => this.HandleGetTorrentsStatus(args, id, isWeb: true),
+            "web.get_torrent_status" => this.HandleGetTorrentStatus(args, id),
+            "web.upload_torrent" => await this.HandleWebUploadTorrentAsync(args, id),
+            "web.get_torrent_info" => await this.HandleWebGetTorrentInfoAsync(args, id),
+            "web.add_torrents" => await this.HandleWebAddTorrentsAsync(args, id),
+            "web.disconnect" => this.HandleWebDisconnect(id),
+            "web.get_filter_tree" => this.HandleGetFilterTree(id),
+            _ => this.HandleUnknownMethod(method, id),
+        };
+    }
+
+    private Task<IActionResult> DispatchDaemonRpcAsync(string method, JsonElement args, object id)
+    {
+        var result = method switch
+        {
+            "system.listmethods" or "system.list_methods" or "daemon.get_method_list" or "system.get_methods" => this.HandleSystemListMethods(id),
+            "daemon.get_version" or "daemon.info" => this.HandleGetVersion(id),
+            _ => this.HandleUnknownMethod(method, id),
+        };
+
+        return Task.FromResult(result);
+    }
+
+    private async Task<IActionResult> DispatchLabelRpcAsync(string method, JsonElement args, object id)
+    {
+        return method switch
+        {
+            "label.get_labels" => this.HandleLabelGetLabels(id),
+            "label.get_torrents" => this.HandleLabelGetTorrents(args, id),
+            "label.add" or "label.add_label" => this.HandleLabelAdd(args, id),
+            "label.remove" => this.HandleLabelRemove(args, id),
+            "label.get_options" => this.HandleLabelGetOptions(args, id),
+            "label.set_options" => this.HandleLabelSetOptions(args, id),
+            "label.set_torrent" => await this.HandleLabelSetTorrentAsync(args, id),
+            _ => this.HandleUnknownMethod(method, id),
+        };
     }
 
     private IActionResult HandleAuthLogin(JsonElement paramsElem, object id)
