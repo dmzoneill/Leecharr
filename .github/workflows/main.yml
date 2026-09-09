@@ -33,7 +33,6 @@ jobs:
       VALIDATE_TSX: "false"
       VALIDATE_TYPESCRIPT_ES: "false"
       VALIDATE_MARKDOWN: "false"
-      VALIDATE_MARKDOWN_PRETTIER: "false"
       VALIDATE_NATURAL_LANGUAGE: "false"
       VALIDATE_BASH: "false"
       VALIDATE_SHELL_SHFMT: "false"
