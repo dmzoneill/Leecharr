@@ -565,6 +565,30 @@ public class DelugeJsonRpcController : ControllerBase
                         cat.TargetRatio = srProp.GetDouble();
                     }
 
+                    if (lOptions.TryGetProperty("max_download_speed", out var mdsProp) && mdsProp.ValueKind == JsonValueKind.Number)
+                    {
+                        if (mdsProp.TryGetInt32(out var dl))
+                        {
+                            cat.DefaultDownloadLimit = dl;
+                        }
+                        else
+                        {
+                            cat.DefaultDownloadLimit = (int)mdsProp.GetDouble();
+                        }
+                    }
+
+                    if (lOptions.TryGetProperty("max_upload_speed", out var musProp) && musProp.ValueKind == JsonValueKind.Number)
+                    {
+                        if (musProp.TryGetInt32(out var ul))
+                        {
+                            cat.DefaultUploadLimit = ul;
+                        }
+                        else
+                        {
+                            cat.DefaultUploadLimit = (int)musProp.GetDouble();
+                        }
+                    }
+
                     if (cat.Id > 0)
                     {
                         this.categoryService.Update(cat);
@@ -1031,6 +1055,7 @@ public class DelugeJsonRpcController : ControllerBase
             var isPaused = false;
             string savePath = null;
             string category = null;
+            double? targetRatio = null;
 
             if (paramsElem.GetArrayLength() >= 2 && paramsElem[1].ValueKind == JsonValueKind.Object)
             {
@@ -1053,13 +1078,19 @@ public class DelugeJsonRpcController : ControllerBase
                 {
                     category = lbl.GetString();
                 }
+
+                if (opts.TryGetProperty("stop_ratio", out var sr) && sr.ValueKind == JsonValueKind.Number)
+                {
+                    targetRatio = sr.GetDouble();
+                }
             }
 
             if (!string.IsNullOrWhiteSpace(url))
             {
+                Torrent added = null;
                 if (url.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                 {
-                    var added = await this.torrentService.AddFromMagnetAsync(url, category, savePath, isPaused);
+                    added = await this.torrentService.AddFromMagnetAsync(url, category, savePath, isPaused);
                     urlHash = added?.InfoHash;
                 }
                 else
@@ -1067,8 +1098,14 @@ public class DelugeJsonRpcController : ControllerBase
                     var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
                     var bytes = await this.safeHttpClientService.DownloadBytesAsync(url, maxSizeBytes: maxTorrentBytes);
                     var parsed = this.torrentFileParser.Parse(bytes);
-                    var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
+                    added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
                     urlHash = added?.InfoHash;
+                }
+
+                if (added != null && targetRatio.HasValue && targetRatio.Value > 0)
+                {
+                    added.TargetRatio = targetRatio.Value;
+                    await this.torrentService.UpdateAsync(added);
                 }
             }
         }

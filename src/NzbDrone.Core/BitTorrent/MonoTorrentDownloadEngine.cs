@@ -62,6 +62,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private readonly object pendingTorrentsLock = new();
     private readonly List<(CoreTorrent Torrent, byte[] TorrentFileBytes, string MagnetUri)> pendingTorrents = new();
     private readonly SemaphoreSlim engineStateLock = new(1, 1);
+    private readonly object vpnTransitionLock = new();
+    private Task vpnTransitionQueue = Task.CompletedTask;
 
     private ClientEngine engine;
     private Timer trackerHealthTimer;
@@ -1773,6 +1775,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             finalDestination = sourcePath;
         }
 
+        if (existingTask != null)
+        {
+            existingTask.WorkingPath = finalDestination;
+        }
+
         this.eventAggregator.PublishEvent(new TorrentDownloadCompletedEvent(new CoreTorrent
         {
             Id = torrentId,
@@ -2140,17 +2147,22 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.logger.Error("VPN Kill Switch drop detected for interface '{0}'. Halting MonoTorrent engine and terminating active peer connections.", interfaceName);
         this.isHaltedByKillSwitch = true;
 
-        _ = Task.Run(async () =>
+        lock (this.vpnTransitionLock)
         {
-            try
-            {
-                await this.HaltAllTorrentsForKillSwitchAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                this.logger.Error(ex, "Error occurred during VPN kill switch halt");
-            }
-        });
+            this.vpnTransitionQueue = this.vpnTransitionQueue.ContinueWith(
+                async _ =>
+                {
+                    try
+                    {
+                        await this.HaltAllTorrentsForKillSwitchAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Error(ex, "Error occurred during VPN kill switch halt");
+                    }
+                },
+                TaskScheduler.Default).Unwrap();
+        }
     }
 
     public void OnVpnRestored(string interfaceName)
@@ -2158,17 +2170,22 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.logger.Info("VPN interface '{0}' restored. Resuming MonoTorrent activity.", interfaceName);
         this.isHaltedByKillSwitch = false;
 
-        _ = Task.Run(async () =>
+        lock (this.vpnTransitionLock)
         {
-            try
-            {
-                await this.ResumeTorrentsAfterVpnRestoredAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                this.logger.Error(ex, "Error occurred while resuming torrents after VPN restoration");
-            }
-        });
+            this.vpnTransitionQueue = this.vpnTransitionQueue.ContinueWith(
+                async _ =>
+                {
+                    try
+                    {
+                        await this.ResumeTorrentsAfterVpnRestoredAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Error(ex, "Error occurred while resuming torrents after VPN restoration");
+                    }
+                },
+                TaskScheduler.Default).Unwrap();
+        }
     }
 
     public async Task HaltAllTorrentsForKillSwitchAsync()
