@@ -247,16 +247,9 @@ public class BackupController : Controller
                 else
                 {
                     var dbPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db");
-                    var walPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db-wal");
-
                     if (global::System.IO.File.Exists(dbPath))
                     {
                         zip.CreateEntryFromFile(dbPath, "leecharr.db");
-                    }
-
-                    if (global::System.IO.File.Exists(walPath) && new FileInfo(walPath).Length > 0)
-                    {
-                        zip.CreateEntryFromFile(walPath, "leecharr.db-wal");
                     }
                 }
 
@@ -445,7 +438,30 @@ public class BackupController : Controller
                 // SQLite restore workflow
                 if (global::System.IO.File.Exists(stagedDb))
                 {
-                    // 1. Verify SQLite integrity on the staged database before touching active database
+                    // 1. If stagedWal exists in stagingDir (legacy archive format), checkpoint it into stagedDb before integrity check
+                    if (global::System.IO.File.Exists(stagedWal) && new FileInfo(stagedWal).Length > 0)
+                    {
+                        try
+                        {
+                            using (var conn = new SqliteConnection($"Data Source={stagedDb}"))
+                            {
+                                conn.Open();
+                                using var cmd = conn.CreateCommand();
+                                cmd.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            this.logger.Warn(ex, "Failed to checkpoint staged WAL into staged database: {0}", stagedWal);
+                        }
+                        finally
+                        {
+                            SqliteConnection.ClearAllPools();
+                        }
+                    }
+
+                    // 2. Verify SQLite integrity on the staged database before touching active database
                     try
                     {
                         var fileInfo = new FileInfo(stagedDb);
@@ -533,11 +549,6 @@ public class BackupController : Controller
                     if (global::System.IO.File.Exists(stagedDb))
                     {
                         global::System.IO.File.Copy(stagedDb, liveDb, overwrite: true);
-                    }
-
-                    if (global::System.IO.File.Exists(stagedWal) && new FileInfo(stagedWal).Length > 0)
-                    {
-                        global::System.IO.File.Copy(stagedWal, liveWal, overwrite: true);
                     }
 
                     if (global::System.IO.File.Exists(stagedConfig))
