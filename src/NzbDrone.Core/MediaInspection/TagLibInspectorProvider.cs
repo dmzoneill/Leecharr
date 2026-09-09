@@ -247,6 +247,15 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         return InspectByFileName(fileName);
     }
 
+    private struct EbmlParserContext
+    {
+        public ulong TimecodeScale;
+        public double DurationRaw;
+        public bool IsCurrentAudioTrackAccepted;
+        public int CurrentTrackChannels;
+        public bool HasHdr10Plus;
+    }
+
     private static MediaContainerInfo InspectMatroska(byte[] header, string fileName)
     {
         var info = new MediaContainerInfo
@@ -254,14 +263,20 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             ContainerFormat = "Matroska (MKV)",
         };
 
-        int offset = 0;
-        int limit = header.Length;
-        ulong timecodeScale = 1000000UL;
-        double durationRaw = 0.0;
-        bool isCurrentAudioTrackAccepted = false;
-        int currentTrackChannels = 0;
-        bool hasHdr10Plus = false;
+        var context = new EbmlParserContext
+        {
+            TimecodeScale = 1000000UL,
+        };
 
+        int offset = 0;
+        ParseEbmlContainer(header, ref offset, header.Length, info, ref context);
+
+        FinalizeMatroskaInfo(header, info, ref context, fileName);
+        return info;
+    }
+
+    private static void ParseEbmlContainer(byte[] header, ref int offset, int limit, MediaContainerInfo info, ref EbmlParserContext context)
+    {
         while (offset < limit)
         {
             if (!ReadElementId(header, ref offset, out var id, out _))
@@ -274,166 +289,254 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 break;
             }
 
-            if (IsEbmlMasterElement(id))
+            int elemSize = size < 0 ? limit - offset : (int)Math.Min((long)offset + size, limit) - offset;
+            int childLimit = size < 0 ? limit : offset + elemSize;
+
+            switch (id)
             {
-                if (id == 0xAE)
-                {
-                    isCurrentAudioTrackAccepted = false;
-                    currentTrackChannels = 0;
-                }
+                case 0x4282: // DocType
+                    ParseEbmlDocType(header, offset, elemSize, info);
+                    offset += elemSize;
+                    break;
 
-                // Master element: descend directly into children
-                continue;
+                case 0x2AD7B1: // TimestampScale / TimecodeScale
+                    ParseEbmlTimestampScale(header, offset, elemSize, info, ref context);
+                    offset += elemSize;
+                    break;
+
+                case 0x4489: // Duration
+                    ParseEbmlDuration(header, offset, elemSize, info, ref context);
+                    offset += elemSize;
+                    break;
+
+                case 0xAE: // TrackEntry
+                    ParseEbmlTrackEntry(header, ref offset, childLimit, info, ref context);
+                    break;
+
+                case 0xE0: // VideoSettings
+                    ParseEbmlVideoTrack(header, ref offset, childLimit, info, ref context);
+                    break;
+
+                case 0xE1: // AudioSettings
+                    ParseEbmlAudioTrack(header, ref offset, childLimit, info, ref context);
+                    break;
+
+                case 0x55B0: // Colour
+                    ParseEbmlColourElement(header, ref offset, childLimit, info);
+                    break;
+
+                case 0x86: // CodecID
+                    ParseEbmlCodecId(header, offset, elemSize, info, ref context);
+                    offset += elemSize;
+                    break;
+
+                case 0x63A2: // CodecPrivate
+                    ParseEbmlCodecPrivate(header, offset, elemSize, ref context);
+                    offset += elemSize;
+                    break;
+
+                case 0xB0: // PixelWidth
+                case 0xBA: // PixelHeight
+                    ParseEbmlVideoDimension(header, offset, elemSize, id, info);
+                    offset += elemSize;
+                    break;
+
+                case 0x9F: // Channels
+                case 0xB5: // SamplingFrequency
+                case 0x6264: // BitDepth
+                    ParseEbmlAudioField(header, offset, elemSize, id, info, ref context);
+                    offset += elemSize;
+                    break;
+
+                case 0x55B7: // TransferCharacteristics
+                case 0x55B8: // Primaries
+                    ParseEbmlColourField(header, offset, elemSize, id, info);
+                    offset += elemSize;
+                    break;
+
+                default:
+                    if (IsEbmlMasterElement(id))
+                    {
+                        continue;
+                    }
+
+                    offset += elemSize;
+                    break;
             }
+        }
+    }
 
-            // Leaf element
-            if (size < 0 || offset + size > limit)
+    private static void ParseEbmlTrackEntry(byte[] header, ref int offset, int trackEnd, MediaContainerInfo info, ref EbmlParserContext context)
+    {
+        context.IsCurrentAudioTrackAccepted = false;
+        context.CurrentTrackChannels = 0;
+
+        while (offset < trackEnd)
+        {
+            int elemStart = offset;
+            if (!ReadElementId(header, ref offset, out var id, out _))
             {
                 break;
             }
 
-            int elemSize = (int)size;
+            if (id == 0xAE || id == 0x1654AE6B || id == 0x1F43B675 || id == 0x1254C367 || id == 0x1043A770 || id == 0x1C53BB6B || id == 0x1941A469)
+            {
+                offset = elemStart;
+                break;
+            }
+
+            if (!ReadElementSize(header, ref offset, out var size, out _))
+            {
+                break;
+            }
+
+            int elemSize = size < 0 ? trackEnd - offset : (int)Math.Min((long)offset + size, trackEnd) - offset;
+            int childLimit = size < 0 ? trackEnd : offset + elemSize;
+
             switch (id)
             {
-                case 0x4282: // DocType
-                    var docType = ReadEbmlString(header, offset, elemSize);
-                    if (docType.Equals("webm", StringComparison.OrdinalIgnoreCase))
-                    {
-                        info.ContainerFormat = "WebM";
-                    }
-                    else if (docType.Equals("matroska", StringComparison.OrdinalIgnoreCase))
-                    {
-                        info.ContainerFormat = "Matroska (MKV)";
-                    }
-
-                    break;
-
-                case 0x2AD7B1: // TimestampScale / TimecodeScale
-                    var ts = ReadEbmlUInt(header, offset, elemSize);
-                    if (ts > 0)
-                    {
-                        timecodeScale = ts;
-                        if (durationRaw > 0)
-                        {
-                            info.DurationSeconds = (durationRaw * timecodeScale) / 1000000000.0;
-                        }
-                    }
-
-                    break;
-
-                case 0x4489: // Duration
-                    var dur = ReadEbmlFloat(header, offset, elemSize);
-                    if (dur > 0)
-                    {
-                        durationRaw = dur;
-                        info.DurationSeconds = (durationRaw * timecodeScale) / 1000000000.0;
-                    }
-
-                    break;
-
                 case 0x86: // CodecID
-                    var codecId = ReadEbmlString(header, offset, elemSize);
-                    isCurrentAudioTrackAccepted = ApplyCodecId(info, codecId);
-                    if (isCurrentAudioTrackAccepted && currentTrackChannels > 0)
-                    {
-                        info.AudioChannels = currentTrackChannels switch
-                        {
-                            1 => "1.0",
-                            2 => "2.0",
-                            6 => "5.1",
-                            8 => "7.1",
-                            _ => $"{currentTrackChannels}.0",
-                        };
-                    }
-
-                    break;
-
-                case 0xB0: // PixelWidth
-                    var width = (int)ReadEbmlUInt(header, offset, elemSize);
-                    if (info.Width == 0 && width > 0)
-                    {
-                        info.Width = width;
-                    }
-
-                    break;
-
-                case 0xBA: // PixelHeight
-                    var height = (int)ReadEbmlUInt(header, offset, elemSize);
-                    if (info.Height == 0 && height > 0)
-                    {
-                        info.Height = height;
-                    }
-
-                    break;
-
-                case 0x9F: // Channels
-                    var channels = (int)ReadEbmlUInt(header, offset, elemSize);
-                    currentTrackChannels = channels;
-                    if (channels > 0 && (isCurrentAudioTrackAccepted || string.IsNullOrEmpty(info.AudioCodec)))
-                    {
-                        info.AudioChannels = channels switch
-                        {
-                            1 => "1.0",
-                            2 => "2.0",
-                            6 => "5.1",
-                            8 => "7.1",
-                            _ => $"{channels}.0",
-                        };
-                    }
-
-                    break;
-
-                case 0xB5: // SamplingFrequency
-                    var sampleRate = ReadEbmlFloat(header, offset, elemSize);
-                    if (sampleRate > 0 && info.AudioSampleRate == 0)
-                    {
-                        info.AudioSampleRate = (int)sampleRate;
-                    }
-
-                    break;
-
-                case 0x6264: // BitDepth
-                    var bitDepth = (int)ReadEbmlUInt(header, offset, elemSize);
-                    if (bitDepth > 0 && info.AudioBitDepth == 0)
-                    {
-                        info.AudioBitDepth = bitDepth;
-                    }
-
-                    break;
-
-                case 0x55B7: // TransferCharacteristics
-                    var tc = ReadEbmlUInt(header, offset, elemSize);
-                    if (tc == 16)
-                    {
-                        info.HdrFormat = info.HdrFormat == "Dolby Vision" ? "Dolby Vision / HDR10" : "HDR10";
-                    }
-                    else if (tc == 18)
-                    {
-                        info.HdrFormat = info.HdrFormat == "Dolby Vision" ? "Dolby Vision / HLG" : "HLG";
-                    }
-
+                    ParseEbmlCodecId(header, offset, elemSize, info, ref context);
+                    offset += elemSize;
                     break;
 
                 case 0x63A2: // CodecPrivate
-                    if (ParseHvcCForHdr10Plus(header, offset, elemSize) || ScanBufferForHdr10PlusSei(header, offset, elemSize))
-                    {
-                        hasHdr10Plus = true;
-                    }
-
+                    ParseEbmlCodecPrivate(header, offset, elemSize, ref context);
+                    offset += elemSize;
                     break;
 
+                case 0xE0: // VideoSettings
+                    ParseEbmlVideoTrack(header, ref offset, childLimit, info, ref context);
+                    break;
+
+                case 0xE1: // AudioSettings
+                    ParseEbmlAudioTrack(header, ref offset, childLimit, info, ref context);
+                    break;
+
+                case 0x55B0: // Colour
+                    ParseEbmlColourElement(header, ref offset, childLimit, info);
+                    break;
+
+                case 0xB0: // PixelWidth
+                case 0xBA: // PixelHeight
+                    ParseEbmlVideoDimension(header, offset, elemSize, id, info);
+                    offset += elemSize;
+                    break;
+
+                case 0x9F: // Channels
+                case 0xB5: // SamplingFrequency
+                case 0x6264: // BitDepth
+                    ParseEbmlAudioField(header, offset, elemSize, id, info, ref context);
+                    offset += elemSize;
+                    break;
+
+                case 0x55B7: // TransferCharacteristics
                 case 0x55B8: // Primaries
-                    var primaries = ReadEbmlUInt(header, offset, elemSize);
-                    if (primaries == 9)
+                    ParseEbmlColourField(header, offset, elemSize, id, info);
+                    offset += elemSize;
+                    break;
+
+                default:
+                    if (IsEbmlMasterElement(id))
                     {
-                        if (info.HdrFormat == "Dolby Vision")
-                        {
-                            info.HdrFormat = "Dolby Vision / HDR10";
-                        }
-                        else if (string.IsNullOrEmpty(info.HdrFormat) || info.HdrFormat == "SDR")
-                        {
-                            info.HdrFormat = "HDR10";
-                        }
+                        continue;
+                    }
+
+                    offset += elemSize;
+                    break;
+            }
+        }
+    }
+
+    private static void ParseEbmlVideoTrack(byte[] header, ref int offset, int videoEnd, MediaContainerInfo info, ref EbmlParserContext context)
+    {
+        while (offset < videoEnd)
+        {
+            int elemStart = offset;
+            if (!ReadElementId(header, ref offset, out var id, out _))
+            {
+                break;
+            }
+
+            if (id == 0xAE || id == 0xE1 || id == 0x1654AE6B || id == 0x1F43B675)
+            {
+                offset = elemStart;
+                break;
+            }
+
+            if (!ReadElementSize(header, ref offset, out var size, out _))
+            {
+                break;
+            }
+
+            int elemSize = size < 0 ? videoEnd - offset : (int)Math.Min((long)offset + size, videoEnd) - offset;
+            int childLimit = size < 0 ? videoEnd : offset + elemSize;
+
+            switch (id)
+            {
+                case 0xB0: // PixelWidth
+                case 0xBA: // PixelHeight
+                    ParseEbmlVideoDimension(header, offset, elemSize, id, info);
+                    offset += elemSize;
+                    break;
+
+                case 0x55B0: // Colour
+                    ParseEbmlColourElement(header, ref offset, childLimit, info);
+                    break;
+
+                case 0x55B7: // TransferCharacteristics
+                case 0x55B8: // Primaries
+                    ParseEbmlColourField(header, offset, elemSize, id, info);
+                    offset += elemSize;
+                    break;
+
+                default:
+                    if (IsEbmlMasterElement(id))
+                    {
+                        continue;
+                    }
+
+                    offset += elemSize;
+                    break;
+            }
+        }
+    }
+
+    private static void ParseEbmlAudioTrack(byte[] header, ref int offset, int audioEnd, MediaContainerInfo info, ref EbmlParserContext context)
+    {
+        while (offset < audioEnd)
+        {
+            int elemStart = offset;
+            if (!ReadElementId(header, ref offset, out var id, out _))
+            {
+                break;
+            }
+
+            if (id == 0xAE || id == 0xE0 || id == 0x1654AE6B || id == 0x1F43B675)
+            {
+                offset = elemStart;
+                break;
+            }
+
+            if (!ReadElementSize(header, ref offset, out var size, out _))
+            {
+                break;
+            }
+
+            int elemSize = size < 0 ? audioEnd - offset : (int)Math.Min((long)offset + size, audioEnd) - offset;
+
+            switch (id)
+            {
+                case 0x9F: // Channels
+                case 0xB5: // SamplingFrequency
+                case 0x6264: // BitDepth
+                    ParseEbmlAudioField(header, offset, elemSize, id, info, ref context);
+                    break;
+
+                default:
+                    if (IsEbmlMasterElement(id))
+                    {
+                        continue;
                     }
 
                     break;
@@ -441,13 +544,233 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
             offset += elemSize;
         }
+    }
 
-        if (!hasHdr10Plus && ScanBufferForHdr10PlusSei(header, 0, header.Length))
+    private static void ParseEbmlColourElement(byte[] header, ref int offset, int colourEnd, MediaContainerInfo info)
+    {
+        while (offset < colourEnd)
         {
-            hasHdr10Plus = true;
+            int elemStart = offset;
+            if (!ReadElementId(header, ref offset, out var id, out _))
+            {
+                break;
+            }
+
+            if (id == 0xAE || id == 0xE0 || id == 0xE1 || id == 0x1654AE6B || id == 0xB0 || id == 0xBA || id == 0x9F)
+            {
+                offset = elemStart;
+                break;
+            }
+
+            if (!ReadElementSize(header, ref offset, out var size, out _))
+            {
+                break;
+            }
+
+            int elemSize = size < 0 ? colourEnd - offset : (int)Math.Min((long)offset + size, colourEnd) - offset;
+
+            switch (id)
+            {
+                case 0x55B7: // TransferCharacteristics
+                case 0x55B8: // Primaries
+                    ParseEbmlColourField(header, offset, elemSize, id, info);
+                    break;
+
+                default:
+                    if (IsEbmlMasterElement(id))
+                    {
+                        continue;
+                    }
+
+                    break;
+            }
+
+            offset += elemSize;
+        }
+    }
+
+    private static void ParseEbmlDocType(byte[] data, int offset, int length, MediaContainerInfo info)
+    {
+        var docType = ReadEbmlString(data, offset, length);
+        if (docType.Equals("webm", StringComparison.OrdinalIgnoreCase))
+        {
+            info.ContainerFormat = "WebM";
+        }
+        else if (docType.Equals("matroska", StringComparison.OrdinalIgnoreCase))
+        {
+            info.ContainerFormat = "Matroska (MKV)";
+        }
+    }
+
+    private static void ParseEbmlTimestampScale(byte[] data, int offset, int length, MediaContainerInfo info, ref EbmlParserContext context)
+    {
+        var ts = ReadEbmlUInt(data, offset, length);
+        if (ts > 0)
+        {
+            context.TimecodeScale = ts;
+            if (context.DurationRaw > 0)
+            {
+                info.DurationSeconds = (context.DurationRaw * context.TimecodeScale) / 1000000000.0;
+            }
+        }
+    }
+
+    private static void ParseEbmlDuration(byte[] data, int offset, int length, MediaContainerInfo info, ref EbmlParserContext context)
+    {
+        var dur = ReadEbmlFloat(data, offset, length);
+        if (dur > 0)
+        {
+            context.DurationRaw = dur;
+            info.DurationSeconds = (context.DurationRaw * context.TimecodeScale) / 1000000000.0;
+        }
+    }
+
+    private static void ParseEbmlCodecId(byte[] data, int offset, int length, MediaContainerInfo info, ref EbmlParserContext context)
+    {
+        var codecId = ReadEbmlString(data, offset, length);
+        context.IsCurrentAudioTrackAccepted = ApplyCodecId(info, codecId);
+        if (context.IsCurrentAudioTrackAccepted && context.CurrentTrackChannels > 0)
+        {
+            info.AudioChannels = FormatAudioChannels(context.CurrentTrackChannels);
+        }
+    }
+
+    private static void ParseEbmlCodecPrivate(byte[] data, int offset, int length, ref EbmlParserContext context)
+    {
+        if (ParseHvcCForHdr10Plus(data, offset, length) || ScanBufferForHdr10PlusSei(data, offset, length))
+        {
+            context.HasHdr10Plus = true;
+        }
+    }
+
+    private static void ParseEbmlVideoDimension(byte[] header, int offset, int elemSize, uint id, MediaContainerInfo info)
+    {
+        // 0xB0: PixelWidth
+        if (id == 0xB0)
+        {
+            var width = (int)ReadEbmlUInt(header, offset, elemSize);
+            if (info.Width == 0 && width > 0)
+            {
+                info.Width = width;
+            }
         }
 
-        if (hasHdr10Plus)
+        // 0xBA: PixelHeight
+        else if (id == 0xBA)
+        {
+            var height = (int)ReadEbmlUInt(header, offset, elemSize);
+            if (info.Height == 0 && height > 0)
+            {
+                info.Height = height;
+            }
+        }
+    }
+
+    private static void ParseEbmlAudioField(byte[] header, int offset, int elemSize, uint id, MediaContainerInfo info, ref EbmlParserContext context)
+    {
+        switch (id)
+        {
+            case 0x9F: // Channels
+                var channels = (int)ReadEbmlUInt(header, offset, elemSize);
+                context.CurrentTrackChannels = channels;
+                if (channels > 0 && (context.IsCurrentAudioTrackAccepted || string.IsNullOrEmpty(info.AudioCodec)))
+                {
+                    info.AudioChannels = FormatAudioChannels(channels);
+                }
+
+                break;
+
+            case 0xB5: // SamplingFrequency
+                var sampleRate = ReadEbmlFloat(header, offset, elemSize);
+                if (sampleRate > 0 && info.AudioSampleRate == 0)
+                {
+                    info.AudioSampleRate = (int)sampleRate;
+                }
+
+                break;
+
+            case 0x6264: // BitDepth
+                var bitDepth = (int)ReadEbmlUInt(header, offset, elemSize);
+                if (bitDepth > 0 && info.AudioBitDepth == 0)
+                {
+                    info.AudioBitDepth = bitDepth;
+                }
+
+                break;
+        }
+    }
+
+    private static void ParseEbmlColourField(byte[] header, int offset, int elemSize, uint id, MediaContainerInfo info)
+    {
+        // 0x55B7: TransferCharacteristics
+        if (id == 0x55B7)
+        {
+            var tc = ReadEbmlUInt(header, offset, elemSize);
+            if (tc == 16)
+            {
+                info.HdrFormat = info.HdrFormat == "Dolby Vision" ? "Dolby Vision / HDR10" : "HDR10";
+            }
+            else if (tc == 18)
+            {
+                info.HdrFormat = info.HdrFormat == "Dolby Vision" ? "Dolby Vision / HLG" : "HLG";
+            }
+        }
+
+        // 0x55B8: Primaries
+        else if (id == 0x55B8)
+        {
+            var primaries = ReadEbmlUInt(header, offset, elemSize);
+            if (primaries == 9)
+            {
+                if (info.HdrFormat == "Dolby Vision")
+                {
+                    info.HdrFormat = "Dolby Vision / HDR10";
+                }
+                else if (string.IsNullOrEmpty(info.HdrFormat) || info.HdrFormat == "SDR")
+                {
+                    info.HdrFormat = "HDR10";
+                }
+            }
+        }
+    }
+
+    private static string FormatAudioChannels(int channels)
+    {
+        return channels switch
+        {
+            1 => "1.0",
+            2 => "2.0",
+            6 => "5.1",
+            8 => "7.1",
+            _ => $"{channels}.0",
+        };
+    }
+
+    private static void FinalizeMatroskaInfo(byte[] header, MediaContainerInfo info, ref EbmlParserContext context, string fileName)
+    {
+        FinalizeHdrFormat(header, info, ref context);
+
+        if (info.Width > 0 && string.IsNullOrEmpty(info.Resolution))
+        {
+            ApplyResolution(info, info.Width, info.Height);
+        }
+
+        var span = header.AsSpan();
+        ScanFallbackVideoCodecs(span, info);
+        ScanFallbackAudioCodecs(span, info);
+        ScanFallbackSubtitles(span, info);
+
+        ApplyFilenameHints(info, fileName);
+    }
+
+    private static void FinalizeHdrFormat(byte[] header, MediaContainerInfo info, ref EbmlParserContext context)
+    {
+        if (!context.HasHdr10Plus && ScanBufferForHdr10PlusSei(header, 0, header.Length))
+        {
+            context.HasHdr10Plus = true;
+        }
+
+        if (context.HasHdr10Plus)
         {
             if (info.HdrFormat == "Dolby Vision" || info.HdrFormat == "Dolby Vision / HDR10")
             {
@@ -458,131 +781,133 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 info.HdrFormat = "HDR10+";
             }
         }
+    }
 
-        if (info.Width > 0 && string.IsNullOrEmpty(info.Resolution))
+    private static void ScanFallbackVideoCodecs(ReadOnlySpan<byte> span, MediaContainerInfo info)
+    {
+        if (info.VideoCodec != null)
         {
-            ApplyResolution(info, info.Width, info.Height);
+            return;
         }
 
-        if (info.VideoCodec == null || info.AudioCodec == null)
+        if (span.IndexOf("V_MPEGH/ISO/HEVC"u8) >= 0)
         {
-            var span = header.AsSpan();
-            if (info.VideoCodec == null)
-            {
-                if (span.IndexOf("V_MPEGH/ISO/HEVC"u8) >= 0)
-                {
-                    info.VideoCodec = "HEVC (H.265)";
-                }
-                else if (span.IndexOf("V_AV1"u8) >= 0)
-                {
-                    info.VideoCodec = "AV1";
-                }
-                else if (span.IndexOf("V_VP9"u8) >= 0)
-                {
-                    info.VideoCodec = "VP9";
-                }
-                else if (span.IndexOf("V_VP8"u8) >= 0)
-                {
-                    info.VideoCodec = "VP8";
-                }
-                else if (span.IndexOf("V_MPEG4/ISO/AVC"u8) >= 0)
-                {
-                    info.VideoCodec = "H.264";
-                }
-            }
+            info.VideoCodec = "HEVC (H.265)";
+        }
+        else if (span.IndexOf("V_AV1"u8) >= 0)
+        {
+            info.VideoCodec = "AV1";
+        }
+        else if (span.IndexOf("V_VP9"u8) >= 0)
+        {
+            info.VideoCodec = "VP9";
+        }
+        else if (span.IndexOf("V_VP8"u8) >= 0)
+        {
+            info.VideoCodec = "VP8";
+        }
+        else if (span.IndexOf("V_MPEG4/ISO/AVC"u8) >= 0)
+        {
+            info.VideoCodec = "H.264";
+        }
+    }
 
-            if (info.AudioCodec == null)
-            {
-                if (span.IndexOf("A_TRUEHD"u8) >= 0)
-                {
-                    ApplyAudioCodec(info, "Dolby TrueHD / Atmos", null, 50);
-                }
-                else if (span.IndexOf("A_EAC3/JOC"u8) >= 0 || span.IndexOf("A_EAC3-JOC"u8) >= 0)
-                {
-                    ApplyAudioCodec(info, "Dolby Atmos", null, 48);
-                }
-                else if (span.IndexOf("A_DTS/HD"u8) >= 0 || span.IndexOf("A_DTS-HD"u8) >= 0 || span.IndexOf("A_DTS/LOSSLESS"u8) >= 0)
-                {
-                    ApplyAudioCodec(info, "DTS-HD MA", null, 45);
-                }
-                else if (span.IndexOf("A_EAC3"u8) >= 0)
-                {
-                    ApplyAudioCodec(info, "E-AC3 / Dolby Digital Plus", null, 25);
-                }
-                else if (span.IndexOf("A_AC3"u8) >= 0)
-                {
-                    ApplyAudioCodec(info, "AC3 / Dolby Digital", null, 15);
-                }
-                else if (span.IndexOf("A_DTS"u8) >= 0)
-                {
-                    ApplyAudioCodec(info, "DTS", null, 20);
-                }
-                else if (span.IndexOf("A_FLAC"u8) >= 0)
-                {
-                    ApplyAudioCodec(info, "FLAC", null, 35);
-                }
-                else if (span.IndexOf("A_OPUS"u8) >= 0)
-                {
-                    ApplyAudioCodec(info, "Opus", null, 12);
-                }
-                else if (span.IndexOf("A_AAC"u8) >= 0)
-                {
-                    ApplyAudioCodec(info, "AAC", null, 10);
-                }
-            }
+    private static void ScanFallbackAudioCodecs(ReadOnlySpan<byte> span, MediaContainerInfo info)
+    {
+        if (info.AudioCodec != null)
+        {
+            return;
         }
 
-        if (info.SubtitleTracks.Count == 0)
+        if (span.IndexOf("A_TRUEHD"u8) >= 0)
         {
-            var span = header.AsSpan();
-            if (span.IndexOf("S_TEXT/UTF8"u8) >= 0 || span.IndexOf("S_TEXT/ASCII"u8) >= 0)
-            {
-                AddSubtitleTrack(info, "SubRip (SRT)");
-            }
+            ApplyAudioCodec(info, "Dolby TrueHD / Atmos", null, 50);
+        }
+        else if (span.IndexOf("A_EAC3/JOC"u8) >= 0 || span.IndexOf("A_EAC3-JOC"u8) >= 0)
+        {
+            ApplyAudioCodec(info, "Dolby Atmos", null, 48);
+        }
+        else if (span.IndexOf("A_DTS/HD"u8) >= 0 || span.IndexOf("A_DTS-HD"u8) >= 0 || span.IndexOf("A_DTS/LOSSLESS"u8) >= 0)
+        {
+            ApplyAudioCodec(info, "DTS-HD MA", null, 45);
+        }
+        else if (span.IndexOf("A_EAC3"u8) >= 0)
+        {
+            ApplyAudioCodec(info, "E-AC3 / Dolby Digital Plus", null, 25);
+        }
+        else if (span.IndexOf("A_AC3"u8) >= 0)
+        {
+            ApplyAudioCodec(info, "AC3 / Dolby Digital", null, 15);
+        }
+        else if (span.IndexOf("A_DTS"u8) >= 0)
+        {
+            ApplyAudioCodec(info, "DTS", null, 20);
+        }
+        else if (span.IndexOf("A_FLAC"u8) >= 0)
+        {
+            ApplyAudioCodec(info, "FLAC", null, 35);
+        }
+        else if (span.IndexOf("A_OPUS"u8) >= 0)
+        {
+            ApplyAudioCodec(info, "Opus", null, 12);
+        }
+        else if (span.IndexOf("A_AAC"u8) >= 0)
+        {
+            ApplyAudioCodec(info, "AAC", null, 10);
+        }
+    }
 
-            if (span.IndexOf("S_TEXT/ASS"u8) >= 0)
-            {
-                AddSubtitleTrack(info, "Advanced SubStation Alpha");
-            }
-
-            if (span.IndexOf("S_TEXT/SSA"u8) >= 0)
-            {
-                AddSubtitleTrack(info, "SubStation Alpha");
-            }
-
-            if (span.IndexOf("S_VOBSUB"u8) >= 0)
-            {
-                AddSubtitleTrack(info, "VobSub");
-            }
-
-            if (span.IndexOf("S_HDMV/PGS"u8) >= 0)
-            {
-                AddSubtitleTrack(info, "PGS Subtitles");
-            }
-
-            if (span.IndexOf("S_DVBSUB"u8) >= 0)
-            {
-                AddSubtitleTrack(info, "DVB Subtitles");
-            }
-
-            if (span.IndexOf("S_TEXT/WEBVTT"u8) >= 0 || span.IndexOf("S_TEXT/VTT"u8) >= 0)
-            {
-                AddSubtitleTrack(info, "WebVTT");
-            }
-
-            if (span.IndexOf("S_TEXT/USF"u8) >= 0)
-            {
-                AddSubtitleTrack(info, "Universal Subtitle Format");
-            }
-
-            if (span.IndexOf("S_KATE"u8) >= 0)
-            {
-                AddSubtitleTrack(info, "Kate Subtitles");
-            }
+    private static void ScanFallbackSubtitles(ReadOnlySpan<byte> span, MediaContainerInfo info)
+    {
+        if (info.SubtitleTracks.Count > 0)
+        {
+            return;
         }
 
-        ApplyFilenameHints(info, fileName);
-        return info;
+        if (span.IndexOf("S_TEXT/UTF8"u8) >= 0 || span.IndexOf("S_TEXT/ASCII"u8) >= 0)
+        {
+            AddSubtitleTrack(info, "SubRip (SRT)");
+        }
+
+        if (span.IndexOf("S_TEXT/ASS"u8) >= 0)
+        {
+            AddSubtitleTrack(info, "Advanced SubStation Alpha");
+        }
+
+        if (span.IndexOf("S_TEXT/SSA"u8) >= 0)
+        {
+            AddSubtitleTrack(info, "SubStation Alpha");
+        }
+
+        if (span.IndexOf("S_VOBSUB"u8) >= 0)
+        {
+            AddSubtitleTrack(info, "VobSub");
+        }
+
+        if (span.IndexOf("S_HDMV/PGS"u8) >= 0)
+        {
+            AddSubtitleTrack(info, "PGS Subtitles");
+        }
+
+        if (span.IndexOf("S_DVBSUB"u8) >= 0)
+        {
+            AddSubtitleTrack(info, "DVB Subtitles");
+        }
+
+        if (span.IndexOf("S_TEXT/WEBVTT"u8) >= 0 || span.IndexOf("S_TEXT/VTT"u8) >= 0)
+        {
+            AddSubtitleTrack(info, "WebVTT");
+        }
+
+        if (span.IndexOf("S_TEXT/USF"u8) >= 0)
+        {
+            AddSubtitleTrack(info, "Universal Subtitle Format");
+        }
+
+        if (span.IndexOf("S_KATE"u8) >= 0)
+        {
+            AddSubtitleTrack(info, "Kate Subtitles");
+        }
     }
 
     private static bool IsEbmlMasterElement(uint id)
