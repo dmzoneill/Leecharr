@@ -81,6 +81,18 @@ coverage-report:
 
 test-all: test integration
 
+quality-report:
+	@mkdir -p _reports/jscpd _reports/coverage
+	@echo "📊 ==> Running C# Static Analysis (Roslynator)..."
+	@PATH="$$PATH:$$HOME/.dotnet/tools" roslynator analyze $(SOLUTION) --output _reports/roslynator.xml || true
+	@echo "📊 ==> Running Duplicate Code Detection (jscpd)..."
+	@cd $(FRONTEND) && npx jscpd ../../src --reporters html,json --output ../../_reports/jscpd --ignore "**/*.json,**/*.xml,**/bin/**,**/obj/**,**/node_modules/**" || true
+	@echo "📊 ==> Running TypeScript Type Coverage..."
+	@cd $(FRONTEND) && npx type-coverage --detail || true
+	@echo "📊 ==> Quality reports generated in _reports/"
+	@echo "    - C# Roslynator: _reports/roslynator.xml"
+	@echo "    - Duplication (HTML): _reports/jscpd/html/index.html"
+
 container-build:
 	podman build -t leecharr:latest -f Containerfile . || docker build -t leecharr:latest -f Containerfile .
 
