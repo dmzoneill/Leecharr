@@ -4,12 +4,16 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security;
 using System.Text;
+using NLog;
 
 namespace NzbDrone.Common.Disk;
 
 public class DiskProvider : IDiskProvider
 {
+    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+
     public long? GetAvailableSpace(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -22,8 +26,9 @@ public class DiskProvider : IDiskProvider
             var drive = GetBestMatchingDrive(path);
             return drive?.AvailableFreeSpace;
         }
-        catch
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or SecurityException)
         {
+            Logger.Trace(ex, "Failed to determine available space for path: {0}", path);
             return null;
         }
     }
@@ -40,8 +45,9 @@ public class DiskProvider : IDiskProvider
             var drive = GetBestMatchingDrive(path);
             return drive?.TotalSize;
         }
-        catch
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or SecurityException)
         {
+            Logger.Trace(ex, "Failed to determine total size for path: {0}", path);
             return null;
         }
     }
@@ -74,8 +80,9 @@ public class DiskProvider : IDiskProvider
         {
             drives = DriveInfo.GetDrives();
         }
-        catch
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or SecurityException)
         {
+            Logger.Trace(ex, "Failed to retrieve system drives");
             drives = Array.Empty<DriveInfo>();
         }
 
@@ -108,9 +115,9 @@ public class DiskProvider : IDiskProvider
                     }
                 }
             }
-            catch
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or SecurityException)
             {
-                // Skip drives that cannot be inspected
+                Logger.Trace(ex, "Failed to inspect drive '{0}' for path '{1}'", drive.Name, fullPath);
             }
         }
 
