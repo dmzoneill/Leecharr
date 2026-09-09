@@ -1261,66 +1261,24 @@ public class TransmissionRpcController : ControllerBase
 
     private Dictionary<string, object> MapTorrentToTransmission(Torrent t, ISet<string> requestedFields = null)
     {
-        var statusNum = t.Status switch
-        {
-            TorrentStatus.Stopped => 0,
-            TorrentStatus.Paused => 0,
-            TorrentStatus.Checking => 2,
-            TorrentStatus.Queued when t.Progress >= 1.0 => 5, // TR_STATUS_SEED_WAIT
-            TorrentStatus.Queued => 3,                        // TR_STATUS_DOWNLOAD_WAIT
-            TorrentStatus.Downloading => 4,
-            TorrentStatus.Seeding => 6,
-            _ => 0,
-        };
+        var statusNum = MapTransmissionStatus(t);
+        var fileMapping = this.MapTransmissionFiles(t, requestedFields);
+        var trackerMapping = this.MapTransmissionTrackers(t);
 
-        var needsFiles = requestedFields == null || requestedFields.Count == 0 ||
-            requestedFields.Contains("files") || requestedFields.Contains("priorities") || requestedFields.Contains("fileStats") || requestedFields.Contains("fileCount") || requestedFields.Contains("file-count") || requestedFields.Contains("sizeWhenDone") || requestedFields.Contains("leftUntilDone") || requestedFields.Contains("wanted");
+        var downloadTask = this.torrentService?.GetDownloadTask(t.Id) ?? this.downloadEngine?.GetTask(t.Id);
+        var peersList = this.MapTransmissionPeers(t, downloadTask);
 
-        List<Dictionary<string, object>> filesList;
-        List<Dictionary<string, object>> fileStats;
-        List<int> priorities;
-        List<int> wantedList;
-        int fileCount;
-        long sizeWhenDone;
+        var pieceLength = t.PieceLength > 0 ? t.PieceLength : (downloadTask?.PieceLength > 0 ? downloadTask.PieceLength : 0);
+        var pieceCount = t.PieceCount > 0
+            ? t.PieceCount
+            : (pieceLength > 0 ? (int)Math.Ceiling((double)t.TotalSize / pieceLength) : 0);
+        var piecesBase64 = MapTransmissionBitfield(t, downloadTask, pieceCount);
 
-        if (needsFiles)
-        {
-            var files = this.torrentFileService.GetFiles(t.Id).ToList();
-            var taskForFiles = this.torrentService?.GetDownloadTask(t.Id) ?? this.downloadEngine?.GetTask(t.Id);
-            TorrentFileProgressEnricher.Enrich(t, files, taskForFiles);
-
-            fileCount = files.Count;
-            filesList = files.Select(f => new Dictionary<string, object>
-            {
-                { "name", f.Path },
-                { "bytesCompleted", f.BytesCompleted },
-                { "length", f.Size },
-            }).ToList();
-
-            fileStats = files.Select(f => new Dictionary<string, object>
-            {
-                { "bytesCompleted", f.BytesCompleted },
-                { "wanted", f.Priority > 0 },
-                { "priority", ToTransmissionPriority(f.Priority) },
-            }).ToList();
-
-            priorities = files.Select(f => ToTransmissionPriority(f.Priority)).ToList();
-            wantedList = files.Select(f => f.Priority > 0 ? 1 : 0).ToList();
-            sizeWhenDone = files.Count > 0 ? files.Where(f => f.Priority > 0).Sum(f => f.Size) : t.TotalSize;
-        }
-        else
-        {
-            filesList = new List<Dictionary<string, object>>();
-            fileStats = new List<Dictionary<string, object>>();
-            priorities = new List<int>();
-            wantedList = new List<int>();
-            fileCount = 0;
-            sizeWhenDone = t.TotalSize;
-        }
+        var downloadDir = MapTransmissionDownloadDir(t);
 
         var haveValid = (long)(t.TotalSize * t.Progress);
-        var leftUntilDone = Math.Max(0, sizeWhenDone - (long)(sizeWhenDone * t.Progress));
-        var desiredAvailable = t.Progress >= 1.0 ? 0L : Math.Max(0L, sizeWhenDone - haveValid);
+        var leftUntilDone = Math.Max(0, fileMapping.SizeWhenDone - (long)(fileMapping.SizeWhenDone * t.Progress));
+        var desiredAvailable = t.Progress >= 1.0 ? 0L : Math.Max(0L, fileMapping.SizeWhenDone - haveValid);
 
         var labels = string.IsNullOrWhiteSpace(t.Category)
             ? (string.IsNullOrWhiteSpace(t.Label) ? Array.Empty<string>() : new[] { t.Label })
@@ -1333,201 +1291,6 @@ public class TransmissionRpcController : ControllerBase
         var editDate = t.LastActive.HasValue ? new DateTimeOffset(t.LastActive.Value).ToUnixTimeSeconds() : addedDate;
         var isError = t.Status == TorrentStatus.Error;
 
-        var trackersList = new List<object>();
-        var trackerStatsList = new List<object>();
-        var dbTrackers = this.trackerEntryRepository?.GetByTorrentId(t.Id)?.ToList() ?? new List<TrackerEntry>();
-        if (dbTrackers.Count > 0)
-        {
-            for (int i = 0; i < dbTrackers.Count; i++)
-            {
-                var trk = dbTrackers[i];
-                trackersList.Add(new
-                {
-                    announce = trk.Url ?? string.Empty,
-                    id = trk.Id > 0 ? trk.Id : i + 1,
-                    scrape = string.Empty,
-                    tier = trk.Tier,
-                });
-                trackerStatsList.Add(new
-                {
-                    announce = trk.Url ?? string.Empty,
-                    id = trk.Id > 0 ? trk.Id : i + 1,
-                    scrape = string.Empty,
-                    tier = trk.Tier,
-                    host = trk.Url ?? string.Empty,
-                    isBackup = false,
-                    lastAnnouncePeerCount = trk.Seeders + trk.Leechers,
-                    lastAnnounceResult = trk.ErrorMessage ?? "Success",
-                    lastAnnounceStartTime = trk.LastAnnounce.HasValue ? new DateTimeOffset(trk.LastAnnounce.Value).ToUnixTimeSeconds() : 0L,
-                    lastAnnounceSucceeded = string.IsNullOrEmpty(trk.ErrorMessage) && trk.Status != 2,
-                    lastAnnounceTime = trk.LastAnnounce.HasValue ? new DateTimeOffset(trk.LastAnnounce.Value).ToUnixTimeSeconds() : 0L,
-                    lastAnnounceTimedOut = false,
-                    lastScrapeResult = string.Empty,
-                    lastScrapeStartTime = 0L,
-                    lastScrapeSucceeded = true,
-                    lastScrapeTime = 0L,
-                    lastScrapeTimedOut = false,
-                    leecherCount = trk.Leechers,
-                    nextAnnounceTime = trk.NextAnnounce.HasValue ? new DateTimeOffset(trk.NextAnnounce.Value).ToUnixTimeSeconds() : 0L,
-                    nextScrapeTime = 0L,
-                    scrapeResponse = string.Empty,
-                    seederCount = trk.Seeders,
-                    downloadCount = trk.Downloaded,
-                });
-            }
-        }
-        else if (!string.IsNullOrWhiteSpace(t.TrackerUrl))
-        {
-            trackersList.Add(new
-            {
-                announce = t.TrackerUrl,
-                id = 1,
-                scrape = string.Empty,
-                tier = 0,
-            });
-            trackerStatsList.Add(new
-            {
-                announce = t.TrackerUrl,
-                id = 1,
-                scrape = string.Empty,
-                tier = 0,
-                host = t.TrackerUrl,
-                isBackup = false,
-                lastAnnouncePeerCount = t.Seeders + t.Leechers,
-                lastAnnounceResult = "Success",
-                lastAnnounceStartTime = addedDate,
-                lastAnnounceSucceeded = true,
-                lastAnnounceTime = addedDate,
-                lastAnnounceTimedOut = false,
-                lastScrapeResult = string.Empty,
-                lastScrapeStartTime = 0L,
-                lastScrapeSucceeded = true,
-                lastScrapeTime = 0L,
-                lastScrapeTimedOut = false,
-                leecherCount = t.Leechers,
-                nextAnnounceTime = addedDate + 1800,
-                nextScrapeTime = 0L,
-                scrapeResponse = string.Empty,
-                seederCount = t.Seeders,
-                downloadCount = 0L,
-            });
-        }
-
-        var trackerListStr = string.Empty;
-        if (dbTrackers.Count > 0)
-        {
-            var tiers = dbTrackers.GroupBy(trk => trk.Tier).OrderBy(g => g.Key);
-            trackerListStr = string.Join("\n\n", tiers.Select(g => string.Join("\n", g.Select(trk => trk.Url).Where(u => !string.IsNullOrWhiteSpace(u)))));
-        }
-        else if (!string.IsNullOrWhiteSpace(t.TrackerUrl))
-        {
-            trackerListStr = t.TrackerUrl;
-        }
-
-        var magnetBuilder = new StringBuilder();
-        magnetBuilder.Append("magnet:?xt=urn:btih:").Append(t.InfoHash ?? string.Empty);
-        if (!string.IsNullOrWhiteSpace(t.Name))
-        {
-            magnetBuilder.Append("&dn=").Append(Uri.EscapeDataString(t.Name));
-        }
-
-        if (dbTrackers.Count > 0)
-        {
-            foreach (var trk in dbTrackers)
-            {
-                if (!string.IsNullOrWhiteSpace(trk.Url))
-                {
-                    magnetBuilder.Append("&tr=").Append(Uri.EscapeDataString(trk.Url));
-                }
-            }
-        }
-        else if (!string.IsNullOrWhiteSpace(t.TrackerUrl))
-        {
-            magnetBuilder.Append("&tr=").Append(Uri.EscapeDataString(t.TrackerUrl));
-        }
-
-        var magnetLink = magnetBuilder.ToString();
-
-        var peersList = new List<object>();
-        var downloadTask = this.torrentService?.GetDownloadTask(t.Id) ?? this.downloadEngine?.GetTask(t.Id);
-        var swarmPeers = downloadTask?.GetPeers() ?? Array.Empty<PeerInfo>();
-        foreach (var p in swarmPeers)
-        {
-            peersList.Add(new
-            {
-                address = p.Ip ?? string.Empty,
-                clientName = p.Client ?? string.Empty,
-                clientIsChoked = p.ClientIsChoked,
-                clientIsInterested = p.ClientIsInterested,
-                flagStr = p.Flags ?? string.Empty,
-                isDownloadingFrom = p.DownloadSpeed > 0,
-                isEncrypted = p.IsEncrypted,
-                isIncoming = p.IsIncoming,
-                isUploadingTo = p.UploadSpeed > 0,
-                isUTP = p.IsUtp || p.Flags?.Contains("P", StringComparison.OrdinalIgnoreCase) == true,
-                peerIsChoked = p.IsChoked,
-                peerIsInterested = p.IsInterested,
-                port = p.Port,
-                progress = p.Progress,
-                rateToClient = p.DownloadSpeed,
-                rateToPeer = p.UploadSpeed,
-            });
-        }
-
-        var pieceLength = t.PieceLength > 0 ? t.PieceLength : (downloadTask?.PieceLength > 0 ? downloadTask.PieceLength : 0);
-        var pieceCount = t.PieceCount > 0
-            ? t.PieceCount
-            : (pieceLength > 0 ? (int)Math.Ceiling((double)t.TotalSize / pieceLength) : 0);
-
-        string piecesBase64 = string.Empty;
-        var bitfield = downloadTask?.PieceBitfield;
-        if (bitfield != null && bitfield.Length > 0)
-        {
-            int numBytes = (bitfield.Length + 7) / 8;
-            byte[] bytes = new byte[numBytes];
-            for (int i = 0; i < bitfield.Length; i++)
-            {
-                if (bitfield[i])
-                {
-                    bytes[i / 8] |= (byte)(0x80 >> (i % 8));
-                }
-            }
-
-            piecesBase64 = Convert.ToBase64String(bytes);
-        }
-        else if (t.Progress >= 1.0 && pieceCount > 0)
-        {
-            int numBytes = (pieceCount + 7) / 8;
-            byte[] bytes = new byte[numBytes];
-            for (int i = 0; i < numBytes; i++)
-            {
-                bytes[i] = 0xFF;
-            }
-
-            piecesBase64 = Convert.ToBase64String(bytes);
-        }
-
-        var rawSavePath = t.SavePath ?? string.Empty;
-        var downloadDir = rawSavePath;
-        if (!string.IsNullOrWhiteSpace(rawSavePath) && !string.IsNullOrWhiteSpace(t.Name))
-        {
-            var trimmedSave = rawSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            if (Path.HasExtension(trimmedSave))
-            {
-                var parent = Path.GetDirectoryName(trimmedSave);
-                downloadDir = !string.IsNullOrWhiteSpace(parent) ? parent : trimmedSave;
-            }
-            else
-            {
-                var dirName = Path.GetFileName(trimmedSave);
-                if (string.Equals(dirName, t.Name, StringComparison.OrdinalIgnoreCase))
-                {
-                    var parent = Path.GetDirectoryName(trimmedSave);
-                    downloadDir = !string.IsNullOrWhiteSpace(parent) ? parent : trimmedSave;
-                }
-            }
-        }
-
         var dict = new Dictionary<string, object>
         {
             { "id", t.Id },
@@ -1537,7 +1300,7 @@ public class TransmissionRpcController : ControllerBase
             { "percentDone", t.Progress },
             { "percentComplete", t.Progress },
             { "totalSize", t.TotalSize },
-            { "sizeWhenDone", sizeWhenDone },
+            { "sizeWhenDone", fileMapping.SizeWhenDone },
             { "leftUntilDone", leftUntilDone },
             { "desiredAvailable", desiredAvailable },
             { "haveValid", haveValid },
@@ -1580,18 +1343,18 @@ public class TransmissionRpcController : ControllerBase
             { "downloadLimited", t.DownloadLimit > 0 },
             { "uploadLimited", t.UploadLimit > 0 },
             { "honorsSessionLimits", true },
-            { "fileCount", fileCount },
-            { "file-count", fileCount },
+            { "fileCount", fileMapping.FileCount },
+            { "file-count", fileMapping.FileCount },
             { "isPrivate", t.IsPrivate },
-            { "files", filesList },
-            { "fileStats", fileStats },
-            { "priorities", priorities },
-            { "wanted", wantedList },
+            { "files", fileMapping.Files },
+            { "fileStats", fileMapping.FileStats },
+            { "priorities", fileMapping.Priorities },
+            { "wanted", fileMapping.Wanted },
             { "webseeds", Array.Empty<string>() },
-            { "trackers", trackersList },
-            { "trackerStats", trackerStatsList },
-            { "trackerList", trackerListStr },
-            { "magnetLink", magnetLink },
+            { "trackers", trackerMapping.Trackers },
+            { "trackerStats", trackerMapping.TrackerStats },
+            { "trackerList", trackerMapping.TrackerList },
+            { "magnetLink", trackerMapping.MagnetLink },
             { "manualAnnounceTime", 0L },
             { "metadataPercentComplete", 1.0 },
             { "torrentFile", string.Empty },
@@ -1621,6 +1384,287 @@ public class TransmissionRpcController : ControllerBase
 
         return dict;
     }
+
+    private static int MapTransmissionStatus(Torrent torrent)
+    {
+        return torrent.Status switch
+        {
+            TorrentStatus.Stopped => 0,
+            TorrentStatus.Paused => 0,
+            TorrentStatus.Checking => 2,
+            TorrentStatus.Queued when torrent.Progress >= 1.0 => 5, // TR_STATUS_SEED_WAIT
+            TorrentStatus.Queued => 3,                             // TR_STATUS_DOWNLOAD_WAIT
+            TorrentStatus.Downloading => 4,
+            TorrentStatus.Seeding => 6,
+            _ => 0,
+        };
+    }
+
+    private static string MapTransmissionDownloadDir(Torrent torrent)
+    {
+        var rawSavePath = torrent.SavePath ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(rawSavePath) || string.IsNullOrWhiteSpace(torrent.Name))
+        {
+            return rawSavePath;
+        }
+
+        var trimmedSave = rawSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (Path.HasExtension(trimmedSave))
+        {
+            var parent = Path.GetDirectoryName(trimmedSave);
+            return !string.IsNullOrWhiteSpace(parent) ? parent : trimmedSave;
+        }
+
+        var dirName = Path.GetFileName(trimmedSave);
+        if (string.Equals(dirName, torrent.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            var parent = Path.GetDirectoryName(trimmedSave);
+            return !string.IsNullOrWhiteSpace(parent) ? parent : trimmedSave;
+        }
+
+        return rawSavePath;
+    }
+
+    private TransmissionFileMapping MapTransmissionFiles(Torrent torrent, ISet<string> requestedFields = null)
+    {
+        var needsFiles = requestedFields == null || requestedFields.Count == 0 ||
+            requestedFields.Contains("files") || requestedFields.Contains("priorities") || requestedFields.Contains("fileStats") || requestedFields.Contains("fileCount") || requestedFields.Contains("file-count") || requestedFields.Contains("sizeWhenDone") || requestedFields.Contains("leftUntilDone") || requestedFields.Contains("wanted");
+
+        if (!needsFiles)
+        {
+            return new TransmissionFileMapping(
+                new List<Dictionary<string, object>>(),
+                new List<Dictionary<string, object>>(),
+                new List<int>(),
+                new List<int>(),
+                0,
+                torrent.TotalSize);
+        }
+
+        var files = this.torrentFileService.GetFiles(torrent.Id).ToList();
+        var taskForFiles = this.torrentService?.GetDownloadTask(torrent.Id) ?? this.downloadEngine?.GetTask(torrent.Id);
+        TorrentFileProgressEnricher.Enrich(torrent, files, taskForFiles);
+
+        var fileCount = files.Count;
+        var filesList = files.Select(f => new Dictionary<string, object>
+        {
+            { "name", f.Path },
+            { "bytesCompleted", f.BytesCompleted },
+            { "length", f.Size },
+        }).ToList();
+
+        var fileStats = files.Select(f => new Dictionary<string, object>
+        {
+            { "bytesCompleted", f.BytesCompleted },
+            { "wanted", f.Priority > 0 },
+            { "priority", ToTransmissionPriority(f.Priority) },
+        }).ToList();
+
+        var priorities = files.Select(f => ToTransmissionPriority(f.Priority)).ToList();
+        var wantedList = files.Select(f => f.Priority > 0 ? 1 : 0).ToList();
+        var sizeWhenDone = files.Count > 0 ? files.Where(f => f.Priority > 0).Sum(f => f.Size) : torrent.TotalSize;
+
+        return new TransmissionFileMapping(filesList, fileStats, priorities, wantedList, fileCount, sizeWhenDone);
+    }
+
+    private TransmissionTrackerMapping MapTransmissionTrackers(Torrent torrent)
+    {
+        var addedDate = new DateTimeOffset(torrent.DateAdded).ToUnixTimeSeconds();
+        var trackersList = new List<object>();
+        var trackerStatsList = new List<object>();
+        var dbTrackers = this.trackerEntryRepository?.GetByTorrentId(torrent.Id)?.ToList() ?? new List<TrackerEntry>();
+
+        if (dbTrackers.Count > 0)
+        {
+            for (int i = 0; i < dbTrackers.Count; i++)
+            {
+                var trk = dbTrackers[i];
+                trackersList.Add(new
+                {
+                    announce = trk.Url ?? string.Empty,
+                    id = trk.Id > 0 ? trk.Id : i + 1,
+                    scrape = string.Empty,
+                    tier = trk.Tier,
+                });
+                trackerStatsList.Add(new
+                {
+                    announce = trk.Url ?? string.Empty,
+                    id = trk.Id > 0 ? trk.Id : i + 1,
+                    scrape = string.Empty,
+                    tier = trk.Tier,
+                    host = trk.Url ?? string.Empty,
+                    isBackup = false,
+                    lastAnnouncePeerCount = trk.Seeders + trk.Leechers,
+                    lastAnnounceResult = trk.ErrorMessage ?? "Success",
+                    lastAnnounceStartTime = trk.LastAnnounce.HasValue ? new DateTimeOffset(trk.LastAnnounce.Value).ToUnixTimeSeconds() : 0L,
+                    lastAnnounceSucceeded = string.IsNullOrEmpty(trk.ErrorMessage) && trk.Status != 2,
+                    lastAnnounceTime = trk.LastAnnounce.HasValue ? new DateTimeOffset(trk.LastAnnounce.Value).ToUnixTimeSeconds() : 0L,
+                    lastAnnounceTimedOut = false,
+                    lastScrapeResult = string.Empty,
+                    lastScrapeStartTime = 0L,
+                    lastScrapeSucceeded = true,
+                    lastScrapeTime = 0L,
+                    lastScrapeTimedOut = false,
+                    leecherCount = trk.Leechers,
+                    nextAnnounceTime = trk.NextAnnounce.HasValue ? new DateTimeOffset(trk.NextAnnounce.Value).ToUnixTimeSeconds() : 0L,
+                    nextScrapeTime = 0L,
+                    scrapeResponse = string.Empty,
+                    seederCount = trk.Seeders,
+                    downloadCount = trk.Downloaded,
+                });
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(torrent.TrackerUrl))
+        {
+            trackersList.Add(new
+            {
+                announce = torrent.TrackerUrl,
+                id = 1,
+                scrape = string.Empty,
+                tier = 0,
+            });
+            trackerStatsList.Add(new
+            {
+                announce = torrent.TrackerUrl,
+                id = 1,
+                scrape = string.Empty,
+                tier = 0,
+                host = torrent.TrackerUrl,
+                isBackup = false,
+                lastAnnouncePeerCount = torrent.Seeders + torrent.Leechers,
+                lastAnnounceResult = "Success",
+                lastAnnounceStartTime = addedDate,
+                lastAnnounceSucceeded = true,
+                lastAnnounceTime = addedDate,
+                lastAnnounceTimedOut = false,
+                lastScrapeResult = string.Empty,
+                lastScrapeStartTime = 0L,
+                lastScrapeSucceeded = true,
+                lastScrapeTime = 0L,
+                lastScrapeTimedOut = false,
+                leecherCount = torrent.Leechers,
+                nextAnnounceTime = addedDate + 1800,
+                nextScrapeTime = 0L,
+                scrapeResponse = string.Empty,
+                seederCount = torrent.Seeders,
+                downloadCount = 0L,
+            });
+        }
+
+        var trackerListStr = string.Empty;
+        if (dbTrackers.Count > 0)
+        {
+            var tiers = dbTrackers.GroupBy(trk => trk.Tier).OrderBy(g => g.Key);
+            trackerListStr = string.Join("\n\n", tiers.Select(g => string.Join("\n", g.Select(trk => trk.Url).Where(u => !string.IsNullOrWhiteSpace(u)))));
+        }
+        else if (!string.IsNullOrWhiteSpace(torrent.TrackerUrl))
+        {
+            trackerListStr = torrent.TrackerUrl;
+        }
+
+        var magnetBuilder = new StringBuilder();
+        magnetBuilder.Append("magnet:?xt=urn:btih:").Append(torrent.InfoHash ?? string.Empty);
+        if (!string.IsNullOrWhiteSpace(torrent.Name))
+        {
+            magnetBuilder.Append("&dn=").Append(Uri.EscapeDataString(torrent.Name));
+        }
+
+        if (dbTrackers.Count > 0)
+        {
+            foreach (var trk in dbTrackers)
+            {
+                if (!string.IsNullOrWhiteSpace(trk.Url))
+                {
+                    magnetBuilder.Append("&tr=").Append(Uri.EscapeDataString(trk.Url));
+                }
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(torrent.TrackerUrl))
+        {
+            magnetBuilder.Append("&tr=").Append(Uri.EscapeDataString(torrent.TrackerUrl));
+        }
+
+        var magnetLink = magnetBuilder.ToString();
+
+        return new TransmissionTrackerMapping(trackersList, trackerStatsList, trackerListStr, magnetLink);
+    }
+
+    private List<object> MapTransmissionPeers(Torrent torrent, IDownloadTask downloadTask)
+    {
+        var peersList = new List<object>();
+        var swarmPeers = downloadTask?.GetPeers() ?? Array.Empty<PeerInfo>();
+        foreach (var p in swarmPeers)
+        {
+            peersList.Add(new
+            {
+                address = p.Ip ?? string.Empty,
+                clientName = p.Client ?? string.Empty,
+                clientIsChoked = p.ClientIsChoked,
+                clientIsInterested = p.ClientIsInterested,
+                flagStr = p.Flags ?? string.Empty,
+                isDownloadingFrom = p.DownloadSpeed > 0,
+                isEncrypted = p.IsEncrypted,
+                isIncoming = p.IsIncoming,
+                isUploadingTo = p.UploadSpeed > 0,
+                isUTP = p.IsUtp || p.Flags?.Contains("P", StringComparison.OrdinalIgnoreCase) == true,
+                peerIsChoked = p.IsChoked,
+                peerIsInterested = p.IsInterested,
+                port = p.Port,
+                progress = p.Progress,
+                rateToClient = p.DownloadSpeed,
+                rateToPeer = p.UploadSpeed,
+            });
+        }
+
+        return peersList;
+    }
+
+    private static string MapTransmissionBitfield(Torrent torrent, IDownloadTask downloadTask, int pieceCount)
+    {
+        var bitfield = downloadTask?.PieceBitfield;
+        if (bitfield != null && bitfield.Length > 0)
+        {
+            int numBytes = (bitfield.Length + 7) / 8;
+            byte[] bytes = new byte[numBytes];
+            for (int i = 0; i < bitfield.Length; i++)
+            {
+                if (bitfield[i])
+                {
+                    bytes[i / 8] |= (byte)(0x80 >> (i % 8));
+                }
+            }
+
+            return Convert.ToBase64String(bytes);
+        }
+
+        if (torrent.Progress >= 1.0 && pieceCount > 0)
+        {
+            int numBytes = (pieceCount + 7) / 8;
+            byte[] bytes = new byte[numBytes];
+            for (int i = 0; i < numBytes; i++)
+            {
+                bytes[i] = 0xFF;
+            }
+
+            return Convert.ToBase64String(bytes);
+        }
+
+        return string.Empty;
+    }
+
+    private sealed record TransmissionFileMapping(
+        List<Dictionary<string, object>> Files,
+        List<Dictionary<string, object>> FileStats,
+        List<int> Priorities,
+        List<int> Wanted,
+        int FileCount,
+        long SizeWhenDone);
+
+    private sealed record TransmissionTrackerMapping(
+        List<object> Trackers,
+        List<object> TrackerStats,
+        string TrackerList,
+        string MagnetLink);
 
     private static int ToTransmissionPriority(int priority)
     {
