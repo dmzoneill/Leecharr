@@ -78,3 +78,13 @@ Unlike conventional standalone clients (Deluge, qBittorrent, Transmission) that 
 ## License
 
 Distributed under the **Apache License 2.0**.
+
+---
+
+<p align="center">
+  <sub>Built with the <a href="https://github.com/Sonarr/Sonarr">Sonarr</a>/<a href="https://github.com/Radarr/Radarr">Radarr</a> architecture pattern</sub>
+  <br>
+  <sub>Part of the *arr family of applications</sub>
+  <br>
+  <sub><a href="https://www.leecharr.net">www.leecharr.net</a></sub>
+</p>
