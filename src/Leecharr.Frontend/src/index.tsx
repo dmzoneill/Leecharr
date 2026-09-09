@@ -10,11 +10,18 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import App from "./App";
 import "./App.css";
 
+interface ApiErrorResponse {
+  status?: number;
+  message?: string;
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: (count, error: any) =>
-        error?.status !== 401 && error?.status !== 403 && count < 2,
+      retry: (count: number, error: unknown) => {
+        const errObj = error as ApiErrorResponse | undefined;
+        return errObj?.status !== 401 && errObj?.status !== 403 && count < 2;
+      },
       refetchOnWindowFocus: false,
     },
   },
@@ -26,8 +33,8 @@ if (!container) {
 }
 
 const urlBase =
-  typeof window !== "undefined" && (window as any).Leecharr?.urlBase
-    ? (window as any).Leecharr.urlBase.replace(/\/+$/, "")
+  typeof window !== "undefined" && window.Leecharr?.urlBase
+    ? window.Leecharr.urlBase.replace(/\/+$/, "")
     : "";
 
 const root = createRoot(container);
