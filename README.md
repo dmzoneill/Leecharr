@@ -30,6 +30,10 @@
 
 Unlike conventional standalone clients (Deluge, qBittorrent, Transmission) that present torrents as raw filenames and technical progress bars, Leecharr **deeply enriches active downloads with metadata and artwork** directly from Sonarr, Radarr, and Lidarr &mdash; giving you movie posters, TV show banners, episode screenshots, artist fanart, media stream specs, and cast overviews in a unified, beautiful Servarr interface.
 
+<p align="center">
+  <img src="logo/ss.png" alt="Leecharr UI Screenshot" width="100%"/>
+</p>
+
 ---
 
 ## Key Features
