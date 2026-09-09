@@ -502,53 +502,12 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                 }
 
                 var content = await response.Content.ReadAsStringAsync();
-                using var doc = JsonDocument.Parse(content);
-                if (doc.RootElement.ValueKind != JsonValueKind.Array)
+                var discoveredTrackers = ExtractTrackersFromProwlarrJson(content);
+
+                foreach (var (url, sourceName) in discoveredTrackers)
                 {
-                    continue;
-                }
-
-                foreach (var indexerElem in doc.RootElement.EnumerateArray())
-                {
-                    var privacy = indexerElem.TryGetProperty("privacy", out var pProp) ? pProp.GetString() : "public";
-                    if (string.Equals(privacy, "private", StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    var indexerName = indexerElem.TryGetProperty("name", out var nProp) ? nProp.GetString() : "Prowlarr Indexer";
-
-                    if (indexerElem.TryGetProperty("fields", out var fieldsProp) && fieldsProp.ValueKind == JsonValueKind.Array)
-                    {
-                        foreach (var field in fieldsProp.EnumerateArray())
-                        {
-                            if (field.TryGetProperty("name", out var nameProp) &&
-                                string.Equals(nameProp.GetString(), "baseUrl", StringComparison.OrdinalIgnoreCase) &&
-                                field.TryGetProperty("value", out var valProp) &&
-                                valProp.ValueKind == JsonValueKind.String)
-                            {
-                                var u = valProp.GetString();
-                                if (IsValidPublicTrackerUrl(u))
-                                {
-                                    this.AddTrackerInternal(u, TrackerSourceType.Prowlarr, $"Prowlarr ({indexerName})");
-                                    harvestedCount++;
-                                }
-                            }
-                        }
-                    }
-
-                    if (indexerElem.TryGetProperty("indexerUrls", out var urlsProp) && urlsProp.ValueKind == JsonValueKind.Array)
-                    {
-                        foreach (var urlItem in urlsProp.EnumerateArray())
-                        {
-                            var u = urlItem.GetString();
-                            if (IsValidPublicTrackerUrl(u))
-                            {
-                                this.AddTrackerInternal(u, TrackerSourceType.Prowlarr, $"Prowlarr ({indexerName})");
-                                harvestedCount++;
-                            }
-                        }
-                    }
+                    this.AddTrackerInternal(url, TrackerSourceType.Prowlarr, sourceName);
+                    harvestedCount++;
                 }
             }
 
@@ -563,6 +522,87 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         }
 
         return harvestedCount;
+    }
+
+    private static List<(string Url, string SourceName)> ExtractTrackersFromProwlarrJson(string jsonContent)
+    {
+        var trackers = new List<(string Url, string SourceName)>();
+        if (string.IsNullOrWhiteSpace(jsonContent))
+        {
+            return trackers;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(jsonContent);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return trackers;
+            }
+
+            foreach (var indexerElem in doc.RootElement.EnumerateArray())
+            {
+                var privacy = indexerElem.TryGetProperty("privacy", out var pProp) ? pProp.GetString() : "public";
+                if (string.Equals(privacy, "private", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var indexerName = indexerElem.TryGetProperty("name", out var nProp) ? nProp.GetString() : "Prowlarr Indexer";
+                var sourceName = $"Prowlarr ({indexerName})";
+
+                ExtractIndexerFieldsTrackers(indexerElem, sourceName, trackers);
+                ExtractIndexerUrlsTrackers(indexerElem, sourceName, trackers);
+            }
+        }
+        catch (JsonException)
+        {
+            // Ignore invalid JSON responses
+        }
+
+        return trackers;
+    }
+
+    private static void ExtractIndexerFieldsTrackers(JsonElement indexerElem, string sourceName, List<(string Url, string SourceName)> trackers)
+    {
+        if (!indexerElem.TryGetProperty("fields", out var fieldsProp) || fieldsProp.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (var field in fieldsProp.EnumerateArray())
+        {
+            if (!field.TryGetProperty("name", out var nameProp) ||
+                !string.Equals(nameProp.GetString(), "baseUrl", StringComparison.OrdinalIgnoreCase) ||
+                !field.TryGetProperty("value", out var valProp) ||
+                valProp.ValueKind != JsonValueKind.String)
+            {
+                continue;
+            }
+
+            var u = valProp.GetString();
+            if (IsValidPublicTrackerUrl(u))
+            {
+                trackers.Add((u, sourceName));
+            }
+        }
+    }
+
+    private static void ExtractIndexerUrlsTrackers(JsonElement indexerElem, string sourceName, List<(string Url, string SourceName)> trackers)
+    {
+        if (!indexerElem.TryGetProperty("indexerUrls", out var urlsProp) || urlsProp.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (var urlItem in urlsProp.EnumerateArray())
+        {
+            var u = urlItem.GetString();
+            if (IsValidPublicTrackerUrl(u))
+            {
+                trackers.Add((u, sourceName));
+            }
+        }
     }
 
     public async Task<int> HarvestFromCuratedListsAsync()
