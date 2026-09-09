@@ -1906,6 +1906,65 @@ public class QBittorrentApiControllerTest
         list!.Count.Should().Be(3);
     }
 
+    [Test]
+    public void QBitTorrentSnapshot_FromTorrent_MapsAllPropertiesCorrectly()
+    {
+        var addedDate = new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        var completedDate = new DateTime(2025, 1, 1, 13, 0, 0, DateTimeKind.Utc);
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "Test.Movie.2025",
+            InfoHash = "abc123hash",
+            TotalSize = 1000L,
+            Downloaded = 400L,
+            Uploaded = 800L,
+            DownloadSpeed = 50L,
+            UploadSpeed = 25L,
+            Progress = 0.4,
+            Status = TorrentStatus.Downloading,
+            Category = "movies",
+            Label = "tag1, tag2",
+            Ratio = 2.0,
+            Seeders = 10,
+            Leechers = 5,
+            DateAdded = addedDate,
+            DateCompleted = completedDate,
+            SequentialDownload = true,
+            FirstLastPiecePriority = true,
+        };
+
+        var snapshot = QBitTorrentSnapshot.FromTorrent(torrent, "/downloads/movies", "/downloads/movies/Test.Movie.2025");
+
+        snapshot.Name.Should().Be("Test.Movie.2025");
+        snapshot.Size.Should().Be(1000L);
+        snapshot.Progress.Should().Be(0.4);
+        snapshot.DlSpeed.Should().Be(50L);
+        snapshot.UpSpeed.Should().Be(25L);
+        snapshot.State.Should().Be("downloading");
+        snapshot.Category.Should().Be("movies");
+        snapshot.Tags.Should().Be("tag1, tag2");
+        snapshot.SavePath.Should().Be("/downloads/movies");
+        snapshot.ContentPath.Should().Be("/downloads/movies/Test.Movie.2025");
+        snapshot.Ratio.Should().Be(2.0);
+        snapshot.NumSeeds.Should().Be(10);
+        snapshot.NumLeechs.Should().Be(5);
+        snapshot.Downloaded.Should().Be(400L);
+        snapshot.Uploaded.Should().Be(800L);
+        snapshot.AmountLeft.Should().Be(600L);
+        snapshot.AddedOn.Should().Be(new DateTimeOffset(addedDate).ToUnixTimeSeconds());
+        snapshot.CompletionOn.Should().Be(new DateTimeOffset(completedDate).ToUnixTimeSeconds());
+        snapshot.SeqDl.Should().BeTrue();
+        snapshot.FLPiecePrio.Should().BeTrue();
+    }
+
+    [Test]
+    public void QBitTorrentSnapshot_FromTorrent_NullTorrent_ThrowsArgumentNullException()
+    {
+        var action = () => QBitTorrentSnapshot.FromTorrent(null!);
+        action.Should().Throw<ArgumentNullException>();
+    }
+
     private static ActionExecutingContext CreateActionExecutingContext(QBittorrentApiController controller, HttpContext httpContext, string actionName)
     {
         var actionDescriptor = new ControllerActionDescriptor
