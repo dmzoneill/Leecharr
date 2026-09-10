@@ -11,6 +11,7 @@ using NzbDrone.Core.Notifications;
 namespace Leecharr.Api.V1.Notifications;
 
 [V1ApiController("notifications")]
+[Route("api/v1/notification")]
 public class NotificationController : Controller
 {
     private readonly INotificationRepository notificationRepository;
@@ -53,6 +54,20 @@ public class NotificationController : Controller
             return this.BadRequest();
         }
 
+        if (string.IsNullOrWhiteSpace(resource.Name))
+        {
+            return this.BadRequest("Notification name is required.");
+        }
+
+        if (string.Equals(resource.Implementation, "CustomScript", StringComparison.OrdinalIgnoreCase))
+        {
+            var (scriptPath, _) = CustomScriptService.ParseSettings(resource.Settings);
+            if (string.IsNullOrWhiteSpace(scriptPath))
+            {
+                return this.BadRequest("Custom script path is required in settings.");
+            }
+        }
+
         var model = ToModel(resource);
         var created = this.notificationRepository.Insert(model);
         return this.Ok(ToResource(created));
@@ -66,10 +81,24 @@ public class NotificationController : Controller
             return this.BadRequest();
         }
 
+        if (string.IsNullOrWhiteSpace(resource.Name))
+        {
+            return this.BadRequest("Notification name is required.");
+        }
+
         var existing = this.notificationRepository.Get(id);
         if (existing == null)
         {
             return this.NotFound();
+        }
+
+        if (string.Equals(resource.Implementation, "CustomScript", StringComparison.OrdinalIgnoreCase))
+        {
+            var (scriptPath, _) = CustomScriptService.ParseSettings(resource.Settings);
+            if (string.IsNullOrWhiteSpace(scriptPath))
+            {
+                return this.BadRequest("Custom script path is required in settings.");
+            }
         }
 
         var model = ToModel(resource);

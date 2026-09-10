@@ -22,6 +22,7 @@ using NzbDrone.Core.Torrents;
 namespace Leecharr.Api.V1.DownloadClients;
 
 [V1ApiController("downloadclients")]
+[Route("api/v1/downloadclient")]
 public class DownloadClientController : Controller
 {
     private readonly IDownloadClientRepository repository;
@@ -63,6 +64,16 @@ public class DownloadClientController : Controller
             return this.BadRequest();
         }
 
+        if (string.IsNullOrWhiteSpace(resource.Name))
+        {
+            return this.BadRequest("Download client name is required.");
+        }
+
+        if (resource.Port < 0 || resource.Port > 65535)
+        {
+            return this.BadRequest("Invalid port number.");
+        }
+
         var model = ToModel(resource);
         var created = this.repository.Insert(model);
         return this.Ok(ToResource(created));
@@ -74,6 +85,16 @@ public class DownloadClientController : Controller
         if (resource == null)
         {
             return this.BadRequest();
+        }
+
+        if (string.IsNullOrWhiteSpace(resource.Name))
+        {
+            return this.BadRequest("Download client name is required.");
+        }
+
+        if (resource.Port < 0 || resource.Port > 65535)
+        {
+            return this.BadRequest("Invalid port number.");
         }
 
         var existing = this.repository.Get(id);
