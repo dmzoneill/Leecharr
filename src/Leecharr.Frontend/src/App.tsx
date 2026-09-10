@@ -121,28 +121,7 @@ export function App() {
   const { data: indexersList } = useIndexers();
   const { data: generalConfig } = useGeneralConfig();
 
-  useEffect(() => {
-    const applyTheme = () => {
-      let theme = generalConfig?.themeStyle || "dark";
-      if (theme === "system") {
-        theme = window.matchMedia("(prefers-color-scheme: light)").matches
-          ? "light"
-          : "dark";
-      }
-      const accent = generalConfig?.colorScheme || "auto";
-      document.documentElement.setAttribute("data-theme", theme);
-      document.documentElement.setAttribute("data-accent", accent);
-    };
 
-    applyTheme();
-
-    if (generalConfig?.themeStyle === "system") {
-      const mediaQuery = window.matchMedia("(prefers-color-scheme: light)");
-      const handler = () => applyTheme();
-      mediaQuery.addEventListener("change", handler);
-      return () => mediaQuery.removeEventListener("change", handler);
-    }
-  }, [generalConfig?.themeStyle, generalConfig?.colorScheme]);
 
   const loadUser = async () => {
     try {
@@ -1020,13 +999,13 @@ export function App() {
               className="topbar-btn"
               onClick={toggleTheme}
               title={
-                theme === "dark"
-                  ? t("nav.themeLight", "Switch to Light Mode")
-                  : t("nav.themeDark", "Switch to Dark Mode")
+                theme === "light"
+                  ? t("nav.themeDark", "Switch to Dark Mode")
+                  : t("nav.themeLight", "Switch to Light Mode")
               }
               aria-label="Toggle theme"
             >
-              {theme === "dark" ? <SunIcon /> : <MoonIcon />}
+              {theme === "light" ? <MoonIcon /> : <SunIcon />}
             </button>
 
             <a

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useTranslation } from "../../i18n";
 import { useToast } from "../../context/ToastContext";
-import { useEscapeKey } from "../../hooks/useEscapeKey";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 import { formatBytes, formatRatio, formatDate } from "../../utils/formatters";
 import type { DownloadHistoryEntry } from "../../api/types";
 import { formatDuration } from "./types";
@@ -22,7 +22,7 @@ export const HistoryExportModal: React.FC<HistoryExportModalProps> = ({
   const [exportFormat, setExportFormat] = useState<"json" | "csv">("json");
   const [includeMetadata, setIncludeMetadata] = useState(true);
 
-  useEscapeKey(onClose, isOpen);
+  const trapRef = useFocusTrap<HTMLDivElement>({ isOpen, onClose });
 
   const exportedData = useMemo(() => {
     if (!isOpen || items.length === 0) return "";
@@ -159,6 +159,7 @@ export const HistoryExportModal: React.FC<HistoryExportModalProps> = ({
       aria-labelledby="history-export-modal-title"
     >
       <div
+        ref={trapRef}
         className="modal-content"
         style={{
           maxWidth: "650px",

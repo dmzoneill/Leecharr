@@ -45,16 +45,46 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
 
     // Initial focus placement
     const timer = setTimeout(() => {
+      if (!containerRef.current) return;
+      const currentContainer = containerRef.current;
+
       if (initialFocusRef?.current) {
         initialFocusRef.current.focus();
-      } else {
-        const focusableElements =
-          container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
-        if (focusableElements.length > 0) {
-          focusableElements[0].focus();
-        } else if (container.getAttribute("tabIndex") !== null) {
-          container.focus();
-        }
+        return;
+      }
+
+      // Check if there is an autofocus element inside the container
+      const autoFocusEl =
+        currentContainer.querySelector<HTMLElement>("[autofocus]");
+      if (autoFocusEl && typeof autoFocusEl.focus === "function") {
+        autoFocusEl.focus();
+        return;
+      }
+
+      // Check if an element inside the container is already focused
+      if (
+        document.activeElement &&
+        currentContainer.contains(document.activeElement) &&
+        document.activeElement !== currentContainer &&
+        document.activeElement !== document.body
+      ) {
+        return;
+      }
+
+      const focusableElements = Array.from(
+        currentContainer.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      ).filter((el) => {
+        return (
+          el.offsetParent !== null &&
+          !el.hasAttribute("disabled") &&
+          el.getAttribute("aria-hidden") !== "true"
+        );
+      });
+
+      if (focusableElements.length > 0) {
+        focusableElements[0].focus();
+      } else if (currentContainer.getAttribute("tabIndex") !== null) {
+        currentContainer.focus();
       }
     }, 10);
 
