@@ -930,14 +930,11 @@ body {
 .status-bar {
   background-color: var(--sidebar-bg);
   border-top: 1px solid var(--border-light);
-  height: 28px;
-  min-height: 28px;
-  max-height: 28px;
-  padding: 0 1.25rem;
+  padding: 0.6rem 1.5rem;
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   color: var(--text-muted);
 }
 
@@ -946,7 +943,7 @@ body {
   align-items: center;
   width: 100%;
   gap: 1.5rem;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   font-weight: 500;
 }
 
