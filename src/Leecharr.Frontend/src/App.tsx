@@ -1053,9 +1053,6 @@ export function App() {
                   position: "relative",
                   display: "flex",
                   alignItems: "center",
-                  marginLeft: "0.25rem",
-                  borderLeft: "1px solid var(--border, #1f2c42)",
-                  paddingLeft: "0.75rem",
                 }}
               >
                 <button
