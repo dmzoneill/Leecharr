@@ -794,8 +794,11 @@ public class NatPmpPortMapperServiceTest
             .ToArray();
         await Task.WhenAll(tasks);
 
-        // Wait a short delay for background coordinated renewal to complete
-        await Task.Delay(300, CancellationToken.None);
+        // Wait for background coordinated renewal to complete
+        for (var i = 0; i < 20 && Volatile.Read(ref totalRequestsReceived) < 4; i++)
+        {
+            await Task.Delay(50, CancellationToken.None);
+        }
 
         // Cancel mock gateway listener
         cts.Cancel();
