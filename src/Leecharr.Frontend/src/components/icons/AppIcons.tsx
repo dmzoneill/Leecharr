@@ -62,7 +62,7 @@ export function MoonIcon() {
   );
 }
 
-export function HeartIcon({ size = 14 }: { size?: number } = {}) {
+export function HeartIcon({ size = 15 }: { size?: number } = {}) {
   return (
     <svg
       width={size}
