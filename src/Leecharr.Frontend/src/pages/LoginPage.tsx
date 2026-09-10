@@ -152,9 +152,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "#10111A",
+        backgroundColor: "#0E131D",
         backgroundImage:
-          "radial-gradient(ellipse at 50% 20%, #1c2242 0%, #10111A 70%)",
+          "radial-gradient(ellipse at 50% 20%, #1a253a 0%, #0E131D 70%)",
         padding: "24px",
         fontFamily: "inherit",
       }}
@@ -163,8 +163,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         style={{
           width: "100%",
           maxWidth: "420px",
-          backgroundColor: "#171B35",
-          border: "1px solid #23284B",
+          backgroundColor: "#141C2B",
+          border: "1px solid #1F2C42",
           borderRadius: "12px",
           padding: "36px 32px",
           boxShadow: "0 20px 40px rgba(0, 0, 0, 0.45)",
@@ -180,10 +180,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               width: "56px",
               height: "56px",
               borderRadius: "14px",
-              backgroundColor: "rgba(255, 209, 102, 0.12)",
-              color: "#FFD166",
+              backgroundColor: "rgba(91, 141, 239, 0.12)",
+              color: "#5B8DEF",
               marginBottom: "14px",
-              border: "1px solid rgba(255, 209, 102, 0.25)",
+              border: "1px solid rgba(91, 141, 239, 0.25)",
             }}
           >
             <svg
@@ -203,7 +203,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           </div>
           <h1
             style={{
-              color: "#F8F4ED",
+              color: "#F1F5F9",
               fontSize: "24px",
               fontWeight: 700,
               margin: 0,
@@ -213,7 +213,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           </h1>
           <p
             style={{
-              color: "#C7C5D3",
+              color: "#94A3B8",
               fontSize: "14px",
               marginTop: "6px",
               marginBottom: 0,
@@ -227,8 +227,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         {error && (
           <div
             style={{
-              backgroundColor: "rgba(239, 68, 68, 0.15)",
-              border: "1px solid rgba(239, 68, 68, 0.3)",
+              backgroundColor: "rgba(248, 113, 113, 0.15)",
+              border: "1px solid rgba(248, 113, 113, 0.3)",
               color: "#FCA5A5",
               padding: "10px 14px",
               borderRadius: "6px",
@@ -261,7 +261,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             <label
               style={{
                 display: "block",
-                color: "#F8F4ED",
+                color: "#F1F5F9",
                 fontSize: "13px",
                 fontWeight: 500,
                 marginBottom: "6px",
@@ -278,10 +278,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               style={{
                 width: "100%",
                 padding: "10px 12px",
-                backgroundColor: "#10111A",
-                border: "1px solid #2A305B",
+                backgroundColor: "#0E131D",
+                border: "1px solid #1F2C42",
                 borderRadius: "6px",
-                color: "#F8F4ED",
+                color: "#F1F5F9",
                 fontSize: "14px",
                 outline: "none",
                 boxSizing: "border-box",
@@ -293,7 +293,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             <label
               style={{
                 display: "block",
-                color: "#F8F4ED",
+                color: "#F1F5F9",
                 fontSize: "13px",
                 fontWeight: 500,
                 marginBottom: "6px",
@@ -309,10 +309,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               style={{
                 width: "100%",
                 padding: "10px 12px",
-                backgroundColor: "#10111A",
-                border: "1px solid #2A305B",
+                backgroundColor: "#0E131D",
+                border: "1px solid #1F2C42",
                 borderRadius: "6px",
-                color: "#F8F4ED",
+                color: "#F1F5F9",
                 fontSize: "14px",
                 outline: "none",
                 boxSizing: "border-box",
@@ -333,7 +333,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
-                color: "#C7C5D3",
+                color: "#94A3B8",
                 fontSize: "13px",
                 cursor: "pointer",
               }}
@@ -343,7 +343,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
                 style={{
-                  accentColor: "#FFD166",
+                  accentColor: "#5B8DEF",
                   width: "16px",
                   height: "16px",
                   cursor: "pointer",
@@ -359,8 +359,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             style={{
               width: "100%",
               padding: "11px",
-              backgroundColor: "#FFD166",
-              color: "#10111A",
+              backgroundColor: "#5B8DEF",
+              color: "#0E131D",
               border: "none",
               borderRadius: "6px",
               fontSize: "14px",
@@ -382,20 +382,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 display: "flex",
                 alignItems: "center",
                 margin: "20px 0 16px",
-                color: "#6B7280",
+                color: "#64748B",
                 fontSize: "12px",
                 textTransform: "uppercase",
                 letterSpacing: "0.05em",
               }}
             >
               <div
-                style={{ flex: 1, height: "1px", backgroundColor: "#23284B" }}
+                style={{ flex: 1, height: "1px", backgroundColor: "#1F2C42" }}
               />
-              <span style={{ padding: "0 12px", color: "#8E92B2" }}>
+              <span style={{ padding: "0 12px", color: "#94A3B8" }}>
                 {t("auth.orSignInWith")}
               </span>
               <div
-                style={{ flex: 1, height: "1px", backgroundColor: "#23284B" }}
+                style={{ flex: 1, height: "1px", backgroundColor: "#1F2C42" }}
               />
             </div>
 
@@ -413,10 +413,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                     gap: "10px",
                     width: "100%",
                     padding: "10px 14px",
-                    backgroundColor: "#10111A",
-                    border: "1px solid #23284B",
+                    backgroundColor: "#0E131D",
+                    border: "1px solid #1F2C42",
                     borderRadius: "6px",
-                    color: "#F8F4ED",
+                    color: "#F1F5F9",
                     fontSize: "13px",
                     fontWeight: 500,
                     textDecoration: "none",
@@ -424,12 +424,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                     boxSizing: "border-box",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = "#23284B";
-                    e.currentTarget.style.borderColor = "#FFD166";
+                    e.currentTarget.style.backgroundColor = "#1E2A3F";
+                    e.currentTarget.style.borderColor = "#5B8DEF";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "#10111A";
-                    e.currentTarget.style.borderColor = "#23284B";
+                    e.currentTarget.style.backgroundColor = "#0E131D";
+                    e.currentTarget.style.borderColor = "#1F2C42";
                   }}
                 >
                   {getProviderIcon(p)}

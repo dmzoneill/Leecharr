@@ -66,6 +66,7 @@ import { AddTorrentModal } from "./components/AddTorrentModal";
 import { AiCopilotDrawer } from "./components/AiCopilotDrawer";
 import ToastContainer from "./components/Toast";
 import { useToast } from "./context/ToastContext";
+import { useTheme } from "./context/ThemeContext";
 import {
   GettingStartedModal,
   STORAGE_KEY_HIDE_GUIDE,
@@ -260,7 +261,30 @@ export function App() {
   }, [queryClient]);
 
   const { showToast } = useToast();
+  const { theme, toggleTheme } = useTheme();
   const { confirmIfDirty } = useSettingsDirty();
+
+  const handleCopyApiKey = useCallback(async () => {
+    try {
+      let keyToCopy = generalConfig?.apiKey;
+      if (!keyToCopy || keyToCopy.includes("*")) {
+        const res = await api.getApiKey();
+        keyToCopy = res.apiKey;
+      }
+      if (keyToCopy) {
+        await navigator.clipboard.writeText(keyToCopy);
+        showToast(
+          t("settings.apiKeyCopied", "API key copied to clipboard"),
+          "success",
+        );
+      }
+    } catch {
+      showToast(
+        t("settings.failedToCopyApiKey", "Failed to copy API key to clipboard"),
+        "error",
+      );
+    }
+  }, [generalConfig?.apiKey, showToast, t]);
 
   const guardedNavigate = useCallback(
     (to: string) => {
@@ -794,9 +818,11 @@ export function App() {
                   "1px solid var(--border-light, rgba(255, 255, 255, 0.12))",
                 borderRadius: "4px",
                 background: isSidebarCollapsed
-                  ? "var(--accent, #ffd166)"
+                  ? "var(--accent, #5b8def)"
                   : "transparent",
-                color: isSidebarCollapsed ? "#10111a" : "var(--text-secondary)",
+                color: isSidebarCollapsed
+                  ? "var(--bg-primary, #0e131d)"
+                  : "var(--text-secondary)",
                 cursor: "pointer",
                 fontSize: "0.95rem",
                 padding: 0,
@@ -836,7 +862,7 @@ export function App() {
 
           <div
             className="topbar-actions"
-            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+            style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}
           >
             <LanguageSelector />
             <button
@@ -846,46 +872,73 @@ export function App() {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "0.4rem",
-                backgroundColor: "rgba(255, 209, 102, 0.12)",
-                color: "var(--accent, #ffd166)",
-                border: "1px solid rgba(255, 209, 102, 0.3)",
+                backgroundColor: "var(--accent-bg-medium, rgba(91, 141, 239, 0.12))",
+                color: "var(--accent, #5b8def)",
+                border: "1px solid var(--accent-border-alert, rgba(91, 141, 239, 0.3))",
                 fontWeight: 600,
               }}
               title={t("nav.gettingStarted")}
             >
               🚀 {t("nav.gettingStarted")}
             </button>
+
             <button
-              className="btn btn-small"
-              onClick={() => guardedNavigate("/terminal")}
+              type="button"
+              className="topbar-apikey-btn"
+              onClick={handleCopyApiKey}
+              title={t("apiDocs.copyApiKeyTooltip", "Copy API Key to clipboard")}
+            >
+              <span style={{ fontSize: "0.85rem" }}>⚿</span>
+              <span style={{ letterSpacing: "1px", opacity: 0.85 }}>••••••••••••••••••••••••</span>
+            </button>
+
+            <button
+              type="button"
+              className="topbar-btn"
+              onClick={toggleTheme}
+              title={
+                theme === "dark"
+                  ? t("nav.themeLight", "Switch to Light Mode")
+                  : t("nav.themeDark", "Switch to Dark Mode")
+              }
+              aria-label="Toggle theme"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "0.35rem",
-                backgroundColor: "rgba(56, 189, 248, 0.12)",
-                color: "#38bdf8",
-                border: "1px solid rgba(56, 189, 248, 0.3)",
-                fontWeight: 600,
-                fontFamily: "monospace",
+                justifyContent: "center",
+                width: "28px",
+                height: "28px",
+                borderRadius: "4px",
+                border: "1px solid var(--border-light, #162031)",
+                background: "transparent",
+                color: "var(--text-secondary)",
+                cursor: "pointer",
+                fontSize: "0.95rem",
+                padding: 0,
               }}
-              title={t("nav.openTerminal")}
             >
-              {t("nav.terminalCli")}
+              {theme === "dark" ? "🌙" : "☀️"}
             </button>
-            <button
-              className="btn btn-small btn-success"
-              onClick={() => setShowAddModal(true)}
+
+            <a
+              href="https://github.com/dmzoneill/Leecharr"
+              target="_blank"
+              rel="noreferrer"
+              className="topbar-btn topbar-heart"
+              title={t("nav.support", "Support & Donate")}
+              aria-label="Support and Donate"
             >
-              + {t("nav.addTorrent")}
-            </button>
+              ❤️
+            </a>
 
             {currentUser?.isAuthenticated && (
               <div
+                className="topbar-user-profile"
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: "0.5rem",
-                  marginLeft: "0.5rem",
+                  marginLeft: "0.25rem",
                   borderLeft: "1px solid var(--border)",
                   paddingLeft: "0.75rem",
                 }}
@@ -898,16 +951,25 @@ export function App() {
                     width: "28px",
                     height: "28px",
                     borderRadius: "50%",
-                    backgroundColor: "#23284B",
-                    color: "#FFD166",
+                    backgroundColor: "var(--bg-hover-elevated, #23324c)",
+                    color: "var(--accent, #5b8def)",
                     fontSize: "12px",
                     fontWeight: 600,
-                    border: "1px solid rgba(255, 209, 102, 0.3)",
+                    border: "1px solid var(--border, #1f2c42)",
+                    overflow: "hidden",
                   }}
                 >
-                  {currentUser.displayName
-                    ? currentUser.displayName.charAt(0).toUpperCase()
-                    : currentUser.username.charAt(0).toUpperCase()}
+                  {currentUser.avatarUrl ? (
+                    <img
+                      src={currentUser.avatarUrl}
+                      alt={currentUser.displayName || currentUser.username}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                  ) : (
+                    (currentUser.displayName || currentUser.username)
+                      .charAt(0)
+                      .toUpperCase()
+                  )}
                 </div>
                 <span
                   style={{
@@ -922,9 +984,9 @@ export function App() {
                   className="btn btn-small btn-outline"
                   onClick={handleLogout}
                   style={{ fontSize: "0.75rem", padding: "3px 8px" }}
-                  title={t("nav.signOut")}
+                  title={t("nav.signOut", "Sign Out")}
                 >
-                  {t("nav.signOut")}
+                  {t("nav.signOut", "Sign Out")}
                 </button>
               </div>
             )}
@@ -938,9 +1000,9 @@ export function App() {
             role="status"
             aria-live="polite"
             style={{
-              backgroundColor: "rgba(224, 168, 46, 0.15)",
-              borderBottom: "1px solid rgba(224, 168, 46, 0.35)",
-              color: "#ffd166",
+              backgroundColor: "rgba(251, 191, 36, 0.15)",
+              borderBottom: "1px solid rgba(251, 191, 36, 0.35)",
+              color: "var(--warning, #fbbf24)",
               padding: "0.45rem 1rem",
               fontSize: "0.85rem",
               display: "flex",
@@ -956,8 +1018,8 @@ export function App() {
                 width: "8px",
                 height: "8px",
                 borderRadius: "50%",
-                backgroundColor: "#ffd166",
-                boxShadow: "0 0 6px #ffd166",
+                backgroundColor: "var(--warning, #fbbf24)",
+                boxShadow: "0 0 6px var(--warning, #fbbf24)",
               }}
             />
             <span>{t("alerts.connectionLost")}</span>

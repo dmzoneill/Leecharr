@@ -73,11 +73,11 @@ export function WebUiSettingsTab() {
     string,
     { bg: string; card: string; border: string }
   > = {
-    dark: { bg: "#10111A", card: "#171B35", border: "#23284B" },
+    dark: { bg: "#0E131D", card: "#141C2B", border: "#1F2C42" },
     indigo: { bg: "#0B0E1E", card: "#131733", border: "#1F2552" },
     oled: { bg: "#000000", card: "#0A0B12", border: "#1A1D2E" },
-    slate: { bg: "#0F141C", card: "#181F2C", border: "#242E40" },
-    light: { bg: "#F5F0E5", card: "#FDFAF4", border: "#D4CBB8" },
+    slate: { bg: "#0E131D", card: "#141C2B", border: "#1F2C42" },
+    light: { bg: "#F8FAFC", card: "#FFFFFF", border: "#CBD5E1" },
     system: {
       bg: "var(--bg-primary)",
       card: "var(--bg-card)",
@@ -86,7 +86,7 @@ export function WebUiSettingsTab() {
   };
 
   const accentHexMap: Record<string, string> = {
-    auto: "#FFD166",
+    auto: "#5B8DEF",
     blue: "#3B82F6",
     emerald: "#10B981",
     purple: "#8B5CF6",
@@ -96,7 +96,7 @@ export function WebUiSettingsTab() {
   };
 
   const currentSurface = surfaceHexMap[form.themeStyle] || surfaceHexMap.dark;
-  const currentAccent = accentHexMap[form.colorScheme] || "#FFD166";
+  const currentAccent = accentHexMap[form.colorScheme] || "#5B8DEF";
 
   return (
     <div>
