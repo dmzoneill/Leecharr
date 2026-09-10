@@ -18,6 +18,7 @@ import { normalizeIndexerPayload } from "../pages/settings/IndexersTab";
 import LeecharrLogo from "./icons/LeecharrLogo";
 import LeecharrText from "./icons/LeecharrText";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import { LanguageSelector } from "./LanguageSelector";
 
 export const STORAGE_KEY_HIDE_GUIDE = "leecharr_hide_getting_started";
 
@@ -34,42 +35,47 @@ type GuideMode = "readonly" | "interactive";
 interface StepMeta {
   id: string;
   stepNum: number;
-  shortName: string;
-  title: string;
+  shortNameKey: string;
+  titleKey: string;
 }
 
 const STEPS: StepMeta[] = [
   {
     id: "welcome",
     stepNum: 0,
-    shortName: "Welcome",
-    title: "Welcome to Leecharr",
+    shortNameKey: "gettingStarted.stepWelcome",
+    titleKey: "gettingStarted.stepWelcomeTitle",
   },
   {
     id: "prowlarr",
     stepNum: 1,
-    shortName: "Prowlarr",
-    title: "Add Prowlarr Indexer",
+    shortNameKey: "gettingStarted.stepProwlarr",
+    titleKey: "gettingStarted.stepProwlarrTitle",
   },
   {
     id: "sonarr",
     stepNum: 2,
-    shortName: "Sonarr",
-    title: "Add Sonarr Connection",
+    shortNameKey: "gettingStarted.stepSonarr",
+    titleKey: "gettingStarted.stepSonarrTitle",
   },
   {
     id: "radarr",
     stepNum: 3,
-    shortName: "Radarr",
-    title: "Add Radarr Connection",
+    shortNameKey: "gettingStarted.stepRadarr",
+    titleKey: "gettingStarted.stepRadarrTitle",
   },
   {
     id: "lidarr",
     stepNum: 4,
-    shortName: "Lidarr",
-    title: "Add Lidarr Connection",
+    shortNameKey: "gettingStarted.stepLidarr",
+    titleKey: "gettingStarted.stepLidarrTitle",
   },
-  { id: "finish", stepNum: 5, shortName: "Finished", title: "Setup Complete" },
+  {
+    id: "finish",
+    stepNum: 5,
+    shortNameKey: "gettingStarted.stepFinished",
+    titleKey: "gettingStarted.stepFinishedTitle",
+  },
 ];
 
 export function GettingStartedModal({
@@ -291,137 +297,104 @@ export function GettingStartedModal({
         zIndex: 9999,
         padding: "1rem",
       }}
-      onClick={handleClose}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) handleClose();
+      }}
     >
       <div
         ref={trapRef}
-        className="modal-content"
+        className="modal"
+        onClick={(e) => e.stopPropagation()}
         style={{
-          width: "100%",
-          maxWidth: "860px",
+          maxWidth: 540,
+          width: "92vw",
           maxHeight: "90vh",
+          overflowY: "auto",
           backgroundColor: "var(--bg-secondary, #171b35)",
-          borderRadius: "12px",
-          border: "1px solid var(--border-light, #1c203b)",
-          boxShadow: "0 20px 50px rgba(0, 0, 0, 0.6)",
+          borderRadius: "8px",
+          boxShadow: "0 16px 40px rgba(0, 0, 0, 0.7)",
+          border: "1px solid var(--border-light, rgba(255, 255, 255, 0.12))",
+          padding: "1.5rem",
           display: "flex",
           flexDirection: "column",
-          overflow: "hidden",
         }}
-        onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
+        {/* Top Header Controls: Mode Selector, Language Selector & Close Button */}
         <div
           style={{
-            padding: "1.25rem 1.75rem",
-            borderBottom: "1px solid var(--border-light, #1c203b)",
             display: "flex",
-            alignItems: "center",
             justifyContent: "space-between",
-            backgroundColor: "rgba(0, 0, 0, 0.2)",
+            alignItems: "center",
+            marginBottom: "1rem",
           }}
         >
+          {/* Mode Selector */}
           <div
-            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+            style={{
+              display: "inline-flex",
+              background: "var(--bg-primary, #101322)",
+              padding: "2px",
+              borderRadius: "20px",
+              border: "1px solid var(--border-light, #1c203b)",
+              fontSize: "0.75rem",
+            }}
           >
-            <LeecharrLogo size={32} />
-            <div>
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
-              >
-                <LeecharrText width={90} />
-                <span
-                  style={{
-                    fontSize: "0.75rem",
-                    padding: "0.15rem 0.5rem",
-                    borderRadius: "4px",
-                    backgroundColor: "rgba(255, 209, 102, 0.15)",
-                    color: "var(--accent, #ffd166)",
-                    fontWeight: 600,
-                  }}
-                >
-                  {t("gettingStarted.setupGuide")}
-                </span>
-              </div>
-              <div
-                id="getting-started-modal-title"
-                style={{
-                  fontSize: "0.8rem",
-                  color: "var(--text-muted)",
-                  marginTop: "2px",
-                }}
-              >
-                {STEPS[currentStep].title}
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={() => setMode("readonly")}
+              style={{
+                background:
+                  mode === "readonly"
+                    ? "var(--accent, #ffd166)"
+                    : "transparent",
+                color: mode === "readonly" ? "#0d0e17" : "var(--text-muted, #aaa)",
+                border: "none",
+                padding: "3px 10px",
+                borderRadius: "16px",
+                fontWeight: mode === "readonly" ? 600 : 400,
+                cursor: "pointer",
+                transition: "all 0.2s",
+              }}
+              title="Tour mode with example preview"
+            >
+              👁️ {t("gettingStarted.guideMode")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("interactive")}
+              style={{
+                background:
+                  mode === "interactive"
+                    ? "var(--accent, #ffd166)"
+                    : "transparent",
+                color:
+                  mode === "interactive" ? "#0d0e17" : "var(--text-muted, #aaa)",
+                border: "none",
+                padding: "3px 10px",
+                borderRadius: "16px",
+                fontWeight: mode === "interactive" ? 600 : 400,
+                cursor: "pointer",
+                transition: "all 0.2s",
+              }}
+              title="Live setup to test and save credentials"
+            >
+              ⚡ {t("gettingStarted.liveSetupMode")}
+            </button>
           </div>
 
-          <div
-            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
-          >
-            {/* Mode Switcher */}
-            {currentStep > 0 && currentStep < STEPS.length - 1 && (
-              <div
-                style={{
-                  display: "flex",
-                  backgroundColor: "rgba(0, 0, 0, 0.3)",
-                  borderRadius: "6px",
-                  padding: "2px",
-                  border: "1px solid var(--border-light, #1c203b)",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setMode("readonly")}
-                  style={{
-                    padding: "0.3rem 0.7rem",
-                    borderRadius: "4px",
-                    border: "none",
-                    fontSize: "0.75rem",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    backgroundColor: isReadOnly
-                      ? "var(--bg-card-hover, #23284b)"
-                      : "transparent",
-                    color: isReadOnly
-                      ? "var(--accent, #ffd166)"
-                      : "var(--text-muted)",
-                    transition: "all 0.2s",
-                  }}
-                >
-                  {t("gettingStarted.guideMode")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMode("interactive")}
-                  style={{
-                    padding: "0.3rem 0.7rem",
-                    borderRadius: "4px",
-                    border: "none",
-                    fontSize: "0.75rem",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    backgroundColor: !isReadOnly
-                      ? "var(--accent, #ffd166)"
-                      : "transparent",
-                    color: !isReadOnly ? "#0d0e17" : "var(--text-muted)",
-                    transition: "all 0.2s",
-                  }}
-                >
-                  {t("gettingStarted.liveSetupMode")}
-                </button>
-              </div>
-            )}
-
+          {/* Right Controls */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <LanguageSelector align="right" />
             <button
+              type="button"
               onClick={handleClose}
               style={{
                 background: "transparent",
                 border: "none",
                 color: "var(--text-muted)",
-                fontSize: "1.5rem",
+                fontSize: "1.25rem",
                 cursor: "pointer",
-                padding: "0.25rem 0.5rem",
+                padding: "0.2rem 0.4rem",
                 borderRadius: "4px",
                 lineHeight: 1,
               }}
@@ -432,228 +405,180 @@ export function GettingStartedModal({
           </div>
         </div>
 
-        {/* Step Progress Bar */}
+        {/* Step Indicator Breadcrumbs (Pill style matching Seedarr) */}
         <div
           style={{
             display: "flex",
-            borderBottom: "1px solid var(--border-light, #1c203b)",
-            backgroundColor: "rgba(0, 0, 0, 0.15)",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: "1.25rem",
+            paddingBottom: "0.75rem",
+            borderBottom:
+              "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+            gap: "0.25rem",
+            overflowX: "auto",
           }}
         >
           {STEPS.map((s, idx) => {
             const isActive = idx === currentStep;
             const isCompleted = idx < currentStep;
             return (
-              <div
+              <button
                 key={s.id}
+                type="button"
                 onClick={() => setCurrentStep(idx)}
                 style={{
-                  flex: 1,
-                  padding: "0.6rem 0.5rem",
-                  textAlign: "center",
-                  cursor: "pointer",
-                  fontSize: "0.75rem",
-                  fontWeight: isActive ? 700 : 500,
-                  color: isActive
+                  background: isActive
                     ? "var(--accent, #ffd166)"
                     : isCompleted
-                      ? "var(--success, #28a745)"
-                      : "var(--text-muted)",
-                  borderBottom: isActive
-                    ? "2px solid var(--accent, #ffd166)"
+                      ? "rgba(255, 255, 255, 0.08)"
+                      : "transparent",
+                  color: isActive
+                    ? "#0d0e17"
                     : isCompleted
-                      ? "2px solid var(--success, #28a745)"
-                      : "2px solid transparent",
-                  backgroundColor: isActive
-                    ? "rgba(255, 209, 102, 0.05)"
-                    : "transparent",
-                  transition: "all 0.2s",
+                      ? "var(--text-primary)"
+                      : "var(--text-muted)",
+                  border: "none",
+                  borderRadius: "12px",
+                  padding: "2px 8px",
+                  fontSize: "0.72rem",
+                  fontWeight: isActive ? 600 : 400,
+                  cursor: "pointer",
                   whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
+                  transition: "all 0.15s",
                 }}
               >
-                {isCompleted ? "✓ " : `${idx + 1}. `}
-                {s.shortName}
-              </div>
+                {t(s.shortNameKey)}
+              </button>
             );
           })}
+        </div>
+
+        {/* Modal Title */}
+        <div
+          id="getting-started-modal-title"
+          style={{
+            fontSize: "1.2rem",
+            marginBottom: "1.25rem",
+            color: "var(--text-primary)",
+            fontWeight: 600,
+          }}
+        >
+          {t(STEPS[currentStep].titleKey)}
         </div>
 
         {/* Body Content */}
         <div
           style={{
-            flex: 1,
-            overflowY: "auto",
-            padding: "1.5rem 2rem",
             display: "flex",
             flexDirection: "column",
-            gap: "1.25rem",
+            gap: "1rem",
           }}
         >
           {/* STEP 0: WELCOME */}
           {currentStep === 0 && (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "1.25rem",
-              }}
-            >
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "1.5rem 1rem",
-                  backgroundColor: "rgba(255, 209, 102, 0.04)",
-                  borderRadius: "10px",
-                  border: "1px solid rgba(255, 209, 102, 0.15)",
-                }}
-              >
+            <div style={{ textAlign: "center", padding: "0.5rem 0" }}>
+              <div style={{ marginBottom: "0.75rem" }}>
                 <LeecharrLogo size={72} />
-                <h2
-                  style={{
-                    fontSize: "1.5rem",
-                    fontWeight: 700,
-                    marginTop: "0.75rem",
-                    marginBottom: "0.5rem",
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  {t("gettingStarted.welcomeHeading")}
-                </h2>
-                <p
-                  style={{
-                    color: "var(--text-secondary)",
-                    maxWidth: "580px",
-                    margin: "0 auto",
-                    fontSize: "0.9rem",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {t("gettingStarted.welcomeDesc1")} <code>*arr</code>{" "}
-                  {t("gettingStarted.welcomeDesc2")}
-                </p>
               </div>
-
-              <div
+              <div style={{ marginBottom: "1.25rem" }}>
+                <LeecharrText width={140} />
+              </div>
+              <p
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(3, 1fr)",
-                  gap: "1rem",
+                  color: "var(--text-muted, #aaa)",
+                  fontSize: "0.9rem",
+                  lineHeight: 1.5,
+                  margin: "0 0 1.25rem",
                 }}
               >
-                <div
-                  className="card"
-                  style={{
-                    padding: "1rem",
-                    borderRadius: "8px",
-                    backgroundColor: "rgba(0, 0, 0, 0.2)",
-                    border: "1px solid var(--border-light, #1c203b)",
-                  }}
-                >
-                  <div style={{ fontSize: "1.5rem", marginBottom: "0.4rem" }}>
-                    ⚡
-                  </div>
-                  <div
-                    style={{
-                      fontWeight: 700,
-                      fontSize: "0.9rem",
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    {t("gettingStarted.port7889Title")}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "0.8rem",
-                      color: "var(--text-secondary)",
-                      marginTop: "4px",
-                    }}
-                  >
-                    {t("gettingStarted.port7889Desc")}
-                  </div>
-                </div>
+                {t("gettingStarted.welcomeDescription")}
+              </p>
 
-                <div
-                  className="card"
-                  style={{
-                    padding: "1rem",
-                    borderRadius: "8px",
-                    backgroundColor: "rgba(0, 0, 0, 0.2)",
-                    border: "1px solid var(--border-light, #1c203b)",
-                  }}
-                >
-                  <div style={{ fontSize: "1.5rem", marginBottom: "0.4rem" }}>
-                    🎬
-                  </div>
-                  <div
-                    style={{
-                      fontWeight: 700,
-                      fontSize: "0.9rem",
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    {t("gettingStarted.mediaEnrichmentTitle")}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "0.8rem",
-                      color: "var(--text-secondary)",
-                      marginTop: "4px",
-                    }}
-                  >
-                    {t("gettingStarted.mediaEnrichmentDesc")}
-                  </div>
-                </div>
-
-                <div
-                  className="card"
-                  style={{
-                    padding: "1rem",
-                    borderRadius: "8px",
-                    backgroundColor: "rgba(0, 0, 0, 0.2)",
-                    border: "1px solid var(--border-light, #1c203b)",
-                  }}
-                >
-                  <div style={{ fontSize: "1.5rem", marginBottom: "0.4rem" }}>
-                    🔍
-                  </div>
-                  <div
-                    style={{
-                      fontWeight: 700,
-                      fontSize: "0.9rem",
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    {t("gettingStarted.prowlarrSyncTitle")}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "0.8rem",
-                      color: "var(--text-secondary)",
-                      marginTop: "4px",
-                    }}
-                  >
-                    {t("gettingStarted.prowlarrSyncDesc")}
-                  </div>
-                </div>
-              </div>
-
+              {/* Overview Points Card matching Seedarr layout */}
               <div
                 style={{
-                  backgroundColor: "rgba(255, 209, 102, 0.08)",
-                  border: "1px solid rgba(255, 209, 102, 0.2)",
-                  borderRadius: "8px",
-                  padding: "0.9rem 1.2rem",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.6rem",
+                  textAlign: "left",
+                  backgroundColor: "rgba(0, 0, 0, 0.25)",
+                  padding: "0.9rem 1rem",
+                  borderRadius: "6px",
+                  border:
+                    "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+                  marginBottom: "1.25rem",
                   fontSize: "0.85rem",
-                  color: "var(--text-secondary)",
+                  lineHeight: 1.4,
                 }}
               >
-                💡 <strong>{t("gettingStarted.tipTitle")}</strong>{" "}
-                {t("gettingStarted.tipDesc")} <strong>Prowlarr</strong>,{" "}
-                <strong>Sonarr</strong>, <strong>Radarr</strong>{" "}
-                {t("gettingStarted.and")} <strong>Lidarr</strong>{" "}
-                {t("gettingStarted.tipConclusion")}
+                <div>
+                  <strong>1. Prowlarr:</strong> {t("gettingStarted.prowlarrSyncDesc")}
+                </div>
+                <div>
+                  <strong>2. Sonarr / Radarr / Lidarr:</strong>{" "}
+                  {t("gettingStarted.sonarrDescription")}
+                </div>
+                <div>
+                  <strong>3. Port 7889 & Metadata:</strong>{" "}
+                  {t("gettingStarted.port7889Desc")}
+                </div>
+              </div>
+
+              {/* Language Choice Selection Row */}
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  marginBottom: "1.25rem",
+                  padding: "0.3rem 0.75rem",
+                  backgroundColor: "rgba(0, 0, 0, 0.2)",
+                  borderRadius: "6px",
+                  border: "1px solid var(--border-light, #1c203b)",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "0.8rem",
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  🌐 {t("gettingStarted.selectLanguage")}:
+                </span>
+                <LanguageSelector showFullLabel={true} align="left" />
+              </div>
+
+              {/* Action Buttons matching Seedarr */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  gap: "0.75rem",
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-primary btn-small"
+                  onClick={() => {
+                    setMode("readonly");
+                    setCurrentStep(1);
+                  }}
+                  style={{ padding: "0.45rem 1.25rem" }}
+                >
+                  {t("gettingStarted.startExampleTour", "Start Example Tour →")}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-small"
+                  onClick={() => {
+                    setMode("interactive");
+                    setCurrentStep(1);
+                  }}
+                  style={{ padding: "0.45rem 1.25rem" }}
+                >
+                  ⚡ {t("gettingStarted.startLiveSetup", "Start Live Setup")}
+                </button>
               </div>
             </div>
           )}
@@ -695,7 +620,7 @@ export function GettingStartedModal({
                         marginBottom: "0.75rem",
                       }}
                     >
-                      {t("gettingStarted.prowlarrInstructions1")}
+                      {t("gettingStarted.prowlarrInstructionsCardTitle")}
                     </div>
                     <ol
                       style={{
@@ -708,27 +633,10 @@ export function GettingStartedModal({
                         gap: "0.5rem",
                       }}
                     >
-                      <li>
-                        {t("gettingStarted.prowlarrInstructions2")}{" "}
-                        <strong>
-                          {t("gettingStarted.prowlarrInstructions3")}
-                        </strong>{" "}
-                        {t("gettingStarted.prowlarrInstructions4")}{" "}
-                        <strong>{t("settings.apiKey")}</strong>.
-                      </li>
-                      <li>
-                        {t("gettingStarted.prowlarrInstructions5")}{" "}
-                        <strong>{t("gettingStarted.liveSetupMode")}</strong>{" "}
-                        {t("gettingStarted.prowlarrInstructions6")}{" "}
-                        <strong>{t("settings.indexers")}</strong>).
-                      </li>
-                      <li>{t("gettingStarted.prowlarrInstructions7")}</li>
-                      <li>
-                        {t("gettingStarted.next")}{" "}
-                        <strong>{t("gettingStarted.testConnection")}</strong>{" "}
-                        {t("gettingStarted.and")}{" "}
-                        <strong>{t("gettingStarted.saveAndContinue")}</strong>.
-                      </li>
+                      <li>{t("gettingStarted.prowlarrStep1")}</li>
+                      <li>{t("gettingStarted.prowlarrStep2")}</li>
+                      <li>{t("gettingStarted.prowlarrStep3")}</li>
+                      <li>{t("gettingStarted.prowlarrStep4")}</li>
                     </ol>
                   </div>
                 </div>
@@ -942,13 +850,10 @@ export function GettingStartedModal({
                         gap: "0.5rem",
                       }}
                     >
-                      <li>{t("gettingStarted.instructionsInSonarr")}</li>
-                      <li>{t("gettingStarted.instructionsSonarrSetup")}</li>
-                      <li>
-                        {t("gettingStarted.testConnection")}
-                        {" & "}
-                        {t("gettingStarted.saveAndContinue")}
-                      </li>
+                      <li>{t("gettingStarted.sonarrStep1")}</li>
+                      <li>{t("gettingStarted.sonarrStep2")}</li>
+                      <li>{t("gettingStarted.sonarrStep3")}</li>
+                      <li>{t("gettingStarted.sonarrStep4")}</li>
                     </ol>
                   </div>
                 </div>
@@ -1184,13 +1089,10 @@ export function GettingStartedModal({
                         gap: "0.5rem",
                       }}
                     >
-                      <li>{t("gettingStarted.instructionsInRadarr")}</li>
-                      <li>{t("gettingStarted.instructionsRadarrSetup")}</li>
-                      <li>
-                        {t("gettingStarted.testConnection")}
-                        {" & "}
-                        {t("gettingStarted.saveAndContinue")}
-                      </li>
+                      <li>{t("gettingStarted.radarrStep1")}</li>
+                      <li>{t("gettingStarted.radarrStep2")}</li>
+                      <li>{t("gettingStarted.radarrStep3")}</li>
+                      <li>{t("gettingStarted.radarrStep4")}</li>
                     </ol>
                   </div>
                 </div>
@@ -1426,13 +1328,10 @@ export function GettingStartedModal({
                         gap: "0.5rem",
                       }}
                     >
-                      <li>{t("gettingStarted.instructionsInLidarr")}</li>
-                      <li>{t("gettingStarted.instructionsLidarrSetup")}</li>
-                      <li>
-                        {t("gettingStarted.testConnection")}
-                        {" & "}
-                        {t("gettingStarted.saveAndContinue")}
-                      </li>
+                      <li>{t("gettingStarted.lidarrStep1")}</li>
+                      <li>{t("gettingStarted.lidarrStep2")}</li>
+                      <li>{t("gettingStarted.lidarrStep3")}</li>
+                      <li>{t("gettingStarted.lidarrStep4")}</li>
                     </ol>
                   </div>
                 </div>
@@ -1700,49 +1599,70 @@ export function GettingStartedModal({
           )}
         </div>
 
-        {/* Footer */}
+        {/* Bottom Footer: "Don't show this guide on startup" & Step indicator */}
         <div
           style={{
-            padding: "1rem 1.75rem",
-            borderTop: "1px solid var(--border-light, #1c203b)",
             display: "flex",
-            alignItems: "center",
             justifyContent: "space-between",
-            backgroundColor: "rgba(0, 0, 0, 0.2)",
+            alignItems: "center",
+            marginTop: "1.25rem",
+            paddingTop: "0.75rem",
+            borderTop:
+              "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+            fontSize: "0.8rem",
+            color: "var(--text-muted)",
           }}
         >
           <label
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "0.5rem",
-              fontSize: "0.8rem",
-              color: "var(--text-muted)",
+              gap: "0.4rem",
               cursor: "pointer",
+              userSelect: "none",
             }}
           >
             <input
               type="checkbox"
               checked={dontShowAgain}
               onChange={(e) => handleDontShowChange(e.target.checked)}
+              style={{
+                cursor: "pointer",
+                accentColor: "var(--accent, #ffd166)",
+              }}
             />
-            {t("gettingStarted.dontShowAgain")}
+            <span>{t("gettingStarted.dontShowAgain")}</span>
           </label>
 
-          <div style={{ display: "flex", gap: "0.75rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span style={{ marginRight: "0.25rem" }}>
+              {t("gettingStarted.stepCount", "Step {{current}} of {{total}}", {
+                current: currentStep + 1,
+                total: STEPS.length,
+              })}
+            </span>
             {currentStep > 0 && (
               <button
+                type="button"
                 className="btn btn-secondary btn-small"
                 onClick={handlePrev}
+                style={{ padding: "0.25rem 0.6rem", fontSize: "0.75rem" }}
               >
                 {t("gettingStarted.previous")}
               </button>
             )}
-            <button className="btn btn-primary btn-small" onClick={handleNext}>
-              {currentStep === STEPS.length - 1
-                ? t("gettingStarted.finishAndClose")
-                : t("gettingStarted.next")}
-            </button>
+            {currentStep > 0 && (
+              <button
+                type="button"
+                className="btn btn-primary btn-small"
+                onClick={handleNext}
+                style={{ padding: "0.25rem 0.6rem", fontSize: "0.75rem" }}
+              >
+                {currentStep === STEPS.length - 1
+                  ? t("gettingStarted.finishAndClose")
+                  : t("gettingStarted.next")}
+              </button>
+            )}
           </div>
         </div>
       </div>

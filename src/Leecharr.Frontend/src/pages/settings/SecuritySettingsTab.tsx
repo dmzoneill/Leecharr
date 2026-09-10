@@ -189,7 +189,7 @@ export function SecuritySettingsTab() {
       return;
     }
 
-    if (revealedApiKey || !form.apiKey.includes("*")) {
+    if (revealedApiKey || (!form.apiKey.includes("*") && form.apiKey)) {
       setShowApiKey(true);
       return;
     }
@@ -197,8 +197,10 @@ export function SecuritySettingsTab() {
     try {
       setLoadingApiKey(true);
       const res = await api.getApiKey();
-      setRevealedApiKey(res.apiKey);
-      setShowApiKey(true);
+      if (res?.apiKey) {
+        setRevealedApiKey(res.apiKey);
+        setShowApiKey(true);
+      }
     } catch (_err) {
       toast?.showToast(
         t("settingsTabs.batch2.failedToRetrieveUnmaskedApiKey"),
@@ -220,7 +222,7 @@ export function SecuritySettingsTab() {
 
     try {
       let keyToCopy = form.apiKey;
-      if (revealedApiKey && form.apiKey.includes("*")) {
+      if (revealedApiKey) {
         keyToCopy = revealedApiKey;
       } else if (!keyToCopy || keyToCopy.includes("*")) {
         const res = await api.getApiKey();
@@ -228,7 +230,7 @@ export function SecuritySettingsTab() {
         setRevealedApiKey(res.apiKey);
       }
 
-      if (!keyToCopy) {
+      if (!keyToCopy || keyToCopy.includes("*")) {
         toast?.showToast(t("settingsTabs.batch2.noApiKeyAvailable"), "error");
         return;
       }
@@ -647,17 +649,11 @@ export function SecuritySettingsTab() {
             <div style={{ flex: 1 }}>
               <TextInput
                 label={t("settingsTabs.batch2.apiKey")}
-                type={
-                  showApiKey
-                    ? "text"
-                    : form.apiKey.includes("*")
-                      ? "text"
-                      : "password"
-                }
+                type={showApiKey ? "text" : "password"}
                 value={
-                  showApiKey && revealedApiKey && form.apiKey.includes("*")
-                    ? revealedApiKey
-                    : form.apiKey
+                  showApiKey
+                    ? (revealedApiKey || (form.apiKey.includes("*") ? "" : form.apiKey))
+                    : (revealedApiKey || form.apiKey)
                 }
                 onChange={(v) => {
                   setRevealedApiKey(null);
