@@ -42,7 +42,7 @@ export function applySmartFallback(
 
 export function getArrInstanceUrl(
   source: string | null | undefined,
-  connections: ArrConnection[] | undefined,
+  connections?: ArrConnection[] | null,
 ): string | null {
   if (!source || !connections) return null;
   const cleanedSource = source.toLowerCase();
@@ -62,6 +62,11 @@ export function getArrInstanceUrl(
   return applySmartFallback(targetUrl);
 }
 
+function cleanedSourceToLabel(source?: string | null): string {
+  if (!source) return "Arr";
+  return source.charAt(0).toUpperCase() + source.slice(1);
+}
+
 export function getMediaDeepLink(
   item:
     | DownloadHistoryEntry
@@ -70,7 +75,7 @@ export function getMediaDeepLink(
         metadata?: MediaMetadata | null;
         title?: string;
       },
-  connections: ArrConnection[] | undefined,
+  connections?: ArrConnection[] | null,
 ): { url: string; label: string; appName: string } | null {
   const instanceUrl = getArrInstanceUrl(item.source, connections);
   if (!instanceUrl) return null;
@@ -99,32 +104,38 @@ export function getMediaDeepLink(
     };
   }
 
-  if (
-    mediaType.includes("lidarr") ||
-    mediaType === "album" ||
-    mediaType === "artist"
-  ) {
+  if (mediaType.includes("lidarr") || mediaType === "artist" || mediaType === "music") {
     return {
       url: mediaId
-        ? `${instanceUrl}/album/${mediaId}`
+        ? `${instanceUrl}/artist/${mediaId}`
         : `${instanceUrl}/activity/history`,
       label: "Open in Lidarr",
       appName: "Lidarr",
     };
   }
 
+  if (mediaType.includes("readarr") || mediaType === "author" || mediaType === "book") {
+    return {
+      url: mediaId
+        ? `${instanceUrl}/author/${mediaId}`
+        : `${instanceUrl}/activity/history`,
+      label: "Open in Readarr",
+      appName: "Readarr",
+    };
+  }
+
   return {
     url: instanceUrl,
-    label: `Open in ${item.source}`,
-    appName: item.source || "Arr",
+    label: `Open in ${cleanedSourceToLabel(item.source)}`,
+    appName: cleanedSourceToLabel(item.source),
   };
 }
 
 export function getProwlarrUrl(
-  indexers: IndexerDefinition[] | undefined,
+  indexers?: IndexerDefinition[] | null,
   query?: string,
 ): string | null {
-  if (!indexers) return null;
+  if (!indexers || !Array.isArray(indexers)) return null;
   const prowlarr = indexers.find(
     (i) =>
       i.enable &&
