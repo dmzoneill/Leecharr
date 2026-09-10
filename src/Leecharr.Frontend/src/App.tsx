@@ -1037,7 +1037,7 @@ export function App() {
               title={t("nav.support", "Support & Donate")}
               aria-label="Support and Donate"
             >
-              <HeartIcon size={14} />
+              <HeartIcon size={15} />
             </a>
 
             {currentUser?.isAuthenticated && (
