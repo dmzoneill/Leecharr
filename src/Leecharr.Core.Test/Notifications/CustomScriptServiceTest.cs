@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -274,6 +275,59 @@ public class CustomScriptServiceTest
     }
 
     [Test]
+    public void ParseSettings_WithQuotedPath_TrimsSurroundingQuotes()
+    {
+        var quoted = "\"\"/opt/scripts/notify.sh\"\"";
+        var (path, args) = CustomScriptService.ParseSettings(quoted);
+
+        path.Should().Be("/opt/scripts/notify.sh");
+        args.Should().BeNull();
+    }
+
+    [Test]
+    public void ParseSettings_WithJsonContainingQuotedPath_TrimsSurroundingQuotes()
+    {
+        var json = "{\"path\": \"\\\"/opt/scripts/notify.sh\\\"\", \"arguments\": \"--arg\"}";
+        var (path, args) = CustomScriptService.ParseSettings(json);
+
+        path.Should().Be("/opt/scripts/notify.sh");
+        args.Should().Be("--arg");
+    }
+
+    [Test]
+    public void ResolveInterpreter_ResolvesRubyPerlNodePhp()
+    {
+        var (rbFile, _) = CustomScriptService.ResolveInterpreter("/scripts/run.rb", string.Empty);
+        var (plFile, _) = CustomScriptService.ResolveInterpreter("/scripts/run.pl", string.Empty);
+        var (jsFile, _) = CustomScriptService.ResolveInterpreter("/scripts/run.js", string.Empty);
+        var (phpFile, _) = CustomScriptService.ResolveInterpreter("/scripts/run.php", string.Empty);
+
+        rbFile.Should().Be("ruby");
+        plFile.Should().Be("perl");
+        jsFile.Should().Be("node");
+        phpFile.Should().Be("php");
+    }
+
+    [Test]
+    public void BuildEnvironmentVariables_IncludesEventTypeAndTagsAndSavePath()
+    {
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "Sample.Torrent",
+            SavePath = "/downloads/sample",
+            TagIds = new List<int> { 1, 2, 3 },
+        };
+
+        var env = CustomScriptService.BuildEnvironmentVariables("OnDownloadComplete", torrent);
+
+        env["LEECHARR_EVENT_TYPE"].Should().Be("OnDownloadComplete");
+        env["LEECHARR_EVENTTYPE"].Should().Be("OnDownloadComplete");
+        env["LEECHARR_TORRENT_SAVEPATH"].Should().Be("/downloads/sample");
+        env["LEECHARR_TORRENT_TAGS"].Should().Be("1,2,3");
+    }
+
+    [Test]
     public void ParseSettings_WithQueryString_ExtractsPathAndArguments()
     {
         var qs = "path=%2Fopt%2Fscripts%2Fnotify.sh&arguments=--foo%20--bar";
@@ -298,13 +352,25 @@ public class CustomScriptServiceTest
     public async Task ExecuteScriptAsync_WithJsonSettingsDirectly_ParsesAndExecutes()
     {
         var script = OperatingSystem.IsWindows()
-            ? "@echo off\r\necho JSON Success\r\nexit /b 0"
-            : "#!/bin/sh\necho \"JSON Success\"\nexit 0\n";
+            ? "@echo off\r\necho JSON Settings OK"
+            : "#!/bin/sh\necho JSON Settings OK";
+        var ext = OperatingSystem.IsWindows() ? ".cmd" : ".sh";
+        var scriptPath = Path.Combine(this.tempDirectory, "json_settings_test" + ext);
+        File.WriteAllText(scriptPath, script);
 
-        var scriptPath = this.CreateExecutableScript(script);
-        var jsonSettings = $"{{\"path\": \"{scriptPath.Replace("\\", "\\\\")}\", \"arguments\": \"--test\"}}";
+        if (!OperatingSystem.IsWindows())
+        {
+            try
+            {
+                File.SetUnixFileMode(scriptPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            }
+            catch
+            {
+            }
+        }
 
-        var result = await this.service.ExecuteScriptAsync(jsonSettings, new Torrent { Id = 1 }, "OnGrab");
+        var jsonSettings = $"{{\"path\":\"{scriptPath.Replace("\\", "\\\\")}\"}}";
+        var result = await this.service.ExecuteScriptAsync(jsonSettings, null, "OnDownloadComplete");
         result.Should().BeTrue();
     }
 }

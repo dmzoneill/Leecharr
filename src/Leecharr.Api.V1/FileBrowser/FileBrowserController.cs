@@ -288,18 +288,24 @@ public class FileBrowserController : Controller
             global::System.IO.Directory.CreateDirectory(targetDir);
         }
 
-        var files = this.Request.Form.Files;
-        if (files == null || files.Count == 0)
+        if (this.Request?.HasFormContentType != true || this.Request.Form?.Files == null || this.Request.Form.Files.Count == 0)
         {
             return this.BadRequest(new { Message = "No files uploaded." });
         }
 
+        var files = this.Request.Form.Files;
         var uploaded = new List<string>();
         foreach (var file in files)
         {
             if (file.Length > 0)
             {
-                var targetFile = Path.Combine(targetDir, Path.GetFileName(file.FileName));
+                var cleanFileName = Path.GetFileName(file.FileName);
+                if (string.IsNullOrWhiteSpace(cleanFileName) || cleanFileName.Contains('\0'))
+                {
+                    continue;
+                }
+
+                var targetFile = Path.Combine(targetDir, cleanFileName);
                 using var stream = new FileStream(targetFile, FileMode.Create, FileAccess.Write, FileShare.None);
                 await file.CopyToAsync(stream);
                 uploaded.Add(targetFile);

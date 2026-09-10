@@ -85,6 +85,23 @@ public class CategoryService : ICategoryService
             throw new ArgumentNullException(nameof(category));
         }
 
+        if (string.IsNullOrWhiteSpace(category.Name))
+        {
+            throw new ArgumentException("Category name is required.", nameof(category));
+        }
+
+        if (category.DefaultUploadLimit < 0 || category.DefaultDownloadLimit < 0 ||
+            category.TargetRatio < 0 || category.TargetSeedTimeMinutes < 0)
+        {
+            throw new ArgumentException("Category limits and seed targets must be non-negative.", nameof(category));
+        }
+
+        category.Name = category.Name.Trim();
+        if (category.SavePath != null)
+        {
+            category.SavePath = category.SavePath.Trim();
+        }
+
         this.logger.Info("Adding category: {0}", category.Name);
         if (category.IsDefault)
         {
@@ -101,6 +118,23 @@ public class CategoryService : ICategoryService
         if (category == null)
         {
             throw new ArgumentNullException(nameof(category));
+        }
+
+        if (string.IsNullOrWhiteSpace(category.Name))
+        {
+            throw new ArgumentException("Category name is required.", nameof(category));
+        }
+
+        if (category.DefaultUploadLimit < 0 || category.DefaultDownloadLimit < 0 ||
+            category.TargetRatio < 0 || category.TargetSeedTimeMinutes < 0)
+        {
+            throw new ArgumentException("Category limits and seed targets must be non-negative.", nameof(category));
+        }
+
+        category.Name = category.Name.Trim();
+        if (category.SavePath != null)
+        {
+            category.SavePath = category.SavePath.Trim();
         }
 
         this.logger.Info("Updating category: {0}", category.Name);

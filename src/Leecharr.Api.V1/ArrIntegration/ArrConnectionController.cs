@@ -13,6 +13,7 @@ using NzbDrone.Core.ArrIntegration;
 namespace Leecharr.Api.V1.ArrIntegration;
 
 [V1ApiController("arrconnections")]
+[Route("api/v1/arrconnection")]
 public class ArrConnectionController : Controller
 {
     private static readonly HttpClient HttpClient = new() { Timeout = TimeSpan.FromSeconds(10) };
@@ -50,6 +51,11 @@ public class ArrConnectionController : Controller
             return this.BadRequest();
         }
 
+        if (string.IsNullOrWhiteSpace(resource.Name))
+        {
+            return this.BadRequest("Connection name is required.");
+        }
+
         var model = ToModel(resource);
         var created = this.repository.Insert(model);
         return this.Ok(ToResource(created));
@@ -61,6 +67,11 @@ public class ArrConnectionController : Controller
         if (resource == null)
         {
             return this.BadRequest();
+        }
+
+        if (string.IsNullOrWhiteSpace(resource.Name))
+        {
+            return this.BadRequest("Connection name is required.");
         }
 
         var existing = this.repository.Get(id);

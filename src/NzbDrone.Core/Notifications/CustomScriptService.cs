@@ -49,8 +49,9 @@ public class CustomScriptService : ICustomScriptService
 
     internal static (string FileName, string Arguments) ResolveInterpreter(string scriptPath, string arguments)
     {
-        var ext = Path.GetExtension(scriptPath).ToLowerInvariant();
-        var args = arguments ?? string.Empty;
+        var cleanPath = scriptPath?.Trim()?.Trim('"', '\'') ?? string.Empty;
+        var ext = Path.GetExtension(cleanPath).ToLowerInvariant();
+        var args = arguments?.Trim() ?? string.Empty;
 
         if (OperatingSystem.IsWindows())
         {
@@ -58,14 +59,22 @@ public class CustomScriptService : ICustomScriptService
             {
                 case ".bat":
                 case ".cmd":
-                    return ("cmd.exe", $"/c \"{scriptPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
+                    return ("cmd.exe", $"/c \"{cleanPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
                 case ".py":
                 case ".pyw":
-                    return ("python", $"\"{scriptPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
+                    return ("python", $"\"{cleanPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
                 case ".ps1":
-                    return ("powershell.exe", $"-ExecutionPolicy Bypass -File \"{scriptPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
+                    return ("powershell.exe", $"-ExecutionPolicy Bypass -File \"{cleanPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
+                case ".rb":
+                    return ("ruby", $"\"{cleanPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
+                case ".pl":
+                    return ("perl", $"\"{cleanPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
+                case ".js":
+                    return ("node", $"\"{cleanPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
+                case ".php":
+                    return ("php", $"\"{cleanPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
                 default:
-                    return (scriptPath, args);
+                    return (cleanPath, args);
             }
         }
         else
@@ -73,14 +82,24 @@ public class CustomScriptService : ICustomScriptService
             switch (ext)
             {
                 case ".sh":
-                    return ("/bin/sh", $"\"{scriptPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
+                    return ("/bin/sh", $"\"{cleanPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
                 case ".bash":
-                    return ("/bin/bash", $"\"{scriptPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
+                    return ("/bin/bash", $"\"{cleanPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
                 case ".py":
                 case ".pyw":
-                    return ("python3", $"\"{scriptPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
+                    return ("python3", $"\"{cleanPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
+                case ".ps1":
+                    return ("pwsh", $"-File \"{cleanPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
+                case ".rb":
+                    return ("ruby", $"\"{cleanPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
+                case ".pl":
+                    return ("perl", $"\"{cleanPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
+                case ".js":
+                    return ("node", $"\"{cleanPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
+                case ".php":
+                    return ("php", $"\"{cleanPath}\" {(string.IsNullOrWhiteSpace(args) ? string.Empty : args)}".TrimEnd());
                 default:
-                    return (scriptPath, args);
+                    return (cleanPath, args);
             }
         }
     }
@@ -112,6 +131,7 @@ public class CustomScriptService : ICustomScriptService
         if (key.StartsWith("LEECHARR_TORRENT_", StringComparison.OrdinalIgnoreCase) ||
             key.StartsWith("LEECHARR_MEDIA_", StringComparison.OrdinalIgnoreCase) ||
             key.Equals("LEECHARR_EVENT_TYPE", StringComparison.OrdinalIgnoreCase) ||
+            key.Equals("LEECHARR_EVENTTYPE", StringComparison.OrdinalIgnoreCase) ||
             key.StartsWith("TR_", StringComparison.OrdinalIgnoreCase) ||
             key.StartsWith("TORRENT_", StringComparison.OrdinalIgnoreCase))
         {
@@ -146,6 +166,7 @@ public class CustomScriptService : ICustomScriptService
         var env = new Dictionary<string, string>
         {
             ["LEECHARR_EVENT_TYPE"] = eventType ?? string.Empty,
+            ["LEECHARR_EVENTTYPE"] = eventType ?? string.Empty,
         };
 
         if (torrent != null)
@@ -155,15 +176,23 @@ public class CustomScriptService : ICustomScriptService
             env["TORRENT_INFOHASH"] = torrent.InfoHash ?? string.Empty;
             env["TORRENT_CATEGORY"] = torrent.Category ?? string.Empty;
             env["TORRENT_PATH"] = torrent.SavePath ?? string.Empty;
+            env["TORRENT_SAVEPATH"] = torrent.SavePath ?? string.Empty;
             env["TORRENT_SIZE"] = torrent.TotalSize.ToString(CultureInfo.InvariantCulture);
             env["TORRENT_RATIO"] = torrent.Ratio.ToString("F2", CultureInfo.InvariantCulture);
             env["TORRENT_STATUS"] = torrent.Status.ToString();
+
+            if (torrent.TagIds != null && torrent.TagIds.Count > 0)
+            {
+                env["TORRENT_TAGS"] = string.Join(",", torrent.TagIds);
+                env["LEECHARR_TORRENT_TAGS"] = string.Join(",", torrent.TagIds);
+            }
 
             env["LEECHARR_TORRENT_ID"] = torrent.Id.ToString(CultureInfo.InvariantCulture);
             env["LEECHARR_TORRENT_NAME"] = torrent.Name ?? string.Empty;
             env["LEECHARR_TORRENT_INFOHASH"] = torrent.InfoHash ?? string.Empty;
             env["LEECHARR_TORRENT_CATEGORY"] = torrent.Category ?? string.Empty;
             env["LEECHARR_TORRENT_PATH"] = torrent.SavePath ?? string.Empty;
+            env["LEECHARR_TORRENT_SAVEPATH"] = torrent.SavePath ?? string.Empty;
             env["LEECHARR_TORRENT_SIZE"] = torrent.TotalSize.ToString(CultureInfo.InvariantCulture);
             env["LEECHARR_TORRENT_RATIO"] = torrent.Ratio.ToString("F2", CultureInfo.InvariantCulture);
             env["LEECHARR_TORRENT_STATUS"] = torrent.Status.ToString();
@@ -235,7 +264,8 @@ public class CustomScriptService : ICustomScriptService
 
                 if (!string.IsNullOrWhiteSpace(path))
                 {
-                    return (path, string.IsNullOrWhiteSpace(arguments) ? null : arguments);
+                    var cleanPath = path.Trim().Trim('"', '\'');
+                    return (cleanPath, string.IsNullOrWhiteSpace(arguments) ? null : arguments.Trim());
                 }
             }
             catch
@@ -249,24 +279,24 @@ public class CustomScriptService : ICustomScriptService
             var matchPath = System.Text.RegularExpressions.Regex.Match(trimmed, @"path=([^&]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
             if (matchPath.Success)
             {
-                var path = Uri.UnescapeDataString(matchPath.Groups[1].Value);
+                var path = Uri.UnescapeDataString(matchPath.Groups[1].Value).Trim().Trim('"', '\'');
                 string args = null;
                 var matchArgs = System.Text.RegularExpressions.Regex.Match(trimmed, @"arguments=([^&]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
                 if (matchArgs.Success)
                 {
-                    args = Uri.UnescapeDataString(matchArgs.Groups[1].Value);
+                    args = Uri.UnescapeDataString(matchArgs.Groups[1].Value).Trim();
                 }
 
                 return (path, string.IsNullOrWhiteSpace(args) ? null : args);
             }
         }
 
-        return (trimmed, null);
+        return (trimmed.Trim('"', '\''), null);
     }
 
     public async Task<bool> ExecuteScriptAsync(string scriptPath, Torrent torrent, string eventType, string arguments = null)
     {
-        var resolvedScriptPath = scriptPath;
+        var resolvedScriptPath = scriptPath?.Trim()?.Trim('"', '\'');
         var resolvedArguments = arguments;
 
         if (!string.IsNullOrWhiteSpace(scriptPath) && scriptPath.TrimStart().StartsWith("{", StringComparison.Ordinal))

@@ -70,12 +70,23 @@ public class SpeedScheduleController : RestControllerWithSignalR<SpeedScheduleRe
             return this.BadRequest();
         }
 
+        if (string.IsNullOrWhiteSpace(resource.Name))
+        {
+            return this.BadRequest("Schedule name is required.");
+        }
+
+        if (resource.MaxDownloadSpeed < 0 || resource.MaxUploadSpeed < 0)
+        {
+            return this.BadRequest("Speed limits must be non-negative.");
+        }
+
         if (!TimeOnly.TryParse(resource.StartTime, CultureInfo.InvariantCulture, out _) ||
             !TimeOnly.TryParse(resource.EndTime, CultureInfo.InvariantCulture, out _))
         {
             return this.BadRequest("StartTime and EndTime must be valid times.");
         }
 
+        resource.Name = resource.Name.Trim();
         var model = ToModel(resource);
         var created = this.speedScheduleRepository.Insert(model);
         await this.speedSchedulerService.ApplyCurrentLimitsAsync();
@@ -90,6 +101,16 @@ public class SpeedScheduleController : RestControllerWithSignalR<SpeedScheduleRe
             return this.BadRequest();
         }
 
+        if (string.IsNullOrWhiteSpace(resource.Name))
+        {
+            return this.BadRequest("Schedule name is required.");
+        }
+
+        if (resource.MaxDownloadSpeed < 0 || resource.MaxUploadSpeed < 0)
+        {
+            return this.BadRequest("Speed limits must be non-negative.");
+        }
+
         if (!TimeOnly.TryParse(resource.StartTime, CultureInfo.InvariantCulture, out _) ||
             !TimeOnly.TryParse(resource.EndTime, CultureInfo.InvariantCulture, out _))
         {
@@ -102,6 +123,7 @@ public class SpeedScheduleController : RestControllerWithSignalR<SpeedScheduleRe
             return this.NotFound();
         }
 
+        resource.Name = resource.Name.Trim();
         var model = ToModel(resource);
         model.Id = id;
         this.speedScheduleRepository.Update(model);
