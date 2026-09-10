@@ -1001,7 +1001,10 @@ export function GettingStartedModal({
                     placeholder="http://localhost:8989"
                   />
                   <TextInput
-                    label={t("gettingStarted.externalUrl", "Public / External URL (Optional)")}
+                    label={t(
+                      "gettingStarted.externalUrl",
+                      "Public / External URL (Optional)",
+                    )}
                     value={sonarrForm.externalUrl || ""}
                     onChange={(v) => {
                       setSonarrForm({
@@ -1240,7 +1243,10 @@ export function GettingStartedModal({
                     placeholder="http://localhost:7878"
                   />
                   <TextInput
-                    label={t("gettingStarted.externalUrl", "Public / External URL (Optional)")}
+                    label={t(
+                      "gettingStarted.externalUrl",
+                      "Public / External URL (Optional)",
+                    )}
                     value={radarrForm.externalUrl || ""}
                     onChange={(v) => {
                       setRadarrForm({
@@ -1479,7 +1485,10 @@ export function GettingStartedModal({
                     placeholder="http://localhost:8686"
                   />
                   <TextInput
-                    label={t("gettingStarted.externalUrl", "Public / External URL (Optional)")}
+                    label={t(
+                      "gettingStarted.externalUrl",
+                      "Public / External URL (Optional)",
+                    )}
                     value={lidarrForm.externalUrl || ""}
                     onChange={(v) => {
                       setLidarrForm({

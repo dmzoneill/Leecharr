@@ -124,4 +124,3 @@ export function AddTorrentModal({
 }
 
 export default AddTorrentModal;
-

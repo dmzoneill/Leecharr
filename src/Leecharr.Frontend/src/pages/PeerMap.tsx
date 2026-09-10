@@ -144,7 +144,10 @@ function PeerMap() {
     const numPeers = nodes.filter((n) => n.type === "peer").length;
 
     const totalNodes = Math.max(1, nodes.length);
-    const swarmScale = Math.min(1, Math.max(0.15, 36 / Math.sqrt(totalNodes * 20)));
+    const swarmScale = Math.min(
+      1,
+      Math.max(0.15, 36 / Math.sqrt(totalNodes * 20)),
+    );
 
     // Dynamic radius based on torrent count to avoid cluster overlap
     const baseTorrentRadius = Math.max(
