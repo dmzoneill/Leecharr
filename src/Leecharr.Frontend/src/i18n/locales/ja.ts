@@ -201,7 +201,12 @@ const ja: I18nTranslations = {
     "quickSearch": "クイック検索",
     "switchLanguage": "言語を切り替える",
     "browseFiles": "ファイルを参照する",
-    "openTerminal": "ターミナルを開く"
+    "openTerminal": "ターミナルを開く",
+    "systemStatus": "システムステータス",
+    "themeLight": "ライトモードに切り替える",
+    "themeDark": "ダークモードに切り替える",
+    "support": "サポートと寄付",
+    "commandPalette": "コマンドパレット (Ctrl+K)"
   },
   "dashboard": {
     "level": "レベル",
@@ -650,7 +655,8 @@ const ja: I18nTranslations = {
       "noMagnetDesc": "マグネットディスクなし",
       "noFilterMatchesDesc": "説明に一致するフィルターはありません",
       "noTorrentsDesc": "トレントの説明はありません"
-    }
+    },
+    "filterState": "フィルター状態"
   },
   "torrentDetail": {
     "overview": "概要",
@@ -837,6 +843,7 @@ const ja: I18nTranslations = {
   },
   "history": {
     "title": "ダウンロード履歴",
+    "downloadFile": "ファイルをダウンロード",
     "historicalDownloads": "完了済みおよび過去のダウンロード",
     "postersView": "ポスターギャラリー",
     "tableView": "テーブル表示",
@@ -905,6 +912,17 @@ const ja: I18nTranslations = {
     "filterByGenre": "ジャンルで絞り込む",
     "alreadyInLibrary": "すでに図書館にあります",
     "torrentAddedSuccess": "トレントの追加に成功しました",
+    "export": "輸出",
+    "exportDownloaded": "エクスポートが正常にダウンロードされました",
+    "copiedToClipboard": "エクスポートデータをクリップボードにコピーしました",
+    "copyFailed": "クリップボードへのコピーに失敗しました",
+    "exportHistoryTitle": "ダウンロード履歴のエクスポート",
+    "exportFormat": "エクスポート形式",
+    "includeEnrichedMetadata": "強化されたメタデータを含める",
+    "exportPreview": "エクスポートプレビュー",
+    "copyToClipboard": "クリップボードにコピー",
+    "filterStartDate": "開始日",
+    "filterEndDate": "終了日",
     "imdb": "Imdb",
     "tmdb": "Tmdb"
   },
@@ -3348,12 +3366,12 @@ const ja: I18nTranslations = {
     "dontShowAgain": "二度と表示しないでください",
     "previous": "前の",
     "finishAndClose": "終了して終了",
-    "webhookHostHintSonarr": "Webhook ホスト ヒント ソナー",
-    "webhookHostHintRadarr": "Webhook ホスト ヒント レーダー",
-    "webhookHostHintLidarr": "Webhook ホスト ヒント Lidarr",
     "startExampleTour": "サンプルツアーを開始 →",
     "startLiveSetup": "ライブセットアップを開始する",
-    "stepCount": "{{total}} のステップ {{current}}"
+    "stepCount": "{{total}} のステップ {{current}}",
+    "webhookHostHintSonarr": "Webhook ホスト ヒント ソナー",
+    "webhookHostHintRadarr": "Webhook ホスト ヒント レーダー",
+    "webhookHostHintLidarr": "Webhook ホスト ヒント Lidarr"
   },
   "promptModal": {
     "defaultTitle": "デフォルトのタイトル",
@@ -3564,6 +3582,9 @@ const ja: I18nTranslations = {
     "enterUserAndPass": "ユーザーとパスを入力してください",
     "invalidCredentials": "無効な認証情報",
     "signInWithProvider": "プロバイダーでサインインする"
+  },
+  "topbar": {
+    "searchPlaceholder": "クイックジャンプ/検索... (Ctrl+K)"
   }
 };
 
