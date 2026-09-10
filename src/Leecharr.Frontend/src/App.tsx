@@ -281,19 +281,39 @@ export function App() {
   const { showToast } = useToast();
   const { theme, toggleTheme } = useTheme();
   const { confirmIfDirty } = useSettingsDirty();
+  const [showTopApiKey, setShowTopApiKey] = useState(false);
+  const [unmaskedTopApiKey, setUnmaskedTopApiKey] = useState<string | null>(null);
+
+  const fetchUnmaskedTopKey = useCallback(async () => {
+    if (unmaskedTopApiKey) return unmaskedTopApiKey;
+    try {
+      const res = await api.getApiKey();
+      if (res?.apiKey) {
+        setUnmaskedTopApiKey(res.apiKey);
+        return res.apiKey;
+      }
+    } catch {
+      // Fallback
+    }
+    return generalConfig?.apiKey || "";
+  }, [generalConfig?.apiKey, unmaskedTopApiKey]);
 
   const handleCopyApiKey = useCallback(async () => {
     try {
-      let keyToCopy = generalConfig?.apiKey;
+      let keyToCopy = unmaskedTopApiKey;
       if (!keyToCopy || keyToCopy.includes("*")) {
-        const res = await api.getApiKey();
-        keyToCopy = res.apiKey;
+        keyToCopy = await fetchUnmaskedTopKey();
       }
-      if (keyToCopy) {
+      if (keyToCopy && !keyToCopy.includes("*")) {
         await navigator.clipboard.writeText(keyToCopy);
         showToast(
           t("settings.apiKeyCopied", "API key copied to clipboard"),
           "success",
+        );
+      } else {
+        showToast(
+          t("settings.failedToCopyApiKey", "Failed to copy API key to clipboard"),
+          "error",
         );
       }
     } catch {
@@ -302,7 +322,18 @@ export function App() {
         "error",
       );
     }
-  }, [generalConfig?.apiKey, showToast, t]);
+  }, [fetchUnmaskedTopKey, showToast, t, unmaskedTopApiKey]);
+
+  const handleMouseEnterTopKey = useCallback(async () => {
+    setShowTopApiKey(true);
+    if (!unmaskedTopApiKey) {
+      await fetchUnmaskedTopKey();
+    }
+  }, [fetchUnmaskedTopKey, unmaskedTopApiKey]);
+
+  const handleMouseLeaveTopKey = useCallback(() => {
+    setShowTopApiKey(false);
+  }, []);
 
   const guardedNavigate = useCallback(
     (to: string) => {
@@ -953,14 +984,25 @@ export function App() {
               type="button"
               className="topbar-apikey-btn"
               onClick={handleCopyApiKey}
+              onMouseEnter={handleMouseEnterTopKey}
+              onMouseLeave={handleMouseLeaveTopKey}
               title={t(
                 "apiDocs.copyApiKeyTooltip",
-                "Copy API Key to clipboard",
+                "Click to copy API Key to clipboard",
               )}
             >
               <span style={{ fontSize: "0.85rem" }}>⚿</span>
-              <span style={{ letterSpacing: "1px", opacity: 0.85 }}>
-                ••••••••••••••••••••••••
+              <span
+                style={{
+                  letterSpacing: showTopApiKey ? "0.5px" : "1px",
+                  opacity: 0.85,
+                  fontFamily: "monospace",
+                  fontSize: "0.8rem",
+                }}
+              >
+                {showTopApiKey
+                  ? (unmaskedTopApiKey || (generalConfig?.apiKey && !generalConfig.apiKey.includes("*") ? generalConfig.apiKey : "••••••••••••••••••••••••••••••••"))
+                  : "••••••••••••••••••••••••••••••••"}
               </span>
             </button>
 
