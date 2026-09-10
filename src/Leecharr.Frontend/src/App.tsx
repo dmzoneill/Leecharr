@@ -39,6 +39,8 @@ import {
   MenuIcon,
   ChevronsLeftIcon,
   ChevronsRightIcon,
+  SunIcon,
+  MoonIcon,
 } from "./components/icons/AppIcons";
 import { Dashboard } from "./pages/Dashboard";
 import { TorrentIndex } from "./pages/TorrentIndex";
@@ -1016,22 +1018,8 @@ export function App() {
                   : t("nav.themeDark", "Switch to Dark Mode")
               }
               aria-label="Toggle theme"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: "28px",
-                height: "28px",
-                borderRadius: "4px",
-                border: "1px solid var(--border-light, #162031)",
-                background: "transparent",
-                color: "var(--text-secondary)",
-                cursor: "pointer",
-                fontSize: "0.95rem",
-                padding: 0,
-              }}
             >
-              {theme === "dark" ? "🌙" : "☀️"}
+              {theme === "dark" ? <SunIcon /> : <MoonIcon />}
             </button>
 
             <a
@@ -1057,22 +1045,15 @@ export function App() {
               >
                 <button
                   type="button"
+                  className="topbar-btn"
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
                   title={currentUser.displayName || currentUser.username}
                   aria-expanded={showProfileMenu}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
-                    gap: "0.45rem",
-                    background: "var(--bg-hover, #1e2a3f)",
-                    border: "1px solid var(--border, #1f2c42)",
-                    borderRadius: "6px",
-                    padding: "0.2rem 0.55rem 0.2rem 0.35rem",
-                    color: "var(--text-primary)",
-                    cursor: "pointer",
-                    fontSize: "0.82rem",
-                    fontWeight: 500,
-                    transition: "all 0.15s ease",
+                    justifyContent: "center",
+                    padding: "2px",
                   }}
                 >
                   <div
@@ -1107,12 +1088,6 @@ export function App() {
                         .toUpperCase()
                     )}
                   </div>
-                  <span>{currentUser.displayName || currentUser.username}</span>
-                  <span
-                    style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}
-                  >
-                    ▾
-                  </span>
                 </button>
 
                 {showProfileMenu && (
