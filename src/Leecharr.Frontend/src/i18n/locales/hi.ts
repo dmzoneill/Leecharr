@@ -201,7 +201,12 @@ const hi: I18nTranslations = {
     "quickSearch": "त्वरित खोज",
     "switchLanguage": "भाषा बदलें",
     "browseFiles": "फ़ाइलें ब्राउज़ करें",
-    "openTerminal": "टर्मिनल खोलें@ action: inmenu"
+    "openTerminal": "टर्मिनल खोलें@ action: inmenu",
+    "systemStatus": "सिस्टम स्थिति",
+    "themeLight": "लाइट मोड पर स्विच करें",
+    "themeDark": "डार्क मोड पर स्विच करें",
+    "support": "समर्थन एवं दान करें",
+    "commandPalette": "कमांड पैलेट (Ctrl+K)"
   },
   "dashboard": {
     "level": "स्तर",
@@ -650,7 +655,8 @@ const hi: I18nTranslations = {
       "noMagnetDesc": "कोई चुंबक Desc नहीं",
       "noFilterMatchesDesc": "कोई फ़िल्टर Desc से मेल नहीं खाता",
       "noTorrentsDesc": "कोई टोरेंट नहीं Desc"
-    }
+    },
+    "filterState": "फ़िल्टर स्थिति"
   },
   "torrentDetail": {
     "overview": "अवलोकन",
@@ -837,6 +843,7 @@ const hi: I18nTranslations = {
   },
   "history": {
     "title": "डाउनलोड इतिहास",
+    "downloadFile": "फ़ाइल डाउनलोड करें",
     "historicalDownloads": "पूर्ण और ऐतिहासिक डाउनलोड",
     "postersView": "पोस्टर गैलरी",
     "tableView": "तालिका दृश्य",
@@ -905,6 +912,17 @@ const hi: I18nTranslations = {
     "filterByGenre": "शैली के अनुसार फ़िल्टर करें",
     "alreadyInLibrary": "पहले से ही लाइब्रेरी में है",
     "torrentAddedSuccess": "टोरेंट जोड़ा गया",
+    "export": "निर्यात",
+    "exportDownloaded": "निर्यात सफलतापूर्वक डाउनलोड हुआ",
+    "copiedToClipboard": "निर्यात डेटा को क्लिपबोर्ड पर कॉपी किया गया",
+    "copyFailed": "क्लिपबोर्ड पर कॉपी करने में विफल",
+    "exportHistoryTitle": "डाउनलोड इतिहास निर्यात करें",
+    "exportFormat": "निर्यात प्रारूप",
+    "includeEnrichedMetadata": "समृद्ध मेटाडेटा शामिल करें",
+    "exportPreview": "निर्यात पूर्वावलोकन",
+    "copyToClipboard": "क्लिपबोर्ड पर कॉपी करें",
+    "filterStartDate": "आरंभ करने की तिथि",
+    "filterEndDate": "अंतिम तिथि",
     "imdb": "Imdb",
     "thetvdb": "Thetvdb"
   },
@@ -3348,12 +3366,12 @@ const hi: I18nTranslations = {
     "dontShowAgain": "दोबारा मत दिखाओ",
     "previous": "पहले का",
     "finishAndClose": "समाप्त करें और बंद करें",
-    "webhookHostHintSonarr": "वेबहुक होस्ट संकेत सोनार",
-    "webhookHostHintRadarr": "वेबहुक होस्ट संकेत राडार",
-    "webhookHostHintLidarr": "वेबहुक होस्ट संकेत लिडार",
     "startExampleTour": "उदाहरण यात्रा प्रारंभ करें →",
     "startLiveSetup": "लाइव सेटअप प्रारंभ करें",
-    "stepCount": "__V1___ का चरण {{current}}"
+    "stepCount": "__V1___ का चरण {{current}}",
+    "webhookHostHintSonarr": "वेबहुक होस्ट संकेत सोनार",
+    "webhookHostHintRadarr": "वेबहुक होस्ट संकेत राडार",
+    "webhookHostHintLidarr": "वेबहुक होस्ट संकेत लिडार"
   },
   "promptModal": {
     "defaultTitle": "डिफ़ॉल्ट शीर्षक",
@@ -3564,6 +3582,9 @@ const hi: I18nTranslations = {
     "enterUserAndPass": "उपयोगकर्ता दर्ज करें और पास करें",
     "invalidCredentials": "अवैध प्रत्यय पत्र",
     "signInWithProvider": "प्रदाता के साथ साइन इन करें"
+  },
+  "topbar": {
+    "searchPlaceholder": "त्वरित छलांग/खोज... (Ctrl+K)"
   }
 };
 

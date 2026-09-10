@@ -201,7 +201,12 @@ const it: I18nTranslations = {
     "quickSearch": "Ricerca rapida",
     "switchLanguage": "Cambia lingua",
     "browseFiles": "Sfoglia file",
-    "openTerminal": "Apri terminale"
+    "openTerminal": "Apri terminale",
+    "systemStatus": "Stato del sistema",
+    "themeLight": "Passa alla modalità Luce",
+    "themeDark": "Passa alla modalità oscura",
+    "support": "Sostieni e dona",
+    "commandPalette": "Tavolozza dei comandi (Ctrl+K)"
   },
   "dashboard": {
     "level": "Livello",
@@ -650,7 +655,8 @@ const it: I18nTranslations = {
       "noMagnetDesc": "Nessuna descrizione del magnete",
       "noFilterMatchesDesc": "Nessun filtro corrisponde alla desc",
       "noTorrentsDesc": "Nessuna descrizione dei torrent"
-    }
+    },
+    "filterState": "Stato del filtro"
   },
   "torrentDetail": {
     "overview": "Panoramica",
@@ -837,6 +843,7 @@ const it: I18nTranslations = {
   },
   "history": {
     "title": "Cronologia download",
+    "downloadFile": "Scarica File",
     "historicalDownloads": "Download completati & storici",
     "postersView": "Galleria poster",
     "tableView": "Vista tabella",
@@ -906,7 +913,18 @@ const it: I18nTranslations = {
     "failedToClearHistory": "Impossibile cancellare la cronologia",
     "filterByGenre": "Filtra per genere",
     "alreadyInLibrary": "Già in biblioteca",
-    "torrentAddedSuccess": "Successo aggiunto tramite torrent"
+    "torrentAddedSuccess": "Successo aggiunto tramite torrent",
+    "export": "Esportare",
+    "exportDownloaded": "Esportazione scaricata correttamente",
+    "copiedToClipboard": "Dati di esportazione copiati negli appunti",
+    "copyFailed": "Impossibile copiare negli appunti",
+    "exportHistoryTitle": "Esporta cronologia download",
+    "exportFormat": "Formato di esportazione",
+    "includeEnrichedMetadata": "Includi metadati arricchiti",
+    "exportPreview": "Anteprima di esportazione",
+    "copyToClipboard": "Copia negli appunti",
+    "filterStartDate": "Data di inizio",
+    "filterEndDate": "Data di fine"
   },
   "statistics": {
     "title": "Statistiche & Traguardi",
@@ -3298,7 +3316,11 @@ const it: I18nTranslations = {
     "tipTitle": "Suggerimento pro:",
     "tipDesc": "Puoi sempre rieseguire questa guida o modificare le impostazioni in qualsiasi momento nella sezione Impostazioni.",
     "prowlarrDesc": "Configura la connessione al tuo server Prowlarr per la ricerca unificata.",
+    "prowlarrInstructionsCardTitle": "Come connettere Prowlarr",
     "prowlarrStep1": "In Prowlarr, vai su Impostazioni > Generali e copia la tua chiave API.",
+    "prowlarrStep2": "Passa alla modalità Live Setup sopra (o vai su Impostazioni > Indicizzatori) e inserisci il tuo URL Prowlarr (predefinito: http://localhost:9696).",
+    "prowlarrStep3": "Incolla la tua chiave API Prowlarr nel campo Chiave API.",
+    "prowlarrStep4": "Fai clic su \"Verifica connessione\", quindi su \"Salva e continua\" per importare automaticamente gli indicizzatori.",
     "next": "Avanti",
     "testConnection": "Testa connessione",
     "saveAndContinue": "Salva e continua",
@@ -3307,6 +3329,10 @@ const it: I18nTranslations = {
     "saving": "Risparmio...",
     "sonarrDescription": "Connetti Sonarr per inviare automaticamente i download di serie TV a Leecharr.",
     "instructionsSonarrCardTitle": "Configurazione Sonarr",
+    "sonarrStep1": "In Sonarr, vai su Impostazioni > Generali e copia la tua chiave API Sonarr.",
+    "sonarrStep2": "In Leecharr, inserisci il tuo URL Sonarr (predefinito: http://localhost:8989) e incolla la tua chiave API.",
+    "sonarrStep3": "In Sonarr, vai su Impostazioni > Scarica client, fai clic su \"+\", seleziona qBittorrent e imposta Host su Leecharr IP e Porta su 7889.",
+    "sonarrStep4": "Fai clic su \"Verifica connessione\" in Leecharr e su \"Salva e continua\" per abilitare l'automazione dei programmi TV.",
     "name": "Nome",
     "type": "Tipo",
     "url": "URL",
@@ -3322,8 +3348,16 @@ const it: I18nTranslations = {
     "connectionFailed": "Impossibile connettersi a Sonarr",
     "radarrDescription": "Connetti Radarr per inviare automaticamente i download di film a Leecharr.",
     "instructionsRadarrCardTitle": "Configurazione Radarr",
+    "radarrStep1": "In Radarr, vai su Impostazioni > Generali e copia la tua chiave API Radarr.",
+    "radarrStep2": "In Leecharr, inserisci il tuo URL Radarr (predefinito: http://localhost:7878) e incolla la tua chiave API.",
+    "radarrStep3": "In Radarr, vai su Impostazioni > Scarica client, fai clic su \"+\", seleziona qBittorrent e imposta Host su Leecharr IP e Porta su 7889.",
+    "radarrStep4": "Fai clic su \"Verifica connessione\" in Leecharr e su \"Salva e continua\" per abilitare l'automazione del film.",
     "lidarrDescription": "Connetti Lidarr per inviare automaticamente i download di musica a Leecharr.",
     "instructionsLidarrCardTitle": "Configurazione Lidarr",
+    "lidarrStep1": "In Lidarr, vai su Impostazioni > Generali e copia la tua chiave API Lidarr.",
+    "lidarrStep2": "In Leecharr, inserisci il tuo URL Lidarr (predefinito: http://localhost:8686) e incolla la tua chiave API.",
+    "lidarrStep3": "In Lidarr, vai su Impostazioni > Scarica client, fai clic su \"+\", seleziona qBittorrent e imposta Host su Leecharr IP e Porta su 7889.",
+    "lidarrStep4": "Fai clic su \"Test connessione\" in Leecharr e su \"Salva e continua\" per abilitare l'automazione della musica.",
     "finishTitle": "Configurazione completata!",
     "finishDescription": "Tutto è pronto. Ora puoi iniziare a esplorare torrent, monitorare gli swarm e gestire i download.",
     "goToQueue": "Vai alla coda torrent",
@@ -3332,28 +3366,12 @@ const it: I18nTranslations = {
     "dontShowAgain": "Non mostrare più questa guida all'avvio",
     "previous": "Precedente",
     "finishAndClose": "Completa e chiudi",
-    "webhookHostHintSonarr": "Suggerimento host webhook Sonarr",
-    "webhookHostHintRadarr": "Suggerimento host webhook Radarr",
-    "webhookHostHintLidarr": "Suggerimento host webhook Lidarr",
-    "prowlarrInstructionsCardTitle": "Come connettere Prowlarr",
-    "prowlarrStep2": "Passa alla modalità Live Setup sopra (o vai su Impostazioni > Indicizzatori) e inserisci il tuo URL Prowlarr (predefinito: http://localhost:9696).",
-    "prowlarrStep3": "Incolla la tua chiave API Prowlarr nel campo Chiave API.",
-    "prowlarrStep4": "Fai clic su \"Verifica connessione\", quindi su \"Salva e continua\" per importare automaticamente gli indicizzatori.",
-    "sonarrStep1": "In Sonarr, vai su Impostazioni > Generali e copia la tua chiave API Sonarr.",
-    "sonarrStep2": "In Leecharr, inserisci il tuo URL Sonarr (predefinito: http://localhost:8989) e incolla la tua chiave API.",
-    "sonarrStep3": "In Sonarr, vai su Impostazioni > Scarica client, fai clic su \"+\", seleziona qBittorrent e imposta Host su Leecharr IP e Porta su 7889.",
-    "sonarrStep4": "Fai clic su \"Verifica connessione\" in Leecharr e su \"Salva e continua\" per abilitare l'automazione dei programmi TV.",
-    "radarrStep1": "In Radarr, vai su Impostazioni > Generali e copia la tua chiave API Radarr.",
-    "radarrStep2": "In Leecharr, inserisci il tuo URL Radarr (predefinito: http://localhost:7878) e incolla la tua chiave API.",
-    "radarrStep3": "In Radarr, vai su Impostazioni > Scarica client, fai clic su \"+\", seleziona qBittorrent e imposta Host su Leecharr IP e Porta su 7889.",
-    "radarrStep4": "Fai clic su \"Verifica connessione\" in Leecharr e su \"Salva e continua\" per abilitare l'automazione del film.",
-    "lidarrStep1": "In Lidarr, vai su Impostazioni > Generali e copia la tua chiave API Lidarr.",
-    "lidarrStep2": "In Leecharr, inserisci il tuo URL Lidarr (predefinito: http://localhost:8686) e incolla la tua chiave API.",
-    "lidarrStep3": "In Lidarr, vai su Impostazioni > Scarica client, fai clic su \"+\", seleziona qBittorrent e imposta Host su Leecharr IP e Porta su 7889.",
-    "lidarrStep4": "Fai clic su \"Test connessione\" in Leecharr e su \"Salva e continua\" per abilitare l'automazione della musica.",
     "startExampleTour": "Avvia il tour di esempio →",
     "startLiveSetup": "Avvia la configurazione dal vivo",
-    "stepCount": "Passaggio {{current}} di {{total}}"
+    "stepCount": "Passaggio {{current}} di {{total}}",
+    "webhookHostHintSonarr": "Suggerimento host webhook Sonarr",
+    "webhookHostHintRadarr": "Suggerimento host webhook Radarr",
+    "webhookHostHintLidarr": "Suggerimento host webhook Lidarr"
   },
   "promptModal": {
     "defaultTitle": "Inserisci valore",
@@ -3564,6 +3582,9 @@ const it: I18nTranslations = {
     "enterUserAndPass": "Inserisci Utente e Pass",
     "invalidCredentials": "Credenziali non valide",
     "signInWithProvider": "Accedi con il fornitore"
+  },
+  "topbar": {
+    "searchPlaceholder": "Salto veloce/Cerca... (Ctrl+K)"
   }
 };
 

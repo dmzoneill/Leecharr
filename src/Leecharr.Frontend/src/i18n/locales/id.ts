@@ -200,8 +200,13 @@ const id: I18nTranslations = {
     "switchLanguage": "Ganti Bahasa",
     "browseFiles": "Jelajahi File",
     "openTerminal": "Buka Terminal",
+    "systemStatus": "Status Sistem",
     "terminalCli": "Terminal CLI",
-    "status": "Status"
+    "status": "Status",
+    "themeLight": "Beralih ke Mode Cahaya",
+    "themeDark": "Beralih ke Mode Gelap",
+    "support": "Dukungan & Donasi",
+    "commandPalette": "Palet Perintah (Ctrl+K)"
   },
   "dashboard": {
     "level": "Tingkat",
@@ -650,6 +655,7 @@ const id: I18nTranslations = {
       "noFilterMatchesDesc": "Tidak Ada Filter yang Cocok Des",
       "noTorrentsDesc": "Tanpa Torrent Des"
     },
+    "filterState": "Status Penyaringan",
     "statusHeader": "Status"
   },
   "torrentDetail": {
@@ -837,6 +843,7 @@ const id: I18nTranslations = {
   },
   "history": {
     "title": "Riwayat Unduhan",
+    "downloadFile": "Unduh Berkas",
     "historicalDownloads": "Unduhan Selesai & Riwayat",
     "postersView": "Galeri Poster",
     "tableView": "Tampilan Tabel",
@@ -904,6 +911,17 @@ const id: I18nTranslations = {
     "filterByGenre": "Filter Berdasarkan Genre",
     "alreadyInLibrary": "Sudah Di Perpustakaan",
     "torrentAddedSuccess": "Torrent Tambah Sukses",
+    "export": "Ekspor",
+    "exportDownloaded": "Ekspor berhasil diunduh",
+    "copiedToClipboard": "Menyalin data ekspor ke clipboard",
+    "copyFailed": "Gagal menyalin ke papan klip",
+    "exportHistoryTitle": "Ekspor Riwayat Unduhan",
+    "exportFormat": "Format Ekspor",
+    "includeEnrichedMetadata": "Sertakan metadata yang diperkaya",
+    "exportPreview": "Pratinjau Ekspor",
+    "copyToClipboard": "Salin ke Papan Klip",
+    "filterStartDate": "Tanggal Mulai",
+    "filterEndDate": "Tanggal Berakhir",
     "status": "Status",
     "imdb": "Imdb",
     "tmdb": "Tmdb"
@@ -3348,12 +3366,12 @@ const id: I18nTranslations = {
     "dontShowAgain": "Jangan Tampilkan Lagi",
     "previous": "Sebelumnya",
     "finishAndClose": "Selesai Dan Tutup",
-    "webhookHostHintSonarr": "Petunjuk Host Webhook Sonarr",
-    "webhookHostHintRadarr": "Petunjuk Host Webhook Radarr",
-    "webhookHostHintLidarr": "Petunjuk Host Webhook Lidarr",
     "startExampleTour": "Mulai Contoh Tur →",
     "startLiveSetup": "Mulai Pengaturan Langsung",
-    "stepCount": "Langkah _{{current}} dari {{total}}"
+    "stepCount": "Langkah _{{current}} dari {{total}}",
+    "webhookHostHintSonarr": "Petunjuk Host Webhook Sonarr",
+    "webhookHostHintRadarr": "Petunjuk Host Webhook Radarr",
+    "webhookHostHintLidarr": "Petunjuk Host Webhook Lidarr"
   },
   "promptModal": {
     "defaultTitle": "Judul Bawaan",
@@ -3564,6 +3582,9 @@ const id: I18nTranslations = {
     "enterUserAndPass": "Masukkan Pengguna Dan Lulus",
     "invalidCredentials": "Kredensial Tidak Valid",
     "signInWithProvider": "Masuk Dengan Penyedia"
+  },
+  "topbar": {
+    "searchPlaceholder": "Lompat Cepat / Cari... (Ctrl+K)"
   }
 };
 

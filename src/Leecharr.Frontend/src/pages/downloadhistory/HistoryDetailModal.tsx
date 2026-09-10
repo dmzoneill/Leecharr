@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "../../i18n";
-import { useEscapeKey } from "../../hooks/useEscapeKey";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 import {
   formatBytes,
   formatRatio,
@@ -49,8 +49,10 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
   onFilterByTracker,
 }) => {
   const { t } = useTranslation();
-
-  useEscapeKey(onClose, Boolean(item));
+  const trapRef = useFocusTrap<HTMLDivElement>({
+    isOpen: Boolean(item),
+    onClose,
+  });
 
   if (!item) return null;
 
@@ -69,6 +71,7 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
       aria-labelledby="history-detail-modal-title"
     >
       <div
+        ref={trapRef}
         className="modal-content"
         style={{
           maxWidth: "860px",

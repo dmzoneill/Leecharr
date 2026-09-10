@@ -201,7 +201,12 @@ const fr: I18nTranslations = {
     "switchLanguage": "Changer de langue",
     "browseFiles": "Parcourir les fichiers",
     "openTerminal": "Terminal ouvert",
-    "torrents": "Torrents"
+    "systemStatus": "État du système",
+    "torrents": "Torrents",
+    "themeLight": "Passer en mode lumière",
+    "themeDark": "Passer en mode sombre",
+    "support": "Soutenez et faites un don",
+    "commandPalette": "Palette de commandes (Ctrl+K)"
   },
   "dashboard": {
     "level": "Niveau",
@@ -650,7 +655,8 @@ const fr: I18nTranslations = {
       "noFilterMatchesDesc": "Aucun filtre ne correspond à la description",
       "noTorrentsDesc": "Aucune description des torrents"
     },
-    "title": "Torrents"
+    "title": "Torrents",
+    "filterState": "État du filtre"
   },
   "torrentDetail": {
     "overview": "Aperçu",
@@ -837,6 +843,7 @@ const fr: I18nTranslations = {
   },
   "history": {
     "title": "Historique des téléchargements",
+    "downloadFile": "Télécharger le Fichier",
     "historicalDownloads": "Téléchargements terminés et archivés",
     "postersView": "Galerie d'affiches",
     "tableView": "Vue tableau",
@@ -904,6 +911,17 @@ const fr: I18nTranslations = {
     "filterByGenre": "Filtrer par genre",
     "alreadyInLibrary": "Déjà dans la bibliothèque",
     "torrentAddedSuccess": "Torrent a ajouté du succès",
+    "export": "Exporter",
+    "exportDownloaded": "Exportation téléchargée avec succès",
+    "copiedToClipboard": "Données d'exportation copiées dans le presse-papiers",
+    "copyFailed": "Échec de la copie dans le presse-papiers",
+    "exportHistoryTitle": "Exporter l'historique des téléchargements",
+    "exportFormat": "Format d'exportation",
+    "includeEnrichedMetadata": "Inclure des métadonnées enrichies",
+    "exportPreview": "Aperçu de l'exportation",
+    "copyToClipboard": "Copier dans le Presse-papiers",
+    "filterStartDate": "Date de début",
+    "filterEndDate": "Date de fin",
     "imdb": "Imdb",
     "tmdb": "Tmdb",
     "thetvdb": "Thetvdb"
@@ -3348,12 +3366,12 @@ const fr: I18nTranslations = {
     "dontShowAgain": "Ne plus montrer",
     "previous": "Précédent",
     "finishAndClose": "Terminer et fermer",
-    "webhookHostHintSonarr": "Astuce pour l'hôte Webhook Sonarr",
-    "webhookHostHintRadarr": "Astuce pour l'hôte Webhook Radarr",
-    "webhookHostHintLidarr": "Astuce pour l'hôte Webhook Lidarr",
     "startExampleTour": "Démarrer un exemple de visite →",
     "startLiveSetup": "Démarrer la configuration en direct",
-    "stepCount": "Étape {{current}} de {{total}}"
+    "stepCount": "Étape {{current}} de {{total}}",
+    "webhookHostHintSonarr": "Astuce pour l'hôte Webhook Sonarr",
+    "webhookHostHintRadarr": "Astuce pour l'hôte Webhook Radarr",
+    "webhookHostHintLidarr": "Astuce pour l'hôte Webhook Lidarr"
   },
   "promptModal": {
     "defaultTitle": "Titre par défaut",
@@ -3564,6 +3582,9 @@ const fr: I18nTranslations = {
     "enterUserAndPass": "Entrez l'utilisateur et passez",
     "invalidCredentials": "Identifiants invalides",
     "signInWithProvider": "Connectez-vous avec le fournisseur"
+  },
+  "topbar": {
+    "searchPlaceholder": "Saut rapide/Recherche... (Ctrl+K)"
   }
 };
 

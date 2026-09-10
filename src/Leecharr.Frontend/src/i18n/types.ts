@@ -202,6 +202,14 @@ export type I18nTranslations = {
     "switchLanguage": string;
     "browseFiles": string;
     "openTerminal": string;
+    "themeLight": string;
+    "themeDark": string;
+    "support": string;
+    "systemStatus": string;
+    "commandPalette": string;
+  };
+  "topbar": {
+    "searchPlaceholder": string;
   };
   "dashboard": {
     "level": string;
@@ -267,6 +275,7 @@ export type I18nTranslations = {
     "turtleOff": string;
     "turtleOn": string;
     "filterTorrents": string;
+    "filterState": string;
     "table": {
       "uploadLimit": string;
       "downloadLimit": string;
@@ -837,6 +846,18 @@ export type I18nTranslations = {
   };
   "history": {
     "title": string;
+    "export": string;
+    "exportDownloaded": string;
+    "copiedToClipboard": string;
+    "copyFailed": string;
+    "exportHistoryTitle": string;
+    "exportFormat": string;
+    "includeEnrichedMetadata": string;
+    "exportPreview": string;
+    "copyToClipboard": string;
+    "downloadFile": string;
+    "filterStartDate": string;
+    "filterEndDate": string;
     "historicalDownloads": string;
     "postersView": string;
     "tableView": string;

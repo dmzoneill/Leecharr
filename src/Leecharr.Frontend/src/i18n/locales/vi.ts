@@ -201,7 +201,12 @@ const vi: I18nTranslations = {
     "quickSearch": "Tìm kiếm nhanh",
     "switchLanguage": "Đổi ngôn ngữ",
     "browseFiles": "Duyệt tập tin",
-    "openTerminal": "Mở dòng lệnh"
+    "openTerminal": "Mở dòng lệnh",
+    "systemStatus": "Trạng thái hệ thống",
+    "themeLight": "Chuyển sang chế độ ánh sáng",
+    "themeDark": "Chuyển sang Chế độ tối",
+    "support": "Hỗ trợ & Đóng góp",
+    "commandPalette": "Bảng lệnh (Ctrl+K)"
   },
   "dashboard": {
     "level": "Cấp độ",
@@ -650,7 +655,8 @@ const vi: I18nTranslations = {
       "noMagnetDesc": "Không có nam châm",
       "noFilterMatchesDesc": "Không có bộ lọc nào phù hợp với mô tả",
       "noTorrentsDesc": "Không có torrent"
-    }
+    },
+    "filterState": "Trạng thái bộ lọc"
   },
   "torrentDetail": {
     "overview": "Tổng quan",
@@ -837,6 +843,7 @@ const vi: I18nTranslations = {
   },
   "history": {
     "title": "Lịch sử tải xuống",
+    "downloadFile": "Tải xuống Tệp",
     "historicalDownloads": "Tải xuống đã hoàn thành & lịch sử",
     "postersView": "Bộ sưu tập áp phích",
     "tableView": "Dạng bảng",
@@ -906,7 +913,18 @@ const vi: I18nTranslations = {
     "failedToClearHistory": "Không thể xóa lịch sử",
     "filterByGenre": "Lọc theo thể loại",
     "alreadyInLibrary": "Đã có trong thư viện",
-    "torrentAddedSuccess": "Torrent đã thêm thành công"
+    "torrentAddedSuccess": "Torrent đã thêm thành công",
+    "export": "Xuất khẩu",
+    "exportDownloaded": "Xuất đã tải xuống thành công",
+    "copiedToClipboard": "Đã sao chép dữ liệu xuất vào bảng nhớ tạm",
+    "copyFailed": "Không sao chép được vào bảng nhớ tạm",
+    "exportHistoryTitle": "Xuất lịch sử tải xuống",
+    "exportFormat": "Định dạng xuất",
+    "includeEnrichedMetadata": "Bao gồm siêu dữ liệu phong phú",
+    "exportPreview": "Xuất bản xem trước",
+    "copyToClipboard": "Sao chép vào Clipboard",
+    "filterStartDate": "Ngày bắt đầu",
+    "filterEndDate": "Ngày kết thúc"
   },
   "statistics": {
     "title": "Thống kê & Thành tích",
@@ -3348,12 +3366,12 @@ const vi: I18nTranslations = {
     "dontShowAgain": "Không hiển thị lại hướng dẫn này khi khởi động",
     "previous": "Trước",
     "finishAndClose": "Hoàn tất và đóng",
-    "webhookHostHintSonarr": "Sonarr gợi ý máy chủ Webhook",
-    "webhookHostHintRadarr": "Radar gợi ý máy chủ Webhook",
-    "webhookHostHintLidarr": "Gợi ý máy chủ Webhook Lidarr",
     "startExampleTour": "Bắt đầu chuyến tham quan mẫu →",
     "startLiveSetup": "Bắt đầu thiết lập trực tiếp",
-    "stepCount": "Bước {{current}} của {{total}}"
+    "stepCount": "Bước {{current}} của {{total}}",
+    "webhookHostHintSonarr": "Sonarr gợi ý máy chủ Webhook",
+    "webhookHostHintRadarr": "Radar gợi ý máy chủ Webhook",
+    "webhookHostHintLidarr": "Gợi ý máy chủ Webhook Lidarr"
   },
   "promptModal": {
     "defaultTitle": "Nhập giá trị",
@@ -3564,6 +3582,9 @@ const vi: I18nTranslations = {
     "enterUserAndPass": "Nhập người dùng và vượt qua",
     "invalidCredentials": "Thông tin xác thực không hợp lệ",
     "signInWithProvider": "Đăng nhập với nhà cung cấp"
+  },
+  "topbar": {
+    "searchPlaceholder": "Nhảy nhanh / Tìm kiếm... (Ctrl+K)"
   }
 };
 

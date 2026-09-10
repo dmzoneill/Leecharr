@@ -201,7 +201,15 @@ const en: I18nTranslations = {
     "quickSearch": "Quick Search",
     "switchLanguage": "Switch Language",
     "browseFiles": "Browse Files",
-    "openTerminal": "Open Terminal"
+    "openTerminal": "Open Terminal",
+    "themeLight": "Switch to Light Mode",
+    "themeDark": "Switch to Dark Mode",
+    "support": "Support & Donate",
+    "systemStatus": "System Status",
+    "commandPalette": "Command Palette (Ctrl+K)"
+  },
+  "topbar": {
+    "searchPlaceholder": "Quick Jump / Search... (Ctrl+K)"
   },
   "dashboard": {
     "level": "Level",
@@ -267,6 +275,7 @@ const en: I18nTranslations = {
     "turtleOff": "Alternative Speed Off",
     "turtleOn": "Alternative Speed On",
     "filterTorrents": "Filter torrents...",
+    "filterState": "Filter State",
     "table": {
       "uploadLimit": "Upload Limit",
       "downloadLimit": "Download Limit",
@@ -837,6 +846,18 @@ const en: I18nTranslations = {
   },
   "history": {
     "title": "Download History",
+    "export": "Export",
+    "exportDownloaded": "Export downloaded successfully",
+    "copiedToClipboard": "Copied export data to clipboard",
+    "copyFailed": "Failed to copy to clipboard",
+    "exportHistoryTitle": "Export Download History",
+    "exportFormat": "Export Format",
+    "includeEnrichedMetadata": "Include enriched metadata",
+    "exportPreview": "Export Preview",
+    "copyToClipboard": "Copy to Clipboard",
+    "downloadFile": "Download File",
+    "filterStartDate": "Start Date",
+    "filterEndDate": "End Date",
     "historicalDownloads": "Completed & Historical Downloads",
     "postersView": "Poster Gallery",
     "tableView": "Table View",
