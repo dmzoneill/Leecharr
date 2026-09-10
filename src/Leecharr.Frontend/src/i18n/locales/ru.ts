@@ -201,7 +201,12 @@ const ru: I18nTranslations = {
     "quickSearch": "Быстрый поиск",
     "switchLanguage": "Переключить язык",
     "browseFiles": "Просмотр файлов",
-    "openTerminal": "Открыть терминал"
+    "openTerminal": "Открыть терминал",
+    "systemStatus": "Статус системы",
+    "themeLight": "Переключиться в светлый режим",
+    "themeDark": "Переключиться в темный режим",
+    "support": "Поддержка и пожертвование",
+    "commandPalette": "Палитра команд (Ctrl+K)"
   },
   "dashboard": {
     "level": "Уровень",
@@ -650,7 +655,8 @@ const ru: I18nTranslations = {
       "noMagnetDesc": "Без магнитного описания",
       "noFilterMatchesDesc": "Нет совпадений с фильтром Описание",
       "noTorrentsDesc": "Нет описания торрентов"
-    }
+    },
+    "filterState": "Состояние фильтра"
   },
   "torrentDetail": {
     "overview": "Обзор",
@@ -837,6 +843,7 @@ const ru: I18nTranslations = {
   },
   "history": {
     "title": "История загрузок",
+    "downloadFile": "Скачать файл",
     "historicalDownloads": "Завершенные и архивные загрузки",
     "postersView": "Галерея постеров",
     "tableView": "Таблица",
@@ -906,6 +913,17 @@ const ru: I18nTranslations = {
     "filterByGenre": "Фильтровать по жанру",
     "alreadyInLibrary": "Уже в библиотеке",
     "torrentAddedSuccess": "Торрент добавил успех",
+    "export": "Экспорт",
+    "exportDownloaded": "Экспорт успешно загружен",
+    "copiedToClipboard": "Данные экспорта скопированы в буфер обмена.",
+    "copyFailed": "Не удалось скопировать в буфер обмена",
+    "exportHistoryTitle": "Экспортировать историю загрузок",
+    "exportFormat": "Формат экспорта",
+    "includeEnrichedMetadata": "Включить расширенные метаданные",
+    "exportPreview": "Экспортировать предварительный просмотр",
+    "copyToClipboard": "Копировать в буфер обмена",
+    "filterStartDate": "Дата начала",
+    "filterEndDate": "Дата окончания",
     "thetvdb": "Thetvdb"
   },
   "statistics": {
@@ -3348,12 +3366,12 @@ const ru: I18nTranslations = {
     "dontShowAgain": "Больше не показывать",
     "previous": "Предыдущий",
     "finishAndClose": "Завершить и закрыть",
-    "webhookHostHintSonarr": "Подсказка хоста Webhook Sonarr",
-    "webhookHostHintRadarr": "Подсказка хоста Webhook Radarr",
-    "webhookHostHintLidarr": "Подсказка хоста Webhook Lidarr",
     "startExampleTour": "Начать примерный тур →",
     "startLiveSetup": "Запустить живую настройку",
-    "stepCount": "Шаг {{current}} из {{total}}"
+    "stepCount": "Шаг {{current}} из {{total}}",
+    "webhookHostHintSonarr": "Подсказка хоста Webhook Sonarr",
+    "webhookHostHintRadarr": "Подсказка хоста Webhook Radarr",
+    "webhookHostHintLidarr": "Подсказка хоста Webhook Lidarr"
   },
   "promptModal": {
     "defaultTitle": "Название по умолчанию",
@@ -3564,6 +3582,9 @@ const ru: I18nTranslations = {
     "enterUserAndPass": "Введите пользователя и пароль",
     "invalidCredentials": "Неверные учетные данные",
     "signInWithProvider": "Войти через провайдера"
+  },
+  "topbar": {
+    "searchPlaceholder": "Быстрый переход/Поиск... (Ctrl+K)"
   }
 };
 

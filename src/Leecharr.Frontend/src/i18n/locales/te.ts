@@ -201,7 +201,12 @@ const te: I18nTranslations = {
     "quickSearch": "త్వరిత శోధన",
     "switchLanguage": "భాషను మార్చండి",
     "browseFiles": "ఫైళ్లను బ్రౌజ్ చేయండి",
-    "openTerminal": "టెర్మినల్ తెరవండి"
+    "openTerminal": "టెర్మినల్ తెరవండి",
+    "systemStatus": "సిస్టమ్ స్థితి",
+    "themeLight": "లైట్ మోడ్‌కి మారండి",
+    "themeDark": "డార్క్ మోడ్‌కి మారండి",
+    "support": "మద్దతు & విరాళం",
+    "commandPalette": "కమాండ్ పాలెట్ (Ctrl+K)"
   },
   "dashboard": {
     "level": "స్థాయి",
@@ -650,7 +655,8 @@ const te: I18nTranslations = {
       "noMagnetDesc": "మాగ్నెట్ డెస్క్ లేదు",
       "noFilterMatchesDesc": "డెస్క్లో ఫిల్టర్ సరిపోలికలు లేవు",
       "noTorrentsDesc": "టోరెంట్స్ డెస్క్ లేదు"
-    }
+    },
+    "filterState": "ఫిల్టర్ స్థితి"
   },
   "torrentDetail": {
     "overview": "అవలోకనం",
@@ -837,6 +843,7 @@ const te: I18nTranslations = {
   },
   "history": {
     "title": "డౌన్లోడ్ చరిత్ర",
+    "downloadFile": "ఫైల్ను డౌన్లోడ్ చేయండి",
     "historicalDownloads": "పూర్తయిన & గత డౌన్లోడ్లు",
     "postersView": "పోస్టర్ గ్యాలరీ",
     "tableView": "పట్టిక వీక్షణ",
@@ -904,6 +911,17 @@ const te: I18nTranslations = {
     "filterByGenre": "జానర్ ద్వారా ఫిల్టర్ చేయండి",
     "alreadyInLibrary": "ఇప్పటికే లైబ్రరీలో ఉంది",
     "torrentAddedSuccess": "టోరెంట్ విజయాన్ని జోడించింది",
+    "export": "ఎగుమతి చేయండి",
+    "exportDownloaded": "ఎగుమతి విజయవంతంగా డౌన్‌లోడ్ చేయబడింది",
+    "copiedToClipboard": "క్లిప్‌బోర్డ్‌కి ఎగుమతి డేటా కాపీ చేయబడింది",
+    "copyFailed": "క్లిప్‌బోర్డ్‌కి కాపీ చేయడంలో విఫలమైంది",
+    "exportHistoryTitle": "డౌన్‌లోడ్ చరిత్రను ఎగుమతి చేయండి",
+    "exportFormat": "ఎగుమతి ఫార్మాట్",
+    "includeEnrichedMetadata": "సుసంపన్నమైన మెటాడేటాను చేర్చండి",
+    "exportPreview": "ఎగుమతి ప్రివ్యూ",
+    "copyToClipboard": "క్లిప్‌బోర్డ్‌కు కాపీ చేయండి",
+    "filterStartDate": "ప్రారంభ తేదీ",
+    "filterEndDate": "ముగింపు తేదీ",
     "imdb": "Imdb",
     "tmdb": "Tmdb",
     "thetvdb": "Thetvdb"
@@ -3348,12 +3366,12 @@ const te: I18nTranslations = {
     "dontShowAgain": "మళ్లీ చూపించవద్దు",
     "previous": "మునుపటి",
     "finishAndClose": "ముగించు మరియు మూసివేయి",
-    "webhookHostHintSonarr": "వెబ్‌హూక్ హోస్ట్ సూచన సోనార్",
-    "webhookHostHintRadarr": "వెబ్‌హూక్ హోస్ట్ సూచన రాడార్",
-    "webhookHostHintLidarr": "వెబ్‌హూక్ హోస్ట్ హింట్ లిడార్",
     "startExampleTour": "ఉదాహరణ పర్యటనను ప్రారంభించండి →",
     "startLiveSetup": "లైవ్ సెటప్‌ను ప్రారంభించండి",
-    "stepCount": "{{total}}లో {{current}} దశ"
+    "stepCount": "{{total}}లో {{current}} దశ",
+    "webhookHostHintSonarr": "వెబ్‌హూక్ హోస్ట్ సూచన సోనార్",
+    "webhookHostHintRadarr": "వెబ్‌హూక్ హోస్ట్ సూచన రాడార్",
+    "webhookHostHintLidarr": "వెబ్‌హూక్ హోస్ట్ హింట్ లిడార్"
   },
   "promptModal": {
     "defaultTitle": "డిఫాల్ట్ శీర్షిక",
@@ -3564,6 +3582,9 @@ const te: I18nTranslations = {
     "enterUserAndPass": "వినియోగదారుని నమోదు చేసి పాస్ చేయండి",
     "invalidCredentials": "చెల్లని ఆధారాలు",
     "signInWithProvider": "ప్రొవైడర్తో సైన్ ఇన్ చేయండి"
+  },
+  "topbar": {
+    "searchPlaceholder": "త్వరిత జంప్ / శోధన... (Ctrl+K)"
   }
 };
 

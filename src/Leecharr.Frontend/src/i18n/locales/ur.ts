@@ -201,7 +201,12 @@ const ur: I18nTranslations = {
     "quickSearch": "فوری تلاش",
     "switchLanguage": "زبان تبدیل کریں",
     "browseFiles": "فائلوں کو براؤز کریں۔",
-    "openTerminal": "ٹرمینل کھولیں۔"
+    "openTerminal": "ٹرمینل کھولیں۔",
+    "systemStatus": "سسٹم کی حیثیت",
+    "themeLight": "لائٹ موڈ پر سوئچ کریں۔",
+    "themeDark": "ڈارک موڈ پر سوئچ کریں۔",
+    "support": "سپورٹ اور عطیہ کریں۔",
+    "commandPalette": "کمانڈ پیلیٹ (Ctrl+K)"
   },
   "dashboard": {
     "level": "سطح",
@@ -650,7 +655,8 @@ const ur: I18nTranslations = {
       "noMagnetDesc": "کوئی میگنیٹ ڈیسک نہیں ہے۔",
       "noFilterMatchesDesc": "کوئی فلٹر مماثلت نہیں ہے۔",
       "noTorrentsDesc": "کوئی ٹورینٹ نہیں"
-    }
+    },
+    "filterState": "فلٹر اسٹیٹ"
   },
   "torrentDetail": {
     "overview": "جائزہ",
@@ -837,6 +843,7 @@ const ur: I18nTranslations = {
   },
   "history": {
     "title": "ڈاؤن لوڈ تاریخچہ",
+    "downloadFile": "فائل ڈاؤن لوڈ کریں",
     "historicalDownloads": "مکمل اور تاریخی ڈاؤن لوڈز",
     "postersView": "پوسٹر گیلری",
     "tableView": "جدول کا منظر",
@@ -906,6 +913,17 @@ const ur: I18nTranslations = {
     "filterByGenre": "نوع کے لحاظ سے فلٹر کریں۔",
     "alreadyInLibrary": "پہلے سے ہی لائبریری میں ہے۔",
     "torrentAddedSuccess": "ٹورینٹ نے کامیابی شامل کی۔",
+    "export": "برآمد کریں۔",
+    "exportDownloaded": "ایکسپورٹ کامیابی کے ساتھ ڈاؤن لوڈ ہو گیا۔",
+    "copiedToClipboard": "برآمدی ڈیٹا کو کلپ بورڈ میں کاپی کیا گیا۔",
+    "copyFailed": "کلپ بورڈ پر کاپی کرنے میں ناکام",
+    "exportHistoryTitle": "ڈاؤن لوڈ کی تاریخ برآمد کریں۔",
+    "exportFormat": "ایکسپورٹ فارمیٹ",
+    "includeEnrichedMetadata": "افزودہ میٹا ڈیٹا شامل کریں۔",
+    "exportPreview": "پیش نظارہ برآمد کریں۔",
+    "copyToClipboard": "کلپ بورڈ پر کاپی کریں۔",
+    "filterStartDate": "آغاز کی تاریخ",
+    "filterEndDate": "اختتامی تاریخ",
     "thetvdb": "Thetvdb"
   },
   "statistics": {
@@ -3348,12 +3366,12 @@ const ur: I18nTranslations = {
     "dontShowAgain": "دوبارہ نہ دکھائیں۔",
     "previous": "پچھلا",
     "finishAndClose": "ختم کریں اور بند کریں۔",
-    "webhookHostHintSonarr": "ویب ہک ہوسٹ اشارہ سونار",
-    "webhookHostHintRadarr": "ویب ہک ہوسٹ اشارہ ریڈار",
-    "webhookHostHintLidarr": "ویب ہُک ہوسٹ اشارہ لِڈر",
     "startExampleTour": "مثالی دورہ شروع کریں →",
     "startLiveSetup": "لائیو سیٹ اپ شروع کریں۔",
-    "stepCount": "مرحلہ {{current}} از {{total}}"
+    "stepCount": "مرحلہ {{current}} از {{total}}",
+    "webhookHostHintSonarr": "ویب ہک ہوسٹ اشارہ سونار",
+    "webhookHostHintRadarr": "ویب ہک ہوسٹ اشارہ ریڈار",
+    "webhookHostHintLidarr": "ویب ہُک ہوسٹ اشارہ لِڈر"
   },
   "promptModal": {
     "defaultTitle": "پہلے سے طے شدہ عنوان",
@@ -3564,6 +3582,9 @@ const ur: I18nTranslations = {
     "enterUserAndPass": "صارف اور پاس درج کریں۔",
     "invalidCredentials": "غلط اسناد",
     "signInWithProvider": "فراہم کنندہ کے ساتھ سائن ان کریں۔"
+  },
+  "topbar": {
+    "searchPlaceholder": "فوری چھلانگ / تلاش کریں... (Ctrl+K)"
   }
 };
 

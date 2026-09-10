@@ -1,7 +1,6 @@
 import { useTranslation } from "../../i18n";
-import React, { useState, useEffect, useRef } from "react";
-import { useLocation } from "react-router";
-import { useEscapeKey } from "../../hooks/useEscapeKey";
+import React, { useEffect } from "react";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 import { useSettingsDirty } from "./SettingsDirtyContext";
 
 export function SaveFeedback({
@@ -60,10 +59,19 @@ export function PendingChangesModal({
   onCancel: () => void;
 }) {
   const { t } = useTranslation();
-  useEscapeKey(onCancel);
+  const trapRef = useFocusTrap<HTMLDivElement>({ isOpen: true, onClose: onCancel });
+
   return (
-    <div className="modal-overlay" onClick={onCancel}>
+    <div
+      className="modal-overlay"
+      onClick={onCancel}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pending-changes-modal-title"
+      aria-describedby="pending-changes-modal-desc"
+    >
       <div
+        ref={trapRef}
         className="modal"
         onClick={(e) => e.stopPropagation()}
         style={{
@@ -73,10 +81,14 @@ export function PendingChangesModal({
           border: "1px solid rgba(255, 255, 255, 0.12)",
         }}
       >
-        <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.2rem" }}>
+        <h2
+          id="pending-changes-modal-title"
+          style={{ margin: "0 0 0.75rem", fontSize: "1.2rem" }}
+        >
           {t("settingsTabs.shared.unsavedChangesTitle")}
         </h2>
         <p
+          id="pending-changes-modal-desc"
           style={{
             margin: "0 0 1.25rem",
             color: "var(--text-muted)",
@@ -105,6 +117,7 @@ export function PendingChangesModal({
             className="btn btn-primary btn-small"
             onClick={onSave}
             type="button"
+            autoFocus
           >
             {t("settingsTabs.shared.saveChanges")}
           </button>
