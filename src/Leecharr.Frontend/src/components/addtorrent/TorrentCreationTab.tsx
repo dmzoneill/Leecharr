@@ -206,9 +206,7 @@ export function TorrentCreationTab({
           </label>
           <select
             value={createPieceLength}
-            onChange={(e) =>
-              setCreatePieceLength(parseInt(e.target.value, 10))
-            }
+            onChange={(e) => setCreatePieceLength(parseInt(e.target.value, 10))}
             className="form-input"
             style={{
               width: "100%",
@@ -437,26 +435,19 @@ export function TorrentCreationTab({
                 )}
               </div>
               <div>
-                <strong>
-                  {t("addTorrent.infoHashLabel", "Info Hash:")}
-                </strong>{" "}
+                <strong>{t("addTorrent.infoHashLabel", "Info Hash:")}</strong>{" "}
                 <code style={{ wordBreak: "break-all" }}>
                   {createResult.infoHash}
                 </code>
               </div>
               <div>
-                <strong>
-                  {t("addTorrent.totalSizeLabel", "Total Size:")}
-                </strong>{" "}
-                {formatBytes(createResult.totalSize)} (
-                {createResult.pieceCount} pieces @{" "}
-                {formatBytes(createResult.pieceLength)})
+                <strong>{t("addTorrent.totalSizeLabel", "Total Size:")}</strong>{" "}
+                {formatBytes(createResult.totalSize)} ({createResult.pieceCount}{" "}
+                pieces @ {formatBytes(createResult.pieceLength)})
               </div>
               {createResult.outputPath && (
                 <div style={{ marginTop: "0.25rem" }}>
-                  <strong>
-                    {t("addTorrent.savedToLabel", "Saved To:")}
-                  </strong>{" "}
+                  <strong>{t("addTorrent.savedToLabel", "Saved To:")}</strong>{" "}
                   <code>{createResult.outputPath}</code>
                 </div>
               )}

@@ -293,7 +293,13 @@ export function ConnectionsTab() {
               <div className="provider-card-info">
                 {conn.url}
                 {conn.externalUrl && conn.externalUrl !== conn.url && (
-                  <div style={{ fontSize: "0.75rem", opacity: 0.8, marginTop: "2px" }}>
+                  <div
+                    style={{
+                      fontSize: "0.75rem",
+                      opacity: 0.8,
+                      marginTop: "2px",
+                    }}
+                  >
                     ↳ {conn.externalUrl}
                   </div>
                 )}
@@ -387,7 +393,10 @@ export function ConnectionsTab() {
               placeholder="http://localhost:8989"
             />
             <TextInput
-              label={t("settings.externalUrl", "Public / External URL (Optional)")}
+              label={t(
+                "settings.externalUrl",
+                "Public / External URL (Optional)",
+              )}
               value={editing.externalUrl || ""}
               onChange={(v) =>
                 setEditing({ ...editing, externalUrl: v, publicUrl: v })

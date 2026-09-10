@@ -56,10 +56,7 @@ class ApiClient {
     return this.apiKey || localStorage.getItem("leecharr_apikey");
   }
 
-  async request<T>(
-    endpoint: string,
-    options: RequestInit = {},
-  ): Promise<T> {
+  async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const headers: Record<string, string> = {
       Accept: "application/json",
       ...(options.headers as Record<string, string>),
@@ -138,9 +135,9 @@ class ApiClient {
           : undefined,
       body:
         body !== undefined
-          ? (typeof body === "string" || isSpecialBody
-              ? (body as BodyInit)
-              : JSON.stringify(body))
+          ? typeof body === "string" || isSpecialBody
+            ? (body as BodyInit)
+            : JSON.stringify(body)
           : undefined,
     });
   }
@@ -173,9 +170,9 @@ class ApiClient {
           : undefined,
       body:
         body !== undefined
-          ? (typeof body === "string" || isSpecialBody
-              ? (body as BodyInit)
-              : JSON.stringify(body))
+          ? typeof body === "string" || isSpecialBody
+            ? (body as BodyInit)
+            : JSON.stringify(body)
           : undefined,
     });
   }
@@ -236,8 +233,7 @@ export const api = {
     apiClient.post<Category>("/categories", category),
   updateCategory: (id: number, category: Partial<Category>) =>
     apiClient.put<Category>(`/categories/${id}`, category),
-  deleteCategory: (id: number) =>
-    apiClient.delete<void>(`/categories/${id}`),
+  deleteCategory: (id: number) => apiClient.delete<void>(`/categories/${id}`),
 
   // System
   getSystemStatus: () => apiClient.get<SystemStatus>("/system/status"),
@@ -253,8 +249,7 @@ export const api = {
     rememberMe?: boolean;
   }) =>
     apiClient.post<import("./types").CurrentUser>("/auth/login", credentials),
-  logout: () =>
-    apiClient.post<{ message: string }>("/auth/logout"),
+  logout: () => apiClient.post<{ message: string }>("/auth/logout"),
 
   // Identity Provider Config (Admin)
   getIdProviders: () =>
@@ -295,9 +290,7 @@ export const api = {
       request,
     ),
   getApiKey: () =>
-    apiClient.get<import("./types").ApiKeyResource>(
-      "/config/general/api-key",
-    ),
+    apiClient.get<import("./types").ApiKeyResource>("/config/general/api-key"),
   getSystemResources: () =>
     apiClient.get<import("./types").SystemResourceTelemetrySnapshot>(
       "/system/resources",
@@ -337,11 +330,7 @@ export const api = {
       params,
     );
   },
-  renameTorrentFolder: (
-    hash: string,
-    oldPath: string,
-    newPath: string,
-  ) => {
+  renameTorrentFolder: (hash: string, oldPath: string, newPath: string) => {
     const params = new URLSearchParams();
     params.append("hash", hash);
     params.append("oldPath", oldPath);

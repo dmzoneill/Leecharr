@@ -2,7 +2,10 @@ import { useTranslation } from "../i18n";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Link } from "react-router";
 import { useTorrents, useSeedingStats, useSpeedHistory } from "../api/hooks";
-import { useTorrentStore, useAggregatedTorrentMetrics } from "../stores/useTorrentStore";
+import {
+  useTorrentStore,
+  useAggregatedTorrentMetrics,
+} from "../stores/useTorrentStore";
 import { formatSpeed, formatRatio } from "../utils/formatters";
 import LineChart from "../components/LineChart";
 

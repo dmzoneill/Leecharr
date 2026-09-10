@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useTranslation } from "../../i18n";
 import {
@@ -539,15 +545,16 @@ export function FilesTab({
           node.name.toLowerCase().includes(q) ||
           node.fullPath.toLowerCase().includes(q) ||
           (node.isFolder &&
-            node.descendantFiles.some((f) =>
-              f.path.toLowerCase().includes(q),
-            ));
+            node.descendantFiles.some((f) => f.path.toLowerCase().includes(q)));
 
         if (!matchesFilter) continue;
 
         rows.push(node);
 
-        if (node.isFolder && (expandedPaths.has(node.fullPath) || q.length > 0)) {
+        if (
+          node.isFolder &&
+          (expandedPaths.has(node.fullPath) || q.length > 0)
+        ) {
           flatten(node.children);
         }
       }
@@ -1239,7 +1246,11 @@ export function FilesTab({
               <tr>
                 <td
                   colSpan={5}
-                  style={{ height: `${paddingBottom}px`, padding: 0, border: 0 }}
+                  style={{
+                    height: `${paddingBottom}px`,
+                    padding: 0,
+                    border: 0,
+                  }}
                 />
               </tr>
             )}

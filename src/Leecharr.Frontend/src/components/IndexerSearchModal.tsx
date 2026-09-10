@@ -196,11 +196,10 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
       >
         <div className="modal-header">
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <SparklesIcon
-              size={18}
-              style={{ color: "var(--accent-gold)" }}
-            />
-            <h3 id="indexer-search-modal-title">{t("indexers.indexerDiscoverySearch")}</h3>
+            <SparklesIcon size={18} style={{ color: "var(--accent-gold)" }} />
+            <h3 id="indexer-search-modal-title">
+              {t("indexers.indexerDiscoverySearch")}
+            </h3>
           </div>
           <button
             type="button"

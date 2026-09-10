@@ -112,12 +112,14 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
       setDirty(true);
     };
   const numChange =
-    (setter: (v: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    (setter: (v: number) => void) =>
+    (e: React.ChangeEvent<HTMLInputElement>) => {
       const parsed = parseInt(e.target.value, 10);
       mark(setter)(isNaN(parsed) ? 0 : Math.max(0, parsed));
     };
   const floatChange =
-    (setter: (v: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    (setter: (v: number) => void) =>
+    (e: React.ChangeEvent<HTMLInputElement>) => {
       const parsed = parseFloat(e.target.value);
       mark(setter)(isNaN(parsed) ? 0 : Math.max(0, parsed));
     };
@@ -212,10 +214,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                 {t("torrents.detail.unlimitedHint")}
               </div>
             </div>
-            <div
-              className="form-input-with-suffix"
-              style={{ width: "135px" }}
-            >
+            <div className="form-input-with-suffix" style={{ width: "135px" }}>
               <input
                 type="number"
                 className="form-input"
@@ -254,10 +253,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                 {t("torrents.detail.unlimitedHint")}
               </div>
             </div>
-            <div
-              className="form-input-with-suffix"
-              style={{ width: "135px" }}
-            >
+            <div className="form-input-with-suffix" style={{ width: "135px" }}>
               <input
                 type="number"
                 className="form-input"
@@ -577,10 +573,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             >
               {t("torrents.detail.announceInterval")}
             </label>
-            <div
-              className="form-input-with-suffix"
-              style={{ width: "135px" }}
-            >
+            <div className="form-input-with-suffix" style={{ width: "135px" }}>
               <input
                 type="number"
                 className="form-input"
@@ -649,10 +642,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             >
               {t("torrents.detail.availabilityThreshold")}
             </label>
-            <div
-              className="form-input-with-suffix"
-              style={{ width: "135px" }}
-            >
+            <div className="form-input-with-suffix" style={{ width: "135px" }}>
               <input
                 type="number"
                 className="form-input"
@@ -669,9 +659,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
                 className="form-input-suffix"
                 style={{ padding: "0 0.5rem", fontSize: "0.75rem" }}
               >
-                {threshold === 1
-                  ? "copy"
-                  : t("components.copies", "copies")}
+                {threshold === 1 ? "copy" : t("components.copies", "copies")}
               </span>
             </div>
           </div>
@@ -688,10 +676,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
             >
               {t("torrents.detail.smallTorrentLimit")}
             </label>
-            <div
-              className="form-input-with-suffix"
-              style={{ width: "135px" }}
-            >
+            <div className="form-input-with-suffix" style={{ width: "135px" }}>
               <input
                 type="number"
                 className="form-input"

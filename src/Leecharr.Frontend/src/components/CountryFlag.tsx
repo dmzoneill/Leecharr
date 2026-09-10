@@ -13,7 +13,10 @@ export function isPrivateIp(ip?: string | null): boolean {
     if (endBracket > 0) {
       clean = clean.substring(1, endBracket);
     }
-  } else if (clean.includes(":") && clean.indexOf(":") === clean.lastIndexOf(":")) {
+  } else if (
+    clean.includes(":") &&
+    clean.indexOf(":") === clean.lastIndexOf(":")
+  ) {
     // IPv4 with single colon port: 127.0.0.1:6881 or localhost:6881 -> 127.0.0.1 or localhost
     clean = clean.split(":")[0];
   }

@@ -86,7 +86,8 @@ class SignalRManager {
   private reconnectingHandlers: Set<ReconnectingHandler> = new Set();
   private reconnectedHandlers: Set<ReconnectedHandler> = new Set();
   private closeHandlers: Set<CloseHandler> = new Set();
-  private connectionStateHandlers: Set<ConnectionStateChangeHandler> = new Set();
+  private connectionStateHandlers: Set<ConnectionStateChangeHandler> =
+    new Set();
 
   private isStarting = false;
   private isStopped = false;
@@ -100,7 +101,8 @@ class SignalRManager {
       const apiKey = apiClient.getApiKey();
       const connectionOptions: signalR.IHttpConnectionOptions = {};
       if (apiKey && apiKey.trim().length > 0) {
-        connectionOptions.accessTokenFactory = () => apiClient.getApiKey() || "";
+        connectionOptions.accessTokenFactory = () =>
+          apiClient.getApiKey() || "";
       }
 
       this.connection = new signalR.HubConnectionBuilder()
@@ -392,4 +394,3 @@ export function useIsDocumentVisible(): boolean {
 
   return visible;
 }
-

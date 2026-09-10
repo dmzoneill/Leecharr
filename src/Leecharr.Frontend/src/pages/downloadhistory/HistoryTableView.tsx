@@ -1,15 +1,15 @@
 import React, { useRef, useState, useMemo } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useTranslation } from "../../i18n";
-import {
-  formatBytes,
-  formatRatio,
-  formatDate,
-} from "../../utils/formatters";
+import { formatBytes, formatRatio, formatDate } from "../../utils/formatters";
 import { getMediaDeepLink } from "../../utils/arrLinks";
 import { MediaArtworkImage } from "../../components/common/MediaArtworkImage";
 import type { DownloadHistoryEntry, ArrConnection } from "../../api/types";
-import { formatDuration, type HistorySortColumn, type SortDirection } from "./types";
+import {
+  formatDuration,
+  type HistorySortColumn,
+  type SortDirection,
+} from "./types";
 
 export interface HistoryTableViewProps {
   items: DownloadHistoryEntry[];
@@ -107,7 +107,11 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
 
   const renderSortIndicator = (column: HistorySortColumn) => {
     if (sortColumn !== column) return null;
-    return <span style={{ marginLeft: "4px" }}>{sortDirection === "asc" ? "▲" : "▼"}</span>;
+    return (
+      <span style={{ marginLeft: "4px" }}>
+        {sortDirection === "asc" ? "▲" : "▼"}
+      </span>
+    );
   };
 
   return (
@@ -159,37 +163,61 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                 {t("history.releaseMedia")} {renderSortIndicator("title")}
               </th>
               <th
-                style={{ padding: "0.75rem 1rem", width: "100px", cursor: "pointer" }}
+                style={{
+                  padding: "0.75rem 1rem",
+                  width: "100px",
+                  cursor: "pointer",
+                }}
                 onClick={() => handleSort("totalSize")}
               >
                 {t("history.size")} {renderSortIndicator("totalSize")}
               </th>
               <th
-                style={{ padding: "0.75rem 1rem", width: "120px", cursor: "pointer" }}
+                style={{
+                  padding: "0.75rem 1rem",
+                  width: "120px",
+                  cursor: "pointer",
+                }}
                 onClick={() => handleSort("uploaded")}
               >
                 {t("history.uploaded")} {renderSortIndicator("uploaded")}
               </th>
               <th
-                style={{ padding: "0.75rem 1rem", width: "90px", cursor: "pointer" }}
+                style={{
+                  padding: "0.75rem 1rem",
+                  width: "90px",
+                  cursor: "pointer",
+                }}
                 onClick={() => handleSort("ratio")}
               >
                 {t("history.ratio")} {renderSortIndicator("ratio")}
               </th>
               <th
-                style={{ padding: "0.75rem 1rem", width: "100px", cursor: "pointer" }}
+                style={{
+                  padding: "0.75rem 1rem",
+                  width: "100px",
+                  cursor: "pointer",
+                }}
                 onClick={() => handleSort("seedingTime")}
               >
                 {t("history.seedTime")} {renderSortIndicator("seedingTime")}
               </th>
               <th
-                style={{ padding: "0.75rem 1rem", width: "130px", cursor: "pointer" }}
+                style={{
+                  padding: "0.75rem 1rem",
+                  width: "130px",
+                  cursor: "pointer",
+                }}
                 onClick={() => handleSort("dateAdded")}
               >
                 {t("history.dateAdded")} {renderSortIndicator("dateAdded")}
               </th>
               <th
-                style={{ padding: "0.75rem 1rem", width: "100px", cursor: "pointer" }}
+                style={{
+                  padding: "0.75rem 1rem",
+                  width: "100px",
+                  cursor: "pointer",
+                }}
                 onClick={() => handleSort("status")}
               >
                 {t("history.status")} {renderSortIndicator("status")}
@@ -346,24 +374,18 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                     </div>
                   </td>
 
-                  <td
-                    style={{ padding: "0.75rem 1rem", fontSize: "0.85rem" }}
-                  >
+                  <td style={{ padding: "0.75rem 1rem", fontSize: "0.85rem" }}>
                     {formatBytes(item.totalSize)}
                   </td>
 
-                  <td
-                    style={{ padding: "0.75rem 1rem", fontSize: "0.85rem" }}
-                  >
+                  <td style={{ padding: "0.75rem 1rem", fontSize: "0.85rem" }}>
                     {formatBytes(item.uploaded)}
                   </td>
 
                   <td style={{ padding: "0.75rem 1rem" }}>
                     <span
                       className={`badge ${
-                        item.ratio >= 1.0
-                          ? "badge-success"
-                          : "badge-secondary"
+                        item.ratio >= 1.0 ? "badge-success" : "badge-secondary"
                       }`}
                       style={{ fontSize: "0.8rem" }}
                     >
@@ -371,15 +393,11 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                     </span>
                   </td>
 
-                  <td
-                    style={{ padding: "0.75rem 1rem", fontSize: "0.85rem" }}
-                  >
+                  <td style={{ padding: "0.75rem 1rem", fontSize: "0.85rem" }}>
                     {formatDuration(item.seedingTime)}
                   </td>
 
-                  <td
-                    style={{ padding: "0.75rem 1rem", fontSize: "0.85rem" }}
-                  >
+                  <td style={{ padding: "0.75rem 1rem", fontSize: "0.85rem" }}>
                     <div>{formatDate(item.dateAdded)}</div>
                     {item.dateRemoved && (
                       <div
@@ -388,8 +406,7 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                           color: "var(--text-muted, #777)",
                         }}
                       >
-                        {t("history.removed")}{" "}
-                        {formatDate(item.dateRemoved)}
+                        {t("history.removed")} {formatDate(item.dateRemoved)}
                       </div>
                     )}
                   </td>
@@ -470,10 +487,7 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                           whiteSpace: "nowrap",
                         }}
                         onClick={() => onReAddItem(item.id, item.title)}
-                        disabled={
-                          isReAdding ||
-                          item.status === "Active"
-                        }
+                        disabled={isReAdding || item.status === "Active"}
                         title={
                           item.status === "Active"
                             ? t(

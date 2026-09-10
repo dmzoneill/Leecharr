@@ -21,40 +21,41 @@ export interface ToolbarSpeedSummaryProps {
   totalDownloadSpeed?: number;
 }
 
-export const ToolbarSpeedSummary: React.FC<ToolbarSpeedSummaryProps> = React.memo(
-  ({ torrents, totalUploadSpeed: propUl, totalDownloadSpeed: propDl }) => {
-    const telemetry = useTorrentStore((state) => state.telemetry);
-    const { totalUploadSpeed, totalDownloadSpeed } = useMemo(() => {
-      if (propUl !== undefined && propDl !== undefined) {
-        return { totalUploadSpeed: propUl, totalDownloadSpeed: propDl };
-      }
-      let ul = 0;
-      let dl = 0;
-      if (torrents) {
-        for (const t of torrents) {
-          const tel = telemetry[t.id];
-          ul += tel?.uploadSpeed ?? t.uploadSpeed ?? 0;
-          dl += tel?.downloadSpeed ?? t.downloadSpeed ?? 0;
+export const ToolbarSpeedSummary: React.FC<ToolbarSpeedSummaryProps> =
+  React.memo(
+    ({ torrents, totalUploadSpeed: propUl, totalDownloadSpeed: propDl }) => {
+      const telemetry = useTorrentStore((state) => state.telemetry);
+      const { totalUploadSpeed, totalDownloadSpeed } = useMemo(() => {
+        if (propUl !== undefined && propDl !== undefined) {
+          return { totalUploadSpeed: propUl, totalDownloadSpeed: propDl };
         }
-      }
-      return { totalUploadSpeed: ul, totalDownloadSpeed: dl };
-    }, [torrents, telemetry, propUl, propDl]);
+        let ul = 0;
+        let dl = 0;
+        if (torrents) {
+          for (const t of torrents) {
+            const tel = telemetry[t.id];
+            ul += tel?.uploadSpeed ?? t.uploadSpeed ?? 0;
+            dl += tel?.downloadSpeed ?? t.downloadSpeed ?? 0;
+          }
+        }
+        return { totalUploadSpeed: ul, totalDownloadSpeed: dl };
+      }, [torrents, telemetry, propUl, propDl]);
 
-    return (
-      <div
-        className="speed-controls"
-        style={{ display: "flex", alignItems: "center", gap: "4px" }}
-      >
-        <span style={{ fontSize: "0.85em", opacity: 0.8 }}>
-          UL: {formatSpeed(totalUploadSpeed)}
-        </span>
-        <span style={{ fontSize: "0.85em", opacity: 0.8, marginLeft: "8px" }}>
-          DL: {formatSpeed(totalDownloadSpeed)}
-        </span>
-      </div>
-    );
-  },
-);
+      return (
+        <div
+          className="speed-controls"
+          style={{ display: "flex", alignItems: "center", gap: "4px" }}
+        >
+          <span style={{ fontSize: "0.85em", opacity: 0.8 }}>
+            UL: {formatSpeed(totalUploadSpeed)}
+          </span>
+          <span style={{ fontSize: "0.85em", opacity: 0.8, marginLeft: "8px" }}>
+            DL: {formatSpeed(totalDownloadSpeed)}
+          </span>
+        </div>
+      );
+    },
+  );
 ToolbarSpeedSummary.displayName = "ToolbarSpeedSummary";
 
 interface TorrentToolbarProps {

@@ -198,7 +198,11 @@ export function PeersTab({
               <tr>
                 <td
                   colSpan={8}
-                  style={{ height: `${paddingBottom}px`, padding: 0, border: 0 }}
+                  style={{
+                    height: `${paddingBottom}px`,
+                    padding: 0,
+                    border: 0,
+                  }}
                 />
               </tr>
             )}

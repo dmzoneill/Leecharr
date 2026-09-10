@@ -247,9 +247,7 @@ export function RadarView({ onOpenBulkImport }: RadarViewProps) {
             <option value="alive">
               {t("trackerBoost.healthAlive", "Alive")}
             </option>
-            <option value="slow">
-              {t("trackerBoost.healthSlow", "Slow")}
-            </option>
+            <option value="slow">{t("trackerBoost.healthSlow", "Slow")}</option>
             <option value="offline">
               {t("trackerBoost.healthOffline", "Offline")}
             </option>

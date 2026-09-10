@@ -13,7 +13,10 @@ import {
   formatUptime,
 } from "../utils/formatters";
 import { useTranslation } from "../i18n";
-import { useTorrentStore, useAggregatedTorrentMetrics } from "../stores/useTorrentStore";
+import {
+  useTorrentStore,
+  useAggregatedTorrentMetrics,
+} from "../stores/useTorrentStore";
 import {
   SeedingIcon,
   UploadIcon,

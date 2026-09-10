@@ -544,10 +544,7 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
                 style={{
                   fontSize: "1.1rem",
                   fontWeight: 700,
-                  color:
-                    item.ratio >= 1.0
-                      ? "var(--success)"
-                      : "inherit",
+                  color: item.ratio >= 1.0 ? "var(--success)" : "inherit",
                 }}
               >
                 {formatRatio(item.ratio)}
@@ -609,9 +606,7 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
                 style={{
                   fontSize: "0.85rem",
                   wordBreak: "break-all",
-                  cursor: item.primaryTracker
-                    ? "pointer"
-                    : "default",
+                  cursor: item.primaryTracker ? "pointer" : "default",
                 }}
                 onClick={() => {
                   if (item.primaryTracker) {
@@ -621,10 +616,7 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
                 }}
                 title={
                   item.primaryTracker
-                    ? t(
-                        "history.filterByTracker",
-                        "Click to filter by tracker",
-                      )
+                    ? t("history.filterByTracker", "Click to filter by tracker")
                     : undefined
                 }
               >

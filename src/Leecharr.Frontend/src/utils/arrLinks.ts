@@ -82,7 +82,12 @@ export function getMediaDeepLink(
 
   const meta = item.metadata;
   const mediaId = meta?.arrMediaId ?? meta?.mediaId;
-  const mediaType = (meta?.arrType ?? meta?.mediaType ?? item.source ?? "").toLowerCase();
+  const mediaType = (
+    meta?.arrType ??
+    meta?.mediaType ??
+    item.source ??
+    ""
+  ).toLowerCase();
 
   if (mediaType.includes("sonarr") || mediaType === "series") {
     return {
@@ -104,7 +109,11 @@ export function getMediaDeepLink(
     };
   }
 
-  if (mediaType.includes("lidarr") || mediaType === "artist" || mediaType === "music") {
+  if (
+    mediaType.includes("lidarr") ||
+    mediaType === "artist" ||
+    mediaType === "music"
+  ) {
     return {
       url: mediaId
         ? `${instanceUrl}/artist/${mediaId}`
@@ -114,7 +123,11 @@ export function getMediaDeepLink(
     };
   }
 
-  if (mediaType.includes("readarr") || mediaType === "author" || mediaType === "book") {
+  if (
+    mediaType.includes("readarr") ||
+    mediaType === "author" ||
+    mediaType === "book"
+  ) {
     return {
       url: mediaId
         ? `${instanceUrl}/author/${mediaId}`
@@ -143,10 +156,7 @@ export function getProwlarrUrl(
         i.name?.toLowerCase().includes("prowlarr")),
   );
   if (!prowlarr) return null;
-  const targetUrl =
-    prowlarr.externalUrl ||
-    prowlarr.publicUrl ||
-    prowlarr.url;
+  const targetUrl = prowlarr.externalUrl || prowlarr.publicUrl || prowlarr.url;
   if (!targetUrl) return null;
 
   const base = applySmartFallback(targetUrl);

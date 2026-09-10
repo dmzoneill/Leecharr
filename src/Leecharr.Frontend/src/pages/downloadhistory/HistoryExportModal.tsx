@@ -79,7 +79,10 @@ export const HistoryExportModal: React.FC<HistoryExportModalProps> = ({
       ];
 
       const rows = items.map((item) => {
-        const displayTitle = (item.metadata?.title || item.title || "").replace(/"/g, '""');
+        const displayTitle = (item.metadata?.title || item.title || "").replace(
+          /"/g,
+          '""',
+        );
         const tracker = (item.primaryTracker || "").replace(/"/g, '""');
         const src = (item.source || "").replace(/"/g, '""');
 
@@ -115,7 +118,10 @@ export const HistoryExportModal: React.FC<HistoryExportModalProps> = ({
     const link = document.createElement("a");
     const dateStr = new Date().toISOString().split("T")[0];
     link.href = url;
-    link.setAttribute("download", `leecharr-download-history-${dateStr}.${exportFormat}`);
+    link.setAttribute(
+      "download",
+      `leecharr-download-history-${dateStr}.${exportFormat}`,
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -201,7 +207,14 @@ export const HistoryExportModal: React.FC<HistoryExportModalProps> = ({
             <span style={{ fontSize: "0.9rem", fontWeight: 500 }}>
               {t("history.exportFormat", "Format:")}
             </span>
-            <label style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", cursor: "pointer" }}>
+            <label
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.4rem",
+                cursor: "pointer",
+              }}
+            >
               <input
                 type="radio"
                 name="exportFormat"
@@ -211,7 +224,14 @@ export const HistoryExportModal: React.FC<HistoryExportModalProps> = ({
               />
               JSON
             </label>
-            <label style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", cursor: "pointer" }}>
+            <label
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.4rem",
+                cursor: "pointer",
+              }}
+            >
               <input
                 type="radio"
                 name="exportFormat"
@@ -224,13 +244,24 @@ export const HistoryExportModal: React.FC<HistoryExportModalProps> = ({
           </div>
 
           {exportFormat === "json" && (
-            <label style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", cursor: "pointer" }}>
+            <label
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                fontSize: "0.85rem",
+                cursor: "pointer",
+              }}
+            >
               <input
                 type="checkbox"
                 checked={includeMetadata}
                 onChange={(e) => setIncludeMetadata(e.target.checked)}
               />
-              {t("history.includeEnrichedMetadata", "Include enriched media metadata")}
+              {t(
+                "history.includeEnrichedMetadata",
+                "Include enriched media metadata",
+              )}
             </label>
           )}
 
@@ -242,7 +273,9 @@ export const HistoryExportModal: React.FC<HistoryExportModalProps> = ({
                 marginBottom: "0.4rem",
               }}
             >
-              {t("history.exportPreview", "Preview ({count} records):", { count: items.length })}
+              {t("history.exportPreview", "Preview ({count} records):", {
+                count: items.length,
+              })}
             </div>
             <pre
               style={{
@@ -279,7 +312,10 @@ export const HistoryExportModal: React.FC<HistoryExportModalProps> = ({
             📋 {t("history.copyToClipboard", "Copy")}
           </button>
           <button className="btn btn-primary" onClick={handleDownload}>
-            💾 {t("history.downloadFile", "Download .{ext}", { ext: exportFormat })}
+            💾{" "}
+            {t("history.downloadFile", "Download .{ext}", {
+              ext: exportFormat,
+            })}
           </button>
         </div>
       </div>

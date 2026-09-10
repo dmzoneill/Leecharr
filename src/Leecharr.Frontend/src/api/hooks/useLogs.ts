@@ -67,8 +67,7 @@ export function useTorrentLogs(
   options?: { polling?: boolean },
 ) {
   const interval = useRefetchInterval(options?.polling === false ? 0 : 3000);
-  const effectiveInterval =
-    options?.polling === false ? false : interval;
+  const effectiveInterval = options?.polling === false ? false : interval;
   return useQuery<TorrentEventLogEntry[]>({
     queryKey: ["torrents", torrentId, "logs"],
     queryFn: () => apiClient.get(`/torrent/${torrentId}/logs?count=100`),

@@ -430,7 +430,6 @@ export function SecuritySettingsTab() {
           />
 
           {form.hostHeaderValidationEnabled && (
-
             <TextInput
               label={t("settingsTabs.batch2.allowedHostHeadersWhitelist")}
               value={form.allowedHosts}
