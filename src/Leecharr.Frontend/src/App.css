@@ -2962,6 +2962,32 @@ input[type="number"]::-webkit-inner-spin-button {
   flex-shrink: 0;
 }
 
+.filter-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 0.5rem;
+}
+
+.filter-panel-collapse-btn {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-dim, var(--text-muted));
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.filter-panel-collapse-btn:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.08));
+  color: var(--text-primary);
+  border-color: var(--border-light);
+}
+
 .filter-panel-section {
   font-size: 0.7rem;
   font-weight: 600;
