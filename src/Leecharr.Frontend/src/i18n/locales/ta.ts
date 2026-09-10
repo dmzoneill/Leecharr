@@ -201,7 +201,12 @@ const ta: I18nTranslations = {
     "quickSearch": "விரைவுத் தேடல்",
     "switchLanguage": "மொழியை மாற்று",
     "browseFiles": "கோப்புகளை உலாவவும்",
-    "openTerminal": "முனையத்தைத் திறக்கவும்"
+    "openTerminal": "முனையத்தைத் திறக்கவும்",
+    "systemStatus": "கணினி நிலை",
+    "themeLight": "லைட் பயன்முறைக்கு மாறவும்",
+    "themeDark": "டார்க் பயன்முறைக்கு மாறவும்",
+    "support": "ஆதரவு மற்றும் நன்கொடை",
+    "commandPalette": "கட்டளை தட்டு (Ctrl+K)"
   },
   "dashboard": {
     "level": "நிலை",
@@ -650,7 +655,8 @@ const ta: I18nTranslations = {
       "noMagnetDesc": "மேக்னட் டெஸ்க் இல்லை",
       "noFilterMatchesDesc": "வடிகட்டி பொருத்தங்கள் இல்லை Desc",
       "noTorrentsDesc": "டோரண்ட்ஸ் டெஸ்க் இல்லை"
-    }
+    },
+    "filterState": "வடிகட்டி நிலை"
   },
   "torrentDetail": {
     "overview": "கண்ணோட்டம்",
@@ -837,6 +843,7 @@ const ta: I18nTranslations = {
   },
   "history": {
     "title": "பதிவிறக்க வரலாறு",
+    "downloadFile": "கோப்பை பதிவிறக்கு",
     "historicalDownloads": "முடிவடைந்த & வரலாற்று பதிவிறக்கங்கள்",
     "postersView": "சுவரொட்டி தொகுப்பு",
     "tableView": "அட்டவணை காட்சி",
@@ -905,6 +912,17 @@ const ta: I18nTranslations = {
     "filterByGenre": "வகையின்படி வடிகட்டவும்",
     "alreadyInLibrary": "ஏற்கனவே நூலகத்தில் உள்ளது",
     "torrentAddedSuccess": "டோரண்ட் வெற்றியைச் சேர்த்தது",
+    "export": "ஏற்றுமதி",
+    "exportDownloaded": "ஏற்றுமதி பதிவிறக்கம் செய்யப்பட்டது",
+    "copiedToClipboard": "கிளிப்போர்டுக்கு ஏற்றுமதி தரவு நகலெடுக்கப்பட்டது",
+    "copyFailed": "கிளிப்போர்டுக்கு நகலெடுக்க முடியவில்லை",
+    "exportHistoryTitle": "பதிவிறக்க வரலாற்றை ஏற்றுமதி செய்யவும்",
+    "exportFormat": "ஏற்றுமதி வடிவம்",
+    "includeEnrichedMetadata": "செறிவூட்டப்பட்ட மெட்டாடேட்டாவைச் சேர்க்கவும்",
+    "exportPreview": "ஏற்றுமதி முன்னோட்டம்",
+    "copyToClipboard": "கிளிப்போர்டுக்கு நகலெடுக்கவும்",
+    "filterStartDate": "தொடக்க தேதி",
+    "filterEndDate": "முடிவு தேதி",
     "imdb": "Imdb",
     "thetvdb": "Thetvdb"
   },
@@ -3348,12 +3366,12 @@ const ta: I18nTranslations = {
     "dontShowAgain": "மீண்டும் காட்ட வேண்டாம்",
     "previous": "முந்தைய",
     "finishAndClose": "முடித்து மூடு",
-    "webhookHostHintSonarr": "வெப்ஹூக் ஹோஸ்ட் குறிப்பு சோனார்",
-    "webhookHostHintRadarr": "வெப்ஹூக் ஹோஸ்ட் குறிப்பு ராடார்",
-    "webhookHostHintLidarr": "Webhook ஹோஸ்ட் குறிப்பு Lidarr",
     "startExampleTour": "எடுத்துக்காட்டு சுற்றுப்பயணத்தைத் தொடங்கவும் →",
     "startLiveSetup": "நேரடி அமைப்பைத் தொடங்கவும்",
-    "stepCount": "படி {{current}} இன் {{total}}"
+    "stepCount": "படி {{current}} இன் {{total}}",
+    "webhookHostHintSonarr": "வெப்ஹூக் ஹோஸ்ட் குறிப்பு சோனார்",
+    "webhookHostHintRadarr": "வெப்ஹூக் ஹோஸ்ட் குறிப்பு ராடார்",
+    "webhookHostHintLidarr": "Webhook ஹோஸ்ட் குறிப்பு Lidarr"
   },
   "promptModal": {
     "defaultTitle": "இயல்புநிலை தலைப்பு",
@@ -3564,6 +3582,9 @@ const ta: I18nTranslations = {
     "enterUserAndPass": "பயனர் மற்றும் பாஸ் உள்ளிடவும்",
     "invalidCredentials": "தவறான சான்றுகள்",
     "signInWithProvider": "வழங்குனருடன் உள்நுழைக"
+  },
+  "topbar": {
+    "searchPlaceholder": "விரைவு ஜம்ப் / தேடல்... (Ctrl+K)"
   }
 };
 

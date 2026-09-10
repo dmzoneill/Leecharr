@@ -201,7 +201,12 @@ const bn: I18nTranslations = {
     "quickSearch": "দ্রুত অনুসন্ধান",
     "switchLanguage": "ভাষা পরিবর্তন করুন",
     "browseFiles": "ফাইল ব্রাউজ করুন",
-    "openTerminal": "টার্মিনাল খুলুন"
+    "openTerminal": "টার্মিনাল খুলুন",
+    "systemStatus": "সিস্টেমের অবস্থা",
+    "themeLight": "লাইট মোডে স্যুইচ করুন",
+    "themeDark": "ডার্ক মোডে স্যুইচ করুন",
+    "support": "সমর্থন এবং দান",
+    "commandPalette": "কমান্ড প্যালেট (Ctrl+K)"
   },
   "dashboard": {
     "level": "লেভেল",
@@ -650,7 +655,8 @@ const bn: I18nTranslations = {
       "noMagnetDesc": "ম্যাগনেট ডেস্ক নেই",
       "noFilterMatchesDesc": "কোনো ফিল্টার মেলে না",
       "noTorrentsDesc": "কোন টরেন্টস ডেস্ক"
-    }
+    },
+    "filterState": "ফিল্টার স্টেট"
   },
   "torrentDetail": {
     "overview": "সংক্ষিপ্ত বিবরণ",
@@ -837,6 +843,7 @@ const bn: I18nTranslations = {
   },
   "history": {
     "title": "ডাউনলোড ইতিহাস",
+    "downloadFile": "ফাইল ডাউনলোড করুন",
     "historicalDownloads": "সম্পন্ন ও পূর্ববর্তী ডাউনলোডসমূহ",
     "postersView": "পোস্টার গ্যালারি",
     "tableView": "সারণী দৃশ্য",
@@ -906,6 +913,17 @@ const bn: I18nTranslations = {
     "filterByGenre": "ধরন অনুসারে ফিল্টার করুন",
     "alreadyInLibrary": "ইতিমধ্যেই লাইব্রেরিতে",
     "torrentAddedSuccess": "টরেন্ট যোগ করা সাফল্য",
+    "export": "রপ্তানি",
+    "exportDownloaded": "রপ্তানি সফলভাবে ডাউনলোড করা হয়েছে৷",
+    "copiedToClipboard": "ক্লিপবোর্ডে এক্সপোর্ট ডেটা কপি করা হয়েছে",
+    "copyFailed": "ক্লিপবোর্ডে অনুলিপি করতে ব্যর্থ হয়েছে৷",
+    "exportHistoryTitle": "ডাউনলোড ইতিহাস রপ্তানি করুন",
+    "exportFormat": "রপ্তানি বিন্যাস",
+    "includeEnrichedMetadata": "সমৃদ্ধ মেটাডেটা অন্তর্ভুক্ত করুন",
+    "exportPreview": "পূর্বরূপ রপ্তানি করুন",
+    "copyToClipboard": "ক্লিপবোর্ডে কপি করুন",
+    "filterStartDate": "শুরুর তারিখ",
+    "filterEndDate": "শেষ তারিখ",
     "thetvdb": "Thetvdb"
   },
   "statistics": {
@@ -3348,12 +3366,12 @@ const bn: I18nTranslations = {
     "dontShowAgain": "আবার দেখাবেন না",
     "previous": "আগের",
     "finishAndClose": "শেষ এবং বন্ধ করুন",
-    "webhookHostHintSonarr": "ওয়েবহুক হোস্ট ইঙ্গিত সোনার",
-    "webhookHostHintRadarr": "ওয়েবহুক হোস্ট ইঙ্গিত রাডার",
-    "webhookHostHintLidarr": "Webhook হোস্ট ইঙ্গিত Lidarr",
     "startExampleTour": "উদাহরণ ট্যুর শুরু করুন →",
     "startLiveSetup": "লাইভ সেটআপ শুরু করুন",
-    "stepCount": "ধাপ {{current}} এর {{total}}"
+    "stepCount": "ধাপ {{current}} এর {{total}}",
+    "webhookHostHintSonarr": "ওয়েবহুক হোস্ট ইঙ্গিত সোনার",
+    "webhookHostHintRadarr": "ওয়েবহুক হোস্ট ইঙ্গিত রাডার",
+    "webhookHostHintLidarr": "Webhook হোস্ট ইঙ্গিত Lidarr"
   },
   "promptModal": {
     "defaultTitle": "ডিফল্ট শিরোনাম",
@@ -3564,6 +3582,9 @@ const bn: I18nTranslations = {
     "enterUserAndPass": "ব্যবহারকারী এবং পাস লিখুন",
     "invalidCredentials": "অবৈধ শংসাপত্র",
     "signInWithProvider": "প্রদানকারীর সাথে সাইন ইন করুন"
+  },
+  "topbar": {
+    "searchPlaceholder": "কুইক জাম্প / সার্চ... (Ctrl+K)"
   }
 };
 

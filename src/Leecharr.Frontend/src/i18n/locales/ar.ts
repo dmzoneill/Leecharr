@@ -201,7 +201,12 @@ const ar: I18nTranslations = {
     "quickSearch": "بحث سريع",
     "switchLanguage": "تغيير اللغة",
     "browseFiles": "تصفح الملفات",
-    "openTerminal": "افتح المحطة"
+    "openTerminal": "افتح المحطة",
+    "systemStatus": "حالة النظام",
+    "themeLight": "التبديل إلى وضع الضوء",
+    "themeDark": "التبديل إلى الوضع الداكن",
+    "support": "الدعم والتبرع",
+    "commandPalette": "لوحة الأوامر (Ctrl+K)"
   },
   "dashboard": {
     "level": "المستوى",
@@ -650,7 +655,8 @@ const ar: I18nTranslations = {
       "noMagnetDesc": "لا يوجد مغناطيس",
       "noFilterMatchesDesc": "لا يوجد مرشح يطابق الوصف",
       "noTorrentsDesc": "لا يوجد وصف للسيول"
-    }
+    },
+    "filterState": "حالة التصفية"
   },
   "torrentDetail": {
     "overview": "نظرة عامة",
@@ -837,6 +843,7 @@ const ar: I18nTranslations = {
   },
   "history": {
     "title": "سجل التنزيلات",
+    "downloadFile": "تنزيل ملف",
     "historicalDownloads": "التنزيلات المكتملة والسابقة",
     "postersView": "معرض الملصقات",
     "tableView": "عرض الجدول",
@@ -906,7 +913,18 @@ const ar: I18nTranslations = {
     "failedToClearHistory": "فشل في مسح التاريخ",
     "filterByGenre": "تصفية حسب النوع",
     "alreadyInLibrary": "بالفعل في المكتبة",
-    "torrentAddedSuccess": "وأضاف تورنت النجاح"
+    "torrentAddedSuccess": "وأضاف تورنت النجاح",
+    "export": "يصدّر",
+    "exportDownloaded": "تم تنزيل التصدير بنجاح",
+    "copiedToClipboard": "نسخ بيانات التصدير إلى الحافظة",
+    "copyFailed": "فشل النسخ إلى الحافظة",
+    "exportHistoryTitle": "تصدير سجل التنزيل",
+    "exportFormat": "تنسيق التصدير",
+    "includeEnrichedMetadata": "قم بتضمين البيانات الوصفية الغنية",
+    "exportPreview": "معاينة التصدير",
+    "copyToClipboard": "نسخ إلى الحافظة",
+    "filterStartDate": "تاريخ البدء",
+    "filterEndDate": "تاريخ الانتهاء"
   },
   "statistics": {
     "title": "الإحصائيات والإنجازات",
@@ -3348,12 +3366,12 @@ const ar: I18nTranslations = {
     "dontShowAgain": "لا تظهر مرة أخرى",
     "previous": "سابق",
     "finishAndClose": "إنهاء وإغلاق",
-    "webhookHostHintSonarr": "تلميح مضيف Webhook Sonarr",
-    "webhookHostHintRadarr": "Webhook المضيف تلميح Radarr",
-    "webhookHostHintLidarr": "تلميح مضيف Webhook Lidarr",
     "startExampleTour": "ابدأ جولة المثال →",
     "startLiveSetup": "ابدأ الإعداد المباشر",
-    "stepCount": "الخطوة __V0____ من __V1____"
+    "stepCount": "الخطوة __V0____ من __V1____",
+    "webhookHostHintSonarr": "تلميح مضيف Webhook Sonarr",
+    "webhookHostHintRadarr": "Webhook المضيف تلميح Radarr",
+    "webhookHostHintLidarr": "تلميح مضيف Webhook Lidarr"
   },
   "promptModal": {
     "defaultTitle": "العنوان الافتراضي",
@@ -3564,6 +3582,9 @@ const ar: I18nTranslations = {
     "enterUserAndPass": "أدخل المستخدم وتمرير",
     "invalidCredentials": "بيانات اعتماد غير صالحة",
     "signInWithProvider": "تسجيل الدخول مع الموفر"
+  },
+  "topbar": {
+    "searchPlaceholder": "الانتقال السريع / البحث... (Ctrl+K)"
   }
 };
 

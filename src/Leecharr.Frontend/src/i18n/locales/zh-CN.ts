@@ -201,7 +201,12 @@ const zhCN: I18nTranslations = {
     "quickSearch": "快捷搜索",
     "switchLanguage": "切换语言",
     "browseFiles": "浏览文件",
-    "openTerminal": "打开终端"
+    "openTerminal": "打开终端",
+    "systemStatus": "系统状态",
+    "themeLight": "切换到灯光模式",
+    "themeDark": "切换到深色模式",
+    "support": "支持与捐赠",
+    "commandPalette": "命令面板（Ctrl+K）"
   },
   "dashboard": {
     "level": "等级",
@@ -650,7 +655,8 @@ const zhCN: I18nTranslations = {
       "noMagnetDesc": "无磁铁说明",
       "noFilterMatchesDesc": "没有过滤器匹配描述",
       "noTorrentsDesc": "没有种子描述"
-    }
+    },
+    "filterState": "过滤器状态"
   },
   "torrentDetail": {
     "overview": "概述",
@@ -837,6 +843,7 @@ const zhCN: I18nTranslations = {
   },
   "history": {
     "title": "下载历史",
+    "downloadFile": "下载文件",
     "historicalDownloads": "已完成与历史记录",
     "postersView": "海报画廊",
     "tableView": "表格视图",
@@ -906,7 +913,18 @@ const zhCN: I18nTranslations = {
     "failedToClearHistory": "清除历史记录失败",
     "filterByGenre": "按流派筛选",
     "alreadyInLibrary": "已在库中",
-    "torrentAddedSuccess": "种子添加成功"
+    "torrentAddedSuccess": "种子添加成功",
+    "export": "出口",
+    "exportDownloaded": "导出下载成功",
+    "copiedToClipboard": "已将导出数据复制到剪贴板",
+    "copyFailed": "无法复制到剪贴板",
+    "exportHistoryTitle": "导出下载历史记录",
+    "exportFormat": "导出格式",
+    "includeEnrichedMetadata": "包括丰富的元数据",
+    "exportPreview": "导出预览",
+    "copyToClipboard": "复制到剪贴板",
+    "filterStartDate": "开始日期",
+    "filterEndDate": "结束日期"
   },
   "statistics": {
     "title": "统计数据与传输概览",
@@ -3348,12 +3366,12 @@ const zhCN: I18nTranslations = {
     "dontShowAgain": "不再显示",
     "previous": "以前的",
     "finishAndClose": "完成并关闭",
-    "webhookHostHintSonarr": "Webhook主机提示Sonarr",
-    "webhookHostHintRadarr": "Webhook主机提示Radarr",
-    "webhookHostHintLidarr": "Webhook主机提示Lidarr",
     "startExampleTour": "开始示例之旅 →",
     "startLiveSetup": "开始实时设置",
-    "stepCount": "{{total}} 的步骤 {{current}}"
+    "stepCount": "{{total}} 的步骤 {{current}}",
+    "webhookHostHintSonarr": "Webhook主机提示Sonarr",
+    "webhookHostHintRadarr": "Webhook主机提示Radarr",
+    "webhookHostHintLidarr": "Webhook主机提示Lidarr"
   },
   "promptModal": {
     "defaultTitle": "默认标题",
@@ -3564,6 +3582,9 @@ const zhCN: I18nTranslations = {
     "enterUserAndPass": "输入用户和通行证",
     "invalidCredentials": "凭据无效",
     "signInWithProvider": "使用提供商登录"
+  },
+  "topbar": {
+    "searchPlaceholder": "快速跳转/搜索... (Ctrl+K)"
   }
 };
 

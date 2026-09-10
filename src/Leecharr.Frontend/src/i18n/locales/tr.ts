@@ -201,7 +201,12 @@ const tr: I18nTranslations = {
     "quickSearch": "Hızlı Arama",
     "switchLanguage": "Dili Değiştir",
     "browseFiles": "Dosyalara Göz Atın",
-    "openTerminal": "Terminali Aç"
+    "openTerminal": "Terminali Aç",
+    "systemStatus": "Sistem Durumu",
+    "themeLight": "Işık Moduna Geç",
+    "themeDark": "Karanlık Moda Geç",
+    "support": "Destekleyin ve Bağış Yapın",
+    "commandPalette": "Komut Paleti (Ctrl+K)"
   },
   "dashboard": {
     "level": "Seviye",
@@ -650,7 +655,8 @@ const tr: I18nTranslations = {
       "noMagnetDesc": "Mıknatıs Yok",
       "noFilterMatchesDesc": "Filtre Eşleşmesi Yok Açıklama",
       "noTorrentsDesc": "Torrent Açıklaması Yok"
-    }
+    },
+    "filterState": "Filtre Durumu"
   },
   "torrentDetail": {
     "overview": "Genel Bakış",
@@ -837,6 +843,7 @@ const tr: I18nTranslations = {
   },
   "history": {
     "title": "İndirme Geçmişi",
+    "downloadFile": "Dosya İndir",
     "historicalDownloads": "Tamamlanan & Geçmiş İndirmeler",
     "postersView": "Afiş Galerisi",
     "tableView": "Tablo Görünümü",
@@ -905,6 +912,17 @@ const tr: I18nTranslations = {
     "filterByGenre": "Türe Göre Filtrele",
     "alreadyInLibrary": "Zaten Kütüphanede",
     "torrentAddedSuccess": "Torrent Başarıyı Kattı",
+    "export": "İhracat",
+    "exportDownloaded": "Dışa aktarma başarıyla indirildi",
+    "copiedToClipboard": "Dışa aktarma verileri panoya kopyalandı",
+    "copyFailed": "Panoya kopyalanamadı",
+    "exportHistoryTitle": "İndirme Geçmişini Dışa Aktar",
+    "exportFormat": "Dışa Aktarma Formatı",
+    "includeEnrichedMetadata": "Zenginleştirilmiş meta verileri dahil et",
+    "exportPreview": "Dışa Aktarma Önizlemesi",
+    "copyToClipboard": "Panoya kopyala",
+    "filterStartDate": "Başlangıç ​​Tarihi",
+    "filterEndDate": "Bitiş Tarihi",
     "tmdb": "Tmdb",
     "thetvdb": "Thetvdb"
   },
@@ -3348,12 +3366,12 @@ const tr: I18nTranslations = {
     "dontShowAgain": "Bir Daha Gösterme",
     "previous": "Öncesi",
     "finishAndClose": "Bitir ve Kapat",
-    "webhookHostHintSonarr": "Web Kancası Ana Bilgisayarı İpucu Sonarr",
-    "webhookHostHintRadarr": "Web Kancası Ana Bilgisayarı İpucu Radarr",
-    "webhookHostHintLidarr": "Web Kancası Sunucusu İpucu Lidarr",
     "startExampleTour": "Örnek Turu Başlat →",
     "startLiveSetup": "Canlı Kurulumu Başlat",
-    "stepCount": "_{{total}} Adımı {{current}}"
+    "stepCount": "_{{total}} Adımı {{current}}",
+    "webhookHostHintSonarr": "Web Kancası Ana Bilgisayarı İpucu Sonarr",
+    "webhookHostHintRadarr": "Web Kancası Ana Bilgisayarı İpucu Radarr",
+    "webhookHostHintLidarr": "Web Kancası Sunucusu İpucu Lidarr"
   },
   "promptModal": {
     "defaultTitle": "Varsayılan Başlık",
@@ -3564,6 +3582,9 @@ const tr: I18nTranslations = {
     "enterUserAndPass": "Kullanıcıyı Girin ve Geçiş Yapın",
     "invalidCredentials": "Geçersiz Kimlik Bilgileri",
     "signInWithProvider": "Sağlayıcıyla Oturum Açın"
+  },
+  "topbar": {
+    "searchPlaceholder": "Hızlı Atla / Ara... (Ctrl+K)"
   }
 };
 
