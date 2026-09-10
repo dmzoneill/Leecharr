@@ -85,7 +85,6 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
             {activeLang.code.toUpperCase()}
           </span>
         )}
-        <span className="language-selector-caret">▾</span>
       </button>
 
       {isOpen && (
