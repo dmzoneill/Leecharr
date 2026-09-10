@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useLocation,
@@ -36,6 +36,9 @@ import {
   PeerMapIcon,
   StatsIcon,
   HistoryIcon,
+  MenuIcon,
+  ChevronsLeftIcon,
+  ChevronsRightIcon,
 } from "./components/icons/AppIcons";
 import { Dashboard } from "./pages/Dashboard";
 import { TorrentIndex } from "./pages/TorrentIndex";
@@ -174,6 +177,21 @@ export function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     return localStorage.getItem("leecharr_sidebar_collapsed") === "true";
   });
+  const [showProfileMenu, setShowProfileMenu] = useState<boolean>(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        profileMenuRef.current &&
+        !profileMenuRef.current.contains(event.target as Node)
+      ) {
+        setShowProfileMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const toggleSidebar = () => {
     setIsSidebarCollapsed((prev) => {
@@ -540,11 +558,23 @@ export function App() {
             title={t(
               isSidebarCollapsed ? "nav.expandMenu" : "nav.collapseMenu",
             )}
+            aria-label={
+              isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
+            }
           >
-            «
+            {isSidebarCollapsed ? (
+              <ChevronsRightIcon size={14} />
+            ) : (
+              <ChevronsLeftIcon size={14} />
+            )}
           </button>
-          <LeecharrLogo size={86} className="brand-logo" />
-          <LeecharrText width={120} className="brand-text" />
+          <LeecharrLogo
+            size={isSidebarCollapsed ? 36 : 86}
+            className="brand-logo"
+          />
+          {!isSidebarCollapsed && (
+            <LeecharrText width={120} className="brand-text" />
+          )}
         </div>
 
         <nav className="sidebar-nav">
@@ -553,6 +583,7 @@ export function App() {
             className={`sidebar-nav-item ${activeNav === "dashboard" ? "active" : ""}`}
             onClick={() => guardedNavigate("/")}
             style={{ cursor: "pointer" }}
+            title={t("nav.dashboard")}
           >
             <DashboardIcon size={16} />
             <span>{t("nav.dashboard")}</span>
@@ -563,6 +594,7 @@ export function App() {
             className={`sidebar-nav-item ${activeNav === "torrents" ? "active" : ""}`}
             onClick={() => guardedNavigate("/torrents")}
             style={{ cursor: "pointer" }}
+            title={t("nav.torrents")}
           >
             <TorrentIcon size={16} />
             <span>{t("nav.torrents")}</span>
@@ -573,6 +605,7 @@ export function App() {
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "all" ? "active" : ""}`}
                 onClick={() => guardedNavigate("/torrents")}
                 style={{ cursor: "pointer" }}
+                title={t("nav.torrents")}
               >
                 <DashboardIcon size={14} /> <span>{t("nav.torrents")}</span>
               </div>
@@ -580,6 +613,7 @@ export function App() {
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "add" ? "active" : ""}`}
                 onClick={() => guardedNavigate("/torrents/add")}
                 style={{ cursor: "pointer" }}
+                title={t("modals.addTorrent")}
               >
                 <span style={{ fontSize: "1.1rem", lineHeight: 1 }}>+</span>{" "}
                 <span>{t("modals.addTorrent")}</span>
@@ -592,6 +626,7 @@ export function App() {
             className={`sidebar-nav-item ${activeNav === "activity" ? "active" : ""}`}
             onClick={() => guardedNavigate("/activity/history")}
             style={{ cursor: "pointer" }}
+            title={t("nav.activity")}
           >
             <ActivityIcon size={16} />
             <span>{t("nav.activity")}</span>
@@ -602,6 +637,7 @@ export function App() {
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "history" ? "active" : ""}`}
                 onClick={() => guardedNavigate("/activity/history")}
                 style={{ cursor: "pointer" }}
+                title={t("nav.history")}
               >
                 <HistoryIcon /> <span>{t("nav.history")}</span>
               </div>
@@ -609,6 +645,7 @@ export function App() {
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "metrics" ? "active" : ""}`}
                 onClick={() => guardedNavigate("/activity/metrics")}
                 style={{ cursor: "pointer" }}
+                title={t("nav.statistics")}
               >
                 <StatsIcon size={14} /> <span>{t("nav.statistics")}</span>
               </div>
@@ -620,6 +657,7 @@ export function App() {
             className={`sidebar-nav-item ${activeNav === "indexers" ? "active" : ""}`}
             onClick={() => guardedNavigate("/indexers")}
             style={{ cursor: "pointer" }}
+            title={t("nav.indexers")}
           >
             <SearchIcon size={16} />
             <span>{t("nav.indexers")}</span>
@@ -630,6 +668,7 @@ export function App() {
             className={`sidebar-nav-item ${activeNav === "peermap" ? "active" : ""}`}
             onClick={() => guardedNavigate("/peermap")}
             style={{ cursor: "pointer" }}
+            title={t("nav.peerMap")}
           >
             <PeerMapIcon size={16} />
             <span>{t("nav.peerMap")}</span>
@@ -640,6 +679,7 @@ export function App() {
             className={`sidebar-nav-item ${activeNav === "schedule" ? "active" : ""}`}
             onClick={() => guardedNavigate("/schedule")}
             style={{ cursor: "pointer" }}
+            title={t("nav.speedSchedule")}
           >
             <ScheduleIcon size={16} />
             <span>{t("nav.speedSchedule")}</span>
@@ -650,6 +690,7 @@ export function App() {
             className={`sidebar-nav-item ${activeNav === "statistics" ? "active" : ""}`}
             onClick={() => guardedNavigate("/statistics")}
             style={{ cursor: "pointer" }}
+            title={t("nav.statistics")}
           >
             <StatsIcon size={16} />
             <span>{t("nav.statistics")}</span>
@@ -693,6 +734,7 @@ export function App() {
             className={`sidebar-nav-item ${activeNav === "settings" ? "active-parent" : ""}`}
             onClick={() => guardedNavigate("/settings/host")}
             style={{ cursor: "pointer" }}
+            title={t("nav.settings")}
           >
             <SettingsIcon size={16} />
             <span>{t("nav.settings")}</span>
@@ -801,6 +843,7 @@ export function App() {
             className={`sidebar-nav-item ${activeNav === "system" ? "active" : ""}`}
             onClick={() => guardedNavigate("/system/status")}
             style={{ cursor: "pointer" }}
+            title={t("nav.system")}
           >
             <SystemIcon size={16} />
             <span>{t("nav.system")}</span>
@@ -812,6 +855,7 @@ export function App() {
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === item.id ? "active" : ""}`}
                 onClick={() => guardedNavigate(`/system/${item.id}`)}
                 style={{ cursor: "pointer" }}
+                title={item.label}
               >
                 <span>{item.label}</span>
               </div>
@@ -830,30 +874,26 @@ export function App() {
               onClick={toggleSidebar}
               title={
                 isSidebarCollapsed
-                  ? "Show Main Menu (Alt+M)"
-                  : "Hide Main Menu (Alt+M)"
+                  ? "Expand sidebar (Alt+M)"
+                  : "Collapse sidebar (Alt+M)"
               }
+              aria-label="Toggle navigation sidebar"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
                 width: "28px",
                 height: "28px",
-                border:
-                  "1px solid var(--border-light, rgba(255, 255, 255, 0.12))",
+                border: "1px solid var(--border-light, #162031)",
                 borderRadius: "4px",
-                background: isSidebarCollapsed
-                  ? "var(--accent, #5b8def)"
-                  : "transparent",
-                color: isSidebarCollapsed
-                  ? "var(--bg-primary, #0e131d)"
-                  : "var(--text-secondary)",
+                background: "transparent",
+                color: "var(--text-secondary)",
                 cursor: "pointer",
                 fontSize: "0.95rem",
                 padding: 0,
               }}
             >
-              {isSidebarCollapsed ? "☰" : "⮜"}
+              <MenuIcon size={16} />
             </button>
             <div
               className="topbar-search"
@@ -966,64 +1006,150 @@ export function App() {
             {currentUser?.isAuthenticated && (
               <div
                 className="topbar-user-profile"
+                ref={profileMenuRef}
                 style={{
+                  position: "relative",
                   display: "flex",
                   alignItems: "center",
-                  gap: "0.5rem",
                   marginLeft: "0.25rem",
-                  borderLeft: "1px solid var(--border)",
+                  borderLeft: "1px solid var(--border, #1f2c42)",
                   paddingLeft: "0.75rem",
                 }}
               >
-                <div
+                <button
+                  type="button"
+                  onClick={() => setShowProfileMenu(!showProfileMenu)}
+                  title={currentUser.displayName || currentUser.username}
+                  aria-expanded={showProfileMenu}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
-                    justifyContent: "center",
-                    width: "28px",
-                    height: "28px",
-                    borderRadius: "50%",
-                    backgroundColor: "var(--bg-hover-elevated, #23324c)",
-                    color: "var(--accent, #5b8def)",
-                    fontSize: "12px",
-                    fontWeight: 600,
+                    gap: "0.45rem",
+                    background: "var(--bg-hover, #1e2a3f)",
                     border: "1px solid var(--border, #1f2c42)",
-                    overflow: "hidden",
-                  }}
-                >
-                  {currentUser.avatarUrl ? (
-                    <img
-                      src={currentUser.avatarUrl}
-                      alt={currentUser.displayName || currentUser.username}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                      }}
-                    />
-                  ) : (
-                    (currentUser.displayName || currentUser.username)
-                      .charAt(0)
-                      .toUpperCase()
-                  )}
-                </div>
-                <span
-                  style={{
-                    fontSize: "0.85rem",
+                    borderRadius: "6px",
+                    padding: "0.2rem 0.55rem 0.2rem 0.35rem",
                     color: "var(--text-primary)",
+                    cursor: "pointer",
+                    fontSize: "0.82rem",
                     fontWeight: 500,
+                    transition: "all 0.15s ease",
                   }}
                 >
-                  {currentUser.displayName || currentUser.username}
-                </span>
-                <button
-                  className="btn btn-small btn-outline"
-                  onClick={handleLogout}
-                  style={{ fontSize: "0.75rem", padding: "3px 8px" }}
-                  title={t("nav.signOut", "Sign Out")}
-                >
-                  {t("nav.signOut", "Sign Out")}
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: "24px",
+                      height: "24px",
+                      borderRadius: "50%",
+                      backgroundColor: "var(--bg-hover-elevated, #23324c)",
+                      color: "var(--accent, #5b8def)",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      border: "1px solid var(--border, #1f2c42)",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {currentUser.avatarUrl ? (
+                      <img
+                        src={currentUser.avatarUrl}
+                        alt={currentUser.displayName || currentUser.username}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
+                      />
+                    ) : (
+                      (currentUser.displayName || currentUser.username)
+                        .charAt(0)
+                        .toUpperCase()
+                    )}
+                  </div>
+                  <span>{currentUser.displayName || currentUser.username}</span>
+                  <span
+                    style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}
+                  >
+                    ▾
+                  </span>
                 </button>
+
+                {showProfileMenu && (
+                  <div
+                    className="topbar-dropdown"
+                    style={{ minWidth: "210px" }}
+                    onClick={() => setShowProfileMenu(false)}
+                  >
+                    <div
+                      style={{
+                        padding: "8px 14px",
+                        borderBottom: "1px solid var(--border, #1f2c42)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          fontSize: "0.85rem",
+                          color: "var(--text-primary)",
+                        }}
+                      >
+                        {currentUser.displayName || currentUser.username}
+                      </div>
+                      {currentUser.email && (
+                        <div
+                          style={{
+                            fontSize: "0.75rem",
+                            color: "var(--text-muted)",
+                            marginTop: "2px",
+                          }}
+                        >
+                          {currentUser.email}
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      className="topbar-dropdown-item"
+                      onClick={() => guardedNavigate("/system/status")}
+                    >
+                      🖥️ {t("nav.systemStatus", "System Status")}
+                    </button>
+                    <button
+                      type="button"
+                      className="topbar-dropdown-item"
+                      onClick={() => guardedNavigate("/settings/host")}
+                    >
+                      ⚙️ {t("nav.settings", "Settings")}
+                    </button>
+                    <button
+                      type="button"
+                      className="topbar-dropdown-item"
+                      onClick={() => setShowSearchModal(true)}
+                    >
+                      🔍 {t("nav.commandPalette", "Command Palette (Ctrl+K)")}
+                    </button>
+                    <button
+                      type="button"
+                      className="topbar-dropdown-item"
+                      onClick={() => setShowGettingStartedModal(true)}
+                    >
+                      🚀 {t("nav.gettingStarted", "Getting Started Guide")}
+                    </button>
+
+                    <div className="topbar-dropdown-separator" />
+
+                    <button
+                      type="button"
+                      className="topbar-dropdown-item topbar-dropdown-danger"
+                      onClick={handleLogout}
+                    >
+                      🚪 {t("nav.signOut", "Sign Out")}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
