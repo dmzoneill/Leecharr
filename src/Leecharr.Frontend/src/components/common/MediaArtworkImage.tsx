@@ -58,7 +58,11 @@ export const MediaArtworkImage: React.FC<MediaArtworkImageProps> = ({
     borderRadius: borderRadius ?? undefined,
     width: width ?? (aspectRatio && !height ? "100%" : undefined),
     height: height ?? undefined,
-    aspectRatio: aspectRatio ? String(aspectRatio) : (!width && !height ? "2 / 3" : undefined),
+    aspectRatio: aspectRatio
+      ? String(aspectRatio)
+      : !width && !height
+        ? "2 / 3"
+        : undefined,
     cursor: onClick ? "pointer" : undefined,
     ...style,
   };
@@ -103,7 +107,11 @@ export const MediaArtworkImage: React.FC<MediaArtworkImageProps> = ({
         >
           <div
             style={{
-              fontSize: fallbackText ? "2rem" : (typeof width === "number" && width <= 40 ? "0.85rem" : "1.5rem"),
+              fontSize: fallbackText
+                ? "2rem"
+                : typeof width === "number" && width <= 40
+                  ? "0.85rem"
+                  : "1.5rem",
               lineHeight: 1,
               marginBottom: fallbackText ? "0.35rem" : 0,
             }}

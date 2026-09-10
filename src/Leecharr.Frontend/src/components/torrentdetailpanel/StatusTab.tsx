@@ -189,7 +189,8 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
               padding: "0.5rem 0.8rem",
               backgroundColor: "var(--bg-secondary, rgba(255, 255, 255, 0.03))",
               borderRadius: "6px",
-              border: "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+              border:
+                "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
             }}
           >
             <div
@@ -203,7 +204,8 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
                 <strong>{percent.toFixed(1)}%</strong>{" "}
                 {isChecking ? (
                   <span style={{ color: "var(--info, #38bdf8)" }}>
-                    ({t("torrentStatus.checking", "Checking data integrity")}...)
+                    ({t("torrentStatus.checking", "Checking data integrity")}
+                    ...)
                   </span>
                 ) : (
                   <>
@@ -212,7 +214,14 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
                   </>
                 )}
               </span>
-              <span style={{ color: isChecking ? "var(--info, #38bdf8)" : "var(--text-muted)", fontWeight: isChecking ? 600 : 400 }}>
+              <span
+                style={{
+                  color: isChecking
+                    ? "var(--info, #38bdf8)"
+                    : "var(--text-muted)",
+                  fontWeight: isChecking ? 600 : 400,
+                }}
+              >
                 {isChecking
                   ? `${percent.toFixed(1)}% verified`
                   : t("torrents.detail.remaining", {

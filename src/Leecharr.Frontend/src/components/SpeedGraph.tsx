@@ -1,6 +1,9 @@
 import { useRef, useEffect, useState, useMemo, useId } from "react";
 import { useSpeedHistory, useSeedingStats, useTorrents } from "../api/hooks";
-import { useTorrentStore, useAggregatedTorrentMetrics } from "../stores/useTorrentStore";
+import {
+  useTorrentStore,
+  useAggregatedTorrentMetrics,
+} from "../stores/useTorrentStore";
 import { formatSpeed } from "../utils/formatters";
 import { useTranslation } from "../i18n";
 
@@ -146,9 +149,7 @@ export function SpeedGraph({
     const points: RawSpeedPoint[] = serverHistory.map((s, idx) => {
       const parsedTime = s.timestamp ? new Date(s.timestamp).getTime() : 0;
       const pointTime =
-        parsedTime > 0
-          ? parsedTime
-          : now - (serverHistory.length - idx) * 1000;
+        parsedTime > 0 ? parsedTime : now - (serverHistory.length - idx) * 1000;
       return {
         uploadSpeed: Number(s.uploadSpeed) || 0,
         downloadSpeed: Number(s.downloadSpeed) || 0,
@@ -521,10 +522,7 @@ export function SpeedGraph({
 
           {/* Area Fills */}
           {uploadArea && (
-            <path
-              d={uploadArea}
-              fill={`url(#speedUploadGrad_${gradientId})`}
-            />
+            <path d={uploadArea} fill={`url(#speedUploadGrad_${gradientId})`} />
           )}
           {downloadArea && (
             <path

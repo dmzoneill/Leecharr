@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+  useEffect,
+} from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { FileManager } from "@cubone/react-file-manager";
 import "@cubone/react-file-manager/dist/style.css";
@@ -91,9 +97,12 @@ export function FileBrowser() {
     !!previewPath,
   );
 
-  const navigateTo = useCallback((path: string) => {
-    setSearchParams(path ? { path } : {});
-  }, [setSearchParams]);
+  const navigateTo = useCallback(
+    (path: string) => {
+      setSearchParams(path ? { path } : {});
+    },
+    [setSearchParams],
+  );
 
   const handleNavigateUp = () => {
     if (listing?.parent && listing.parent !== listing.path) {

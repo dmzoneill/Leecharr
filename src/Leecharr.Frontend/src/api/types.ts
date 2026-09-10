@@ -335,7 +335,6 @@ export interface GeneralConfig {
   terminalAccessEnabled?: boolean;
 }
 
-
 export interface ApiKeyResource {
   apiKey: string;
 }

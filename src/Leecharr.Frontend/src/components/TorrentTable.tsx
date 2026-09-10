@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+  useEffect,
+} from "react";
 import { useVirtualizer, type VirtualItem } from "@tanstack/react-virtual";
 import { useTorrentStore, applyTelemetry } from "../stores/useTorrentStore";
 import {
@@ -345,51 +351,56 @@ export const TorrentStatusCell: React.FC<{
   torrentId: number;
   fallbackStatus?: string;
   fallbackProgress?: number;
-}> = React.memo(({ torrentId, fallbackStatus = "idle", fallbackProgress = 0 }) => {
-  const { t } = useTranslation();
-  const rawStatus = useTorrentStore(
-    (state) => state.telemetry[torrentId]?.status ?? fallbackStatus,
-  );
-  const progress = useTorrentStore(
-    (state) => state.telemetry[torrentId]?.progress ?? fallbackProgress,
-  );
+}> = React.memo(
+  ({ torrentId, fallbackStatus = "idle", fallbackProgress = 0 }) => {
+    const { t } = useTranslation();
+    const rawStatus = useTorrentStore(
+      (state) => state.telemetry[torrentId]?.status ?? fallbackStatus,
+    );
+    const progress = useTorrentStore(
+      (state) => state.telemetry[torrentId]?.progress ?? fallbackProgress,
+    );
 
-  const st = (rawStatus || "idle").toLowerCase();
-  let color = "var(--text-muted, #7e8092)";
-  let bg = "rgba(126, 128, 146, 0.15)";
+    const st = (rawStatus || "idle").toLowerCase();
+    let color = "var(--text-muted, #7e8092)";
+    let bg = "rgba(126, 128, 146, 0.15)";
 
-  if (st === "downloading") {
-    color = "var(--accent, #ffd166)";
-    bg = "rgba(255, 209, 102, 0.15)";
-  } else if (st === "seeding" || st === "completed") {
-    color = "var(--success, #22c55e)";
-    bg = "rgba(34, 197, 94, 0.15)";
-  } else if (st === "checking" || st === "queued") {
-    color = "var(--info, #38bdf8)";
-    bg = "rgba(56, 189, 248, 0.15)";
-  }
+    if (st === "downloading") {
+      color = "var(--accent, #ffd166)";
+      bg = "rgba(255, 209, 102, 0.15)";
+    } else if (st === "seeding" || st === "completed") {
+      color = "var(--success, #22c55e)";
+      bg = "rgba(34, 197, 94, 0.15)";
+    } else if (st === "checking" || st === "queued") {
+      color = "var(--info, #38bdf8)";
+      bg = "rgba(56, 189, 248, 0.15)";
+    }
 
-  const statusLabel =
-    st === "checking"
-      ? `${t("torrentStatus.checking", "Checking")} (${(progress * 100).toFixed(1)}%)`
-      : t("torrentStatus." + (rawStatus || "idle").toLowerCase(), rawStatus || "Idle");
+    const statusLabel =
+      st === "checking"
+        ? `${t("torrentStatus.checking", "Checking")} (${(progress * 100).toFixed(1)}%)`
+        : t(
+            "torrentStatus." + (rawStatus || "idle").toLowerCase(),
+            rawStatus || "Idle",
+          );
 
-  return (
-    <span
-      className="badge"
-      style={{
-        backgroundColor: bg,
-        color: color,
-        fontWeight: 600,
-        fontSize: "0.72rem",
-        padding: "0.15rem 0.5rem",
-        textTransform: "capitalize",
-      }}
-    >
-      {statusLabel}
-    </span>
-  );
-});
+    return (
+      <span
+        className="badge"
+        style={{
+          backgroundColor: bg,
+          color: color,
+          fontWeight: 600,
+          fontSize: "0.72rem",
+          padding: "0.15rem 0.5rem",
+          textTransform: "capitalize",
+        }}
+      >
+        {statusLabel}
+      </span>
+    );
+  },
+);
 TorrentStatusCell.displayName = "TorrentStatusCell";
 
 export const TorrentEtaCell: React.FC<{
@@ -409,7 +420,9 @@ export const TorrentEtaCell: React.FC<{
     fallbackStatus,
   }) => {
     const { t } = useTranslation();
-    const eta = useTorrentStore((state) => state.telemetry[torrentId]?.eta ?? fallbackEta);
+    const eta = useTorrentStore(
+      (state) => state.telemetry[torrentId]?.eta ?? fallbackEta,
+    );
     const progress = useTorrentStore(
       (state) => state.telemetry[torrentId]?.progress ?? fallbackProgress,
     );
@@ -418,7 +431,10 @@ export const TorrentEtaCell: React.FC<{
       if (!tel) return fallbackSpeed;
       const st = (tel.status || fallbackStatus || "").toLowerCase();
       const isInactive =
-        st === "paused" || st === "stopped" || st === "error" || st === "queued";
+        st === "paused" ||
+        st === "stopped" ||
+        st === "error" ||
+        st === "queued";
       return isInactive ? 0 : (tel.downloadSpeed ?? fallbackSpeed);
     });
     const status = useTorrentStore(
@@ -457,12 +473,7 @@ export const TorrentDownloadedCell: React.FC<{
   fallbackDownloaded?: number;
   fallbackProgress?: number;
 }> = React.memo(
-  ({
-    torrentId,
-    totalSize,
-    fallbackDownloaded,
-    fallbackProgress = 0,
-  }) => {
+  ({ torrentId, totalSize, fallbackDownloaded, fallbackProgress = 0 }) => {
     const downloaded = useTorrentStore((state) => {
       const tel = state.telemetry[torrentId];
       if (tel?.downloaded !== undefined) return tel.downloaded;
@@ -616,10 +627,7 @@ export const TorrentNameCell: React.FC<{
                   flexShrink: 0,
                 }}
               >
-                <i
-                  className="fas fa-lock"
-                  style={{ fontSize: "0.6rem" }}
-                />{" "}
+                <i className="fas fa-lock" style={{ fontSize: "0.6rem" }} />{" "}
                 {t("torrents.filters.privateBep27")}
               </span>
             )}
@@ -804,10 +812,7 @@ export const TorrentCell: React.FC<TorrentCellProps> = React.memo(
 
       case "uploaded":
         return (
-          <TorrentUploadedCell
-            torrentId={t.id}
-            fallbackUploaded={t.uploaded}
-          />
+          <TorrentUploadedCell torrentId={t.id} fallbackUploaded={t.uploaded} />
         );
 
       case "downloadSpeed":
@@ -829,12 +834,7 @@ export const TorrentCell: React.FC<TorrentCellProps> = React.memo(
         );
 
       case "ratio":
-        return (
-          <TorrentRatioCell
-            torrentId={t.id}
-            fallbackRatio={t.ratio}
-          />
-        );
+        return <TorrentRatioCell torrentId={t.id} fallbackRatio={t.ratio} />;
 
       case "seeders":
         return (
@@ -896,17 +896,13 @@ export const TorrentCell: React.FC<TorrentCellProps> = React.memo(
         );
 
       case "dateAdded":
-        return (
-          <span>{t.dateAdded ? formatDate(t.dateAdded) : "-"}</span>
-        );
+        return <span>{t.dateAdded ? formatDate(t.dateAdded) : "-"}</span>;
 
       case "pieceCount":
         return <span>{t.pieceCount ?? "-"}</span>;
 
       case "pieceLength":
-        return (
-          <span>{t.pieceLength ? formatBytes(t.pieceLength) : "-"}</span>
-        );
+        return <span>{t.pieceLength ? formatBytes(t.pieceLength) : "-"}</span>;
 
       case "infoHash":
         return (
@@ -952,17 +948,11 @@ export const TorrentCell: React.FC<TorrentCellProps> = React.memo(
         );
 
       case "uploadLimit":
-        return (
-          <span>
-            {t.uploadLimit ? formatSpeed(t.uploadLimit) : "∞"}
-          </span>
-        );
+        return <span>{t.uploadLimit ? formatSpeed(t.uploadLimit) : "∞"}</span>;
 
       case "downloadLimit":
         return (
-          <span>
-            {t.downloadLimit ? formatSpeed(t.downloadLimit) : "∞"}
-          </span>
+          <span>{t.downloadLimit ? formatSpeed(t.downloadLimit) : "∞"}</span>
         );
 
       case "initialSeeding":
@@ -984,9 +974,7 @@ export const TorrentCell: React.FC<TorrentCellProps> = React.memo(
         );
 
       case "lastActive":
-        return (
-          <span>{t.lastActive ? formatDate(t.lastActive) : "-"}</span>
-        );
+        return <span>{t.lastActive ? formatDate(t.lastActive) : "-"}</span>;
 
       case "comment":
         return <span>{t.comment || "-"}</span>;
@@ -1499,12 +1487,14 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
         valA =
           mergedA.eta ??
           (mergedA.downloadSpeed > 0
-            ? (mergedA.totalSize * (1 - mergedA.progress)) / mergedA.downloadSpeed
+            ? (mergedA.totalSize * (1 - mergedA.progress)) /
+              mergedA.downloadSpeed
             : 9999999);
         valB =
           mergedB.eta ??
           (mergedB.downloadSpeed > 0
-            ? (mergedB.totalSize * (1 - mergedB.progress)) / mergedB.downloadSpeed
+            ? (mergedB.totalSize * (1 - mergedB.progress)) /
+              mergedB.downloadSpeed
             : 9999999);
       }
 

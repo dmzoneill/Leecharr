@@ -336,22 +336,47 @@ export function App() {
         if (msg.body) {
           const body = msg.body as
             | Array<{ id: number; [key: string]: unknown }>
-            | { torrents?: Array<{ id: number; [key: string]: unknown }>; id?: number }
+            | {
+                torrents?: Array<{ id: number; [key: string]: unknown }>;
+                id?: number;
+              }
             | Record<string, { id?: number; [key: string]: unknown }>;
-          const updates: Array<{ id: number; [key: string]: unknown }> = Array.isArray(body)
-            ? (body as Array<{ id: number; [key: string]: unknown }>)
-            : Array.isArray((body as { torrents?: Array<{ id: number; [key: string]: unknown }> }).torrents)
-              ? ((body as { torrents: Array<{ id: number; [key: string]: unknown }> }).torrents)
-              : typeof (body as { id?: number }).id === "number"
-                ? [body as { id: number; [key: string]: unknown }]
-                : typeof body === "object"
-                  ? Object.entries(body as Record<string, { id?: number; [key: string]: unknown }>).map(
-                      ([id, data]: [string, { id?: number; [key: string]: unknown }]) => ({
-                        id: Number(id) || data?.id || 0,
-                        ...(typeof data === "object" ? data : {}),
-                      }),
-                    )
-                  : [];
+          const updates: Array<{ id: number; [key: string]: unknown }> =
+            Array.isArray(body)
+              ? (body as Array<{ id: number; [key: string]: unknown }>)
+              : Array.isArray(
+                    (
+                      body as {
+                        torrents?: Array<{
+                          id: number;
+                          [key: string]: unknown;
+                        }>;
+                      }
+                    ).torrents,
+                  )
+                ? (
+                    body as {
+                      torrents: Array<{ id: number; [key: string]: unknown }>;
+                    }
+                  ).torrents
+                : typeof (body as { id?: number }).id === "number"
+                  ? [body as { id: number; [key: string]: unknown }]
+                  : typeof body === "object"
+                    ? Object.entries(
+                        body as Record<
+                          string,
+                          { id?: number; [key: string]: unknown }
+                        >,
+                      ).map(
+                        ([id, data]: [
+                          string,
+                          { id?: number; [key: string]: unknown },
+                        ]) => ({
+                          id: Number(id) || data?.id || 0,
+                          ...(typeof data === "object" ? data : {}),
+                        }),
+                      )
+                    : [];
 
           if (updates.length > 0) {
             useTorrentStore.getState().updateTelemetry(updates);
@@ -396,7 +421,7 @@ export function App() {
               const tid = Number(
                 typeof item === "object" && item !== null
                   ? ((item as { id?: number; torrentId?: number }).id ??
-                    (item as { id?: number; torrentId?: number }).torrentId)
+                      (item as { id?: number; torrentId?: number }).torrentId)
                   : item,
               );
               if (!Number.isNaN(tid) && tid > 0) {
@@ -407,7 +432,7 @@ export function App() {
             const tid = Number(
               typeof body === "object"
                 ? ((body as { id?: number; torrentId?: number }).id ??
-                  (body as { id?: number; torrentId?: number }).torrentId)
+                    (body as { id?: number; torrentId?: number }).torrentId)
                 : body,
             );
             if (!Number.isNaN(tid) && tid > 0) {
@@ -872,9 +897,11 @@ export function App() {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "0.4rem",
-                backgroundColor: "var(--accent-bg-medium, rgba(91, 141, 239, 0.12))",
+                backgroundColor:
+                  "var(--accent-bg-medium, rgba(91, 141, 239, 0.12))",
                 color: "var(--accent, #5b8def)",
-                border: "1px solid var(--accent-border-alert, rgba(91, 141, 239, 0.3))",
+                border:
+                  "1px solid var(--accent-border-alert, rgba(91, 141, 239, 0.3))",
                 fontWeight: 600,
               }}
               title={t("nav.gettingStarted")}
@@ -886,10 +913,15 @@ export function App() {
               type="button"
               className="topbar-apikey-btn"
               onClick={handleCopyApiKey}
-              title={t("apiDocs.copyApiKeyTooltip", "Copy API Key to clipboard")}
+              title={t(
+                "apiDocs.copyApiKeyTooltip",
+                "Copy API Key to clipboard",
+              )}
             >
               <span style={{ fontSize: "0.85rem" }}>⚿</span>
-              <span style={{ letterSpacing: "1px", opacity: 0.85 }}>••••••••••••••••••••••••</span>
+              <span style={{ letterSpacing: "1px", opacity: 0.85 }}>
+                ••••••••••••••••••••••••
+              </span>
             </button>
 
             <button
@@ -963,7 +995,11 @@ export function App() {
                     <img
                       src={currentUser.avatarUrl}
                       alt={currentUser.displayName || currentUser.username}
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
                     />
                   ) : (
                     (currentUser.displayName || currentUser.username)

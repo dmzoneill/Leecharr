@@ -399,7 +399,10 @@ export function useAggregatedTorrentMetrics(
       list.length > 0 ? active : (stats?.activeTorrents ?? 0);
 
     const totalUploaded = Math.max(stats?.totalUploaded ?? 0, uploadedSum);
-    const totalDownloaded = Math.max(stats?.totalDownloaded ?? 0, downloadedSum);
+    const totalDownloaded = Math.max(
+      stats?.totalDownloaded ?? 0,
+      downloadedSum,
+    );
     const averageRatio = stats?.averageRatio ?? calculatedAvgRatio;
 
     return {

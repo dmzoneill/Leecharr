@@ -349,10 +349,7 @@ export function TrackerBoostIcon({
   );
 }
 
-export function TerminalIcon({
-  size = 16,
-  color = "currentColor",
-}: IconProps) {
+export function TerminalIcon({ size = 16, color = "currentColor" }: IconProps) {
   return (
     <svg
       width={size}
