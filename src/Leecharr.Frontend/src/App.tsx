@@ -41,6 +41,7 @@ import {
   ChevronsRightIcon,
   SunIcon,
   MoonIcon,
+  HeartIcon,
 } from "./components/icons/AppIcons";
 import { Dashboard } from "./pages/Dashboard";
 import { TorrentIndex } from "./pages/TorrentIndex";
@@ -1030,7 +1031,7 @@ export function App() {
               title={t("nav.support", "Support & Donate")}
               aria-label="Support and Donate"
             >
-              ❤️
+              <HeartIcon size={14} />
             </a>
 
             {currentUser?.isAuthenticated && (
