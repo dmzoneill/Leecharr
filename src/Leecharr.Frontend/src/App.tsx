@@ -577,18 +577,25 @@ export function App() {
     >
       {/* Sidebar Navigation */}
       <aside className={`sidebar sidebar-${activeNav}`}>
-        <div
-          className="sidebar-logo"
-          onClick={() => guardedNavigate("/")}
-          style={{ cursor: "pointer", position: "relative" }}
-        >
+        <div className="sidebar-header">
+          <div
+            className="sidebar-logo"
+            onClick={() => guardedNavigate("/")}
+            style={{ cursor: "pointer" }}
+            title="Leecharr"
+          >
+            <LeecharrLogo
+              size={isSidebarCollapsed ? 36 : 96}
+              className="brand-logo"
+            />
+            {!isSidebarCollapsed && (
+              <LeecharrText width={140} className="brand-text" />
+            )}
+          </div>
           <button
             type="button"
-            className="sidebar-collapse-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleSidebar();
-            }}
+            className="sidebar-toggle-btn"
+            onClick={toggleSidebar}
             title={t(
               isSidebarCollapsed ? "nav.expandMenu" : "nav.collapseMenu",
             )}
@@ -602,13 +609,6 @@ export function App() {
               <ChevronsLeftIcon size={14} />
             )}
           </button>
-          <LeecharrLogo
-            size={isSidebarCollapsed ? 36 : 86}
-            className="brand-logo"
-          />
-          {!isSidebarCollapsed && (
-            <LeecharrText width={120} className="brand-text" />
-          )}
         </div>
 
         <nav className="sidebar-nav">
