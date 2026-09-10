@@ -6,6 +6,7 @@ import {
   QueuedIcon,
   ErrorIcon,
 } from "../../components/icons/UIIcons";
+import { ChevronsLeftIcon } from "../../components/icons/AppIcons";
 import { TrackerFavicon } from "../../components/TrackerFavicon";
 import { useTranslation } from "../../i18n";
 
@@ -81,34 +82,17 @@ export function TorrentFilterPanel({
 
   return (
     <div className="filter-panel">
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0.6rem 0.75rem 0.25rem",
-        }}
-      >
-        <span className="filter-panel-section" style={{ padding: 0 }}>
-          {t("common.status")}
-        </span>
+      <div className="filter-panel-header">
+        <div className="filter-panel-section">{t("torrents.filterState", "State")}</div>
         {onCollapse && (
           <button
             type="button"
+            className="filter-panel-collapse-btn"
             onClick={onCollapse}
-            title={t("torrents.toolbar.hideFilters")}
-            style={{
-              background: "rgba(255, 255, 255, 0.05)",
-              border: "1px solid var(--border-light, rgba(255, 255, 255, 0.1))",
-              borderRadius: "3px",
-              color: "var(--text-muted)",
-              cursor: "pointer",
-              padding: "1px 5px",
-              fontSize: "0.75rem",
-              lineHeight: 1,
-            }}
+            title={t("torrents.toolbar.hideFilters", "Collapse filter sidebar")}
+            aria-label="Collapse filter sidebar"
           >
-            «
+            <ChevronsLeftIcon size={13} />
           </button>
         )}
       </div>

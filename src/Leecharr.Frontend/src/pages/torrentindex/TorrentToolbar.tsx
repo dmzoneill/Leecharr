@@ -7,6 +7,7 @@ import {
   TableIcon,
   GridIcon,
   SlidersIcon,
+  FilterIcon,
 } from "../../components/icons/UIIcons";
 import { useSeedingConfig, useSaveSeedingConfig } from "../../api/hooks";
 import { DiskStorageBadge } from "../../components/quicksettings/DiskStorageBadge";
@@ -136,11 +137,12 @@ export function TorrentToolbar({
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: "4px",
+              gap: "5px",
               fontSize: "0.8rem",
               padding: "0.3rem 0.6rem",
             }}
           >
+            <FilterIcon size={12} />
             <span>{isFilterCollapsed ? "▶" : "◀"}</span>
             <span>{t("common.filter")}</span>
           </button>
