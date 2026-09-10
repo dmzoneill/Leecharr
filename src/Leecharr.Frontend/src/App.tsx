@@ -933,12 +933,18 @@ export function App() {
               className="topbar-search"
               onClick={() => setShowSearchModal(true)}
               style={{ cursor: "pointer" }}
-              title={t("nav.searchPlaceholder")}
+              title={t(
+                "topbar.searchPlaceholder",
+                "Quick Jump / Search... (Ctrl+K)",
+              )}
             >
               <SearchIcon size={14} />
               <input
                 type="text"
-                placeholder={`${t("common.search")}...`}
+                placeholder={t(
+                  "topbar.searchPlaceholder",
+                  "Quick Jump / Search... (Ctrl+K)",
+                )}
                 className="topbar-search-input"
                 readOnly
                 style={{ cursor: "pointer" }}
