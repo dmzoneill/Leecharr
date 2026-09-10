@@ -1,6 +1,7 @@
 # .NET
 bin/
 obj/
+_reports/
 _output/
 _temp/
 _tests/
