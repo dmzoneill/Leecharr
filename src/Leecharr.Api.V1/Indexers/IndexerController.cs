@@ -79,6 +79,18 @@ public class IndexerController : Controller
             return this.BadRequest();
         }
 
+        if (string.IsNullOrWhiteSpace(resource.Name))
+        {
+            return this.BadRequest("Indexer name is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(resource.Url))
+        {
+            return this.BadRequest("Indexer URL is required.");
+        }
+
+        resource.Name = resource.Name.Trim();
+        resource.Url = resource.Url.Trim();
         var model = ToModel(resource);
         var created = this.indexerRepository.Insert(model);
         return this.Ok(ToResource(created));
@@ -92,12 +104,24 @@ public class IndexerController : Controller
             return this.BadRequest();
         }
 
+        if (string.IsNullOrWhiteSpace(resource.Name))
+        {
+            return this.BadRequest("Indexer name is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(resource.Url))
+        {
+            return this.BadRequest("Indexer URL is required.");
+        }
+
         var existing = this.indexerRepository.Get(id);
         if (existing == null)
         {
             return this.NotFound();
         }
 
+        resource.Name = resource.Name.Trim();
+        resource.Url = resource.Url.Trim();
         var model = ToModel(resource);
         model.Id = id;
         this.indexerRepository.Update(model);

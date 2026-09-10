@@ -209,4 +209,48 @@ public class CategoryServiceTest
         this.torrentRepository.Received(1).Update(torrent1);
         this.torrentRepository.Received(1).Update(torrent2);
     }
+
+    [Test]
+    public void Add_WhenCategoryNameEmptyOrWhitespace_ThrowsArgumentException()
+    {
+        var category = new Category { Name = "   ", SavePath = "/downloads" };
+        Action act = () => this.service.Add(category);
+        act.Should().Throw<ArgumentException>().WithMessage("*name*");
+    }
+
+    [Test]
+    public void Add_WhenCategoryNegativeLimits_ThrowsArgumentException()
+    {
+        var category = new Category { Name = "test", DefaultUploadLimit = -10 };
+        Action act = () => this.service.Add(category);
+        act.Should().Throw<ArgumentException>().WithMessage("*non-negative*");
+    }
+
+    [Test]
+    public void Add_TrimsCategoryNameAndSavePath()
+    {
+        var category = new Category { Name = "  movies  ", SavePath = "  /downloads/movies  " };
+        this.repository.Insert(Arg.Any<Category>()).Returns(ci => ci.Arg<Category>());
+
+        var inserted = this.service.Add(category);
+
+        inserted.Name.Should().Be("movies");
+        inserted.SavePath.Should().Be("/downloads/movies");
+    }
+
+    [Test]
+    public void Update_WhenCategoryNameEmpty_ThrowsArgumentException()
+    {
+        var category = new Category { Id = 1, Name = string.Empty, SavePath = "/downloads" };
+        Action act = () => this.service.Update(category);
+        act.Should().Throw<ArgumentException>().WithMessage("*name*");
+    }
+
+    [Test]
+    public void Update_WhenCategoryNegativeLimits_ThrowsArgumentException()
+    {
+        var category = new Category { Id = 1, Name = "valid", TargetRatio = -1.0 };
+        Action act = () => this.service.Update(category);
+        act.Should().Throw<ArgumentException>().WithMessage("*non-negative*");
+    }
 }

@@ -53,6 +53,21 @@ public class CategoryController : RestControllerWithSignalR<CategoryResource, Ca
         }
 
         var trimmedName = resource.Name.Trim();
+        if (trimmedName.Contains('\0'))
+        {
+            return this.BadRequest("Category name contains invalid characters.");
+        }
+
+        if (resource.DefaultUploadLimit < 0 || resource.DefaultDownloadLimit < 0)
+        {
+            return this.BadRequest("Default rate limits must be non-negative.");
+        }
+
+        if (resource.TargetRatio < 0 || resource.TargetSeedTimeMinutes < 0)
+        {
+            return this.BadRequest("Seed targets must be non-negative.");
+        }
+
         var existing = this.categoryService.GetByName(trimmedName);
         if (existing != null)
         {
@@ -60,6 +75,7 @@ public class CategoryController : RestControllerWithSignalR<CategoryResource, Ca
         }
 
         resource.Name = trimmedName;
+        resource.SavePath = resource.SavePath?.Trim();
         var model = CategoryResourceMapper.ToModel(resource);
         var inserted = this.categoryService.Add(model);
         return this.Ok(CategoryResourceMapper.ToResource(inserted));
@@ -80,6 +96,21 @@ public class CategoryController : RestControllerWithSignalR<CategoryResource, Ca
         }
 
         var trimmedName = resource.Name.Trim();
+        if (trimmedName.Contains('\0'))
+        {
+            return this.BadRequest("Category name contains invalid characters.");
+        }
+
+        if (resource.DefaultUploadLimit < 0 || resource.DefaultDownloadLimit < 0)
+        {
+            return this.BadRequest("Default rate limits must be non-negative.");
+        }
+
+        if (resource.TargetRatio < 0 || resource.TargetSeedTimeMinutes < 0)
+        {
+            return this.BadRequest("Seed targets must be non-negative.");
+        }
+
         var existingWithName = this.categoryService.GetByName(trimmedName);
         if (existingWithName != null && existingWithName.Id != id)
         {
@@ -87,6 +118,7 @@ public class CategoryController : RestControllerWithSignalR<CategoryResource, Ca
         }
 
         resource.Name = trimmedName;
+        resource.SavePath = resource.SavePath?.Trim();
         var model = CategoryResourceMapper.ToModel(resource);
         model.Id = id;
         var updated = this.categoryService.Update(model);
