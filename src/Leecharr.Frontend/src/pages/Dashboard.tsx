@@ -8,7 +8,10 @@ import {
   useDiskSpace,
   useSeedingStats,
 } from "../api/hooks";
-import { useTorrentStore, useAggregatedTorrentMetrics } from "../stores/useTorrentStore";
+import {
+  useTorrentStore,
+  useAggregatedTorrentMetrics,
+} from "../stores/useTorrentStore";
 import { extractTrackerDomain } from "../utils/formatters";
 import { calculateAchievements } from "../utils/milestones";
 import { useTranslation } from "../i18n";
@@ -54,7 +57,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
     avgRatio,
   } = useAggregatedTorrentMetrics(torrents);
 
-  const [timeframe, setTimeframe] = useState<"60s" | "5m" | "15m" | "1h" | "24h">("60s");
+  const [timeframe, setTimeframe] = useState<
+    "60s" | "5m" | "15m" | "1h" | "24h"
+  >("60s");
 
   const speedsRef = useRef({ dl: totalDlSpeed, ul: totalUlSpeed });
   speedsRef.current = { dl: totalDlSpeed, ul: totalUlSpeed };
@@ -829,7 +834,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
               {t("dashboard.live1s")}
             </span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              flexWrap: "wrap",
+            }}
+          >
             <div className="view-toggle" style={{ margin: 0 }}>
               {(["60s", "5m", "15m", "1h", "24h"] as const).map((tf) => (
                 <button
@@ -844,13 +856,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
               ))}
             </div>
             <div style={{ display: "flex", gap: "16px", fontSize: "0.8rem" }}>
-              <span style={{ color: "var(--accent, #ffd166)", fontWeight: 600 }}>
+              <span
+                style={{ color: "var(--accent, #ffd166)", fontWeight: 600 }}
+              >
                 {t("dashboard.downloadSpeed", {
                   speed: formatSpeed(totalDlSpeed),
                 })}
               </span>
-              <span style={{ color: "var(--success, #22c55e)", fontWeight: 600 }}>
-                {t("dashboard.uploadSpeed", { speed: formatSpeed(totalUlSpeed) })}
+              <span
+                style={{ color: "var(--success, #22c55e)", fontWeight: 600 }}
+              >
+                {t("dashboard.uploadSpeed", {
+                  speed: formatSpeed(totalUlSpeed),
+                })}
               </span>
             </div>
           </div>

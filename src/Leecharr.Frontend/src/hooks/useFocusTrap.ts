@@ -48,7 +48,8 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
       if (initialFocusRef?.current) {
         initialFocusRef.current.focus();
       } else {
-        const focusableElements = container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+        const focusableElements =
+          container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
         if (focusableElements.length > 0) {
           focusableElements[0].focus();
         } else if (container.getAttribute("tabIndex") !== null) {
@@ -75,7 +76,11 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
         currentContainer.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
       ).filter((el) => {
         // Only include elements that are visible and not hidden
-        return el.offsetParent !== null && !el.hasAttribute("disabled") && el.getAttribute("aria-hidden") !== "true";
+        return (
+          el.offsetParent !== null &&
+          !el.hasAttribute("disabled") &&
+          el.getAttribute("aria-hidden") !== "true"
+        );
       });
 
       if (focusable.length === 0) {
@@ -110,7 +115,11 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
     return () => {
       clearTimeout(timer);
       window.removeEventListener("keydown", handleKeyDown);
-      if (restoreFocus && previousFocusRef.current && typeof previousFocusRef.current.focus === "function") {
+      if (
+        restoreFocus &&
+        previousFocusRef.current &&
+        typeof previousFocusRef.current.focus === "function"
+      ) {
         try {
           previousFocusRef.current.focus();
         } catch {

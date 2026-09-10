@@ -467,7 +467,10 @@ body {
 .sidebar-nav-sub.active {
   color: var(--accent) !important;
   border-left-color: var(--accent) !important;
-  background-color: var(--accent-bg-subtle, rgba(91, 141, 239, 0.08)) !important;
+  background-color: var(
+    --accent-bg-subtle,
+    rgba(91, 141, 239, 0.08)
+  ) !important;
   font-weight: 600;
 }
 
@@ -659,7 +662,9 @@ body {
   justify-content: center;
   font-size: 1rem;
   cursor: pointer;
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
 }
 
 .topbar-heart:hover {

@@ -111,9 +111,7 @@ export function TorrentFileInputTab({
         <div style={{ fontSize: "2.5rem", marginBottom: "0.6rem" }}>📤</div>
         {files.length > 0 ? (
           <div>
-            <span
-              style={{ fontWeight: 600, color: "var(--accent, #ffd166)" }}
-            >
+            <span style={{ fontWeight: 600, color: "var(--accent, #ffd166)" }}>
               {files.length === 1
                 ? t("addTorrent.oneFileSelected", {
                     name: files[0].name,

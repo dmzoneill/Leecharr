@@ -85,7 +85,10 @@ export function DownloadClientsTab() {
           setEditing(null);
         },
         onError: (err: any) => {
-          showToast(err?.message || "Failed to update download client", "error");
+          showToast(
+            err?.message || "Failed to update download client",
+            "error",
+          );
         },
       });
     } else {
@@ -95,7 +98,10 @@ export function DownloadClientsTab() {
           setEditing(null);
         },
         onError: (err: any) => {
-          showToast(err?.message || "Failed to create download client", "error");
+          showToast(
+            err?.message || "Failed to create download client",
+            "error",
+          );
         },
       });
     }

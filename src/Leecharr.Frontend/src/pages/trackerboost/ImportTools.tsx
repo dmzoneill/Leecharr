@@ -173,11 +173,7 @@ export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
             gap: "0.5rem",
           }}
         >
-          <button
-            type="button"
-            className="btn btn-action"
-            onClick={onClose}
-          >
+          <button type="button" className="btn btn-action" onClick={onClose}>
             {t("common.cancel", "Cancel")}
           </button>
           <button
@@ -191,10 +187,7 @@ export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
                   "trackerBoost.settings.importingTrackers",
                   "Importing Trackers...",
                 )
-              : t(
-                  "trackerBoost.settings.importTrackersBtn",
-                  "Import Trackers",
-                )}
+              : t("trackerBoost.settings.importTrackersBtn", "Import Trackers")}
           </button>
         </div>
       </div>

@@ -179,7 +179,8 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
             {isChecking
               ? `${t("torrentStatus.checking", "Checking")} (${((mergedTorrent.progress ?? 0) * 100).toFixed(1)}%)`
               : t(
-                  "torrentStatus." + (mergedTorrent.status || "idle").toLowerCase(),
+                  "torrentStatus." +
+                    (mergedTorrent.status || "idle").toLowerCase(),
                   mergedTorrent.status || "Idle",
                 )}
           </div>
@@ -229,7 +230,12 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
             }}
           >
             <span>{formatFileSize(mergedTorrent.totalSize)}</span>
-            <span style={{ fontWeight: 600, color: isChecking ? "var(--info, #38bdf8)" : undefined }}>
+            <span
+              style={{
+                fontWeight: 600,
+                color: isChecking ? "var(--info, #38bdf8)" : undefined,
+              }}
+            >
               {((mergedTorrent.progress ?? 0) * 100).toFixed(1)}%
             </span>
           </div>
