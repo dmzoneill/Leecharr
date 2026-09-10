@@ -199,9 +199,14 @@ const de: I18nTranslations = {
     "switchLanguage": "Sprache wechseln",
     "browseFiles": "Dateien durchsuchen",
     "openTerminal": "Öffnen Sie das Terminal",
+    "systemStatus": "Systemstatus",
     "torrents": "Torrents",
     "system": "System",
-    "status": "Status"
+    "status": "Status",
+    "themeLight": "Wechseln Sie in den Lichtmodus",
+    "themeDark": "Wechseln Sie in den Dunkelmodus",
+    "support": "Unterstützen und spenden",
+    "commandPalette": "Befehlspalette (Strg+K)"
   },
   "dashboard": {
     "level": "Stufe",
@@ -649,6 +654,7 @@ const de: I18nTranslations = {
       "noTorrentsDesc": "Keine Torrents Desc"
     },
     "title": "Torrents",
+    "filterState": "Filterstatus",
     "nameHeader": "Name",
     "statusHeader": "Status"
   },
@@ -837,6 +843,7 @@ const de: I18nTranslations = {
   },
   "history": {
     "title": "Download-Verlauf",
+    "downloadFile": "Datei herunterladen",
     "historicalDownloads": "Abgeschlossene & historische Downloads",
     "postersView": "Poster-Galerie",
     "tableView": "Tabellenansicht",
@@ -903,6 +910,17 @@ const de: I18nTranslations = {
     "filterByGenre": "Nach Genre filtern",
     "alreadyInLibrary": "Bereits in der Bibliothek",
     "torrentAddedSuccess": "Torrent hinzugefügt Erfolg",
+    "export": "Export",
+    "exportDownloaded": "Export erfolgreich heruntergeladen",
+    "copiedToClipboard": "Exportdaten in die Zwischenablage kopiert",
+    "copyFailed": "Kopieren in die Zwischenablage fehlgeschlagen",
+    "exportHistoryTitle": "Download-Verlauf exportieren",
+    "exportFormat": "Exportformat",
+    "includeEnrichedMetadata": "Fügen Sie angereicherte Metadaten hinzu",
+    "exportPreview": "Vorschau exportieren",
+    "copyToClipboard": "In die Zwischenablage kopieren",
+    "filterStartDate": "Startdatum",
+    "filterEndDate": "Enddatum",
     "status": "Status",
     "imdb": "Imdb",
     "tmdb": "Tmdb",
@@ -3347,13 +3365,13 @@ const de: I18nTranslations = {
     "dontShowAgain": "Nicht mehr anzeigen",
     "previous": "Vorherige",
     "finishAndClose": "Fertig stellen und schließen",
+    "startExampleTour": "Beispieltour starten →",
+    "startLiveSetup": "Starten Sie das Live-Setup",
+    "stepCount": "Schritt {{current}} von {{total}}",
     "webhookHostHintSonarr": "Webhook-Host-Hinweis Sonarr",
     "webhookHostHintRadarr": "Webhook-Host-Hinweis Radarr",
     "webhookHostHintLidarr": "Webhook-Host-Hinweis Lidarr",
-    "name": "Name",
-    "startExampleTour": "Beispieltour starten →",
-    "startLiveSetup": "Starten Sie das Live-Setup",
-    "stepCount": "Schritt {{current}} von {{total}}"
+    "name": "Name"
   },
   "promptModal": {
     "defaultTitle": "Standardtitel",
@@ -3564,6 +3582,9 @@ const de: I18nTranslations = {
     "enterUserAndPass": "Geben Sie Benutzer und Pass ein",
     "invalidCredentials": "Ungültige Anmeldeinformationen",
     "signInWithProvider": "Melden Sie sich beim Anbieter an"
+  },
+  "topbar": {
+    "searchPlaceholder": "Schnellsprung/Suche... (Strg+K)"
   }
 };
 

@@ -2,10 +2,12 @@ import React, { useState, useEffect } from "react";
 import { useGeneralConfig, useSaveGeneralConfig } from "../../api/hooks";
 import { SaveBar, SectionCard, SelectInput } from "./shared";
 import { LanguageSelector } from "../../components/LanguageSelector";
-import { useTranslation, useI18nStore } from "../../i18n";
+import { useTranslation } from "../../i18n";
+import { useTheme, ThemeStyle, ColorScheme } from "../../context/ThemeContext";
 
 export function WebUiSettingsTab() {
   const { t } = useTranslation();
+  const { setThemeStyle, setColorScheme } = useTheme();
 
   const { data: config, isLoading } = useGeneralConfig();
   const saveMutation = useSaveGeneralConfig();
@@ -33,15 +35,11 @@ export function WebUiSettingsTab() {
   ) => {
     setForm((prev) => {
       const next = { ...prev, [key]: val };
-      // Apply immediate live preview
-      let theme = next.themeStyle;
-      if (theme === "system") {
-        theme = window.matchMedia("(prefers-color-scheme: light)").matches
-          ? "light"
-          : "dark";
+      if (key === "themeStyle") {
+        setThemeStyle(val as ThemeStyle);
+      } else if (key === "colorScheme") {
+        setColorScheme(val as ColorScheme);
       }
-      document.documentElement.setAttribute("data-theme", theme);
-      document.documentElement.setAttribute("data-accent", next.colorScheme);
       return next;
     });
     setDirty(true);
