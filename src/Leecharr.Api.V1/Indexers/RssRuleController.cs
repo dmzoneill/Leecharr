@@ -55,6 +55,21 @@ public class RssRuleController : Controller
             return this.BadRequest();
         }
 
+        if (string.IsNullOrWhiteSpace(resource.Name))
+        {
+            return this.BadRequest("RSS rule name is required.");
+        }
+
+        if (resource.MinSizeBytes < 0 || resource.MaxSizeBytes < 0 || resource.MinSeeders < 0 || resource.MaxAgeDays < 0)
+        {
+            return this.BadRequest("Rule limits and age must be non-negative.");
+        }
+
+        if (resource.MaxSizeBytes > 0 && resource.MinSizeBytes > resource.MaxSizeBytes)
+        {
+            return this.BadRequest("MinSizeBytes cannot be greater than MaxSizeBytes.");
+        }
+
         if (!IsValidRegex(resource.MustContain, out var mustContainError))
         {
             return this.BadRequest(new { message = $"Invalid MustContain regex pattern: {mustContainError}" });
@@ -65,6 +80,7 @@ public class RssRuleController : Controller
             return this.BadRequest(new { message = $"Invalid MustNotContain regex pattern: {mustNotContainError}" });
         }
 
+        resource.Name = resource.Name.Trim();
         var model = ToModel(resource);
         var created = this.rssRuleRepository.Insert(model);
         return this.Ok(ToResource(created));
@@ -76,6 +92,21 @@ public class RssRuleController : Controller
         if (resource == null)
         {
             return this.BadRequest();
+        }
+
+        if (string.IsNullOrWhiteSpace(resource.Name))
+        {
+            return this.BadRequest("RSS rule name is required.");
+        }
+
+        if (resource.MinSizeBytes < 0 || resource.MaxSizeBytes < 0 || resource.MinSeeders < 0 || resource.MaxAgeDays < 0)
+        {
+            return this.BadRequest("Rule limits and age must be non-negative.");
+        }
+
+        if (resource.MaxSizeBytes > 0 && resource.MinSizeBytes > resource.MaxSizeBytes)
+        {
+            return this.BadRequest("MinSizeBytes cannot be greater than MaxSizeBytes.");
         }
 
         if (!IsValidRegex(resource.MustContain, out var mustContainError))
@@ -94,6 +125,7 @@ public class RssRuleController : Controller
             return this.NotFound();
         }
 
+        resource.Name = resource.Name.Trim();
         var model = ToModel(resource);
         model.Id = id;
         this.rssRuleRepository.Update(model);
@@ -105,7 +137,7 @@ public class RssRuleController : Controller
     {
         if (resource == null || resource.Id <= 0)
         {
-            return this.BadRequest();
+            return this.BadRequest("Valid RSS rule ID is required.");
         }
 
         return this.Update(resource.Id, resource);

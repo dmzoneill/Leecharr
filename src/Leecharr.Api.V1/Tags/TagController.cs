@@ -17,6 +17,7 @@ public class TagResource : RestResource
 }
 
 [V1ApiController("tag")]
+[Route("api/v1/tags")]
 public class TagController : Controller
 {
     private readonly ITagRepository tagRepository;
