@@ -83,7 +83,9 @@ export function TorrentFilterPanel({
   return (
     <div className="filter-panel">
       <div className="filter-panel-header">
-        <div className="filter-panel-section">{t("torrents.filterState", "State")}</div>
+        <div className="filter-panel-section">
+          {t("torrents.filterState", "State")}
+        </div>
         {onCollapse && (
           <button
             type="button"

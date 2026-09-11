@@ -69,7 +69,7 @@ export function translate(
   }
   const actualParams =
     typeof defaultOrParams === "object" ? defaultOrParams : params;
-  return interpolate(value, actualParams);
+  return interpolate(value ?? key, actualParams);
 }
 
 export const useTranslation = () => {
@@ -106,7 +106,7 @@ export const useTranslation = () => {
 
       const actualParams =
         typeof defaultOrParams === "object" ? defaultOrParams : params;
-      return interpolate(value, actualParams);
+      return interpolate(value ?? key, actualParams);
     },
     [translations],
   );

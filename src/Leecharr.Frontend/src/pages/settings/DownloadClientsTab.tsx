@@ -43,8 +43,8 @@ export function DownloadClientsTab() {
   const handleCloseModal = async () => {
     const isDirty = Boolean(
       editing &&
-        initialClientRef.current &&
-        JSON.stringify(editing) !== initialClientRef.current,
+      initialClientRef.current &&
+      JSON.stringify(editing) !== initialClientRef.current,
     );
     if (isDirty) {
       const ok = await confirm({
