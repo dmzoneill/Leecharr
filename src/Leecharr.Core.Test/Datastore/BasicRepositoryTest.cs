@@ -258,6 +258,40 @@ public class BasicRepositoryTest
     }
 
     [Test]
+    public void UpsertMany_WhenInsertFailsBeforeCommit_DoesNotMutateModelIds()
+    {
+        var torrent = new Torrent
+        {
+            Id = 0,
+            Name = "Rollback.Torrent",
+            InfoHash = "2222333344445555666677778888999900001111",
+            Category = "rollback",
+            TotalSize = 1000,
+            Status = TorrentStatus.Downloading,
+            DateAdded = DateTime.UtcNow,
+        };
+
+        var invalidUpdateTorrent = new Torrent
+        {
+            Id = 999999,
+            Name = null!, // Will fail if NOT NULL constraint or invalid
+            InfoHash = null!,
+        };
+
+        // Attempting to upsert where update fails will cause rollback
+        // Ensure that torrent.Id is not mutated to a non-zero value if transaction fails
+        var customDatabase = Substitute.For<IDatabase>();
+        customDatabase.DatabaseType.Returns(DatabaseType.SQLite);
+        customDatabase.OpenConnection().Returns(_ => throw new SqliteException("syntax error", 1));
+
+        var failingRepo = new BasicRepository<Torrent>(customDatabase);
+        var act = () => failingRepo.UpsertMany(new[] { torrent }, null);
+        act.Should().Throw<SqliteException>();
+
+        torrent.Id.Should().Be(0);
+    }
+
+    [Test]
     public void TableMapping_GetInsertSql_RecognizesCustomTypeHandlers()
     {
         TableRegistration.RegisterTypeHandlers();

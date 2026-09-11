@@ -369,6 +369,8 @@ public class CustomScriptService : ICustomScriptService
                     if (!process.HasExited)
                     {
                         process.Kill(true);
+                        using var reapCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                        await process.WaitForExitAsync(reapCts.Token);
                     }
                 }
                 catch
