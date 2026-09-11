@@ -1,5 +1,5 @@
 import { useTranslation } from "../../i18n";
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   useCategories,
   useCreateCategory,
@@ -9,7 +9,7 @@ import {
 import type { Category } from "../../api/types";
 import { useConfirm } from "../../context/ConfirmContext";
 import { useToast } from "../../context/ToastContext";
-import { useEscapeKey } from "../../hooks/useEscapeKey";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 import { SectionCard, TextInput, NumberInput, Toggle } from "./shared";
 
 interface CategorySettingsProps {
@@ -32,8 +32,7 @@ export function CategorySettingsTab({
   const [editingCategory, setEditingCategory] =
     useState<Partial<Category> | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
-
-  useEscapeKey(() => setEditingCategory(null), Boolean(editingCategory));
+  const initialFormRef = useRef<string>("");
 
   const defaultCategoryForm: Partial<Category> = {
     name: "",
@@ -46,14 +45,41 @@ export function CategorySettingsTab({
     isDefault: false,
   };
 
+  const handleCloseModal = async () => {
+    const isDirty = Boolean(
+      editingCategory &&
+        initialFormRef.current &&
+        JSON.stringify(editingCategory) !== initialFormRef.current,
+    );
+    if (isDirty) {
+      const ok = await confirm({
+        title: t("settingsTabs.shared.unsavedChangesTitle"),
+        message: t("settingsTabs.shared.unsavedChangesDesc"),
+        confirmText: t("settingsTabs.shared.discardAndLeave"),
+        cancelText: t("settingsTabs.shared.stayOnPage"),
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    setEditingCategory(null);
+    setModalError(null);
+  };
+
+  const trapRef = useFocusTrap<HTMLDivElement>({
+    isOpen: Boolean(editingCategory),
+    onClose: handleCloseModal,
+  });
+
   const handleOpenAdd = () => {
     setModalError(null);
-    setEditingCategory({ ...defaultCategoryForm });
+    const initial = { ...defaultCategoryForm };
+    initialFormRef.current = JSON.stringify(initial);
+    setEditingCategory(initial);
   };
 
   const handleOpenEdit = (cat: Category) => {
     setModalError(null);
-    setEditingCategory({
+    const initial = {
       id: cat.id,
       name: cat.name,
       savePath: cat.savePath || "",
@@ -63,7 +89,9 @@ export function CategorySettingsTab({
       targetSeedTimeMinutes: cat.targetSeedTimeMinutes || 0,
       autoStop: Boolean(cat.autoStop),
       isDefault: Boolean(cat.isDefault),
-    });
+    };
+    initialFormRef.current = JSON.stringify(initial);
+    setEditingCategory(initial);
   };
 
   const handleSave = () => {
@@ -394,8 +422,14 @@ export function CategorySettingsTab({
 
       {/* Add / Edit Category Modal */}
       {editingCategory && (
-        <div className="modal-overlay" onClick={() => setEditingCategory(null)}>
+        <div
+          className="modal-overlay"
+          onClick={handleCloseModal}
+          role="dialog"
+          aria-modal="true"
+        >
           <div
+            ref={trapRef}
             className="modal"
             onClick={(e) => e.stopPropagation()}
             style={{
@@ -566,7 +600,7 @@ export function CategorySettingsTab({
               <button
                 type="button"
                 className="btn btn-outline btn-small"
-                onClick={() => setEditingCategory(null)}
+                onClick={handleCloseModal}
                 disabled={isSaving}
               >
                 {t("settingsTabs.categories.modal.cancel")}

@@ -1182,6 +1182,16 @@ body {
   transform: translateY(-1px);
 }
 
+[data-theme="light"] .btn-outline:hover:not(:disabled),
+[data-theme="light"] .btn-outline:hover {
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .btn-action:hover:not(:disabled),
+[data-theme="light"] .btn-action:hover {
+  color: var(--text-primary);
+}
+
 .btn-action:disabled {
   opacity: 0.55;
   cursor: not-allowed;

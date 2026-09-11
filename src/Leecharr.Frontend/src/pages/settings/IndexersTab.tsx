@@ -1,5 +1,5 @@
 import { useTranslation } from "../../i18n";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   useIndexers,
   useCreateIndexer,
@@ -28,7 +28,7 @@ import {
 } from "./shared";
 import { useToast } from "../../context/ToastContext";
 import { useConfirm } from "../../context/ConfirmContext";
-import { useEscapeKey } from "../../hooks/useEscapeKey";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 
 export function normalizeIndexerPayload(
   editing: Partial<IndexerDefinition>,
@@ -99,8 +99,57 @@ export function IndexersTab() {
   const [editingRule, setEditingRule] = useState<Partial<RssRule> | null>(null);
   const confirm = useConfirm();
 
-  useEscapeKey(() => setEditing(null), Boolean(editing));
-  useEscapeKey(() => setEditingRule(null), Boolean(editingRule));
+  const initialIndexerRef = useRef<string>("");
+  const initialRuleRef = useRef<string>("");
+
+  const handleCloseIndexerModal = async () => {
+    const isDirty = Boolean(
+      editing &&
+        initialIndexerRef.current &&
+        JSON.stringify(editing) !== initialIndexerRef.current,
+    );
+    if (isDirty) {
+      const ok = await confirm({
+        title: t("settingsTabs.shared.unsavedChangesTitle"),
+        message: t("settingsTabs.shared.unsavedChangesDesc"),
+        confirmText: t("settingsTabs.shared.discardAndLeave"),
+        cancelText: t("settingsTabs.shared.stayOnPage"),
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    setEditing(null);
+    setModalTestResult(null);
+  };
+
+  const handleCloseRuleModal = async () => {
+    const isDirty = Boolean(
+      editingRule &&
+        initialRuleRef.current &&
+        JSON.stringify(editingRule) !== initialRuleRef.current,
+    );
+    if (isDirty) {
+      const ok = await confirm({
+        title: t("settingsTabs.shared.unsavedChangesTitle"),
+        message: t("settingsTabs.shared.unsavedChangesDesc"),
+        confirmText: t("settingsTabs.shared.discardAndLeave"),
+        cancelText: t("settingsTabs.shared.stayOnPage"),
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    setEditingRule(null);
+  };
+
+  const indexerTrapRef = useFocusTrap<HTMLDivElement>({
+    isOpen: Boolean(editing),
+    onClose: handleCloseIndexerModal,
+  });
+
+  const ruleTrapRef = useFocusTrap<HTMLDivElement>({
+    isOpen: Boolean(editingRule),
+    onClose: handleCloseRuleModal,
+  });
 
   const [testResults, setTestResults] = useState<
     Record<number, boolean | null>
@@ -315,7 +364,9 @@ export function IndexersTab() {
               key={idx.id}
               className="provider-card"
               onClick={() => {
-                setEditing({ ...idx });
+                const initial = { ...idx };
+                initialIndexerRef.current = JSON.stringify(initial);
+                setEditing(initial);
                 setModalTestResult(null);
               }}
             >
@@ -422,7 +473,9 @@ export function IndexersTab() {
           <div
             className="provider-card-add"
             onClick={() => {
-              setEditing({ ...defaultIndexer });
+              const initial = { ...defaultIndexer };
+              initialIndexerRef.current = JSON.stringify(initial);
+              setEditing(initial);
               setModalTestResult(null);
             }}
             title={t("settingsTabs.indexers.addIndexer")}
@@ -460,7 +513,11 @@ export function IndexersTab() {
             <div
               key={rule.id}
               className="provider-card"
-              onClick={() => setEditingRule({ ...rule })}
+              onClick={() => {
+                const initial = { ...rule };
+                initialRuleRef.current = JSON.stringify(initial);
+                setEditingRule(initial);
+              }}
             >
               <div className="provider-card-actions">
                 <button
@@ -551,7 +608,11 @@ export function IndexersTab() {
           ))}
           <div
             className="provider-card-add"
-            onClick={() => setEditingRule({ ...defaultRssRule })}
+            onClick={() => {
+              const initial = { ...defaultRssRule };
+              initialRuleRef.current = JSON.stringify(initial);
+              setEditingRule(initial);
+            }}
             title={t("settingsTabs.indexers.addRssRule")}
           >
             <span className="provider-card-add-icon">+</span>
@@ -562,12 +623,12 @@ export function IndexersTab() {
       {editing && (
         <div
           className="modal-overlay"
-          onClick={() => {
-            setEditing(null);
-            setModalTestResult(null);
-          }}
+          onClick={handleCloseIndexerModal}
+          role="dialog"
+          aria-modal="true"
         >
           <div
+            ref={indexerTrapRef}
             className="modal"
             onClick={(e) => e.stopPropagation()}
             style={{
@@ -789,11 +850,9 @@ export function IndexersTab() {
               </button>
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <button
+                  type="button"
                   className="btn btn-outline btn-small"
-                  onClick={() => {
-                    setEditing(null);
-                    setModalTestResult(null);
-                  }}
+                  onClick={handleCloseIndexerModal}
                 >
                   {t("settingsTabs.categories.modal.cancel")}
                 </button>
@@ -819,8 +878,14 @@ export function IndexersTab() {
       )}
 
       {editingRule && (
-        <div className="modal-overlay" onClick={() => setEditingRule(null)}>
+        <div
+          className="modal-overlay"
+          onClick={handleCloseRuleModal}
+          role="dialog"
+          aria-modal="true"
+        >
           <div
+            ref={ruleTrapRef}
             className="modal"
             onClick={(e) => e.stopPropagation()}
             style={{
@@ -956,8 +1021,9 @@ export function IndexersTab() {
               }}
             >
               <button
+                type="button"
                 className="btn btn-outline btn-small"
-                onClick={() => setEditingRule(null)}
+                onClick={handleCloseRuleModal}
               >
                 {t("settingsTabs.categories.modal.cancel")}
               </button>
