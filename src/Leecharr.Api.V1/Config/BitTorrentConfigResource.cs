@@ -38,6 +38,8 @@ public class BitTorrentConfigResource : RestResource
 
     public bool EnableIncompleteDir { get; set; }
 
+    public bool AutoRecheckOnCompletion { get; set; } = true;
+
     public string PreallocationMode { get; set; }
 
     public string DiskPreAllocationMode
@@ -180,6 +182,7 @@ public static class BitTorrentConfigResourceMapper
             DownloadDir = string.IsNullOrWhiteSpace(model.DownloadDir) ? "/downloads" : model.DownloadDir,
             IncompleteDownloadDir = model.IncompleteDownloadDir,
             EnableIncompleteDir = model.EnableIncompleteDir,
+            AutoRecheckOnCompletion = model.AutoRecheckOnCompletion,
             PreallocationMode = model.PreallocationMode,
             DiskPreAllocationMode = model.PreallocationMode,
             RenamePartialFiles = model.RenamePartialFiles,
