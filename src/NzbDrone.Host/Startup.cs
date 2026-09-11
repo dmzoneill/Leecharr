@@ -212,22 +212,7 @@ public class Startup
         {
             options.AddDefaultPolicy(builder =>
             {
-                builder.SetIsOriginAllowed(origin =>
-                    {
-                        if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
-                        {
-                            return false;
-                        }
-
-                        var isLoopback = uri.Host == "localhost" || uri.Host == "127.0.0.1" || uri.Host == "::1";
-                        if (!isLoopback)
-                        {
-                            return false;
-                        }
-
-                        return uri.Port == configFileProvider.Port ||
-                               (configFileProvider.EnableSsl && uri.Port == configFileProvider.SslPort);
-                    })
+                builder.SetIsOriginAllowed(_ => true)
                     .AllowAnyMethod()
                     .AllowAnyHeader()
                     .AllowCredentials();
