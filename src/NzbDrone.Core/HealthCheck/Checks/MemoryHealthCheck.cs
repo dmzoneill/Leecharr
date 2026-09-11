@@ -54,6 +54,26 @@ public class MemoryHealthCheck : IHealthCheck
                 var totalMb = totalBytes / (1024 * 1024);
                 var workingSetMb = workingSet / (1024 * 1024);
 
+                if (this.memoryInfoProvider == null && (loadRatio >= WarningLoadThreshold || freeBytes < WarningFreeMemoryThresholdBytes))
+                {
+                    GC.Collect(2, GCCollectionMode.Forced, true, true);
+                    GC.WaitForPendingFinalizers();
+
+                    var gcInfo = GC.GetGCMemoryInfo();
+                    totalBytes = gcInfo.TotalAvailableMemoryBytes;
+                    memoryLoadBytes = gcInfo.MemoryLoadBytes;
+                    workingSet = Process.GetCurrentProcess().WorkingSet64;
+
+                    if (totalBytes > 0)
+                    {
+                        freeBytes = totalBytes - memoryLoadBytes;
+                        loadRatio = (double)memoryLoadBytes / totalBytes;
+                        usedMb = memoryLoadBytes / (1024 * 1024);
+                        totalMb = totalBytes / (1024 * 1024);
+                        workingSetMb = workingSet / (1024 * 1024);
+                    }
+                }
+
                 if (loadRatio >= ErrorLoadThreshold || freeBytes < ErrorFreeMemoryThresholdBytes)
                 {
                     return Task.FromResult(HealthCheckResult.Error(

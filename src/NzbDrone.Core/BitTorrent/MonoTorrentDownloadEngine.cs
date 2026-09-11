@@ -1739,6 +1739,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 else if (e.OldState == TorrentState.Hashing)
                 {
                     this.torrentLogService?.Log(torrentId, "Info", "Storage", $"Data integrity check finished ({manager.Progress:F1}% verified). Next state: {e.NewState}");
+                    GC.Collect(2, GCCollectionMode.Forced, false);
                 }
 
                 if (e.NewState == TorrentState.Seeding)
@@ -1941,7 +1942,13 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             var manager = e.TorrentManager;
             var infoHash = manager.InfoHashes.V1OrV2.ToHex();
 
-            Interlocked.Increment(ref this.totalPiecesHashed);
+            var currentHashed = Interlocked.Increment(ref this.totalPiecesHashed);
+
+            // Reclaim Large Object Heap (LOH) buffers periodically during hashing to prevent working set exhaustion on large piece sizes
+            if (currentHashed % 16 == 0 || e.PieceIndex % 16 == 0)
+            {
+                GC.Collect(2, GCCollectionMode.Optimized, false);
+            }
 
             if (this.infoHashToId.TryGetValue(infoHash, out var torrentId))
             {
