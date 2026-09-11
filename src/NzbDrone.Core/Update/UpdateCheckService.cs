@@ -14,7 +14,7 @@ namespace NzbDrone.Core.Update;
 
 public class UpdateCheckService : IUpdateCheckService
 {
-    private const string GitHubReleasesUrl = "https://api.github.com/repos/dmzoneill/Leecharr/releases";
+    private const string GitHubReleasesUrl = "https://api.github.com/repos/dmzoneill/Leecharr/releases?per_page=100";
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
 
     private readonly HttpClient httpClient;
