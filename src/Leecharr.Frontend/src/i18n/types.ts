@@ -2707,6 +2707,8 @@ export type I18nTranslations = {
       keepsFilesIsolatedUntil100Verified: string;
       incompleteDownloadDirectory: string;
       pathWhereInProgressDownloadsAreWritten: string;
+      autoRecheckOnCompletion?: string;
+      autoRecheckOnCompletionHint?: string;
       diskPreallocationMode: string;
       sparseAllocationInstantNonBlocking: string;
       fullPreallocationZeroFill: string;

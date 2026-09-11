@@ -13,6 +13,7 @@ export function StorageSettingsTab() {
     downloadDir: "/downloads",
     enableIncompleteDir: true,
     incompleteDownloadDir: "/downloads/incomplete",
+    autoRecheckOnCompletion: true,
     preallocationMode: "Sparse",
     renamePartialFiles: true,
     incompleteExtension: ".!leech",
@@ -28,6 +29,7 @@ export function StorageSettingsTab() {
         enableIncompleteDir: config.enableIncompleteDir ?? true,
         incompleteDownloadDir:
           config.incompleteDownloadDir || "/downloads/incomplete",
+        autoRecheckOnCompletion: config.autoRecheckOnCompletion ?? true,
         preallocationMode: config.preallocationMode || "Sparse",
         renamePartialFiles: config.renamePartialFiles ?? true,
         incompleteExtension: config.incompleteExtension || ".!leech",
@@ -53,6 +55,7 @@ export function StorageSettingsTab() {
         downloadDir: form.downloadDir,
         enableIncompleteDir: form.enableIncompleteDir,
         incompleteDownloadDir: form.incompleteDownloadDir,
+        autoRecheckOnCompletion: form.autoRecheckOnCompletion,
         preallocationMode: form.preallocationMode,
         renamePartialFiles: form.renamePartialFiles,
         incompleteExtension: form.incompleteExtension,
@@ -115,6 +118,19 @@ export function StorageSettingsTab() {
             disabled={!form.enableIncompleteDir}
             hint={t(
               "settingsTabs.batch2.pathWhereInProgressDownloadsAreWritten",
+            )}
+          />
+
+          <Toggle
+            label={t(
+              "settingsTabs.batch2.autoRecheckOnCompletion",
+              "Auto Rehash Check on Completion",
+            )}
+            checked={form.autoRecheckOnCompletion}
+            onChange={(v) => update("autoRecheckOnCompletion", v)}
+            hint={t(
+              "settingsTabs.batch2.autoRecheckOnCompletionHint",
+              "Automatically verify all piece hashes on disk upon download completion before moving files to the destination folder",
             )}
           />
 
