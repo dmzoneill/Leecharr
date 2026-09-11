@@ -10,21 +10,10 @@ import type { ReactNode } from "react";
 import { useGeneralConfig } from "../api/hooks";
 
 export type ThemeStyle =
-  | "dark"
-  | "light"
-  | "indigo"
-  | "oled"
-  | "slate"
-  | "system";
+  "dark" | "light" | "indigo" | "oled" | "slate" | "system";
 
 export type ColorScheme =
-  | "auto"
-  | "blue"
-  | "emerald"
-  | "purple"
-  | "rose"
-  | "cyan"
-  | "amber";
+  "auto" | "blue" | "emerald" | "purple" | "rose" | "cyan" | "amber";
 
 export interface ThemeContextValue {
   theme: string;
@@ -100,8 +89,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const [themeStyle, setThemeStyleState] =
     useState<ThemeStyle>(getInitialThemeStyle);
-  const [colorScheme, setColorSchemeState] =
-    useState<ColorScheme>(getInitialColorScheme);
+  const [colorScheme, setColorSchemeState] = useState<ColorScheme>(
+    getInitialColorScheme,
+  );
   const [systemIsLight, setSystemIsLight] = useState<boolean>(
     () => resolveSystemTheme() === "light",
   );

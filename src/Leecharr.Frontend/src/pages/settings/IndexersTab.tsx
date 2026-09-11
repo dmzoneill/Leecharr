@@ -105,8 +105,8 @@ export function IndexersTab() {
   const handleCloseIndexerModal = async () => {
     const isDirty = Boolean(
       editing &&
-        initialIndexerRef.current &&
-        JSON.stringify(editing) !== initialIndexerRef.current,
+      initialIndexerRef.current &&
+      JSON.stringify(editing) !== initialIndexerRef.current,
     );
     if (isDirty) {
       const ok = await confirm({
@@ -125,8 +125,8 @@ export function IndexersTab() {
   const handleCloseRuleModal = async () => {
     const isDirty = Boolean(
       editingRule &&
-        initialRuleRef.current &&
-        JSON.stringify(editingRule) !== initialRuleRef.current,
+      initialRuleRef.current &&
+      JSON.stringify(editingRule) !== initialRuleRef.current,
     );
     if (isDirty) {
       const ok = await confirm({
