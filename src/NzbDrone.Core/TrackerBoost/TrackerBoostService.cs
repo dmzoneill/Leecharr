@@ -1938,20 +1938,26 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
             await client.SendAsync(connectPacket, connectPacket.Length, endpoint).ConfigureAwait(false);
 
-            var connectResult = await client.ReceiveAsync(cancellationToken).ConfigureAwait(false);
-            if (connectResult.Buffer.Length < 16)
+            long connectionId = 0;
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                var connectResult = await client.ReceiveAsync(cancellationToken).ConfigureAwait(false);
+                if (connectResult.Buffer.Length >= 16)
+                {
+                    var action = BinaryPrimitives.ReadInt32BigEndian(connectResult.Buffer.AsSpan(0, 4));
+                    var respTxId = BinaryPrimitives.ReadInt32BigEndian(connectResult.Buffer.AsSpan(4, 4));
+                    if (action == 0 && respTxId == connectTxId)
+                    {
+                        connectionId = BinaryPrimitives.ReadInt64BigEndian(connectResult.Buffer.AsSpan(8, 8));
+                        break;
+                    }
+                }
+            }
+
+            if (connectionId == 0)
             {
                 return (false, 0, 0, 0);
             }
-
-            var action = BinaryPrimitives.ReadInt32BigEndian(connectResult.Buffer.AsSpan(0, 4));
-            var respTxId = BinaryPrimitives.ReadInt32BigEndian(connectResult.Buffer.AsSpan(4, 4));
-            if (action != 0 || respTxId != connectTxId)
-            {
-                return (false, 0, 0, 0);
-            }
-
-            var connectionId = BinaryPrimitives.ReadInt64BigEndian(connectResult.Buffer.AsSpan(8, 8));
 
             var scrapeTxId = Random.Shared.Next();
             var hashBytes = Convert.FromHexString(hexHash);
@@ -1963,24 +1969,25 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
             await client.SendAsync(scrapePacket, scrapePacket.Length, endpoint).ConfigureAwait(false);
 
-            var scrapeResult = await client.ReceiveAsync(cancellationToken).ConfigureAwait(false);
-            if (scrapeResult.Buffer.Length < 20)
+            while (!cancellationToken.IsCancellationRequested)
             {
-                return (false, 0, 0, 0);
+                var scrapeResult = await client.ReceiveAsync(cancellationToken).ConfigureAwait(false);
+                if (scrapeResult.Buffer.Length >= 20)
+                {
+                    var scrapeRespAction = BinaryPrimitives.ReadInt32BigEndian(scrapeResult.Buffer.AsSpan(0, 4));
+                    var scrapeRespTxId = BinaryPrimitives.ReadInt32BigEndian(scrapeResult.Buffer.AsSpan(4, 4));
+                    if (scrapeRespAction == 2 && scrapeRespTxId == scrapeTxId)
+                    {
+                        var seeders = BinaryPrimitives.ReadInt32BigEndian(scrapeResult.Buffer.AsSpan(8, 4));
+                        var completed = BinaryPrimitives.ReadInt32BigEndian(scrapeResult.Buffer.AsSpan(12, 4));
+                        var leechers = BinaryPrimitives.ReadInt32BigEndian(scrapeResult.Buffer.AsSpan(16, 4));
+
+                        return (true, Math.Max(0, seeders), Math.Max(0, leechers), Math.Max(0, completed));
+                    }
+                }
             }
 
-            var scrapeRespAction = BinaryPrimitives.ReadInt32BigEndian(scrapeResult.Buffer.AsSpan(0, 4));
-            var scrapeRespTxId = BinaryPrimitives.ReadInt32BigEndian(scrapeResult.Buffer.AsSpan(4, 4));
-            if (scrapeRespAction != 2 || scrapeRespTxId != scrapeTxId)
-            {
-                return (false, 0, 0, 0);
-            }
-
-            var seeders = BinaryPrimitives.ReadInt32BigEndian(scrapeResult.Buffer.AsSpan(8, 4));
-            var completed = BinaryPrimitives.ReadInt32BigEndian(scrapeResult.Buffer.AsSpan(12, 4));
-            var leechers = BinaryPrimitives.ReadInt32BigEndian(scrapeResult.Buffer.AsSpan(16, 4));
-
-            return (true, Math.Max(0, seeders), Math.Max(0, leechers), Math.Max(0, completed));
+            return (false, 0, 0, 0);
         }
         catch (OperationCanceledException)
         {

@@ -1360,4 +1360,53 @@ public class TorrentServiceTest
         insertedTorrent.Should().NotBeNull();
         insertedTorrent.SavePath.Should().Be("/storage/pool/movies");
     }
+
+    [Test]
+    public void Handle_TorrentDownloadCompletedEvent_WhenCategoryAutoStopFalse_SetsStatusToSeeding()
+    {
+        var torrent = new Torrent
+        {
+            Id = 50,
+            Name = "SeedingTorrent",
+            Category = "linux",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.torrentRepository.Get(50).Returns(torrent);
+        this.categoryService.GetByName("linux").Returns(new Category { Id = 1, Name = "linux", AutoStop = false });
+
+        this.service.Handle(new TorrentDownloadCompletedEvent(new Torrent { Id = 50, SavePath = "/downloads/completed" }));
+
+        torrent.Status.Should().Be(TorrentStatus.Seeding);
+        torrent.Progress.Should().Be(1.0);
+        torrent.SavePath.Should().Be("/downloads/completed");
+        this.torrentRepository.Received(1).Update(torrent);
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentStatusChangedEvent>(e =>
+            e.Torrent.Id == 50 && e.OldStatus == TorrentStatus.Downloading && e.NewStatus == TorrentStatus.Seeding));
+    }
+
+    [Test]
+    public void Handle_TorrentDownloadCompletedEvent_WhenCategoryAutoStopTrue_SetsStatusToPausedAndPausesEngine()
+    {
+        var torrent = new Torrent
+        {
+            Id = 51,
+            Name = "AutoStopTorrent",
+            Category = "oneshot",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.torrentRepository.Get(51).Returns(torrent);
+        this.categoryService.GetByName("oneshot").Returns(new Category { Id = 2, Name = "oneshot", AutoStop = true });
+
+        this.service.Handle(new TorrentDownloadCompletedEvent(new Torrent { Id = 51, SavePath = "/downloads/oneshot" }));
+
+        torrent.Status.Should().Be(TorrentStatus.Paused);
+        torrent.Progress.Should().Be(1.0);
+        torrent.SavePath.Should().Be("/downloads/oneshot");
+        this.torrentRepository.Received(1).Update(torrent);
+        this.downloadEngine.Received(1).PauseTorrentAsync(51);
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentStatusChangedEvent>(e =>
+            e.Torrent.Id == 51 && e.OldStatus == TorrentStatus.Downloading && e.NewStatus == TorrentStatus.Paused));
+    }
 }

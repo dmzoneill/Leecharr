@@ -145,24 +145,24 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
 
     public virtual TModel Insert(TModel model)
     {
+        var id = 0;
         this.ExecuteWithRetry(connection =>
         {
             if (this.database.DatabaseType == DatabaseType.SQLite)
             {
-                var id = connection.ExecuteScalar<int>(
+                id = connection.ExecuteScalar<int>(
                     TableMapping.GetInsertSql(this.table, model) + "; SELECT last_insert_rowid()",
                     model);
-                model.Id = id;
             }
             else
             {
-                var id = connection.ExecuteScalar<int>(
+                id = connection.ExecuteScalar<int>(
                     TableMapping.GetInsertSql(this.table, model) + " RETURNING \"Id\"",
                     model);
-                model.Id = id;
             }
         });
 
+        model.Id = id;
         this.eventAggregator?.PublishEvent(new ModelEvent<TModel>(model, ModelAction.Created));
         return model;
     }
@@ -187,12 +187,16 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
             return;
         }
 
+        List<int> insertedIds = null;
+
         this.ExecuteWithRetry(connection =>
         {
             using var transaction = connection.BeginTransaction();
 
             try
             {
+                var localIds = new List<int>(insertList.Count);
+
                 if (insertList.Count > 0)
                 {
                     var isSqlite = this.database.DatabaseType == DatabaseType.SQLite;
@@ -204,7 +208,7 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
                     foreach (var model in insertList)
                     {
                         var id = connection.ExecuteScalar<int>(querySql, model, transaction: transaction);
-                        model.Id = id;
+                        localIds.Add(id);
                     }
                 }
 
@@ -219,6 +223,7 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
                 }
 
                 transaction.Commit();
+                insertedIds = localIds;
             }
             catch
             {
@@ -234,6 +239,14 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
                 throw;
             }
         });
+
+        if (insertedIds != null)
+        {
+            for (var i = 0; i < insertList.Count; i++)
+            {
+                insertList[i].Id = insertedIds[i];
+            }
+        }
 
         if (this.eventAggregator != null)
         {
