@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.4.4](https://github.com/dmzoneill/Leecharr/releases/tag/v1.4.4) - 2026-09-11
+
+### 🐛 Bug Fixes
+- fix(i18n): remove irregular unicode whitespace and format frontend styles
+- fix(update,ui): add timeout and fallback for update check, fix i18n translation types and formatting
+- fix(core,api): enhance process execution safety, udp tracker scraping loop, and upsert retry integrity
+- fix(ui,i18n): improve modal focus safety, restore translation parameters, and fix light theme contrast
+
+### 🔧 Maintenance & Improvements
+- ci: rerun with one-liner changelog updater
+- ci: rerun with valid dispatch.yaml indentation
+- ci: trigger CI workflow with fixed version bumper
+- docs: add CHANGELOG.md, overhaul DOCKER_HUB.md, and expand update ingestion
+
 ## [v1.0.121](https://github.com/dmzoneill/Leecharr/releases/tag/v1.0.121) - 2026-09-10
 
 ### ✨ Features
