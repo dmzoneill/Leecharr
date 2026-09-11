@@ -55,6 +55,14 @@ export function translate(
   if (!value) {
     if (typeof defaultOrParams === "string") {
       value = defaultOrParams;
+    } else if (
+      defaultOrParams &&
+      typeof defaultOrParams === "object" &&
+      !Array.isArray(defaultOrParams) &&
+      "defaultValue" in defaultOrParams &&
+      typeof (defaultOrParams as any).defaultValue === "string"
+    ) {
+      value = (defaultOrParams as any).defaultValue;
     } else {
       value = key;
     }
@@ -83,6 +91,14 @@ export const useTranslation = () => {
       if (!value) {
         if (typeof defaultOrParams === "string") {
           value = defaultOrParams;
+        } else if (
+          defaultOrParams &&
+          typeof defaultOrParams === "object" &&
+          !Array.isArray(defaultOrParams) &&
+          "defaultValue" in defaultOrParams &&
+          typeof (defaultOrParams as any).defaultValue === "string"
+        ) {
+          value = (defaultOrParams as any).defaultValue;
         } else {
           value = key;
         }

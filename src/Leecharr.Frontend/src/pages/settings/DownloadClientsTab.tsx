@@ -1,5 +1,5 @@
 import { useTranslation } from "../../i18n";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   useDownloadClients,
   useCreateDownloadClient,
@@ -11,7 +11,7 @@ import {
 } from "../../api/hooks";
 import { useConfirm } from "../../context/ConfirmContext";
 import { useToast } from "../../context/ToastContext";
-import { useEscapeKey } from "../../hooks/useEscapeKey";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 import type {
   DownloadClientDefinition,
   DownloadClientTestResult,
@@ -38,7 +38,33 @@ export function DownloadClientsTab() {
   const syncMutation = useDownloadClientSync();
   const [editing, setEditing] =
     useState<Partial<DownloadClientDefinition> | null>(null);
-  useEscapeKey(() => setEditing(null), Boolean(editing));
+  const initialClientRef = useRef<string>("");
+
+  const handleCloseModal = async () => {
+    const isDirty = Boolean(
+      editing &&
+        initialClientRef.current &&
+        JSON.stringify(editing) !== initialClientRef.current,
+    );
+    if (isDirty) {
+      const ok = await confirm({
+        title: t("settingsTabs.shared.unsavedChangesTitle"),
+        message: t("settingsTabs.shared.unsavedChangesDesc"),
+        confirmText: t("settingsTabs.shared.discardAndLeave"),
+        cancelText: t("settingsTabs.shared.stayOnPage"),
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    setEditing(null);
+    setModalTestResult(null);
+  };
+
+  const trapRef = useFocusTrap<HTMLDivElement>({
+    isOpen: Boolean(editing),
+    onClose: handleCloseModal,
+  });
+
   const [testResults, setTestResults] = useState<
     Record<number, DownloadClientTestResult | null>
   >({});
@@ -65,7 +91,9 @@ export function DownloadClientsTab() {
 
   const handleOpenModal = (client: Partial<DownloadClientDefinition>) => {
     setModalTestResult(null);
-    setEditing({ ...client });
+    const initial = { ...client };
+    initialClientRef.current = JSON.stringify(initial);
+    setEditing(initial);
   };
 
   const handleSave = () => {
@@ -311,8 +339,14 @@ export function DownloadClientsTab() {
       </SectionCard>
 
       {editing && (
-        <div className="modal-overlay" onClick={() => setEditing(null)}>
+        <div
+          className="modal-overlay"
+          onClick={handleCloseModal}
+          role="dialog"
+          aria-modal="true"
+        >
           <div
+            ref={trapRef}
             className="modal"
             onClick={(e) => e.stopPropagation()}
             style={{
@@ -531,8 +565,9 @@ export function DownloadClientsTab() {
               </button>
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <button
+                  type="button"
                   className="btn btn-outline btn-small"
-                  onClick={() => setEditing(null)}
+                  onClick={handleCloseModal}
                 >
                   {t("settingsTabs.categories.modal.cancel")}
                 </button>

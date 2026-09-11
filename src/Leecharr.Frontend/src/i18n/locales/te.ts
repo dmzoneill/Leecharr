@@ -371,7 +371,7 @@ const te: I18nTranslations = {
       "gridView": "గ్రిడ్ వీక్షణ",
       "grid": "గ్రిడ్",
       "bulkDeleteTitle": "ఎంచుకున్న టొరెంట్లను తొలగించండి",
-      "bulkDeleteConfirm": "మీరు ఎంచుకున్న {{ కౌంట్ }} టొరెంట్లను ఖచ్చితంగా తొలగించాలనుకుంటున్నారా?"
+      "bulkDeleteConfirm": "మీరు ఎంచుకున్న {{ count }} టొరెంట్లను ఖచ్చితంగా తొలగించాలనుకుంటున్నారా?"
     },
     "actions": {
       "resume": "పునఃప్రారంభించు",
@@ -964,12 +964,12 @@ const te: I18nTranslations = {
     "protectedTorrent": "రక్షిత టొరెంట్",
     "seeders": "సీడర్లు",
     "seedTime": "సీడ్ సమయం",
-    "seederCount": "{{ కౌంట్ }} సీడర్",
-    "seedersCount": "{{ కౌంట్ }} సీడర్లు",
+    "seederCount": "{{ count }} సీడర్",
+    "seedersCount": "{{ count }} సీడర్లు",
     "seedingMasteryTier": "సీడింగ్ మాస్టరీ టైర్",
-    "levelPrefix": "స్థాయి {{ స్థాయి }}",
+    "levelPrefix": "స్థాయి {{ level }}",
     "of": "of",
-    "achievementsComplete": "{{ కౌంట్ }} / {{ మొత్తం }} విజయాలు అన్లాక్ చేయబడ్డాయి",
+    "achievementsComplete": "{{ count }} / {{ total }} విజయాలు అన్లాక్ చేయబడ్డాయి",
     "tierProgress": "టైర్ ప్రోగ్రెస్",
     "current": "ప్రస్తుత",
     "goal": "లక్ష్యం",
