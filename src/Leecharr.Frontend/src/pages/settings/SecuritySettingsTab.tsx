@@ -652,8 +652,9 @@ export function SecuritySettingsTab() {
                 type={showApiKey ? "text" : "password"}
                 value={
                   showApiKey
-                    ? (revealedApiKey || (form.apiKey.includes("*") ? "" : form.apiKey))
-                    : (revealedApiKey || form.apiKey)
+                    ? revealedApiKey ||
+                      (form.apiKey.includes("*") ? "" : form.apiKey)
+                    : revealedApiKey || form.apiKey
                 }
                 onChange={(v) => {
                   setRevealedApiKey(null);

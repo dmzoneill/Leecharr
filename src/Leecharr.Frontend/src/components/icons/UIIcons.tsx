@@ -435,4 +435,3 @@ export function FilterIcon({ size = S, className }: P) {
     </svg>
   );
 }
-

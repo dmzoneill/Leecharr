@@ -347,7 +347,8 @@ export function GettingStartedModal({
                   mode === "readonly"
                     ? "var(--accent, #ffd166)"
                     : "transparent",
-                color: mode === "readonly" ? "#0d0e17" : "var(--text-muted, #aaa)",
+                color:
+                  mode === "readonly" ? "#0d0e17" : "var(--text-muted, #aaa)",
                 border: "none",
                 padding: "3px 10px",
                 borderRadius: "16px",
@@ -368,7 +369,9 @@ export function GettingStartedModal({
                     ? "var(--accent, #ffd166)"
                     : "transparent",
                 color:
-                  mode === "interactive" ? "#0d0e17" : "var(--text-muted, #aaa)",
+                  mode === "interactive"
+                    ? "#0d0e17"
+                    : "var(--text-muted, #aaa)",
                 border: "none",
                 padding: "3px 10px",
                 borderRadius: "16px",
@@ -513,7 +516,8 @@ export function GettingStartedModal({
                 }}
               >
                 <div>
-                  <strong>1. Prowlarr:</strong> {t("gettingStarted.prowlarrSyncDesc")}
+                  <strong>1. Prowlarr:</strong>{" "}
+                  {t("gettingStarted.prowlarrSyncDesc")}
                 </div>
                 <div>
                   <strong>2. Sonarr / Radarr / Lidarr:</strong>{" "}

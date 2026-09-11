@@ -59,7 +59,10 @@ export function PendingChangesModal({
   onCancel: () => void;
 }) {
   const { t } = useTranslation();
-  const trapRef = useFocusTrap<HTMLDivElement>({ isOpen: true, onClose: onCancel });
+  const trapRef = useFocusTrap<HTMLDivElement>({
+    isOpen: true,
+    onClose: onCancel,
+  });
 
   return (
     <div

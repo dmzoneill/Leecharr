@@ -33,8 +33,8 @@ export function ConnectionsTab() {
   const handleCloseModal = async () => {
     const isDirty = Boolean(
       editing &&
-        initialConnRef.current &&
-        JSON.stringify(editing) !== initialConnRef.current,
+      initialConnRef.current &&
+      JSON.stringify(editing) !== initialConnRef.current,
     );
     if (isDirty) {
       const ok = await confirm({

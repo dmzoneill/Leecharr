@@ -16,6 +16,7 @@ public class UpdateCheckService : IUpdateCheckService
 {
     private const string GitHubReleasesUrl = "https://api.github.com/repos/dmzoneill/Leecharr/releases?per_page=100";
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(5);
 
     private readonly HttpClient httpClient;
     private readonly Logger logger;
@@ -26,7 +27,7 @@ public class UpdateCheckService : IUpdateCheckService
 
     public UpdateCheckService(HttpClient httpClient = null)
     {
-        this.httpClient = httpClient ?? new HttpClient();
+        this.httpClient = httpClient ?? new HttpClient { Timeout = DefaultTimeout };
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -65,19 +66,22 @@ public class UpdateCheckService : IUpdateCheckService
     {
         try
         {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(DefaultTimeout);
+
             using var request = new HttpRequestMessage(HttpMethod.Get, GitHubReleasesUrl);
             var versionString = BuildInfo.Version?.ToString() ?? "1.0.0";
             request.Headers.UserAgent.Add(new ProductInfoHeaderValue("Leecharr", versionString));
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
 
-            using var response = await this.httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            using var response = await this.httpClient.SendAsync(request, cts.Token).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
                 this.logger.Warn("GitHub releases check returned status code: {0}", response.StatusCode);
                 return null;
             }
 
-            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            var json = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
             using var doc = JsonDocument.Parse(json);
 
             var root = doc.RootElement;

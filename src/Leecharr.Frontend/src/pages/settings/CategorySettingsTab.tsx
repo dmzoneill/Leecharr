@@ -48,8 +48,8 @@ export function CategorySettingsTab({
   const handleCloseModal = async () => {
     const isDirty = Boolean(
       editingCategory &&
-        initialFormRef.current &&
-        JSON.stringify(editingCategory) !== initialFormRef.current,
+      initialFormRef.current &&
+      JSON.stringify(editingCategory) !== initialFormRef.current,
     );
     if (isDirty) {
       const ok = await confirm({
