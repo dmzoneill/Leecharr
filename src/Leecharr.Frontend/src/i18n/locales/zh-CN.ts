@@ -967,7 +967,7 @@ const zhCN: I18nTranslations = {
     "seederCount": "{{count}}个播种机",
     "seedersCount": "{{count}}个播种机",
     "seedingMasteryTier": "播种精通等级",
-    "levelPrefix": "级别 {{ 级别 }}",
+    "levelPrefix": "级别 {{ level }}",
     "of": "of",
     "achievementsComplete": "{{count}}/{{total}}成就已解锁",
     "tierProgress": "等级进度",

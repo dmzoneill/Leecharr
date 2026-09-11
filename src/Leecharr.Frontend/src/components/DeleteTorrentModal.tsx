@@ -191,6 +191,7 @@ export function DeleteTorrentModal({
             className="btn btn-secondary"
             onClick={onCancel}
             style={{ minWidth: "90px" }}
+            autoFocus
           >
             {t("common.cancel")}
           </button>
@@ -199,7 +200,6 @@ export function DeleteTorrentModal({
             className="btn btn-danger"
             onClick={handleConfirm}
             style={{ minWidth: "90px" }}
-            autoFocus
           >
             {t("common.delete")}
           </button>

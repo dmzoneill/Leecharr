@@ -967,7 +967,7 @@ const ru: I18nTranslations = {
     "seederCount": "{{ count }} сеялка",
     "seedersCount": "{{ count }} сеялок",
     "seedingMasteryTier": "Уровень мастерства посева",
-    "levelPrefix": "Уровень {{ уровень }}",
+    "levelPrefix": "Уровень {{ level }}",
     "of": "of",
     "achievementsComplete": "Достижений {{ count }} / {{ total }} разблокировано",
     "tierProgress": "Уровень прогресса",
