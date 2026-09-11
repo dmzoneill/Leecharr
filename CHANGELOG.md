@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.5.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.5.0) - 2026-09-11
+
+### ✨ Features
+- feat(download,storage): add auto-recheck on completion setting, fix force-recheck completed path alignment, and prevent sparse completion move
+
 ## [v1.4.4](https://github.com/dmzoneill/Leecharr/releases/tag/v1.4.4) - 2026-09-11
 
 ### 🐛 Bug Fixes
