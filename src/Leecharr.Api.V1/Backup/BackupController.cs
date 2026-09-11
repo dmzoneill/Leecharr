@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Http;
 using Leecharr.Http.REST;
@@ -769,12 +770,24 @@ public class BackupController : Controller
             var psi = new ProcessStartInfo
             {
                 FileName = pgDumpExe,
-                Arguments = $"--clean --if-exists -h \"{host}\" -p {port} -U \"{user}\" -d \"{dbName}\" -f \"{outputPath}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+
+            psi.ArgumentList.Add("--clean");
+            psi.ArgumentList.Add("--if-exists");
+            psi.ArgumentList.Add("-h");
+            psi.ArgumentList.Add(host);
+            psi.ArgumentList.Add("-p");
+            psi.ArgumentList.Add(port.ToString());
+            psi.ArgumentList.Add("-U");
+            psi.ArgumentList.Add(user);
+            psi.ArgumentList.Add("-d");
+            psi.ArgumentList.Add(dbName);
+            psi.ArgumentList.Add("-f");
+            psi.ArgumentList.Add(outputPath);
 
             if (!string.IsNullOrEmpty(password))
             {
@@ -801,7 +814,8 @@ public class BackupController : Controller
                 try
                 {
                     proc.Kill(entireProcessTree: true);
-                    await proc.WaitForExitAsync();
+                    using var reapCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                    await proc.WaitForExitAsync(reapCts.Token);
                 }
                 catch (Exception ex)
                 {
@@ -850,12 +864,22 @@ public class BackupController : Controller
             var psi = new ProcessStartInfo
             {
                 FileName = psqlExe,
-                Arguments = $"-h \"{host}\" -p {port} -U \"{user}\" -d \"{dbName}\" -f \"{sqlScriptPath}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+
+            psi.ArgumentList.Add("-h");
+            psi.ArgumentList.Add(host);
+            psi.ArgumentList.Add("-p");
+            psi.ArgumentList.Add(port.ToString());
+            psi.ArgumentList.Add("-U");
+            psi.ArgumentList.Add(user);
+            psi.ArgumentList.Add("-d");
+            psi.ArgumentList.Add(dbName);
+            psi.ArgumentList.Add("-f");
+            psi.ArgumentList.Add(sqlScriptPath);
 
             if (!string.IsNullOrEmpty(password))
             {
@@ -882,7 +906,8 @@ public class BackupController : Controller
                 try
                 {
                     proc.Kill(entireProcessTree: true);
-                    await proc.WaitForExitAsync();
+                    using var reapCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                    await proc.WaitForExitAsync(reapCts.Token);
                 }
                 catch (Exception ex)
                 {

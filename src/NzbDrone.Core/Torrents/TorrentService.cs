@@ -1692,8 +1692,11 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         var torrent = this.torrentRepository.Get(message.Torrent.Id);
         if (torrent != null)
         {
+            var category = !string.IsNullOrWhiteSpace(torrent.Category)
+                ? this.categoryService?.GetByName(torrent.Category)
+                : this.categoryService?.GetByName(string.Empty);
+
             var oldStatus = torrent.Status;
-            torrent.Status = TorrentStatus.Seeding;
             torrent.Progress = 1.0;
             torrent.DateCompleted = DateTime.UtcNow;
             if (!string.IsNullOrWhiteSpace(message.Torrent.SavePath))
@@ -1701,13 +1704,45 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 torrent.SavePath = message.Torrent.SavePath;
             }
 
-            this.torrentRepository.Update(torrent);
-            this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+            if (category?.AutoStop == true)
             {
-                Torrent = torrent,
-                OldStatus = oldStatus,
-                NewStatus = TorrentStatus.Seeding,
-            });
+                torrent.Status = TorrentStatus.Paused;
+                torrent.DownloadSpeed = 0;
+                torrent.UploadSpeed = 0;
+                torrent.Eta = 0;
+                torrent.Seeders = 0;
+                torrent.Leechers = 0;
+                this.torrentRepository.Update(torrent);
+
+                try
+                {
+                    _ = this.downloadEngine?.PauseTorrentAsync(torrent.Id);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Error pausing torrent for AutoStop category on download completion: {0}", torrent.Id);
+                }
+
+                this.logger.Info("Torrent {0} ({1}) auto-stopped upon download completion per category '{2}' setting.", torrent.Id, torrent.Name, category.Name);
+
+                this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+                {
+                    Torrent = torrent,
+                    OldStatus = oldStatus,
+                    NewStatus = TorrentStatus.Paused,
+                });
+            }
+            else
+            {
+                torrent.Status = TorrentStatus.Seeding;
+                this.torrentRepository.Update(torrent);
+                this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+                {
+                    Torrent = torrent,
+                    OldStatus = oldStatus,
+                    NewStatus = TorrentStatus.Seeding,
+                });
+            }
         }
     }
 
