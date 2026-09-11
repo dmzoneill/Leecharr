@@ -642,6 +642,19 @@ body {
   will-change: margin-left, max-width;
 }
 
+.topbar-sidebar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 /* Top Bar */
 .topbar {
   background-color: var(--topbar-bg);
