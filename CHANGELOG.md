@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.5.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.5.1) - 2026-09-11
+
+### 🐛 Bug Fixes
+- fix(engine,health): periodically collect LOH piece buffers during hash check and prevent false memory exhaustion alerts
+
 ## [v1.5.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.5.0) - 2026-09-11
 
 ### ✨ Features
