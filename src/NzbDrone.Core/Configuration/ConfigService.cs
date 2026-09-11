@@ -194,6 +194,8 @@ public interface IConfigService
     // Storage & Incomplete Staging & Preallocation
     bool EnableIncompleteDir { get; }
 
+    bool AutoRecheckOnCompletion { get; }
+
     string PreallocationMode { get; }
 
     string DiskPreAllocationMode { get; }
@@ -917,6 +919,8 @@ public class ConfigService : IConfigService
 
     // Storage & Incomplete Staging & Preallocation
     public bool EnableIncompleteDir => this.GetValueBoolean("EnableIncompleteDir", true);
+
+    public bool AutoRecheckOnCompletion => this.GetValueBoolean("AutoRecheckOnCompletion", true);
 
     public string PreallocationMode => this.GetValue("PreallocationMode", this.GetValue("DiskPreAllocationMode", "Sparse"));
 

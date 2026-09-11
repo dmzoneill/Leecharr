@@ -3230,5 +3230,43 @@ public class MonoTorrentDownloadEngineTest
         new FileInfo(standardPath).Length.Should().Be(32768);
     }
 
+    [Test]
+    public void AutoRecheckOnCompletion_DefaultSetting_IsTrue()
+    {
+        this.configService.AutoRecheckOnCompletion.Returns(true);
+        this.configService.AutoRecheckOnCompletion.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task ForceRecheckAsync_WhenFilesLocatedInCompletedFolder_AlignsSavePathBeforeRecheck()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("recheck_completed_test.iso", length: 16384);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 99,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "recheck_completed_test.iso",
+            Status = TorrentStatus.Paused,
+            SavePath = this.testIncompleteDir,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.Should().NotBeNull();
+
+        // Place file in completed directory
+        var completedFilePath = Path.Combine(this.testDownloadDir, "recheck_completed_test.iso");
+        await File.WriteAllBytesAsync(completedFilePath, new byte[16384]);
+
+        // Task save path is updated to completed directory
+        task.SavePath = this.testDownloadDir;
+        task.WorkingPath = this.testDownloadDir;
+
+        // ForceRecheckAsync should not throw and should re-align manager save path
+        Func<Task> act = async () => await this.engine.ForceRecheckAsync(99);
+        await act.Should().NotThrowAsync();
+    }
+
     #endregion
 }

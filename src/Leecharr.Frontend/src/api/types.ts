@@ -428,6 +428,7 @@ export interface BitTorrentConfig {
   downloadDir?: string;
   incompleteDownloadDir?: string;
   enableIncompleteDir?: boolean;
+  autoRecheckOnCompletion?: boolean;
   preallocationMode?: string;
   renamePartialFiles?: boolean;
   incompleteExtension?: string;

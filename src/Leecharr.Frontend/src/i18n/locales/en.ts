@@ -2868,6 +2868,9 @@ const en: I18nTranslations = {
       incompleteDownloadDirectory: "Incomplete Download Directory",
       pathWhereInProgressDownloadsAreWritten:
         "Path where in-progress downloads are written (e.g. /downloads/incomplete)",
+      autoRecheckOnCompletion: "Auto Rehash Check on Completion",
+      autoRecheckOnCompletionHint:
+        "Automatically verify all piece hashes on disk upon download completion before moving files to the destination folder",
       diskPreallocationMode: "Disk Preallocation Mode",
       sparseAllocationInstantNonBlocking:
         "Sparse Allocation (Instant Non-Blocking, Recommended)",
