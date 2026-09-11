@@ -656,8 +656,21 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
 
         var useIncompleteDir = this.configService.EnableIncompleteDir;
-        var completedDir = !string.IsNullOrWhiteSpace(torrent.SavePath)
-            ? torrent.SavePath
+        var baseSavePath = torrent.SavePath;
+        if (!string.IsNullOrWhiteSpace(baseSavePath) && !string.IsNullOrWhiteSpace(torrent.Name))
+        {
+            var trimmed = baseSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var dirOrFileName = Path.GetFileName(trimmed);
+            if (Path.HasExtension(trimmed) ||
+                string.Equals(dirOrFileName, torrent.Name, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(Path.GetFileNameWithoutExtension(dirOrFileName), torrent.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                baseSavePath = Path.GetDirectoryName(trimmed);
+            }
+        }
+
+        var completedDir = !string.IsNullOrWhiteSpace(baseSavePath)
+            ? baseSavePath
             : this.storagePathService.GetCompletedDirectory(torrent.Category);
 
         if (string.IsNullOrWhiteSpace(torrent.SavePath))
@@ -1160,10 +1173,90 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             var manager = task.Manager;
             if (manager.State is not (TorrentState.Stopped or TorrentState.Paused))
             {
-                await manager.StopAsync();
+                await manager.StopAsync().ConfigureAwait(false);
             }
 
-            await manager.HashCheckAsync(autoStart: true);
+            // Determine if the files reside in completed destination or custom working path
+            var completedDir = this.storagePathService.GetCompletedDirectory(task.Category);
+            var candidatePaths = new List<string>();
+
+            if (!string.IsNullOrWhiteSpace(task.WorkingPath))
+            {
+                candidatePaths.Add(task.WorkingPath);
+                var parentDir = Path.GetDirectoryName(task.WorkingPath);
+                if (!string.IsNullOrWhiteSpace(parentDir))
+                {
+                    candidatePaths.Add(parentDir);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(task.SavePath))
+            {
+                candidatePaths.Add(task.SavePath);
+                var parentDir = Path.GetDirectoryName(task.SavePath);
+                if (!string.IsNullOrWhiteSpace(parentDir))
+                {
+                    candidatePaths.Add(parentDir);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(completedDir))
+            {
+                candidatePaths.Add(completedDir);
+            }
+
+            string matchedSavePath = null;
+            var filePaths = new List<string>();
+            if (manager.Torrent?.Files != null)
+            {
+                foreach (var f in manager.Torrent.Files)
+                {
+                    filePaths.Add(f.Path);
+                }
+            }
+            else if (manager.Files != null)
+            {
+                foreach (var f in manager.Files)
+                {
+                    filePaths.Add(f.Path);
+                }
+            }
+
+            foreach (var p in candidatePaths.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (Directory.Exists(p))
+                {
+                    if (filePaths.Count > 0)
+                    {
+                        var anyFound = filePaths.Any(path =>
+                            File.Exists(Path.Combine(p, path)) ||
+                            File.Exists(Path.Combine(p, manager.Torrent?.Name ?? string.Empty, path)) ||
+                            File.Exists(Path.Combine(p, Path.GetFileName(path))));
+
+                        if (anyFound)
+                        {
+                            matchedSavePath = p;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(matchedSavePath) &&
+                !string.Equals(manager.SavePath, matchedSavePath, StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    await manager.MoveFilesAsync(matchedSavePath, false).ConfigureAwait(false);
+                    this.logger.Info("Aligned MonoTorrent save path to '{0}' prior to forced hash recheck for torrent id {1}", matchedSavePath, torrentId);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to align MonoTorrent save path to '{0}' prior to forced hash recheck for torrent id {1}", matchedSavePath, torrentId);
+                }
+            }
+
+            await manager.HashCheckAsync(autoStart: true).ConfigureAwait(false);
             this.logger.Info("Triggered hash recheck for torrent id {0}", torrentId);
         }
     }
@@ -1679,7 +1772,46 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     {
         this.tasks.TryGetValue(torrentId, out var existingTask);
         var category = existingTask?.Category;
-        var torrentName = manager.Torrent?.Name ?? infoHash;
+        var torrentName = manager?.Torrent?.Name ?? infoHash;
+
+        if (manager == null)
+        {
+            return;
+        }
+
+        // Automatic Rehash Check Prior to Moving to Destination Directory (Default: true)
+        if (this.configService?.AutoRecheckOnCompletion == true && this.engine != null && manager.Engine != null)
+        {
+            try
+            {
+                this.logger.Info("Executing automatic completion rehash check for torrent '{0}' before moving to destination directory.", torrentName);
+                if (manager.State is not (TorrentState.Stopped or TorrentState.Paused))
+                {
+                    await manager.StopAsync().ConfigureAwait(false);
+                }
+
+                await manager.HashCheckAsync(autoStart: false).ConfigureAwait(false);
+
+                if (manager.Bitfield != null && manager.Bitfield.Length > 0 && (!manager.Bitfield.AllTrue || manager.Progress < 99.99))
+                {
+                    this.logger.Warn(
+                        "Automatic completion rehash check failed for torrent '{0}': only {1:F1}% verified ({2}/{3} pieces). Retaining files in incomplete directory and resuming download to repair corrupt/missing pieces.",
+                        torrentName,
+                        manager.Progress,
+                        manager.Bitfield.TrueCount,
+                        manager.Bitfield.Length);
+
+                    await manager.StartAsync().ConfigureAwait(false);
+                    return;
+                }
+
+                this.logger.Info("Automatic completion rehash check passed 100% for torrent '{0}'. Proceeding to move files.", torrentName);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Non-critical error during automatic completion rehash check for torrent '{0}'.", torrentName);
+            }
+        }
 
         var basePath = manager.SavePath ?? this.storagePathService.GetIncompleteDirectory();
         var incompleteDir = this.storagePathService.GetIncompleteDirectory();
@@ -1722,18 +1854,6 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
         }
 
-        if (manager != null)
-        {
-            try
-            {
-                await this.SaveFastResumeAtomicAsync(manager, this.GetCacheDirectory()).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                this.logger.Debug(ex, "Failed to save FastResume checkpoint on completion for {0}", infoHash);
-            }
-        }
-
         try
         {
             // MoveToCompleted builds finalDestination = completedDir/torrentName,
@@ -1754,8 +1874,19 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     try
                     {
                         Directory.CreateDirectory(seedingSavePath);
+                        var wasRunning = manager.State is TorrentState.Downloading or TorrentState.Seeding or TorrentState.Starting;
+                        if (wasRunning)
+                        {
+                            await manager.StopAsync().ConfigureAwait(false);
+                        }
+
                         await manager.MoveFilesAsync(seedingSavePath, false).ConfigureAwait(false);
                         this.logger.Info("MonoTorrent seeding path updated to '{0}' for torrent {1}", seedingSavePath, infoHash);
+
+                        if (wasRunning)
+                        {
+                            await manager.StartAsync().ConfigureAwait(false);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -1773,6 +1904,18 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             this.logger.Error(ex, "Failed to move completed torrent files for {0}", infoHash);
             finalDestination = sourcePath;
+        }
+
+        if (manager != null)
+        {
+            try
+            {
+                await this.SaveFastResumeAtomicAsync(manager, this.GetCacheDirectory()).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Failed to save FastResume checkpoint on completion for {0}", infoHash);
+            }
         }
 
         if (existingTask != null)
