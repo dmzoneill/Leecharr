@@ -1742,6 +1742,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     GC.Collect(2, GCCollectionMode.Forced, false);
                 }
 
+                if (e.NewState == TorrentState.Error)
+                {
+                    this.logger.Error("Torrent {0} entered Error state: Reason={1}, Exception={2}", infoHash, manager.Error.Reason, manager.Error.Exception?.Message);
+                    this.torrentLogService?.Log(torrentId, "Error", "Engine", $"Torrent error: {manager.Error.Reason} ({manager.Error.Exception?.Message})");
+                }
+
                 if (e.NewState == TorrentState.Seeding)
                 {
                     await this.OnTorrentCompletedAsync(torrentId, infoHash, manager).ConfigureAwait(false);
@@ -3264,7 +3270,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     public async Task SaveFastResumeAtomicAsync(TorrentManager manager, string cacheDirectory)
     {
-        if (manager == null)
+        if (manager == null || manager.State is TorrentState.Hashing or TorrentState.Metadata or TorrentState.Error || !manager.HashChecked)
         {
             return;
         }
