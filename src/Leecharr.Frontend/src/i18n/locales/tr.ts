@@ -946,7 +946,7 @@ const tr: I18nTranslations = {
     includeEnrichedMetadata: "Zenginleştirilmiş meta verileri dahil et",
     exportPreview: "Dışa Aktarma Önizlemesi",
     copyToClipboard: "Panoya kopyala",
-    filterStartDate: "Başlangıç ​​Tarihi",
+    filterStartDate: "Başlangıç   Tarihi",
     filterEndDate: "Bitiş Tarihi",
     tmdb: "Tmdb",
     thetvdb: "Thetvdb",
