@@ -64,8 +64,9 @@ Unlike conventional standalone clients (Deluge, qBittorrent, Transmission) that 
 
 ---
 
-## Documentation
+## Documentation & Changelog
 
+- [Changelog & Version History](CHANGELOG.md)
 - [Architecture Guide](docs/architecture.md)
 - [Domain Model](docs/domain-model.md)
 - [Media Enrichment Specification](docs/media-enrichment.md)
