@@ -121,8 +121,6 @@ export function App() {
   const { data: indexersList } = useIndexers();
   const { data: generalConfig } = useGeneralConfig();
 
-
-
   const loadUser = async () => {
     try {
       const user = await api.getCurrentUser();
@@ -264,7 +262,9 @@ export function App() {
   const { theme, toggleTheme } = useTheme();
   const { confirmIfDirty } = useSettingsDirty();
   const [showTopApiKey, setShowTopApiKey] = useState(false);
-  const [unmaskedTopApiKey, setUnmaskedTopApiKey] = useState<string | null>(null);
+  const [unmaskedTopApiKey, setUnmaskedTopApiKey] = useState<string | null>(
+    null,
+  );
 
   const fetchUnmaskedTopKey = useCallback(async () => {
     if (unmaskedTopApiKey) return unmaskedTopApiKey;
@@ -294,7 +294,10 @@ export function App() {
         );
       } else {
         showToast(
-          t("settings.failedToCopyApiKey", "Failed to copy API key to clipboard"),
+          t(
+            "settings.failedToCopyApiKey",
+            "Failed to copy API key to clipboard",
+          ),
           "error",
         );
       }
@@ -989,7 +992,11 @@ export function App() {
                 }}
               >
                 {showTopApiKey
-                  ? (unmaskedTopApiKey || (generalConfig?.apiKey && !generalConfig.apiKey.includes("*") ? generalConfig.apiKey : "••••••••••••••••••••••••••••••••"))
+                  ? unmaskedTopApiKey ||
+                    (generalConfig?.apiKey &&
+                    !generalConfig.apiKey.includes("*")
+                      ? generalConfig.apiKey
+                      : "••••••••••••••••••••••••••••••••")
                   : "••••••••••••••••••••••••••••••••"}
               </span>
             </button>
