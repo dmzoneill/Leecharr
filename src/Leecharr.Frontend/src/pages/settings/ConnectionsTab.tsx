@@ -1,5 +1,5 @@
 import { useTranslation } from "../../i18n";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   useArrConnections,
   useCreateArrConnection,
@@ -13,7 +13,7 @@ import type { ArrConnection, ArrTestResult } from "../../api/types";
 import { TextInput, SelectInput, Toggle, SectionCard } from "./shared";
 import { useToast } from "../../context/ToastContext";
 import { useConfirm } from "../../context/ConfirmContext";
-import { useEscapeKey } from "../../hooks/useEscapeKey";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 
 export function ConnectionsTab() {
   const { t } = useTranslation();
@@ -28,8 +28,33 @@ export function ConnectionsTab() {
   const testDirectMutation = useTestDirectArrConnection();
   const syncMutation = useArrSync();
   const [editing, setEditing] = useState<Partial<ArrConnection> | null>(null);
+  const initialConnRef = useRef<string>("");
 
-  useEscapeKey(() => setEditing(null), Boolean(editing));
+  const handleCloseModal = async () => {
+    const isDirty = Boolean(
+      editing &&
+        initialConnRef.current &&
+        JSON.stringify(editing) !== initialConnRef.current,
+    );
+    if (isDirty) {
+      const ok = await confirm({
+        title: t("settingsTabs.shared.unsavedChangesTitle"),
+        message: t("settingsTabs.shared.unsavedChangesDesc"),
+        confirmText: t("settingsTabs.shared.discardAndLeave"),
+        cancelText: t("settingsTabs.shared.stayOnPage"),
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    setEditing(null);
+    setModalTestResult(null);
+  };
+
+  const trapRef = useFocusTrap<HTMLDivElement>({
+    isOpen: Boolean(editing),
+    onClose: handleCloseModal,
+  });
+
   const [testResults, setTestResults] = useState<
     Record<number, ArrTestResult | null>
   >({});
@@ -53,7 +78,9 @@ export function ConnectionsTab() {
 
   const handleOpenModal = (conn: Partial<ArrConnection>) => {
     setModalTestResult(null);
-    setEditing({ ...conn });
+    const initial = { ...conn };
+    initialConnRef.current = JSON.stringify(initial);
+    setEditing(initial);
   };
 
   const handleSave = () => {
@@ -335,8 +362,14 @@ export function ConnectionsTab() {
       </SectionCard>
 
       {editing && (
-        <div className="modal-overlay" onClick={() => setEditing(null)}>
+        <div
+          className="modal-overlay"
+          onClick={handleCloseModal}
+          role="dialog"
+          aria-modal="true"
+        >
           <div
+            ref={trapRef}
             className="modal"
             onClick={(e) => e.stopPropagation()}
             style={{
@@ -548,8 +581,9 @@ export function ConnectionsTab() {
               </button>
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <button
+                  type="button"
                   className="btn btn-outline btn-small"
-                  onClick={() => setEditing(null)}
+                  onClick={handleCloseModal}
                 >
                   {t("settingsTabs.categories.modal.cancel")}
                 </button>
