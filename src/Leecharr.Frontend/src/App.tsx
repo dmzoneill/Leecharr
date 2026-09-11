@@ -883,10 +883,13 @@ export function App() {
       <div className="main-wrapper">
         {/* Topbar Header */}
         <header className="topbar">
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <div
+            className="topbar-left"
+            style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+          >
             <button
               type="button"
-              className="topbar-btn sidebar-toggle-btn"
+              className="topbar-btn topbar-sidebar-toggle"
               onClick={toggleSidebar}
               title={
                 isSidebarCollapsed
