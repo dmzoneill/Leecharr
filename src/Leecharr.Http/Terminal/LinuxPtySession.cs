@@ -78,6 +78,11 @@ public sealed class LinuxPtySession : ITerminalSession
         int masterFd = -1;
         int pid = -1;
 
+        System.Runtime.CompilerServices.RuntimeHelpers.PrepareMethod(typeof(NativePty).GetMethod(nameof(NativePty.Chdir)).MethodHandle);
+        System.Runtime.CompilerServices.RuntimeHelpers.PrepareMethod(typeof(NativePty).GetMethod(nameof(NativePty.ExecveRaw)).MethodHandle);
+        System.Runtime.CompilerServices.RuntimeHelpers.PrepareMethod(typeof(NativePty).GetMethod(nameof(NativePty.ExecvpRaw)).MethodHandle);
+        System.Runtime.CompilerServices.RuntimeHelpers.PrepareMethod(typeof(NativePty).GetMethod(nameof(NativePty.Exit)).MethodHandle);
+
         try
         {
             pid = NativePty.Forkpty(out masterFd, IntPtr.Zero, IntPtr.Zero, ref ws);
