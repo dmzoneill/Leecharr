@@ -3280,5 +3280,15 @@ public class MonoTorrentDownloadEngineTest
         act.Should().NotThrow();
     }
 
+    [Test]
+    public void CachePolicy_DefaultsToWritesOnly_WhenNotExplicitlyConfigured()
+    {
+        this.configService.DiskCachePolicy.Returns((string)null!);
+        var method = typeof(MonoTorrentDownloadEngine).GetMethod("GetConfiguredCachePolicy", BindingFlags.NonPublic | BindingFlags.Instance);
+        method.Should().NotBeNull();
+        var result = method!.Invoke(this.engine, null);
+        result.Should().Be(MonoTorrent.PieceWriter.CachePolicy.WritesOnly);
+    }
+
     #endregion
 }
