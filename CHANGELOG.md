@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.6.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.6.1) - 2026-09-12
+
+### 🐛 Bug Fixes
+- fix(engine,container): force LOH compaction during piece hashing and remove heap hard limit
+
 ## [v1.6.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.6.0) - 2026-09-12
 
 ### ✨ Features
