@@ -1950,10 +1950,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
             var currentHashed = Interlocked.Increment(ref this.totalPiecesHashed);
 
-            // Reclaim Large Object Heap (LOH) buffers periodically during hashing to prevent working set exhaustion on large piece sizes
-            if (currentHashed % 16 == 0 || e.PieceIndex % 16 == 0)
+            // Reclaim Large Object Heap (LOH) buffers aggressively during hashing to prevent working set exhaustion on large piece sizes
+            if (currentHashed % 4 == 0 || e.PieceIndex % 4 == 0)
             {
-                GC.Collect(2, GCCollectionMode.Optimized, false);
+                System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
+                GC.Collect(2, GCCollectionMode.Forced, true, true);
             }
 
             if (this.infoHashToId.TryGetValue(infoHash, out var torrentId))
