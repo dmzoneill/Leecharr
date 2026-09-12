@@ -3188,12 +3188,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private CachePolicy GetConfiguredCachePolicy()
     {
         var policy = this.configService?.DiskCachePolicy;
-        if (string.Equals(policy, "WritesOnly", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(policy, "ReadsAndWrites", StringComparison.OrdinalIgnoreCase))
         {
-            return CachePolicy.WritesOnly;
+            return CachePolicy.ReadsAndWrites;
         }
 
-        return CachePolicy.ReadsAndWrites;
+        return CachePolicy.WritesOnly;
     }
 
     private FastResumeMode GetConfiguredFastResumeMode()
