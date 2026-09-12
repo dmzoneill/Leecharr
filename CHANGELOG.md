@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.6.5](https://github.com/dmzoneill/Leecharr/releases/tag/v1.6.5) - 2026-09-12
+
+### 🐛 Bug Fixes
+- fix(bittorrent): skip redundant automatic completion recheck when torrent is already fully verified
+
 ## [v1.6.4](https://github.com/dmzoneill/Leecharr/releases/tag/v1.6.4) - 2026-09-12
 
 ### 🐛 Bug Fixes
