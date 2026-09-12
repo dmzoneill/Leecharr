@@ -1941,6 +1941,32 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }));
     }
 
+    private static readonly PropertyInfo MassiveBuffersProp = typeof(ByteBufferPool).GetProperty("MassiveBuffers", BindingFlags.NonPublic | BindingFlags.Instance);
+    private static readonly PropertyInfo SpinLockedValueProp = MassiveBuffersProp?.PropertyType.GetProperty("Value", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
+
+    public static void TrimMonoTorrentMassiveBuffers()
+    {
+        try
+        {
+            if (MassiveBuffersProp != null && SpinLockedValueProp != null)
+            {
+                var spinLocked = MassiveBuffersProp.GetValue(MemoryPool.Default);
+                if (spinLocked != null)
+                {
+                    if (SpinLockedValueProp.GetValue(spinLocked) is System.Collections.ICollection queue && queue.Count > 0)
+                    {
+                        var clearMethod = queue.GetType().GetMethod("Clear");
+                        clearMethod?.Invoke(queue, null);
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Ignore reflection errors on buffer trimming
+        }
+    }
+
     private void OnPieceHashed(object sender, PieceHashedEventArgs e)
     {
         try
@@ -1950,9 +1976,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
             var currentHashed = Interlocked.Increment(ref this.totalPiecesHashed);
 
-            // Reclaim Large Object Heap (LOH) buffers aggressively during hashing to prevent working set exhaustion on large piece sizes
+            // Reclaim MonoTorrent MassiveBuffers queue and force LOH compaction every 4 pieces during hashing
             if (currentHashed % 4 == 0 || e.PieceIndex % 4 == 0)
             {
+                TrimMonoTorrentMassiveBuffers();
                 System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
                 GC.Collect(2, GCCollectionMode.Forced, true, true);
             }
@@ -3229,6 +3256,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     await this.engine.UpdateSettingsAsync(updatedSettings).ConfigureAwait(false);
                     this.logger.Debug("Scaled dynamic disk write cache to {0} MB (throughput: {1:F1} MB/s)", targetCacheBytes / (1024 * 1024), currentDownloadRate / (1024.0 * 1024.0));
                 }
+
+                TrimMonoTorrentMassiveBuffers();
             }
             catch (Exception ex)
             {
