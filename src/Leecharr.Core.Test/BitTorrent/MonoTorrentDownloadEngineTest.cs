@@ -3268,5 +3268,17 @@ public class MonoTorrentDownloadEngineTest
         await act.Should().NotThrowAsync();
     }
 
+    [Test]
+    public void TrimMonoTorrentMassiveBuffers_ExecutesWithoutExceptionsAndClearsPool()
+    {
+        using (MonoTorrent.MemoryPool.Default.Rent(16 * 1024 * 1024, out Memory<byte> mem))
+        {
+            mem.Length.Should().Be(16 * 1024 * 1024);
+        }
+
+        Action act = () => MonoTorrentDownloadEngine.TrimMonoTorrentMassiveBuffers();
+        act.Should().NotThrow();
+    }
+
     #endregion
 }
