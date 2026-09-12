@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.6.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.6.0) - 2026-09-12
+
+### ✨ Features
+- feat(engine): track and report active chunk verification scan progress percentage during Hashing state
+
+### 🔧 Maintenance & Improvements
+- perf(runtime): bake workstation concurrent GC and heap limits into MSBuild props and Containerfile
+
 ## [v1.5.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.5.2) - 2026-09-11
 
 ### 🐛 Bug Fixes
