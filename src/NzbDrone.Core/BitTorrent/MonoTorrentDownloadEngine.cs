@@ -1795,7 +1795,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
 
         // Automatic Rehash Check Prior to Moving to Destination Directory (Default: true)
-        if (this.configService?.AutoRecheckOnCompletion == true && this.engine != null && manager.Engine != null)
+        // Skip redundant recheck if torrent was already verified 100% (e.g. from manual force recheck)
+        var isAlreadyVerified = manager.HashChecked && manager.Bitfield != null && manager.Bitfield.AllTrue;
+        if (!isAlreadyVerified && this.configService?.AutoRecheckOnCompletion == true && this.engine != null && manager.Engine != null)
         {
             try
             {
