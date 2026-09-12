@@ -3353,6 +3353,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
     private long lastTaskProtoUp;
     private long lastTaskProtoDownSpeed;
     private long lastTaskProtoUpSpeed;
+    private int hashedPiecesCount;
 
     public string WorkingPath { get; set; }
 
@@ -3421,6 +3422,11 @@ public class MonoTorrentDownloadTask : IDownloadTask
     {
         try
         {
+            if (e.NewState == TorrentState.Hashing)
+            {
+                Interlocked.Exchange(ref this.hashedPiecesCount, 0);
+            }
+
             if (this.Manager?.Torrent != null && this.Picker == null)
             {
                 var t = this.Manager.Torrent;
@@ -3504,6 +3510,8 @@ public class MonoTorrentDownloadTask : IDownloadTask
     {
         try
         {
+            Interlocked.Increment(ref this.hashedPiecesCount);
+
             if (this.Picker != null)
             {
                 if (e.HashPassed)
@@ -3806,11 +3814,33 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
     public long UploadedBytes => this.Manager?.Monitor?.DataBytesSent ?? 0;
 
-    public double Progress => this.Manager != null
-        ? (this.Manager.State == TorrentState.Hashing
-            ? Math.Max(0.0, Math.Min(1.0, this.Manager.PartialProgress / 100.0))
-            : Math.Max(0.0, Math.Min(1.0, this.Manager.Progress / 100.0)))
-        : 0.0;
+    public double Progress
+    {
+        get
+        {
+            if (this.Manager == null)
+            {
+                return 0.0;
+            }
+
+            if (this.Manager.State == TorrentState.Hashing)
+            {
+                var total = this.Manager.Torrent?.PieceCount ?? this.initialTorrent?.PieceCount ?? this.Picker?.PieceCount ?? 0;
+                if (total > 0)
+                {
+                    var hashed = Volatile.Read(ref this.hashedPiecesCount);
+                    if (hashed > 0)
+                    {
+                        return Math.Clamp((double)hashed / total, 0.0, 1.0);
+                    }
+                }
+
+                return 0.0;
+            }
+
+            return Math.Max(0.0, Math.Min(1.0, this.Manager.Progress / 100.0));
+        }
+    }
 
     public long DownloadSpeed => (this.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued) ? 0 : (this.Manager?.Monitor?.DownloadRate ?? 0);
 
