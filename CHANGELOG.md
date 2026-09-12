@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.6.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.6.2) - 2026-09-12
+
+### 🐛 Bug Fixes
+- fix(engine): actively drain and trim MonoTorrent MassiveBuffers queue during hashing to prevent unbounded memory retention
+
 ## [v1.6.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.6.1) - 2026-09-12
 
 ### 🐛 Bug Fixes
