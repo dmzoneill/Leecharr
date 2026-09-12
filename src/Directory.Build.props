@@ -20,6 +20,9 @@
     <TestProject Condition="$(MSBuildProjectName.EndsWith('.Test'))">true</TestProject>
 
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <RetainVMGarbageCollection>false</RetainVMGarbageCollection>
     <NoWarn>$(NoWarn);CS1591;SA1200;SA1124;SA1515;SA1600;SA1602;SA1633;SA1649;SA1402;SA1118;SA1201;SA1202;SA1204;SA1101;SA1413;SA1401;SA1311;SA1137;SA1309;SX1309;SX1309S</NoWarn>
   </PropertyGroup>
 
