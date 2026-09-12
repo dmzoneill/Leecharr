@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -536,6 +537,13 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             () => Interlocked.Increment(ref this.blockedPeersCount)));
 
         this.engine = new ClientEngine(engineSettings, factories);
+        var overrideField = typeof(DiskManager).GetField("GetHashAsyncOverride", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
+        if (overrideField != null)
+        {
+            Func<ITorrentManagerInfo, int, PieceHash, Task<bool>> hashOverride = (mgr, idx, dest) => this.CalculatePieceHashDirectAsync(mgr, idx, dest);
+            overrideField.SetValue(this.engine.DiskManager, hashOverride);
+        }
+
         this.ApplyCustomPeerId(this.engine, peerIdPrefix);
 
         this.logger.Info("MonoTorrent engine started successfully on {0}:{1}.", listenIp, port);
@@ -1967,6 +1975,113 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
+    private async Task<bool> CalculatePieceHashDirectAsync(ITorrentManagerInfo manager, int pieceIndex, PieceHash dest)
+    {
+        if (manager.TorrentInfo == null)
+        {
+            return false;
+        }
+
+        var pieceLength = (long)manager.TorrentInfo.PieceLength;
+        var totalSize = manager.TorrentInfo.Size;
+        var pieceStart = (long)pieceIndex * pieceLength;
+        var pieceEnd = Math.Min(pieceStart + pieceLength, totalSize);
+        var pieceBytesToRead = pieceEnd - pieceStart;
+
+        if (pieceBytesToRead <= 0)
+        {
+            return false;
+        }
+
+        using var sha1 = IncrementalHash.CreateHash(HashAlgorithmName.SHA1);
+        using var sha256 = !dest.V2Hash.IsEmpty ? IncrementalHash.CreateHash(HashAlgorithmName.SHA256) : null;
+
+        var buffer = ArrayPool<byte>.Shared.Rent(64 * 1024);
+        try
+        {
+            var currentOffset = pieceStart;
+            var remaining = pieceBytesToRead;
+
+            for (var i = 0; i < manager.Files.Count && remaining > 0; i++)
+            {
+                var file = manager.Files[i];
+                var fileStart = file.OffsetInTorrent;
+                var fileEnd = fileStart + file.Length;
+
+                if (currentOffset >= fileStart && currentOffset < fileEnd)
+                {
+                    var fileOffset = currentOffset - fileStart;
+                    var bytesInThisFile = Math.Min(remaining, fileEnd - currentOffset);
+
+                    var filePath = file.FullPath;
+                    if (!File.Exists(filePath))
+                    {
+                        if (File.Exists(file.DownloadCompleteFullPath))
+                        {
+                            filePath = file.DownloadCompleteFullPath;
+                        }
+                        else if (File.Exists(file.DownloadIncompleteFullPath))
+                        {
+                            filePath = file.DownloadIncompleteFullPath;
+                        }
+                    }
+
+                    if (File.Exists(filePath))
+                    {
+                        using var handle = File.OpenHandle(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOptions.None);
+                        var fileReadOffset = fileOffset;
+                        var fileRemaining = bytesInThisFile;
+
+                        while (fileRemaining > 0)
+                        {
+                            var toRead = (int)Math.Min(fileRemaining, buffer.Length);
+                            var read = RandomAccess.Read(handle, buffer.AsSpan(0, toRead), fileReadOffset);
+                            if (read <= 0)
+                            {
+                                Array.Clear(buffer, 0, toRead);
+                                read = toRead;
+                            }
+
+                            sha1.AppendData(buffer, 0, read);
+                            sha256?.AppendData(buffer, 0, read);
+
+                            fileReadOffset += read;
+                            fileRemaining -= read;
+                            currentOffset += read;
+                            remaining -= read;
+                        }
+                    }
+                    else
+                    {
+                        Array.Clear(buffer, 0, buffer.Length);
+                        var fileRemaining = bytesInThisFile;
+                        while (fileRemaining > 0)
+                        {
+                            var toRead = (int)Math.Min(fileRemaining, buffer.Length);
+                            sha1.AppendData(buffer, 0, toRead);
+                            sha256?.AppendData(buffer, 0, toRead);
+                            fileRemaining -= toRead;
+                            currentOffset += toRead;
+                            remaining -= toRead;
+                        }
+                    }
+                }
+            }
+
+            sha1.GetHashAndReset(dest.V1Hash.Span);
+            if (sha256 != null && !dest.V2Hash.IsEmpty)
+            {
+                sha256.GetHashAndReset(dest.V2Hash.Span);
+            }
+
+            return await Task.FromResult(true).ConfigureAwait(false);
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
+
     private void OnPieceHashed(object sender, PieceHashedEventArgs e)
     {
         try
@@ -2001,13 +2116,13 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 else
                 {
                     Interlocked.Increment(ref this.totalHashFails);
-                    this.logger.Warn("Piece {0} failed hash check for torrent {1}", e.PieceIndex, infoHash);
+                    this.logger.Debug("Piece {0} failed hash check for torrent {1}", e.PieceIndex, infoHash);
                 }
             }
             else if (!e.HashPassed)
             {
                 Interlocked.Increment(ref this.totalHashFails);
-                this.logger.Warn("Piece {0} failed hash check for torrent {1}", e.PieceIndex, infoHash);
+                this.logger.Debug("Piece {0} failed hash check for torrent {1}", e.PieceIndex, infoHash);
             }
         }
         catch (Exception ex)
