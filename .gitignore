@@ -47,5 +47,8 @@ Backups/
 
 # Scratch scripts
 patch*.py
+patch*.js
+update*.js
 scratch/
+
 
