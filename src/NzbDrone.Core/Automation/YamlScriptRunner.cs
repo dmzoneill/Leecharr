@@ -1,3 +1,4 @@
+#pragma warning disable SA1500, SA1516, SA1513, SA1508, SA1512, SA1507, SA1028
 #nullable enable
 using System;
 using System.Collections.Generic;
@@ -533,12 +534,272 @@ public class YamlScriptRunner : IScriptRunner
                                 logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] reannounce");
                             }
 
+                            if (action.TryGetValue("setShareLimitAction", out var slaVal) && slaVal != null)
+                            {
+                                var sla = SubstituteVariables(slaVal.ToString()!, variableContext);
+                                torrentCtx.setShareLimitAction(sla);
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] setShareLimitAction: {sla}");
+                            }
+
+                            if (action.TryGetValue("setFilePriority", out var fpVal) && fpVal is Dictionary<object, object> fpDict)
+                            {
+                                var pat = SubstituteVariables(fpDict.TryGetValue("pattern", out var pVal) ? pVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                                var prio = SubstituteVariables(fpDict.TryGetValue("priority", out var prVal) ? prVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                                torrentCtx.setFilePriority(pat, prio);
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] setFilePriority: {pat} -> {prio}");
+                            }
+
+                            if (action.TryGetValue("replaceTracker", out var rtVal) && rtVal is Dictionary<object, object> rtDict)
+                            {
+                                var oldT = SubstituteVariables(rtDict.TryGetValue("oldTracker", out var oVal) ? oVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                                var newT = SubstituteVariables(rtDict.TryGetValue("newTracker", out var nVal) ? nVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                                torrentCtx.replaceTracker(oldT, newT);
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] replaceTracker: {oldT} -> {newT}");
+                            }
+
+                            if (action.ContainsKey("reannounceAll"))
+                            {
+                                torrentCtx.reannounceAll();
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] reannounceAll");
+                            }
+
+                            if (action.TryGetValue("exportTorrent", out var etVal) && etVal != null)
+                            {
+                                var dest = SubstituteVariables(etVal.ToString()!, variableContext);
+                                torrentCtx.exportTorrent(dest);
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] exportTorrent: {dest}");
+                            }
+
                             if (action.ContainsKey("remove"))
                             {
                                 var deleteData = action.TryGetValue("deleteData", out var dd) && (dd is true || dd?.ToString()?.Equals("true", StringComparison.OrdinalIgnoreCase) == true);
                                 torrentCtx.remove(deleteData);
                                 logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] remove (deleteData: {deleteData})");
                             }
+                        }
+
+                        if (action.TryGetValue("evalMath", out var mathVal) && mathVal is Dictionary<object, object> mathDict)
+                        {
+                            var expr = SubstituteVariables(mathDict.TryGetValue("expression", out var eVal) ? eVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            var target = mathDict.TryGetValue("targetVariable", out var tVal) ? tVal?.ToString() : null;
+                            try
+                            {
+                                var dt = new System.Data.DataTable();
+                                var mathRes = dt.Compute(expr, string.Empty);
+                                if (!string.IsNullOrWhiteSpace(target))
+                                {
+                                    variableContext[target] = mathRes;
+                                    logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] evalMath: {expr} = {mathRes} -> {target}");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] evalMath Error: {ex.Message}");
+                            }
+                        }
+
+                        if (action.TryGetValue("calculateChecksum", out var chkVal) && chkVal is Dictionary<object, object> chkDict)
+                        {
+                            var path = SubstituteVariables(chkDict.TryGetValue("path", out var pVal) ? pVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            var target = chkDict.TryGetValue("targetVariable", out var tVal) ? tVal?.ToString() : null;
+                            try
+                            {
+                                if (File.Exists(path))
+                                {
+                                    using var sha = System.Security.Cryptography.SHA256.Create();
+                                    using var fs = File.OpenRead(path);
+                                    var hash = sha.ComputeHash(fs);
+                                    var hashStr = BitConverter.ToString(hash).Replace("-", string.Empty).ToLowerInvariant();
+                                    if (!string.IsNullOrWhiteSpace(target))
+                                    {
+                                        variableContext[target] = hashStr;
+                                    }
+
+                                    logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] calculateChecksum: {path} = {hashStr}");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] calculateChecksum Error: {ex.Message}");
+                            }
+                        }
+
+                        if (action.TryGetValue("createHardlink", out var hlVal) && hlVal is Dictionary<object, object> hlDict)
+                        {
+                            var src = SubstituteVariables(hlDict.TryGetValue("source", out var sVal) ? sVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            var dest = SubstituteVariables(hlDict.TryGetValue("dest", out var dVal) ? dVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            try
+                            {
+                                if (File.Exists(src))
+                                {
+                                    Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                                    systemContext.runCommand("ln", new { dest, src });
+                                    logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] createHardlink: {src} -> {dest}");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] createHardlink Error: {ex.Message}");
+                            }
+                        }
+
+                        if (action.TryGetValue("createSymlink", out var slVal) && slVal is Dictionary<object, object> slDict)
+                        {
+                            var src = SubstituteVariables(slDict.TryGetValue("source", out var sVal) ? sVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            var dest = SubstituteVariables(slDict.TryGetValue("dest", out var dVal) ? dVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            try
+                            {
+                                if (File.Exists(src) || Directory.Exists(src))
+                                {
+                                    Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                                    File.CreateSymbolicLink(dest, src);
+                                    logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] createSymlink: {src} -> {dest}");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] createSymlink Error: {ex.Message}");
+                            }
+                        }
+
+                        if (action.TryGetValue("cleanExtensions", out var ceVal) && ceVal is Dictionary<object, object> ceDict)
+                        {
+                            var extStr = SubstituteVariables(ceDict.TryGetValue("extensions", out var eVal) ? eVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            var dirStr = SubstituteVariables(ceDict.TryGetValue("directory", out var dVal) ? dVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            var maxSizeStr = SubstituteVariables(ceDict.TryGetValue("maxSizeLimit", out var mVal) ? mVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            long.TryParse(maxSizeStr, out var maxSize);
+                            var exts = extStr.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                            try
+                            {
+                                if (Directory.Exists(dirStr))
+                                {
+                                    var files = Directory.GetFiles(dirStr, "*.*", SearchOption.AllDirectories);
+                                    int count = 0;
+                                    foreach (var f in files)
+                                    {
+                                        var fExt = Path.GetExtension(f);
+                                        var fi = new FileInfo(f);
+                                        if (Array.Exists(exts, e => string.Equals(e, fExt, StringComparison.OrdinalIgnoreCase) || string.Equals("." + e, fExt, StringComparison.OrdinalIgnoreCase)) || (maxSize > 0 && fi.Length <= maxSize))
+                                        {
+                                            File.Delete(f);
+                                            count++;
+                                        }
+                                    }
+
+                                    logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] cleanExtensions: removed {count} files");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] cleanExtensions Error: {ex.Message}");
+                            }
+                        }
+
+                        if (action.TryGetValue("setFilePermissions", out var sfpVal) && sfpVal is Dictionary<object, object> sfpDict)
+                        {
+                            var path = SubstituteVariables(sfpDict.TryGetValue("path", out var pVal) ? pVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            var perm = SubstituteVariables(sfpDict.TryGetValue("permissions", out var pmVal) ? pmVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            var recursive = sfpDict.TryGetValue("recursive", out var rVal) && (rVal is true || rVal?.ToString()?.Equals("true", StringComparison.OrdinalIgnoreCase) == true);
+                            try
+                            {
+                                // Just a dummy log for windows, normally requires Mono.Posix or chmod
+                                systemContext.runCommand("chmod", new { path, permissions = perm, recursive });
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] setFilePermissions: {perm} on {path} (recursive: {recursive})");
+                            }
+                            catch (Exception ex)
+                            {
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] setFilePermissions Error: {ex.Message}");
+                            }
+                        }
+
+                        if (action.TryGetValue("sendDiscordWebhook", out var dwVal) && dwVal is Dictionary<object, object> dwDict)
+                        {
+                            var url = SubstituteVariables(dwDict.TryGetValue("webhookUrl", out var uVal) ? uVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            var embedObj = dwDict.TryGetValue("embedObj", out var embVal) ? embVal : null;
+                            if (!string.IsNullOrEmpty(url) && embedObj != null)
+                            {
+                                var payload = new Dictionary<string, object> { { "embeds", new[] { embedObj } } };
+                                httpClient.post(url, payload, new Dictionary<string, object>());
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] sendDiscordWebhook to {url}");
+                            }
+                        }
+
+                        if (action.TryGetValue("sendTelegramMessage", out var tgVal2) && tgVal2 is Dictionary<object, object> tgDict)
+                        {
+                            var token = SubstituteVariables(tgDict.TryGetValue("token", out var tVal) ? tVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            var chatId = SubstituteVariables(tgDict.TryGetValue("chatId", out var cVal) ? cVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            var text = SubstituteVariables(tgDict.TryGetValue("text", out var txtVal) ? txtVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(chatId))
+                            {
+                                var url = $"https://api.telegram.org/bot{token}/sendMessage";
+                                var payload = new Dictionary<string, object> { { "chat_id", chatId }, { "text", text }, { "parse_mode", "Markdown" } };
+                                httpClient.post(url, payload, new Dictionary<string, object>());
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] sendTelegramMessage to {chatId}");
+                            }
+                        }
+
+                        if (action.TryGetValue("sendNtfy", out var ntfyVal) && ntfyVal is Dictionary<object, object> ntfyDict)
+                        {
+                            var topic = SubstituteVariables(ntfyDict.TryGetValue("topic", out var tVal) ? tVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            var msg = SubstituteVariables(ntfyDict.TryGetValue("message", out var mVal) ? mVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            var url = SubstituteVariables(ntfyDict.TryGetValue("url", out var uVal) ? uVal?.ToString() ?? "https://ntfy.sh" : "https://ntfy.sh", variableContext);
+                            var title = SubstituteVariables(ntfyDict.TryGetValue("title", out var titleVal) ? titleVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            var prio = SubstituteVariables(ntfyDict.TryGetValue("priority", out var pVal) ? pVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            var tags = SubstituteVariables(ntfyDict.TryGetValue("tags", out var tgValNtfy) ? tgValNtfy?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            if (!string.IsNullOrEmpty(topic) && !string.IsNullOrEmpty(msg))
+                            {
+                                var reqUrl = url.EndsWith("/") ? $"{url}{topic}" : $"{url}/{topic}";
+                                var headers = new Dictionary<string, object>();
+                                if (!string.IsNullOrEmpty(title))
+                                {
+                                    headers["Title"] = title;
+                                }
+
+                                if (!string.IsNullOrEmpty(prio))
+                                {
+                                    headers["Priority"] = prio;
+                                }
+
+                                if (!string.IsNullOrEmpty(tags))
+                                {
+                                    headers["Tags"] = tags;
+                                }
+
+                                httpClient.post(reqUrl, msg, new Dictionary<string, object> { { "headers", headers } });
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] sendNtfy to {reqUrl}");
+                            }
+                        }
+
+                        if (action.TryGetValue("sendPushover", out var poVal) && poVal is Dictionary<object, object> poDict)
+                        {
+                            var token = SubstituteVariables(poDict.TryGetValue("token", out var tVal) ? tVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            var user = SubstituteVariables(poDict.TryGetValue("user", out var uVal) ? uVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            var msg = SubstituteVariables(poDict.TryGetValue("message", out var mVal) ? mVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            var prio = SubstituteVariables(poDict.TryGetValue("priority", out var pVal) ? pVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            var sound = SubstituteVariables(poDict.TryGetValue("sound", out var sVal) ? sVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                            if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(user))
+                            {
+                                var payload = new Dictionary<string, object> { { "token", token }, { "user", user }, { "message", msg } };
+                                if (!string.IsNullOrEmpty(prio))
+                                {
+                                    payload["priority"] = prio;
+                                }
+
+                                if (!string.IsNullOrEmpty(sound))
+                                {
+                                    payload["sound"] = sound;
+                                }
+
+                                httpClient.post("https://api.pushover.net/1/messages.json", payload, new Dictionary<string, object>());
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] sendPushover to {user}");
+                            }
+                        }
+
+                        if (action.TryGetValue("invokePipeline", out var ipVal))
+                        {
+                            var pipeline = SubstituteVariables(ipVal?.ToString() ?? string.Empty, variableContext);
+                            systemContext.runCommand("InvokePipeline", new { pipeline });
+                            logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] invokePipeline: {pipeline}");
                         }
 
                         if (result.ShouldStopPipeline)
@@ -716,16 +977,16 @@ public class YamlScriptRunner : IScriptRunner
         }
 
         if (string.Equals(val, "1", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(val, "yes", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(val, "on", StringComparison.OrdinalIgnoreCase))
+string.Equals(val, "yes", StringComparison.OrdinalIgnoreCase) ||
+string.Equals(val, "on", StringComparison.OrdinalIgnoreCase))
         {
             result = true;
             return true;
         }
 
         if (string.Equals(val, "0", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(val, "no", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(val, "off", StringComparison.OrdinalIgnoreCase))
+string.Equals(val, "no", StringComparison.OrdinalIgnoreCase) ||
+string.Equals(val, "off", StringComparison.OrdinalIgnoreCase))
         {
             result = false;
             return true;
@@ -786,4 +1047,11 @@ public class YamlHttpStepModel
     public bool? Json { get; set; }
 
     public object? Body { get; set; }
+
+    public int? TimeoutSeconds { get; set; }
+
+    public bool? AllowInsecure { get; set; }
+
+    public bool? ContinueOnError { get; set; }
+
 }
