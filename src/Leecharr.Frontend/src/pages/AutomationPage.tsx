@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { useTranslation } from "../i18n";
 import {
   useAutomationScripts,
   useCreateAutomationScript,
