@@ -63,7 +63,7 @@ public class JintScriptRunner : IScriptRunner
             engine.SetValue("api", apiContext);
 
             // System / Command context
-            var systemContext = new ScriptSystemContext(_commandQueue);
+            var systemContext = new ScriptSystemContext(_commandQueue, result);
             engine.SetValue("system", systemContext);
 
             // HTML context
