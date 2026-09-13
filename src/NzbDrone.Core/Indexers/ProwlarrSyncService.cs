@@ -100,7 +100,14 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
         }
         else
         {
-            this.httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+            var handler = new SocketsHttpHandler
+            {
+                SslOptions = new System.Net.Security.SslClientAuthenticationOptions
+                {
+                    RemoteCertificateValidationCallback = (sender, cert, chain, sslPolicyErrors) => true,
+                },
+            };
+            this.httpClient = new HttpClient(handler, disposeHandler: true) { Timeout = TimeSpan.FromSeconds(15) };
         }
 
         this.torznabClient = torznabClient;

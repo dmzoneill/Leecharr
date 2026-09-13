@@ -15,7 +15,17 @@ namespace Leecharr.Api.V1.ArrIntegration;
 [V1ApiController("arrsync")]
 public class ArrSyncController : Controller
 {
-    private static readonly HttpClient DefaultHttpClient = new() { Timeout = TimeSpan.FromSeconds(10) };
+    private static readonly HttpClient DefaultHttpClient = new(new SocketsHttpHandler
+    {
+        SslOptions = new global::System.Net.Security.SslClientAuthenticationOptions
+        {
+            RemoteCertificateValidationCallback = (sender, cert, chain, sslPolicyErrors) => true,
+        },
+    })
+    {
+        Timeout = TimeSpan.FromSeconds(10),
+    };
+
     private readonly IArrConnectionRepository arrRepository;
     private readonly ITorrentService torrentService;
     private readonly HttpClient httpClient;

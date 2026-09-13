@@ -122,6 +122,26 @@ public class ArrWebhookController : Controller
                 updated = true;
                 this.logger.Info("Updated import state for torrent {0} (InfoHash: {1}) by {2}", torrent.Name, torrent.InfoHash, resolvedArr);
             }
+            else if (string.Equals(eventType, "ImportFailed", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(eventType, "DownloadFolderImportFailed", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(eventType, "EpisodeImportFailed", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(eventType, "MovieImportFailed", StringComparison.OrdinalIgnoreCase))
+            {
+                torrent.IsImported = false;
+                this.torrentRepository.Update(torrent);
+                updated = true;
+                this.logger.Warn("Import failed for torrent {0} (InfoHash: {1})", torrent.Name, torrent.InfoHash);
+            }
+            else if (string.Equals(eventType, "Grab", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(eventType, "ReleaseGrabbed", StringComparison.OrdinalIgnoreCase))
+            {
+                this.logger.Info("Grabbed event received for torrent {0} (InfoHash: {1})", torrent.Name, torrent.InfoHash);
+            }
+            else if (string.Equals(eventType, "DownloadFailed", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(eventType, "DownloadWarning", StringComparison.OrdinalIgnoreCase))
+            {
+                this.logger.Warn("Download failed/warning event received for torrent {0} (InfoHash: {1})", torrent.Name, torrent.InfoHash);
+            }
 
             this.TryEnrichMetadata(torrent, arrType, payload);
         }
