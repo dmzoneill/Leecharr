@@ -1821,6 +1821,7 @@ body {
   box-sizing: border-box;
 }
 
+.input,
 .form-control,
 .form-input {
   padding: 0.5rem 0.8rem;
@@ -1837,6 +1838,7 @@ body {
     box-shadow 0.15s ease;
 }
 
+.input:focus,
 .form-control:focus,
 .form-input:focus {
   outline: none;
@@ -1844,6 +1846,7 @@ body {
   box-shadow: 0 0 0 2px var(--accent-bg-toast);
 }
 
+.input:disabled,
 .form-control:disabled,
 .form-input:disabled {
   opacity: 0.4;

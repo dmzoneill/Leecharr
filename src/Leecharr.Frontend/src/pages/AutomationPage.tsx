@@ -971,27 +971,27 @@ if (torrent) {
             className="modal panel"
             style={{
               width: "100%",
-              maxWidth: "1000px",
+              maxWidth: "1050px",
               maxHeight: "92vh",
               display: "flex",
               flexDirection: "column",
-              padding: "1.5rem",
+              padding: "1.5rem 1.75rem",
               overflow: "hidden",
               backgroundColor: "var(--bg-secondary)",
             }}
           >
             {/* Modal Header */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                <h2 style={{ margin: 0, fontSize: "1.25rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", borderBottom: "1px solid var(--border)", paddingBottom: "1rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "1.25rem", flexWrap: "wrap" }}>
+                <h2 style={{ margin: 0, fontSize: "1.3rem", fontWeight: 700, color: "var(--text-primary)" }}>
                   {editingScript.id ? "Edit Automation Pipeline" : "Create Automation Pipeline"}
                 </h2>
                 {/* Visual vs Code Mode Toggle */}
-                <div style={{ display: "flex", backgroundColor: "var(--surface, #222)", borderRadius: "6px", padding: "2px" }}>
+                <div style={{ display: "flex", backgroundColor: "var(--bg-primary, #1a1815)", borderRadius: "8px", padding: "3px", border: "1px solid var(--border-light)" }}>
                   <button
                     type="button"
                     className={`btn btn-sm ${editorMode === "visual" ? "btn-primary" : "btn-secondary"}`}
-                    style={{ padding: "0.25rem 0.75rem", fontSize: "0.8rem" }}
+                    style={{ padding: "0.35rem 0.9rem", fontSize: "0.825rem", fontWeight: 600, borderRadius: "6px" }}
                     onClick={() => {
                       if (editorMode !== "visual") {
                         setVisualSteps(yamlToVisualSteps(editingScript.code || ""));
@@ -1004,7 +1004,7 @@ if (torrent) {
                   <button
                     type="button"
                     className={`btn btn-sm ${editorMode === "code" ? "btn-primary" : "btn-secondary"}`}
-                    style={{ padding: "0.25rem 0.75rem", fontSize: "0.8rem" }}
+                    style={{ padding: "0.35rem 0.9rem", fontSize: "0.825rem", fontWeight: 600, borderRadius: "6px" }}
                     onClick={() => {
                       if (editorMode !== "code") {
                         const generatedYaml = visualStepsToYaml(
@@ -1021,27 +1021,34 @@ if (torrent) {
                   </button>
                 </div>
               </div>
-              <button className="btn btn-sm btn-secondary" onClick={() => setEditorOpen(false)}>✕</button>
+              <button
+                type="button"
+                className="btn btn-sm btn-secondary"
+                style={{ width: "32px", height: "32px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "6px", fontSize: "1rem" }}
+                onClick={() => setEditorOpen(false)}
+              >
+                ✕
+              </button>
             </div>
 
             <div style={{ overflowY: "auto", flex: 1, paddingRight: "0.5rem" }}>
               {/* Form Row 1: Name, Trigger, Language */}
-              <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr", gap: "0.75rem", marginBottom: "0.75rem" }}>
-                <div>
-                  <label style={{ fontSize: "0.8rem", fontWeight: 600 }}>Pipeline Name</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                  <label style={{ fontSize: "0.825rem", fontWeight: 600, color: "var(--text-secondary)" }}>Pipeline Name</label>
                   <input
                     type="text"
-                    className="input"
+                    className="form-control"
                     value={editingScript.name || ""}
                     onChange={(e) => setEditingScript({ ...editingScript, name: e.target.value })}
                     placeholder="e.g. 4K Movie Auto-Zap & Backup"
                   />
                 </div>
 
-                <div>
-                  <label style={{ fontSize: "0.8rem", fontWeight: 600 }}>Trigger Event</label>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                  <label style={{ fontSize: "0.825rem", fontWeight: 600, color: "var(--text-secondary)" }}>Trigger Event</label>
                   <select
-                    className="input"
+                    className="form-control"
                     value={editingScript.trigger?.toString()}
                     onChange={(e) => setEditingScript({ ...editingScript, trigger: e.target.value as AutomationTrigger })}
                   >
@@ -1051,10 +1058,10 @@ if (torrent) {
                   </select>
                 </div>
 
-                <div>
-                  <label style={{ fontSize: "0.8rem", fontWeight: 600 }}>Engine / Format</label>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                  <label style={{ fontSize: "0.825rem", fontWeight: 600, color: "var(--text-secondary)" }}>Engine / Format</label>
                   <select
-                    className="input"
+                    className="form-control"
                     value={editingScript.language?.toString()}
                     onChange={(e) => {
                       const newLang = e.target.value as AutomationLanguage;
@@ -1071,11 +1078,11 @@ if (torrent) {
               </div>
 
               {/* Form Row 2: Description */}
-              <div style={{ marginBottom: "0.75rem" }}>
-                <label style={{ fontSize: "0.8rem", fontWeight: 600 }}>Description</label>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", marginBottom: "1.25rem" }}>
+                <label style={{ fontSize: "0.825rem", fontWeight: 600, color: "var(--text-secondary)" }}>Description</label>
                 <input
                   type="text"
-                  className="input"
+                  className="form-control"
                   value={editingScript.description || ""}
                   onChange={(e) => setEditingScript({ ...editingScript, description: e.target.value })}
                   placeholder="Summary of what this automation pipeline performs..."
@@ -1085,13 +1092,14 @@ if (torrent) {
               {/* EDITOR MODE 1: VISUAL PIPELINE BUILDER */}
               {editorMode === "visual" && (
                 <div style={{ marginBottom: "1rem" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                    <label style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--accent, #3b82f6)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                    <label style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--accent)" }}>
                       ✨ Pipeline Steps ({visualSteps.length})
                     </label>
                     <button
                       type="button"
-                      className="btn btn-sm btn-secondary"
+                      className="btn btn-sm btn-primary"
+                      style={{ display: "flex", alignItems: "center", gap: "0.35rem", padding: "0.4rem 0.85rem" }}
                       onClick={() => {
                         const newStep: VisualStep = {
                           id: `step-${visualSteps.length + 1}-${Date.now()}`,
@@ -1117,35 +1125,36 @@ if (torrent) {
                       className="panel"
                       style={{
                         marginBottom: "1rem",
-                        backgroundColor: "var(--surface, #1e1e24)",
-                        border: "1px solid var(--border, #333)",
-                        padding: "1rem",
+                        backgroundColor: "var(--bg-primary, #1e1b18)",
+                        border: "1px solid var(--border-light, #3a352e)",
+                        padding: "1.25rem",
                         borderRadius: "8px",
                       }}
                     >
                       {/* Step Header */}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.85rem", gap: "0.75rem" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flex: 1 }}>
                           <span
                             style={{
-                              backgroundColor: "var(--accent, #3b82f6)",
+                              backgroundColor: "var(--accent, #c8a84e)",
                               color: "#fff",
                               borderRadius: "50%",
-                              width: "22px",
-                              height: "22px",
+                              width: "24px",
+                              height: "24px",
                               display: "inline-flex",
                               alignItems: "center",
                               justifyContent: "center",
                               fontSize: "0.75rem",
                               fontWeight: 700,
+                              flexShrink: 0,
                             }}
                           >
                             {stepIdx + 1}
                           </span>
                           <input
                             type="text"
-                            className="input"
-                            style={{ fontWeight: 600, width: "260px", padding: "0.2rem 0.5rem" }}
+                            className="form-control"
+                            style={{ fontWeight: 600, flex: 1, maxWidth: "450px" }}
                             value={step.name}
                             onChange={(e) => {
                               const copy = [...visualSteps];
@@ -1156,11 +1165,12 @@ if (torrent) {
                           />
                         </div>
 
-                        <div style={{ display: "flex", gap: "0.25rem" }}>
+                        <div style={{ display: "flex", gap: "0.35rem" }}>
                           <button
                             type="button"
                             className="btn btn-sm btn-secondary"
                             disabled={stepIdx === 0}
+                            style={{ padding: "0.3rem 0.6rem" }}
                             onClick={() => {
                               const copy = [...visualSteps];
                               const temp = copy[stepIdx];
@@ -1175,6 +1185,7 @@ if (torrent) {
                             type="button"
                             className="btn btn-sm btn-secondary"
                             disabled={stepIdx === visualSteps.length - 1}
+                            style={{ padding: "0.3rem 0.6rem" }}
                             onClick={() => {
                               const copy = [...visualSteps];
                               const temp = copy[stepIdx];
@@ -1188,6 +1199,7 @@ if (torrent) {
                           <button
                             type="button"
                             className="btn btn-sm btn-danger"
+                            style={{ padding: "0.3rem 0.6rem" }}
                             onClick={() => {
                               const copy = visualSteps.filter((_, idx) => idx !== stepIdx);
                               updateVisualSteps(copy);
@@ -1201,13 +1213,14 @@ if (torrent) {
                       {/* Condition Builder */}
                       <div
                         style={{
-                          backgroundColor: "rgba(0,0,0,0.2)",
-                          padding: "0.6rem",
+                          backgroundColor: "var(--bg-secondary, #2a2620)",
+                          border: "1px solid var(--border-light, #3a352e)",
+                          padding: "0.85rem 1rem",
                           borderRadius: "6px",
-                          marginBottom: "0.75rem",
+                          marginBottom: "1rem",
                         }}
                       >
-                        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer" }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: "0.6rem", fontSize: "0.85rem", fontWeight: 600, cursor: "pointer", color: "var(--text-primary)" }}>
                           <input
                             type="checkbox"
                             checked={step.conditionEnabled}
@@ -1221,10 +1234,10 @@ if (torrent) {
                         </label>
 
                         {step.conditionEnabled && (
-                          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem", alignItems: "center" }}>
+                          <div style={{ display: "flex", gap: "0.6rem", marginTop: "0.65rem", alignItems: "center" }}>
                             <select
-                              className="input"
-                              style={{ width: "200px" }}
+                              className="form-control"
+                              style={{ width: "220px", flexShrink: 0 }}
                               value={step.conditionLeft}
                               onChange={(e) => {
                                 const copy = [...visualSteps];
@@ -1241,8 +1254,8 @@ if (torrent) {
                             </select>
 
                             <select
-                              className="input"
-                              style={{ width: "80px" }}
+                              className="form-control"
+                              style={{ width: "90px", flexShrink: 0, textAlign: "center", fontWeight: 700 }}
                               value={step.conditionOp}
                               onChange={(e) => {
                                 const copy = [...visualSteps];
@@ -1260,7 +1273,7 @@ if (torrent) {
 
                             <input
                               type="text"
-                              className="input"
+                              className="form-control"
                               style={{ flex: 1 }}
                               value={step.conditionRight}
                               onChange={(e) => {
@@ -1276,13 +1289,13 @@ if (torrent) {
 
                       {/* Actions List */}
                       <div>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                          <span style={{ fontSize: "0.8rem", fontWeight: 600 }}>⚡ Step Actions</span>
-                          <div style={{ display: "flex", gap: "0.3rem" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.65rem" }}>
+                          <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-secondary)" }}>⚡ Step Actions</span>
+                          <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
                             <button
                               type="button"
                               className="btn btn-sm btn-secondary"
-                              style={{ fontSize: "0.75rem" }}
+                              style={{ fontSize: "0.8rem", padding: "0.25rem 0.6rem" }}
                               onClick={() => {
                                 const copy = [...visualSteps];
                                 copy[stepIdx].actions.push({ id: `act-${Date.now()}`, type: "addTag", value: "New-Tag" });
@@ -1294,7 +1307,7 @@ if (torrent) {
                             <button
                               type="button"
                               className="btn btn-sm btn-secondary"
-                              style={{ fontSize: "0.75rem" }}
+                              style={{ fontSize: "0.8rem", padding: "0.25rem 0.6rem" }}
                               onClick={() => {
                                 const copy = [...visualSteps];
                                 copy[stepIdx].actions.push({ id: `act-${Date.now()}`, type: "setCategory", value: categories?.[0]?.name || "Movies" });
@@ -1306,7 +1319,7 @@ if (torrent) {
                             <button
                               type="button"
                               className="btn btn-sm btn-secondary"
-                              style={{ fontSize: "0.75rem" }}
+                              style={{ fontSize: "0.8rem", padding: "0.25rem 0.6rem" }}
                               onClick={() => {
                                 const copy = [...visualSteps];
                                 copy[stepIdx].actions.push({ id: `act-${Date.now()}`, type: "command", value: "Backup" });
@@ -1318,7 +1331,7 @@ if (torrent) {
                             <button
                               type="button"
                               className="btn btn-sm btn-secondary"
-                              style={{ fontSize: "0.75rem" }}
+                              style={{ fontSize: "0.8rem", padding: "0.25rem 0.6rem" }}
                               onClick={() => {
                                 const copy = [...visualSteps];
                                 copy[stepIdx].actions.push({ id: `act-${Date.now()}`, type: "recheck", value: "" });
@@ -1331,7 +1344,7 @@ if (torrent) {
                         </div>
 
                         {step.actions.length === 0 ? (
-                          <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontStyle: "italic", padding: "0.4rem 0" }}>
+                          <div style={{ fontSize: "0.825rem", color: "var(--text-muted)", fontStyle: "italic", padding: "0.6rem 0" }}>
                             No actions added. Click the buttons above to attach tags, categories, tasks, or torrent commands.
                           </div>
                         ) : (
@@ -1341,16 +1354,17 @@ if (torrent) {
                               style={{
                                 display: "flex",
                                 alignItems: "center",
-                                gap: "0.5rem",
-                                marginBottom: "0.4rem",
-                                backgroundColor: "rgba(255,255,255,0.03)",
-                                padding: "0.4rem",
-                                borderRadius: "4px",
+                                gap: "0.6rem",
+                                marginBottom: "0.5rem",
+                                backgroundColor: "var(--bg-secondary, #2a2620)",
+                                border: "1px solid var(--border-light, #3a352e)",
+                                padding: "0.5rem 0.75rem",
+                                borderRadius: "6px",
                               }}
                             >
                               <select
-                                className="input"
-                                style={{ width: "160px", padding: "0.2rem" }}
+                                className="form-control"
+                                style={{ width: "190px", flexShrink: 0 }}
                                 value={act.type}
                                 onChange={(e) => {
                                   const copy = [...visualSteps];
@@ -1371,8 +1385,8 @@ if (torrent) {
 
                               {act.type === "command" ? (
                                 <select
-                                  className="input"
-                                  style={{ flex: 1, padding: "0.2rem" }}
+                                  className="form-control"
+                                  style={{ flex: 1 }}
                                   value={act.value}
                                   onChange={(e) => {
                                     const copy = [...visualSteps];
@@ -1388,8 +1402,8 @@ if (torrent) {
                                 </select>
                               ) : act.type === "setCategory" ? (
                                 <select
-                                  className="input"
-                                  style={{ flex: 1, padding: "0.2rem" }}
+                                  className="form-control"
+                                  style={{ flex: 1 }}
                                   value={act.value}
                                   onChange={(e) => {
                                     const copy = [...visualSteps];
@@ -1404,8 +1418,8 @@ if (torrent) {
                               ) : act.type === "addTag" || act.type === "removeTag" ? (
                                 <input
                                   type="text"
-                                  className="input"
-                                  style={{ flex: 1, padding: "0.2rem 0.5rem" }}
+                                  className="form-control"
+                                  style={{ flex: 1 }}
                                   value={act.value}
                                   onChange={(e) => {
                                     const copy = [...visualSteps];
@@ -1415,7 +1429,7 @@ if (torrent) {
                                   placeholder="Tag name (e.g. 4K, Radarr, Archive)"
                                 />
                               ) : (
-                                <span style={{ flex: 1, fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                                <span style={{ flex: 1, fontSize: "0.85rem", color: "var(--text-muted)", paddingLeft: "0.25rem" }}>
                                   Action applies automatically to active torrent
                                 </span>
                               )}
@@ -1423,6 +1437,7 @@ if (torrent) {
                               <button
                                 type="button"
                                 className="btn btn-sm btn-secondary"
+                                style={{ width: "32px", height: "32px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: "6px" }}
                                 onClick={() => {
                                   const copy = [...visualSteps];
                                   copy[stepIdx].actions = copy[stepIdx].actions.filter((_, idx) => idx !== actIdx);
@@ -1443,23 +1458,27 @@ if (torrent) {
               {/* EDITOR MODE 2: CODE / YAML / JS VIEW */}
               {editorMode === "code" && (
                 <div style={{ marginBottom: "1rem" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.25rem" }}>
-                    <label style={{ fontSize: "0.8rem", fontWeight: 600 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.4rem" }}>
+                    <label style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-secondary)" }}>
                       {editingScript.language === "Yaml" || editingScript.language === 1 ? "YAML Pipeline DSL" : "JavaScript Code"}
                     </label>
-                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                    <span style={{ fontSize: "0.775rem", color: "var(--text-muted)" }}>
                       Helpers: <code>system.runCommand()</code>, <code>api.get()</code>, <code>torrent.addTag()</code>
                     </span>
                   </div>
                   <textarea
-                    className="input"
-                    rows={12}
+                    className="form-control"
+                    rows={13}
                     style={{
                       fontFamily: "monospace",
                       fontSize: "0.85rem",
                       backgroundColor: "#111",
                       color: "#e2e8f0",
-                      lineHeight: "1.4",
+                      lineHeight: "1.5",
+                      padding: "0.85rem",
+                      borderRadius: "6px",
+                      width: "100%",
+                      boxSizing: "border-box",
                     }}
                     value={editingScript.code || ""}
                     onChange={(e) => setEditingScript({ ...editingScript, code: e.target.value })}
@@ -1470,26 +1489,27 @@ if (torrent) {
               {/* LIVE DRY RUN & TEST RUNNER */}
               <div
                 style={{
-                  borderTop: "1px solid var(--border, #333)",
-                  paddingTop: "1rem",
-                  marginTop: "1rem",
-                  backgroundColor: "rgba(0,0,0,0.15)",
-                  padding: "1rem",
-                  borderRadius: "6px",
+                  borderTop: "1px solid var(--border)",
+                  paddingTop: "1.25rem",
+                  marginTop: "1.25rem",
+                  backgroundColor: "var(--bg-primary, rgba(0,0,0,0.15))",
+                  border: "1px solid var(--border-light)",
+                  padding: "1.1rem 1.25rem",
+                  borderRadius: "8px",
                 }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.85rem", gap: "1rem", flexWrap: "wrap" }}>
                   <div>
-                    <h4 style={{ margin: 0, fontSize: "0.95rem" }}>⚡ Live Dry Run Inspector</h4>
-                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                    <h4 style={{ margin: "0 0 0.25rem 0", fontSize: "0.95rem", fontWeight: 600 }}>⚡ Live Dry Run Inspector</h4>
+                    <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
                       Test pipeline execution logic safely against active torrents without writing mutations.
                     </span>
                   </div>
 
-                  <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
                     <select
-                      className="input"
-                      style={{ width: "240px", fontSize: "0.8rem" }}
+                      className="form-control"
+                      style={{ width: "320px", fontSize: "0.825rem" }}
                       value={testTorrentId}
                       onChange={(e) => setTestTorrentId(e.target.value ? Number(e.target.value) : undefined)}
                     >
@@ -1501,7 +1521,8 @@ if (torrent) {
 
                     <button
                       type="button"
-                      className="btn btn-sm btn-primary"
+                      className="btn btn-primary"
+                      style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.45rem 1rem", fontWeight: 600 }}
                       onClick={handleDryRun}
                       disabled={isTesting}
                     >
@@ -1516,8 +1537,9 @@ if (torrent) {
                       backgroundColor: testResult.success ? "rgba(34, 197, 94, 0.08)" : "rgba(239, 68, 68, 0.08)",
                       border: `1px solid ${testResult.success ? "#22c55e" : "#ef4444"}`,
                       borderRadius: "6px",
-                      padding: "0.75rem",
+                      padding: "0.75rem 1rem",
                       fontSize: "0.85rem",
+                      marginTop: "0.85rem",
                     }}
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 600, marginBottom: "0.5rem" }}>
@@ -1528,13 +1550,13 @@ if (torrent) {
                     </div>
 
                     {testResult.tagsToAdd.length > 0 && (
-                      <div><strong>Tags Added:</strong> {testResult.tagsToAdd.join(", ")}</div>
+                      <div style={{ marginBottom: "0.25rem" }}><strong>Tags Added:</strong> {testResult.tagsToAdd.join(", ")}</div>
                     )}
                     {testResult.newCategory && (
-                      <div><strong>New Category:</strong> {testResult.newCategory}</div>
+                      <div style={{ marginBottom: "0.25rem" }}><strong>New Category:</strong> {testResult.newCategory}</div>
                     )}
                     {testResult.shouldRecheck && (
-                      <div><strong>Torrent Action:</strong> 🔍 Force Hash Recheck</div>
+                      <div style={{ marginBottom: "0.25rem" }}><strong>Torrent Action:</strong> 🔍 Force Hash Recheck</div>
                     )}
 
                     {testResult.outputLog && (
@@ -1544,9 +1566,9 @@ if (torrent) {
                           marginBottom: 0,
                           backgroundColor: "#000",
                           color: "#a3e635",
-                          padding: "0.5rem",
+                          padding: "0.6rem 0.85rem",
                           borderRadius: "4px",
-                          fontSize: "0.75rem",
+                          fontSize: "0.775rem",
                           maxHeight: "150px",
                           overflowY: "auto",
                         }}
@@ -1560,11 +1582,11 @@ if (torrent) {
             </div>
 
             {/* Modal Footer */}
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "1rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
-              <button type="button" className="btn btn-secondary" onClick={() => setEditorOpen(false)}>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.25rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
+              <button type="button" className="btn btn-secondary" style={{ padding: "0.5rem 1.25rem" }} onClick={() => setEditorOpen(false)}>
                 Cancel
               </button>
-              <button type="button" className="btn btn-primary" onClick={handleSaveScript}>
+              <button type="button" className="btn btn-primary" style={{ padding: "0.5rem 1.25rem", fontWeight: 600 }} onClick={handleSaveScript}>
                 💾 Save Pipeline
               </button>
             </div>
@@ -1583,26 +1605,36 @@ if (torrent) {
               maxHeight: "85vh",
               display: "flex",
               flexDirection: "column",
-              padding: "1.5rem",
+              padding: "1.5rem 1.75rem",
               backgroundColor: "var(--bg-secondary)",
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: "1.2rem" }}>🔍 Pipeline Trace: {viewingLog.name}</h3>
+                <h3 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700 }}>🔍 Pipeline Trace: {viewingLog.name}</h3>
                 <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
                   Trigger: {viewingLog.trigger} • Executed: {viewingLog.time || "Recently"}
                 </span>
               </div>
-              <button className="btn btn-sm btn-secondary" onClick={() => setLogModalOpen(false)}>✕</button>
+              <button
+                type="button"
+                className="btn btn-sm btn-secondary"
+                style={{ width: "32px", height: "32px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "6px" }}
+                onClick={() => setLogModalOpen(false)}
+              >
+                ✕
+              </button>
             </div>
 
-            <div style={{ marginBottom: "0.5rem", display: "flex", gap: "0.5rem" }}>
+            <div style={{ marginBottom: "0.75rem", display: "flex", gap: "0.5rem" }}>
               <span
                 className="badge"
                 style={{
                   backgroundColor: viewingLog.status === "Success" ? "rgba(34, 197, 94, 0.15)" : "rgba(239, 68, 68, 0.15)",
                   color: viewingLog.status === "Success" ? "#22c55e" : "#ef4444",
+                  padding: "0.25rem 0.6rem",
+                  borderRadius: "4px",
+                  fontWeight: 600,
                 }}
               >
                 Status: {viewingLog.status}
@@ -1627,8 +1659,8 @@ if (torrent) {
               {viewingLog.log}
             </pre>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}>
-              <button className="btn btn-secondary" onClick={() => setLogModalOpen(false)}>Close</button>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.25rem" }}>
+              <button className="btn btn-secondary" style={{ padding: "0.45rem 1.25rem" }} onClick={() => setLogModalOpen(false)}>Close</button>
             </div>
           </div>
         </div>
@@ -1637,31 +1669,31 @@ if (torrent) {
       {/* TEMPLATE INSTALL MODAL */}
       {installModalOpen && selectedTemplate && (
         <div className="modal-overlay">
-          <div className="modal panel" style={{ width: "100%", maxWidth: "600px", padding: "1.5rem", backgroundColor: "var(--bg-secondary)" }}>
-            <h3 style={{ margin: "0 0 0.5rem 0" }}>Install Community Pipeline</h3>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "1rem" }}>
+          <div className="modal panel" style={{ width: "100%", maxWidth: "600px", padding: "1.75rem", backgroundColor: "var(--bg-secondary)" }}>
+            <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1.25rem", fontWeight: 700 }}>Install Community Pipeline</h3>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "1.25rem", lineHeight: "1.4" }}>
               {selectedTemplate.description}
             </p>
 
-            <div style={{ marginBottom: "0.75rem" }}>
-              <label style={{ fontSize: "0.8rem", fontWeight: 600 }}>Pipeline Custom Name</label>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", marginBottom: "1rem" }}>
+              <label style={{ fontSize: "0.825rem", fontWeight: 600, color: "var(--text-secondary)" }}>Pipeline Custom Name</label>
               <input
                 type="text"
-                className="input"
+                className="form-control"
                 value={customInstallName}
                 onChange={(e) => setCustomInstallName(e.target.value)}
               />
             </div>
 
             {selectedTemplate.inputFields && selectedTemplate.inputFields.length > 0 && (
-              <div style={{ borderTop: "1px solid var(--border)", paddingTop: "0.75rem", marginTop: "0.75rem" }}>
-                <h4 style={{ fontSize: "0.9rem", margin: "0 0 0.5rem 0" }}>Pipeline Configuration Parameters</h4>
+              <div style={{ borderTop: "1px solid var(--border)", paddingTop: "1rem", marginTop: "1rem" }}>
+                <h4 style={{ fontSize: "0.95rem", margin: "0 0 0.75rem 0", fontWeight: 600 }}>Pipeline Configuration Parameters</h4>
                 {selectedTemplate.inputFields.map((field) => (
-                  <div key={field.key} style={{ marginBottom: "0.75rem" }}>
-                    <label style={{ fontSize: "0.8rem", fontWeight: 600 }}>{field.label}</label>
+                  <div key={field.key} style={{ display: "flex", flexDirection: "column", gap: "0.4rem", marginBottom: "0.85rem" }}>
+                    <label style={{ fontSize: "0.825rem", fontWeight: 600, color: "var(--text-secondary)" }}>{field.label}</label>
                     <input
                       type={field.type === "password" ? "password" : "text"}
-                      className="input"
+                      className="form-control"
                       value={templateInputs[field.key] || ""}
                       onChange={(e) =>
                         setTemplateInputs({
@@ -1671,15 +1703,15 @@ if (torrent) {
                       }
                       placeholder={field.description}
                     />
-                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{field.description}</span>
+                    <span style={{ fontSize: "0.775rem", color: "var(--text-muted)" }}>{field.description}</span>
                   </div>
                 ))}
               </div>
             )}
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "1.5rem" }}>
-              <button className="btn btn-secondary" onClick={() => setInstallModalOpen(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleInstallTemplate}>Install Pipeline</button>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.5rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
+              <button className="btn btn-secondary" style={{ padding: "0.45rem 1.25rem" }} onClick={() => setInstallModalOpen(false)}>Cancel</button>
+              <button className="btn btn-primary" style={{ padding: "0.45rem 1.25rem", fontWeight: 600 }} onClick={handleInstallTemplate}>Install Pipeline</button>
             </div>
           </div>
         </div>
