@@ -6,6 +6,8 @@ using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.BitTorrent.Tracker;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Datastore;
+using NzbDrone.Core.DiskSpace;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
@@ -37,8 +39,8 @@ public class AppLifetimeServices : IAppLifetimeServices
         ICategoryService categoryService = null,
         IProwlarrSyncService prowlarrSyncService = null,
         IManageCommandQueue commandQueueManager = null,
-        NzbDrone.Core.Datastore.IDatabase database = null,
-        NzbDrone.Core.DiskSpace.IDiskSpaceService diskSpaceService = null)
+        IDatabase database = null,
+        IDiskSpaceService diskSpaceService = null)
     {
         this.ConfigService = configService;
         this.EventAggregator = eventAggregator;
@@ -95,7 +97,7 @@ public class AppLifetimeServices : IAppLifetimeServices
 
     public IManageCommandQueue CommandQueueManager { get; }
 
-    public NzbDrone.Core.Datastore.IDatabase Database { get; }
+    public IDatabase Database { get; }
 
-    public NzbDrone.Core.DiskSpace.IDiskSpaceService DiskSpaceService { get; }
+    public IDiskSpaceService DiskSpaceService { get; }
 }
