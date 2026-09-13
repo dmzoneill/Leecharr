@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.7.5](https://github.com/dmzoneill/Leecharr/releases/tag/v1.7.5) - 2026-09-13
+
+### 🐛 Bug Fixes
+- fix(ui): use standard SVG AutomationIcon to align sidebar navigation text
+
 ## [v1.7.4](https://github.com/dmzoneill/Leecharr/releases/tag/v1.7.4) - 2026-09-13
 
 ### 🐛 Bug Fixes
