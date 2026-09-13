@@ -272,6 +272,113 @@ export function SpeedSettingsTab() {
           />
         </div>
       </SectionCard>
+
+      <SectionCard
+        title="Speed Redistribution & Jitter Dynamics"
+        description="Configure periodic bandwidth redistribution triggers and speed variation jitter"
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "1rem",
+          }}
+        >
+          <SelectInput
+            label="Upload Redistribution Mode"
+            value={form.uploadRedistributionMode}
+            onChange={(v) => update("uploadRedistributionMode", v)}
+            options={[
+              { value: "tick", label: "Per Engine Tick" },
+              { value: "random", label: "Random Interval" },
+              { value: "interval", label: "Fixed Interval" },
+            ]}
+          />
+
+          <NumberInput
+            label="Upload Custom Interval"
+            value={form.uploadCustomIntervalMinutes}
+            onChange={(v) => update("uploadCustomIntervalMinutes", v)}
+            min={1}
+            max={60}
+            suffix="min"
+          />
+
+          <NumberInput
+            label="Upload Stopped Min Allocation"
+            value={form.uploadStoppedMinPercentage}
+            onChange={(v) => update("uploadStoppedMinPercentage", v)}
+            min={0}
+            max={100}
+            suffix="%"
+          />
+
+          <NumberInput
+            label="Upload Stopped Max Allocation"
+            value={form.uploadStoppedMaxPercentage}
+            onChange={(v) => update("uploadStoppedMaxPercentage", v)}
+            min={0}
+            max={100}
+            suffix="%"
+          />
+
+          <SelectInput
+            label="Download Redistribution Mode"
+            value={form.downloadRedistributionMode}
+            onChange={(v) => update("downloadRedistributionMode", v)}
+            options={[
+              { value: "tick", label: "Per Engine Tick" },
+              { value: "random", label: "Random Interval" },
+              { value: "interval", label: "Fixed Interval" },
+            ]}
+          />
+
+          <NumberInput
+            label="Download Custom Interval"
+            value={form.downloadCustomIntervalMinutes}
+            onChange={(v) => update("downloadCustomIntervalMinutes", v)}
+            min={1}
+            max={60}
+            suffix="min"
+          />
+
+          <NumberInput
+            label="Download Stopped Min Allocation"
+            value={form.downloadStoppedMinPercentage}
+            onChange={(v) => update("downloadStoppedMinPercentage", v)}
+            min={0}
+            max={100}
+            suffix="%"
+          />
+
+          <NumberInput
+            label="Download Stopped Max Allocation"
+            value={form.downloadStoppedMaxPercentage}
+            onChange={(v) => update("downloadStoppedMaxPercentage", v)}
+            min={0}
+            max={100}
+            suffix="%"
+          />
+
+          <NumberInput
+            label="Speed Variation Min Jitter"
+            value={form.speedVariationMin}
+            onChange={(v) => update("speedVariationMin", v)}
+            min={0}
+            max={1}
+            step={0.05}
+          />
+
+          <NumberInput
+            label="Speed Variation Max Jitter"
+            value={form.speedVariationMax}
+            onChange={(v) => update("speedVariationMax", v)}
+            min={0}
+            max={1}
+            step={0.05}
+          />
+        </div>
+      </SectionCard>
     </div>
   );
 }

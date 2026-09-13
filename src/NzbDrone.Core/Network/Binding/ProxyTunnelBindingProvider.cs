@@ -90,9 +90,9 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
     {
         var proxyType = this.configService?.ProxyType?.ToLowerInvariant() ?? "none";
         var proxyHost = this.configService?.ProxyHost;
-        var proxyPort = this.configService?.ProxyPort ?? (proxyType == "socks5" ? 1080 : 8080);
+        var proxyPort = this.configService?.ProxyPort ?? (proxyType is "socks5" or "socks4" or "socks4a" ? 1080 : 8080);
 
-        if (string.Equals(proxyType, "none", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(proxyHost))
+        if (IsPrivateOrLoopback(targetHost) || string.Equals(proxyType, "none", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(proxyHost))
         {
             // Direct connection
             var directSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
@@ -109,6 +109,10 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
             if (proxyType == "socks5")
             {
                 await this.PerformSocks5HandshakeAsync(socket, targetHost, targetPort, cancellationToken);
+            }
+            else if (proxyType is "socks4" or "socks4a")
+            {
+                await this.PerformSocks4HandshakeAsync(socket, targetHost, targetPort, cancellationToken);
             }
             else if (proxyType == "http")
             {
@@ -370,5 +374,132 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         }
 
         return targetHost;
+    }
+
+    internal static bool IsPrivateOrLoopback(string host)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return false;
+        }
+
+        if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+            host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
+            host.EndsWith(".lan", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (IPAddress.TryParse(host, out var ip))
+        {
+            if (IPAddress.IsLoopback(ip))
+            {
+                return true;
+            }
+
+            if (ip.IsIPv4MappedToIPv6)
+            {
+                ip = ip.MapToIPv4();
+            }
+
+            if (ip.AddressFamily == AddressFamily.InterNetwork)
+            {
+                var bytes = ip.GetAddressBytes();
+                // 127.0.0.0/8
+                if (bytes[0] == 127)
+                {
+                    return true;
+                }
+
+                // 10.0.0.0/8
+                if (bytes[0] == 10)
+                {
+                    return true;
+                }
+
+                // 172.16.0.0/12 (172.16.0.0 to 172.31.255.255)
+                if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31)
+                {
+                    return true;
+                }
+
+                // 192.168.0.0/16
+                if (bytes[0] == 192 && bytes[1] == 168)
+                {
+                    return true;
+                }
+
+                // 169.254.0.0/16
+                if (bytes[0] == 169 && bytes[1] == 254)
+                {
+                    return true;
+                }
+            }
+            else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                if (ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal)
+                {
+                    return true;
+                }
+
+                var bytes = ip.GetAddressBytes();
+                // RFC 4193 Unique Local fc00::/7
+                if ((bytes[0] & 0xFE) == 0xFC)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private async Task PerformSocks4HandshakeAsync(Socket socket, string targetHost, int targetPort, CancellationToken cancellationToken)
+    {
+        using var stream = new NetworkStream(socket, ownsSocket: false);
+
+        var username = this.configService?.ProxyUsername ?? string.Empty;
+        var userBytes = Encoding.ASCII.GetBytes(username);
+
+        using var ms = new MemoryStream();
+        ms.WriteByte(0x04); // SOCKS4 version
+        ms.WriteByte(0x01); // CMD: CONNECT
+        ms.WriteByte((byte)((targetPort >> 8) & 0xFF));
+        ms.WriteByte((byte)(targetPort & 0xFF));
+
+        if (IPAddress.TryParse(targetHost, out var ipAddress) && ipAddress.AddressFamily == AddressFamily.InterNetwork)
+        {
+            var ipBytes = ipAddress.GetAddressBytes();
+            ms.Write(ipBytes, 0, 4);
+            ms.Write(userBytes, 0, userBytes.Length);
+            ms.WriteByte(0x00); // Null terminator for user ID
+        }
+        else
+        {
+            // SOCKS4a extension for domain names
+            ms.Write(new byte[] { 0x00, 0x00, 0x00, 0x01 }, 0, 4);
+            ms.Write(userBytes, 0, userBytes.Length);
+            ms.WriteByte(0x00); // Null terminator for user ID
+
+            var hostBytes = Encoding.ASCII.GetBytes(targetHost);
+            ms.Write(hostBytes, 0, hostBytes.Length);
+            ms.WriteByte(0x00); // Null terminator for host name
+        }
+
+        var connectPayload = ms.ToArray();
+        await stream.WriteAsync(connectPayload, 0, connectPayload.Length, cancellationToken);
+        await stream.FlushAsync(cancellationToken);
+
+        // Read SOCKS4 reply: 8 bytes
+        var response = new byte[8];
+        await ReadExactBytesAsync(stream, response, 0, 8, cancellationToken);
+
+        // 90 (0x5A) = Request granted
+        if (response[1] != 0x5A)
+        {
+            throw new SocketException((int)SocketError.ConnectionRefused);
+        }
+
+        this.logger.Debug("SOCKS4 tunnel established successfully to {0}:{1}", targetHost, targetPort);
     }
 }

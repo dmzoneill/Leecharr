@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Leecharr.Http;
@@ -76,9 +77,20 @@ public class CategoryController : RestControllerWithSignalR<CategoryResource, Ca
 
         resource.Name = trimmedName;
         resource.SavePath = resource.SavePath?.Trim();
-        var model = CategoryResourceMapper.ToModel(resource);
-        var inserted = this.categoryService.Add(model);
-        return this.Ok(CategoryResourceMapper.ToResource(inserted));
+        try
+        {
+            var model = CategoryResourceMapper.ToModel(resource);
+            var inserted = this.categoryService.Add(model);
+            return this.Ok(CategoryResourceMapper.ToResource(inserted));
+        }
+        catch (ArgumentException ex)
+        {
+            return this.BadRequest(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return this.BadRequest(ex.Message);
+        }
     }
 
     [HttpPut("{id:int}")]
@@ -119,10 +131,21 @@ public class CategoryController : RestControllerWithSignalR<CategoryResource, Ca
 
         resource.Name = trimmedName;
         resource.SavePath = resource.SavePath?.Trim();
-        var model = CategoryResourceMapper.ToModel(resource);
-        model.Id = id;
-        var updated = this.categoryService.Update(model);
-        return this.Ok(CategoryResourceMapper.ToResource(updated));
+        try
+        {
+            var model = CategoryResourceMapper.ToModel(resource);
+            model.Id = id;
+            var updated = this.categoryService.Update(model);
+            return this.Ok(CategoryResourceMapper.ToResource(updated));
+        }
+        catch (ArgumentException ex)
+        {
+            return this.BadRequest(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return this.BadRequest(ex.Message);
+        }
     }
 
     [HttpDelete("{id:int}")]

@@ -207,6 +207,21 @@ public class Startup
 
             c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
             c.CustomSchemaIds(type => type.FullName?.Replace("+", "."));
+
+            var apiAssembly = Assembly.Load("Leecharr.Api.V1");
+            var xmlFile = $"{apiAssembly.GetName().Name}.xml";
+            var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+            if (File.Exists(xmlPath))
+            {
+                c.IncludeXmlComments(xmlPath);
+            }
+
+            var hostXmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+            var hostXmlPath = Path.Combine(AppContext.BaseDirectory, hostXmlFile);
+            if (File.Exists(hostXmlPath))
+            {
+                c.IncludeXmlComments(hostXmlPath);
+            }
         });
 
         services.AddCors(options =>
