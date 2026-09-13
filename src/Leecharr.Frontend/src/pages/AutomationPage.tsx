@@ -19,6 +19,7 @@ import type {
   AutomationMarketplaceTemplate,
   AutomationExecutionResult,
 } from "../api/types";
+import { formatBytes } from "../utils/formatters";
 
 // Visual Pipeline Interfaces
 export type VisualActionType =
@@ -44,31 +45,25 @@ export type VisualActionType =
   | "banPeer"
   | "sendNotification"
   | "notifyArr"
+  | "syncArr"
   | "runScript"
   | "delay"
   | "log"
   | "setVariable"
   | "stopPipeline"
   | "extractArchive"
-  | "cleanUnwantedFiles"
-  | "command";
+  | "cleanFiles"
+  | "command"
+  | "http";
 
 export interface VisualAction {
   id: string;
   type: VisualActionType;
   value: string;
-  deleteData?: boolean;
+  extra?: Record<string, any>;
 }
 
-interface VisualHttp {
-  method: "GET" | "POST" | "PUT" | "DELETE";
-  url: string;
-  json: boolean;
-  body: string;
-  register: string;
-}
-
-interface VisualStep {
+export interface VisualStep {
   id: string;
   name: string;
   conditionEnabled: boolean;
@@ -76,8 +71,27 @@ interface VisualStep {
   conditionOp: ">" | "<" | ">=" | "<=" | "==" | "!=";
   conditionRight: string;
   hasHttp: boolean;
-  http: VisualHttp;
+  http: {
+    method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
+    url: string;
+    headers?: Record<string, string>;
+    json?: boolean;
+    body?: string;
+    register?: string;
+  };
   actions: VisualAction[];
+}
+
+export interface ActionDef {
+  type: VisualActionType;
+  label: string;
+  placeholder?: string;
+  extraHelp?: string;
+}
+
+export interface ActionGroup {
+  group: string;
+  items: ActionDef[];
 }
 
 export const COMMON_COMMANDS = [
@@ -90,60 +104,60 @@ export const COMMON_COMMANDS = [
   { name: "RssSync", desc: "Poll RSS indexers for releases" },
 ];
 
-export const ACTION_GROUPS = [
+export const ACTION_GROUPS: ActionGroup[] = [
   {
     group: "🏷️ Tags & Categories",
     items: [
-      { type: "addTag" as VisualActionType, label: "🏷️ Add Tag", placeholder: "Tag name (e.g. 4K, Archived)" },
-      { type: "removeTag" as VisualActionType, label: "🏷️ Remove Tag", placeholder: "Tag name (e.g. Temporary)" },
-      { type: "setCategory" as VisualActionType, label: "📁 Set Category", placeholder: "Category name (e.g. Movies, TV)" },
+      { type: "addTag" as VisualActionType, label: "➕ Add Tag", placeholder: "e.g. 4K-HDR, Verified, Freeleech" },
+      { type: "removeTag" as VisualActionType, label: "➖ Remove Tag", placeholder: "e.g. Incomplete, Queued" },
+      { type: "setCategory" as VisualActionType, label: "📁 Set Category", placeholder: "e.g. Movies, TV, Anime" },
     ],
   },
   {
-    group: "⏯️ Torrent State & Flow",
+    group: "⚡ Torrent State & Flow",
     items: [
-      { type: "pause" as VisualActionType, label: "⏸️ Pause Torrent", placeholder: "" },
-      { type: "resume" as VisualActionType, label: "▶️ Resume Torrent", placeholder: "" },
-      { type: "recheck" as VisualActionType, label: "🔍 Force Recheck Pieces", placeholder: "" },
-      { type: "reannounce" as VisualActionType, label: "📡 Force Reannounce", placeholder: "" },
-      { type: "remove" as VisualActionType, label: "🗑️ Remove Torrent Record", placeholder: "" },
+      { type: "pause" as VisualActionType, label: "⏸️ Pause Torrent" },
+      { type: "resume" as VisualActionType, label: "▶️ Resume Torrent" },
+      { type: "remove" as VisualActionType, label: "🗑️ Remove Torrent", extraHelp: "Deletes torrent from client (optional data deletion)" },
+      { type: "recheck" as VisualActionType, label: "🔍 Force Hash Recheck", extraHelp: "Verifies piece hashes on disk" },
+      { type: "reannounce" as VisualActionType, label: "📢 Force Reannounce", extraHelp: "Forces immediate tracker update" },
     ],
   },
   {
-    group: "⚡ Limits & Priority",
+    group: "🎛️ Limits & Priority",
     items: [
-      { type: "setUploadLimit" as VisualActionType, label: "⚡ Set Upload Limit (KB/s)", placeholder: "e.g. 1024 (0 = unlimited)" },
-      { type: "setDownloadLimit" as VisualActionType, label: "⚡ Set Download Limit (KB/s)", placeholder: "e.g. 2048 (0 = unlimited)" },
-      { type: "setRatioLimit" as VisualActionType, label: "🎯 Set Ratio Target", placeholder: "e.g. 2.0" },
-      { type: "setSeedingTimeLimit" as VisualActionType, label: "⌛ Set Seeding Time (min)", placeholder: "e.g. 2880 (48 hours)" },
-      { type: "setPriority" as VisualActionType, label: "🎛️ Set Priority", placeholder: "High, Normal, Low, or DoNotDownload" },
-      { type: "setSequentialDownload" as VisualActionType, label: "▶️ Sequential Download", placeholder: "true / false" },
-      { type: "setSuperSeeding" as VisualActionType, label: "🚀 Super Seeding Mode", placeholder: "true / false" },
+      { type: "setUploadLimit" as VisualActionType, label: "⬆️ Set Upload Limit (KB/s)", placeholder: "e.g. 1024 (0 for unlimited)" },
+      { type: "setDownloadLimit" as VisualActionType, label: "⬇️ Set Download Limit (KB/s)", placeholder: "e.g. 5120 (0 for unlimited)" },
+      { type: "setRatioLimit" as VisualActionType, label: "🎯 Set Stop Ratio Limit", placeholder: "e.g. 2.0" },
+      { type: "setSeedingTimeLimit" as VisualActionType, label: "⏱️ Set Seeding Time Limit (minutes)", placeholder: "e.g. 2880 (48 hours)" },
+      { type: "setPriority" as VisualActionType, label: "⚡ Set Torrent Priority", placeholder: "High, Normal, Low, DoNotDownload" },
+      { type: "setSequentialDownload" as VisualActionType, label: "⏩ Sequential Download Toggle", placeholder: "true or false" },
+      { type: "setSuperSeeding" as VisualActionType, label: "🌱 Initial / Super Seeding", placeholder: "true or false" },
     ],
   },
   {
-    group: "📂 Storage & Files",
+    group: "📦 Storage & Files",
     items: [
-      { type: "moveFiles" as VisualActionType, label: "📂 Move Torrent Files", placeholder: "/path/to/destination" },
-      { type: "extractArchive" as VisualActionType, label: "📦 Extract Archive (.rar/.7z)", placeholder: "Optional extraction path (or blank for default)" },
-      { type: "cleanUnwantedFiles" as VisualActionType, label: "🧹 Clean Junk Files", placeholder: "*.nfo, *.sample, *.txt" },
+      { type: "moveFiles" as VisualActionType, label: "📂 Move Torrent Files / Change Save Path", placeholder: "e.g. /media/completed/${category}" },
+      { type: "extractArchive" as VisualActionType, label: "📦 Extract Archive (.rar/.zip/.7z)", placeholder: "/extracted/path (blank = current)" },
+      { type: "cleanFiles" as VisualActionType, label: "🧹 Clean Unwanted Files", placeholder: "*.nfo, *.txt, *.sample" },
     ],
   },
   {
     group: "📡 Trackers & Peers",
     items: [
-      { type: "addTracker" as VisualActionType, label: "📡 Add Tracker URL", placeholder: "udp://tracker.opentrackr.org:1337/announce" },
-      { type: "removeTracker" as VisualActionType, label: "🚫 Remove Tracker Pattern", placeholder: "e.g. 'deadtracker.com'" },
-      { type: "boostTracker" as VisualActionType, label: "⚡ Boost Tracker Scrapes", placeholder: "" },
-      { type: "banPeer" as VisualActionType, label: "🛡️ Ban Peer IP Address", placeholder: "e.g. 192.168.1.50" },
+      { type: "addTracker" as VisualActionType, label: "➕ Add Announce URL", placeholder: "https://tracker.example.com/announce" },
+      { type: "removeTracker" as VisualActionType, label: "➖ Remove Announce URL", placeholder: "https://tracker.example.com/announce" },
+      { type: "boostTracker" as VisualActionType, label: "🚀 Boost Tracker Scrape", placeholder: "Tracker URL to prioritize" },
+      { type: "banPeer" as VisualActionType, label: "🚫 Ban Peer IP / Subnet", placeholder: "192.168.1.100 or 10.0.0.0/24" },
     ],
   },
   {
     group: "🔔 Alerts & Servarr",
     items: [
-      { type: "sendNotification" as VisualActionType, label: "🔔 Send Notification", placeholder: "Alert message text" },
-      { type: "notifyArr" as VisualActionType, label: "📬 Servarr Sync (Sonarr/Radarr)", placeholder: "Sonarr, Radarr, or blank for all" },
-      { type: "command" as VisualActionType, label: "⚙️ Run Internal Command", placeholder: "Backup, SyncArr, RssSync, etc." },
+      { type: "sendNotification" as VisualActionType, label: "🔔 Send System / Push Notification", placeholder: "Torrent ${torrent.name} completed!" },
+      { type: "notifyArr" as VisualActionType, label: "🤖 Notify Servarr App (Sonarr/Radarr)", placeholder: "sonarr or radarr" },
+      { type: "syncArr" as VisualActionType, label: "🔄 Trigger Servarr Rescan", placeholder: "Instance name or all" },
     ],
   },
   {
@@ -154,6 +168,8 @@ export const ACTION_GROUPS = [
       { type: "log" as VisualActionType, label: "📝 Pipeline Log Message", placeholder: "Log message to output stream" },
       { type: "setVariable" as VisualActionType, label: "💾 Set Pipeline Variable", placeholder: "key=value" },
       { type: "stopPipeline" as VisualActionType, label: "🛑 Stop Pipeline Early", placeholder: "Reason for halting" },
+      { type: "command" as VisualActionType, label: "⚙️ Run Internal Command", placeholder: "Backup, SyncArr, RssSync, etc." },
+      { type: "http" as VisualActionType, label: "🌐 Send Custom HTTP Request", placeholder: "https://api.example.com/webhook" },
     ],
   },
 ];
@@ -164,8 +180,11 @@ export interface PropertyDef {
   group: string;
   type: "boolean" | "enum" | "category" | "number" | "string" | "custom";
   options?: { value: string; label: string }[];
-  defaultOp?: ">" | "<" | ">=" | "<=" | "==" | "!=";
+  defaultOp: ">" | "<" | ">=" | "<=" | "==" | "!=";
+  defaultValue: string;
   placeholder?: string;
+  unit?: "bytes" | "speed" | "ratio" | "percent" | "count";
+  presets?: { label: string; value: string }[];
 }
 
 export const CONDITION_PROPERTIES: PropertyDef[] = [
@@ -176,10 +195,11 @@ export const CONDITION_PROPERTIES: PropertyDef[] = [
     group: "Booleans & Flags",
     type: "boolean",
     options: [
-      { value: "true", label: "True (Private Tracker / On)" },
-      { value: "false", label: "False (Public Tracker / Off)" },
+      { value: "true", label: "🔒 True (Private Tracker)" },
+      { value: "false", label: "🌐 False (Public Tracker)" },
     ],
     defaultOp: "==",
+    defaultValue: "true",
   },
   {
     value: "${torrent.isComplete}",
@@ -187,10 +207,11 @@ export const CONDITION_PROPERTIES: PropertyDef[] = [
     group: "Booleans & Flags",
     type: "boolean",
     options: [
-      { value: "true", label: "True (Completed / 100% / Finished)" },
-      { value: "false", label: "False (Incomplete / Downloading)" },
+      { value: "true", label: "✅ True (Completed / 100%)" },
+      { value: "false", label: "⏳ False (Incomplete / Downloading)" },
     ],
     defaultOp: "==",
+    defaultValue: "true",
   },
   {
     value: "${system.vpnActive}",
@@ -198,10 +219,11 @@ export const CONDITION_PROPERTIES: PropertyDef[] = [
     group: "Booleans & Flags",
     type: "boolean",
     options: [
-      { value: "true", label: "True (VPN Protected / Connected)" },
-      { value: "false", label: "False (VPN Down / KillSwitch)" },
+      { value: "true", label: "🛡️ True (VPN Protected)" },
+      { value: "false", label: "⚠️ False (VPN Down / Inactive)" },
     ],
     defaultOp: "==",
+    defaultValue: "true",
   },
   {
     value: "${system.isPortForwarded}",
@@ -209,10 +231,11 @@ export const CONDITION_PROPERTIES: PropertyDef[] = [
     group: "Booleans & Flags",
     type: "boolean",
     options: [
-      { value: "true", label: "True (Port Open)" },
-      { value: "false", label: "False (Port Closed)" },
+      { value: "true", label: "🌐 True (Port Open / Forwarded)" },
+      { value: "false", label: "🔒 False (Port Closed)" },
     ],
     defaultOp: "==",
+    defaultValue: "true",
   },
 
   // Status & Categories
@@ -222,15 +245,16 @@ export const CONDITION_PROPERTIES: PropertyDef[] = [
     group: "Status & Categories",
     type: "enum",
     options: [
-      { value: "'Downloading'", label: "Downloading" },
-      { value: "'Seeding'", label: "Seeding" },
-      { value: "'Paused'", label: "Paused" },
-      { value: "'Stopped'", label: "Stopped" },
-      { value: "'Queued'", label: "Queued" },
-      { value: "'Checking'", label: "Checking" },
-      { value: "'Error'", label: "Error" },
+      { value: "'Downloading'", label: "⬇️ Downloading" },
+      { value: "'Seeding'", label: "🌱 Seeding" },
+      { value: "'Paused'", label: "⏸️ Paused" },
+      { value: "'Stopped'", label: "⏹️ Stopped" },
+      { value: "'Queued'", label: "⏳ Queued" },
+      { value: "'Checking'", label: "🔍 Checking" },
+      { value: "'Error'", label: "⚠️ Error" },
     ],
     defaultOp: "==",
+    defaultValue: "'Downloading'",
   },
   {
     value: "${torrent.category}",
@@ -238,6 +262,7 @@ export const CONDITION_PROPERTIES: PropertyDef[] = [
     group: "Status & Categories",
     type: "category",
     defaultOp: "==",
+    defaultValue: "",
     placeholder: "e.g. 'Movies' or 'TV'",
   },
 
@@ -247,8 +272,18 @@ export const CONDITION_PROPERTIES: PropertyDef[] = [
     label: "💾 Torrent Size (bytes)",
     group: "Numbers & Metrics",
     type: "number",
-    defaultOp: ">",
-    placeholder: "e.g. 5368709120 (5 GB)",
+    defaultOp: ">=",
+    defaultValue: "1073741824",
+    placeholder: "e.g. 1073741824 (1 GB)",
+    unit: "bytes",
+    presets: [
+      { label: "500 MB", value: "524288000" },
+      { label: "1 GB", value: "1073741824" },
+      { label: "5 GB", value: "5368709120" },
+      { label: "10 GB", value: "10737418240" },
+      { label: "50 GB", value: "53687091200" },
+      { label: "100 GB", value: "107374182400" },
+    ],
   },
   {
     value: "${torrent.ratio}",
@@ -256,7 +291,17 @@ export const CONDITION_PROPERTIES: PropertyDef[] = [
     group: "Numbers & Metrics",
     type: "number",
     defaultOp: ">=",
+    defaultValue: "1.0",
     placeholder: "e.g. 1.0 or 2.5",
+    unit: "ratio",
+    presets: [
+      { label: "0.5x", value: "0.5" },
+      { label: "1.0x", value: "1.0" },
+      { label: "1.5x", value: "1.5" },
+      { label: "2.0x", value: "2.0" },
+      { label: "3.0x", value: "3.0" },
+      { label: "5.0x", value: "5.0" },
+    ],
   },
   {
     value: "${torrent.progress}",
@@ -264,7 +309,15 @@ export const CONDITION_PROPERTIES: PropertyDef[] = [
     group: "Numbers & Metrics",
     type: "number",
     defaultOp: ">=",
+    defaultValue: "100",
     placeholder: "e.g. 100 or 50",
+    unit: "percent",
+    presets: [
+      { label: "25%", value: "25" },
+      { label: "50%", value: "50" },
+      { label: "75%", value: "75" },
+      { label: "100%", value: "100" },
+    ],
   },
   {
     value: "${torrent.downloadSpeed}",
@@ -272,7 +325,16 @@ export const CONDITION_PROPERTIES: PropertyDef[] = [
     group: "Numbers & Metrics",
     type: "number",
     defaultOp: ">",
-    placeholder: "e.g. 10485760 (10 MB/s)",
+    defaultValue: "1048576",
+    placeholder: "e.g. 1048576 (1 MB/s)",
+    unit: "speed",
+    presets: [
+      { label: "512 KB/s", value: "524288" },
+      { label: "1 MB/s", value: "1048576" },
+      { label: "5 MB/s", value: "5242880" },
+      { label: "10 MB/s", value: "10485760" },
+      { label: "50 MB/s", value: "52428800" },
+    ],
   },
   {
     value: "${torrent.uploadSpeed}",
@@ -280,7 +342,16 @@ export const CONDITION_PROPERTIES: PropertyDef[] = [
     group: "Numbers & Metrics",
     type: "number",
     defaultOp: ">",
-    placeholder: "e.g. 5242880 (5 MB/s)",
+    defaultValue: "524288",
+    placeholder: "e.g. 524288 (512 KB/s)",
+    unit: "speed",
+    presets: [
+      { label: "256 KB/s", value: "262144" },
+      { label: "512 KB/s", value: "524288" },
+      { label: "1 MB/s", value: "1048576" },
+      { label: "5 MB/s", value: "5242880" },
+      { label: "10 MB/s", value: "10485760" },
+    ],
   },
   {
     value: "${torrent.seeders}",
@@ -288,7 +359,16 @@ export const CONDITION_PROPERTIES: PropertyDef[] = [
     group: "Numbers & Metrics",
     type: "number",
     defaultOp: "<",
+    defaultValue: "3",
     placeholder: "e.g. 3",
+    unit: "count",
+    presets: [
+      { label: "0", value: "0" },
+      { label: "1", value: "1" },
+      { label: "3", value: "3" },
+      { label: "5", value: "5" },
+      { label: "10", value: "10" },
+    ],
   },
   {
     value: "${torrent.leechers}",
@@ -296,7 +376,16 @@ export const CONDITION_PROPERTIES: PropertyDef[] = [
     group: "Numbers & Metrics",
     type: "number",
     defaultOp: ">",
-    placeholder: "e.g. 10",
+    defaultValue: "5",
+    placeholder: "e.g. 5",
+    unit: "count",
+    presets: [
+      { label: "0", value: "0" },
+      { label: "1", value: "1" },
+      { label: "5", value: "5" },
+      { label: "10", value: "10" },
+      { label: "20", value: "20" },
+    ],
   },
 
   // Text & Details
@@ -306,6 +395,7 @@ export const CONDITION_PROPERTIES: PropertyDef[] = [
     group: "Text & Details",
     type: "string",
     defaultOp: "==",
+    defaultValue: "''",
     placeholder: "e.g. '2160p' or 'REPACK'",
   },
   {
@@ -314,6 +404,7 @@ export const CONDITION_PROPERTIES: PropertyDef[] = [
     group: "Text & Details",
     type: "string",
     defaultOp: "==",
+    defaultValue: "''",
     placeholder: "e.g. 'tracker.example.com'",
   },
   {
@@ -322,6 +413,7 @@ export const CONDITION_PROPERTIES: PropertyDef[] = [
     group: "Text & Details",
     type: "string",
     defaultOp: "==",
+    defaultValue: "''",
     placeholder: "e.g. '/downloads/complete'",
   },
 
@@ -331,6 +423,8 @@ export const CONDITION_PROPERTIES: PropertyDef[] = [
     label: "✏️ Custom Variable / Expression...",
     group: "Custom / Dynamic",
     type: "custom",
+    defaultOp: "==",
+    defaultValue: "",
     placeholder: "e.g. ${inputs.minRatio} or ${system.freeDiskBytes}",
   },
 ];
@@ -562,6 +656,16 @@ function yamlToVisualSteps(code: string): VisualStep[] {
           currentStep.conditionLeft = parts[0]?.trim() || "${torrent.size}";
           currentStep.conditionOp = op;
           currentStep.conditionRight = parts[1]?.trim() || "0";
+        } else {
+          if (expr.startsWith("!")) {
+            currentStep.conditionLeft = expr.substring(1).trim();
+            currentStep.conditionOp = "==";
+            currentStep.conditionRight = "false";
+          } else {
+            currentStep.conditionLeft = expr;
+            currentStep.conditionOp = "==";
+            currentStep.conditionRight = "true";
+          }
         }
       }
     } else if (currentStep && trimmed.startsWith("http:")) {
@@ -1653,11 +1757,55 @@ if (torrent) {
                             label: "Custom",
                             group: "Custom / Dynamic",
                             type: "custom" as const,
+                            defaultOp: "==" as const,
+                            defaultValue: "",
                           };
 
                           const isCustomLeft = !CONDITION_PROPERTIES.some((p) => p.value === step.conditionLeft && p.value !== "custom");
 
-                          // Determine available options for Right Value
+                          // Operator definitions per type
+                          const opOptions = (() => {
+                            switch (propDef.type) {
+                              case "boolean":
+                                return [
+                                  { value: "==", label: "is / equals (==)" },
+                                  { value: "!=", label: "is not (!=)" },
+                                ];
+                              case "enum":
+                              case "category":
+                              case "string":
+                                return [
+                                  { value: "==", label: "equals (==)" },
+                                  { value: "!=", label: "not equals (!=)" },
+                                ];
+                              case "number":
+                                return [
+                                  { value: ">=", label: ">= (at least)" },
+                                  { value: ">", label: "> (greater than)" },
+                                  { value: "<=", label: "<= (at most)" },
+                                  { value: "<", label: "< (less than)" },
+                                  { value: "==", label: "== (exact)" },
+                                  { value: "!=", label: "!= (not equal)" },
+                                ];
+                              case "custom":
+                              default:
+                                return [
+                                  { value: "==", label: "==" },
+                                  { value: "!=", label: "!=" },
+                                  { value: ">=", label: ">=" },
+                                  { value: "<=", label: "<=" },
+                                  { value: ">", label: ">" },
+                                  { value: "<", label: "<" },
+                                ];
+                            }
+                          })();
+
+                          // Auto-correct operator if invalid for current type
+                          if (!opOptions.some((op) => op.value === step.conditionOp)) {
+                            step.conditionOp = propDef.defaultOp;
+                          }
+
+                          // Determine available preset options for Right Value
                           let presetOptions: { value: string; label: string }[] | null = null;
                           if (propDef.type === "boolean" && propDef.options) {
                             presetOptions = propDef.options;
@@ -1670,9 +1818,45 @@ if (torrent) {
                             }));
                           }
 
-                          // Check if current value matches one of the preset options
-                          const isRightPresetMatch = presetOptions && presetOptions.some((o) => o.value.toLowerCase() === step.conditionRight.trim().toLowerCase());
-                          const showCustomRightInput = !presetOptions || (!isRightPresetMatch && step.conditionRight.trim() !== "");
+                          // Boolean value normalization & custom toggle check
+                          const isCustomRight = (() => {
+                            if (propDef.type === "boolean") {
+                              const trimmed = step.conditionRight.trim().toLowerCase();
+                              if (trimmed === "true" || trimmed === "false") return false;
+                              if (trimmed.startsWith("${") || trimmed.includes("inputs.") || trimmed.includes("secrets.")) return true;
+                              // Invalid/legacy value: normalize immediately
+                              step.conditionRight = "true";
+                              return false;
+                            }
+                            if (presetOptions) {
+                              const isPresetMatch = presetOptions.some((o) => o.value.toLowerCase() === step.conditionRight.trim().toLowerCase());
+                              return !isPresetMatch && step.conditionRight.trim() !== "";
+                            }
+                            return true;
+                          })();
+
+                          // Formatted live hint for numeric values
+                          const numericLiveHint = (() => {
+                            if (propDef.type !== "number" || !step.conditionRight) return null;
+                            const num = Number(step.conditionRight);
+                            if (isNaN(num)) return null;
+                            if (propDef.unit === "bytes") {
+                              return formatBytes(num);
+                            }
+                            if (propDef.unit === "speed") {
+                              return `${formatBytes(num)}/s`;
+                            }
+                            if (propDef.unit === "ratio") {
+                              return `${num.toFixed(2)}x ratio`;
+                            }
+                            if (propDef.unit === "percent") {
+                              return `${num}%`;
+                            }
+                            if (propDef.unit === "count") {
+                              return `${num} peers`;
+                            }
+                            return null;
+                          })();
 
                           return (
                             <div style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
@@ -1688,18 +1872,14 @@ if (torrent) {
                                       const newVal = e.target.value;
                                       if (newVal === "custom") {
                                         copy[stepIdx].conditionLeft = "${inputs.customProp}";
+                                        copy[stepIdx].conditionOp = "==";
+                                        copy[stepIdx].conditionRight = "";
                                       } else {
                                         copy[stepIdx].conditionLeft = newVal;
                                         const found = CONDITION_PROPERTIES.find((p) => p.value === newVal);
                                         if (found) {
-                                          if (found.defaultOp) copy[stepIdx].conditionOp = found.defaultOp;
-                                          if (found.type === "boolean" && found.options?.[0]) {
-                                            copy[stepIdx].conditionRight = found.options[0].value;
-                                          } else if (found.type === "enum" && found.options?.[0]) {
-                                            copy[stepIdx].conditionRight = found.options[0].value;
-                                          } else if (found.type === "category" && categories?.[0]) {
-                                            copy[stepIdx].conditionRight = `'${categories[0].name}'`;
-                                          }
+                                          copy[stepIdx].conditionOp = found.defaultOp;
+                                          copy[stepIdx].conditionRight = found.defaultValue;
                                         }
                                       }
                                       updateVisualSteps(copy);
@@ -1731,10 +1911,10 @@ if (torrent) {
                                   )}
                                 </div>
 
-                                {/* Operator Select */}
+                                {/* Operator Select (Filtered per type) */}
                                 <select
                                   className="form-control"
-                                  style={{ width: "85px", flexShrink: 0, textAlign: "center", fontWeight: 700 }}
+                                  style={{ minWidth: "90px", flexShrink: 0, textAlign: "center", fontWeight: 700 }}
                                   value={step.conditionOp}
                                   onChange={(e) => {
                                     const copy = [...visualSteps];
@@ -1742,17 +1922,16 @@ if (torrent) {
                                     updateVisualSteps(copy);
                                   }}
                                 >
-                                  <option value="==">==</option>
-                                  <option value="!=">!=</option>
-                                  <option value=">">&gt;</option>
-                                  <option value="<">&lt;</option>
-                                  <option value=">=">&gt;=</option>
-                                  <option value="<=">&lt;=</option>
+                                  {opOptions.map((op) => (
+                                    <option key={op.value} value={op.value}>
+                                      {op.label}
+                                    </option>
+                                  ))}
                                 </select>
 
-                                {/* Right Value: Type-Aware Presets or Custom Input */}
-                                <div style={{ flex: 1, minWidth: "200px", display: "flex", gap: "0.35rem", alignItems: "center" }}>
-                                  {presetOptions && !showCustomRightInput ? (
+                                {/* Right Value: Type-Aware Presets, Numeric Chips or Custom Input */}
+                                <div style={{ flex: 1, minWidth: "220px", display: "flex", gap: "0.35rem", alignItems: "center" }}>
+                                  {presetOptions && !isCustomRight ? (
                                     <div style={{ display: "flex", gap: "0.35rem", width: "100%", alignItems: "center" }}>
                                       <select
                                         className="form-control"
@@ -1761,7 +1940,7 @@ if (torrent) {
                                         onChange={(e) => {
                                           const copy = [...visualSteps];
                                           if (e.target.value === "__custom__") {
-                                            copy[stepIdx].conditionRight = "";
+                                            copy[stepIdx].conditionRight = propDef.type === "boolean" ? "${inputs.isPrivate}" : "";
                                           } else {
                                             copy[stepIdx].conditionRight = e.target.value;
                                           }
@@ -1773,8 +1952,67 @@ if (torrent) {
                                             {opt.label}
                                           </option>
                                         ))}
-                                        <option value="__custom__">✏️ Custom Value / Expression...</option>
+                                        <option value="__custom__">✏️ Custom Expression / Variable...</option>
                                       </select>
+                                    </div>
+                                  ) : propDef.type === "number" ? (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", width: "100%" }}>
+                                      <div style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
+                                        <input
+                                          type="text"
+                                          className="form-control"
+                                          style={{ flex: 1 }}
+                                          value={step.conditionRight}
+                                          onChange={(e) => {
+                                            const copy = [...visualSteps];
+                                            copy[stepIdx].conditionRight = e.target.value;
+                                            updateVisualSteps(copy);
+                                          }}
+                                          placeholder={propDef.placeholder || "e.g. 1000000000"}
+                                        />
+                                        {numericLiveHint && (
+                                          <span
+                                            className="badge"
+                                            style={{
+                                              padding: "0.35rem 0.6rem",
+                                              fontSize: "0.8rem",
+                                              whiteSpace: "nowrap",
+                                              backgroundColor: "rgba(59, 130, 246, 0.15)",
+                                              color: "var(--accent, #38bdf8)",
+                                              border: "1px solid rgba(59, 130, 246, 0.3)",
+                                              borderRadius: "4px",
+                                            }}
+                                          >
+                                            {numericLiveHint}
+                                          </span>
+                                        )}
+                                      </div>
+                                      {propDef.presets && propDef.presets.length > 0 && (
+                                        <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap", alignItems: "center" }}>
+                                          <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginRight: "0.15rem" }}>Quick set:</span>
+                                          {propDef.presets.map((preset) => (
+                                            <button
+                                              key={preset.value}
+                                              type="button"
+                                              className="btn btn-secondary"
+                                              style={{
+                                                fontSize: "0.7rem",
+                                                padding: "0.15rem 0.45rem",
+                                                backgroundColor: step.conditionRight === preset.value ? "var(--accent, #38bdf8)" : undefined,
+                                                color: step.conditionRight === preset.value ? "#000" : undefined,
+                                                fontWeight: step.conditionRight === preset.value ? 700 : 400,
+                                              }}
+                                              onClick={() => {
+                                                const copy = [...visualSteps];
+                                                copy[stepIdx].conditionRight = preset.value;
+                                                updateVisualSteps(copy);
+                                              }}
+                                            >
+                                              {preset.label}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
                                     </div>
                                   ) : (
                                     <div style={{ display: "flex", gap: "0.35rem", width: "100%", alignItems: "center" }}>
@@ -1788,7 +2026,7 @@ if (torrent) {
                                           copy[stepIdx].conditionRight = e.target.value;
                                           updateVisualSteps(copy);
                                         }}
-                                        placeholder={propDef.placeholder || "e.g. 1000000000 or 'Custom'"}
+                                        placeholder={propDef.placeholder || "e.g. 'Custom Value' or ${inputs.val}"}
                                       />
                                       {presetOptions && (
                                         <button
