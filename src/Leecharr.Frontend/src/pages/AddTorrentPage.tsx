@@ -25,14 +25,33 @@ export function AddTorrentPage({ onSuccess }: AddTorrentPageProps) {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: "1rem",
-          flexShrink: 0,
+          marginBottom: "1.5rem",
+          flexWrap: "wrap",
+          gap: "1rem",
         }}
       >
-        <div className="page-header-group">
-          <h1 className="page-heading" style={{ margin: 0 }}>
-            {t("addTorrent.title")}
+        <div>
+          <h1
+            style={{
+              fontSize: "1.75rem",
+              fontWeight: 700,
+              margin: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
+          >
+            <span>➕</span> {t("addTorrent.title", "Add Torrent")}
           </h1>
+          <p
+            style={{
+              color: "var(--text-muted, #888)",
+              margin: "0.25rem 0 0 0",
+              fontSize: "0.9rem",
+            }}
+          >
+            {t("addTorrent.subtitle", "Upload torrent files or download via magnet link")}
+          </p>
         </div>
       </div>
 
