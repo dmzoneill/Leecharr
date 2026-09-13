@@ -66,65 +66,72 @@ function Statistics() {
     .slice(0, 10);
 
   return (
-    <div className="content-area">
+    <div className="content-area" style={{ padding: "1.5rem" }}>
       {/* Header */}
       <div
-        className="page-header"
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
           flexWrap: "wrap",
           gap: "1rem",
-          marginBottom: "1.25rem",
+          marginBottom: "1.5rem",
         }}
       >
-        <div className="page-header-group">
-          <div
-            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+        <div>
+          <h1
+            style={{
+              fontSize: "1.75rem",
+              fontWeight: 700,
+              margin: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
           >
-            <h1 className="page-heading" style={{ margin: 0 }}>
-              {t("statistics.title")}
-            </h1>
-            <span className="badge badge-primary">
+            <span>📊</span> {t("statistics.title")}
+            <span
+              className="badge badge-primary"
+              style={{ fontSize: "0.8rem", marginLeft: "0.25rem" }}
+            >
               {t("statistics.levelPrefix")}
               {achievements.overallLevel}: {achievements.rankTitle}
             </span>
-          </div>
-          <div
+          </h1>
+          <p
             style={{
-              fontSize: "0.8rem",
-              color: "var(--text-muted)",
-              marginTop: "0.2rem",
+              color: "var(--text-muted, #888)",
+              margin: "0.25rem 0 0 0",
+              fontSize: "0.9rem",
             }}
           >
             {t("statistics.subtitle")}
-          </div>
+          </p>
         </div>
 
         {/* Tab switcher */}
-        <div className="view-toggle" style={{ margin: 0 }}>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           <button
-            className={`view-toggle-btn ${activeTab === "overview" ? "active" : ""}`}
+            className={`btn ${activeTab === "overview" ? "btn-primary" : "btn-secondary"}`}
             onClick={() => setActiveTab("overview")}
           >
             {t("statistics.overviewTab")}
           </button>
           <button
-            className={`view-toggle-btn ${activeTab === "achievements" ? "active" : ""}`}
+            className={`btn ${activeTab === "achievements" ? "btn-primary" : "btn-secondary"}`}
             onClick={() => setActiveTab("achievements")}
           >
             {t("statistics.achievementsTab")} ({achievements.unlockedCount}/
             {achievements.totalCount})
           </button>
           <button
-            className={`view-toggle-btn ${activeTab === "buffers" ? "active" : ""}`}
+            className={`btn ${activeTab === "buffers" ? "btn-primary" : "btn-secondary"}`}
             onClick={() => setActiveTab("buffers")}
           >
             {t("statistics.trackerBuffersTab")}
           </button>
           <button
-            className={`view-toggle-btn ${activeTab === "simulator" ? "active" : ""}`}
+            className={`btn ${activeTab === "simulator" ? "btn-primary" : "btn-secondary"}`}
             onClick={() => setActiveTab("simulator")}
           >
             {t("statistics.simulatorTab")}

@@ -223,74 +223,50 @@ function SettingsContent() {
   return (
     <div
       className="content-area"
-      style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+      style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}
     >
       {/* 1. Header Banner & Quick Filter Search */}
       <div
-        className="card"
         style={{
-          padding: "1rem 1.25rem",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          marginBottom: "1.5rem",
           flexWrap: "wrap",
           gap: "1rem",
-          borderRadius: "8px",
-          backgroundColor: "var(--bg-secondary)",
-          border: "1px solid var(--border-light)",
         }}
       >
-        {/* Breadcrumb Heading */}
         <div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              fontSize: "0.8rem",
-              color: "var(--text-muted)",
-            }}
-          >
-            <span>{t("nav.settings")}</span>
-            <span>&rsaquo;</span>
-            <span style={{ color: "var(--text-secondary)", fontWeight: 600 }}>
-              {t(activeGroup.title)}
-            </span>
-            <span>&rsaquo;</span>
-            <span style={{ color: "var(--accent)", fontWeight: 700 }}>
-              {t(activePage.shortLabel)}
-            </span>
-          </div>
           <h1
-            className="page-heading"
             style={{
-              margin: "0.25rem 0 0 0",
-              fontSize: "1.4rem",
+              fontSize: "1.75rem",
+              fontWeight: 700,
+              margin: 0,
               display: "flex",
               alignItems: "center",
               gap: "0.5rem",
             }}
           >
-            <span>{activePage.icon}</span>
+            <span>{activePage.icon || "⚙️"}</span>
             <span>{t(activePage.title)}</span>
             {activePage.badge && (
               <span
                 className="badge badge-primary"
-                style={{ fontSize: "0.7rem", padding: "0.15rem 0.5rem" }}
+                style={{ fontSize: "0.8rem", marginLeft: "0.25rem" }}
               >
                 {t(activePage.badge)}
               </span>
             )}
           </h1>
-          <div
+          <p
             style={{
-              fontSize: "0.82rem",
-              color: "var(--text-muted)",
-              marginTop: "0.15rem",
+              color: "var(--text-muted, #888)",
+              margin: "0.25rem 0 0 0",
+              fontSize: "0.9rem",
             }}
           >
             {t(activePage.description)}
-          </div>
+          </p>
         </div>
 
         {/* Quick Filter Search Bar */}
