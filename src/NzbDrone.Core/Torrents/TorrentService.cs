@@ -1520,6 +1520,11 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
     public int ResolveEffectiveDownloadLimit(int torrentLimit, int categoryLimit)
     {
+        if (this.speedSchedulerService != null)
+        {
+            return this.speedSchedulerService.ResolveEffectiveDownloadLimit(torrentLimit, categoryLimit);
+        }
+
         if (torrentLimit > 0)
         {
             return torrentLimit;
@@ -1535,6 +1540,11 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
     public int ResolveEffectiveUploadLimit(int torrentLimit, int categoryLimit)
     {
+        if (this.speedSchedulerService != null)
+        {
+            return this.speedSchedulerService.ResolveEffectiveUploadLimit(torrentLimit, categoryLimit);
+        }
+
         if (torrentLimit > 0)
         {
             return torrentLimit;
