@@ -675,12 +675,12 @@ public class YamlScriptRunner : IScriptRunner
     private static bool IsFalsy(string val)
     {
         var clean = val.Trim('\'', '"', ' ');
-        return string.IsNullOrEmpty(clean) ||
-               string.Equals(clean, "false", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(clean, "0", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(clean, "off", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(clean, "no", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(clean, "null", StringComparison.OrdinalIgnoreCase);
+        return string.IsNullOrEmpty(clean)
+            || string.Equals(clean, "false", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(clean, "0", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(clean, "off", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(clean, "no", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(clean, "null", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool AreEqual(string leftRaw, string rightRaw)
