@@ -66,15 +66,6 @@ public class DiskProvider : IDiskProvider
 
         var fullPath = Path.GetFullPath(rawPath);
 
-        if (OperatingSystem.IsWindows())
-        {
-            var root = Path.GetPathRoot(fullPath);
-            if (!string.IsNullOrEmpty(root))
-            {
-                return new DriveInfo(root);
-            }
-        }
-
         DriveInfo[] drives;
         try
         {
@@ -126,7 +117,20 @@ public class DiskProvider : IDiskProvider
             return bestMatch;
         }
 
-        return new DriveInfo(Path.GetPathRoot(fullPath) ?? "/");
+        var fallbackRoot = Path.GetPathRoot(fullPath);
+        if (!string.IsNullOrEmpty(fallbackRoot))
+        {
+            try
+            {
+                return new DriveInfo(fallbackRoot);
+            }
+            catch
+            {
+                // Fallback failed
+            }
+        }
+
+        return null;
     }
 
     public DateTime FolderGetCreationTime(string path) => Directory.GetCreationTime(path);

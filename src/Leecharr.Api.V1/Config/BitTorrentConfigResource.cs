@@ -52,6 +52,8 @@ public class BitTorrentConfigResource : RestResource
 
     public string Umask { get; set; }
 
+    public int LowDiskSpaceThresholdMb { get; set; } = 500;
+
     public long MaxTorrentFileSizeBytes { get; set; } = 250L * 1024 * 1024;
 
     // Queue & Concurrency Management
@@ -187,6 +189,7 @@ public static class BitTorrentConfigResourceMapper
             DiskPreAllocationMode = model.PreallocationMode,
             RenamePartialFiles = model.RenamePartialFiles,
             Umask = model.Umask,
+            LowDiskSpaceThresholdMb = model.LowDiskSpaceThresholdMb,
             MaxTorrentFileSizeBytes = model.MaxTorrentFileSizeBytes,
 
             DownloadQueueSize = model.DownloadQueueSize,

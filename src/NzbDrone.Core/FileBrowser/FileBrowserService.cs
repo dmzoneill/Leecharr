@@ -294,8 +294,30 @@ public class FileBrowserService : IFileBrowserService
         }
     }
 
-    private void CopyDirectoryRecursive(string sourceDir, string targetDir)
+    private void CopyDirectoryRecursive(string sourceDir, string targetDir, HashSet<string> visited = null)
     {
+        visited ??= new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var canonicalSource = Path.GetFullPath(sourceDir);
+        try
+        {
+            var targetInfo = Directory.ResolveLinkTarget(sourceDir, true);
+            if (targetInfo != null)
+            {
+                canonicalSource = targetInfo.FullName;
+            }
+        }
+        catch
+        {
+            // Ignore link resolution errors
+        }
+
+        if (!visited.Add(canonicalSource))
+        {
+            // Cycle detected: skip to prevent infinite recursion
+            return;
+        }
+
         if (!this.diskProvider.FolderExists(targetDir))
         {
             this.diskProvider.CreateFolder(targetDir);
@@ -310,13 +332,18 @@ public class FileBrowserService : IFileBrowserService
         foreach (var subDir in this.diskProvider.GetDirectories(sourceDir))
         {
             var dirName = Path.GetFileName(Path.TrimEndingDirectorySeparator(subDir));
-            this.CopyDirectoryRecursive(subDir, Path.Combine(targetDir, dirName));
+            this.CopyDirectoryRecursive(subDir, Path.Combine(targetDir, dirName), visited);
         }
     }
 
     public void Delete(string path)
     {
         var target = this.ResolvePath(path);
+
+        if (this.IsRootOrSystemDirectory(target))
+        {
+            throw new InvalidOperationException($"Cannot delete root or system directory '{target}'.");
+        }
 
         if (this.diskProvider.FolderExists(target))
         {
@@ -333,6 +360,11 @@ public class FileBrowserService : IFileBrowserService
         if (string.IsNullOrWhiteSpace(path))
         {
             return this.GetDefaultPath();
+        }
+
+        if (path.IndexOf('\0') >= 0)
+        {
+            throw new ArgumentException("Path contains invalid characters.", nameof(path));
         }
 
         try
@@ -375,6 +407,60 @@ public class FileBrowserService : IFileBrowserService
 
         var fallback = Directory.Exists("/downloads") ? "/downloads" : Path.GetFullPath(".");
         return this.IsRootPath(fallback) ? fallback : Path.TrimEndingDirectorySeparator(fallback);
+    }
+
+    public bool IsRootOrSystemDirectory(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        if (this.IsRootPath(path))
+        {
+            return true;
+        }
+
+        var normalized = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        var systemDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "/bin", "/sbin", "/etc", "/usr", "/var", "/lib", "/lib64", "/boot",
+            "/dev", "/proc", "/sys", "/root", "/home", "/opt", "/srv",
+        };
+
+        if (systemDirs.Contains(normalized))
+        {
+            return true;
+        }
+
+        if (OperatingSystem.IsWindows())
+        {
+            var windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            if (!string.IsNullOrEmpty(windowsDir) && normalized.Equals(Path.TrimEndingDirectorySeparator(windowsDir), StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var systemDir = Environment.GetFolderPath(Environment.SpecialFolder.System);
+            if (!string.IsNullOrEmpty(systemDir) && normalized.Equals(Path.TrimEndingDirectorySeparator(systemDir), StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            if (!string.IsNullOrEmpty(programFiles) && normalized.Equals(Path.TrimEndingDirectorySeparator(programFiles), StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+            if (!string.IsNullOrEmpty(programFilesX86) && normalized.Equals(Path.TrimEndingDirectorySeparator(programFilesX86), StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private bool IsRootPath(string path)

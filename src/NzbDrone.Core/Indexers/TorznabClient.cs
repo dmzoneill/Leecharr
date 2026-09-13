@@ -64,6 +64,18 @@ public class TorznabClient : ITorznabClient
     private static readonly XNamespace NewznabNs = "http://www.newznab.com/DTD/2010/feeds/attributes/";
     private static readonly Regex MagnetRegex = new(@"magnet:\?xt=urn:bt[im]h:[^\s""'<>`\]\[]+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+    public static readonly Dictionary<int, List<int>> CategoryHierarchy = new()
+    {
+        { 1000, new List<int> { 1000, 1010, 1020, 1030, 1040, 1050, 1060, 1070, 1080, 1090, 1110, 1120, 1130, 1140, 1150, 1180 } }, // Console / Games
+        { 2000, new List<int> { 2000, 2010, 2020, 2030, 2040, 2045, 2050, 2060, 2070, 2080, 2090 } }, // Movies
+        { 3000, new List<int> { 3000, 3010, 3020, 3030, 3040, 3050, 3060 } }, // Audio / Music
+        { 4000, new List<int> { 4000, 4010, 4020, 4030, 4040, 4050, 4060, 4070 } }, // PC / Apps
+        { 5000, new List<int> { 5000, 5010, 5020, 5030, 5040, 5045, 5050, 5060, 5070, 5080 } }, // TV
+        { 6000, new List<int> { 6000, 6010, 6020, 6030, 6040, 6050, 6060, 6070, 6080, 6090 } }, // XXX
+        { 7000, new List<int> { 7000, 7010, 7020, 7030, 7040, 7050, 7060 } }, // Books
+        { 8000, new List<int> { 8000, 8010, 8020 } } // Other
+    };
+
     private static readonly Dictionary<string, string> TimeZoneOffsets = new(StringComparer.OrdinalIgnoreCase)
     {
         { "UTC", "+00:00" },
@@ -342,11 +354,21 @@ public class TorznabClient : ITorznabClient
 
             if (criteria.CategoryId.HasValue && criteria.CategoryId.Value > 0)
             {
-                queryParams += $"&cat={criteria.CategoryId.Value}";
+                if (CategoryHierarchy.TryGetValue(criteria.CategoryId.Value, out var subcats))
+                {
+                    queryParams += $"&cat={string.Join(",", subcats)}";
+                }
+                else
+                {
+                    queryParams += $"&cat={criteria.CategoryId.Value}";
+                }
             }
             else if (indexer.Categories != null && indexer.Categories.Count > 0)
             {
-                queryParams += $"&cat={string.Join(",", indexer.Categories)}";
+                var expanded = indexer.Categories
+                    .SelectMany(c => CategoryHierarchy.TryGetValue(c, out var subs) ? subs : new List<int> { c })
+                    .Distinct();
+                queryParams += $"&cat={string.Join(",", expanded)}";
             }
 
             MergeQueryParams(uriBuilder, queryParams);
@@ -441,6 +463,24 @@ public class TorznabClient : ITorznabClient
                     GetAttributeValue(errorElem, "code") ?? "unknown",
                     WebUtility.HtmlDecode(GetAttributeValue(errorElem, "description") ?? errorElem.Value));
                 return results;
+            }
+
+            var responseElem = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("response", StringComparison.OrdinalIgnoreCase));
+            int? responseTotal = null;
+            int? responseOffset = null;
+            if (responseElem != null)
+            {
+                var totalStr = GetAttributeValue(responseElem, "total") ?? FindElement(responseElem, "total")?.Value;
+                if (!string.IsNullOrWhiteSpace(totalStr) && int.TryParse(totalStr, out var parsedTotal))
+                {
+                    responseTotal = parsedTotal;
+                }
+
+                var offsetStr = GetAttributeValue(responseElem, "offset") ?? FindElement(responseElem, "offset")?.Value;
+                if (!string.IsNullOrWhiteSpace(offsetStr) && int.TryParse(offsetStr, out var parsedOffset))
+                {
+                    responseOffset = parsedOffset;
+                }
             }
 
             var channel = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("channel", StringComparison.OrdinalIgnoreCase));
@@ -752,6 +792,8 @@ public class TorznabClient : ITorznabClient
                     Description = description,
                     DetailsUrl = details,
                     Comments = details,
+                    ResponseTotal = responseTotal,
+                    ResponseOffset = responseOffset,
                 };
 
                 if (indexer != null && indexer.FreeleechOnly && !result.IsFreeleech)

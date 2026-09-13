@@ -105,6 +105,16 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
 
     public async Task<byte[]> DownloadBytesAsync(string url, long maxSizeBytes, TimeSpan? timeout, CancellationToken cancellationToken = default)
     {
+        return await this.DownloadBytesAsync(url, maxSizeBytes, null, timeout, cancellationToken);
+    }
+
+    public async Task<byte[]> DownloadBytesAsync(string url, IDictionary<string, string> customHeaders, CancellationToken cancellationToken = default)
+    {
+        return await this.DownloadBytesAsync(url, DefaultMaxSizeBytes, customHeaders, null, cancellationToken);
+    }
+
+    public async Task<byte[]> DownloadBytesAsync(string url, long maxSizeBytes, IDictionary<string, string> customHeaders, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    {
         if (string.IsNullOrWhiteSpace(url))
         {
             throw new ArgumentException("URL cannot be empty.", nameof(url));
@@ -115,7 +125,7 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
             throw new ArgumentException($"Invalid URL format: '{url}'", nameof(url));
         }
 
-        return await this.DownloadBytesAsync(uri, maxSizeBytes, null, timeout, cancellationToken);
+        return await this.DownloadBytesAsync(uri, maxSizeBytes, customHeaders, timeout, cancellationToken);
     }
 
     public async Task<byte[]> DownloadBytesAsync(Uri uri, long maxSizeBytes = DefaultMaxSizeBytes, CancellationToken cancellationToken = default)

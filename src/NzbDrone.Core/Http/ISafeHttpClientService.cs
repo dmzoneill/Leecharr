@@ -20,6 +20,11 @@ public interface ISafeHttpClientService
 
     Task<byte[]> DownloadBytesAsync(string url, long maxSizeBytes, TimeSpan? timeout, CancellationToken cancellationToken = default);
 
+    Task<byte[]> DownloadBytesAsync(string url, IDictionary<string, string> customHeaders, CancellationToken cancellationToken = default)
+        => this.DownloadBytesAsync(url, 10 * 1024 * 1024, customHeaders, null, cancellationToken);
+
+    Task<byte[]> DownloadBytesAsync(string url, long maxSizeBytes, IDictionary<string, string> customHeaders, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
+
     Task<byte[]> DownloadBytesAsync(Uri uri, long maxSizeBytes = 10 * 1024 * 1024, CancellationToken cancellationToken = default);
 
     Task<byte[]> DownloadBytesAsync(Uri uri, long maxSizeBytes, IDictionary<string, string> customHeaders, CancellationToken cancellationToken = default)

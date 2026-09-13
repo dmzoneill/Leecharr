@@ -1,5 +1,3 @@
-// Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,6 +6,8 @@ using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.DiskSpace;
 
@@ -22,24 +22,28 @@ public class DiskSpaceService : IDiskSpaceService
     private readonly IConfigService configService;
     private readonly ICategoryService categoryService;
     private readonly IDiskProvider diskProvider;
+    private readonly IEventAggregator eventAggregator;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public DiskSpaceService(
         IAppFolderInfo appFolderInfo,
         IConfigService configService = null,
         IDiskProvider diskProvider = null,
-        ICategoryService categoryService = null)
+        ICategoryService categoryService = null,
+        IEventAggregator eventAggregator = null)
     {
         this.appFolderInfo = appFolderInfo;
         this.configService = configService;
         this.diskProvider = diskProvider ?? new DiskProvider();
         this.categoryService = categoryService;
+        this.eventAggregator = eventAggregator;
     }
 
     public List<DiskSpaceInfo> GetDiskSpace()
     {
         var result = new List<DiskSpaceInfo>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenVolumes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         var downloadDir = this.configService?.DownloadDir;
         if (string.IsNullOrWhiteSpace(downloadDir))
@@ -90,15 +94,18 @@ public class DiskSpaceService : IDiskSpaceService
                     if (drive.IsReady && (drive.DriveType == DriveType.Fixed || drive.DriveType == DriveType.Network))
                     {
                         var total = drive.TotalSize;
-                        if (total > 0 && seen.Add(drive.RootDirectory.FullName))
+                        var volumeKey = $"{drive.DriveFormat}_{total}_{drive.VolumeLabel}_{drive.RootDirectory.FullName}";
+                        if (total > 0 && seen.Add(drive.RootDirectory.FullName) && seenVolumes.Add(volumeKey))
                         {
-                            result.Add(new DiskSpaceInfo
+                            var info = new DiskSpaceInfo
                             {
                                 Path = drive.RootDirectory.FullName,
                                 Label = !string.IsNullOrWhiteSpace(drive.VolumeLabel) ? drive.VolumeLabel : drive.RootDirectory.FullName,
                                 FreeSpace = drive.AvailableFreeSpace,
                                 TotalSpace = total,
-                            });
+                            };
+                            result.Add(info);
+                            this.PublishThresholdEventsIfApplicable(info);
                         }
                     }
                 }
@@ -136,19 +143,43 @@ public class DiskSpaceService : IDiskSpaceService
             {
                 if (seen.Add(path))
                 {
-                    result.Add(new DiskSpaceInfo
+                    var info = new DiskSpaceInfo
                     {
                         Path = path,
                         Label = label,
                         FreeSpace = freeSpace.Value,
                         TotalSpace = totalSpace.Value,
-                    });
+                    };
+                    result.Add(info);
+                    this.PublishThresholdEventsIfApplicable(info);
                 }
             }
         }
         catch (Exception ex)
         {
             this.logger.Debug(ex, "Could not get drive info for path {0}", path);
+        }
+    }
+
+    private void PublishThresholdEventsIfApplicable(DiskSpaceInfo info)
+    {
+        if (this.eventAggregator == null || info == null || info.TotalSpace <= 0)
+        {
+            return;
+        }
+
+        var thresholdMb = this.configService?.LowDiskSpaceThresholdMb ?? 500;
+        var warningThresholdBytes = (long)thresholdMb * 1024 * 1024;
+        const long criticalThresholdBytes = 1024L * 1024 * 1024; // 1 GB
+        var freePercent = (double)info.FreeSpace / info.TotalSpace;
+
+        if (info.FreeSpace < criticalThresholdBytes)
+        {
+            this.eventAggregator.PublishEvent(new DiskSpaceCriticalEvent(info.Path, info.FreeSpace));
+        }
+        else if (info.FreeSpace < warningThresholdBytes || freePercent < 0.05)
+        {
+            this.eventAggregator.PublishEvent(new DiskSpaceLowEvent(info.Path, info.FreeSpace, info.TotalSpace, freePercent));
         }
     }
 }

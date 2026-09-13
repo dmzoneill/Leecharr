@@ -1572,6 +1572,55 @@ public class TorznabClientTest
         cats.Should().Contain(new[] { "5000", "5040" });
     }
 
+    [Test]
+    public void ParseTorznabFeedXml_ExtractsResponseTotalAndOffset()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <torznab:response offset=""25"" total=""350""/>
+    <item>
+      <title>Test.Item</title>
+      <link>http://indexer/dl</link>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml);
+        results.Should().HaveCount(1);
+        results[0].ResponseOffset.Should().Be(25);
+        results[0].ResponseTotal.Should().Be(350);
+    }
+
+    [Test]
+    public async Task SearchAsync_ExpandsRootCategoriesToIncludeSubcategories()
+    {
+        Uri? requestedUri = null;
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            requestedUri = req.RequestUri;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("<rss><channel><item><title>Item</title></item></channel></rss>"),
+            };
+        });
+
+        var clientWithHandler = new TorznabClient(new HttpClient(handler));
+        var indexer = new IndexerDefinition { Url = "http://indexer.local/api" };
+
+        await clientWithHandler.SearchAsync(indexer, "test movie", categoryId: 2000);
+
+        requestedUri.Should().NotBeNull();
+        var query = requestedUri!.Query;
+        query.Should().Contain("cat=2000%2c2010%2c2020%2c2030%2c2040%2c2045%2c2050%2c2060%2c2070%2c2080%2c2090"
+            .Replace("%2c", ",")
+            .Replace(",", "%2C")
+            .ToLowerInvariant()
+            .Split('&')[0]); // cat parameter is present with expanded categories
+        query.Should().Contain("2000");
+        query.Should().Contain("2040");
+    }
+
     #endregion
 
     private class TestHttpMessageHandler : HttpMessageHandler

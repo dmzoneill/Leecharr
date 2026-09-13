@@ -93,6 +93,10 @@ public class IndexerResource : RestResource
     public int DefaultPageSize { get; set; } = 50;
 
     public int MaxPageSize { get; set; } = 100;
+
+    public string Cookie { get; set; }
+
+    public string UserAgent { get; set; }
 }
 
 public class IntListOrCommaSeparatedConverter : JsonConverter<List<int>>
@@ -207,6 +211,10 @@ public class DownloadReleaseRequest
     public int? IndexerId { get; set; }
 
     public string IndexerName { get; set; }
+
+    public string Cookie { get; set; }
+
+    public string UserAgent { get; set; }
 }
 
 public class ReleaseInfoResource
@@ -244,6 +252,112 @@ public class ReleaseInfoResource
     public double UploadVolumeFactor { get; set; } = 1.0;
 
     public bool IsFreeleech => this.DownloadVolumeFactor <= 0.0;
+
+    public int? ResponseTotal { get; set; }
+
+    public int? ResponseOffset { get; set; }
+}
+
+[JsonConverter(typeof(IndexerSearchEnvelopeConverter))]
+public class IndexerSearchEnvelope : List<ReleaseInfoResource>
+{
+    [JsonPropertyName("page")]
+    public int Page { get; set; } = 1;
+
+    [JsonPropertyName("limit")]
+    public int Limit { get; set; } = 50;
+
+    [JsonPropertyName("total")]
+    public int Total { get; set; }
+
+    [JsonPropertyName("results")]
+    public List<ReleaseInfoResource> Results => this;
+
+    public IndexerSearchEnvelope()
+    {
+    }
+
+    public IndexerSearchEnvelope(IEnumerable<ReleaseInfoResource> collection)
+        : base(collection)
+    {
+    }
+}
+
+public class IndexerSearchEnvelopeConverter : JsonConverter<IndexerSearchEnvelope>
+{
+    public override IndexerSearchEnvelope Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        var envelope = new IndexerSearchEnvelope();
+        if (reader.TokenType == JsonTokenType.StartArray)
+        {
+            var list = JsonSerializer.Deserialize<List<ReleaseInfoResource>>(ref reader, options);
+            if (list != null)
+            {
+                envelope.AddRange(list);
+                envelope.Total = list.Count;
+            }
+
+            return envelope;
+        }
+
+        using var doc = JsonDocument.ParseValue(ref reader);
+        var root = doc.RootElement;
+        if (root.TryGetProperty("page", out var pageProp) && pageProp.TryGetInt32(out var page))
+        {
+            envelope.Page = page;
+        }
+
+        if (root.TryGetProperty("limit", out var limitProp) && limitProp.TryGetInt32(out var limit))
+        {
+            envelope.Limit = limit;
+        }
+
+        if (root.TryGetProperty("total", out var totalProp) && totalProp.TryGetInt32(out var total))
+        {
+            envelope.Total = total;
+        }
+
+        if (root.TryGetProperty("results", out var resultsProp) && resultsProp.ValueKind == JsonValueKind.Array)
+        {
+            var results = JsonSerializer.Deserialize<List<ReleaseInfoResource>>(resultsProp.GetRawText(), options);
+            if (results != null)
+            {
+                envelope.AddRange(results);
+            }
+        }
+
+        return envelope;
+    }
+
+    public override void Write(Utf8JsonWriter writer, IndexerSearchEnvelope value, JsonSerializerOptions options)
+    {
+        writer.WriteStartObject();
+        writer.WriteNumber("page", value.Page);
+        writer.WriteNumber("limit", value.Limit);
+        writer.WriteNumber("total", value.Total);
+        writer.WritePropertyName("results");
+        writer.WriteStartArray();
+        foreach (var item in value)
+        {
+            JsonSerializer.Serialize(writer, item, options);
+        }
+
+        writer.WriteEndArray();
+        writer.WriteEndObject();
+    }
+}
+
+public class IndexerBatchTestResult
+{
+    public int Id { get; set; }
+
+    public string Name { get; set; }
+
+    public bool Success { get; set; }
+
+    public string Message { get; set; }
+
+    public long ResponseTimeMs { get; set; }
 }
 
 public class IndexerSearchRequest

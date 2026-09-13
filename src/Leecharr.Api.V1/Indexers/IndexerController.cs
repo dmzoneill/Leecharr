@@ -30,6 +30,7 @@ public class IndexerController : Controller
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly HttpClient httpClient;
     private readonly IDownloadHistoryService downloadHistoryService;
+    private readonly IIndexerStatusService indexerStatusService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public IndexerController(
@@ -40,7 +41,8 @@ public class IndexerController : Controller
         ITorrentFileParser torrentFileParser,
         ISafeHttpClientService safeHttpClientService = null,
         HttpClient httpClient = null,
-        IDownloadHistoryService downloadHistoryService = null)
+        IDownloadHistoryService downloadHistoryService = null,
+        IIndexerStatusService indexerStatusService = null)
     {
         this.indexerRepository = indexerRepository;
         this.torznabClient = torznabClient;
@@ -50,6 +52,7 @@ public class IndexerController : Controller
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
         this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
         this.downloadHistoryService = downloadHistoryService;
+        this.indexerStatusService = indexerStatusService ?? new IndexerStatusService();
     }
 
     [HttpGet]
@@ -132,6 +135,7 @@ public class IndexerController : Controller
     public ActionResult Delete(int id)
     {
         this.indexerRepository.Delete(id);
+        this.indexerStatusService?.Reset(id);
         return this.Ok();
     }
 
@@ -157,6 +161,72 @@ public class IndexerController : Controller
 
         var model = ToModel(resource);
         return await this.TestDirectInternal(model);
+    }
+
+    [HttpPost("testall")]
+    public async Task<ActionResult<List<IndexerBatchTestResult>>> TestAll()
+    {
+        var indexers = this.indexerRepository.All();
+        if (indexers == null || indexers.Count == 0)
+        {
+            return this.Ok(new List<IndexerBatchTestResult>());
+        }
+
+        var results = new ConcurrentBag<IndexerBatchTestResult>();
+        using var semaphore = new SemaphoreSlim(5);
+
+        var tasks = indexers.Select(async idx =>
+        {
+            await semaphore.WaitAsync().ConfigureAwait(false);
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                var testResult = await this.TestDirectInternal(idx).ConfigureAwait(false);
+                sw.Stop();
+
+                bool success = false;
+                string message = null;
+
+                if (testResult.Result is OkObjectResult ok && ok.Value is IndexerTestResult tr)
+                {
+                    success = tr.Success;
+                    message = tr.Message;
+                }
+                else if (testResult.Value is IndexerTestResult trVal)
+                {
+                    success = trVal.Success;
+                    message = trVal.Message;
+                }
+
+                results.Add(new IndexerBatchTestResult
+                {
+                    Id = idx.Id,
+                    Name = idx.Name,
+                    Success = success,
+                    Message = message ?? (success ? "Success" : "Failed"),
+                    ResponseTimeMs = sw.ElapsedMilliseconds,
+                });
+            }
+            catch (Exception ex)
+            {
+                sw.Stop();
+                results.Add(new IndexerBatchTestResult
+                {
+                    Id = idx.Id,
+                    Name = idx.Name,
+                    Success = false,
+                    Message = ex.Message,
+                    ResponseTimeMs = sw.ElapsedMilliseconds,
+                });
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+
+        await Task.WhenAll(tasks).ConfigureAwait(false);
+        return this.Ok(results.OrderBy(r => r.Id).ToList());
     }
 
     [HttpPost("sync-prowlarr")]
@@ -285,6 +355,11 @@ public class IndexerController : Controller
             ? new List<IndexerDefinition> { this.indexerRepository.Get(request.IndexerId.Value) }.Where(i => i != null).ToList()
             : (searchEnabled.Count > 0 ? searchEnabled : this.indexerRepository.GetEnabled().ToList());
 
+        if (this.indexerStatusService != null)
+        {
+            indexers = indexers.Where(i => !this.indexerStatusService.IsDisabled(i.Id)).ToList();
+        }
+
         if (indexers.Count == 0)
         {
             this.logger.Warn("Indexer search requested for query '{0}' but no search-enabled or active indexers are configured in repository.", request.Query);
@@ -293,7 +368,13 @@ public class IndexerController : Controller
                 this.Response.Headers["X-Leecharr-Indexers-Configured"] = "0";
             }
 
-            return this.Ok(new List<ReleaseInfoResource>());
+            var emptyEnvelope = new IndexerSearchEnvelope()
+            {
+                Page = effectiveLimit > 0 ? (effectiveOffset / effectiveLimit) + 1 : 1,
+                Limit = effectiveLimit,
+                Total = 0,
+            };
+            return this.Ok(emptyEnvelope);
         }
 
         var catId = ParseCategoryId(request.Category);
@@ -340,6 +421,8 @@ public class IndexerController : Controller
                     criteria,
                     combinedCts.Token).ConfigureAwait(false);
 
+                this.indexerStatusService?.RecordSuccess(idx.Id);
+
                 foreach (var r in results)
                 {
                     allResults.Add(new ReleaseInfoResource
@@ -360,16 +443,25 @@ public class IndexerController : Controller
                         IndexerName = idx.Name,
                         DownloadVolumeFactor = r.DownloadVolumeFactor,
                         UploadVolumeFactor = r.UploadVolumeFactor,
+                        ResponseTotal = r.ResponseTotal,
+                        ResponseOffset = r.ResponseOffset,
                     });
                 }
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException ex)
             {
                 this.logger.Warn("Search timed out or cancelled for indexer {0}", idx.Name);
+                this.indexerStatusService?.RecordFailure(idx.Id, errorMessage: "Search timed out", ex: ex);
+            }
+            catch (HttpRequestException ex)
+            {
+                this.logger.Warn(ex, "Failed to search indexer {0}", idx.Name);
+                this.indexerStatusService?.RecordFailure(idx.Id, (int?)ex.StatusCode, ex.Message, ex);
             }
             catch (Exception ex)
             {
                 this.logger.Warn(ex, "Failed to search indexer {0}", idx.Name);
+                this.indexerStatusService?.RecordFailure(idx.Id, errorMessage: ex.Message, ex: ex);
             }
             finally
             {
@@ -390,7 +482,18 @@ public class IndexerController : Controller
             ? sortedResults.Skip(effectiveOffset).Take(effectiveLimit).ToList()
             : sortedResults.Take(effectiveLimit).ToList();
 
-        return this.Ok(paginatedResults);
+        var maxResponseTotal = allResults.Select(r => r.ResponseTotal).Where(t => t.HasValue).Max() ?? 0;
+        var totalCount = maxResponseTotal > 0 ? Math.Max(filteredResults.Count, maxResponseTotal) : filteredResults.Count;
+        var currentPage = effectiveLimit > 0 ? (effectiveOffset / effectiveLimit) + 1 : 1;
+
+        var envelope = new IndexerSearchEnvelope(paginatedResults)
+        {
+            Page = currentPage,
+            Limit = effectiveLimit,
+            Total = totalCount,
+        };
+
+        return this.Ok(envelope);
     }
 
     [HttpPost("download")]
@@ -416,7 +519,63 @@ public class IndexerController : Controller
             {
                 try
                 {
-                    var bytes = await this.safeHttpClientService.DownloadBytesAsync(request.DownloadUrl);
+                    IDictionary<string, string> customHeaders = null;
+                    string cookies = request.Cookie;
+                    string userAgent = request.UserAgent;
+
+                    if (request.IndexerId.HasValue && request.IndexerId.Value > 0)
+                    {
+                        var indexerDef = this.indexerRepository.Get(request.IndexerId.Value);
+                        if (indexerDef != null)
+                        {
+                            if (!string.IsNullOrWhiteSpace(indexerDef.ApiKey))
+                            {
+                                customHeaders ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                                customHeaders["X-Api-Key"] = indexerDef.ApiKey;
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(indexerDef.Settings))
+                            {
+                                try
+                                {
+                                    var settings = JsonSerializer.Deserialize<IndexerSettings>(indexerDef.Settings, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                                    if (settings != null)
+                                    {
+                                        if (string.IsNullOrWhiteSpace(cookies) && !string.IsNullOrWhiteSpace(settings.Cookie))
+                                        {
+                                            cookies = settings.Cookie;
+                                        }
+
+                                        if (string.IsNullOrWhiteSpace(userAgent) && !string.IsNullOrWhiteSpace(settings.UserAgent))
+                                        {
+                                            userAgent = settings.UserAgent;
+                                        }
+                                    }
+                                }
+                                catch
+                                {
+                                    // Ignore settings deserialization failure
+                                }
+                            }
+                        }
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(cookies))
+                    {
+                        customHeaders ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        customHeaders["Cookie"] = cookies;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(userAgent))
+                    {
+                        customHeaders ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        customHeaders["User-Agent"] = userAgent;
+                    }
+
+                    var bytes = customHeaders != null && customHeaders.Count > 0
+                        ? await this.safeHttpClientService.DownloadBytesAsync(request.DownloadUrl, customHeaders).ConfigureAwait(false)
+                        : await this.safeHttpClientService.DownloadBytesAsync(request.DownloadUrl).ConfigureAwait(false);
+
                     var parsed = this.torrentFileParser.Parse(bytes);
                     torrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePath, request.StartPaused, bytes);
                 }
@@ -499,6 +658,11 @@ public class IndexerController : Controller
                     {
                         var indexers = JsonSerializer.Deserialize<List<JsonElement>>(json);
                         var count = indexers?.Count ?? 0;
+                        if (indexer.Id > 0)
+                        {
+                            this.indexerStatusService?.RecordSuccess(indexer.Id);
+                        }
+
                         return this.Ok(new IndexerTestResult
                         {
                             Success = true,
@@ -507,6 +671,11 @@ public class IndexerController : Controller
                     }
                     catch
                     {
+                        if (indexer.Id > 0)
+                        {
+                            this.indexerStatusService?.RecordSuccess(indexer.Id);
+                        }
+
                         return this.Ok(new IndexerTestResult
                         {
                             Success = true,
@@ -524,11 +693,21 @@ public class IndexerController : Controller
                 var statusResp = await this.httpClient.SendAsync(statusReq);
                 if (statusResp.IsSuccessStatusCode)
                 {
+                    if (indexer.Id > 0)
+                    {
+                        this.indexerStatusService?.RecordSuccess(indexer.Id);
+                    }
+
                     return this.Ok(new IndexerTestResult
                     {
                         Success = true,
                         Message = "Connected successfully to Prowlarr.",
                     });
+                }
+
+                if (indexer.Id > 0)
+                {
+                    this.indexerStatusService?.RecordFailure(indexer.Id, (int)response.StatusCode, $"Prowlarr returned HTTP {(int)response.StatusCode}");
                 }
 
                 return this.Ok(new IndexerTestResult
@@ -539,6 +718,11 @@ public class IndexerController : Controller
             }
             catch (Exception ex)
             {
+                if (indexer.Id > 0)
+                {
+                    this.indexerStatusService?.RecordFailure(indexer.Id, errorMessage: ex.Message, ex: ex);
+                }
+
                 return this.Ok(new IndexerTestResult
                 {
                     Success = false,
@@ -553,6 +737,11 @@ public class IndexerController : Controller
             var testResult = await this.torznabClient.TestConnectionAsync(indexer);
             if (testResult.Success)
             {
+                if (indexer.Id > 0)
+                {
+                    this.indexerStatusService?.RecordSuccess(indexer.Id);
+                }
+
                 if (testResult.Capabilities?.Categories != null && testResult.Capabilities.Categories.Count > 0 &&
                     (indexer.Categories == null || indexer.Categories.Count == 0))
                 {
@@ -571,6 +760,19 @@ public class IndexerController : Controller
 
                 if (testResult.Capabilities != null)
                 {
+                    var existingSettings = new IndexerSettings();
+                    if (!string.IsNullOrWhiteSpace(indexer.Settings))
+                    {
+                        try
+                        {
+                            existingSettings = JsonSerializer.Deserialize<IndexerSettings>(indexer.Settings, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new IndexerSettings();
+                        }
+                        catch
+                        {
+                            // Ignore deserialize error
+                        }
+                    }
+
                     var settings = new IndexerSettings
                     {
                         SupportsSearch = testResult.Capabilities.SupportsSearch,
@@ -584,6 +786,8 @@ public class IndexerController : Controller
                         SupportedBookParams = testResult.Capabilities.SupportedBookParams,
                         DefaultPageSize = testResult.Capabilities.DefaultPageSize,
                         MaxPageSize = testResult.Capabilities.MaxPageSize,
+                        Cookie = existingSettings.Cookie,
+                        UserAgent = existingSettings.UserAgent,
                     };
                     indexer.Settings = JsonSerializer.Serialize(settings);
                 }
@@ -604,6 +808,11 @@ public class IndexerController : Controller
                 });
             }
 
+            if (indexer.Id > 0)
+            {
+                this.indexerStatusService?.RecordFailure(indexer.Id, errorMessage: testResult.ErrorMessage);
+            }
+
             return this.Ok(new IndexerTestResult
             {
                 Success = false,
@@ -612,6 +821,11 @@ public class IndexerController : Controller
         }
         catch (Exception ex)
         {
+            if (indexer.Id > 0)
+            {
+                this.indexerStatusService?.RecordFailure(indexer.Id, errorMessage: ex.Message, ex: ex);
+            }
+
             return this.Ok(new IndexerTestResult
             {
                 Success = false,
@@ -660,6 +874,8 @@ public class IndexerController : Controller
                     res.SupportedMovieParams = settings.SupportedMovieParams ?? new();
                     res.SupportedMusicParams = settings.SupportedMusicParams ?? new();
                     res.SupportedBookParams = settings.SupportedBookParams ?? new();
+                    res.Cookie = settings.Cookie;
+                    res.UserAgent = settings.UserAgent;
                     if (settings.DefaultPageSize > 0)
                     {
                         res.DefaultPageSize = settings.DefaultPageSize;
@@ -698,6 +914,8 @@ public class IndexerController : Controller
                 SupportedBookParams = resource.SupportedBookParams ?? new(),
                 DefaultPageSize = resource.DefaultPageSize > 0 ? resource.DefaultPageSize : 50,
                 MaxPageSize = resource.MaxPageSize > 0 ? resource.MaxPageSize : 100,
+                Cookie = resource.Cookie,
+                UserAgent = resource.UserAgent,
             };
             settingsJson = JsonSerializer.Serialize(settings);
         }

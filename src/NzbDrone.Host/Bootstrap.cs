@@ -18,6 +18,7 @@ using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Extraction;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Http.Transport;
+using NzbDrone.Core.Indexers;
 using NzbDrone.Core.MediaEnrichment.Providers;
 using NzbDrone.Core.MediaInspection;
 using NzbDrone.Core.Network.Binding;
@@ -55,6 +56,7 @@ public static class Bootstrap
         container.RegisterSingletonWithInterfaces<DynamicMediaMetadataProxy>();
         container.RegisterSingletonWithInterfaces<DynamicHttpTransportProxy>();
         container.RegisterSingleton<ISafeHttpClientService, SafeHttpClientService>();
+        container.RegisterSingleton<IIndexerStatusService, IndexerStatusService>();
         container.RegisterSingletonWithInterfaces<DynamicGeoIpProxy>();
         container.RegisterSingletonWithInterfaces<GeoIpUpdateTask>();
         container.RegisterSingletonWithInterfaces<DynamicBlocklistProxy>();

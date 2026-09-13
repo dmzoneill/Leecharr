@@ -1,7 +1,7 @@
 import { useTranslation } from "../../i18n";
 import React, { useState, useEffect } from "react";
 import { useBitTorrentConfig, useSaveBitTorrentConfig } from "../../api/hooks";
-import { SaveBar, SectionCard, TextInput, SelectInput, Toggle } from "./shared";
+import { SaveBar, SectionCard, TextInput, NumberInput, SelectInput, Toggle } from "./shared";
 
 export function StorageSettingsTab() {
   const { t } = useTranslation();
@@ -18,6 +18,7 @@ export function StorageSettingsTab() {
     renamePartialFiles: true,
     incompleteExtension: ".!leech",
     umask: "022",
+    lowDiskSpaceThresholdMb: 500,
   });
 
   const [dirty, setDirty] = useState(false);
@@ -34,6 +35,7 @@ export function StorageSettingsTab() {
         renamePartialFiles: config.renamePartialFiles ?? true,
         incompleteExtension: config.incompleteExtension || ".!leech",
         umask: config.umask || "022",
+        lowDiskSpaceThresholdMb: config.lowDiskSpaceThresholdMb ?? 500,
       });
       setDirty(false);
     }
@@ -60,6 +62,7 @@ export function StorageSettingsTab() {
         renamePartialFiles: form.renamePartialFiles,
         incompleteExtension: form.incompleteExtension,
         umask: form.umask,
+        lowDiskSpaceThresholdMb: Number(form.lowDiskSpaceThresholdMb) || 500,
       },
       {
         onSuccess: () => setDirty(false),
@@ -169,6 +172,21 @@ export function StorageSettingsTab() {
               value={form.umask}
               onChange={(v) => update("umask", v)}
               hint={t("settingsTabs.batch2.octalPermissionMaskForCreatedFiles")}
+            />
+
+            <NumberInput
+              label={t(
+                "settingsTabs.batch2.lowDiskSpaceThresholdMb",
+                "Low Disk Space Warning Threshold (MB)",
+              )}
+              value={form.lowDiskSpaceThresholdMb}
+              onChange={(v) => update("lowDiskSpaceThresholdMb", v)}
+              min={0}
+              step={50}
+              hint={t(
+                "settingsTabs.batch2.lowDiskSpaceThresholdMbHint",
+                "Trigger warning notifications when available disk space falls below this threshold in megabytes",
+              )}
             />
           </div>
 
