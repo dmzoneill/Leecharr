@@ -181,19 +181,17 @@ if (res.ok) {
             Trigger = AutomationTrigger.TorrentAdded,
             Language = AutomationLanguage.Yaml,
             InputFields = new List<TemplateInputField>(),
-            Code = @"name: 'Auto Categorize Media'
-trigger: 'TorrentAdded'
-steps:
-    - name: 'Check for TV Show'
-        condition: '${torrent.name}'
-        actions:
-            - addTag: 'Automated'
-
-    - name: 'Tag Fast Seeding'
-        condition: '${torrent.size} > 1000000000'
-        actions:
-            - addTag: 'LargeTorrent'
-",
+            Code = "name: 'Auto Categorize Media'\n" +
+                   "trigger: 'TorrentAdded'\n" +
+                   "steps:\n" +
+                   "  - name: 'Check for TV Show'\n" +
+                   "    condition: '${torrent.name}'\n" +
+                   "    actions:\n" +
+                   "      - addTag: 'Automated'\n\n" +
+                   "  - name: 'Tag Fast Seeding'\n" +
+                   "    condition: '${torrent.size} > 1000000000'\n" +
+                   "    actions:\n" +
+                   "      - addTag: 'LargeTorrent'\n",
         },
         new AutomationMarketplaceTemplate
         {
