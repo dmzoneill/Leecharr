@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Text.Json;
@@ -599,12 +600,26 @@ public class YamlScriptRunner : IScriptRunner
             return true;
         }
 
+        var trimmed = substituted.Trim();
+
+        // Single boolean expression like: !${torrent.isPrivate} or ${torrent.isPrivate}
+        if (!trimmed.Contains("==") && !trimmed.Contains("!=") && !trimmed.Contains(">=") && !trimmed.Contains("<=") && !trimmed.Contains('>') && !trimmed.Contains('<'))
+        {
+            if (trimmed.StartsWith('!'))
+            {
+                var inner = trimmed[1..].Trim();
+                return IsFalsy(inner);
+            }
+
+            return !IsFalsy(trimmed);
+        }
+
         if (substituted.Contains("=="))
         {
             var parts = substituted.Split(new[] { "==" }, StringSplitOptions.TrimEntries);
             if (parts.Length == 2)
             {
-                return string.Equals(parts[0].Trim('\'', '"'), parts[1].Trim('\'', '"'), StringComparison.OrdinalIgnoreCase);
+                return AreEqual(parts[0], parts[1]);
             }
         }
         else if (substituted.Contains("!="))
@@ -612,13 +627,13 @@ public class YamlScriptRunner : IScriptRunner
             var parts = substituted.Split(new[] { "!=" }, StringSplitOptions.TrimEntries);
             if (parts.Length == 2)
             {
-                return !string.Equals(parts[0].Trim('\'', '"'), parts[1].Trim('\'', '"'), StringComparison.OrdinalIgnoreCase);
+                return !AreEqual(parts[0], parts[1]);
             }
         }
         else if (substituted.Contains(">="))
         {
             var parts = substituted.Split(new[] { ">=" }, StringSplitOptions.TrimEntries);
-            if (parts.Length == 2 && double.TryParse(parts[0], out var l) && double.TryParse(parts[1], out var r))
+            if (parts.Length == 2 && TryParseNumber(parts[0], out var l) && TryParseNumber(parts[1], out var r))
             {
                 return l >= r;
             }
@@ -626,7 +641,7 @@ public class YamlScriptRunner : IScriptRunner
         else if (substituted.Contains("<="))
         {
             var parts = substituted.Split(new[] { "<=" }, StringSplitOptions.TrimEntries);
-            if (parts.Length == 2 && double.TryParse(parts[0], out var l) && double.TryParse(parts[1], out var r))
+            if (parts.Length == 2 && TryParseNumber(parts[0], out var l) && TryParseNumber(parts[1], out var r))
             {
                 return l <= r;
             }
@@ -634,7 +649,7 @@ public class YamlScriptRunner : IScriptRunner
         else if (substituted.Contains('>'))
         {
             var parts = substituted.Split(new[] { '>' }, StringSplitOptions.TrimEntries);
-            if (parts.Length == 2 && double.TryParse(parts[0], out var l) && double.TryParse(parts[1], out var r))
+            if (parts.Length == 2 && TryParseNumber(parts[0], out var l) && TryParseNumber(parts[1], out var r))
             {
                 return l > r;
             }
@@ -642,13 +657,82 @@ public class YamlScriptRunner : IScriptRunner
         else if (substituted.Contains('<'))
         {
             var parts = substituted.Split(new[] { '<' }, StringSplitOptions.TrimEntries);
-            if (parts.Length == 2 && double.TryParse(parts[0], out var l) && double.TryParse(parts[1], out var r))
+            if (parts.Length == 2 && TryParseNumber(parts[0], out var l) && TryParseNumber(parts[1], out var r))
             {
                 return l < r;
             }
         }
 
-        return !string.Equals(substituted, "false", StringComparison.OrdinalIgnoreCase);
+        return !IsFalsy(substituted);
+    }
+
+    private static bool TryParseNumber(string raw, out double number)
+    {
+        var clean = raw.Trim('\'', '"', ' ');
+        return double.TryParse(clean, NumberStyles.Any, CultureInfo.InvariantCulture, out number);
+    }
+
+    private static bool IsFalsy(string val)
+    {
+        var clean = val.Trim('\'', '"', ' ');
+        return string.IsNullOrEmpty(clean) ||
+               string.Equals(clean, "false", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(clean, "0", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(clean, "off", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(clean, "no", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(clean, "null", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool AreEqual(string leftRaw, string rightRaw)
+    {
+        var left = leftRaw.Trim('\'', '"', ' ');
+        var right = rightRaw.Trim('\'', '"', ' ');
+
+        if (string.Equals(left, right, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // Check boolean equivalence (e.g. 1 == true, on == true, etc.)
+        if (TryParseBool(left, out var bLeft) && TryParseBool(right, out var bRight))
+        {
+            return bLeft == bRight;
+        }
+
+        // Check numeric equivalence (e.g. 5.0 == 5)
+        if (TryParseNumber(left, out var nLeft) && TryParseNumber(right, out var nRight))
+        {
+            return Math.Abs(nLeft - nRight) < 0.000001;
+        }
+
+        return false;
+    }
+
+    private static bool TryParseBool(string val, out bool result)
+    {
+        if (bool.TryParse(val, out result))
+        {
+            return true;
+        }
+
+        if (string.Equals(val, "1", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(val, "yes", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(val, "on", StringComparison.OrdinalIgnoreCase))
+        {
+            result = true;
+            return true;
+        }
+
+        if (string.Equals(val, "0", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(val, "no", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(val, "off", StringComparison.OrdinalIgnoreCase))
+        {
+            result = false;
+            return true;
+        }
+
+        result = false;
+        return false;
     }
 
     private static object? JsonElementToObject(JsonElement element)
