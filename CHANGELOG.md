@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.9.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.9.1) - 2026-09-13
+
+### ✨ Features
+- feat(i18n): internationalize entire automation pipeline page and synchronize all 20 language catalogs
+
+### 🔧 Maintenance & Improvements
+- style: remove trailing whitespace in AutomationPage
+
 ## [v1.9.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.9.0) - 2026-09-13
 
 ### ✨ Features
