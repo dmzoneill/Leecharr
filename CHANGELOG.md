@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.9.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.9.2) - 2026-09-13
+
+### ✨ Features
+- feat(i18n): comprehensively internationalize 100% of automation page strings and catalog
+- feat(i18n): comprehensively internationalize 100% of automation page strings and catalog
+
+### 🔧 Maintenance & Improvements
+- chore: clean up temporary refactor scripts and sanitize translation memory
+
 ## [v1.9.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.9.1) - 2026-09-13
 
 ### ✨ Features
