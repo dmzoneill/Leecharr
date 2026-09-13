@@ -352,8 +352,37 @@ export function App() {
         return;
       }
 
+      // Sidebar toggle shortcut: Alt+M (allowed anywhere)
+      if (e.altKey && (e.key === "m" || e.key === "M")) {
+        e.preventDefault();
+        setIsSidebarCollapsed((prev) => {
+          const next = !prev;
+          localStorage.setItem("leecharr-sidebar-collapsed", String(next));
+          return next;
+        });
+        return;
+      }
+
+      // Global Esc dismissal: dismiss open modals, palette, and quick settings
+      if (e.key === "Escape") {
+        setShowCommandPalette(false);
+        setShowShortcutsModal(false);
+        setShowAddModal(false);
+        setShowSearchModal(false);
+        setShowProfileMenu(false);
+        window.dispatchEvent(new CustomEvent("close-modals"));
+        return;
+      }
+
       // Ignore remaining shortcuts if focused inside an input/form control
       if (isInput) return;
+
+      // Quick settings drawer toggle: 'q' / 'Q'
+      if ((e.key === "q" || e.key === "Q") && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("toggle-quick-settings"));
+        return;
+      }
 
       // Shortcuts Modal hotkey: '?' or Shift+'/'
       if (e.key === "?" || (e.shiftKey && e.key === "/")) {
