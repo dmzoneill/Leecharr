@@ -59,20 +59,53 @@ const COMMON_COMMANDS = [
 ];
 
 const TRIGGER_LABELS: Record<string, string> = {
+  // Torrent Lifecycle & Goals
   TorrentAdded: "📥 On Torrent Added",
   TorrentCompleted: "✅ On Download Completed",
   RatioReached: "🎯 On Ratio / Seed Goal Reached",
+  TorrentStarted: "▶️ On Torrent Resumed / Started",
+  TorrentPaused: "⏸️ On Torrent Paused / Stopped",
+  TorrentStalled: "⏳ On Torrent Stalled",
+  SeedingTimeReached: "⌛ On Seeding Time Target Met",
+  HashCheckCompleted: "🔍 On Hash Check Completed",
+  ProgressMilestone: "📈 On Progress Milestone",
   TorrentStatusChanged: "🔄 On Torrent State Changed",
   TorrentDeleted: "🗑️ On Torrent Deleted",
   TorrentError: "⚠️ On Torrent Error",
-  HealthRestored: "💚 On Health Restored",
-  MediaEnriched: "🎬 On Media Enriched",
-  ArchiveExtracted: "📦 On Archive Extracted",
-  ExtractionFailed: "❌ On Extraction Failed",
+
+  // Bandwidth & Speed
+  SpeedThresholdExceeded: "🚀 On High Speed Threshold Exceeded",
+  SpeedThresholdDropped: "📉 On Speed Drop Alert",
+  BandwidthQuotaApproaching: "📊 On Bandwidth Quota Threshold",
+
+  // Network & Security
   VpnDisconnected: "🛡️ On VPN KillSwitch",
   VpnRestored: "🌐 On VPN Restored",
+  PortForwardingFailed: "🚫 On Port Forwarding / UPnP Failure",
+  PeerBanned: "🛡️ On Malicious / Bad Peer Banned",
+  TrackerUnreachable: "📡 On All Trackers Failed",
+  TrackerBoostApplied: "⚡ On Tracker Boost Applied",
+
+  // Storage & Disk
+  DiskSpaceLow: "⚠️ On Low Disk Space Warning",
+  DiskSpaceCritical: "🚨 On Critical Disk Space Emergency",
+  FileMoveFailed: "❌ On File Move / Path Error",
+
+  // Media & Processing
+  MediaEnriched: "🎬 On Media Enriched",
+  MediaInspectionFailed: "🎞️ On Media Corruption / Inspection Failed",
+  ArchiveExtracted: "📦 On Archive Extracted",
+  ExtractionFailed: "❌ On Extraction Failed",
+  ArrImportCompleted: "📬 On Servarr Import Completed",
+
+  // System & Lifecycle
+  HealthRestored: "💚 On Health Restored",
   CategoryChanged: "📂 On Category Changed",
   ApplicationStarted: "🚀 On App Started",
+  ApplicationUpdated: "🔄 On App Updated",
+  BackupCompleted: "💾 On Backup Succeeded",
+  BackupFailed: "❗ On Backup Failed",
+  TaskFailed: "❌ On Scheduled Task Failed",
   Scheduled: "⏱️ Scheduled Interval",
   Manual: "🖐️ Manual Only",
 };
