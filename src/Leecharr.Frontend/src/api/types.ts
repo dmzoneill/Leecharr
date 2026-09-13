@@ -1625,3 +1625,93 @@ export interface FilePreviewResult {
   truncated?: boolean;
   downloadUrl?: string;
 }
+
+export type AutomationTrigger =
+  | "TorrentAdded"
+  | "TorrentCompleted"
+  | "RatioReached"
+  | "TorrentError"
+  | "Manual"
+  | "Scheduled"
+  | "TorrentDeleted"
+  | "TorrentStatusChanged"
+  | "MediaEnriched"
+  | "ArchiveExtracted"
+  | "ExtractionFailed"
+  | "VpnDisconnected"
+  | "VpnRestored"
+  | "HealthRestored"
+  | "CategoryChanged"
+  | "ApplicationStarted"
+  | number;
+
+export type AutomationLanguage = "JavaScript" | "Yaml" | number;
+
+export interface AutomationScript {
+  id: number;
+  name: string;
+  description?: string | null;
+  trigger: AutomationTrigger;
+  language: AutomationLanguage;
+  code: string;
+  inputsJson?: string | null;
+  isEnabled: boolean;
+  targetCategories: string[];
+  targetTagIds: number[];
+  createdAt: string;
+  lastExecutedAt?: string | null;
+  lastExecutionStatus?: string | null;
+  lastExecutionLog?: string | null;
+}
+
+export interface AutomationExecutionResult {
+  success: boolean;
+  outputLog?: string | null;
+  error?: string | null;
+  executionTimeMs: number;
+  tagsToAdd: string[];
+  tagsToRemove: string[];
+  newCategory?: string | null;
+  shouldPause: boolean;
+  shouldResume: boolean;
+  shouldRemove: boolean;
+  deleteDataOnRemove: boolean;
+  newUploadLimitKbps?: number | null;
+  newDownloadLimitKbps?: number | null;
+}
+
+export interface TemplateInputField {
+  key: string;
+  label: string;
+  type: "text" | "password" | "number" | "select" | string;
+  defaultValue: string;
+  description: string;
+  required: boolean;
+}
+
+export interface AutomationMarketplaceTemplate {
+  id: string;
+  name: string;
+  description: string;
+  author: string;
+  version: string;
+  category: string;
+  trigger: AutomationTrigger;
+  language: AutomationLanguage;
+  code: string;
+  defaultInputs: Record<string, string>;
+  inputFields: TemplateInputField[];
+}
+
+export interface AutomationTestRequest {
+  script: Partial<AutomationScript>;
+  torrentId?: number | null;
+  customInputs?: Record<string, unknown>;
+}
+
+export interface InstallMarketplaceTemplateRequest {
+  templateId: string;
+  customName?: string;
+  customInputs?: Record<string, string>;
+}
+

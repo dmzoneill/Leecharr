@@ -70,6 +70,7 @@ public static class TableRegistration
             TableMapping.Register<Authentication.UserSession>("UserSessions");
             TableMapping.Register<Authentication.UserExternalLogin>("UserExternalLogins");
             TableMapping.Register<TrackerBoost.TrackerBoostTracker>("TrackerBoostTrackers");
+            TableMapping.Register<Automation.AutomationScript>("AutomationScripts");
 
             registered = true;
         }

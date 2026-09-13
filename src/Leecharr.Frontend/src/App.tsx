@@ -65,6 +65,7 @@ import { ApiDocsPage } from "./pages/ApiDocsPage";
 import TrackerBoost from "./pages/TrackerBoost";
 import { TerminalPage } from "./pages/TerminalPage";
 import { FileBrowser } from "./pages/FileBrowser";
+import { AutomationPage } from "./pages/AutomationPage";
 import { LoginPage } from "./pages/LoginPage";
 import { StatusBar } from "./components/StatusBar";
 import { IndexerSearchModal } from "./components/IndexerSearchModal";
@@ -745,6 +746,17 @@ export function App() {
             <span>{t("nav.fileBrowser")}</span>
           </div>
 
+          {/* Automation & DSL Engine */}
+          <div
+            className={`sidebar-nav-item ${activeNav === "automation" ? "active" : ""}`}
+            onClick={() => guardedNavigate("/automation")}
+            style={{ cursor: "pointer" }}
+            title="Automation Scripting Engine & Marketplace"
+          >
+            <span style={{ fontSize: "1rem", display: "inline-flex", width: "16px", justifyContent: "center" }}>⚡</span>
+            <span>Automation</span>
+          </div>
+
           {/* Settings */}
           <div
             className={`sidebar-nav-item ${activeNav === "settings" ? "active-parent" : ""}`}
@@ -1349,6 +1361,16 @@ export function App() {
               <Route
                 path="/downloadplusplus"
                 element={<Navigate to="/trackerboost" replace />}
+              />
+
+              {/* Automation */}
+              <Route
+                path="/automation"
+                element={
+                  <ErrorBoundary title="Automation">
+                    <AutomationPage />
+                  </ErrorBoundary>
+                }
               />
 
               {/* Settings */}
