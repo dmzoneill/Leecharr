@@ -2,12 +2,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Datastore.Events;
 using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Notifications;
 using NzbDrone.Core.Tags;
 using NzbDrone.Core.Torrents;
 
@@ -20,6 +22,9 @@ public class AutomationService : IAutomationService
     private readonly ITagRepository _tagRepository;
     private readonly IEventAggregator _eventAggregator;
     private readonly IManageCommandQueue? _commandQueue;
+    private readonly ICustomScriptService? _customScriptService;
+    private readonly INotificationRepository? _notificationRepository;
+    private readonly IWebhookDispatcher? _webhookDispatcher;
     private readonly Logger _logger;
     private readonly JintScriptRunner _jintRunner;
     private readonly YamlScriptRunner _yamlRunner;
@@ -30,13 +35,19 @@ public class AutomationService : IAutomationService
         ITagRepository tagRepository,
         IEventAggregator eventAggregator,
         IManageCommandQueue? commandQueue = null,
-        IConfigFileProvider? configFileProvider = null)
+        IConfigFileProvider? configFileProvider = null,
+        ICustomScriptService? customScriptService = null,
+        INotificationRepository? notificationRepository = null,
+        IWebhookDispatcher? webhookDispatcher = null)
     {
         _scriptRepository = scriptRepository;
         _torrentRepository = torrentRepository;
         _tagRepository = tagRepository;
         _eventAggregator = eventAggregator;
         _commandQueue = commandQueue;
+        _customScriptService = customScriptService;
+        _notificationRepository = notificationRepository;
+        _webhookDispatcher = webhookDispatcher;
         _logger = LogManager.GetCurrentClassLogger();
         _jintRunner = new JintScriptRunner(commandQueue, configFileProvider);
         _yamlRunner = new YamlScriptRunner(commandQueue);
@@ -131,6 +142,60 @@ public class AutomationService : IAutomationService
             foreach (var sync in result.ArrSyncsToSend)
             {
                 _commandQueue.PushRaw("SyncArr", "{}", CommandTrigger.Manual);
+            }
+        }
+
+        // Side-effects: Custom scripts to run
+        if (result.Success && result.ScriptsToRun.Count > 0 && _customScriptService != null)
+        {
+            foreach (var scriptToRun in result.ScriptsToRun)
+            {
+                var argsStr = scriptToRun.Arguments != null && scriptToRun.Arguments.Count > 0
+                    ? string.Join(" ", scriptToRun.Arguments)
+                    : null;
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await _customScriptService.ExecuteScriptAsync(scriptToRun.Path, torrent, "Automation", argsStr).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error(ex, "Failed to execute custom script from automation: {0}", scriptToRun.Path);
+                    }
+                });
+            }
+        }
+
+        // Side-effects: Notifications to send
+        if (result.Success && result.NotificationsToSend.Count > 0 && _notificationRepository != null && _webhookDispatcher != null)
+        {
+            var activeNotifications = _notificationRepository.GetEnabled();
+            foreach (var notif in result.NotificationsToSend)
+            {
+                var matching = string.IsNullOrWhiteSpace(notif.Provider)
+                    ? activeNotifications
+                    : activeNotifications.Where(n => string.Equals(n.Implementation, notif.Provider, StringComparison.OrdinalIgnoreCase) ||
+                                                     string.Equals(n.Name, notif.Provider, StringComparison.OrdinalIgnoreCase)).ToList();
+
+                foreach (var n in matching)
+                {
+                    var targetUrl = NotificationPayloadBuilder.ResolveTargetUrl(n.Implementation, n.Settings);
+                    var customHeaders = NotificationPayloadBuilder.ResolveCustomHeaders(n.Implementation, n.Settings);
+                    var payload = NotificationPayloadBuilder.BuildProviderPayload(n.Implementation, "Automation", torrent, null, new { title = notif.Title, message = notif.Message }, n.Settings);
+
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await _webhookDispatcher.DispatchAsync(targetUrl, payload, customHeaders).ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.Error(ex, "Failed to dispatch automation notification via {0}", n.Implementation);
+                        }
+                    });
+                }
             }
         }
 
@@ -299,7 +364,9 @@ public class AutomationService : IAutomationService
         }
         else if (result.ShouldResume && torrent.Status == TorrentStatus.Paused)
         {
-            torrent.Status = TorrentStatus.Seeding;
+            torrent.Status = (torrent.Progress >= 1.0f || torrent.Progress >= 0.999f || torrent.DateCompleted != null)
+                ? TorrentStatus.Seeding
+                : TorrentStatus.Downloading;
             changed = true;
         }
 
