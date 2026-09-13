@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.9.4](https://github.com/dmzoneill/Leecharr/releases/tag/v1.9.4) - 2026-09-13
+
+### 🔧 Maintenance & Improvements
+- style(ui): standardize border theme variables and card outlines across all components
+
 ## [v1.9.3](https://github.com/dmzoneill/Leecharr/releases/tag/v1.9.3) - 2026-09-13
 
 ### ✨ Features
