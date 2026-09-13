@@ -42,38 +42,37 @@ export function ApiDocsPage() {
   return (
     <div
       className="content-area"
-      style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+      style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}
     >
       {/* Header Banner */}
       <div
-        className="card"
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          marginBottom: "1.5rem",
           flexWrap: "wrap",
           gap: "1rem",
-          padding: "1rem 1.25rem",
-          borderRadius: "8px",
-          backgroundColor: "var(--bg-secondary)",
-          border: "1px solid var(--border-light)",
         }}
       >
         <div>
-          <h2
+          <h1
             style={{
+              fontSize: "1.75rem",
+              fontWeight: 700,
               margin: 0,
-              fontSize: "1.25rem",
-              color: "var(--text-primary)",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
             }}
           >
-            {t("apiDocs.title", "REST API & OpenAPI Explorer")}
-          </h2>
+            <span>📖</span> {t("apiDocs.title", "REST API & OpenAPI Explorer")}
+          </h1>
           <p
             style={{
+              color: "var(--text-muted, #888)",
               margin: "0.25rem 0 0 0",
-              color: "var(--text-secondary)",
-              fontSize: "0.85rem",
+              fontSize: "0.9rem",
             }}
           >
             {t(

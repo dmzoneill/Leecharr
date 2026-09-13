@@ -1309,7 +1309,7 @@ export function App() {
                 path="/"
                 element={
                   <ErrorBoundary title={t("errors.dashboard")}>
-                    <div className="content-area">
+                    <div className="content-area" style={{ padding: "1.5rem" }}>
                       <Dashboard
                         torrents={torrents}
                         onNavigateTorrents={() => guardedNavigate("/torrents")}

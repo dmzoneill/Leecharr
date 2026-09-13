@@ -87,6 +87,7 @@ export default function DownloadHistory() {
         minHeight: 0,
         overflow: "hidden",
         boxSizing: "border-box",
+        padding: "1.5rem",
       }}
     >
       <HistoryFilterBar

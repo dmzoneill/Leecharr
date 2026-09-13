@@ -644,40 +644,49 @@ export function SpeedSchedule() {
   const scheduleCount = schedules?.length ?? 0;
 
   return (
-    <div className="content-area">
+    <div className="content-area" style={{ padding: "1.5rem" }}>
       {/* Header */}
       <div
-        className="page-header"
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: "1.25rem",
+          marginBottom: "1.5rem",
+          flexWrap: "wrap",
+          gap: "1rem",
         }}
       >
-        <div className="page-header-group">
-          <div
-            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+        <div>
+          <h1
+            style={{
+              fontSize: "1.75rem",
+              fontWeight: 700,
+              margin: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
           >
-            <h1 className="page-heading" style={{ margin: 0 }}>
-              {t("speedSchedule.title")} ({scheduleCount})
-            </h1>
-            <span className="badge badge-primary">
+            <span>⏱️</span> {t("speedSchedule.title")} ({scheduleCount})
+            <span
+              className="badge badge-primary"
+              style={{ fontSize: "0.8rem", marginLeft: "0.25rem" }}
+            >
               {t("speedSchedule.bandwidthRules")}
             </span>
-          </div>
-          <div
+          </h1>
+          <p
             style={{
-              fontSize: "0.8rem",
-              color: "var(--text-muted)",
-              marginTop: "0.2rem",
+              color: "var(--text-muted, #888)",
+              margin: "0.25rem 0 0 0",
+              fontSize: "0.9rem",
             }}
           >
             {t("speedSchedule.subtitle")}
-          </div>
+          </p>
         </div>
 
-        <div className="page-header-actions">
+        <div>
           <button
             className="btn btn-primary"
             onClick={() => setModal({ ...EMPTY_SCHEDULE })}

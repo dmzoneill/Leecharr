@@ -242,6 +242,59 @@ export const Dashboard: React.FC<DashboardProps> = ({
       className="dashboard-page"
       style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
     >
+      {/* Header Banner */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "0.25rem",
+          flexWrap: "wrap",
+          gap: "1rem",
+        }}
+      >
+        <div>
+          <h1
+            style={{
+              fontSize: "1.75rem",
+              fontWeight: 700,
+              margin: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
+          >
+            <span>⚡</span> {t("dashboard.title", "Dashboard")}
+          </h1>
+          <p
+            style={{
+              color: "var(--text-muted, #888)",
+              margin: "0.25rem 0 0 0",
+              fontSize: "0.9rem",
+            }}
+          >
+            {t(
+              "dashboard.subtitle",
+              "Real-time overview of torrent engine, network throughput, and storage telemetry",
+            )}
+          </p>
+        </div>
+
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+          <button
+            className="btn btn-secondary"
+            onClick={onNavigateTorrents}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.35rem",
+            }}
+          >
+            <span>📥</span> {t("nav.torrents")} ({torrents.length})
+          </button>
+        </div>
+      </div>
+
       {/* Setup & System Health Guidance Alerts */}
       <HealthAlerts />
 

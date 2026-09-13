@@ -105,57 +105,64 @@ export function SystemLogs() {
   }, [filteredEntries, autoScroll]);
 
   return (
-    <div className="content-area system-logs-page">
+    <div className="content-area system-logs-page" style={{ padding: "1.5rem" }}>
       {/* Page Header */}
       <div
-        className="page-header"
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: "0.85rem",
+          marginBottom: "1.5rem",
+          flexWrap: "wrap",
+          gap: "1rem",
           flexShrink: 0,
         }}
       >
-        <div className="page-header-group">
-          <div
-            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+        <div>
+          <h1
+            style={{
+              fontSize: "1.75rem",
+              fontWeight: 700,
+              margin: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
           >
-            <h1 className="page-heading" style={{ margin: 0 }}>
-              {t("system.logsTitle")}
-            </h1>
-            <span className="badge badge-primary">
+            <span>📋</span> {t("system.logsTitle")}
+            <span
+              className="badge badge-primary"
+              style={{ fontSize: "0.8rem", marginLeft: "0.25rem" }}
+            >
               {activeTab === "live"
                 ? t("system.liveStream")
                 : t("system.diskFiles")}
             </span>
-          </div>
-          <div
+          </h1>
+          <p
             style={{
-              fontSize: "0.8rem",
-              color: "var(--text-muted)",
-              marginTop: "0.2rem",
+              color: "var(--text-muted, #888)",
+              margin: "0.25rem 0 0 0",
+              fontSize: "0.9rem",
             }}
           >
             {t("system.logsSubtitle")}
-          </div>
+          </p>
         </div>
 
         {/* View Switcher Tabs */}
         <div style={{ display: "flex", gap: "0.5rem" }}>
           <button
             type="button"
-            className={`btn btn-small ${activeTab === "live" ? "btn-primary" : "btn-outline"}`}
+            className={`btn ${activeTab === "live" ? "btn-primary" : "btn-secondary"}`}
             onClick={() => setActiveTab("live")}
-            style={{ fontSize: "0.8rem" }}
           >
             {t("system.liveStream")}
           </button>
           <button
             type="button"
-            className={`btn btn-small ${activeTab === "files" ? "btn-primary" : "btn-outline"}`}
+            className={`btn ${activeTab === "files" ? "btn-primary" : "btn-secondary"}`}
             onClick={() => setActiveTab("files")}
-            style={{ fontSize: "0.8rem" }}
           >
             {t("system.diskFiles")}
           </button>
