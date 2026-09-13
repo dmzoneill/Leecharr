@@ -36,7 +36,8 @@ public class AppLifetimeServices : IAppLifetimeServices
         IAppFolderInfo appFolderInfo = null,
         ICategoryService categoryService = null,
         IProwlarrSyncService prowlarrSyncService = null,
-        IManageCommandQueue commandQueueManager = null)
+        IManageCommandQueue commandQueueManager = null,
+        NzbDrone.Core.Datastore.IDatabase database = null)
     {
         this.ConfigService = configService;
         this.EventAggregator = eventAggregator;
@@ -55,6 +56,7 @@ public class AppLifetimeServices : IAppLifetimeServices
         this.CategoryService = categoryService;
         this.ProwlarrSyncService = prowlarrSyncService;
         this.CommandQueueManager = commandQueueManager;
+        this.Database = database;
     }
 
     public IConfigService ConfigService { get; }
@@ -90,4 +92,6 @@ public class AppLifetimeServices : IAppLifetimeServices
     public IProwlarrSyncService ProwlarrSyncService { get; }
 
     public IManageCommandQueue CommandQueueManager { get; }
+
+    public NzbDrone.Core.Datastore.IDatabase Database { get; }
 }
