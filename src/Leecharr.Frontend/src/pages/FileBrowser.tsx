@@ -568,7 +568,7 @@ export function FileBrowser() {
           padding: "0.55rem 0.85rem",
           backgroundColor: "var(--bg-card, #171b35)",
           borderRadius: "8px",
-          border: "1px solid var(--border-light, #1c203b)",
+          border: "1px solid var(--border-light)",
           fontSize: "0.85rem",
           overflowX: "auto",
         }}
@@ -728,7 +728,7 @@ export function FileBrowser() {
                 alignItems: "center",
                 justifyContent: "space-between",
                 padding: "1rem 1.25rem",
-                borderBottom: "1px solid var(--border, #23284B)",
+                borderBottom: "1px solid var(--border)",
               }}
             >
               <div

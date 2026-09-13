@@ -1065,7 +1065,7 @@ const TorrentTableRow = React.memo<TorrentTableRowProps>(
             : isChecked
               ? "rgba(255, 209, 102, 0.05)"
               : "transparent",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
+          borderBottom: "1px solid var(--border-light)",
           fontSize: "0.82rem",
         }}
       >
@@ -1779,7 +1779,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
           padding: "0.4rem 0.75rem",
           gap: "0.5rem",
           backgroundColor: "var(--bg-secondary, #171b35)",
-          borderBottom: "1px solid var(--border-light, #1c203b)",
+          borderBottom: "1px solid var(--border-light)",
           fontSize: "0.8rem",
         }}
       >
@@ -1820,7 +1820,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
               zIndex: 100,
               padding: "1rem",
               backgroundColor: "var(--bg-card, #171b35)",
-              border: "1px solid var(--border, #23284b)",
+              border: "1px solid var(--border)",
               boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
               borderRadius: "8px",
               maxHeight: "350px",
@@ -1879,7 +1879,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                 top: 0,
                 backgroundColor: "var(--bg-primary, #10111a)",
                 zIndex: 2,
-                borderBottom: "1px solid var(--border-light, #1c203b)",
+                borderBottom: "1px solid var(--border-light)",
               }}
             >
               {onToggleSelect && onSelectAll && (

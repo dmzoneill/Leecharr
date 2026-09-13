@@ -142,7 +142,7 @@ function SystemUpdates() {
                 style={{
                   padding: "1.25rem 1.5rem",
                   borderRadius: "8px",
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  border: "1px solid var(--border-light)",
                   boxShadow:
                     "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
                 }}
@@ -153,7 +153,7 @@ function SystemUpdates() {
                     alignItems: "center",
                     gap: "0.75rem",
                     marginBottom: "1rem",
-                    borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
+                    borderBottom: "1px solid var(--border-light)",
                     paddingBottom: "0.75rem",
                   }}
                 >

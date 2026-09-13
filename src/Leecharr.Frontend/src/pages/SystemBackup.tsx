@@ -224,7 +224,7 @@ function SystemBackup() {
         className="card"
         style={{
           borderRadius: "8px",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
+          border: "1px solid var(--border-light)",
           boxShadow:
             "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
           padding: 0,
@@ -234,7 +234,7 @@ function SystemBackup() {
         <div
           style={{
             padding: "1.1rem 1.25rem 0.85rem",
-            borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
+            borderBottom: "1px solid var(--border-light)",
           }}
         >
           <h2
@@ -346,7 +346,7 @@ function SystemBackup() {
               maxWidth: 450,
               borderRadius: "8px",
               boxShadow: "0 16px 40px rgba(0,0,0,0.7)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
+              border: "1px solid var(--border)",
             }}
           >
             <h3
@@ -405,7 +405,7 @@ function SystemBackup() {
               maxWidth: 500,
               borderRadius: "8px",
               boxShadow: "0 16px 40px rgba(0,0,0,0.7)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
+              border: "1px solid var(--border)",
             }}
           >
             <h3

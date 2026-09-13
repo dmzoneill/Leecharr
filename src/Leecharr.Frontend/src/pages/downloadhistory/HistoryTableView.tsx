@@ -152,7 +152,7 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
           >
             <tr
               style={{
-                borderBottom: "1px solid var(--border-color, #333)",
+                borderBottom: "1px solid var(--border-light)",
                 textAlign: "left",
               }}
             >

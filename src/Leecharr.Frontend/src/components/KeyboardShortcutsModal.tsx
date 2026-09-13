@@ -169,7 +169,7 @@ export function KeyboardShortcutsModal({
             justifyContent: "space-between",
             padding: "1rem 1.4rem",
             backgroundColor: "var(--bg-primary, #10111a)",
-            borderBottom: "1px solid var(--border-light, #1c203b)",
+            borderBottom: "1px solid var(--border-light)",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
@@ -230,7 +230,7 @@ export function KeyboardShortcutsModal({
                   color: "var(--accent, #ffd166)",
                   marginBottom: "0.6rem",
                   paddingBottom: "0.35rem",
-                  borderBottom: "1px solid var(--border-light, #1c203b)",
+                  borderBottom: "1px solid var(--border-light)",
                 }}
               >
                 <span>{grp.icon}</span>
@@ -255,7 +255,7 @@ export function KeyboardShortcutsModal({
                       padding: "0.5rem 0.75rem",
                       backgroundColor: "var(--bg-primary, #10111a)",
                       borderRadius: "6px",
-                      border: "1px solid var(--border-light, #1c203b)",
+                      border: "1px solid var(--border-light)",
                     }}
                   >
                     <span
@@ -298,7 +298,7 @@ export function KeyboardShortcutsModal({
                               lineHeight: 1,
                               color: "var(--text-primary, #f8f4ed)",
                               backgroundColor: "rgba(255, 255, 255, 0.08)",
-                              border: "1px solid rgba(255, 255, 255, 0.18)",
+                              border: "1px solid var(--border)",
                               borderRadius: "4px",
                               boxShadow: "0 1px 2px rgba(0,0,0,0.3)",
                               fontFamily: "monospace",
@@ -324,7 +324,7 @@ export function KeyboardShortcutsModal({
             justifyContent: "flex-end",
             padding: "0.75rem 1.4rem",
             backgroundColor: "var(--bg-primary, #10111a)",
-            borderTop: "1px solid var(--border-light, #1c203b)",
+            borderTop: "1px solid var(--border-light)",
           }}
         >
           <button
