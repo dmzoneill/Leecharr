@@ -563,8 +563,15 @@ export function App() {
         msg.name === "speedscheduleAdded" ||
         msg.name === "speedscheduleUpdated" ||
         msg.name === "speedscheduleDeleted" ||
-        msg.name === "subsystemSwitched"
+        msg.name === "subsystemSwitched" ||
+        msg.name === "AutomationExecuted" ||
+        msg.name === "AutomationTriggerEvaluated" ||
+        msg.name?.toLowerCase().includes("automation")
       ) {
+        if (msg.name?.toLowerCase().includes("automation") || msg.name === "AutomationExecuted" || msg.name === "AutomationTriggerEvaluated") {
+          queryClient.invalidateQueries({ queryKey: ["automation", "scripts"] });
+          queryClient.invalidateQueries({ queryKey: ["automation"] });
+        }
         if (
           msg.name === "torrentDeleted" ||
           (msg.name === "torrent" && (msg.action as unknown) === "Deleted")
