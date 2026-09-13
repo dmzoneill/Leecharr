@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.7.4](https://github.com/dmzoneill/Leecharr/releases/tag/v1.7.4) - 2026-09-13
+
+### 🐛 Bug Fixes
+- fix(ui): expand code editor textarea with full width, monospace typography, minHeight, and tab indentation
+- fix(ui): polish automation modal layout, form controls, padding, and field sizing
+
 ## [v1.7.3](https://github.com/dmzoneill/Leecharr/releases/tag/v1.7.3) - 2026-09-13
 
 ### 🐛 Bug Fixes
