@@ -47,4 +47,8 @@ public class TorznabSearchResult
     public string DetailsUrl { get; set; }
 
     public string Comments { get; set; }
+
+    public int? ResponseTotal { get; set; }
+
+    public int? ResponseOffset { get; set; }
 }
