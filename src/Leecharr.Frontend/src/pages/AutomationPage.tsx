@@ -889,14 +889,14 @@ export function AutomationPage() {
   const [simModalOpen, setSimModalOpen] = useState(false);
   const [simTargetScriptId, setSimTargetScriptId] = useState<number | "">("");
   const [simLogs, setSimLogs] = useState<string[]>([]);
-  
+
   function runClientSimulator() {
     if (!simTargetScriptId) return;
     const script = scriptList.find(s => s.id === simTargetScriptId);
     if (!script) return;
-    
+
     setSimLogs(["[SYSTEM] Starting client-side simulation...", `[SYSTEM] Target: ${script.name}`]);
-    
+
     // Simulate a payload
     const simTorrent = {
       name: "Simulated.Movie.1080p.x264",
@@ -914,26 +914,26 @@ export function AutomationPage() {
       tracker: 'tracker.simulated.net',
       savePath: '/downloads/simulated'
     };
-    
+
     setSimLogs(prev => [...prev, `[EVENT] Simulated payload: ${JSON.stringify(simTorrent)}`]);
-    
+
     if (script.language !== "Yaml" && script.language !== 1) {
       setSimLogs(prev => [...prev, "[ERROR] Client simulator only supports Visual Pipelines (YAML).", "[SYSTEM] Simulation aborted."]);
       return;
     }
-    
+
     const steps = yamlToVisualSteps(script.code || "");
     setSimLogs(prev => [...prev, `[SYSTEM] Parsed ${steps.length} visual steps.`]);
-    
+
     for (let i = 0; i < steps.length; i++) {
       const step = steps[i];
       setSimLogs(prev => [...prev, `\n[STEP ${i+1}] Evaluating: ${step.name}`]);
-      
+
       let matched = true;
       if (step.conditionEnabled) {
         let lValStr = step.conditionLeft;
         let rValStr = step.conditionRight;
-        
+
         // rudimentary substitution
         const resolveVal = (valStr) => {
           if (valStr.includes("${torrent.size}")) return simTorrent.size;
@@ -947,18 +947,18 @@ export function AutomationPage() {
           if (valStr.includes("${torrent.category}")) return `'${simTorrent.category}'`;
           if (valStr.includes("${torrent.name}")) return `'${simTorrent.name}'`;
           if (valStr.includes("${torrent.tracker}")) return `'${simTorrent.tracker}'`;
-          
+
           if (!isNaN(Number(valStr)) && valStr.trim() !== "") return Number(valStr);
           if (valStr === "true") return true;
           if (valStr === "false") return false;
           return valStr;
         };
-        
+
         const lVal = resolveVal(lValStr);
         const rVal = resolveVal(rValStr);
-        
+
         setSimLogs(prev => [...prev, `[CONDITION] ${lValStr} ${step.conditionOp} ${rValStr} -> ${lVal} ${step.conditionOp} ${rVal}`]);
-        
+
         if (step.conditionOp === "==") matched = lVal == rVal;
         else if (step.conditionOp === "!=") matched = lVal != rVal;
         else if (step.conditionOp === ">") matched = lVal > rVal;
@@ -966,7 +966,7 @@ export function AutomationPage() {
         else if (step.conditionOp === ">=") matched = lVal >= rVal;
         else if (step.conditionOp === "<=") matched = lVal <= rVal;
       }
-      
+
       if (matched) {
         setSimLogs(prev => [...prev, `[MATCH] Step '${step.name}' matched. Dispatching ${step.actions.length} actions...`]);
         for (const act of step.actions) {
@@ -976,7 +976,7 @@ export function AutomationPage() {
         setSimLogs(prev => [...prev, `[SKIP] Step '${step.name}' condition failed.`]);
       }
     }
-    
+
     setSimLogs(prev => [...prev, "\n[SYSTEM] Simulation complete."]);
   }
 
@@ -2363,7 +2363,7 @@ if (torrent) {
                                   };
                                   const val = act.value || "";
                                   const extra = act.extra || {};
-                                  
+
                                   if (act.type === "command") {
                                     return (
                                       <select className="form-control" style={{ flex: 1, minWidth: "180px" }} value={val} onChange={(e) => updateAct(e.target.value)}>
@@ -2626,7 +2626,7 @@ if (torrent) {
                                     const url = val.split('|')[1] || "";
                                     const body = val.split('|')[2] || "";
                                     const chips = ["${torrent.hash}", "${torrent.name}", "${torrent.category}", "${torrent.size}"];
-                                    
+
                                     return (
                                       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: "220px", borderLeft: `3px solid ${methodColors[m] || "#888"}`, paddingLeft: "0.5rem" }}>
                                         <div style={{ display: "flex", gap: "0.5rem" }}>
@@ -2639,7 +2639,7 @@ if (torrent) {
                                           </select>
                                           <input type="text" className="form-control" style={{ flex: 1 }} placeholder="https://api.example.com/webhook" value={url} onChange={(e) => updateAct(`${m}|${e.target.value}|${body}`)} />
                                         </div>
-                                        
+
                                         <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap", alignItems: "center" }}>
                                           <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginRight: "0.2rem" }}>Insert:</span>
                                           {chips.map(c => <button key={c} type="button" className="btn btn-secondary" style={{ fontSize: "0.7rem", padding: "0.15rem 0.45rem" }} onClick={() => updateAct(`${m}|${url + c}|${body}`)}>{c}</button>)}
@@ -2653,7 +2653,7 @@ if (torrent) {
                                             </div>
                                           </div>
                                         )}
-                                        
+
                                         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.25rem" }}>
                                           <select className="form-control" style={{ width: "140px", fontSize: "0.8rem", padding: "0.2rem" }} value={extra.auth || "none"} onChange={(e) => updateExtra("auth", e.target.value)}>
                                             <option value="none">No Auth</option>
@@ -3043,7 +3043,7 @@ if (torrent) {
               <h3 style={{ margin: 0, fontSize: "1.25rem", fontWeight: 700 }}>🧪 Client-Side Pipeline Simulator</h3>
               <button type="button" className="btn btn-sm btn-secondary" style={{ width: "32px", height: "32px", padding: 0 }} onClick={() => setSimModalOpen(false)}>✕</button>
             </div>
-            
+
             <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem" }}>
               <select className="form-control" style={{ flex: 1 }} value={simTargetScriptId} onChange={(e) => setSimTargetScriptId(Number(e.target.value))}>
                 <option value="">Select a pipeline to simulate...</option>
@@ -3053,7 +3053,7 @@ if (torrent) {
               </select>
               <button className="btn btn-primary" onClick={runClientSimulator} disabled={!simTargetScriptId}>▶️ Run Simulation Trace</button>
             </div>
-            
+
             <pre style={{
               backgroundColor: "#000",
               color: "#34d399",
