@@ -70,7 +70,7 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
                 new { TorrentId = torrentId }));
     }
 
-    public List<DownloadHistory> GetHistory(string query = null, string status = null, int limit = 500)
+    public List<DownloadHistory> GetHistory(string query = null, string status = null, int limit = 500, int offset = 0)
     {
         var sql = new StringBuilder($"SELECT * FROM \"{this.table}\" WHERE 1=1");
         var parameters = new DynamicParameters();
@@ -95,8 +95,25 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
             parameters.Add("Limit", limit);
         }
 
+        if (offset > 0)
+        {
+            if (limit <= 0)
+            {
+                sql.Append(" LIMIT -1");
+            }
+
+            sql.Append(" OFFSET @Offset");
+            parameters.Add("Offset", offset);
+        }
+
         return this.ExecuteWithRetry(connection =>
             connection.Query<DownloadHistory>(sql.ToString(), parameters).ToList());
+    }
+
+    public void DeleteOlderThan(System.DateTime cutoffDate)
+    {
+        this.ExecuteWithRetry(connection =>
+            connection.Execute($"DELETE FROM \"{this.table}\" WHERE \"DateAdded\" < @Cutoff", new { Cutoff = cutoffDate }));
     }
 
     public void DeleteAll()

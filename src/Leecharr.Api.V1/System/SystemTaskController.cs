@@ -14,6 +14,7 @@ using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Network;
 using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Network.GeoIp;
+using NzbDrone.Core.Torrents;
 using NzbDrone.Core.WatchFolder;
 
 namespace Leecharr.Api.V1.System;
@@ -171,6 +172,11 @@ public class SystemTaskController : Controller
                  string.Equals(name, "GeoIpUpdateTask", StringComparison.OrdinalIgnoreCase))
         {
             this.commandQueueManager?.Push(new GeoIpUpdateCommand(), CommandTrigger.Manual);
+        }
+        else if (string.Equals(name, "DownloadHistoryCleanup", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "DownloadHistoryCleanupTask", StringComparison.OrdinalIgnoreCase))
+        {
+            this.commandQueueManager?.Push(new DownloadHistoryCleanupCommand(), CommandTrigger.Manual);
         }
         else
         {

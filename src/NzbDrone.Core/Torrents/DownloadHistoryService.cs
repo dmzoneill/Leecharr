@@ -20,7 +20,7 @@ using NzbDrone.Core.Trackers;
 
 namespace NzbDrone.Core.Torrents;
 
-public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAddedEvent>, IHandle<TorrentDeletedEvent>
+public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAddedEvent>, IHandle<TorrentDeletedEvent>, IHandle<TorrentDownloadCompletedEvent>, IHandle<TorrentStatusChangedEvent>
 {
     private readonly IDownloadHistoryRepository historyRepository;
     private readonly ITorrentRepository torrentRepository;
@@ -91,9 +91,9 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
     {
     }
 
-    public List<DownloadHistory> GetAll(string query = null, string status = null, int limit = 500)
+    public List<DownloadHistory> GetAll(string query = null, string status = null, int limit = 500, int offset = 0)
     {
-        return this.historyRepository.GetHistory(query, status, limit);
+        return this.historyRepository.GetHistory(query, status, limit, offset);
     }
 
     public DownloadHistory Get(int id)
@@ -116,6 +116,17 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
     {
         this.logger.Info("Clearing all download history entries");
         this.historyRepository.DeleteAll();
+    }
+
+    public void PruneHistory(int retentionDays)
+    {
+        if (retentionDays <= 0)
+        {
+            return;
+        }
+
+        var cutoff = DateTime.UtcNow.AddDays(-retentionDays);
+        this.historyRepository.DeleteOlderThan(cutoff);
     }
 
     public DownloadHistory RecordTorrentAdded(
@@ -725,6 +736,50 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         {
             this.RecordTorrentRemoved(message.Torrent, "Deleted from active library");
             return;
+        }
+    }
+
+    public void Handle(TorrentDownloadCompletedEvent message)
+    {
+        if (message?.Torrent == null)
+        {
+            return;
+        }
+
+        var history = this.historyRepository.FindByInfoHash(message.Torrent.InfoHash);
+        if (history != null)
+        {
+            history.Status = "Completed";
+            history.DateCompleted = DateTime.UtcNow;
+            history.Downloaded = message.Torrent.Downloaded;
+            history.Uploaded = message.Torrent.Uploaded;
+            history.Ratio = message.Torrent.Ratio;
+            this.historyRepository.Update(history);
+        }
+    }
+
+    public void Handle(TorrentStatusChangedEvent message)
+    {
+        if (message?.Torrent == null)
+        {
+            return;
+        }
+
+        var history = this.historyRepository.FindByInfoHash(message.Torrent.InfoHash);
+        if (history != null)
+        {
+            if (message.NewStatus == TorrentStatus.Error || message.NewStatus == TorrentStatus.Paused || message.NewStatus == TorrentStatus.Seeding)
+            {
+                if (message.NewStatus == TorrentStatus.Seeding && history.DateCompleted == null)
+                {
+                    history.DateCompleted = DateTime.UtcNow;
+                }
+
+                history.Uploaded = message.Torrent.Uploaded;
+                history.Downloaded = message.Torrent.Downloaded;
+                history.Ratio = message.Torrent.Ratio;
+                this.historyRepository.Update(history);
+            }
         }
     }
 }

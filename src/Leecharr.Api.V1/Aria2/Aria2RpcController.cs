@@ -454,7 +454,9 @@ public class Aria2RpcController : ControllerBase
             "aria2.getglobaloption" => this.GetGlobalOptions(),
             "aria2.getoption" => this.HandleGetOption(cleanParams),
             "aria2.changeposition" => await this.HandleChangePositionAsync(cleanParams),
+            "aria2.changeuri" => this.HandleChangeUri(cleanParams),
             "aria2.changeoption" or "aria2.changeglobaloption" => await this.HandleChangeOptionAsync(cleanParams),
+            "aria2.shutdown" or "aria2.forceshutdown" => "OK",
             "system.multicall" => await this.HandleSystemMulticallAsync(cleanParams),
             "system.listmethods" => SupportedMethods,
             _ => throw new InvalidOperationException($"Method {method} is not supported."),
@@ -661,6 +663,24 @@ public class Aria2RpcController : ControllerBase
         }
 
         return 0;
+    }
+
+    private object HandleChangeUri(List<JsonElement> cleanParams)
+    {
+        var deletedCount = 0;
+        var addedCount = 0;
+
+        if (cleanParams.Count >= 3 && cleanParams[2].ValueKind == JsonValueKind.Array)
+        {
+            deletedCount = cleanParams[2].GetArrayLength();
+        }
+
+        if (cleanParams.Count >= 4 && cleanParams[3].ValueKind == JsonValueKind.Array)
+        {
+            addedCount = cleanParams[3].GetArrayLength();
+        }
+
+        return new[] { deletedCount, addedCount };
     }
 
     private async Task<object> HandleChangeOptionAsync(List<JsonElement> cleanParams)
@@ -900,11 +920,39 @@ public class Aria2RpcController : ControllerBase
 
                 return new XElement("int", 0);
 
+            case "aria2.changeuri":
+                var delCount = 0;
+                var addCount = 0;
+                var paramList = xmlDoc?.Root?.Element("params")?.Elements("param").ToList();
+                if (paramList != null)
+                {
+                    if (paramList.Count >= 3 && paramList[2].Element("value")?.Element("array")?.Element("data") is XElement delData)
+                    {
+                        delCount = delData.Elements("value").Count();
+                    }
+
+                    if (paramList.Count >= 4 && paramList[3].Element("value")?.Element("array")?.Element("data") is XElement addData)
+                    {
+                        addCount = addData.Elements("value").Count();
+                    }
+                }
+
+                return new XElement(
+                    "array",
+                    new XElement(
+                        "data",
+                        new XElement("value", new XElement("int", delCount)),
+                        new XElement("value", new XElement("int", addCount))));
+
             case "aria2.changeoption":
             case "aria2.changeglobaloption":
                 var optDict = GetXmlRpcStructOptions(xmlDoc);
                 var changeGid = stringParams.Count > 0 ? stringParams[0] : null;
                 await this.ApplyOptionsAsync(changeGid, optDict);
+                return new XElement("string", "OK");
+
+            case "aria2.shutdown":
+            case "aria2.forceshutdown":
                 return new XElement("string", "OK");
 
             case "system.multicall":
