@@ -167,7 +167,30 @@ public class FileBrowserController : Controller
         }
 
         var fileName = Path.GetFileName(fullPath);
-        return this.PhysicalFile(fullPath, "application/octet-stream", fileName, enableRangeProcessing: true);
+        var ext = Path.GetExtension(fullPath)?.TrimStart('.').ToLowerInvariant();
+        var contentType = ext switch
+        {
+            "mp4" => "video/mp4",
+            "mkv" => "video/x-matroska",
+            "webm" => "video/webm",
+            "avi" => "video/x-msvideo",
+            "mov" => "video/quicktime",
+            "mp3" => "audio/mpeg",
+            "flac" => "audio/flac",
+            "wav" => "audio/wav",
+            "ogg" => "audio/ogg",
+            "m4a" => "audio/mp4",
+            "aac" => "audio/aac",
+            "opus" => "audio/opus",
+            "jpg" or "jpeg" => "image/jpeg",
+            "png" => "image/png",
+            "gif" => "image/gif",
+            "webp" => "image/webp",
+            "svg" => "image/svg+xml",
+            _ => "application/octet-stream"
+        };
+
+        return this.PhysicalFile(fullPath, contentType, fileName, enableRangeProcessing: true);
     }
 
     [HttpGet("preview")]
@@ -191,6 +214,8 @@ public class FileBrowserController : Controller
 
         var isText = ext is "txt" or "nfo" or "log" or "srt" or "vtt" or "sub" or "ass" or "json" or "xml" or "yml" or "yaml" or "md" or "ini" or "conf" or "cfg" or "sh" or "bat" or "py" or "csv" or "torrent";
         var isImage = ext is "jpg" or "jpeg" or "png" or "gif" or "webp" or "svg" or "bmp" or "ico";
+        var isVideo = ext is "mp4" or "mkv" or "webm" or "avi" or "mov" or "m4v" or "ogv" or "ts";
+        var isAudio = ext is "mp3" or "flac" or "wav" or "ogg" or "m4a" or "aac" or "opus" or "wma";
 
         if (isText)
         {
@@ -218,6 +243,32 @@ public class FileBrowserController : Controller
             return this.Ok(new
             {
                 Type = "image",
+                Name = fileInfo.Name,
+                Path = fullPath,
+                Size = fileInfo.Length,
+                Extension = ext,
+                DownloadUrl = $"/api/v1/files/download?path={Uri.EscapeDataString(path)}",
+            });
+        }
+
+        if (isVideo)
+        {
+            return this.Ok(new
+            {
+                Type = "video",
+                Name = fileInfo.Name,
+                Path = fullPath,
+                Size = fileInfo.Length,
+                Extension = ext,
+                DownloadUrl = $"/api/v1/files/download?path={Uri.EscapeDataString(path)}",
+            });
+        }
+
+        if (isAudio)
+        {
+            return this.Ok(new
+            {
+                Type = "audio",
                 Name = fileInfo.Name,
                 Path = fullPath,
                 Size = fileInfo.Length,
