@@ -271,7 +271,7 @@ export const getConditionProperties = (t: any): PropertyDef[] => [
 
   // Numbers & Metrics
   {
-    value: "${sampleTorrent?.size}",
+    value: "${torrent.size}",
     label: t("automation.conditions.torrentSizeBytes"),
     group: t("automation.conditions.numbersMetrics"),
     type: "number",
@@ -393,7 +393,7 @@ export const getConditionProperties = (t: any): PropertyDef[] => [
 
   // Text & Details
   {
-    value: "${sampleTorrent?.name}",
+    value: "${torrent.name}",
     label: t("automation.conditions.torrentNameTitle"),
     group: t("automation.conditions.textDetails"),
     type: "string",
@@ -633,7 +633,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
         id: "step-1",
         name: "Check and Tag",
         conditionEnabled: true,
-        conditionLeft: "${sampleTorrent?.size}",
+        conditionLeft: "${torrent.size}",
         conditionOp: ">",
         conditionRight: "1000000000",
         hasHttp: false,
@@ -664,7 +664,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
         id: `step-${steps.length + 1}-${Date.now()}`,
         name: nameMatch ? nameMatch[1] : "Step",
         conditionEnabled: false,
-        conditionLeft: "${sampleTorrent?.size}",
+        conditionLeft: "${torrent.size}",
         conditionOp: ">",
         conditionRight: "1000000000",
         hasHttp: false,
@@ -682,7 +682,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
         if (opMatch) {
           const op = opMatch[1] as any;
           const parts = expr.split(op);
-          currentStep.conditionLeft = parts[0]?.trim() || "${sampleTorrent?.size}";
+          currentStep.conditionLeft = parts[0]?.trim() || "${torrent.size}";
           currentStep.conditionOp = op;
           currentStep.conditionRight = parts[1]?.trim() || "0";
         } else {
@@ -842,7 +842,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
           id: "step-default",
           name: "Action Step",
           conditionEnabled: false,
-          conditionLeft: "${sampleTorrent?.size}",
+          conditionLeft: "${torrent.size}",
           conditionOp: ">",
           conditionRight: "0",
           hasHttp: false,
@@ -1010,7 +1010,7 @@ export function AutomationPage() {
         id: "step-1",
         name: "Filter Large Torrents",
         conditionEnabled: true,
-        conditionLeft: "${sampleTorrent?.size}",
+        conditionLeft: "${torrent.size}",
         conditionOp: ">",
         conditionRight: "5000000000",
         hasHttp: false,
@@ -1720,7 +1720,7 @@ if (torrent) {
                           id: `step-${visualSteps.length + 1}-${Date.now()}`,
                           name: `Step ${visualSteps.length + 1}`,
                           conditionEnabled: false,
-                          conditionLeft: "${sampleTorrent?.size}",
+                          conditionLeft: "${torrent.size}",
                           conditionOp: ">",
                           conditionRight: "1000000000",
                           hasHttp: false,
@@ -2420,7 +2420,7 @@ if (torrent) {
                                     <textarea
                                       className="form-control"
                                       style={{ minHeight: "80px", fontFamily: "monospace", fontSize: "0.85rem" }}
-                                      placeholder={`{"event": "complete", "torrent": "\${sampleTorrent?.name}", "size": \${sampleTorrent?.size}}`}
+                                      placeholder={`{"event": "complete", "torrent": "\${torrent.name}", "size": \${torrent.size}}`}
                                       value={act.extra?.body || ""}
                                       onChange={(e) => {
                                         const copy = [...visualSteps];
@@ -2438,7 +2438,7 @@ if (torrent) {
                                           e.preventDefault();
                                           const copy = [...visualSteps];
                                           if (!copy[stepIdx].actions[actIdx].extra) copy[stepIdx].actions[actIdx].extra = {};
-                                          copy[stepIdx].actions[actIdx].extra!.body = '{\n  "event": "complete",\n  "torrent": "${sampleTorrent?.name}",\n  "size": ${sampleTorrent?.size},\n  "hash": "${torrent.infoHash}"\n}';
+                                          copy[stepIdx].actions[actIdx].extra!.body = '{\n  "event": "complete",\n  "torrent": "${torrent.name}",\n  "size": ${torrent.size},\n  "hash": "${torrent.infoHash}"\n}';
                                           updateVisualSteps(copy);
                                         }}
                                       >
