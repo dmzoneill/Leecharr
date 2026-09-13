@@ -6,6 +6,7 @@ import {
   useCreateBackup,
   useDeleteBackup,
   useRestoreBackup,
+  useGeneralConfig,
 } from "../api/hooks";
 import { useToast } from "../context/ToastContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
@@ -90,6 +91,7 @@ function TrashIcon() {
 function SystemBackup() {
   const { t } = useTranslation();
   const { data: backups, isLoading, isError } = useBackups();
+  const { data: generalConfig } = useGeneralConfig();
   const createBackup = useCreateBackup();
   const deleteBackup = useDeleteBackup();
   const restoreBackup = useRestoreBackup();
@@ -97,6 +99,13 @@ function SystemBackup() {
 
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [confirmRestore, setConfirmRestore] = useState<Backup | null>(null);
+
+  const getDownloadUrl = (backupId: number) => {
+    const urlBase = (generalConfig?.urlBase || (typeof window !== "undefined" && (window as any).Leecharr?.urlBase) || "").replace(/\/+$/, "");
+    const apiKey = generalConfig?.apiKey || "";
+    const base = `${urlBase}/api/v1/backup/${backupId}/download`;
+    return apiKey ? `${base}?apikey=${encodeURIComponent(apiKey)}` : base;
+  };
 
   useEscapeKey(() => setConfirmDelete(null), confirmDelete !== null);
   useEscapeKey(() => setConfirmRestore(null), confirmRestore !== null);
@@ -290,7 +299,7 @@ function SystemBackup() {
                   <tr key={backup.id} className="torrent-table-row">
                     <td>
                       <a
-                        href={`${typeof window !== "undefined" && (window as any).Leecharr?.urlBase ? (window as any).Leecharr.urlBase.replace(/\/+$/, "") : ""}/api/v1/backup/${backup.id}/download`}
+                        href={getDownloadUrl(backup.id)}
                         className="torrent-link"
                         download
                         style={{
