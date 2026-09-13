@@ -58,6 +58,183 @@ const COMMON_COMMANDS = [
   { name: "RssSync", desc: "Poll RSS indexers for releases" },
 ];
 
+export interface PropertyDef {
+  value: string;
+  label: string;
+  group: string;
+  type: "boolean" | "enum" | "category" | "number" | "string" | "custom";
+  options?: { value: string; label: string }[];
+  defaultOp?: ">" | "<" | ">=" | "<=" | "==" | "!=";
+  placeholder?: string;
+}
+
+export const CONDITION_PROPERTIES: PropertyDef[] = [
+  // Booleans & Flags
+  {
+    value: "${torrent.isPrivate}",
+    label: "🔒 Is Private Tracker",
+    group: "Booleans & Flags",
+    type: "boolean",
+    options: [
+      { value: "true", label: "True (Private Tracker / On)" },
+      { value: "false", label: "False (Public Tracker / Off)" },
+    ],
+    defaultOp: "==",
+  },
+  {
+    value: "${torrent.isComplete}",
+    label: "✅ Is Download Completed",
+    group: "Booleans & Flags",
+    type: "boolean",
+    options: [
+      { value: "true", label: "True (Completed / 100% / Finished)" },
+      { value: "false", label: "False (Incomplete / Downloading)" },
+    ],
+    defaultOp: "==",
+  },
+  {
+    value: "${system.vpnActive}",
+    label: "🛡️ VPN Active / Protected",
+    group: "Booleans & Flags",
+    type: "boolean",
+    options: [
+      { value: "true", label: "True (VPN Protected / Connected)" },
+      { value: "false", label: "False (VPN Down / KillSwitch)" },
+    ],
+    defaultOp: "==",
+  },
+  {
+    value: "${system.isPortForwarded}",
+    label: "🌐 Port Forwarded / Open",
+    group: "Booleans & Flags",
+    type: "boolean",
+    options: [
+      { value: "true", label: "True (Port Open)" },
+      { value: "false", label: "False (Port Closed)" },
+    ],
+    defaultOp: "==",
+  },
+
+  // Status & Categories
+  {
+    value: "${torrent.status}",
+    label: "🔄 Torrent State / Status",
+    group: "Status & Categories",
+    type: "enum",
+    options: [
+      { value: "'Downloading'", label: "Downloading" },
+      { value: "'Seeding'", label: "Seeding" },
+      { value: "'Paused'", label: "Paused" },
+      { value: "'Stopped'", label: "Stopped" },
+      { value: "'Queued'", label: "Queued" },
+      { value: "'Checking'", label: "Checking" },
+      { value: "'Error'", label: "Error" },
+    ],
+    defaultOp: "==",
+  },
+  {
+    value: "${torrent.category}",
+    label: "📁 Category Name",
+    group: "Status & Categories",
+    type: "category",
+    defaultOp: "==",
+    placeholder: "e.g. 'Movies' or 'TV'",
+  },
+
+  // Numbers & Metrics
+  {
+    value: "${torrent.size}",
+    label: "💾 Torrent Size (bytes)",
+    group: "Numbers & Metrics",
+    type: "number",
+    defaultOp: ">",
+    placeholder: "e.g. 5368709120 (5 GB)",
+  },
+  {
+    value: "${torrent.ratio}",
+    label: "🎯 Share Ratio",
+    group: "Numbers & Metrics",
+    type: "number",
+    defaultOp: ">=",
+    placeholder: "e.g. 1.0 or 2.5",
+  },
+  {
+    value: "${torrent.progress}",
+    label: "📈 Progress (%)",
+    group: "Numbers & Metrics",
+    type: "number",
+    defaultOp: ">=",
+    placeholder: "e.g. 100 or 50",
+  },
+  {
+    value: "${torrent.downloadSpeed}",
+    label: "⬇️ Download Speed (B/s)",
+    group: "Numbers & Metrics",
+    type: "number",
+    defaultOp: ">",
+    placeholder: "e.g. 10485760 (10 MB/s)",
+  },
+  {
+    value: "${torrent.uploadSpeed}",
+    label: "⬆️ Upload Speed (B/s)",
+    group: "Numbers & Metrics",
+    type: "number",
+    defaultOp: ">",
+    placeholder: "e.g. 5242880 (5 MB/s)",
+  },
+  {
+    value: "${torrent.seeders}",
+    label: "🌱 Seeders Count",
+    group: "Numbers & Metrics",
+    type: "number",
+    defaultOp: "<",
+    placeholder: "e.g. 3",
+  },
+  {
+    value: "${torrent.leechers}",
+    label: "👥 Leechers Count",
+    group: "Numbers & Metrics",
+    type: "number",
+    defaultOp: ">",
+    placeholder: "e.g. 10",
+  },
+
+  // Text & Details
+  {
+    value: "${torrent.name}",
+    label: "📝 Torrent Name / Title",
+    group: "Text & Details",
+    type: "string",
+    defaultOp: "==",
+    placeholder: "e.g. '2160p' or 'REPACK'",
+  },
+  {
+    value: "${torrent.tracker}",
+    label: "📡 Tracker URL / Domain",
+    group: "Text & Details",
+    type: "string",
+    defaultOp: "==",
+    placeholder: "e.g. 'tracker.example.com'",
+  },
+  {
+    value: "${torrent.savePath}",
+    label: "📂 Save Path Directory",
+    group: "Text & Details",
+    type: "string",
+    defaultOp: "==",
+    placeholder: "e.g. '/downloads/complete'",
+  },
+
+  // Custom
+  {
+    value: "custom",
+    label: "✏️ Custom Variable / Expression...",
+    group: "Custom / Dynamic",
+    type: "custom",
+    placeholder: "e.g. ${inputs.minRatio} or ${system.freeDiskBytes}",
+  },
+];
+
 const TRIGGER_LABELS: Record<string, string> = {
   // Torrent Lifecycle & Goals
   TorrentAdded: "📥 On Torrent Added",
@@ -1266,58 +1443,181 @@ if (torrent) {
                           Only run this step if condition matches (IF condition)
                         </label>
 
-                        {step.conditionEnabled && (
-                          <div style={{ display: "flex", gap: "0.6rem", marginTop: "0.65rem", alignItems: "center" }}>
-                            <select
-                              className="form-control"
-                              style={{ width: "220px", flexShrink: 0 }}
-                              value={step.conditionLeft}
-                              onChange={(e) => {
-                                const copy = [...visualSteps];
-                                copy[stepIdx].conditionLeft = e.target.value;
-                                updateVisualSteps(copy);
-                              }}
-                            >
-                              <option value="${torrent.size}">Torrent Size (bytes)</option>
-                              <option value="${torrent.ratio}">Torrent Ratio</option>
-                              <option value="${torrent.category}">Category Name</option>
-                              <option value="${torrent.tracker}">Tracker URL</option>
-                              <option value="${torrent.isPrivate}">Is Private Tracker</option>
-                              <option value="${torrent.status}">Status</option>
-                            </select>
+                        {step.conditionEnabled && (() => {
+                          const propDef = CONDITION_PROPERTIES.find((p) => p.value === step.conditionLeft) || {
+                            value: "custom",
+                            label: "Custom",
+                            group: "Custom / Dynamic",
+                            type: "custom" as const,
+                          };
 
-                            <select
-                              className="form-control"
-                              style={{ width: "90px", flexShrink: 0, textAlign: "center", fontWeight: 700 }}
-                              value={step.conditionOp}
-                              onChange={(e) => {
-                                const copy = [...visualSteps];
-                                copy[stepIdx].conditionOp = e.target.value as any;
-                                updateVisualSteps(copy);
-                              }}
-                            >
-                              <option value=">">&gt;</option>
-                              <option value="<">&lt;</option>
-                              <option value=">=">&gt;=</option>
-                              <option value="<=">&lt;=</option>
-                              <option value="==">==</option>
-                              <option value="!=">!=</option>
-                            </select>
+                          const isCustomLeft = !CONDITION_PROPERTIES.some((p) => p.value === step.conditionLeft && p.value !== "custom");
 
-                            <input
-                              type="text"
-                              className="form-control"
-                              style={{ flex: 1 }}
-                              value={step.conditionRight}
-                              onChange={(e) => {
-                                const copy = [...visualSteps];
-                                copy[stepIdx].conditionRight = e.target.value;
-                                updateVisualSteps(copy);
-                              }}
-                              placeholder="e.g. 5000000000 or 'Movies'"
-                            />
-                          </div>
-                        )}
+                          // Determine available options for Right Value
+                          let presetOptions: { value: string; label: string }[] | null = null;
+                          if (propDef.type === "boolean" && propDef.options) {
+                            presetOptions = propDef.options;
+                          } else if (propDef.type === "enum" && propDef.options) {
+                            presetOptions = propDef.options;
+                          } else if (propDef.type === "category") {
+                            presetOptions = (categories || []).map((c) => ({
+                              value: `'${c.name}'`,
+                              label: `📁 ${c.name}`,
+                            }));
+                          }
+
+                          // Check if current value matches one of the preset options
+                          const isRightPresetMatch = presetOptions && presetOptions.some((o) => o.value.toLowerCase() === step.conditionRight.trim().toLowerCase());
+                          const showCustomRightInput = !presetOptions || (!isRightPresetMatch && step.conditionRight.trim() !== "");
+
+                          return (
+                            <div style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                              <div style={{ display: "flex", gap: "0.6rem", alignItems: "center", flexWrap: "wrap" }}>
+                                {/* Left Property Select */}
+                                <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem", flex: isCustomLeft ? 1 : undefined }}>
+                                  <select
+                                    className="form-control"
+                                    style={{ width: isCustomLeft ? "100%" : "230px", flexShrink: 0, fontWeight: 500 }}
+                                    value={isCustomLeft ? "custom" : step.conditionLeft}
+                                    onChange={(e) => {
+                                      const copy = [...visualSteps];
+                                      const newVal = e.target.value;
+                                      if (newVal === "custom") {
+                                        copy[stepIdx].conditionLeft = "${inputs.customProp}";
+                                      } else {
+                                        copy[stepIdx].conditionLeft = newVal;
+                                        const found = CONDITION_PROPERTIES.find((p) => p.value === newVal);
+                                        if (found) {
+                                          if (found.defaultOp) copy[stepIdx].conditionOp = found.defaultOp;
+                                          if (found.type === "boolean" && found.options?.[0]) {
+                                            copy[stepIdx].conditionRight = found.options[0].value;
+                                          } else if (found.type === "enum" && found.options?.[0]) {
+                                            copy[stepIdx].conditionRight = found.options[0].value;
+                                          } else if (found.type === "category" && categories?.[0]) {
+                                            copy[stepIdx].conditionRight = `'${categories[0].name}'`;
+                                          }
+                                        }
+                                      }
+                                      updateVisualSteps(copy);
+                                    }}
+                                  >
+                                    {Array.from(new Set(CONDITION_PROPERTIES.map((p) => p.group))).map((groupName) => (
+                                      <optgroup key={groupName} label={groupName}>
+                                        {CONDITION_PROPERTIES.filter((p) => p.group === groupName).map((p) => (
+                                          <option key={p.value} value={p.value}>
+                                            {p.label}
+                                          </option>
+                                        ))}
+                                      </optgroup>
+                                    ))}
+                                  </select>
+                                  {isCustomLeft && (
+                                    <input
+                                      type="text"
+                                      className="form-control"
+                                      style={{ fontSize: "0.8rem", padding: "0.25rem 0.5rem" }}
+                                      value={step.conditionLeft}
+                                      onChange={(e) => {
+                                        const copy = [...visualSteps];
+                                        copy[stepIdx].conditionLeft = e.target.value;
+                                        updateVisualSteps(copy);
+                                      }}
+                                      placeholder="e.g. ${inputs.myProperty}"
+                                    />
+                                  )}
+                                </div>
+
+                                {/* Operator Select */}
+                                <select
+                                  className="form-control"
+                                  style={{ width: "85px", flexShrink: 0, textAlign: "center", fontWeight: 700 }}
+                                  value={step.conditionOp}
+                                  onChange={(e) => {
+                                    const copy = [...visualSteps];
+                                    copy[stepIdx].conditionOp = e.target.value as any;
+                                    updateVisualSteps(copy);
+                                  }}
+                                >
+                                  <option value="==">==</option>
+                                  <option value="!=">!=</option>
+                                  <option value=">">&gt;</option>
+                                  <option value="<">&lt;</option>
+                                  <option value=">=">&gt;=</option>
+                                  <option value="<=">&lt;=</option>
+                                </select>
+
+                                {/* Right Value: Type-Aware Presets or Custom Input */}
+                                <div style={{ flex: 1, minWidth: "200px", display: "flex", gap: "0.35rem", alignItems: "center" }}>
+                                  {presetOptions && !showCustomRightInput ? (
+                                    <div style={{ display: "flex", gap: "0.35rem", width: "100%", alignItems: "center" }}>
+                                      <select
+                                        className="form-control"
+                                        style={{ flex: 1, fontWeight: 500 }}
+                                        value={step.conditionRight.trim()}
+                                        onChange={(e) => {
+                                          const copy = [...visualSteps];
+                                          if (e.target.value === "__custom__") {
+                                            copy[stepIdx].conditionRight = "";
+                                          } else {
+                                            copy[stepIdx].conditionRight = e.target.value;
+                                          }
+                                          updateVisualSteps(copy);
+                                        }}
+                                      >
+                                        {presetOptions.map((opt) => (
+                                          <option key={opt.value} value={opt.value}>
+                                            {opt.label}
+                                          </option>
+                                        ))}
+                                        <option value="__custom__">✏️ Custom Value / Expression...</option>
+                                      </select>
+                                    </div>
+                                  ) : (
+                                    <div style={{ display: "flex", gap: "0.35rem", width: "100%", alignItems: "center" }}>
+                                      <input
+                                        type="text"
+                                        className="form-control"
+                                        style={{ flex: 1 }}
+                                        value={step.conditionRight}
+                                        onChange={(e) => {
+                                          const copy = [...visualSteps];
+                                          copy[stepIdx].conditionRight = e.target.value;
+                                          updateVisualSteps(copy);
+                                        }}
+                                        placeholder={propDef.placeholder || "e.g. 1000000000 or 'Custom'"}
+                                      />
+                                      {presetOptions && (
+                                        <button
+                                          type="button"
+                                          className="btn btn-sm btn-secondary"
+                                          title="Switch back to presets dropdown"
+                                          style={{ padding: "0.35rem 0.6rem", fontSize: "0.75rem", whiteSpace: "nowrap" }}
+                                          onClick={() => {
+                                            const copy = [...visualSteps];
+                                            copy[stepIdx].conditionRight = presetOptions![0].value;
+                                            updateVisualSteps(copy);
+                                          }}
+                                        >
+                                          🔄 Presets
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Helper text based on type */}
+                              <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", paddingLeft: "2px" }}>
+                                {propDef.type === "boolean" && "💡 Boolean flag: Evaluates True (On/Yes) or False (Off/No)."}
+                                {propDef.type === "enum" && "💡 State evaluation: Matches against the torrent's lifecycle state or enter a custom status."}
+                                {propDef.type === "category" && "💡 Category evaluation: Select an existing category or enter a custom pattern."}
+                                {propDef.type === "number" && "💡 Numeric comparison: Value is evaluated in bytes, ratios, counts, or percentages."}
+                                {propDef.type === "string" && "💡 String matching: Supports exact matches or pattern values in quotes."}
+                                {propDef.type === "custom" && "💡 Custom expression: Uses lazy matching with variables, inputs, or system properties."}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {/* Actions List */}
