@@ -130,6 +130,7 @@ public class RTorrentController : ControllerBase
                     new XElement("value", new XElement("string", "load.start")),
                     new XElement("value", new XElement("string", "load.verbose")),
                     new XElement("value", new XElement("string", "d.erase")),
+                    new XElement("value", new XElement("string", "d.delete_tied")),
                     new XElement("value", new XElement("string", "d.stop")),
                     new XElement("value", new XElement("string", "d.start")),
                     new XElement("value", new XElement("string", "d.close")),
@@ -499,6 +500,18 @@ public class RTorrentController : ControllerBase
 
                 return new XElement("string", string.Empty);
 
+            case "d.delete_tied":
+                if (paramValues.Count > 0 && paramValues[0] is string hashToDeleteTied)
+                {
+                    var t = this.torrentService.GetByInfoHash(hashToDeleteTied);
+                    if (t != null)
+                    {
+                        await this.torrentService.DeleteAsync(t.Id, true);
+                    }
+                }
+
+                return new XElement("i4", 0);
+
             case "d.erase":
             case "d.delete":
                 if (paramValues.Count > 0 && paramValues[0] is string hashToErase)
@@ -506,7 +519,29 @@ public class RTorrentController : ControllerBase
                     var t = this.torrentService.GetByInfoHash(hashToErase);
                     if (t != null)
                     {
-                        await this.torrentService.DeleteAsync(t.Id, false);
+                        var deleteFiles = false;
+                        if (paramValues.Count > 1)
+                        {
+                            var p1 = paramValues[1];
+                            if (p1 is int i1 && i1 == 1)
+                            {
+                                deleteFiles = true;
+                            }
+                            else if (p1 is long l1 && l1 == 1)
+                            {
+                                deleteFiles = true;
+                            }
+                            else if (p1 is bool b1 && b1)
+                            {
+                                deleteFiles = true;
+                            }
+                            else if (p1 is string s1 && (s1 == "1" || string.Equals(s1, "true", StringComparison.OrdinalIgnoreCase)))
+                            {
+                                deleteFiles = true;
+                            }
+                        }
+
+                        await this.torrentService.DeleteAsync(t.Id, deleteFiles);
                     }
                 }
 

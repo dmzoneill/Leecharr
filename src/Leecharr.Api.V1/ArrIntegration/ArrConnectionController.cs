@@ -16,7 +16,17 @@ namespace Leecharr.Api.V1.ArrIntegration;
 [Route("api/v1/arrconnection")]
 public class ArrConnectionController : Controller
 {
-    private static readonly HttpClient HttpClient = new() { Timeout = TimeSpan.FromSeconds(10) };
+    private static readonly HttpClient HttpClient = new(new SocketsHttpHandler
+    {
+        SslOptions = new global::System.Net.Security.SslClientAuthenticationOptions
+        {
+            RemoteCertificateValidationCallback = (sender, cert, chain, sslPolicyErrors) => true,
+        },
+    })
+    {
+        Timeout = TimeSpan.FromSeconds(10),
+    };
+
     private readonly IArrConnectionRepository repository;
 
     public ArrConnectionController(IArrConnectionRepository repository)

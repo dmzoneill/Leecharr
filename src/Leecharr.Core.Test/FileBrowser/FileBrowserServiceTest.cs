@@ -342,4 +342,28 @@ public class FileBrowserServiceTest
         this.diskProvider.Received(1).CopyFile(fileInSource, fileInTarget, true);
         this.diskProvider.Received(1).DeleteFolder(expectedSource, true);
     }
+
+    [Test]
+    public void Delete_WhenPathIsRootDirectory_ThrowsInvalidOperationException()
+    {
+        Action act = () => this.service.Delete("/");
+        act.Should().Throw<InvalidOperationException>().WithMessage("*root or system directory*");
+    }
+
+    [TestCase("/bin")]
+    [TestCase("/etc")]
+    [TestCase("/usr")]
+    [TestCase("/var")]
+    public void Delete_WhenPathIsSystemDirectory_ThrowsInvalidOperationException(string sysDir)
+    {
+        Action act = () => this.service.Delete(sysDir);
+        act.Should().Throw<InvalidOperationException>().WithMessage("*root or system directory*");
+    }
+
+    [Test]
+    public void ResolvePath_WhenPathContainsNullByte_ThrowsArgumentException()
+    {
+        Action act = () => this.service.ResolvePath("/downloads/\0bad");
+        act.Should().Throw<ArgumentException>().WithMessage("*invalid*");
+    }
 }

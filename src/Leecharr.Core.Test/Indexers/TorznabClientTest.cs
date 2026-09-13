@@ -1595,7 +1595,7 @@ public class TorznabClientTest
     [Test]
     public async Task SearchAsync_ExpandsRootCategoriesToIncludeSubcategories()
     {
-        Uri? requestedUri = null;
+        Uri requestedUri = null;
         var handler = new TestHttpMessageHandler(req =>
         {
             requestedUri = req.RequestUri;
@@ -1611,7 +1611,7 @@ public class TorznabClientTest
         await clientWithHandler.SearchAsync(indexer, "test movie", categoryId: 2000);
 
         requestedUri.Should().NotBeNull();
-        var query = requestedUri!.Query;
+        var query = requestedUri.Query;
         query.Should().Contain("cat=2000%2c2010%2c2020%2c2030%2c2040%2c2045%2c2050%2c2060%2c2070%2c2080%2c2090"
             .Replace("%2c", ",")
             .Replace(",", "%2C")
