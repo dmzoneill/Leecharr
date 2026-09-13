@@ -253,4 +253,26 @@ public class CategoryServiceTest
         Action act = () => this.service.Update(category);
         act.Should().Throw<ArgumentException>().WithMessage("*non-negative*");
     }
+
+    [Test]
+    public void Add_WhenSavePathContainsNullByte_ThrowsArgumentException()
+    {
+        var category = new Category { Name = "test", SavePath = "/downloads/\0bad" };
+        Action act = () => this.service.Add(category);
+        act.Should().Throw<ArgumentException>().WithMessage("*invalid*");
+    }
+
+    [Test]
+    public void Add_WhenSavePathNotWritable_ThrowsInvalidOperationException()
+    {
+        var diskProvider = Substitute.For<NzbDrone.Common.Disk.IDiskProvider>();
+        diskProvider.FolderExists("/restricted").Returns(true);
+        diskProvider.FolderWritable("/restricted").Returns(false);
+
+        var serviceWithDisk = new CategoryService(this.repository, this.eventAggregator, this.torrentRepository, diskProvider);
+        var category = new Category { Name = "restricted", SavePath = "/restricted" };
+
+        Action act = () => serviceWithDisk.Add(category);
+        act.Should().Throw<InvalidOperationException>().WithMessage("*not writable*");
+    }
 }

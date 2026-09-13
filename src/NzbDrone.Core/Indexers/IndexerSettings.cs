@@ -27,4 +27,8 @@ public class IndexerSettings
     public int DefaultPageSize { get; set; } = 50;
 
     public int MaxPageSize { get; set; } = 100;
+
+    public string Cookie { get; set; }
+
+    public string UserAgent { get; set; }
 }

@@ -802,4 +802,101 @@ public class IndexerControllerTest
         results[0].Title.Should().Be("Deep Release Beta");
         results[1].Title.Should().Be("Deep Release Alpha");
     }
+
+    [Test]
+    public async Task TestAll_WhenCalled_RunsTestForEachIndexerAndReturnsBatchResults()
+    {
+        var indexer1 = new IndexerDefinition { Id = 1, Name = "Alpha", Url = "http://alpha", Implementation = "Torznab" };
+        var indexer2 = new IndexerDefinition { Id = 2, Name = "Beta", Url = "http://beta", Implementation = "Torznab" };
+        this.indexerRepository.All().Returns(new List<IndexerDefinition> { indexer1, indexer2 });
+
+        this.torznabClient.TestConnectionAsync(indexer1, Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(TorznabTestResult.Ok()));
+        this.torznabClient.TestConnectionAsync(indexer2, Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(TorznabTestResult.Fail("HTTP 500")));
+
+        var actionResult = await this.controller.TestAll();
+
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult.Result!;
+        var batchResults = (List<IndexerBatchTestResult>)okResult.Value!;
+
+        batchResults.Should().HaveCount(2);
+        batchResults.First(r => r.Id == 1).Success.Should().BeTrue();
+        batchResults.First(r => r.Id == 2).Success.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task SearchGet_ExtractsResponseTotalAndPopulatesEnvelope()
+    {
+        var indexer = new IndexerDefinition { Id = 1, Name = "Tracker1", Enable = true, EnableSearch = true, Url = "http://t1" };
+        this.indexerRepository.Get(1).Returns(indexer);
+
+        this.torznabClient.SearchAsync(
+            indexer,
+            Arg.Any<TorznabSearchCriteria>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new() { Title = "Release 1", Seeders = 10, DownloadUrl = "http://dl-1", ResponseTotal = 500, ResponseOffset = 0 },
+            }));
+
+        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest { Query = "test", IndexerId = 1, Limit = 50 });
+
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult.Result!;
+        var envelope = (IndexerSearchEnvelope)okResult.Value!;
+
+        envelope.Total.Should().Be(500);
+        envelope.Page.Should().Be(1);
+        envelope.Limit.Should().Be(50);
+        envelope.Results.Should().HaveCount(1);
+    }
+
+    [Test]
+    public async Task DownloadRelease_WithCookiesAndUserAgent_PassesCustomHeadersToSafeHttpClientService()
+    {
+        var torrentBytes = new byte[] { 0x64, 0x31, 0x30, 0x65 };
+        var parsed = new ParsedTorrent { Name = "Private Torrent", InfoHash = "0123456789abcdef0123456789abcdef01234567" };
+        var request = new DownloadReleaseRequest
+        {
+            Title = "Private Torrent",
+            DownloadUrl = "https://private.tracker.local/download/123.torrent",
+            IndexerId = 5,
+            Cookie = "uid=123; pass=secret",
+            UserAgent = "MyCustomAgent/1.0",
+        };
+
+        var indexer = new IndexerDefinition
+        {
+            Id = 5,
+            Name = "PrivateTracker",
+            ApiKey = "api-token-xyz",
+        };
+        this.indexerRepository.Get(5).Returns(indexer);
+
+        var createdTorrent = new Torrent
+        {
+            Id = 20,
+            Name = request.Title,
+            InfoHash = parsed.InfoHash,
+        };
+
+        this.safeHttpClientService.DownloadBytesAsync(
+            request.DownloadUrl,
+            Arg.Is<IDictionary<string, string>>(h =>
+                h.ContainsKey("Cookie") && h["Cookie"] == "uid=123; pass=secret" &&
+                h.ContainsKey("User-Agent") && h["User-Agent"] == "MyCustomAgent/1.0" &&
+                h.ContainsKey("X-Api-Key") && h["X-Api-Key"] == "api-token-xyz"))
+            .Returns(Task.FromResult(torrentBytes));
+
+        this.torrentFileParser.Parse(torrentBytes)
+            .Returns(parsed);
+        this.torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, torrentBytes)
+            .Returns(Task.FromResult(createdTorrent));
+
+        var result = await this.controller.DownloadRelease(request);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+    }
 }
