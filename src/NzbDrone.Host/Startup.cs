@@ -83,6 +83,7 @@ public class Startup
         services.AddScoped<NzbDrone.Core.Authentication.IUserSessionCache>(sp => sp.GetRequiredService<Leecharr.Http.Authentication.ICookieSessionManager>());
         services.AddScoped<Leecharr.Http.Authentication.CookieSessionAuthenticationEvents>();
         services.AddSingleton<NzbDrone.Core.Authentication.ISessionCleanupTask, NzbDrone.Core.Authentication.SessionCleanupTask>();
+        services.AddHostedService<NzbDrone.Core.Jobs.Scheduler>();
 
         var configFileProvider = this.container.Resolve<IConfigFileProvider>();
         if (configFileProvider.EnableSsl && configFileProvider.RedirectHttpToHttps)
