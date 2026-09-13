@@ -1048,102 +1048,102 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                 break;
 
             case "setcategory":
-            {
-                var torrent = this.torrentService.Get(id);
-                if (torrent == null)
                 {
-                    throw new KeyNotFoundException($"Torrent {id} not found");
-                }
+                    var torrent = this.torrentService.Get(id);
+                    if (torrent == null)
+                    {
+                        throw new KeyNotFoundException($"Torrent {id} not found");
+                    }
 
-                string categoryName = null;
-                if (resource.CategoryId.HasValue && resource.CategoryId.Value > 0 && this.categoryService != null)
-                {
-                    var cat = this.categoryService.Get(resource.CategoryId.Value);
-                    categoryName = cat?.Name;
-                }
+                    string categoryName = null;
+                    if (resource.CategoryId.HasValue && resource.CategoryId.Value > 0 && this.categoryService != null)
+                    {
+                        var cat = this.categoryService.Get(resource.CategoryId.Value);
+                        categoryName = cat?.Name;
+                    }
 
-                await this.torrentService.SetCategoryAsync(id, categoryName);
-                break;
-            }
+                    await this.torrentService.SetCategoryAsync(id, categoryName);
+                    break;
+                }
 
             case "addtags":
-            {
-                var torrent = this.torrentService.Get(id);
-                if (torrent == null)
                 {
-                    throw new KeyNotFoundException($"Torrent {id} not found");
-                }
+                    var torrent = this.torrentService.Get(id);
+                    if (torrent == null)
+                    {
+                        throw new KeyNotFoundException($"Torrent {id} not found");
+                    }
 
-                if (resource.TagIds != null && resource.TagIds.Count > 0)
-                {
-                    torrent.TagIds ??= new List<int>();
-                    torrent.TagIds = torrent.TagIds.Union(resource.TagIds).Distinct().ToList();
-                    await this.torrentService.UpdateAsync(torrent);
-                }
+                    if (resource.TagIds != null && resource.TagIds.Count > 0)
+                    {
+                        torrent.TagIds ??= new List<int>();
+                        torrent.TagIds = torrent.TagIds.Union(resource.TagIds).Distinct().ToList();
+                        await this.torrentService.UpdateAsync(torrent);
+                    }
 
-                break;
-            }
+                    break;
+                }
 
             case "removetags":
-            {
-                var torrent = this.torrentService.Get(id);
-                if (torrent == null)
                 {
-                    throw new KeyNotFoundException($"Torrent {id} not found");
-                }
+                    var torrent = this.torrentService.Get(id);
+                    if (torrent == null)
+                    {
+                        throw new KeyNotFoundException($"Torrent {id} not found");
+                    }
 
-                if (resource.TagIds != null && resource.TagIds.Count > 0 && torrent.TagIds != null)
-                {
-                    torrent.TagIds = torrent.TagIds.Except(resource.TagIds).ToList();
-                    await this.torrentService.UpdateAsync(torrent);
-                }
+                    if (resource.TagIds != null && resource.TagIds.Count > 0 && torrent.TagIds != null)
+                    {
+                        torrent.TagIds = torrent.TagIds.Except(resource.TagIds).ToList();
+                        await this.torrentService.UpdateAsync(torrent);
+                    }
 
-                break;
-            }
+                    break;
+                }
 
             case "setpriority":
-            {
-                var torrent = this.torrentService.Get(id);
-                if (torrent == null)
                 {
-                    throw new KeyNotFoundException($"Torrent {id} not found");
-                }
+                    var torrent = this.torrentService.Get(id);
+                    if (torrent == null)
+                    {
+                        throw new KeyNotFoundException($"Torrent {id} not found");
+                    }
 
-                if (resource.Priority.HasValue)
-                {
-                    torrent.Priority = resource.Priority.Value;
-                    await this.torrentService.UpdateAsync(torrent);
-                }
+                    if (resource.Priority.HasValue)
+                    {
+                        torrent.Priority = resource.Priority.Value;
+                        await this.torrentService.UpdateAsync(torrent);
+                    }
 
-                break;
-            }
+                    break;
+                }
 
             case "setspeedlimits":
-            {
-                var torrent = this.torrentService.Get(id);
-                if (torrent == null)
                 {
-                    throw new KeyNotFoundException($"Torrent {id} not found");
-                }
+                    var torrent = this.torrentService.Get(id);
+                    if (torrent == null)
+                    {
+                        throw new KeyNotFoundException($"Torrent {id} not found");
+                    }
 
-                if (resource.UploadLimit.HasValue)
-                {
-                    torrent.UploadLimit = resource.UploadLimit.Value;
-                }
+                    if (resource.UploadLimit.HasValue)
+                    {
+                        torrent.UploadLimit = resource.UploadLimit.Value;
+                    }
 
-                if (resource.DownloadLimit.HasValue)
-                {
-                    torrent.DownloadLimit = resource.DownloadLimit.Value;
-                }
+                    if (resource.DownloadLimit.HasValue)
+                    {
+                        torrent.DownloadLimit = resource.DownloadLimit.Value;
+                    }
 
-                await this.torrentService.UpdateAsync(torrent);
-                if (this.downloadEngine != null)
-                {
-                    await this.downloadEngine.SetTorrentRateLimitsAsync(torrent.Id, torrent.DownloadLimit, torrent.UploadLimit);
-                }
+                    await this.torrentService.UpdateAsync(torrent);
+                    if (this.downloadEngine != null)
+                    {
+                        await this.downloadEngine.SetTorrentRateLimitsAsync(torrent.Id, torrent.DownloadLimit, torrent.UploadLimit);
+                    }
 
-                break;
-            }
+                    break;
+                }
 
             default:
                 throw new ArgumentException($"Unknown action: {resource.Action}");
