@@ -226,6 +226,10 @@ public class AutomationService : IAutomationService
         {
             torrent = _torrentRepository.Get(torrentId.Value);
         }
+        else
+        {
+            torrent = _torrentRepository.All().FirstOrDefault();
+        }
 
         var torrentTags = new List<string>();
         if (torrent != null && torrent.TagIds != null && torrent.TagIds.Count > 0)
@@ -239,6 +243,32 @@ public class AutomationService : IAutomationService
                     torrentTags.Add(label);
                 }
             }
+        }
+        else if (torrent == null)
+        {
+            torrent = new Torrent
+            {
+                Id = 1,
+                Name = "Simulated.Linux.Ubuntu.24.04.LTS.iso",
+                InfoHash = "0123456789abcdef0123456789abcdef01234567",
+                TotalSize = 4_294_967_296L,
+                Ratio = 2.45,
+                Progress = 1.0f,
+                Status = TorrentStatus.Seeding,
+                Category = "Linux",
+                TrackerUrl = "https://torrent.ubuntu.com/announce",
+                DownloadSpeed = 0,
+                UploadSpeed = 5_242_880,
+                Seeders = 125,
+                Leechers = 14,
+                SavePath = "/downloads/completed/Linux",
+                Downloaded = 4_294_967_296L,
+                Uploaded = 10_522_670_875L,
+                CumulativeSeedingTimeSeconds = 172800,
+                IsPrivate = false,
+            };
+            torrentTags.Add("Simulated");
+            torrentTags.Add("Verified");
         }
 
         IScriptRunner runner = script.Language == AutomationLanguage.Yaml ? _yamlRunner : _jintRunner;
@@ -357,10 +387,18 @@ public class AutomationService : IAutomationService
             return;
         }
 
+        var oldStatus = torrent.Status;
         if (result.ShouldPause && torrent.Status != TorrentStatus.Paused)
         {
             torrent.Status = TorrentStatus.Paused;
             changed = true;
+            _eventAggregator.PublishEvent(new TorrentPausedEvent(torrent));
+            _eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+            {
+                Torrent = torrent,
+                OldStatus = oldStatus,
+                NewStatus = TorrentStatus.Paused,
+            });
         }
         else if (result.ShouldResume && torrent.Status == TorrentStatus.Paused)
         {
@@ -368,6 +406,13 @@ public class AutomationService : IAutomationService
                 ? TorrentStatus.Seeding
                 : TorrentStatus.Downloading;
             changed = true;
+            _eventAggregator.PublishEvent(new TorrentStartedEvent(torrent));
+            _eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+            {
+                Torrent = torrent,
+                OldStatus = oldStatus,
+                NewStatus = torrent.Status,
+            });
         }
 
         if (changed)

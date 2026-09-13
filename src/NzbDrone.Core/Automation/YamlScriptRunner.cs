@@ -101,26 +101,37 @@ public class YamlScriptRunner : IScriptRunner
                 variableContext["torrent.name"] = torrentCtx.name;
                 variableContext["torrent.infoHash"] = torrentCtx.infoHash;
                 variableContext["torrent.size"] = torrentCtx.size;
+                variableContext["torrent.totalSize"] = torrentCtx.totalSize;
                 variableContext["torrent.ratio"] = torrentCtx.ratio;
                 variableContext["torrent.category"] = torrentCtx.category;
                 variableContext["torrent.tracker"] = torrentCtx.tracker;
+                variableContext["torrent.trackerUrl"] = torrentCtx.trackerUrl;
                 variableContext["torrent.status"] = torrentCtx.status;
                 variableContext["torrent.progress"] = torrentCtx.progress;
                 variableContext["torrent.isPrivate"] = torrent.IsPrivate;
-                variableContext["torrent.isComplete"] = torrent.Progress >= 1.0f || torrent.Progress >= 0.999f || torrent.Status == TorrentStatus.Seeding;
+                variableContext["torrent.isComplete"] = torrent.Progress >= 1.0f || torrent.Progress >= 0.999f || torrent.Status == TorrentStatus.Seeding || torrent.DateCompleted.HasValue;
                 variableContext["torrent.downloadSpeed"] = torrent.DownloadSpeed;
                 variableContext["torrent.uploadSpeed"] = torrent.UploadSpeed;
+                variableContext["torrent.eta"] = torrent.Eta;
                 variableContext["torrent.seeders"] = torrent.Seeders;
                 variableContext["torrent.leechers"] = torrent.Leechers;
                 variableContext["torrent.savePath"] = torrent.SavePath ?? string.Empty;
                 variableContext["torrent.uploaded"] = torrent.Uploaded;
                 variableContext["torrent.downloaded"] = torrent.Downloaded;
                 variableContext["torrent.seedingTime"] = torrent.CumulativeSeedingTimeSeconds;
+                variableContext["torrent.seedingTimeSeconds"] = torrent.CumulativeSeedingTimeSeconds;
                 variableContext["torrent.seedingTimeMinutes"] = torrent.SeedTimeMinutes;
+                variableContext["torrent.seedTimeMinutes"] = torrent.SeedTimeMinutes;
+                variableContext["torrent.priority"] = torrent.Priority;
+                variableContext["torrent.label"] = torrent.Label ?? string.Empty;
+                variableContext["torrent.comment"] = torrent.Comment ?? string.Empty;
+                variableContext["torrent.targetRatio"] = torrent.TargetRatio;
+                variableContext["torrent.targetSeedTimeMinutes"] = torrent.TargetSeedTimeMinutes;
             }
 
             // Populate system context
             long diskFreeSpace = 0;
+            long diskTotalSpace = 0;
             try
             {
                 var targetPath = !string.IsNullOrWhiteSpace(torrent?.SavePath) && Directory.Exists(torrent.SavePath)
@@ -128,6 +139,7 @@ public class YamlScriptRunner : IScriptRunner
                     : AppContext.BaseDirectory;
                 var drive = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(targetPath)) ?? "/");
                 diskFreeSpace = drive.AvailableFreeSpace;
+                diskTotalSpace = drive.TotalSize;
             }
             catch
             {
@@ -135,14 +147,17 @@ public class YamlScriptRunner : IScriptRunner
                 {
                     var drive = new DriveInfo(Path.GetPathRoot(Environment.CurrentDirectory) ?? "/");
                     diskFreeSpace = drive.AvailableFreeSpace;
+                    diskTotalSpace = drive.TotalSize;
                 }
                 catch
                 {
                     diskFreeSpace = 0;
+                    diskTotalSpace = 0;
                 }
             }
 
             variableContext["system.diskFreeSpace"] = diskFreeSpace;
+            variableContext["system.diskTotalSpace"] = diskTotalSpace;
             variableContext["system.vpnActive"] = true;
             variableContext["system.isPortForwarded"] = true;
 

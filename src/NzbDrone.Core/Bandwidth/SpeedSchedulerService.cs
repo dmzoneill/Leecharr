@@ -8,6 +8,7 @@ using NLog;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.Bandwidth;
 
@@ -52,6 +53,7 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
     private readonly ISpeedScheduleRepository repository;
     private readonly IConfigService configService;
     private readonly IDownloadEngine downloadEngine;
+    private readonly IEventAggregator eventAggregator;
     private readonly System.Threading.Timer timer;
     private readonly Logger logger;
     private bool wasPausedByScheduler;
@@ -59,11 +61,13 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
     public SpeedSchedulerService(
         ISpeedScheduleRepository repository,
         IConfigService configService,
-        IDownloadEngine downloadEngine = null)
+        IDownloadEngine downloadEngine = null,
+        IEventAggregator eventAggregator = null)
     {
         this.repository = repository;
         this.configService = configService;
         this.downloadEngine = downloadEngine;
+        this.eventAggregator = eventAggregator;
         this.logger = LogManager.GetCurrentClassLogger();
 
         if (this.downloadEngine != null)
@@ -99,6 +103,20 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
                     var downloadLimit = limits.IsDownloadPaused ? 1 : limits.MaxDownloadSpeedKbps;
                     var uploadLimit = limits.IsUploadPaused ? 1 : limits.MaxUploadSpeedKbps;
                     await this.downloadEngine.SetRateLimitsAsync(downloadLimit, uploadLimit);
+                }
+
+                if (this.eventAggregator != null)
+                {
+                    var metrics = this.downloadEngine.GetEngineMetrics();
+                    if (metrics != null)
+                    {
+                        var maxDlBytes = limits.MaxDownloadSpeedKbps > 0 ? (long)limits.MaxDownloadSpeedKbps * 1024L : 0;
+                        var maxUlBytes = limits.MaxUploadSpeedKbps > 0 ? (long)limits.MaxUploadSpeedKbps * 1024L : 0;
+                        if ((maxDlBytes > 0 && metrics.TotalDownloadSpeed >= maxDlBytes) || (maxUlBytes > 0 && metrics.TotalUploadSpeed >= maxUlBytes))
+                        {
+                            this.eventAggregator.PublishEvent(new SpeedThresholdExceededEvent(metrics.TotalDownloadSpeed, metrics.TotalUploadSpeed, metrics.ActiveTorrents));
+                        }
+                    }
                 }
             }
             catch (Exception ex)

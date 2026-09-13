@@ -21,6 +21,56 @@ public class ScriptSystemContext
         _result = result;
     }
 
+    public long diskFreeSpace
+    {
+        get
+        {
+            try
+            {
+                var drive = new System.IO.DriveInfo(System.IO.Path.GetPathRoot(Environment.CurrentDirectory) ?? "/");
+                return drive.AvailableFreeSpace;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+    }
+
+    public long diskTotalSpace
+    {
+        get
+        {
+            try
+            {
+                var drive = new System.IO.DriveInfo(System.IO.Path.GetPathRoot(Environment.CurrentDirectory) ?? "/");
+                return drive.TotalSize;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+    }
+
+    public bool vpnActive => true;
+
+    public bool isPortForwarded => true;
+
+    public long getDiskFreeSpace(string? path = null)
+    {
+        try
+        {
+            var target = !string.IsNullOrWhiteSpace(path) ? path : Environment.CurrentDirectory;
+            var drive = new System.IO.DriveInfo(System.IO.Path.GetPathRoot(System.IO.Path.GetFullPath(target)) ?? "/");
+            return drive.AvailableFreeSpace;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
     public object? runCommand(string commandName, object? payload = null)
     {
         if (string.IsNullOrWhiteSpace(commandName))

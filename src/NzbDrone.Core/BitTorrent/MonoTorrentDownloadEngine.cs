@@ -1859,6 +1859,23 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         });
     }
 
+    public static TorrentStatus MapTorrentStateToStatus(TorrentState state)
+    {
+        return state switch
+        {
+            TorrentState.Downloading => TorrentStatus.Downloading,
+            TorrentState.Seeding => TorrentStatus.Seeding,
+            TorrentState.Paused => TorrentStatus.Paused,
+            TorrentState.Stopped => TorrentStatus.Stopped,
+            TorrentState.Hashing => TorrentStatus.Checking,
+            TorrentState.Metadata => TorrentStatus.Downloading,
+            TorrentState.Starting => TorrentStatus.Downloading,
+            TorrentState.Stopping => TorrentStatus.Paused,
+            TorrentState.Error => TorrentStatus.Error,
+            _ => TorrentStatus.Stopped,
+        };
+    }
+
     public async Task HandleTorrentStateChangedAsync(TorrentStateChangedEventArgs e)
     {
         try
@@ -1869,6 +1886,30 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             if (this.infoHashToId.TryGetValue(infoHash, out var torrentId))
             {
                 this.logger.Info("Torrent {0} state changed: {1} -> {2}", infoHash, e.OldState, e.NewState);
+
+                var oldStatus = MapTorrentStateToStatus(e.OldState);
+                var newStatus = MapTorrentStateToStatus(e.NewState);
+                if (oldStatus != newStatus)
+                {
+                    this.tasks.TryGetValue(torrentId, out var currentTask);
+                    var coreTorrent = new CoreTorrent
+                    {
+                        Id = torrentId,
+                        InfoHash = infoHash,
+                        Name = manager.Torrent?.Name ?? infoHash,
+                        Status = newStatus,
+                        Category = currentTask?.Category,
+                        SavePath = manager.SavePath,
+                        Progress = manager.Progress / 100.0,
+                    };
+
+                    this.eventAggregator?.PublishEvent(new TorrentStatusChangedEvent
+                    {
+                        Torrent = coreTorrent,
+                        OldStatus = oldStatus,
+                        NewStatus = newStatus,
+                    });
+                }
 
                 if (manager.Torrent != null && manager.Torrent.IsPrivate)
                 {
@@ -3873,6 +3914,23 @@ public class MonoTorrentDownloadTask : IDownloadTask
                              this.initialTorrent?.IsPrivate == true ||
                              this.initialIsPrivate;
 
+    public static TorrentStatus MapTorrentStateToStatus(TorrentState state)
+    {
+        return state switch
+        {
+            TorrentState.Downloading => TorrentStatus.Downloading,
+            TorrentState.Seeding => TorrentStatus.Seeding,
+            TorrentState.Paused => TorrentStatus.Paused,
+            TorrentState.Stopped => TorrentStatus.Stopped,
+            TorrentState.Hashing => TorrentStatus.Checking,
+            TorrentState.Metadata => TorrentStatus.Downloading,
+            TorrentState.Starting => TorrentStatus.Downloading,
+            TorrentState.Stopping => TorrentStatus.Paused,
+            TorrentState.Error => TorrentStatus.Error,
+            _ => TorrentStatus.Stopped,
+        };
+    }
+
     public TorrentStatus Status
     {
         get
@@ -3892,19 +3950,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
                 return TorrentStatus.Stalled;
             }
 
-            return this.Manager.State switch
-            {
-                TorrentState.Downloading => TorrentStatus.Downloading,
-                TorrentState.Seeding => TorrentStatus.Seeding,
-                TorrentState.Paused => TorrentStatus.Paused,
-                TorrentState.Stopped => TorrentStatus.Stopped,
-                TorrentState.Hashing => TorrentStatus.Checking,
-                TorrentState.Metadata => TorrentStatus.Downloading,
-                TorrentState.Starting => TorrentStatus.Downloading,
-                TorrentState.Stopping => TorrentStatus.Paused,
-                TorrentState.Error => TorrentStatus.Error,
-                _ => TorrentStatus.Stopped,
-            };
+            return MapTorrentStateToStatus(this.Manager.State);
         }
     }
 
