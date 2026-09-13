@@ -11,7 +11,9 @@ public interface IDownloadHistoryRepository : IBasicRepository<DownloadHistory>
 
     DownloadHistory FindByTorrentId(int torrentId);
 
-    List<DownloadHistory> GetHistory(string query = null, string status = null, int limit = 500);
+    List<DownloadHistory> GetHistory(string query = null, string status = null, int limit = 500, int offset = 0);
+
+    void DeleteOlderThan(System.DateTime cutoffDate);
 
     void DeleteAll();
 }

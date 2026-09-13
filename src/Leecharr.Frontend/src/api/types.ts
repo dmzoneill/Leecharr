@@ -1584,7 +1584,9 @@ export interface TorrentCreationRequest {
   isPrivate?: boolean;
   pieceLength?: number;
   trackers?: string[];
+  trackerTiers?: string[][];
   webSeeds?: string[];
+  source?: string;
   outputPath?: string;
 }
 
