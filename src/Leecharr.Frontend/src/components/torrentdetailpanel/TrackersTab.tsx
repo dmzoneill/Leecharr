@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "../../i18n";
 import {
   useTorrentTrackers,
@@ -17,6 +17,80 @@ import { ErrorBoundary } from "../ErrorBoundary";
 import TrackerMultiSelectModal, {
   TrackerPickerItem,
 } from "../TrackerMultiSelectModal";
+
+export function NextAnnounceCountdown({
+  nextAnnounce,
+}: {
+  nextAnnounce?: string | null;
+}) {
+  const { t } = useTranslation();
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  if (!nextAnnounce) {
+    return (
+      <span style={{ color: "var(--text-muted)" }}>
+        {t("torrents.states.queued", "Queued")}
+      </span>
+    );
+  }
+
+  const target = new Date(nextAnnounce).getTime();
+  if (isNaN(target)) {
+    return <span>{nextAnnounce}</span>;
+  }
+
+  const diffMs = target - now;
+  const diffSec = Math.floor(diffMs / 1000);
+
+  if (diffSec <= 0) {
+    return (
+      <span
+        style={{
+          color: "var(--accent, #ffd166)",
+          fontWeight: 600,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "4px",
+        }}
+        title={`Scheduled: ${formatDate(nextAnnounce)}`}
+      >
+        <span>⚡</span>
+        <span>Announcing...</span>
+      </span>
+    );
+  }
+
+  const mins = Math.floor(diffSec / 60);
+  const secs = diffSec % 60;
+  const formattedCountdown =
+    mins > 0
+      ? `${mins}m ${secs.toString().padStart(2, "0")}s`
+      : `${secs}s`;
+
+  return (
+    <span
+      style={{
+        fontFamily: "monospace",
+        color: diffSec < 30 ? "var(--accent, #ffd166)" : "var(--text-primary)",
+        fontWeight: diffSec < 30 ? 600 : 400,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "4px",
+      }}
+      title={`Next announce at ${formatDate(nextAnnounce)}`}
+    >
+      <span style={{ opacity: 0.6 }}>⏳</span>
+      <span>{formattedCountdown}</span>
+    </span>
+  );
+}
 
 function getAttachedTrackerIndicator(
   status: string,
@@ -419,9 +493,7 @@ export function TrackersTab({
                         : t("common.never", "Never")}
                     </td>
                     <td>
-                      {tItem.nextAnnounce
-                        ? formatDate(tItem.nextAnnounce)
-                        : t("torrents.states.queued", "Queued")}
+                      <NextAnnounceCountdown nextAnnounce={tItem.nextAnnounce} />
                     </td>
                     <td style={{ textAlign: "right" }}>
                       <div

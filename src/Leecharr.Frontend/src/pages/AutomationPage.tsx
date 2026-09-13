@@ -21,6 +21,7 @@ import type {
   AutomationExecutionResult,
 } from "../api/types";
 import { formatBytes } from "../utils/formatters";
+import { useConfirm } from "../context/ConfirmContext";
 
 // Visual Pipeline Interfaces
 export type VisualActionType =
@@ -893,6 +894,7 @@ function tCommand(t: any, name: string, defaultDesc: string) {
 
 export function AutomationPage() {
   const { t } = useTranslation();
+  const confirm = useConfirm();
 
   const { data: scripts, isLoading: loadingScripts } = useAutomationScripts();
   const { data: templates, isLoading: loadingTemplates } = useAutomationMarketplace();
@@ -1088,8 +1090,15 @@ if (torrent) {
     }
   }
 
-  function handleDeleteScript(id: number) {
-    if (window.confirm("Are you sure you want to delete this automation pipeline?")) {
+  async function handleDeleteScript(id: number) {
+    const targetScript = scriptList.find((s) => s.id === id);
+    const ok = await confirm({
+      title: "Delete Automation Pipeline",
+      message: `Are you sure you want to delete "${targetScript?.name || "this automation pipeline"}"? This action cannot be undone.`,
+      confirmText: "Delete Pipeline",
+      danger: true,
+    });
+    if (ok) {
       deleteScript.mutate(id);
     }
   }

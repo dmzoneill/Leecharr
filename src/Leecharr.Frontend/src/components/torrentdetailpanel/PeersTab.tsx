@@ -8,6 +8,40 @@ import CountryFlag from "../CountryFlag";
 import PeerClientBadge from "../PeerClientBadge";
 import type { Torrent } from "../../api/types";
 
+const PEER_FLAG_MAP: Record<string, { label: string; desc: string }> = {
+  u: { label: "Uploading", desc: "client is uploading to peer" },
+  U: { label: "Uploading", desc: "client is uploading to peer" },
+  d: { label: "Downloading", desc: "client is downloading from peer" },
+  D: { label: "Downloading", desc: "client is downloading from peer" },
+  c: { label: "Choked", desc: "peer is choking client" },
+  C: { label: "Choked", desc: "peer is choking client" },
+  i: { label: "Interested", desc: "peer is interested in pieces" },
+  I: { label: "Interested", desc: "peer is interested in pieces" },
+  k: { label: "Unchoked", desc: "client is unchoking peer" },
+  K: { label: "Unchoked", desc: "client is unchoking peer" },
+  e: { label: "Encrypted", desc: "connection is encrypted (MSE/PE)" },
+  E: { label: "Encrypted", desc: "connection is encrypted (MSE/PE)" },
+  h: { label: "DHT", desc: "peer discovered via DHT" },
+  H: { label: "DHT", desc: "peer discovered via DHT" },
+  x: { label: "PEX", desc: "peer discovered via Peer Exchange" },
+  X: { label: "PEX", desc: "peer discovered via Peer Exchange" },
+  l: { label: "Local", desc: "peer on local network (LSD)" },
+  L: { label: "Local", desc: "peer on local network (LSD)" },
+  o: { label: "Optimistic", desc: "optimistic unchoke" },
+  O: { label: "Optimistic", desc: "optimistic unchoke" },
+  s: { label: "Snubbed", desc: "peer has not sent data in 60s" },
+  S: { label: "Snubbed", desc: "peer has not sent data in 60s" },
+};
+
+function formatPeerFlagsTooltip(flags?: string): string {
+  if (!flags || !flags.trim()) return "No active flags";
+  const lines = flags
+    .split("")
+    .filter((ch) => PEER_FLAG_MAP[ch])
+    .map((ch) => `${ch}: ${PEER_FLAG_MAP[ch].label} (${PEER_FLAG_MAP[ch].desc})`);
+  return lines.length > 0 ? lines.join("\n") : `Flags: ${flags}`;
+}
+
 export function PeersTab({
   torrent,
   torrentId,
@@ -189,7 +223,22 @@ export function PeersTab({
                   <td>{formatBytes(p.uploaded)}</td>
                   <td>{formatBytes(p.downloaded)}</td>
                   <td className="mono" style={{ fontSize: "0.75rem" }}>
-                    {p.flags}
+                    {p.flags ? (
+                      <span
+                        title={formatPeerFlagsTooltip(p.flags)}
+                        style={{
+                          cursor: "help",
+                          borderBottom: "1px dotted var(--text-muted)",
+                          padding: "0.1rem 0.3rem",
+                          borderRadius: "3px",
+                          backgroundColor: "rgba(255, 255, 255, 0.04)",
+                        }}
+                      >
+                        {p.flags}
+                      </span>
+                    ) : (
+                      <span style={{ color: "var(--text-muted)" }}>-</span>
+                    )}
                   </td>
                 </tr>
               );

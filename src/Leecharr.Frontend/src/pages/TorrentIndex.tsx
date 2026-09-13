@@ -178,6 +178,10 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     id: number;
     deleteFiles?: boolean;
   }) => {
+    if (selectedIds.size > 1 && selectedIds.has(payload.id)) {
+      handleBulkDelete();
+      return;
+    }
     const targetTorrent = torrents.find((t) => t.id === payload.id);
     setDeleteModalState({
       isOpen: true,
