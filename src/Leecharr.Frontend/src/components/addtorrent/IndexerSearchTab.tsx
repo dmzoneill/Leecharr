@@ -124,7 +124,7 @@ export function IndexerSearchTab({
             textAlign: "center",
             backgroundColor: "var(--bg-primary, #10111a)",
             borderRadius: "8px",
-            border: "1px solid var(--border-light, #1c203b)",
+            border: "1px solid var(--border-light)",
           }}
         >
           <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🔌</div>
@@ -187,7 +187,7 @@ export function IndexerSearchTab({
             padding: "0.5rem 0.85rem",
             borderRadius: "6px",
             backgroundColor: "var(--bg-primary, #10111a)",
-            border: "1px solid var(--border-light, #1c203b)",
+            border: "1px solid var(--border-light)",
             color: "inherit",
             fontSize: "0.9rem",
           }}
@@ -205,7 +205,7 @@ export function IndexerSearchTab({
             style={{
               backgroundColor: "var(--bg-primary, #10111a)",
               color: "inherit",
-              border: "1px solid var(--border-light, #1c203b)",
+              border: "1px solid var(--border-light)",
               borderRadius: "6px",
               padding: "0.5rem 0.85rem",
               fontSize: "0.85rem",
@@ -243,7 +243,7 @@ export function IndexerSearchTab({
           maxHeight: isModal ? "480px" : undefined,
           minHeight: 0,
           overflowY: "auto",
-          border: "1px solid var(--border-light, #1c203b)",
+          border: "1px solid var(--border-light)",
           borderRadius: "8px",
           backgroundColor: "var(--bg-primary, #10111a)",
           boxShadow: "inset 0 2px 6px rgba(0, 0, 0, 0.2)",
@@ -318,7 +318,7 @@ export function IndexerSearchTab({
             <thead>
               <tr
                 style={{
-                  borderBottom: "1px solid var(--border-light, #1c203b)",
+                  borderBottom: "1px solid var(--border-light)",
                   textAlign: "left",
                   fontSize: "0.8rem",
                   color: "var(--text-muted, #7e8092)",
@@ -401,7 +401,7 @@ export function IndexerSearchTab({
                   <tr
                     key={itemKey}
                     style={{
-                      borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                      borderBottom: "1px solid var(--border-light)",
                       fontSize: "0.85rem",
                     }}
                   >

@@ -511,7 +511,7 @@ export function PieceMap({
             padding: "0.6rem",
             backgroundColor: "rgba(0, 0, 0, 0.35)",
             borderRadius: "6px",
-            border: "1px solid var(--border-light, rgba(255, 255, 255, 0.1))",
+            border: "1px solid var(--border-light)",
             minHeight: "140px",
             maxHeight: "320px",
             overflowY: "auto",
@@ -594,7 +594,7 @@ export function PieceMap({
                 height: "8px",
                 borderRadius: "2px",
                 backgroundColor: "rgba(255,255,255,0.08)",
-                border: "1px solid rgba(255,255,255,0.2)",
+                border: "1px solid var(--border)",
               }}
             />
             {t("torrents.detail.pieceMapMissingLegend", {

@@ -231,7 +231,7 @@ function SystemEvents() {
         className="card"
         style={{
           borderRadius: "8px",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
+          border: "1px solid var(--border-light)",
           boxShadow:
             "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
           padding: 0,
