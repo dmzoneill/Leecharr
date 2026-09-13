@@ -26,15 +26,13 @@ public class YamlScriptRunnerTest
             Category = "Unknown",
         };
 
-        var yaml = @"
-name: 'Categorize and Tag'
-steps:
-    - name: 'Check Large'
-        condition: '${torrent.size} > 1000000000'
-        actions:
-            - addTag: '4K-UHD'
-            - setCategory: 'Movies'
-";
+        var yaml = "name: 'Categorize and Tag'\n" +
+                   "steps:\n" +
+                   "  - name: 'Check Large'\n" +
+                   "    condition: '${torrent.size} > 1000000000'\n" +
+                   "    actions:\n" +
+                   "      - addTag: '4K-UHD'\n" +
+                   "      - setCategory: 'Movies'\n";
 
         var script = new AutomationScript
         {
@@ -59,15 +57,13 @@ steps:
             Name = "Linux.ISO",
         };
 
-        var yaml = @"
-name: 'Recheck and Command'
-steps:
-    - name: 'Execute pipeline'
-        actions:
-            - command: 'Backup'
-            - recheck: true
-            - reannounce: true
-";
+        var yaml = "name: 'Recheck and Command'\n" +
+                   "steps:\n" +
+                   "  - name: 'Execute pipeline'\n" +
+                   "    actions:\n" +
+                   "      - command: 'Backup'\n" +
+                   "      - recheck: true\n" +
+                   "      - reannounce: true\n";
 
         var script = new AutomationScript
         {
