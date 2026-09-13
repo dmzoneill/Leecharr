@@ -55,17 +55,26 @@ public interface IFileBrowserService
     string ResolvePath(string path);
 
     string GetParentPath(string path);
+
+    bool IsRootPath(string path);
+
+    bool IsRootOrSystemDirectory(string path);
 }
 
 public class FileBrowserService : IFileBrowserService
 {
     private readonly IDiskProvider diskProvider;
     private readonly IConfigService configService;
+    private readonly NzbDrone.Common.EnvironmentInfo.IAppFolderInfo appFolderInfo;
 
-    public FileBrowserService(IDiskProvider diskProvider, IConfigService configService)
+    public FileBrowserService(
+        IDiskProvider diskProvider,
+        IConfigService configService,
+        NzbDrone.Common.EnvironmentInfo.IAppFolderInfo appFolderInfo = null)
     {
         this.diskProvider = diskProvider ?? new DiskProvider();
         this.configService = configService;
+        this.appFolderInfo = appFolderInfo;
     }
 
     public FileBrowserListing ListDirectory(string path)
@@ -338,9 +347,19 @@ public class FileBrowserService : IFileBrowserService
 
     public void Delete(string path)
     {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            throw new ArgumentException("Path cannot be empty.", nameof(path));
+        }
+
+        if (this.IsRootPath(path) || this.IsRootOrSystemDirectory(path))
+        {
+            throw new InvalidOperationException($"Cannot delete root or system directory '{path}'.");
+        }
+
         var target = this.ResolvePath(path);
 
-        if (this.IsRootOrSystemDirectory(target))
+        if (this.IsRootPath(target) || this.IsRootOrSystemDirectory(target))
         {
             throw new InvalidOperationException($"Cannot delete root or system directory '{target}'.");
         }
@@ -413,7 +432,7 @@ public class FileBrowserService : IFileBrowserService
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            return false;
+            return true;
         }
 
         if (this.IsRootPath(path))
@@ -421,7 +440,21 @@ public class FileBrowserService : IFileBrowserService
             return true;
         }
 
-        var normalized = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        string normalized;
+        try
+        {
+            normalized = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        }
+        catch
+        {
+            normalized = Path.TrimEndingDirectorySeparator(path);
+        }
+
+        if (this.IsRootPath(normalized))
+        {
+            return true;
+        }
+
         var systemDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "/bin", "/sbin", "/etc", "/usr", "/var", "/lib", "/lib64", "/boot",
@@ -431,6 +464,42 @@ public class FileBrowserService : IFileBrowserService
         if (systemDirs.Contains(normalized))
         {
             return true;
+        }
+
+        // Protect AppDataFolder
+        if (this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder))
+        {
+            var appData = Path.TrimEndingDirectorySeparator(Path.GetFullPath(this.appFolderInfo.AppDataFolder));
+            if (normalized.Equals(appData, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        // Protect StartUpFolder
+        if (this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.StartUpFolder))
+        {
+            var startUp = Path.TrimEndingDirectorySeparator(Path.GetFullPath(this.appFolderInfo.StartUpFolder));
+            if (normalized.Equals(startUp, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        var baseDir = Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory);
+        if (normalized.Equals(baseDir, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // Protect configured DownloadDir root directory
+        if (this.configService != null && !string.IsNullOrWhiteSpace(this.configService.DownloadDir))
+        {
+            var downloadDir = Path.TrimEndingDirectorySeparator(Path.GetFullPath(this.configService.DownloadDir));
+            if (normalized.Equals(downloadDir, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
         }
 
         if (OperatingSystem.IsWindows())
@@ -463,20 +532,26 @@ public class FileBrowserService : IFileBrowserService
         return false;
     }
 
-    private bool IsRootPath(string path)
+    public bool IsRootPath(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
             return false;
         }
 
-        var root = Path.GetPathRoot(path);
+        var trimmed = path.Trim();
+        if (trimmed == "/" || trimmed == "\\" || trimmed == "~")
+        {
+            return true;
+        }
+
+        var root = Path.GetPathRoot(trimmed);
         if (string.IsNullOrEmpty(root))
         {
             return false;
         }
 
-        return path.Equals(root, StringComparison.OrdinalIgnoreCase) ||
-               path.Equals(Path.TrimEndingDirectorySeparator(root), StringComparison.OrdinalIgnoreCase);
+        return trimmed.Equals(root, StringComparison.OrdinalIgnoreCase) ||
+               trimmed.Equals(Path.TrimEndingDirectorySeparator(root), StringComparison.OrdinalIgnoreCase);
     }
 }

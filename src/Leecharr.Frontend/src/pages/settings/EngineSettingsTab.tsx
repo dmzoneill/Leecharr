@@ -446,6 +446,42 @@ export function EngineSettingsTab() {
               "settingsTabs.batch2.intervalToPersistVerifiedPieceBitfields",
             )}
           />
+          <SelectInput
+            label="Fast Resume Mode"
+            value={form.fastResumeMode}
+            onChange={(v) => update("fastResumeMode", v)}
+            options={[
+              {
+                value: "BestEffort",
+                label: "Best Effort",
+              },
+              {
+                value: "Accurate",
+                label: "Accurate",
+              },
+            ]}
+            hint="Strategy for validating fast resume data against existing disk files"
+          />
+
+          <NumberInput
+            label="Stale Request Timeout"
+            value={form.staleRequestTimeoutSeconds}
+            onChange={(v) => update("staleRequestTimeoutSeconds", v)}
+            min={5}
+            max={120}
+            suffix="s"
+            hint="Timeout before cancelling unfulfilled block requests"
+          />
+
+          <NumberInput
+            label="Web Seed Delay"
+            value={form.webSeedDelaySeconds}
+            onChange={(v) => update("webSeedDelaySeconds", v)}
+            min={0}
+            max={300}
+            suffix="s"
+            hint="Delay before requesting blocks from HTTP/FTP web seeds"
+          />
         </div>
 
         <div
@@ -494,6 +530,36 @@ export function EngineSettingsTab() {
           />
 
           <SelectInput
+            label="Disk I/O Write Mode"
+            value={form.diskIoWriteMode}
+            onChange={(v) => update("diskIoWriteMode", v)}
+            options={[
+              {
+                value: "OsCacheEnabled",
+                label: "OS Cache Enabled",
+              },
+              {
+                value: "WriteThrough",
+                label: "Write Through (Direct I/O)",
+              },
+              {
+                value: "Disabled",
+                label: "Disabled",
+              },
+            ]}
+            hint="Disk write caching strategy for libtorrent storage"
+          />
+
+          <NumberInput
+            label="File Pool Size"
+            value={form.filePoolSize}
+            onChange={(v) => update("filePoolSize", v)}
+            min={16}
+            max={4096}
+            hint="Maximum open file handles cached by libtorrent storage"
+          />
+
+          <SelectInput
             label={t("settingsTabs.batch2.leecherChokingAlgorithm")}
             value={form.chokingAlgorithm}
             onChange={(v) => update("chokingAlgorithm", v)}
@@ -532,6 +598,27 @@ export function EngineSettingsTab() {
               },
             ]}
           />
+
+          <SelectInput
+            label="Mixed Mode Algorithm"
+            value={form.mixedModeAlgorithm}
+            onChange={(v) => update("mixedModeAlgorithm", v)}
+            options={[
+              {
+                value: "PeerProportional",
+                label: "Peer Proportional",
+              },
+              {
+                value: "PreferTCP",
+                label: "Prefer TCP",
+              },
+              {
+                value: "PreferuTP",
+                label: "Prefer uTP",
+              },
+            ]}
+            hint="Algorithm for balancing TCP and uTP transport connections"
+          />
         </div>
       </SectionCard>
 
@@ -558,6 +645,21 @@ export function EngineSettingsTab() {
             checked={form.scrapePausedTorrentsEnabled}
             onChange={(v) => update("scrapePausedTorrentsEnabled", v)}
             hint={t("settingsTabs.batch2.queryTrackerSeederLeecherCounts")}
+          />
+
+          <Toggle
+            label="Enable RPC Whitelist"
+            checked={form.rpcWhitelistEnabled}
+            onChange={(v) => update("rpcWhitelistEnabled", v)}
+            hint="Restrict Transmission RPC access to specified IP addresses"
+          />
+
+          <TextInput
+            label="RPC Whitelist"
+            value={form.rpcWhitelist}
+            onChange={(v) => update("rpcWhitelist", v)}
+            disabled={!form.rpcWhitelistEnabled}
+            hint="Comma-separated list of allowed IPv4/IPv6 addresses or subnets (e.g. 127.0.0.1,::1)"
           />
         </div>
       </SectionCard>

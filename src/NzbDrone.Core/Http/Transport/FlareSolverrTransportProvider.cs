@@ -53,7 +53,47 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
     public FlareSolverrTransportProvider(IConfigService configService = null, HttpClient httpClient = null)
     {
         this.configService = configService;
-        this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+
+        if (httpClient != null)
+        {
+            this.httpClient = httpClient;
+        }
+        else
+        {
+            var handler = new SocketsHttpHandler
+            {
+                AutomaticDecompression = DecompressionMethods.All,
+            };
+
+            var proxyType = configService?.ProxyType?.ToLowerInvariant() ?? "none";
+            var proxyHost = configService?.ProxyHost;
+            var proxyPort = configService?.ProxyPort ?? (proxyType is "socks5" or "socks4" ? 1080 : 8080);
+
+            if (!string.Equals(proxyType, "none", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(proxyHost))
+            {
+                var scheme = proxyType switch
+                {
+                    "socks5" => "socks5",
+                    "socks4" => "socks4",
+                    "http" => "http",
+                    _ => "http",
+                };
+
+                var proxy = new WebProxy($"{scheme}://{proxyHost}:{proxyPort}");
+                if (configService.ProxyAuthEnabled && !string.IsNullOrEmpty(configService.ProxyUsername))
+                {
+                    proxy.Credentials = new NetworkCredential(configService.ProxyUsername, configService.ProxyPassword ?? string.Empty);
+                }
+
+                handler.Proxy = proxy;
+                handler.UseProxy = true;
+            }
+
+            this.httpClient = new HttpClient(handler, disposeHandler: true)
+            {
+                Timeout = TimeSpan.FromSeconds(60),
+            };
+        }
     }
 
     public async Task<HttpTransportHealthCheckResult> ProbeHealthAsync()

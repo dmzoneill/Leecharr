@@ -197,12 +197,21 @@ public class CategoryService : ICategoryService
 
         if (this.diskProvider != null)
         {
-            if (this.diskProvider.FolderExists(savePath))
+            try
             {
-                if (!this.diskProvider.FolderWritable(savePath))
+                if (!this.diskProvider.FolderExists(savePath))
                 {
-                    throw new InvalidOperationException($"Save path '{savePath}' is not writable.");
+                    this.diskProvider.CreateFolder(savePath);
                 }
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Could not create save directory '{savePath}': {ex.Message}", ex);
+            }
+
+            if (!this.diskProvider.FolderWritable(savePath))
+            {
+                throw new InvalidOperationException($"Save path '{savePath}' is not writable.");
             }
         }
     }

@@ -37,7 +37,8 @@ public class AppLifetimeServices : IAppLifetimeServices
         ICategoryService categoryService = null,
         IProwlarrSyncService prowlarrSyncService = null,
         IManageCommandQueue commandQueueManager = null,
-        NzbDrone.Core.Datastore.IDatabase database = null)
+        NzbDrone.Core.Datastore.IDatabase database = null,
+        NzbDrone.Core.DiskSpace.IDiskSpaceService diskSpaceService = null)
     {
         this.ConfigService = configService;
         this.EventAggregator = eventAggregator;
@@ -57,6 +58,7 @@ public class AppLifetimeServices : IAppLifetimeServices
         this.ProwlarrSyncService = prowlarrSyncService;
         this.CommandQueueManager = commandQueueManager;
         this.Database = database;
+        this.DiskSpaceService = diskSpaceService;
     }
 
     public IConfigService ConfigService { get; }
@@ -94,4 +96,6 @@ public class AppLifetimeServices : IAppLifetimeServices
     public IManageCommandQueue CommandQueueManager { get; }
 
     public NzbDrone.Core.Datastore.IDatabase Database { get; }
+
+    public NzbDrone.Core.DiskSpace.IDiskSpaceService DiskSpaceService { get; }
 }

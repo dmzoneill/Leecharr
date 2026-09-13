@@ -7,6 +7,7 @@ using NzbDrone.Core.BitTorrent.Tracker;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore;
+using NzbDrone.Core.DiskSpace;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
@@ -55,4 +56,6 @@ public interface IAppLifetimeServices
     IManageCommandQueue CommandQueueManager { get; }
 
     IDatabase Database { get; }
+
+    IDiskSpaceService DiskSpaceService { get; }
 }
