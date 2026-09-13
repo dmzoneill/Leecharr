@@ -1209,15 +1209,16 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
     [HttpPost("preview/upload")]
     [Consumes("multipart/form-data")]
-    public async Task<ActionResult<TorrentPreviewResource>> PreviewUpload([FromForm(Name = "file")] IFormFile file)
+    public async Task<ActionResult<TorrentPreviewResource>> PreviewUpload([FromForm] List<IFormFile> files = null)
     {
-        if (file == null || file.Length == 0)
+        var targetFile = files?.FirstOrDefault() ?? (this.Request?.HasFormContentType == true && this.Request.Form.Files.Count > 0 ? this.Request.Form.Files[0] : null);
+        if (targetFile == null || targetFile.Length == 0)
         {
             return this.BadRequest("No torrent file provided");
         }
 
         using var ms = new MemoryStream();
-        await file.CopyToAsync(ms);
+        await targetFile.CopyToAsync(ms);
         return this.PreviewFromBytes(ms.ToArray());
     }
 
