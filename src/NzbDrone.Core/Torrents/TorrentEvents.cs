@@ -52,6 +52,23 @@ public class TorrentSeedGoalReachedEvent : IEvent
     }
 }
 
+public class TorrentRatioReachedEvent : IEvent
+{
+    public Torrent Torrent { get; set; }
+
+    public double Ratio { get; set; }
+
+    public TorrentRatioReachedEvent()
+    {
+    }
+
+    public TorrentRatioReachedEvent(Torrent torrent, double ratio = 0)
+    {
+        this.Torrent = torrent;
+        this.Ratio = ratio > 0 ? ratio : torrent?.Ratio ?? 0;
+    }
+}
+
 public class HealthIssueEvent : IEvent
 {
     public Torrent Torrent { get; }
