@@ -433,6 +433,7 @@ export interface BitTorrentConfig {
   renamePartialFiles?: boolean;
   incompleteExtension?: string;
   umask?: string;
+  lowDiskSpaceThresholdMb?: number;
 
   // Queue & Concurrency Management
   downloadQueueSize?: number;

@@ -1,9 +1,9 @@
-// Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using NLog;
+using NzbDrone.Common.Disk;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Torrents;
 
@@ -45,16 +45,19 @@ public class CategoryService : ICategoryService
     private readonly ICategoryRepository repository;
     private readonly IEventAggregator eventAggregator;
     private readonly ITorrentRepository torrentRepository;
+    private readonly IDiskProvider diskProvider;
     private readonly Logger logger;
 
     public CategoryService(
         ICategoryRepository repository,
         IEventAggregator eventAggregator,
-        ITorrentRepository torrentRepository = null)
+        ITorrentRepository torrentRepository = null,
+        IDiskProvider diskProvider = null)
     {
         this.repository = repository;
         this.eventAggregator = eventAggregator;
         this.torrentRepository = torrentRepository;
+        this.diskProvider = diskProvider;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -102,6 +105,8 @@ public class CategoryService : ICategoryService
             category.SavePath = category.SavePath.Trim();
         }
 
+        this.ValidateSavePath(category.SavePath);
+
         this.logger.Info("Adding category: {0}", category.Name);
         if (category.IsDefault)
         {
@@ -137,6 +142,8 @@ public class CategoryService : ICategoryService
             category.SavePath = category.SavePath.Trim();
         }
 
+        this.ValidateSavePath(category.SavePath);
+
         this.logger.Info("Updating category: {0}", category.Name);
         var existing = this.repository.Get(category.Id);
 
@@ -164,6 +171,36 @@ public class CategoryService : ICategoryService
 
         this.eventAggregator.PublishEvent(new CategoryUpdatedEvent { Category = updated });
         return updated;
+    }
+
+    private void ValidateSavePath(string savePath)
+    {
+        if (string.IsNullOrWhiteSpace(savePath))
+        {
+            return;
+        }
+
+        if (savePath.IndexOf('\0') >= 0)
+        {
+            throw new ArgumentException("Save path contains invalid characters.", nameof(savePath));
+        }
+
+        var invalidChars = Path.GetInvalidPathChars();
+        if (savePath.IndexOfAny(invalidChars) >= 0)
+        {
+            throw new ArgumentException("Save path contains invalid characters.", nameof(savePath));
+        }
+
+        if (this.diskProvider != null)
+        {
+            if (this.diskProvider.FolderExists(savePath))
+            {
+                if (!this.diskProvider.FolderWritable(savePath))
+                {
+                    throw new InvalidOperationException($"Save path '{savePath}' is not writable.");
+                }
+            }
+        }
     }
 
     private void ClearExistingDefaults(int currentCategoryId)
