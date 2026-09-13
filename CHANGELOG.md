@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.7.3](https://github.com/dmzoneill/Leecharr/releases/tag/v1.7.3) - 2026-09-13
+
+### 🐛 Bug Fixes
+- fix(ui): eliminate modal background transparency and enforce solid theme background with backdrop blur
+
 ## [v1.7.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.7.2) - 2026-09-13
 
 ### 🐛 Bug Fixes
