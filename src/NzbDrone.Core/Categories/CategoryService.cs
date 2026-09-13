@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using NLog;
 using NzbDrone.Common.Disk;
+using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Torrents;
 
@@ -45,6 +46,7 @@ public class CategoryService : ICategoryService
     private readonly ICategoryRepository repository;
     private readonly IEventAggregator eventAggregator;
     private readonly ITorrentRepository torrentRepository;
+    private readonly IRssRuleRepository rssRuleRepository;
     private readonly IDiskProvider diskProvider;
     private readonly Logger logger;
 
@@ -52,12 +54,14 @@ public class CategoryService : ICategoryService
         ICategoryRepository repository,
         IEventAggregator eventAggregator,
         ITorrentRepository torrentRepository = null,
-        IDiskProvider diskProvider = null)
+        IDiskProvider diskProvider = null,
+        IRssRuleRepository rssRuleRepository = null)
     {
         this.repository = repository;
         this.eventAggregator = eventAggregator;
         this.torrentRepository = torrentRepository;
         this.diskProvider = diskProvider;
+        this.rssRuleRepository = rssRuleRepository;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -235,6 +239,16 @@ public class CategoryService : ICategoryService
                     torrent.Category = string.Empty;
                     this.torrentRepository.Update(torrent);
                 }
+            }
+        }
+
+        if (this.rssRuleRepository != null)
+        {
+            var rules = this.rssRuleRepository.All().Where(r => r.CategoryId == id).ToList();
+            foreach (var rule in rules)
+            {
+                rule.CategoryId = 0;
+                this.rssRuleRepository.Update(rule);
             }
         }
 

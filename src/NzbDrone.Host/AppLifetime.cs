@@ -264,6 +264,23 @@ public class AppLifetime : IHostedService, IDisposable
         {
             this.logger.Error(ex, "Error shutting down download engine");
         }
+
+        try
+        {
+            if (this.services.Database != null)
+            {
+                using var conn = this.services.Database.OpenConnection();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
+                cmd.ExecuteNonQuery();
+            }
+
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Error performing SQLite WAL checkpoint and pool clear on shutdown");
+        }
     }
 
     public void Dispose()
