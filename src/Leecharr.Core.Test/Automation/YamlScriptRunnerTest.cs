@@ -30,10 +30,10 @@ public class YamlScriptRunnerTest
 name: 'Categorize and Tag'
 steps:
     - name: 'Check Large'
-      condition: '${torrent.size} > 1000000000'
-      actions:
-          - addTag: '4K-UHD'
-          - setCategory: 'Movies'
+        condition: '${torrent.size} > 1000000000'
+        actions:
+            - addTag: '4K-UHD'
+            - setCategory: 'Movies'
 ";
 
         var script = new AutomationScript
@@ -63,10 +63,10 @@ steps:
 name: 'Recheck and Command'
 steps:
     - name: 'Execute pipeline'
-      actions:
-          - command: 'Backup'
-          - recheck: true
-          - reannounce: true
+        actions:
+            - command: 'Backup'
+            - recheck: true
+            - reannounce: true
 ";
 
         var script = new AutomationScript

@@ -185,14 +185,14 @@ if (res.ok) {
 trigger: 'TorrentAdded'
 steps:
     - name: 'Check for TV Show'
-      condition: '${torrent.name}'
-      actions:
-          - addTag: 'Automated'
+        condition: '${torrent.name}'
+        actions:
+            - addTag: 'Automated'
 
     - name: 'Tag Fast Seeding'
-      condition: '${torrent.size} > 1000000000'
-      actions:
-          - addTag: 'LargeTorrent'
+        condition: '${torrent.size} > 1000000000'
+        actions:
+            - addTag: 'LargeTorrent'
 ",
         },
         new AutomationMarketplaceTemplate
