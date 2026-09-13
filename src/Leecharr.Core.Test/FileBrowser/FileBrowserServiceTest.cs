@@ -354,10 +354,49 @@ public class FileBrowserServiceTest
     [TestCase("/etc")]
     [TestCase("/usr")]
     [TestCase("/var")]
+    [TestCase("/boot")]
+    [TestCase("/dev")]
+    [TestCase("/proc")]
+    [TestCase("/sys")]
+    [TestCase("/root")]
+    [TestCase("/home")]
+    [TestCase("/opt")]
+    [TestCase("/srv")]
     public void Delete_WhenPathIsSystemDirectory_ThrowsInvalidOperationException(string sysDir)
     {
         Action act = () => this.service.Delete(sysDir);
         act.Should().Throw<InvalidOperationException>().WithMessage("*root or system directory*");
+    }
+
+    [Test]
+    public void Delete_WhenPathIsAppDataFolder_ThrowsInvalidOperationException()
+    {
+        var appFolderInfo = Substitute.For<NzbDrone.Common.EnvironmentInfo.IAppFolderInfo>();
+        appFolderInfo.AppDataFolder.Returns("/config/leecharr");
+        var svc = new FileBrowserService(this.diskProvider, this.configService, appFolderInfo);
+
+        Action act = () => svc.Delete("/config/leecharr");
+        act.Should().Throw<InvalidOperationException>().WithMessage("*root or system directory*");
+    }
+
+    [Test]
+    public void Delete_WhenPathIsDownloadDirRoot_ThrowsInvalidOperationException()
+    {
+        this.configService.DownloadDir.Returns("/downloads");
+        var svc = new FileBrowserService(this.diskProvider, this.configService);
+
+        Action act = () => svc.Delete("/downloads");
+        act.Should().Throw<InvalidOperationException>().WithMessage("*root or system directory*");
+    }
+
+    [Test]
+    public void Delete_WhenPathIsEmptyOrWhitespace_ThrowsArgumentException()
+    {
+        Action act1 = () => this.service.Delete(string.Empty);
+        act1.Should().Throw<ArgumentException>();
+
+        Action act2 = () => this.service.Delete("   ");
+        act2.Should().Throw<ArgumentException>();
     }
 
     [Test]
