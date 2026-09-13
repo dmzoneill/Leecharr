@@ -44,3 +44,8 @@ Backups/
 
 # Worktrees
 .worktrees/
+
+# Scratch scripts
+patch*.py
+scratch/
+
