@@ -28,6 +28,7 @@ import {
   FolderIcon,
   TrackerBoostIcon,
   TerminalIcon,
+  AutomationIcon,
 } from "./components/icons/NavIcons";
 import { ActivityIcon } from "./components/icons/UIIcons";
 import {
@@ -753,7 +754,7 @@ export function App() {
             style={{ cursor: "pointer" }}
             title="Automation Scripting Engine & Marketplace"
           >
-            <span style={{ fontSize: "1rem", display: "inline-flex", width: "16px", justifyContent: "center" }}>⚡</span>
+            <AutomationIcon size={16} />
             <span>Automation</span>
           </div>
 
