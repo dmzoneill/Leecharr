@@ -591,8 +591,8 @@ public class AppLifetime : IHostedService, IDisposable
                                 }
                             }
 
-                            var maxDl = this.services.ConfigService.GlobalDownloadLimitBytesPerSecond;
-                            var maxUl = this.services.ConfigService.GlobalUploadLimitBytesPerSecond;
+                            var maxDl = this.services.ConfigService.MaxDownloadSpeedKbps > 0 ? (long)this.services.ConfigService.MaxDownloadSpeedKbps * 1024L : 0;
+                            var maxUl = this.services.ConfigService.MaxUploadSpeedKbps > 0 ? (long)this.services.ConfigService.MaxUploadSpeedKbps * 1024L : 0;
 
                             if ((maxDl > 0 && totalDlSpeed >= maxDl) || (maxUl > 0 && totalUlSpeed >= maxUl))
                             {
