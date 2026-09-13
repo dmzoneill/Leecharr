@@ -54,7 +54,24 @@ export type VisualActionType =
   | "extractArchive"
   | "cleanFiles"
   | "command"
-  | "http";
+  | "http"
+  | "createHardlink"
+  | "createSymlink"
+  | "cleanExtensions"
+  | "setFilePermissions"
+  | "calculateChecksum"
+  | "setShareLimitAction"
+  | "setFilePriority"
+  | "replaceTracker"
+  | "reannounceAll"
+  | "exportTorrent"
+  | "sendDiscordWebhook"
+  | "sendTelegramMessage"
+  | "sendNtfy"
+  | "sendPushover"
+  | "evalMath"
+  | "retryStep"
+  | "invokePipeline";
 
 export interface VisualAction {
   id: string;
@@ -121,6 +138,9 @@ export const ACTION_GROUPS: ActionGroup[] = [
       { type: "remove" as VisualActionType, label: "🗑️ Remove Torrent", extraHelp: "Deletes torrent from client (optional data deletion)" },
       { type: "recheck" as VisualActionType, label: "🔍 Force Hash Recheck", extraHelp: "Verifies piece hashes on disk" },
       { type: "reannounce" as VisualActionType, label: "📢 Force Reannounce", extraHelp: "Forces immediate tracker update" },
+      { type: "setShareLimitAction" as VisualActionType, label: "🎯 On Ratio/Time Goal Action", placeholder: "Pause, Remove, etc." },
+      { type: "reannounceAll" as VisualActionType, label: "📢 Reannounce All Swarms" },
+      { type: "exportTorrent" as VisualActionType, label: "📦 Export .torrent Backup" },
     ],
   },
   {
@@ -133,6 +153,7 @@ export const ACTION_GROUPS: ActionGroup[] = [
       { type: "setPriority" as VisualActionType, label: "⚡ Set Torrent Priority", placeholder: "High, Normal, Low, DoNotDownload" },
       { type: "setSequentialDownload" as VisualActionType, label: "⏩ Sequential Download Toggle", placeholder: "true or false" },
       { type: "setSuperSeeding" as VisualActionType, label: "🌱 Initial / Super Seeding", placeholder: "true or false" },
+      { type: "setFilePriority" as VisualActionType, label: "📁 Filter / Prioritize Files by Extension", placeholder: "e.g. .mkv .mp4" },
     ],
   },
   {
@@ -141,6 +162,11 @@ export const ACTION_GROUPS: ActionGroup[] = [
       { type: "moveFiles" as VisualActionType, label: "📂 Move Torrent Files / Change Save Path", placeholder: "e.g. /media/completed/${category}" },
       { type: "extractArchive" as VisualActionType, label: "📦 Extract Archive (.rar/.zip/.7z)", placeholder: "/extracted/path (blank = current)" },
       { type: "cleanFiles" as VisualActionType, label: "🧹 Clean Unwanted Files", placeholder: "*.nfo, *.txt, *.sample" },
+      { type: "createHardlink" as VisualActionType, label: "🔗 Create Hardlinks", placeholder: "/path/to/links" },
+      { type: "createSymlink" as VisualActionType, label: "🔀 Create Symlinks", placeholder: "/path/to/links" },
+      { type: "cleanExtensions" as VisualActionType, label: "🧹 Clean Junk / Sample Files", placeholder: ".exe, .txt" },
+      { type: "setFilePermissions" as VisualActionType, label: "🔒 Set Permissions / chmod", placeholder: "0777" },
+      { type: "calculateChecksum" as VisualActionType, label: "🧮 Verify / Calculate Checksum" },
     ],
   },
   {
@@ -150,6 +176,7 @@ export const ACTION_GROUPS: ActionGroup[] = [
       { type: "removeTracker" as VisualActionType, label: "➖ Remove Announce URL", placeholder: "https://tracker.example.com/announce" },
       { type: "boostTracker" as VisualActionType, label: "🚀 Boost Tracker Scrape", placeholder: "Tracker URL to prioritize" },
       { type: "banPeer" as VisualActionType, label: "🚫 Ban Peer IP / Subnet", placeholder: "192.168.1.100 or 10.0.0.0/24" },
+      { type: "replaceTracker" as VisualActionType, label: "🔄 Replace Announce URL", placeholder: "old_url|new_url" },
     ],
   },
   {
@@ -158,6 +185,10 @@ export const ACTION_GROUPS: ActionGroup[] = [
       { type: "sendNotification" as VisualActionType, label: "🔔 Send System / Push Notification", placeholder: "Torrent ${torrent.name} completed!" },
       { type: "notifyArr" as VisualActionType, label: "🤖 Notify Servarr App (Sonarr/Radarr)", placeholder: "sonarr or radarr" },
       { type: "syncArr" as VisualActionType, label: "🔄 Trigger Servarr Rescan", placeholder: "Instance name or all" },
+      { type: "sendDiscordWebhook" as VisualActionType, label: "🎮 Send Discord Embed Webhook", placeholder: "Webhook URL" },
+      { type: "sendTelegramMessage" as VisualActionType, label: "✈️ Send Telegram Bot Alert", placeholder: "Bot Token|Chat ID" },
+      { type: "sendNtfy" as VisualActionType, label: "📲 Send ntfy.sh Push Notification", placeholder: "Topic URL" },
+      { type: "sendPushover" as VisualActionType, label: "🔔 Send Pushover Notification", placeholder: "User Key|App Token" },
     ],
   },
   {
@@ -170,6 +201,9 @@ export const ACTION_GROUPS: ActionGroup[] = [
       { type: "stopPipeline" as VisualActionType, label: "🛑 Stop Pipeline Early", placeholder: "Reason for halting" },
       { type: "command" as VisualActionType, label: "⚙️ Run Internal Command", placeholder: "Backup, SyncArr, RssSync, etc." },
       { type: "http" as VisualActionType, label: "🌐 Send Custom HTTP Request", placeholder: "https://api.example.com/webhook" },
+      { type: "evalMath" as VisualActionType, label: "🧮 Evaluate Math / Format Metric", placeholder: "formula" },
+      { type: "retryStep" as VisualActionType, label: "🔁 Retry Step on Failure", placeholder: "max retries" },
+      { type: "invokePipeline" as VisualActionType, label: "⚡ Run Sub-Pipeline", placeholder: "pipeline id" },
     ],
   },
 ];
@@ -588,6 +622,12 @@ function visualStepsToYaml(pipelineName: string, trigger: string, steps: VisualS
           if (act.deleteData) {
             yaml += `        deleteData: true\n`;
           }
+        } else {
+          if (["calculateChecksum", "reannounceAll", "exportTorrent"].includes(act.type)) {
+            yaml += `      - ${act.type}: true\n`;
+          } else {
+            yaml += `      - ${act.type}: '${(act.value || "").replace(/'/g, "''")}'\n`;
+          }
         }
       }
     }
@@ -767,6 +807,14 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "reannounce", value: "" });
     } else if (currentStep && inActions && trimmed.startsWith("- remove:")) {
       currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "remove", value: "", deleteData: false });
+    } else if (currentStep && inActions && trimmed.startsWith("- ")) {
+      const match = trimmed.match(/- ([a-zA-Z0-9_]+):\s*(.*)/);
+      if (match && !["deleteData"].includes(match[1])) {
+        let type = match[1] as VisualActionType;
+        let value = match[2].replace(/^['"]|['"]$/g, '');
+        if (value === "true") value = "";
+        currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type, value });
+      }
     }
   }
 
@@ -836,6 +884,100 @@ export function AutomationPage() {
   const [testResult, setTestResult] = useState<AutomationExecutionResult | null>(null);
   const [isTesting, setIsTesting] = useState(false);
   const [isRunningId, setIsRunningId] = useState<number | null>(null);
+
+  const [simModalOpen, setSimModalOpen] = useState(false);
+  const [simTargetScriptId, setSimTargetScriptId] = useState<number | "">("");
+  const [simLogs, setSimLogs] = useState<string[]>([]);
+  
+  function runClientSimulator() {
+    if (!simTargetScriptId) return;
+    const script = scriptList.find(s => s.id === simTargetScriptId);
+    if (!script) return;
+    
+    setSimLogs(["[SYSTEM] Starting client-side simulation...", `[SYSTEM] Target: ${script.name}`]);
+    
+    // Simulate a payload
+    const simTorrent = {
+      name: "Simulated.Movie.1080p.x264",
+      size: 15 * 1024 * 1024 * 1024,
+      isPrivate: true,
+      isComplete: true,
+      status: 'Seeding',
+      category: 'Movies',
+      ratio: 1.5,
+      progress: 100,
+      downloadSpeed: 0,
+      uploadSpeed: 5242880,
+      seeders: 5,
+      leechers: 10,
+      tracker: 'tracker.simulated.net',
+      savePath: '/downloads/simulated'
+    };
+    
+    setSimLogs(prev => [...prev, `[EVENT] Simulated payload: ${JSON.stringify(simTorrent)}`]);
+    
+    if (script.language !== "Yaml" && script.language !== 1) {
+      setSimLogs(prev => [...prev, "[ERROR] Client simulator only supports Visual Pipelines (YAML).", "[SYSTEM] Simulation aborted."]);
+      return;
+    }
+    
+    const steps = yamlToVisualSteps(script.code || "");
+    setSimLogs(prev => [...prev, `[SYSTEM] Parsed ${steps.length} visual steps.`]);
+    
+    for (let i = 0; i < steps.length; i++) {
+      const step = steps[i];
+      setSimLogs(prev => [...prev, `\n[STEP ${i+1}] Evaluating: ${step.name}`]);
+      
+      let matched = true;
+      if (step.conditionEnabled) {
+        let lValStr = step.conditionLeft;
+        let rValStr = step.conditionRight;
+        
+        // rudimentary substitution
+        const resolveVal = (valStr) => {
+          if (valStr.includes("${torrent.size}")) return simTorrent.size;
+          if (valStr.includes("${torrent.ratio}")) return simTorrent.ratio;
+          if (valStr.includes("${torrent.progress}")) return simTorrent.progress;
+          if (valStr.includes("${torrent.seeders}")) return simTorrent.seeders;
+          if (valStr.includes("${torrent.leechers}")) return simTorrent.leechers;
+          if (valStr.includes("${torrent.isPrivate}")) return simTorrent.isPrivate;
+          if (valStr.includes("${torrent.isComplete}")) return simTorrent.isComplete;
+          if (valStr.includes("${torrent.status}")) return `'${simTorrent.status}'`;
+          if (valStr.includes("${torrent.category}")) return `'${simTorrent.category}'`;
+          if (valStr.includes("${torrent.name}")) return `'${simTorrent.name}'`;
+          if (valStr.includes("${torrent.tracker}")) return `'${simTorrent.tracker}'`;
+          
+          if (!isNaN(Number(valStr)) && valStr.trim() !== "") return Number(valStr);
+          if (valStr === "true") return true;
+          if (valStr === "false") return false;
+          return valStr;
+        };
+        
+        const lVal = resolveVal(lValStr);
+        const rVal = resolveVal(rValStr);
+        
+        setSimLogs(prev => [...prev, `[CONDITION] ${lValStr} ${step.conditionOp} ${rValStr} -> ${lVal} ${step.conditionOp} ${rVal}`]);
+        
+        if (step.conditionOp === "==") matched = lVal == rVal;
+        else if (step.conditionOp === "!=") matched = lVal != rVal;
+        else if (step.conditionOp === ">") matched = lVal > rVal;
+        else if (step.conditionOp === "<") matched = lVal < rVal;
+        else if (step.conditionOp === ">=") matched = lVal >= rVal;
+        else if (step.conditionOp === "<=") matched = lVal <= rVal;
+      }
+      
+      if (matched) {
+        setSimLogs(prev => [...prev, `[MATCH] Step '${step.name}' matched. Dispatching ${step.actions.length} actions...`]);
+        for (const act of step.actions) {
+          setSimLogs(prev => [...prev, `  -> [ACTION] ${act.type} (Value: ${act.value || "None"})`]);
+        }
+      } else {
+        setSimLogs(prev => [...prev, `[SKIP] Step '${step.name}' condition failed.`]);
+      }
+    }
+    
+    setSimLogs(prev => [...prev, "\n[SYSTEM] Simulation complete."]);
+  }
 
   const scriptList = scripts || [];
   const templateList = templates || [];
@@ -1173,6 +1315,9 @@ if (torrent) {
               </button>
               <button className="btn btn-secondary" onClick={() => openNewScript("JavaScript")}>
                 💻 + JavaScript Script
+              </button>
+              <button className="btn btn-secondary" onClick={() => setSimModalOpen(true)}>
+                🧪 Test / Dry Run Pipeline
               </button>
             </div>
           </div>
@@ -2202,121 +2347,385 @@ if (torrent) {
                                   ))}
                                 </select>
 
-                                {/* Action value rendering */}
-                                {act.type === "command" ? (
-                                  <select
-                                    className="form-control"
-                                    style={{ flex: 1, minWidth: "180px" }}
-                                    value={act.value}
-                                    onChange={(e) => {
-                                      const copy = [...visualSteps];
-                                      copy[stepIdx].actions[actIdx].value = e.target.value;
-                                      updateVisualSteps(copy);
-                                    }}
-                                  >
-                                    {COMMON_COMMANDS.map((cmd) => (
-                                      <option key={cmd.name} value={cmd.name}>
-                                        {cmd.name} — {cmd.desc}
-                                      </option>
-                                    ))}
-                                  </select>
-                                ) : act.type === "setCategory" ? (
-                                  <select
-                                    className="form-control"
-                                    style={{ flex: 1, minWidth: "180px" }}
-                                    value={act.value}
-                                    onChange={(e) => {
-                                      const copy = [...visualSteps];
-                                      copy[stepIdx].actions[actIdx].value = e.target.value;
-                                      updateVisualSteps(copy);
-                                    }}
-                                  >
-                                    {(categories || []).map((cat) => (
-                                      <option key={cat.id} value={cat.name}>
-                                        📁 {cat.name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                ) : act.type === "setPriority" ? (
-                                  <select
-                                    className="form-control"
-                                    style={{ flex: 1, minWidth: "180px" }}
-                                    value={act.value || "Normal"}
-                                    onChange={(e) => {
-                                      const copy = [...visualSteps];
-                                      copy[stepIdx].actions[actIdx].value = e.target.value;
-                                      updateVisualSteps(copy);
-                                    }}
-                                  >
-                                    <option value="High">⚡ High Priority</option>
-                                    <option value="Normal">🔹 Normal Priority</option>
-                                    <option value="Low">🔻 Low Priority</option>
-                                    <option value="DoNotDownload">🚫 Do Not Download (Skip)</option>
-                                  </select>
-                                ) : act.type === "setSequentialDownload" || act.type === "setSuperSeeding" ? (
-                                  <select
-                                    className="form-control"
-                                    style={{ flex: 1, minWidth: "180px" }}
-                                    value={act.value || "true"}
-                                    onChange={(e) => {
-                                      const copy = [...visualSteps];
-                                      copy[stepIdx].actions[actIdx].value = e.target.value;
-                                      updateVisualSteps(copy);
-                                    }}
-                                  >
-                                    <option value="true">✅ Enabled (True)</option>
-                                    <option value="false">❌ Disabled (False)</option>
-                                  </select>
-                                ) : act.type === "notifyArr" ? (
-                                  <select
-                                    className="form-control"
-                                    style={{ flex: 1, minWidth: "180px" }}
-                                    value={act.value}
-                                    onChange={(e) => {
-                                      const copy = [...visualSteps];
-                                      copy[stepIdx].actions[actIdx].value = e.target.value;
-                                      updateVisualSteps(copy);
-                                    }}
-                                  >
-                                    <option value="">🌐 All Connected Servarr Instances</option>
-                                    <option value="Sonarr">📺 Sonarr (TV Shows)</option>
-                                    <option value="Radarr">🎬 Radarr (Movies)</option>
-                                    <option value="Lidarr">🎵 Lidarr (Music)</option>
-                                    <option value="Readarr">📚 Readarr (Books)</option>
-                                    <option value="Whisparr">🔞 Whisparr (Adult)</option>
-                                  </select>
-                                ) : act.type === "remove" ? (
-                                  <label style={{ flex: 1, display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", cursor: "pointer", color: "var(--color-danger, #ff6b6b)" }}>
-                                    <input
-                                      type="checkbox"
-                                      checked={act.deleteData || false}
-                                      onChange={(e) => {
-                                        const copy = [...visualSteps];
-                                        copy[stepIdx].actions[actIdx].deleteData = e.target.checked;
-                                        updateVisualSteps(copy);
-                                      }}
-                                    />
-                                    🗑️ Also permanently delete downloaded files from disk
-                                  </label>
-                                ) : act.type === "pause" || act.type === "resume" || act.type === "recheck" || act.type === "reannounce" || act.type === "boostTracker" ? (
-                                  <span style={{ flex: 1, fontSize: "0.85rem", color: "var(--text-muted)", paddingLeft: "0.25rem" }}>
-                                    ✨ Auto-applies to active swarm & torrent
-                                  </span>
-                                ) : (
-                                  <input
-                                    type={act.type === "setUploadLimit" || act.type === "setDownloadLimit" || act.type === "setRatioLimit" || act.type === "setSeedingTimeLimit" || act.type === "delay" ? "number" : "text"}
-                                    className="form-control"
-                                    style={{ flex: 1, minWidth: "180px" }}
-                                    value={act.value}
-                                    onChange={(e) => {
-                                      const copy = [...visualSteps];
-                                      copy[stepIdx].actions[actIdx].value = e.target.value;
-                                      updateVisualSteps(copy);
-                                    }}
-                                    placeholder={placeholder}
-                                  />
-                                )}
+                                                                {/* Action value rendering */}
+                                {(() => {
+                                  const updateAct = (val) => {
+                                    const copy = [...visualSteps];
+                                    copy[stepIdx].actions[actIdx].value = val;
+                                    updateVisualSteps(copy);
+                                  };
+                                  const updateExtra = (key, val) => {
+                                    const copy = [...visualSteps];
+                                    if (!copy[stepIdx].actions[actIdx].extra) copy[stepIdx].actions[actIdx].extra = {};
+                                    copy[stepIdx].actions[actIdx].extra[key] = val;
+                                    updateVisualSteps(copy);
+                                  };
+                                  const val = act.value || "";
+                                  const extra = act.extra || {};
+                                  
+                                  if (act.type === "command") {
+                                    return (
+                                      <select className="form-control" style={{ flex: 1, minWidth: "180px" }} value={val} onChange={(e) => updateAct(e.target.value)}>
+                                        <optgroup label="System">
+                                          <option value="Backup">Backup - Full DB & Config</option>
+                                          <option value="CheckHealth">CheckHealth - System Diagnostic</option>
+                                          <option value="UpdateTrackerStats">UpdateTrackerStats - Global Stats</option>
+                                          <option value="PurgeDeadTorrents">PurgeDeadTorrents - Clean DB</option>
+                                          <option value="RescanTorrents">RescanTorrents - Deep Scan</option>
+                                        </optgroup>
+                                        <optgroup label="Swarm">
+                                          <option value="ForceRecheck">ForceRecheck - All Paused</option>
+                                          <option value="CleanIncompleteFolder">CleanIncompleteFolder - Temp Dir</option>
+                                          <option value="ScrapeTrackers">ScrapeTrackers - Mass Scrape</option>
+                                          <option value="ReannounceAll">ReannounceAll - Force Connect</option>
+                                        </optgroup>
+                                        <optgroup label="Servarr">
+                                          <option value="SyncArr">SyncArr - Push to Servarr</option>
+                                          <option value="RssSync">RssSync - Poll RSS Feeds</option>
+                                        </optgroup>
+                                      </select>
+                                    );
+                                  }
+                                  if (act.type === "setUploadLimit" || act.type === "setDownloadLimit") {
+                                    const presets = [0, 500, 1024, 5120, 10240, 51200];
+                                    const labels = {0: "Unlimited", 500: "500 KB/s", 1024: "1 MB/s", 5120: "5 MB/s", 10240: "10 MB/s", 51200: "50 MB/s"};
+                                    return (
+                                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.3rem", minWidth: "180px" }}>
+                                        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                                          <input type="number" className="form-control" style={{ flex: 1 }} value={val} onChange={(e) => updateAct(e.target.value)} placeholder="Limit in KB/s" />
+                                          {val && <span className="badge" style={{ backgroundColor: "rgba(59, 130, 246, 0.15)", color: "var(--accent)" }}>{val === "0" ? "Unlimited" : (Number(val)/1024).toFixed(2) + " MB/s"}</span>}
+                                        </div>
+                                        <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
+                                          {presets.map(p => <button key={p} type="button" className="btn btn-secondary" style={{ fontSize: "0.7rem", padding: "0.15rem 0.45rem", backgroundColor: val === String(p) ? "var(--accent)" : undefined, color: val === String(p) ? "#000" : undefined }} onClick={() => updateAct(String(p))}>{labels[p]}</button>)}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  if (act.type === "setRatioLimit") {
+                                    const presets = ["-1", "1.0", "1.5", "2.0", "2.5", "3.0", "5.0"];
+                                    return (
+                                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.3rem", minWidth: "180px" }}>
+                                        <input type="number" step="0.1" className="form-control" value={val} onChange={(e) => updateAct(e.target.value)} placeholder="Ratio (e.g. 2.0)" />
+                                        <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
+                                          {presets.map(p => <button key={p} type="button" className="btn btn-secondary" style={{ fontSize: "0.7rem", padding: "0.15rem 0.45rem", backgroundColor: val === p ? "var(--accent)" : undefined, color: val === p ? "#000" : undefined }} onClick={() => updateAct(p)}>{p === "-1" ? "Unlimited" : p + "x"}</button>)}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  if (act.type === "setSeedingTimeLimit") {
+                                    const presets = [ {v:"-1",l:"Unlimited"}, {v:"60",l:"1 hr"}, {v:"360",l:"6 hrs"}, {v:"1440",l:"1 day"}, {v:"4320",l:"3 days"}, {v:"10080",l:"1 week"} ];
+                                    return (
+                                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.3rem", minWidth: "180px" }}>
+                                        <input type="number" className="form-control" value={val} onChange={(e) => updateAct(e.target.value)} placeholder="Minutes" />
+                                        <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
+                                          {presets.map(p => <button key={p.v} type="button" className="btn btn-secondary" style={{ fontSize: "0.7rem", padding: "0.15rem 0.45rem", backgroundColor: val === p.v ? "var(--accent)" : undefined, color: val === p.v ? "#000" : undefined }} onClick={() => updateAct(p.v)}>{p.l}</button>)}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  if (act.type === "addTag" || act.type === "removeTag") {
+                                    const presets = ["Archived", "Seeding-Done", "Plex-Ready", "Cross-Seed", "Private", "VIP", "High-Priority", "Slow-Swarm"];
+                                    return (
+                                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.3rem", minWidth: "180px" }}>
+                                        <input type="text" className="form-control" value={val} onChange={(e) => updateAct(e.target.value)} placeholder="Tag name" />
+                                        <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
+                                          {presets.map(p => <button key={p} type="button" className="btn btn-secondary" style={{ fontSize: "0.7rem", padding: "0.15rem 0.45rem" }} onClick={() => updateAct(p)}>{p}</button>)}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  if (act.type === "setCategory") {
+                                    return (
+                                      <div style={{ flex: 1, display: "flex", gap: "0.5rem", minWidth: "180px" }}>
+                                        <select className="form-control" style={{ flex: 1 }} value={val} onChange={(e) => updateAct(e.target.value)}>
+                                          {(categories || []).map(c => <option key={c.id} value={c.name}>📁 {c.name}</option>)}
+                                          <option value="custom">✏️ Custom...</option>
+                                        </select>
+                                        {val === "custom" && <input type="text" className="form-control" style={{ flex: 1 }} value={extra.customCat || ""} onChange={(e) => updateExtra("customCat", e.target.value)} placeholder="Custom Category" />}
+                                      </div>
+                                    );
+                                  }
+                                  if (act.type === "setPriority") {
+                                    return (
+                                      <select className="form-control" style={{ flex: 1, minWidth: "180px" }} value={val || "Normal"} onChange={(e) => updateAct(e.target.value)}>
+                                        <option value="High">⚡ High Priority</option>
+                                        <option value="Normal">🔹 Normal Priority</option>
+                                        <option value="Low">🔻 Low Priority</option>
+                                        <option value="DoNotDownload">🚫 Do Not Download (Skip)</option>
+                                      </select>
+                                    );
+                                  }
+                                  if (act.type === "setSequentialDownload" || act.type === "setSuperSeeding") {
+                                    return (
+                                      <select className="form-control" style={{ flex: 1, minWidth: "180px" }} value={val || "true"} onChange={(e) => updateAct(e.target.value)}>
+                                        <option value="true">✅ Enabled (True)</option>
+                                        <option value="false">❌ Disabled (False)</option>
+                                      </select>
+                                    );
+                                  }
+                                  if (act.type === "notifyArr" || act.type === "syncArr") {
+                                    return (
+                                      <select className="form-control" style={{ flex: 1, minWidth: "180px" }} value={val} onChange={(e) => updateAct(e.target.value)}>
+                                        <option value="">🌐 All Connected Servarr Instances</option>
+                                        <option value="Sonarr">📺 Sonarr (TV Shows)</option>
+                                        <option value="Radarr">🎬 Radarr (Movies)</option>
+                                        <option value="Lidarr">🎵 Lidarr (Music)</option>
+                                        <option value="Readarr">📚 Readarr (Books)</option>
+                                        <option value="Whisparr">🔞 Whisparr (Adult)</option>
+                                      </select>
+                                    );
+                                  }
+                                  if (act.type === "sendNotification") {
+                                    const chips = ["${torrent.name}", "${torrent.size}", "${torrent.ratio}", "${torrent.category}", "${torrent.state}"];
+                                    return (
+                                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.3rem", minWidth: "180px" }}>
+                                        <input type="text" className="form-control" value={val} onChange={(e) => updateAct(e.target.value)} placeholder="Notification Message" />
+                                        <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
+                                          {chips.map(c => <button key={c} type="button" className="btn btn-secondary" style={{ fontSize: "0.7rem", padding: "0.15rem 0.45rem" }} onClick={() => updateAct(val + " " + c)}>{c}</button>)}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  if (act.type === "sendDiscordWebhook") {
+                                    const colors = [ {v:"#22c55e", l:"Green"}, {v:"#3b82f6", l:"Blue"}, {v:"#f97316", l:"Orange"}, {v:"#ef4444", l:"Red"}, {v:"#a855f7", l:"Purple"} ];
+                                    return (
+                                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: "180px" }}>
+                                        <div style={{ display: "flex", gap: "0.5rem" }}>
+                                          <input type="text" className="form-control" style={{ flex: 2 }} placeholder="Webhook URL" value={val.split('|')[0] || ""} onChange={(e) => updateAct(`${e.target.value}|${val.split('|')[1] || ""}|${val.split('|')[2] || ""}`)} />
+                                          <input type="color" className="form-control" style={{ width: "40px", padding: "0.1rem" }} value={val.split('|')[1] || "#3b82f6"} onChange={(e) => updateAct(`${val.split('|')[0] || ""}|${e.target.value}|${val.split('|')[2] || ""}`)} />
+                                          <input type="text" className="form-control" style={{ flex: 1 }} placeholder="Embed Title" value={val.split('|')[2] || ""} onChange={(e) => updateAct(`${val.split('|')[0] || ""}|${val.split('|')[1] || ""}|${e.target.value}`)} />
+                                        </div>
+                                        <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
+                                          {colors.map(c => <button key={c.v} type="button" className="btn btn-secondary" style={{ fontSize: "0.7rem", padding: "0.15rem 0.45rem", borderBottom: `2px solid ${c.v}` }} onClick={() => updateAct(`${val.split('|')[0] || ""}|${c.v}|${val.split('|')[2] || ""}`)}>{c.l}</button>)}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  if (act.type === "sendTelegramMessage") {
+                                    return (
+                                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: "180px" }}>
+                                        <div style={{ display: "flex", gap: "0.5rem" }}>
+                                          <input type="text" className="form-control" style={{ flex: 1 }} placeholder="Bot Token" value={val.split('|')[0] || ""} onChange={(e) => updateAct(`${e.target.value}|${val.split('|')[1] || ""}|${val.split('|')[2] || ""}`)} />
+                                          <input type="text" className="form-control" style={{ flex: 1 }} placeholder="Chat ID" value={val.split('|')[1] || ""} onChange={(e) => updateAct(`${val.split('|')[0] || ""}|${e.target.value}|${val.split('|')[2] || ""}`)} />
+                                        </div>
+                                        <input type="text" className="form-control" placeholder="Message template..." value={val.split('|')[2] || ""} onChange={(e) => updateAct(`${val.split('|')[0] || ""}|${val.split('|')[1] || ""}|${e.target.value}`)} />
+                                      </div>
+                                    );
+                                  }
+                                  if (act.type === "sendNtfy") {
+                                    return (
+                                      <div style={{ flex: 1, display: "flex", gap: "0.5rem", minWidth: "180px" }}>
+                                        <input type="text" className="form-control" style={{ flex: 2 }} placeholder="Topic URL" value={val.split('|')[0] || ""} onChange={(e) => updateAct(`${e.target.value}|${val.split('|')[1] || "3"}`)} />
+                                        <select className="form-control" style={{ flex: 1 }} value={val.split('|')[1] || "3"} onChange={(e) => updateAct(`${val.split('|')[0] || ""}|${e.target.value}`)}>
+                                          <option value="1">Min Priority</option>
+                                          <option value="2">Low Priority</option>
+                                          <option value="3">Default Priority</option>
+                                          <option value="4">High Priority</option>
+                                          <option value="5">Urgent Priority</option>
+                                        </select>
+                                      </div>
+                                    );
+                                  }
+                                  if (act.type === "createHardlink" || act.type === "createSymlink") {
+                                    const presets = ["/media/movies", "/media/tv", "/data/completed"];
+                                    return (
+                                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: "180px" }}>
+                                        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                                          <input type="text" className="form-control" style={{ flex: 1 }} placeholder="Dest Dir" value={val} onChange={(e) => updateAct(e.target.value)} />
+                                          <label style={{ fontSize: "0.8rem", display: "flex", alignItems: "center", gap: "0.25rem", cursor: "pointer", color: "var(--text-secondary)" }}><input type="checkbox" checked={extra.preserveHierarchy !== false} onChange={(e) => updateExtra("preserveHierarchy", e.target.checked)} /> Preserve folder hierarchy</label>
+                                        </div>
+                                        <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
+                                          {presets.map(p => <button key={p} type="button" className="btn btn-secondary" style={{ fontSize: "0.7rem", padding: "0.15rem 0.45rem" }} onClick={() => updateAct(p)}>{p}</button>)}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  if (act.type === "cleanExtensions") {
+                                    const presets = [".nfo", ".txt", ".sample", ".exe", ".url", ".jpg"];
+                                    return (
+                                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: "180px" }}>
+                                        <div style={{ display: "flex", gap: "0.5rem" }}>
+                                          <input type="text" className="form-control" style={{ flex: 2 }} placeholder="Extensions (.nfo, .txt)" value={val} onChange={(e) => updateAct(e.target.value)} />
+                                          <input type="text" className="form-control" style={{ flex: 1 }} placeholder="Max size (e.g. < 50 MB)" value={extra.maxSize || ""} onChange={(e) => updateExtra("maxSize", e.target.value)} />
+                                        </div>
+                                        <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
+                                          {presets.map(p => <button key={p} type="button" className="btn btn-secondary" style={{ fontSize: "0.7rem", padding: "0.15rem 0.45rem" }} onClick={() => updateAct(val ? val + ", " + p : p)}>{p}</button>)}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  if (act.type === "setFilePermissions") {
+                                    const presets = [ {v:"0775",l:"0775 (rwxrwxr-x)"}, {v:"0755",l:"0755 (rwxr-xr-x)"}, {v:"0664",l:"0664 (rw-rw-r--)"}, {v:"0644",l:"0644 (rw-r--r--)"} ];
+                                    return (
+                                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: "180px" }}>
+                                        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                                          <input type="text" className="form-control" style={{ flex: 1 }} placeholder="Octal (e.g. 0755)" value={val} onChange={(e) => updateAct(e.target.value)} />
+                                          <label style={{ fontSize: "0.8rem", display: "flex", alignItems: "center", gap: "0.25rem", cursor: "pointer", color: "var(--text-secondary)" }}><input type="checkbox" checked={extra.recursive !== false} onChange={(e) => updateExtra("recursive", e.target.checked)} /> Recursive</label>
+                                        </div>
+                                        <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
+                                          {presets.map(p => <button key={p.v} type="button" className="btn btn-secondary" style={{ fontSize: "0.7rem", padding: "0.15rem 0.45rem", backgroundColor: val === p.v ? "var(--accent)" : undefined, color: val === p.v ? "#000" : undefined }} onClick={() => updateAct(p.v)}>{p.l}</button>)}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  if (act.type === "setShareLimitAction") {
+                                    return (
+                                      <select className="form-control" style={{ flex: 1, minWidth: "180px" }} value={val || "Pause"} onChange={(e) => updateAct(e.target.value)}>
+                                        <option value="Pause">⏸️ Pause Torrent</option>
+                                        <option value="Stop">⏹️ Stop Torrent</option>
+                                        <option value="Remove">🗑️ Remove from Client (Keep Data)</option>
+                                        <option value="RemoveAndDelete">🔥 Remove & Delete Files from Disk</option>
+                                      </select>
+                                    );
+                                  }
+                                  if (act.type === "delay" || act.type === "sleep") {
+                                    const presets = [{v:"5",l:"5s"}, {v:"15",l:"15s"}, {v:"30",l:"30s"}, {v:"60",l:"1 min"}, {v:"300",l:"5 min"}];
+                                    return (
+                                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.3rem", minWidth: "180px" }}>
+                                        <input type="number" className="form-control" value={val} onChange={(e) => updateAct(e.target.value)} placeholder="Seconds" />
+                                        <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
+                                          {presets.map(p => <button key={p.v} type="button" className="btn btn-secondary" style={{ fontSize: "0.7rem", padding: "0.15rem 0.45rem", backgroundColor: val === p.v ? "var(--accent)" : undefined, color: val === p.v ? "#000" : undefined }} onClick={() => updateAct(p.v)}>{p.l}</button>)}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  if (act.type === "evalMath") {
+                                    const chips = ["${torrent.size}", "${torrent.ratio}", "${inputs.min}"];
+                                    return (
+                                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: "180px" }}>
+                                        <div style={{ display: "flex", gap: "0.5rem" }}>
+                                          <input type="text" className="form-control" style={{ flex: 2 }} placeholder="Expression (e.g. torrent.size * 2)" value={val.split('|')[0] || ""} onChange={(e) => updateAct(`${e.target.value}|${val.split('|')[1] || ""}`)} />
+                                          <input type="text" className="form-control" style={{ flex: 1 }} placeholder="Target Var" value={val.split('|')[1] || ""} onChange={(e) => updateAct(`${val.split('|')[0] || ""}|${e.target.value}`)} />
+                                        </div>
+                                        <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
+                                          {chips.map(c => <button key={c} type="button" className="btn btn-secondary" style={{ fontSize: "0.7rem", padding: "0.15rem 0.45rem" }} onClick={() => updateAct(`${val.split('|')[0] || ""} ${c}|${val.split('|')[1] || ""}`)}>{c}</button>)}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  if (act.type === "remove") {
+                                    return (
+                                      <label style={{ flex: 1, display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", cursor: "pointer", color: "var(--color-danger, #ff6b6b)" }}>
+                                        <input type="checkbox" checked={act.deleteData || false} onChange={(e) => {
+                                          const copy = [...visualSteps];
+                                          copy[stepIdx].actions[actIdx].deleteData = e.target.checked;
+                                          updateVisualSteps(copy);
+                                        }} />
+                                        🗑️ Also permanently delete downloaded files from disk
+                                      </label>
+                                    );
+                                  }
+                                  if (["pause", "resume", "recheck", "reannounce", "boostTracker", "calculateChecksum", "reannounceAll", "exportTorrent"].includes(act.type)) {
+                                    return <span style={{ flex: 1, fontSize: "0.85rem", color: "var(--text-muted)", paddingLeft: "0.25rem" }}>✨ Auto-applies to active swarm & torrent</span>;
+                                  }
 
+                                  if (act.type === "http") {
+                                    const methodColors = { GET: "#3b82f6", POST: "#22c55e", PUT: "#f59e0b", DELETE: "#ef4444", PATCH: "#a855f7" };
+                                    const m = val.split('|')[0] || "GET";
+                                    const url = val.split('|')[1] || "";
+                                    const body = val.split('|')[2] || "";
+                                    const chips = ["${torrent.hash}", "${torrent.name}", "${torrent.category}", "${torrent.size}"];
+                                    
+                                    return (
+                                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: "220px", borderLeft: `3px solid ${methodColors[m] || "#888"}`, paddingLeft: "0.5rem" }}>
+                                        <div style={{ display: "flex", gap: "0.5rem" }}>
+                                          <select className="form-control" style={{ width: "90px", fontWeight: 700, color: methodColors[m] }} value={m} onChange={(e) => updateAct(`${e.target.value}|${url}|${body}`)}>
+                                            <option value="GET">GET</option>
+                                            <option value="POST">POST</option>
+                                            <option value="PUT">PUT</option>
+                                            <option value="PATCH">PATCH</option>
+                                            <option value="DELETE">DELETE</option>
+                                          </select>
+                                          <input type="text" className="form-control" style={{ flex: 1 }} placeholder="https://api.example.com/webhook" value={url} onChange={(e) => updateAct(`${m}|${e.target.value}|${body}`)} />
+                                        </div>
+                                        
+                                        <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap", alignItems: "center" }}>
+                                          <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginRight: "0.2rem" }}>Insert:</span>
+                                          {chips.map(c => <button key={c} type="button" className="btn btn-secondary" style={{ fontSize: "0.7rem", padding: "0.15rem 0.45rem" }} onClick={() => updateAct(`${m}|${url + c}|${body}`)}>{c}</button>)}
+                                        </div>
+
+                                        {(m !== "GET" && m !== "DELETE") && (
+                                          <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+                                            <textarea className="form-control" rows={3} style={{ fontFamily: "monospace", fontSize: "0.8rem", width: "100%", resize: "vertical" }} placeholder="JSON Body Template..." value={body} onChange={(e) => updateAct(`${m}|${url}|${e.target.value}`)} />
+                                            <div style={{ display: "flex", gap: "0.5rem" }}>
+                                              <button type="button" className="btn btn-sm btn-secondary" style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }} onClick={() => updateAct(`${m}|${url}|{ "event": "TorrentCompleted", "name": "${torrent.name}", "size": ${torrent.size} }`)}>✨ Insert Torrent JSON Payload</button>
+                                            </div>
+                                          </div>
+                                        )}
+                                        
+                                        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.25rem" }}>
+                                          <select className="form-control" style={{ width: "140px", fontSize: "0.8rem", padding: "0.2rem" }} value={extra.auth || "none"} onChange={(e) => updateExtra("auth", e.target.value)}>
+                                            <option value="none">No Auth</option>
+                                            <option value="bearer">Bearer Token</option>
+                                            <option value="apikey">X-Api-Key</option>
+                                            <option value="basic">Basic Auth</option>
+                                          </select>
+                                          <input type="text" className="form-control" style={{ width: "120px", fontSize: "0.8rem", padding: "0.2rem" }} placeholder="Register Var (apiRes)" value={extra.register || ""} onChange={(e) => updateExtra("register", e.target.value)} />
+                                          <input type="number" className="form-control" style={{ width: "80px", fontSize: "0.8rem", padding: "0.2rem" }} placeholder="Timeout (s)" value={extra.timeout || ""} onChange={(e) => updateExtra("timeout", e.target.value)} />
+                                          <label style={{ fontSize: "0.75rem", display: "flex", alignItems: "center", gap: "0.25rem", color: "var(--text-secondary)" }}><input type="checkbox" checked={extra.insecure || false} onChange={(e) => updateExtra("insecure", e.target.checked)} /> Insecure HTTPS</label>
+                                          <label style={{ fontSize: "0.75rem", display: "flex", alignItems: "center", gap: "0.25rem", color: "var(--text-secondary)" }}><input type="checkbox" checked={extra.continueOnError || false} onChange={(e) => updateExtra("continueOnError", e.target.checked)} /> Continue on Error</label>
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+
+                                  return (
+                                    <input
+                                      type={["setUploadLimit", "setDownloadLimit", "setRatioLimit", "setSeedingTimeLimit", "delay", "retryStep"].includes(act.type) ? "number" : "text"}
+                                      className="form-control"
+                                      style={{ flex: 1, minWidth: "180px" }}
+                                      value={val}
+                                      onChange={(e) => updateAct(e.target.value)}
+                                      placeholder={actDef?.placeholder || "Action value"}
+                                    />
+                                  );
+                                })()}
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-secondary"
+                                  disabled={actIdx === 0}
+                                  style={{ width: "32px", height: "32px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: "6px" }}
+                                  title="Move Up"
+                                  onClick={() => {
+                                    const copy = [...visualSteps];
+                                    const temp = copy[stepIdx].actions[actIdx];
+                                    copy[stepIdx].actions[actIdx] = copy[stepIdx].actions[actIdx - 1];
+                                    copy[stepIdx].actions[actIdx - 1] = temp;
+                                    updateVisualSteps(copy);
+                                  }}
+                                >
+                                  ⬆️
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-secondary"
+                                  disabled={actIdx === step.actions.length - 1}
+                                  style={{ width: "32px", height: "32px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: "6px" }}
+                                  title="Move Down"
+                                  onClick={() => {
+                                    const copy = [...visualSteps];
+                                    const temp = copy[stepIdx].actions[actIdx];
+                                    copy[stepIdx].actions[actIdx] = copy[stepIdx].actions[actIdx + 1];
+                                    copy[stepIdx].actions[actIdx + 1] = temp;
+                                    updateVisualSteps(copy);
+                                  }}
+                                >
+                                  ⬇️
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-secondary"
+                                  style={{ width: "32px", height: "32px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: "6px" }}
+                                  title="Duplicate Action"
+                                  onClick={() => {
+                                    const copy = [...visualSteps];
+                                    const cloned = { ...copy[stepIdx].actions[actIdx], id: `act-${Date.now()}-${Math.random()}` };
+                                    copy[stepIdx].actions.splice(actIdx + 1, 0, cloned);
+                                    updateVisualSteps(copy);
+                                  }}
+                                >
+                                  📋
+                                </button>
                                 <button
                                   type="button"
                                   className="btn btn-sm btn-secondary"
@@ -2621,6 +3030,42 @@ if (torrent) {
               <button className="btn btn-secondary" style={{ padding: "0.45rem 1.25rem" }} onClick={() => setInstallModalOpen(false)}>Cancel</button>
               <button className="btn btn-primary" style={{ padding: "0.45rem 1.25rem", fontWeight: 600 }} onClick={handleInstallTemplate}>Install Pipeline</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* SIMULATOR MODAL */}
+      {simModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal panel" style={{ width: "100%", maxWidth: "800px", padding: "1.75rem", backgroundColor: "var(--bg-secondary)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <h3 style={{ margin: 0, fontSize: "1.25rem", fontWeight: 700 }}>🧪 Client-Side Pipeline Simulator</h3>
+              <button type="button" className="btn btn-sm btn-secondary" style={{ width: "32px", height: "32px", padding: 0 }} onClick={() => setSimModalOpen(false)}>✕</button>
+            </div>
+            
+            <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem" }}>
+              <select className="form-control" style={{ flex: 1 }} value={simTargetScriptId} onChange={(e) => setSimTargetScriptId(Number(e.target.value))}>
+                <option value="">Select a pipeline to simulate...</option>
+                {scriptList.filter(s => s.language === "Yaml" || s.language === 1).map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              <button className="btn btn-primary" onClick={runClientSimulator} disabled={!simTargetScriptId}>▶️ Run Simulation Trace</button>
+            </div>
+            
+            <pre style={{
+              backgroundColor: "#000",
+              color: "#34d399",
+              padding: "1rem",
+              borderRadius: "6px",
+              minHeight: "300px",
+              maxHeight: "500px",
+              overflowY: "auto",
+              fontSize: "0.8rem",
+              fontFamily: "monospace"
+            }}>
+              {simLogs.length === 0 ? "Select a pipeline and run to view trace logs..." : simLogs.join("\n")}
+            </pre>
           </div>
         </div>
       )}
