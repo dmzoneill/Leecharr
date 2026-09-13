@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.9.3](https://github.com/dmzoneill/Leecharr/releases/tag/v1.9.3) - 2026-09-13
+
+### ✨ Features
+- feat(api): add atomic bulk torrent action and torrent preview endpoints
+- feat(ui): add command palette, global shortcuts, table range select, folder browser, and tracker countdowns in leecharr
+
+### 🐛 Bug Fixes
+- fix(api): adjust file upload parameter binding for Swagger schema generation
+
+### 🔧 Maintenance & Improvements
+- style(ui): align AddTorrentPage header with Automation style
+- style(ui): unify all page headers and layout with Automation header design
+
 ## [v1.9.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.9.2) - 2026-09-13
 
 ### ✨ Features
