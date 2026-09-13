@@ -3184,7 +3184,9 @@
     "4c52faad5dc6e248": "开始日期",
     "fa8f2b6c07fb514c": "复制到剪贴板",
     "1660f57b33f29b71": "命令面板（Ctrl+K）",
-    "a406dcf41227f830": "导出下载历史记录"
+    "a406dcf41227f830": "导出下载历史记录",
+    "1ea6926817f32793": "完成时自动重新哈希检查",
+    "9fa8eb5e466884d0": "下载完成后，在将文件移动到目标文件夹之前自动验证磁盘上的所有片段哈希值"
   },
   "hi": {
     "b43594c795c4ca3f": "जोड़ने के लिए और फ़ाइलें क्लिक करें या खींचें",
@@ -6371,7 +6373,9 @@
     "978a1dc5401a2164": "क्लिपबोर्ड पर कॉपी करने में विफल",
     "be9aa0e12df3a76a": "समृद्ध मेटाडेटा शामिल करें",
     "4e77cdbcbb82e626": "त्वरित छलांग/खोज... (Ctrl+K)",
-    "37cbd7817638eb86": "निर्यात सफलतापूर्वक डाउनलोड हुआ"
+    "37cbd7817638eb86": "निर्यात सफलतापूर्वक डाउनलोड हुआ",
+    "1ea6926817f32793": "पूर्ण होने पर ऑटो रिहैश चेक",
+    "9fa8eb5e466884d0": "फ़ाइलों को गंतव्य फ़ोल्डर में ले जाने से पहले डाउनलोड पूरा होने पर डिस्क पर सभी टुकड़े हैश को स्वचालित रूप से सत्यापित करें"
   },
   "es": {
     "33b8a7901c02ac2e": "Explorador de archivos",
@@ -9558,7 +9562,9 @@
     "1660f57b33f29b71": "Paleta de comandos (Ctrl+K)",
     "b9b2a679d28523bc": "Apoya y dona",
     "fa8f2b6c07fb514c": "Copiar al portapapeles",
-    "4c52faad5dc6e248": "Fecha de inicio"
+    "4c52faad5dc6e248": "Fecha de inicio",
+    "1ea6926817f32793": "Comprobación de repetición automática al finalizar",
+    "9fa8eb5e466884d0": "Verifique automáticamente todos los hashes de piezas en el disco al finalizar la descarga antes de mover archivos a la carpeta de destino"
   },
   "ar": {
     "33b8a7901c02ac2e": "مستعرض الملفات",
@@ -12745,7 +12751,9 @@
     "0361e102919a6e7d": "معاينة التصدير",
     "e028bef765e44aac": "تنسيق التصدير",
     "fa8f2b6c07fb514c": "نسخ إلى الحافظة",
-    "a406dcf41227f830": "تصدير سجل التنزيل"
+    "a406dcf41227f830": "تصدير سجل التنزيل",
+    "1ea6926817f32793": "التحقق التلقائي من إعادة صياغة عند الانتهاء",
+    "9fa8eb5e466884d0": "التحقق تلقائيًا من جميع تجزئات القطعة الموجودة على القرص عند اكتمال التنزيل قبل نقل الملفات إلى المجلد الوجهة"
   },
   "fr": {
     "57fd7a0cf33f2666": "Choisi",
@@ -15932,7 +15940,9 @@
     "4e77cdbcbb82e626": "Saut rapide/Recherche... (Ctrl+K)",
     "e970951cfb6b60b1": "Date de fin",
     "978a1dc5401a2164": "Échec de la copie dans le presse-papiers",
-    "0361e102919a6e7d": "Aperçu de l'exportation"
+    "0361e102919a6e7d": "Aperçu de l'exportation",
+    "9fa8eb5e466884d0": "Vérifiez automatiquement tous les hachages de morceaux sur le disque une fois le téléchargement terminé avant de déplacer les fichiers vers le dossier de destination.",
+    "1ea6926817f32793": "Vérification de répétition automatique à la fin"
   },
   "bn": {
     "33b8a7901c02ac2e": "ফাইল ব্রাউজার",
@@ -19119,7 +19129,9 @@
     "978a1dc5401a2164": "ক্লিপবোর্ডে অনুলিপি করতে ব্যর্থ হয়েছে৷",
     "5c2a4b1ca380d3b2": "ক্লিপবোর্ডে এক্সপোর্ট ডেটা কপি করা হয়েছে",
     "be9aa0e12df3a76a": "সমৃদ্ধ মেটাডেটা অন্তর্ভুক্ত করুন",
-    "37cbd7817638eb86": "রপ্তানি সফলভাবে ডাউনলোড করা হয়েছে৷"
+    "37cbd7817638eb86": "রপ্তানি সফলভাবে ডাউনলোড করা হয়েছে৷",
+    "1ea6926817f32793": "স্বয়ংক্রিয় রিহ্যাশ সমাপ্তির চেক",
+    "9fa8eb5e466884d0": "ফাইলগুলি গন্তব্য ফোল্ডারে সরানোর আগে ডাউনলোড সমাপ্তির পরে ডিস্কের সমস্ত টুকরো হ্যাশ স্বয়ংক্রিয়ভাবে যাচাই করুন"
   },
   "pt": {
     "33b8a7901c02ac2e": "Navegador de arquivos",
@@ -22306,7 +22318,9 @@
     "d408801d283aa1b3": "Mudar para o modo claro",
     "a406dcf41227f830": "Exportar histórico de downloads",
     "e028bef765e44aac": "Formato de exportação",
-    "1660f57b33f29b71": "Paleta de Comandos (Ctrl+K)"
+    "1660f57b33f29b71": "Paleta de Comandos (Ctrl+K)",
+    "1ea6926817f32793": "Verificação automática de repetição na conclusão",
+    "9fa8eb5e466884d0": "Verifique automaticamente todos os hashes no disco após a conclusão do download antes de mover os arquivos para a pasta de destino"
   },
   "ru": {
     "33b8a7901c02ac2e": "Файловый менеджер",
@@ -25493,7 +25507,9 @@
     "978a1dc5401a2164": "Не удалось скопировать в буфер обмена",
     "be9aa0e12df3a76a": "Включить расширенные метаданные",
     "0361e102919a6e7d": "Экспортировать предварительный просмотр",
-    "e028bef765e44aac": "Формат экспорта"
+    "e028bef765e44aac": "Формат экспорта",
+    "1ea6926817f32793": "Автоматическая проверка повтора при завершении",
+    "9fa8eb5e466884d0": "Автоматически проверять все хэши частей на диске после завершения загрузки перед перемещением файлов в папку назначения."
   },
   "ur": {
     "33b8a7901c02ac2e": "فائل براؤزر",
@@ -28680,7 +28696,9 @@
     "5c2a4b1ca380d3b2": "برآمدی ڈیٹا کو کلپ بورڈ میں کاپی کیا گیا۔",
     "1660f57b33f29b71": "کمانڈ پیلیٹ (Ctrl+K)",
     "721bb349fa390e00": "ڈارک موڈ پر سوئچ کریں۔",
-    "978a1dc5401a2164": "کلپ بورڈ پر کاپی کرنے میں ناکام"
+    "978a1dc5401a2164": "کلپ بورڈ پر کاپی کرنے میں ناکام",
+    "1ea6926817f32793": "مکمل ہونے پر آٹو ری ہیش چیک",
+    "9fa8eb5e466884d0": "فائلوں کو منزل کے فولڈر میں منتقل کرنے سے پہلے ڈاؤن لوڈ مکمل ہونے پر ڈسک پر موجود تمام ہیشز کی خود بخود تصدیق کریں۔"
   },
   "id": {
     "33b8a7901c02ac2e": "Peramban Berkas",
@@ -31867,7 +31885,9 @@
     "e028bef765e44aac": "Format Ekspor",
     "978a1dc5401a2164": "Gagal menyalin ke papan klip",
     "5c2a4b1ca380d3b2": "Menyalin data ekspor ke clipboard",
-    "be9aa0e12df3a76a": "Sertakan metadata yang diperkaya"
+    "be9aa0e12df3a76a": "Sertakan metadata yang diperkaya",
+    "1ea6926817f32793": "Pemeriksaan Pengulangan Otomatis pada Penyelesaian",
+    "9fa8eb5e466884d0": "Secara otomatis memverifikasi semua potongan hash pada disk setelah pengunduhan selesai sebelum memindahkan file ke folder tujuan"
   },
   "de": {
     "57fd7a0cf33f2666": "Ausgewählt",
@@ -35054,7 +35074,9 @@
     "f60741ee68bde051": "Filterstatus",
     "a406dcf41227f830": "Download-Verlauf exportieren",
     "b9b2a679d28523bc": "Unterstützen und spenden",
-    "0361e102919a6e7d": "Vorschau exportieren"
+    "0361e102919a6e7d": "Vorschau exportieren",
+    "1ea6926817f32793": "Automatische Rehash-Prüfung nach Abschluss",
+    "9fa8eb5e466884d0": "Überprüfen Sie nach Abschluss des Downloads automatisch alle Hashes auf der Festplatte, bevor Sie Dateien in den Zielordner verschieben"
   },
   "ja": {
     "33b8a7901c02ac2e": "ファイルブラウザー",
@@ -38241,7 +38263,9 @@
     "5c2a4b1ca380d3b2": "エクスポートデータをクリップボードにコピーしました",
     "be9aa0e12df3a76a": "強化されたメタデータを含める",
     "978a1dc5401a2164": "クリップボードへのコピーに失敗しました",
-    "4e77cdbcbb82e626": "クイックジャンプ/検索... (Ctrl+K)"
+    "4e77cdbcbb82e626": "クイックジャンプ/検索... (Ctrl+K)",
+    "1ea6926817f32793": "完了時の自動再ハッシュチェック",
+    "9fa8eb5e466884d0": "ダウンロード完了時に、ファイルを宛先フォルダーに移動する前に、ディスク上のすべてのピース ハッシュを自動的に検証します。"
   },
   "mr": {
     "33b8a7901c02ac2e": "फाइल ब्राउझर",
@@ -41428,7 +41452,9 @@
     "4e77cdbcbb82e626": "द्रुत उडी / शोध... (Ctrl+K)",
     "978a1dc5401a2164": "क्लिपबोर्डवर कॉपी करण्यात अयशस्वी",
     "5c2a4b1ca380d3b2": "निर्यात डेटा क्लिपबोर्डवर कॉपी केला",
-    "be9aa0e12df3a76a": "समृद्ध मेटाडेटा समाविष्ट करा"
+    "be9aa0e12df3a76a": "समृद्ध मेटाडेटा समाविष्ट करा",
+    "1ea6926817f32793": "पूर्ण झाल्यावर ऑटो रीहॅश चेक",
+    "9fa8eb5e466884d0": "फायली गंतव्य फोल्डरमध्ये हलवण्यापूर्वी डाउनलोड पूर्ण झाल्यावर डिस्कवरील सर्व तुकडा हॅश स्वयंचलितपणे सत्यापित करा"
   },
   "te": {
     "33b8a7901c02ac2e": "ఫైల్ బ్రౌజర్",
@@ -44615,7 +44641,9 @@
     "4e77cdbcbb82e626": "త్వరిత జంప్ / శోధన... (Ctrl+K)",
     "f60741ee68bde051": "ఫిల్టర్ స్థితి",
     "0361e102919a6e7d": "ఎగుమతి ప్రివ్యూ",
-    "a406dcf41227f830": "డౌన్ లోడ్ చరిత్రను ఎగుమతి చేయండి"
+    "a406dcf41227f830": "డౌన్ లోడ్ చరిత్రను ఎగుమతి చేయండి",
+    "9fa8eb5e466884d0": "ఫైల్‌లను డెస్టినేషన్ ఫోల్డర్‌కి తరలించే ముందు డౌన్‌లోడ్ పూర్తయిన తర్వాత డిస్క్‌లోని అన్ని పీస్ హ్యాష్‌లను ఆటోమేటిక్‌గా వెరిఫై చేయండి",
+    "1ea6926817f32793": "పూర్తయినప్పుడు ఆటో రీహాష్ చెక్"
   },
   "tr": {
     "33b8a7901c02ac2e": "Dosya Tarayıcısı",
@@ -47802,7 +47830,9 @@
     "be9aa0e12df3a76a": "Zenginleştirilmiş meta verileri dahil et",
     "978a1dc5401a2164": "Panoya kopyalanamadı",
     "4e77cdbcbb82e626": "Hızlı Atla / Ara... (Ctrl+K)",
-    "5c2a4b1ca380d3b2": "Dışa aktarma verileri panoya kopyalandı"
+    "5c2a4b1ca380d3b2": "Dışa aktarma verileri panoya kopyalandı",
+    "1ea6926817f32793": "Tamamlandığında Otomatik Yeniden Düzenleme Kontrolü",
+    "9fa8eb5e466884d0": "İndirme işlemi tamamlandıktan sonra dosyaları hedef klasöre taşımadan önce diskteki tüm parça karmalarını otomatik olarak doğrulayın"
   },
   "ta": {
     "33b8a7901c02ac2e": "கோப்பு உலாவி",
@@ -50989,7 +51019,9 @@
     "4e77cdbcbb82e626": "விரைவு ஜம்ப் / தேடல்... (Ctrl+K)",
     "be9aa0e12df3a76a": "செறிவூட்டப்பட்ட மெட்டாடேட்டாவைச் சேர்க்கவும்",
     "1660f57b33f29b71": "கட்டளை தட்டு (Ctrl+K)",
-    "b9b2a679d28523bc": "ஆதரவு மற்றும் நன்கொடை"
+    "b9b2a679d28523bc": "ஆதரவு மற்றும் நன்கொடை",
+    "1ea6926817f32793": "முடிந்ததைத் தானாக மறுபரிசீலனை செய்யுங்கள்",
+    "9fa8eb5e466884d0": "பதிவிறக்கம் முடிந்ததும், இலக்கு கோப்புறைக்கு கோப்புகளை நகர்த்துவதற்கு முன் வட்டில் உள்ள அனைத்து துண்டு ஹாஷ்களையும் தானாகவே சரிபார்க்கவும்"
   },
   "vi": {
     "57fd7a0cf33f2666": "Đã chọn",
@@ -54176,7 +54208,9 @@
     "b9b2a679d28523bc": "Hỗ trợ & Đóng góp",
     "0361e102919a6e7d": "Xuất bản xem trước",
     "fa8f2b6c07fb514c": "Sao chép vào Clipboard",
-    "4c52faad5dc6e248": "Ngày bắt đầu"
+    "4c52faad5dc6e248": "Ngày bắt đầu",
+    "1ea6926817f32793": "Tự động kiểm tra lại khi hoàn thành",
+    "9fa8eb5e466884d0": "Tự động xác minh tất cả các phần băm trên đĩa sau khi hoàn tất tải xuống trước khi di chuyển tệp vào thư mục đích"
   },
   "ko": {
     "33b8a7901c02ac2e": "파일 탐색기",
@@ -57363,7 +57397,9 @@
     "e028bef765e44aac": "내보내기 형식",
     "b9b2a679d28523bc": "지원 및 기부",
     "1660f57b33f29b71": "명령 팔레트(Ctrl+K)",
-    "e970951cfb6b60b1": "종료일"
+    "e970951cfb6b60b1": "종료일",
+    "9fa8eb5e466884d0": "파일을 대상 폴더로 이동하기 전에 다운로드가 완료되면 디스크의 모든 조각 해시를 자동으로 확인합니다.",
+    "1ea6926817f32793": "완료 시 자동 재해시 확인"
   },
   "it": {
     "bbdffe25dc7d80cf": "Posizione:",
@@ -60550,6 +60586,8 @@
     "5c2a4b1ca380d3b2": "Dati di esportazione copiati negli appunti",
     "be9aa0e12df3a76a": "Includi metadati arricchiti",
     "f60741ee68bde051": "Stato del filtro",
-    "0361e102919a6e7d": "Anteprima di esportazione"
+    "0361e102919a6e7d": "Anteprima di esportazione",
+    "9fa8eb5e466884d0": "Verifica automaticamente tutti gli hash dei pezzi sul disco al completamento del download prima di spostare i file nella cartella di destinazione",
+    "1ea6926817f32793": "Controllo automatico della ripetizione al completamento"
   }
 }
