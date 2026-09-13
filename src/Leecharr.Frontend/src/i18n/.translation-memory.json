@@ -3544,7 +3544,9 @@
     "d7824214236cb297": "✨ 插入 Torrent JSON 负载",
     "9ce7400deabd936b": "例如4K 电影自动切换和备份",
     "f38448516085e983": "https://external.service.com/api/v1/webhook",
-    "0486bad94208f48d": "切换回预设下拉列表"
+    "0486bad94208f48d": "切换回预设下拉列表",
+    "b04a086ec1aecf03": "删除标签",
+    "397c5e007b59b6a7": "添加标签"
   },
   "hi": {
     "b43594c795c4ca3f": "जोड़ने के लिए और फ़ाइलें क्लिक करें या खींचें",
@@ -7091,7 +7093,9 @@
     "6451ea62bbc903c7": "जैसे ${inputs.myProperty}",
     "8eb7ad1f242c8c49": "टाइमआउट",
     "02795e98ff760a42": "वैरिएबल पंजीकृत करें",
-    "d35bf29864662fb6": "कार्रवाई हटाएँ"
+    "d35bf29864662fb6": "कार्रवाई हटाएँ",
+    "b04a086ec1aecf03": "टैग हटाएँ",
+    "397c5e007b59b6a7": "टैग जोड़ें"
   },
   "es": {
     "33b8a7901c02ac2e": "Explorador de archivos",
@@ -10638,7 +10642,9 @@
     "6451ea62bbc903c7": "p.ej. ${entradas.miPropiedad}",
     "d35bf29864662fb6": "Eliminar acción",
     "02795e98ff760a42": "Registrar variable",
-    "34af9b86d5b35383": "Nombre personalizado de canalización"
+    "34af9b86d5b35383": "Nombre personalizado de canalización",
+    "397c5e007b59b6a7": "Agregar etiqueta",
+    "b04a086ec1aecf03": "Quitar etiqueta"
   },
   "ar": {
     "33b8a7901c02ac2e": "مستعرض الملفات",
@@ -14185,7 +14191,9 @@
     "d7824214236cb297": "✨ أدخل حمولة Torrent JSON",
     "d35bf29864662fb6": "حذف الإجراء",
     "02795e98ff760a42": "تسجيل المتغير",
-    "3d74ab94a909f65f": "ملخص لما ينفذه خط أنابيب الأتمتة هذا..."
+    "3d74ab94a909f65f": "ملخص لما ينفذه خط أنابيب الأتمتة هذا...",
+    "397c5e007b59b6a7": "إضافة علامة",
+    "b04a086ec1aecf03": "إزالة العلامة"
   },
   "fr": {
     "57fd7a0cf33f2666": "Choisi",
@@ -17732,7 +17740,9 @@
     "f38448516085e983": "https://external.service.com/api/v1/webhook",
     "d7824214236cb297": "✨ Insérer la charge utile Torrent JSON",
     "0486bad94208f48d": "Revenir à la liste déroulante des préréglages",
-    "3d74ab94a909f65f": "Résumé des performances de ce pipeline d'automatisation..."
+    "3d74ab94a909f65f": "Résumé des performances de ce pipeline d'automatisation...",
+    "397c5e007b59b6a7": "Ajouter une balise",
+    "b04a086ec1aecf03": "Supprimer la balise"
   },
   "bn": {
     "33b8a7901c02ac2e": "ফাইল ব্রাউজার",
@@ -21279,7 +21289,9 @@
     "8b85264da8ef2f99": "এক্সিকিউশন লগ দেখুন",
     "928d79ee3bc35d0d": "পাইপলাইন ইনস্টল করুন",
     "4703c413ae193c3c": "পাইপলাইন অনুসন্ধান করুন...",
-    "620569f740bde708": "ট্রিগার অবিলম্বে চালানো"
+    "620569f740bde708": "ট্রিগার অবিলম্বে চালানো",
+    "397c5e007b59b6a7": "ট্যাগ যোগ করুন",
+    "b04a086ec1aecf03": "ট্যাগ সরান"
   },
   "pt": {
     "33b8a7901c02ac2e": "Navegador de arquivos",
@@ -24826,7 +24838,9 @@
     "f38448516085e983": "https://external.service.com/api/v1/webhook",
     "d7824214236cb297": "✨ Inserir carga útil JSON do Torrent",
     "8eb7ad1f242c8c49": "Tempo limite(s)",
-    "3d74ab94a909f65f": "Resumo do que esse pipeline de automação executa..."
+    "3d74ab94a909f65f": "Resumo do que esse pipeline de automação executa...",
+    "b04a086ec1aecf03": "Remover etiqueta",
+    "397c5e007b59b6a7": "Adicionar etiqueta"
   },
   "ru": {
     "33b8a7901c02ac2e": "Файловый менеджер",
@@ -28373,7 +28387,9 @@
     "8eb7ad1f242c8c49": "Тайм-аут (с)",
     "02795e98ff760a42": "Зарегистрировать переменную",
     "d35bf29864662fb6": "Удалить действие",
-    "0486bad94208f48d": "Вернуться к раскрывающемуся списку пресетов"
+    "0486bad94208f48d": "Вернуться к раскрывающемуся списку пресетов",
+    "397c5e007b59b6a7": "Добавить тег",
+    "b04a086ec1aecf03": "Удалить тег"
   },
   "ur": {
     "33b8a7901c02ac2e": "فائل براؤزر",
@@ -31920,7 +31936,9 @@
     "8b85264da8ef2f99": "عمل درآمد لاگ دیکھیں",
     "0486bad94208f48d": "پری سیٹ ڈراپ ڈاؤن پر واپس جائیں۔",
     "d7824214236cb297": "✨ Torrent JSON پے لوڈ داخل کریں۔",
-    "d35bf29864662fb6": "ایکشن کو حذف کریں۔"
+    "d35bf29864662fb6": "ایکشن کو حذف کریں۔",
+    "397c5e007b59b6a7": "ٹیگ شامل کریں۔",
+    "b04a086ec1aecf03": "ٹیگ کو ہٹا دیں۔"
   },
   "id": {
     "33b8a7901c02ac2e": "Peramban Berkas",
@@ -35467,7 +35485,9 @@
     "620569f740bde708": "Pemicu segera dijalankan",
     "07da02e33cd53c60": "🎵 Lidarr (Musik)",
     "589e70484d66299d": "🔞 Whisparr (Dewasa)",
-    "d35bf29864662fb6": "Hapus Tindakan"
+    "d35bf29864662fb6": "Hapus Tindakan",
+    "397c5e007b59b6a7": "Tambahkan Tanda",
+    "b04a086ec1aecf03": "Hapus Tanda"
   },
   "de": {
     "57fd7a0cf33f2666": "Ausgewählt",
@@ -39014,7 +39034,9 @@
     "34af9b86d5b35383": "Benutzerdefinierter Name der Pipeline",
     "d35bf29864662fb6": "Aktion löschen",
     "373cb952ee34a8a5": "Schrittname",
-    "3d74ab94a909f65f": "Zusammenfassung der Leistung dieser Automatisierungspipeline ..."
+    "3d74ab94a909f65f": "Zusammenfassung der Leistung dieser Automatisierungspipeline ...",
+    "b04a086ec1aecf03": "Tag entfernen",
+    "397c5e007b59b6a7": "Tag hinzufügen"
   },
   "ja": {
     "33b8a7901c02ac2e": "ファイルブラウザー",
@@ -42561,7 +42583,9 @@
     "d7824214236cb297": "✨ Torrent JSON ペイロードを挿入",
     "0486bad94208f48d": "プリセットドロップダウンに戻ります",
     "9427be530ea653d7": "コミュニティ テンプレートを検索...",
-    "f38448516085e983": "https://external.service.com/api/v1/webhook"
+    "f38448516085e983": "https://external.service.com/api/v1/webhook",
+    "b04a086ec1aecf03": "タグの削除",
+    "397c5e007b59b6a7": "タグの追加"
   },
   "mr": {
     "33b8a7901c02ac2e": "फाइल ब्राउझर",
@@ -46108,7 +46132,9 @@
     "3d74ab94a909f65f": "ही ऑटोमेशन पाइपलाइन काय करते याचा सारांश...",
     "9ce7400deabd936b": "उदा. 4K मूव्ही ऑटो-झॅप आणि बॅकअप",
     "f38448516085e983": "https://external.service.com/api/v1/webhook",
-    "89d6d37d5e247abf": "समुदाय पाइपलाइन स्थापित करा"
+    "89d6d37d5e247abf": "समुदाय पाइपलाइन स्थापित करा",
+    "397c5e007b59b6a7": "टॅग जोडा",
+    "b04a086ec1aecf03": "टॅग काढा"
   },
   "te": {
     "33b8a7901c02ac2e": "ఫైల్ బ్రౌజర్",
@@ -49655,7 +49681,9 @@
     "92b5a126fd81adaf": "స్క్రిప్ట్‌ను తొలగించండి",
     "34af9b86d5b35383": "పైప్‌లైన్ అనుకూల పేరు",
     "89d6d37d5e247abf": "కమ్యూనిటీ పైప్‌లైన్‌ను ఇన్‌స్టాల్ చేయండి",
-    "3d74ab94a909f65f": "ఈ ఆటోమేషన్ పైప్‌లైన్ ఏమి చేస్తుందో దాని సారాంశం..."
+    "3d74ab94a909f65f": "ఈ ఆటోమేషన్ పైప్‌లైన్ ఏమి చేస్తుందో దాని సారాంశం...",
+    "b04a086ec1aecf03": "ట్యాగ్‌ని తీసివేయండి",
+    "397c5e007b59b6a7": "ట్యాగ్ జోడించండి"
   },
   "tr": {
     "33b8a7901c02ac2e": "Dosya Tarayıcısı",
@@ -53202,7 +53230,9 @@
     "f38448516085e983": "https://external.service.com/api/v1/webhook",
     "9f976a84b2e503f7": "Örnek Torrent (Big Buck Bunny 1080p)",
     "89d6d37d5e247abf": "Topluluk Pipeline'ı yükleyin",
-    "3d74ab94a909f65f": "Bu otomasyon hattının gerçekleştirdiği performansın özeti..."
+    "3d74ab94a909f65f": "Bu otomasyon hattının gerçekleştirdiği performansın özeti...",
+    "b04a086ec1aecf03": "Etiketi Kaldır",
+    "397c5e007b59b6a7": "Etiket Ekle"
   },
   "ta": {
     "33b8a7901c02ac2e": "கோப்பு உலாவி",
@@ -56749,7 +56779,9 @@
     "d7824214236cb297": "✨ Torrent JSON பேலோடைச் செருகவும்",
     "0486bad94208f48d": "முன்னமைவுகள் கீழ்தோன்றலுக்கு மீண்டும் மாறவும்",
     "7a590340c3484f13": "குழாய் கட்டமைப்பு அளவுருக்கள்",
-    "f38448516085e983": "https://external.service.com/api/v1/webhook"
+    "f38448516085e983": "https://external.service.com/api/v1/webhook",
+    "397c5e007b59b6a7": "குறியைச் சேர்க்கவும்",
+    "b04a086ec1aecf03": "குறிச்சொல்லை அகற்று"
   },
   "vi": {
     "57fd7a0cf33f2666": "Đã chọn",
@@ -60296,7 +60328,9 @@
     "d35bf29864662fb6": "Xóa hành động",
     "02795e98ff760a42": "Đăng ký biến",
     "4703c413ae193c3c": "Tìm kiếm đường ống...",
-    "3d74ab94a909f65f": "Tóm tắt những gì quy trình tự động hóa này thực hiện..."
+    "3d74ab94a909f65f": "Tóm tắt những gì quy trình tự động hóa này thực hiện...",
+    "397c5e007b59b6a7": "Thêm thẻ",
+    "b04a086ec1aecf03": "Xóa thẻ"
   },
   "ko": {
     "33b8a7901c02ac2e": "파일 탐색기",
@@ -63843,7 +63877,9 @@
     "02795e98ff760a42": "변수 등록",
     "928d79ee3bc35d0d": "파이프라인 설치",
     "8eb7ad1f242c8c49": "시간 초과(초)",
-    "d35bf29864662fb6": "삭제 작업"
+    "d35bf29864662fb6": "삭제 작업",
+    "397c5e007b59b6a7": "태그 추가",
+    "b04a086ec1aecf03": "태그 제거"
   },
   "it": {
     "bbdffe25dc7d80cf": "Posizione:",
@@ -67390,6 +67426,8 @@
     "8eb7ad1f242c8c49": "Timeout (i)",
     "d35bf29864662fb6": "Elimina azione",
     "92b5a126fd81adaf": "Elimina copione",
-    "6451ea62bbc903c7": "per esempio. ${input.miaproprietà}"
+    "6451ea62bbc903c7": "per esempio. ${input.miaproprietà}",
+    "397c5e007b59b6a7": "Aggiungi etichetta",
+    "b04a086ec1aecf03": "Rimuovi etichetta"
   }
 }

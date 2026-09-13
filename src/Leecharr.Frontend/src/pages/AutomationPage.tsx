@@ -110,9 +110,9 @@ export const getActionGroups = (t: any): ActionGroup[] => [
   {
     group: t("automation.actions.tagsCategories"),
     items: [
-      { type: "addTag" as VisualActionType, label: t("automation.actions.addTag"), placeholder: t("automation.actions.eg4khdrVerifiedFreeleech") },
-      { type: "removeTag" as VisualActionType, label: t("automation.actions.removeTag"), placeholder: t("automation.actions.egIncompleteQueued") },
-      { type: "setCategory" as VisualActionType, label: t("automation.actions.setCategory"), placeholder: t("automation.actions.egMoviesTvAnime") },
+      { type: "addTag" as VisualActionType, label: t("automation.actions.addTag.label"), placeholder: t("automation.actions.eg4khdrVerifiedFreeleech") },
+      { type: "removeTag" as VisualActionType, label: t("automation.actions.removeTag.label"), placeholder: t("automation.actions.egIncompleteQueued") },
+      { type: "setCategory" as VisualActionType, label: t("automation.actions.setCategory.label"), placeholder: t("automation.actions.egMoviesTvAnime") },
     ],
   },
   {
@@ -878,17 +878,17 @@ function tTrigger(t: any, key: string, defaultLabel: string) {
     Scheduled: "hourlySchedule",
     Manual: "manual"
   };
-  if (map[key]) return t("automation.triggers." + map[key], { defaultValue: defaultLabel });
-  return t("automation.triggers." + key, { defaultValue: defaultLabel });
+  if (map[key]) return t(["automation", "triggers", map[key]].join("."), { defaultValue: defaultLabel });
+  return t(["automation", "triggers", key].join("."), { defaultValue: defaultLabel });
 }
 
 function tAction(t: any, type: string, field: "label" | "placeholder" | "extraHelp", defaultText?: string) {
   if (!defaultText) return defaultText;
-  return t("automation.actions." + type + "." + field, { defaultValue: defaultText });
+  return t(["automation", "actions", type, field].join("."), { defaultValue: defaultText });
 }
 
 function tCommand(t: any, name: string, defaultDesc: string) {
-  return t("automation.commands." + name, { defaultValue: defaultDesc });
+  return t(["automation", "commands", name].join("."), { defaultValue: defaultDesc });
 }
 
 export function AutomationPage() {
@@ -1165,7 +1165,6 @@ if (torrent) {
             deleteDataOnRemove: false,
 
             
-            shouldBoostTracker: false,
           });
         },
       }
@@ -1435,7 +1434,7 @@ if (torrent) {
                   <th style={{ padding: "0.75rem 0.5rem" }}>{t("automation.ui.pipelineName")}</th>
                   <th style={{ padding: "0.75rem 0.5rem" }}>{t("automation.ui.trigger")}</th>
                   <th style={{ padding: "0.75rem 0.5rem" }}>{t("automation.ui.executedAt")}</th>
-                  <th style={{ padding: "0.75rem 0.5rem" }}>{t("automation.ui.actions")}</th>
+                  <th style={{ padding: "0.75rem 0.5rem" }}>{t(["automation", "ui", "actions"].join("."))}</th>
                 </tr>
               </thead>
               <tbody>

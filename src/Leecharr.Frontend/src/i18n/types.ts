@@ -3589,86 +3589,6 @@ export type I18nTranslations = {
     "signInWithProvider": string;
   };
   "automation": {
-    "title": string;
-    "subtitle": string;
-    "tabs": {
-      "visual": string;
-      "marketplace": string;
-      "editor": string;
-      "logs": string;
-    };
-    "buttons": {
-      "btnNewPipeline": string;
-      "btnImportYaml": string;
-      "btnExportYaml": string;
-      "btnTestRun": string;
-      "btnSave": string;
-      "btnRunNow": string;
-      "btnDelete": string;
-      "confirmDelete": string;
-    };
-    "triggers": {
-      "torrentAdded": string;
-      "torrentFinished": string;
-      "ratioReached": string;
-      "timeLimitReached": string;
-      "trackerError": string;
-      "speedDrop": string;
-      "diskSpaceLow": string;
-      "hourlySchedule": string;
-      "dailySchedule": string;
-      "manual": string;
-      "onTorrentAdded": string;
-      "onDownloadCompleted": string;
-      "onRatioSeedGoalReached": string;
-      "onTorrentResumedStarted": string;
-      "onTorrentPausedStopped": string;
-      "onTorrentStalled": string;
-      "onSeedingTimeTargetMet": string;
-      "onHashCheckCompleted": string;
-      "onProgressMilestone": string;
-      "onTorrentStateChanged": string;
-      "onTorrentDeleted": string;
-      "onTorrentError": string;
-      "onHighSpeedThresholdExceeded": string;
-      "onSpeedDropAlert": string;
-      "onBandwidthQuotaThreshold": string;
-      "onVpnKillswitch": string;
-      "onVpnRestored": string;
-      "onPortForwardingUpnpFailure": string;
-      "onMaliciousBadPeerBanned": string;
-      "onAllTrackersFailed": string;
-      "onTrackerBoostApplied": string;
-      "onLowDiskSpaceWarning": string;
-      "onCriticalDiskSpaceEmergency": string;
-      "onFileMovePathError": string;
-      "onMediaEnriched": string;
-      "onMediaCorruptionInspectionFai": string;
-      "onArchiveExtracted": string;
-      "onExtractionFailed": string;
-      "onServarrImportCompleted": string;
-      "onHealthRestored": string;
-      "onCategoryChanged": string;
-      "onAppStarted": string;
-      "onAppUpdated": string;
-      "onBackupSucceeded": string;
-      "onBackupFailed": string;
-      "onScheduledTaskFailed": string;
-      "scheduledInterval": string;
-      "manualOnly": string;
-    };
-    "groups": {
-      "tagsAndCategories": string;
-      "torrentState": string;
-      "limitsAndPriority": string;
-      "storageAndFiles": string;
-      "trackersAndPeers": string;
-      "notificationsAndAlerts": string;
-      "mediaPostProcessing": string;
-      "controlFlow": string;
-      "httpRequest": string;
-      "commands": string;
-    };
     "actions": {
       "addTag": {
         "label": string;
@@ -3860,6 +3780,56 @@ export type I18nTranslations = {
       "sendCustomHttpRequest": string;
       "httpsapiexamplecomwebhook": string;
     };
+    "triggers": {
+      "torrentAdded": string;
+      "torrentFinished": string;
+      "ratioReached": string;
+      "timeLimitReached": string;
+      "trackerError": string;
+      "speedDrop": string;
+      "diskSpaceLow": string;
+      "hourlySchedule": string;
+      "dailySchedule": string;
+      "manual": string;
+      "onTorrentAdded": string;
+      "onDownloadCompleted": string;
+      "onRatioSeedGoalReached": string;
+      "onTorrentResumedStarted": string;
+      "onTorrentPausedStopped": string;
+      "onTorrentStalled": string;
+      "onSeedingTimeTargetMet": string;
+      "onHashCheckCompleted": string;
+      "onProgressMilestone": string;
+      "onTorrentStateChanged": string;
+      "onTorrentDeleted": string;
+      "onTorrentError": string;
+      "onHighSpeedThresholdExceeded": string;
+      "onSpeedDropAlert": string;
+      "onBandwidthQuotaThreshold": string;
+      "onVpnKillswitch": string;
+      "onVpnRestored": string;
+      "onPortForwardingUpnpFailure": string;
+      "onMaliciousBadPeerBanned": string;
+      "onAllTrackersFailed": string;
+      "onTrackerBoostApplied": string;
+      "onLowDiskSpaceWarning": string;
+      "onCriticalDiskSpaceEmergency": string;
+      "onFileMovePathError": string;
+      "onMediaEnriched": string;
+      "onMediaCorruptionInspectionFai": string;
+      "onArchiveExtracted": string;
+      "onExtractionFailed": string;
+      "onServarrImportCompleted": string;
+      "onHealthRestored": string;
+      "onCategoryChanged": string;
+      "onAppStarted": string;
+      "onAppUpdated": string;
+      "onBackupSucceeded": string;
+      "onBackupFailed": string;
+      "onScheduledTaskFailed": string;
+      "scheduledInterval": string;
+      "manualOnly": string;
+    };
     "commands": {
       "Backup": string;
       "SyncArr": string;
@@ -3875,6 +3845,36 @@ export type I18nTranslations = {
       "updatePeerIpBlocklist": string;
       "updateMaxmindGeoipDatabase": string;
       "pollRssIndexersForReleases": string;
+    };
+    "title": string;
+    "subtitle": string;
+    "tabs": {
+      "visual": string;
+      "marketplace": string;
+      "editor": string;
+      "logs": string;
+    };
+    "buttons": {
+      "btnNewPipeline": string;
+      "btnImportYaml": string;
+      "btnExportYaml": string;
+      "btnTestRun": string;
+      "btnSave": string;
+      "btnRunNow": string;
+      "btnDelete": string;
+      "confirmDelete": string;
+    };
+    "groups": {
+      "tagsAndCategories": string;
+      "torrentState": string;
+      "limitsAndPriority": string;
+      "storageAndFiles": string;
+      "trackersAndPeers": string;
+      "notificationsAndAlerts": string;
+      "mediaPostProcessing": string;
+      "controlFlow": string;
+      "httpRequest": string;
+      "commands": string;
     };
     "conditions": {
       "0": string;
@@ -4040,7 +4040,12 @@ export type I18nTranslations = {
       "pipelineName": string;
       "trigger": string;
       "executedAt": string;
-      "actions": string;
+      "actions": {
+        "addTag": string;
+        "removeTag": string;
+        "setCategory": string;
+        "": string;
+      };
       "noPipelineExecutionRunsRecorde": string;
       "traceInspector": string;
       "loadingMarketplaceCatalog": string;
@@ -4134,6 +4139,12 @@ export type I18nTranslations = {
       "registerVariable": string;
       "timeoutS": string;
       "deleteAction": string;
+      "triggers": {
+        "": string;
+      };
+      "commands": {
+        "": string;
+      };
     };
   };
 };
