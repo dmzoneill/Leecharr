@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.8.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.8.1) - 2026-09-13
+
+### 🐛 Bug Fixes
+- fix(automation): type-aware condition builders with boolean/numeric operators and live previews
+
+### 🔧 Maintenance & Improvements
+- style: fix indentation in YamlScriptRunner to adhere to editorconfig
+
 ## [v1.8.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.8.0) - 2026-09-13
 
 ### ✨ Features
