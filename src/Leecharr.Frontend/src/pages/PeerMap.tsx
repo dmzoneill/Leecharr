@@ -944,7 +944,7 @@ function PeerMap() {
               padding: "1.25rem",
               backgroundColor: "rgba(22, 22, 22, 0.95)",
               backdropFilter: "blur(8px)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
+              border: "1px solid var(--border-light)",
               borderRadius: "8px",
               boxShadow: "0 12px 35px rgba(0, 0, 0, 0.7)",
               zIndex: 10,

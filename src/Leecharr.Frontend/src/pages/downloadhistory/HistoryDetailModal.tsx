@@ -446,7 +446,7 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
                           height: "60px",
                           borderRadius: "50%",
                           objectFit: "cover",
-                          border: "1px solid rgba(255,255,255,0.15)",
+                          border: "1px solid var(--border)",
                           marginBottom: "0.35rem",
                         }}
                         loading="lazy"

@@ -145,7 +145,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
           style={{
             backgroundColor: "var(--bg-secondary, rgba(255, 255, 255, 0.03))",
             borderRadius: "6px",
-            border: "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+            border: "1px solid var(--border-light)",
             padding: "0.7rem 0.9rem",
             display: "flex",
             flexDirection: "column",
@@ -160,7 +160,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               textTransform: "uppercase",
               letterSpacing: "0.05em",
               borderBottom:
-                "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+                "1px solid var(--border-light)",
               paddingBottom: "0.25rem",
             }}
           >
@@ -281,7 +281,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
           style={{
             backgroundColor: "var(--bg-secondary, rgba(255, 255, 255, 0.03))",
             borderRadius: "6px",
-            border: "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+            border: "1px solid var(--border-light)",
             padding: "0.7rem 0.9rem",
             display: "flex",
             flexDirection: "column",
@@ -296,7 +296,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               textTransform: "uppercase",
               letterSpacing: "0.05em",
               borderBottom:
-                "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+                "1px solid var(--border-light)",
               paddingBottom: "0.25rem",
             }}
           >

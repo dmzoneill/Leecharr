@@ -16,8 +16,8 @@
   --bg-card-hover: #1e2a3f;
   --bg-hover: #1e2a3f;
   --bg-hover-elevated: #23324c;
-  --border: #1f2c42;
-  --border-light: #162031;
+  --border: #2a3854;
+  --border-light: #222f46;
   --text-primary: #f1f5f9;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
@@ -69,7 +69,7 @@
   --bg-hover: #f1f5f9;
   --bg-hover-elevated: #e2e8f0;
   --border: #cbd5e1;
-  --border-light: rgba(148, 163, 184, 0.2);
+  --border-light: #e2e8f0;
   --bg-lighter: #f1f5f9;
   --text-primary: #0f172a;
   --text-secondary: #334155;
@@ -119,8 +119,8 @@
   --bg-card-hover: #1f2552;
   --bg-hover: #1f2552;
   --bg-hover-elevated: #1f2552;
-  --border: #1f2552;
-  --border-light: #181d3d;
+  --border: #283060;
+  --border-light: #202750;
   --bg-lighter: #1f2552;
 }
 
@@ -133,8 +133,8 @@
   --bg-card-hover: #141724;
   --bg-hover: #141724;
   --bg-hover-elevated: #141724;
-  --border: #1a1d2e;
-  --border-light: #121420;
+  --border: #24283b;
+  --border-light: #1a1e30;
   --bg-lighter: #141724;
 }
 
@@ -147,8 +147,8 @@
   --bg-card-hover: #1e2a3f;
   --bg-hover: #1e2a3f;
   --bg-hover-elevated: #23324c;
-  --border: #1f2c42;
-  --border-light: #162031;
+  --border: #2a3854;
+  --border-light: #222f46;
   --bg-lighter: #1e2a3f;
 }
 
@@ -368,7 +368,7 @@ body {
   align-items: center;
   justify-content: center;
   background: var(--bg-hover, rgba(255, 255, 255, 0.06));
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--text-muted);
   cursor: pointer;
@@ -553,7 +553,7 @@ body {
   justify-content: space-between;
   gap: 0.4rem;
   margin-top: 0.25rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-top: 1px solid var(--border-light);
   cursor: pointer;
   user-select: none;
   border-left: none;
@@ -742,7 +742,7 @@ body {
   align-items: center;
   gap: 0.35rem;
   background: var(--bg-hover, #1e2a3f);
-  border: 1px solid var(--border, #1f2c42);
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 0.28rem 0.65rem;
   font-size: 0.78rem;
@@ -769,7 +769,7 @@ body {
   right: 0;
   min-width: 160px;
   background: var(--bg-card, #141c2b);
-  border: 1px solid var(--border, #1f2c42);
+  border: 1px solid var(--border);
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   z-index: 100;
@@ -799,7 +799,7 @@ body {
 
 .topbar-dropdown-separator {
   height: 1px;
-  background: var(--border, #1f2c42);
+  background: var(--border);
   margin: 4px 0;
 }
 
@@ -1040,7 +1040,7 @@ body {
 
 .stat-card {
   background: var(--bg-secondary);
-  border: 1px solid rgb(255 255 255 / 8%);
+  border: 1px solid var(--border-light);
   border-radius: 8px;
   padding: 1.25rem 1rem;
   text-align: center;
@@ -2127,7 +2127,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .modal {
   background-color: var(--bg-secondary);
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 1.5rem;
   width: 100%;
@@ -2141,7 +2141,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .panel {
   background-color: var(--bg-secondary);
-  border: 1px solid var(--border-light, rgba(255, 255, 255, 0.12));
+  border: 1px solid var(--border-light);
   border-radius: 8px;
   box-shadow:
     0 16px 48px rgba(0, 0, 0, 0.65),
@@ -2150,7 +2150,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .modal-content {
   background-color: var(--bg-secondary);
-  border: 1px solid var(--border-light, rgba(255, 255, 255, 0.1));
+  border: 1px solid var(--border-light);
   border-radius: 12px;
   width: 100%;
   max-height: 90vh;
@@ -2168,7 +2168,7 @@ input[type="number"]::-webkit-inner-spin-button {
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  border-bottom: 1px solid var(--border);
   background-color: var(--bg-secondary);
 }
 
@@ -3153,7 +3153,7 @@ input[type="number"]::-webkit-inner-spin-button {
 .filter-panel-item:hover {
   background-color: var(--bg-hover);
   color: var(--text-primary);
-  border-color: rgb(255 255 255 / 5%);
+  border-color: var(--border-light);
 }
 
 .filter-panel-item.active {
@@ -3307,7 +3307,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .log-table tbody td {
   padding: 0.25rem 0.75rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--border-light);
   vertical-align: top;
 }
 
@@ -3550,7 +3550,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .monitoring-tile {
   background-color: var(--bg-secondary);
-  border: 1px solid rgb(255 255 255 / 8%);
+  border: 1px solid var(--border-light);
   border-radius: 8px;
   padding: 1.25rem 1.25rem 1rem;
   box-shadow:
@@ -3615,7 +3615,7 @@ input[type="number"]::-webkit-inner-spin-button {
   text-align: center;
   padding: 1.25rem 1rem;
   background-color: var(--bg-secondary);
-  border: 1px solid rgb(255 255 255 / 8%);
+  border: 1px solid var(--border-light);
   border-radius: 8px;
   box-shadow:
     0 4px 14px rgb(0 0 0 / 32%),
@@ -4002,7 +4002,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .provider-card {
   background: var(--bg-secondary);
-  border: 1px solid rgb(255 255 255 / 8%);
+  border: 1px solid var(--border-light);
   border-radius: 8px;
   width: 280px;
   min-height: 120px;
@@ -4099,7 +4099,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .provider-card-action {
   background: rgb(0 0 0 / 40%);
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--border);
   color: var(--text-secondary);
   cursor: pointer;
   padding: 0.25rem 0.4rem;
@@ -4119,7 +4119,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .provider-card-add {
   background: rgb(255 255 255 / 2%);
-  border: 2px dashed rgb(255 255 255 / 12%);
+  border: 2px dashed var(--border-light);
   border-radius: 8px;
   width: 280px;
   min-height: 120px;
@@ -4194,7 +4194,7 @@ input[type="number"]::-webkit-inner-spin-button {
   padding: 0.75rem 1rem;
   background: var(--bg-secondary);
   border-radius: 8px;
-  border: 1px solid rgb(255 255 255 / 8%);
+  border: 1px solid var(--border-light);
   box-shadow:
     0 4px 14px rgb(0 0 0 / 32%),
     0 1px 3px rgb(0 0 0 / 18%);
@@ -4275,7 +4275,7 @@ input[type="number"]::-webkit-inner-spin-button {
   min-height: 0;
   height: 100%;
   background: radial-gradient(circle at center, #1c1c1c 0%, #0e0e0e 100%);
-  border: 1px solid rgb(255 255 255 / 8%);
+  border: 1px solid var(--border-light);
   border-radius: 8px;
   overflow: hidden;
   box-shadow:
@@ -4313,7 +4313,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .quick-settings-drawer {
   background: linear-gradient(180deg, #0c0e1a 0%, #111425 100%);
-  border-bottom: 2px solid var(--border-color, #23284b);
+  border-bottom: 2px solid var(--border-light);
   box-shadow:
     inset 0 3px 8px rgba(0, 0, 0, 0.6),
     0 12px 28px rgba(0, 0, 0, 0.45);
@@ -4340,7 +4340,7 @@ input[type="number"]::-webkit-inner-spin-button {
   align-items: center;
   margin-bottom: 0.75rem;
   padding-bottom: 0.45rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .quick-settings-title-group {
@@ -4369,7 +4369,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .quick-settings-hint kbd {
   background-color: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid var(--border-light);
   border-radius: 3px;
   padding: 0.05rem 0.35rem;
   font-size: 0.7rem;
@@ -4390,7 +4390,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .quick-settings-close-btn {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border-light);
   border-radius: 4px;
   color: var(--text-muted, #7e8092);
   cursor: pointer;
@@ -4428,7 +4428,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .quick-card {
   background: linear-gradient(180deg, #1b203f 0%, #151833 100%);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  border: 1px solid var(--border-light);
   border-top: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 9px;
   padding: 0.75rem 0.85rem;
@@ -4465,7 +4465,7 @@ input[type="number"]::-webkit-inner-spin-button {
   margin: -0.75rem -0.85rem 0.65rem -0.85rem;
   padding: 0.5rem 0.85rem;
   background: rgba(0, 0, 0, 0.25);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid var(--border-light);
   border-radius: 8px 8px 0 0;
   box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.2);
 }
@@ -4519,7 +4519,7 @@ input[type="number"]::-webkit-inner-spin-button {
 .quick-presets-group {
   display: flex;
   background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-light);
   border-radius: 6px;
   padding: 2px;
   gap: 2px;
@@ -4564,7 +4564,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .quick-slider-bound {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-light);
   font-size: 0.68rem;
   font-weight: 600;
   color: var(--text-muted, #64748b);
@@ -4664,7 +4664,7 @@ input[type="number"]::-webkit-inner-spin-button {
   display: inline-flex;
   align-items: center;
   background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-light);
   border-radius: 6px;
   overflow: hidden;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
@@ -4699,8 +4699,8 @@ input[type="number"]::-webkit-inner-spin-button {
   font-size: 0.78rem;
   min-width: 32px;
   text-align: center;
-  border-left: 1px solid rgba(255, 255, 255, 0.05);
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  border-left: 1px solid var(--border-light);
+  border-right: 1px solid var(--border-light);
 }
 
 .quick-toggle-row {
@@ -4736,7 +4736,7 @@ input[type="number"]::-webkit-inner-spin-button {
   gap: 4px;
   padding: 2px 8px;
   background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-light);
   border-radius: 5px;
   font-size: 0.7rem;
   cursor: pointer;
@@ -4765,7 +4765,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .quick-pill-btn {
   background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-light);
   border-radius: 5px;
   color: var(--text-secondary, #94a3b8);
   cursor: pointer;
@@ -4794,7 +4794,7 @@ input[type="number"]::-webkit-inner-spin-button {
   padding: 2px 8px;
   border-radius: 5px;
   background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-light);
   color: var(--text-muted, #64748b);
   cursor: pointer;
   transition: all 0.2s ease;
@@ -4833,7 +4833,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .quick-select {
   background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-light);
   border-radius: 5px;
   color: var(--text-primary, #f1f5f9);
   font-size: 0.72rem;
@@ -4917,12 +4917,12 @@ input[type="number"]::-webkit-inner-spin-button {
   color: var(--text-primary, #f1f5f9) !important;
   border-radius: 8px;
   overflow: hidden;
-  border: 1px solid var(--border, #1f2c42);
+  border: 1px solid var(--border);
 }
 
 .leecharr-file-manager .toolbar {
   background-color: var(--bg-secondary, #141c2b) !important;
-  border-bottom: 1px solid var(--border, #1f2c42) !important;
+  border-bottom: 1px solid var(--border) !important;
   color: var(--text-primary, #f1f5f9) !important;
 }
 
@@ -4937,12 +4937,12 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 .leecharr-file-manager .toolbar .item-separator {
-  background: var(--border, #1f2c42) !important;
+  background: var(--border) !important;
 }
 
 .leecharr-file-manager .toolbar .toggle-view {
   background-color: var(--bg-secondary, #141c2b) !important;
-  border: 1px solid var(--border, #1f2c42) !important;
+  border: 1px solid var(--border) !important;
   color: var(--text-primary, #f1f5f9) !important;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
 }
@@ -4963,12 +4963,12 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 .leecharr-file-manager .bread-crumb-container .breadcrumb .divider {
-  background-color: var(--border, #1f2c42) !important;
+  background-color: var(--border) !important;
 }
 
 .leecharr-file-manager .sb-folders-list {
   background-color: var(--bg-secondary, #141c2b) !important;
-  border-right: 1px solid var(--border, #1f2c42) !important;
+  border-right: 1px solid var(--border) !important;
   color: var(--text-secondary, #94a3b8) !important;
 }
 
@@ -5000,7 +5000,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .leecharr-file-manager .files.list .files-header {
   background-color: var(--bg-secondary, #141c2b) !important;
-  border-bottom: 1px solid var(--border, #1f2c42) !important;
+  border-bottom: 1px solid var(--border) !important;
   color: var(--text-muted, #64748b) !important;
 }
 
@@ -5014,7 +5014,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .leecharr-file-manager .fm-context-menu {
   background-color: var(--bg-secondary, #141c2b) !important;
-  border: 1px solid var(--border, #1f2c42) !important;
+  border: 1px solid var(--border) !important;
   color: var(--text-primary, #f1f5f9) !important;
   box-shadow: 0 10px 35px rgba(0, 0, 0, 0.75) !important;
 }
@@ -5029,12 +5029,12 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 .leecharr-file-manager .fm-context-menu .file-context-menu-list .divider {
-  border-bottom: 1px solid var(--border, #1f2c42) !important;
+  border-bottom: 1px solid var(--border) !important;
 }
 
 .leecharr-file-manager .fm-context-menu .file-context-menu-list .sub-menu {
   background-color: var(--bg-secondary, #141c2b) !important;
-  border: 1px solid var(--border, #1f2c42) !important;
+  border: 1px solid var(--border) !important;
   color: var(--text-primary, #f1f5f9) !important;
   box-shadow: 0 10px 35px rgba(0, 0, 0, 0.75) !important;
 }
@@ -5071,7 +5071,7 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 .leecharr-file-manager .fm-modal-header {
-  border-bottom: 1px solid var(--border, #1f2c42) !important;
+  border-bottom: 1px solid var(--border) !important;
 }
 
 .leecharr-file-manager .fm-modal-header .fm-modal-heading {
@@ -5079,7 +5079,7 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 .leecharr-file-manager .file-delete-confirm .file-delete-confirm-text {
-  border-bottom: 1px solid var(--border, #1f2c42) !important;
+  border-bottom: 1px solid var(--border) !important;
   color: var(--text-secondary, #94a3b8) !important;
 }
 

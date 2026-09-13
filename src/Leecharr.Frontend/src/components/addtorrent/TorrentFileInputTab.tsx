@@ -212,7 +212,7 @@ export function TorrentFileInputTab({
                   padding: "0.4rem 0.75rem",
                   backgroundColor: "var(--bg-secondary, #171b35)",
                   borderRadius: "6px",
-                  border: "1px solid var(--border-light, #1c203b)",
+                  border: "1px solid var(--border-light)",
                   fontSize: "0.85rem",
                 }}
               >

@@ -313,7 +313,7 @@ export function GettingStartedModal({
           backgroundColor: "var(--bg-secondary, #171b35)",
           borderRadius: "8px",
           boxShadow: "0 16px 40px rgba(0, 0, 0, 0.7)",
-          border: "1px solid var(--border-light, rgba(255, 255, 255, 0.12))",
+          border: "1px solid var(--border-light)",
           padding: "1.5rem",
           display: "flex",
           flexDirection: "column",
@@ -335,7 +335,7 @@ export function GettingStartedModal({
               background: "var(--bg-primary, #101322)",
               padding: "2px",
               borderRadius: "20px",
-              border: "1px solid var(--border-light, #1c203b)",
+              border: "1px solid var(--border-light)",
               fontSize: "0.75rem",
             }}
           >
@@ -417,7 +417,7 @@ export function GettingStartedModal({
             marginBottom: "1.25rem",
             paddingBottom: "0.75rem",
             borderBottom:
-              "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+              "1px solid var(--border-light)",
             gap: "0.25rem",
             overflowX: "auto",
           }}
@@ -509,7 +509,7 @@ export function GettingStartedModal({
                   padding: "0.9rem 1rem",
                   borderRadius: "6px",
                   border:
-                    "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+                    "1px solid var(--border-light)",
                   marginBottom: "1.25rem",
                   fontSize: "0.85rem",
                   lineHeight: 1.4,
@@ -539,7 +539,7 @@ export function GettingStartedModal({
                   padding: "0.3rem 0.75rem",
                   backgroundColor: "rgba(0, 0, 0, 0.2)",
                   borderRadius: "6px",
-                  border: "1px solid var(--border-light, #1c203b)",
+                  border: "1px solid var(--border-light)",
                 }}
               >
                 <span
@@ -614,7 +614,7 @@ export function GettingStartedModal({
                       padding: "1.25rem",
                       borderRadius: "8px",
                       backgroundColor: "rgba(0, 0, 0, 0.2)",
-                      border: "1px solid var(--border-light, #1c203b)",
+                      border: "1px solid var(--border-light)",
                     }}
                   >
                     <div
@@ -831,7 +831,7 @@ export function GettingStartedModal({
                       padding: "1.25rem",
                       borderRadius: "8px",
                       backgroundColor: "rgba(0, 0, 0, 0.2)",
-                      border: "1px solid var(--border-light, #1c203b)",
+                      border: "1px solid var(--border-light)",
                     }}
                   >
                     <div
@@ -1070,7 +1070,7 @@ export function GettingStartedModal({
                       padding: "1.25rem",
                       borderRadius: "8px",
                       backgroundColor: "rgba(0, 0, 0, 0.2)",
-                      border: "1px solid var(--border-light, #1c203b)",
+                      border: "1px solid var(--border-light)",
                     }}
                   >
                     <div
@@ -1309,7 +1309,7 @@ export function GettingStartedModal({
                       padding: "1.25rem",
                       borderRadius: "8px",
                       backgroundColor: "rgba(0, 0, 0, 0.2)",
-                      border: "1px solid var(--border-light, #1c203b)",
+                      border: "1px solid var(--border-light)",
                     }}
                   >
                     <div
@@ -1612,7 +1612,7 @@ export function GettingStartedModal({
             marginTop: "1.25rem",
             paddingTop: "0.75rem",
             borderTop:
-              "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+              "1px solid var(--border-light)",
             fontSize: "0.8rem",
             color: "var(--text-muted)",
           }}

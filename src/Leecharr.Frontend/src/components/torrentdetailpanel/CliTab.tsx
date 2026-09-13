@@ -32,7 +32,7 @@ export function CliTab({ torrent }: CliTabProps) {
           gap: "0.5rem",
           padding: "0.6rem 0.9rem",
           backgroundColor: "rgba(23, 27, 53, 0.6)",
-          border: "1px solid var(--border-light, #1c203b)",
+          border: "1px solid var(--border-light)",
           borderRadius: "6px",
           fontSize: "0.82rem",
           flexShrink: 0,

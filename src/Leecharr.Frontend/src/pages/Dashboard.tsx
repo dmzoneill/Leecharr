@@ -544,7 +544,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 minWidth: "130px",
                 padding: "0.6rem 0.8rem",
                 backgroundColor: "var(--bg-primary, #10111a)",
-                border: "1px solid var(--border-light, #1c203b)",
+                border: "1px solid var(--border-light)",
                 borderRadius: "6px",
                 display: "flex",
                 alignItems: "center",
@@ -683,7 +683,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               justifyContent: "space-between",
               fontSize: "0.8rem",
               padding: "4px 0",
-              borderBottom: "1px solid rgba(255,255,255,0.05)",
+              borderBottom: "1px solid var(--border-light)",
             }}
           >
             <span style={{ color: "var(--text-muted, #7e8092)" }}>
@@ -709,7 +709,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               justifyContent: "space-between",
               fontSize: "0.8rem",
               padding: "4px 0",
-              borderBottom: "1px solid rgba(255,255,255,0.05)",
+              borderBottom: "1px solid var(--border-light)",
             }}
           >
             <span style={{ color: "var(--text-muted, #7e8092)" }}>
@@ -768,7 +768,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   justifyContent: "space-between",
                   fontSize: "0.8rem",
                   padding: "4px 0",
-                  borderBottom: "1px solid rgba(255,255,255,0.05)",
+                  borderBottom: "1px solid var(--border-light)",
                 }}
               >
                 <span style={{ color: "var(--text-secondary, #c7c5d3)" }}>
@@ -788,7 +788,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 justifyContent: "space-between",
                 fontSize: "0.8rem",
                 padding: "4px 0",
-                borderBottom: "1px solid rgba(255,255,255,0.05)",
+                borderBottom: "1px solid var(--border-light)",
               }}
             >
               <span style={{ color: "var(--text-muted, #7e8092)" }}>
@@ -933,7 +933,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             backgroundColor: "rgba(0,0,0,0.3)",
             borderRadius: "6px",
             overflow: "hidden",
-            border: "1px solid var(--border-light, #1c203b)",
+            border: "1px solid var(--border-light)",
           }}
         >
           <svg

@@ -363,7 +363,7 @@ export function TerminalView({
         backgroundColor: "#0c0e1a",
         border: isFullscreen
           ? "none"
-          : "1px solid var(--border-light, #1c203b)",
+          : "1px solid var(--border-light)",
         borderRadius: isFullscreen ? 0 : "8px",
         overflow: "hidden",
         boxShadow: isFullscreen ? "none" : "0 4px 14px rgba(0, 0, 0, 0.35)",
@@ -377,7 +377,7 @@ export function TerminalView({
           alignItems: "center",
           padding: "0.4rem 0.75rem",
           backgroundColor: "#131627",
-          borderBottom: "1px solid var(--border-light, #1c203b)",
+          borderBottom: "1px solid var(--border-light)",
           fontSize: "0.8rem",
           flexShrink: 0,
         }}

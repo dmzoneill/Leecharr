@@ -189,7 +189,7 @@ function SystemNetwork() {
           className="card"
           style={{
             borderRadius: "8px",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
+            border: "1px solid var(--border-light)",
             boxShadow:
               "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
             padding: "1.25rem",
@@ -251,7 +251,7 @@ function SystemNetwork() {
           className="card"
           style={{
             borderRadius: "8px",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
+            border: "1px solid var(--border-light)",
             boxShadow:
               "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
             padding: "1.25rem",
@@ -345,7 +345,7 @@ function SystemNetwork() {
           className="card"
           style={{
             borderRadius: "8px",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
+            border: "1px solid var(--border-light)",
             boxShadow:
               "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
             padding: "1.25rem",
@@ -386,7 +386,7 @@ function SystemNetwork() {
           className="card"
           style={{
             borderRadius: "8px",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
+            border: "1px solid var(--border-light)",
             boxShadow:
               "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
             padding: "1.25rem",
@@ -422,7 +422,7 @@ function SystemNetwork() {
                     padding: "0.4rem 0.75rem",
                     backgroundColor: "rgba(255, 255, 255, 0.03)",
                     borderRadius: "4px",
-                    border: "1px solid rgba(255, 255, 255, 0.05)",
+                    border: "1px solid var(--border-light)",
                   }}
                 >
                   <code style={{ fontSize: "0.85rem" }}>{addr}</code>
@@ -449,7 +449,7 @@ function SystemNetwork() {
           className="card"
           style={{
             borderRadius: "8px",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
+            border: "1px solid var(--border-light)",
             boxShadow:
               "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
             padding: 0,
@@ -459,7 +459,7 @@ function SystemNetwork() {
           <div
             style={{
               padding: "1.1rem 1.25rem 0.85rem",
-              borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
+              borderBottom: "1px solid var(--border-light)",
             }}
           >
             <h2

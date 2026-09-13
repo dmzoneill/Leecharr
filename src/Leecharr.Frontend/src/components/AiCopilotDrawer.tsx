@@ -275,7 +275,7 @@ export const AiCopilotDrawer: React.FC = () => {
                   padding: "0.55rem 0.85rem",
                   borderRadius: "9999px",
                   backgroundColor: "var(--bg-secondary, #171B35)",
-                  border: "1px solid var(--border-color, #23284B)",
+                  border: "1px solid var(--border-light)",
                   color: "var(--text-primary, #F8F4ED)",
                   boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
                   cursor: "grab",
@@ -293,7 +293,7 @@ export const AiCopilotDrawer: React.FC = () => {
                   padding: "0.55rem 0.85rem",
                   borderRadius: "9999px",
                   backgroundColor: "var(--bg-secondary, #171B35)",
-                  border: "1px solid var(--border-color, #23284B)",
+                  border: "1px solid var(--border-light)",
                   color: "var(--text-primary, #F8F4ED)",
                   boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
                   cursor: "grab",
@@ -336,8 +336,8 @@ export const AiCopilotDrawer: React.FC = () => {
             display: "flex",
             flexDirection: "column",
             backgroundColor: "var(--bg-primary, #10111A)",
-            borderLeft: "1px solid var(--border-color, #23284B)",
-            borderTop: "1px solid var(--border-color, #23284B)",
+            borderLeft: "1px solid var(--border-light)",
+            borderTop: "1px solid var(--border-light)",
             boxShadow: "-8px 0 32px rgba(0,0,0,0.6)",
             width: isExpanded ? "640px" : "420px",
             height: isExpanded ? "100vh" : "560px",
@@ -354,7 +354,7 @@ export const AiCopilotDrawer: React.FC = () => {
               justifyContent: "space-between",
               padding: "0.75rem 1rem",
               backgroundColor: "var(--bg-secondary, #171B35)",
-              borderBottom: "1px solid var(--border-color, #23284B)",
+              borderBottom: "1px solid var(--border-light)",
             }}
           >
             <div
@@ -460,7 +460,7 @@ export const AiCopilotDrawer: React.FC = () => {
               gap: "0.4rem",
               padding: "0.4rem 0.75rem",
               backgroundColor: "rgba(23, 27, 53, 0.6)",
-              borderBottom: "1px solid var(--border-color, #23284B)",
+              borderBottom: "1px solid var(--border-light)",
               fontSize: "0.75rem",
             }}
           >
@@ -664,7 +664,7 @@ export const AiCopilotDrawer: React.FC = () => {
                         border:
                           msg.sender === "user"
                             ? "none"
-                            : "1px solid var(--border-color, #23284B)",
+                            : "1px solid var(--border-light)",
                         fontWeight: msg.sender === "user" ? 600 : 400,
                       }}
                     >
@@ -736,7 +736,7 @@ export const AiCopilotDrawer: React.FC = () => {
                   gap: "0.5rem",
                   padding: "0.6rem 0.75rem",
                   backgroundColor: "var(--bg-secondary, #171B35)",
-                  borderTop: "1px solid var(--border-color, #23284B)",
+                  borderTop: "1px solid var(--border-light)",
                 }}
               >
                 <input
@@ -747,7 +747,7 @@ export const AiCopilotDrawer: React.FC = () => {
                   style={{
                     flex: 1,
                     backgroundColor: "#10111A",
-                    border: "1px solid var(--border-color, #23284B)",
+                    border: "1px solid var(--border-light)",
                     borderRadius: "6px",
                     padding: "0.4rem 0.6rem",
                     fontSize: "0.75rem",
@@ -818,7 +818,7 @@ export const AiCopilotDrawer: React.FC = () => {
                     style={{
                       flex: 1,
                       backgroundColor: "var(--bg-secondary, #171B35)",
-                      border: "1px solid var(--border-color, #23284B)",
+                      border: "1px solid var(--border-light)",
                       borderRadius: "6px",
                       padding: "0.4rem 0.6rem",
                       fontSize: "0.75rem",
@@ -856,7 +856,7 @@ export const AiCopilotDrawer: React.FC = () => {
                 <div
                   style={{
                     backgroundColor: "var(--bg-secondary, #171B35)",
-                    border: "1px solid var(--border-color, #23284B)",
+                    border: "1px solid var(--border-light)",
                     borderRadius: "8px",
                     padding: "0.75rem",
                     display: "flex",
@@ -869,7 +869,7 @@ export const AiCopilotDrawer: React.FC = () => {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
-                      borderBottom: "1px solid var(--border-color, #23284B)",
+                      borderBottom: "1px solid var(--border-light)",
                       paddingBottom: "0.4rem",
                     }}
                   >
@@ -1080,7 +1080,7 @@ export const AiCopilotDrawer: React.FC = () => {
                   style={{
                     width: "100%",
                     backgroundColor: "var(--bg-secondary, #171B35)",
-                    border: "1px solid var(--border-color, #23284B)",
+                    border: "1px solid var(--border-light)",
                     borderRadius: "6px",
                     padding: "0.4rem 0.6rem",
                     fontSize: "0.75rem",

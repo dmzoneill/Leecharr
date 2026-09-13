@@ -405,7 +405,7 @@ export function HarvesterPanel({
               alignItems: "center",
               marginBottom: "0.75rem",
               paddingBottom: "0.5rem",
-              borderBottom: "1px solid var(--border-color)",
+              borderBottom: "1px solid var(--border-light)",
               flexShrink: 0,
             }}
           >
@@ -469,7 +469,7 @@ export function HarvesterPanel({
                         : "var(--bg-secondary, rgba(255,255,255,0.02))",
                       border: isSelected
                         ? "1px solid var(--accent, #38bdf8)"
-                        : "1px solid var(--border-color)",
+                        : "1px solid var(--border-light)",
                       transition: "all 0.15s ease",
                     }}
                   >
@@ -629,7 +629,7 @@ export function HarvesterPanel({
                   gap: "1rem",
                   marginBottom: "1rem",
                   paddingBottom: "0.75rem",
-                  borderBottom: "1px solid var(--border-color)",
+                  borderBottom: "1px solid var(--border-light)",
                   flexShrink: 0,
                 }}
               >

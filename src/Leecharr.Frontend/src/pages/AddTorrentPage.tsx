@@ -63,7 +63,7 @@ export function AddTorrentPage({ onSuccess }: AddTorrentPageProps) {
           boxShadow:
             "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
           backgroundColor: "var(--bg-secondary, #171b35)",
-          border: "1px solid var(--border-light, #1c203b)",
+          border: "1px solid var(--border-light)",
           flex: "1 1 auto",
           display: "flex",
           flexDirection: "column",

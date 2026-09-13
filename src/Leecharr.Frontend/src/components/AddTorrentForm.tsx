@@ -159,7 +159,7 @@ export function AddTorrentForm({
           display: "flex",
           gap: "0.5rem",
           marginBottom: "1.25rem",
-          borderBottom: "1px solid var(--border-light, #1c203b)",
+          borderBottom: "1px solid var(--border-light)",
           paddingBottom: "0.5rem",
           flexShrink: 0,
         }}
@@ -284,7 +284,7 @@ export function AddTorrentForm({
             alignItems: "center",
             marginTop: "1rem",
             paddingTop: "1rem",
-            borderTop: "1px solid var(--border-light, #1c203b)",
+            borderTop: "1px solid var(--border-light)",
             flexShrink: 0,
           }}
         >
@@ -309,7 +309,7 @@ export function AddTorrentForm({
                 borderRadius: "4px",
                 backgroundColor: "var(--bg-primary, #10111a)",
                 color: "inherit",
-                border: "1px solid var(--border-light, #1c203b)",
+                border: "1px solid var(--border-light)",
               }}
             >
               <option value="">

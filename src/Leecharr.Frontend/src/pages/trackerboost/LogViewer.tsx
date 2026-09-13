@@ -82,7 +82,7 @@ export function LogViewer() {
           gap: "1rem",
           marginBottom: "1rem",
           paddingBottom: "1rem",
-          borderBottom: "1px solid var(--border-color)",
+          borderBottom: "1px solid var(--border-light)",
         }}
       >
         <div

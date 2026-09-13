@@ -218,7 +218,7 @@ function Statistics() {
                 borderRadius: "8px",
                 boxShadow:
                   "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
+                border: "1px solid var(--border-light)",
                 padding: "1.25rem",
               }}
             >
@@ -302,7 +302,7 @@ function Statistics() {
                 borderRadius: "8px",
                 boxShadow:
                   "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
+                border: "1px solid var(--border-light)",
                 padding: "1.25rem",
               }}
             >
@@ -389,7 +389,7 @@ function Statistics() {
                 borderRadius: "8px",
                 boxShadow:
                   "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
+                border: "1px solid var(--border-light)",
                 padding: "1.25rem",
               }}
             >
@@ -700,7 +700,7 @@ function Statistics() {
               borderRadius: "8px",
               boxShadow:
                 "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
+              border: "1px solid var(--border-light)",
             }}
           >
             <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1.05rem" }}>
@@ -725,7 +725,7 @@ function Statistics() {
               borderRadius: "8px",
               boxShadow:
                 "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
+              border: "1px solid var(--border-light)",
             }}
           >
             <div className="torrent-table-wrapper">

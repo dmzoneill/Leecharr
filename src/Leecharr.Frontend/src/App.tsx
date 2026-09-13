@@ -1039,7 +1039,7 @@ export function App() {
               <kbd
                 style={{
                   backgroundColor: "rgba(255, 255, 255, 0.08)",
-                  border: "1px solid rgba(255, 255, 255, 0.16)",
+                  border: "1px solid var(--border)",
                   borderRadius: "3px",
                   padding: "0.1rem 0.4rem",
                   fontSize: "0.7rem",
@@ -1166,7 +1166,7 @@ export function App() {
                       color: "var(--accent, #5b8def)",
                       fontSize: "11px",
                       fontWeight: 700,
-                      border: "1px solid var(--border, #1f2c42)",
+                      border: "1px solid var(--border)",
                       overflow: "hidden",
                     }}
                   >
@@ -1197,7 +1197,7 @@ export function App() {
                     <div
                       style={{
                         padding: "8px 14px",
-                        borderBottom: "1px solid var(--border, #1f2c42)",
+                        borderBottom: "1px solid var(--border)",
                       }}
                     >
                       <div

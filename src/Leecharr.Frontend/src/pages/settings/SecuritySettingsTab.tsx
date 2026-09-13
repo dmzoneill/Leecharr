@@ -739,7 +739,7 @@ export function SecuritySettingsTab() {
               maxHeight: "90vh",
               overflowY: "auto",
               backgroundColor: "#171B35",
-              border: "1px solid #23284B",
+              border: "1px solid var(--border)",
               borderRadius: "12px",
               padding: "28px 24px",
               boxShadow: "0 20px 40px rgba(0, 0, 0, 0.5)",

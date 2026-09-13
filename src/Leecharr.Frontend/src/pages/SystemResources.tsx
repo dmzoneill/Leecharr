@@ -110,7 +110,7 @@ export function SystemResources() {
                 borderRadius: "12px",
                 border: refreshInterval
                   ? "1px solid rgba(46, 204, 113, 0.3)"
-                  : "1px solid rgba(255, 255, 255, 0.1)",
+                  : "1px solid var(--border-light)",
               }}
             >
               <span
@@ -146,7 +146,7 @@ export function SystemResources() {
               backgroundColor: "rgba(0, 0, 0, 0.25)",
               borderRadius: "4px",
               padding: "2px",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
+              border: "1px solid var(--border-light)",
             }}
           >
             {[
@@ -202,7 +202,7 @@ export function SystemResources() {
           style={{
             padding: "1.1rem",
             borderRadius: "8px",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
+            border: "1px solid var(--border-light)",
             boxShadow:
               "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
             background: "var(--bg-secondary, #171b35)",
@@ -331,7 +331,7 @@ export function SystemResources() {
           style={{
             padding: "1.1rem",
             borderRadius: "8px",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
+            border: "1px solid var(--border-light)",
             boxShadow:
               "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
             background: "var(--bg-secondary, #171b35)",
@@ -450,7 +450,7 @@ export function SystemResources() {
           style={{
             padding: "1.1rem",
             borderRadius: "8px",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
+            border: "1px solid var(--border-light)",
             boxShadow:
               "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
             background: "var(--bg-secondary, #171b35)",
@@ -571,7 +571,7 @@ export function SystemResources() {
           style={{
             padding: "1.1rem",
             borderRadius: "8px",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
+            border: "1px solid var(--border-light)",
             boxShadow:
               "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
             background: "var(--bg-secondary, #171b35)",
@@ -693,7 +693,7 @@ export function SystemResources() {
         style={{
           padding: "1.25rem",
           borderRadius: "8px",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
+          border: "1px solid var(--border-light)",
           boxShadow:
             "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
           marginBottom: "1.25rem",
@@ -750,7 +750,7 @@ export function SystemResources() {
               style={{
                 backgroundColor: "rgba(0, 0, 0, 0.22)",
                 borderRadius: "6px",
-                border: "1px solid rgba(255, 255, 255, 0.06)",
+                border: "1px solid var(--border-light)",
                 padding: "0.85rem",
               }}
             >
@@ -818,7 +818,7 @@ export function SystemResources() {
                       borderRadius: "3px",
                       backgroundColor: "rgba(255, 255, 255, 0.05)",
                       color: "var(--text-secondary)",
-                      border: "1px solid rgba(255, 255, 255, 0.04)",
+                      border: "1px solid var(--border-light)",
                     }}
                   >
                     {k}:{" "}
@@ -846,7 +846,7 @@ export function SystemResources() {
         style={{
           padding: "1.25rem",
           borderRadius: "8px",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
+          border: "1px solid var(--border-light)",
           boxShadow:
             "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
         }}
@@ -912,7 +912,7 @@ export function SystemResources() {
                 backgroundColor: "rgba(0, 0, 0, 0.25)",
                 borderRadius: "4px",
                 padding: "2px",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
+                border: "1px solid var(--border-light)",
               }}
             >
               {["all", "downloading", "seeding", "paused"].map((st) => (
@@ -1209,7 +1209,7 @@ export function SystemResources() {
             style={{
               backgroundColor: "var(--bg-secondary, #171b35)",
               borderRadius: "8px",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
+              border: "1px solid var(--border-light)",
               maxWidth: "600px",
               width: "90%",
               padding: "1.5rem",
@@ -1375,7 +1375,7 @@ export function SystemResources() {
                 justifyContent: "space-between",
                 alignItems: "center",
                 paddingTop: "0.75rem",
-                borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+                borderTop: "1px solid var(--border-light)",
               }}
             >
               <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>

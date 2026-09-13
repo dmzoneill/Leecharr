@@ -323,7 +323,7 @@ export function SpeedGraph({
         borderRadius: "8px",
         boxShadow:
           "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
-        border: "1px solid rgba(255, 255, 255, 0.08)",
+        border: "1px solid var(--border-light)",
         marginBottom: "1.25rem",
         padding: "1rem 1.25rem",
       }}

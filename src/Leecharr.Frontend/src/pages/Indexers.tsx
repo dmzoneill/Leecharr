@@ -367,7 +367,7 @@ export const Indexers: React.FC<IndexersProps> = ({
                 borderRadius: "20px",
                 backgroundColor: "var(--bg-secondary, #171b35)",
                 color: "var(--text-secondary, #c7c5d3)",
-                border: "1px solid var(--border-light, #1c203b)",
+                border: "1px solid var(--border-light)",
                 cursor: "pointer",
               }}
             >
@@ -384,7 +384,7 @@ export const Indexers: React.FC<IndexersProps> = ({
           padding: "1.25rem",
           borderRadius: "8px",
           backgroundColor: "var(--bg-secondary, #171b35)",
-          border: "1px solid var(--border-light, #1c203b)",
+          border: "1px solid var(--border-light)",
           marginBottom: "1rem",
           flexShrink: 0,
         }}
@@ -417,7 +417,7 @@ export const Indexers: React.FC<IndexersProps> = ({
               fontSize: "0.95rem",
               borderRadius: "6px",
               backgroundColor: "var(--bg-primary, #10111a)",
-              border: "1px solid var(--border-light, #1c203b)",
+              border: "1px solid var(--border-light)",
               color: "inherit",
             }}
             autoFocus
@@ -481,7 +481,7 @@ export const Indexers: React.FC<IndexersProps> = ({
           flexDirection: "column",
           borderRadius: "8px",
           backgroundColor: "var(--bg-secondary, #171b35)",
-          border: "1px solid var(--border-light, #1c203b)",
+          border: "1px solid var(--border-light)",
           overflow: "hidden",
         }}
       >
@@ -626,7 +626,7 @@ export const Indexers: React.FC<IndexersProps> = ({
                 <thead>
                   <tr
                     style={{
-                      borderBottom: "1px solid var(--border-light, #1c203b)",
+                      borderBottom: "1px solid var(--border-light)",
                       textAlign: "left",
                       fontSize: "0.8rem",
                       color: "var(--text-muted, #7e8092)",
@@ -693,7 +693,7 @@ export const Indexers: React.FC<IndexersProps> = ({
                       <tr
                         key={itemKey}
                         style={{
-                          borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                          borderBottom: "1px solid var(--border-light)",
                           fontSize: "0.85rem",
                         }}
                       >

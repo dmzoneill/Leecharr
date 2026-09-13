@@ -190,7 +190,7 @@ export function AiTab() {
                     : "var(--bg-secondary, #171B35)",
                   border: isActive
                     ? "1px solid var(--accent-gold, #FFD166)"
-                    : "1px solid var(--border-color, #23284B)",
+                    : "1px solid var(--border-light)",
                   borderRadius: "8px",
                   padding: "1rem",
                   display: "flex",
@@ -397,7 +397,7 @@ export function AiTab() {
               padding: "0.85rem",
               borderRadius: "6px",
               backgroundColor: "var(--bg-secondary, #171B35)",
-              border: "1px solid var(--border-color, #23284B)",
+              border: "1px solid var(--border-light)",
             }}
           >
             <h4
@@ -454,7 +454,7 @@ export function AiTab() {
               padding: "0.85rem",
               borderRadius: "6px",
               backgroundColor: "var(--bg-secondary, #171B35)",
-              border: "1px solid var(--border-color, #23284B)",
+              border: "1px solid var(--border-light)",
             }}
           >
             <h4
@@ -519,7 +519,7 @@ export function AiTab() {
               padding: "0.85rem",
               borderRadius: "6px",
               backgroundColor: "var(--bg-secondary, #171B35)",
-              border: "1px solid var(--border-color, #23284B)",
+              border: "1px solid var(--border-light)",
             }}
           >
             <h4
@@ -682,7 +682,7 @@ export function AiTab() {
           <div
             style={{
               paddingTop: "0.75rem",
-              borderTop: "1px solid var(--border-color, #23284B)",
+              borderTop: "1px solid var(--border-light)",
               marginTop: "0.5rem",
             }}
           >

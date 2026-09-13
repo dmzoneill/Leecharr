@@ -149,7 +149,7 @@ export function DeleteTorrentModal({
             padding: "0.75rem",
             backgroundColor: "rgba(0, 0, 0, 0.2)",
             borderRadius: "6px",
-            border: "1px solid rgba(255, 255, 255, 0.05)",
+            border: "1px solid var(--border)",
           }}
         >
           <input

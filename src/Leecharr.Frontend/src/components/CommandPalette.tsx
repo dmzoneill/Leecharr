@@ -568,7 +568,7 @@ export function CommandPalette({
             display: "flex",
             alignItems: "center",
             padding: "0.85rem 1.15rem",
-            borderBottom: "1px solid var(--border-light, #1c203b)",
+            borderBottom: "1px solid var(--border-light)",
             gap: "0.75rem",
             backgroundColor: "var(--bg-primary, #10111a)",
           }}
@@ -613,7 +613,7 @@ export function CommandPalette({
             <kbd
               style={{
                 backgroundColor: "rgba(255, 255, 255, 0.08)",
-                border: "1px solid rgba(255, 255, 255, 0.16)",
+                border: "1px solid var(--border)",
                 borderRadius: "4px",
                 padding: "0.15rem 0.45rem",
                 fontSize: "0.72rem",
@@ -734,7 +734,7 @@ export function CommandPalette({
             justifyContent: "space-between",
             padding: "0.5rem 1.15rem",
             backgroundColor: "var(--bg-primary, #10111a)",
-            borderTop: "1px solid var(--border-light, #1c203b)",
+            borderTop: "1px solid var(--border-light)",
             fontSize: "0.75rem",
             color: "var(--text-muted)",
           }}

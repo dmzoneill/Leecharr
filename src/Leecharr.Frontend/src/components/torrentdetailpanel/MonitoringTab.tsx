@@ -66,7 +66,7 @@ function MiniChart({
       style={{
         backgroundColor: "var(--bg-secondary, rgba(255, 255, 255, 0.03))",
         borderRadius: "6px",
-        border: "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+        border: "1px solid var(--border-light)",
         padding: "0.6rem 0.8rem",
         display: "flex",
         flexDirection: "column",
@@ -363,7 +363,7 @@ export function MonitoringTab({
           padding: "0.5rem 0.8rem",
           backgroundColor: "var(--bg-secondary, rgba(255, 255, 255, 0.03))",
           borderRadius: "6px",
-          border: "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+          border: "1px solid var(--border-light)",
           fontSize: "0.75rem",
         }}
       >

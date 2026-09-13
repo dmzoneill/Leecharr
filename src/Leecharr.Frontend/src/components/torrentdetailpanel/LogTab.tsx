@@ -160,7 +160,7 @@ export function LogTab({
           flexWrap: "wrap",
           gap: "0.4rem",
           paddingBottom: "0.35rem",
-          borderBottom: "1px solid var(--border-light, rgba(255,255,255,0.08))",
+          borderBottom: "1px solid var(--border-light)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
@@ -342,7 +342,7 @@ export function LogTab({
                     key={entry.id}
                     className="torrent-table-row"
                     style={{
-                      borderBottom: "1px solid rgba(255,255,255,0.04)",
+                      borderBottom: "1px solid var(--border-light)",
                       backgroundColor:
                         entryLevel === "ERROR"
                           ? "rgba(239, 68, 68, 0.08)"

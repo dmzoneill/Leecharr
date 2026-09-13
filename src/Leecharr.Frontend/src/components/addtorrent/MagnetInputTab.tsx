@@ -134,7 +134,7 @@ export function MagnetInputTab({
               ? isMagnetValid
                 ? "1px solid rgba(34, 197, 94, 0.6)"
                 : "1px solid rgba(239, 68, 68, 0.6)"
-              : "1px solid var(--border-light, rgba(255, 255, 255, 0.15))",
+              : "1px solid var(--border-light)",
             backgroundColor: "var(--bg-primary, #10111a)",
             boxShadow:
               magnetLink.trim() && isMagnetValid

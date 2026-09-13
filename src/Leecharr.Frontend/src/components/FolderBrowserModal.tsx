@@ -136,7 +136,7 @@ export function FolderBrowserModal({
             justifyContent: "space-between",
             padding: "0.85rem 1.25rem",
             backgroundColor: "var(--bg-primary, #10111a)",
-            borderBottom: "1px solid var(--border-light, #1c203b)",
+            borderBottom: "1px solid var(--border-light)",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -168,7 +168,7 @@ export function FolderBrowserModal({
           style={{
             padding: "0.75rem 1.25rem",
             backgroundColor: "var(--bg-secondary, #171b35)",
-            borderBottom: "1px solid var(--border-light, #1c203b)",
+            borderBottom: "1px solid var(--border-light)",
             display: "flex",
             flexDirection: "column",
             gap: "0.5rem",
@@ -200,7 +200,7 @@ export function FolderBrowserModal({
                 padding: "0.35rem 0.6rem",
                 backgroundColor: "var(--bg-primary, #10111a)",
                 borderRadius: "6px",
-                border: "1px solid var(--border-light, #1c203b)",
+                border: "1px solid var(--border-light)",
                 color: "var(--accent, #ffd166)",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
@@ -384,7 +384,7 @@ export function FolderBrowserModal({
             justifyContent: "space-between",
             padding: "0.75rem 1.25rem",
             backgroundColor: "var(--bg-primary, #10111a)",
-            borderTop: "1px solid var(--border-light, #1c203b)",
+            borderTop: "1px solid var(--border-light)",
           }}
         >
           <div

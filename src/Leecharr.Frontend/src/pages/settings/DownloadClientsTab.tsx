@@ -353,7 +353,7 @@ export function DownloadClientsTab() {
               maxWidth: 520,
               borderRadius: "8px",
               boxShadow: "0 16px 40px rgba(0,0,0,0.7)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
+              border: "1px solid var(--border)",
             }}
           >
             <div

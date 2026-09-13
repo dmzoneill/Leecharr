@@ -161,7 +161,7 @@ export function ConfirmModal({
               padding: "0.5rem 1rem",
               fontSize: "0.9rem",
               borderRadius: "6px",
-              border: "1px solid rgba(255, 255, 255, 0.18)",
+              border: "1px solid var(--border)",
               color: "var(--text-primary, #f8f4ed)",
               backgroundColor: "transparent",
               cursor: "pointer",

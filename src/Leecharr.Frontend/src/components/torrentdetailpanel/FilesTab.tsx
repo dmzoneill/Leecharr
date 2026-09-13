@@ -716,7 +716,7 @@ export function FilesTab({
             gap: "0.5rem",
             padding: "0.5rem 0.85rem",
             backgroundColor: "rgba(23, 27, 53, 0.6)",
-            border: "1px solid var(--border-light, #1c203b)",
+            border: "1px solid var(--border-light)",
             borderRadius: "6px",
             fontSize: "0.82rem",
           }}
@@ -788,7 +788,7 @@ export function FilesTab({
           padding: "0.4rem 0.6rem",
           backgroundColor: "var(--bg-secondary, #171B35)",
           borderRadius: "6px",
-          border: "1px solid var(--border, #23284B)",
+          border: "1px solid var(--border)",
           flexWrap: "wrap",
           gap: "0.5rem",
           fontSize: "0.8rem",
@@ -825,7 +825,7 @@ export function FilesTab({
             onChange={(e) => setFilterQuery(e.target.value)}
             style={{
               backgroundColor: "var(--bg-primary, #10111A)",
-              border: "1px solid var(--border, #23284B)",
+              border: "1px solid var(--border)",
               color: "var(--text-primary, #F8F4ED)",
               borderRadius: "4px",
               padding: "0.2rem 0.5rem",
@@ -870,7 +870,7 @@ export function FilesTab({
                 top: 0,
                 backgroundColor: "var(--bg-primary, #10111A)",
                 zIndex: 2,
-                borderBottom: "1px solid var(--border, #23284B)",
+                borderBottom: "1px solid var(--border)",
               }}
             >
               <th
@@ -1206,7 +1206,7 @@ export function FilesTab({
                       }}
                       style={{
                         backgroundColor: "var(--bg-secondary, #171B35)",
-                        border: "1px solid var(--border, #23284B)",
+                        border: "1px solid var(--border)",
                         color:
                           currentPriority === 0
                             ? "var(--danger, #ef4444)"
@@ -1275,7 +1275,7 @@ export function FilesTab({
           <div
             style={{
               backgroundColor: "var(--bg-card, #171b35)",
-              border: "1px solid var(--border, #23284b)",
+              border: "1px solid var(--border)",
               borderRadius: "8px",
               padding: "1.5rem",
               width: "100%",
