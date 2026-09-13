@@ -82,54 +82,6 @@ public class HealthIssueEvent : IEvent
     }
 }
 
-public class ArchiveExtractionCompletedEvent : IEvent
-{
-    public Torrent Torrent { get; set; }
-
-    public ArchiveExtractionCompletedEvent()
-    {
-    }
-
-    public ArchiveExtractionCompletedEvent(Torrent torrent)
-    {
-        this.Torrent = torrent;
-    }
-}
-
-public class ArchiveExtractionFailedEvent : IEvent
-{
-    public Torrent Torrent { get; set; }
-
-    public string ErrorMessage { get; set; }
-
-    public ArchiveExtractionFailedEvent()
-    {
-    }
-
-    public ArchiveExtractionFailedEvent(Torrent torrent, string errorMessage = null)
-    {
-        this.Torrent = torrent;
-        this.ErrorMessage = errorMessage;
-    }
-}
-
-public class ApplicationUpdatedEvent : IEvent
-{
-    public string PreviousVersion { get; set; }
-
-    public string NewVersion { get; set; }
-
-    public ApplicationUpdatedEvent()
-    {
-    }
-
-    public ApplicationUpdatedEvent(string previousVersion, string newVersion)
-    {
-        this.PreviousVersion = previousVersion;
-        this.NewVersion = newVersion;
-    }
-}
-
 public class TorrentStartedEvent : IEvent
 {
     public Torrent Torrent { get; set; }
