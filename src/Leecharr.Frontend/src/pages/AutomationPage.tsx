@@ -21,9 +21,41 @@ import type {
 } from "../api/types";
 
 // Visual Pipeline Interfaces
-interface VisualAction {
+export type VisualActionType =
+  | "addTag"
+  | "removeTag"
+  | "setCategory"
+  | "pause"
+  | "resume"
+  | "remove"
+  | "recheck"
+  | "reannounce"
+  | "setUploadLimit"
+  | "setDownloadLimit"
+  | "setRatioLimit"
+  | "setSeedingTimeLimit"
+  | "setPriority"
+  | "setSequentialDownload"
+  | "setSuperSeeding"
+  | "moveFiles"
+  | "addTracker"
+  | "removeTracker"
+  | "boostTracker"
+  | "banPeer"
+  | "sendNotification"
+  | "notifyArr"
+  | "runScript"
+  | "delay"
+  | "log"
+  | "setVariable"
+  | "stopPipeline"
+  | "extractArchive"
+  | "cleanUnwantedFiles"
+  | "command";
+
+export interface VisualAction {
   id: string;
-  type: "addTag" | "removeTag" | "setCategory" | "pause" | "resume" | "remove" | "recheck" | "reannounce" | "command";
+  type: VisualActionType;
   value: string;
   deleteData?: boolean;
 }
@@ -48,7 +80,7 @@ interface VisualStep {
   actions: VisualAction[];
 }
 
-const COMMON_COMMANDS = [
+export const COMMON_COMMANDS = [
   { name: "Backup", desc: "Create full database & config backup" },
   { name: "SyncArr", desc: "Sync connected Sonarr / Radarr instances" },
   { name: "WatchFolderScan", desc: "Scan watch folder for torrents" },
@@ -56,6 +88,74 @@ const COMMON_COMMANDS = [
   { name: "BlocklistUpdate", desc: "Update peer IP blocklist" },
   { name: "GeoIpUpdate", desc: "Update MaxMind GeoIP database" },
   { name: "RssSync", desc: "Poll RSS indexers for releases" },
+];
+
+export const ACTION_GROUPS = [
+  {
+    group: "🏷️ Tags & Categories",
+    items: [
+      { type: "addTag" as VisualActionType, label: "🏷️ Add Tag", placeholder: "Tag name (e.g. 4K, Archived)" },
+      { type: "removeTag" as VisualActionType, label: "🏷️ Remove Tag", placeholder: "Tag name (e.g. Temporary)" },
+      { type: "setCategory" as VisualActionType, label: "📁 Set Category", placeholder: "Category name (e.g. Movies, TV)" },
+    ],
+  },
+  {
+    group: "⏯️ Torrent State & Flow",
+    items: [
+      { type: "pause" as VisualActionType, label: "⏸️ Pause Torrent", placeholder: "" },
+      { type: "resume" as VisualActionType, label: "▶️ Resume Torrent", placeholder: "" },
+      { type: "recheck" as VisualActionType, label: "🔍 Force Recheck Pieces", placeholder: "" },
+      { type: "reannounce" as VisualActionType, label: "📡 Force Reannounce", placeholder: "" },
+      { type: "remove" as VisualActionType, label: "🗑️ Remove Torrent Record", placeholder: "" },
+    ],
+  },
+  {
+    group: "⚡ Limits & Priority",
+    items: [
+      { type: "setUploadLimit" as VisualActionType, label: "⚡ Set Upload Limit (KB/s)", placeholder: "e.g. 1024 (0 = unlimited)" },
+      { type: "setDownloadLimit" as VisualActionType, label: "⚡ Set Download Limit (KB/s)", placeholder: "e.g. 2048 (0 = unlimited)" },
+      { type: "setRatioLimit" as VisualActionType, label: "🎯 Set Ratio Target", placeholder: "e.g. 2.0" },
+      { type: "setSeedingTimeLimit" as VisualActionType, label: "⌛ Set Seeding Time (min)", placeholder: "e.g. 2880 (48 hours)" },
+      { type: "setPriority" as VisualActionType, label: "🎛️ Set Priority", placeholder: "High, Normal, Low, or DoNotDownload" },
+      { type: "setSequentialDownload" as VisualActionType, label: "▶️ Sequential Download", placeholder: "true / false" },
+      { type: "setSuperSeeding" as VisualActionType, label: "🚀 Super Seeding Mode", placeholder: "true / false" },
+    ],
+  },
+  {
+    group: "📂 Storage & Files",
+    items: [
+      { type: "moveFiles" as VisualActionType, label: "📂 Move Torrent Files", placeholder: "/path/to/destination" },
+      { type: "extractArchive" as VisualActionType, label: "📦 Extract Archive (.rar/.7z)", placeholder: "Optional extraction path (or blank for default)" },
+      { type: "cleanUnwantedFiles" as VisualActionType, label: "🧹 Clean Junk Files", placeholder: "*.nfo, *.sample, *.txt" },
+    ],
+  },
+  {
+    group: "📡 Trackers & Peers",
+    items: [
+      { type: "addTracker" as VisualActionType, label: "📡 Add Tracker URL", placeholder: "udp://tracker.opentrackr.org:1337/announce" },
+      { type: "removeTracker" as VisualActionType, label: "🚫 Remove Tracker Pattern", placeholder: "e.g. 'deadtracker.com'" },
+      { type: "boostTracker" as VisualActionType, label: "⚡ Boost Tracker Scrapes", placeholder: "" },
+      { type: "banPeer" as VisualActionType, label: "🛡️ Ban Peer IP Address", placeholder: "e.g. 192.168.1.50" },
+    ],
+  },
+  {
+    group: "🔔 Alerts & Servarr",
+    items: [
+      { type: "sendNotification" as VisualActionType, label: "🔔 Send Notification", placeholder: "Alert message text" },
+      { type: "notifyArr" as VisualActionType, label: "📬 Servarr Sync (Sonarr/Radarr)", placeholder: "Sonarr, Radarr, or blank for all" },
+      { type: "command" as VisualActionType, label: "⚙️ Run Internal Command", placeholder: "Backup, SyncArr, RssSync, etc." },
+    ],
+  },
+  {
+    group: "💻 Scripting & Flow Control",
+    items: [
+      { type: "runScript" as VisualActionType, label: "💻 Run Custom Host Script", placeholder: "/scripts/on_download.sh" },
+      { type: "delay" as VisualActionType, label: "⏱️ Delay / Sleep (seconds)", placeholder: "e.g. 5" },
+      { type: "log" as VisualActionType, label: "📝 Pipeline Log Message", placeholder: "Log message to output stream" },
+      { type: "setVariable" as VisualActionType, label: "💾 Set Pipeline Variable", placeholder: "key=value" },
+      { type: "stopPipeline" as VisualActionType, label: "🛑 Stop Pipeline Early", placeholder: "Reason for halting" },
+    ],
+  },
 ];
 
 export interface PropertyDef {
@@ -336,6 +436,49 @@ function visualStepsToYaml(pipelineName: string, trigger: string, steps: VisualS
           yaml += `      - removeTag: '${act.value.replace(/'/g, "''")}'\n`;
         } else if (act.type === "setCategory") {
           yaml += `      - setCategory: '${act.value.replace(/'/g, "''")}'\n`;
+        } else if (act.type === "setUploadLimit") {
+          yaml += `      - setUploadLimit: ${act.value || "0"}\n`;
+        } else if (act.type === "setDownloadLimit") {
+          yaml += `      - setDownloadLimit: ${act.value || "0"}\n`;
+        } else if (act.type === "setRatioLimit") {
+          yaml += `      - setRatioLimit: ${act.value || "2.0"}\n`;
+        } else if (act.type === "setSeedingTimeLimit") {
+          yaml += `      - setSeedingTimeLimit: ${act.value || "2880"}\n`;
+        } else if (act.type === "setPriority") {
+          yaml += `      - setPriority: '${(act.value || "Normal").replace(/'/g, "''")}'\n`;
+        } else if (act.type === "setSequentialDownload") {
+          yaml += `      - setSequentialDownload: ${act.value === "false" ? "false" : "true"}\n`;
+        } else if (act.type === "setSuperSeeding") {
+          yaml += `      - setSuperSeeding: ${act.value === "false" ? "false" : "true"}\n`;
+        } else if (act.type === "moveFiles") {
+          yaml += `      - moveFiles: '${act.value.replace(/'/g, "''")}'\n`;
+        } else if (act.type === "extractArchive") {
+          yaml += act.value ? `      - extractArchive: '${act.value.replace(/'/g, "''")}'\n` : `      - extractArchive: true\n`;
+        } else if (act.type === "cleanUnwantedFiles") {
+          yaml += `      - cleanUnwantedFiles: '${act.value.replace(/'/g, "''")}'\n`;
+        } else if (act.type === "addTracker") {
+          yaml += `      - addTracker: '${act.value.replace(/'/g, "''")}'\n`;
+        } else if (act.type === "removeTracker") {
+          yaml += `      - removeTracker: '${act.value.replace(/'/g, "''")}'\n`;
+        } else if (act.type === "boostTracker") {
+          yaml += `      - boostTracker: true\n`;
+        } else if (act.type === "banPeer") {
+          yaml += `      - banPeer: '${act.value.replace(/'/g, "''")}'\n`;
+        } else if (act.type === "sendNotification") {
+          yaml += `      - sendNotification: '${act.value.replace(/'/g, "''")}'\n`;
+        } else if (act.type === "notifyArr") {
+          yaml += act.value ? `      - notifyArr: '${act.value.replace(/'/g, "''")}'\n` : `      - notifyArr: true\n`;
+        } else if (act.type === "runScript") {
+          yaml += `      - runScript: '${act.value.replace(/'/g, "''")}'\n`;
+        } else if (act.type === "delay") {
+          yaml += `      - delay: ${act.value || "5"}\n`;
+        } else if (act.type === "log") {
+          yaml += `      - log: '${act.value.replace(/'/g, "''")}'\n`;
+        } else if (act.type === "setVariable") {
+          const parts = act.value.split("=");
+          yaml += `      - setVariable:\n          key: '${(parts[0] || "myVar").trim()}'\n          value: '${(parts[1] || "").trim().replace(/'/g, "''")}'\n`;
+        } else if (act.type === "stopPipeline") {
+          yaml += `      - stopPipeline: '${(act.value || "Condition halted pipeline").replace(/'/g, "''")}'\n`;
         } else if (act.type === "command") {
           yaml += `      - command: '${act.value.replace(/'/g, "''")}'\n`;
         } else if (act.type === "pause") {
@@ -446,6 +589,67 @@ function yamlToVisualSteps(code: string): VisualStep[] {
     } else if (currentStep && inActions && trimmed.startsWith("- setCategory:")) {
       const v = trimmed.match(/- setCategory:\s*['"]?([^'"]+)['"]?/);
       if (v) currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "setCategory", value: v[1] });
+    } else if (currentStep && inActions && trimmed.startsWith("- setUploadLimit:")) {
+      const v = trimmed.match(/- setUploadLimit:\s*['"]?([^'"]+)['"]?/);
+      if (v) currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "setUploadLimit", value: v[1] });
+    } else if (currentStep && inActions && trimmed.startsWith("- setDownloadLimit:")) {
+      const v = trimmed.match(/- setDownloadLimit:\s*['"]?([^'"]+)['"]?/);
+      if (v) currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "setDownloadLimit", value: v[1] });
+    } else if (currentStep && inActions && trimmed.startsWith("- setRatioLimit:")) {
+      const v = trimmed.match(/- setRatioLimit:\s*['"]?([^'"]+)['"]?/);
+      if (v) currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "setRatioLimit", value: v[1] });
+    } else if (currentStep && inActions && trimmed.startsWith("- setSeedingTimeLimit:")) {
+      const v = trimmed.match(/- setSeedingTimeLimit:\s*['"]?([^'"]+)['"]?/);
+      if (v) currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "setSeedingTimeLimit", value: v[1] });
+    } else if (currentStep && inActions && trimmed.startsWith("- setPriority:")) {
+      const v = trimmed.match(/- setPriority:\s*['"]?([^'"]+)['"]?/);
+      if (v) currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "setPriority", value: v[1] });
+    } else if (currentStep && inActions && (trimmed.startsWith("- setSequentialDownload:") || trimmed.startsWith("- setSequential:"))) {
+      const v = trimmed.match(/- setSequential(?:Download)?:\s*['"]?([^'"]+)['"]?/);
+      if (v) currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "setSequentialDownload", value: v[1] });
+    } else if (currentStep && inActions && trimmed.startsWith("- setSuperSeeding:")) {
+      const v = trimmed.match(/- setSuperSeeding:\s*['"]?([^'"]+)['"]?/);
+      if (v) currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "setSuperSeeding", value: v[1] });
+    } else if (currentStep && inActions && (trimmed.startsWith("- moveFiles:") || trimmed.startsWith("- setSavePath:"))) {
+      const v = trimmed.match(/- (?:moveFiles|setSavePath):\s*['"]?([^'"]+)['"]?/);
+      if (v) currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "moveFiles", value: v[1] });
+    } else if (currentStep && inActions && trimmed.startsWith("- extractArchive:")) {
+      const v = trimmed.match(/- extractArchive:\s*['"]?([^'"]+)['"]?/);
+      const val = v && v[1] !== "true" ? v[1] : "";
+      currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "extractArchive", value: val });
+    } else if (currentStep && inActions && trimmed.startsWith("- cleanUnwantedFiles:")) {
+      const v = trimmed.match(/- cleanUnwantedFiles:\s*['"]?([^'"]+)['"]?/);
+      if (v) currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "cleanUnwantedFiles", value: v[1] });
+    } else if (currentStep && inActions && trimmed.startsWith("- addTracker:")) {
+      const v = trimmed.match(/- addTracker:\s*['"]?([^'"]+)['"]?/);
+      if (v) currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "addTracker", value: v[1] });
+    } else if (currentStep && inActions && trimmed.startsWith("- removeTracker:")) {
+      const v = trimmed.match(/- removeTracker:\s*['"]?([^'"]+)['"]?/);
+      if (v) currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "removeTracker", value: v[1] });
+    } else if (currentStep && inActions && trimmed.startsWith("- boostTracker:")) {
+      currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "boostTracker", value: "" });
+    } else if (currentStep && inActions && trimmed.startsWith("- banPeer:")) {
+      const v = trimmed.match(/- banPeer:\s*['"]?([^'"]+)['"]?/);
+      if (v) currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "banPeer", value: v[1] });
+    } else if (currentStep && inActions && trimmed.startsWith("- sendNotification:")) {
+      const v = trimmed.match(/- sendNotification:\s*['"]?([^'"]+)['"]?/);
+      if (v) currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "sendNotification", value: v[1] });
+    } else if (currentStep && inActions && (trimmed.startsWith("- notifyArr:") || trimmed.startsWith("- syncArr:"))) {
+      const v = trimmed.match(/- (?:notifyArr|syncArr):\s*['"]?([^'"]+)['"]?/);
+      const val = v && v[1] !== "true" ? v[1] : "";
+      currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "notifyArr", value: val });
+    } else if (currentStep && inActions && trimmed.startsWith("- runScript:")) {
+      const v = trimmed.match(/- runScript:\s*['"]?([^'"]+)['"]?/);
+      if (v) currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "runScript", value: v[1] });
+    } else if (currentStep && inActions && (trimmed.startsWith("- delay:") || trimmed.startsWith("- sleep:"))) {
+      const v = trimmed.match(/- (?:delay|sleep):\s*['"]?([^'"]+)['"]?/);
+      if (v) currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "delay", value: v[1] });
+    } else if (currentStep && inActions && trimmed.startsWith("- log:")) {
+      const v = trimmed.match(/- log:\s*['"]?([^'"]+)['"]?/);
+      if (v) currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "log", value: v[1] });
+    } else if (currentStep && inActions && trimmed.startsWith("- stopPipeline:")) {
+      const v = trimmed.match(/- stopPipeline:\s*['"]?([^'"]+)['"]?/);
+      if (v) currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "stopPipeline", value: v[1] });
     } else if (currentStep && inActions && trimmed.startsWith("- command:")) {
       const v = trimmed.match(/- command:\s*['"]?([^'"]+)['"]?/);
       if (v) currentStep.actions.push({ id: `act-${Date.now()}-${Math.random()}`, type: "command", value: v[1] });
@@ -1622,13 +1826,13 @@ if (torrent) {
 
                       {/* Actions List */}
                       <div>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.65rem" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.65rem", flexWrap: "wrap", gap: "0.5rem" }}>
                           <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-secondary)" }}>⚡ Step Actions</span>
-                          <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                          <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
                             <button
                               type="button"
                               className="btn btn-sm btn-secondary"
-                              style={{ fontSize: "0.8rem", padding: "0.25rem 0.6rem" }}
+                              style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
                               onClick={() => {
                                 const copy = [...visualSteps];
                                 copy[stepIdx].actions.push({ id: `act-${Date.now()}`, type: "addTag", value: "New-Tag" });
@@ -1640,7 +1844,7 @@ if (torrent) {
                             <button
                               type="button"
                               className="btn btn-sm btn-secondary"
-                              style={{ fontSize: "0.8rem", padding: "0.25rem 0.6rem" }}
+                              style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
                               onClick={() => {
                                 const copy = [...visualSteps];
                                 copy[stepIdx].actions.push({ id: `act-${Date.now()}`, type: "setCategory", value: categories?.[0]?.name || "Movies" });
@@ -1652,135 +1856,242 @@ if (torrent) {
                             <button
                               type="button"
                               className="btn btn-sm btn-secondary"
-                              style={{ fontSize: "0.8rem", padding: "0.25rem 0.6rem" }}
+                              style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
+                              onClick={() => {
+                                const copy = [...visualSteps];
+                                copy[stepIdx].actions.push({ id: `act-${Date.now()}`, type: "setUploadLimit", value: "1024" });
+                                updateVisualSteps(copy);
+                              }}
+                            >
+                              ⚡ + Limit
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-secondary"
+                              style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
+                              onClick={() => {
+                                const copy = [...visualSteps];
+                                copy[stepIdx].actions.push({ id: `act-${Date.now()}`, type: "sendNotification", value: "Torrent event triggered notification" });
+                                updateVisualSteps(copy);
+                              }}
+                            >
+                              🔔 + Alert
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-secondary"
+                              style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
+                              onClick={() => {
+                                const copy = [...visualSteps];
+                                copy[stepIdx].actions.push({ id: `act-${Date.now()}`, type: "notifyArr", value: "" });
+                                updateVisualSteps(copy);
+                              }}
+                            >
+                              📬 + Servarr
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-secondary"
+                              style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
                               onClick={() => {
                                 const copy = [...visualSteps];
                                 copy[stepIdx].actions.push({ id: `act-${Date.now()}`, type: "command", value: "Backup" });
                                 updateVisualSteps(copy);
                               }}
                             >
-                              ⚙️ + System Task
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-secondary"
-                              style={{ fontSize: "0.8rem", padding: "0.25rem 0.6rem" }}
-                              onClick={() => {
-                                const copy = [...visualSteps];
-                                copy[stepIdx].actions.push({ id: `act-${Date.now()}`, type: "recheck", value: "" });
-                                updateVisualSteps(copy);
-                              }}
-                            >
-                              🔍 + Recheck
+                              ⚙️ + Command
                             </button>
                           </div>
                         </div>
 
                         {step.actions.length === 0 ? (
                           <div style={{ fontSize: "0.825rem", color: "var(--text-muted)", fontStyle: "italic", padding: "0.6rem 0" }}>
-                            No actions added. Click the buttons above to attach tags, categories, tasks, or torrent commands.
+                            No actions added. Click any button above or select from the actions library below.
                           </div>
                         ) : (
-                          step.actions.map((act, actIdx) => (
-                            <div
-                              key={act.id}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "0.6rem",
-                                marginBottom: "0.5rem",
-                                backgroundColor: "var(--bg-secondary, #2a2620)",
-                                border: "1px solid var(--border-light, #3a352e)",
-                                padding: "0.5rem 0.75rem",
-                                borderRadius: "6px",
-                              }}
-                            >
-                              <select
-                                className="form-control"
-                                style={{ width: "190px", flexShrink: 0 }}
-                                value={act.type}
-                                onChange={(e) => {
-                                  const copy = [...visualSteps];
-                                  copy[stepIdx].actions[actIdx].type = e.target.value as any;
-                                  updateVisualSteps(copy);
+                          step.actions.map((act, actIdx) => {
+                            const actDef = ACTION_GROUPS.flatMap((g) => g.items).find((i) => i.type === act.type);
+                            const placeholder = actDef?.placeholder || "Action value";
+
+                            return (
+                              <div
+                                key={act.id}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "0.5rem",
+                                  marginBottom: "0.5rem",
+                                  backgroundColor: "var(--bg-secondary, #2a2620)",
+                                  border: "1px solid var(--border-light, #3a352e)",
+                                  padding: "0.5rem 0.75rem",
+                                  borderRadius: "6px",
+                                  flexWrap: "wrap",
                                 }}
                               >
-                                <option value="addTag">🏷️ Add Tag</option>
-                                <option value="removeTag">🏷️ Remove Tag</option>
-                                <option value="setCategory">📁 Set Category</option>
-                                <option value="command">⚙️ Run System Task</option>
-                                <option value="recheck">🔍 Force Recheck</option>
-                                <option value="reannounce">📡 Force Reannounce</option>
-                                <option value="pause">⏸️ Pause Torrent</option>
-                                <option value="resume">▶️ Resume Torrent</option>
-                                <option value="remove">🗑️ Remove Torrent</option>
-                              </select>
-
-                              {act.type === "command" ? (
                                 <select
                                   className="form-control"
-                                  style={{ flex: 1 }}
-                                  value={act.value}
+                                  style={{ width: "220px", flexShrink: 0, fontWeight: 500 }}
+                                  value={act.type}
                                   onChange={(e) => {
                                     const copy = [...visualSteps];
-                                    copy[stepIdx].actions[actIdx].value = e.target.value;
+                                    const newType = e.target.value as VisualActionType;
+                                    copy[stepIdx].actions[actIdx].type = newType;
+                                    if (newType === "setCategory" && categories?.[0]) {
+                                      copy[stepIdx].actions[actIdx].value = categories[0].name;
+                                    } else if (newType === "command") {
+                                      copy[stepIdx].actions[actIdx].value = COMMON_COMMANDS[0].name;
+                                    } else if (newType === "setPriority") {
+                                      copy[stepIdx].actions[actIdx].value = "High";
+                                    } else if (newType === "setSequentialDownload" || newType === "setSuperSeeding") {
+                                      copy[stepIdx].actions[actIdx].value = "true";
+                                    } else if (newType === "notifyArr") {
+                                      copy[stepIdx].actions[actIdx].value = "";
+                                    }
                                     updateVisualSteps(copy);
                                   }}
                                 >
-                                  {COMMON_COMMANDS.map((cmd) => (
-                                    <option key={cmd.name} value={cmd.name}>
-                                      {cmd.name} — {cmd.desc}
-                                    </option>
+                                  {ACTION_GROUPS.map((group) => (
+                                    <optgroup key={group.group} label={group.group}>
+                                      {group.items.map((item) => (
+                                        <option key={item.type} value={item.type}>
+                                          {item.label}
+                                        </option>
+                                      ))}
+                                    </optgroup>
                                   ))}
                                 </select>
-                              ) : act.type === "setCategory" ? (
-                                <select
-                                  className="form-control"
-                                  style={{ flex: 1 }}
-                                  value={act.value}
-                                  onChange={(e) => {
+
+                                {/* Action value rendering */}
+                                {act.type === "command" ? (
+                                  <select
+                                    className="form-control"
+                                    style={{ flex: 1, minWidth: "180px" }}
+                                    value={act.value}
+                                    onChange={(e) => {
+                                      const copy = [...visualSteps];
+                                      copy[stepIdx].actions[actIdx].value = e.target.value;
+                                      updateVisualSteps(copy);
+                                    }}
+                                  >
+                                    {COMMON_COMMANDS.map((cmd) => (
+                                      <option key={cmd.name} value={cmd.name}>
+                                        {cmd.name} — {cmd.desc}
+                                      </option>
+                                    ))}
+                                  </select>
+                                ) : act.type === "setCategory" ? (
+                                  <select
+                                    className="form-control"
+                                    style={{ flex: 1, minWidth: "180px" }}
+                                    value={act.value}
+                                    onChange={(e) => {
+                                      const copy = [...visualSteps];
+                                      copy[stepIdx].actions[actIdx].value = e.target.value;
+                                      updateVisualSteps(copy);
+                                    }}
+                                  >
+                                    {(categories || []).map((cat) => (
+                                      <option key={cat.id} value={cat.name}>
+                                        📁 {cat.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                ) : act.type === "setPriority" ? (
+                                  <select
+                                    className="form-control"
+                                    style={{ flex: 1, minWidth: "180px" }}
+                                    value={act.value || "Normal"}
+                                    onChange={(e) => {
+                                      const copy = [...visualSteps];
+                                      copy[stepIdx].actions[actIdx].value = e.target.value;
+                                      updateVisualSteps(copy);
+                                    }}
+                                  >
+                                    <option value="High">⚡ High Priority</option>
+                                    <option value="Normal">🔹 Normal Priority</option>
+                                    <option value="Low">🔻 Low Priority</option>
+                                    <option value="DoNotDownload">🚫 Do Not Download (Skip)</option>
+                                  </select>
+                                ) : act.type === "setSequentialDownload" || act.type === "setSuperSeeding" ? (
+                                  <select
+                                    className="form-control"
+                                    style={{ flex: 1, minWidth: "180px" }}
+                                    value={act.value || "true"}
+                                    onChange={(e) => {
+                                      const copy = [...visualSteps];
+                                      copy[stepIdx].actions[actIdx].value = e.target.value;
+                                      updateVisualSteps(copy);
+                                    }}
+                                  >
+                                    <option value="true">✅ Enabled (True)</option>
+                                    <option value="false">❌ Disabled (False)</option>
+                                  </select>
+                                ) : act.type === "notifyArr" ? (
+                                  <select
+                                    className="form-control"
+                                    style={{ flex: 1, minWidth: "180px" }}
+                                    value={act.value}
+                                    onChange={(e) => {
+                                      const copy = [...visualSteps];
+                                      copy[stepIdx].actions[actIdx].value = e.target.value;
+                                      updateVisualSteps(copy);
+                                    }}
+                                  >
+                                    <option value="">🌐 All Connected Servarr Instances</option>
+                                    <option value="Sonarr">📺 Sonarr (TV Shows)</option>
+                                    <option value="Radarr">🎬 Radarr (Movies)</option>
+                                    <option value="Lidarr">🎵 Lidarr (Music)</option>
+                                    <option value="Readarr">📚 Readarr (Books)</option>
+                                    <option value="Whisparr">🔞 Whisparr (Adult)</option>
+                                  </select>
+                                ) : act.type === "remove" ? (
+                                  <label style={{ flex: 1, display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", cursor: "pointer", color: "var(--color-danger, #ff6b6b)" }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={act.deleteData || false}
+                                      onChange={(e) => {
+                                        const copy = [...visualSteps];
+                                        copy[stepIdx].actions[actIdx].deleteData = e.target.checked;
+                                        updateVisualSteps(copy);
+                                      }}
+                                    />
+                                    🗑️ Also permanently delete downloaded files from disk
+                                  </label>
+                                ) : act.type === "pause" || act.type === "resume" || act.type === "recheck" || act.type === "reannounce" || act.type === "boostTracker" ? (
+                                  <span style={{ flex: 1, fontSize: "0.85rem", color: "var(--text-muted)", paddingLeft: "0.25rem" }}>
+                                    ✨ Auto-applies to active swarm & torrent
+                                  </span>
+                                ) : (
+                                  <input
+                                    type={act.type === "setUploadLimit" || act.type === "setDownloadLimit" || act.type === "setRatioLimit" || act.type === "setSeedingTimeLimit" || act.type === "delay" ? "number" : "text"}
+                                    className="form-control"
+                                    style={{ flex: 1, minWidth: "180px" }}
+                                    value={act.value}
+                                    onChange={(e) => {
+                                      const copy = [...visualSteps];
+                                      copy[stepIdx].actions[actIdx].value = e.target.value;
+                                      updateVisualSteps(copy);
+                                    }}
+                                    placeholder={placeholder}
+                                  />
+                                )}
+
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-secondary"
+                                  style={{ width: "32px", height: "32px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: "6px" }}
+                                  title="Delete Action"
+                                  onClick={() => {
                                     const copy = [...visualSteps];
-                                    copy[stepIdx].actions[actIdx].value = e.target.value;
+                                    copy[stepIdx].actions = copy[stepIdx].actions.filter((_, idx) => idx !== actIdx);
                                     updateVisualSteps(copy);
                                   }}
                                 >
-                                  {(categories || []).map((cat) => (
-                                    <option key={cat.id} value={cat.name}>{cat.name}</option>
-                                  ))}
-                                </select>
-                              ) : act.type === "addTag" || act.type === "removeTag" ? (
-                                <input
-                                  type="text"
-                                  className="form-control"
-                                  style={{ flex: 1 }}
-                                  value={act.value}
-                                  onChange={(e) => {
-                                    const copy = [...visualSteps];
-                                    copy[stepIdx].actions[actIdx].value = e.target.value;
-                                    updateVisualSteps(copy);
-                                  }}
-                                  placeholder="Tag name (e.g. 4K, Radarr, Archive)"
-                                />
-                              ) : (
-                                <span style={{ flex: 1, fontSize: "0.85rem", color: "var(--text-muted)", paddingLeft: "0.25rem" }}>
-                                  Action applies automatically to active torrent
-                                </span>
-                              )}
-
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-secondary"
-                                style={{ width: "32px", height: "32px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: "6px" }}
-                                onClick={() => {
-                                  const copy = [...visualSteps];
-                                  copy[stepIdx].actions = copy[stepIdx].actions.filter((_, idx) => idx !== actIdx);
-                                  updateVisualSteps(copy);
-                                }}
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          ))
+                                  ✕
+                                </button>
+                              </div>
+                            );
+                          })
                         )}
                       </div>
                     </div>

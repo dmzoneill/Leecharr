@@ -19,6 +19,7 @@ public class AutomationService : IAutomationService
     private readonly ITorrentRepository _torrentRepository;
     private readonly ITagRepository _tagRepository;
     private readonly IEventAggregator _eventAggregator;
+    private readonly IManageCommandQueue? _commandQueue;
     private readonly Logger _logger;
     private readonly JintScriptRunner _jintRunner;
     private readonly YamlScriptRunner _yamlRunner;
@@ -35,6 +36,7 @@ public class AutomationService : IAutomationService
         _torrentRepository = torrentRepository;
         _tagRepository = tagRepository;
         _eventAggregator = eventAggregator;
+        _commandQueue = commandQueue;
         _logger = LogManager.GetCurrentClassLogger();
         _jintRunner = new JintScriptRunner(commandQueue, configFileProvider);
         _yamlRunner = new YamlScriptRunner(commandQueue);
@@ -121,6 +123,15 @@ public class AutomationService : IAutomationService
         if (result.Success && torrent != null)
         {
             ApplyTorrentMutations(torrent, result);
+        }
+
+        // Side-effects: Servarr Sync
+        if (result.Success && result.ArrSyncsToSend.Count > 0 && _commandQueue != null)
+        {
+            foreach (var sync in result.ArrSyncsToSend)
+            {
+                _commandQueue.PushRaw("SyncArr", "{}", CommandTrigger.Manual);
+            }
         }
 
         // Record execution stats on script
@@ -222,6 +233,13 @@ public class AutomationService : IAutomationService
             changed = true;
         }
 
+        // Save Path
+        if (!string.IsNullOrWhiteSpace(result.NewSavePath) && !string.Equals(torrent.SavePath, result.NewSavePath, StringComparison.OrdinalIgnoreCase))
+        {
+            torrent.SavePath = result.NewSavePath;
+            changed = true;
+        }
+
         // Upload limit
         if (result.NewUploadLimitKbps.HasValue && torrent.UploadLimit != result.NewUploadLimitKbps.Value)
         {
@@ -233,6 +251,34 @@ public class AutomationService : IAutomationService
         if (result.NewDownloadLimitKbps.HasValue && torrent.DownloadLimit != result.NewDownloadLimitKbps.Value)
         {
             torrent.DownloadLimit = result.NewDownloadLimitKbps.Value;
+            changed = true;
+        }
+
+        // Priority
+        if (result.NewPriority.HasValue && torrent.Priority != result.NewPriority.Value)
+        {
+            torrent.Priority = result.NewPriority.Value;
+            changed = true;
+        }
+
+        // Sequential download
+        if (result.NewSequentialDownload.HasValue && torrent.SequentialDownload != result.NewSequentialDownload.Value)
+        {
+            torrent.SequentialDownload = result.NewSequentialDownload.Value;
+            changed = true;
+        }
+
+        // Initial/Super seeding
+        if (result.NewSuperSeeding.HasValue && torrent.InitialSeeding != result.NewSuperSeeding.Value)
+        {
+            torrent.InitialSeeding = result.NewSuperSeeding.Value;
+            changed = true;
+        }
+
+        // Tracker add/remove
+        if (result.TrackersToAdd.Count > 0 && string.IsNullOrWhiteSpace(torrent.TrackerUrl))
+        {
+            torrent.TrackerUrl = result.TrackersToAdd[0];
             changed = true;
         }
 
