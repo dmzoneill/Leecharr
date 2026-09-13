@@ -259,6 +259,15 @@ export function ClientEmulationSettingsTab() {
         title={t("settingsTabs.clientEmulation.title")}
         description={t("settingsTabs.clientEmulation.description")}
       >
+        <div style={{ marginBottom: "1rem" }}>
+          <Toggle
+            label="Enable Client Behavior Engine"
+            checked={form.clientBehaviorEngineEnabled}
+            onChange={(v) => update("clientBehaviorEngineEnabled", v)}
+            hint="Simulate realistic BitTorrent client behavioral quirks, request patterns, and timing"
+          />
+        </div>
+
         <div
           style={{
             display: "grid",
@@ -336,6 +345,26 @@ export function ClientEmulationSettingsTab() {
             onChange={(v) => update("peerIdPrefix", v)}
             hint={t("settingsTabs.clientEmulation.customPeerIdHint")}
           />
+
+          <NumberInput
+            label="Behavior Variation Jitter"
+            value={form.behaviorVariation}
+            onChange={(v) => update("behaviorVariation", v)}
+            min={0}
+            max={1}
+            step={0.01}
+            hint="Gaussian jitter factor applied to simulated traffic metrics"
+          />
+
+          <NumberInput
+            label="Profile Switch Probability"
+            value={form.switchClientProbability}
+            onChange={(v) => update("switchClientProbability", v)}
+            min={0.01}
+            max={1.0}
+            step={0.01}
+            hint="Probability of rotating client identity on new announces"
+          />
         </div>
 
         <div
@@ -353,12 +382,10 @@ export function ClientEmulationSettingsTab() {
             }}
           >
             <Toggle
-              label={t("settingsTabs.clientEmulation.enableSwarmIntelligence")}
-              checked={form.swarmIntelligenceEnabled}
-              onChange={(v) => update("swarmIntelligenceEnabled", v)}
-              hint={t(
-                "settingsTabs.clientEmulation.enableSwarmIntelligenceHint",
-              )}
+              label="Realistic Variations"
+              checked={form.realisticVariations}
+              onChange={(v) => update("realisticVariations", v)}
+              hint="Apply realistic variations to request and transfer behavior"
             />
 
             <Toggle
@@ -367,7 +394,103 @@ export function ClientEmulationSettingsTab() {
               onChange={(v) => update("timeBasedPatterns", v)}
               hint={t("settingsTabs.clientEmulation.diurnalPatternsHint")}
             />
+
+            <Toggle
+              label="Client Profile Dynamic Switching"
+              checked={form.clientProfileSwitching}
+              onChange={(v) => update("clientProfileSwitching", v)}
+              hint="Periodically switch emulation profile to mimic changing client software"
+            />
           </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Swarm Intelligence & Peer Dynamics"
+        description="Configure swarm behavioral analysis, seeder simulation, and connection churn"
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "1rem",
+          }}
+        >
+          <NumberInput
+            label="Swarm Adaptation Rate"
+            value={form.swarmAdaptationRate}
+            onChange={(v) => update("swarmAdaptationRate", v)}
+            min={0.01}
+            max={1.0}
+            step={0.01}
+            hint="Rate of adapting to changing swarm characteristics"
+          />
+
+          <NumberInput
+            label="Swarm Peer Analysis Depth"
+            value={form.swarmPeerAnalysisDepth}
+            onChange={(v) => update("swarmPeerAnalysisDepth", v)}
+            min={1}
+            max={100}
+            hint="Number of peers sampled for swarm pattern analysis"
+          />
+
+          <NumberInput
+            label="Seeder Upload Activity Chance"
+            value={form.seederUploadActivityProbability}
+            onChange={(v) => update("seederUploadActivityProbability", v)}
+            min={0}
+            max={1}
+            step={0.05}
+            hint="Probability of active seeder peer communication"
+          />
+
+          <NumberInput
+            label="Peer Idle Chance"
+            value={form.peerIdleChance}
+            onChange={(v) => update("peerIdleChance", v)}
+            min={0}
+            max={1}
+            step={0.05}
+            hint="Chance that a peer enters idle state"
+          />
+
+          <NumberInput
+            label="Peer Dropout Probability"
+            value={form.peerDropoutProbability}
+            onChange={(v) => update("peerDropoutProbability", v)}
+            min={0}
+            max={1}
+            step={0.01}
+            hint="Probability of peer connection dropouts"
+          />
+
+          <NumberInput
+            label="Connection Rotation Percentage"
+            value={form.connectionRotationPercentage}
+            onChange={(v) => update("connectionRotationPercentage", v)}
+            min={0}
+            max={1}
+            step={0.05}
+            hint="Percentage of peer connections rotated periodically"
+          />
+        </div>
+
+        <div
+          style={{
+            marginTop: "1rem",
+            borderTop: "1px solid var(--border-light)",
+            paddingTop: "1rem",
+          }}
+        >
+          <Toggle
+            label={t("settingsTabs.clientEmulation.enableSwarmIntelligence")}
+            checked={form.swarmIntelligenceEnabled}
+            onChange={(v) => update("swarmIntelligenceEnabled", v)}
+            hint={t(
+              "settingsTabs.clientEmulation.enableSwarmIntelligenceHint",
+            )}
+          />
         </div>
       </SectionCard>
 
