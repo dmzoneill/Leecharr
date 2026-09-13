@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.7.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.7.2) - 2026-09-13
+
+### 🐛 Bug Fixes
+- fix(automation): use string concatenation for YAML templates to satisfy both yaml parser and editorconfig
+- fix(lint): format yaml string literals to strict 4-space multiple indentation
+
 ## [v1.7.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.7.1) - 2026-09-13
 
 ### ✨ Features
