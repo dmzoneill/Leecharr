@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.8.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.8.2) - 2026-09-13
+
+### 🔧 Maintenance & Improvements
+- style(automation): inline condition builder row for L-value, operator, and R-value
+
 ## [v1.8.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.8.1) - 2026-09-13
 
 ### 🐛 Bug Fixes
