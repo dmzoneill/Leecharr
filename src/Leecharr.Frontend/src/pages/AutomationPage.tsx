@@ -1860,12 +1860,12 @@ if (torrent) {
 
                           return (
                             <div style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                              <div style={{ display: "flex", gap: "0.6rem", alignItems: "center", flexWrap: "wrap" }}>
-                                {/* Left Property Select */}
-                                <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem", flex: isCustomLeft ? 1 : undefined }}>
+                              <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", width: "100%" }}>
+                                {/* Left Property Select (L-Value) */}
+                                <div style={{ width: isCustomLeft ? "260px" : "220px", flexShrink: 0, display: "flex", flexDirection: "column", gap: "0.2rem" }}>
                                   <select
                                     className="form-control"
-                                    style={{ width: isCustomLeft ? "100%" : "230px", flexShrink: 0, fontWeight: 500 }}
+                                    style={{ width: "100%", fontWeight: 500 }}
                                     value={isCustomLeft ? "custom" : step.conditionLeft}
                                     onChange={(e) => {
                                       const copy = [...visualSteps];
@@ -1899,7 +1899,7 @@ if (torrent) {
                                     <input
                                       type="text"
                                       className="form-control"
-                                      style={{ fontSize: "0.8rem", padding: "0.25rem 0.5rem" }}
+                                      style={{ width: "100%", fontSize: "0.8rem", padding: "0.25rem 0.5rem" }}
                                       value={step.conditionLeft}
                                       onChange={(e) => {
                                         const copy = [...visualSteps];
@@ -1911,31 +1911,33 @@ if (torrent) {
                                   )}
                                 </div>
 
-                                {/* Operator Select (Filtered per type) */}
-                                <select
-                                  className="form-control"
-                                  style={{ minWidth: "90px", flexShrink: 0, textAlign: "center", fontWeight: 700 }}
-                                  value={step.conditionOp}
-                                  onChange={(e) => {
-                                    const copy = [...visualSteps];
-                                    copy[stepIdx].conditionOp = e.target.value as any;
-                                    updateVisualSteps(copy);
-                                  }}
-                                >
-                                  {opOptions.map((op) => (
-                                    <option key={op.value} value={op.value}>
-                                      {op.label}
-                                    </option>
-                                  ))}
-                                </select>
+                                {/* Operator Select (Comparison) */}
+                                <div style={{ width: "150px", flexShrink: 0 }}>
+                                  <select
+                                    className="form-control"
+                                    style={{ width: "100%", textAlign: "center", fontWeight: 700 }}
+                                    value={step.conditionOp}
+                                    onChange={(e) => {
+                                      const copy = [...visualSteps];
+                                      copy[stepIdx].conditionOp = e.target.value as any;
+                                      updateVisualSteps(copy);
+                                    }}
+                                  >
+                                    {opOptions.map((op) => (
+                                      <option key={op.value} value={op.value}>
+                                        {op.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
 
-                                {/* Right Value: Type-Aware Presets, Numeric Chips or Custom Input */}
-                                <div style={{ flex: 1, minWidth: "220px", display: "flex", gap: "0.35rem", alignItems: "center" }}>
+                                {/* Right Value (R-Value): Type-Aware Presets, Numeric Chips or Custom Input */}
+                                <div style={{ flex: 1, minWidth: 0, display: "flex", gap: "0.35rem", alignItems: "center" }}>
                                   {presetOptions && !isCustomRight ? (
                                     <div style={{ display: "flex", gap: "0.35rem", width: "100%", alignItems: "center" }}>
                                       <select
                                         className="form-control"
-                                        style={{ flex: 1, fontWeight: 500 }}
+                                        style={{ width: "100%", fontWeight: 500 }}
                                         value={step.conditionRight.trim()}
                                         onChange={(e) => {
                                           const copy = [...visualSteps];
@@ -1957,11 +1959,11 @@ if (torrent) {
                                     </div>
                                   ) : propDef.type === "number" ? (
                                     <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", width: "100%" }}>
-                                      <div style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
+                                      <div style={{ display: "flex", gap: "0.35rem", alignItems: "center", width: "100%" }}>
                                         <input
                                           type="text"
                                           className="form-control"
-                                          style={{ flex: 1 }}
+                                          style={{ flex: 1, minWidth: 0 }}
                                           value={step.conditionRight}
                                           onChange={(e) => {
                                             const copy = [...visualSteps];
@@ -1981,6 +1983,7 @@ if (torrent) {
                                               color: "var(--accent, #38bdf8)",
                                               border: "1px solid rgba(59, 130, 246, 0.3)",
                                               borderRadius: "4px",
+                                              flexShrink: 0,
                                             }}
                                           >
                                             {numericLiveHint}
@@ -2019,7 +2022,7 @@ if (torrent) {
                                       <input
                                         type="text"
                                         className="form-control"
-                                        style={{ flex: 1 }}
+                                        style={{ flex: 1, minWidth: 0 }}
                                         value={step.conditionRight}
                                         onChange={(e) => {
                                           const copy = [...visualSteps];
@@ -2033,7 +2036,7 @@ if (torrent) {
                                           type="button"
                                           className="btn btn-sm btn-secondary"
                                           title="Switch back to presets dropdown"
-                                          style={{ padding: "0.35rem 0.6rem", fontSize: "0.75rem", whiteSpace: "nowrap" }}
+                                          style={{ padding: "0.35rem 0.6rem", fontSize: "0.75rem", whiteSpace: "nowrap", flexShrink: 0 }}
                                           onClick={() => {
                                             const copy = [...visualSteps];
                                             copy[stepIdx].conditionRight = presetOptions![0].value;
