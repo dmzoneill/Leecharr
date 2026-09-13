@@ -152,7 +152,21 @@ public class WebhookDispatcher : IWebhookDispatcher
             .OrResult(r => (int)r.StatusCode >= 500 || r.StatusCode == HttpStatusCode.TooManyRequests)
             .WaitAndRetryAsync(
                 retryCount,
-                sleepDurationProvider ?? (retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))), // 2s, 4s, 8s
+                (retryAttempt, outcome, context) =>
+                {
+                    if (outcome.Result != null)
+                    {
+                        var retryAfter = ExtractRetryAfter(outcome.Result);
+                        if (retryAfter.HasValue && retryAfter.Value > TimeSpan.Zero)
+                        {
+                            return retryAfter.Value;
+                        }
+                    }
+
+                    return sleepDurationProvider != null
+                        ? sleepDurationProvider(retryAttempt)
+                        : TimeSpan.FromSeconds(Math.Pow(2, retryAttempt));
+                },
                 (outcome, timespan, retryAttempt, context) =>
                 {
                     outcome.Result?.Dispose();
@@ -166,6 +180,97 @@ public class WebhookDispatcher : IWebhookDispatcher
                         LogManager.GetCurrentClassLogger().Warn("Webhook dispatch failed. Retrying in {0}s (Attempt {1}/{2})...", timespan.TotalSeconds, retryAttempt, retryCount);
                     }
                 });
+    }
+
+    internal static TimeSpan? ExtractRetryAfter(HttpResponseMessage response)
+    {
+        if (response == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            if (response.Headers.RetryAfter != null)
+            {
+                if (response.Headers.RetryAfter.Delta.HasValue)
+                {
+                    return response.Headers.RetryAfter.Delta.Value;
+                }
+
+                if (response.Headers.RetryAfter.Date.HasValue)
+                {
+                    var delta = response.Headers.RetryAfter.Date.Value - DateTimeOffset.UtcNow;
+                    if (delta > TimeSpan.Zero)
+                    {
+                        return delta;
+                    }
+                }
+            }
+
+            if (response.Headers.TryGetValues("Retry-After", out var retryValues))
+            {
+                var val = retryValues.FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(val))
+                {
+                    if (double.TryParse(val, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var seconds))
+                    {
+                        return TimeSpan.FromSeconds(seconds);
+                    }
+
+                    if (DateTimeOffset.TryParse(val, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var date))
+                    {
+                        var delta = date - DateTimeOffset.UtcNow;
+                        if (delta > TimeSpan.Zero)
+                        {
+                            return delta;
+                        }
+                    }
+                }
+            }
+
+            if (response.Content != null)
+            {
+                var rawBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                if (!string.IsNullOrWhiteSpace(rawBody) && rawBody.TrimStart().StartsWith("{"))
+                {
+                    using var doc = JsonDocument.Parse(rawBody);
+                    var root = doc.RootElement;
+
+                    if (root.TryGetProperty("parameters", out var paramsElem) &&
+                        paramsElem.ValueKind == JsonValueKind.Object &&
+                        paramsElem.TryGetProperty("retry_after", out var tgRetry))
+                    {
+                        if (tgRetry.TryGetDouble(out var s))
+                        {
+                            return TimeSpan.FromSeconds(s);
+                        }
+                    }
+
+                    var retryProps = new[] { "retry_after", "retryAfter", "retry_after_seconds", "retryAfterSeconds" };
+                    foreach (var prop in retryProps)
+                    {
+                        if (root.TryGetProperty(prop, out var elem))
+                        {
+                            if (elem.ValueKind == JsonValueKind.Number && elem.TryGetDouble(out var s))
+                            {
+                                return TimeSpan.FromSeconds(s);
+                            }
+
+                            if (elem.ValueKind == JsonValueKind.String && double.TryParse(elem.GetString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var sParsed))
+                            {
+                                return TimeSpan.FromSeconds(sParsed);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return null;
     }
 
     public async Task<bool> DispatchAsync(string targetUrl, object payload, string customHeadersJson = null, CancellationToken cancellationToken = default)

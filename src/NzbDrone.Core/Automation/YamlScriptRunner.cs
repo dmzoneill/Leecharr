@@ -107,7 +107,7 @@ public class YamlScriptRunner : IScriptRunner
                 variableContext["torrent.status"] = torrentCtx.status;
                 variableContext["torrent.progress"] = torrentCtx.progress;
                 variableContext["torrent.isPrivate"] = torrent.IsPrivate;
-                variableContext["torrent.isComplete"] = torrent.Progress >= 100 || torrent.Status == TorrentStatus.Seeding;
+                variableContext["torrent.isComplete"] = torrent.Progress >= 1.0f || torrent.Progress >= 0.999f || torrent.Status == TorrentStatus.Seeding;
                 variableContext["torrent.downloadSpeed"] = torrent.DownloadSpeed;
                 variableContext["torrent.uploadSpeed"] = torrent.UploadSpeed;
                 variableContext["torrent.seeders"] = torrent.Seeders;
@@ -115,7 +115,36 @@ public class YamlScriptRunner : IScriptRunner
                 variableContext["torrent.savePath"] = torrent.SavePath ?? string.Empty;
                 variableContext["torrent.uploaded"] = torrent.Uploaded;
                 variableContext["torrent.downloaded"] = torrent.Downloaded;
+                variableContext["torrent.seedingTime"] = torrent.CumulativeSeedingTimeSeconds;
+                variableContext["torrent.seedingTimeMinutes"] = torrent.SeedTimeMinutes;
             }
+
+            // Populate system context
+            long diskFreeSpace = 0;
+            try
+            {
+                var targetPath = !string.IsNullOrWhiteSpace(torrent?.SavePath) && Directory.Exists(torrent.SavePath)
+                    ? torrent.SavePath
+                    : AppContext.BaseDirectory;
+                var drive = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(targetPath)) ?? "/");
+                diskFreeSpace = drive.AvailableFreeSpace;
+            }
+            catch
+            {
+                try
+                {
+                    var drive = new DriveInfo(Path.GetPathRoot(Environment.CurrentDirectory) ?? "/");
+                    diskFreeSpace = drive.AvailableFreeSpace;
+                }
+                catch
+                {
+                    diskFreeSpace = 0;
+                }
+            }
+
+            variableContext["system.diskFreeSpace"] = diskFreeSpace;
+            variableContext["system.vpnActive"] = true;
+            variableContext["system.isPortForwarded"] = true;
 
             var httpClient = new ScriptHttpContext();
 
@@ -846,11 +875,80 @@ public class YamlScriptRunner : IScriptRunner
             var key = match.Groups[1].Value.Trim();
             if (context.TryGetValue(key, out var val) && val != null)
             {
-                return val.ToString() ?? string.Empty;
+                var strVal = val.ToString() ?? string.Empty;
+                if (val is string && IsInsideQuotes(template, match.Index))
+                {
+                    return EscapeJsonString(strVal);
+                }
+
+                return strVal;
             }
 
             return match.Value;
         });
+    }
+
+    private static bool IsInsideQuotes(string text, int index)
+    {
+        var quoteCount = 0;
+        for (var i = 0; i < index; i++)
+        {
+            if (text[i] == '"' && (i == 0 || text[i - 1] != '\\'))
+            {
+                quoteCount++;
+            }
+        }
+
+        return (quoteCount % 2) != 0;
+    }
+
+    private static string EscapeJsonString(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        var sb = new StringBuilder(value.Length + 8);
+        foreach (var c in value)
+        {
+            switch (c)
+            {
+                case '\\':
+                    sb.Append("\\\\");
+                    break;
+                case '"':
+                    sb.Append("\\\"");
+                    break;
+                case '\n':
+                    sb.Append("\\n");
+                    break;
+                case '\r':
+                    sb.Append("\\r");
+                    break;
+                case '\t':
+                    sb.Append("\\t");
+                    break;
+                case '\b':
+                    sb.Append("\\b");
+                    break;
+                case '\f':
+                    sb.Append("\\f");
+                    break;
+                default:
+                    if (c < 32)
+                    {
+                        sb.AppendFormat("\\u{0:x4}", (int)c);
+                    }
+                    else
+                    {
+                        sb.Append(c);
+                    }
+                    break;
+            }
+        }
+
+        return sb.ToString();
     }
 
     private static bool EvaluateSimpleCondition(string condition, Dictionary<string, object?> context)
