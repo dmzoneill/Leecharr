@@ -1,3 +1,4 @@
+#pragma warning disable SA1500, SA1516, SA1513, SA1508, SA1512, SA1507, SA1028
 #nullable enable
 #pragma warning disable SA1300
 using System.Collections.Generic;
@@ -245,5 +246,30 @@ public class ScriptTorrentContext
     public void reannounce()
     {
         _result.ShouldReannounce = true;
+    }
+
+    public void setShareLimitAction(string action)
+    {
+        _result.ShareLimitAction = action;
+    }
+
+    public void setFilePriority(string pattern, string priority)
+    {
+        _result.FilePriorities.Add(new System.Tuple<string, string>(pattern, priority));
+    }
+
+    public void replaceTracker(string oldTracker, string newTracker)
+    {
+        _result.TrackersToReplace.Add(new System.Tuple<string, string>(oldTracker, newTracker));
+    }
+
+    public void reannounceAll()
+    {
+        _result.ShouldReannounceAll = true;
+    }
+
+    public void exportTorrent(string destination)
+    {
+        _result.TorrentExportDestination = destination;
     }
 }
