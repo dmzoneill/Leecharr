@@ -15,6 +15,7 @@ public class AutomationController : RestControllerWithSignalR<AutomationScriptRe
 {
     private readonly IAutomationService _automationService;
     private readonly IAutomationMarketplaceService _marketplaceService;
+    private readonly IBroadcastSignalRMessage _signalRBroadcaster;
 
     public AutomationController(
         IAutomationService automationService,
@@ -24,6 +25,7 @@ public class AutomationController : RestControllerWithSignalR<AutomationScriptRe
     {
         _automationService = automationService;
         _marketplaceService = marketplaceService;
+        _signalRBroadcaster = signalRBroadcaster;
     }
 
     [HttpGet]
@@ -88,9 +90,25 @@ public class AutomationController : RestControllerWithSignalR<AutomationScriptRe
     }
 
     [HttpPost("{id:int}/run")]
+    [HttpPost("{id:int}/execute")]
     public ActionResult<AutomationExecutionResult> Run(int id, [FromQuery] int? torrentId = null)
     {
         var result = _automationService.ExecuteScript(id, torrentId);
+        _signalRBroadcaster.BroadcastMessage(new SignalRMessage
+        {
+            Name = "AutomationExecuted",
+            Action = NzbDrone.Core.Datastore.ModelAction.Updated,
+            Body = new
+            {
+                ScriptId = id,
+                TorrentId = torrentId,
+                Success = result.Success,
+                ExecutionTimeMs = result.ExecutionTimeMs,
+                OutputLog = result.OutputLog,
+                Error = result.Error,
+                Result = result
+            }
+        });
         return Ok(result);
     }
 
@@ -104,6 +122,23 @@ public class AutomationController : RestControllerWithSignalR<AutomationScriptRe
 
         var model = ToModel(request.Script);
         var result = _automationService.TestScript(model, request.TorrentId, request.CustomInputs);
+        _signalRBroadcaster.BroadcastMessage(new SignalRMessage
+        {
+            Name = "AutomationTriggerEvaluated",
+            Action = NzbDrone.Core.Datastore.ModelAction.Updated,
+            Body = new
+            {
+                ScriptId = request.Script.Id,
+                ScriptName = request.Script.Name,
+                Trigger = request.Script.Trigger.ToString(),
+                TorrentId = request.TorrentId,
+                Success = result.Success,
+                ExecutionTimeMs = result.ExecutionTimeMs,
+                OutputLog = result.OutputLog,
+                Error = result.Error,
+                Result = result
+            }
+        });
         return Ok(result);
     }
 

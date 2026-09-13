@@ -51,6 +51,8 @@ public class ScriptTorrentContext
 
     public long downloadSpeed => _torrent.DownloadSpeed;
 
+    public long eta => _torrent.Eta;
+
     public int seeders => _torrent.Seeders;
 
     public int leechers => _torrent.Leechers;
@@ -58,6 +60,24 @@ public class ScriptTorrentContext
     public string comment => _torrent.Comment ?? string.Empty;
 
     public bool isPrivate => _torrent.IsPrivate;
+
+    public bool isComplete => _torrent.Progress >= 1.0 || _torrent.Progress >= 0.999 || _torrent.Status == TorrentStatus.Seeding || _torrent.DateCompleted.HasValue;
+
+    public long seedingTime => _torrent.CumulativeSeedingTimeSeconds;
+
+    public long seedingTimeSeconds => _torrent.CumulativeSeedingTimeSeconds;
+
+    public int seedingTimeMinutes => _torrent.SeedTimeMinutes;
+
+    public int seedTimeMinutes => _torrent.SeedTimeMinutes;
+
+    public int priority => _torrent.Priority;
+
+    public string label => _torrent.Label ?? string.Empty;
+
+    public double targetRatio => _torrent.TargetRatio;
+
+    public int targetSeedTimeMinutes => _torrent.TargetSeedTimeMinutes;
 
     public List<int> tagIds => _torrent.TagIds != null ? new List<int>(_torrent.TagIds) : new List<int>();
 
