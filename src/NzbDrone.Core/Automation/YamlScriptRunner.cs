@@ -104,6 +104,15 @@ public class YamlScriptRunner : IScriptRunner
                 variableContext["torrent.tracker"] = torrentCtx.tracker;
                 variableContext["torrent.status"] = torrentCtx.status;
                 variableContext["torrent.progress"] = torrentCtx.progress;
+                variableContext["torrent.isPrivate"] = torrent.IsPrivate;
+                variableContext["torrent.isComplete"] = torrent.Progress >= 100 || torrent.Status == TorrentStatus.Seeding;
+                variableContext["torrent.downloadSpeed"] = torrent.DownloadSpeed;
+                variableContext["torrent.uploadSpeed"] = torrent.UploadSpeed;
+                variableContext["torrent.seeders"] = torrent.Seeders;
+                variableContext["torrent.leechers"] = torrent.Leechers;
+                variableContext["torrent.savePath"] = torrent.SavePath ?? string.Empty;
+                variableContext["torrent.uploaded"] = torrent.Uploaded;
+                variableContext["torrent.downloaded"] = torrent.Downloaded;
             }
 
             var httpClient = new ScriptHttpContext();
