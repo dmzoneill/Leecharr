@@ -825,6 +825,53 @@ export function FileBrowser() {
                     }}
                   />
                 </div>
+              ) : previewData?.type === "video" ? (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    flexDirection: "column",
+                    gap: "1rem",
+                    minHeight: "260px",
+                  }}
+                >
+                  <video
+                    src={previewData.downloadUrl}
+                    controls
+                    autoPlay
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "60vh",
+                      borderRadius: "6px",
+                      backgroundColor: "#000",
+                    }}
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                </div>
+              ) : previewData?.type === "audio" ? (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    flexDirection: "column",
+                    padding: "2rem",
+                    gap: "1.5rem",
+                    minHeight: "200px",
+                  }}
+                >
+                  <span style={{ fontSize: "3.5rem" }}>🎵</span>
+                  <audio
+                    src={previewData.downloadUrl}
+                    controls
+                    autoPlay
+                    style={{ width: "100%", maxWidth: "500px" }}
+                  >
+                    Your browser does not support the audio element.
+                  </audio>
+                </div>
               ) : previewData?.type === "text" ? (
                 <pre
                   style={{
