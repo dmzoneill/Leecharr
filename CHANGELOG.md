@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.9.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.9.0) - 2026-09-13
+
+### ✨ Features
+- feat(automation): add media, swarm, rich webhook, and flow control step actions
+- feat(ui): expand automation action library, step reordering, parameter widgets, and dry-run simulator
+
 ## [v1.8.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.8.2) - 2026-09-13
 
 ### 🔧 Maintenance & Improvements
