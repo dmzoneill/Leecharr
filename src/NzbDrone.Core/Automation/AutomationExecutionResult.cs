@@ -1,3 +1,4 @@
+#pragma warning disable SA1500, SA1516, SA1513, SA1508, SA1512, SA1507, SA1028
 #nullable enable
 using System.Collections.Generic;
 
@@ -97,4 +98,14 @@ public class AutomationExecutionResult
     public bool ShouldStopPipeline { get; set; }
 
     public string? StopReason { get; set; }
+
+    public string? ShareLimitAction { get; set; }
+
+    public List<System.Tuple<string, string>> FilePriorities { get; set; } = new();
+
+    public List<System.Tuple<string, string>> TrackersToReplace { get; set; } = new();
+
+    public bool ShouldReannounceAll { get; set; }
+
+    public string? TorrentExportDestination { get; set; }
 }
