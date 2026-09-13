@@ -966,20 +966,9 @@ if (torrent) {
 
       {/* SCRIPT & PIPELINE EDITOR MODAL */}
       {editorOpen && editingScript && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0,0,0,0.6)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: "1rem",
-          }}
-        >
+        <div className="modal-overlay">
           <div
-            className="panel"
+            className="modal panel"
             style={{
               width: "100%",
               maxWidth: "1000px",
@@ -988,6 +977,7 @@ if (torrent) {
               flexDirection: "column",
               padding: "1.5rem",
               overflow: "hidden",
+              backgroundColor: "var(--bg-secondary)",
             }}
           >
             {/* Modal Header */}
@@ -1584,20 +1574,9 @@ if (torrent) {
 
       {/* PIPELINE RUN TRACE VIEWER MODAL */}
       {logModalOpen && viewingLog && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0,0,0,0.6)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: "1rem",
-          }}
-        >
+        <div className="modal-overlay">
           <div
-            className="panel"
+            className="modal panel"
             style={{
               width: "100%",
               maxWidth: "800px",
@@ -1605,6 +1584,7 @@ if (torrent) {
               display: "flex",
               flexDirection: "column",
               padding: "1.5rem",
+              backgroundColor: "var(--bg-secondary)",
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
@@ -1656,19 +1636,8 @@ if (torrent) {
 
       {/* TEMPLATE INSTALL MODAL */}
       {installModalOpen && selectedTemplate && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0,0,0,0.6)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: "1rem",
-          }}
-        >
-          <div className="panel" style={{ width: "100%", maxWidth: "600px", padding: "1.5rem" }}>
+        <div className="modal-overlay">
+          <div className="modal panel" style={{ width: "100%", maxWidth: "600px", padding: "1.5rem", backgroundColor: "var(--bg-secondary)" }}>
             <h3 style={{ margin: "0 0 0.5rem 0" }}>Install Community Pipeline</h3>
             <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "1rem" }}>
               {selectedTemplate.description}

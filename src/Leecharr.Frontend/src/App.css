@@ -2080,6 +2080,15 @@ input[type="number"]::-webkit-inner-spin-button {
     0 2px 8px rgb(0 0 0 / 30%);
 }
 
+.panel {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-light, rgba(255, 255, 255, 0.12));
+  border-radius: 8px;
+  box-shadow:
+    0 16px 48px rgba(0, 0, 0, 0.65),
+    0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
 .modal-content {
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-light, rgba(255, 255, 255, 0.1));
