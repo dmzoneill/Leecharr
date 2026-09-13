@@ -1518,6 +1518,36 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         this.logger.Info("Updated category for torrent {0} ({1}) to '{2}'", torrent.Id, torrent.Name, category);
     }
 
+    public int ResolveEffectiveDownloadLimit(int torrentLimit, int categoryLimit)
+    {
+        if (torrentLimit > 0)
+        {
+            return torrentLimit;
+        }
+
+        if (categoryLimit > 0)
+        {
+            return categoryLimit;
+        }
+
+        return 0;
+    }
+
+    public int ResolveEffectiveUploadLimit(int torrentLimit, int categoryLimit)
+    {
+        if (torrentLimit > 0)
+        {
+            return torrentLimit;
+        }
+
+        if (categoryLimit > 0)
+        {
+            return categoryLimit;
+        }
+
+        return 0;
+    }
+
     public int GetEffectiveDownloadLimit(Torrent torrent)
     {
         if (torrent == null)
@@ -1530,12 +1560,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             : null;
         var categoryLimit = cat?.DefaultDownloadLimit ?? 0;
 
-        if (this.speedSchedulerService != null)
-        {
-            return this.speedSchedulerService.ResolveEffectiveDownloadLimit(torrent.DownloadLimit, categoryLimit);
-        }
-
-        return torrent.DownloadLimit > 0 ? torrent.DownloadLimit : categoryLimit;
+        return this.ResolveEffectiveDownloadLimit(torrent.DownloadLimit, categoryLimit);
     }
 
     public int GetEffectiveUploadLimit(Torrent torrent)
@@ -1550,12 +1575,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             : null;
         var categoryLimit = cat?.DefaultUploadLimit ?? 0;
 
-        if (this.speedSchedulerService != null)
-        {
-            return this.speedSchedulerService.ResolveEffectiveUploadLimit(torrent.UploadLimit, categoryLimit);
-        }
-
-        return torrent.UploadLimit > 0 ? torrent.UploadLimit : categoryLimit;
+        return this.ResolveEffectiveUploadLimit(torrent.UploadLimit, categoryLimit);
     }
 
     public async Task PropagateCategoryLimitsAsync(Category category)
@@ -1573,13 +1593,8 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
         foreach (var torrent in torrents)
         {
-            var effectiveDl = this.speedSchedulerService != null
-                ? this.speedSchedulerService.ResolveEffectiveDownloadLimit(torrent.DownloadLimit, category.DefaultDownloadLimit)
-                : (torrent.DownloadLimit > 0 ? torrent.DownloadLimit : category.DefaultDownloadLimit);
-
-            var effectiveUl = this.speedSchedulerService != null
-                ? this.speedSchedulerService.ResolveEffectiveUploadLimit(torrent.UploadLimit, category.DefaultUploadLimit)
-                : (torrent.UploadLimit > 0 ? torrent.UploadLimit : category.DefaultUploadLimit);
+            var effectiveDl = this.ResolveEffectiveDownloadLimit(torrent.DownloadLimit, category.DefaultDownloadLimit);
+            var effectiveUl = this.ResolveEffectiveUploadLimit(torrent.UploadLimit, category.DefaultUploadLimit);
 
             if (this.downloadEngine != null)
             {
@@ -1633,13 +1648,8 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
         foreach (var torrent in torrentsToUpdate)
         {
-            var effectiveDl = this.speedSchedulerService != null
-                ? this.speedSchedulerService.ResolveEffectiveDownloadLimit(torrent.DownloadLimit, 0)
-                : (torrent.DownloadLimit > 0 ? torrent.DownloadLimit : 0);
-
-            var effectiveUl = this.speedSchedulerService != null
-                ? this.speedSchedulerService.ResolveEffectiveUploadLimit(torrent.UploadLimit, 0)
-                : (torrent.UploadLimit > 0 ? torrent.UploadLimit : 0);
+            var effectiveDl = this.ResolveEffectiveDownloadLimit(torrent.DownloadLimit, 0);
+            var effectiveUl = this.ResolveEffectiveUploadLimit(torrent.UploadLimit, 0);
 
             if (this.downloadEngine != null)
             {

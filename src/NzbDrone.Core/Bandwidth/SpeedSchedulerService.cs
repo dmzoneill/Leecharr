@@ -116,6 +116,23 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
     public EffectiveSpeedLimits GetCurrentLimits(DateTime? currentTime = null)
     {
         var now = this.GetEffectiveDateTime(currentTime);
+
+        if (this.configService.AlternativeSpeedEnabled)
+        {
+            var isDownloadPaused = this.configService.AltDownloadSpeedKbps < 0;
+            var isUploadPaused = this.configService.AltUploadSpeedKbps < 0;
+            var isThrottled = this.configService.AltDownloadSpeedKbps > 0 || this.configService.AltUploadSpeedKbps > 0;
+            return new EffectiveSpeedLimits
+            {
+                MaxDownloadSpeedKbps = this.configService.AltDownloadSpeedKbps < 0 ? 0 : this.configService.AltDownloadSpeedKbps,
+                MaxUploadSpeedKbps = this.configService.AltUploadSpeedKbps < 0 ? 0 : this.configService.AltUploadSpeedKbps,
+                IsThrottled = isThrottled,
+                IsDownloadPaused = isDownloadPaused,
+                IsUploadPaused = isUploadPaused,
+                HasActiveSchedule = true,
+            };
+        }
+
         var todayFlag = 1 << (int)now.DayOfWeek;
         var prevDayFlag = 1 << (((int)now.DayOfWeek + 6) % 7);
         var currentTimeOnly = TimeOnly.FromDateTime(now);
@@ -189,7 +206,7 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
             };
         }
 
-        if (this.configService.AlternativeSpeedEnabled || this.IsConfigScheduleActive(now))
+        if (this.IsConfigScheduleActive(now))
         {
             var isDownloadPaused = this.configService.AltDownloadSpeedKbps < 0;
             var isUploadPaused = this.configService.AltUploadSpeedKbps < 0;

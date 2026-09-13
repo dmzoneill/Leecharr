@@ -55,6 +55,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private readonly INetworkBindingService networkBindingService;
     private readonly IAppFolderInfo appFolderInfo;
     private readonly ITorrentLogService torrentLogService;
+    private readonly ITorrentFileRepository torrentFileRepository;
     private readonly Logger logger;
 
     private readonly ConcurrentDictionary<int, MonoTorrentDownloadTask> tasks = new();
@@ -180,7 +181,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         IVpnKillSwitchService vpnKillSwitchService = null,
         INetworkBindingService networkBindingService = null,
         IAppFolderInfo appFolderInfo = null,
-        ITorrentLogService torrentLogService = null)
+        ITorrentLogService torrentLogService = null,
+        ITorrentFileRepository torrentFileRepository = null)
     {
         this.configService = configService;
         this.storagePathService = storagePathService;
@@ -193,6 +195,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.networkBindingService = networkBindingService;
         this.appFolderInfo = appFolderInfo;
         this.torrentLogService = torrentLogService;
+        this.torrentFileRepository = torrentFileRepository;
         this.logger = LogManager.GetCurrentClassLogger();
 
         this.trackerHealthTimer = new Timer(_ => this.CheckTrackerHealth(), null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(5));
@@ -443,6 +446,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             MaximumUploadRate = this.configService.MaxUploadSpeedKbps > 0
                 ? (int)Math.Min((long)this.configService.MaxUploadSpeedKbps * 1024, int.MaxValue)
                 : 0,
+            WebSeedDelay = TimeSpan.FromSeconds(this.configService.WebSeedDelaySeconds > 0 ? this.configService.WebSeedDelaySeconds : 30),
             ListenEndPoints = listenEndPoints,
         };
 
@@ -765,6 +769,24 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             else if (!string.IsNullOrWhiteSpace(magnetUri))
             {
                 var magnetLink = MagnetLink.Parse(magnetUri);
+                try
+                {
+                    var parsedMagnet = MagnetLinkParser.Parse(magnetUri);
+                    if (parsedMagnet.WebSeeds != null && parsedMagnet.WebSeeds.Count > 0)
+                    {
+                        foreach (var ws in parsedMagnet.WebSeeds)
+                        {
+                            if (!magnetLink.Webseeds.Contains(ws))
+                            {
+                                magnetLink.Webseeds.Add(ws);
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                }
+
                 manager = await this.engine.AddStreamingAsync(magnetLink, workingPath, torrentSettings);
             }
             else if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
@@ -786,6 +808,24 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             else if (!string.IsNullOrWhiteSpace(magnetUri))
             {
                 var magnetLink = MagnetLink.Parse(magnetUri);
+                try
+                {
+                    var parsedMagnet = MagnetLinkParser.Parse(magnetUri);
+                    if (parsedMagnet.WebSeeds != null && parsedMagnet.WebSeeds.Count > 0)
+                    {
+                        foreach (var ws in parsedMagnet.WebSeeds)
+                        {
+                            if (!magnetLink.Webseeds.Contains(ws))
+                            {
+                                magnetLink.Webseeds.Add(ws);
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                }
+
                 manager = await this.engine.AddAsync(magnetLink, workingPath, torrentSettings);
             }
             else if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
@@ -839,7 +879,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             () => Interlocked.Increment(ref this.blockedPeersCount),
             this.configService,
             torrent.IsPrivate,
-            workingPath);
+            workingPath,
+            t => _ = this.ApplyStoredFilePrioritiesAsync(t));
         downloadTask.SavePath = completedDir;
         this.tasks[torrent.Id] = downloadTask;
         this.infoHashToId[torrent.InfoHash] = torrent.Id;
@@ -855,6 +896,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         manager.TorrentStateChanged += this.OnTorrentStateChanged;
         manager.PieceHashed += this.OnPieceHashed;
+
+        await this.ApplyStoredFilePrioritiesAsync(downloadTask).ConfigureAwait(false);
 
         if (!isLowDiskSpace && parsedTorrent != null)
         {
@@ -1447,6 +1490,89 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
                 this.logger.Info("Updated file priority for {0} (file: {1}, priority: {2})", task.InfoHash, filePath, monoPriority);
             }
+        }
+    }
+
+    private async Task ApplyStoredFilePrioritiesAsync(MonoTorrentDownloadTask task)
+    {
+        if (task?.Manager == null || task.Manager.Files == null || this.torrentFileRepository == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var storedFiles = this.torrentFileRepository.GetByTorrentId(task.TorrentId)?.ToList();
+            if (storedFiles == null || storedFiles.Count == 0)
+            {
+                return;
+            }
+
+            var managerFiles = task.Manager.Files;
+            foreach (var sf in storedFiles)
+            {
+                var normalizedPath = sf.Path?.Replace('\\', '/').TrimStart('/');
+                var targetFile = managerFiles.FirstOrDefault(f =>
+                    !string.IsNullOrEmpty(f.Path) &&
+                    f.Path.Replace('\\', '/').TrimStart('/').Equals(normalizedPath, StringComparison.OrdinalIgnoreCase));
+
+                if (targetFile != null)
+                {
+                    var monoPriority = sf.Priority switch
+                    {
+                        0 => MonoTorrent.Priority.DoNotDownload,
+                        1 => MonoTorrent.Priority.Lowest,
+                        2 => MonoTorrent.Priority.Low,
+                        3 => MonoTorrent.Priority.Normal,
+                        4 => MonoTorrent.Priority.High,
+                        5 => MonoTorrent.Priority.Highest,
+                        _ => MonoTorrent.Priority.Normal,
+                    };
+
+                    await task.Manager.SetFilePriorityAsync(targetFile, monoPriority).ConfigureAwait(false);
+                }
+            }
+
+            if (task.Picker != null)
+            {
+                for (var p = 0; p < task.Picker.PieceCount; p++)
+                {
+                    var effectivePickerPrio = 0;
+                    var hasOverlappingFile = false;
+
+                    foreach (var file in managerFiles)
+                    {
+                        if (p >= file.StartPieceIndex && p <= file.EndPieceIndex)
+                        {
+                            hasOverlappingFile = true;
+                            var filePrio = file.Priority switch
+                            {
+                                MonoTorrent.Priority.DoNotDownload => 0,
+                                MonoTorrent.Priority.Lowest or MonoTorrent.Priority.Low => 1,
+                                MonoTorrent.Priority.Normal => 1,
+                                MonoTorrent.Priority.High => 2,
+                                MonoTorrent.Priority.Highest => 3,
+                                _ => 1,
+                            };
+                            if (filePrio > effectivePickerPrio)
+                            {
+                                effectivePickerPrio = filePrio;
+                            }
+                        }
+                    }
+
+                    if (hasOverlappingFile)
+                    {
+                        task.Picker.SetPiecePriority(p, effectivePickerPrio);
+                    }
+                }
+            }
+
+            this.logger.Info("Applied stored file priorities for torrent {0} ({1})", task.TorrentId, task.InfoHash);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to apply stored file priorities for torrent {0}", task.TorrentId);
         }
     }
 
@@ -3485,6 +3611,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
     private readonly MtTorrent initialTorrent;
     private readonly bool initialIsPrivate;
     private readonly IConfigService configService;
+    private readonly Action<MonoTorrentDownloadTask> onPickerCreated;
     private readonly object peerLock = new();
     private readonly Dictionary<string, PeerActivityState> peerActivity = new(StringComparer.OrdinalIgnoreCase);
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
@@ -3516,7 +3643,8 @@ public class MonoTorrentDownloadTask : IDownloadTask
         Action onPeerBlocked = null,
         IConfigService configService = null,
         bool isPrivate = false,
-        string workingPath = null)
+        string workingPath = null,
+        Action<MonoTorrentDownloadTask> onPickerCreated = null)
     {
         this.TorrentId = torrentId;
         this.InfoHash = infoHash;
@@ -3528,6 +3656,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
         this.onPeerBlocked = onPeerBlocked;
         this.configService = configService;
         this.WorkingPath = workingPath;
+        this.onPickerCreated = onPickerCreated;
 
         if (manager != null)
         {
@@ -3545,6 +3674,8 @@ public class MonoTorrentDownloadTask : IDownloadTask
                         }
                     }
                 }
+
+                this.onPickerCreated?.Invoke(this);
             }
 
             manager.TorrentStateChanged += this.OnTorrentStateChanged;
@@ -3588,6 +3719,8 @@ public class MonoTorrentDownloadTask : IDownloadTask
                         }
                     }
                 }
+
+                this.onPickerCreated?.Invoke(this);
             }
         }
         catch (Exception ex)

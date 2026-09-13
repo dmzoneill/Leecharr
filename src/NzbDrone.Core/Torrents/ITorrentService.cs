@@ -47,5 +47,9 @@ public interface ITorrentService
 
     int GetEffectiveUploadLimit(Torrent torrent);
 
+    int ResolveEffectiveDownloadLimit(int torrentLimit, int categoryLimit);
+
+    int ResolveEffectiveUploadLimit(int torrentLimit, int categoryLimit);
+
     Task PropagateCategoryLimitsAsync(NzbDrone.Core.Categories.Category category);
 }

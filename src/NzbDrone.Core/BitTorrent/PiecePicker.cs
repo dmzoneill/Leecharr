@@ -434,17 +434,23 @@ public class PiecePicker
 
         if (sequentialMode)
         {
-            // Sequential with dynamic Head / Tail priority
+            // Sequential with dynamic Head / Tail priority, respecting piece priority weights
             var (headThreshold, tailThreshold) = this.CalculateSequentialHeadTailThresholds();
 
-            var headPieces = validPieces.Where(i => i < headThreshold).OrderBy(i => i);
-            var tailPieces = validPieces.Where(i => i >= tailThreshold).OrderBy(i => i);
-            var rest = validPieces.Where(i => i >= headThreshold && i < tailThreshold).OrderBy(i => i);
-
             var prioritized = new List<int>();
-            prioritized.AddRange(headPieces);
-            prioritized.AddRange(tailPieces);
-            prioritized.AddRange(rest);
+
+            foreach (var group in validPieces.GroupBy(i => this.pieces[i].Priority).OrderByDescending(g => g.Key))
+            {
+                var groupPieces = group.ToList();
+                var headPieces = groupPieces.Where(i => i < headThreshold).OrderBy(i => i);
+                var tailPieces = groupPieces.Where(i => i >= tailThreshold).OrderBy(i => i);
+                var rest = groupPieces.Where(i => i >= headThreshold && i < tailThreshold).OrderBy(i => i);
+
+                prioritized.AddRange(headPieces);
+                prioritized.AddRange(tailPieces);
+                prioritized.AddRange(rest);
+            }
+
             return prioritized.Distinct().ToList();
         }
 
