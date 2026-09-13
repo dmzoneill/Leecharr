@@ -1004,6 +1004,7 @@ interface TorrentTableRowProps {
   isSelected: boolean;
   isChecked: boolean;
   onSelect?: (torrent: Torrent) => void;
+  onRowClick?: (torrent: Torrent, index: number, event: React.MouseEvent) => void;
   onToggleSelect?: (id: number) => void;
   onContextMenu: (e: React.MouseEvent, torrent: Torrent | null) => void;
   historyByHash: Map<string, DownloadHistoryEntry>;
@@ -1021,6 +1022,7 @@ const TorrentTableRow = React.memo<TorrentTableRowProps>(
     isSelected,
     isChecked,
     onSelect,
+    onRowClick,
     onToggleSelect,
     onContextMenu,
     historyByHash,
@@ -1030,9 +1032,14 @@ const TorrentTableRow = React.memo<TorrentTableRowProps>(
   }) => {
     const rowIndex = virtualRow?.index ?? idx;
 
-    const handleRowClick = useCallback(() => {
-      onSelect?.(applyTelemetry(t, useTorrentStore.getState().telemetry[t.id]));
-    }, [onSelect, t]);
+    const handleRowClick = useCallback((e: React.MouseEvent) => {
+      const telTorrent = applyTelemetry(t, useTorrentStore.getState().telemetry[t.id]);
+      if (onRowClick) {
+        onRowClick(telTorrent, rowIndex, e);
+      } else {
+        onSelect?.(telTorrent);
+      }
+    }, [onRowClick, onSelect, t, rowIndex]);
 
     const handleRowContextMenu = useCallback(
       (e: React.MouseEvent) => {
@@ -1576,6 +1583,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     ) : null;
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const lastClickedIndexRef = useRef<number | null>(null);
 
   const rowVirtualizer = useVirtualizer({
     count: sortedTorrents.length,
@@ -1584,6 +1592,156 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     overscan: 10,
     measureElement: (element) => element?.getBoundingClientRect().height,
   });
+
+  const handleRowClick = useCallback(
+    (torrent: Torrent, index: number, e: React.MouseEvent) => {
+      if (e.shiftKey && lastClickedIndexRef.current !== null) {
+        const start = Math.min(lastClickedIndexRef.current, index);
+        const end = Math.max(lastClickedIndexRef.current, index);
+        const range = sortedTorrents.slice(start, end + 1);
+        const next = new Set(selectedIds);
+        range.forEach((r) => next.add(r.id));
+        if (onSelectAll) {
+          onSelectAll(Array.from(next));
+        } else {
+          useTorrentStore.getState().setSelectedIds(next);
+        }
+        onSelect?.(torrent);
+      } else if (e.ctrlKey || e.metaKey) {
+        lastClickedIndexRef.current = index;
+        onToggleSelect?.(torrent.id);
+        onSelect?.(torrent);
+      } else {
+        lastClickedIndexRef.current = index;
+        onSelect?.(torrent);
+      }
+    },
+    [sortedTorrents, selectedIds, onSelectAll, onSelect, onToggleSelect],
+  );
+
+  useEffect(() => {
+    const handleTableKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const tagName = target?.tagName?.toLowerCase();
+      const isInput =
+        tagName === "input" ||
+        tagName === "textarea" ||
+        tagName === "select" ||
+        target?.isContentEditable;
+      if (isInput) return;
+
+      // Ctrl+A / Cmd+A: Select all filtered torrents
+      if ((e.ctrlKey || e.metaKey) && (e.key === "a" || e.key === "A")) {
+        e.preventDefault();
+        const allFilteredIds = filteredTorrents.map((t) => t.id);
+        if (onSelectAll) {
+          onSelectAll(allFilteredIds);
+        } else {
+          useTorrentStore.getState().selectAllIds(allFilteredIds);
+        }
+        return;
+      }
+
+      // Up / Down arrow navigation
+      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        if (sortedTorrents.length === 0) return;
+        e.preventDefault();
+        const currentIdx = selectedId
+          ? sortedTorrents.findIndex((t) => t.id === selectedId)
+          : -1;
+        let nextIdx: number;
+        if (e.key === "ArrowUp") {
+          nextIdx = currentIdx <= 0 ? 0 : currentIdx - 1;
+        } else {
+          nextIdx =
+            currentIdx < 0
+              ? 0
+              : Math.min(sortedTorrents.length - 1, currentIdx + 1);
+        }
+        const nextTorrent = sortedTorrents[nextIdx];
+        if (nextTorrent) {
+          lastClickedIndexRef.current = nextIdx;
+          const telTorrent = applyTelemetry(
+            nextTorrent,
+            useTorrentStore.getState().telemetry[nextTorrent.id],
+          );
+          onSelect?.(telTorrent);
+          rowVirtualizer.scrollToIndex(nextIdx, { align: "auto" });
+        }
+        return;
+      }
+
+      // Space / 'p' / 'P' to pause/resume
+      if (e.key === " " || e.key === "p" || e.key === "P") {
+        e.preventDefault();
+        const targetIds =
+          selectedIds.size > 0
+            ? Array.from(selectedIds)
+            : selectedId
+              ? [selectedId]
+              : [];
+        if (targetIds.length === 0) return;
+
+        const targetTorrents = sortedTorrents.filter((t) =>
+          targetIds.includes(t.id),
+        );
+        const anyActive = targetTorrents.some((t) => {
+          const st = (
+            useTorrentStore.getState().telemetry[t.id]?.status ??
+            t.status ??
+            ""
+          ).toLowerCase();
+          return (
+            st === "downloading" ||
+            st === "seeding" ||
+            st === "active" ||
+            st === "checking"
+          );
+        });
+
+        if (anyActive) {
+          targetIds.forEach((id) =>
+            onPause ? onPause(id) : stopSeeding.mutate(id),
+          );
+        } else {
+          targetIds.forEach((id) =>
+            onResume ? onResume(id) : startSeeding.mutate(id),
+          );
+        }
+        return;
+      }
+
+      // Delete key
+      if (e.key === "Delete" || (e.key === "Backspace" && (e.metaKey || e.ctrlKey))) {
+        const targetIds =
+          selectedIds.size > 0
+            ? Array.from(selectedIds)
+            : selectedId
+              ? [selectedId]
+              : [];
+        if (targetIds.length === 0) return;
+        e.preventDefault();
+        onDelete?.({ id: targetIds[0] });
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", handleTableKeyDown);
+    return () => window.removeEventListener("keydown", handleTableKeyDown);
+  }, [
+    filteredTorrents,
+    sortedTorrents,
+    selectedId,
+    selectedIds,
+    onSelectAll,
+    onSelect,
+    onPause,
+    onResume,
+    onDelete,
+    rowVirtualizer,
+    startSeeding,
+    stopSeeding,
+  ]);
 
   const virtualRows = rowVirtualizer.getVirtualItems();
   const totalHeight = rowVirtualizer.getTotalSize();
@@ -1873,6 +2031,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
                   isSelected={tor.id === selectedId}
                   isChecked={selectedIds.has(tor.id)}
                   onSelect={onSelect}
+                  onRowClick={handleRowClick}
                   onToggleSelect={onToggleSelect}
                   onContextMenu={handleContextMenu}
                   historyByHash={historyByHash}

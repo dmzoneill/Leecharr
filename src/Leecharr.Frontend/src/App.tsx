@@ -75,6 +75,8 @@ import { AiCopilotDrawer } from "./components/AiCopilotDrawer";
 import ToastContainer from "./components/Toast";
 import { useToast } from "./context/ToastContext";
 import { useTheme } from "./context/ThemeContext";
+import { CommandPalette } from "./components/CommandPalette";
+import { KeyboardShortcutsModal } from "./components/KeyboardShortcutsModal";
 import {
   GettingStartedModal,
   STORAGE_KEY_HIDE_GUIDE,
@@ -149,6 +151,8 @@ export function App() {
   // Modals state
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [showSearchModal, setShowSearchModal] = useState<boolean>(false);
+  const [showCommandPalette, setShowCommandPalette] = useState<boolean>(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState<boolean>(false);
   const [showGettingStartedModal, setShowGettingStartedModal] =
     useState<boolean>(() => {
       return localStorage.getItem(STORAGE_KEY_HIDE_GUIDE) !== "true";
@@ -328,6 +332,91 @@ export function App() {
     },
     [confirmIfDirty, navigate],
   );
+
+  const lastKeySeqRef = useRef<{ key: string; time: number } | null>(null);
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const tagName = target?.tagName?.toLowerCase();
+      const isInput =
+        tagName === "input" ||
+        tagName === "textarea" ||
+        tagName === "select" ||
+        target?.isContentEditable;
+
+      // Command Palette hotkey: Ctrl+K / Cmd+K (allowed anywhere, even in inputs)
+      if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        setShowCommandPalette((prev) => !prev);
+        return;
+      }
+
+      // Ignore remaining shortcuts if focused inside an input/form control
+      if (isInput) return;
+
+      // Shortcuts Modal hotkey: '?' or Shift+'/'
+      if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+        e.preventDefault();
+        setShowShortcutsModal(true);
+        return;
+      }
+
+      // Two-key sequence navigation starting with 'g'
+      const now = Date.now();
+      if (lastKeySeqRef.current && now - lastKeySeqRef.current.time < 1200) {
+        const prevKey = lastKeySeqRef.current.key.toLowerCase();
+        if (prevKey === "g") {
+          const nextKey = e.key.toLowerCase();
+          lastKeySeqRef.current = null;
+          if (nextKey === "d") {
+            e.preventDefault();
+            guardedNavigate("/");
+            return;
+          } else if (nextKey === "t") {
+            e.preventDefault();
+            guardedNavigate("/torrents");
+            return;
+          } else if (nextKey === "s") {
+            e.preventDefault();
+            guardedNavigate("/settings/host");
+            return;
+          } else if (nextKey === "a") {
+            e.preventDefault();
+            guardedNavigate("/activity/history");
+            return;
+          } else if (nextKey === "f") {
+            e.preventDefault();
+            guardedNavigate("/files");
+            return;
+          } else if (nextKey === "c") {
+            e.preventDefault();
+            guardedNavigate("/terminal");
+            return;
+          } else if (nextKey === "i") {
+            e.preventDefault();
+            guardedNavigate("/indexers");
+            return;
+          }
+        }
+      }
+
+      if (
+        e.key.toLowerCase() === "g" &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        !e.shiftKey
+      ) {
+        lastKeySeqRef.current = { key: "g", time: now };
+      } else {
+        lastKeySeqRef.current = null;
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [guardedNavigate]);
 
   useEffect(() => {
     const unsubReconnecting = signalRManager.onReconnecting(() => {
@@ -929,7 +1018,7 @@ export function App() {
             </button>
             <div
               className="topbar-search"
-              onClick={() => setShowSearchModal(true)}
+              onClick={() => setShowCommandPalette(true)}
               style={{ cursor: "pointer" }}
               title={t(
                 "topbar.searchPlaceholder",
@@ -1150,7 +1239,7 @@ export function App() {
                     <button
                       type="button"
                       className="topbar-dropdown-item"
-                      onClick={() => setShowSearchModal(true)}
+                      onClick={() => setShowCommandPalette(true)}
                     >
                       🔍 {t("nav.commandPalette", "Command Palette (Ctrl+K)")}
                     </button>
@@ -1558,6 +1647,26 @@ export function App() {
       {/* Discrete Collapsible AI Copilot Drawer */}
       <ErrorBoundary title={t("errors.copilotDrawer")}>
         <AiCopilotDrawer />
+      </ErrorBoundary>
+
+      {/* Command Palette (Ctrl+K / Cmd+K) */}
+      <ErrorBoundary title="Command Palette">
+        <CommandPalette
+          isOpen={showCommandPalette}
+          onClose={() => setShowCommandPalette(false)}
+          onOpenAddTorrent={() => setShowAddModal(true)}
+          onOpenIndexerSearch={() => setShowSearchModal(true)}
+          onOpenShortcuts={() => setShowShortcutsModal(true)}
+          onOpenGettingStarted={() => setShowGettingStartedModal(true)}
+        />
+      </ErrorBoundary>
+
+      {/* Global Keyboard Shortcuts Cheatsheet Modal (?) */}
+      <ErrorBoundary title="Keyboard Shortcuts">
+        <KeyboardShortcutsModal
+          isOpen={showShortcutsModal}
+          onClose={() => setShowShortcutsModal(false)}
+        />
       </ErrorBoundary>
 
       {/* Global Floating Toast Notifications */}

@@ -5,11 +5,14 @@ import {
   useCreateCategory,
   useUpdateCategory,
   useDeleteCategory,
+  useDiskSpace,
 } from "../../api/hooks";
 import type { Category } from "../../api/types";
 import { useConfirm } from "../../context/ConfirmContext";
 import { useToast } from "../../context/ToastContext";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
+import { FolderBrowserModal } from "../../components/FolderBrowserModal";
+import { formatBytes } from "../../utils/formatters";
 import { SectionCard, TextInput, NumberInput, Toggle } from "./shared";
 
 interface CategorySettingsProps {
@@ -22,6 +25,7 @@ export function CategorySettingsTab({
   const { t } = useTranslation();
 
   const { data: categories, isLoading } = useCategories();
+  const { data: diskSpaceList } = useDiskSpace();
   const createMutation = useCreateCategory();
   const updateMutation = useUpdateCategory();
   const deleteMutation = useDeleteCategory();
@@ -31,8 +35,18 @@ export function CategorySettingsTab({
 
   const [editingCategory, setEditingCategory] =
     useState<Partial<Category> | null>(null);
+  const [showFolderBrowser, setShowFolderBrowser] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const initialFormRef = useRef<string>("");
+
+  const matchedDisk = React.useMemo(() => {
+    if (!diskSpaceList || diskSpaceList.length === 0) return null;
+    const currentPath = editingCategory?.savePath?.trim() || "/downloads";
+    const matched = diskSpaceList
+      .filter((d) => d.path && currentPath.startsWith(d.path))
+      .sort((a, b) => (b.path?.length || 0) - (a.path?.length || 0));
+    return matched[0] || diskSpaceList[0];
+  }, [diskSpaceList, editingCategory?.savePath]);
 
   const defaultCategoryForm: Partial<Category> = {
     name: "",
@@ -464,17 +478,88 @@ export function CategorySettingsTab({
               hint={t("settingsTabs.categories.modal.nameHint")}
             />
 
-            <TextInput
-              label={t("settingsTabs.categories.modal.savePathLabel")}
-              value={editingCategory.savePath || ""}
-              onChange={(v) =>
-                setEditingCategory({ ...editingCategory, savePath: v })
-              }
-              placeholder={t(
-                "settingsTabs.categories.modal.savePathPlaceholder",
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+              <TextInput
+                label={t("settingsTabs.categories.modal.savePathLabel")}
+                value={editingCategory.savePath || ""}
+                onChange={(v) =>
+                  setEditingCategory({ ...editingCategory, savePath: v })
+                }
+                placeholder={t(
+                  "settingsTabs.categories.modal.savePathPlaceholder",
+                )}
+                hint={t("settingsTabs.categories.modal.savePathHint")}
+                rightElement={
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-small"
+                    onClick={() => setShowFolderBrowser(true)}
+                    title="Browse filesystem directories"
+                    style={{
+                      whiteSpace: "nowrap",
+                      padding: "0.4rem 0.65rem",
+                      fontSize: "0.8rem",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.35rem",
+                    }}
+                  >
+                    <span>📁</span>
+                    <span>Browse...</span>
+                  </button>
+                }
+              />
+
+              {matchedDisk && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.6rem",
+                    fontSize: "0.78rem",
+                    color: "var(--text-muted)",
+                    padding: "0.35rem 0.65rem",
+                    backgroundColor: "rgba(255, 255, 255, 0.03)",
+                    borderRadius: "6px",
+                    border: "1px solid var(--border-light, #1c203b)",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  <span style={{ color: "var(--accent, #ffd166)" }}>💾 Disk:</span>
+                  <span style={{ color: "var(--success, #22c55e)", fontWeight: 600 }}>
+                    {formatBytes(matchedDisk.freeSpace)} free
+                  </span>
+                  <span>of {formatBytes(matchedDisk.totalSpace)} ({matchedDisk.path || matchedDisk.label})</span>
+                  <div
+                    style={{
+                      width: 55,
+                      height: 5,
+                      backgroundColor: "rgba(255, 255, 255, 0.1)",
+                      borderRadius: 3,
+                      overflow: "hidden",
+                      marginLeft: "auto",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          Math.max(
+                            0,
+                            ((matchedDisk.totalSpace - matchedDisk.freeSpace) /
+                              (matchedDisk.totalSpace || 1)) *
+                              100,
+                          ),
+                        )}%`,
+                        height: "100%",
+                        backgroundColor: "var(--accent, #ffd166)",
+                      }}
+                    />
+                  </div>
+                </div>
               )}
-              hint={t("settingsTabs.categories.modal.savePathHint")}
-            />
+            </div>
 
             <div
               style={{
@@ -620,6 +705,20 @@ export function CategorySettingsTab({
             </div>
           </div>
         </div>
+      )}
+      {/* Folder Browser Directory Picker Modal */}
+      {showFolderBrowser && (
+        <FolderBrowserModal
+          isOpen={showFolderBrowser}
+          initialPath={editingCategory?.savePath || "/downloads"}
+          title={`Select Storage Folder for ${editingCategory?.name || "Category"}`}
+          onSelect={(selectedPath) => {
+            setEditingCategory((prev) =>
+              prev ? { ...prev, savePath: selectedPath } : null,
+            );
+          }}
+          onClose={() => setShowFolderBrowser(false)}
+        />
       )}
     </div>
   );
