@@ -132,6 +132,8 @@ public interface IDownloadTask
     bool IsOutOfDiskSpace => false;
 
     int PieceLength => 0;
+
+    IReadOnlyList<string> WebSeeds => System.Array.Empty<string>();
 }
 
 public class PeerInfo
@@ -167,4 +169,14 @@ public class PeerInfo
     public bool IsIncoming { get; set; }
 
     public bool IsUtp { get; set; }
+
+    public bool FromDht { get; set; }
+
+    public bool FromPex { get; set; }
+
+    public bool FromTracker { get; set; }
+
+    public bool FromLpd { get; set; }
+
+    public bool FromCache { get; set; }
 }
