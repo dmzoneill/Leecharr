@@ -13,12 +13,12 @@ body {
 
 .swagger-ui .topbar {
   background-color: #171b35 !important;
-  border-bottom: 1px solid #23284b !important;
+  border-bottom: 1px solid var(--border) !important;
   padding: 10px 0 !important;
 }
 
 .swagger-ui .topbar .download-url-wrapper .select-label select {
-  border: 1px solid #23284b !important;
+  border: 1px solid var(--border) !important;
   background-color: #10111a !important;
   color: #f8f4ed !important;
 }
@@ -44,18 +44,18 @@ body {
 .swagger-ui .scheme-container {
   background-color: #171b35 !important;
   box-shadow: none !important;
-  border-bottom: 1px solid #23284b !important;
+  border-bottom: 1px solid var(--border) !important;
   padding: 15px 0 !important;
 }
 
 .swagger-ui .opblock-tag {
   color: #f8f4ed !important;
-  border-bottom: 1px solid #23284b !important;
+  border-bottom: 1px solid var(--border) !important;
 }
 
 .swagger-ui .opblock {
   background-color: #171b35 !important;
-  border: 1px solid #23284b !important;
+  border: 1px solid var(--border) !important;
   border-radius: 6px !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
   margin: 0 0 12px !important;
@@ -92,13 +92,13 @@ body {
 
 .swagger-ui .opblock-body {
   background-color: #13162b !important;
-  border-top: 1px solid #23284b !important;
+  border-top: 1px solid var(--border) !important;
 }
 
 .swagger-ui .btn {
   border-radius: 4px !important;
   color: #f8f4ed !important;
-  border-color: #23284b !important;
+  border-color: var(--border) !important;
   background-color: #171b35 !important;
 }
 
@@ -117,14 +117,14 @@ body {
 .swagger-ui select {
   background-color: #10111a !important;
   color: #f8f4ed !important;
-  border: 1px solid #23284b !important;
+  border: 1px solid var(--border) !important;
   border-radius: 4px !important;
 }
 
 .swagger-ui table thead tr th,
 .swagger-ui table thead tr td {
   color: #c7c5d3 !important;
-  border-bottom: 1px solid #23284b !important;
+  border-bottom: 1px solid var(--border) !important;
 }
 
 .swagger-ui .response-col_status {
@@ -134,7 +134,7 @@ body {
 .swagger-ui .model-box,
 .swagger-ui section.models {
   background-color: #171b35 !important;
-  border: 1px solid #23284b !important;
+  border: 1px solid var(--border) !important;
 }
 
 .swagger-ui section.models .model-container {

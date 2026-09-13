@@ -285,7 +285,7 @@ export class ErrorBoundary extends Component<
                 <pre
                   style={{
                     backgroundColor: "#10111A",
-                    border: "1px solid rgba(255, 255, 255, 0.1)",
+                    border: "1px solid var(--border)",
                     borderRadius: "6px",
                     padding: "0.85rem",
                     margin: 0,

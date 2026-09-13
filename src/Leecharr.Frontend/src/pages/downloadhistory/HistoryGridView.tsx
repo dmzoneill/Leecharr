@@ -131,7 +131,7 @@ export const HistoryGridView: React.FC<HistoryGridViewProps> = ({
                       minHeight: "min-content",
                       flexShrink: 0,
                       borderRadius: "8px",
-                      border: "1px solid rgba(255, 255, 255, 0.08)",
+                      border: "1px solid var(--border-light)",
                       backgroundColor: "var(--bg-secondary)",
                       boxShadow:
                         "0 4px 14px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.2)",
@@ -202,7 +202,7 @@ export const HistoryGridView: React.FC<HistoryGridViewProps> = ({
                               color: "#fff",
                               fontSize: "0.68rem",
                               padding: "0.2rem 0.5rem",
-                              border: "1px solid rgba(255,255,255,0.18)",
+                              border: "1px solid var(--border)",
                               cursor: arrLink ? "pointer" : "default",
                               display: "inline-flex",
                               alignItems: "center",
@@ -263,7 +263,7 @@ export const HistoryGridView: React.FC<HistoryGridViewProps> = ({
                           justifyContent: "space-between",
                           alignItems: "center",
                           fontSize: "0.7rem",
-                          borderTop: "1px solid rgba(255,255,255,0.1)",
+                          borderTop: "1px solid var(--border-light)",
                         }}
                       >
                         <span style={{ color: "#eee" }}>

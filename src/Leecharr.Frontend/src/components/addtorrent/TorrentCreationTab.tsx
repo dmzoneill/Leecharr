@@ -144,7 +144,7 @@ export function TorrentCreationTab({
               padding: "0.5rem 0.75rem",
               fontSize: "0.85rem",
               borderRadius: "6px",
-              border: "1px solid var(--border-light, #1c203b)",
+              border: "1px solid var(--border-light)",
               backgroundColor: "var(--bg-primary, #10111a)",
               color: "inherit",
             }}
@@ -177,7 +177,7 @@ export function TorrentCreationTab({
               padding: "0.5rem 0.75rem",
               fontSize: "0.85rem",
               borderRadius: "6px",
-              border: "1px solid var(--border-light, #1c203b)",
+              border: "1px solid var(--border-light)",
               backgroundColor: "var(--bg-primary, #10111a)",
               color: "inherit",
             }}
@@ -213,7 +213,7 @@ export function TorrentCreationTab({
               padding: "0.5rem 0.75rem",
               fontSize: "0.85rem",
               borderRadius: "6px",
-              border: "1px solid var(--border-light, #1c203b)",
+              border: "1px solid var(--border-light)",
               backgroundColor: "var(--bg-primary, #10111a)",
               color: "inherit",
             }}
@@ -295,7 +295,7 @@ export function TorrentCreationTab({
             padding: "0.5rem 0.75rem",
             fontSize: "0.85rem",
             borderRadius: "6px",
-            border: "1px solid var(--border-light, #1c203b)",
+            border: "1px solid var(--border-light)",
             backgroundColor: "var(--bg-primary, #10111a)",
             color: "inherit",
             fontFamily: "monospace",
@@ -326,7 +326,7 @@ export function TorrentCreationTab({
             padding: "0.5rem 0.75rem",
             fontSize: "0.85rem",
             borderRadius: "6px",
-            border: "1px solid var(--border-light, #1c203b)",
+            border: "1px solid var(--border-light)",
             backgroundColor: "var(--bg-primary, #10111a)",
             color: "inherit",
             fontFamily: "monospace",
@@ -367,7 +367,7 @@ export function TorrentCreationTab({
               padding: "0.5rem 0.75rem",
               fontSize: "0.85rem",
               borderRadius: "6px",
-              border: "1px solid var(--border-light, #1c203b)",
+              border: "1px solid var(--border-light)",
               backgroundColor: "var(--bg-primary, #10111a)",
               color: "inherit",
             }}
@@ -400,7 +400,7 @@ export function TorrentCreationTab({
               padding: "0.5rem 0.75rem",
               fontSize: "0.85rem",
               borderRadius: "6px",
-              border: "1px solid var(--border-light, #1c203b)",
+              border: "1px solid var(--border-light)",
               backgroundColor: "var(--bg-primary, #10111a)",
               color: "inherit",
             }}

@@ -118,7 +118,7 @@ function ScheduleModal({
           maxWidth: 520,
           borderRadius: "8px",
           boxShadow: "0 16px 40px rgba(0, 0, 0, 0.7)",
-          border: "1px solid rgba(255, 255, 255, 0.12)",
+          border: "1px solid var(--border)",
         }}
       >
         <h2 style={{ margin: "0 0 1.25rem", fontSize: "1.25rem" }}>
@@ -409,7 +409,7 @@ function WeeklyCalendar({ schedules }: { schedules: SpeedScheduleEntry[] }) {
         borderRadius: "8px",
         boxShadow:
           "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
-        border: "1px solid rgba(255, 255, 255, 0.08)",
+        border: "1px solid var(--border-light)",
         padding: "1.25rem",
       }}
     >
@@ -435,7 +435,7 @@ function WeeklyCalendar({ schedules }: { schedules: SpeedScheduleEntry[] }) {
           gridTemplateColumns: "55px repeat(7, 1fr)",
           gap: 0,
           minWidth: 640,
-          border: "1px solid rgba(255, 255, 255, 0.08)",
+          border: "1px solid var(--border-light)",
           borderRadius: "6px",
           overflow: "hidden",
         }}
@@ -450,8 +450,8 @@ function WeeklyCalendar({ schedules }: { schedules: SpeedScheduleEntry[] }) {
               fontSize: "0.82rem",
               padding: "6px 0",
               backgroundColor: "var(--bg-secondary)",
-              borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
-              borderLeft: "1px solid rgba(255, 255, 255, 0.08)",
+              borderBottom: "1px solid var(--border-light)",
+              borderLeft: "1px solid var(--border-light)",
               color: "var(--accent, #ffd166)",
             }}
           >
@@ -467,7 +467,7 @@ function WeeklyCalendar({ schedules }: { schedules: SpeedScheduleEntry[] }) {
                 textAlign: "right",
                 paddingRight: 8,
                 paddingTop: 3,
-                borderTop: "1px solid rgba(255, 255, 255, 0.04)",
+                borderTop: "1px solid var(--border-light)",
                 backgroundColor: "var(--bg-secondary)",
                 fontFamily: "monospace",
               }}
@@ -484,8 +484,8 @@ function WeeklyCalendar({ schedules }: { schedules: SpeedScheduleEntry[] }) {
                   key={`${hour}-${day.value}`}
                   style={{
                     height: 22,
-                    borderTop: "1px solid rgba(255, 255, 255, 0.04)",
-                    borderLeft: "1px solid rgba(255, 255, 255, 0.04)",
+                    borderTop: "1px solid var(--border-light)",
+                    borderLeft: "1px solid var(--border-light)",
                     backgroundColor: top
                       ? BLOCK_COLORS[
                           schedules.indexOf(top) % BLOCK_COLORS.length
@@ -715,7 +715,7 @@ export function SpeedSchedule() {
             borderRadius: "8px",
             boxShadow:
               "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
+            border: "1px solid var(--border-light)",
           }}
         >
           <div
@@ -779,7 +779,7 @@ export function SpeedSchedule() {
             borderRadius: "8px",
             boxShadow:
               "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
+            border: "1px solid var(--border-light)",
           }}
         >
           <div
@@ -826,7 +826,7 @@ export function SpeedSchedule() {
             borderRadius: "8px",
             boxShadow:
               "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
+            border: "1px solid var(--border-light)",
           }}
         >
           <div
@@ -874,7 +874,7 @@ export function SpeedSchedule() {
           borderRadius: "8px",
           boxShadow:
             "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.18)",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
+          border: "1px solid var(--border-light)",
           padding: "1.25rem",
         }}
       >

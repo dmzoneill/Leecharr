@@ -38,7 +38,7 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
           padding: "0.6rem 0.8rem",
           backgroundColor: "var(--bg-secondary, rgba(255, 255, 255, 0.03))",
           borderRadius: "6px",
-          border: "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+          border: "1px solid var(--border-light)",
           alignItems: "center",
         }}
       >
@@ -190,7 +190,7 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
               backgroundColor: "var(--bg-secondary, rgba(255, 255, 255, 0.03))",
               borderRadius: "6px",
               border:
-                "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+                "1px solid var(--border-light)",
             }}
           >
             <div
@@ -272,7 +272,7 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
           style={{
             backgroundColor: "var(--bg-secondary, rgba(255, 255, 255, 0.03))",
             borderRadius: "6px",
-            border: "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+            border: "1px solid var(--border-light)",
             padding: "0.6rem 0.8rem",
             display: "flex",
             flexDirection: "column",
@@ -287,7 +287,7 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
               textTransform: "uppercase",
               letterSpacing: "0.05em",
               borderBottom:
-                "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+                "1px solid var(--border-light)",
               paddingBottom: "0.25rem",
               marginBottom: "0.2rem",
             }}
@@ -332,7 +332,7 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
           style={{
             backgroundColor: "var(--bg-secondary, rgba(255, 255, 255, 0.03))",
             borderRadius: "6px",
-            border: "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+            border: "1px solid var(--border-light)",
             padding: "0.6rem 0.8rem",
             display: "flex",
             flexDirection: "column",
@@ -347,7 +347,7 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
               textTransform: "uppercase",
               letterSpacing: "0.05em",
               borderBottom:
-                "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+                "1px solid var(--border-light)",
               paddingBottom: "0.25rem",
               marginBottom: "0.2rem",
             }}

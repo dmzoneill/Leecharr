@@ -1313,7 +1313,7 @@ if (torrent) {
                     display: "flex",
                     flexDirection: "column",
                     justifyContent: "space-between",
-                    borderLeft: `4px solid ${script.isEnabled ? "var(--accent, #3b82f6)" : "var(--border, #444)"}`,
+                    borderLeft: `4px solid ${script.isEnabled ? "var(--accent, #3b82f6)" : "var(--border)"}`,
                     padding: "1.25rem",
                   }}
                 >
@@ -1362,7 +1362,7 @@ if (torrent) {
                         alignItems: "center",
                         fontSize: "0.75rem",
                         color: "var(--text-muted)",
-                        borderTop: "1px solid var(--border, #333)",
+                        borderTop: "1px solid var(--border)",
                         paddingTop: "0.75rem",
                         marginBottom: "0.75rem",
                       }}
@@ -1740,7 +1740,7 @@ if (torrent) {
                       style={{
                         marginBottom: "1rem",
                         backgroundColor: "var(--bg-primary, #1e1b18)",
-                        border: "1px solid var(--border-light, #3a352e)",
+                        border: "1px solid var(--border-light)",
                         padding: "1.25rem",
                         borderRadius: "8px",
                       }}
@@ -1825,7 +1825,7 @@ if (torrent) {
                       <div
                         style={{
                           backgroundColor: "var(--bg-secondary, #2a2620)",
-                          border: "1px solid var(--border-light, #3a352e)",
+                          border: "1px solid var(--border-light)",
                           padding: "0.85rem 1rem",
                           borderRadius: "6px",
                           marginBottom: "1rem",
@@ -2247,7 +2247,7 @@ if (torrent) {
                                   gap: "0.5rem",
                                   marginBottom: "0.5rem",
                                   backgroundColor: "var(--bg-secondary, #2a2620)",
-                                  border: "1px solid var(--border-light, #3a352e)",
+                                  border: "1px solid var(--border-light)",
                                   padding: "0.5rem 0.75rem",
                                   borderRadius: "6px",
                                   flexWrap: "wrap",
@@ -2578,7 +2578,7 @@ if (torrent) {
                       lineHeight: "1.6",
                       padding: "1rem 1.25rem",
                       borderRadius: "8px",
-                      border: "1px solid var(--border-light, #3a352e)",
+                      border: "1px solid var(--border-light)",
                       width: "100%",
                       minHeight: "360px",
                       boxSizing: "border-box",
@@ -2770,7 +2770,7 @@ if (torrent) {
                 fontSize: "0.8rem",
                 lineHeight: "1.5",
                 whiteSpace: "pre-wrap",
-                border: "1px solid #30363d",
+                border: "1px solid var(--border)",
               }}
             >
               {viewingLog.log}

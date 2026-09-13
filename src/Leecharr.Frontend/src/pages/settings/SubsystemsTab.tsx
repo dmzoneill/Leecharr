@@ -127,7 +127,7 @@ export function SubsystemsTab() {
       <div
         style={{
           backgroundColor: "var(--bg-secondary, #171b35)",
-          border: "1px solid var(--border-color, #23284b)",
+          border: "1px solid var(--border-light)",
           borderRadius: "8px",
           padding: "1.25rem 1.5rem",
           display: "flex",
@@ -174,7 +174,7 @@ export function SubsystemsTab() {
                 borderColor:
                   activeCategoryFilter === cat
                     ? "var(--accent-gold, #ffd166)"
-                    : "var(--border-color, #23284b)",
+                    : "var(--border-light)",
                 backgroundColor:
                   activeCategoryFilter === cat
                     ? "rgba(255, 209, 102, 0.15)"
@@ -246,7 +246,7 @@ export function SubsystemsTab() {
                     border: `1.5px solid ${
                       provider.isActive
                         ? "var(--accent-gold, #ffd166)"
-                        : "var(--border-color, #23284b)"
+                        : "var(--border-light)"
                     }`,
                     borderRadius: "8px",
                     padding: "1rem",
@@ -391,7 +391,7 @@ export function SubsystemsTab() {
                     style={{
                       display: "flex",
                       gap: "0.5rem",
-                      borderTop: "1px solid var(--border-color, #23284b)",
+                      borderTop: "1px solid var(--border-light)",
                       paddingTop: "0.75rem",
                     }}
                   >
@@ -406,7 +406,7 @@ export function SubsystemsTab() {
                         padding: "0.4rem 0.6rem",
                         fontSize: "0.8rem",
                         backgroundColor: "var(--bg-card-hover, #23284b)",
-                        border: "1px solid var(--border-color, #23284b)",
+                        border: "1px solid var(--border-light)",
                         color: "var(--text-primary, #f8f4ed)",
                         borderRadius: "4px",
                         cursor: "pointer",
@@ -465,7 +465,7 @@ export function SubsystemsTab() {
           <div
             style={{
               backgroundColor: "var(--bg-secondary, #171b35)",
-              border: "1px solid var(--border-color, #23284b)",
+              border: "1px solid var(--border-light)",
               borderRadius: "8px",
               padding: "1.5rem",
               maxWidth: "500px",
@@ -500,7 +500,7 @@ export function SubsystemsTab() {
                 backgroundColor: "var(--bg-primary, #10111a)",
                 padding: "0.75rem",
                 borderRadius: "4px",
-                border: "1px solid var(--border-color, #23284b)",
+                border: "1px solid var(--border-light)",
               }}
             >
               {t(
@@ -523,7 +523,7 @@ export function SubsystemsTab() {
                 style={{
                   padding: "0.5rem 1rem",
                   backgroundColor: "transparent",
-                  border: "1px solid var(--border-color, #23284b)",
+                  border: "1px solid var(--border-light)",
                   color: "var(--text-primary, #f8f4ed)",
                   borderRadius: "4px",
                   cursor: "pointer",
@@ -573,7 +573,7 @@ export function SubsystemsTab() {
           <div
             style={{
               backgroundColor: "var(--bg-secondary, #171b35)",
-              border: "1px solid var(--border-color, #23284b)",
+              border: "1px solid var(--border-light)",
               borderRadius: "8px",
               padding: "1.5rem",
               maxWidth: "520px",
@@ -687,7 +687,7 @@ export function SubsystemsTab() {
                 style={{
                   padding: "0.5rem 1.25rem",
                   backgroundColor: "var(--bg-card-hover, #23284b)",
-                  border: "1px solid var(--border-color, #23284b)",
+                  border: "1px solid var(--border-light)",
                   color: "var(--text-primary, #f8f4ed)",
                   borderRadius: "4px",
                   cursor: "pointer",
