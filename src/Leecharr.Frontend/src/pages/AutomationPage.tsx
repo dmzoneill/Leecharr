@@ -1457,31 +1457,54 @@ if (torrent) {
 
               {/* EDITOR MODE 2: CODE / YAML / JS VIEW */}
               {editorMode === "code" && (
-                <div style={{ marginBottom: "1rem" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.4rem" }}>
+                <div style={{ marginBottom: "1.25rem", width: "100%" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
                     <label style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-secondary)" }}>
                       {editingScript.language === "Yaml" || editingScript.language === 1 ? "YAML Pipeline DSL" : "JavaScript Code"}
                     </label>
-                    <span style={{ fontSize: "0.775rem", color: "var(--text-muted)" }}>
+                    <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
                       Helpers: <code>system.runCommand()</code>, <code>api.get()</code>, <code>torrent.addTag()</code>
                     </span>
                   </div>
                   <textarea
                     className="form-control"
-                    rows={13}
+                    rows={16}
+                    spellCheck={false}
+                    autoCapitalize="none"
+                    autoComplete="off"
+                    autoCorrect="off"
                     style={{
-                      fontFamily: "monospace",
-                      fontSize: "0.85rem",
-                      backgroundColor: "#111",
+                      fontFamily: "'Cascadia Code', 'Fira Code', 'JetBrains Mono', Consolas, Menlo, monospace",
+                      fontSize: "0.875rem",
+                      backgroundColor: "var(--bg-primary, #141310)",
                       color: "#e2e8f0",
-                      lineHeight: "1.5",
-                      padding: "0.85rem",
-                      borderRadius: "6px",
+                      lineHeight: "1.6",
+                      padding: "1rem 1.25rem",
+                      borderRadius: "8px",
+                      border: "1px solid var(--border-light, #3a352e)",
                       width: "100%",
+                      minHeight: "360px",
                       boxSizing: "border-box",
+                      tabSize: 2,
+                      whiteSpace: "pre",
+                      resize: "vertical",
                     }}
                     value={editingScript.code || ""}
                     onChange={(e) => setEditingScript({ ...editingScript, code: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === "Tab") {
+                        e.preventDefault();
+                        const target = e.currentTarget;
+                        const start = target.selectionStart;
+                        const end = target.selectionEnd;
+                        const value = target.value;
+                        const newValue = value.substring(0, start) + "  " + value.substring(end);
+                        setEditingScript({ ...editingScript, code: newValue });
+                        requestAnimationFrame(() => {
+                          target.selectionStart = target.selectionEnd = start + 2;
+                        });
+                      }
+                    }}
                   />
                 </div>
               )}
