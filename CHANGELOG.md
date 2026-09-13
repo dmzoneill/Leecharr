@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.7.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.7.0) - 2026-09-13
+
+### ✨ Features
+- feat(automation): add DSL scripting engine, marketplace, expanded event triggers, and system/api contexts
+
 ## [v1.6.5](https://github.com/dmzoneill/Leecharr/releases/tag/v1.6.5) - 2026-09-12
 
 ### 🐛 Bug Fixes
