@@ -1,11 +1,13 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Http;
 using Leecharr.Http.REST;
@@ -13,6 +15,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.BitTorrent.Creation;
+using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.MediaEnrichment;
@@ -80,6 +83,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     private readonly ITorrentCreationService torrentCreationService;
     private readonly ITorrentLogService torrentLogService;
     private readonly IConfigService configService;
+    private readonly ICategoryService categoryService;
 
     public TorrentController(
         ITorrentService torrentService,
@@ -93,7 +97,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         ISafeHttpClientService safeHttpClientService = null,
         ITorrentCreationService torrentCreationService = null,
         ITorrentLogService torrentLogService = null,
-        IConfigService configService = null)
+        IConfigService configService = null,
+        ICategoryService categoryService = null)
         : base(signalRBroadcaster)
     {
         this.torrentService = torrentService;
@@ -107,6 +112,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         this.torrentCreationService = torrentCreationService;
         this.torrentLogService = torrentLogService;
         this.configService = configService;
+        this.categoryService = categoryService;
     }
 
     [HttpGet]
@@ -970,6 +976,296 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     {
         await this.torrentService.DeleteAsync(id, deleteFiles);
         return this.NoContent();
+    }
+
+    [HttpPost("bulk")]
+    public async Task<ActionResult<BulkActionResult>> BulkAction([FromBody] BulkTorrentActionResource resource)
+    {
+        if (resource == null || string.IsNullOrWhiteSpace(resource.Action))
+        {
+            return this.BadRequest(new { message = "Action is required." });
+        }
+
+        var result = new BulkActionResult();
+        if (resource.TorrentIds == null || resource.TorrentIds.Count == 0)
+        {
+            return this.Ok(result);
+        }
+
+        var errors = new ConcurrentBag<string>();
+        var successCount = 0;
+        var failedCount = 0;
+
+        await Parallel.ForEachAsync(resource.TorrentIds, async (id, cancellationToken) =>
+        {
+            try
+            {
+                await this.ExecuteActionForTorrentAsync(id, resource);
+                Interlocked.Increment(ref successCount);
+            }
+            catch (Exception ex)
+            {
+                Interlocked.Increment(ref failedCount);
+                errors.Add($"Torrent {id}: {ex.Message}");
+            }
+        });
+
+        result.SuccessCount = successCount;
+        result.FailedCount = failedCount;
+        result.Errors = errors.ToList();
+
+        return this.Ok(result);
+    }
+
+    private async Task ExecuteActionForTorrentAsync(int id, BulkTorrentActionResource resource)
+    {
+        var action = resource.Action.Trim().ToLowerInvariant();
+        switch (action)
+        {
+            case "start":
+            case "resume":
+                await this.torrentService.ResumeAsync(id);
+                break;
+
+            case "stop":
+            case "pause":
+                await this.torrentService.PauseAsync(id);
+                break;
+
+            case "delete":
+            case "remove":
+                await this.torrentService.DeleteAsync(id, resource.DeleteFiles);
+                break;
+
+            case "recheck":
+            case "forcerecheck":
+                await this.torrentService.ForceRecheckAsync(id);
+                break;
+
+            case "announce":
+            case "forceannounce":
+                await this.torrentService.ForceAnnounceAsync(id);
+                break;
+
+            case "setcategory":
+            {
+                var torrent = this.torrentService.Get(id);
+                if (torrent == null)
+                {
+                    throw new KeyNotFoundException($"Torrent {id} not found");
+                }
+
+                string categoryName = null;
+                if (resource.CategoryId.HasValue && resource.CategoryId.Value > 0 && this.categoryService != null)
+                {
+                    var cat = this.categoryService.Get(resource.CategoryId.Value);
+                    categoryName = cat?.Name;
+                }
+
+                await this.torrentService.SetCategoryAsync(id, categoryName);
+                break;
+            }
+
+            case "addtags":
+            {
+                var torrent = this.torrentService.Get(id);
+                if (torrent == null)
+                {
+                    throw new KeyNotFoundException($"Torrent {id} not found");
+                }
+
+                if (resource.TagIds != null && resource.TagIds.Count > 0)
+                {
+                    torrent.TagIds ??= new List<int>();
+                    torrent.TagIds = torrent.TagIds.Union(resource.TagIds).Distinct().ToList();
+                    await this.torrentService.UpdateAsync(torrent);
+                }
+
+                break;
+            }
+
+            case "removetags":
+            {
+                var torrent = this.torrentService.Get(id);
+                if (torrent == null)
+                {
+                    throw new KeyNotFoundException($"Torrent {id} not found");
+                }
+
+                if (resource.TagIds != null && resource.TagIds.Count > 0 && torrent.TagIds != null)
+                {
+                    torrent.TagIds = torrent.TagIds.Except(resource.TagIds).ToList();
+                    await this.torrentService.UpdateAsync(torrent);
+                }
+
+                break;
+            }
+
+            case "setpriority":
+            {
+                var torrent = this.torrentService.Get(id);
+                if (torrent == null)
+                {
+                    throw new KeyNotFoundException($"Torrent {id} not found");
+                }
+
+                if (resource.Priority.HasValue)
+                {
+                    torrent.Priority = resource.Priority.Value;
+                    await this.torrentService.UpdateAsync(torrent);
+                }
+
+                break;
+            }
+
+            case "setspeedlimits":
+            {
+                var torrent = this.torrentService.Get(id);
+                if (torrent == null)
+                {
+                    throw new KeyNotFoundException($"Torrent {id} not found");
+                }
+
+                if (resource.UploadLimit.HasValue)
+                {
+                    torrent.UploadLimit = resource.UploadLimit.Value;
+                }
+
+                if (resource.DownloadLimit.HasValue)
+                {
+                    torrent.DownloadLimit = resource.DownloadLimit.Value;
+                }
+
+                await this.torrentService.UpdateAsync(torrent);
+                if (this.downloadEngine != null)
+                {
+                    await this.downloadEngine.SetTorrentRateLimitsAsync(torrent.Id, torrent.DownloadLimit, torrent.UploadLimit);
+                }
+
+                break;
+            }
+
+            default:
+                throw new ArgumentException($"Unknown action: {resource.Action}");
+        }
+    }
+
+    [HttpPost("preview")]
+    [Consumes("application/json")]
+    public async Task<ActionResult<TorrentPreviewResource>> PreviewJson([FromBody] TorrentPreviewRequest request)
+    {
+        if (request == null)
+        {
+            return this.BadRequest("Request body cannot be null");
+        }
+
+        var magnet = !string.IsNullOrWhiteSpace(request.MagnetLink) ? request.MagnetLink : (!string.IsNullOrWhiteSpace(request.MagnetUrl) ? request.MagnetUrl : request.Uri);
+        if (!string.IsNullOrWhiteSpace(magnet) && magnet.StartsWith("magnet:", StringComparison.OrdinalIgnoreCase))
+        {
+            var parsedMagnet = MagnetLinkParser.Parse(magnet);
+            if (parsedMagnet == null || string.IsNullOrWhiteSpace(parsedMagnet.InfoHash))
+            {
+                return this.BadRequest("Invalid magnet URI");
+            }
+
+            var res = new TorrentPreviewResource
+            {
+                Name = !string.IsNullOrWhiteSpace(parsedMagnet.DisplayName) ? parsedMagnet.DisplayName : parsedMagnet.InfoHash,
+                InfoHash = parsedMagnet.InfoHash.ToLowerInvariant(),
+                Trackers = parsedMagnet.Trackers?.ToList() ?? new List<string>(),
+                TotalSize = 0,
+                PieceCount = 0,
+                PieceLength = 0,
+            };
+
+            return this.Ok(res);
+        }
+
+        byte[] torrentBytes = null;
+        if (!string.IsNullOrWhiteSpace(request.TorrentBase64))
+        {
+            try
+            {
+                torrentBytes = Convert.FromBase64String(request.TorrentBase64);
+            }
+            catch (Exception ex)
+            {
+                return this.BadRequest($"Invalid base64 payload: {ex.Message}");
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(request.DownloadUrl))
+        {
+            var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024;
+            torrentBytes = await this.safeHttpClientService.DownloadBytesAsync(request.DownloadUrl, maxSizeBytes: maxTorrentBytes);
+        }
+
+        if (torrentBytes != null && torrentBytes.Length > 0)
+        {
+            return this.PreviewFromBytes(torrentBytes);
+        }
+
+        return this.BadRequest("No valid magnet URI, download URL, or torrent data provided");
+    }
+
+    [HttpPost("preview/upload")]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<TorrentPreviewResource>> PreviewUpload([FromForm(Name = "file")] IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return this.BadRequest("No torrent file provided");
+        }
+
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms);
+        return this.PreviewFromBytes(ms.ToArray());
+    }
+
+    private ActionResult<TorrentPreviewResource> PreviewFromBytes(byte[] bytes)
+    {
+        var parsed = this.torrentFileParser.Parse(bytes);
+        if (parsed == null)
+        {
+            return this.BadRequest("Failed to parse torrent data");
+        }
+
+        var trackers = new List<string>();
+        if (!string.IsNullOrWhiteSpace(parsed.AnnounceUrl))
+        {
+            trackers.Add(parsed.AnnounceUrl);
+        }
+
+        if (parsed.AnnounceList != null)
+        {
+            foreach (var tier in parsed.AnnounceList)
+            {
+                if (tier != null)
+                {
+                    trackers.AddRange(tier.Where(u => !string.IsNullOrWhiteSpace(u)));
+                }
+            }
+        }
+
+        var res = new TorrentPreviewResource
+        {
+            Name = parsed.Name,
+            InfoHash = parsed.InfoHash?.ToLowerInvariant(),
+            TotalSize = parsed.TotalSize,
+            PieceCount = parsed.PieceCount,
+            PieceLength = parsed.PieceLength,
+            Comment = parsed.Comment,
+            CreatedBy = parsed.CreatedBy,
+            CreationDate = parsed.CreationDate,
+            Trackers = trackers.Distinct().ToList(),
+            Files = parsed.Files?.Select(f => new TorrentPreviewFileResource
+            {
+                Path = f.Path,
+                Size = f.Size,
+                Extension = !string.IsNullOrWhiteSpace(f.Path) ? Path.GetExtension(f.Path) : string.Empty,
+            }).ToList() ?? new List<TorrentPreviewFileResource>(),
+        };
+
+        return this.Ok(res);
     }
 
     protected override TorrentResource GetResourceById(Torrent model)
