@@ -1,8 +1,9 @@
+using System.Collections.Generic;
 using NUnit.Framework;
 using NzbDrone.Core.Automation;
 using NzbDrone.Core.Torrents;
 
-namespace Leecharr.Core.Test.Automation;
+namespace NzbDrone.Core.Test.Automation;
 
 [TestFixture]
 public class JintScriptRunnerTest
@@ -27,7 +28,7 @@ public class JintScriptRunnerTest
 
         var result = _runner.Execute(script);
 
-        Assert.That(result.Success, Is.True, $"Error: {result.Error} | Log: {result.OutputLog}");
+        Assert.That(result.Success, Is.True);
         Assert.That(result.OutputLog, Does.Contain("Result: 4"));
     }
 
@@ -49,9 +50,9 @@ public class JintScriptRunnerTest
             Code = @"
 console.log('Torrent:', torrent.name, 'Ratio:', torrent.ratio);
 if (torrent.ratio > 2.0) {
-  torrent.addTag('high-ratio');
-  torrent.setCategory('Seeded');
-  torrent.pause();
+    torrent.addTag('high-ratio');
+    torrent.setCategory('Seeded');
+    torrent.pause();
 }
 ",
             Language = AutomationLanguage.JavaScript,
@@ -63,6 +64,39 @@ if (torrent.ratio > 2.0) {
         Assert.That(result.TagsToAdd, Contains.Item("high-ratio"));
         Assert.That(result.NewCategory, Is.EqualTo("Seeded"));
         Assert.That(result.ShouldPause, Is.True);
+    }
+
+    [Test]
+    public void ShouldReadInputsAndSecrets()
+    {
+        var script = new AutomationScript
+        {
+            Name = "Inputs Reader",
+            Code = "console.log('API Key:', inputs.api_key, 'Target:', inputs.target);",
+            InputsJson = "{\"api_key\": \"secret-123\", \"target\": 999}",
+            Language = AutomationLanguage.JavaScript,
+        };
+
+        var result = _runner.Execute(script);
+
+        Assert.That(result.Success, Is.True);
+        Assert.That(result.OutputLog, Does.Contain("API Key: secret-123 Target: 999"));
+    }
+
+    [Test]
+    public void ShouldHandleScriptSyntaxErrorGracefully()
+    {
+        var script = new AutomationScript
+        {
+            Name = "Invalid Script",
+            Code = "invalid syntax { [",
+            Language = AutomationLanguage.JavaScript,
+        };
+
+        var result = _runner.Execute(script);
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Error, Is.Not.Null);
     }
 
     [Test]
