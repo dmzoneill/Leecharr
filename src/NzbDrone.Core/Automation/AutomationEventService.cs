@@ -26,7 +26,29 @@ public class AutomationEventService :
     IHandle<VpnKillSwitchTriggeredEvent>,
     IHandle<VpnInterfaceRestoredEvent>,
     IHandle<CategoryUpdatedEvent>,
-    IHandle<ApplicationStartedEvent>
+    IHandle<ApplicationStartedEvent>,
+    IHandle<TorrentStartedEvent>,
+    IHandle<TorrentPausedEvent>,
+    IHandle<TorrentStalledEvent>,
+    IHandle<TorrentSeedingTimeReachedEvent>,
+    IHandle<TorrentHashCheckCompletedEvent>,
+    IHandle<TorrentProgressMilestoneEvent>,
+    IHandle<SpeedThresholdExceededEvent>,
+    IHandle<SpeedThresholdDroppedEvent>,
+    IHandle<BandwidthQuotaApproachingEvent>,
+    IHandle<PortForwardingFailedEvent>,
+    IHandle<PeerBannedEvent>,
+    IHandle<TrackerUnreachableEvent>,
+    IHandle<TrackerBoostAppliedEvent>,
+    IHandle<DiskSpaceLowEvent>,
+    IHandle<DiskSpaceCriticalEvent>,
+    IHandle<FileMoveFailedEvent>,
+    IHandle<MediaInspectionFailedEvent>,
+    IHandle<ArrImportCompletedEvent>,
+    IHandle<ApplicationUpdatedEvent>,
+    IHandle<BackupCompletedEvent>,
+    IHandle<BackupFailedEvent>,
+    IHandle<TaskFailedEvent>
 {
     private readonly IAutomationService _automationService;
     private readonly Logger _logger;
@@ -140,6 +162,134 @@ public class AutomationEventService :
     public void Handle(ApplicationStartedEvent message)
     {
         DispatchTrigger(AutomationTrigger.ApplicationStarted, null);
+    }
+
+    public void Handle(TorrentStartedEvent message)
+    {
+        if (message?.Torrent != null)
+        {
+            DispatchTrigger(AutomationTrigger.TorrentStarted, message.Torrent);
+        }
+    }
+
+    public void Handle(TorrentPausedEvent message)
+    {
+        if (message?.Torrent != null)
+        {
+            DispatchTrigger(AutomationTrigger.TorrentPaused, message.Torrent);
+        }
+    }
+
+    public void Handle(TorrentStalledEvent message)
+    {
+        if (message?.Torrent != null)
+        {
+            DispatchTrigger(AutomationTrigger.TorrentStalled, message.Torrent);
+        }
+    }
+
+    public void Handle(TorrentSeedingTimeReachedEvent message)
+    {
+        if (message?.Torrent != null)
+        {
+            DispatchTrigger(AutomationTrigger.SeedingTimeReached, message.Torrent);
+        }
+    }
+
+    public void Handle(TorrentHashCheckCompletedEvent message)
+    {
+        if (message?.Torrent != null)
+        {
+            DispatchTrigger(AutomationTrigger.HashCheckCompleted, message.Torrent);
+        }
+    }
+
+    public void Handle(TorrentProgressMilestoneEvent message)
+    {
+        if (message?.Torrent != null)
+        {
+            DispatchTrigger(AutomationTrigger.ProgressMilestone, message.Torrent);
+        }
+    }
+
+    public void Handle(SpeedThresholdExceededEvent message)
+    {
+        DispatchTrigger(AutomationTrigger.SpeedThresholdExceeded, null);
+    }
+
+    public void Handle(SpeedThresholdDroppedEvent message)
+    {
+        DispatchTrigger(AutomationTrigger.SpeedThresholdDropped, null);
+    }
+
+    public void Handle(BandwidthQuotaApproachingEvent message)
+    {
+        DispatchTrigger(AutomationTrigger.BandwidthQuotaApproaching, null);
+    }
+
+    public void Handle(PortForwardingFailedEvent message)
+    {
+        DispatchTrigger(AutomationTrigger.PortForwardingFailed, null);
+    }
+
+    public void Handle(PeerBannedEvent message)
+    {
+        DispatchTrigger(AutomationTrigger.PeerBanned, null);
+    }
+
+    public void Handle(TrackerUnreachableEvent message)
+    {
+        DispatchTrigger(AutomationTrigger.TrackerUnreachable, message?.Torrent);
+    }
+
+    public void Handle(TrackerBoostAppliedEvent message)
+    {
+        DispatchTrigger(AutomationTrigger.TrackerBoostApplied, message?.Torrent);
+    }
+
+    public void Handle(DiskSpaceLowEvent message)
+    {
+        DispatchTrigger(AutomationTrigger.DiskSpaceLow, null);
+    }
+
+    public void Handle(DiskSpaceCriticalEvent message)
+    {
+        DispatchTrigger(AutomationTrigger.DiskSpaceCritical, null);
+    }
+
+    public void Handle(FileMoveFailedEvent message)
+    {
+        DispatchTrigger(AutomationTrigger.FileMoveFailed, message?.Torrent);
+    }
+
+    public void Handle(MediaInspectionFailedEvent message)
+    {
+        DispatchTrigger(AutomationTrigger.MediaInspectionFailed, message?.Torrent);
+    }
+
+    public void Handle(ArrImportCompletedEvent message)
+    {
+        DispatchTrigger(AutomationTrigger.ArrImportCompleted, message?.Torrent);
+    }
+
+    public void Handle(ApplicationUpdatedEvent message)
+    {
+        DispatchTrigger(AutomationTrigger.ApplicationUpdated, null);
+    }
+
+    public void Handle(BackupCompletedEvent message)
+    {
+        DispatchTrigger(AutomationTrigger.BackupCompleted, null);
+    }
+
+    public void Handle(BackupFailedEvent message)
+    {
+        DispatchTrigger(AutomationTrigger.BackupFailed, null);
+    }
+
+    public void Handle(TaskFailedEvent message)
+    {
+        DispatchTrigger(AutomationTrigger.TaskFailed, null);
     }
 
     private void DispatchTrigger(AutomationTrigger trigger, Torrent? torrent = null)
