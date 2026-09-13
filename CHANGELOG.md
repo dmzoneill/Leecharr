@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.7.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.7.1) - 2026-09-13
+
+### ✨ Features
+- feat(ui): add visual pipeline editor, point-and-click step builder, and run history viewer
+- feat(automation): add DSL scripting engine, marketplace, expanded event triggers, and system/api contexts
+
+### 🐛 Bug Fixes
+- fix(lint): format multiline string literals with 4-space indentation for editorconfig
+
 ## [v1.7.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.7.0) - 2026-09-13
 
 ### ✨ Features
