@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.8.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.8.0) - 2026-09-13
+
+### ✨ Features
+- feat(automation): implement full suite of step actions across backend runners and visual builder
+- feat(automation): add type-aware condition builder with boolean, enum, and lazy custom matchers
+- feat(automation): expand subscription triggers and alert events across lifecycle
+
+### 🐛 Bug Fixes
+- fix(core): remove duplicate event classes in Leecharr.Core
+
 ## [v1.7.5](https://github.com/dmzoneill/Leecharr/releases/tag/v1.7.5) - 2026-09-13
 
 ### 🐛 Bug Fixes
