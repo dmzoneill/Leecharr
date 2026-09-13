@@ -182,26 +182,33 @@ export const Indexers: React.FC<IndexersProps> = ({
         height: "100%",
         minHeight: 0,
         overflow: "hidden",
+        padding: "1.5rem",
       }}
     >
       {/* Top Header Card */}
       <div
-        className="page-header"
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
           flexWrap: "wrap",
           gap: "1rem",
-          marginBottom: "1rem",
+          marginBottom: "1.5rem",
           flexShrink: 0,
         }}
       >
-        <div className="page-header-group">
+        <div>
           <h1
-            className="page-heading"
-            style={{ margin: 0, fontSize: "1.4rem" }}
+            style={{
+              fontSize: "1.75rem",
+              fontWeight: 700,
+              margin: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
           >
+            <span>🔍</span>{" "}
             {currentIndexer
               ? t("indexers.indexerColon", "Indexer: {name}", {
                   name: currentIndexer.name,
@@ -212,8 +219,11 @@ export const Indexers: React.FC<IndexersProps> = ({
                 )}
           </h1>
           <p
-            className="text-muted"
-            style={{ margin: "0.25rem 0 0", fontSize: "0.85rem" }}
+            style={{
+              color: "var(--text-muted, #888)",
+              margin: "0.25rem 0 0 0",
+              fontSize: "0.9rem",
+            }}
           >
             {currentIndexer
               ? t(

@@ -47,21 +47,41 @@ export const HistoryFilterBar: React.FC<HistoryFilterBarProps> = ({
   return (
     <>
       <div
-        className="page-header"
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: "1rem",
+          marginBottom: "1.5rem",
           flexWrap: "wrap",
-          gap: "0.75rem",
+          gap: "1rem",
           flexShrink: 0,
         }}
       >
-        <div className="page-header-group">
-          <h1 className="page-heading" style={{ margin: 0 }}>
-            {t("history.title")} ({totalCount})
+        <div>
+          <h1
+            style={{
+              fontSize: "1.75rem",
+              fontWeight: 700,
+              margin: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
+          >
+            <span>📜</span> {t("history.title")} ({totalCount})
           </h1>
+          <p
+            style={{
+              color: "var(--text-muted, #888)",
+              margin: "0.25rem 0 0 0",
+              fontSize: "0.9rem",
+            }}
+          >
+            {t(
+              "history.subtitle",
+              "Historical download audit trail and enriched release metadata",
+            )}
+          </p>
         </div>
 
         <div

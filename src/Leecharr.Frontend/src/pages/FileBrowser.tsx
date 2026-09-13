@@ -451,48 +451,58 @@ export function FileBrowser() {
 
   return (
     <div
+      className="content-area"
       style={{
         display: "flex",
         flexDirection: "column",
         height: "100%",
         gap: "0.85rem",
+        padding: "1.5rem",
+        boxSizing: "border-box",
       }}
     >
+      {/* Header Banner */}
       <div
-        className="card"
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          marginBottom: "1.5rem",
           flexWrap: "wrap",
-          gap: "0.85rem",
-          padding: "0.85rem 1.25rem",
+          gap: "1rem",
+          flexShrink: 0,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <span style={{ fontSize: "1.4rem" }}>🗂️</span>
-          <div>
-            <h2 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 600 }}>
-              {t("filebrowser.title", "File Browser")}
-            </h2>
-            <p
-              style={{
-                margin: 0,
-                fontSize: "0.8rem",
-                color: "var(--text-muted)",
-              }}
-            >
-              {t("filebrowser.folderCount", "{count} folder(s)", {
-                count: dirStats.folderCount,
-              })}{" "}
-              &bull;{" "}
-              {t("filebrowser.fileCount", "{count} file(s)", {
-                count: dirStats.fileCount,
-              })}{" "}
-              &bull; {formatBytes(dirStats.totalSize)}{" "}
-              {t("common.total", "total")}
-            </p>
-          </div>
+        <div>
+          <h1
+            style={{
+              fontSize: "1.75rem",
+              fontWeight: 700,
+              margin: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
+          >
+            <span>📁</span> {t("filebrowser.title", "File Browser")}
+          </h1>
+          <p
+            style={{
+              color: "var(--text-muted, #888)",
+              margin: "0.25rem 0 0 0",
+              fontSize: "0.9rem",
+            }}
+          >
+            {t("filebrowser.folderCount", "{count} folder(s)", {
+              count: dirStats.folderCount,
+            })}{" "}
+            &bull;{" "}
+            {t("filebrowser.fileCount", "{count} file(s)", {
+              count: dirStats.fileCount,
+            })}{" "}
+            &bull; {formatBytes(dirStats.totalSize)}{" "}
+            {t("common.total", "total")}
+          </p>
         </div>
 
         <div
@@ -506,7 +516,7 @@ export function FileBrowser() {
           <button
             type="button"
             className="btn btn-outline"
-            style={{ fontSize: "0.8rem", padding: "0.35rem 0.75rem" }}
+            style={{ fontSize: "0.85rem", padding: "0.35rem 0.75rem" }}
             onClick={handleNavigateUp}
             disabled={!listing?.parent || listing.parent === listing.path}
             title={t("filebrowser.parentDirectory", "Go to parent directory")}
@@ -516,7 +526,7 @@ export function FileBrowser() {
           <button
             type="button"
             className="btn btn-outline"
-            style={{ fontSize: "0.8rem", padding: "0.35rem 0.75rem" }}
+            style={{ fontSize: "0.85rem", padding: "0.35rem 0.75rem" }}
             onClick={() => refetch()}
             title={t("common.refresh", "Refresh")}
           >
@@ -525,7 +535,7 @@ export function FileBrowser() {
           <button
             type="button"
             className="btn btn-outline"
-            style={{ fontSize: "0.8rem", padding: "0.35rem 0.75rem" }}
+            style={{ fontSize: "0.85rem", padding: "0.35rem 0.75rem" }}
             onClick={handleCopyPath}
             title={t("filebrowser.copyPath", "Copy current path to clipboard")}
           >
@@ -535,7 +545,7 @@ export function FileBrowser() {
             type="button"
             className="btn btn-outline"
             style={{
-              fontSize: "0.8rem",
+              fontSize: "0.85rem",
               padding: "0.35rem 0.75rem",
               fontFamily: "monospace",
             }}
