@@ -167,7 +167,7 @@ public class IndexerController : Controller
     public async Task<ActionResult<List<IndexerBatchTestResult>>> TestAll()
     {
         var indexers = this.indexerRepository.All();
-        if (indexers == null || indexers.Count == 0)
+        if (indexers == null || !indexers.Any())
         {
             return this.Ok(new List<IndexerBatchTestResult>());
         }
@@ -178,7 +178,7 @@ public class IndexerController : Controller
         var tasks = indexers.Select(async idx =>
         {
             await semaphore.WaitAsync().ConfigureAwait(false);
-            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var sw = global::System.Diagnostics.Stopwatch.StartNew();
             try
             {
                 var testResult = await this.TestDirectInternal(idx).ConfigureAwait(false);
