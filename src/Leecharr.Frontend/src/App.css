@@ -830,13 +830,39 @@ body {
 }
 
 .page-heading {
-  font-size: 1.1rem;
-  font-weight: 500;
+  font-size: 1.75rem;
+  font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 0;
-  padding: 0.75rem 1rem;
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-light);
+  margin: 0;
+  padding: 0;
+  background: none;
+  background-color: transparent;
+  border: none;
+  border-bottom: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  line-height: 1.2;
+}
+
+.page-heading > svg,
+.page-heading > .page-heading-icon,
+.page-heading > span.page-heading-icon {
+  font-size: 1.75rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+.page-subtitle,
+.page-description,
+.page-header-subtitle,
+.page-header-description,
+.page-header-desc {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin: 0.25rem 0 0 0;
+  font-weight: 400;
+  line-height: 1.4;
 }
 
 /* ============================================
@@ -882,6 +908,15 @@ body {
   margin-bottom: 0.75rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--border-light);
+}
+
+.card .page-heading {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  background: none;
+  border: none;
+  padding: 0;
 }
 
 .status-row {
@@ -1482,29 +1517,50 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 1rem;
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 1.5rem;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 1rem;
+  background: transparent;
+  border: none;
+  padding: 0;
 }
 
 .page-header-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.75rem;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .page-header-group {
   display: flex;
-  gap: 0.75rem;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .page-header-group .page-heading {
   padding: 0;
+  background: none;
   background-color: transparent;
+  border: none;
   border-bottom: none;
+}
+
+.page-header-group.page-header-group-row,
+.page-header-group.is-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.page-header-group .page-subtitle,
+.page-header-group .page-description,
+.page-header-group .page-header-subtitle,
+.page-header-group .page-header-description,
+.page-header-group .page-header-desc {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin: 0.25rem 0 0 0;
 }
 
 .bulk-actions {
@@ -2968,6 +3024,29 @@ input[type="number"]::-webkit-inner-spin-button {
   overflow: hidden;
 }
 
+.torrent-index-page .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 0;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.torrent-index-page .page-header .page-header-group {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.torrent-index-page .page-header .page-heading {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
 .torrent-content-layout,
 .torrent-index-body {
   display: flex;
@@ -3510,9 +3589,12 @@ input[type="number"]::-webkit-inner-spin-button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.75rem 1rem;
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+  background: none;
+  border: none;
+  padding: 0;
 }
 
 .page-heading-row .page-heading {

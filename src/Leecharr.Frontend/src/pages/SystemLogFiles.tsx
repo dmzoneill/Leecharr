@@ -141,34 +141,43 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
     <>
       {!embedded && (
         <div
-          className="page-header"
           style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            marginBottom: "1.25rem",
+            marginBottom: "1.5rem",
+            flexWrap: "wrap",
+            gap: "1rem",
           }}
         >
-          <div className="page-header-group">
-            <div
-              style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+          <div>
+            <h1
+              style={{
+                fontSize: "1.75rem",
+                fontWeight: 700,
+                margin: 0,
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+              }}
             >
-              <h1 className="page-heading" style={{ margin: 0 }}>
-                {t("system.systemLogFiles")}
-              </h1>
-              <span className="badge badge-primary">
+              <span>📄</span> {t("system.systemLogFiles")}
+              <span
+                className="badge badge-primary"
+                style={{ fontSize: "0.8rem", marginLeft: "0.25rem" }}
+              >
                 {t("system.diskFiles")}
               </span>
-            </div>
-            <div
+            </h1>
+            <p
               style={{
-                fontSize: "0.8rem",
-                color: "var(--text-muted)",
-                marginTop: "0.2rem",
+                color: "var(--text-muted, #888)",
+                margin: "0.25rem 0 0 0",
+                fontSize: "0.9rem",
               }}
             >
               {t("system.logFilesSubtitle")}
-            </div>
+            </p>
           </div>
 
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
@@ -364,7 +373,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
     return content;
   }
 
-  return <div className="content-area">{content}</div>;
+  return <div className="content-area" style={{ padding: "1.5rem" }}>{content}</div>;
 }
 
 export default SystemLogFiles;

@@ -35,41 +35,50 @@ export function TerminalPage() {
 
   return (
     <div
+      className="content-area"
       style={{
         display: "flex",
         flexDirection: "column",
         height: "100%",
         gap: "1rem",
+        padding: "1.5rem",
+        boxSizing: "border-box",
       }}
     >
-      {/* Top Header Card */}
+      {/* Header Banner */}
       <div
-        className="card"
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          marginBottom: "1.5rem",
           flexWrap: "wrap",
           gap: "1rem",
-          padding: "0.85rem 1.25rem",
+          flexShrink: 0,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <span style={{ fontSize: "1.5rem" }}>💻</span>
-          <div>
-            <h2 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 600 }}>
-              {t("terminal.title")}
-            </h2>
-            <p
-              style={{
-                margin: 0,
-                fontSize: "0.8rem",
-                color: "var(--text-muted)",
-              }}
-            >
-              {t("terminal.executeCommands")}
-            </p>
-          </div>
+        <div>
+          <h1
+            style={{
+              fontSize: "1.75rem",
+              fontWeight: 700,
+              margin: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
+          >
+            <span>💻</span> {t("terminal.title")}
+          </h1>
+          <p
+            style={{
+              color: "var(--text-muted, #888)",
+              margin: "0.25rem 0 0 0",
+              fontSize: "0.9rem",
+            }}
+          >
+            {t("terminal.executeCommands")}
+          </p>
         </div>
 
         {/* Quick Directory Presets & Custom Path Input */}
@@ -83,8 +92,8 @@ export function TerminalPage() {
         >
           <button
             type="button"
-            className={`btn ${activePath === downloadDir ? "btn-primary" : "btn-outline"}`}
-            style={{ fontSize: "0.8rem", padding: "0.3rem 0.65rem" }}
+            className={`btn ${activePath === downloadDir ? "btn-primary" : "btn-secondary"}`}
+            style={{ fontSize: "0.85rem", padding: "0.35rem 0.75rem" }}
             onClick={() => setActivePath(downloadDir)}
           >
             {t("terminal.downloadsRoot")}
@@ -92,8 +101,8 @@ export function TerminalPage() {
 
           <button
             type="button"
-            className={`btn ${activePath === `${downloadDir}/incomplete` ? "btn-primary" : "btn-outline"}`}
-            style={{ fontSize: "0.8rem", padding: "0.3rem 0.65rem" }}
+            className={`btn ${activePath === `${downloadDir}/incomplete` ? "btn-primary" : "btn-secondary"}`}
+            style={{ fontSize: "0.85rem", padding: "0.35rem 0.75rem" }}
             onClick={() => setActivePath(`${downloadDir}/incomplete`)}
           >
             {t("terminal.incomplete")}
@@ -108,20 +117,17 @@ export function TerminalPage() {
               placeholder={t("terminal.enterPath")}
               value={customPath}
               onChange={(e) => setCustomPath(e.target.value)}
+              className="input"
               style={{
-                fontSize: "0.8rem",
-                padding: "0.3rem 0.6rem",
-                borderRadius: "4px",
-                border: "1px solid var(--border-light, #1c203b)",
-                backgroundColor: "var(--bg-card, #131627)",
-                color: "var(--text-primary, #f8f4ed)",
+                fontSize: "0.85rem",
+                padding: "0.35rem 0.6rem",
                 width: "180px",
               }}
             />
             <button
               type="submit"
               className="btn btn-outline"
-              style={{ fontSize: "0.8rem", padding: "0.3rem 0.6rem" }}
+              style={{ fontSize: "0.85rem", padding: "0.35rem 0.75rem" }}
             >
               {t("terminal.go")}
             </button>

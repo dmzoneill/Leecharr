@@ -711,39 +711,49 @@ function PeerMap() {
         height: "100%",
         minHeight: 0,
         overflow: "hidden",
+        padding: "1.5rem",
       }}
     >
       {/* Header Row */}
       <div
-        className="page-header"
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: "0.75rem",
+          marginBottom: "1rem",
+          flexWrap: "wrap",
+          gap: "1rem",
           flexShrink: 0,
         }}
       >
-        <div className="page-header-group">
-          <div
-            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+        <div>
+          <h1
+            style={{
+              fontSize: "1.75rem",
+              fontWeight: 700,
+              margin: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
           >
-            <h1 className="page-heading" style={{ margin: 0 }}>
-              {t("peerMap.title")}
-            </h1>
-            <span className="badge badge-primary">
+            <span>🌍</span> {t("peerMap.title")}
+            <span
+              className="badge badge-primary"
+              style={{ fontSize: "0.8rem", marginLeft: "0.25rem" }}
+            >
               {peerCount} {t("peerMap.connectedPeers")}
             </span>
-          </div>
-          <div
+          </h1>
+          <p
             style={{
-              fontSize: "0.8rem",
-              color: "var(--text-muted)",
-              marginTop: "0.2rem",
+              color: "var(--text-muted, #888)",
+              margin: "0.25rem 0 0 0",
+              fontSize: "0.9rem",
             }}
           >
             {t("peerMap.subtitle")}
-          </div>
+          </p>
         </div>
       </div>
 
