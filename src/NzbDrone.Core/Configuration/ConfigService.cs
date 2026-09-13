@@ -84,6 +84,8 @@ public interface IConfigService
 
     string TimeZone { get; }
 
+    int HistoryRetentionDays { get; }
+
     // Storage & Disk
     string DownloadDir { get; }
 
@@ -785,6 +787,8 @@ public class ConfigService : IConfigService
     public string DefaultCategory => this.GetValue("DefaultCategory", string.Empty);
 
     public string TimeZone => this.GetValue("TimeZone", string.Empty);
+
+    public int HistoryRetentionDays => this.GetValueInt("HistoryRetentionDays", 0);
 
     // Storage & Disk
     public string DownloadDir => this.GetValue("DownloadDir", string.Empty);

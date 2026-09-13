@@ -12,6 +12,7 @@ using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
@@ -121,6 +122,9 @@ public class RTorrentController : ControllerBase
                     "data",
                     new XElement("value", new XElement("string", "d.multicall2")),
                     new XElement("value", new XElement("string", "d.multicall")),
+                    new XElement("value", new XElement("string", "f.multicall")),
+                    new XElement("value", new XElement("string", "t.multicall")),
+                    new XElement("value", new XElement("string", "p.multicall")),
                     new XElement("value", new XElement("string", "system.multicall")),
                     new XElement("value", new XElement("string", "system.client_version")),
                     new XElement("value", new XElement("string", "system.api_version")),
@@ -339,6 +343,118 @@ public class RTorrentController : ControllerBase
                     }
 
                     return new XElement("array", tArrayData);
+                }
+
+                return new XElement("array", new XElement("data"));
+
+            case "p.multicall":
+                if (paramValues.Count > 0 && paramValues[0] is string pHash)
+                {
+                    var t = this.torrentService.GetByInfoHash(pHash);
+                    var pArrayData = new XElement("data");
+                    if (t != null)
+                    {
+                        var pFields = paramValues.Skip(2).OfType<string>().ToList();
+                        if (pFields.Count == 0 && paramValues.Count > 1)
+                        {
+                            pFields = paramValues.Skip(1).OfType<string>().Where(x => x.StartsWith("p.", StringComparison.OrdinalIgnoreCase)).ToList();
+                        }
+
+                        var downloadTask = this.torrentService?.GetDownloadTask(t.Id);
+                        var peers = downloadTask?.GetPeers() ?? (IReadOnlyList<PeerInfo>)Array.Empty<PeerInfo>();
+
+                        foreach (var peer in peers)
+                        {
+                            var pRowData = new XElement("data");
+                            foreach (var field in pFields)
+                            {
+                                var cleanField = field.Trim().TrimEnd('=', '(', ')');
+                                if (cleanField.Equals("p.id", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("p.get_id", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    pRowData.Add(new XElement("value", new XElement("string", peer.Client ?? string.Empty)));
+                                }
+                                else if (cleanField.Equals("p.address", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("p.get_address", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    pRowData.Add(new XElement("value", new XElement("string", peer.Ip ?? string.Empty)));
+                                }
+                                else if (cleanField.Equals("p.port", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("p.get_port", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    pRowData.Add(new XElement("value", new XElement("i4", peer.Port)));
+                                }
+                                else if (cleanField.Equals("p.client_version", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("p.get_client_version", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    pRowData.Add(new XElement("value", new XElement("string", peer.Client ?? string.Empty)));
+                                }
+                                else if (cleanField.Equals("p.completed_percent", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("p.get_completed_percent", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    pRowData.Add(new XElement("value", new XElement("i4", (int)(peer.Progress * 100))));
+                                }
+                                else if (cleanField.Equals("p.down_rate", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("p.get_down_rate", StringComparison.OrdinalIgnoreCase) ||
+                                         cleanField.Equals("p.peer_rate", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("p.get_peer_rate", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    pRowData.Add(new XElement("value", new XElement("i8", peer.DownloadSpeed)));
+                                }
+                                else if (cleanField.Equals("p.up_rate", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("p.get_up_rate", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    pRowData.Add(new XElement("value", new XElement("i8", peer.UploadSpeed)));
+                                }
+                                else if (cleanField.Equals("p.down_total", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("p.get_down_total", StringComparison.OrdinalIgnoreCase) ||
+                                         cleanField.Equals("p.peer_total", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("p.get_peer_total", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    pRowData.Add(new XElement("value", new XElement("i8", peer.Downloaded)));
+                                }
+                                else if (cleanField.Equals("p.up_total", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("p.get_up_total", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    pRowData.Add(new XElement("value", new XElement("i8", peer.Uploaded)));
+                                }
+                                else if (cleanField.Equals("p.is_encrypted", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("p.get_is_encrypted", StringComparison.OrdinalIgnoreCase) ||
+                                         cleanField.Equals("p.is_obfuscated", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    pRowData.Add(new XElement("value", new XElement("i4", peer.IsEncrypted ? 1 : 0)));
+                                }
+                                else if (cleanField.Equals("p.is_incoming", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("p.get_is_incoming", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    pRowData.Add(new XElement("value", new XElement("i4", peer.IsIncoming ? 1 : 0)));
+                                }
+                                else if (cleanField.Equals("p.is_choked", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    pRowData.Add(new XElement("value", new XElement("i4", peer.IsChoked ? 1 : 0)));
+                                }
+                                else if (cleanField.Equals("p.is_interested", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    pRowData.Add(new XElement("value", new XElement("i4", peer.IsInterested ? 1 : 0)));
+                                }
+                                else if (cleanField.Equals("p.is_client_choked", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    pRowData.Add(new XElement("value", new XElement("i4", peer.ClientIsChoked ? 1 : 0)));
+                                }
+                                else if (cleanField.Equals("p.is_client_interested", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    pRowData.Add(new XElement("value", new XElement("i4", peer.ClientIsInterested ? 1 : 0)));
+                                }
+                                else if (cleanField.Equals("p.is_snubbed", StringComparison.OrdinalIgnoreCase) ||
+                                         cleanField.Equals("p.is_unwanted", StringComparison.OrdinalIgnoreCase) ||
+                                         cleanField.Equals("p.is_preferred", StringComparison.OrdinalIgnoreCase) ||
+                                         cleanField.Equals("p.banned", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    pRowData.Add(new XElement("value", new XElement("i4", 0)));
+                                }
+                                else if (cleanField.Equals("p.options_str", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("p.get_options_str", StringComparison.OrdinalIgnoreCase) ||
+                                         cleanField.Equals("p.flags", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    pRowData.Add(new XElement("value", new XElement("string", peer.Flags ?? string.Empty)));
+                                }
+                                else
+                                {
+                                    pRowData.Add(new XElement("value", new XElement("string", string.Empty)));
+                                }
+                            }
+
+                            pArrayData.Add(new XElement("value", new XElement("array", pRowData)));
+                        }
+                    }
+
+                    return new XElement("array", pArrayData);
                 }
 
                 return new XElement("array", new XElement("data"));
@@ -792,7 +908,8 @@ public class RTorrentController : ControllerBase
                 var trimmed = field.Trim();
                 if (trimmed.StartsWith("d.", StringComparison.OrdinalIgnoreCase) ||
                     trimmed.StartsWith("f.", StringComparison.OrdinalIgnoreCase) ||
-                    trimmed.StartsWith("t.", StringComparison.OrdinalIgnoreCase))
+                    trimmed.StartsWith("t.", StringComparison.OrdinalIgnoreCase) ||
+                    trimmed.StartsWith("p.", StringComparison.OrdinalIgnoreCase))
                 {
                     requestedFields.Add(trimmed);
                 }

@@ -13,12 +13,63 @@ interface ClientMeta {
   icon: string;
 }
 
+const AZUREUS_CLIENTS: Record<string, { name: string; badgeClass: string; icon: string }> = {
+  qB: { name: "qBittorrent", badgeClass: "badge-primary", icon: "🔵" },
+  TR: { name: "Transmission", badgeClass: "badge-danger", icon: "🔴" },
+  DE: { name: "Deluge", badgeClass: "badge-success", icon: "🟢" },
+  rt: { name: "rTorrent", badgeClass: "badge-warning", icon: "🟣" },
+  LT: { name: "libtorrent (Rasterbar)", badgeClass: "badge-secondary", icon: "⚙️" },
+  lt: { name: "libTorrent", badgeClass: "badge-secondary", icon: "⚙️" },
+  UT: { name: "µTorrent", badgeClass: "badge-success", icon: "µ" },
+  UM: { name: "µTorrent Mac", badgeClass: "badge-success", icon: "µ" },
+  UE: { name: "µTorrent Embedded", badgeClass: "badge-success", icon: "µ" },
+  AZ: { name: "Azureus / Vuze", badgeClass: "badge-primary", icon: "🐸" },
+  BG: { name: "BiglyBT", badgeClass: "badge-primary", icon: "🐸" },
+  SD: { name: "Seedarr", badgeClass: "badge-primary", icon: "🌱" },
+  LC: { name: "Leecharr", badgeClass: "badge-primary", icon: "💀" },
+  KT: { name: "KTorrent", badgeClass: "badge-info", icon: "🔷" },
+  BC: { name: "BitComet", badgeClass: "badge-warning", icon: "☄️" },
+  BT: { name: "BitTorrent", badgeClass: "badge-primary", icon: "🌊" },
+  WD: { name: "WebTorrent", badgeClass: "badge-info", icon: "🌐" },
+  PI: { name: "PicoTorrent", badgeClass: "badge-secondary", icon: "📦" },
+  FD: { name: "Free Download Manager", badgeClass: "badge-info", icon: "📥" },
+  AR: { name: "Arctic", badgeClass: "badge-secondary", icon: "❄️" },
+  FL: { name: "Folx", badgeClass: "badge-info", icon: "🦊" },
+};
+
+function decodeAzureusVersion(vStr: string): string {
+  if (vStr.length === 4) {
+    const chars = vStr.split("");
+    if (/^\d{4}$/.test(vStr)) {
+      return `${chars[0]}.${chars[1]}.${chars[2]}.${chars[3]}`;
+    }
+    return chars.join(".");
+  }
+  return vStr;
+}
+
 export function parsePeerClient(clientStr: string): ClientMeta {
   if (!clientStr || clientStr === "Unknown" || clientStr === "-") {
     return { name: "Unknown", badgeClass: "badge-secondary", icon: "👤" };
   }
 
   const normalized = clientStr.trim();
+
+  // Check Azureus style: -XXvvvv-
+  const azMatch = normalized.match(/^-([A-Za-z0-9~]{2})([0-9A-Za-z]{4})-/);
+  if (azMatch) {
+    const code = azMatch[1];
+    const verRaw = azMatch[2];
+    const clientInfo = AZUREUS_CLIENTS[code] || { name: `Client (${code})`, badgeClass: "badge-secondary", icon: "👤" };
+    const version = decodeAzureusVersion(verRaw);
+    return {
+      name: clientInfo.name,
+      version,
+      badgeClass: clientInfo.badgeClass,
+      icon: clientInfo.icon,
+    };
+  }
+
   const lower = normalized.toLowerCase();
 
   if (lower.includes("qbittorrent") || lower.startsWith("qb/")) {

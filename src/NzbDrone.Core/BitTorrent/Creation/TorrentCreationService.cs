@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MonoTorrent;
+using MonoTorrent.BEncoding;
 using NLog;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
@@ -141,7 +142,32 @@ public class TorrentCreationService : ITorrentCreationService
                 creator.PieceLength = TorrentCreator.RecommendedPieceSize(fileSource.Files);
             }
 
-            if (request.Trackers != null && request.Trackers.Count > 0)
+            if (request.TrackerTiers != null && request.TrackerTiers.Count > 0)
+            {
+                foreach (var tier in request.TrackerTiers)
+                {
+                    if (tier == null)
+                    {
+                        continue;
+                    }
+
+                    var cleanTier = tier
+                        .Where(t => !string.IsNullOrWhiteSpace(t))
+                        .Select(t => t.Trim())
+                        .ToList();
+
+                    if (cleanTier.Count > 0)
+                    {
+                        if (string.IsNullOrEmpty(creator.Announce))
+                        {
+                            creator.Announce = cleanTier[0];
+                        }
+
+                        creator.Announces.Add(cleanTier);
+                    }
+                }
+            }
+            else if (request.Trackers != null && request.Trackers.Count > 0)
             {
                 var cleanTrackers = request.Trackers
                     .Where(t => !string.IsNullOrWhiteSpace(t))
@@ -158,14 +184,51 @@ public class TorrentCreationService : ITorrentCreationService
                 }
             }
 
-            if (request.WebSeeds != null && request.WebSeeds.Count > 0)
+            var cleanWebSeeds = request.WebSeeds != null && request.WebSeeds.Count > 0
+                ? request.WebSeeds.Where(w => !string.IsNullOrWhiteSpace(w)).Select(w => w.Trim()).ToList()
+                : new List<string>();
+
+            if (cleanWebSeeds.Count > 0)
             {
-                creator.GetrightHttpSeeds.AddRange(request.WebSeeds.Where(w => !string.IsNullOrWhiteSpace(w)).Select(w => w.Trim()));
+                creator.GetrightHttpSeeds.AddRange(cleanWebSeeds);
             }
 
             using var ms = new MemoryStream();
             await creator.CreateAsync(fileSource, ms, cancellationToken);
             var bytes = ms.ToArray();
+
+            var bDict = BEncodedValue.Decode<BEncodedDictionary>(bytes);
+            var modified = false;
+
+            if (cleanWebSeeds.Count > 0)
+            {
+                var urlList = new BEncodedList();
+                foreach (var ws in cleanWebSeeds)
+                {
+                    urlList.Add(new BEncodedString(ws));
+                }
+
+                bDict[(BEncodedString)"url-list"] = urlList;
+                modified = true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Source))
+            {
+                var sourceStr = new BEncodedString(request.Source.Trim());
+                if (bDict.TryGetValue((BEncodedString)"info", out var infoVal) && infoVal is BEncodedDictionary infoDict)
+                {
+                    infoDict[(BEncodedString)"source"] = sourceStr;
+                }
+
+                bDict[(BEncodedString)"source"] = sourceStr;
+                modified = true;
+            }
+
+            if (modified)
+            {
+                bytes = bDict.Encode();
+            }
+
             var parsed = MonoTorrent.Torrent.Load(bytes);
 
             string outputPath = null;

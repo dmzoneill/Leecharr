@@ -20,7 +20,11 @@ public class TorrentCreationRequest
 
     public List<string> Trackers { get; set; } = new();
 
+    public List<List<string>> TrackerTiers { get; set; } = new();
+
     public List<string> WebSeeds { get; set; } = new();
+
+    public string Source { get; set; }
 
     public string OutputPath { get; set; }
 }

@@ -1291,6 +1291,22 @@ public class TransmissionRpcController : ControllerBase
         var editDate = t.LastActive.HasValue ? new DateTimeOffset(t.LastActive.Value).ToUnixTimeSeconds() : addedDate;
         var isError = t.Status == TorrentStatus.Error;
 
+        var swarmPeers = downloadTask?.GetPeers() ?? Array.Empty<PeerInfo>();
+        var fromDht = swarmPeers.Count(p => p.FromDht);
+        var fromPex = swarmPeers.Count(p => p.FromPex);
+        var fromIncoming = swarmPeers.Count(p => p.IsIncoming);
+        var fromLpd = swarmPeers.Count(p => p.FromLpd);
+        var fromCache = swarmPeers.Count(p => p.FromCache);
+        var fromTracker = swarmPeers.Count(p => p.FromTracker);
+        if (swarmPeers.Count == 0 || (fromDht == 0 && fromPex == 0 && fromIncoming == 0 && fromLpd == 0 && fromCache == 0 && fromTracker == 0))
+        {
+            fromTracker = t.Seeders + t.Leechers;
+        }
+
+        var webSeeds = downloadTask?.WebSeeds != null && downloadTask.WebSeeds.Count > 0
+            ? downloadTask.WebSeeds.ToArray()
+            : Array.Empty<string>();
+
         var dict = new Dictionary<string, object>
         {
             { "id", t.Id },
@@ -1350,7 +1366,7 @@ public class TransmissionRpcController : ControllerBase
             { "fileStats", fileMapping.FileStats },
             { "priorities", fileMapping.Priorities },
             { "wanted", fileMapping.Wanted },
-            { "webseeds", Array.Empty<string>() },
+            { "webseeds", webSeeds },
             { "trackers", trackerMapping.Trackers },
             { "trackerStats", trackerMapping.TrackerStats },
             { "trackerList", trackerMapping.TrackerList },
@@ -1359,7 +1375,7 @@ public class TransmissionRpcController : ControllerBase
             { "metadataPercentComplete", 1.0 },
             { "torrentFile", string.Empty },
             { "peers", peersList },
-            { "peersFrom", new { fromCache = 0, fromDht = 0, fromIncoming = 0, fromLpd = 0, fromPex = 0, fromTracker = t.Seeders + t.Leechers } },
+            { "peersFrom", new { fromCache = fromCache, fromDht = fromDht, fromIncoming = fromIncoming, fromLpd = fromLpd, fromPex = fromPex, fromTracker = fromTracker } },
             { "pieceCount", pieceCount },
             { "pieceSize", pieceLength },
             { "pieces", piecesBase64 },

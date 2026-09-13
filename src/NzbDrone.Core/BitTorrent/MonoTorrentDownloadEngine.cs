@@ -1794,6 +1794,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     {
         if (this.tasks.TryGetValue(torrentId, out var task))
         {
+            task.SequentialDownload = enabled;
             this.logger.Info("Updated sequential download for torrent {0}: {1}", torrentId, enabled);
         }
 
@@ -1804,6 +1805,28 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     {
         if (this.tasks.TryGetValue(torrentId, out var task))
         {
+            task.FirstLastPiecePriority = enabled;
+            if (task.Picker != null)
+            {
+                var pieceCount = task.Picker.PieceCount;
+                if (pieceCount > 0)
+                {
+                    var headCount = Math.Max(1, Math.Min(4, pieceCount / 10));
+                    var tailCount = Math.Max(1, Math.Min(2, pieceCount / 20));
+                    var priority = enabled ? 3 : 1;
+
+                    for (var i = 0; i < headCount && i < pieceCount; i++)
+                    {
+                        task.Picker.SetPiecePriority(i, priority);
+                    }
+
+                    for (var i = Math.Max(0, pieceCount - tailCount); i < pieceCount; i++)
+                    {
+                        task.Picker.SetPiecePriority(i, priority);
+                    }
+                }
+            }
+
             this.logger.Info("Updated first/last piece priority for torrent {0}: {1}", torrentId, enabled);
         }
 
@@ -3599,6 +3622,10 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
     public PiecePicker Picker { get; private set; }
 
+    public bool SequentialDownload { get; set; }
+
+    public bool FirstLastPiecePriority { get; set; }
+
     private class PeerActivityState
     {
         public long LastReceivedBytes { get; set; }
@@ -3632,6 +3659,29 @@ public class MonoTorrentDownloadTask : IDownloadTask
     public string WorkingPath { get; set; }
 
     public string SavePath { get; set; }
+
+    public IReadOnlyList<string> WebSeeds
+    {
+        get
+        {
+            var seeds = this.Manager?.Torrent?.HttpSeeds ?? this.initialTorrent?.HttpSeeds;
+            if (seeds == null || seeds.Count == 0)
+            {
+                return Array.Empty<string>();
+            }
+
+            var list = new List<string>();
+            foreach (var seed in seeds)
+            {
+                if (seed != null)
+                {
+                    list.Add(seed.ToString());
+                }
+            }
+
+            return list;
+        }
+    }
 
     public MonoTorrentDownloadTask(
         int torrentId,
@@ -4301,37 +4351,43 @@ public class MonoTorrentDownloadTask : IDownloadTask
                 var flags = string.Empty;
                 if (isSnubbed)
                 {
-                    flags += p.IsChoking ? "S" : "s";
+                    flags += "S";
                 }
 
                 if (p.AmInterested)
                 {
                     flags += p.IsChoking ? "d" : "D";
                 }
+                else if (!p.IsChoking)
+                {
+                    flags += "K";
+                }
 
                 if (p.IsInterested)
                 {
                     flags += p.AmChoking ? "u" : "U";
                 }
-
-                if (p.AmInterested)
+                else if (!p.AmChoking)
                 {
-                    flags += "I";
+                    flags += "k";
                 }
 
                 if (p.AmChoking)
                 {
                     flags += "C";
                 }
-
-                if (p.IsInterested)
-                {
-                    flags += "i";
-                }
-
-                if (p.IsChoking)
+                else
                 {
                     flags += "c";
+                }
+
+                if (p.AmInterested)
+                {
+                    flags += "I";
+                }
+                else
+                {
+                    flags += "i";
                 }
 
                 var isEncrypted = p.EncryptionType != MonoTorrent.Connections.EncryptionType.PlainText;
