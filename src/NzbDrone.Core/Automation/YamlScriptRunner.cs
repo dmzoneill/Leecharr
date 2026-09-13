@@ -34,7 +34,7 @@ public class YamlScriptRunner : IScriptRunner
         var result = new AutomationExecutionResult();
         var logBuilder = new StringBuilder();
         var sw = Stopwatch.StartNew();
-        var systemContext = new ScriptSystemContext(_commandQueue);
+        var systemContext = new ScriptSystemContext(_commandQueue, result);
 
         try
         {
@@ -238,6 +238,115 @@ public class YamlScriptRunner : IScriptRunner
                             logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] runCommand: {cmd}");
                         }
 
+                        if (action.TryGetValue("sendNotification", out var notifObj) && notifObj != null)
+                        {
+                            if (notifObj is Dictionary<object, object> nDict)
+                            {
+                                var nTitle = SubstituteVariables(nDict.TryGetValue("title", out var tVal) ? tVal?.ToString() ?? string.Empty : "Automation Alert", variableContext);
+                                var nMsg = SubstituteVariables(nDict.TryGetValue("message", out var mVal) ? mVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                                var nProv = nDict.TryGetValue("provider", out var pVal) ? SubstituteVariables(pVal?.ToString() ?? string.Empty, variableContext) : null;
+                                systemContext.sendNotification(nTitle, nMsg, nProv);
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] sendNotification: {nTitle} (provider: {nProv ?? "all"})");
+                            }
+                            else
+                            {
+                                var nMsg = SubstituteVariables(notifObj.ToString()!, variableContext);
+                                systemContext.sendNotification("Automation Alert", nMsg);
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] sendNotification: {nMsg}");
+                            }
+                        }
+
+                        if (action.TryGetValue("notifyArr", out var arrObj) || action.TryGetValue("syncArr", out arrObj))
+                        {
+                            if (arrObj is Dictionary<object, object> aDict)
+                            {
+                                var appType = aDict.TryGetValue("appType", out var atVal) ? SubstituteVariables(atVal?.ToString() ?? string.Empty, variableContext) : null;
+                                int? instId = null;
+                                if (aDict.TryGetValue("instanceId", out var idVal) && int.TryParse(idVal?.ToString(), out var parsedId))
+                                {
+                                    instId = parsedId;
+                                }
+
+                                systemContext.notifyArr(appType, instId);
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] notifyArr: appType={appType ?? "all"}, instanceId={instId?.ToString() ?? "all"}");
+                            }
+                            else if (arrObj is string arrStr && !string.IsNullOrWhiteSpace(arrStr) && !arrStr.Equals("true", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var appType = SubstituteVariables(arrStr, variableContext);
+                                systemContext.notifyArr(appType);
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] notifyArr: {appType}");
+                            }
+                            else
+                            {
+                                systemContext.notifyArr();
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] notifyArr: all");
+                            }
+                        }
+
+                        if (action.TryGetValue("runScript", out var scriptObj) && scriptObj != null)
+                        {
+                            if (scriptObj is Dictionary<object, object> sDict)
+                            {
+                                var path = SubstituteVariables(sDict.TryGetValue("path", out var pVal) ? pVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                                var timeout = sDict.TryGetValue("timeout", out var toVal) && int.TryParse(toVal?.ToString(), out var toParsed) ? toParsed : 60;
+                                var argsObj = sDict.TryGetValue("args", out var aVal) ? aVal : null;
+                                systemContext.runScript(path, argsObj, timeout);
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] runScript: {path} (timeout={timeout}s)");
+                            }
+                            else
+                            {
+                                var path = SubstituteVariables(scriptObj.ToString()!, variableContext);
+                                systemContext.runScript(path);
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] runScript: {path}");
+                            }
+                        }
+
+                        if (action.TryGetValue("delay", out var delayVal) || action.TryGetValue("sleep", out delayVal))
+                        {
+                            var dStr = SubstituteVariables(delayVal?.ToString() ?? "1", variableContext);
+                            if (int.TryParse(dStr, out var dSec))
+                            {
+                                systemContext.delay(dSec);
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] delay: {dSec}s");
+                            }
+                        }
+
+                        if (action.TryGetValue("log", out var logVal) && logVal != null)
+                        {
+                            if (logVal is Dictionary<object, object> lDict)
+                            {
+                                var msg = SubstituteVariables(lDict.TryGetValue("message", out var mVal) ? mVal?.ToString() ?? string.Empty : string.Empty, variableContext);
+                                var lvl = lDict.TryGetValue("level", out var lvlVal) ? lvlVal?.ToString() ?? "info" : "info";
+                                systemContext.log(msg, lvl);
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] log ({lvl}): {msg}");
+                            }
+                            else
+                            {
+                                var msg = SubstituteVariables(logVal.ToString()!, variableContext);
+                                systemContext.log(msg);
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] log: {msg}");
+                            }
+                        }
+
+                        if (action.TryGetValue("setVariable", out var setVarObj) && setVarObj is Dictionary<object, object> svDict)
+                        {
+                            var vKey = svDict.TryGetValue("key", out var kVal) ? kVal?.ToString() : null;
+                            var vVal = svDict.TryGetValue("value", out var valVal) ? SubstituteVariables(valVal?.ToString() ?? string.Empty, variableContext) : string.Empty;
+                            if (!string.IsNullOrWhiteSpace(vKey))
+                            {
+                                variableContext[vKey] = vVal;
+                                variableContext[$"variables.{vKey}"] = vVal;
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] setVariable: {vKey} = {vVal}");
+                            }
+                        }
+
+                        if (action.TryGetValue("stopPipeline", out var stopVal))
+                        {
+                            var reason = stopVal != null ? SubstituteVariables(stopVal.ToString()!, variableContext) : "Condition matched stop";
+                            systemContext.stopPipeline(reason);
+                            logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] stopPipeline: {reason}");
+                        }
+
                         if (torrentCtx != null)
                         {
                             if (action.TryGetValue("addTag", out var tagToAdd) && tagToAdd != null)
@@ -259,6 +368,144 @@ public class YamlScriptRunner : IScriptRunner
                                 var cat = SubstituteVariables(newCat.ToString()!, variableContext);
                                 torrentCtx.setCategory(cat);
                                 logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] setCategory: {cat}");
+                            }
+
+                            if (action.TryGetValue("setUploadLimit", out var upLimitVal) && upLimitVal != null)
+                            {
+                                var upStr = SubstituteVariables(upLimitVal.ToString()!, variableContext);
+                                if (int.TryParse(upStr, out var upLimit))
+                                {
+                                    torrentCtx.setUploadLimit(upLimit);
+                                    logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] setUploadLimit: {upLimit} KB/s");
+                                }
+                            }
+
+                            if (action.TryGetValue("setDownloadLimit", out var dlLimitVal) && dlLimitVal != null)
+                            {
+                                var dlStr = SubstituteVariables(dlLimitVal.ToString()!, variableContext);
+                                if (int.TryParse(dlStr, out var dlLimit))
+                                {
+                                    torrentCtx.setDownloadLimit(dlLimit);
+                                    logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] setDownloadLimit: {dlLimit} KB/s");
+                                }
+                            }
+
+                            if (action.TryGetValue("setRatioLimit", out var ratioVal) && ratioVal != null)
+                            {
+                                var rStr = SubstituteVariables(ratioVal.ToString()!, variableContext);
+                                if (double.TryParse(rStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var rLimit))
+                                {
+                                    torrentCtx.setRatioLimit(rLimit);
+                                    logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] setRatioLimit: {rLimit:F2}");
+                                }
+                            }
+
+                            if (action.TryGetValue("setSeedingTimeLimit", out var seedTimeVal) && seedTimeVal != null)
+                            {
+                                var stStr = SubstituteVariables(seedTimeVal.ToString()!, variableContext);
+                                if (int.TryParse(stStr, out var stMinutes))
+                                {
+                                    torrentCtx.setSeedingTimeLimit(stMinutes);
+                                    logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] setSeedingTimeLimit: {stMinutes} min");
+                                }
+                            }
+
+                            if (action.TryGetValue("setPriority", out var prioVal) && prioVal != null)
+                            {
+                                var prioStr = SubstituteVariables(prioVal.ToString()!, variableContext);
+                                torrentCtx.setPriority(prioStr);
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] setPriority: {prioStr}");
+                            }
+
+                            if (action.TryGetValue("setSequentialDownload", out var seqVal) || action.TryGetValue("setSequential", out seqVal))
+                            {
+                                var isSeq = seqVal is true || seqVal?.ToString()?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+                                torrentCtx.setSequential(isSeq);
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] setSequentialDownload: {isSeq}");
+                            }
+
+                            if (action.TryGetValue("setSuperSeeding", out var ssVal))
+                            {
+                                var isSs = ssVal is true || ssVal?.ToString()?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+                                torrentCtx.setSuperSeeding(isSs);
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] setSuperSeeding: {isSs}");
+                            }
+
+                            if (action.TryGetValue("moveFiles", out var moveDest) || action.TryGetValue("setSavePath", out moveDest))
+                            {
+                                if (moveDest != null)
+                                {
+                                    var dest = SubstituteVariables(moveDest.ToString()!, variableContext);
+                                    torrentCtx.moveFiles(dest);
+                                    logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] moveFiles: {dest}");
+                                }
+                            }
+
+                            if (action.TryGetValue("addTracker", out var trkToAdd) && trkToAdd != null)
+                            {
+                                var trk = SubstituteVariables(trkToAdd.ToString()!, variableContext);
+                                torrentCtx.addTracker(trk);
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] addTracker: {trk}");
+                            }
+
+                            if (action.TryGetValue("removeTracker", out var trkToRemove) && trkToRemove != null)
+                            {
+                                var trk = SubstituteVariables(trkToRemove.ToString()!, variableContext);
+                                torrentCtx.removeTracker(trk);
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] removeTracker: {trk}");
+                            }
+
+                            if (action.ContainsKey("boostTracker"))
+                            {
+                                torrentCtx.boostTracker();
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] boostTracker");
+                            }
+
+                            if (action.TryGetValue("banPeer", out var peerIp) && peerIp != null)
+                            {
+                                var ip = SubstituteVariables(peerIp.ToString()!, variableContext);
+                                torrentCtx.banPeer(ip);
+                                logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] banPeer: {ip}");
+                            }
+
+                            if (action.TryGetValue("extractArchive", out var extractVal))
+                            {
+                                if (extractVal is Dictionary<object, object> extDict)
+                                {
+                                    var dest = extDict.TryGetValue("destination", out var dVal) ? SubstituteVariables(dVal?.ToString() ?? string.Empty, variableContext) : null;
+                                    var del = extDict.TryGetValue("deleteArchive", out var daVal) && (daVal is true || daVal?.ToString()?.Equals("true", StringComparison.OrdinalIgnoreCase) == true);
+                                    torrentCtx.extractArchive(dest, del);
+                                    logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] extractArchive (dest: {dest ?? "default"}, delete: {del})");
+                                }
+                                else
+                                {
+                                    torrentCtx.extractArchive();
+                                    logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] extractArchive");
+                                }
+                            }
+
+                            if (action.TryGetValue("cleanUnwantedFiles", out var cleanVal) && cleanVal != null)
+                            {
+                                if (cleanVal is IEnumerable<object> cleanList)
+                                {
+                                    var patterns = new List<string>();
+                                    foreach (var c in cleanList)
+                                    {
+                                        if (c != null)
+                                        {
+                                            patterns.Add(SubstituteVariables(c.ToString()!, variableContext));
+                                        }
+                                    }
+
+                                    torrentCtx.cleanUnwantedFiles(patterns.ToArray());
+                                    logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] cleanUnwantedFiles: {string.Join(", ", patterns)}");
+                                }
+                                else
+                                {
+                                    var cleanStr = SubstituteVariables(cleanVal.ToString()!, variableContext);
+                                    torrentCtx.cleanFiles(cleanStr);
+                                    logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] cleanUnwantedFiles: {cleanStr}");
+                                }
                             }
 
                             if (action.ContainsKey("pause"))
@@ -292,6 +539,17 @@ public class YamlScriptRunner : IScriptRunner
                                 logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] remove (deleteData: {deleteData})");
                             }
                         }
+
+                        if (result.ShouldStopPipeline)
+                        {
+                            break;
+                        }
+                    }
+
+                    if (result.ShouldStopPipeline)
+                    {
+                        logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [STOP] Pipeline halted: {result.StopReason ?? "Stop requested"}");
+                        break;
                     }
                 }
             }

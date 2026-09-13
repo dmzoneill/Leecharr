@@ -111,6 +111,132 @@ public class ScriptTorrentContext
         _result.NewDownloadLimitKbps = limitKbps;
     }
 
+    public void setRatioLimit(double ratio)
+    {
+        _result.NewRatioLimit = ratio;
+    }
+
+    public void setSeedingTimeLimit(int minutes)
+    {
+        _result.NewSeedingTimeLimitMinutes = minutes;
+    }
+
+    public void setPriority(int priority)
+    {
+        _result.NewPriority = priority;
+    }
+
+    public void setPriority(string priority)
+    {
+        if (int.TryParse(priority, out var pInt))
+        {
+            _result.NewPriority = pInt;
+        }
+        else if (string.Equals(priority, "high", System.StringComparison.OrdinalIgnoreCase))
+        {
+            _result.NewPriority = 2;
+        }
+        else if (string.Equals(priority, "low", System.StringComparison.OrdinalIgnoreCase))
+        {
+            _result.NewPriority = 0;
+        }
+        else if (string.Equals(priority, "donotdownload", System.StringComparison.OrdinalIgnoreCase) || string.Equals(priority, "off", System.StringComparison.OrdinalIgnoreCase))
+        {
+            _result.NewPriority = -1;
+        }
+        else
+        {
+            _result.NewPriority = 1; // Normal
+        }
+    }
+
+    public void setSequential(bool enabled = true)
+    {
+        _result.NewSequentialDownload = enabled;
+    }
+
+    public void setSequentialDownload(bool enabled = true)
+    {
+        _result.NewSequentialDownload = enabled;
+    }
+
+    public void setSuperSeeding(bool enabled = true)
+    {
+        _result.NewSuperSeeding = enabled;
+    }
+
+    public void moveFiles(string destination)
+    {
+        if (!string.IsNullOrWhiteSpace(destination))
+        {
+            _result.NewSavePath = destination.Trim();
+        }
+    }
+
+    public void setSavePath(string destination)
+    {
+        moveFiles(destination);
+    }
+
+    public void addTracker(string trackerUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(trackerUrl) && !_result.TrackersToAdd.Contains(trackerUrl.Trim()))
+        {
+            _result.TrackersToAdd.Add(trackerUrl.Trim());
+        }
+    }
+
+    public void removeTracker(string pattern)
+    {
+        if (!string.IsNullOrWhiteSpace(pattern) && !_result.TrackersToRemove.Contains(pattern.Trim()))
+        {
+            _result.TrackersToRemove.Add(pattern.Trim());
+        }
+    }
+
+    public void boostTracker()
+    {
+        _result.ShouldBoostTracker = true;
+    }
+
+    public void banPeer(string ip)
+    {
+        if (!string.IsNullOrWhiteSpace(ip) && !_result.PeersToBan.Contains(ip.Trim()))
+        {
+            _result.PeersToBan.Add(ip.Trim());
+        }
+    }
+
+    public void extractArchive(string? destination = null, bool deleteArchive = false)
+    {
+        _result.ShouldExtractArchive = true;
+        _result.ExtractDestination = destination;
+        _result.DeleteArchiveOnExtract = deleteArchive;
+    }
+
+    public void cleanUnwantedFiles(params string[] patterns)
+    {
+        if (patterns != null)
+        {
+            foreach (var p in patterns)
+            {
+                if (!string.IsNullOrWhiteSpace(p) && !_result.CleanFilePatterns.Contains(p.Trim()))
+                {
+                    _result.CleanFilePatterns.Add(p.Trim());
+                }
+            }
+        }
+    }
+
+    public void cleanFiles(string patterns)
+    {
+        if (!string.IsNullOrWhiteSpace(patterns))
+        {
+            var parts = patterns.Split(new[] { ',', ';', ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+            cleanUnwantedFiles(parts);
+        }
+    }
+
     public void recheck()
     {
         _result.ShouldRecheck = true;
