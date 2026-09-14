@@ -1,0 +1,15 @@
+<Config>
+  <Port>9696</Port>
+  <UrlBase></UrlBase>
+  <BindAddress>*</BindAddress>
+  <SslPort>9899</SslPort>
+  <EnableSsl>False</EnableSsl>
+  <ApiKey>3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f</ApiKey>
+  <AuthenticationMethod>External</AuthenticationMethod>
+  <AuthenticationRequired>DisabledForLocalAddresses</AuthenticationRequired>
+  <Branch>master</Branch>
+  <LogLevel>info</LogLevel>
+  <SslCertPath></SslCertPath>
+  <SslKeyPath></SslKeyPath>
+  <SslCertPassword></SslCertPassword>
+</Config>
