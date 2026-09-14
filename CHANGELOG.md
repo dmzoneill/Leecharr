@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.12.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.12.0) - 2026-09-14
+
 ## [v1.11.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.11.1) - 2026-09-14
 
 ### 🐛 Bug Fixes
