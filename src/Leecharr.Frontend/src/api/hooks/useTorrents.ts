@@ -350,26 +350,75 @@ export function useMoveTorrentQueue() {
   });
 }
 
-export function useStartSeeding() {
+export function useResumeTorrent() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => apiClient.post(`/seeding/start/${id}`),
-    onSuccess: () => {
+    mutationFn: (id: number) =>
+      apiClient.post<Torrent>(`/torrents/${id}/resume`),
+    onSuccess: (data, id) => {
+      if (data && typeof data === "object" && data.id) {
+        useTorrentStore.getState().updateTelemetry([
+          {
+            id: data.id,
+            status: data.status,
+            progress: data.progress,
+            downloadSpeed: data.downloadSpeed,
+            uploadSpeed: data.uploadSpeed,
+          },
+        ]);
+      } else {
+        useTorrentStore.getState().updateTelemetry([
+          {
+            id,
+            status: "downloading",
+          },
+        ]);
+      }
       queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      queryClient.invalidateQueries({ queryKey: ["torrents", id] });
       queryClient.invalidateQueries({ queryKey: ["seeding"] });
     },
   });
 }
 
-export function useStopSeeding() {
+export function usePauseTorrent() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => apiClient.post(`/seeding/stop/${id}`),
-    onSuccess: () => {
+    mutationFn: (id: number) =>
+      apiClient.post<Torrent>(`/torrents/${id}/pause`),
+    onSuccess: (data, id) => {
+      if (data && typeof data === "object" && data.id) {
+        useTorrentStore.getState().updateTelemetry([
+          {
+            id: data.id,
+            status: data.status,
+            downloadSpeed: 0,
+            uploadSpeed: 0,
+          },
+        ]);
+      } else {
+        useTorrentStore.getState().updateTelemetry([
+          {
+            id,
+            status: "paused",
+            downloadSpeed: 0,
+            uploadSpeed: 0,
+          },
+        ]);
+      }
       queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      queryClient.invalidateQueries({ queryKey: ["torrents", id] });
       queryClient.invalidateQueries({ queryKey: ["seeding"] });
     },
   });
+}
+
+export function useStartSeeding() {
+  return useResumeTorrent();
+}
+
+export function useStopSeeding() {
+  return usePauseTorrent();
 }
 
 export function useStartAllSeeding() {
