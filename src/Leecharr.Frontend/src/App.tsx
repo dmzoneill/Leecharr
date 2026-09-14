@@ -378,7 +378,13 @@ export function App() {
       if (isInput) return;
 
       // Quick settings drawer toggle: 'q' / 'Q'
-      if ((e.key === "q" || e.key === "Q") && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+      if (
+        (e.key === "q" || e.key === "Q") &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        !e.shiftKey
+      ) {
         e.preventDefault();
         window.dispatchEvent(new CustomEvent("toggle-quick-settings"));
         return;
@@ -568,8 +574,14 @@ export function App() {
         msg.name === "AutomationTriggerEvaluated" ||
         msg.name?.toLowerCase().includes("automation")
       ) {
-        if (msg.name?.toLowerCase().includes("automation") || msg.name === "AutomationExecuted" || msg.name === "AutomationTriggerEvaluated") {
-          queryClient.invalidateQueries({ queryKey: ["automation", "scripts"] });
+        if (
+          msg.name?.toLowerCase().includes("automation") ||
+          msg.name === "AutomationExecuted" ||
+          msg.name === "AutomationTriggerEvaluated"
+        ) {
+          queryClient.invalidateQueries({
+            queryKey: ["automation", "scripts"],
+          });
           queryClient.invalidateQueries({ queryKey: ["automation"] });
         }
         if (
@@ -629,7 +641,26 @@ export function App() {
 
   const handlePause = async (id: number) => {
     try {
-      await api.pauseTorrent(id);
+      const res = await api.pauseTorrent(id);
+      if (res && res.id) {
+        useTorrentStore.getState().updateTelemetry([
+          {
+            id: res.id,
+            status: res.status,
+            downloadSpeed: 0,
+            uploadSpeed: 0,
+          },
+        ]);
+      } else {
+        useTorrentStore.getState().updateTelemetry([
+          {
+            id,
+            status: "paused",
+            downloadSpeed: 0,
+            uploadSpeed: 0,
+          },
+        ]);
+      }
       showToast("Torrent paused", "info");
       refreshServerData();
     } catch (err: unknown) {
@@ -639,7 +670,25 @@ export function App() {
 
   const handleResume = async (id: number) => {
     try {
-      await api.resumeTorrent(id);
+      const res = await api.resumeTorrent(id);
+      if (res && res.id) {
+        useTorrentStore.getState().updateTelemetry([
+          {
+            id: res.id,
+            status: res.status,
+            progress: res.progress,
+            downloadSpeed: res.downloadSpeed,
+            uploadSpeed: res.uploadSpeed,
+          },
+        ]);
+      } else {
+        useTorrentStore.getState().updateTelemetry([
+          {
+            id,
+            status: "downloading",
+          },
+        ]);
+      }
       showToast("Torrent resumed", "success");
       refreshServerData();
     } catch (err: unknown) {

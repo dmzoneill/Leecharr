@@ -150,63 +150,30 @@ export function TorrentToolbar({
         <h1 className="page-heading">
           {t("nav.torrents")} ({count})
         </h1>
-        <button
-          type="button"
-          className="btn btn-success"
-          onClick={onAddTorrent}
-        >
-          <PlusIcon size={13} /> {t("modals.addTorrent")}
-        </button>
-        {onSearchIndexers && (
-          <button
-            type="button"
-            className="btn btn-outline"
-            onClick={onSearchIndexers}
-            style={{ fontSize: "0.82rem" }}
-          >
-            🔍 {t("modals.indexerSearch")}
-          </button>
-        )}
-        {onToggleQuickSettings && (
-          <button
-            type="button"
-            className={`btn ${showQuickSettings ? "btn-primary" : "btn-outline"}`}
-            onClick={onToggleQuickSettings}
-            style={{
-              fontSize: "0.82rem",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "5px",
-            }}
-            title={t("torrents.toolbar.toggleQuickSettings")}
-          >
-            <SlidersIcon size={13} /> {t("settings.general")}
-          </button>
-        )}
-        {selectedCount > 0 && (
+        {selectedCount > 0 ? (
           <div className="bulk-actions">
             <span className="bulk-actions-count">
               {t("filebrowser.selectedCount", { count: selectedCount })}
             </span>
             <button
               type="button"
-              className="btn btn-small btn-success"
+              className="btn btn-success"
               onClick={onBulkStart}
               disabled={bulkPending}
             >
-              <PlayIcon size={12} /> {t("torrents.actions.resume")}
+              <PlayIcon size={13} /> {t("torrents.actions.resume")}
             </button>
             <button
               type="button"
-              className="btn btn-small"
+              className="btn btn-outline"
               onClick={onBulkStop}
               disabled={bulkPending}
             >
-              <StopIcon size={12} /> {t("torrents.actions.pause")}
+              <StopIcon size={13} /> {t("torrents.actions.pause")}
             </button>
             <button
               type="button"
-              className="btn btn-small btn-danger"
+              className="btn btn-danger"
               onClick={onBulkDelete}
               disabled={bulkPending}
             >
@@ -214,13 +181,49 @@ export function TorrentToolbar({
             </button>
             <button
               type="button"
-              className="btn btn-small"
+              className="btn btn-outline"
               onClick={onBulkClear}
               disabled={bulkPending}
             >
               {t("common.reset")}
             </button>
           </div>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="btn btn-success"
+              onClick={onAddTorrent}
+            >
+              <PlusIcon size={13} /> {t("modals.addTorrent")}
+            </button>
+            {onSearchIndexers && (
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={onSearchIndexers}
+                style={{ fontSize: "0.82rem" }}
+              >
+                🔍 {t("modals.indexerSearch")}
+              </button>
+            )}
+            {onToggleQuickSettings && (
+              <button
+                type="button"
+                className={`btn ${showQuickSettings ? "btn-primary" : "btn-outline"}`}
+                onClick={onToggleQuickSettings}
+                style={{
+                  fontSize: "0.82rem",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "5px",
+                }}
+                title={t("torrents.toolbar.toggleQuickSettings")}
+              >
+                <SlidersIcon size={13} /> {t("settings.general")}
+              </button>
+            )}
+          </>
         )}
       </div>
       <div className="page-header-actions">
