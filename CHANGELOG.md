@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.12.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.12.2) - 2026-09-14
+
+### 🐛 Bug Fixes
+- fix(engine): support partial season pack completion recheck and expand candidate path resolution in CalculatePieceHashDirectAsync
+
 ## [v1.12.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.12.1) - 2026-09-14
 
 ### 🐛 Bug Fixes
