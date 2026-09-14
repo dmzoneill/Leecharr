@@ -41,11 +41,9 @@ RUN dotnet publish src/NzbDrone.Console/Leecharr.Console.csproj \
     --no-restore && \
     rm -rf /app/runtimes/win* /app/runtimes/osx* /app/runtimes/maccatalyst* /app/runtimes/browser-wasm /app/clidriver
 
-# Install coverage tools in build stage (has SDK) — only when requested
+# Install coverage tools in build stage (has SDK)
 RUN mkdir -p /root/.dotnet/tools && \
-    if [ "$COVERAGE_TOOLS" = "true" ]; then \
-      dotnet tool install --global dotnet-coverage; \
-    fi
+    dotnet tool install --global dotnet-coverage
 
 # Stage 3: Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
