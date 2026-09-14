@@ -1123,7 +1123,9 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             }
 
             var task = this.downloadEngine.GetTask(id);
-            var newStatus = task?.Status ?? TorrentStatus.Checking;
+            var newStatus = task?.Status == TorrentStatus.QueuedForChecking
+                ? TorrentStatus.QueuedForChecking
+                : TorrentStatus.Checking;
             torrent.Status = newStatus;
             this.torrentRepository.Update(torrent);
             this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent { Torrent = torrent, OldStatus = old, NewStatus = newStatus });
@@ -1779,6 +1781,8 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             else
             {
                 torrent.Status = TorrentStatus.Seeding;
+                torrent.DownloadSpeed = 0;
+                torrent.Eta = 0;
                 this.torrentRepository.Update(torrent);
                 this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
                 {

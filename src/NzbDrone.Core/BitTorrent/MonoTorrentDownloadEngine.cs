@@ -1280,6 +1280,23 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             var completedDir = this.storagePathService.GetCompletedDirectory(task.Category);
             var candidatePaths = new List<string>();
 
+            var incompleteDir = this.storagePathService?.GetIncompleteDirectory();
+            if (!string.IsNullOrWhiteSpace(incompleteDir))
+            {
+                candidatePaths.Add(incompleteDir);
+            }
+
+            if (!string.IsNullOrWhiteSpace(completedDir))
+            {
+                candidatePaths.Add(completedDir);
+            }
+
+            var downloadDir = this.configService?.DownloadDir;
+            if (!string.IsNullOrWhiteSpace(downloadDir))
+            {
+                candidatePaths.Add(downloadDir);
+            }
+
             if (!string.IsNullOrWhiteSpace(task.WorkingPath))
             {
                 candidatePaths.Add(task.WorkingPath);
@@ -1300,12 +1317,18 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 }
             }
 
-            if (!string.IsNullOrWhiteSpace(completedDir))
+            if (!string.IsNullOrWhiteSpace(manager.SavePath))
             {
-                candidatePaths.Add(completedDir);
+                candidatePaths.Add(manager.SavePath);
+                var parentDir = Path.GetDirectoryName(manager.SavePath);
+                if (!string.IsNullOrWhiteSpace(parentDir))
+                {
+                    candidatePaths.Add(parentDir);
+                }
             }
 
             string matchedSavePath = null;
+            long maxExistingBytes = 0;
             var filePaths = new List<string>();
             if (manager.Torrent?.Files != null)
             {
@@ -1322,22 +1345,43 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 }
             }
 
+            var isMultiFile = (manager.Torrent != null && manager.Torrent.Files.Count > 1) ||
+                              (manager.Files != null && manager.Files.Count > 1);
+
             foreach (var p in candidatePaths.Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                if (Directory.Exists(p))
+                if (!Directory.Exists(p))
                 {
-                    if (filePaths.Count > 0)
-                    {
-                        var anyFound = filePaths.Any(path =>
-                            File.Exists(Path.Combine(p, path)) ||
-                            File.Exists(Path.Combine(p, manager.Torrent?.Name ?? string.Empty, path)) ||
-                            File.Exists(Path.Combine(p, Path.GetFileName(path))));
+                    continue;
+                }
 
-                        if (anyFound)
+                if (filePaths.Count > 0)
+                {
+                    long totalBytes = 0;
+                    foreach (var path in filePaths)
+                    {
+                        var full = isMultiFile && !string.IsNullOrWhiteSpace(manager.Torrent?.Name)
+                            ? Path.Combine(p, manager.Torrent.Name, path)
+                            : Path.Combine(p, path);
+
+                        if (File.Exists(full))
                         {
-                            matchedSavePath = p;
-                            break;
+                            totalBytes += new FileInfo(full).Length;
                         }
+                        else if (File.Exists(full + ".!mt"))
+                        {
+                            totalBytes += new FileInfo(full + ".!mt").Length;
+                        }
+                        else if (File.Exists(full + ".incomplete"))
+                        {
+                            totalBytes += new FileInfo(full + ".incomplete").Length;
+                        }
+                    }
+
+                    if (totalBytes > maxExistingBytes)
+                    {
+                        maxExistingBytes = totalBytes;
+                        matchedSavePath = p;
                     }
                 }
             }
@@ -2015,7 +2059,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
                 if (e.NewState == TorrentState.Seeding)
                 {
-                    await this.OnTorrentCompletedAsync(torrentId, infoHash, manager).ConfigureAwait(false);
+                    if (this.tasks.TryGetValue(torrentId, out var activeTask) && !activeTask.IsFilesMovedToCompleted)
+                    {
+                        await this.OnTorrentCompletedAsync(torrentId, infoHash, manager).ConfigureAwait(false);
+                    }
                 }
             }
         }
@@ -2049,6 +2096,17 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         if (manager == null)
         {
             return;
+        }
+
+        if (existingTask != null)
+        {
+            if (existingTask.IsFilesMovedToCompleted)
+            {
+                this.logger.Debug("Torrent {0} ({1}) files already moved to completed directory; skipping duplicate completion move.", torrentId, torrentName);
+                return;
+            }
+
+            existingTask.IsFilesMovedToCompleted = true;
         }
 
         var wasRunning = manager.State is TorrentState.Downloading or TorrentState.Seeding or TorrentState.Starting;
@@ -2211,6 +2269,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
             if (moved && !string.IsNullOrWhiteSpace(finalDestination))
             {
+                if (existingTask != null)
+                {
+                    existingTask.IsFilesMovedToCompleted = true;
+                }
+
                 this.logger.Info("Moved completed torrent '{0}' from '{1}' to '{2}'", torrentName, sourcePath, finalDestination);
 
                 // Tell MonoTorrent the new save path so it continues seeding from the correct location.
@@ -2322,7 +2385,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             Name = torrentName,
             Status = TorrentStatus.Seeding,
             Category = category,
-            SavePath = finalDestination ?? manager.SavePath,
+            SavePath = manager.SavePath ?? targetCompletedDir ?? downloadDir ?? finalDestination,
         }));
     }
 
@@ -3952,6 +4015,8 @@ public class MonoTorrentDownloadTask : IDownloadTask
     public string WorkingPath { get; set; }
 
     public string SavePath { get; set; }
+
+    public bool IsFilesMovedToCompleted { get; set; }
 
     public IReadOnlyList<string> WebSeeds
     {
