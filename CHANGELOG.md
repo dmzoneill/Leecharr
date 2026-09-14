@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.11.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.11.0) - 2026-09-14
+
+### ✨ Features
+- feat(compose): use leecharr as dedicated download client in podman compose stack
+
+### 🐛 Bug Fixes
+- fix(compose): add prowlarr indexer and connection config with api key headers and error logging
+
 ## [v1.10.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.10.0) - 2026-09-14
 
 ### ✨ Features
