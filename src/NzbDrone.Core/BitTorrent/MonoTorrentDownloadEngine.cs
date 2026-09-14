@@ -2033,7 +2033,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
                 if (manager.Torrent != null && (e.OldState == TorrentState.Metadata || e.NewState == TorrentState.Downloading || e.NewState == TorrentState.Starting))
                 {
-                    var isComplete = manager.Complete ||
+                    var taskCompleted = this.tasks.TryGetValue(torrentId, out var activeT) && activeT.IsFilesMovedToCompleted;
+                    var isComplete = taskCompleted ||
+                                     manager.Complete ||
                                      (manager.Bitfield != null && manager.Bitfield.Length > 0 && manager.Bitfield.AllTrue) ||
                                      manager.Progress >= 99.99 ||
                                      e.NewState == TorrentState.Seeding;
@@ -3608,7 +3610,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         if (manager != null && (manager.Complete ||
                                 (manager.Bitfield != null && manager.Bitfield.Length > 0 && manager.Bitfield.AllTrue) ||
-                                manager.Progress >= 99.99))
+                                manager.Progress >= 99.99 ||
+                                (manager.InfoHashes?.V1OrV2 != null &&
+                                 this.infoHashToId.TryGetValue(manager.InfoHashes.V1OrV2.ToHex(), out var tId) &&
+                                 this.tasks.TryGetValue(tId, out var tTask) &&
+                                 tTask.IsFilesMovedToCompleted)))
         {
             return;
         }
