@@ -48,6 +48,8 @@ export interface TorrentDetailPanelProps {
   torrent?: Torrent | null;
   torrentId?: number | null;
   onClose: () => void;
+  onResume?: (id: number) => void;
+  onPause?: (id: number) => void;
 }
 
 const TAB_ICONS: Record<DetailTab, React.ReactNode> = {
@@ -163,6 +165,8 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
   torrent: initialTorrent,
   torrentId: initialTorrentId,
   onClose,
+  onResume,
+  onPause,
 }) => {
   const { t } = useTranslation();
   const targetId = initialTorrent?.id ?? initialTorrentId ?? 0;
@@ -213,7 +217,13 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
     );
   }
 
-  const isPaused = currentTorrent.status?.toLowerCase() === "paused";
+  const st = (
+    useTorrentStore.getState().telemetry[currentTorrent.id]?.status ??
+    currentTorrent.status ??
+    ""
+  ).toLowerCase();
+  const isActive =
+    st === "downloading" || st === "seeding" || st === "checking";
 
   return (
     <div className="detail-panel" ref={panelRef} style={{ height }}>
@@ -277,11 +287,17 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
         </div>
 
         <div className="detail-panel-actions">
-          {isPaused ? (
+          {!isActive ? (
             <button
               type="button"
               className="btn btn-small btn-success"
-              onClick={() => startSeeding.mutate(currentTorrent.id)}
+              onClick={() => {
+                if (onResume) {
+                  onResume(currentTorrent.id);
+                } else {
+                  startSeeding.mutate(currentTorrent.id);
+                }
+              }}
             >
               {t("torrents.actions.start")}
             </button>
@@ -289,7 +305,13 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
             <button
               type="button"
               className="btn btn-small btn-danger"
-              onClick={() => stopSeeding.mutate(currentTorrent.id)}
+              onClick={() => {
+                if (onPause) {
+                  onPause(currentTorrent.id);
+                } else {
+                  stopSeeding.mutate(currentTorrent.id);
+                }
+              }}
             >
               {t("torrents.actions.stop")}
             </button>

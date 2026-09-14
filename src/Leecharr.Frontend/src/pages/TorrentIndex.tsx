@@ -168,16 +168,27 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
   }, [torrents]);
 
-  const handleStartAll = () => {
-    torrents
-      .filter((t) => (t.status || "").toLowerCase() === "paused")
-      .forEach((t) => onResume(t.id));
+  const isTorrentActive = (t: Torrent) => {
+    const st = (
+      useTorrentStore.getState().telemetry[t.id]?.status ??
+      t.status ??
+      ""
+    ).toLowerCase();
+    return st === "downloading" || st === "seeding" || st === "checking";
   };
 
-  const handleStopAll = () => {
-    torrents
-      .filter((t) => (t.status || "").toLowerCase() !== "paused")
-      .forEach((t) => onPause(t.id));
+  const handleStartAll = async () => {
+    const inactive = torrents.filter((t) => !isTorrentActive(t));
+    if (inactive.length > 0) {
+      await Promise.all(inactive.map((t) => onResume(t.id)));
+    }
+  };
+
+  const handleStopAll = async () => {
+    const active = torrents.filter((t) => isTorrentActive(t));
+    if (active.length > 0) {
+      await Promise.all(active.map((t) => onPause(t.id)));
+    }
   };
 
   const handleToggleSelect = (id: number) => {
@@ -217,8 +228,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     }
     setBulkPending(true);
     try {
-      validSelectedIds.forEach((id) => onResume(id));
-      clearSelection();
+      await Promise.all(validSelectedIds.map((id) => onResume(id)));
     } finally {
       setBulkPending(false);
     }
@@ -236,8 +246,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     }
     setBulkPending(true);
     try {
-      validSelectedIds.forEach((id) => onPause(id));
-      clearSelection();
+      await Promise.all(validSelectedIds.map((id) => onPause(id)));
     } finally {
       setBulkPending(false);
     }
@@ -384,6 +393,8 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
                 torrent={currentSelectedTorrent}
                 torrentId={currentSelectedTorrent.id}
                 onClose={() => setSelectedTorrentId(null)}
+                onResume={onResume}
+                onPause={onPause}
               />
             )}
           </div>

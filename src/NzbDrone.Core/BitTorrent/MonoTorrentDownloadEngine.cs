@@ -1148,7 +1148,20 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         if (this.tasks.TryGetValue(torrentId, out var activeTask) && activeTask.Manager != null)
         {
             activeTask.ClearStorageFull(this.eventAggregator);
+            activeTask.ClearTrackerStalled(this.eventAggregator);
             await activeTask.Manager.StartAsync();
+            try
+            {
+                if (activeTask.Manager.TrackerManager != null)
+                {
+                    _ = activeTask.Manager.TrackerManager.AnnounceAsync(CancellationToken.None);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Failed to announce tracker on resume for torrent {0}", torrentId);
+            }
+
             this.logger.Info("Resumed torrent id {0}", torrentId);
         }
     }
@@ -1206,7 +1219,20 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 try
                 {
                     task.ClearStorageFull(this.eventAggregator);
+                    task.ClearTrackerStalled(this.eventAggregator);
                     await task.Manager.StartAsync();
+                    try
+                    {
+                        if (task.Manager.TrackerManager != null)
+                        {
+                            _ = task.Manager.TrackerManager.AnnounceAsync(CancellationToken.None);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Debug(ex, "Failed to announce tracker on resume for torrent {0}", task.TorrentId);
+                    }
+
                     this.logger.Info("Resumed torrent id {0}", task.TorrentId);
                 }
                 catch (Exception ex)
