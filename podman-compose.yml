@@ -36,8 +36,6 @@ services:
         condition: service_healthy
       prowlarr:
         condition: service_healthy
-      transmission:
-        condition: service_healthy
 
   sonarr:
     image: docker.io/linuxserver/sonarr:latest
@@ -116,33 +114,6 @@ services:
         aliases:
           - prowlarr.local
 
-  transmission:
-    image: docker.io/linuxserver/transmission:latest
-    container_name: transmission
-    hostname: transmission.local
-    ports:
-      - "9091:9091"
-      - "51413:51413"
-      - "51413:51413/udp"
-    volumes:
-      - ./config/transmission:/config:z
-      - ./data/downloads:/downloads:z
-    restart: unless-stopped
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=UTC
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9091/transmission/web/"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-    networks:
-      arr-network:
-        aliases:
-          - transmission.local
-
   configure:
     image: docker.io/curlimages/curl:latest
     container_name: arr-configure
@@ -154,8 +125,6 @@ services:
       radarr:
         condition: service_healthy
       prowlarr:
-        condition: service_healthy
-      transmission:
         condition: service_healthy
     environment:
       - LEECHARR_AUTH=${LEECHARR_AUTH:-}
@@ -172,7 +141,7 @@ services:
     command:
       - |
         set -e
-        echo "=== Configuring Leecharr *arr stack with fixed test API keys ==="
+        echo "=== Configuring Leecharr stack (Leecharr as Download Client) ==="
 
         get_api_key() {
           local config_path=$$1
@@ -333,27 +302,27 @@ services:
         add_prowlarr_app "Sonarr" "Sonarr" "http://sonarr.local:8989" "$$SONARR_KEY" "5000,5010,5020,5030,5040,5045"
         add_prowlarr_app "Radarr" "Radarr" "http://radarr.local:7878" "$$RADARR_KEY" "2000,2010,2020,2030,2040,2045"
 
-        # --- Add Transmission as download client in Sonarr & Radarr ---
-        add_download_client() {
+        # --- Add Leecharr as download client in Sonarr & Radarr (via Transmission RPC protocol) ---
+        add_leecharr_download_client() {
           local name=$$1 url=$$2 api_key=$$3 api_ver=$$4
-          existing=$$(curl -sf "$$url/api/$$api_ver/downloadclient" -H "X-Api-Key: $$api_key" 2>/dev/null | grep -c 'Transmission' || true)
+          existing=$$(curl -sf "$$url/api/$$api_ver/downloadclient" -H "X-Api-Key: $$api_key" 2>/dev/null | grep -c 'Leecharr' || true)
           if [ "$$existing" != "0" ]; then
-            echo "  $$name: Transmission already configured"
+            echo "  $$name: Leecharr download client already configured"
             return
           fi
-          echo "  Adding Transmission to $$name..."
+          echo "  Adding Leecharr download client to $$name..."
           code=$$(curl -s -o /tmp/dc_resp -w "%{http_code}" -X POST "$$url/api/$$api_ver/downloadclient" \
             -H "X-Api-Key: $$api_key" \
             -H "Content-Type: application/json" \
             -d '{
-              "name": "Transmission",
+              "name": "Leecharr",
               "implementation": "Transmission",
               "configContract": "TransmissionSettings",
               "enable": true,
               "priority": 1,
               "fields": [
-                {"name": "host", "value": "transmission.local"},
-                {"name": "port", "value": 9091},
+                {"name": "host", "value": "leecharr.local"},
+                {"name": "port", "value": 7889},
                 {"name": "useSsl", "value": false},
                 {"name": "urlBase", "value": "/transmission/rpc"}
               ]
@@ -366,9 +335,9 @@ services:
         }
 
         echo ""
-        echo "--- Adding Transmission download client ---"
-        add_download_client "Sonarr" "http://sonarr.local:8989" "$$SONARR_KEY" "v3"
-        add_download_client "Radarr" "http://radarr.local:7878" "$$RADARR_KEY" "v3"
+        echo "--- Adding Leecharr download client to *arr apps ---"
+        add_leecharr_download_client "Sonarr" "http://sonarr.local:8989" "$$SONARR_KEY" "v3"
+        add_leecharr_download_client "Radarr" "http://radarr.local:7878" "$$RADARR_KEY" "v3"
 
         # --- Connect Leecharr to Sonarr, Radarr & Prowlarr ---
         add_leecharr_connection() {
@@ -482,7 +451,6 @@ services:
         echo "  Sonarr:        http://localhost:8989 (API Key: $$SONARR_KEY)"
         echo "  Radarr:        http://localhost:7878 (API Key: $$RADARR_KEY)"
         echo "  Prowlarr:      http://localhost:9696 (API Key: $$PROWLARR_KEY)"
-        echo "  Transmission:  http://localhost:9091"
         echo "  Shared Media:  /downloads, /movies, /series"
 
 networks:
