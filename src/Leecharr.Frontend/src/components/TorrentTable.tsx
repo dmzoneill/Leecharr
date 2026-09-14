@@ -374,15 +374,28 @@ export const TorrentStatusCell: React.FC<{
     } else if (st === "checking" || st === "queued") {
       color = "var(--info, #38bdf8)";
       bg = "rgba(56, 189, 248, 0.15)";
+    } else if (
+      st === "queuedforchecking" ||
+      st === "checking_queued" ||
+      st === "queued_check"
+    ) {
+      color = "#f59e0b";
+      bg = "rgba(245, 158, 11, 0.15)";
     }
 
+    const isQueuedRecheck =
+      st === "queuedforchecking" ||
+      st === "checking_queued" ||
+      st === "queued_check";
     const statusLabel =
       st === "checking"
         ? `${t("torrentStatus.checking", "Checking")} (${(progress * 100).toFixed(1)}%)`
-        : t(
-            "torrentStatus." + (rawStatus || "idle").toLowerCase(),
-            rawStatus || "Idle",
-          );
+        : isQueuedRecheck
+          ? t("torrentStatus.queuedforchecking", "Queued for Recheck")
+          : t(
+              "torrentStatus." + (rawStatus || "idle").toLowerCase(),
+              rawStatus || "Idle",
+            );
 
     return (
       <span
@@ -1004,7 +1017,11 @@ interface TorrentTableRowProps {
   isSelected: boolean;
   isChecked: boolean;
   onSelect?: (torrent: Torrent) => void;
-  onRowClick?: (torrent: Torrent, index: number, event: React.MouseEvent) => void;
+  onRowClick?: (
+    torrent: Torrent,
+    index: number,
+    event: React.MouseEvent,
+  ) => void;
   onToggleSelect?: (id: number) => void;
   onContextMenu: (e: React.MouseEvent, torrent: Torrent | null) => void;
   historyByHash: Map<string, DownloadHistoryEntry>;
@@ -1032,14 +1049,20 @@ const TorrentTableRow = React.memo<TorrentTableRowProps>(
   }) => {
     const rowIndex = virtualRow?.index ?? idx;
 
-    const handleRowClick = useCallback((e: React.MouseEvent) => {
-      const telTorrent = applyTelemetry(t, useTorrentStore.getState().telemetry[t.id]);
-      if (onRowClick) {
-        onRowClick(telTorrent, rowIndex, e);
-      } else {
-        onSelect?.(telTorrent);
-      }
-    }, [onRowClick, onSelect, t, rowIndex]);
+    const handleRowClick = useCallback(
+      (e: React.MouseEvent) => {
+        const telTorrent = applyTelemetry(
+          t,
+          useTorrentStore.getState().telemetry[t.id],
+        );
+        if (onRowClick) {
+          onRowClick(telTorrent, rowIndex, e);
+        } else {
+          onSelect?.(telTorrent);
+        }
+      },
+      [onRowClick, onSelect, t, rowIndex],
+    );
 
     const handleRowContextMenu = useCallback(
       (e: React.MouseEvent) => {
@@ -1712,7 +1735,10 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
       }
 
       // Delete key
-      if (e.key === "Delete" || (e.key === "Backspace" && (e.metaKey || e.ctrlKey))) {
+      if (
+        e.key === "Delete" ||
+        (e.key === "Backspace" && (e.metaKey || e.ctrlKey))
+      ) {
         const targetIds =
           selectedIds.size > 0
             ? Array.from(selectedIds)

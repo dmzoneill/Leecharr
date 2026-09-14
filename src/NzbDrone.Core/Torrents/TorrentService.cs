@@ -1110,8 +1110,6 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         if (torrent != null)
         {
             var old = torrent.Status;
-            torrent.Status = TorrentStatus.Checking;
-            this.torrentRepository.Update(torrent);
             this.torrentLogService?.Log(id, "Info", "Engine", "Manual force recheck initiated. Verifying piece hashes on disk...");
 
             try
@@ -1124,7 +1122,11 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 this.torrentLogService?.Log(id, "Warn", "Engine", $"Recheck failed: {ex.Message}");
             }
 
-            this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent { Torrent = torrent, OldStatus = old, NewStatus = TorrentStatus.Checking });
+            var task = this.downloadEngine.GetTask(id);
+            var newStatus = task?.Status ?? TorrentStatus.Checking;
+            torrent.Status = newStatus;
+            this.torrentRepository.Update(torrent);
+            this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent { Torrent = torrent, OldStatus = old, NewStatus = newStatus });
         }
     }
 

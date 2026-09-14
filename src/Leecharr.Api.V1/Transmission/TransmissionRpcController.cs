@@ -1407,7 +1407,8 @@ public class TransmissionRpcController : ControllerBase
         {
             TorrentStatus.Stopped => 0,
             TorrentStatus.Paused => 0,
-            TorrentStatus.Checking => 2,
+            TorrentStatus.QueuedForChecking => 1,                  // TR_STATUS_CHECK_WAIT
+            TorrentStatus.Checking => 2,                           // TR_STATUS_CHECK
             TorrentStatus.Queued when torrent.Progress >= 1.0 => 5, // TR_STATUS_SEED_WAIT
             TorrentStatus.Queued => 3,                             // TR_STATUS_DOWNLOAD_WAIT
             TorrentStatus.Downloading => 4,

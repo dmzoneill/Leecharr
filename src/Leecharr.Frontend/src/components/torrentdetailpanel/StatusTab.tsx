@@ -18,14 +18,20 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
   const isSeeding = (torrent.status || "").toLowerCase() === "seeding";
   const isPaused = (torrent.status || "").toLowerCase() === "paused";
   const isError = (torrent.status || "").toLowerCase() === "error";
+  const isQueuedRecheck =
+    (torrent.status || "").toLowerCase() === "queuedforchecking" ||
+    (torrent.status || "").toLowerCase() === "checking_queued" ||
+    (torrent.status || "").toLowerCase() === "queued_check";
 
   const statusColor = isError
     ? "var(--danger, #ef4444)"
-    : isComplete || isSeeding
-      ? "var(--success, #22c55e)"
-      : isPaused
-        ? "var(--warning, #f59e0b)"
-        : "var(--accent, #ffd166)";
+    : isQueuedRecheck
+      ? "#f59e0b"
+      : isComplete || isSeeding
+        ? "var(--success, #22c55e)"
+        : isPaused
+          ? "var(--warning, #f59e0b)"
+          : "var(--accent, #ffd166)";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
@@ -39,7 +45,6 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
           backgroundColor: "var(--bg-secondary, rgba(255, 255, 255, 0.03))",
           borderRadius: "6px",
           border: "1px solid var(--border-light)",
-          alignItems: "center",
         }}
       >
         <div>
@@ -76,10 +81,13 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
                 textTransform: "capitalize",
               }}
             >
-              {t(
-                "torrentStatus." + (torrent.status || "unknown").toLowerCase(),
-                torrent.status || t("common.unknown", "Unknown"),
-              )}
+              {isQueuedRecheck
+                ? t("torrentStatus.queuedforchecking", "Queued for Recheck")
+                : t(
+                    "torrentStatus." +
+                      (torrent.status || "unknown").toLowerCase(),
+                    torrent.status || t("common.unknown", "Unknown"),
+                  )}
             </span>
           </div>
         </div>
@@ -189,8 +197,7 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
               padding: "0.5rem 0.8rem",
               backgroundColor: "var(--bg-secondary, rgba(255, 255, 255, 0.03))",
               borderRadius: "6px",
-              border:
-                "1px solid var(--border-light)",
+              border: "1px solid var(--border-light)",
             }}
           >
             <div
@@ -286,8 +293,7 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
               color: "var(--accent, #ffd166)",
               textTransform: "uppercase",
               letterSpacing: "0.05em",
-              borderBottom:
-                "1px solid var(--border-light)",
+              borderBottom: "1px solid var(--border-light)",
               paddingBottom: "0.25rem",
               marginBottom: "0.2rem",
             }}
@@ -346,8 +352,7 @@ export function StatusTab({ torrent }: { torrent: Torrent }) {
               color: "var(--accent, #ffd166)",
               textTransform: "uppercase",
               letterSpacing: "0.05em",
-              borderBottom:
-                "1px solid var(--border-light)",
+              borderBottom: "1px solid var(--border-light)",
               paddingBottom: "0.25rem",
               marginBottom: "0.2rem",
             }}

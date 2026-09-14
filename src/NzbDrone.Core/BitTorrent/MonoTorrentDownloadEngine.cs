@@ -1248,6 +1248,29 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
         {
             var manager = task.Manager;
+
+            var isAnotherHashing = this.tasks.Values.Any(t => t.TorrentId != torrentId && (t.Manager?.State == TorrentState.Hashing || t.Status == TorrentStatus.Checking));
+            if (isAnotherHashing)
+            {
+                task.IsQueuedForRecheck = true;
+                this.eventAggregator?.PublishEvent(new TorrentStatusChangedEvent
+                {
+                    Torrent = new CoreTorrent
+                    {
+                        Id = torrentId,
+                        InfoHash = task.InfoHash,
+                        Name = task.Manager.Torrent?.Name ?? task.InfoHash,
+                        Status = TorrentStatus.QueuedForChecking,
+                        Category = task.Category,
+                        SavePath = task.SavePath,
+                        Progress = task.Progress,
+                    },
+                    OldStatus = task.Status,
+                    NewStatus = TorrentStatus.QueuedForChecking,
+                });
+                this.logger.Info("Queued force recheck for torrent id {0} (another hash check is currently active)", torrentId);
+            }
+
             if (manager.State is not (TorrentState.Stopped or TorrentState.Paused))
             {
                 await manager.StopAsync().ConfigureAwait(false);
@@ -1966,10 +1989,20 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
                 if (e.NewState == TorrentState.Hashing)
                 {
+                    if (this.tasks.TryGetValue(torrentId, out var activeTask))
+                    {
+                        activeTask.IsQueuedForRecheck = false;
+                    }
+
                     this.torrentLogService?.Log(torrentId, "Info", "Storage", "Data integrity hash check in progress...");
                 }
                 else if (e.OldState == TorrentState.Hashing)
                 {
+                    if (this.tasks.TryGetValue(torrentId, out var activeTask))
+                    {
+                        activeTask.IsQueuedForRecheck = false;
+                    }
+
                     this.torrentLogService?.Log(torrentId, "Info", "Storage", $"Data integrity check finished ({manager.Progress:F1}% verified). Next state: {e.NewState}");
                     GC.Collect(2, GCCollectionMode.Forced, false);
                 }
@@ -2017,6 +2050,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             return;
         }
+
+        var wasRunning = manager.State is TorrentState.Downloading or TorrentState.Seeding or TorrentState.Starting;
 
         // Flush dirty write cache blocks to disk before performing recheck or moving files
         if (this.engine?.DiskManager != null && manager != null)
@@ -2125,24 +2160,38 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                                       string.Equals(manager.ContainingDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), incompleteDir?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase) ||
                                       string.Equals(manager.ContainingDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), downloadDir?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase));
 
-        var containingDir = manager.ContainingDirectory ?? Path.Combine(basePath, torrentName);
-        var hasContainingDir = isMultiFile ||
-                               (!isRootIncompleteOrBase && !string.IsNullOrWhiteSpace(manager.ContainingDirectory) && this.diskProvider.FolderExists(manager.ContainingDirectory)) ||
-                               (!isRootIncompleteOrBase && this.diskProvider.FolderExists(Path.Combine(basePath, torrentName)) && !string.Equals(Path.Combine(basePath, torrentName), basePath, StringComparison.OrdinalIgnoreCase));
+        string sourcePath = null;
+        if (manager.Files != null && manager.Files.Count > 0)
+        {
+            var firstFile = manager.Files[0];
+            var firstFullPath = firstFile.FullPath;
+            if (!string.IsNullOrWhiteSpace(firstFullPath))
+            {
+                var parentDir = Path.GetDirectoryName(firstFullPath);
+                if (!string.IsNullOrWhiteSpace(parentDir) &&
+                    !string.Equals(parentDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), basePath?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase) &&
+                    this.diskProvider.FolderExists(parentDir))
+                {
+                    sourcePath = parentDir;
+                }
+                else if (this.diskProvider.FileExists(firstFullPath) || File.Exists(firstFullPath + ".!mt"))
+                {
+                    sourcePath = firstFullPath;
+                }
+            }
+        }
 
-        var sourcePath = hasContainingDir
-            ? containingDir
-            : (manager.Files != null && manager.Files.Count > 0 && !string.IsNullOrWhiteSpace(manager.Files[0].FullPath)
-                ? manager.Files[0].FullPath
-                : (manager.Torrent != null && manager.Torrent.Files.Count > 0
-                    ? Path.Combine(basePath, manager.Torrent.Files[0].Path)
-                    : Path.Combine(basePath, torrentName)));
+        if (string.IsNullOrWhiteSpace(sourcePath))
+        {
+            var containingDir = manager.ContainingDirectory ?? Path.Combine(basePath, torrentName);
+            var hasContainingDir = !isRootIncompleteOrBase && this.diskProvider.FolderExists(containingDir);
+            sourcePath = hasContainingDir ? containingDir : Path.Combine(basePath, torrentName);
+        }
 
         var targetCompletedDir = this.storagePathService.GetCompletedDirectory(category);
         string finalDestination = null;
 
-        var wasRunning = manager.State is TorrentState.Downloading or TorrentState.Seeding or TorrentState.Starting;
-        if (wasRunning)
+        if (manager.State is not (TorrentState.Stopped or TorrentState.Paused))
         {
             try
             {
@@ -3448,14 +3497,25 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             const string partialExtension = ".!mt";
 
             var filesToPreallocate = new List<(string FullPath, long Length)>();
-            if (parsedTorrent?.Files != null && parsedTorrent.Files.Count > 0)
+            if (manager?.Files != null && manager.Files.Count > 0)
             {
-                var isMultiFile = parsedTorrent.Files.Count > 1;
-                foreach (var file in parsedTorrent.Files)
+                var isMultiFile = manager.Files.Count > 1;
+                var torrentName = manager.Torrent?.Name;
+                foreach (var file in manager.Files)
                 {
-                    var cleanPath = isMultiFile && !string.IsNullOrEmpty(parsedTorrent.Name)
-                        ? Path.Combine(workingPath, parsedTorrent.Name, file.Path)
+                    if (file.Priority == MonoTorrent.Priority.DoNotDownload)
+                    {
+                        continue;
+                    }
+
+                    var cleanPath = !string.IsNullOrWhiteSpace(file.FullPath)
+                        ? file.FullPath
                         : Path.Combine(workingPath, file.Path);
+
+                    if (cleanPath.EndsWith(partialExtension, StringComparison.OrdinalIgnoreCase))
+                    {
+                        cleanPath = cleanPath[..^partialExtension.Length];
+                    }
 
                     if (File.Exists(cleanPath) && new FileInfo(cleanPath).Length >= file.Length)
                     {
@@ -3472,27 +3532,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     filesToPreallocate.Add((fullPath, file.Length));
                 }
             }
-            else if (manager?.Files != null && manager.Files.Count > 0)
+            else if (parsedTorrent?.Files != null && parsedTorrent.Files.Count > 0)
             {
-                var isMultiFile = manager.Files.Count > 1;
-                var torrentName = manager.Torrent?.Name;
-                foreach (var file in manager.Files)
+                foreach (var file in parsedTorrent.Files)
                 {
-                    if (file.Priority == MonoTorrent.Priority.DoNotDownload)
-                    {
-                        continue;
-                    }
-
-                    var cleanPath = !string.IsNullOrWhiteSpace(file.FullPath)
-                        ? file.FullPath
-                        : (isMultiFile && !string.IsNullOrEmpty(torrentName)
-                            ? Path.Combine(workingPath, torrentName, file.Path)
-                            : Path.Combine(workingPath, file.Path));
-
-                    if (cleanPath.EndsWith(partialExtension, StringComparison.OrdinalIgnoreCase))
-                    {
-                        cleanPath = cleanPath[..^partialExtension.Length];
-                    }
+                    var cleanPath = Path.Combine(workingPath, file.Path);
 
                     if (File.Exists(cleanPath) && new FileInfo(cleanPath).Length >= file.Length)
                     {
@@ -4109,6 +4153,14 @@ public class MonoTorrentDownloadTask : IDownloadTask
         }
     }
 
+    private volatile bool isQueuedForRecheck;
+
+    public bool IsQueuedForRecheck
+    {
+        get => this.isQueuedForRecheck;
+        set => this.isQueuedForRecheck = value;
+    }
+
     public bool IsStalled => this.isTrackerStalled;
 
     public bool IsStorageFull => this.isStorageFull;
@@ -4148,6 +4200,11 @@ public class MonoTorrentDownloadTask : IDownloadTask
                 return TorrentStatus.Stopped;
             }
 
+            if (this.isQueuedForRecheck)
+            {
+                return TorrentStatus.QueuedForChecking;
+            }
+
             if (this.isStorageFull)
             {
                 return TorrentStatus.Paused;
@@ -4158,7 +4215,13 @@ public class MonoTorrentDownloadTask : IDownloadTask
                 return TorrentStatus.Stalled;
             }
 
-            return MapTorrentStateToStatus(this.Manager.State);
+            var st = MapTorrentStateToStatus(this.Manager.State);
+            if (st == TorrentStatus.Downloading && (this.Progress >= 1.0 || this.Manager.Complete || (this.Manager.Bitfield != null && this.Manager.Bitfield.AllTrue)))
+            {
+                return TorrentStatus.Seeding;
+            }
+
+            return st;
         }
     }
 

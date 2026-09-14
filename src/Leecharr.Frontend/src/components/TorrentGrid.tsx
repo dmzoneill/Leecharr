@@ -43,6 +43,10 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
     const isSeeding = statusLower === "seeding";
     const isPaused = statusLower === "paused";
     const isChecking = statusLower === "checking";
+    const isQueuedRecheck =
+      statusLower === "queuedforchecking" ||
+      statusLower === "checking_queued" ||
+      statusLower === "queued_check";
 
     return (
       <div
@@ -169,20 +173,24 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
               border: "1px solid var(--border)",
               color: isSeeding
                 ? "var(--success)"
-                : isChecking
-                  ? "var(--info, #38bdf8)"
-                  : isDownloading
-                    ? "var(--accent)"
-                    : "var(--text-muted)",
+                : isQueuedRecheck
+                  ? "#f59e0b"
+                  : isChecking
+                    ? "var(--info, #38bdf8)"
+                    : isDownloading
+                      ? "var(--accent)"
+                      : "var(--text-muted)",
             }}
           >
             {isChecking
               ? `${t("torrentStatus.checking", "Checking")} (${((mergedTorrent.progress ?? 0) * 100).toFixed(1)}%)`
-              : t(
-                  "torrentStatus." +
-                    (mergedTorrent.status || "idle").toLowerCase(),
-                  mergedTorrent.status || "Idle",
-                )}
+              : isQueuedRecheck
+                ? t("torrentStatus.queuedforchecking", "Queued for Recheck")
+                : t(
+                    "torrentStatus." +
+                      (mergedTorrent.status || "idle").toLowerCase(),
+                    mergedTorrent.status || "Idle",
+                  )}
           </div>
         </div>
 
