@@ -452,7 +452,7 @@ public class StoragePathService : IStoragePathService
         {
             if (File.Exists(filePath))
             {
-                using var fs = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
+                using var fs = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete);
                 fs.Flush(flushToDisk: true);
             }
         }
