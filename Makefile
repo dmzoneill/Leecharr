@@ -9,9 +9,10 @@ INTEGRATION_TEST := src/NzbDrone.Integration.Test/Leecharr.Integration.Test.cspr
 CONSOLE := src/NzbDrone.Console/Leecharr.Console.csproj
 FRONTEND := src/Leecharr.Frontend
 COMPOSE := podman-compose
-SERVICES := leecharr sonarr radarr prowlarr
-DEPS := sonarr radarr prowlarr
+SERVICES := leecharr seedarr sonarr radarr prowlarr
+DEPS := seedarr sonarr radarr prowlarr
 
+SEEDARR_API_KEY := 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d
 LEECHARR_API_KEY := 2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e
 SONARR_API_KEY := 4b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e
 RADARR_API_KEY := 5c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f
@@ -72,8 +73,9 @@ test-unit: test
 # --- Integration test stack ---
 
 stack-init:
-	@mkdir -p config/leecharr config/sonarr config/radarr config/prowlarr data/downloads data/movies data/series
+	@mkdir -p config/leecharr config/seedarr config/sonarr config/radarr config/prowlarr data/downloads data/movies data/series
 	@if [ ! -f config/leecharr/config.xml ]; then cp tests/config/leecharr/config.xml config/leecharr/config.xml; fi
+	@if [ ! -f config/seedarr/config.xml ]; then cp tests/config/seedarr/config.xml config/seedarr/config.xml; fi
 	@if [ ! -f config/sonarr/config.xml ]; then cp tests/config/sonarr/config.xml config/sonarr/config.xml; fi
 	@if [ ! -f config/radarr/config.xml ]; then cp tests/config/radarr/config.xml config/radarr/config.xml; fi
 	@if [ ! -f config/prowlarr/config.xml ]; then cp tests/config/prowlarr/config.xml config/prowlarr/config.xml; fi
@@ -91,7 +93,8 @@ stack-up: stack-init
 	@for i in $$(seq 1 120); do \
 		if curl -sf http://localhost:8989/ping > /dev/null 2>&1 && \
 		   curl -sf http://localhost:7878/ping > /dev/null 2>&1 && \
-		   curl -sf http://localhost:9696/ping > /dev/null 2>&1; then \
+		   curl -sf http://localhost:9696/ping > /dev/null 2>&1 && \
+		   curl -sf http://localhost:9898/api/v1/system/status > /dev/null 2>&1; then \
 			echo "Dependencies healthy after $${i}s"; \
 			break; \
 		fi; \
