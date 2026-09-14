@@ -210,7 +210,7 @@ services:
         # --- Disable authentication on all *arr apps for local test requests ---
         disable_auth() {
           local name=$$1 url=$$2 api_key=$$3 api_ver=$$4
-          current=$$(curl -sf "$$url/api/$$api_ver/config/host" -H "X-Api-Key: $$api_key")
+          current=$$(curl -sf "$$url/api/$$api_ver/config/host" -H "X-Api-Key: $$api_key" 2>/dev/null || true)
           if echo "$$current" | grep -q '"authenticationMethod":"external"'; then
             echo "  $$name: auth already disabled"
             return
@@ -233,12 +233,17 @@ services:
         echo "--- Setting up Root Folders in Radarr & Sonarr ---"
         add_root_folder() {
           local name=$$1 url=$$2 api_key=$$3 api_ver=$$4 path=$$5
-          existing=$$(curl -sf "$$url/api/$$api_ver/rootfolder" -H "X-Api-Key: $$api_key" | grep -c "\"$$path\"" || true)
+          existing=$$(curl -sf "$$url/api/$$api_ver/rootfolder" -H "X-Api-Key: $$api_key" 2>/dev/null | grep -c "\"$$path\"" || true)
           if [ "$$existing" = "0" ]; then
-            curl -sf -X POST "$$url/api/$$api_ver/rootfolder" \
+            code=$$(curl -s -o /tmp/rf_resp -w "%{http_code}" -X POST "$$url/api/$$api_ver/rootfolder" \
               -H "X-Api-Key: $$api_key" \
               -H "Content-Type: application/json" \
-              -d "{\"path\": \"$$path\"}" > /dev/null 2>&1 && echo "  $$name root folder ($$path): OK" || echo "  $$name root folder ($$path): Failed"
+              -d "{\"path\": \"$$path\"}")
+            if [ "$$code" = "200" ] || [ "$$code" = "201" ]; then
+              echo "  $$name root folder ($$path): OK"
+            else
+              echo "  $$name root folder ($$path): HTTP $$code $$(cat /tmp/rf_resp | head -c 200)"
+            fi
           else
             echo "  $$name root folder ($$path): already exists"
           fi
@@ -251,9 +256,9 @@ services:
         echo ""
         echo "--- Adding indexer to Prowlarr ---"
         prowlarr_idx_exists=$$(curl -sf "http://prowlarr.local:9696/api/v1/indexer" \
-          -H "X-Api-Key: $$PROWLARR_KEY" | grep -c 'NoNaMe Club' || true)
+          -H "X-Api-Key: $$PROWLARR_KEY" 2>/dev/null | grep -c 'NoNaMe Club' || true)
         if [ "$$prowlarr_idx_exists" = "0" ]; then
-          curl -sf -X POST "http://prowlarr.local:9696/api/v1/indexer" \
+          code=$$(curl -s -o /tmp/prowl_idx_resp -w "%{http_code}" -X POST "http://prowlarr.local:9696/api/v1/indexer" \
             -H "X-Api-Key: $$PROWLARR_KEY" \
             -H "Content-Type: application/json" \
             -d '{
@@ -279,53 +284,65 @@ services:
                 {"name": "sort", "value": 0},
                 {"name": "type", "value": 1}
               ]
-            }' > /dev/null 2>&1 && echo "  NoNaMe Club: OK" || echo "  NoNaMe Club: Failed"
+            }')
+          if [ "$$code" = "200" ] || [ "$$code" = "201" ]; then
+            echo "  NoNaMe Club indexer: OK"
+          else
+            echo "  NoNaMe Club indexer: HTTP $$code $$(cat /tmp/prowl_idx_resp | head -c 200)"
+          fi
         else
           echo "  NoNaMe Club: already exists, skipping"
         fi
 
         # --- Connect Prowlarr to Sonarr & Radarr ---
         add_prowlarr_app() {
-          local name=$$1 impl=$$2 url=$$3 api_key=$$4 sync_level=$$5 categories=$$6
+          local name=$$1 impl=$$2 url=$$3 api_key=$$4 categories=$$5
           existing=$$(curl -sf "http://prowlarr.local:9696/api/v1/applications" \
-            -H "X-Api-Key: $$PROWLARR_KEY" | grep -c "\"$$name\"" || true)
+            -H "X-Api-Key: $$PROWLARR_KEY" 2>/dev/null | grep -c "\"$$name\"" || true)
           if [ "$$existing" != "0" ]; then
             echo "  $$name: already linked in Prowlarr, skipping"
             return
           fi
           echo "  Adding $$name to Prowlarr..."
-          curl -sf -X POST "http://prowlarr.local:9696/api/v1/applications" \
+          code=$$(curl -s -o /tmp/prowl_app_resp -w "%{http_code}" -X POST "http://prowlarr.local:9696/api/v1/applications" \
             -H "X-Api-Key: $$PROWLARR_KEY" \
             -H "Content-Type: application/json" \
             -d "{
               \"name\": \"$$name\",
               \"implementation\": \"$$impl\",
               \"configContract\": \"$${impl}Settings\",
-              \"syncLevel\": \"$$sync_level\",
+              \"syncLevel\": 2,
+              \"enable\": true,
+              \"appProfileId\": 1,
               \"fields\": [
                 {\"name\": \"baseUrl\", \"value\": \"$$url\"},
                 {\"name\": \"prowlarrUrl\", \"value\": \"http://prowlarr.local:9696\"},
                 {\"name\": \"apiKey\", \"value\": \"$$api_key\"},
                 {\"name\": \"syncCategories\", \"value\": [$$categories]}
               ]
-            }" > /dev/null 2>&1 && echo "    OK" || echo "    Failed"
+            }")
+          if [ "$$code" = "200" ] || [ "$$code" = "201" ]; then
+            echo "    OK"
+          else
+            echo "    HTTP $$code: $$(cat /tmp/prowl_app_resp | head -c 200)"
+          fi
         }
 
         echo ""
         echo "--- Connecting Prowlarr to *arr apps ---"
-        add_prowlarr_app "Sonarr" "Sonarr" "http://sonarr.local:8989" "$$SONARR_KEY" "fullSync" "5000,5010,5020,5030,5040,5045"
-        add_prowlarr_app "Radarr" "Radarr" "http://radarr.local:7878" "$$RADARR_KEY" "fullSync" "2000,2010,2020,2030,2040,2045"
+        add_prowlarr_app "Sonarr" "Sonarr" "http://sonarr.local:8989" "$$SONARR_KEY" "5000,5010,5020,5030,5040,5045"
+        add_prowlarr_app "Radarr" "Radarr" "http://radarr.local:7878" "$$RADARR_KEY" "2000,2010,2020,2030,2040,2045"
 
         # --- Add Transmission as download client in Sonarr & Radarr ---
         add_download_client() {
           local name=$$1 url=$$2 api_key=$$3 api_ver=$$4
-          existing=$$(curl -sf "$$url/api/$$api_ver/downloadclient" -H "X-Api-Key: $$api_key" | grep -c 'Transmission' || true)
+          existing=$$(curl -sf "$$url/api/$$api_ver/downloadclient" -H "X-Api-Key: $$api_key" 2>/dev/null | grep -c 'Transmission' || true)
           if [ "$$existing" != "0" ]; then
             echo "  $$name: Transmission already configured"
             return
           fi
           echo "  Adding Transmission to $$name..."
-          curl -sf -X POST "$$url/api/$$api_ver/downloadclient" \
+          code=$$(curl -s -o /tmp/dc_resp -w "%{http_code}" -X POST "$$url/api/$$api_ver/downloadclient" \
             -H "X-Api-Key: $$api_key" \
             -H "Content-Type: application/json" \
             -d '{
@@ -340,7 +357,12 @@ services:
                 {"name": "useSsl", "value": false},
                 {"name": "urlBase", "value": "/transmission/rpc"}
               ]
-            }' > /dev/null 2>&1 && echo "    OK" || echo "    Failed"
+            }')
+          if [ "$$code" = "200" ] || [ "$$code" = "201" ]; then
+            echo "    OK"
+          else
+            echo "    HTTP $$code: $$(cat /tmp/dc_resp | head -c 200)"
+          fi
         }
 
         echo ""
@@ -348,7 +370,7 @@ services:
         add_download_client "Sonarr" "http://sonarr.local:8989" "$$SONARR_KEY" "v3"
         add_download_client "Radarr" "http://radarr.local:7878" "$$RADARR_KEY" "v3"
 
-        # --- Connect Leecharr to Sonarr & Radarr ---
+        # --- Connect Leecharr to Sonarr, Radarr & Prowlarr ---
         add_leecharr_connection() {
           local name=$$1 arr_type=$$2 url=$$3 api_key=$$4
           existing=$$(curl -sf "http://leecharr.local:7889/api/v1/arrconnections" -H "X-Api-Key: $$LEECHARR_KEY" 2>/dev/null | grep -c "\"name\":\"$$name\"" || true)
@@ -356,8 +378,8 @@ services:
             echo "  $$name: already exists in Leecharr, skipping"
             return
           fi
-          echo "  Adding $$name to Leecharr..."
-          curl -sf -X POST "http://leecharr.local:7889/api/v1/arrconnections" \
+          echo "  Adding $$name connection to Leecharr..."
+          code=$$(curl -s -o /tmp/lconn_resp -w "%{http_code}" -X POST "http://leecharr.local:7889/api/v1/arrconnections" \
             -H "X-Api-Key: $$LEECHARR_KEY" \
             -H "Content-Type: application/json" \
             -d "{
@@ -371,24 +393,57 @@ services:
               \"enable\": true,
               \"implementation\": \"$${arr_type}Connection\",
               \"configContract\": \"ArrConnectionDefinition\"
-            }" > /dev/null 2>&1 && echo "    OK" || echo "    Failed"
+            }")
+          if [ "$$code" = "200" ] || [ "$$code" = "201" ]; then
+            echo "    OK"
+          else
+            echo "    HTTP $$code: $$(cat /tmp/lconn_resp | head -c 200)"
+          fi
         }
 
         echo ""
         echo "--- Connecting Leecharr to *arr apps ---"
         add_leecharr_connection "Sonarr" "Sonarr" "http://sonarr.local:8989" "$$SONARR_KEY"
         add_leecharr_connection "Radarr" "Radarr" "http://radarr.local:7878" "$$RADARR_KEY"
+        add_leecharr_connection "Prowlarr" "Prowlarr" "http://prowlarr.local:9696" "$$PROWLARR_KEY"
+
+        # --- Add Prowlarr as indexer in Leecharr ---
+        echo ""
+        echo "--- Adding Prowlarr indexer to Leecharr ---"
+        l_idx_exists=$$(curl -sf "http://leecharr.local:7889/api/v1/indexers" -H "X-Api-Key: $$LEECHARR_KEY" 2>/dev/null | grep -c "\"name\":\"Prowlarr\"" || true)
+        if [ "$$l_idx_exists" = "0" ]; then
+          code=$$(curl -s -o /tmp/lidx_resp -w "%{http_code}" -X POST "http://leecharr.local:7889/api/v1/indexers" \
+            -H "X-Api-Key: $$LEECHARR_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"name\": \"Prowlarr\",
+              \"implementation\": \"Prowlarr\",
+              \"url\": \"http://prowlarr.local:9696\",
+              \"apiKey\": \"$$PROWLARR_KEY\",
+              \"enable\": true,
+              \"enableRss\": true,
+              \"enableSearch\": true,
+              \"categories\": [2000, 5000]
+            }")
+          if [ "$$code" = "200" ] || [ "$$code" = "201" ]; then
+            echo "  Prowlarr indexer: OK"
+          else
+            echo "  Prowlarr indexer: HTTP $$code $$(cat /tmp/lidx_resp | head -c 200)"
+          fi
+        else
+          echo "  Prowlarr indexer: already exists, skipping"
+        fi
 
         # --- Add webhook notifications in Sonarr & Radarr for Leecharr ---
         add_webhook() {
           local name=$$1 url=$$2 api_key=$$3 api_ver=$$4
-          existing=$$(curl -sf "$$url/api/$$api_ver/notification" -H "X-Api-Key: $$api_key" | grep -c '"Leecharr"' || true)
+          existing=$$(curl -sf "$$url/api/$$api_ver/notification" -H "X-Api-Key: $$api_key" 2>/dev/null | grep -c '"Leecharr"' || true)
           if [ "$$existing" != "0" ]; then
             echo "  $$name: Leecharr webhook already exists"
             return
           fi
           echo "  Adding Leecharr webhook to $$name..."
-          http_code=$$(curl -s -o /tmp/wh_resp -w "%{http_code}" -X POST "$$url/api/$$api_ver/notification" \
+          code=$$(curl -s -o /tmp/lwh_resp -w "%{http_code}" -X POST "$$url/api/$$api_ver/notification" \
             -H "X-Api-Key: $$api_key" \
             -H "Content-Type: application/json" \
             -d "{
@@ -408,11 +463,11 @@ services:
                 {\"name\": \"method\", \"value\": 1},
                 {\"name\": \"headers\", \"value\": [{\"key\": \"X-Api-Key\", \"value\": \"$$LEECHARR_KEY\"}]}
               ]
-            }" 2>/dev/null)
-          if [ "$$http_code" = "201" ] || [ "$$http_code" = "200" ]; then
+            }")
+          if [ "$$code" = "200" ] || [ "$$code" = "201" ]; then
             echo "    OK"
           else
-            echo "    Failed (HTTP $$http_code): $$(cat /tmp/wh_resp | head -c 300)"
+            echo "    HTTP $$code: $$(cat /tmp/lwh_resp | head -c 200)"
           fi
         }
 
