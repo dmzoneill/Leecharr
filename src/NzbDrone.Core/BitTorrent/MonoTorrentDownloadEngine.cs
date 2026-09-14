@@ -1400,6 +1400,19 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 }
             }
 
+            if (this.engine?.DiskManager != null && manager != null)
+            {
+                try
+                {
+                    await this.engine.DiskManager.FlushAsync(manager).ConfigureAwait(false);
+                    await this.CloseDiskManagerFilesAsync(manager).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to flush and close cached file handles for torrent {0} before hash check", torrentId);
+                }
+            }
+
             await manager.HashCheckAsync(autoStart: true).ConfigureAwait(false);
             this.logger.Info("Triggered hash recheck for torrent id {0}", torrentId);
         }
@@ -2219,7 +2232,13 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                                       string.Equals(manager.ContainingDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), downloadDir?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase));
 
         string sourcePath = null;
-        if (manager.Files != null && manager.Files.Count > 0)
+        if (isMultiFile)
+        {
+            var containingDir = manager.ContainingDirectory ?? Path.Combine(basePath, torrentName);
+            var hasContainingDir = !isRootIncompleteOrBase && this.diskProvider.FolderExists(containingDir);
+            sourcePath = hasContainingDir ? containingDir : Path.Combine(basePath, torrentName);
+        }
+        else if (manager.Files != null && manager.Files.Count > 0)
         {
             var firstFile = manager.Files[0];
             var firstFullPath = firstFile.FullPath;
@@ -2261,6 +2280,19 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
         }
 
+        if (this.engine?.DiskManager != null && manager != null)
+        {
+            try
+            {
+                await this.engine.DiskManager.FlushAsync(manager).ConfigureAwait(false);
+                await this.CloseDiskManagerFilesAsync(manager).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Non-critical error closing file streams for {0} before move", infoHash);
+            }
+        }
+
         try
         {
             // MoveToCompleted builds finalDestination = completedDir/torrentName,
@@ -2288,6 +2320,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         Directory.CreateDirectory(seedingSavePath);
 
                         await manager.MoveFilesAsync(seedingSavePath, false).ConfigureAwait(false);
+                        await this.CloseDiskManagerFilesAsync(manager).ConfigureAwait(false);
+
                         this.logger.Info("MonoTorrent seeding path updated to '{0}' for torrent {1}", seedingSavePath, infoHash);
 
                         // Load FastResume checkpoint so MonoTorrent immediately seeds from the completed location
@@ -2387,6 +2421,31 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             Category = category,
             SavePath = manager.SavePath ?? targetCompletedDir ?? downloadDir ?? finalDestination,
         }));
+    }
+
+    private async Task CloseDiskManagerFilesAsync(TorrentManager manager)
+    {
+        if (manager == null || this.engine?.DiskManager == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var closeMethod = typeof(DiskManager).GetMethod("CloseFilesAsync", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            if (closeMethod != null)
+            {
+                var task = closeMethod.Invoke(this.engine.DiskManager, new object[] { manager }) as Task;
+                if (task != null)
+                {
+                    await task.ConfigureAwait(false);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Non-critical error closing DiskManager files via reflection");
+        }
     }
 
     private static readonly PropertyInfo MassiveBuffersProp = typeof(ByteBufferPool).GetProperty("MassiveBuffers", BindingFlags.NonPublic | BindingFlags.Instance);
