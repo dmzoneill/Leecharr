@@ -1992,6 +1992,20 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             return;
         }
 
+        // Flush dirty write cache blocks to disk before performing recheck or moving files
+        if (this.engine?.DiskManager != null && manager != null)
+        {
+            try
+            {
+                await this.engine.DiskManager.FlushAsync(manager).ConfigureAwait(false);
+                this.logger.Debug("Flushed dirty write cache blocks for completed torrent {0}", infoHash);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to flush dirty write cache blocks for torrent {0} before recheck/move", infoHash);
+            }
+        }
+
         // Automatic Rehash Check Prior to Moving to Destination Directory (Default: true)
         // Skip redundant recheck if torrent was already verified 100% (e.g. from manual force recheck)
         var isAlreadyVerified = manager.HashChecked && manager.Bitfield != null && manager.Bitfield.AllTrue;
@@ -2007,20 +2021,65 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
                 await manager.HashCheckAsync(autoStart: false).ConfigureAwait(false);
 
-                if (manager.Bitfield != null && manager.Bitfield.Length > 0 && (!manager.Bitfield.AllTrue || manager.Progress < 99.99))
+                // Verify that all WANTED pieces (covering files with Priority != DoNotDownload) have passed hash check
+                var allWantedPiecesVerified = true;
+                if (manager.Torrent != null && manager.Bitfield != null && manager.Files != null && manager.Files.Count > 0)
+                {
+                    var hasUnwantedFiles = manager.Files.Any(f => f.Priority == MonoTorrent.Priority.DoNotDownload);
+                    if (hasUnwantedFiles)
+                    {
+                        for (var i = 0; i < manager.Torrent.PieceCount; i++)
+                        {
+                            var pieceStart = (long)i * manager.Torrent.PieceLength;
+                            var pieceEnd = Math.Min(pieceStart + manager.Torrent.PieceLength, manager.Torrent.Size);
+                            var isPieceWanted = false;
+
+                            for (var f = 0; f < manager.Files.Count; f++)
+                            {
+                                var file = manager.Files[f];
+                                if (file.Priority != MonoTorrent.Priority.DoNotDownload)
+                                {
+                                    var fileStart = file.OffsetInTorrent;
+                                    var fileEnd = fileStart + file.Length;
+                                    if (pieceStart < fileEnd && pieceEnd > fileStart)
+                                    {
+                                        isPieceWanted = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (isPieceWanted && !manager.Bitfield[i])
+                            {
+                                allWantedPiecesVerified = false;
+                                break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        allWantedPiecesVerified = manager.Bitfield.AllTrue;
+                    }
+                }
+                else
+                {
+                    allWantedPiecesVerified = manager.Complete || (manager.Bitfield != null && manager.Bitfield.AllTrue);
+                }
+
+                if (!allWantedPiecesVerified)
                 {
                     this.logger.Warn(
                         "Automatic completion rehash check failed for torrent '{0}': only {1:F1}% verified ({2}/{3} pieces). Retaining files in incomplete directory and resuming download to repair corrupt/missing pieces.",
                         torrentName,
                         manager.Progress,
-                        manager.Bitfield.TrueCount,
-                        manager.Bitfield.Length);
+                        manager.Bitfield?.TrueCount ?? 0,
+                        manager.Bitfield?.Length ?? 0);
 
                     await manager.StartAsync().ConfigureAwait(false);
                     return;
                 }
 
-                this.logger.Info("Automatic completion rehash check passed 100% for torrent '{0}'. Proceeding to move files.", torrentName);
+                this.logger.Info("Automatic completion rehash check passed for torrent '{0}'. Proceeding to move files.", torrentName);
             }
             catch (Exception ex)
             {
@@ -2056,16 +2115,16 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var targetCompletedDir = this.storagePathService.GetCompletedDirectory(category);
         string finalDestination = null;
 
-        if (this.engine?.DiskManager != null && manager != null)
+        var wasRunning = manager.State is TorrentState.Downloading or TorrentState.Seeding or TorrentState.Starting;
+        if (wasRunning)
         {
             try
             {
-                await this.engine.DiskManager.FlushAsync(manager).ConfigureAwait(false);
-                this.logger.Debug("Flushed dirty write cache blocks for completed torrent {0}", infoHash);
+                await manager.StopAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                this.logger.Warn(ex, "Failed to flush dirty write cache blocks for torrent {0} before moving files", infoHash);
+                this.logger.Debug(ex, "Error stopping manager for {0} before moving files", infoHash);
             }
         }
 
@@ -2089,32 +2148,25 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     try
                     {
                         Directory.CreateDirectory(seedingSavePath);
-                        var wasRunning = manager.State is TorrentState.Downloading or TorrentState.Seeding or TorrentState.Starting;
-                        if (wasRunning)
-                        {
-                            await manager.StopAsync().ConfigureAwait(false);
-                        }
 
                         await manager.MoveFilesAsync(seedingSavePath, false).ConfigureAwait(false);
                         this.logger.Info("MonoTorrent seeding path updated to '{0}' for torrent {1}", seedingSavePath, infoHash);
 
-                        // Load 100% complete FastResume checkpoint so MonoTorrent immediately seeds from the completed location
+                        // Load FastResume checkpoint so MonoTorrent immediately seeds from the completed location
                         if (manager.Torrent != null && manager.InfoHashes != null)
                         {
                             var pieceCount = manager.Torrent.PieceCount;
                             if (pieceCount > 0)
                             {
-                                var fullBitfield = new ReadOnlyBitField(new BitField(pieceCount).SetAll(true));
+                                var isFullTorrent = manager.Files == null || !manager.Files.Any(f => f.Priority == MonoTorrent.Priority.DoNotDownload);
+                                var resumeBitfield = isFullTorrent
+                                    ? new ReadOnlyBitField(new BitField(pieceCount).SetAll(true))
+                                    : manager.Bitfield ?? new ReadOnlyBitField(pieceCount);
                                 var unhashed = new ReadOnlyBitField(pieceCount);
-                                var fastResume = new FastResume(manager.InfoHashes, fullBitfield, unhashed);
+                                var fastResume = new FastResume(manager.InfoHashes, resumeBitfield, unhashed);
                                 await manager.LoadFastResumeAsync(fastResume).ConfigureAwait(false);
-                                this.logger.Debug("Loaded 100% FastResume after moving completed torrent {0} to '{1}'", infoHash, seedingSavePath);
+                                this.logger.Debug("Loaded FastResume after moving completed torrent {0} to '{1}'", infoHash, seedingSavePath);
                             }
-                        }
-
-                        if (wasRunning)
-                        {
-                            await manager.StartAsync().ConfigureAwait(false);
                         }
                     }
                     catch (Exception ex)
@@ -2122,17 +2174,53 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         this.logger.Warn(ex, "Failed to update MonoTorrent seeding path to '{0}' for {1}; files were already moved by StoragePathService", seedingSavePath, infoHash);
                     }
                 }
+
+                if (wasRunning)
+                {
+                    try
+                    {
+                        await manager.StartAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Warn(ex, "Failed to restart manager after moving files for {0}", infoHash);
+                    }
+                }
             }
             else
             {
                 this.logger.Warn("MoveToCompleted returned false for torrent '{0}' (source: '{1}'). Files may remain in incomplete dir.", torrentName, sourcePath);
                 finalDestination = sourcePath;
+
+                if (wasRunning)
+                {
+                    try
+                    {
+                        await manager.StartAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Warn(ex, "Failed to restart manager after move failure for {0}", infoHash);
+                    }
+                }
             }
         }
         catch (Exception ex)
         {
             this.logger.Error(ex, "Failed to move completed torrent files for {0}", infoHash);
             finalDestination = sourcePath;
+
+            if (wasRunning)
+            {
+                try
+                {
+                    await manager.StartAsync().ConfigureAwait(false);
+                }
+                catch (Exception startEx)
+                {
+                    this.logger.Warn(startEx, "Failed to restart manager after move exception for {0}", infoHash);
+                }
+            }
         }
 
         if (manager != null)
@@ -2227,16 +2315,62 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     var fileOffset = currentOffset - fileStart;
                     var bytesInThisFile = Math.Min(remaining, fileEnd - currentOffset);
 
-                    var filePath = file.FullPath;
-                    if (!File.Exists(filePath))
+                    var candidatePaths = new List<string>();
+                    if (!string.IsNullOrWhiteSpace(file.FullPath))
                     {
-                        if (File.Exists(file.DownloadCompleteFullPath))
+                        candidatePaths.Add(file.FullPath);
+                        candidatePaths.Add(file.FullPath + ".!mt");
+                        candidatePaths.Add(file.FullPath + ".!leech");
+                        candidatePaths.Add(file.FullPath + ".incomplete");
+                        candidatePaths.Add(file.FullPath + ".part");
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(file.DownloadCompleteFullPath))
+                    {
+                        candidatePaths.Add(file.DownloadCompleteFullPath);
+                        candidatePaths.Add(file.DownloadCompleteFullPath + ".!mt");
+                        candidatePaths.Add(file.DownloadCompleteFullPath + ".!leech");
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(file.DownloadIncompleteFullPath))
+                    {
+                        candidatePaths.Add(file.DownloadIncompleteFullPath);
+                        candidatePaths.Add(file.DownloadIncompleteFullPath + ".!mt");
+                        candidatePaths.Add(file.DownloadIncompleteFullPath + ".!leech");
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(file.Path))
+                    {
+                        var incompleteDir = this.storagePathService?.GetIncompleteDirectory();
+                        var completedDir = this.storagePathService?.GetCompletedDirectory(null);
+                        var torrentName = manager.TorrentInfo?.Name ?? string.Empty;
+
+                        if (!string.IsNullOrWhiteSpace(incompleteDir))
                         {
-                            filePath = file.DownloadCompleteFullPath;
+                            candidatePaths.Add(Path.Combine(incompleteDir, torrentName, file.Path));
+                            candidatePaths.Add(Path.Combine(incompleteDir, torrentName, file.Path + ".!mt"));
+                            candidatePaths.Add(Path.Combine(incompleteDir, torrentName, file.Path + ".!leech"));
+                            candidatePaths.Add(Path.Combine(incompleteDir, file.Path));
+                            candidatePaths.Add(Path.Combine(incompleteDir, file.Path + ".!mt"));
+                            candidatePaths.Add(Path.Combine(incompleteDir, file.Path + ".!leech"));
                         }
-                        else if (File.Exists(file.DownloadIncompleteFullPath))
+
+                        if (!string.IsNullOrWhiteSpace(completedDir))
                         {
-                            filePath = file.DownloadIncompleteFullPath;
+                            candidatePaths.Add(Path.Combine(completedDir, torrentName, file.Path));
+                            candidatePaths.Add(Path.Combine(completedDir, torrentName, file.Path + ".!mt"));
+                            candidatePaths.Add(Path.Combine(completedDir, file.Path));
+                            candidatePaths.Add(Path.Combine(completedDir, file.Path + ".!mt"));
+                        }
+                    }
+
+                    string filePath = null;
+                    foreach (var cand in candidatePaths)
+                    {
+                        if (!string.IsNullOrWhiteSpace(cand) && File.Exists(cand))
+                        {
+                            filePath = cand;
+                            break;
                         }
                     }
 
@@ -3318,6 +3452,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 var torrentName = manager.Torrent?.Name;
                 foreach (var file in manager.Files)
                 {
+                    if (file.Priority == MonoTorrent.Priority.DoNotDownload)
+                    {
+                        continue;
+                    }
+
                     var cleanPath = !string.IsNullOrWhiteSpace(file.FullPath)
                         ? file.FullPath
                         : (isMultiFile && !string.IsNullOrEmpty(torrentName)
