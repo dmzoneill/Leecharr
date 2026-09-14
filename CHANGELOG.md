@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.9.5](https://github.com/dmzoneill/Leecharr/releases/tag/v1.9.5) - 2026-09-14
+
+### ✨ Features
+- feat(automation): audit and wire automation metrics and domain event propagation
+- feat: category save directory auto-creation and settings UI controls (#715, #721)
+- Implement History, Tasks, Backup, Shortcuts & Media Previews (fixes #720, #723, #736, #710, #713, #716)
+- feat(files): add video and audio preview/content-type streaming support in FileBrowserController
+- feat(peers): implement dynamic PiecePicker switching, telemetry flags, and Azureus client decoding (fixes #712, #733)
+
+### 🐛 Bug Fixes
+- fix(categories): throw not writable only when folder exists and cannot be written
+- fix(bittorrent): fix peer flags ordering and make category save path auto-creation non-fatal
+- fix(notifications): escape parentheses in markdown and delegate effective limits to speed scheduler
+- fix(host): use MaxDownloadSpeedKbps and MaxUploadSpeedKbps for speed limit check
+- fix(host): resolve IAppLifetimeServices DiskSpaceService type mapping
+- fix(ui): attach custom event listeners for quick settings and modal closing
+- fix(categories): assign integer zero for CategoryId reset in CategoryService
+- fix(emulation, integration): support rTorrent deleteFiles/delete_tied, webhook events, and TLS bypass
+- fix(indexers): implement pagination envelope, category expansion, batch test, and health backoff (#728, #719)
+- fix(bittorrent): speed limits precedence, webseeds ingestion, and piece picker startup file priorities
+- Fix automation pipeline, webhook rate limits, markdown escaping, and logging reconfiguration
+
+### 🔧 Maintenance & Improvements
+- style: fix indentation in AutomationService
+- chore: remove scratch update*.js scripts and ignore update*.js/patch*.js
+- chore: add patch*.py and scratch/ to .gitignore
+- style: format indentation in TorrentController
+
 ## [v1.9.4](https://github.com/dmzoneill/Leecharr/releases/tag/v1.9.4) - 2026-09-13
 
 ### 🔧 Maintenance & Improvements
