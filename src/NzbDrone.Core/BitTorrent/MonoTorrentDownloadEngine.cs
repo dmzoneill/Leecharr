@@ -4404,36 +4404,30 @@ public class MonoTorrentDownloadTask : IDownloadTask
                 {
                     flags += p.IsChoking ? "d" : "D";
                 }
-                else if (!p.IsChoking)
-                {
-                    flags += "K";
-                }
 
                 if (p.IsInterested)
                 {
                     flags += p.AmChoking ? "u" : "U";
-                }
-                else if (!p.AmChoking)
-                {
-                    flags += "k";
-                }
-
-                if (p.AmChoking)
-                {
-                    flags += "C";
-                }
-                else
-                {
-                    flags += "c";
                 }
 
                 if (p.AmInterested)
                 {
                     flags += "I";
                 }
-                else
+
+                if (p.IsInterested && p.AmChoking)
+                {
+                    flags += "C";
+                }
+
+                if (p.IsInterested)
                 {
                     flags += "i";
+                }
+
+                if (p.AmInterested && p.IsChoking)
+                {
+                    flags += "c";
                 }
 
                 var isEncrypted = p.EncryptionType != MonoTorrent.Connections.EncryptionType.PlainText;
