@@ -1927,7 +1927,15 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
                 if (manager.Torrent != null && (e.OldState == TorrentState.Metadata || e.NewState == TorrentState.Downloading || e.NewState == TorrentState.Starting))
                 {
-                    await this.PreallocateFilesAsync(manager, manager.SavePath, manager.Torrent).ConfigureAwait(false);
+                    var isComplete = manager.Complete ||
+                                     (manager.Bitfield != null && manager.Bitfield.Length > 0 && manager.Bitfield.AllTrue) ||
+                                     manager.Progress >= 99.99 ||
+                                     e.NewState == TorrentState.Seeding;
+
+                    if (!isComplete)
+                    {
+                        await this.PreallocateFilesAsync(manager, manager.SavePath, manager.Torrent).ConfigureAwait(false);
+                    }
                 }
 
                 if (e.NewState == TorrentState.Hashing)
@@ -2089,6 +2097,20 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
                         await manager.MoveFilesAsync(seedingSavePath, false).ConfigureAwait(false);
                         this.logger.Info("MonoTorrent seeding path updated to '{0}' for torrent {1}", seedingSavePath, infoHash);
+
+                        // Load 100% complete FastResume checkpoint so MonoTorrent immediately seeds from the completed location
+                        if (manager.Torrent != null && manager.InfoHashes != null)
+                        {
+                            var pieceCount = manager.Torrent.PieceCount;
+                            if (pieceCount > 0)
+                            {
+                                var fullBitfield = new ReadOnlyBitField(new BitField(pieceCount).SetAll(true));
+                                var unhashed = new ReadOnlyBitField(pieceCount);
+                                var fastResume = new FastResume(manager.InfoHashes, fullBitfield, unhashed);
+                                await manager.LoadFastResumeAsync(fastResume).ConfigureAwait(false);
+                                this.logger.Debug("Loaded 100% FastResume after moving completed torrent {0} to '{1}'", infoHash, seedingSavePath);
+                            }
+                        }
 
                         if (wasRunning)
                         {
@@ -3253,7 +3275,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var isFull = string.Equals(mode, "Full", StringComparison.OrdinalIgnoreCase);
         var isSparse = string.Equals(mode, "Sparse", StringComparison.OrdinalIgnoreCase);
 
-        if (!isFull && !isSparse)
+        if (manager != null && (manager.Complete ||
+                                (manager.Bitfield != null && manager.Bitfield.Length > 0 && manager.Bitfield.AllTrue) ||
+                                manager.Progress >= 99.99))
         {
             return;
         }
@@ -3269,10 +3293,17 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 var isMultiFile = parsedTorrent.Files.Count > 1;
                 foreach (var file in parsedTorrent.Files)
                 {
-                    var fullPath = isMultiFile && !string.IsNullOrEmpty(parsedTorrent.Name)
+                    var cleanPath = isMultiFile && !string.IsNullOrEmpty(parsedTorrent.Name)
                         ? Path.Combine(workingPath, parsedTorrent.Name, file.Path)
                         : Path.Combine(workingPath, file.Path);
 
+                    if (File.Exists(cleanPath) && new FileInfo(cleanPath).Length >= file.Length)
+                    {
+                        // Clean completed file already exists on disk, do not preallocate partial file
+                        continue;
+                    }
+
+                    var fullPath = cleanPath;
                     if (usePartialFiles && !fullPath.EndsWith(partialExtension, StringComparison.OrdinalIgnoreCase))
                     {
                         fullPath += partialExtension;
@@ -3287,12 +3318,24 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 var torrentName = manager.Torrent?.Name;
                 foreach (var file in manager.Files)
                 {
-                    var fullPath = !string.IsNullOrWhiteSpace(file.FullPath)
+                    var cleanPath = !string.IsNullOrWhiteSpace(file.FullPath)
                         ? file.FullPath
                         : (isMultiFile && !string.IsNullOrEmpty(torrentName)
                             ? Path.Combine(workingPath, torrentName, file.Path)
                             : Path.Combine(workingPath, file.Path));
 
+                    if (cleanPath.EndsWith(partialExtension, StringComparison.OrdinalIgnoreCase))
+                    {
+                        cleanPath = cleanPath[..^partialExtension.Length];
+                    }
+
+                    if (File.Exists(cleanPath) && new FileInfo(cleanPath).Length >= file.Length)
+                    {
+                        // Clean completed file already exists on disk, do not preallocate partial file
+                        continue;
+                    }
+
+                    var fullPath = cleanPath;
                     if (usePartialFiles && !fullPath.EndsWith(partialExtension, StringComparison.OrdinalIgnoreCase))
                     {
                         fullPath += partialExtension;
