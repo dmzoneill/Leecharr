@@ -175,8 +175,9 @@ public class AutomationService : IAutomationService
             {
                 var matching = string.IsNullOrWhiteSpace(notif.Provider)
                     ? activeNotifications
-                    : activeNotifications.Where(n => string.Equals(n.Implementation, notif.Provider, StringComparison.OrdinalIgnoreCase) ||
-                                                     string.Equals(n.Name, notif.Provider, StringComparison.OrdinalIgnoreCase)).ToList();
+                    : activeNotifications.Where(n =>
+                        string.Equals(n.Implementation, notif.Provider, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(n.Name, notif.Provider, StringComparison.OrdinalIgnoreCase)).ToList();
 
                 foreach (var n in matching)
                 {
