@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.10.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.10.0) - 2026-09-14
+
+### ✨ Features
+- feat(ci): add deterministic podman-compose stack with fixed API keys and relative volume paths
+
 ## [v1.9.5](https://github.com/dmzoneill/Leecharr/releases/tag/v1.9.5) - 2026-09-14
 
 ### ✨ Features
