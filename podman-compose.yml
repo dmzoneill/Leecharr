@@ -235,6 +235,7 @@ services:
               "implementation": "Cardigann",
               "configContract": "CardigannSettings",
               "enable": true,
+              "priority": 25,
               "appProfileId": 1,
               "tags": [],
               "fields": [
@@ -302,6 +303,12 @@ services:
         add_prowlarr_app "Sonarr" "Sonarr" "http://sonarr.local:8989" "$$SONARR_KEY" "5000,5010,5020,5030,5040,5045"
         add_prowlarr_app "Radarr" "Radarr" "http://radarr.local:7878" "$$RADARR_KEY" "2000,2010,2020,2030,2040,2045"
 
+        echo "  Triggering Prowlarr indexer sync..."
+        curl -sf -X POST "http://prowlarr.local:9696/api/v1/command" \
+          -H "X-Api-Key: $$PROWLARR_KEY" \
+          -H "Content-Type: application/json" \
+          -d '{"name": "ApplicationIndexerSync"}' > /dev/null 2>&1 || true
+
         # --- Add Leecharr as download client in Sonarr & Radarr (via Transmission RPC protocol) ---
         add_leecharr_download_client() {
           local name=$$1 url=$$2 api_key=$$3 api_ver=$$4
@@ -324,7 +331,7 @@ services:
                 {"name": "host", "value": "leecharr.local"},
                 {"name": "port", "value": 7889},
                 {"name": "useSsl", "value": false},
-                {"name": "urlBase", "value": "/transmission/rpc"}
+                {"name": "urlBase", "value": "/transmission/"}
               ]
             }')
           if [ "$$code" = "200" ] || [ "$$code" = "201" ]; then
