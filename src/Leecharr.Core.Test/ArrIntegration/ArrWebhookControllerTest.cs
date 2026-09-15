@@ -288,6 +288,7 @@ public class ArrWebhookControllerTest
             Name = "Show.S01E01.720p",
             InfoHash = hash,
             IsImported = false,
+            Category = "tv-sonarr",
         };
 
         this.torrentRepository.GetByInfoHash(hash).Returns(torrent);
@@ -314,6 +315,47 @@ public class ArrWebhookControllerTest
         res.Updated.Should().BeFalse();
 
         this.torrentRepository.DidNotReceive().Update(Arg.Any<Torrent>());
+    }
+
+    [Test]
+    public void HandleSonarr_WhenGrabEventAndCategoryMissing_AssignsCategory()
+    {
+        var hash = "9999888877776666555544443333222211110001";
+        var torrent = new Torrent
+        {
+            Id = 6,
+            Name = "Show.S01E02.720p",
+            InfoHash = hash,
+            IsImported = false,
+            Category = null,
+        };
+
+        this.torrentRepository.GetByInfoHash(hash).Returns(torrent);
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "Grab",
+            InstanceName = "Sonarr",
+            DownloadClientId = hash,
+            Release = new ArrWebhookRelease
+            {
+                ReleaseTitle = "Show.S01E02.720p",
+            },
+        };
+
+        var result = this.controller.HandleSonarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var res = okResult!.Value as ArrWebhookResult;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
+        res.Updated.Should().BeTrue();
+
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t =>
+            t.Id == 6 &&
+            t.Category == "tv-sonarr"));
     }
 
     [Test]

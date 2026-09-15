@@ -1081,7 +1081,16 @@ public class TransmissionRpcController : ControllerBase
                 if (!string.IsNullOrWhiteSpace(downloadDir) && string.IsNullOrWhiteSpace(category))
                 {
                     var cleanDir = downloadDir.Trim().TrimStart('/', '\\');
-                    if (!Path.IsPathRooted(downloadDir) || (!this.diskProvider.FolderExists(downloadDir) && !cleanDir.Contains('/') && !cleanDir.Contains('\\')))
+                    var baseDownloadDir = this.configService?.DownloadDir?.TrimEnd('/', '\\');
+                    if (!string.IsNullOrWhiteSpace(baseDownloadDir) && downloadDir.StartsWith(baseDownloadDir, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var relative = downloadDir.Substring(baseDownloadDir.Length).TrimStart('/', '\\');
+                        if (!string.IsNullOrWhiteSpace(relative))
+                        {
+                            category = relative;
+                        }
+                    }
+                    else if (!Path.IsPathRooted(downloadDir) || (!this.diskProvider.FolderExists(downloadDir) && !cleanDir.Contains('/') && !cleanDir.Contains('\\')))
                     {
                         category = cleanDir;
                     }
