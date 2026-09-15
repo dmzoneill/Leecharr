@@ -2375,14 +2375,13 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             {
                 var parentDir = Path.GetDirectoryName(firstFullPath);
                 var sourceTrimmed = sourcePath?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                var parentTrimmed = parentDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var parentTrimmed = parentDir?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 if (!string.IsNullOrWhiteSpace(parentDir) &&
-                    !string.Equals(parentTrimmed, sourceTrimmed, StringComparison.OrdinalIgnoreCase) &&
-                    this.diskProvider.FolderExists(parentDir))
+                    !string.Equals(parentTrimmed, sourceTrimmed, StringComparison.OrdinalIgnoreCase))
                 {
                     sourcePath = parentDir;
                 }
-                else if (this.diskProvider.FileExists(firstFullPath) || File.Exists(firstFullPath + ".!mt"))
+                else
                 {
                     sourcePath = firstFullPath;
                 }
