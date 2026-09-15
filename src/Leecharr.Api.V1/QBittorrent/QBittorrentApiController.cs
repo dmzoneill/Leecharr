@@ -22,6 +22,7 @@ using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.BitTorrent.Creation;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Download;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Indexers.Search;
 using NzbDrone.Core.Tags;
