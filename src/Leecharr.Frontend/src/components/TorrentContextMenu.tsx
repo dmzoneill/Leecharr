@@ -128,7 +128,12 @@ export function TorrentContextMenu({
     ? getMediaDeepLink(historyMatch, arrConnections)
     : null;
 
-  const isPaused = ct?.status?.toLowerCase() === "paused";
+  const st = (ct?.status || "").toLowerCase();
+  const isActive =
+    st === "downloading" ||
+    st === "seeding" ||
+    st === "checking" ||
+    st === "active";
 
   return (
     <>
@@ -159,7 +164,7 @@ export function TorrentContextMenu({
             )}
 
             {/* Pause / Resume */}
-            {isPaused ? (
+            {!isActive ? (
               <button
                 type="button"
                 className="context-menu-item"

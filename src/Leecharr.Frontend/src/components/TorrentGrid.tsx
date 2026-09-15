@@ -39,9 +39,14 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
     );
 
     const statusLower = (mergedTorrent.status || "").toLowerCase();
+    const isActive =
+      statusLower === "downloading" ||
+      statusLower === "seeding" ||
+      statusLower === "checking" ||
+      statusLower === "active";
     const isDownloading = statusLower === "downloading";
     const isSeeding = statusLower === "seeding";
-    const isPaused = statusLower === "paused";
+    const isPaused = !isActive;
     const isChecking = statusLower === "checking";
     const isQueuedRecheck =
       statusLower === "queuedforchecking" ||
