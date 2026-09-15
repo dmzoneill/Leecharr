@@ -26,6 +26,8 @@ public interface IStoragePathService
     bool MoveToCompleted(string sourcePath, string category, string torrentName, out string finalDestination);
 
     void StripIncompleteExtensions(string targetDirectoryOrFile);
+
+    void EnsureAccessiblePermissions(string path);
 }
 
 public class StoragePathService : IStoragePathService
@@ -477,7 +479,7 @@ public class StoragePathService : IStoragePathService
         }
     }
 
-    private void EnsureAccessiblePermissions(string path)
+    public void EnsureAccessiblePermissions(string path)
     {
         if (string.IsNullOrWhiteSpace(path) || OperatingSystem.IsWindows())
         {
