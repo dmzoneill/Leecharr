@@ -261,10 +261,13 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
                 alignItems: "center",
                 gap: "4px",
               }}
-              title={t("torrents.detail.privateSwarmTooltip")}
+              title={t(
+                "torrents.table.privateTooltip",
+                "BEP 27 Private Torrent",
+              )}
             >
               <i className="fas fa-lock" style={{ fontSize: "0.62rem" }} />{" "}
-              {t("torrents.detail.privateSwarmBadge")}
+              {t("torrents.filters.privateBep27", "Private (BEP 27)")}
             </span>
           ) : (
             <span
@@ -278,10 +281,13 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
                 alignItems: "center",
                 gap: "4px",
               }}
-              title={t("torrents.detail.publicSwarmTooltip")}
+              title={t(
+                "torrents.detail.publicSwarmTooltip",
+                "Public BitTorrent Swarm",
+              )}
             >
               <i className="fas fa-globe" style={{ fontSize: "0.62rem" }} />{" "}
-              {t("torrents.detail.publicSwarmBadge")}
+              {t("torrents.filters.publicSwarm", "Public Swarm")}
             </span>
           )}
         </div>

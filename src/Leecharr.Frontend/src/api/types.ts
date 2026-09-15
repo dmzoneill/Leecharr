@@ -1619,7 +1619,7 @@ export interface FileBrowserListing {
 }
 
 export interface FilePreviewResult {
-  type: "text" | "image" | "binary";
+  type: "text" | "image" | "video" | "audio" | "binary";
   name: string;
   path: string;
   size: number;
@@ -1739,4 +1739,3 @@ export interface InstallMarketplaceTemplateRequest {
   customName?: string;
   customInputs?: Record<string, string>;
 }
-
