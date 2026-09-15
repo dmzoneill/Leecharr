@@ -19,6 +19,9 @@ services:
     environment:
       - TZ=UTC
       - COVERAGE_ENABLED=${COVERAGE_ENABLED:-1}
+      - PUID=1000
+      - PGID=1000
+      - UMASK=002
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:7889/ping"]
       interval: 10s
@@ -48,13 +51,15 @@ services:
     volumes:
       - ./config/seedarr:/config:z
       - ./config/leecharr/downloads:/downloads:z
-      - ./config/leecharr/downloads:/config/downloads:z
       - ./data/movies:/movies:z
       - ./data/series:/series:z
       - ./tests/fixtures:/app/fixtures:ro,z
     restart: unless-stopped
     environment:
       - TZ=UTC
+      - PUID=1000
+      - PGID=1000
+      - UMASK=002
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9898/api/v1/system/status"]
       interval: 10s
@@ -75,9 +80,7 @@ services:
     volumes:
       - ./config/sonarr:/config:z
       - ./config/leecharr/downloads:/downloads:z
-      - ./config/leecharr/downloads:/config/downloads:z
       - ./data/series:/series:z
-      - ./data/series:/tv:z
     restart: unless-stopped
     environment:
       - PUID=1000
@@ -103,7 +106,6 @@ services:
     volumes:
       - ./config/radarr:/config:z
       - ./config/leecharr/downloads:/downloads:z
-      - ./config/leecharr/downloads:/config/downloads:z
       - ./data/movies:/movies:z
     restart: unless-stopped
     environment:
@@ -377,36 +379,6 @@ services:
             echo "    HTTP $$code: $$(cat /tmp/dc_resp | head -c 200)"
           fi
         }
-
-        # --- Add Remote Path Mappings in Sonarr & Radarr ---
-        add_remote_path_mapping() {
-          local name=$$1 url=$$2 api_key=$$3 api_ver=$$4 rpath=$$5 lpath=$$6
-          existing=$$(curl -sf "$$url/api/$$api_ver/remotepathmapping" -H "X-Api-Key: $$api_key" 2>/dev/null | grep -c "\"remotePath\":\"$$rpath\"" || true)
-          if [ "$$existing" = "0" ]; then
-            code=$$(curl -s -o /tmp/rpm_resp -w "%{http_code}" -X POST "$$url/api/$$api_ver/remotepathmapping" \
-              -H "X-Api-Key: $$api_key" \
-              -H "Content-Type: application/json" \
-              -d "{
-                \"host\": \"leecharr.local\",
-                \"remotePath\": \"$$rpath\",
-                \"localPath\": \"$$lpath\"
-              }")
-            if [ "$$code" = "200" ] || [ "$$code" = "201" ]; then
-              echo "  $$name remote path mapping ($$rpath -> $$lpath): OK"
-            else
-              echo "  $$name remote path mapping ($$rpath -> $$lpath): HTTP $$code"
-            fi
-          else
-            echo "  $$name remote path mapping ($$rpath): already exists, skipping"
-          fi
-        }
-
-        echo ""
-        echo "--- Adding Remote Path Mappings to *arr apps ---"
-        add_remote_path_mapping "Sonarr" "http://sonarr.local:8989" "$$SONARR_KEY" "v3" "/config/downloads/" "/downloads/"
-        add_remote_path_mapping "Sonarr" "http://sonarr.local:8989" "$$SONARR_KEY" "v3" "/tv-sonarr/" "/downloads/"
-        add_remote_path_mapping "Radarr" "http://radarr.local:7878" "$$RADARR_KEY" "v3" "/config/downloads/" "/downloads/"
-        add_remote_path_mapping "Radarr" "http://radarr.local:7878" "$$RADARR_KEY" "v3" "/radarr/" "/downloads/"
 
         # --- Connect Leecharr to Sonarr, Radarr & Prowlarr ---
         add_leecharr_connection() {

@@ -16,6 +16,7 @@ using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using NUnit.Framework;
 using NzbDrone.Common.Disk;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
@@ -36,18 +37,22 @@ public class MonoTorrentDownloadEngineTest
     private ICategoryService categoryService = null!;
     private IDiskProvider diskProvider = null!;
     private IEventAggregator eventAggregator = null!;
+    private IAppFolderInfo appFolderInfo = null!;
     private MonoTorrentDownloadEngine engine = null!;
 
     private string testIncompleteDir = null!;
     private string testDownloadDir = null!;
+    private string testAppDataDir = null!;
 
     [SetUp]
     public void SetUp()
     {
         this.testIncompleteDir = Path.Combine(Path.GetTempPath(), "leecharr_test_incomplete_" + Guid.NewGuid().ToString("N"));
         this.testDownloadDir = Path.Combine(Path.GetTempPath(), "leecharr_test_downloads_" + Guid.NewGuid().ToString("N"));
+        this.testAppDataDir = Path.Combine(Path.GetTempPath(), "leecharr_test_appdata_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(this.testIncompleteDir);
         Directory.CreateDirectory(this.testDownloadDir);
+        Directory.CreateDirectory(this.testAppDataDir);
 
         this.configService = Substitute.For<IConfigService>();
         this.configService.ListeningPort.Returns(0); // dynamic port
@@ -71,12 +76,16 @@ public class MonoTorrentDownloadEngineTest
         this.diskProvider = Substitute.For<IDiskProvider>();
         this.eventAggregator = Substitute.For<IEventAggregator>();
 
+        this.appFolderInfo = Substitute.For<IAppFolderInfo>();
+        this.appFolderInfo.AppDataFolder.Returns(this.testAppDataDir);
+
         this.engine = new MonoTorrentDownloadEngine(
             this.configService,
             this.storagePathService,
             this.categoryService,
             this.diskProvider,
-            this.eventAggregator);
+            this.eventAggregator,
+            appFolderInfo: this.appFolderInfo);
     }
 
     [TearDown]
@@ -94,6 +103,11 @@ public class MonoTorrentDownloadEngineTest
             if (Directory.Exists(this.testDownloadDir))
             {
                 Directory.Delete(this.testDownloadDir, true);
+            }
+
+            if (Directory.Exists(this.testAppDataDir))
+            {
+                Directory.Delete(this.testAppDataDir, true);
             }
         }
         catch

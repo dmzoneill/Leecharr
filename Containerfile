@@ -77,14 +77,15 @@ WORKDIR /app
 
 COPY --from=backend /app ./
 COPY --from=frontend /build/src/NzbDrone.Host/wwwroot/ ./wwwroot/
-COPY --from=backend /root/.dotnet/tools /root/.dotnet/tools
+COPY --from=backend /root/.dotnet/tools /opt/dotnet-tools
+RUN chmod -R 755 /opt/dotnet-tools
 COPY version ./
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
 ENV LEECHARR__APP_DATA=/config
 ENV DOTNET_gcServer=0
-ENV PATH="$PATH:/root/.dotnet/tools"
+ENV PATH="$PATH:/opt/dotnet-tools"
 
 EXPOSE 7889 7890
 
