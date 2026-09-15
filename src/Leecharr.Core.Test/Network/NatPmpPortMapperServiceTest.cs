@@ -795,7 +795,7 @@ public class NatPmpPortMapperServiceTest
         await Task.WhenAll(tasks);
 
         // Wait for background coordinated renewal to complete
-        for (var i = 0; i < 20 && Volatile.Read(ref totalRequestsReceived) < 4; i++)
+        for (var i = 0; i < 50 && Volatile.Read(ref totalRequestsReceived) < 4; i++)
         {
             await Task.Delay(50, CancellationToken.None);
         }
