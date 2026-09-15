@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.13.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.13.1) - 2026-09-15
+
+### 🐛 Bug Fixes
+- fix(arr-integration): align default download paths, normalize transmission rpc paths, and clear category subpath requirement
+
 ## [v1.13.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.13.0) - 2026-09-15
 
 ### ✨ Features
