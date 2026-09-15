@@ -72,6 +72,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private Timer diskFlushTimer;
     private Timer fastResumeAutoSaveTimer;
     private volatile bool isHaltedByKillSwitch;
+    private volatile bool isEngineStopping;
     private bool disposed;
 
     private long totalPiecesHashed;
@@ -563,42 +564,50 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
 
         this.logger.Info("Stopping MonoTorrent download engine...");
+        this.isEngineStopping = true;
 
         try
-        {
-            await this.SaveAllFastResumeCheckpointsAsync().ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            this.logger.Debug(ex, "Error saving FastResume checkpoints during engine stop");
-        }
-
-        foreach (var task in this.tasks.Values)
         {
             try
             {
-                if (task.Manager != null && task.Manager.State != TorrentState.Stopped)
-                {
-                    await task.Manager.StopAsync();
-                }
+                await this.SaveAllFastResumeCheckpointsAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                this.logger.Warn(ex, "Error stopping torrent manager for {0}", task.InfoHash);
+                this.logger.Debug(ex, "Error saving FastResume checkpoints during engine stop");
+            }
+
+            foreach (var task in this.tasks.Values)
+            {
+                try
+                {
+                    if (task.Manager != null && task.Manager.State != TorrentState.Stopped)
+                    {
+                        await task.Manager.StopAsync();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Error stopping torrent manager for {0}", task.InfoHash);
+                }
+            }
+
+            await this.engine.StopAllAsync();
+            this.engine.Dispose();
+            this.engine = null;
+
+            try
+            {
+                await this.natPmpPortMapperService.StopAsync();
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Error stopping NAT-PMP port mapper on engine stop.");
             }
         }
-
-        await this.engine.StopAllAsync();
-        this.engine.Dispose();
-        this.engine = null;
-
-        try
+        finally
         {
-            await this.natPmpPortMapperService.StopAsync();
-        }
-        catch (Exception ex)
-        {
-            this.logger.Debug(ex, "Error stopping NAT-PMP port mapper on engine stop.");
+            this.isEngineStopping = false;
         }
 
         this.logger.Info("MonoTorrent download engine stopped.");
@@ -656,15 +665,45 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     public async Task<IDownloadTask> AddTorrentAsync(CoreTorrent torrent, byte[] torrentFileBytes = null, string magnetUri = null)
     {
+        if (torrent == null)
+        {
+            return null;
+        }
+
+        if (this.tasks.TryGetValue(torrent.Id, out var existingTask))
+        {
+            return existingTask;
+        }
+
         if (!await this.EnsureEngineReadyAsync())
         {
             lock (this.pendingTorrentsLock)
             {
-                this.pendingTorrents.Add((torrent, torrentFileBytes, magnetUri));
+                if (!this.pendingTorrents.Any(p => p.Torrent?.Id == torrent.Id))
+                {
+                    this.pendingTorrents.Add((torrent, torrentFileBytes, magnetUri));
+                }
             }
 
             this.logger.Info("VPN kill switch active; torrent '{0}' queued until engine is available.", torrent.Name);
             return null;
+        }
+
+        MtTorrent parsedTorrent = null;
+        if (torrentFileBytes != null && torrentFileBytes.Length > 0)
+        {
+            try
+            {
+                parsedTorrent = MtTorrent.Load(torrentFileBytes);
+                if (parsedTorrent.IsPrivate && !torrent.IsPrivate)
+                {
+                    torrent.IsPrivate = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to pre-inspect torrent file bytes for BEP 27 flag on {0}", torrent.Name);
+            }
         }
 
         var useIncompleteDir = this.configService.EnableIncompleteDir;
@@ -690,10 +729,88 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             torrent.SavePath = completedDir;
         }
 
-        var isCompleteOrSeeding = torrent.Status == TorrentStatus.Seeding || (torrent.Progress >= 1.0 && !string.IsNullOrWhiteSpace(torrent.SavePath));
-        var workingPath = (isCompleteOrSeeding || !useIncompleteDir)
+        var infoHashHex = torrent.InfoHash
+            ?? parsedTorrent?.InfoHashes.V1OrV2?.ToHex()
+            ?? parsedTorrent?.InfoHashes.V1?.ToHex()
+            ?? parsedTorrent?.InfoHashes.V2?.ToHex();
+
+        if (!string.IsNullOrWhiteSpace(infoHashHex) &&
+            this.infoHashToId.TryGetValue(infoHashHex, out var existingId) &&
+            this.tasks.TryGetValue(existingId, out var existingByHash))
+        {
+            if (existingId != torrent.Id)
+            {
+                this.tasks.TryRemove(existingId, out _);
+                this.tasks[torrent.Id] = existingByHash;
+                this.infoHashToId[infoHashHex] = torrent.Id;
+            }
+
+            return existingByHash;
+        }
+
+        var cacheDir = this.GetCacheDirectory();
+        var savedFastResume = !string.IsNullOrWhiteSpace(infoHashHex)
+            ? await this.TryLoadSavedFastResumeAsync(infoHashHex, cacheDir).ConfigureAwait(false)
+            : null;
+
+        var incompleteDir = this.storagePathService.GetIncompleteDirectory();
+        var hasCompletedFiles = false;
+        var hasIncompleteFiles = false;
+
+        if (parsedTorrent?.Files != null && parsedTorrent.Files.Count > 0)
+        {
+            var completedCount = 0;
+            var incompleteCount = 0;
+            foreach (var file in parsedTorrent.Files)
+            {
+                var targetCompletedPath = Path.Combine(completedDir, file.Path);
+                var altCompletedPath = Path.Combine(completedDir, Path.GetFileName(file.Path));
+                if ((this.diskProvider.FileExists(targetCompletedPath) && new FileInfo(targetCompletedPath).Length > 0) ||
+                    (this.diskProvider.FileExists(altCompletedPath) && new FileInfo(altCompletedPath).Length > 0))
+                {
+                    completedCount++;
+                }
+
+                var targetIncompletePath = Path.Combine(incompleteDir, file.Path);
+                var altIncompletePath = Path.Combine(incompleteDir, Path.GetFileName(file.Path));
+                if ((this.diskProvider.FileExists(targetIncompletePath) && new FileInfo(targetIncompletePath).Length > 0) ||
+                    (this.diskProvider.FileExists(altIncompletePath) && new FileInfo(altIncompletePath).Length > 0) ||
+                    this.diskProvider.FileExists(targetIncompletePath + ".!mt") ||
+                    this.diskProvider.FileExists(targetIncompletePath + ".incomplete") ||
+                    this.diskProvider.FileExists(altIncompletePath + ".!mt") ||
+                    this.diskProvider.FileExists(altIncompletePath + ".incomplete"))
+                {
+                    incompleteCount++;
+                }
+            }
+
+            if (completedCount == parsedTorrent.Files.Count && completedCount > 0)
+            {
+                hasCompletedFiles = true;
+            }
+            else if (incompleteCount > 0)
+            {
+                hasIncompleteFiles = true;
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(torrent.Name))
+        {
+            var completedTarget = Path.Combine(completedDir, torrent.Name);
+            if (this.diskProvider.FolderExists(completedTarget) || this.diskProvider.FileExists(completedTarget))
+            {
+                hasCompletedFiles = true;
+            }
+        }
+
+        var isCompleteOrSeeding = torrent.Status == TorrentStatus.Seeding ||
+                                  (torrent.Progress >= 1.0 && !string.IsNullOrWhiteSpace(torrent.SavePath)) ||
+                                  hasCompletedFiles ||
+                                  torrent.DateCompleted.HasValue ||
+                                  (savedFastResume?.Bitfield != null && savedFastResume.Bitfield.AllTrue);
+
+        var workingPath = (isCompleteOrSeeding || !useIncompleteDir || (!hasIncompleteFiles && hasCompletedFiles))
             ? completedDir
-            : this.storagePathService.GetIncompleteDirectory();
+            : incompleteDir;
 
         try
         {
@@ -701,23 +818,6 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
         catch
         {
-        }
-
-        MtTorrent parsedTorrent = null;
-        if (torrentFileBytes != null && torrentFileBytes.Length > 0)
-        {
-            try
-            {
-                parsedTorrent = MtTorrent.Load(torrentFileBytes);
-                if (parsedTorrent.IsPrivate && !torrent.IsPrivate)
-                {
-                    torrent.IsPrivate = true;
-                }
-            }
-            catch (Exception ex)
-            {
-                this.logger.Warn(ex, "Failed to pre-inspect torrent file bytes for BEP 27 flag on {0}", torrent.Name);
-            }
         }
 
         var isProxyConfigured = this.configService.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
@@ -758,89 +858,156 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         TorrentManager manager = null;
         var torrentSettings = torrentSettingsBuilder.ToSettings();
 
-        var isSequential = torrent.SequentialDownload || string.Equals(this.configService.PiecePickerStrategy, "Sequential", StringComparison.OrdinalIgnoreCase);
-        if (isSequential)
+        if (this.engine != null && !string.IsNullOrWhiteSpace(infoHashHex))
         {
-            if (torrentFileBytes != null && torrentFileBytes.Length > 0)
-            {
-                parsedTorrent ??= MtTorrent.Load(torrentFileBytes);
-                manager = await this.engine.AddStreamingAsync(parsedTorrent, workingPath, torrentSettings);
-            }
-            else if (!string.IsNullOrWhiteSpace(magnetUri))
-            {
-                var magnetLink = MagnetLink.Parse(magnetUri);
-                try
-                {
-                    var parsedMagnet = MagnetLinkParser.Parse(magnetUri);
-                    if (parsedMagnet.WebSeeds != null && parsedMagnet.WebSeeds.Count > 0)
-                    {
-                        foreach (var ws in parsedMagnet.WebSeeds)
-                        {
-                            if (!magnetLink.Webseeds.Contains(ws))
-                            {
-                                magnetLink.Webseeds.Add(ws);
-                            }
-                        }
-                    }
-                }
-                catch
-                {
-                }
-
-                manager = await this.engine.AddStreamingAsync(magnetLink, workingPath, torrentSettings);
-            }
-            else if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
-            {
-                var magnetString = !string.IsNullOrWhiteSpace(torrent.TrackerUrl)
-                    ? $"magnet:?xt=urn:btih:{torrent.InfoHash}&tr={Uri.EscapeDataString(torrent.TrackerUrl)}"
-                    : $"magnet:?xt=urn:btih:{torrent.InfoHash}";
-                var magnetLink = MagnetLink.Parse(magnetString);
-                manager = await this.engine.AddStreamingAsync(magnetLink, workingPath, torrentSettings);
-            }
+            manager = this.engine.Torrents.FirstOrDefault(m =>
+                m.InfoHashes != null && (
+                    string.Equals(m.InfoHashes.V1OrV2?.ToHex(), infoHashHex, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(m.InfoHashes.V1?.ToHex(), infoHashHex, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(m.InfoHashes.V2?.ToHex(), infoHashHex, StringComparison.OrdinalIgnoreCase)));
         }
-        else
+
+        if (manager == null)
         {
-            if (torrentFileBytes != null && torrentFileBytes.Length > 0)
+            var isSequential = torrent.SequentialDownload || string.Equals(this.configService.PiecePickerStrategy, "Sequential", StringComparison.OrdinalIgnoreCase);
+            try
             {
-                parsedTorrent ??= MtTorrent.Load(torrentFileBytes);
-                manager = await this.engine.AddAsync(parsedTorrent, workingPath, torrentSettings);
-            }
-            else if (!string.IsNullOrWhiteSpace(magnetUri))
-            {
-                var magnetLink = MagnetLink.Parse(magnetUri);
-                try
+                if (isSequential)
                 {
-                    var parsedMagnet = MagnetLinkParser.Parse(magnetUri);
-                    if (parsedMagnet.WebSeeds != null && parsedMagnet.WebSeeds.Count > 0)
+                    if (torrentFileBytes != null && torrentFileBytes.Length > 0)
                     {
-                        foreach (var ws in parsedMagnet.WebSeeds)
+                        parsedTorrent ??= MtTorrent.Load(torrentFileBytes);
+                        manager = await this.engine.AddStreamingAsync(parsedTorrent, workingPath, torrentSettings);
+                    }
+                    else if (!string.IsNullOrWhiteSpace(magnetUri))
+                    {
+                        var magnetLink = MagnetLink.Parse(magnetUri);
+                        try
                         {
-                            if (!magnetLink.Webseeds.Contains(ws))
+                            var parsedMagnet = MagnetLinkParser.Parse(magnetUri);
+                            if (parsedMagnet.WebSeeds != null && parsedMagnet.WebSeeds.Count > 0)
                             {
-                                magnetLink.Webseeds.Add(ws);
+                                foreach (var ws in parsedMagnet.WebSeeds)
+                                {
+                                    if (!magnetLink.Webseeds.Contains(ws))
+                                    {
+                                        magnetLink.Webseeds.Add(ws);
+                                    }
+                                }
                             }
                         }
+                        catch
+                        {
+                        }
+
+                        manager = await this.engine.AddStreamingAsync(magnetLink, workingPath, torrentSettings);
+                    }
+                    else if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
+                    {
+                        var magnetString = !string.IsNullOrWhiteSpace(torrent.TrackerUrl)
+                            ? $"magnet:?xt=urn:btih:{torrent.InfoHash}&tr={Uri.EscapeDataString(torrent.TrackerUrl)}"
+                            : $"magnet:?xt=urn:btih:{torrent.InfoHash}";
+                        var magnetLink = MagnetLink.Parse(magnetString);
+                        manager = await this.engine.AddStreamingAsync(magnetLink, workingPath, torrentSettings);
                     }
                 }
-                catch
+                else
                 {
+                    if (torrentFileBytes != null && torrentFileBytes.Length > 0)
+                    {
+                        parsedTorrent ??= MtTorrent.Load(torrentFileBytes);
+                        manager = await this.engine.AddAsync(parsedTorrent, workingPath, torrentSettings);
+                    }
+                    else if (!string.IsNullOrWhiteSpace(magnetUri))
+                    {
+                        var magnetLink = MagnetLink.Parse(magnetUri);
+                        try
+                        {
+                            var parsedMagnet = MagnetLinkParser.Parse(magnetUri);
+                            if (parsedMagnet.WebSeeds != null && parsedMagnet.WebSeeds.Count > 0)
+                            {
+                                foreach (var ws in parsedMagnet.WebSeeds)
+                                {
+                                    if (!magnetLink.Webseeds.Contains(ws))
+                                    {
+                                        magnetLink.Webseeds.Add(ws);
+                                    }
+                                }
+                            }
+                        }
+                        catch
+                        {
+                        }
+
+                        manager = await this.engine.AddAsync(magnetLink, workingPath, torrentSettings);
+                    }
+                    else if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
+                    {
+                        var magnetString = !string.IsNullOrWhiteSpace(torrent.TrackerUrl)
+                            ? $"magnet:?xt=urn:btih:{torrent.InfoHash}&tr={Uri.EscapeDataString(torrent.TrackerUrl)}"
+                            : $"magnet:?xt=urn:btih:{torrent.InfoHash}";
+                        var magnetLink = MagnetLink.Parse(magnetString);
+                        manager = await this.engine.AddAsync(magnetLink, workingPath, torrentSettings);
+                    }
+                }
+            }
+            catch (TorrentException ex) when (ex.Message.Contains("already been registered", StringComparison.OrdinalIgnoreCase))
+            {
+                if (this.engine != null && !string.IsNullOrWhiteSpace(infoHashHex))
+                {
+                    manager = this.engine.Torrents.FirstOrDefault(m =>
+                        m.InfoHashes != null && (
+                            string.Equals(m.InfoHashes.V1OrV2?.ToHex(), infoHashHex, StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(m.InfoHashes.V1?.ToHex(), infoHashHex, StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(m.InfoHashes.V2?.ToHex(), infoHashHex, StringComparison.OrdinalIgnoreCase)));
                 }
 
-                manager = await this.engine.AddAsync(magnetLink, workingPath, torrentSettings);
-            }
-            else if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
-            {
-                var magnetString = !string.IsNullOrWhiteSpace(torrent.TrackerUrl)
-                    ? $"magnet:?xt=urn:btih:{torrent.InfoHash}&tr={Uri.EscapeDataString(torrent.TrackerUrl)}"
-                    : $"magnet:?xt=urn:btih:{torrent.InfoHash}";
-                var magnetLink = MagnetLink.Parse(magnetString);
-                manager = await this.engine.AddAsync(magnetLink, workingPath, torrentSettings);
+                if (manager == null)
+                {
+                    throw;
+                }
             }
         }
 
         if (manager == null)
         {
             throw new InvalidOperationException("Failed to create TorrentManager for torrent.");
+        }
+
+        if (savedFastResume != null && (!manager.HashChecked || manager.Progress < 100.0))
+        {
+            try
+            {
+                await manager.LoadFastResumeAsync(savedFastResume).ConfigureAwait(false);
+                this.logger.Info("Loaded saved FastResume checkpoint for {0} ({1}) - Progress: {2:F1}%, Complete: {3}", torrent.Name, infoHashHex, manager.Progress, manager.Complete);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to load saved FastResume for {0} ({1})", torrent.Name, infoHashHex);
+            }
+        }
+        else if (isCompleteOrSeeding && manager.InfoHashes != null)
+        {
+            var pieceCount = parsedTorrent?.PieceCount ?? manager.Torrent?.PieceCount ?? 0;
+            if (pieceCount > 0)
+            {
+                try
+                {
+                    var isFullTorrent = manager.Files == null || !manager.Files.Any(f => f.Priority == MonoTorrent.Priority.DoNotDownload);
+                    var resumeBitfield = isFullTorrent
+                        ? new ReadOnlyBitField(new BitField(pieceCount).SetAll(true))
+                        : manager.Bitfield ?? new ReadOnlyBitField(pieceCount);
+                    var unhashed = new ReadOnlyBitField(pieceCount);
+                    var synthesizedFastResume = new FastResume(manager.InfoHashes, resumeBitfield, unhashed);
+                    await manager.LoadFastResumeAsync(synthesizedFastResume).ConfigureAwait(false);
+                    await this.SaveFastResumeAtomicAsync(manager, this.GetCacheDirectory()).ConfigureAwait(false);
+                    this.logger.Info("Synthesized and loaded 100% FastResume checkpoint for completed torrent {0} ({1})", torrent.Name, infoHashHex);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to load synthesized FastResume for {0} ({1})", torrent.Name, infoHashHex);
+                }
+            }
         }
 
         if (isProxyActive && manager.TrackerManager?.Tiers != null)
@@ -882,8 +1049,13 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             workingPath,
             t => _ = this.ApplyStoredFilePrioritiesAsync(t));
         downloadTask.SavePath = completedDir;
+        downloadTask.IsFilesMovedToCompleted = isCompleteOrSeeding;
         this.tasks[torrent.Id] = downloadTask;
-        this.infoHashToId[torrent.InfoHash] = torrent.Id;
+        if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
+        {
+            this.infoHashToId[torrent.InfoHash] = torrent.Id;
+        }
+
         if (manager.InfoHashes?.V1 != null)
         {
             this.infoHashToId[manager.InfoHashes.V1.ToHex()] = torrent.Id;
@@ -898,6 +1070,20 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         manager.PieceHashed += this.OnPieceHashed;
 
         await this.ApplyStoredFilePrioritiesAsync(downloadTask).ConfigureAwait(false);
+
+        if (manager.Complete || (manager.Bitfield != null && manager.Bitfield.Length > 0 && manager.Bitfield.AllTrue) || isCompleteOrSeeding)
+        {
+            downloadTask.IsFilesMovedToCompleted = true;
+            if (torrent.Status == TorrentStatus.Downloading || (torrent.Status == TorrentStatus.Stopped && this.configService?.AutoStart == true))
+            {
+                torrent.Status = TorrentStatus.Seeding;
+                torrent.Progress = 1.0;
+            }
+            else
+            {
+                torrent.Progress = 1.0;
+            }
+        }
 
         if (!isLowDiskSpace && parsedTorrent != null)
         {
@@ -925,7 +1111,16 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
         else if (torrent.Status == TorrentStatus.Stopped)
         {
-            this.logger.Info("Added stopped torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
+            if (this.configService.AutoStart && (isCompleteOrSeeding || manager.Complete || (manager.Bitfield != null && manager.Bitfield.AllTrue)))
+            {
+                await manager.StartAsync();
+                torrent.Status = TorrentStatus.Seeding;
+                this.logger.Info("AutoStarted complete/seeding torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
+            }
+            else
+            {
+                this.logger.Info("Added stopped torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
+            }
         }
         else if (torrent.Status is TorrentStatus.Queued or TorrentStatus.Error or TorrentStatus.Stalled)
         {
@@ -1984,6 +2179,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     public async Task HandleTorrentStateChangedAsync(TorrentStateChangedEventArgs e)
     {
+        if (this.isEngineStopping)
+        {
+            return;
+        }
+
         try
         {
             var manager = e.TorrentManager;
@@ -1995,9 +2195,15 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
                 var oldStatus = MapTorrentStateToStatus(e.OldState);
                 var newStatus = MapTorrentStateToStatus(e.NewState);
+                this.tasks.TryGetValue(torrentId, out var currentTask);
+                if (newStatus == TorrentStatus.Downloading &&
+                    (manager.Complete || (manager.Bitfield != null && manager.Bitfield.Length > 0 && manager.Bitfield.AllTrue) || currentTask?.IsFilesMovedToCompleted == true))
+                {
+                    newStatus = TorrentStatus.Seeding;
+                }
+
                 if (oldStatus != newStatus)
                 {
-                    this.tasks.TryGetValue(torrentId, out var currentTask);
                     var coreTorrent = new CoreTorrent
                     {
                         Id = torrentId,
@@ -2059,9 +2265,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 {
                     if (this.tasks.TryGetValue(torrentId, out var activeTask))
                     {
+                        var wasExplicitRecheck = activeTask.IsQueuedForRecheck;
                         activeTask.IsQueuedForRecheck = false;
                         var allVerified = manager.Complete || (manager.Bitfield != null && manager.Bitfield.Length > 0 && manager.Bitfield.AllTrue);
-                        if (!allVerified && activeTask.IsFilesMovedToCompleted)
+                        if (!allVerified && activeTask.IsFilesMovedToCompleted && wasExplicitRecheck)
                         {
                             activeTask.IsFilesMovedToCompleted = false;
                             this.logger.Warn("Torrent {0} failed hash check after completion ({1:F1}% verified). Resetting completed latch and resuming download to fetch missing pieces.", infoHash, manager.Progress);
@@ -2326,7 +2533,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     try
                     {
                         Directory.CreateDirectory(seedingSavePath);
-                        await manager.MoveFilesAsync(seedingSavePath, true).ConfigureAwait(false);
+                        await manager.MoveFilesAsync(seedingSavePath, false).ConfigureAwait(false);
                         await this.CloseDiskManagerFilesAsync(manager).ConfigureAwait(false);
                         this.logger.Info("MonoTorrent updated seeding path to '{0}' for torrent {1}", seedingSavePath, infoHash);
                     }
@@ -2334,6 +2541,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     {
                         this.logger.Warn(ex, "Failed to update MonoTorrent seeding path to '{0}' for {1}; files were already moved by StoragePathService", seedingSavePath, infoHash);
                     }
+                }
+
+                if (existingTask != null)
+                {
+                    existingTask.WorkingPath = seedingSavePath;
+                    existingTask.SavePath = seedingSavePath;
                 }
 
                 if (manager.State != TorrentState.Stopped)
@@ -2361,7 +2574,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         var unhashed = new ReadOnlyBitField(pieceCount);
                         var fastResume = new FastResume(manager.InfoHashes, resumeBitfield, unhashed);
                         await manager.LoadFastResumeAsync(fastResume).ConfigureAwait(false);
-                        this.logger.Debug("Loaded FastResume after moving completed torrent {0} to '{1}'", infoHash, seedingSavePath);
+                        await this.SaveFastResumeAtomicAsync(manager, this.GetCacheDirectory()).ConfigureAwait(false);
+                        this.logger.Info("Loaded and saved 100% FastResume checkpoint after moving completed torrent {0} to '{1}'", infoHash, seedingSavePath);
                     }
                 }
 
@@ -2554,39 +2768,52 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         candidatePaths.Add(file.DownloadIncompleteFullPath + ".!leech");
                     }
 
+                    var incompleteDir = this.storagePathService?.GetIncompleteDirectory();
+                    var completedDir = this.storagePathService?.GetCompletedDirectory(null);
+                    var torrentName = manager.TorrentInfo?.Name ?? string.Empty;
+
                     if (!string.IsNullOrWhiteSpace(file.Path))
                     {
-                        var incompleteDir = this.storagePathService?.GetIncompleteDirectory();
-                        var completedDir = this.storagePathService?.GetCompletedDirectory(null);
-                        var torrentName = manager.TorrentInfo?.Name ?? string.Empty;
+                        var fileName = Path.GetFileName(file.Path);
+                        if (!string.IsNullOrWhiteSpace(completedDir))
+                        {
+                            candidatePaths.Add(Path.Combine(completedDir, file.Path));
+                            candidatePaths.Add(Path.Combine(completedDir, file.Path + ".!mt"));
+                            candidatePaths.Add(Path.Combine(completedDir, torrentName, file.Path));
+                            candidatePaths.Add(Path.Combine(completedDir, torrentName, file.Path + ".!mt"));
+                            if (!string.IsNullOrWhiteSpace(fileName))
+                            {
+                                candidatePaths.Add(Path.Combine(completedDir, fileName));
+                                candidatePaths.Add(Path.Combine(completedDir, fileName + ".!mt"));
+                            }
+                        }
 
                         if (!string.IsNullOrWhiteSpace(incompleteDir))
                         {
-                            candidatePaths.Add(Path.Combine(incompleteDir, torrentName, file.Path));
-                            candidatePaths.Add(Path.Combine(incompleteDir, torrentName, file.Path + ".!mt"));
-                            candidatePaths.Add(Path.Combine(incompleteDir, torrentName, file.Path + ".!leech"));
                             candidatePaths.Add(Path.Combine(incompleteDir, file.Path));
                             candidatePaths.Add(Path.Combine(incompleteDir, file.Path + ".!mt"));
-                            candidatePaths.Add(Path.Combine(incompleteDir, file.Path + ".!leech"));
-                        }
-
-                        if (!string.IsNullOrWhiteSpace(completedDir))
-                        {
-                            candidatePaths.Add(Path.Combine(completedDir, torrentName, file.Path));
-                            candidatePaths.Add(Path.Combine(completedDir, torrentName, file.Path + ".!mt"));
-                            candidatePaths.Add(Path.Combine(completedDir, file.Path));
-                            candidatePaths.Add(Path.Combine(completedDir, file.Path + ".!mt"));
+                            candidatePaths.Add(Path.Combine(incompleteDir, torrentName, file.Path));
+                            candidatePaths.Add(Path.Combine(incompleteDir, torrentName, file.Path + ".!mt"));
+                            if (!string.IsNullOrWhiteSpace(fileName))
+                            {
+                                candidatePaths.Add(Path.Combine(incompleteDir, fileName));
+                                candidatePaths.Add(Path.Combine(incompleteDir, fileName + ".!mt"));
+                            }
                         }
                     }
 
                     string filePath = null;
-                    foreach (var cand in candidatePaths)
+                    var validFiles = candidatePaths
+                        .Where(c => !string.IsNullOrWhiteSpace(c) && File.Exists(c))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .Select(c => new FileInfo(c))
+                        .OrderByDescending(fi => fi.Length >= fileOffset + bytesInThisFile ? 2 : (fi.Length > 0 ? 1 : 0))
+                        .ThenByDescending(fi => fi.Length)
+                        .ToList();
+
+                    if (validFiles.Count > 0)
                     {
-                        if (!string.IsNullOrWhiteSpace(cand) && File.Exists(cand))
-                        {
-                            filePath = cand;
-                            break;
-                        }
+                        filePath = validFiles[0].FullName;
                     }
 
                     if (File.Exists(filePath))
@@ -3625,8 +3852,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var isSparse = string.Equals(mode, "Sparse", StringComparison.OrdinalIgnoreCase);
 
         if (manager != null && (manager.Complete ||
-                                (manager.Bitfield != null && manager.Bitfield.Length > 0 && manager.Bitfield.AllTrue) ||
-                                manager.Progress >= 99.99 ||
+                                manager.HashChecked ||
+                                (manager.Bitfield != null && manager.Bitfield.Length > 0 && (manager.Bitfield.AllTrue || manager.Bitfield.TrueCount > 0)) ||
+                                manager.Progress > 0 ||
                                 (manager.InfoHashes?.V1OrV2 != null &&
                                  this.infoHashToId.TryGetValue(manager.InfoHashes.V1OrV2.ToHex(), out var tId) &&
                                  this.tasks.TryGetValue(tId, out var tTask) &&
@@ -3722,7 +3950,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 await this.PreallocateSingleFileAsync(fullPath, expectedLength, isFull).ConfigureAwait(false);
             }
 
-            if (!hasExistingFiles && manager != null && !manager.HashChecked && manager.InfoHashes != null)
+            if (!hasExistingFiles && manager != null && !manager.HashChecked && manager.InfoHashes != null && (manager.Bitfield == null || manager.Bitfield.TrueCount == 0))
             {
                 var pieceCount = parsedTorrent?.PieceCount ?? manager.Torrent?.PieceCount ?? 0;
                 if (pieceCount > 0)
@@ -4044,6 +4272,112 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             this.logger.Warn(ex, "Failed to atomically save FastResume checkpoint for {0}", manager?.InfoHashes?.V1OrV2?.ToHex());
         }
+    }
+
+    public async Task<FastResume> TryLoadSavedFastResumeAsync(string infoHashHex, string cacheDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(infoHashHex) || string.IsNullOrWhiteSpace(cacheDirectory))
+        {
+            return null;
+        }
+
+        var candidatePaths = new[]
+        {
+            Path.Combine(cacheDirectory, "FastResume", $"{infoHashHex}.fastresume"),
+            Path.Combine(cacheDirectory, "fastresume", $"{infoHashHex}.fresume"),
+            Path.Combine(cacheDirectory, "FastResume", $"{infoHashHex.ToUpperInvariant()}.fastresume"),
+            Path.Combine(cacheDirectory, "fastresume", $"{infoHashHex.ToUpperInvariant()}.fresume"),
+            Path.Combine(cacheDirectory, "FastResume", $"{infoHashHex.ToLowerInvariant()}.fastresume"),
+            Path.Combine(cacheDirectory, "fastresume", $"{infoHashHex.ToLowerInvariant()}.fresume"),
+        };
+
+        foreach (var path in candidatePaths.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (File.Exists(path))
+            {
+                try
+                {
+                    var bytes = await File.ReadAllBytesAsync(path).ConfigureAwait(false);
+                    if (bytes != null && bytes.Length > 0)
+                    {
+                        var dict = BEncodedValue.Decode<BEncodedDictionary>(bytes);
+                        if (dict != null &&
+                            dict.TryGetValue(new BEncodedString("bitfield"), out var bfVal) && bfVal is BEncodedString bfStr &&
+                            dict.TryGetValue(new BEncodedString("bitfield_length"), out var bflVal) && bflVal is BEncodedNumber bflNum)
+                        {
+                            var bitfieldLength = (int)bflNum.Number;
+                            var bitfieldBytes = bfStr.Span.ToArray();
+                            var bitfieldMutable = new BitField(bitfieldLength);
+                            for (var i = 0; i < bitfieldLength; i++)
+                            {
+                                var byteIndex = i / 8;
+                                if (byteIndex < bitfieldBytes.Length)
+                                {
+                                    var mask = (byte)(128 >> (i % 8));
+                                    if ((bitfieldBytes[byteIndex] & mask) != 0)
+                                    {
+                                        bitfieldMutable.Set(i, true);
+                                    }
+                                }
+                            }
+
+                            var bitfield = new ReadOnlyBitField(bitfieldMutable);
+
+                            ReadOnlyBitField unhashed = null;
+                            if (dict.TryGetValue(new BEncodedString("unhashed_pieces"), out var unhashedVal) && unhashedVal is BEncodedString unhashedStr)
+                            {
+                                var unhashedBytes = unhashedStr.Span.ToArray();
+                                var unhashedMutable = new BitField(bitfieldLength);
+                                for (var i = 0; i < bitfieldLength; i++)
+                                {
+                                    var byteIndex = i / 8;
+                                    if (byteIndex < unhashedBytes.Length)
+                                    {
+                                        var mask = (byte)(128 >> (i % 8));
+                                        if ((unhashedBytes[byteIndex] & mask) != 0)
+                                        {
+                                            unhashedMutable.Set(i, true);
+                                        }
+                                    }
+                                }
+
+                                unhashed = new ReadOnlyBitField(unhashedMutable);
+                            }
+                            else
+                            {
+                                unhashed = new ReadOnlyBitField(bitfieldLength);
+                            }
+
+                            InfoHashes infoHashes = null;
+                            if (dict.TryGetValue(new BEncodedString("infohash"), out var ihVal) && ihVal is BEncodedString ihStr)
+                            {
+                                var hashBytes = ihStr.Span.ToArray();
+                                if (hashBytes.Length == 20)
+                                {
+                                    infoHashes = InfoHashes.FromV1(InfoHash.FromMemory(hashBytes));
+                                }
+                                else if (hashBytes.Length == 32)
+                                {
+                                    infoHashes = InfoHashes.FromV2(InfoHash.FromMemory(hashBytes));
+                                }
+                            }
+
+                            infoHashes ??= InfoHashes.FromV1(InfoHash.FromHex(infoHashHex));
+
+                            var resume = new FastResume(infoHashes, bitfield, unhashed);
+                            this.logger.Debug("Found and decoded FastResume checkpoint from '{0}' for {1}", path, infoHashHex);
+                            return resume;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Debug(ex, "Failed to decode FastResume file at '{0}'", path);
+                }
+            }
+        }
+
+        return null;
     }
 }
 
