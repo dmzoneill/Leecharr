@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.14.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.14.2) - 2026-09-15
+
+### 🐛 Bug Fixes
+- fix: restore tv-sonarr and radarr categories in stack setup
+- fix: keep category blank in transmission download client setup so arr expects root /downloads
+- fix: consolidate torrent repository update in arr webhook handler
+- fix: auto-assign category from arr webhooks and download-dir, and configure default categories in arr stack
+
 ## [v1.14.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.14.1) - 2026-09-15
 
 ### 🐛 Bug Fixes
