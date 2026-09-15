@@ -180,9 +180,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             defaultDownloadDir = this.categoryService.GetSavePathForCategory(effectiveCategory, fallbackPath);
         }
 
-        var effectiveSavePath = !string.IsNullOrWhiteSpace(savePath)
-            ? savePath
-            : defaultDownloadDir;
+        var effectiveSavePath = this.ResolveEffectiveSavePath(savePath, effectiveCategory, defaultDownloadDir);
 
         var torrent = new Torrent
         {
@@ -400,9 +398,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             defaultDownloadDir = this.categoryService.GetSavePathForCategory(effectiveCategory, fallbackPath);
         }
 
-        var effectiveSavePath = !string.IsNullOrWhiteSpace(savePath)
-            ? savePath
-            : defaultDownloadDir;
+        var effectiveSavePath = this.ResolveEffectiveSavePath(savePath, effectiveCategory, defaultDownloadDir);
 
         var torrent = new Torrent
         {
@@ -1792,6 +1788,53 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 });
             }
         }
+    }
+
+    private string ResolveEffectiveSavePath(string savePath, string category, string defaultDownloadDir)
+    {
+        if (string.IsNullOrWhiteSpace(savePath))
+        {
+            return defaultDownloadDir;
+        }
+
+        try
+        {
+            if (Directory.Exists(savePath))
+            {
+                return savePath;
+            }
+
+            if (Path.IsPathRooted(savePath))
+            {
+                var root = Path.GetPathRoot(savePath);
+                if (!string.IsNullOrWhiteSpace(root) && Directory.Exists(root))
+                {
+                    var relativeSegments = savePath.Trim().TrimStart('/', '\\');
+                    if (relativeSegments.Contains('/') || relativeSegments.Contains('\\'))
+                    {
+                        return savePath;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(category) && string.Equals(relativeSegments, category, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return defaultDownloadDir;
+                    }
+
+                    return Path.Combine(defaultDownloadDir, relativeSegments);
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        var cleanRel = savePath.Trim().TrimStart('/', '\\');
+        if (!string.IsNullOrWhiteSpace(category) && string.Equals(cleanRel, category, StringComparison.OrdinalIgnoreCase))
+        {
+            return defaultDownloadDir;
+        }
+
+        return Path.Combine(defaultDownloadDir, cleanRel);
     }
 
     private sealed class RefCountedSemaphore
