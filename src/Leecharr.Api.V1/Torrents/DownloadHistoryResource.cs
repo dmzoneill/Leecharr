@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using Leecharr.Api.V1.Media;
 using NzbDrone.Core.MediaEnrichment;
 
@@ -45,6 +46,10 @@ public class DownloadHistoryResource
     public string Status { get; set; }
 
     public string RemovalReason { get; set; }
+
+    public bool IsPrivate { get; set; }
+
+    public List<string> Trackers { get; set; } = new();
 
     public MediaMetadataResource Metadata { get; set; }
 }
