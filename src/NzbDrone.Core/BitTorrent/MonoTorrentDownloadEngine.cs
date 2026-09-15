@@ -804,11 +804,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         var isCompleteOrSeeding = torrent.Status == TorrentStatus.Seeding ||
                                   (torrent.Progress >= 1.0 && !string.IsNullOrWhiteSpace(torrent.SavePath)) ||
-                                  hasCompletedFiles ||
-                                  torrent.DateCompleted.HasValue ||
+                                  (torrent.DateCompleted.HasValue && hasCompletedFiles) ||
                                   (savedFastResume?.Bitfield != null && savedFastResume.Bitfield.AllTrue);
 
-        var workingPath = (isCompleteOrSeeding || !useIncompleteDir || (!hasIncompleteFiles && hasCompletedFiles))
+        var workingPath = (isCompleteOrSeeding || !useIncompleteDir || (!hasIncompleteFiles && hasCompletedFiles && torrent.DateCompleted.HasValue))
             ? completedDir
             : incompleteDir;
 
@@ -2357,7 +2356,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         // Automatic Rehash Check Prior to Moving to Destination Directory (Default: true)
         // Skip redundant recheck if torrent was already verified 100% (e.g. from manual force recheck)
         var isAlreadyVerified = manager.HashChecked && manager.Bitfield != null && manager.Bitfield.AllTrue;
-        if (!isAlreadyVerified && this.configService?.AutoRecheckOnCompletion == true && this.engine != null && manager.Engine != null)
+        if (!isAlreadyVerified && this.configService?.AutoRecheckOnCompletion == true && this.engine != null && manager.Engine != null && manager.HasMetadata && manager.Files != null && manager.Files.Count > 0 && manager.Files.All(f => this.diskProvider.FileExists(f.FullPath)))
         {
             try
             {
