@@ -1072,22 +1072,12 @@ public class TransmissionRpcController : ControllerBase
             if (request.Arguments.TryGetValue("download-dir", out var ddVal))
             {
                 downloadDir = ddVal.GetString();
-                if (!string.IsNullOrWhiteSpace(downloadDir))
+                if (!string.IsNullOrWhiteSpace(downloadDir) && string.IsNullOrWhiteSpace(category))
                 {
-                    var cleanDir = downloadDir.Trim().TrimEnd('/', '\\');
-                    if (string.Equals(cleanDir, "tv-sonarr", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(cleanDir, "/tv-sonarr", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(cleanDir, "radarr", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(cleanDir, "/radarr", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(cleanDir, "movies", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(cleanDir, "/movies", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(cleanDir, "series", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(cleanDir, "/series", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(cleanDir, "tv", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(cleanDir, "/tv", StringComparison.OrdinalIgnoreCase))
+                    var cleanDir = downloadDir.Trim().TrimStart('/', '\\');
+                    if (!Path.IsPathRooted(downloadDir) || (!this.diskProvider.FolderExists(downloadDir) && !cleanDir.Contains('/') && !cleanDir.Contains('\\')))
                     {
-                        category ??= cleanDir.TrimStart('/', '\\');
-                        downloadDir = null;
+                        category = cleanDir;
                     }
                 }
             }
@@ -1444,14 +1434,6 @@ public class TransmissionRpcController : ControllerBase
         }
 
         var trimmedSave = rawSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        if (string.Equals(trimmedSave, "/tv-sonarr", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(trimmedSave, "tv-sonarr", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(trimmedSave, "/radarr", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(trimmedSave, "radarr", StringComparison.OrdinalIgnoreCase))
-        {
-            return "/config/downloads";
-        }
-
         if (Path.HasExtension(trimmedSave))
         {
             var parent = Path.GetDirectoryName(trimmedSave);
