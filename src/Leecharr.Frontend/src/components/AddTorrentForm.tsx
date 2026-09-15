@@ -70,19 +70,12 @@ export function AddTorrentForm({
             if (result && result.failed && result.failed.length > 0) {
               const failedNames = new Set(result.failed.map((f) => f.fileName));
               setFiles((prev) => prev.filter((f) => failedNames.has(f.name)));
-              setResultMessage(
-                t(
-                  "addTorrent.bulkAddSummary",
-                  "{addedCount} added, {failedCount} skipped: {details}",
-                  {
-                    addedCount: result.added.length,
-                    failedCount: result.failed.length,
-                    details: result.failed
-                      .map((f) => `${f.fileName} (${f.reason})`)
-                      .join("; "),
-                  },
-                ),
-              );
+              const details = result.failed
+                .map((f) => `${f.fileName} (${f.reason})`)
+                .join("; ");
+              const summaryMsg = `${result.added?.length ?? 0} added, ${result.failed.length} skipped: ${details}`;
+              setResultMessage(summaryMsg);
+              showToast(summaryMsg, "error");
             } else {
               showToast(
                 t(
