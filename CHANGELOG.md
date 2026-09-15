@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.12.5](https://github.com/dmzoneill/Leecharr/releases/tag/v1.12.5) - 2026-09-15
+
+### 🐛 Bug Fixes
+- fix(torrent): fix double download recheck, align rpc paths, remove redundant path mappings, and isolate tests
+- fix(engine): safely query file size and respect mocked disk providers in completion checks
+- fix(torrent): resolve savePath dynamically without hardcoded path overrides
+- fix(transmission): normalize category downloadDir and configure arr remote path mappings
+- fix(docker): map leecharr downloads to /downloads in sonarr and radarr, and refine completed status detection
+- fix(engine): resolve completed download reset loop, fastresume persistence, and startup seeding detection
+
 ## [v1.12.4](https://github.com/dmzoneill/Leecharr/releases/tag/v1.12.4) - 2026-09-15
 
 ### 🐛 Bug Fixes
