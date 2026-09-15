@@ -267,11 +267,6 @@ export function TorrentToolbar({
         >
           <StopIcon size={13} /> {t("torrents.toolbar.pauseAll") || t("torrents.actions.pause")}
         </button>
-        <ToolbarSpeedSummary
-          torrents={torrents}
-          totalUploadSpeed={totalUploadSpeed}
-          totalDownloadSpeed={totalDownloadSpeed}
-        />
         <input
           type="text"
           className="search-input"
