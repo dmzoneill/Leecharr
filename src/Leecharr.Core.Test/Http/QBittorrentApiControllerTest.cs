@@ -1187,11 +1187,14 @@ public class QBittorrentApiControllerTest
             Name = "Release.Title.2021",
             SavePath = "/downloads/incomplete",
         };
-        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
-        this.torrentFileService.GetFiles(3).Returns(new List<TorrentFile>
+        var files = new List<TorrentFile>
         {
             new TorrentFile { TorrentId = 3, Path = "ActualMovieFile.mkv", Size = 1000 },
-        });
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+        this.torrentFileService.GetFiles(3).Returns(files);
+        this.torrentFileService.GetFilesForTorrents(Arg.Any<IEnumerable<int>>())
+            .Returns(new Dictionary<int, List<TorrentFile>> { [3] = files });
 
         var response = this.controller.GetTorrentsInfo();
 
