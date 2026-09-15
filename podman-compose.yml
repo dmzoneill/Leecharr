@@ -374,8 +374,8 @@ services:
 
         echo ""
         echo "--- Adding Leecharr download client to Sonarr & Radarr ---"
-        add_leecharr_download_client "Sonarr" "http://sonarr.local:8989" "$$SONARR_KEY" "v3" "tvCategory" "tv-sonarr"
-        add_leecharr_download_client "Radarr" "http://radarr.local:7878" "$$RADARR_KEY" "v3" "movieCategory" "radarr"
+        add_leecharr_download_client "Sonarr" "http://sonarr.local:8989" "$$SONARR_KEY" "v3" "tvCategory" ""
+        add_leecharr_download_client "Radarr" "http://radarr.local:7878" "$$RADARR_KEY" "v3" "movieCategory" ""
 
         # --- Configure Leecharr Download Directories ---
         echo ""
