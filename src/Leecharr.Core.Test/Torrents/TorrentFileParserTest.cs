@@ -277,18 +277,28 @@ public class TorrentFileParserTest
             .WithMessage("*Piece length must be a positive integer.*");
     }
 
-    [TestCase(1000)]
-    [TestCase(17000)]
-    [TestCase(8192)] // < 16 KiB
-    [TestCase(134217728)] // > 64 MiB (128 MiB)
-    public void Parse_WhenPieceLengthOutsideBoundsOrNotPowerOfTwo_ThrowsInvalidTorrentFileException(long badPieceLength)
+    [TestCase(300000000L)] // > 256 MiB
+    public void Parse_WhenPieceLengthExceedsMax_ThrowsInvalidTorrentFileException(long badPieceLength)
     {
         var bytes = CreateTorrentBytes(info => info["piece length"] = new BEncodedNumber(badPieceLength));
 
         var act = () => this.parser.Parse(bytes);
 
         act.Should().Throw<InvalidTorrentFileException>()
-            .WithMessage("*Piece length must be a power of 2 between 16 KiB and 64 MiB.*");
+            .WithMessage("*Piece length exceeds maximum allowed*");
+    }
+
+    [TestCase(1000)]
+    [TestCase(17000)]
+    [TestCase(8192)]
+    [TestCase(16769024)]
+    public void Parse_WhenPieceLengthIsNotPowerOfTwo_ParsesSuccessfully(long pieceLength)
+    {
+        var bytes = CreateTorrentBytes(info => info["piece length"] = new BEncodedNumber(pieceLength));
+
+        var parsed = this.parser.Parse(bytes);
+
+        parsed.PieceLength.Should().Be((int)pieceLength);
     }
 
     [TestCase(0)]
