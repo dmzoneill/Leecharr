@@ -341,7 +341,7 @@ services:
 
         # --- Add Leecharr as Download Client in Sonarr & Radarr (via Transmission RPC protocol) ---
         add_leecharr_download_client() {
-          local name=$$1 url=$$2 api_key=$$3 api_ver=$$4 cat_field=$$5
+          local name=$$1 url=$$2 api_key=$$3 api_ver=$$4 cat_field=$$5 cat_val=$$6
           existing=$$(curl -sf "$$url/api/$$api_ver/downloadclient" -H "X-Api-Key: $$api_key" 2>/dev/null | grep -c 'Leecharr' || true)
           if [ "$$existing" != "0" ]; then
             echo "  $$name: Leecharr download client already configured"
@@ -362,7 +362,7 @@ services:
                 {\"name\": \"port\", \"value\": 7889},
                 {\"name\": \"useSsl\", \"value\": false},
                 {\"name\": \"urlBase\", \"value\": \"/transmission/\"},
-                {\"name\": \"$$cat_field\", \"value\": \"\"}
+                {\"name\": \"$$cat_field\", \"value\": \"$$cat_val\"}
               ]
             }")
           if [ "$$code" = "200" ] || [ "$$code" = "201" ]; then
@@ -374,8 +374,8 @@ services:
 
         echo ""
         echo "--- Adding Leecharr download client to Sonarr & Radarr ---"
-        add_leecharr_download_client "Sonarr" "http://sonarr.local:8989" "$$SONARR_KEY" "v3" "tvCategory"
-        add_leecharr_download_client "Radarr" "http://radarr.local:7878" "$$RADARR_KEY" "v3" "movieCategory"
+        add_leecharr_download_client "Sonarr" "http://sonarr.local:8989" "$$SONARR_KEY" "v3" "tvCategory" "tv-sonarr"
+        add_leecharr_download_client "Radarr" "http://radarr.local:7878" "$$RADARR_KEY" "v3" "movieCategory" "radarr"
 
         # --- Configure Leecharr Download Directories ---
         echo ""
