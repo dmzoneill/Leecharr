@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.14.4](https://github.com/dmzoneill/Leecharr/releases/tag/v1.14.4) - 2026-09-15
+
+### 🔧 Maintenance & Improvements
+- chore: configure Deluge download client for Sonarr and Radarr in compose
+
 ## [v1.14.3](https://github.com/dmzoneill/Leecharr/releases/tag/v1.14.3) - 2026-09-15
 
 ### 🔧 Maintenance & Improvements
