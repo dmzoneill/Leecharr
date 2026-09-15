@@ -597,39 +597,8 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             this.mediaEnrichmentService.CleanupTorrentCache(id);
             this.torrentRepository.Delete(id);
 
-            try
-            {
-                var hash = torrent.InfoHash?.ToLowerInvariant();
-                if (!string.IsNullOrWhiteSpace(hash))
-                {
-                    var pathsToTry = new List<string>();
-
-                    if (this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder))
-                    {
-                        pathsToTry.Add(Path.Combine(this.appFolderInfo.AppDataFolder, "Torrents", $"{hash}.torrent"));
-                        pathsToTry.Add(Path.Combine(this.appFolderInfo.AppDataFolder, "Leecharr", "Torrents", $"{hash}.torrent"));
-                    }
-
-                    var legacyAppData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                    if (!string.IsNullOrWhiteSpace(legacyAppData))
-                    {
-                        pathsToTry.Add(Path.Combine(legacyAppData, "Torrents", $"{hash}.torrent"));
-                        pathsToTry.Add(Path.Combine(legacyAppData, "Leecharr", "Torrents", $"{hash}.torrent"));
-                    }
-
-                    foreach (var path in pathsToTry.Distinct())
-                    {
-                        if (File.Exists(path))
-                        {
-                            File.Delete(path);
-                        }
-                    }
-                }
-            }
-            catch
-            {
-            }
-
+            // Note: Cached .torrent files in AppDataFolder/Torrents are preserved for Download History
+            // so historical torrents can be losslessly re-added. They are cleaned up when history records are deleted.
             if (deleteFiles)
             {
                 await this.DeleteTorrentDataOnDiskAsync(torrent, torrentFiles);

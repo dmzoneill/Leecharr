@@ -318,4 +318,41 @@ public class MigrationTest
             act.Should().NotThrow();
         }
     }
+
+    [Test]
+    public void Migration031_AddsIsPrivateAndTrackersToDownloadHistory()
+    {
+        var connectionString = $"Data Source={this.tempDbPath};";
+
+        var serviceProvider = new ServiceCollection()
+            .AddFluentMigratorCore()
+            .ConfigureRunner(rb => rb
+                .AddSQLite()
+                .WithGlobalConnectionString(connectionString)
+                .ScanIn(typeof(InitialSetup).Assembly).For.Migrations())
+            .AddLogging(lb => lb.AddFluentMigratorConsole())
+            .BuildServiceProvider(false);
+
+        using (var scope = serviceProvider.CreateScope())
+        {
+            var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+            runner.MigrateUp();
+        }
+
+        using var connection = new SqliteConnection(connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA table_info(DownloadHistory);";
+
+        var columns = new List<string>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            columns.Add(reader.GetString(1));
+        }
+
+        columns.Should().Contain("IsPrivate");
+        columns.Should().Contain("Trackers");
+    }
 }

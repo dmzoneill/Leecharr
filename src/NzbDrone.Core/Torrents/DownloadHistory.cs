@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using NzbDrone.Core.Datastore;
 
 namespace NzbDrone.Core.Torrents;
@@ -44,4 +45,8 @@ public class DownloadHistory : ModelBase
     public string RemovalReason { get; set; }
 
     public string DataJson { get; set; }
+
+    public bool IsPrivate { get; set; }
+
+    public List<string> Trackers { get; set; } = new();
 }

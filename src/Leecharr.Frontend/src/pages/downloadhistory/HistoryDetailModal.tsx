@@ -603,7 +603,29 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
                   color: "var(--text-muted, #888)",
                 }}
               >
-                {t("history.filterByTracker")}
+                {t("torrents.privacy", "Privacy / Swarm")}
+              </div>
+              <div style={{ fontSize: "0.85rem", fontWeight: 600 }}>
+                {item.isPrivate ? (
+                  <span className="badge badge-warning" style={{ fontSize: "0.75rem" }}>
+                    🔒 BEP 27 Private
+                  </span>
+                ) : (
+                  <span className="badge badge-secondary" style={{ fontSize: "0.75rem" }}>
+                    🌐 Public
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <div
+                style={{
+                  fontSize: "0.75rem",
+                  color: "var(--text-muted, #888)",
+                }}
+              >
+                {t("history.filterByTracker")} {item.trackers && item.trackers.length > 1 ? `(${item.trackers.length})` : ""}
               </div>
               <div
                 style={{
@@ -625,6 +647,35 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
               >
                 {item.primaryTracker || t("common.none", "None")}
               </div>
+              {item.trackers && item.trackers.length > 1 && (
+                <div style={{ marginTop: "0.25rem", display: "flex", flexDirection: "column", gap: "0.15rem" }}>
+                  {item.trackers.slice(1, 4).map((tr, idx) => (
+                    <span
+                      key={idx}
+                      style={{
+                        fontSize: "0.7rem",
+                        color: "var(--text-muted)",
+                        cursor: "pointer",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                      onClick={() => {
+                        onFilterByTracker(tr);
+                        onClose();
+                      }}
+                      title={tr}
+                    >
+                      • {tr}
+                    </span>
+                  ))}
+                  {item.trackers.length > 4 && (
+                    <span style={{ fontSize: "0.7rem", color: "var(--accent-gold)" }}>
+                      +{item.trackers.length - 4} more
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>
