@@ -612,7 +612,7 @@ const en: I18nTranslations = {
     contextMenu: {
       resumeDownload: "Resume Download",
       pauseDownload: "Pause Download",
-      updateTracker: "Update Tracker",
+      updateTracker: "Ask Tracker for More Peers (Reannounce)",
       forceRecheck: "Force Recheck",
       searchIndexers: "Search Indexers",
       trackInPeerMap: "Track In Peer Map",

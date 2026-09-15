@@ -1626,9 +1626,18 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             if (task.Manager.TrackerManager != null)
             {
                 var trackerCount = task.Manager.TrackerManager.Tiers?.SelectMany(t => t.Trackers).Count() ?? 0;
-                await task.Manager.TrackerManager.AnnounceAsync(CancellationToken.None);
-                this.logger.Info("Dispatched announce request for torrent id {0} to {1} tracker(s)", torrentId, trackerCount);
-                this.torrentLogService?.Log(torrentId, "Info", "Tracker", $"Dispatched announce request to {trackerCount} tracker(s)");
+                await task.Manager.TrackerManager.AnnounceAsync(CancellationToken.None).ConfigureAwait(false);
+                try
+                {
+                    await task.Manager.TrackerManager.ScrapeAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Debug(ex, "Tracker scrape on force announce failed for torrent id {0}", torrentId);
+                }
+
+                this.logger.Info("Dispatched announce and scrape request for torrent id {0} to {1} tracker(s)", torrentId, trackerCount);
+                this.torrentLogService?.Log(torrentId, "Info", "Tracker", $"Dispatched announce & scrape request to {trackerCount} tracker(s) to discover peers");
             }
         }
     }
