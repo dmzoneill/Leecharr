@@ -294,7 +294,11 @@ public class TorrentFileParserTest
     [TestCase(16769024)]
     public void Parse_WhenPieceLengthIsNotPowerOfTwo_ParsesSuccessfully(long pieceLength)
     {
-        var bytes = CreateTorrentBytes(info => info["piece length"] = new BEncodedNumber(pieceLength));
+        var bytes = CreateTorrentBytes(info =>
+        {
+            info["piece length"] = new BEncodedNumber(pieceLength);
+            info["length"] = new BEncodedNumber(pieceLength);
+        });
 
         var parsed = this.parser.Parse(bytes);
 
