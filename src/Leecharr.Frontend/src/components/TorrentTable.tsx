@@ -1406,6 +1406,16 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   const handleContextMenu = (e: React.MouseEvent, torrent: Torrent | null) => {
     e.preventDefault();
     e.stopPropagation();
+    if (torrent) {
+      if (!selectedIds.has(torrent.id)) {
+        if (onSelectAll) {
+          onSelectAll([torrent.id]);
+        } else {
+          useTorrentStore.getState().setSelectedIds(new Set([torrent.id]));
+        }
+        onSelect?.(torrent);
+      }
+    }
     setContextMenu({ x: e.clientX, y: e.clientY, torrent });
   };
 
@@ -1636,6 +1646,13 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
         onSelect?.(torrent);
       } else {
         lastClickedIndexRef.current = index;
+        if (selectedIds.size > 0 && (!selectedIds.has(torrent.id) || selectedIds.size > 1)) {
+          if (onSelectAll) {
+            onSelectAll([torrent.id]);
+          } else {
+            useTorrentStore.getState().setSelectedIds(new Set([torrent.id]));
+          }
+        }
         onSelect?.(torrent);
       }
     },

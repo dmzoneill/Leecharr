@@ -257,7 +257,7 @@ export function TorrentToolbar({
           onClick={onStartAll}
           title={t("torrents.toolbar.resumeAll")}
         >
-          <PlayIcon size={13} /> {t("torrents.actions.resume")}
+          <PlayIcon size={13} /> {t("torrents.toolbar.resumeAll") || t("torrents.actions.resume")}
         </button>
         <button
           type="button"
@@ -265,7 +265,7 @@ export function TorrentToolbar({
           onClick={onStopAll}
           title={t("torrents.toolbar.pauseAll")}
         >
-          <StopIcon size={13} /> {t("torrents.actions.pause")}
+          <StopIcon size={13} /> {t("torrents.toolbar.pauseAll") || t("torrents.actions.pause")}
         </button>
         <ToolbarSpeedSummary
           torrents={torrents}
