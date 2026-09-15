@@ -117,7 +117,6 @@ public class ArrWebhookController : Controller
                 if (!string.IsNullOrWhiteSpace(resolvedCategory))
                 {
                     torrent.Category = resolvedCategory;
-                    this.torrentRepository.Update(torrent);
                     updated = true;
                     this.logger.Info("Assigned category '{0}' to torrent {1} from webhook", resolvedCategory, torrent.Name);
                 }
@@ -139,7 +138,6 @@ public class ArrWebhookController : Controller
                     : (payload.InstanceName ?? "Arr");
                 torrent.ImportedByArr = resolvedArr;
 
-                this.torrentRepository.Update(torrent);
                 updated = true;
                 this.logger.Info("Updated import state for torrent {0} (InfoHash: {1}) by {2}", torrent.Name, torrent.InfoHash, resolvedArr);
             }
@@ -149,7 +147,6 @@ public class ArrWebhookController : Controller
                      string.Equals(eventType, "MovieImportFailed", StringComparison.OrdinalIgnoreCase))
             {
                 torrent.IsImported = false;
-                this.torrentRepository.Update(torrent);
                 updated = true;
                 this.logger.Warn("Import failed for torrent {0} (InfoHash: {1})", torrent.Name, torrent.InfoHash);
             }
@@ -162,6 +159,11 @@ public class ArrWebhookController : Controller
                      string.Equals(eventType, "DownloadWarning", StringComparison.OrdinalIgnoreCase))
             {
                 this.logger.Warn("Download failed/warning event received for torrent {0} (InfoHash: {1})", torrent.Name, torrent.InfoHash);
+            }
+
+            if (updated)
+            {
+                this.torrentRepository.Update(torrent);
             }
 
             this.TryEnrichMetadata(torrent, arrType, payload);
