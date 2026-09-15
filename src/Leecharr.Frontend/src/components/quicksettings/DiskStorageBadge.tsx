@@ -74,7 +74,7 @@ export const DiskStorageBadge: React.FC<DiskStorageBadgeProps> = ({
         display: "inline-flex",
         alignItems: "center",
         gap: "6px",
-        padding: compact ? "2px 8px" : "4px 10px",
+        padding: compact ? "4px 8px" : "4px 10px",
         backgroundColor: isLowSpace
           ? "rgba(235, 87, 87, 0.15)"
           : "rgba(255, 255, 255, 0.05)",
@@ -90,22 +90,13 @@ export const DiskStorageBadge: React.FC<DiskStorageBadgeProps> = ({
       }}
     >
       <span style={{ fontSize: "0.85rem" }}>💾</span>
-      <span
-        style={{
-          fontWeight: 600,
-          color: isLowSpace ? "#ff6b6b" : "var(--text-primary, #f8f4ed)",
-        }}
-      >
-        {displayPath}: {formatBytes(freeBytes)} {t("quickSettings.free")}
-      </span>
       <div
         style={{
-          width: compact ? "36px" : "48px",
-          height: "5px",
+          width: compact ? "44px" : "60px",
+          height: "6px",
           backgroundColor: "rgba(255, 255, 255, 0.12)",
           borderRadius: "3px",
           overflow: "hidden",
-          marginLeft: "2px",
         }}
       >
         <div
