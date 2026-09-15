@@ -1276,7 +1276,7 @@ public class DelugeJsonRpcController : ControllerBase
     private async Task<IActionResult> HandleCorePauseTorrentsAsync(string lowerMethod, JsonElement paramsElem, object id)
     {
         var hashes = ExtractHashes(paramsElem);
-        if (lowerMethod == "core.pause_all_torrents" || hashes.Count == 0)
+        if (lowerMethod == "core.pause_all_torrents")
         {
             var allT = this.torrentService.GetAll();
             foreach (var t in allT)
@@ -1302,7 +1302,7 @@ public class DelugeJsonRpcController : ControllerBase
     private async Task<IActionResult> HandleCoreResumeTorrentsAsync(string lowerMethod, JsonElement paramsElem, object id)
     {
         var hashes = ExtractHashes(paramsElem);
-        if (lowerMethod == "core.resume_all_torrents" || hashes.Count == 0)
+        if (lowerMethod == "core.resume_all_torrents")
         {
             var allT = this.torrentService.GetAll();
             foreach (var t in allT)
