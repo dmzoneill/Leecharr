@@ -578,6 +578,50 @@ public class TransmissionRpcControllerTest
     }
 
     [Test]
+    public async Task HandleRpc_TorrentAdd_WithDownloadDirSubfolder_ExtractsCategoryCorrectly()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var parsed = new ParsedTorrent
+        {
+            InfoHash = "categorytest0123456789abcdef0123456789ab",
+            Name = "Release.S01E01",
+        };
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsed);
+        this.torrentService.GetByInfoHash(parsed.InfoHash).Returns((Torrent)null);
+        var added = new Torrent
+        {
+            Id = 10,
+            Name = parsed.Name,
+            InfoHash = parsed.InfoHash,
+            Category = "tv-sonarr",
+            Status = TorrentStatus.Downloading,
+        };
+        this.torrentService.AddFromParsedTorrentAsync(parsed, "tv-sonarr", "/downloads/tv-sonarr", false, Arg.Any<byte[]>()).Returns(added);
+        this.configService.DownloadDir.Returns("/downloads");
+
+        var args = new Dictionary<string, JsonElement>();
+        var fakeB64 = Convert.ToBase64String(Encoding.UTF8.GetBytes("d8:announce3:url4:infod6:lengthi1024eee"));
+        using var metaDoc = JsonDocument.Parse($"\"{fakeB64}\"");
+        using var dirDoc = JsonDocument.Parse("\"/downloads/tv-sonarr\"");
+        args["metainfo"] = metaDoc.RootElement.Clone();
+        args["download-dir"] = dirDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-add",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(parsed, "tv-sonarr", "/downloads/tv-sonarr", false, Arg.Any<byte[]>());
+    }
+
+    [Test]
     public async Task HandleRpc_FreeSpace_WithCustomPath_QueriesDiskProviderForPath()
     {
         var context = new DefaultHttpContext();

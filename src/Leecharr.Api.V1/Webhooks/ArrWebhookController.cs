@@ -102,6 +102,27 @@ public class ArrWebhookController : Controller
 
         if (torrent != null)
         {
+            if (string.IsNullOrWhiteSpace(torrent.Category) || string.Equals(torrent.Category, "NONE", StringComparison.OrdinalIgnoreCase))
+            {
+                var resolvedCategory = string.Equals(arrType, "Sonarr", StringComparison.OrdinalIgnoreCase) || payload.Series != null
+                    ? "tv-sonarr"
+                    : (string.Equals(arrType, "Radarr", StringComparison.OrdinalIgnoreCase) || payload.Movie != null
+                        ? "radarr"
+                        : (string.Equals(arrType, "Lidarr", StringComparison.OrdinalIgnoreCase) || payload.Artist != null
+                            ? "music"
+                            : (string.Equals(arrType, "Readarr", StringComparison.OrdinalIgnoreCase) || payload.Author != null
+                                ? "books"
+                                : null)));
+
+                if (!string.IsNullOrWhiteSpace(resolvedCategory))
+                {
+                    torrent.Category = resolvedCategory;
+                    this.torrentRepository.Update(torrent);
+                    updated = true;
+                    this.logger.Info("Assigned category '{0}' to torrent {1} from webhook", resolvedCategory, torrent.Name);
+                }
+            }
+
             if (this.IsImportEvent(eventType))
             {
                 torrent.IsImported = true;
