@@ -417,10 +417,12 @@ const en: I18nTranslations = {
       loading: "Loading",
       failedToLoad: "Failed To Load",
       notFound: "Not Found",
-      privateSwarmTooltip: "Private Swarm Tooltip",
-      privateSwarmBadge: "Private Swarm Badge",
-      publicSwarmTooltip: "Public Swarm Tooltip",
-      publicSwarmBadge: "Public Swarm Badge",
+      privateSwarmTooltip:
+        "BEP 27 Private Swarm: DHT, PEX, and LSD are disabled to protect tracker passkeys",
+      privateSwarmBadge: "Private (BEP 27)",
+      publicSwarmTooltip:
+        "Public BitTorrent Swarm: DHT and PEX peer discovery enabled",
+      publicSwarmBadge: "Public Swarm",
       eta: "Eta",
       label: "Label",
       superSeeding: "Super Seeding",
