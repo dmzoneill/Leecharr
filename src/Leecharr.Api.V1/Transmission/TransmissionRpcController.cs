@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -17,6 +18,7 @@ using NzbDrone.Common.Disk;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.DiskSpace;
+using NzbDrone.Core.Download;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Torrents;
@@ -53,8 +55,9 @@ public class TransmissionRpcResponse
 public class TransmissionRpcController : ControllerBase
 {
     private const string SessionHeaderName = "X-Transmission-Session-Id";
-    private static readonly object RemovedLock = new();
+    private static readonly ConcurrentDictionary<string, byte> ActiveSessions = new();
     private static readonly List<(int Id, DateTime RemovedAt)> RecentlyRemovedList = new();
+    private static readonly object RemovedLock = new();
     private static readonly DateTime ServiceStartTime = DateTime.UtcNow;
 
     private readonly ITorrentService torrentService;
@@ -88,37 +91,6 @@ public class TransmissionRpcController : ControllerBase
             RecentlyRemovedList.RemoveAll(x => (DateTime.UtcNow - x.RemovedAt).TotalMinutes > 10);
             return RecentlyRemovedList.Select(x => x.Id).Distinct().ToList();
         }
-    }
-
-    private static bool IsTransmissionAuthenticated(ActionExecutingContext context, IConfigFileProvider configFileProvider)
-    {
-        if (configFileProvider != null && !configFileProvider.AuthenticationEnabled)
-        {
-            return true;
-        }
-
-        if (RpcAuthenticationHelper.IsAuthenticated(context.HttpContext, configFileProvider))
-        {
-            return true;
-        }
-
-        if (context.HttpContext?.Items.TryGetValue("transmission-session", out var itemSid) == true &&
-            itemSid is string s &&
-            AuthenticatedSessions.IsValid(s))
-        {
-            return true;
-        }
-
-        var headerVal = context.HttpContext?.Request?.Headers[SessionHeaderName].ToString();
-        if (!string.IsNullOrWhiteSpace(headerVal))
-        {
-            if (AuthenticatedSessions.IsValid(headerVal))
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private static bool IsRecentlyActive(Dictionary<string, JsonElement> arguments)

@@ -17,6 +17,7 @@ using NLog;
 using NzbDrone.Common.Disk;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Download;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
 
