@@ -2370,18 +2370,19 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var sourcePath = manager.SavePath ?? this.storagePathService.GetIncompleteDirectory();
         if (manager.Files != null && manager.Files.Count > 0)
         {
-            var firstFullPath = manager.Files[0].FullPath;
-            if (!string.IsNullOrWhiteSpace(firstFullPath))
+            var isMulti = manager.Files.Count > 1 || (manager.Torrent != null && manager.Torrent.Files.Count > 1);
+            if (isMulti)
             {
-                var parentDir = Path.GetDirectoryName(firstFullPath);
-                var sourceTrimmed = sourcePath?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                var parentTrimmed = parentDir?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                if (!string.IsNullOrWhiteSpace(parentDir) &&
-                    !string.Equals(parentTrimmed, sourceTrimmed, StringComparison.OrdinalIgnoreCase))
+                var folderName = manager.Torrent?.Name ?? torrentName;
+                if (!string.IsNullOrWhiteSpace(folderName))
                 {
-                    sourcePath = parentDir;
+                    sourcePath = Path.Combine(sourcePath, folderName);
                 }
-                else
+            }
+            else
+            {
+                var firstFullPath = manager.Files[0].FullPath;
+                if (!string.IsNullOrWhiteSpace(firstFullPath))
                 {
                     sourcePath = firstFullPath;
                 }
