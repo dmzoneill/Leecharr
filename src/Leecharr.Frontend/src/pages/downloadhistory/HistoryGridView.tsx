@@ -175,50 +175,71 @@ export const HistoryGridView: React.FC<HistoryGridViewProps> = ({
                       />
 
                       {/* Top-left Source Badge & Direct Deep Link */}
-                      {item.source && (
-                        <div
-                          style={{
-                            position: "absolute",
-                            top: "8px",
-                            left: "8px",
-                            zIndex: 2,
-                          }}
-                          onClick={(e) => {
-                            if (arrLink) {
-                              e.stopPropagation();
-                              window.open(
-                                arrLink.url,
-                                "_blank",
-                                "noopener,noreferrer",
-                              );
-                            }
-                          }}
-                        >
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "8px",
+                          left: "8px",
+                          zIndex: 2,
+                          display: "flex",
+                          gap: "4px",
+                          flexDirection: "column",
+                          alignItems: "flex-start",
+                        }}
+                      >
+                        {item.source && (
+                          <div
+                            onClick={(e) => {
+                              if (arrLink) {
+                                e.stopPropagation();
+                                window.open(
+                                  arrLink.url,
+                                  "_blank",
+                                  "noopener,noreferrer",
+                                );
+                              }
+                            }}
+                          >
+                            <span
+                              className="badge"
+                              style={{
+                                backgroundColor: "rgba(0, 0, 0, 0.78)",
+                                backdropFilter: "blur(4px)",
+                                color: "#fff",
+                                fontSize: "0.68rem",
+                                padding: "0.2rem 0.5rem",
+                                border: "1px solid var(--border)",
+                                cursor: arrLink ? "pointer" : "default",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "0.25rem",
+                                borderRadius: "4px",
+                              }}
+                              title={
+                                arrLink
+                                  ? `${arrLink.label} (${arrLink.url})`
+                                  : item.source
+                              }
+                            >
+                              {item.source} {arrLink ? "↗" : ""}
+                            </span>
+                          </div>
+                        )}
+                        {item.isPrivate && (
                           <span
-                            className="badge"
+                            className="badge badge-warning"
                             style={{
-                              backgroundColor: "rgba(0, 0, 0, 0.78)",
-                              backdropFilter: "blur(4px)",
-                              color: "#fff",
-                              fontSize: "0.68rem",
-                              padding: "0.2rem 0.5rem",
-                              border: "1px solid var(--border)",
-                              cursor: arrLink ? "pointer" : "default",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "0.25rem",
+                              fontSize: "0.65rem",
+                              padding: "0.15rem 0.4rem",
+                              boxShadow: "0 2px 6px rgba(0,0,0,0.5)",
                               borderRadius: "4px",
                             }}
-                            title={
-                              arrLink
-                                ? `${arrLink.label} (${arrLink.url})`
-                                : item.source
-                            }
+                            title="BEP 27 Private Torrent"
                           >
-                            {item.source} {arrLink ? "↗" : ""}
+                            🔒 Private
                           </span>
-                        </div>
-                      )}
+                        )}
+                      </div>
 
                       {/* Top-right Ratio Badge */}
                       <div

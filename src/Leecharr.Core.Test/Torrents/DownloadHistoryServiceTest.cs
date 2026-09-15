@@ -571,4 +571,89 @@ public class DownloadHistoryServiceTest
             }
         }
     }
+
+    [Test]
+    public async Task ReAddAsync_PreservesAllTrackers_AndInsertsAllTrackersIntoRepositoryAndEngine()
+    {
+        var trackers = new List<string>
+        {
+            "udp://tracker1.example.com:1337/announce",
+            "udp://tracker2.example.com:6969/announce",
+            "http://tracker3.example.com/announce",
+        };
+
+        var history = new DownloadHistory
+        {
+            Id = 99,
+            InfoHash = "multitrackerhash123",
+            Title = "Multi Tracker Release",
+            TotalSize = 5000,
+            PrimaryTracker = trackers[0],
+            Trackers = trackers,
+            IsPrivate = false,
+        };
+
+        this.historyRepository.Get(99).Returns(history);
+        this.torrentRepository.ExistsByInfoHash("multitrackerhash123").Returns(false);
+        this.torrentRepository.All().Returns(new List<Torrent>());
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
+        {
+            var t = (Torrent)args[0];
+            t.Id = 77;
+            return t;
+        });
+
+        var added = await this.service.ReAddAsync(99);
+
+        added.Should().NotBeNull();
+        added.Id.Should().Be(77);
+
+        // Verify all trackers inserted into trackerEntryRepository
+        this.trackerEntryRepository.Received(1).InsertMany(Arg.Is<List<TrackerEntry>>(list =>
+            list.Count == 3 &&
+            list[0].Url == trackers[0] &&
+            list[1].Url == trackers[1] &&
+            list[2].Url == trackers[2]));
+
+        // Verify all trackers passed to download engine
+        await this.downloadEngine.Received(1).AddTrackersAsync(77, Arg.Is<List<string>>(list =>
+            list.Count == 3 &&
+            list.Contains(trackers[0]) &&
+            list.Contains(trackers[1]) &&
+            list.Contains(trackers[2])));
+    }
+
+    [Test]
+    public async Task ReAddAsync_PreservesIsPrivateBep27Flag_AndSetsEnginePrivateStatus()
+    {
+        var history = new DownloadHistory
+        {
+            Id = 100,
+            InfoHash = "privatetrackerhash123",
+            Title = "Private Tracker Release",
+            TotalSize = 10000,
+            PrimaryTracker = "https://private-tracker.org/announce?passkey=secret123",
+            Trackers = new List<string> { "https://private-tracker.org/announce?passkey=secret123" },
+            IsPrivate = true,
+        };
+
+        this.historyRepository.Get(100).Returns(history);
+        this.torrentRepository.ExistsByInfoHash("privatetrackerhash123").Returns(false);
+        this.torrentRepository.All().Returns(new List<Torrent>());
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
+        {
+            var t = (Torrent)args[0];
+            t.Id = 88;
+            return t;
+        });
+
+        var added = await this.service.ReAddAsync(100);
+
+        added.Should().NotBeNull();
+        added.Id.Should().Be(88);
+        added.IsPrivate.Should().BeTrue();
+
+        this.torrentRepository.Received(1).Insert(Arg.Is<Torrent>(t => t.IsPrivate == true));
+        await this.downloadEngine.Received(1).SetTorrentPrivateStatusAsync(88, true);
+    }
 }

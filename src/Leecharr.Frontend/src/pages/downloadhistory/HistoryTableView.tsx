@@ -355,6 +355,18 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                                 {item.source}
                               </span>
                             ))}
+                          {item.isPrivate && (
+                            <span
+                              className="badge badge-warning"
+                              style={{
+                                fontSize: "0.68rem",
+                                padding: "0.1rem 0.35rem",
+                              }}
+                              title="BEP 27 Private Torrent"
+                            >
+                              🔒 Private
+                            </span>
+                          )}
                           {item.primaryTracker && (
                             <span
                               style={{
@@ -367,6 +379,7 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                               title={t("history.filterByTracker")}
                             >
                               • {item.primaryTracker}
+                              {item.trackers && item.trackers.length > 1 ? ` (+${item.trackers.length - 1})` : ""}
                             </span>
                           )}
                         </div>
