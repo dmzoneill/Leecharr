@@ -63,8 +63,7 @@ public interface ITorrentFileParser
 public class TorrentFileParser : ITorrentFileParser
 {
     public const int MaxBencodeDepth = 64;
-    public const int MinPieceLength = 16 * 1024; // 16 KiB
-    public const int MaxPieceLength = 64 * 1024 * 1024; // 64 MiB
+    public const int MaxPieceLength = 256 * 1024 * 1024; // 256 MiB
 
     private readonly Logger logger;
 
@@ -122,11 +121,9 @@ public class TorrentFileParser : ITorrentFileParser
                 throw new InvalidTorrentFileException("Piece length must be a positive integer.");
             }
 
-            if (pieceLengthNum.Value < MinPieceLength ||
-                pieceLengthNum.Value > MaxPieceLength ||
-                (pieceLengthNum.Value & (pieceLengthNum.Value - 1)) != 0)
+            if (pieceLengthNum.Value > MaxPieceLength)
             {
-                throw new InvalidTorrentFileException("Piece length must be a power of 2 between 16 KiB and 64 MiB.");
+                throw new InvalidTorrentFileException($"Piece length exceeds maximum allowed ({MaxPieceLength} bytes).");
             }
 
             var isV2 = (info.ContainsKey("meta version") && (info["meta version"] as BNumber)?.Value == 2) ||
