@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.12.4](https://github.com/dmzoneill/Leecharr/releases/tag/v1.12.4) - 2026-09-15
+
+### 🐛 Bug Fixes
+- fix(bittorrent): invoke StoragePathService.MoveToCompleted before updating MonoTorrent seeding save path
+- fix(bittorrent): use overwrite true on MoveFilesAsync and ensure manager stopped for FastResume
+- fix(bittorrent): streamline MonoTorrent MoveFilesAsync and strip incomplete extensions on completion
+- fix(bittorrent): prevent PreallocateFilesAsync and recheck loop on completed torrents
+
 ## [v1.12.3](https://github.com/dmzoneill/Leecharr/releases/tag/v1.12.3) - 2026-09-14
 
 ### 🐛 Bug Fixes
