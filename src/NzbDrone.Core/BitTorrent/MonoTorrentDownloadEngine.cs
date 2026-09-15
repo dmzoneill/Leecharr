@@ -2314,7 +2314,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 try
                 {
                     Directory.CreateDirectory(seedingSavePath);
-                    await manager.MoveFilesAsync(seedingSavePath, false).ConfigureAwait(false);
+                    await manager.MoveFilesAsync(seedingSavePath, true).ConfigureAwait(false);
                     await this.CloseDiskManagerFilesAsync(manager).ConfigureAwait(false);
                     moved = true;
                     finalDestination = Path.Combine(seedingSavePath, TorrentPathValidator.SanitizeRelativePath(torrentName) ?? torrentName);
@@ -2340,6 +2340,18 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
                 this.storagePathService.StripIncompleteExtensions(finalDestination);
                 this.logger.Info("Completed torrent '{0}' is ready at '{1}'", torrentName, finalDestination);
+
+                if (manager.State != TorrentState.Stopped)
+                {
+                    try
+                    {
+                        await manager.StopAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Debug(ex, "Error stopping manager for {0} before loading FastResume", infoHash);
+                    }
+                }
 
                 // Load FastResume checkpoint so MonoTorrent immediately seeds from the completed location
                 if (manager.Torrent != null && manager.InfoHashes != null)
