@@ -32,15 +32,6 @@ services:
       arr-network:
         aliases:
           - leecharr.local
-    depends_on:
-      seedarr:
-        condition: service_healthy
-      sonarr:
-        condition: service_healthy
-      radarr:
-        condition: service_healthy
-      prowlarr:
-        condition: service_healthy
 
   seedarr:
     image: ${SEEDARR_IMAGE:-seedarr:latest}
@@ -350,7 +341,7 @@ services:
 
         # --- Add Leecharr as Download Client in Sonarr & Radarr (via Transmission RPC protocol) ---
         add_leecharr_download_client() {
-          local name=$$1 url=$$2 api_key=$$3 api_ver=$$4
+          local name=$$1 url=$$2 api_key=$$3 api_ver=$$4 cat_field=$$5
           existing=$$(curl -sf "$$url/api/$$api_ver/downloadclient" -H "X-Api-Key: $$api_key" 2>/dev/null | grep -c 'Leecharr' || true)
           if [ "$$existing" != "0" ]; then
             echo "  $$name: Leecharr download client already configured"
@@ -360,25 +351,39 @@ services:
           code=$$(curl -s -o /tmp/dc_resp -w "%{http_code}" -X POST "$$url/api/$$api_ver/downloadclient" \
             -H "X-Api-Key: $$api_key" \
             -H "Content-Type: application/json" \
-            -d '{
-              "name": "Leecharr",
-              "implementation": "Transmission",
-              "configContract": "TransmissionSettings",
-              "enable": true,
-              "priority": 1,
-              "fields": [
-                {"name": "host", "value": "leecharr.local"},
-                {"name": "port", "value": 7889},
-                {"name": "useSsl", "value": false},
-                {"name": "urlBase", "value": "/transmission/"}
+            -d "{
+              \"name\": \"Leecharr\",
+              \"implementation\": \"Transmission\",
+              \"configContract\": \"TransmissionSettings\",
+              \"enable\": true,
+              \"priority\": 1,
+              \"fields\": [
+                {\"name\": \"host\", \"value\": \"leecharr.local\"},
+                {\"name\": \"port\", \"value\": 7889},
+                {\"name\": \"useSsl\", \"value\": false},
+                {\"name\": \"urlBase\", \"value\": \"/transmission/\"},
+                {\"name\": \"$$cat_field\", \"value\": \"\"}
               ]
-            }')
+            }")
           if [ "$$code" = "200" ] || [ "$$code" = "201" ]; then
             echo "    OK"
           else
             echo "    HTTP $$code: $$(cat /tmp/dc_resp | head -c 200)"
           fi
         }
+
+        echo ""
+        echo "--- Adding Leecharr download client to Sonarr & Radarr ---"
+        add_leecharr_download_client "Sonarr" "http://sonarr.local:8989" "$$SONARR_KEY" "v3" "tvCategory"
+        add_leecharr_download_client "Radarr" "http://radarr.local:7878" "$$RADARR_KEY" "v3" "movieCategory"
+
+        # --- Configure Leecharr Download Directories ---
+        echo ""
+        echo "--- Setting Leecharr Download Paths ---"
+        curl -sf -X PUT "http://leecharr.local:7889/api/v1/config/bittorrent" \
+          -H "X-Api-Key: $$LEECHARR_KEY" \
+          -H "Content-Type: application/json" \
+          -d '{"downloadDir": "/downloads", "incompleteDownloadDir": "/downloads/incomplete"}' > /dev/null 2>&1 || true
 
         # --- Connect Leecharr to Sonarr, Radarr & Prowlarr ---
         add_leecharr_connection() {
@@ -416,6 +421,26 @@ services:
         add_leecharr_connection "Sonarr" "Sonarr" "http://sonarr.local:8989" "$$SONARR_KEY"
         add_leecharr_connection "Radarr" "Radarr" "http://radarr.local:7878" "$$RADARR_KEY"
         add_leecharr_connection "Prowlarr" "Prowlarr" "http://prowlarr.local:9696" "$$PROWLARR_KEY"
+
+        # --- Refresh and Test Download Clients in Sonarr & Radarr ---
+        echo ""
+        echo "--- Refreshing Download Clients in Sonarr & Radarr ---"
+        curl -sf -X POST "http://sonarr.local:8989/api/v3/command" \
+          -H "X-Api-Key: $$SONARR_KEY" \
+          -H "Content-Type: application/json" \
+          -d '{"name": "RefreshMonitoredDownloads"}' > /dev/null 2>&1 || true
+        curl -sf -X POST "http://sonarr.local:8989/api/v3/command" \
+          -H "X-Api-Key: $$SONARR_KEY" \
+          -H "Content-Type: application/json" \
+          -d '{"name": "CheckHealth"}' > /dev/null 2>&1 || true
+        curl -sf -X POST "http://radarr.local:7878/api/v3/command" \
+          -H "X-Api-Key: $$RADARR_KEY" \
+          -H "Content-Type: application/json" \
+          -d '{"name": "RefreshMonitoredDownloads"}' > /dev/null 2>&1 || true
+        curl -sf -X POST "http://radarr.local:7878/api/v3/command" \
+          -H "X-Api-Key: $$RADARR_KEY" \
+          -H "Content-Type: application/json" \
+          -d '{"name": "CheckHealth"}' > /dev/null 2>&1 || true
 
         # --- Add Prowlarr as indexer in Leecharr ---
         echo ""

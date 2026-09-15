@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using NLog;
 using NzbDrone.Core.BitTorrent;
@@ -791,9 +792,33 @@ public class ConfigService : IConfigService
     public int HistoryRetentionDays => this.GetValueInt("HistoryRetentionDays", 0);
 
     // Storage & Disk
-    public string DownloadDir => this.GetValue("DownloadDir", string.Empty);
+    public string DownloadDir
+    {
+        get
+        {
+            var val = this.GetValue("DownloadDir", string.Empty);
+            if (string.IsNullOrWhiteSpace(val) && Directory.Exists("/downloads"))
+            {
+                return "/downloads";
+            }
 
-    public string IncompleteDownloadDir => this.GetValue("IncompleteDownloadDir", string.Empty);
+            return val;
+        }
+    }
+
+    public string IncompleteDownloadDir
+    {
+        get
+        {
+            var val = this.GetValue("IncompleteDownloadDir", string.Empty);
+            if (string.IsNullOrWhiteSpace(val) && Directory.Exists("/downloads"))
+            {
+                return "/downloads/incomplete";
+            }
+
+            return val;
+        }
+    }
 
     public int DiskWriteCacheSizeMb => this.GetValueInt("DiskWriteCacheSizeMb", 128);
 

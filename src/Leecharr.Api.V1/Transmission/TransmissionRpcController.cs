@@ -1430,24 +1430,44 @@ public class TransmissionRpcController : ControllerBase
         var rawSavePath = torrent.SavePath ?? string.Empty;
         if (string.IsNullOrWhiteSpace(rawSavePath) || string.IsNullOrWhiteSpace(torrent.Name))
         {
-            return rawSavePath;
+            return NormalizeDownloadPath(rawSavePath);
         }
 
         var trimmedSave = rawSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         if (Path.HasExtension(trimmedSave))
         {
             var parent = Path.GetDirectoryName(trimmedSave);
-            return !string.IsNullOrWhiteSpace(parent) ? parent : trimmedSave;
+            return NormalizeDownloadPath(!string.IsNullOrWhiteSpace(parent) ? parent : trimmedSave);
         }
 
         var dirName = Path.GetFileName(trimmedSave);
         if (string.Equals(dirName, torrent.Name, StringComparison.OrdinalIgnoreCase))
         {
             var parent = Path.GetDirectoryName(trimmedSave);
-            return !string.IsNullOrWhiteSpace(parent) ? parent : trimmedSave;
+            return NormalizeDownloadPath(!string.IsNullOrWhiteSpace(parent) ? parent : trimmedSave);
         }
 
-        return rawSavePath;
+        return NormalizeDownloadPath(rawSavePath);
+    }
+
+    private static string NormalizeDownloadPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return path;
+        }
+
+        if (string.Equals(path, "/config/downloads", StringComparison.OrdinalIgnoreCase))
+        {
+            return "/downloads";
+        }
+
+        if (path.StartsWith("/config/downloads/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "/downloads/" + path.Substring("/config/downloads/".Length);
+        }
+
+        return path;
     }
 
     private TransmissionFileMapping MapTransmissionFiles(Torrent torrent, ISet<string> requestedFields = null)
