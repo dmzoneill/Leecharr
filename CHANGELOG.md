@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.14.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.14.1) - 2026-09-15
+
+### 🐛 Bug Fixes
+- Fix completedDir fallback resolution when storagePathService returns empty string
+- Fix using directives and dependency injection in client RPC controllers
+- Fix qBittorrent and client APIs reporting incomplete download directory for save_path and content_path
+
+### 🔧 Maintenance & Improvements
+- test: mock batch file retrieval in GetTorrentsInfo single file resolution test
+- Avoid per-torrent GetFiles call in ResolvePaths when filesByTorrentId is passed
+
 ## [v1.14.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.14.0) - 2026-09-15
 
 ### ✨ Features
