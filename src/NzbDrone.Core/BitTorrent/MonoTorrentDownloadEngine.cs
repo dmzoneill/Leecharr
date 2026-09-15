@@ -2374,10 +2374,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             if (!string.IsNullOrWhiteSpace(firstFullPath))
             {
                 var parentDir = Path.GetDirectoryName(firstFullPath);
+                var sourceTrimmed = sourcePath?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var parentTrimmed = parentDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 if (!string.IsNullOrWhiteSpace(parentDir) &&
-                    !string.Equals(parentDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                                   sourcePath?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                                   StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(parentTrimmed, sourceTrimmed, StringComparison.OrdinalIgnoreCase) &&
                     this.diskProvider.FolderExists(parentDir))
                 {
                     sourcePath = parentDir;
@@ -2400,10 +2400,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
 
         // Relocate files in MonoTorrent if moving from incomplete to completed directory
+        var currentManagerPath = manager.SavePath?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var targetSeedingPath = seedingSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         if (!string.IsNullOrWhiteSpace(seedingSavePath) &&
-            !string.Equals(manager.SavePath?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                           seedingSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                           StringComparison.OrdinalIgnoreCase))
+            !string.Equals(currentManagerPath, targetSeedingPath, StringComparison.OrdinalIgnoreCase))
         {
             try
             {
