@@ -42,6 +42,7 @@ public class DelugeJsonRpcController : ControllerBase
     private readonly IConfigFileProvider configFileProvider;
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly IDiskProvider diskProvider;
+    private readonly IStoragePathService storagePathService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public DelugeJsonRpcController(
@@ -52,7 +53,8 @@ public class DelugeJsonRpcController : ControllerBase
         IConfigService configService,
         IConfigFileProvider configFileProvider = null,
         ISafeHttpClientService safeHttpClientService = null,
-        IDiskProvider diskProvider = null)
+        IDiskProvider diskProvider = null,
+        IStoragePathService storagePathService = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -62,6 +64,7 @@ public class DelugeJsonRpcController : ControllerBase
         this.configFileProvider = configFileProvider;
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
         this.diskProvider = diskProvider;
+        this.storagePathService = storagePathService;
     }
 
     private bool IsDelugeAuthenticated()
@@ -1764,6 +1767,39 @@ public class DelugeJsonRpcController : ControllerBase
         }
 
         var rawSavePath = t.SavePath ?? string.Empty;
+        var category = t.Category;
+        var normalized = this.storagePathService?.NormalizeCompletedSavePath(rawSavePath, category);
+        if (!string.IsNullOrWhiteSpace(normalized))
+        {
+            rawSavePath = normalized;
+        }
+        else
+        {
+            var completedDir = this.storagePathService?.GetCompletedDirectory(category) ?? this.configService?.DownloadDir ?? "/downloads";
+            var trimmedRaw = rawSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var inc = this.configService?.IncompleteDownloadDir?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            if (string.IsNullOrWhiteSpace(rawSavePath) ||
+                string.Equals(trimmedRaw, "/downloads/incomplete", StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrWhiteSpace(inc) && string.Equals(trimmedRaw, inc, StringComparison.OrdinalIgnoreCase)))
+            {
+                rawSavePath = completedDir;
+            }
+            else if (trimmedRaw.StartsWith("/downloads/incomplete/", StringComparison.OrdinalIgnoreCase) ||
+                     trimmedRaw.StartsWith("/downloads/incomplete\\", StringComparison.OrdinalIgnoreCase))
+            {
+                var relative = trimmedRaw.Substring("/downloads/incomplete".Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                rawSavePath = !string.IsNullOrWhiteSpace(relative) ? Path.Combine(completedDir, relative) : completedDir;
+            }
+            else if (!string.IsNullOrWhiteSpace(inc) &&
+                     (trimmedRaw.StartsWith(inc + "/", StringComparison.OrdinalIgnoreCase) ||
+                      trimmedRaw.StartsWith(inc + "\\", StringComparison.OrdinalIgnoreCase)))
+            {
+                var relative = trimmedRaw.Substring(inc.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                rawSavePath = !string.IsNullOrWhiteSpace(relative) ? Path.Combine(completedDir, relative) : completedDir;
+            }
+        }
+
         var savePath = rawSavePath;
         if (!string.IsNullOrWhiteSpace(rawSavePath) && !string.IsNullOrWhiteSpace(t.Name))
         {

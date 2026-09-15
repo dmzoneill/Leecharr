@@ -1198,8 +1198,8 @@ public class QBittorrentApiControllerTest
         var okResult = response.Result.Should().BeOfType<OkObjectResult>().Subject;
         var list = okResult.Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
         list.Should().HaveCount(1);
-        list[0]["save_path"].Should().Be("/downloads/incomplete");
-        list[0]["content_path"].Should().Be("/downloads/incomplete/ActualMovieFile.mkv");
+        list[0]["save_path"].Should().Be("/downloads");
+        list[0]["content_path"].Should().Be("/downloads/ActualMovieFile.mkv");
     }
 
     [Test]
