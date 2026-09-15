@@ -119,11 +119,12 @@ public class TorrentLogService : ITorrentLogService,
                 _ => "Engine",
             };
 
+            var progressStr = message.Torrent.Progress > 0 ? $" ({message.Torrent.Progress:P1} verified)" : string.Empty;
             this.Log(
                 message.Torrent.Id,
                 level,
                 source,
-                $"Torrent state changed: {message.OldStatus} -> {message.NewStatus}");
+                $"[State Machine] Torrent state changed: {message.OldStatus} -> {message.NewStatus}{progressStr}");
         }
     }
 
