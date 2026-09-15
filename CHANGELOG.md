@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.13.3](https://github.com/dmzoneill/Leecharr/releases/tag/v1.13.3) - 2026-09-15
+
+### 🐛 Bug Fixes
+- fix(frontend): remove duplicate private badge, fix header badge text and terminal folder spacing
+
 ## [v1.13.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.13.2) - 2026-09-15
 
 ### 🐛 Bug Fixes
