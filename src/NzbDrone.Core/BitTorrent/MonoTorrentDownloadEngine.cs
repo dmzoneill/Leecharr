@@ -765,16 +765,16 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             {
                 var targetCompletedPath = Path.Combine(completedDir, file.Path);
                 var altCompletedPath = Path.Combine(completedDir, Path.GetFileName(file.Path));
-                if ((this.diskProvider.FileExists(targetCompletedPath) && new FileInfo(targetCompletedPath).Length > 0) ||
-                    (this.diskProvider.FileExists(altCompletedPath) && new FileInfo(altCompletedPath).Length > 0))
+                if ((this.diskProvider.FileExists(targetCompletedPath) && this.GetFileSizeSafely(targetCompletedPath) > 0) ||
+                    (this.diskProvider.FileExists(altCompletedPath) && this.GetFileSizeSafely(altCompletedPath) > 0))
                 {
                     completedCount++;
                 }
 
                 var targetIncompletePath = Path.Combine(incompleteDir, file.Path);
                 var altIncompletePath = Path.Combine(incompleteDir, Path.GetFileName(file.Path));
-                if ((this.diskProvider.FileExists(targetIncompletePath) && new FileInfo(targetIncompletePath).Length > 0) ||
-                    (this.diskProvider.FileExists(altIncompletePath) && new FileInfo(altIncompletePath).Length > 0) ||
+                if ((this.diskProvider.FileExists(targetIncompletePath) && this.GetFileSizeSafely(targetIncompletePath) > 0) ||
+                    (this.diskProvider.FileExists(altIncompletePath) && this.GetFileSizeSafely(altIncompletePath) > 0) ||
                     this.diskProvider.FileExists(targetIncompletePath + ".!mt") ||
                     this.diskProvider.FileExists(targetIncompletePath + ".incomplete") ||
                     this.diskProvider.FileExists(altIncompletePath + ".!mt") ||
@@ -4377,6 +4377,18 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
 
         return null;
+    }
+
+    private long GetFileSizeSafely(string path)
+    {
+        try
+        {
+            return this.diskProvider.GetFileSize(path);
+        }
+        catch
+        {
+            return 0;
+        }
     }
 }
 
