@@ -2338,7 +2338,17 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         }
         else
         {
-            var completedDir = this.storagePathService?.GetCompletedDirectory(category) ?? this.configService?.DownloadDir ?? "/downloads";
+            var completedDir = this.storagePathService?.GetCompletedDirectory(category);
+            if (string.IsNullOrWhiteSpace(completedDir))
+            {
+                completedDir = this.configService?.DownloadDir;
+            }
+
+            if (string.IsNullOrWhiteSpace(completedDir))
+            {
+                completedDir = "/downloads";
+            }
+
             var trimmedRaw = rawSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var inc = this.configService?.IncompleteDownloadDir?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
