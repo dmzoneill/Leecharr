@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.13.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.13.0) - 2026-09-15
+
+### ✨ Features
+- feat(torrent): update context menu and engine to support asking tracker for more peers and scrape
+
 ## [v1.12.5](https://github.com/dmzoneill/Leecharr/releases/tag/v1.12.5) - 2026-09-15
 
 ### 🐛 Bug Fixes
