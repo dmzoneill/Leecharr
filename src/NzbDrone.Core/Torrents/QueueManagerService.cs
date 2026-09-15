@@ -133,7 +133,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
 
                                 torrent.Status = TorrentStatus.Downloading;
                                 this.torrentRepository.Update(torrent);
-                                this.logger.Info("Queue manager promoted torrent {0} ({1}) from Queued to Downloading", torrent.Name, torrent.Id);
+                                this.logger.Info("[State Machine] Queue manager promoted torrent #{0} ('{1}') from Queued to Downloading", torrent.Id, torrent.Name);
 
                                 eventsToPublish.Add(new TorrentStatusChangedEvent
                                 {
@@ -175,7 +175,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                 torrent.Seeders = 0;
                                 torrent.Leechers = 0;
                                 this.torrentRepository.Update(torrent);
-                                this.logger.Info("Queue manager demoted torrent {0} ({1}) to Queued (Active downloads: {2}/{3})", torrent.Name, torrent.Id, activeDownloads, maxDownloads);
+                                this.logger.Info("[State Machine] Queue manager demoted torrent #{0} ('{1}') from Downloading to Queued (Active downloads: {2}/{3})", torrent.Id, torrent.Name, activeDownloads, maxDownloads);
 
                                 eventsToPublish.Add(new TorrentStatusChangedEvent
                                 {
@@ -229,7 +229,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
 
                                 torrent.Status = TorrentStatus.Seeding;
                                 this.torrentRepository.Update(torrent);
-                                this.logger.Info("Queue manager promoted torrent {0} ({1}) from Queued to Seeding", torrent.Name, torrent.Id);
+                                this.logger.Info("[State Machine] Queue manager promoted torrent #{0} ('{1}') from Queued to Seeding", torrent.Id, torrent.Name);
 
                                 eventsToPublish.Add(new TorrentStatusChangedEvent
                                 {
@@ -271,7 +271,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                 torrent.Seeders = 0;
                                 torrent.Leechers = 0;
                                 this.torrentRepository.Update(torrent);
-                                this.logger.Info("Queue manager demoted torrent {0} ({1}) to Queued (Active uploads: {2}/{3})", torrent.Name, torrent.Id, activeUploads, maxUploads);
+                                this.logger.Info("[State Machine] Queue manager demoted torrent #{0} ('{1}') from Seeding to Queued (Active uploads: {2}/{3})", torrent.Id, torrent.Name, activeUploads, maxUploads);
 
                                 eventsToPublish.Add(new TorrentStatusChangedEvent
                                 {
