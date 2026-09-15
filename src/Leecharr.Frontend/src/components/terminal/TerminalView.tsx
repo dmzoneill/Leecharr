@@ -152,7 +152,7 @@ export function TerminalView({
       setConnecting(false);
       term?.writeln("\x1b[1;33m⚡ Connected to Leecharr Native Shell\x1b[0m");
       if (cwd) {
-        term?.writeln(`\x1b[90m📂 Working directory: ${cwd}\x1b[0m\r\n`);
+        term?.writeln(`\x1b[90m📁  Working directory: ${cwd}\x1b[0m\r\n`);
       }
       try {
         fitAddon?.fit();
@@ -361,9 +361,7 @@ export function TerminalView({
         left: isFullscreen ? 0 : undefined,
         zIndex: isFullscreen ? 99999 : undefined,
         backgroundColor: "#0c0e1a",
-        border: isFullscreen
-          ? "none"
-          : "1px solid var(--border-light)",
+        border: isFullscreen ? "none" : "1px solid var(--border-light)",
         borderRadius: isFullscreen ? 0 : "8px",
         overflow: "hidden",
         boxShadow: isFullscreen ? "none" : "0 4px 14px rgba(0, 0, 0, 0.35)",
