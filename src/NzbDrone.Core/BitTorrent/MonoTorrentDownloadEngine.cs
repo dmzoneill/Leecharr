@@ -2231,7 +2231,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         Name = manager.Torrent?.Name ?? infoHash,
                         Status = newStatus,
                         Category = currentTask?.Category,
-                        SavePath = manager.SavePath,
+                        SavePath = currentTask?.SavePath ?? this.storagePathService?.GetCompletedDirectory(currentTask?.Category) ?? this.configService?.DownloadDir ?? "/downloads",
                         Progress = manager.Progress / 100.0,
                     };
 
@@ -2466,7 +2466,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             Name = torrentName,
             Status = TorrentStatus.Seeding,
             Category = category,
-            SavePath = manager.SavePath ?? seedingSavePath,
+            SavePath = seedingSavePath,
             Progress = 1.0,
             DateCompleted = DateTime.UtcNow,
         }));

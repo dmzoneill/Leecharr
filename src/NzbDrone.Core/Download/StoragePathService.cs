@@ -28,6 +28,8 @@ public interface IStoragePathService
     void StripIncompleteExtensions(string targetDirectoryOrFile);
 
     void EnsureAccessiblePermissions(string path);
+
+    string NormalizeCompletedSavePath(string rawSavePath, string category = null);
 }
 
 public class StoragePathService : IStoragePathService
@@ -545,5 +547,59 @@ public class StoragePathService : IStoragePathService
         catch
         {
         }
+    }
+
+    public string NormalizeCompletedSavePath(string rawSavePath, string category = null)
+    {
+        var completedDir = this.GetCompletedDirectory(category);
+        if (string.IsNullOrWhiteSpace(rawSavePath))
+        {
+            return completedDir;
+        }
+
+        var trimmedRaw = rawSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var configuredIncomplete = this.configService?.IncompleteDownloadDir?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        string incompleteDir = null;
+        try
+        {
+            incompleteDir = this.GetIncompleteDirectory()?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        }
+        catch
+        {
+        }
+
+        var incompleteCandidates = new List<string>();
+        if (!string.IsNullOrWhiteSpace(incompleteDir))
+        {
+            incompleteCandidates.Add(incompleteDir);
+        }
+
+        if (!string.IsNullOrWhiteSpace(configuredIncomplete) && !incompleteCandidates.Contains(configuredIncomplete, StringComparer.OrdinalIgnoreCase))
+        {
+            incompleteCandidates.Add(configuredIncomplete);
+        }
+
+        if (!incompleteCandidates.Contains("/downloads/incomplete", StringComparer.OrdinalIgnoreCase))
+        {
+            incompleteCandidates.Add("/downloads/incomplete");
+        }
+
+        foreach (var inc in incompleteCandidates)
+        {
+            if (string.Equals(trimmedRaw, inc, StringComparison.OrdinalIgnoreCase))
+            {
+                return completedDir;
+            }
+
+            if (trimmedRaw.StartsWith(inc + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+                trimmedRaw.StartsWith(inc + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                var relative = trimmedRaw.Substring(inc.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                return !string.IsNullOrWhiteSpace(relative) ? Path.Combine(completedDir, relative) : completedDir;
+            }
+        }
+
+        return rawSavePath;
     }
 }
