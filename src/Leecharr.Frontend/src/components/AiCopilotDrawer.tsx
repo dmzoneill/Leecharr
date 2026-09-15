@@ -251,7 +251,11 @@ export const AiCopilotDrawer: React.FC = () => {
     );
   };
 
-  const activeProvider = aiStatus?.activeProviderId || "RuleHeuristic";
+  const rawProvider = aiStatus?.activeProviderId || "RuleHeuristic";
+  const activeProvider =
+    rawProvider.toLowerCase() === "ruleheuristic"
+      ? "Rule Heuristics"
+      : rawProvider;
   const isButtonEnabled = aiConfig?.enableCopilotButton !== false;
 
   return (

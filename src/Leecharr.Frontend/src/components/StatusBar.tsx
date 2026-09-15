@@ -143,10 +143,10 @@ export function StatusBar({ connected, isReconnecting }: StatusBarProps = {}) {
           {formatBytes(totalDownloaded)}
         </span>
         <span className="status-bar-item">
-          {t("statusBar.ratio")} {formatRatio(averageRatio)}
+          {t("statusBar.ratio")}: {formatRatio(averageRatio)}
         </span>
         <span className="status-bar-item">
-          <WifiIcon size={14} /> {t("statusBar.ip")}{" "}
+          <WifiIcon size={14} /> {t("statusBar.ip")}:{" "}
           {network?.externalIp || "..."}
         </span>
       </div>
