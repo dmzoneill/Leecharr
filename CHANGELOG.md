@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.14.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.14.0) - 2026-09-15
+
+### ✨ Features
+- feat(logging): add comprehensive state machine transition logging across engine, service, and queue manager
+
 ## [v1.13.3](https://github.com/dmzoneill/Leecharr/releases/tag/v1.13.3) - 2026-09-15
 
 ### 🐛 Bug Fixes
