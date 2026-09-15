@@ -269,6 +269,8 @@ public class DownloadHistoryController : Controller
             DownloadUrl = model.DownloadUrl,
             Status = model.Status,
             RemovalReason = model.RemovalReason,
+            IsPrivate = model.IsPrivate,
+            Trackers = model.Trackers ?? new List<string>(),
             Metadata = MediaMetadataResourceMapper.ToResource(metadata),
         };
     }

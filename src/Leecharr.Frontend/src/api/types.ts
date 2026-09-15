@@ -953,6 +953,8 @@ export interface DownloadHistoryEntry {
   downloadUrl: string | null;
   status: string;
   removalReason: string | null;
+  isPrivate?: boolean;
+  trackers?: string[];
   dataJson: string | null;
   metadata?: MediaMetadata | null;
 }
