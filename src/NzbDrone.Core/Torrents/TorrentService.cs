@@ -1047,6 +1047,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         if (torrent != null && torrent.Status != TorrentStatus.Paused)
         {
             var old = torrent.Status;
+            this.logger.Info("[State Machine] Torrent #{0} ('{1}') pause requested (Status: {2} -> Paused)", id, torrent.Name, old);
             torrent.Status = TorrentStatus.Paused;
             torrent.DownloadSpeed = 0;
             torrent.UploadSpeed = 0;
@@ -1082,6 +1083,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             this.SyncWithEngine(torrent);
             var newStatus = torrent.Progress >= 1.0 ? TorrentStatus.Seeding : TorrentStatus.Downloading;
             var old = torrent.Status;
+            this.logger.Info("[State Machine] Torrent #{0} ('{1}') resume requested (Status: {2} -> {3}, Progress: {4:P1})", id, torrent.Name, old, newStatus, torrent.Progress);
             torrent.Status = newStatus;
             this.torrentRepository.Update(torrent);
 
@@ -1106,6 +1108,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         if (torrent != null)
         {
             var old = torrent.Status;
+            this.logger.Info("[State Machine] Torrent #{0} ('{1}') force recheck requested (Status: {2} -> Checking)", id, torrent.Name, old);
             this.torrentLogService?.Log(id, "Info", "Engine", "Manual force recheck initiated. Verifying piece hashes on disk...");
 
             try
@@ -1292,6 +1295,16 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
             if (oldStatus != torrent.Status)
             {
+                this.logger.Info(
+                    "[State Machine] Torrent #{0} ('{1}') status updated in engine sync: {2} -> {3} (Progress: {4:P1}, DownSpeed: {5}/s, UpSpeed: {6}/s)",
+                    torrent.Id,
+                    torrent.Name,
+                    oldStatus,
+                    torrent.Status,
+                    torrent.Progress,
+                    torrent.DownloadSpeed,
+                    torrent.UploadSpeed);
+
                 this.torrentRepository.Update(torrent);
                 this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
                 {

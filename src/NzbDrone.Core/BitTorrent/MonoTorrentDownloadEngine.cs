@@ -2199,8 +2199,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
             if (this.infoHashToId.TryGetValue(infoHash, out var torrentId))
             {
-                this.logger.Info("Torrent {0} state changed: {1} -> {2}", infoHash, e.OldState, e.NewState);
-
+                var torrentName = manager.Torrent?.Name ?? infoHash;
                 var oldStatus = MapTorrentStateToStatus(e.OldState);
                 var newStatus = MapTorrentStateToStatus(e.NewState);
                 this.tasks.TryGetValue(torrentId, out var currentTask);
@@ -2209,6 +2208,19 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 {
                     newStatus = TorrentStatus.Seeding;
                 }
+
+                this.logger.Info(
+                    "[State Machine] Torrent #{0} ('{1}', hash: {2}) state changed: {3} -> {4} (status: {5} -> {6}) | Progress: {7:F2}% | Seeds: {8}, Leechs: {9}",
+                    torrentId,
+                    torrentName,
+                    infoHash,
+                    e.OldState,
+                    e.NewState,
+                    oldStatus,
+                    newStatus,
+                    manager.Progress,
+                    manager.Peers?.Seeds ?? 0,
+                    manager.Peers?.Leechs ?? 0);
 
                 if (oldStatus != newStatus)
                 {
@@ -2241,7 +2253,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                             AllowPeerExchange = false,
                         }.ToSettings();
                         await manager.UpdateSettingsAsync(strictSettings).ConfigureAwait(false);
-                        this.logger.Info("Enforced BEP 27 restrictions for private torrent {0} after metadata received (DHT/PEX disabled)", infoHash);
+                        this.logger.Info("[State Machine] Enforced BEP 27 restrictions for private torrent #{0} ('{1}') (DHT/PEX disabled)", torrentId, torrentName);
                     }
                 }
 
@@ -2267,6 +2279,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         activeTask.IsQueuedForRecheck = false;
                     }
 
+                    this.logger.Info("[State Machine] Torrent #{0} ('{1}') started data integrity hash check on disk.", torrentId, torrentName);
                     this.torrentLogService?.Log(torrentId, "Info", "Storage", "Data integrity hash check in progress...");
                 }
                 else if (e.OldState == TorrentState.Hashing)
@@ -2279,23 +2292,25 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         if (!allVerified && activeTask.IsFilesMovedToCompleted && wasExplicitRecheck)
                         {
                             activeTask.IsFilesMovedToCompleted = false;
-                            this.logger.Warn("Torrent {0} failed hash check after completion ({1:F1}% verified). Resetting completed latch and resuming download to fetch missing pieces.", infoHash, manager.Progress);
+                            this.logger.Warn("[State Machine] Torrent #{0} ('{1}') failed hash check after completion ({2:F1}% verified). Resetting completed latch and resuming download to fetch missing pieces.", torrentId, torrentName, manager.Progress);
                             this.torrentLogService?.Log(torrentId, "Warn", "Storage", $"Hash check detected missing pieces ({manager.Progress:F1}% verified). Resuming download to repair.");
                         }
                     }
 
+                    this.logger.Info("[State Machine] Torrent #{0} ('{1}') finished data integrity hash check ({2:F1}% verified). Next state: {3}", torrentId, torrentName, manager.Progress, e.NewState);
                     this.torrentLogService?.Log(torrentId, "Info", "Storage", $"Data integrity check finished ({manager.Progress:F1}% verified). Next state: {e.NewState}");
                     GC.Collect(2, GCCollectionMode.Forced, false);
                 }
 
                 if (e.NewState == TorrentState.Error)
                 {
-                    this.logger.Error("Torrent {0} entered Error state: Reason={1}, Exception={2}", infoHash, manager.Error.Reason, manager.Error.Exception?.Message);
+                    this.logger.Error("[State Machine] Torrent #{0} ('{1}') entered Error state: Reason={2}, Exception={3}", torrentId, torrentName, manager.Error.Reason, manager.Error.Exception?.Message);
                     this.torrentLogService?.Log(torrentId, "Error", "Engine", $"Torrent error: {manager.Error.Reason} ({manager.Error.Exception?.Message})");
                 }
 
                 if (e.NewState == TorrentState.Seeding)
                 {
+                    this.logger.Info("[State Machine] Torrent #{0} ('{1}') entered Seeding state (Progress: {2:F2}%). Triggering completion processing.", torrentId, torrentName, manager.Progress);
                     if (this.tasks.TryGetValue(torrentId, out var activeTask) && !activeTask.IsFilesMovedToCompleted)
                     {
                         await this.OnTorrentCompletedAsync(torrentId, infoHash, manager).ConfigureAwait(false);
@@ -2443,6 +2458,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             this.logger.Debug(ex, "Failed to save FastResume checkpoint on completion for {0}", infoHash);
         }
 
+        this.logger.Info("[State Machine] Torrent #{0} ('{1}') download completed (100% verified). Final destination: '{2}'. Publishing completion event.", torrentId, torrentName, finalDestination);
         this.eventAggregator.PublishEvent(new TorrentDownloadCompletedEvent(new CoreTorrent
         {
             Id = torrentId,
