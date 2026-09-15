@@ -1755,10 +1755,27 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             torrent.Progress = 1.0;
             torrent.DateCompleted = DateTime.UtcNow;
 
-            var completedDir = this.storagePathService?.GetCompletedDirectory(torrent.Category) ?? this.configService?.DownloadDir ?? "/downloads";
-            var targetSavePath = !string.IsNullOrWhiteSpace(message.Torrent.SavePath)
-                ? (this.storagePathService?.NormalizeCompletedSavePath(message.Torrent.SavePath, torrent.Category) ?? message.Torrent.SavePath)
-                : completedDir;
+            var completedDir = this.storagePathService?.GetCompletedDirectory(torrent.Category);
+            if (string.IsNullOrWhiteSpace(completedDir))
+            {
+                completedDir = this.configService?.DownloadDir;
+            }
+
+            if (string.IsNullOrWhiteSpace(completedDir))
+            {
+                completedDir = "/downloads";
+            }
+
+            var targetSavePath = message.Torrent.SavePath;
+            if (!string.IsNullOrWhiteSpace(targetSavePath) && this.storagePathService != null)
+            {
+                var norm = this.storagePathService.NormalizeCompletedSavePath(targetSavePath, torrent.Category);
+                if (!string.IsNullOrWhiteSpace(norm))
+                {
+                    targetSavePath = norm;
+                }
+            }
+
             if (string.IsNullOrWhiteSpace(targetSavePath) ||
                 string.Equals(targetSavePath.TrimEnd('/', '\\'), "/downloads/incomplete", StringComparison.OrdinalIgnoreCase))
             {
