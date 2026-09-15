@@ -2407,9 +2407,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             try
             {
                 List<TorrentFile> files = null;
-                if (filesByTorrentId != null && filesByTorrentId.TryGetValue(t.Id, out var fList) && fList != null)
+                if (filesByTorrentId != null)
                 {
-                    files = fList;
+                    filesByTorrentId.TryGetValue(t.Id, out files);
                 }
                 else
                 {
