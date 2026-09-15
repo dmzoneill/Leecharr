@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.15.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.15.0) - 2026-09-15
+
+### ✨ Features
+- feat(ui): clean up free space storage badge to show disk icon, progress bar and tooltip only
+- feat(ui): remove upload and download speed indicators from top toolbar
+
+### 🐛 Bug Fixes
+- fix(torrents): ensure single-torrent pause only pauses selected torrent and clarify global toolbar buttons
+
 ## [v1.14.5](https://github.com/dmzoneill/Leecharr/releases/tag/v1.14.5) - 2026-09-15
 
 ### 🐛 Bug Fixes
