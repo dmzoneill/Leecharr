@@ -517,4 +517,41 @@ public class StoragePathServiceTest
         finalDestination.Should().Be(dest);
         this.diskProvider.Received(1).MoveFile(source, dest, true);
     }
+
+    [Test]
+    public void NormalizeCompletedSavePath_WhenIncompletePath_ReturnsCompletedPath()
+    {
+        this.configService.IncompleteDownloadDir.Returns("/downloads/incomplete");
+        this.diskProvider.FolderExists("/downloads/incomplete").Returns(true);
+        this.categoryService.GetSavePathForCategory("tv").Returns("/downloads/tv");
+        this.diskProvider.FolderExists("/downloads/tv").Returns(true);
+
+        var result = this.storagePathService.NormalizeCompletedSavePath("/downloads/incomplete", "tv");
+
+        result.Should().Be("/downloads/tv");
+    }
+
+    [Test]
+    public void NormalizeCompletedSavePath_WhenIncompleteSubPath_ReturnsCompletedSubPath()
+    {
+        this.configService.IncompleteDownloadDir.Returns("/downloads/incomplete");
+        this.diskProvider.FolderExists("/downloads/incomplete").Returns(true);
+        this.categoryService.GetSavePathForCategory("tv").Returns("/downloads/tv");
+        this.diskProvider.FolderExists("/downloads/tv").Returns(true);
+
+        var result = this.storagePathService.NormalizeCompletedSavePath("/downloads/incomplete/Silo S03", "tv");
+
+        result.Should().Be(Path.Combine("/downloads/tv", "Silo S03"));
+    }
+
+    [Test]
+    public void NormalizeCompletedSavePath_WhenCompletedPath_PreservesPath()
+    {
+        this.categoryService.GetSavePathForCategory("tv").Returns("/downloads/tv");
+        this.diskProvider.FolderExists("/downloads/tv").Returns(true);
+
+        var result = this.storagePathService.NormalizeCompletedSavePath("/downloads/tv", "tv");
+
+        result.Should().Be("/downloads/tv");
+    }
 }

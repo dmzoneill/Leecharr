@@ -69,6 +69,7 @@ public class TransmissionRpcController : ControllerBase
     private readonly ITrackerEntryRepository trackerEntryRepository;
     private readonly IBlocklistUpdateService blocklistUpdateService;
     private readonly IBlocklistService blocklistService;
+    private readonly IStoragePathService storagePathService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public static void RecordRemovedId(int id)
@@ -87,6 +88,37 @@ public class TransmissionRpcController : ControllerBase
             RecentlyRemovedList.RemoveAll(x => (DateTime.UtcNow - x.RemovedAt).TotalMinutes > 10);
             return RecentlyRemovedList.Select(x => x.Id).Distinct().ToList();
         }
+    }
+
+    private static bool IsTransmissionAuthenticated(ActionExecutingContext context, IConfigFileProvider configFileProvider)
+    {
+        if (configFileProvider != null && !configFileProvider.AuthenticationEnabled)
+        {
+            return true;
+        }
+
+        if (RpcAuthenticationHelper.IsAuthenticated(context.HttpContext, configFileProvider))
+        {
+            return true;
+        }
+
+        if (context.HttpContext?.Items.TryGetValue("transmission-session", out var itemSid) == true &&
+            itemSid is string s &&
+            AuthenticatedSessions.IsValid(s))
+        {
+            return true;
+        }
+
+        var headerVal = context.HttpContext?.Request?.Headers[SessionHeaderName].ToString();
+        if (!string.IsNullOrWhiteSpace(headerVal))
+        {
+            if (AuthenticatedSessions.IsValid(headerVal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool IsRecentlyActive(Dictionary<string, JsonElement> arguments)
@@ -130,7 +162,8 @@ public class TransmissionRpcController : ControllerBase
         IDownloadEngine downloadEngine = null,
         ITrackerEntryRepository trackerEntryRepository = null,
         IBlocklistUpdateService blocklistUpdateService = null,
-        IBlocklistService blocklistService = null)
+        IBlocklistService blocklistService = null,
+        IStoragePathService storagePathService = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -144,6 +177,7 @@ public class TransmissionRpcController : ControllerBase
         this.trackerEntryRepository = trackerEntryRepository;
         this.blocklistUpdateService = blocklistUpdateService;
         this.blocklistService = blocklistService;
+        this.storagePathService = storagePathService;
     }
 
     [HttpGet]
@@ -1425,9 +1459,42 @@ public class TransmissionRpcController : ControllerBase
         };
     }
 
-    private static string MapTransmissionDownloadDir(Torrent torrent)
+    private string MapTransmissionDownloadDir(Torrent torrent)
     {
         var rawSavePath = torrent.SavePath ?? string.Empty;
+        var category = torrent.Category;
+        var normalized = this.storagePathService?.NormalizeCompletedSavePath(rawSavePath, category);
+        if (!string.IsNullOrWhiteSpace(normalized))
+        {
+            rawSavePath = normalized;
+        }
+        else
+        {
+            var completedDir = this.storagePathService?.GetCompletedDirectory(category) ?? this.configService?.DownloadDir ?? "/downloads";
+            var trimmedRaw = rawSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var inc = this.configService?.IncompleteDownloadDir?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            if (string.IsNullOrWhiteSpace(rawSavePath) ||
+                string.Equals(trimmedRaw, "/downloads/incomplete", StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrWhiteSpace(inc) && string.Equals(trimmedRaw, inc, StringComparison.OrdinalIgnoreCase)))
+            {
+                rawSavePath = completedDir;
+            }
+            else if (trimmedRaw.StartsWith("/downloads/incomplete/", StringComparison.OrdinalIgnoreCase) ||
+                     trimmedRaw.StartsWith("/downloads/incomplete\\", StringComparison.OrdinalIgnoreCase))
+            {
+                var relative = trimmedRaw.Substring("/downloads/incomplete".Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                rawSavePath = !string.IsNullOrWhiteSpace(relative) ? Path.Combine(completedDir, relative) : completedDir;
+            }
+            else if (!string.IsNullOrWhiteSpace(inc) &&
+                     (trimmedRaw.StartsWith(inc + "/", StringComparison.OrdinalIgnoreCase) ||
+                      trimmedRaw.StartsWith(inc + "\\", StringComparison.OrdinalIgnoreCase)))
+            {
+                var relative = trimmedRaw.Substring(inc.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                rawSavePath = !string.IsNullOrWhiteSpace(relative) ? Path.Combine(completedDir, relative) : completedDir;
+            }
+        }
+
         if (string.IsNullOrWhiteSpace(rawSavePath) || string.IsNullOrWhiteSpace(torrent.Name))
         {
             return NormalizeDownloadPath(rawSavePath);

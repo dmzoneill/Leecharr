@@ -51,6 +51,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     private readonly IDownloadEngine downloadEngine;
     private readonly ISpeedSchedulerService speedSchedulerService;
     private readonly IDiskProvider diskProvider;
+    private readonly IStoragePathService storagePathService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public QBittorrentApiController(
@@ -68,7 +69,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         ISafeHttpClientService safeHttpClientService = null,
         IDownloadEngine downloadEngine = null,
         ISpeedSchedulerService speedSchedulerService = null,
-        IDiskProvider diskProvider = null)
+        IDiskProvider diskProvider = null,
+        IStoragePathService storagePathService = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -85,6 +87,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         this.downloadEngine = downloadEngine;
         this.speedSchedulerService = speedSchedulerService;
         this.diskProvider = diskProvider;
+        this.storagePathService = storagePathService;
     }
 
     [NonAction]
@@ -2325,12 +2328,46 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     private (string SavePath, string ContentPath) ResolvePaths(Torrent t, IReadOnlyDictionary<int, List<TorrentFile>> filesByTorrentId = null)
     {
         var rawSavePath = t?.SavePath ?? string.Empty;
+        var category = t?.Category;
+
+        var normalized = this.storagePathService?.NormalizeCompletedSavePath(rawSavePath, category);
+        if (!string.IsNullOrWhiteSpace(normalized))
+        {
+            rawSavePath = normalized;
+        }
+        else
+        {
+            var completedDir = this.storagePathService?.GetCompletedDirectory(category) ?? this.configService?.DownloadDir ?? "/downloads";
+            var trimmedRaw = rawSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var inc = this.configService?.IncompleteDownloadDir?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            if (string.IsNullOrWhiteSpace(rawSavePath) ||
+                string.Equals(trimmedRaw, "/downloads/incomplete", StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrWhiteSpace(inc) && string.Equals(trimmedRaw, inc, StringComparison.OrdinalIgnoreCase)))
+            {
+                rawSavePath = completedDir;
+            }
+            else if (trimmedRaw.StartsWith("/downloads/incomplete/", StringComparison.OrdinalIgnoreCase) ||
+                     trimmedRaw.StartsWith("/downloads/incomplete\\", StringComparison.OrdinalIgnoreCase))
+            {
+                var relative = trimmedRaw.Substring("/downloads/incomplete".Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                rawSavePath = !string.IsNullOrWhiteSpace(relative) ? Path.Combine(completedDir, relative) : completedDir;
+            }
+            else if (!string.IsNullOrWhiteSpace(inc) &&
+                     (trimmedRaw.StartsWith(inc + "/", StringComparison.OrdinalIgnoreCase) ||
+                      trimmedRaw.StartsWith(inc + "\\", StringComparison.OrdinalIgnoreCase)))
+            {
+                var relative = trimmedRaw.Substring(inc.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                rawSavePath = !string.IsNullOrWhiteSpace(relative) ? Path.Combine(completedDir, relative) : completedDir;
+            }
+        }
+
         if (string.IsNullOrWhiteSpace(rawSavePath))
         {
             return (string.Empty, string.Empty);
         }
 
-        if (string.IsNullOrWhiteSpace(t.Name))
+        if (string.IsNullOrWhiteSpace(t?.Name))
         {
             return (rawSavePath, rawSavePath);
         }

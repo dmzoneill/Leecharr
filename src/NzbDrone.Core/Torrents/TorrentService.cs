@@ -1754,10 +1754,18 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             var oldStatus = torrent.Status;
             torrent.Progress = 1.0;
             torrent.DateCompleted = DateTime.UtcNow;
-            if (!string.IsNullOrWhiteSpace(message.Torrent.SavePath))
+
+            var completedDir = this.storagePathService?.GetCompletedDirectory(torrent.Category) ?? this.configService?.DownloadDir ?? "/downloads";
+            var targetSavePath = !string.IsNullOrWhiteSpace(message.Torrent.SavePath)
+                ? (this.storagePathService?.NormalizeCompletedSavePath(message.Torrent.SavePath, torrent.Category) ?? message.Torrent.SavePath)
+                : completedDir;
+            if (string.IsNullOrWhiteSpace(targetSavePath) ||
+                string.Equals(targetSavePath.TrimEnd('/', '\\'), "/downloads/incomplete", StringComparison.OrdinalIgnoreCase))
             {
-                torrent.SavePath = message.Torrent.SavePath;
+                targetSavePath = completedDir;
             }
+
+            torrent.SavePath = targetSavePath;
 
             if (category?.AutoStop == true)
             {
@@ -1808,6 +1816,19 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         if (string.IsNullOrWhiteSpace(savePath))
         {
             return defaultDownloadDir;
+        }
+
+        if (this.storagePathService != null)
+        {
+            var normalized = this.storagePathService.NormalizeCompletedSavePath(savePath, category);
+            if (!string.IsNullOrWhiteSpace(normalized) && !string.Equals(normalized, savePath, StringComparison.OrdinalIgnoreCase))
+            {
+                savePath = normalized;
+            }
+        }
+        else if (string.Equals(savePath.TrimEnd('/', '\\'), "/downloads/incomplete", StringComparison.OrdinalIgnoreCase))
+        {
+            savePath = defaultDownloadDir;
         }
 
         try
