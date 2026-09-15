@@ -339,7 +339,7 @@ services:
           -H "Content-Type: application/json" \
           -d '{"name": "ApplicationIndexerSync"}' > /dev/null 2>&1 || true
 
-        # --- Add Leecharr as Download Client in Sonarr & Radarr (via qBittorrent API) ---
+        # --- Add Leecharr as Download Client in Sonarr & Radarr (via Deluge JSON-RPC) ---
         add_leecharr_download_client() {
           local name=$$1 url=$$2 api_key=$$3 api_ver=$$4 cat_field=$$5 cat_val=$$6
           existing=$$(curl -sf "$$url/api/$$api_ver/downloadclient" -H "X-Api-Key: $$api_key" 2>/dev/null | grep -c 'Leecharr' || true)
@@ -353,8 +353,8 @@ services:
             -H "Content-Type: application/json" \
             -d "{
               \"name\": \"Leecharr\",
-              \"implementation\": \"QBittorrent\",
-              \"configContract\": \"QBittorrentSettings\",
+              \"implementation\": \"Deluge\",
+              \"configContract\": \"DelugeSettings\",
               \"enable\": true,
               \"priority\": 1,
               \"fields\": [
@@ -362,7 +362,6 @@ services:
                 {\"name\": \"port\", \"value\": 7889},
                 {\"name\": \"useSsl\", \"value\": false},
                 {\"name\": \"urlBase\", \"value\": \"\"},
-                {\"name\": \"username\", \"value\": \"\"},
                 {\"name\": \"password\", \"value\": \"\"},
                 {\"name\": \"$$cat_field\", \"value\": \"$$cat_val\"}
               ]
