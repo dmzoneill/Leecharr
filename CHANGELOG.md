@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.13.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.13.2) - 2026-09-15
+
+### 🐛 Bug Fixes
+- fix(torrent-engine): resolve root folder for multi-file torrents and file path for single-file torrents
+- fix(torrent-engine): accurately resolve logical source path on completion for single and multi-file torrents
+- fix(style): resolve StyleCop SA1116 parameter formatting in MonoTorrentDownloadEngine
+- fix(torrent-engine): eliminate double download by using native MoveFilesAsync without engine stop/restart cycle
+
+### 🔧 Maintenance & Improvements
+- test(integration): add consistency integration tests for Transmission, qBittorrent, Deluge, and REST APIs
+
 ## [v1.13.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.13.1) - 2026-09-15
 
 ### 🐛 Bug Fixes
