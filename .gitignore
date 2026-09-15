@@ -44,6 +44,8 @@ Thumbs.db
 logs/
 MediaCache/
 Backups/
+cache/
+/cache/
 
 # Track test configs and fixtures
 !tests/config/**

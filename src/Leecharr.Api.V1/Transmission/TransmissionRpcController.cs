@@ -1471,11 +1471,30 @@ public class TransmissionRpcController : ControllerBase
         TorrentFileProgressEnricher.Enrich(torrent, files, taskForFiles);
 
         var fileCount = files.Count;
-        var filesList = files.Select(f => new Dictionary<string, object>
+        var baseDir = MapTransmissionDownloadDir(torrent);
+        var filesList = files.Select(f =>
         {
-            { "name", f.Path },
-            { "bytesCompleted", f.BytesCompleted },
-            { "length", f.Size },
+            var relPath = f.Path ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(torrent.Name) &&
+                !string.IsNullOrWhiteSpace(baseDir) &&
+                !relPath.StartsWith(torrent.Name + "/", StringComparison.OrdinalIgnoreCase) &&
+                !relPath.StartsWith(torrent.Name + "\\", StringComparison.OrdinalIgnoreCase))
+            {
+                var directPath = Path.Combine(baseDir, relPath);
+                var folderPath = Path.Combine(baseDir, torrent.Name, relPath);
+                if (this.diskProvider.FileExists(folderPath) ||
+                    (!this.diskProvider.FileExists(directPath) && this.diskProvider.FolderExists(Path.Combine(baseDir, torrent.Name))))
+                {
+                    relPath = Path.Combine(torrent.Name, relPath);
+                }
+            }
+
+            return new Dictionary<string, object>
+            {
+                { "name", relPath.Replace('\\', '/') },
+                { "bytesCompleted", f.BytesCompleted },
+                { "length", f.Size },
+            };
         }).ToList();
 
         var fileStats = files.Select(f => new Dictionary<string, object>

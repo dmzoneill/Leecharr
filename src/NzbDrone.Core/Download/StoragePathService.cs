@@ -267,6 +267,7 @@ public class StoragePathService : IStoragePathService
             }
 
             this.StripIncompleteExtensions(finalDestination);
+            this.EnsureAccessiblePermissions(finalDestination);
             return true;
         }
         catch (Exception ex)
@@ -459,6 +460,74 @@ public class StoragePathService : IStoragePathService
         catch (Exception ex)
         {
             this.logger.Debug(ex, "Failed to flush OS file buffer for '{0}'", filePath);
+        }
+    }
+
+    private void EnsureAccessiblePermissions(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        try
+        {
+            if (this.diskProvider.FolderExists(path))
+            {
+                try
+                {
+                    var dirMode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                                  UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.GroupExecute |
+                                  UnixFileMode.OtherRead | UnixFileMode.OtherWrite | UnixFileMode.OtherExecute;
+                    File.SetUnixFileMode(path, dirMode);
+                }
+                catch
+                {
+                }
+
+                var dirs = this.diskProvider.GetDirectories(path);
+                if (dirs != null)
+                {
+                    foreach (var d in dirs)
+                    {
+                        this.EnsureAccessiblePermissions(d);
+                    }
+                }
+
+                var files = this.diskProvider.GetFiles(path, false);
+                if (files != null)
+                {
+                    foreach (var f in files)
+                    {
+                        try
+                        {
+                            var fileMode = UnixFileMode.UserRead | UnixFileMode.UserWrite |
+                                           UnixFileMode.GroupRead | UnixFileMode.GroupWrite |
+                                           UnixFileMode.OtherRead | UnixFileMode.OtherWrite;
+                            File.SetUnixFileMode(f, fileMode);
+                        }
+                        catch
+                        {
+                        }
+                    }
+                }
+            }
+            else if (this.diskProvider.FileExists(path))
+            {
+                try
+                {
+                    var fileMode = UnixFileMode.UserRead | UnixFileMode.UserWrite |
+                                   UnixFileMode.GroupRead | UnixFileMode.GroupWrite |
+                                   UnixFileMode.OtherRead | UnixFileMode.OtherWrite;
+                    File.SetUnixFileMode(path, fileMode);
+                }
+                catch
+                {
+                }
+            }
+        }
+        catch
+        {
         }
     }
 }

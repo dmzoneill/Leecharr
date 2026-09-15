@@ -2339,7 +2339,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         var wasRunning = manager.State is TorrentState.Downloading or TorrentState.Seeding or TorrentState.Starting;
 
-        // Flush dirty write cache blocks to disk before performing recheck or moving files
+        // Flush dirty write cache blocks to disk before moving files
         if (this.engine?.DiskManager != null && manager != null)
         {
             try
@@ -2349,88 +2349,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
             catch (Exception ex)
             {
-                this.logger.Warn(ex, "Failed to flush dirty write cache blocks for torrent {0} before recheck/move", infoHash);
-            }
-        }
-
-        // Automatic Rehash Check Prior to Moving to Destination Directory (Default: true)
-        // Skip redundant recheck if torrent was already verified 100% (e.g. from manual force recheck)
-        var isAlreadyVerified = manager.HashChecked && manager.Bitfield != null && manager.Bitfield.AllTrue;
-        if (!isAlreadyVerified && this.configService?.AutoRecheckOnCompletion == true && this.engine != null && manager.Engine != null && manager.HasMetadata && manager.Files != null && manager.Files.Count > 0 && manager.Files.All(f => this.diskProvider.FileExists(f.FullPath)))
-        {
-            try
-            {
-                this.logger.Info("Executing automatic completion rehash check for torrent '{0}' before moving to destination directory.", torrentName);
-                if (manager.State is not (TorrentState.Stopped or TorrentState.Paused))
-                {
-                    await manager.StopAsync().ConfigureAwait(false);
-                }
-
-                await manager.HashCheckAsync(autoStart: false).ConfigureAwait(false);
-
-                // Verify that all WANTED pieces (covering files with Priority != DoNotDownload) have passed hash check
-                var allWantedPiecesVerified = true;
-                if (manager.Torrent != null && manager.Bitfield != null && manager.Files != null && manager.Files.Count > 0)
-                {
-                    var hasUnwantedFiles = manager.Files.Any(f => f.Priority == MonoTorrent.Priority.DoNotDownload);
-                    if (hasUnwantedFiles)
-                    {
-                        for (var i = 0; i < manager.Torrent.PieceCount; i++)
-                        {
-                            var pieceStart = (long)i * manager.Torrent.PieceLength;
-                            var pieceEnd = Math.Min(pieceStart + manager.Torrent.PieceLength, manager.Torrent.Size);
-                            var isPieceWanted = false;
-
-                            for (var f = 0; f < manager.Files.Count; f++)
-                            {
-                                var file = manager.Files[f];
-                                if (file.Priority != MonoTorrent.Priority.DoNotDownload)
-                                {
-                                    var fileStart = file.OffsetInTorrent;
-                                    var fileEnd = fileStart + file.Length;
-                                    if (pieceStart < fileEnd && pieceEnd > fileStart)
-                                    {
-                                        isPieceWanted = true;
-                                        break;
-                                    }
-                                }
-                            }
-
-                            if (isPieceWanted && !manager.Bitfield[i])
-                            {
-                                allWantedPiecesVerified = false;
-                                break;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        allWantedPiecesVerified = manager.Bitfield.AllTrue;
-                    }
-                }
-                else
-                {
-                    allWantedPiecesVerified = manager.Complete || (manager.Bitfield != null && manager.Bitfield.AllTrue);
-                }
-
-                if (!allWantedPiecesVerified)
-                {
-                    this.logger.Warn(
-                        "Automatic completion rehash check failed for torrent '{0}': only {1:F1}% verified ({2}/{3} pieces). Retaining files in incomplete directory and resuming download to repair corrupt/missing pieces.",
-                        torrentName,
-                        manager.Progress,
-                        manager.Bitfield?.TrueCount ?? 0,
-                        manager.Bitfield?.Length ?? 0);
-
-                    await manager.StartAsync().ConfigureAwait(false);
-                    return;
-                }
-
-                this.logger.Info("Automatic completion rehash check passed for torrent '{0}'. Proceeding to move files.", torrentName);
-            }
-            catch (Exception ex)
-            {
-                this.logger.Warn(ex, "Non-critical error during automatic completion rehash check for torrent '{0}'.", torrentName);
+                this.logger.Warn(ex, "Failed to flush dirty write cache blocks for torrent {0} before move", infoHash);
             }
         }
 
