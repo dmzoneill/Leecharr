@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.15.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.15.1) - 2026-09-15
+
+### 🐛 Bug Fixes
+- fix(i18n): replace dummy placeholder translations with authentic localized copy across all 20 languages
+
 ## [v1.15.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.15.0) - 2026-09-15
 
 ### ✨ Features
