@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.14.5](https://github.com/dmzoneill/Leecharr/releases/tag/v1.14.5) - 2026-09-15
+
+### 🐛 Bug Fixes
+- fix(docker): ensure config and downloads directory permissions on container startup
+- fix(torrent): allow arbitrary positive piece lengths and fix bulk add error display
+
+### 🔧 Maintenance & Improvements
+- test(torrents): fix piece count match in non-power-of-two test and increase NAT-PMP timing tolerance
+
 ## [v1.14.4](https://github.com/dmzoneill/Leecharr/releases/tag/v1.14.4) - 2026-09-15
 
 ### 🔧 Maintenance & Improvements
