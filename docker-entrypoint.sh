@@ -21,7 +21,8 @@ if [ -n "$PUID" ] || [ -n "$PGID" ]; then
             useradd -u "$PUID" -g "$GROUP_NAME" -d /config -s /bin/sh -M -N leecharr 2>/dev/null || adduser -u "$PUID" -G "$GROUP_NAME" -h /config -s /bin/sh -D leecharr 2>/dev/null || true
         fi
 
-        mkdir -p /config /downloads
+        mkdir -p /config /downloads /downloads/incomplete
+        chmod -R 777 /config /downloads 2>/dev/null || true
         chown -R "$PUID:$PGID" /config /downloads 2>/dev/null || true
 
         if command -v gosu >/dev/null 2>&1; then
