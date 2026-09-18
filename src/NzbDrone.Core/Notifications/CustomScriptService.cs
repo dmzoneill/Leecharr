@@ -18,6 +18,10 @@ namespace NzbDrone.Core.Notifications;
 public interface ICustomScriptService
 {
     Task<bool> ExecuteScriptAsync(string scriptPath, Torrent torrent, string eventType, string arguments = null);
+
+    Task<bool> ExecuteScriptAsync(string scriptPath, Torrent torrent, string eventType, IEnumerable<string> arguments, TimeSpan? timeout = null);
+
+    Task<bool> ExecuteScriptAsync(string scriptPath, Torrent torrent, string eventType, string arguments, TimeSpan? timeout);
 }
 
 public class CustomScriptService : ICustomScriptService
@@ -46,6 +50,163 @@ public class CustomScriptService : ICustomScriptService
     }
 
     public TimeSpan ScriptTimeout => this.scriptTimeout;
+
+    internal static List<string> TokenizeArguments(string arguments)
+    {
+        var result = new List<string>();
+        if (string.IsNullOrWhiteSpace(arguments))
+        {
+            return result;
+        }
+
+        var inQuotes = false;
+        var quoteChar = '\0';
+        var current = new System.Text.StringBuilder();
+
+        for (var i = 0; i < arguments.Length; i++)
+        {
+            var c = arguments[i];
+
+            if (c == '\\' && i + 1 < arguments.Length && (arguments[i + 1] == '"' || arguments[i + 1] == '\'' || arguments[i + 1] == '\\'))
+            {
+                current.Append(arguments[i + 1]);
+                i++;
+                continue;
+            }
+
+            if ((c == '"' || c == '\'') && !inQuotes)
+            {
+                inQuotes = true;
+                quoteChar = c;
+            }
+            else if (inQuotes && c == quoteChar)
+            {
+                inQuotes = false;
+                quoteChar = '\0';
+            }
+            else if (!inQuotes && char.IsWhiteSpace(c))
+            {
+                if (current.Length > 0)
+                {
+                    result.Add(current.ToString());
+                    current.Clear();
+                }
+            }
+            else
+            {
+                current.Append(c);
+            }
+        }
+
+        if (current.Length > 0)
+        {
+            result.Add(current.ToString());
+        }
+
+        return result;
+    }
+
+    internal static (string FileName, List<string> Arguments) ResolveInterpreter(string scriptPath, IEnumerable<string> arguments)
+    {
+        var cleanPath = scriptPath?.Trim()?.Trim('"', '\'') ?? string.Empty;
+        var ext = Path.GetExtension(cleanPath).ToLowerInvariant();
+        var argsList = arguments?.Where(a => a != null).ToList() ?? new List<string>();
+
+        if (OperatingSystem.IsWindows())
+        {
+            switch (ext)
+            {
+                case ".bat":
+                case ".cmd":
+                    var cmdArgs = new List<string> { "/c", cleanPath };
+                    cmdArgs.AddRange(argsList);
+                    return ("cmd.exe", cmdArgs);
+
+                case ".py":
+                case ".pyw":
+                    var pyArgs = new List<string> { cleanPath };
+                    pyArgs.AddRange(argsList);
+                    return ("python", pyArgs);
+
+                case ".ps1":
+                    var psArgs = new List<string> { "-ExecutionPolicy", "Bypass", "-File", cleanPath };
+                    psArgs.AddRange(argsList);
+                    return ("powershell.exe", psArgs);
+
+                case ".rb":
+                    var rbArgs = new List<string> { cleanPath };
+                    rbArgs.AddRange(argsList);
+                    return ("ruby", rbArgs);
+
+                case ".pl":
+                    var plArgs = new List<string> { cleanPath };
+                    plArgs.AddRange(argsList);
+                    return ("perl", plArgs);
+
+                case ".js":
+                    var jsArgs = new List<string> { cleanPath };
+                    jsArgs.AddRange(argsList);
+                    return ("node", jsArgs);
+
+                case ".php":
+                    var phpArgs = new List<string> { cleanPath };
+                    phpArgs.AddRange(argsList);
+                    return ("php", phpArgs);
+
+                default:
+                    return (cleanPath, argsList);
+            }
+        }
+        else
+        {
+            switch (ext)
+            {
+                case ".sh":
+                    var shArgs = new List<string> { cleanPath };
+                    shArgs.AddRange(argsList);
+                    return ("/bin/sh", shArgs);
+
+                case ".bash":
+                    var bashArgs = new List<string> { cleanPath };
+                    bashArgs.AddRange(argsList);
+                    return ("/bin/bash", bashArgs);
+
+                case ".py":
+                case ".pyw":
+                    var pyArgs = new List<string> { cleanPath };
+                    pyArgs.AddRange(argsList);
+                    return ("python3", pyArgs);
+
+                case ".ps1":
+                    var psArgs = new List<string> { "-File", cleanPath };
+                    psArgs.AddRange(argsList);
+                    return ("pwsh", psArgs);
+
+                case ".rb":
+                    var rbArgs = new List<string> { cleanPath };
+                    rbArgs.AddRange(argsList);
+                    return ("ruby", rbArgs);
+
+                case ".pl":
+                    var plArgs = new List<string> { cleanPath };
+                    plArgs.AddRange(argsList);
+                    return ("perl", plArgs);
+
+                case ".js":
+                    var jsArgs = new List<string> { cleanPath };
+                    jsArgs.AddRange(argsList);
+                    return ("node", jsArgs);
+
+                case ".php":
+                    var phpArgs = new List<string> { cleanPath };
+                    phpArgs.AddRange(argsList);
+                    return ("php", phpArgs);
+
+                default:
+                    return (cleanPath, argsList);
+            }
+        }
+    }
 
     internal static (string FileName, string Arguments) ResolveInterpreter(string scriptPath, string arguments)
     {
@@ -294,7 +455,35 @@ public class CustomScriptService : ICustomScriptService
         return (trimmed.Trim('"', '\''), null);
     }
 
-    public async Task<bool> ExecuteScriptAsync(string scriptPath, Torrent torrent, string eventType, string arguments = null)
+    public Task<bool> ExecuteScriptAsync(string scriptPath, Torrent torrent, string eventType, string arguments = null)
+    {
+        return this.ExecuteScriptAsync(scriptPath, torrent, eventType, arguments, null);
+    }
+
+    public Task<bool> ExecuteScriptAsync(string scriptPath, Torrent torrent, string eventType, string arguments, TimeSpan? timeout)
+    {
+        var (resolvedScriptPath, parsedArgs) = ParseJsonIfPresent(scriptPath, arguments);
+        var argList = TokenizeArguments(parsedArgs);
+        return this.ExecuteScriptInternalAsync(resolvedScriptPath, torrent, eventType, argList, timeout);
+    }
+
+    public Task<bool> ExecuteScriptAsync(string scriptPath, Torrent torrent, string eventType, IEnumerable<string> arguments, TimeSpan? timeout = null)
+    {
+        var (resolvedScriptPath, parsedArgs) = ParseJsonIfPresent(scriptPath, null);
+        List<string> argList;
+        if (arguments != null)
+        {
+            argList = arguments.Where(a => a != null).ToList();
+        }
+        else
+        {
+            argList = TokenizeArguments(parsedArgs);
+        }
+
+        return this.ExecuteScriptInternalAsync(resolvedScriptPath, torrent, eventType, argList, timeout);
+    }
+
+    private static (string Path, string Arguments) ParseJsonIfPresent(string scriptPath, string arguments)
     {
         var resolvedScriptPath = scriptPath?.Trim()?.Trim('"', '\'');
         var resolvedArguments = arguments;
@@ -312,6 +501,16 @@ public class CustomScriptService : ICustomScriptService
             }
         }
 
+        return (resolvedScriptPath, resolvedArguments);
+    }
+
+    private async Task<bool> ExecuteScriptInternalAsync(
+        string resolvedScriptPath,
+        Torrent torrent,
+        string eventType,
+        List<string> argList,
+        TimeSpan? timeout)
+    {
         if (string.IsNullOrWhiteSpace(resolvedScriptPath) || !File.Exists(resolvedScriptPath))
         {
             this.logger.Warn("Custom script path does not exist: {0}", resolvedScriptPath);
@@ -324,18 +523,22 @@ public class CustomScriptService : ICustomScriptService
                 ? torrent.SavePath
                 : (Path.GetDirectoryName(resolvedScriptPath) ?? Environment.CurrentDirectory);
 
-            var (resolvedFileName, resolvedArgs) = ResolveInterpreter(resolvedScriptPath, resolvedArguments);
+            var (resolvedFileName, resolvedArgs) = ResolveInterpreter(resolvedScriptPath, argList);
 
             var startInfo = new ProcessStartInfo
             {
                 FileName = resolvedFileName,
-                Arguments = resolvedArgs,
                 WorkingDirectory = workingDir,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 CreateNoWindow = true,
             };
+
+            foreach (var arg in resolvedArgs)
+            {
+                startInfo.ArgumentList.Add(arg);
+            }
 
             // Sanitize inherited environment variables
             SanitizeEnvironment(startInfo.EnvironmentVariables);
@@ -353,7 +556,11 @@ public class CustomScriptService : ICustomScriptService
             using var process = new Process { StartInfo = startInfo };
             process.Start();
 
-            using var timeoutCts = new CancellationTokenSource(this.scriptTimeout);
+            var effectiveTimeout = timeout.HasValue && timeout.Value > TimeSpan.Zero
+                ? timeout.Value
+                : this.scriptTimeout;
+
+            using var timeoutCts = new CancellationTokenSource(effectiveTimeout);
             var stdoutTask = process.StandardOutput.ReadToEndAsync(timeoutCts.Token);
             var stderrTask = process.StandardError.ReadToEndAsync(timeoutCts.Token);
 
@@ -363,7 +570,7 @@ public class CustomScriptService : ICustomScriptService
             }
             catch (OperationCanceledException)
             {
-                this.logger.Error("Custom script timed out after {0}s: {1}", this.scriptTimeout.TotalSeconds, resolvedScriptPath);
+                this.logger.Error("Custom script timed out after {0}s: {1}", effectiveTimeout.TotalSeconds, resolvedScriptPath);
                 try
                 {
                     if (!process.HasExited)

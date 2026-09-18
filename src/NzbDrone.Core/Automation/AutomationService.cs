@@ -176,14 +176,20 @@ public class AutomationService : IAutomationService
         {
             foreach (var scriptToRun in result.ScriptsToRun)
             {
-                var argsStr = scriptToRun.Arguments != null && scriptToRun.Arguments.Count > 0
-                    ? string.Join(" ", scriptToRun.Arguments)
-                    : null;
+                var timeout = scriptToRun.TimeoutSeconds > 0
+                    ? TimeSpan.FromSeconds(scriptToRun.TimeoutSeconds)
+                    : (TimeSpan?)null;
+
                 Task.Run(async () =>
                 {
                     try
                     {
-                        await _customScriptService.ExecuteScriptAsync(scriptToRun.Path, torrent, "Automation", argsStr).ConfigureAwait(false);
+                        await _customScriptService.ExecuteScriptAsync(
+                            scriptToRun.Path,
+                            torrent,
+                            "Automation",
+                            scriptToRun.Arguments,
+                            timeout).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {

@@ -349,6 +349,83 @@ public class CustomScriptServiceTest
     }
 
     [Test]
+    public async Task ExecuteScriptAsync_WithStructuredArgumentsWithSpaces_PreservesArgumentsWithoutShattering()
+    {
+        var outputFile = Path.Combine(this.tempDirectory, "output.txt");
+        var script = OperatingSystem.IsWindows()
+            ? $"@echo off\r\necho %~1 > \"{outputFile}\"\r\necho %~2 >> \"{outputFile}\"\r\nexit /b 0"
+            : $"#!/bin/sh\nprintf '%s\\n' \"$1\" > \"{outputFile}\"\nprintf '%s\\n' \"$2\" >> \"{outputFile}\"\nexit 0\n";
+
+        var scriptPath = this.CreateExecutableScript(script);
+        var args = new[] { "argument with spaces", "another argument with spaces" };
+        var result = await this.service.ExecuteScriptAsync(scriptPath, new Torrent { Id = 1 }, "OnDownloadComplete", args);
+
+        result.Should().BeTrue();
+        File.Exists(outputFile).Should().BeTrue();
+        var lines = File.ReadAllLines(outputFile);
+        lines.Length.Should().BeGreaterThanOrEqualTo(2);
+        lines[0].Trim().Should().Be("argument with spaces");
+        lines[1].Trim().Should().Be("another argument with spaces");
+    }
+
+    [Test]
+    public async Task ExecuteScriptAsync_WithExplicitTimeoutParameter_EnforcesConfiguredTimeout()
+    {
+        var script = OperatingSystem.IsWindows()
+            ? "@echo off\r\nping 127.0.0.1 -n 10 >nul\r\nexit /b 0"
+            : "#!/bin/sh\nsleep 5\nexit 0\n";
+
+        var scriptPath = this.CreateExecutableScript(script);
+        var startTime = DateTime.UtcNow;
+        var result = await this.service.ExecuteScriptAsync(
+            scriptPath,
+            new Torrent { Id = 1 },
+            "OnDownloadComplete",
+            arguments: (IEnumerable<string>)null!,
+            timeout: TimeSpan.FromMilliseconds(300));
+        var elapsed = DateTime.UtcNow - startTime;
+
+        result.Should().BeFalse();
+        elapsed.Should().BeLessThan(TimeSpan.FromSeconds(3));
+    }
+
+    [Test]
+    public void TokenizeArguments_ParsesQuotesAndEscapedCharactersCorrectly()
+    {
+        var input = "--flag \"value with spaces\" 'single quoted' normal \\\"escaped\\\"";
+        var tokens = CustomScriptService.TokenizeArguments(input);
+
+        var expected = new[]
+        {
+            "--flag",
+            "value with spaces",
+            "single quoted",
+            "normal",
+            "\"escaped\"",
+        };
+        tokens.Should().ContainInOrder(expected);
+        tokens.Count.Should().Be(5);
+    }
+
+    [Test]
+    public void ResolveInterpreter_WithStructuredArguments_PreservesArgumentList()
+    {
+        var args = new List<string> { "arg 1", "arg 2" };
+        var (file, resolvedArgs) = CustomScriptService.ResolveInterpreter("/scripts/run.py", args);
+
+        if (OperatingSystem.IsWindows())
+        {
+            file.Should().Be("python");
+            resolvedArgs.Should().ContainInOrder("/scripts/run.py", "arg 1", "arg 2");
+        }
+        else
+        {
+            file.Should().Be("python3");
+            resolvedArgs.Should().ContainInOrder("/scripts/run.py", "arg 1", "arg 2");
+        }
+    }
+
+    [Test]
     public async Task ExecuteScriptAsync_WithJsonSettingsDirectly_ParsesAndExecutes()
     {
         var script = OperatingSystem.IsWindows()
