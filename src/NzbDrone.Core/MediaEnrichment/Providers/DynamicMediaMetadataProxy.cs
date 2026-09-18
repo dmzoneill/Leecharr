@@ -196,16 +196,50 @@ public class DynamicMediaMetadataProxy : IMediaMetadataService, IMediaMetadataMa
                 try
                 {
                     var fallbackResult = await fallback.FetchMetadataAsync(title, category, year, infoHash);
-                    if (fallbackResult != null && !string.IsNullOrEmpty(fallbackResult.PosterUrl))
+                    if (HasEnrichedMetadata(fallbackResult))
                     {
-                        if (result != null)
+                        if (result == null || IsEmptyPlaceholder(result))
+                        {
+                            if (result != null)
+                            {
+                                if (string.IsNullOrEmpty(fallbackResult.Title) && !string.IsNullOrEmpty(result.Title))
+                                {
+                                    fallbackResult.Title = result.Title;
+                                }
+
+                                if (fallbackResult.Year <= 0 && result.Year > 0)
+                                {
+                                    fallbackResult.Year = result.Year;
+                                }
+
+                                if (string.IsNullOrEmpty(fallbackResult.MediaType) && !string.IsNullOrEmpty(result.MediaType))
+                                {
+                                    fallbackResult.MediaType = result.MediaType;
+                                }
+                            }
+
+                            result = fallbackResult;
+                        }
+                        else
                         {
                             result.PosterUrl ??= fallbackResult.PosterUrl;
                             result.BackdropUrl ??= fallbackResult.BackdropUrl;
                             result.BannerUrl ??= fallbackResult.BannerUrl;
-                            result.Overview = string.IsNullOrEmpty(result.Overview) ? fallbackResult.Overview : result.Overview;
-                            result.Rating = result.Rating > 0 ? result.Rating : fallbackResult.Rating;
-                            result.Genres = string.IsNullOrEmpty(result.Genres) ? fallbackResult.Genres : result.Genres;
+                            if (string.IsNullOrEmpty(result.Overview))
+                            {
+                                result.Overview = fallbackResult.Overview;
+                            }
+
+                            if (result.Rating <= 0)
+                            {
+                                result.Rating = fallbackResult.Rating;
+                            }
+
+                            if (string.IsNullOrEmpty(result.Genres))
+                            {
+                                result.Genres = fallbackResult.Genres;
+                            }
+
                             result.ImdbId ??= fallbackResult.ImdbId;
                             result.TmdbId ??= fallbackResult.TmdbId;
                             result.TvdbId ??= fallbackResult.TvdbId;
@@ -221,11 +255,12 @@ public class DynamicMediaMetadataProxy : IMediaMetadataService, IMediaMetadataMa
                             {
                                 result.Cast = fallbackResult.Cast;
                             }
-
-                            return result;
                         }
 
-                        return fallbackResult;
+                        if (!string.IsNullOrEmpty(result.PosterUrl) && !string.IsNullOrEmpty(result.Overview))
+                        {
+                            return result;
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -241,6 +276,32 @@ public class DynamicMediaMetadataProxy : IMediaMetadataService, IMediaMetadataMa
         }
 
         return null;
+    }
+
+    internal static bool HasEnrichedMetadata(MediaMetadata m)
+    {
+        if (m == null)
+        {
+            return false;
+        }
+
+        return !string.IsNullOrEmpty(m.PosterUrl) ||
+               !string.IsNullOrEmpty(m.BackdropUrl) ||
+               !string.IsNullOrEmpty(m.BannerUrl) ||
+               !string.IsNullOrEmpty(m.Overview) ||
+               m.Rating > 0 ||
+               !string.IsNullOrEmpty(m.Genres) ||
+               !string.IsNullOrEmpty(m.ImdbId) ||
+               !string.IsNullOrEmpty(m.TmdbId) ||
+               !string.IsNullOrEmpty(m.TvdbId) ||
+               !string.IsNullOrEmpty(m.MusicBrainzId) ||
+               m.ArrMediaId > 0 ||
+               (m.Cast != null && m.Cast.Count > 0);
+    }
+
+    internal static bool IsEmptyPlaceholder(MediaMetadata m)
+    {
+        return m == null || !HasEnrichedMetadata(m);
     }
 
     public void Handle(ConfigSavedEvent message)
