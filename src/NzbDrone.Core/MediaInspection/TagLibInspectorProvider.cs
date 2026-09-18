@@ -79,122 +79,127 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             }
 
             // Enrich with TagLib# if possible
-            try
+            if (info.ContainerFormat != "ISO")
             {
-                using var tagFile = TagLib.File.Create(filePath);
-                if (tagFile.Properties != null)
+                try
                 {
-                    if (tagFile.Properties.VideoWidth > 0 && info.Width == 0)
+                    using var tagFile = TagLib.File.Create(filePath);
+                    if (tagFile.Properties != null)
                     {
-                        info.Width = tagFile.Properties.VideoWidth;
-                    }
-
-                    if (tagFile.Properties.VideoHeight > 0 && info.Height == 0)
-                    {
-                        info.Height = tagFile.Properties.VideoHeight;
-                    }
-
-                    if (tagFile.Properties.Duration.TotalSeconds > 0 && info.DurationSeconds == 0)
-                    {
-                        info.DurationSeconds = tagFile.Properties.Duration.TotalSeconds;
-                    }
-
-                    if (tagFile.Properties.AudioChannels > 0)
-                    {
-                        info.AudioChannels = FormatAudioChannels(tagFile.Properties.AudioChannels);
-                    }
-
-                    if (tagFile.Properties.AudioSampleRate > 0 && info.AudioSampleRate == 0)
-                    {
-                        info.AudioSampleRate = tagFile.Properties.AudioSampleRate;
-                    }
-
-                    if (tagFile.Properties.BitsPerSample > 0 && info.AudioBitDepth == 0)
-                    {
-                        info.AudioBitDepth = tagFile.Properties.BitsPerSample;
-                    }
-
-                    if (tagFile.Properties.Codecs != null)
-                    {
-                        foreach (var codec in tagFile.Properties.Codecs)
+                        if (tagFile.Properties.VideoWidth > 0 && info.Width == 0)
                         {
-                            if (codec.MediaTypes.HasFlag(TagLib.MediaTypes.Video) && string.IsNullOrEmpty(info.VideoCodec))
+                            info.Width = tagFile.Properties.VideoWidth;
+                        }
+
+                        if (tagFile.Properties.VideoHeight > 0 && info.Height == 0)
+                        {
+                            info.Height = tagFile.Properties.VideoHeight;
+                        }
+
+                        if (tagFile.Properties.Duration.TotalSeconds > 0 && info.DurationSeconds == 0)
+                        {
+                            info.DurationSeconds = tagFile.Properties.Duration.TotalSeconds;
+                        }
+
+                        if (tagFile.Properties.AudioChannels > 0 && string.IsNullOrEmpty(info.AudioChannels))
+                        {
+                            info.AudioChannels = FormatAudioChannels(tagFile.Properties.AudioChannels);
+                        }
+
+                        if (tagFile.Properties.AudioSampleRate > 0 && info.AudioSampleRate == 0)
+                        {
+                            info.AudioSampleRate = tagFile.Properties.AudioSampleRate;
+                        }
+
+                        if (tagFile.Properties.BitsPerSample > 0 && info.AudioBitDepth == 0)
+                        {
+                            info.AudioBitDepth = tagFile.Properties.BitsPerSample;
+                        }
+
+                        if (tagFile.Properties.Codecs != null)
+                        {
+                            foreach (var codec in tagFile.Properties.Codecs)
                             {
-                                info.VideoCodec = codec.Description;
+                                if (codec.MediaTypes.HasFlag(TagLib.MediaTypes.Video) && string.IsNullOrEmpty(info.VideoCodec))
+                                {
+                                    info.VideoCodec = codec.Description;
+                                }
+                                else if (codec.MediaTypes.HasFlag(TagLib.MediaTypes.Audio))
+                                {
+                                    var codecChannels = (codec as TagLib.IAudioCodec)?.AudioChannels ?? 0;
+                                    var formattedChannels = codecChannels > 0 ? FormatAudioChannels(codecChannels) : null;
+                                    ApplyAudioCodec(info, codec.Description, formattedChannels);
+                                }
                             }
-                            else if (codec.MediaTypes.HasFlag(TagLib.MediaTypes.Audio))
-                            {
-                                ApplyAudioCodec(info, codec.Description, info.AudioChannels);
-                            }
+                        }
+
+                        if (string.IsNullOrEmpty(info.Resolution) && info.Width > 0)
+                        {
+                            ApplyResolution(info, info.Width, info.Height);
                         }
                     }
 
-                    if (string.IsNullOrEmpty(info.Resolution) && info.Width > 0)
+                    if (tagFile.Tag != null)
                     {
-                        ApplyResolution(info, info.Width, info.Height);
-                    }
-                }
-
-                if (tagFile.Tag != null)
-                {
-                    if (tagFile.Tag.Track > 0 && info.Track == 0)
-                    {
-                        info.Track = (int)tagFile.Tag.Track;
-                    }
-
-                    if (tagFile.Tag.TrackCount > 0 && info.TrackCount == 0)
-                    {
-                        info.TrackCount = (int)tagFile.Tag.TrackCount;
-                    }
-
-                    if (tagFile.Tag.Disc > 0 && info.Disc == 0)
-                    {
-                        info.Disc = (int)tagFile.Tag.Disc;
-                    }
-
-                    if (tagFile.Tag.DiscCount > 0 && info.DiscCount == 0)
-                    {
-                        info.DiscCount = (int)tagFile.Tag.DiscCount;
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(tagFile.Tag.Title) && string.IsNullOrEmpty(info.Title))
-                    {
-                        info.Title = tagFile.Tag.Title.Trim();
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(tagFile.Tag.FirstPerformer) && string.IsNullOrEmpty(info.Artist))
-                    {
-                        info.Artist = tagFile.Tag.FirstPerformer.Trim();
-                    }
-                    else if (!string.IsNullOrWhiteSpace(tagFile.Tag.FirstAlbumArtist) && string.IsNullOrEmpty(info.Artist))
-                    {
-                        info.Artist = tagFile.Tag.FirstAlbumArtist.Trim();
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(tagFile.Tag.Album) && string.IsNullOrEmpty(info.Album))
-                    {
-                        info.Album = tagFile.Tag.Album.Trim();
-                    }
-
-                    if (tagFile.Tag.Pictures?.Length > 0)
-                    {
-                        foreach (var pic in tagFile.Tag.Pictures)
+                        if (tagFile.Tag.Track > 0 && info.Track == 0)
                         {
-                            if (pic?.Data?.Data?.Length > 0)
+                            info.Track = (int)tagFile.Tag.Track;
+                        }
+
+                        if (tagFile.Tag.TrackCount > 0 && info.TrackCount == 0)
+                        {
+                            info.TrackCount = (int)tagFile.Tag.TrackCount;
+                        }
+
+                        if (tagFile.Tag.Disc > 0 && info.Disc == 0)
+                        {
+                            info.Disc = (int)tagFile.Tag.Disc;
+                        }
+
+                        if (tagFile.Tag.DiscCount > 0 && info.DiscCount == 0)
+                        {
+                            info.DiscCount = (int)tagFile.Tag.DiscCount;
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(tagFile.Tag.Title) && string.IsNullOrEmpty(info.Title))
+                        {
+                            info.Title = tagFile.Tag.Title.Trim();
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(tagFile.Tag.FirstPerformer) && string.IsNullOrEmpty(info.Artist))
+                        {
+                            info.Artist = tagFile.Tag.FirstPerformer.Trim();
+                        }
+                        else if (!string.IsNullOrWhiteSpace(tagFile.Tag.FirstAlbumArtist) && string.IsNullOrEmpty(info.Artist))
+                        {
+                            info.Artist = tagFile.Tag.FirstAlbumArtist.Trim();
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(tagFile.Tag.Album) && string.IsNullOrEmpty(info.Album))
+                        {
+                            info.Album = tagFile.Tag.Album.Trim();
+                        }
+
+                        if (tagFile.Tag.Pictures?.Length > 0)
+                        {
+                            foreach (var pic in tagFile.Tag.Pictures)
                             {
-                                info.Pictures.Add(pic.Data.Data);
-                                if (info.PictureData == null)
+                                if (pic?.Data?.Data?.Length > 0)
                                 {
-                                    info.PictureData = pic.Data.Data;
+                                    info.Pictures.Add(pic.Data.Data);
+                                    if (info.PictureData == null)
+                                    {
+                                        info.PictureData = pic.Data.Data;
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                this.logger.Debug(ex, "TagLib file inspection fallback skipped for {0}", filePath);
+                catch (Exception ex)
+                {
+                    this.logger.Debug(ex, "TagLib file inspection fallback skipped for {0}", filePath);
+                }
             }
 
             ApplyFilenameHints(info, Path.GetFileName(filePath));
@@ -299,6 +304,12 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         }
 
         // Fallback: heuristic name inspector
+        // 8. Check ISO 9660 / UDF disc image
+        if (IsIsoOrUdf(header, bytesRead))
+        {
+            return InspectIso(fileName);
+        }
+
         return InspectByFileName(fileName);
     }
 
@@ -514,6 +525,12 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         context.CurrentTrackChannels = 0;
         context.CurrentTrackName = null;
 
+        int trackType = 0;
+        string trackCodecId = null;
+        string trackName = null;
+        string trackLanguage = null;
+        string trackLanguageIetf = null;
+
         while (offset < trackEnd)
         {
             int elemStart = offset;
@@ -538,35 +555,30 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
             switch (id)
             {
-                case 0x536E: // Name (Track Name)
-                    var trackName = ReadEbmlString(header, offset, elemSize);
-                    context.CurrentTrackName = trackName;
-                    if (context.IsCurrentAudioTrackAccepted &&
-                        !string.IsNullOrEmpty(info.AudioCodec))
-                    {
-                        if (info.AudioCodec.Contains("E-AC3", StringComparison.OrdinalIgnoreCase) ||
-                            info.AudioCodec.Contains("DD+", StringComparison.OrdinalIgnoreCase) ||
-                            info.AudioCodec.Contains("Dolby Digital Plus", StringComparison.OrdinalIgnoreCase))
-                        {
-                            if (Regex.IsMatch(trackName, @"\b(ATMOS|JOC)\b", RegexOptions.IgnoreCase))
-                            {
-                                ApplyAudioCodec(info, "Dolby Atmos", null, 48);
-                            }
-                        }
-                        else if (info.AudioCodec.Equals("Dolby TrueHD", StringComparison.OrdinalIgnoreCase))
-                        {
-                            if (Regex.IsMatch(trackName, @"\bATMOS\b", RegexOptions.IgnoreCase))
-                            {
-                                info.AudioCodec = "Dolby TrueHD / Atmos";
-                            }
-                        }
-                    }
+                case 0x83: // TrackType
+                    var rawType = ReadEbmlUInt(header, offset, elemSize);
+                    trackType = rawType > int.MaxValue ? int.MaxValue : (int)rawType;
+                    offset += elemSize;
+                    break;
 
+                case 0x22B59C: // Language
+                    trackLanguage = ReadEbmlString(header, offset, elemSize);
+                    offset += elemSize;
+                    break;
+
+                case 0x22B59D: // LanguageIETF
+                    trackLanguageIetf = ReadEbmlString(header, offset, elemSize);
+                    offset += elemSize;
+                    break;
+
+                case 0x536E: // Name (Track Name)
+                    trackName = ReadEbmlString(header, offset, elemSize);
+                    context.CurrentTrackName = trackName;
                     offset += elemSize;
                     break;
 
                 case 0x86: // CodecID
-                    ParseEbmlCodecId(header, offset, elemSize, info, ref context);
+                    trackCodecId = ReadEbmlString(header, offset, elemSize);
                     offset += elemSize;
                     break;
 
@@ -609,6 +621,25 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 default:
                     offset += elemSize;
                     break;
+            }
+        }
+
+        if (trackType == 17 || (trackType == 0 && trackCodecId != null && trackCodecId.StartsWith("S_", StringComparison.OrdinalIgnoreCase)))
+        {
+            AddParsedSubtitleTrack(info, trackLanguage, trackLanguageIetf, trackName, trackCodecId);
+        }
+        else if (trackType == 2 || (trackType == 0 && trackCodecId != null && trackCodecId.StartsWith("A_", StringComparison.OrdinalIgnoreCase)))
+        {
+            if (!string.IsNullOrEmpty(trackCodecId))
+            {
+                ApplyEbmlAudioTrack(info, trackCodecId, trackName, context.CurrentTrackChannels, ref context);
+            }
+        }
+        else if (trackType == 1 || (trackType == 0 && trackCodecId != null && trackCodecId.StartsWith("V_", StringComparison.OrdinalIgnoreCase)))
+        {
+            if (string.IsNullOrEmpty(info.VideoCodec) && !string.IsNullOrEmpty(trackCodecId))
+            {
+                ApplyVideoCodecId(info, trackCodecId);
             }
         }
     }
@@ -798,7 +829,8 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         // 0xB0: PixelWidth
         if (id == 0xB0)
         {
-            var width = (int)ReadEbmlUInt(header, offset, elemSize);
+            var rawWidth = ReadEbmlUInt(header, offset, elemSize);
+            var width = rawWidth > int.MaxValue ? int.MaxValue : (int)rawWidth;
             if (info.Width == 0 && width > 0)
             {
                 info.Width = width;
@@ -808,7 +840,8 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         // 0xBA: PixelHeight
         else if (id == 0xBA)
         {
-            var height = (int)ReadEbmlUInt(header, offset, elemSize);
+            var rawHeight = ReadEbmlUInt(header, offset, elemSize);
+            var height = rawHeight > int.MaxValue ? int.MaxValue : (int)rawHeight;
             if (info.Height == 0 && height > 0)
             {
                 info.Height = height;
@@ -821,9 +854,10 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         switch (id)
         {
             case 0x9F: // Channels
-                var channels = (int)ReadEbmlUInt(header, offset, elemSize);
+                var rawChannels = ReadEbmlUInt(header, offset, elemSize);
+                var channels = rawChannels > int.MaxValue ? int.MaxValue : (int)rawChannels;
                 context.CurrentTrackChannels = channels;
-                if (channels > 0 && (context.IsCurrentAudioTrackAccepted || string.IsNullOrEmpty(info.AudioCodec)))
+                if (channels > 0 && context.IsCurrentAudioTrackAccepted)
                 {
                     info.AudioChannels = FormatAudioChannels(channels);
                 }
@@ -840,7 +874,8 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 break;
 
             case 0x6264: // BitDepth
-                var bitDepth = (int)ReadEbmlUInt(header, offset, elemSize);
+                var rawBitDepth = ReadEbmlUInt(header, offset, elemSize);
+                var bitDepth = rawBitDepth > int.MaxValue ? int.MaxValue : (int)rawBitDepth;
                 if (bitDepth > 0 && info.AudioBitDepth == 0)
                 {
                     info.AudioBitDepth = bitDepth;
@@ -1168,7 +1203,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
         if (seekId == 0x1654AE6B)
         {
-            context.TracksSeekPosition = (long)seekPos;
+            context.TracksSeekPosition = (long)Math.Min(seekPos, (ulong)long.MaxValue);
         }
     }
 
@@ -1324,10 +1359,16 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         return System.Text.Encoding.UTF8.GetString(data, offset, end - offset);
     }
 
-    private static ulong ReadEbmlUInt(byte[] data, int offset, int length)
+    internal static ulong ReadEbmlUInt(byte[] data, int offset, int length)
     {
+        if (data == null || offset < 0 || offset >= data.Length || length <= 0)
+        {
+            return 0;
+        }
+
+        int clampedLength = Math.Min(length, 8);
         ulong val = 0;
-        for (int i = 0; i < length && (offset + i) < data.Length; i++)
+        for (int i = 0; i < clampedLength && (offset + i) < data.Length; i++)
         {
             val = (val << 8) | data[offset + i];
         }
@@ -1683,6 +1724,309 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         }
 
         return false;
+    }
+
+    private static bool IsIsoOrUdf(byte[] header, int bytesRead)
+    {
+        if (header == null || bytesRead < 32768 + 6)
+        {
+            return false;
+        }
+
+        for (int sectorOffset = 32768; sectorOffset + 6 <= bytesRead; sectorOffset += 2048)
+        {
+            var span1 = header.AsSpan(sectorOffset + 1, 5);
+            if (span1.SequenceEqual("CD001"u8) ||
+                span1.SequenceEqual("BEA01"u8) ||
+                span1.SequenceEqual("NSR02"u8) ||
+                span1.SequenceEqual("NSR03"u8))
+            {
+                return true;
+            }
+
+            var span0 = header.AsSpan(sectorOffset, 5);
+            if (span0.SequenceEqual("CD001"u8) ||
+                span0.SequenceEqual("BEA01"u8) ||
+                span0.SequenceEqual("NSR02"u8) ||
+                span0.SequenceEqual("NSR03"u8))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static MediaContainerInfo InspectIso(string fileName)
+    {
+        var info = new MediaContainerInfo
+        {
+            ContainerFormat = "ISO",
+        };
+
+        ApplyFilenameHints(info, fileName);
+        return info;
+    }
+
+    private static void AddParsedSubtitleTrack(
+        MediaContainerInfo info,
+        string language,
+        string languageIetf,
+        string trackName,
+        string codecId)
+    {
+        string lang = null;
+        if (!string.IsNullOrWhiteSpace(language) && !language.Equals("und", StringComparison.OrdinalIgnoreCase))
+        {
+            lang = language.Trim();
+        }
+        else if (!string.IsNullOrWhiteSpace(languageIetf) && !languageIetf.Equals("und", StringComparison.OrdinalIgnoreCase))
+        {
+            lang = languageIetf.Trim();
+        }
+
+        string subLabel;
+        if (!string.IsNullOrWhiteSpace(lang))
+        {
+            if (!string.IsNullOrWhiteSpace(trackName))
+            {
+                subLabel = $"{lang} ({trackName.Trim()})";
+            }
+            else
+            {
+                subLabel = lang;
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(trackName))
+        {
+            subLabel = trackName.Trim();
+        }
+        else if (!string.IsNullOrWhiteSpace(codecId))
+        {
+            subLabel = FormatSubtitleCodec(codecId.Trim());
+        }
+        else if (!string.IsNullOrWhiteSpace(language))
+        {
+            subLabel = language.Trim();
+        }
+        else
+        {
+            subLabel = "Subtitle";
+        }
+
+        if (!string.IsNullOrWhiteSpace(subLabel) && !info.SubtitleTracks.Contains(subLabel))
+        {
+            info.SubtitleTracks.Add(subLabel);
+        }
+    }
+
+    private static string FormatSubtitleCodec(string codecId)
+    {
+        if (string.IsNullOrWhiteSpace(codecId))
+        {
+            return "Subtitle";
+        }
+
+        if (codecId.StartsWith("S_TEXT/UTF8", StringComparison.OrdinalIgnoreCase) ||
+            codecId.StartsWith("S_TEXT/ASCII", StringComparison.OrdinalIgnoreCase))
+        {
+            return "SubRip (SRT)";
+        }
+
+        if (codecId.StartsWith("S_TEXT/ASS", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Advanced SubStation Alpha";
+        }
+
+        if (codecId.StartsWith("S_TEXT/SSA", StringComparison.OrdinalIgnoreCase))
+        {
+            return "SubStation Alpha";
+        }
+
+        if (codecId.StartsWith("S_VOBSUB", StringComparison.OrdinalIgnoreCase))
+        {
+            return "VobSub";
+        }
+
+        if (codecId.StartsWith("S_HDMV/PGS", StringComparison.OrdinalIgnoreCase))
+        {
+            return "PGS Subtitles";
+        }
+
+        if (codecId.StartsWith("S_DVBSUB", StringComparison.OrdinalIgnoreCase))
+        {
+            return "DVB Subtitles";
+        }
+
+        if (codecId.StartsWith("S_TEXT/WEBVTT", StringComparison.OrdinalIgnoreCase) ||
+            codecId.StartsWith("S_TEXT/VTT", StringComparison.OrdinalIgnoreCase))
+        {
+            return "WebVTT";
+        }
+
+        if (codecId.StartsWith("S_TEXT/USF", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Universal Subtitle Format";
+        }
+
+        if (codecId.StartsWith("S_KATE", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Kate Subtitles";
+        }
+
+        return codecId;
+    }
+
+    private static void ApplyEbmlAudioTrack(
+        MediaContainerInfo info,
+        string codecId,
+        string trackName,
+        int channels,
+        ref EbmlParserContext context)
+    {
+        if (string.IsNullOrWhiteSpace(codecId))
+        {
+            return;
+        }
+
+        string codecName;
+        int score;
+
+        if (codecId.StartsWith("A_TRUEHD", StringComparison.OrdinalIgnoreCase) ||
+            codecId.StartsWith("A_MLP", StringComparison.OrdinalIgnoreCase))
+        {
+            var isAtmos = !string.IsNullOrEmpty(trackName) && Regex.IsMatch(trackName, @"\bATMOS\b", RegexOptions.IgnoreCase);
+            codecName = isAtmos ? "Dolby TrueHD / Atmos" : "Dolby TrueHD";
+            score = 50;
+        }
+        else if (codecId.StartsWith("A_DTS/X", StringComparison.OrdinalIgnoreCase) ||
+                 codecId.StartsWith("A_DTS-X", StringComparison.OrdinalIgnoreCase))
+        {
+            codecName = "DTS:X";
+            score = 46;
+        }
+        else if (codecId.StartsWith("A_DTS/HD", StringComparison.OrdinalIgnoreCase) ||
+                 codecId.StartsWith("A_DTS-HD", StringComparison.OrdinalIgnoreCase) ||
+                 codecId.StartsWith("A_DTS/LOSSLESS", StringComparison.OrdinalIgnoreCase))
+        {
+            codecName = "DTS-HD MA";
+            score = 45;
+        }
+        else if (codecId.StartsWith("A_EAC3/JOC", StringComparison.OrdinalIgnoreCase) ||
+                 codecId.StartsWith("A_EAC3-JOC", StringComparison.OrdinalIgnoreCase))
+        {
+            codecName = "Dolby Atmos";
+            score = 48;
+        }
+        else if (codecId.StartsWith("A_EAC3", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!string.IsNullOrEmpty(trackName) && Regex.IsMatch(trackName, @"\b(ATMOS|JOC)\b", RegexOptions.IgnoreCase))
+            {
+                codecName = "Dolby Atmos";
+                score = 48;
+            }
+            else
+            {
+                codecName = "E-AC3 / Dolby Digital Plus";
+                score = 25;
+            }
+        }
+        else if (codecId.StartsWith("A_DTS", StringComparison.OrdinalIgnoreCase))
+        {
+            codecName = "DTS";
+            score = 20;
+        }
+        else if (codecId.StartsWith("A_AC3", StringComparison.OrdinalIgnoreCase))
+        {
+            codecName = "AC3 / Dolby Digital";
+            score = 15;
+        }
+        else if (codecId.StartsWith("A_FLAC", StringComparison.OrdinalIgnoreCase))
+        {
+            codecName = "FLAC";
+            score = 35;
+        }
+        else if (codecId.StartsWith("A_ALAC", StringComparison.OrdinalIgnoreCase))
+        {
+            codecName = "Apple Lossless (ALAC)";
+            score = 35;
+        }
+        else if (codecId.StartsWith("A_OPUS", StringComparison.OrdinalIgnoreCase))
+        {
+            codecName = "Opus";
+            score = 12;
+        }
+        else if (codecId.StartsWith("A_AAC", StringComparison.OrdinalIgnoreCase))
+        {
+            codecName = "AAC";
+            score = 10;
+        }
+        else if (codecId.StartsWith("A_VORBIS", StringComparison.OrdinalIgnoreCase))
+        {
+            codecName = "Vorbis";
+            score = 8;
+        }
+        else if (codecId.StartsWith("A_MPEG/L3", StringComparison.OrdinalIgnoreCase))
+        {
+            codecName = "MP3";
+            score = 5;
+        }
+        else if (codecId.StartsWith("A_PCM", StringComparison.OrdinalIgnoreCase))
+        {
+            codecName = "PCM";
+            score = 5;
+        }
+        else
+        {
+            codecName = codecId;
+            score = 1;
+        }
+
+        string formattedChannels = channels > 0 ? FormatAudioChannels(channels) : null;
+        context.IsCurrentAudioTrackAccepted = ApplyAudioCodec(info, codecName, formattedChannels, score);
+    }
+
+    private static void ApplyVideoCodecId(MediaContainerInfo info, string codecId)
+    {
+        if (string.IsNullOrWhiteSpace(codecId))
+        {
+            return;
+        }
+
+        if (codecId.StartsWith("V_MPEGH/ISO/HEVC", StringComparison.OrdinalIgnoreCase))
+        {
+            info.VideoCodec = "HEVC (H.265)";
+        }
+        else if (codecId.StartsWith("V_AV1", StringComparison.OrdinalIgnoreCase))
+        {
+            info.VideoCodec = "AV1";
+        }
+        else if (codecId.StartsWith("V_VP9", StringComparison.OrdinalIgnoreCase))
+        {
+            info.VideoCodec = "VP9";
+        }
+        else if (codecId.StartsWith("V_VP8", StringComparison.OrdinalIgnoreCase))
+        {
+            info.VideoCodec = "VP8";
+        }
+        else if (codecId.StartsWith("V_MPEG4/ISO/AVC", StringComparison.OrdinalIgnoreCase))
+        {
+            info.VideoCodec = "H.264";
+        }
+        else if (codecId.StartsWith("V_MPEG4/ISO/ASP", StringComparison.OrdinalIgnoreCase) ||
+                 codecId.StartsWith("V_MS/VFW/FOURCC", StringComparison.OrdinalIgnoreCase))
+        {
+            info.VideoCodec = "MPEG-4";
+        }
+        else if (codecId.StartsWith("V_MPEG2", StringComparison.OrdinalIgnoreCase) ||
+                 codecId.StartsWith("V_MPEG1", StringComparison.OrdinalIgnoreCase))
+        {
+            info.VideoCodec = "MPEG-2";
+        }
+        else
+        {
+            info.VideoCodec = codecId;
+        }
     }
 
     private static MediaContainerInfo InspectMp4(Stream stream, byte[] header, string fileName)
@@ -2963,6 +3307,10 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 info.ContainerFormat = "WAV";
                 info.AudioCodec = "PCM";
                 return info;
+            case ".iso":
+            case ".img":
+                info.ContainerFormat = "ISO";
+                break;
             default:
                 return null;
         }
