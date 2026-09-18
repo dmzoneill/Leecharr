@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -129,6 +130,74 @@ public class DownloadHistoryServiceTest
         existing.Status.Should().Be("Removed");
         existing.RemovalReason.Should().Be("Deleted from library");
         existing.TorrentId.Should().BeNull();
+        this.historyRepository.Received(1).Update(existing);
+    }
+
+    [Test]
+    public void RecordTorrentRemoved_WhenTrackersQueryIsEmpty_PreservesExistingTrackersAndPrimaryTracker()
+    {
+        var torrent = new Torrent
+        {
+            Id = 401,
+            Name = "PreserveTrackersTest",
+            InfoHash = "trackershash123",
+        };
+
+        var existing = new DownloadHistory
+        {
+            Id = 50,
+            TorrentId = 401,
+            InfoHash = "trackershash123",
+            Title = "PreserveTrackersTest",
+            Status = "Active",
+            PrimaryTracker = "udp://existing-tracker.org:1337/announce",
+            Trackers = new List<string> { "udp://existing-tracker.org:1337/announce", "http://existing-tracker2.org/announce" },
+        };
+
+        this.historyRepository.FindByTorrentId(401).Returns(existing);
+        this.trackerEntryRepository.GetByTorrentId(401).Returns(new List<TrackerEntry>());
+
+        this.service.RecordTorrentRemoved(torrent, "Deleted from library");
+
+        existing.Status.Should().Be("Removed");
+        existing.Trackers.Should().NotBeNull();
+        existing.Trackers.Should().HaveCount(2);
+        existing.Trackers.Should().Contain("udp://existing-tracker.org:1337/announce");
+        existing.Trackers.Should().Contain("http://existing-tracker2.org/announce");
+        existing.PrimaryTracker.Should().Be("udp://existing-tracker.org:1337/announce");
+        this.historyRepository.Received(1).Update(existing);
+    }
+
+    [Test]
+    public void RecordTorrentAdded_WhenTrackersQueryIsEmpty_PreservesExistingTrackers()
+    {
+        var torrent = new Torrent
+        {
+            Id = 402,
+            Name = "PreserveTrackersAdded",
+            InfoHash = "trackershash456",
+        };
+
+        var existing = new DownloadHistory
+        {
+            Id = 51,
+            TorrentId = 402,
+            InfoHash = "trackershash456",
+            Title = "PreserveTrackersAdded",
+            Status = "Removed",
+            PrimaryTracker = "udp://existing-tracker.org:1337/announce",
+            Trackers = new List<string> { "udp://existing-tracker.org:1337/announce" },
+        };
+
+        this.historyRepository.FindByInfoHash("trackershash456").Returns(existing);
+        this.trackerEntryRepository.GetByTorrentId(402).Returns(new List<TrackerEntry>());
+
+        this.service.RecordTorrentAdded(torrent);
+
+        existing.Status.Should().Be("Active");
+        existing.Trackers.Should().HaveCount(1);
+        existing.Trackers[0].Should().Be("udp://existing-tracker.org:1337/announce");
+        existing.PrimaryTracker.Should().Be("udp://existing-tracker.org:1337/announce");
         this.historyRepository.Received(1).Update(existing);
     }
 
@@ -596,6 +665,7 @@ public class DownloadHistoryServiceTest
         this.historyRepository.Get(99).Returns(history);
         this.torrentRepository.ExistsByInfoHash("multitrackerhash123").Returns(false);
         this.torrentRepository.All().Returns(new List<Torrent>());
+        this.trackerEntryRepository.GetByTorrentId(77).Returns(trackers.Select(u => new TrackerEntry { TorrentId = 77, Url = u }).ToList());
         this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
         {
             var t = (Torrent)args[0];

@@ -471,6 +471,29 @@ public class TorrentServiceTest
     }
 
     [Test]
+    public async Task DeleteAsync_PublishesTorrentDeletedEvent_BeforeDeletingChildEntitiesAndCache()
+    {
+        var torrent = new Torrent
+        {
+            Id = 301,
+            Name = "OrderTestTorrent",
+            InfoHash = "1111222233334444555566667777888899990000",
+        };
+        this.torrentRepository.Get(301).Returns(torrent);
+
+        await this.service.DeleteAsync(301, deleteFiles: false);
+
+        Received.InOrder(() =>
+        {
+            this.eventAggregator.PublishEvent(Arg.Is<TorrentDeletedEvent>(e => e.Torrent.Id == 301));
+            this.fileRepository.DeleteByTorrentId(301);
+            this.mediaEnrichmentService.DeleteMetadata(301);
+            this.mediaEnrichmentService.CleanupTorrentCache(301);
+            this.torrentRepository.Delete(301);
+        });
+    }
+
+    [Test]
     public async Task DeleteAsync_WhenDeletingIncompleteTorrent_PurgesIncompleteDirectoryChunks()
     {
         var tempRoot = Path.Combine(Path.GetTempPath(), "leecharr_incomplete_test_" + Guid.NewGuid().ToString("N"));
