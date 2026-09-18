@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -92,11 +93,11 @@ public class QueueManagerServiceTest
         this.configService.SlowTorrentDownloadRateThreshold.Returns(5000L);
 
         var task1 = Substitute.For<IDownloadTask>();
-        task1.DownloadSpeed.Returns(1000L); // Slow! < 5000
+        task1.DownloadSpeed.Returns(1000L); // Slow! < 5000 * 1024
         this.downloadEngine.GetTask(1).Returns(task1);
 
         var task2 = Substitute.For<IDownloadTask>();
-        task2.DownloadSpeed.Returns(100000L); // Fast
+        task2.DownloadSpeed.Returns(10000000L); // Fast: 10MB/s > 5000 * 1024
         this.downloadEngine.GetTask(2).Returns(task2);
 
         var torrents = new List<Torrent>
@@ -108,14 +109,203 @@ public class QueueManagerServiceTest
 
         this.torrentRepository.All().Returns(torrents);
 
-        await this.queueManager.ProcessQueueAsync();
+        for (var i = 0; i < 3; i++)
+        {
+            await this.queueManager.ProcessQueueAsync();
+        }
 
-        // Since T1 is slow and ignored, T2 takes 1 active slot, so T3 also fits within MaxActiveDownloads=2!
+        // Since T1 is slow and ignored after hysteresis ticks, T2 takes 1 active slot, so T3 also fits within MaxActiveDownloads=2!
         torrents[0].Status.Should().Be(TorrentStatus.Downloading);
         torrents[1].Status.Should().Be(TorrentStatus.Downloading);
         torrents[2].Status.Should().Be(TorrentStatus.Downloading);
 
         await this.downloadEngine.Received(1).ResumeTorrentAsync(3);
+    }
+
+    [Test]
+    public async Task ProcessQueueAsync_OrdersQueueByPriorityDescending()
+    {
+        this.configService.MaxActiveDownloads.Returns(1);
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, Name = "LowPriorityFirstInQueue", Status = TorrentStatus.Queued, Progress = 0.0, Priority = 0, QueuePosition = 1 },
+            new Torrent { Id = 2, Name = "HighPriorityLaterInQueue", Status = TorrentStatus.Queued, Progress = 0.0, Priority = 2, QueuePosition = 2 },
+            new Torrent { Id = 3, Name = "NormalPriorityMiddleInQueue", Status = TorrentStatus.Queued, Progress = 0.0, Priority = 1, QueuePosition = 3 },
+        };
+
+        this.torrentRepository.All().Returns(torrents);
+
+        await this.queueManager.ProcessQueueAsync();
+
+        // High priority torrent (Id = 2) should be promoted first despite having a higher QueuePosition
+        torrents[1].Status.Should().Be(TorrentStatus.Downloading);
+        torrents[0].Status.Should().Be(TorrentStatus.Queued);
+        torrents[2].Status.Should().Be(TorrentStatus.Queued);
+
+        await this.downloadEngine.Received(1).ResumeTorrentAsync(2);
+        await this.downloadEngine.DidNotReceive().ResumeTorrentAsync(1);
+        await this.downloadEngine.DidNotReceive().ResumeTorrentAsync(3);
+    }
+
+    [Test]
+    public async Task ProcessQueueAsync_RequiresConsecutiveSlowTicksBeforeIgnoringSlowTorrent()
+    {
+        this.configService.IgnoreSlowTorrents.Returns(true);
+        this.configService.SlowTorrentDownloadRateThreshold.Returns(5000L);
+        this.configService.MaxActiveDownloads.Returns(1);
+
+        var task1 = Substitute.For<IDownloadTask>();
+        task1.DownloadSpeed.Returns(1000L); // Below threshold (slow)
+        this.downloadEngine.GetTask(1).Returns(task1);
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, Name = "Slow", Status = TorrentStatus.Downloading, Progress = 0.1, QueuePosition = 1 },
+            new Torrent { Id = 2, Name = "Next", Status = TorrentStatus.Queued, Progress = 0.2, QueuePosition = 2 },
+        };
+
+        this.torrentRepository.All().Returns(torrents);
+
+        // Tick 1: Slow, but only 1 tick (threshold is 3). Should NOT promote Next.
+        await this.queueManager.ProcessQueueAsync();
+        torrents[1].Status.Should().Be(TorrentStatus.Queued);
+        await this.downloadEngine.DidNotReceive().ResumeTorrentAsync(2);
+
+        // Tick 2: Slow, 2 ticks. Should still NOT promote Next.
+        await this.queueManager.ProcessQueueAsync();
+        torrents[1].Status.Should().Be(TorrentStatus.Queued);
+        await this.downloadEngine.DidNotReceive().ResumeTorrentAsync(2);
+
+        // Tick 3: Slow, 3 consecutive ticks. Now it should be ignored and Next promoted!
+        await this.queueManager.ProcessQueueAsync();
+        torrents[1].Status.Should().Be(TorrentStatus.Downloading);
+        await this.downloadEngine.Received(1).ResumeTorrentAsync(2);
+    }
+
+    [Test]
+    public async Task ProcessQueueAsync_ResetsConsecutiveSlowTicksOnSpeedRecovery()
+    {
+        this.configService.IgnoreSlowTorrents.Returns(true);
+        this.configService.SlowTorrentDownloadRateThreshold.Returns(5000L);
+        this.configService.MaxActiveDownloads.Returns(1);
+
+        var task1 = Substitute.For<IDownloadTask>();
+        this.downloadEngine.GetTask(1).Returns(task1);
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, Name = "Fluctuating", Status = TorrentStatus.Downloading, Progress = 0.1, QueuePosition = 1 },
+            new Torrent { Id = 2, Name = "Next", Status = TorrentStatus.Queued, Progress = 0.2, QueuePosition = 2 },
+        };
+
+        this.torrentRepository.All().Returns(torrents);
+
+        // Tick 1 & 2: Below threshold
+        task1.DownloadSpeed.Returns(1000L);
+        await this.queueManager.ProcessQueueAsync();
+        await this.queueManager.ProcessQueueAsync();
+        torrents[1].Status.Should().Be(TorrentStatus.Queued);
+
+        // Tick 3: Speed recovers above threshold (10 MB/s > 5000 * 1024)!
+        task1.DownloadSpeed.Returns(10000000L);
+        await this.queueManager.ProcessQueueAsync();
+        torrents[1].Status.Should().Be(TorrentStatus.Queued);
+
+        // Tick 4: Speed drops again (this is only tick 1 of the new streak). Should NOT promote Next.
+        task1.DownloadSpeed.Returns(1000L);
+        await this.queueManager.ProcessQueueAsync();
+        torrents[1].Status.Should().Be(TorrentStatus.Queued);
+        await this.downloadEngine.DidNotReceive().ResumeTorrentAsync(2);
+    }
+
+    [Test]
+    public async Task ProcessQueueAsync_ActiveCooldownPreventsImmediateDemotionOnSpeedFluctuations()
+    {
+        this.configService.IgnoreSlowTorrents.Returns(true);
+        this.configService.SlowTorrentDownloadRateThreshold.Returns(5000L);
+        this.configService.MaxActiveDownloads.Returns(1);
+
+        var task1 = Substitute.For<IDownloadTask>();
+        task1.DownloadSpeed.Returns(1000L); // Slow: < 5000 * 1024
+        this.downloadEngine.GetTask(1).Returns(task1);
+
+        var task2 = Substitute.For<IDownloadTask>();
+        task2.DownloadSpeed.Returns(20000000L);
+        this.downloadEngine.GetTask(2).Returns(task2);
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, Name = "T1", Status = TorrentStatus.Downloading, Progress = 0.1, QueuePosition = 1 },
+            new Torrent { Id = 2, Name = "T2", Status = TorrentStatus.Queued, Progress = 0.2, QueuePosition = 2 },
+        };
+
+        this.torrentRepository.All().Returns(torrents);
+
+        // Run 3 ticks so T1 is marked slow and T2 is promoted to Downloading with ActivatedAt set
+        for (var i = 0; i < 3; i++)
+        {
+            await this.queueManager.ProcessQueueAsync();
+        }
+
+        torrents[0].Status.Should().Be(TorrentStatus.Downloading);
+        torrents[1].Status.Should().Be(TorrentStatus.Downloading);
+        await this.downloadEngine.Received(1).ResumeTorrentAsync(2);
+
+        // Next tick: T1 suddenly recovers speed above threshold (10 MB/s > 5000 * 1024).
+        // T1 is no longer slow, so slot 1 is consumed by T1.
+        task1.DownloadSpeed.Returns(10000000L);
+
+        // Run QueueManager: T2 is in its 30s active run cooldown, so it must NOT be demoted to Queued!
+        await this.queueManager.ProcessQueueAsync();
+
+        torrents[1].Status.Should().Be(TorrentStatus.Downloading);
+        await this.downloadEngine.DidNotReceive().PauseTorrentAsync(2);
+    }
+
+    [Test]
+    public async Task ProcessQueueAsync_DemotesExcessTorrentAfterActiveCooldownExpires()
+    {
+        // Use custom queue manager with zero cooldown window to simulate cooldown expiration
+        var qmWithZeroCooldown = new QueueManagerService(
+            this.torrentRepository,
+            this.configService,
+            this.downloadEngine,
+            this.eventAggregator,
+            requiredSlowTicks: 1,
+            minimumActiveCooldown: TimeSpan.Zero);
+
+        this.configService.IgnoreSlowTorrents.Returns(true);
+        this.configService.SlowTorrentDownloadRateThreshold.Returns(5000L);
+        this.configService.MaxActiveDownloads.Returns(1);
+
+        var task1 = Substitute.For<IDownloadTask>();
+        task1.DownloadSpeed.Returns(1000L); // Slow
+        this.downloadEngine.GetTask(1).Returns(task1);
+
+        var task2 = Substitute.For<IDownloadTask>();
+        task2.DownloadSpeed.Returns(20000000L);
+        this.downloadEngine.GetTask(2).Returns(task2);
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, Name = "T1", Status = TorrentStatus.Downloading, Progress = 0.1, QueuePosition = 1 },
+            new Torrent { Id = 2, Name = "T2", Status = TorrentStatus.Queued, Progress = 0.2, QueuePosition = 2 },
+        };
+
+        this.torrentRepository.All().Returns(torrents);
+
+        // Tick 1: T1 is slow, T2 is promoted to Downloading
+        await qmWithZeroCooldown.ProcessQueueAsync();
+        torrents[1].Status.Should().Be(TorrentStatus.Downloading);
+
+        // T1 recovers speed; since minimumActiveCooldown is Zero, T2 cooldown is already expired
+        task1.DownloadSpeed.Returns(10000000L);
+
+        await qmWithZeroCooldown.ProcessQueueAsync();
+
+        torrents[1].Status.Should().Be(TorrentStatus.Queued);
+        await this.downloadEngine.Received(1).PauseTorrentAsync(2);
     }
 
     [Test]
