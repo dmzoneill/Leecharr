@@ -556,7 +556,8 @@ public class TorznabClient : ITorznabClient
                 {
                     size = ParseLong(enclosureLength);
                 }
-                else
+
+                if (size <= 0)
                 {
                     var sizeElem = item.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("size", StringComparison.OrdinalIgnoreCase));
                     if (sizeElem != null)
@@ -622,7 +623,9 @@ public class TorznabClient : ITorznabClient
                 {
                     var flVal = freeleechElem.Value?.Trim();
                     if (string.Equals(flVal, "1", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(flVal, "true", StringComparison.OrdinalIgnoreCase))
+                        string.Equals(flVal, "true", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(flVal, "yes", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(flVal, "free", StringComparison.OrdinalIgnoreCase))
                     {
                         hasFreeleechFlag = true;
                     }
@@ -660,7 +663,9 @@ public class TorznabClient : ITorznabClient
                         case "freeleech":
                             var trimmedVal = value?.Trim();
                             if (string.Equals(trimmedVal, "1", StringComparison.OrdinalIgnoreCase) ||
-                                string.Equals(trimmedVal, "true", StringComparison.OrdinalIgnoreCase))
+                                string.Equals(trimmedVal, "true", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(trimmedVal, "yes", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(trimmedVal, "free", StringComparison.OrdinalIgnoreCase))
                             {
                                 hasFreeleechFlag = true;
                             }

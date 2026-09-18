@@ -1300,5 +1300,47 @@ public class RssSyncServiceTest
         await this.torznabClient.DidNotReceive().FetchRssAsync(indexer);
     }
 
+    [Test]
+    public async Task SyncRssFeedsAsync_WhenDownloadBytesThrows_FallsBackToInfoHashMagnet()
+    {
+        var safeHttpClient = Substitute.For<ISafeHttpClientService>();
+        safeHttpClient.DownloadBytesAsync(Arg.Any<string>(), Arg.Any<long>(), Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromException<byte[]>(new System.Net.Http.HttpRequestException("HTTP 500 Internal Server Error")));
+
+        var testService = new RssSyncService(
+            this.indexerRepository,
+            this.rssRuleRepository,
+            this.torznabClient,
+            this.torrentService,
+            safeHttpClientService: safeHttpClient,
+            downloadHistoryService: this.downloadHistoryService);
+
+        var indexer = new IndexerDefinition { Id = 30, Name = "FallbackIndexer", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
+
+        var rule = new RssRule { Id = 1, Name = "Rule", IsEnabled = true };
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { rule });
+
+        var release = new TorznabSearchResult
+        {
+            Guid = "urn:guid:fallback-grab",
+            Title = "Fallback.Release",
+            DownloadUrl = "https://tracker.example.com/download.torrent",
+            MagnetUrl = null,
+            InfoHash = "1111111111111111111111111111111111111111",
+            Seeders = 10,
+        };
+
+        this.torznabClient.FetchRssAsync(indexer).Returns(Task.FromResult(new List<TorznabSearchResult> { release }));
+
+        var grabbedCount = await testService.SyncRssFeedsAsync();
+        grabbedCount.Should().Be(1);
+
+        await this.torrentService.Received(1).AddFromMagnetAsync(
+            Arg.Is<string>(m => m.Contains("1111111111111111111111111111111111111111")),
+            Arg.Any<string>(),
+            Arg.Any<string>());
+    }
+
     #endregion
 }
