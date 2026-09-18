@@ -4222,6 +4222,8 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
     public PiecePicker Picker { get; private set; }
 
+    public IEnumerable<int> PartialPieces => this.Picker?.PartialPieces;
+
     public bool SequentialDownload { get; set; }
 
     public bool FirstLastPiecePriority { get; set; }

@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Routing;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Common.Disk;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Bandwidth;
 using NzbDrone.Core.BitTorrent;
@@ -1966,6 +1967,188 @@ public class QBittorrentApiControllerTest
     {
         var action = () => QBitTorrentSnapshot.FromTorrent(null!);
         action.Should().Throw<ArgumentNullException>();
+    }
+
+    [Test]
+    public void GetPieceStates_WithDownloadingPieces_MarksState1()
+    {
+        var downloadEngine = Substitute.For<IDownloadEngine>();
+        var downloadTask = Substitute.For<IDownloadTask>();
+        downloadTask.PieceBitfield.Returns(new[] { true, false, false, true });
+        downloadTask.PartialPieces.Returns(new[] { 1 });
+        downloadEngine.GetTask(1).Returns(downloadTask);
+
+        var controllerWithEngine = new QBittorrentApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.trackerEntryRepository,
+            downloadEngine: downloadEngine);
+
+        var torrent = new Torrent { Id = 1, InfoHash = "hash_partial", Name = "T1" };
+        this.torrentService.GetByInfoHash("hash_partial").Returns(torrent);
+
+        var result = controllerWithEngine.GetPieceStates("hash_partial");
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var states = okResult.Value.Should().BeOfType<List<int>>().Subject;
+
+        states.Should().Equal(2, 1, 0, 2);
+    }
+
+    [Test]
+    public void GetPieceStates_CompletedTorrent_WithNullBitfield_ReturnsTwos()
+    {
+        var downloadEngine = Substitute.For<IDownloadEngine>();
+        var downloadTask = Substitute.For<IDownloadTask>();
+        downloadTask.PieceBitfield.Returns((bool[])null);
+        downloadEngine.GetTask(1).Returns(downloadTask);
+
+        var controllerWithEngine = new QBittorrentApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.trackerEntryRepository,
+            downloadEngine: downloadEngine);
+
+        var completedTorrent = new Torrent
+        {
+            Id = 1,
+            InfoHash = "hash_completed",
+            Name = "Completed Torrent",
+            Status = TorrentStatus.Completed,
+            PieceCount = 4,
+        };
+        this.torrentService.GetByInfoHash("hash_completed").Returns(completedTorrent);
+
+        var result = controllerWithEngine.GetPieceStates("hash_completed");
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var states = okResult.Value.Should().BeOfType<List<int>>().Subject;
+
+        states.Should().Equal(2, 2, 2, 2);
+    }
+
+    [Test]
+    public void GetPieceStates_SeedingTorrent_WithNullBitfield_ReturnsTwos()
+    {
+        var downloadEngine = Substitute.For<IDownloadEngine>();
+        var downloadTask = Substitute.For<IDownloadTask>();
+        downloadTask.PieceBitfield.Returns((bool[])null);
+        downloadEngine.GetTask(2).Returns(downloadTask);
+
+        var controllerWithEngine = new QBittorrentApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.trackerEntryRepository,
+            downloadEngine: downloadEngine);
+
+        var seedingTorrent = new Torrent
+        {
+            Id = 2,
+            InfoHash = "hash_seeding",
+            Name = "Seeding Torrent",
+            Status = TorrentStatus.Seeding,
+            PieceCount = 3,
+        };
+        this.torrentService.GetByInfoHash("hash_seeding").Returns(seedingTorrent);
+
+        var result = controllerWithEngine.GetPieceStates("hash_seeding");
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var states = okResult.Value.Should().BeOfType<List<int>>().Subject;
+
+        states.Should().Equal(2, 2, 2);
+    }
+
+    [Test]
+    public void GetPieceStates_DownloadingTorrent_WithNullBitfield_ReturnsZerosAndOnes()
+    {
+        var downloadEngine = Substitute.For<IDownloadEngine>();
+        var downloadTask = Substitute.For<IDownloadTask>();
+        downloadTask.PieceBitfield.Returns((bool[])null);
+        downloadTask.PartialPieces.Returns(new[] { 1 });
+        downloadEngine.GetTask(3).Returns(downloadTask);
+
+        var controllerWithEngine = new QBittorrentApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.trackerEntryRepository,
+            downloadEngine: downloadEngine);
+
+        var downloadingTorrent = new Torrent
+        {
+            Id = 3,
+            InfoHash = "hash_downloading",
+            Name = "Downloading Torrent",
+            Status = TorrentStatus.Downloading,
+            PieceCount = 3,
+        };
+        this.torrentService.GetByInfoHash("hash_downloading").Returns(downloadingTorrent);
+
+        var result = controllerWithEngine.GetPieceStates("hash_downloading");
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var states = okResult.Value.Should().BeOfType<List<int>>().Subject;
+
+        states.Should().Equal(0, 1, 0);
+    }
+
+    [Test]
+    public void GetPieceHashes_WithAppFolderInfo_UsesAppDataFolder()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        var torrentsDir = Path.Combine(tempDir, "Torrents");
+        Directory.CreateDirectory(torrentsDir);
+
+        try
+        {
+            var appFolderInfo = Substitute.For<IAppFolderInfo>();
+            appFolderInfo.AppDataFolder.Returns(tempDir);
+
+            var torrentFileBytes = new byte[] { 1, 2, 3, 4 };
+            var fakeHashes = new byte[40];
+            Array.Fill(fakeHashes, (byte)0xab);
+            File.WriteAllBytes(Path.Combine(torrentsDir, "hash_with_file.torrent"), torrentFileBytes);
+
+            this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(new ParsedTorrent
+            {
+                PieceHashes = fakeHashes,
+            });
+
+            var controllerWithAppFolder = new QBittorrentApiController(
+                this.torrentService,
+                this.torrentFileService,
+                this.torrentFileParser,
+                this.categoryService,
+                this.configService,
+                this.trackerEntryRepository,
+                appFolderInfo: appFolderInfo);
+
+            var torrent = new Torrent { Id = 1, InfoHash = "hash_with_file", Name = "T1", PieceCount = 2 };
+            this.torrentService.GetByInfoHash("hash_with_file").Returns(torrent);
+
+            var result = controllerWithAppFolder.GetPieceHashes("hash_with_file");
+            var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+            var list = okResult.Value.Should().BeOfType<List<string>>().Subject;
+
+            list.Should().HaveCount(2);
+            list[0].Should().Be(Convert.ToHexString(fakeHashes, 0, 20).ToLowerInvariant());
+            list[1].Should().Be(Convert.ToHexString(fakeHashes, 20, 20).ToLowerInvariant());
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
     }
 
     private static ActionExecutingContext CreateActionExecutingContext(QBittorrentApiController controller, HttpContext httpContext, string actionName)

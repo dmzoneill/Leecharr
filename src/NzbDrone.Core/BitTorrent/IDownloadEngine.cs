@@ -121,6 +121,8 @@ public interface IDownloadTask
 
     PiecePicker Picker => null;
 
+    IEnumerable<int> PartialPieces => this.Picker?.PartialPieces;
+
     bool IsSuperSeeding => false;
 
     string ErrorMessage => null;
