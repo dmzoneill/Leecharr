@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using DryIoc;
@@ -152,6 +153,7 @@ public class Startup
             options.Cookie.Name = "Leecharr_Auth";
             options.Cookie.HttpOnly = true;
             options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
             options.ExpireTimeSpan = TimeSpan.FromDays(30);
             options.SlidingExpiration = true;
             options.LoginPath = "/login";
@@ -259,8 +261,29 @@ public class Startup
         {
             ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost,
         };
-        forwardedOptions.KnownIPNetworks.Clear();
-        forwardedOptions.KnownProxies.Clear();
+
+        var configService = app.Services.GetService<IConfigService>();
+        var trustedProxies = configService?.GetValue("TrustedProxies", string.Empty);
+        if (string.IsNullOrWhiteSpace(trustedProxies))
+        {
+            trustedProxies = configService?.GetValue("ForwardAuthTrustedProxies", string.Empty);
+        }
+
+        if (!string.IsNullOrWhiteSpace(trustedProxies))
+        {
+            foreach (var proxy in trustedProxies.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (System.Net.IPNetwork.TryParse(proxy.Trim(), out var network))
+                {
+                    forwardedOptions.KnownIPNetworks.Add(network);
+                }
+                else if (IPAddress.TryParse(proxy.Trim(), out var ip))
+                {
+                    forwardedOptions.KnownProxies.Add(ip);
+                }
+            }
+        }
+
         app.UseForwardedHeaders(forwardedOptions);
 
         app.UseMiddleware<SecurityHeadersMiddleware>();

@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
 using Leecharr.Http;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -43,6 +44,7 @@ public class AuthController : ControllerBase
     private readonly IConfigService configService;
     private readonly IUserSessionRepository userSessionRepository;
     private readonly IJitUserProvisioningService jitUserProvisioningService;
+    private readonly ITrustedNetworkService trustedNetworkService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public AuthController(
@@ -51,7 +53,8 @@ public class AuthController : ControllerBase
         IConfigFileProvider configFileProvider,
         IConfigService configService,
         IUserSessionRepository userSessionRepository = null,
-        IJitUserProvisioningService jitUserProvisioningService = null)
+        IJitUserProvisioningService jitUserProvisioningService = null,
+        ITrustedNetworkService trustedNetworkService = null)
     {
         this.userService = userService;
         this.identityProviderService = identityProviderService;
@@ -59,6 +62,7 @@ public class AuthController : ControllerBase
         this.configService = configService;
         this.userSessionRepository = userSessionRepository;
         this.jitUserProvisioningService = jitUserProvisioningService;
+        this.trustedNetworkService = trustedNetworkService;
     }
 
     [HttpGet("providers")]
@@ -168,7 +172,7 @@ public class AuthController : ControllerBase
                 {
                     UserId = user.Id,
                     SessionToken = sessionToken,
-                    IpAddress = this.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
+                    IpAddress = this.GetClientIpAddress(),
                     UserAgent = this.Request.Headers["User-Agent"].ToString(),
                     CreatedAt = DateTime.UtcNow,
                     Expiry = (authProps.ExpiresUtc ?? DateTimeOffset.UtcNow.AddDays(30)).UtcDateTime,
@@ -850,6 +854,27 @@ public class AuthController : ControllerBase
 
     public static int TrackedLoginAttemptsCount => LoginAttempts.Count;
 
+    public static bool IsThrottledForIp(string ipAddress)
+    {
+        if (!LoginAttempts.TryGetValue(ipAddress, out var record))
+        {
+            return false;
+        }
+
+        var now = DateTime.UtcNow;
+        if (record.LockoutUntil.HasValue)
+        {
+            return now < record.LockoutUntil.Value;
+        }
+
+        if (now - record.WindowStart > AttemptWindow)
+        {
+            return false;
+        }
+
+        return record.Failures >= MaxFailedAttempts;
+    }
+
     public static void RecordFailedLoginAttempt(string ipAddress, int failures = 1, DateTime? windowStart = null, DateTime? lockoutUntil = null)
     {
         var start = windowStart ?? DateTime.UtcNow;
@@ -947,6 +972,6 @@ public class AuthController : ControllerBase
 
     private string GetClientIpAddress()
     {
-        return this.HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "127.0.0.1";
+        return ClientIpResolver.ResolveClientIp(this.HttpContext, this.trustedNetworkService, this.configService);
     }
 }
