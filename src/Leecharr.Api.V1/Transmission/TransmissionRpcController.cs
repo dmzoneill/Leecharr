@@ -963,11 +963,7 @@ public class TransmissionRpcController : ControllerBase
                     .Select(id => (Id: id, Torrent: this.torrentService.Get(id)))
                     .OrderBy(x => x.Torrent?.QueuePosition ?? int.MaxValue)
                     .Select(x => x.Id);
-                foreach (var id in orderedUpIds)
-                {
-                    await this.torrentService.MoveQueueAsync(id, "up");
-                }
-
+                await this.torrentService.MoveQueueBatchAsync(orderedUpIds, "up");
                 break;
 
             case "down":
@@ -975,11 +971,7 @@ public class TransmissionRpcController : ControllerBase
                     .Select(id => (Id: id, Torrent: this.torrentService.Get(id)))
                     .OrderByDescending(x => x.Torrent?.QueuePosition ?? int.MinValue)
                     .Select(x => x.Id);
-                foreach (var id in orderedDownIds)
-                {
-                    await this.torrentService.MoveQueueAsync(id, "down");
-                }
-
+                await this.torrentService.MoveQueueBatchAsync(orderedDownIds, "down");
                 break;
 
             case "bottom":

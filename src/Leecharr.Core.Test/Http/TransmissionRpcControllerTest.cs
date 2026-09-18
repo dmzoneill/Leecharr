@@ -1672,12 +1672,9 @@ public class TransmissionRpcControllerTest
         });
 
         result.Should().BeOfType<OkObjectResult>();
-        Received.InOrder(async () =>
-        {
-            await this.torrentService.MoveQueueAsync(20, "up");
-            await this.torrentService.MoveQueueAsync(30, "up");
-            await this.torrentService.MoveQueueAsync(10, "up");
-        });
+        await this.torrentService.Received(1).MoveQueueBatchAsync(
+            Arg.Is<IEnumerable<int>>(ids => ids != null && ids.SequenceEqual(new[] { 20, 30, 10 })),
+            "up");
     }
 
     [Test]
@@ -1707,12 +1704,9 @@ public class TransmissionRpcControllerTest
         });
 
         result.Should().BeOfType<OkObjectResult>();
-        Received.InOrder(async () =>
-        {
-            await this.torrentService.MoveQueueAsync(30, "down");
-            await this.torrentService.MoveQueueAsync(20, "down");
-            await this.torrentService.MoveQueueAsync(10, "down");
-        });
+        await this.torrentService.Received(1).MoveQueueBatchAsync(
+            Arg.Is<IEnumerable<int>>(ids => ids != null && ids.SequenceEqual(new[] { 30, 20, 10 })),
+            "down");
     }
 
     [TestCase("true", true)]
