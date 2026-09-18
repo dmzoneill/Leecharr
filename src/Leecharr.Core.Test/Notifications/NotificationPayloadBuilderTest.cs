@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text.Json;
 using FluentAssertions;
 using NUnit.Framework;
+using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Notifications;
 using NzbDrone.Core.Torrents;
 
@@ -288,5 +289,65 @@ public class NotificationPayloadBuilderTest
     {
         var result = NotificationPayloadBuilder.TruncateTelegramMarkdown(input, maxLen);
         result.Should().Be(expected);
+    }
+
+    [Test]
+    public void BuildProviderPayload_Discord_TruncatesDescriptionTo2048Characters()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "Movie.Name.2024",
+            Category = "Movies",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            TotalSize = 1024 * 1024 * 100,
+        };
+
+        var longOverview = new string('O', 3000);
+        var meta = new TorrentMediaMetadata { Overview = longOverview };
+
+        var result = NotificationPayloadBuilder.BuildProviderPayload("Discord", "OnGrab", torrent, meta, null, null);
+        var json = JsonSerializer.Serialize(result);
+        using var doc = JsonDocument.Parse(json);
+        var embeds = doc.RootElement.GetProperty("embeds");
+        embeds.GetArrayLength().Should().Be(1);
+
+        var description = embeds[0].GetProperty("description").GetString();
+        description.Should().NotBeNull();
+        description!.Length.Should().BeLessThanOrEqualTo(2048);
+        description.Should().EndWith("...");
+    }
+
+    [Test]
+    public void BuildProviderPayload_Telegram_EscapesSquareBracketsAndStatus()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "Release_Name_2024",
+            Category = "Movies",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.42,
+        };
+
+        var result = NotificationPayloadBuilder.BuildProviderPayload("Telegram", "OnGrab", torrent, null, null, null);
+        var dict = result.Should().BeOfType<Dictionary<string, object>>().Subject;
+
+        var text = dict["text"].ToString();
+        text.Should().NotBeNull();
+        text.Should().Contain(@"*Leecharr \[OnGrab\]*");
+        text.Should().Contain("Status: Downloading");
+    }
+
+    [Test]
+    public void BuildProviderPayload_Telegram_WithoutTorrent_EscapesSquareBrackets()
+    {
+        var result = NotificationPayloadBuilder.BuildProviderPayload("Telegram", "OnHealthIssue", null, null, "Health check failed", null);
+        var dict = result.Should().BeOfType<Dictionary<string, object>>().Subject;
+
+        var text = dict["text"].ToString();
+        text.Should().NotBeNull();
+        text.Should().Contain(@"*Leecharr \[OnHealthIssue\]*");
     }
 }
