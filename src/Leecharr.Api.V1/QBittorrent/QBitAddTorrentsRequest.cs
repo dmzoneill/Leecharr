@@ -55,6 +55,36 @@ public class QBitAddTorrentsRequest
     public bool IsSequential =>
         string.Equals(this.SequentialDownload, "true", StringComparison.OrdinalIgnoreCase);
 
+    public string Root_folder { get; set; }
+
+    public string RootFolder { get; set; }
+
+    public string Skip_checking { get; set; }
+
+    public string SkipChecking { get; set; }
+
+    public string AutoTMM { get; set; }
+
+    public string AutoTmm { get; set; }
+
     public bool IsFirstLastPiecePrio =>
         string.Equals(this.FirstLastPiecePrio, "true", StringComparison.OrdinalIgnoreCase);
+
+    public bool IsSkipChecking =>
+        string.Equals(this.Skip_checking, "true", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(this.Skip_checking, "1", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(this.SkipChecking, "true", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(this.SkipChecking, "1", StringComparison.OrdinalIgnoreCase);
+
+    public bool IsAutoTMM =>
+        string.Equals(this.AutoTMM, "true", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(this.AutoTMM, "1", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(this.AutoTmm, "true", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(this.AutoTmm, "1", StringComparison.OrdinalIgnoreCase);
+
+    public bool IsRootFolder =>
+        string.Equals(this.Root_folder, "true", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(this.Root_folder, "1", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(this.RootFolder, "true", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(this.RootFolder, "1", StringComparison.OrdinalIgnoreCase);
 }
