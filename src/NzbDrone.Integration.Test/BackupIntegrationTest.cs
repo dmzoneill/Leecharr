@@ -31,12 +31,16 @@ public class BackupIntegrationTest : IntegrationTestBase
         var backup = await createResponse.Content.ReadFromJsonAsync<BackupResource>();
         backup.Should().NotBeNull();
         backup!.Path.Should().NotBeNullOrWhiteSpace();
-        File.Exists(backup.Path).Should().BeTrue();
+
+        var physicalPath = Path.IsPathRooted(backup.Path)
+            ? backup.Path
+            : Path.Combine(appFolderInfo.AppDataFolder, "Backups", "manual", backup.Name);
+        File.Exists(physicalPath).Should().BeTrue();
 
         try
         {
             // 2. Verify backup zip contents contain leecharr.db
-            using (var zip = ZipFile.OpenRead(backup.Path))
+            using (var zip = ZipFile.OpenRead(physicalPath))
             {
                 zip.Entries.Should().Contain(e => e.FullName == "leecharr.db");
             }
@@ -67,11 +71,11 @@ public class BackupIntegrationTest : IntegrationTestBase
         }
         finally
         {
-            if (File.Exists(backup.Path))
+            if (File.Exists(physicalPath))
             {
                 try
                 {
-                    File.Delete(backup.Path);
+                    File.Delete(physicalPath);
                 }
                 catch
                 {
