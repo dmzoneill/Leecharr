@@ -1148,4 +1148,67 @@ public class TorrentControllerTest
 
         result.Should().BeOfType<NotFoundObjectResult>();
     }
+
+    [Test]
+    public async Task Update_WithRateLimits_DelegatesToTorrentServiceAndDoesNotDirectlyInvokeDownloadEngineRateLimits()
+    {
+        var existing = new Torrent
+        {
+            Id = 50,
+            Name = "Speed Test Torrent",
+            DownloadLimit = 0,
+            UploadLimit = 0,
+        };
+
+        this.torrentService.Get(50).Returns(existing);
+        this.torrentService.UpdateAsync(existing).Returns(Task.FromResult(existing));
+
+        var resource = new TorrentResource
+        {
+            Id = 50,
+            DownloadLimit = 1500,
+            UploadLimit = 500,
+        };
+
+        var response = await this.controller.Update(50, resource);
+
+        response.Result.Should().BeOfType<OkObjectResult>();
+        existing.DownloadLimit.Should().Be(1500);
+        existing.UploadLimit.Should().Be(500);
+        await this.torrentService.Received(1).UpdateAsync(existing);
+        await this.downloadEngine.DidNotReceive().SetTorrentRateLimitsAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>());
+    }
+
+    [Test]
+    public async Task BulkAction_WithActionUpdateAndRateLimits_DelegatesToTorrentServiceAndDoesNotDirectlyInvokeDownloadEngineRateLimits()
+    {
+        var torrent = new Torrent
+        {
+            Id = 51,
+            Name = "Bulk Speed Test",
+            DownloadLimit = 0,
+            UploadLimit = 0,
+        };
+
+        this.torrentService.Get(51).Returns(torrent);
+        this.torrentService.UpdateAsync(torrent).Returns(Task.FromResult(torrent));
+
+        var resource = new BulkTorrentActionResource
+        {
+            Action = "setspeedlimits",
+            TorrentIds = new List<int> { 51 },
+            DownloadLimit = 2000,
+            UploadLimit = 1000,
+        };
+
+        var response = await this.controller.BulkAction(resource);
+
+        var okResult = response.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var bulkResult = okResult.Value.Should().BeOfType<BulkActionResult>().Subject;
+        bulkResult.SuccessCount.Should().Be(1);
+        torrent.DownloadLimit.Should().Be(2000);
+        torrent.UploadLimit.Should().Be(1000);
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+        await this.downloadEngine.DidNotReceive().SetTorrentRateLimitsAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>());
+    }
 }
