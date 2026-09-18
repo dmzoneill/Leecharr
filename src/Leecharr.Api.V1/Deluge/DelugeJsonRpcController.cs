@@ -1247,7 +1247,7 @@ public class DelugeJsonRpcController : ControllerBase
         if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 1)
         {
             var filePath = paramsElem[0].ValueKind == JsonValueKind.String ? paramsElem[0].GetString() : null;
-            if (!string.IsNullOrWhiteSpace(filePath) && global::System.IO.File.Exists(filePath))
+            if (IsValidUploadTorrentPath(filePath) && global::System.IO.File.Exists(filePath))
             {
                 var bytes = await global::System.IO.File.ReadAllBytesAsync(filePath);
                 var parsed = this.torrentFileParser.Parse(bytes);
@@ -1304,6 +1304,11 @@ public class DelugeJsonRpcController : ControllerBase
                 }
             }
 
+            if (torrentItems.Count == 0)
+            {
+                addTorrentsSuccess = false;
+            }
+
             foreach (var item in torrentItems)
             {
                 string torrentPath = null;
@@ -1312,10 +1317,30 @@ public class DelugeJsonRpcController : ControllerBase
                     torrentPath = pProp.GetString();
                 }
 
-                if (!string.IsNullOrWhiteSpace(torrentPath) && global::System.IO.File.Exists(torrentPath))
+                if (!IsValidUploadTorrentPath(torrentPath))
+                {
+                    this.logger.Warn("Deluge web.add_torrents rejected invalid upload path: {0}", torrentPath);
+                    addTorrentsSuccess = false;
+                    continue;
+                }
+
+                if (!global::System.IO.File.Exists(torrentPath))
+                {
+                    this.logger.Warn("Deluge web.add_torrents upload file does not exist: {0}", torrentPath);
+                    addTorrentsSuccess = false;
+                    continue;
+                }
+
+                try
                 {
                     var bytes = await global::System.IO.File.ReadAllBytesAsync(torrentPath);
                     var parsed = this.torrentFileParser.Parse(bytes);
+                    if (parsed == null)
+                    {
+                        this.logger.Warn("Deluge web.add_torrents failed to parse torrent: {0}", torrentPath);
+                        addTorrentsSuccess = false;
+                        continue;
+                    }
 
                     var isPaused = false;
                     string savePath = null;
@@ -1350,22 +1375,46 @@ public class DelugeJsonRpcController : ControllerBase
                     }
 
                     var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
-                    if (added != null && targetRatio.HasValue && targetRatio.Value > 0)
+                    if (added == null)
+                    {
+                        this.logger.Warn("Deluge web.add_torrents failed to add torrent to service: {0}", torrentPath);
+                        addTorrentsSuccess = false;
+                        continue;
+                    }
+
+                    if (targetRatio.HasValue && targetRatio.Value > 0)
                     {
                         added.TargetRatio = targetRatio.Value;
                         await this.torrentService.UpdateAsync(added);
                     }
-
-                    try
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Error(ex, "Error processing Deluge web.add_torrents item: {0}", torrentPath);
+                    addTorrentsSuccess = false;
+                }
+                finally
+                {
+                    if (IsValidUploadTorrentPath(torrentPath))
                     {
-                        global::System.IO.File.Delete(torrentPath);
-                    }
-                    catch
-                    {
-                        // Ignore cleanup error
+                        try
+                        {
+                            if (global::System.IO.File.Exists(torrentPath))
+                            {
+                                global::System.IO.File.Delete(torrentPath);
+                            }
+                        }
+                        catch
+                        {
+                            // Ignore cleanup error
+                        }
                     }
                 }
             }
+        }
+        else
+        {
+            addTorrentsSuccess = false;
         }
 
         return this.DelugeResult(new { result = addTorrentsSuccess, error = (object)null, id });
@@ -2487,6 +2536,50 @@ public class DelugeJsonRpcController : ControllerBase
             JsonValueKind.String => bool.TryParse(element.GetString(), out var b) ? b : (element.GetString() == "1"),
             _ => defaultValue,
         };
+    }
+
+    private static bool IsValidUploadTorrentPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        if (path.Contains("..", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        try
+        {
+            if (!Path.IsPathRooted(path))
+            {
+                return false;
+            }
+
+            var fullPath = Path.GetFullPath(path);
+            var tempDirWithSeparator = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.GetTempPath())) + Path.DirectorySeparatorChar;
+
+            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            if (!fullPath.StartsWith(tempDirWithSeparator, comparison))
+            {
+                return false;
+            }
+
+            var fileName = Path.GetFileName(fullPath);
+            if (!fileName.StartsWith("deluge_upload_", StringComparison.OrdinalIgnoreCase) ||
+                !fileName.EndsWith(".torrent", StringComparison.OrdinalIgnoreCase) ||
+                fileName.Length < "deluge_upload_.torrent".Length)
+            {
+                return false;
+            }
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private Dictionary<string, object> GetDelugeConfigDictionary()
