@@ -435,7 +435,7 @@ public class NotificationEventHandler :
             progress = f.Progress,
         }).ToList();
 
-        var (seasonNum, epNum, epTitle) = this.episodicParser.ExtractEpisodicInfo(torrent.Name);
+        var (seasonNum, epNum, epTitle, epNumbers, epRange) = this.episodicParser.ExtractDetailedEpisodicInfo(torrent.Name);
         var (container, resolution, videoCodec, hdrFormat, audioCodec, audioChannels, audioLanguage, subtitleLanguages) = this.episodicParser.ExtractStreamSpecs(meta?.MediaInfoJson);
 
         var downloadTimeSeconds = torrent.DateCompleted.HasValue && torrent.DateAdded != default && torrent.DateCompleted.Value >= torrent.DateAdded
@@ -483,6 +483,8 @@ public class NotificationEventHandler :
                 year = meta?.Year ?? 0,
                 seasonNumber = seasonNum,
                 episodeNumber = epNum,
+                episodeNumbers = epNumbers,
+                formattedEpisode = epRange,
                 episodeTitle = epTitle,
                 overview = meta?.Overview,
                 posterUrl = meta?.PosterUrl,
