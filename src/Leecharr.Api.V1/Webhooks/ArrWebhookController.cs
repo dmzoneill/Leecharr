@@ -1,7 +1,9 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
@@ -17,62 +19,65 @@ public class ArrWebhookController : Controller
     private readonly ITorrentRepository torrentRepository;
     private readonly ITorrentMediaMetadataRepository mediaMetadataRepository;
     private readonly IArrConnectionRepository arrConnectionRepository;
+    private readonly ITorrentService torrentService;
     private readonly Logger logger;
 
     public ArrWebhookController(
         ITorrentRepository torrentRepository,
         ITorrentMediaMetadataRepository mediaMetadataRepository = null,
-        IArrConnectionRepository arrConnectionRepository = null)
+        IArrConnectionRepository arrConnectionRepository = null,
+        ITorrentService torrentService = null)
     {
         this.torrentRepository = torrentRepository;
         this.mediaMetadataRepository = mediaMetadataRepository;
         this.arrConnectionRepository = arrConnectionRepository;
+        this.torrentService = torrentService;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
     [HttpPost("arr")]
-    public ActionResult<ArrWebhookResult> HandleArr([FromBody] ArrWebhookPayload payload)
+    public async Task<ActionResult<ArrWebhookResult>> HandleArr([FromBody] ArrWebhookPayload payload)
     {
-        return this.ProcessWebhook("Arr", payload);
+        return await this.ProcessWebhookAsync("Arr", payload);
     }
 
     [HttpPost("sonarr")]
-    public ActionResult<ArrWebhookResult> HandleSonarr([FromBody] ArrWebhookPayload payload)
+    public async Task<ActionResult<ArrWebhookResult>> HandleSonarr([FromBody] ArrWebhookPayload payload)
     {
-        return this.ProcessWebhook("Sonarr", payload);
+        return await this.ProcessWebhookAsync("Sonarr", payload);
     }
 
     [HttpPost("radarr")]
-    public ActionResult<ArrWebhookResult> HandleRadarr([FromBody] ArrWebhookPayload payload)
+    public async Task<ActionResult<ArrWebhookResult>> HandleRadarr([FromBody] ArrWebhookPayload payload)
     {
-        return this.ProcessWebhook("Radarr", payload);
+        return await this.ProcessWebhookAsync("Radarr", payload);
     }
 
     [HttpPost("lidarr")]
-    public ActionResult<ArrWebhookResult> HandleLidarr([FromBody] ArrWebhookPayload payload)
+    public async Task<ActionResult<ArrWebhookResult>> HandleLidarr([FromBody] ArrWebhookPayload payload)
     {
-        return this.ProcessWebhook("Lidarr", payload);
+        return await this.ProcessWebhookAsync("Lidarr", payload);
     }
 
     [HttpPost("readarr")]
-    public ActionResult<ArrWebhookResult> HandleReadarr([FromBody] ArrWebhookPayload payload)
+    public async Task<ActionResult<ArrWebhookResult>> HandleReadarr([FromBody] ArrWebhookPayload payload)
     {
-        return this.ProcessWebhook("Readarr", payload);
+        return await this.ProcessWebhookAsync("Readarr", payload);
     }
 
     [HttpPost("{arrType}")]
-    public ActionResult<ArrWebhookResult> HandleGeneric(string arrType, [FromBody] ArrWebhookPayload payload)
+    public async Task<ActionResult<ArrWebhookResult>> HandleGeneric(string arrType, [FromBody] ArrWebhookPayload payload)
     {
-        return this.ProcessWebhook(arrType, payload);
+        return await this.ProcessWebhookAsync(arrType, payload);
     }
 
     [HttpPost]
-    public ActionResult<ArrWebhookResult> HandleDefault([FromBody] ArrWebhookPayload payload)
+    public async Task<ActionResult<ArrWebhookResult>> HandleDefault([FromBody] ArrWebhookPayload payload)
     {
-        return this.ProcessWebhook(null, payload);
+        return await this.ProcessWebhookAsync(null, payload);
     }
 
-    private ActionResult<ArrWebhookResult> ProcessWebhook(string arrType, ArrWebhookPayload payload)
+    private async Task<ActionResult<ArrWebhookResult>> ProcessWebhookAsync(string arrType, ArrWebhookPayload payload)
     {
         if (payload == null)
         {
@@ -102,6 +107,8 @@ public class ArrWebhookController : Controller
 
         if (torrent != null)
         {
+            var torrentNeedsRepoUpdate = false;
+
             if (string.IsNullOrWhiteSpace(torrent.Category) || string.Equals(torrent.Category, "NONE", StringComparison.OrdinalIgnoreCase))
             {
                 var resolvedCategory = string.Equals(arrType, "Sonarr", StringComparison.OrdinalIgnoreCase) || payload.Series != null
@@ -116,7 +123,17 @@ public class ArrWebhookController : Controller
 
                 if (!string.IsNullOrWhiteSpace(resolvedCategory))
                 {
-                    torrent.Category = resolvedCategory;
+                    if (this.torrentService != null)
+                    {
+                        await this.torrentService.SetCategoryAsync(torrent.Id, resolvedCategory);
+                        torrent = this.GetTorrentById(torrent.Id) ?? torrent;
+                    }
+                    else
+                    {
+                        torrent.Category = resolvedCategory;
+                        torrentNeedsRepoUpdate = true;
+                    }
+
                     updated = true;
                     this.logger.Info("Assigned category '{0}' to torrent {1} from webhook", resolvedCategory, torrent.Name);
                 }
@@ -139,6 +156,7 @@ public class ArrWebhookController : Controller
                 torrent.ImportedByArr = resolvedArr;
 
                 updated = true;
+                torrentNeedsRepoUpdate = true;
                 this.logger.Info("Updated import state for torrent {0} (InfoHash: {1}) by {2}", torrent.Name, torrent.InfoHash, resolvedArr);
             }
             else if (string.Equals(eventType, "ImportFailed", StringComparison.OrdinalIgnoreCase) ||
@@ -148,6 +166,7 @@ public class ArrWebhookController : Controller
             {
                 torrent.IsImported = false;
                 updated = true;
+                torrentNeedsRepoUpdate = true;
                 this.logger.Warn("Import failed for torrent {0} (InfoHash: {1})", torrent.Name, torrent.InfoHash);
             }
             else if (string.Equals(eventType, "Grab", StringComparison.OrdinalIgnoreCase) ||
@@ -161,7 +180,7 @@ public class ArrWebhookController : Controller
                 this.logger.Warn("Download failed/warning event received for torrent {0} (InfoHash: {1})", torrent.Name, torrent.InfoHash);
             }
 
-            if (updated)
+            if (torrentNeedsRepoUpdate)
             {
                 this.torrentRepository.Update(torrent);
             }
@@ -190,6 +209,92 @@ public class ArrWebhookController : Controller
         });
     }
 
+    private static string NormalizeCandidateInfoHash(string candidate)
+    {
+        if (string.IsNullOrWhiteSpace(candidate))
+        {
+            return null;
+        }
+
+        var clean = candidate.Trim();
+
+        if (clean.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase) || clean.Contains("xt=", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var magnetUri = clean;
+                if (!magnetUri.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+                {
+                    var magIdx = magnetUri.IndexOf("magnet:?", StringComparison.OrdinalIgnoreCase);
+                    if (magIdx >= 0)
+                    {
+                        magnetUri = magnetUri.Substring(magIdx);
+                    }
+                }
+
+                var parsed = MagnetLinkParser.Parse(magnetUri);
+                if (!string.IsNullOrWhiteSpace(parsed.InfoHash))
+                {
+                    return parsed.InfoHash.ToLowerInvariant();
+                }
+            }
+            catch
+            {
+                var xtIdx = clean.IndexOf("xt=", StringComparison.OrdinalIgnoreCase);
+                if (xtIdx >= 0)
+                {
+                    var xtVal = clean.Substring(xtIdx + 3);
+                    var ampIdx = xtVal.IndexOf('&');
+                    if (ampIdx >= 0)
+                    {
+                        xtVal = xtVal.Substring(0, ampIdx);
+                    }
+
+                    clean = xtVal.Trim();
+                }
+            }
+        }
+
+        if (clean.StartsWith("urn:btih:", StringComparison.OrdinalIgnoreCase))
+        {
+            clean = clean.Substring("urn:btih:".Length).Trim();
+        }
+        else if (clean.StartsWith("urn:btmh:", StringComparison.OrdinalIgnoreCase))
+        {
+            clean = clean.Substring("urn:btmh:".Length).Trim();
+        }
+
+        var unpadded = clean.TrimEnd('=');
+        if (unpadded.Length is 32 or 52 or 55 or 56)
+        {
+            clean = unpadded;
+        }
+
+        var normalized = MagnetLinkParser.NormalizeInfoHash(clean);
+        return string.IsNullOrWhiteSpace(normalized) ? clean.ToLowerInvariant() : normalized.ToLowerInvariant();
+    }
+
+    private Torrent GetTorrentByInfoHash(string hash)
+    {
+        return this.torrentService != null
+            ? this.torrentService.GetByInfoHash(hash)
+            : this.torrentRepository.GetByInfoHash(hash);
+    }
+
+    private Torrent GetTorrentById(int id)
+    {
+        return this.torrentService != null
+            ? this.torrentService.Get(id)
+            : this.torrentRepository.Get(id);
+    }
+
+    private IEnumerable<Torrent> GetAllTorrents()
+    {
+        return this.torrentService != null
+            ? this.torrentService.GetAll()
+            : this.torrentRepository.All();
+    }
+
     private Torrent FindMatchingTorrent(ArrWebhookPayload payload)
     {
         if (payload == null)
@@ -197,18 +302,41 @@ public class ArrWebhookController : Controller
             return null;
         }
 
-        // 1. Try downloadClientId
-        if (!string.IsNullOrWhiteSpace(payload.DownloadClientId))
+        var candidateStrings = new[]
         {
-            var byHash = this.torrentRepository.GetByInfoHash(payload.DownloadClientId);
-            if (byHash != null)
+            payload.DownloadClientId,
+            payload.DownloadId,
+            payload.Release?.DownloadId,
+            payload.Release?.DownloadUrl,
+            payload.DownloadUrl,
+        };
+
+        foreach (var candidate in candidateStrings)
+        {
+            if (string.IsNullOrWhiteSpace(candidate))
             {
-                return byHash;
+                continue;
             }
 
-            if (int.TryParse(payload.DownloadClientId, out var id))
+            var normalizedHash = NormalizeCandidateInfoHash(candidate);
+            if (!string.IsNullOrWhiteSpace(normalizedHash))
             {
-                var byId = this.torrentRepository.Get(id);
+                var byNormalized = this.GetTorrentByInfoHash(normalizedHash);
+                if (byNormalized != null)
+                {
+                    return byNormalized;
+                }
+            }
+
+            var byRaw = this.GetTorrentByInfoHash(candidate);
+            if (byRaw != null)
+            {
+                return byRaw;
+            }
+
+            if (int.TryParse(candidate, out var id))
+            {
+                var byId = this.GetTorrentById(id);
                 if (byId != null)
                 {
                     return byId;
@@ -216,67 +344,24 @@ public class ArrWebhookController : Controller
             }
         }
 
-        // 2. Try downloadId
-        if (!string.IsNullOrWhiteSpace(payload.DownloadId))
-        {
-            var byHash = this.torrentRepository.GetByInfoHash(payload.DownloadId);
-            if (byHash != null)
-            {
-                return byHash;
-            }
-
-            if (int.TryParse(payload.DownloadId, out var id))
-            {
-                var byId = this.torrentRepository.Get(id);
-                if (byId != null)
-                {
-                    return byId;
-                }
-            }
-        }
-
-        // 3. Try release downloadId
-        if (!string.IsNullOrWhiteSpace(payload.Release?.DownloadId))
-        {
-            var byHash = this.torrentRepository.GetByInfoHash(payload.Release.DownloadId);
-            if (byHash != null)
-            {
-                return byHash;
-            }
-
-            if (int.TryParse(payload.Release.DownloadId, out var id))
-            {
-                var byId = this.torrentRepository.Get(id);
-                if (byId != null)
-                {
-                    return byId;
-                }
-            }
-        }
-
-        // 4. Scan all torrents for hash / name / path match
-        var allTorrents = this.torrentRepository.All()?.ToList();
+        var allTorrents = this.GetAllTorrents()?.ToList();
         if (allTorrents == null || allTorrents.Count == 0)
         {
             return null;
         }
 
-        if (!string.IsNullOrWhiteSpace(payload.DownloadClientId))
+        foreach (var candidate in candidateStrings)
         {
-            var match = allTorrents.FirstOrDefault(t =>
-                string.Equals(t.InfoHash, payload.DownloadClientId, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(t.Name, payload.DownloadClientId, StringComparison.OrdinalIgnoreCase));
-            if (match != null)
+            if (string.IsNullOrWhiteSpace(candidate))
             {
-                return match;
+                continue;
             }
-        }
 
-        if (!string.IsNullOrWhiteSpace(payload.DownloadId))
-        {
+            var normalizedHash = NormalizeCandidateInfoHash(candidate);
             var match = allTorrents.FirstOrDefault(t =>
-                string.Equals(t.InfoHash, payload.DownloadId, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(t.Name, payload.DownloadId, StringComparison.OrdinalIgnoreCase));
+                (!string.IsNullOrWhiteSpace(normalizedHash) && string.Equals(t.InfoHash, normalizedHash, StringComparison.OrdinalIgnoreCase)) ||
+                string.Equals(t.InfoHash, candidate, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(t.Name, candidate, StringComparison.OrdinalIgnoreCase));
             if (match != null)
             {
                 return match;

@@ -25,6 +25,9 @@ public class ArrWebhookPayload
     [JsonPropertyName("downloadId")]
     public string DownloadId { get; set; }
 
+    [JsonPropertyName("downloadUrl")]
+    public string DownloadUrl { get; set; }
+
     [JsonPropertyName("sourcePath")]
     public string SourcePath { get; set; }
 
@@ -99,6 +102,9 @@ public class ArrWebhookRelease
 
     [JsonPropertyName("downloadId")]
     public string DownloadId { get; set; }
+
+    [JsonPropertyName("downloadUrl")]
+    public string DownloadUrl { get; set; }
 }
 
 public class ArrWebhookSeries
