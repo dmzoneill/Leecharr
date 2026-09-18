@@ -316,6 +316,7 @@ public class DelugeJsonRpcController : ControllerBase
             "label.get_torrents" => this.HandleLabelGetTorrents(args, id),
             "label.add" or "label.add_label" => this.HandleLabelAdd(args, id),
             "label.remove" => this.HandleLabelRemove(args, id),
+            "label.clean" or "label.clean_labels" => this.HandleLabelClean(id),
             "label.get_options" => this.HandleLabelGetOptions(args, id),
             "label.set_options" => this.HandleLabelSetOptions(args, id),
             "label.set_torrent" => await this.HandleLabelSetTorrentAsync(args, id),
@@ -508,6 +509,8 @@ public class DelugeJsonRpcController : ControllerBase
                             "label.add",
                             "label.add_label",
                             "label.remove",
+                            "label.clean",
+                            "label.clean_labels",
                             "label.get_options",
                             "label.set_options",
                         },
@@ -563,6 +566,25 @@ public class DelugeJsonRpcController : ControllerBase
         {
             var cat = this.categoryService.GetByName(labelToRemove);
             if (cat != null)
+            {
+                this.categoryService.Delete(cat.Id);
+            }
+        }
+
+        return this.DelugeResult(new { result = true, error = (object)null, id });
+    }
+
+    private IActionResult HandleLabelClean(object id)
+    {
+        var allTorrents = this.torrentService.GetAll();
+        var usedLabels = new HashSet<string>(
+            allTorrents.Where(t => !string.IsNullOrWhiteSpace(t.Category)).Select(t => t.Category),
+            StringComparer.OrdinalIgnoreCase);
+
+        var allCats = this.categoryService.GetAll();
+        foreach (var cat in allCats)
+        {
+            if (!usedLabels.Contains(cat.Name))
             {
                 this.categoryService.Delete(cat.Id);
             }
@@ -712,12 +734,13 @@ public class DelugeJsonRpcController : ControllerBase
                 filters = this.BuildFilterTree(allTorrentsForUi),
                 stats = new
                 {
-                    max_download = this.configService.MaxDownloadSpeedKbps,
-                    max_upload = this.configService.MaxUploadSpeedKbps,
+                    max_download = this.configService.MaxDownloadSpeedKbps <= 0 ? -1.0 : this.configService.MaxDownloadSpeedKbps * 1024.0,
+                    max_upload = this.configService.MaxUploadSpeedKbps <= 0 ? -1.0 : this.configService.MaxUploadSpeedKbps * 1024.0,
                     num_connections = allTorrentsForUi.Sum(t => t.Leechers + t.Seeders),
                     upload_rate = allTorrentsForUi.Sum(t => t.UploadSpeed),
                     download_rate = allTorrentsForUi.Sum(t => t.DownloadSpeed),
                     free_space = this.GetDriveFreeSpace(this.configService.DownloadDir),
+                    dht_nodes = this.downloadEngine?.DhtNodeCount ?? 0,
                 },
             },
             error = (object)null,
@@ -1796,16 +1819,18 @@ public class DelugeJsonRpcController : ControllerBase
         };
 
         var needsFiles = requestedKeys == null || requestedKeys.Count == 0 ||
-            requestedKeys.Contains("files") || requestedKeys.Contains("file_priorities") || requestedKeys.Contains("file_progress") || requestedKeys.Contains("num_files");
+            requestedKeys.Contains("files") || requestedKeys.Contains("file_priorities") || requestedKeys.Contains("file_progress") || requestedKeys.Contains("num_files") ||
+            requestedKeys.Contains("total_wanted") || requestedKeys.Contains("total_done") || requestedKeys.Contains("total_remaining");
 
         List<Dictionary<string, object>> filesList;
         List<int> filePriorities;
         List<double> fileProgress;
         int numFiles;
+        List<TorrentFile> files = null;
 
         if (needsFiles)
         {
-            var files = this.torrentFileService.GetFiles(t.Id).ToList();
+            files = this.torrentFileService.GetFiles(t.Id).ToList();
             var downloadTask = this.torrentService?.GetDownloadTask(t.Id);
             TorrentFileProgressEnricher.Enrich(t, files, downloadTask);
             numFiles = files.Count;
@@ -1913,13 +1938,32 @@ public class DelugeJsonRpcController : ControllerBase
             piecesList = new List<int>();
         }
 
+        var totalWanted = t.TotalSize;
+        var totalDone = (long)(t.TotalSize * t.Progress);
+        if (files != null && files.Count > 0)
+        {
+            var wantedFiles = files.Where(f => f.Priority > 0).ToList();
+            if (wantedFiles.Count > 0)
+            {
+                totalWanted = wantedFiles.Sum(f => f.Size);
+                totalDone = t.Progress >= 1.0 ? totalWanted : (long)wantedFiles.Sum(f => f.Size * f.Progress);
+            }
+            else
+            {
+                totalWanted = 0;
+                totalDone = 0;
+            }
+        }
+
+        var totalRemaining = Math.Max(0L, totalWanted - totalDone);
+
         var status = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             { "name", t.Name },
             { "total_size", t.TotalSize },
-            { "total_done", (long)(t.TotalSize * t.Progress) },
-            { "total_wanted", t.TotalSize },
-            { "total_remaining", (long)(t.TotalSize * (1.0 - t.Progress)) },
+            { "total_done", totalDone },
+            { "total_wanted", totalWanted },
+            { "total_remaining", totalRemaining },
             { "total_payload_download", t.Downloaded },
             { "total_payload_upload", t.Uploaded },
             { "total_uploaded", t.Uploaded },
@@ -1944,7 +1988,7 @@ public class DelugeJsonRpcController : ControllerBase
             { "num_pieces", t.PieceCount },
             { "piece_length", t.PieceLength },
             { "pieces", piecesList },
-            { "distributed_copies", t.Progress >= 1.0 ? 1.0 : (double)t.Progress },
+            { "distributed_copies", t.Seeders > 0 ? (double)t.Seeders + (t.Leechers > 0 ? 0.5 : 0.0) : (t.Progress >= 1.0 ? 1.0 : (double)t.Progress) },
             { "num_files", numFiles },
             { "files", filesList },
             { "file_priorities", filePriorities },
@@ -1965,7 +2009,7 @@ public class DelugeJsonRpcController : ControllerBase
             { "max_connections", -1 },
             { "max_upload_slots", -1 },
             { "is_finished", t.Status == TorrentStatus.Seeding || t.Progress >= 1.0 },
-            { "is_seed", t.Status == TorrentStatus.Seeding },
+            { "is_seed", t.Status == TorrentStatus.Seeding || t.Progress >= 1.0 },
             { "paused", t.Status == TorrentStatus.Paused },
             { "time_added", new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds() },
             { "hash", t.InfoHash },
