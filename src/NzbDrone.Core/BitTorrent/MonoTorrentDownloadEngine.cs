@@ -2523,7 +2523,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
-    private async Task<bool> CalculatePieceHashDirectAsync(ITorrentManagerInfo manager, int pieceIndex, PieceHash dest)
+    internal async Task<bool> CalculatePieceHashDirectAsync(ITorrentManagerInfo manager, int pieceIndex, PieceHash dest)
     {
         if (manager.TorrentInfo == null)
         {
@@ -2541,7 +2541,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             return false;
         }
 
-        using var sha1 = IncrementalHash.CreateHash(HashAlgorithmName.SHA1);
+        using var sha1 = !dest.V1Hash.IsEmpty ? IncrementalHash.CreateHash(HashAlgorithmName.SHA1) : null;
         using var sha256 = !dest.V2Hash.IsEmpty ? IncrementalHash.CreateHash(HashAlgorithmName.SHA256) : null;
 
         var buffer = ArrayPool<byte>.Shared.Rent(64 * 1024);
@@ -2649,7 +2649,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                                 read = toRead;
                             }
 
-                            sha1.AppendData(buffer, 0, read);
+                            sha1?.AppendData(buffer, 0, read);
                             sha256?.AppendData(buffer, 0, read);
 
                             fileReadOffset += read;
@@ -2665,7 +2665,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         while (fileRemaining > 0)
                         {
                             var toRead = (int)Math.Min(fileRemaining, buffer.Length);
-                            sha1.AppendData(buffer, 0, toRead);
+                            sha1?.AppendData(buffer, 0, toRead);
                             sha256?.AppendData(buffer, 0, toRead);
                             fileRemaining -= toRead;
                             currentOffset += toRead;
@@ -2675,7 +2675,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 }
             }
 
-            sha1.GetHashAndReset(dest.V1Hash.Span);
+            if (sha1 != null && !dest.V1Hash.IsEmpty)
+            {
+                sha1.GetHashAndReset(dest.V1Hash.Span);
+            }
+
             if (sha256 != null && !dest.V2Hash.IsEmpty)
             {
                 sha256.GetHashAndReset(dest.V2Hash.Span);

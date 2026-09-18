@@ -7,6 +7,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -3302,6 +3303,117 @@ public class MonoTorrentDownloadEngineTest
         method.Should().NotBeNull();
         var result = method!.Invoke(this.engine, null);
         result.Should().Be(MonoTorrent.PieceWriter.CachePolicy.WritesOnly);
+    }
+
+    private static MonoTorrent.PieceHash CreatePieceHash(Memory<byte> v1, Memory<byte> v2)
+    {
+        var ctor = typeof(MonoTorrent.PieceHash).GetConstructor(
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+            null,
+            new[] { typeof(Memory<byte>), typeof(Memory<byte>) },
+            null);
+        return (MonoTorrent.PieceHash)ctor!.Invoke(new object[] { v1, v2 });
+    }
+
+    [Test]
+    public async Task CalculatePieceHashDirectAsync_PureV2_DoesNotThrowAndComputesV2Hash()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("pure_v2.bin", length: 16384);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 201,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "pure_v2.bin",
+            Status = TorrentStatus.Paused,
+            SavePath = this.testDownloadDir,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.Should().NotBeNull();
+
+        var filePath = task.Manager.Files[0].FullPath;
+        Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+        var testData = new byte[16384];
+        Random.Shared.NextBytes(testData);
+        await File.WriteAllBytesAsync(filePath, testData);
+
+        var v2Hash = new byte[32];
+        var pieceHash = CreatePieceHash(Memory<byte>.Empty, new Memory<byte>(v2Hash));
+
+        var success = await this.engine.CalculatePieceHashDirectAsync(task.Manager, 0, pieceHash);
+
+        success.Should().BeTrue();
+        v2Hash.Should().Equal(SHA256.HashData(testData));
+    }
+
+    [Test]
+    public async Task CalculatePieceHashDirectAsync_PureV1_ComputesV1HashAndLeavesV2Empty()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("pure_v1.bin", length: 16384);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 202,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "pure_v1.bin",
+            Status = TorrentStatus.Paused,
+            SavePath = this.testDownloadDir,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.Should().NotBeNull();
+
+        var filePath = task.Manager.Files[0].FullPath;
+        Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+        var testData = new byte[16384];
+        Random.Shared.NextBytes(testData);
+        await File.WriteAllBytesAsync(filePath, testData);
+
+        var v1Hash = new byte[20];
+        var pieceHash = CreatePieceHash(new Memory<byte>(v1Hash), Memory<byte>.Empty);
+
+        var success = await this.engine.CalculatePieceHashDirectAsync(task.Manager, 0, pieceHash);
+
+        success.Should().BeTrue();
+        v1Hash.Should().Equal(SHA1.HashData(testData));
+    }
+
+    [Test]
+    public async Task CalculatePieceHashDirectAsync_Hybrid_ComputesBothV1AndV2Hashes()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("hybrid.bin", length: 16384);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 203,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "hybrid.bin",
+            Status = TorrentStatus.Paused,
+            SavePath = this.testDownloadDir,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.Should().NotBeNull();
+
+        var filePath = task.Manager.Files[0].FullPath;
+        Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+        var testData = new byte[16384];
+        Random.Shared.NextBytes(testData);
+        await File.WriteAllBytesAsync(filePath, testData);
+
+        var v1Hash = new byte[20];
+        var v2Hash = new byte[32];
+        var pieceHash = CreatePieceHash(new Memory<byte>(v1Hash), new Memory<byte>(v2Hash));
+
+        var success = await this.engine.CalculatePieceHashDirectAsync(task.Manager, 0, pieceHash);
+
+        success.Should().BeTrue();
+        v1Hash.Should().Equal(SHA1.HashData(testData));
+        v2Hash.Should().Equal(SHA256.HashData(testData));
     }
 
     #endregion
