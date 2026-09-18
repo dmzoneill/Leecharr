@@ -3,10 +3,13 @@
 using System;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Network.Binding;
+using NzbDrone.Core.Network.Vpn;
 
 namespace NzbDrone.Core.Http.Transport;
 
@@ -15,8 +18,12 @@ public class SocketsHttpHandlerProvider : IHttpTransportProvider, IDisposable
     private readonly HttpClient httpClient;
     private readonly SocketsHttpHandler handler;
     private readonly IConfigService configService;
+    private readonly INetworkBindingService networkBindingService;
+    private readonly IVpnKillSwitchService vpnKillSwitchService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private bool disposed;
+
+    internal SocketsHttpHandler Handler => this.handler;
 
     public string ProviderId => "SocketsHttpHandler";
 
@@ -38,9 +45,14 @@ public class SocketsHttpHandlerProvider : IHttpTransportProvider, IDisposable
         SupportsCookieExtraction = true,
     };
 
-    public SocketsHttpHandlerProvider(IConfigService configService = null)
+    public SocketsHttpHandlerProvider(
+        IConfigService configService = null,
+        INetworkBindingService networkBindingService = null,
+        IVpnKillSwitchService vpnKillSwitchService = null)
     {
         this.configService = configService;
+        this.networkBindingService = networkBindingService;
+        this.vpnKillSwitchService = vpnKillSwitchService;
         this.handler = new SocketsHttpHandler
         {
             AutomaticDecompression = DecompressionMethods.All,
@@ -48,6 +60,68 @@ public class SocketsHttpHandlerProvider : IHttpTransportProvider, IDisposable
             PooledConnectionLifetime = TimeSpan.FromMinutes(15),
             PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
             MaxConnectionsPerServer = 50,
+            ConnectCallback = async (context, cancellationToken) =>
+            {
+                if (this.vpnKillSwitchService?.IsFailClosedActive == true)
+                {
+                    throw new SocketException((int)SocketError.NetworkUnreachable);
+                }
+
+                var iface = this.configService?.BindInterface;
+                var host = context.DnsEndPoint.Host;
+                var port = context.DnsEndPoint.Port;
+                IPAddress targetIp = null;
+
+                if (IPAddress.TryParse(host, out var parsedIp))
+                {
+                    targetIp = parsedIp;
+                }
+                else
+                {
+                    try
+                    {
+                        var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken);
+                        if (addresses != null && addresses.Length > 0)
+                        {
+                            targetIp = addresses[0];
+                        }
+                    }
+                    catch
+                    {
+                        // Fallback to DnsEndPoint connect if DNS resolution fails
+                    }
+                }
+
+                var socket = targetIp != null
+                    ? new Socket(targetIp.AddressFamily, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true }
+                    : (context.DnsEndPoint.AddressFamily == AddressFamily.Unspecified
+                        ? new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true }
+                        : new Socket(context.DnsEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true });
+
+                if (!string.IsNullOrWhiteSpace(iface) && this.networkBindingService != null)
+                {
+                    this.networkBindingService.BindSocket(socket, iface);
+                }
+
+                try
+                {
+                    if (targetIp != null)
+                    {
+                        await socket.ConnectAsync(new IPEndPoint(targetIp, port), cancellationToken);
+                    }
+                    else
+                    {
+                        await socket.ConnectAsync(context.DnsEndPoint, cancellationToken);
+                    }
+
+                    return new NetworkStream(socket, ownsSocket: true);
+                }
+                catch
+                {
+                    socket.Dispose();
+                    throw;
+                }
+            },
         };
 
         var proxyType = configService?.ProxyType?.ToLowerInvariant() ?? "none";
