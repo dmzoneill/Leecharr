@@ -1450,6 +1450,126 @@ public class DelugeJsonRpcControllerTest
     }
 
     [Test]
+    public async Task HandleRpc_BuildFilterTree_IncludesAllInTrackerHostAndSupportsMultiLabels()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent
+            {
+                Id = 1,
+                InfoHash = "1111111111111111111111111111111111111111",
+                Label = "movies, 4k",
+                Category = null,
+                TrackerUrl = "http://tracker1.org/announce",
+            },
+            new Torrent
+            {
+                Id = 2,
+                InfoHash = "2222222222222222222222222222222222222222",
+                Label = "movies",
+                Category = null,
+                TrackerUrl = "http://tracker2.com/announce",
+            },
+            new Torrent
+            {
+                Id = 3,
+                InfoHash = "3333333333333333333333333333333333333333",
+                Label = null,
+                Category = "documentary",
+                TrackerUrl = null,
+            },
+        };
+
+        this.torrentService.GetAll().Returns(torrents);
+        this.categoryService.GetAll().Returns(new List<Category>
+        {
+            new Category { Id = 1, Name = "documentary" },
+        });
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_filter_tree\",\"params\":[],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var json = JsonSerializer.Serialize(((JsonResult)result).Value);
+        using var resDoc = JsonDocument.Parse(json);
+        var filterTree = resDoc.RootElement.GetProperty("result");
+
+        // Verify tracker_host includes All entry
+        var trackerHostList = filterTree.GetProperty("tracker_host");
+        trackerHostList[0][0].GetString().Should().Be("All");
+        trackerHostList[0][1].GetInt32().Should().Be(3);
+
+        // Verify labels include distinct split labels
+        var labelList = filterTree.GetProperty("label");
+        labelList[0][0].GetString().Should().Be("All");
+        labelList[0][1].GetInt32().Should().Be(3);
+
+        // \"movies\" should match torrent 1 (comma-separated \"movies, 4k\") and torrent 2 (\"movies\") -> count = 2
+        var moviesLabel = labelList.EnumerateArray().FirstOrDefault(arr => arr[0].GetString() == "movies");
+        moviesLabel.Should().NotBeNull();
+        moviesLabel[1].GetInt32().Should().Be(2);
+
+        // \"4k\" should match torrent 1 -> count = 1
+        var fourKLabel = labelList.EnumerateArray().FirstOrDefault(arr => arr[0].GetString() == "4k");
+        fourKLabel.Should().NotBeNull();
+        fourKLabel[1].GetInt32().Should().Be(1);
+
+        // \"documentary\" should match torrent 3 -> count = 1
+        var docLabel = labelList.EnumerateArray().FirstOrDefault(arr => arr[0].GetString() == "documentary");
+        docLabel.Should().NotBeNull();
+        docLabel[1].GetInt32().Should().Be(1);
+    }
+
+    [Test]
+    public async Task HandleRpc_GetTorrentsStatusAndLabelGetTorrents_MatchesMultiLabeledTorrents()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent1 = new Torrent
+        {
+            Id = 1,
+            InfoHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            Label = "movies, 4k",
+            Name = "Movie 4K",
+        };
+        var torrent2 = new Torrent
+        {
+            Id = 2,
+            InfoHash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            Label = "movies, 1080p",
+            Name = "Movie 1080p",
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent1, torrent2 });
+
+        // Filter by label 4k via core.get_torrents_status
+        using var statusDoc = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{\"label\":\"4k\"},[\"name\"]],\"id\":1}");
+        var statusResult = await this.controller.HandleRpc(statusDoc.RootElement);
+        statusResult.Should().BeOfType<JsonResult>();
+        var statusJson = JsonSerializer.Serialize(((JsonResult)statusResult).Value);
+        using var statusResDoc = JsonDocument.Parse(statusJson);
+        var resObj = statusResDoc.RootElement.GetProperty("result");
+        resObj.TryGetProperty("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", out _).Should().BeTrue();
+        resObj.TryGetProperty("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", out _).Should().BeFalse();
+
+        // Query via label.get_torrents for 4k
+        using var labelDoc = JsonDocument.Parse("{\"method\":\"label.get_torrents\",\"params\":[\"4k\"],\"id\":2}");
+        var labelResult = await this.controller.HandleRpc(labelDoc.RootElement);
+        labelResult.Should().BeOfType<JsonResult>();
+        var labelJson = JsonSerializer.Serialize(((JsonResult)labelResult).Value);
+        using var labelResDoc = JsonDocument.Parse(labelJson);
+        var hashes = labelResDoc.RootElement.GetProperty("result");
+        hashes.GetArrayLength().Should().Be(1);
+        hashes[0].GetString().Should().Be("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    }
+
+    [Test]
     public async Task HandleRpc_GetFreeSpace_ReturnsAvailableSpaceFromDiskProvider()
     {
         var context = new DefaultHttpContext();
