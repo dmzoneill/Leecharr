@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.Notifications;
@@ -284,7 +285,7 @@ public static class NotificationPayloadBuilder
             var rawDesc = !string.IsNullOrWhiteSpace(overview)
                 ? $"{torrentDetails}\n\n{overview}"
                 : torrentDetails;
-            var desc = Truncate(rawDesc, 4096);
+            var desc = Truncate(rawDesc, 2048);
 
             return new
             {
@@ -370,8 +371,8 @@ public static class NotificationPayloadBuilder
         if (string.Equals(implementation, "Telegram", StringComparison.OrdinalIgnoreCase))
         {
             var text = torrent != null
-                ? $"*Leecharr [{EscapeTelegramMarkdown(eventType)}]*\n*{EscapeTelegramMarkdown(torrent.Name)}*\nCategory: {EscapeTelegramMarkdown(torrent.Category ?? "None")}\nProgress: {torrent.Progress * 100:F1}%\nStatus: {torrent.Status}"
-                : $"*Leecharr [{EscapeTelegramMarkdown(eventType)}]*\n{EscapeTelegramMarkdown(ExtractMessage(genericPayload, eventType))}";
+                ? $"*Leecharr \\[{EscapeTelegramMarkdown(eventType)}\\]*\n*{EscapeTelegramMarkdown(torrent.Name)}*\nCategory: {EscapeTelegramMarkdown(torrent.Category ?? "None")}\nProgress: {torrent.Progress * 100:F1}%\nStatus: {EscapeTelegramMarkdown(torrent.Status.ToString())}"
+                : $"*Leecharr \\[{EscapeTelegramMarkdown(eventType)}\\]*\n{EscapeTelegramMarkdown(ExtractMessage(genericPayload, eventType))}";
 
             var payloadDict = new Dictionary<string, object>
             {
@@ -505,12 +506,34 @@ public static class NotificationPayloadBuilder
             return null;
         }
 
+        if (meta is TorrentMediaMetadata tmm)
+        {
+            return tmm.Overview;
+        }
+
+        if (meta is IDictionary<string, object> dict && dict.TryGetValue("Overview", out var ovVal))
+        {
+            return ovVal?.ToString();
+        }
+
         try
         {
             return (string)meta.Overview;
         }
         catch
         {
+            try
+            {
+                var prop = ((object)meta).GetType().GetProperty("Overview");
+                if (prop != null)
+                {
+                    return prop.GetValue((object)meta) as string;
+                }
+            }
+            catch
+            {
+            }
+
             return null;
         }
     }
