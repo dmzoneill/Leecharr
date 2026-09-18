@@ -31,6 +31,7 @@ public class IndexerController : Controller
     private readonly HttpClient httpClient;
     private readonly IDownloadHistoryService downloadHistoryService;
     private readonly IIndexerStatusService indexerStatusService;
+    private readonly ITorrentRepository torrentRepository;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public IndexerController(
@@ -42,7 +43,8 @@ public class IndexerController : Controller
         ISafeHttpClientService safeHttpClientService = null,
         HttpClient httpClient = null,
         IDownloadHistoryService downloadHistoryService = null,
-        IIndexerStatusService indexerStatusService = null)
+        IIndexerStatusService indexerStatusService = null,
+        ITorrentRepository torrentRepository = null)
     {
         this.indexerRepository = indexerRepository;
         this.torznabClient = torznabClient;
@@ -53,6 +55,7 @@ public class IndexerController : Controller
         this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
         this.downloadHistoryService = downloadHistoryService;
         this.indexerStatusService = indexerStatusService ?? new IndexerStatusService();
+        this.torrentRepository = torrentRepository;
     }
 
     [HttpGet]
@@ -458,6 +461,8 @@ public class IndexerController : Controller
                         UploadVolumeFactor = r.UploadVolumeFactor,
                         ResponseTotal = r.ResponseTotal,
                         ResponseOffset = r.ResponseOffset,
+                        MinimumRatio = r.MinimumRatio,
+                        MinimumSeedTime = r.MinimumSeedTime,
                     });
                 }
             }
@@ -640,6 +645,29 @@ public class IndexerController : Controller
         if (torrent == null)
         {
             return this.BadRequest("Failed to grab release.");
+        }
+
+        var ratioUpdated = false;
+        if (request.MinimumRatio.HasValue && request.MinimumRatio.Value > 0)
+        {
+            torrent.TargetRatio = Math.Max(torrent.TargetRatio, request.MinimumRatio.Value);
+            ratioUpdated = true;
+        }
+
+        if (request.MinimumSeedTime.HasValue && request.MinimumSeedTime.Value > 0)
+        {
+            var seedTimeMinutes = (int)Math.Ceiling(request.MinimumSeedTime.Value / 60.0);
+            torrent.TargetSeedTimeMinutes = Math.Max(torrent.TargetSeedTimeMinutes, seedTimeMinutes);
+            ratioUpdated = true;
+        }
+
+        if (ratioUpdated)
+        {
+            this.torrentRepository?.Update(torrent);
+            if (this.torrentService != null)
+            {
+                await this.torrentService.UpdateAsync(torrent);
+            }
         }
 
         if (this.downloadHistoryService != null)

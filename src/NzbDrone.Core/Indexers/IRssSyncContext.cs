@@ -21,6 +21,8 @@ public interface IRssSyncContext
     ICategoryService CategoryService { get; }
 
     IIndexerStatusService IndexerStatusService { get; }
+
+    ITorrentRepository TorrentRepository { get; }
 }
 
 public class RssSyncContext : IRssSyncContext
@@ -31,7 +33,8 @@ public class RssSyncContext : IRssSyncContext
         ISafeHttpClientService safeHttpClientService = null,
         IDownloadHistoryService downloadHistoryService = null,
         ICategoryService categoryService = null,
-        IIndexerStatusService indexerStatusService = null)
+        IIndexerStatusService indexerStatusService = null,
+        ITorrentRepository torrentRepository = null)
     {
         this.TorrentFileParser = torrentFileParser ?? new TorrentFileParser();
         this.HttpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
@@ -39,6 +42,7 @@ public class RssSyncContext : IRssSyncContext
         this.DownloadHistoryService = downloadHistoryService;
         this.CategoryService = categoryService;
         this.IndexerStatusService = indexerStatusService;
+        this.TorrentRepository = torrentRepository;
     }
 
     public ITorrentFileParser TorrentFileParser { get; }
@@ -52,4 +56,6 @@ public class RssSyncContext : IRssSyncContext
     public ICategoryService CategoryService { get; }
 
     public IIndexerStatusService IndexerStatusService { get; }
+
+    public ITorrentRepository TorrentRepository { get; }
 }
