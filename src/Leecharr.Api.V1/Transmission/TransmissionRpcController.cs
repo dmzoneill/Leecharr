@@ -9,6 +9,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -243,7 +244,7 @@ public class TransmissionRpcController : ControllerBase
                 "torrent-reannounce" => await this.HandleTorrentReannounceAsync(request, tag),
                 "torrent-remove" => await this.HandleTorrentRemoveAsync(request, tag),
                 "torrent-rename-path" => await this.HandleTorrentRenamePathAsync(request, tag),
-                "port-test" => this.HandlePortTest(tag),
+                "port-test" => await this.HandlePortTestAsync(tag),
                 "blocklist-update" => await this.HandleBlocklistUpdateAsync(tag),
                 _ => this.HandleUnknownMethod(request, tag),
             };
@@ -1101,12 +1102,48 @@ public class TransmissionRpcController : ControllerBase
         });
     }
 
-    private IActionResult HandlePortTest(object tag)
+    private async Task<IActionResult> HandlePortTestAsync(object tag)
     {
+        if (this.downloadEngine?.IsHaltedByKillSwitch == true)
+        {
+            return this.Ok(new TransmissionRpcResponse
+            {
+                Result = "success",
+                Arguments = new Dictionary<string, object> { { "port-is-open", false } },
+                Tag = tag,
+            });
+        }
+
+        var port = this.configService?.ListenPort ?? 51413;
+        if (port <= 0)
+        {
+            port = 51413;
+        }
+
+        var isOpen = false;
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            var response = await this.safeHttpClientService.DownloadStringAsync(
+                $"https://portcheck.transmissionbt.com/{port}",
+                TimeSpan.FromSeconds(3),
+                cts.Token);
+
+            if (!string.IsNullOrWhiteSpace(response) && (response.Trim() == "1" || response.Contains('1')))
+            {
+                isOpen = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Port check failed for port {0}", port);
+            isOpen = false;
+        }
+
         return this.Ok(new TransmissionRpcResponse
         {
             Result = "success",
-            Arguments = new Dictionary<string, object> { { "port-is-open", true } },
+            Arguments = new Dictionary<string, object> { { "port-is-open", isOpen } },
             Tag = tag,
         });
     }

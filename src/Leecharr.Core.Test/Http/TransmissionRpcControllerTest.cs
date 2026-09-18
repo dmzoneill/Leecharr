@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Transmission;
@@ -2525,5 +2526,130 @@ public class TransmissionRpcControllerTest
         result.Should().BeOfType<OkObjectResult>();
         added.Priority.Should().Be(1);
         await this.torrentService.Received(1).UpdateAsync(added);
+    }
+
+    [Test]
+    public async Task HandleRpc_PortTest_WhenPortIsOpen_ReturnsPortIsOpenTrue()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.ListenPort.Returns(51413);
+        this.safeHttpClientService.DownloadStringAsync(
+            "https://portcheck.transmissionbt.com/51413",
+            Arg.Any<TimeSpan?>(),
+            Arg.Any<CancellationToken>())
+            .Returns("1");
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "port-test",
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+
+        var args = response.Arguments as Dictionary<string, object>;
+        args.Should().NotBeNull();
+        args!["port-is-open"].Should().Be(true);
+    }
+
+    [Test]
+    public async Task HandleRpc_PortTest_WhenPortIsClosed_ReturnsPortIsOpenFalse()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.ListenPort.Returns(51413);
+        this.safeHttpClientService.DownloadStringAsync(
+            "https://portcheck.transmissionbt.com/51413",
+            Arg.Any<TimeSpan?>(),
+            Arg.Any<CancellationToken>())
+            .Returns("0");
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "port-test",
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+
+        var args = response.Arguments as Dictionary<string, object>;
+        args.Should().NotBeNull();
+        args!["port-is-open"].Should().Be(false);
+    }
+
+    [Test]
+    public async Task HandleRpc_PortTest_WhenServiceThrowsOrTimesOut_ReturnsPortIsOpenFalse()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.ListenPort.Returns(6881);
+        this.safeHttpClientService.DownloadStringAsync(
+            "https://portcheck.transmissionbt.com/6881",
+            Arg.Any<TimeSpan?>(),
+            Arg.Any<CancellationToken>())
+            .Returns<string>(x => throw new TimeoutException("Connection timed out"));
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "port-test",
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+
+        var args = response.Arguments as Dictionary<string, object>;
+        args.Should().NotBeNull();
+        args!["port-is-open"].Should().Be(false);
+    }
+
+    [Test]
+    public async Task HandleRpc_PortTest_WhenKillSwitchIsActive_ReturnsPortIsOpenFalseWithoutCallingExternalChecker()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.downloadEngine.IsHaltedByKillSwitch.Returns(true);
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "port-test",
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+
+        var args = response.Arguments as Dictionary<string, object>;
+        args.Should().NotBeNull();
+        args!["port-is-open"].Should().Be(false);
+
+        await this.safeHttpClientService.DidNotReceiveWithAnyArgs().DownloadStringAsync(default(string)!, default, default);
     }
 }
