@@ -58,7 +58,7 @@ public class MediaInspectionServiceTest
         info.VideoCodec.Should().Be(expectedCodec);
     }
 
-    [TestCase("A_TRUEHD", "Dolby TrueHD / Atmos")]
+    [TestCase("A_TRUEHD", "Dolby TrueHD")]
     [TestCase("A_EAC3", "E-AC3 / Dolby Digital Plus")]
     [TestCase("A_AC3", "AC3 / Dolby Digital")]
     [TestCase("A_DTS", "DTS")]
