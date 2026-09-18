@@ -913,22 +913,39 @@ public class TransmissionRpcController : ControllerBase
 
     private async Task<IActionResult> HandleTorrentSetLocationAsync(TransmissionRpcRequest request, object tag)
     {
-        var locIds = this.ExtractIds(request.Arguments, false);
         var newLocation = request.Arguments != null && request.Arguments.TryGetValue("location", out var locElem)
-            ? locElem.GetString()
+            ? (locElem.ValueKind == JsonValueKind.String ? locElem.GetString() : locElem.ToString())
             : null;
-        var shouldMove = true;
-        if (request.Arguments != null && request.Arguments.TryGetValue("move", out var moveElem))
+
+        if (string.IsNullOrWhiteSpace(newLocation))
         {
-            shouldMove = SafeGetBoolean(moveElem, defaultValue: true);
+            return this.Ok(new TransmissionRpcResponse { Result = "no location given", Tag = tag });
         }
 
-        if (!string.IsNullOrWhiteSpace(newLocation))
+        var shouldMove = false;
+        if (request.Arguments != null && request.Arguments.TryGetValue("move", out var moveElem))
         {
-            foreach (var id in locIds)
-            {
-                await this.torrentService.SetLocationAsync(id, newLocation, shouldMove);
-            }
+            shouldMove = SafeGetBoolean(moveElem, defaultValue: false);
+        }
+
+        var baseDownloadDir = !string.IsNullOrWhiteSpace(this.configService?.DownloadDir)
+            ? this.configService.DownloadDir
+            : "/downloads";
+
+        var resolvedLocation = Path.IsPathRooted(newLocation)
+            ? Path.GetFullPath(newLocation)
+            : Path.GetFullPath(Path.Combine(baseDownloadDir, newLocation));
+
+        var dirExists = (this.diskProvider != null && this.diskProvider.FolderExists(resolvedLocation)) || Directory.Exists(resolvedLocation);
+        if (!shouldMove && !dirExists)
+        {
+            return this.Ok(new TransmissionRpcResponse { Result = $"directory does not exist: {resolvedLocation}", Tag = tag });
+        }
+
+        var locIds = this.ExtractIds(request.Arguments, false);
+        foreach (var id in locIds)
+        {
+            await this.torrentService.SetLocationAsync(id, resolvedLocation, shouldMove);
         }
 
         return this.Ok(new TransmissionRpcResponse { Result = "success", Tag = tag });
