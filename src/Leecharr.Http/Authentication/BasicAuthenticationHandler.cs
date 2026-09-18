@@ -28,6 +28,8 @@ public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticat
     private readonly IConfigFileProvider configFileProvider;
     private readonly IUserService userService;
     private readonly AuthRateLimiter rateLimiter;
+    private readonly ITrustedNetworkService trustedNetworkService;
+    private readonly IConfigService configService;
 
     public BasicAuthenticationHandler(
         IOptionsMonitor<BasicAuthenticationOptions> options,
@@ -35,12 +37,16 @@ public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticat
         UrlEncoder encoder,
         IConfigFileProvider configFileProvider,
         IUserService userService = null,
-        AuthRateLimiter rateLimiter = null)
+        AuthRateLimiter rateLimiter = null,
+        ITrustedNetworkService trustedNetworkService = null,
+        IConfigService configService = null)
         : base(options, logger, encoder)
     {
         this.configFileProvider = configFileProvider;
         this.userService = userService;
         this.rateLimiter = rateLimiter ?? AuthRateLimiter.Shared;
+        this.trustedNetworkService = trustedNetworkService;
+        this.configService = configService;
     }
 
     public static void ResetThrottling()
@@ -158,6 +164,6 @@ public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticat
 
     private string GetClientIpAddress()
     {
-        return this.Context.Connection?.RemoteIpAddress?.ToString() ?? "127.0.0.1";
+        return ClientIpResolver.ResolveClientIp(this.Context, this.trustedNetworkService, this.configService);
     }
 }

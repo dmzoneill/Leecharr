@@ -256,6 +256,7 @@ public class FloodApiController : ControllerBase, IActionFilter
             Path = "/",
             HttpOnly = true,
             SameSite = SameSiteMode.Lax,
+            Secure = this.Request.IsHttps,
         });
 
         this.Response.Cookies.Append("jwt", token, new CookieOptions
@@ -263,6 +264,7 @@ public class FloodApiController : ControllerBase, IActionFilter
             Path = "/",
             HttpOnly = true,
             SameSite = SameSiteMode.Lax,
+            Secure = this.Request.IsHttps,
         });
 
         this.Response.Cookies.Append("token", token, new CookieOptions
@@ -270,6 +272,7 @@ public class FloodApiController : ControllerBase, IActionFilter
             Path = "/",
             HttpOnly = true,
             SameSite = SameSiteMode.Lax,
+            Secure = this.Request.IsHttps,
         });
 
         return this.Ok(new { success = true });
