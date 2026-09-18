@@ -1373,6 +1373,12 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             torrent.ErrorMessage = task.ErrorMessage;
             torrent.Progress = task.Progress;
 
+            var initialSeedingChanged = torrent.InitialSeeding != task.IsSuperSeeding;
+            if (initialSeedingChanged)
+            {
+                torrent.InitialSeeding = task.IsSuperSeeding;
+            }
+
             if (torrent.Status != TorrentStatus.Checking)
             {
                 if (torrent.Progress >= 1.0 && torrent.TotalSize > 0)
@@ -1458,6 +1464,10 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 {
                     this.eventAggregator.PublishEvent(new TorrentDownloadCompletedEvent(torrent));
                 }
+            }
+            else if (initialSeedingChanged)
+            {
+                this.torrentRepository.Update(torrent);
             }
 
             // Record completion timestamp when torrent reaches Seeding

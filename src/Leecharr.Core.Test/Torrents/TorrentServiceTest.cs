@@ -1667,4 +1667,31 @@ public class TorrentServiceTest
         maxConcurrentInCriticalSection.Should().Be(1);
         results.Select(t => t.QueuePosition).OrderBy(p => p).Should().Equal(Enumerable.Range(1, 20));
     }
+
+    [Test]
+    public void SyncWithEngine_SynchronizesInitialSeeding_FromTaskIsSuperSeeding()
+    {
+        var torrent = new Torrent
+        {
+            Id = 501,
+            Name = "SuperSeeding Torrent",
+            Status = TorrentStatus.Seeding,
+            InitialSeeding = true,
+            QueuePosition = 1,
+            DateCompleted = DateTime.UtcNow,
+        };
+
+        var task = Substitute.For<IDownloadTask>();
+        task.Status.Returns(TorrentStatus.Seeding);
+        task.IsSuperSeeding.Returns(false);
+
+        this.torrentRepository.Get(501).Returns(torrent);
+        this.downloadEngine.GetTask(501).Returns(task);
+
+        var result = this.service.Get(501);
+
+        result.Should().NotBeNull();
+        result.InitialSeeding.Should().BeFalse();
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t => t.Id == 501 && !t.InitialSeeding));
+    }
 }

@@ -535,6 +535,166 @@ public class AppLifetimeTest
         mockCmd.Received().CommandText = "PRAGMA wal_checkpoint(PASSIVE);";
     }
 
+    [Test]
+    public async Task BackgroundLoop_SeedGoalReached_WhenRemoveWithDataAndNotImported_PausesInsteadOfDeleting()
+    {
+        this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.TorrentId.Returns(10);
+        mockTask.Status.Returns(TorrentStatus.Seeding);
+        mockTask.TotalSize.Returns(1000L);
+        mockTask.DownloadedBytes.Returns(1000L);
+        mockTask.Progress.Returns(1.0);
+
+        this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { mockTask });
+
+        var torrent = new Torrent
+        {
+            Id = 10,
+            Name = "SeedGoal Not Imported",
+            Status = TorrentStatus.Seeding,
+            Ratio = 2.0,
+            TargetRatio = 1.5,
+            ShareLimitAction = "RemoveWithData",
+            IsImported = false,
+        };
+        this.torrentService.Get(10).Returns(torrent);
+
+        var pauseTcs = new TaskCompletionSource<bool>();
+        this.torrentService.PauseAsync(10).Returns(ci =>
+        {
+            torrent.Status = TorrentStatus.Paused;
+            mockTask.Status.Returns(TorrentStatus.Paused);
+            pauseTcs.TrySetResult(true);
+            return Task.CompletedTask;
+        });
+
+        using var lifetime = new AppLifetime(
+            this.CreateServices(),
+            backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
+
+        await lifetime.StartAsync(CancellationToken.None);
+
+        var completed = await Task.WhenAny(pauseTcs.Task, Task.Delay(2000));
+        completed.Should().Be(pauseTcs.Task, "Seeding check should pause torrent when IsImported is false");
+
+        await lifetime.StopAsync(CancellationToken.None);
+
+        await this.torrentService.Received(1).PauseAsync(10);
+        await this.torrentService.DidNotReceive().DeleteAsync(Arg.Any<int>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task BackgroundLoop_SeedGoalReached_WhenRemoveWithDataAndImported_RemovesWithData()
+    {
+        this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.TorrentId.Returns(11);
+        mockTask.Status.Returns(TorrentStatus.Seeding);
+        mockTask.TotalSize.Returns(1000L);
+        mockTask.DownloadedBytes.Returns(1000L);
+        mockTask.Progress.Returns(1.0);
+
+        this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { mockTask });
+
+        var torrent = new Torrent
+        {
+            Id = 11,
+            Name = "SeedGoal Imported",
+            Status = TorrentStatus.Seeding,
+            Ratio = 2.0,
+            TargetRatio = 1.5,
+            ShareLimitAction = "RemoveWithData",
+            IsImported = true,
+        };
+        this.torrentService.Get(11).Returns(torrent);
+
+        var deleteTcs = new TaskCompletionSource<bool>();
+        this.torrentService.DeleteAsync(11, deleteFiles: true).Returns(ci =>
+        {
+            this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask>());
+            deleteTcs.TrySetResult(true);
+            return Task.CompletedTask;
+        });
+
+        using var lifetime = new AppLifetime(
+            this.CreateServices(),
+            backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
+
+        await lifetime.StartAsync(CancellationToken.None);
+
+        var completed = await Task.WhenAny(deleteTcs.Task, Task.Delay(2000));
+        completed.Should().Be(deleteTcs.Task, "Seeding check should remove torrent with data when IsImported is true");
+
+        await lifetime.StopAsync(CancellationToken.None);
+
+        await this.torrentService.Received(1).DeleteAsync(11, deleteFiles: true);
+        await this.torrentService.DidNotReceive().PauseAsync(Arg.Any<int>());
+    }
+
+    [Test]
+    public async Task BackgroundLoop_SeedGoalReached_WhenSuperSeedingFinishes_TransitionsToPause()
+    {
+        this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.TorrentId.Returns(12);
+        mockTask.Status.Returns(TorrentStatus.Seeding);
+        mockTask.TotalSize.Returns(1000L);
+        mockTask.DownloadedBytes.Returns(1000L);
+        mockTask.Progress.Returns(1.0);
+        mockTask.IsSuperSeeding.Returns(false);
+
+        this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { mockTask });
+
+        var torrent = new Torrent
+        {
+            Id = 12,
+            Name = "SuperSeeding Completed",
+            Status = TorrentStatus.Seeding,
+            Ratio = 2.0,
+            TargetRatio = 1.5,
+            ShareLimitAction = "SuperSeeding",
+            InitialSeeding = false,
+        };
+        this.torrentService.Get(12).Returns(torrent);
+
+        var superSeedTcs = new TaskCompletionSource<bool>();
+        this.torrentService.SetSuperSeedingAsync(12, true).Returns(ci =>
+        {
+            superSeedTcs.TrySetResult(true);
+            return Task.CompletedTask;
+        });
+
+        using var lifetime = new AppLifetime(
+            this.CreateServices(),
+            backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
+
+        await lifetime.StartAsync(CancellationToken.None);
+
+        var firstGoal = await Task.WhenAny(superSeedTcs.Task, Task.Delay(2000));
+        firstGoal.Should().Be(superSeedTcs.Task, "Super seeding should be enabled on first seed goal reach");
+
+        var pauseTcs = new TaskCompletionSource<bool>();
+        this.torrentService.PauseAsync(12).Returns(ci =>
+        {
+            torrent.Status = TorrentStatus.Paused;
+            mockTask.Status.Returns(TorrentStatus.Paused);
+            pauseTcs.TrySetResult(true);
+            return Task.CompletedTask;
+        });
+
+        var completedSuperSeed = await Task.WhenAny(pauseTcs.Task, Task.Delay(2000));
+        completedSuperSeed.Should().Be(pauseTcs.Task, "Seeding check should pause torrent once super seeding completes");
+
+        await lifetime.StopAsync(CancellationToken.None);
+
+        await this.torrentService.Received(1).SetSuperSeedingAsync(12, true);
+        await this.torrentService.Received(1).PauseAsync(12);
+    }
+
     private static bool CheckRatioInSpeedPulse(object body, int expectedId, double expectedRatio)
     {
         if (body is not IEnumerable<object> items)
