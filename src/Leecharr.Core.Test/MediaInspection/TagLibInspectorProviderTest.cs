@@ -97,6 +97,246 @@ public class TagLibInspectorProviderTest
     }
 
     [Test]
+    public void Inspect_MatroskaWithClusterBeforeTracks_SkipsClusterAndParsesTracks()
+    {
+        using var ms = new MemoryStream();
+
+        // 1. EBML Header
+        using (var ebmlMs = new MemoryStream())
+        {
+            WriteEbmlString(ebmlMs, 0x4282, "matroska");
+            var ebmlPayload = ebmlMs.ToArray();
+            WriteId(ms, 0x1A45DFA3);
+            WriteSize(ms, ebmlPayload.Length);
+            ms.Write(ebmlPayload);
+        }
+
+        // 2. Segment
+        WriteId(ms, 0x18538067);
+        WriteSize(ms, -1);
+
+        // 3. Cluster (0x1F43B675) before Tracks
+        var clusterPayload = new byte[512];
+        Array.Fill(clusterPayload, (byte)0xAB);
+        WriteId(ms, 0x1F43B675);
+        WriteSize(ms, clusterPayload.Length);
+        ms.Write(clusterPayload);
+
+        // 4. Tracks
+        WriteId(ms, 0x1654AE6B);
+        WriteSize(ms, -1);
+
+        // Video TrackEntry
+        WriteId(ms, 0xAE);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0x83, 1);
+        WriteEbmlString(ms, 0x86, "V_MPEGH/ISO/HEVC");
+        WriteId(ms, 0xE0);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0xB0, 1920);
+        WriteEbmlUInt(ms, 0xBA, 1080);
+
+        // Audio TrackEntry
+        WriteId(ms, 0xAE);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0x83, 2);
+        WriteEbmlString(ms, 0x86, "A_EAC3");
+        WriteId(ms, 0xE1);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0x9F, 6);
+
+        ms.Position = 0;
+        var result = this.provider.Inspect(ms, "movie.mkv");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("Matroska (MKV)");
+        result.VideoCodec.Should().Be("HEVC (H.265)");
+        result.Width.Should().Be(1920);
+        result.Height.Should().Be(1080);
+        result.AudioCodec.Should().Be("E-AC3 / Dolby Digital Plus");
+        result.AudioChannels.Should().Be("5.1");
+    }
+
+    [Test]
+    public void Inspect_MatroskaWithSeekHeadPointingToTracksBeyondBuffer_SeeksAndReadsTracks()
+    {
+        using var ms = new MemoryStream();
+
+        // 1. EBML Header
+        using (var ebmlMs = new MemoryStream())
+        {
+            WriteEbmlString(ebmlMs, 0x4282, "matroska");
+            var ebmlPayload = ebmlMs.ToArray();
+            WriteId(ms, 0x1A45DFA3);
+            WriteSize(ms, ebmlPayload.Length);
+            ms.Write(ebmlPayload);
+        }
+
+        // 2. Segment
+        WriteId(ms, 0x18538067);
+        WriteSize(ms, -1);
+        long segmentStart = ms.Position;
+
+        // Tracks will be written at an offset beyond the initial 64KB buffer (e.g. 70,000 bytes into Segment)
+        const long tracksSeekOffset = 70000;
+
+        // 3. SeekHead (0x114D9B74)
+        using (var seekHeadMs = new MemoryStream())
+        {
+            // Seek entry (0x4DBB)
+            using (var seekEntryMs = new MemoryStream())
+            {
+                // SeekID (0x53AB) = 0x1654AE6B (Tracks)
+                WriteId(seekEntryMs, 0x53AB);
+                WriteSize(seekEntryMs, 4);
+                seekEntryMs.Write(new byte[] { 0x16, 0x54, 0xAE, 0x6B });
+
+                // SeekPosition (0x53AC)
+                WriteEbmlUInt(seekEntryMs, 0x53AC, (ulong)tracksSeekOffset);
+
+                var seekEntryBytes = seekEntryMs.ToArray();
+                WriteId(seekHeadMs, 0x4DBB);
+                WriteSize(seekHeadMs, seekEntryBytes.Length);
+                seekHeadMs.Write(seekEntryBytes);
+            }
+
+            var seekHeadBytes = seekHeadMs.ToArray();
+            WriteId(ms, 0x114D9B74);
+            WriteSize(ms, seekHeadBytes.Length);
+            ms.Write(seekHeadBytes);
+        }
+
+        // 4. Fill padding until reaching tracksSeekOffset from segmentStart
+        long currentOffsetFromSegment = ms.Position - segmentStart;
+        if (currentOffsetFromSegment < tracksSeekOffset)
+        {
+            var padding = new byte[tracksSeekOffset - currentOffsetFromSegment];
+            ms.Write(padding);
+        }
+
+        // 5. Tracks element at tracksSeekOffset
+        WriteId(ms, 0x1654AE6B);
+        WriteSize(ms, -1);
+
+        // Video TrackEntry
+        WriteId(ms, 0xAE);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0x83, 1);
+        WriteEbmlString(ms, 0x86, "V_AV1");
+        WriteId(ms, 0xE0);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0xB0, 1280);
+        WriteEbmlUInt(ms, 0xBA, 720);
+
+        // Audio TrackEntry
+        WriteId(ms, 0xAE);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0x83, 2);
+        WriteEbmlString(ms, 0x86, "A_OPUS");
+        WriteId(ms, 0xE1);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0x9F, 2);
+
+        ms.Position = 0;
+        var result = this.provider.Inspect(ms, "movie.mkv");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("Matroska (MKV)");
+        result.VideoCodec.Should().Be("AV1");
+        result.Width.Should().Be(1280);
+        result.Height.Should().Be(720);
+        result.AudioCodec.Should().Be("Opus");
+        result.AudioChannels.Should().Be("2.0");
+    }
+
+    [Test]
+    public void Inspect_MalformedMatroska_FailsGracefullyToFilenameInspection()
+    {
+        var corruptData = new byte[] { 0x1A, 0x45, 0xDF, 0xA3, 0x01, 0xFF, 0xFE, 0xFD };
+        using var ms = new MemoryStream(corruptData);
+
+        var result = this.provider.Inspect(ms, "Inception.2010.1080p.BluRay.x264.DTS-HD.MA.5.1.mkv");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("Matroska (MKV)");
+        result.VideoCodec.Should().Be("AVC / H.264");
+        result.AudioCodec.Should().Be("DTS-HD MA");
+    }
+
+    [Test]
+    public void Inspect_AudioTrackWithUnknownChildMasterElement_AdvancesOffsetWithoutLooping()
+    {
+        using var ms = new MemoryStream();
+
+        // 1. EBML Header
+        using (var ebmlMs = new MemoryStream())
+        {
+            WriteEbmlString(ebmlMs, 0x4282, "matroska");
+            var ebmlPayload = ebmlMs.ToArray();
+            WriteId(ms, 0x1A45DFA3);
+            WriteSize(ms, ebmlPayload.Length);
+            ms.Write(ebmlPayload);
+        }
+
+        // 2. Segment
+        WriteId(ms, 0x18538067);
+        WriteSize(ms, -1);
+
+        // 3. Tracks
+        WriteId(ms, 0x1654AE6B);
+        WriteSize(ms, -1);
+
+        // Audio TrackEntry with unknown master elements inside
+        WriteId(ms, 0xAE);
+        WriteSize(ms, -1);
+
+        WriteEbmlUInt(ms, 0x83, 2);
+        WriteEbmlString(ms, 0x86, "A_FLAC");
+
+        // Insert unknown master element (0x1254C367 Tags) inside TrackEntry
+        byte[] dummyMasterPayload = new byte[] { 0x01, 0x02, 0x03, 0x04 };
+        WriteId(ms, 0x1254C367);
+        WriteSize(ms, dummyMasterPayload.Length);
+        ms.Write(dummyMasterPayload);
+
+        // Audio Settings
+        WriteId(ms, 0xE1);
+        WriteSize(ms, -1);
+
+        // Inside Audio settings, insert another unknown element (0x1F43B675 Cluster)
+        WriteId(ms, 0x1F43B675);
+        WriteSize(ms, 4);
+        ms.Write(new byte[] { 0xAA, 0xBB, 0xCC, 0xDD });
+
+        WriteEbmlUInt(ms, 0x9F, 6);
+
+        ms.Position = 0;
+        var result = this.provider.Inspect(ms, "audio.mkv");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("Matroska (MKV)");
+        result.AudioCodec.Should().Be("FLAC");
+        result.AudioChannels.Should().Be("5.1");
+    }
+
+    [Test]
+    public void ScanBufferForHdr10PlusSei_ProcessesBufferWithoutQuadraticRescan()
+    {
+        using var ms = new MemoryStream();
+
+        ms.Write(new byte[] { 0x00, 0x00, 0x00, 0x01 });
+        byte[] seiNal = new byte[] { 0x4E, 0x01, 0x04, 0x05, 0xB5, 0x00, 0x3C, 0x00, 0x01 };
+        ms.Write(seiNal);
+
+        ms.Write(new byte[] { 0x00, 0x00, 0x01, 0x26, 0x01 });
+
+        var buffer = ms.ToArray();
+        bool hasHdr10Plus = TagLibInspectorProvider.ScanBufferForHdr10PlusSei(buffer, 0, buffer.Length);
+
+        hasHdr10Plus.Should().BeTrue();
+    }
+
+    [Test]
     public void Inspect_NonFaststartMp4WithMdatContainingAv01_DoesNotFalselyDetectAv1AndFindsMoov()
     {
         // 1. ftyp box
