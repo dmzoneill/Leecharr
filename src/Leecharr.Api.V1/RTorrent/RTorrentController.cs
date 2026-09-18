@@ -13,6 +13,7 @@ using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
+using NzbDrone.Common.Serializer;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
@@ -82,7 +83,7 @@ public class RTorrentController : ControllerBase
 
         try
         {
-            var doc = XDocument.Parse(requestBody);
+            var doc = SafeXmlParser.Parse(requestBody);
             var methodName = doc.Root?.Element("methodName")?.Value ?? string.Empty;
             var paramsElement = doc.Root?.Element("params");
             var paramValues = ExtractParamValues(paramsElement);

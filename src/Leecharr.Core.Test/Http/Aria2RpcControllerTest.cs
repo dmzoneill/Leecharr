@@ -1596,6 +1596,19 @@ public class Aria2RpcControllerTest
         });
     }
 
+    [Test]
+    public async Task HandleRpc_XmlRpcRequest_WithDtdProcessing_ReturnsXmlRpcFault()
+    {
+        var rawXml = "<!DOCTYPE foo [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><methodCall><methodName>aria2.getVersion</methodName></methodCall>";
+        this.SetXmlRequestBody(rawXml);
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)actionResult;
+        contentResult.Content.Should().Contain("fault");
+        contentResult.Content.Should().Contain("Invalid XML-RPC request");
+    }
+
     private static string GetStructMember(XElement structElem, string memberName)
     {
         var member = structElem.Elements("member").FirstOrDefault(m => m.Element("name")?.Value == memberName);

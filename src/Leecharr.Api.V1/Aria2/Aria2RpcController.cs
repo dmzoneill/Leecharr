@@ -8,11 +8,13 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using System.Xml;
 using System.Xml.Linq;
 using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
+using NzbDrone.Common.Serializer;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
@@ -176,7 +178,17 @@ public class Aria2RpcController : ControllerBase
                     var trimmed = rawBody.TrimStart();
                     if (trimmed.StartsWith("<", StringComparison.Ordinal))
                     {
-                        var xmlDoc = XDocument.Parse(rawBody);
+                        XDocument xmlDoc;
+                        try
+                        {
+                            xmlDoc = SafeXmlParser.Parse(rawBody);
+                        }
+                        catch (XmlException ex)
+                        {
+                            this.logger.Warn(ex, "Failed to parse Aria2 XML-RPC request");
+                            return this.BuildXmlRpcFault(1, "Invalid XML-RPC request");
+                        }
+
                         var xmlMethodName = xmlDoc.Root?.Element("methodName")?.Value ?? string.Empty;
 
                         var isXmlAuth = RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider);

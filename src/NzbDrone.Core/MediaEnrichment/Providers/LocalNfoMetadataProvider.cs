@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using NLog;
+using NzbDrone.Common.Serializer;
 using NzbDrone.Core.Configuration;
 
 namespace NzbDrone.Core.MediaEnrichment.Providers;
@@ -186,7 +187,7 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
 
         try
         {
-            var doc = XDocument.Parse(xmlContent);
+            var doc = SafeXmlParser.Parse(xmlContent);
             var root = doc.Root;
             if (root != null)
             {
