@@ -1470,11 +1470,74 @@ public class TransmissionRpcControllerTest
 
         var current = args["current-stats"] as Dictionary<string, object>;
         current.Should().NotBeNull();
-        current!["downloadedBytes"].Should().Be(20000L);
-        current["uploadedBytes"].Should().Be(21500L);
-        current["filesAdded"].Should().Be(5);
+        current!["downloadedBytes"].Should().Be(0L);
+        current["uploadedBytes"].Should().Be(0L);
+        current["filesAdded"].Should().Be(0);
         current["sessionCount"].Should().Be(1);
         ((long)current["secondsActive"]).Should().BeGreaterThanOrEqualTo(0);
+    }
+
+    [Test]
+    public async Task HandleRpc_SessionStats_WithActiveTasksAndRecentTorrents_PopulatesCurrentStatsFromSessionMetrics()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var task1 = Substitute.For<IDownloadTask>();
+        task1.DownloadSpeed.Returns(2048L);
+        task1.UploadSpeed.Returns(512L);
+        task1.DownloadedBytes.Returns(50000L);
+        task1.UploadedBytes.Returns(15000L);
+
+        var task2 = Substitute.For<IDownloadTask>();
+        task2.DownloadSpeed.Returns(1024L);
+        task2.UploadSpeed.Returns(512L);
+        task2.DownloadedBytes.Returns(25000L);
+        task2.UploadedBytes.Returns(5000L);
+
+        this.downloadEngine.GetAllTasks().Returns(new[] { task1, task2 });
+
+        var recentTorrent1 = new Torrent { Id = 1, Name = "Recent 1", Status = TorrentStatus.Downloading, DateAdded = DateTime.UtcNow, Downloaded = 100000, Uploaded = 20000, DownloadSpeed = 50, UploadSpeed = 10 };
+        var recentTorrent2 = new Torrent { Id = 2, Name = "Recent 2", Status = TorrentStatus.Seeding, DateAdded = DateTime.UtcNow, Downloaded = 200000, Uploaded = 50000, DownloadSpeed = 20, UploadSpeed = 30 };
+        var oldTorrent = new Torrent { Id = 3, Name = "Old 1", Status = TorrentStatus.Paused, DateAdded = DateTime.UtcNow.AddDays(-10), Downloaded = 300000, Uploaded = 10000, DownloadSpeed = 0, UploadSpeed = 0 };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { recentTorrent1, recentTorrent2, oldTorrent });
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "session-stats",
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+
+        var args = response.Arguments as Dictionary<string, object>;
+        args.Should().NotBeNull();
+        args!["downloadSpeed"].Should().Be(3072L);
+        args["uploadSpeed"].Should().Be(1024L);
+        args["activeTorrentCount"].Should().Be(2);
+        args["pausedTorrentCount"].Should().Be(1);
+        args["torrentCount"].Should().Be(3);
+
+        var cumulative = args["cumulative-stats"] as Dictionary<string, object>;
+        cumulative.Should().NotBeNull();
+        cumulative!["downloadedBytes"].Should().Be(600000L);
+        cumulative["uploadedBytes"].Should().Be(80000L);
+        cumulative["filesAdded"].Should().Be(3);
+        cumulative["sessionCount"].Should().Be(1);
+
+        var current = args["current-stats"] as Dictionary<string, object>;
+        current.Should().NotBeNull();
+        current!["downloadedBytes"].Should().Be(75000L);
+        current["uploadedBytes"].Should().Be(20000L);
+        current["filesAdded"].Should().Be(2);
+        current["sessionCount"].Should().Be(1);
     }
 
     [Test]
