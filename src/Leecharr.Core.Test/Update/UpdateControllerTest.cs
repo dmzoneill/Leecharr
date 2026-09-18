@@ -9,6 +9,7 @@ using Leecharr.Api.V1.Update;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Update;
 
 namespace Leecharr.Core.Test.Update;
@@ -50,7 +51,35 @@ public class UpdateControllerTest
         list[0].Version.Should().Be("1.0.30");
         list[0].Installed.Should().BeTrue();
         list[0].Latest.Should().BeTrue();
+        list[0].IsContainer.Should().Be(OsInfo.IsContainer);
         list[0].Changes.New.Should().Contain("Added DiskSpace and Memory health checks");
         list[0].Changes.Fixed.Should().Contain("Fixed async health check execution");
+    }
+
+    [Test]
+    public async Task GetUpdates_PopulatesIsContainerFromOsInfo()
+    {
+        var originalEnv = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER");
+        try
+        {
+            Environment.SetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER", "true");
+            var updateService = Substitute.For<IUpdateCheckService>();
+            updateService.GetAvailableUpdatesAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(new List<UpdatePackage>
+            {
+                new UpdatePackage { Version = "1.0.31" },
+            }));
+
+            var controller = new UpdateController(updateService);
+            var actionResult = await controller.GetUpdates();
+
+            var okResult = actionResult.Result as OkObjectResult;
+            var list = okResult.Value as List<UpdateResource>;
+            list.Should().NotBeNull();
+            list[0].IsContainer.Should().BeTrue();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER", originalEnv);
+        }
     }
 }
