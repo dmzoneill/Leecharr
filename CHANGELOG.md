@@ -6,6 +6,106 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.15.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.15.2) - 2026-09-18
+
+### ✨ Features
+- feat(rpc): implement qBittorrent /api/v2/log/main and /api/v2/log/peers endpoints (fixes #924)
+
+### 🐛 Bug Fixes
+- fix(auth): secure session cookies and protect rate limiter from spoofed forwarded headers (fixes #882)
+- fix(notifications): limit Discord embed description to 2048 chars and escape Telegram markdown entities (fixes #847)
+- fix(ci): protect abbreviation dots with trailing dot in CleanTitle
+- fix(indexers): support multi-category search, contextual mode detection, and validate season for episode parameter (fixes #856)
+- fix(ci): fix CleanTitle abbreviation regex word boundary and update iso test cases in MediaInspectionServiceTest
+- fix(security): enforce VPN kill switch and network binding in TrackerBoostService (fixes #871)
+- fix(bittorrent): respect AnnounceToAllTiers and AnnounceToAllInTier in ForceAnnounceAsync (fixes #861)
+- fix(media-enrichment): merge fallback metadata without poster and replace empty placeholders (fixes #850)
+- fix(search): deduplicate search results, rank by seeders, and align 404 status (fixes #851)
+- fix(transmission): enforce interface binding, proxy, and blocklist in EmbeddedTransmissionEngine (fixes #884)
+- fix(deluge-rpc): validate temp upload paths and report failure on missing files (fixes #853)
+- fix(torrents): protect unimported files on seed goal and sync super-seeding state (fixes #880)
+- fix(notifications): enhance Gotify and Pushover priorities, bounds, Slack blocks, and Telegram escaping (fixes #862)
+- fix(proxy): prevent SOCKS4 WebProxy failure, use socks5h for remote DNS, and clamp RFC 1929 credentials (fixes #858)
+- fix(qbittorrent): implement incremental sync in torrentPeers and fix torrent properties metadata (fixes #860)
+- fix(indexers): deduplicate multi-indexer search results and enforce deterministic pagination (fixes #911)
+- fix(lifecycle): restore torrents on startup when AutoStart is false and pause engine manager (fixes #939)
+- fix(security): use ArgumentList in CustomScriptService to prevent command injection and argument shattering (fixes #869)
+- fix(indexers): propagate OperationCanceledException in TorznabClient (fixes #902)
+- fix(media-inspection): parse ISO/IMG containers, extract subtitle languages, and guard EBML varint reading (fixes #863)
+- fix(qbittorrent): incorporate client identity and user-agent into session key to prevent sync collision (fixes #868)
+- fix(deluge-rpc): prepend root All tracker_host, separate natpmp from upnp, and fix seed_time_limit (fixes #864)
+- fix(queuemanager): add speed hysteresis and respect Torrent.Priority in queue ordering (fixes #915)
+- fix(transmission-rpc): default torrent-set-location move to false and validate target path (fixes #859)
+- fix(webhooks): harden SSRF validation, block IPv6 ULA, and prevent synchronous I/O in WebhookDispatcher (fixes #865)
+- fix(ci): resolve physical path in BackupIntegrationTest for sanitized backup filename
+- fix(datastore): handle TimeSpan, DateTime, and string in TimeOnlyTypeHandler.Parse (fixes #866)
+- fix(trackers): preserve BEP 12 multitracker tiers in addTrackers and Transmission RPC (fixes #875)
+- fix(security): constrain XML parsing with DtdProcessing.Prohibit and entity bounds (fixes #888)
+- fix(security): bind SocketsHttpHandler sockets to network interface and fail closed on VPN drop (fixes #895)
+- fix(automation): execute banPeer, boostTracker, extractArchive, and cleanUnwantedFiles actions (fixes #885)
+- fix(api): mark ResolveBackupPhysicalPath as NonAction to fix Swagger OpenAPI generation in CI
+- fix(bittorrent): configure tracker decompression and populate BEP 10 client version (fixes #879)
+- fix(media-enrichment): support multi-episode ranges and protect year-titled movies in CleanTitle (fixes #874)
+- fix(media-inspection): TrueHD Atmos differentiation, Dolby Vision profiles, and hvcC loop bounds (fixes #867)
+- fix(security): enforce authentication on tracker admin APIs and validate forwarded headers (fixes #876)
+- fix(automation): non-blocking dispatch, deduplicate seed triggers, and debounce in AutomationEventService (fixes #870)
+- fix(bandwidth): remove redundant rate limit override in TorrentController (fixes #873)
+- fix(deluge-rpc): correct is_seed for completed torrents, add label.clean, and fix web.update_ui stats (fixes #872)
+- fix(indexers): preserve MinimumRatio and MinimumSeedTime on RSS grab and search download (fixes #896)
+- fix(prowlarr): preserve reverse proxy subpaths in ProwlarrSyncService (fixes #877)
+- fix(signalr): sanitize private tracker passkeys in TorrentResource broadcasts (fixes #881)
+- fix(qbittorrent): preserve directory in renameFile and align amount_left in sync/maindata (fixes #883)
+- fix(rtorrent): align completed/left bytes to progress and add fault structs in multicall (fixes #878)
+- fix(security): sanitize filesystem paths and mask raw exception messages in APIs (fixes #905)
+- fix(ci): inject safeHttpClientService mock in IndexerResourceSerializationAndTest to prevent SSRF block on localhost
+- fix(media-inspection): detect E-AC-3 Atmos tracks and extract audio tags and artwork (fixes #893)
+- fix(diskspace): resolve Linux symlinks in GetBestMatchingDrive and deduplicate shared volumes (fixes #889)
+- fix(bittorrent): harden UdpTrackerService against amplification, MTU fragmentation, and endianness bugs (fixes #891)
+- fix(rpc): preserve category, properly split tags, and include labels in Flood API (fixes #887)
+- fix(rpc): conform uTorrent getfiles tuple schema and fix setprops rate rounding and trackers (fixes #886)
+- fix(webhooks): normalize infohashes for magnet matching and use SetCategoryAsync in ArrWebhookController (fixes #894)
+- fix(security): halt inbound connections and disable DHT when VPN kill switch is active (fixes #904)
+- fix(torrents): publish TorrentDeletedEvent before deleting child entities and cache (fixes #897)
+- fix(bittorrent): dynamically update listen endpoints and peer sockets on interface/proxy config changes (fixes #906)
+- fix(security): prevent SSRF in indexer test and enforce absolute HTTP/HTTPS URLs (fixes #900)
+- fix(rpc): support POS_SET, POS_CUR, POS_END with offsets in aria2.changePosition (fixes #898)
+- fix(bandwidth): allow -1 for paused schedule tiers and validate days bitmask in SpeedScheduleController (fixes #899)
+- fix(datastore): add periodic SQLite WAL checkpointing and autocheckpoint pragma (fixes #929)
+- fix(torrents): validate ownership, clamp ranges, and add batch endpoint for file priorities (fixes #909)
+- fix(bittorrent): enforce handshake timeout and half-open limit on inbound peer connections (fixes #910)
+- fix(categories): handle duplicate categories idempotently and prevent unique constraint violations (fixes #901)
+- fix(storage): strip root from segments in TorrentPathValidator to prevent Windows path corruption (fixes #923)
+- fix(rpc): verify peer port reachability in Transmission port-test (fixes #922)
+- fix(indexers): fallback to size element on enclosure length 0 and handle freeleech variants (fixes #931)
+- fix(bittorrent): support pure BEP 52 v2 piece hashing without throwing on empty v1 span (fixes #925)
+- fix(rpc): validate file sizes, handle parse errors, and return Fails in qBittorrent torrents/add (fixes #913)
+- fix(queue): implement MoveQueueBatchAsync with boundary locking to prevent leapfrogging (fixes #938)
+- fix(bittorrent): support BEP 52 Base32 multihashes and hybrid parameters in MagnetLinkParser (fixes #916)
+- fix(indexers): propagate Torznab errors to record indexer failures accurately (fixes #933)
+- fix(rpc): support cookies, duplicate detection, and validation in Transmission torrent-add (fixes #919)
+- fix(rpc): conform Deluge RPC error schema and handle plugin method dispatch (fixes #914)
+- fix(security): prevent proxy bypass and cloud metadata access in ProxyTunnelBindingProvider (fixes #918)
+- fix(environment): expand OsInfo container detection for Podman/K8s and expose in UpdateResource (fixes #903)
+- fix(rpc): calculate accurate session-stats current-stats and real-time speeds in Transmission RPC (fixes #917)
+- fix(rpc): implement rTorrent custom2-5 fields, d.views.has, and multicall view filtering (fixes #934)
+- fix(queue): synchronize queue position allocation to prevent duplicates on concurrent additions (fixes #927)
+- fix(rpc): bind search POST form parameters, support negative offset, and set SiteUrl (fixes #920)
+- fix(rpc): add All to tracker_host and support comma-separated multi-labels in Deluge filter tree (fixes #926)
+- fix(indexers): restrict Prowlarr sync to torrent protocol and handle non-torrent releases (fixes #921)
+- fix(media): skip non-target EBML master elements and handle malformed Matroska safely (fixes #907)
+- fix(notifications): sanitize CRLF in email subjects, support semicolon recipients and async SMTP (fixes #892)
+- fix(notifications): parse URI in ResolveTargetUrl to preserve query string when appending endpoint path (fixes #937)
+- fix(rpc): populate pieceStates in-flight status and resolve AppDataFolder in pieceHashes (fixes #930)
+- fix(security): resolve parent symlinks in TorrentPathValidator and sanitize path parts in TorrentFileParser (fixes #928)
+- fix(rpc): handle flat param lists, move_completed_path, and rate limits in Deluge RPC (fixes #932)
+- fix(trackerboost): implement BEP 15 UDP retransmission backoff and error response handling (fixes #935)
+- fix(rpc): fix Transmission torrent-get dates and trackerList batch replacements (fixes #940)
+- fix(history): preserve all trackers, BEP 27 private flag, and cached torrent file on re-add
+
+### 🔧 Maintenance & Improvements
+- perf(media-inspection): use ArrayPool for MP4 moov buffers and dispose MemoryStream (fixes #890)
+- perf(datastore): add UserId and unique (LoginProvider, ProviderKey) indexes on UserExternalLogins (fixes #912)
+
 ## [v1.15.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.15.1) - 2026-09-15
 
 ### 🐛 Bug Fixes
