@@ -1103,6 +1103,10 @@ public class TorznabClient : ITorznabClient
             CapabilitiesCache[cacheKey] = (caps, DateTime.UtcNow.Add(CapabilitiesTtl));
             return caps;
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             this.logger.Error(ex, "Error fetching Torznab capabilities for: {0}", indexer.Name);
@@ -1346,6 +1350,10 @@ public class TorznabClient : ITorznabClient
             }
 
             return TorznabTestResult.Fail("Response is not a valid Torznab XML feed.");
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
