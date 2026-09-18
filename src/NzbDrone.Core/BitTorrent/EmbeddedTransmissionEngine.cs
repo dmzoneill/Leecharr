@@ -6,7 +6,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -20,18 +22,22 @@ using NzbDrone.Core.Download;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Network;
 using NzbDrone.Core.Network.Binding;
+using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Network.Vpn;
 using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.BitTorrent;
 
-public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<VpnKillSwitchTriggeredEvent>, IHandle<VpnInterfaceRestoredEvent>, IHandle<NetworkBindingProviderSwitchedEvent>
+public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<VpnKillSwitchTriggeredEvent>, IHandle<VpnInterfaceRestoredEvent>, IHandle<NetworkBindingProviderSwitchedEvent>, IHandle<ConfigSavedEvent>
 {
     private readonly IConfigService configService;
     private readonly IStoragePathService storagePathService;
     private readonly ICategoryService categoryService;
     private readonly IDiskProvider diskProvider;
     private readonly IEventAggregator eventAggregator;
+    private readonly INetworkBindingService networkBindingService;
+    private readonly IVpnKillSwitchService vpnKillSwitchService;
+    private readonly IBlocklistService blocklistService;
     private readonly Logger logger;
 
     private readonly ConcurrentDictionary<int, TransmissionDownloadTask> tasks = new();
@@ -40,6 +46,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
     private readonly HashSet<int> torrentsHaltedByKillSwitch = new();
 
     private readonly HttpClient httpClient;
+    private readonly bool ownsHttpClient;
     private string transmissionSessionId = string.Empty;
     private Process daemonProcess;
     private CancellationTokenSource syncCts;
@@ -84,25 +91,41 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         IStoragePathService storagePathService,
         ICategoryService categoryService,
         IDiskProvider diskProvider,
-        IEventAggregator eventAggregator)
+        IEventAggregator eventAggregator,
+        INetworkBindingService networkBindingService = null,
+        IVpnKillSwitchService vpnKillSwitchService = null,
+        IBlocklistService blocklistService = null,
+        HttpClient httpClient = null)
     {
         this.configService = configService;
         this.storagePathService = storagePathService;
         this.categoryService = categoryService;
         this.diskProvider = diskProvider;
         this.eventAggregator = eventAggregator;
+        this.networkBindingService = networkBindingService;
+        this.vpnKillSwitchService = vpnKillSwitchService;
+        this.blocklistService = blocklistService;
         this.logger = LogManager.GetCurrentClassLogger();
 
-        var handler = new SocketsHttpHandler
+        if (httpClient != null)
         {
-            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
-            ConnectTimeout = TimeSpan.FromSeconds(5),
-        };
+            this.httpClient = httpClient;
+            this.ownsHttpClient = false;
+        }
+        else
+        {
+            var handler = new SocketsHttpHandler
+            {
+                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+                ConnectTimeout = TimeSpan.FromSeconds(5),
+            };
 
-        this.httpClient = new HttpClient(handler)
-        {
-            Timeout = TimeSpan.FromSeconds(10),
-        };
+            this.httpClient = new HttpClient(handler)
+            {
+                Timeout = TimeSpan.FromSeconds(10),
+            };
+            this.ownsHttpClient = true;
+        }
     }
 
     public async Task<EngineHealthCheckResult> ProbeHealthAsync()
@@ -186,6 +209,9 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
 
         // Ensure daemon process is running if binary is available
         await this.EnsureDaemonRunningAsync();
+
+        // Apply session settings (interface binding, proxy, blocklist) via RPC
+        await this.ConfigureSessionSettingsAsync();
 
         this.isRunning = true;
         this.syncCts = new CancellationTokenSource();
@@ -414,6 +440,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             try
             {
                 await this.SendRpcRequestAsync("torrent-stop", new Dictionary<string, object>());
+                await this.ConfigureSessionSettingsAsync();
             }
             catch
             {
@@ -425,6 +452,17 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
     {
         this.logger.Info("VPN interface '{0}' restored. Resuming Transmission engine transfers.", message.InterfaceName);
         this.isHaltedByKillSwitch = false;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await this.ConfigureSessionSettingsAsync();
+            }
+            catch
+            {
+            }
+        });
 
         lock (this.torrentsHaltedByKillSwitch)
         {
@@ -448,13 +486,31 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         {
             try
             {
-                await this.SendRpcRequestAsync("session-set", new Dictionary<string, object>
-                {
-                    ["bind-address-ipv4"] = "0.0.0.0",
-                });
+                await this.ConfigureSessionSettingsAsync();
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Warn(ex, "Error updating Transmission session settings on network binding switch.");
+            }
+        });
+    }
+
+    public void Handle(ConfigSavedEvent message)
+    {
+        if (!this.isRunning)
+        {
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await this.ConfigureSessionSettingsAsync();
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error updating Transmission session settings on config change.");
             }
         });
     }
@@ -827,7 +883,10 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         {
             this.disposed = true;
             this.StopAsync().GetAwaiter().GetResult();
-            this.httpClient.Dispose();
+            if (this.ownsHttpClient)
+            {
+                this.httpClient.Dispose();
+            }
         }
     }
 
@@ -1074,6 +1133,118 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         return null;
     }
 
+    public async Task<Dictionary<string, object>> ConfigureSessionSettingsAsync()
+    {
+        var sessionArgs = new Dictionary<string, object>
+        {
+            ["bind-address-ipv4"] = this.ResolveBoundIpv4Address(),
+        };
+
+        var proxyType = this.configService?.ProxyType?.ToLowerInvariant();
+        var proxyConfigured = !string.IsNullOrWhiteSpace(proxyType) &&
+                              !string.Equals(proxyType, "none", StringComparison.OrdinalIgnoreCase);
+
+        if (proxyConfigured)
+        {
+            sessionArgs["proxy-enabled"] = true;
+            sessionArgs["proxy-type"] = proxyType;
+            sessionArgs["proxy-host"] = this.configService?.ProxyHost ?? string.Empty;
+            sessionArgs["proxy-port"] = this.configService?.ProxyPort ?? 0;
+            sessionArgs["proxy-auth-enabled"] = this.configService?.ProxyAuthEnabled ?? false;
+            sessionArgs["proxy-auth-username"] = this.configService?.ProxyUsername ?? string.Empty;
+            sessionArgs["proxy-auth-password"] = this.configService?.ProxyPassword ?? string.Empty;
+        }
+        else
+        {
+            sessionArgs["proxy-enabled"] = false;
+        }
+
+        var blocklistEnabled = this.configService?.BlocklistEnabled ?? false;
+        sessionArgs["blocklist-enabled"] = blocklistEnabled;
+        if (blocklistEnabled)
+        {
+            sessionArgs["blocklist-url"] = this.configService?.BlocklistUrl ?? string.Empty;
+        }
+
+        try
+        {
+            var response = await this.SendRpcRequestAsync("session-set", sessionArgs);
+            this.logger.Info(
+                "Transmission: Updated session settings (bind={0}, proxy-enabled={1}, blocklist={2})",
+                sessionArgs["bind-address-ipv4"],
+                sessionArgs["proxy-enabled"],
+                sessionArgs["blocklist-enabled"]);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Error configuring Transmission session settings.");
+            return null;
+        }
+    }
+
+    internal string ResolveBoundIpv4Address()
+    {
+        if (this.isHaltedByKillSwitch || this.vpnKillSwitchService?.IsFailClosedActive == true)
+        {
+            return "127.0.0.1";
+        }
+
+        var iface = !string.IsNullOrWhiteSpace(this.configService?.NetworkInterfaceBinding)
+            ? this.configService.NetworkInterfaceBinding
+            : this.configService?.BindInterface;
+
+        var hasSpecificInterface = !string.IsNullOrWhiteSpace(iface) &&
+            !string.Equals(iface, "Any", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
+
+        if (!hasSpecificInterface)
+        {
+            return "0.0.0.0";
+        }
+
+        if (IPAddress.TryParse(iface, out var parsedIp) && parsedIp.AddressFamily == AddressFamily.InterNetwork)
+        {
+            return parsedIp.ToString();
+        }
+
+        if (this.vpnKillSwitchService != null)
+        {
+            if (this.vpnKillSwitchService.IsFailClosedActive)
+            {
+                return "127.0.0.1";
+            }
+
+            var vpnIp = this.vpnKillSwitchService.GetVpnInterfaceIpAddress(AddressFamily.InterNetwork);
+            if (vpnIp != null)
+            {
+                return vpnIp.ToString();
+            }
+        }
+
+        if (this.networkBindingService != null)
+        {
+            if (this.networkBindingService.CheckVpnKillSwitch(iface))
+            {
+                return "127.0.0.1";
+            }
+
+            if (!this.networkBindingService.IsInterfaceUp(iface))
+            {
+                return "127.0.0.1";
+            }
+        }
+
+        var resolved = ManagedSocketBindingProvider.GetInterfaceIp(iface, AddressFamily.InterNetwork);
+        if (resolved != null)
+        {
+            return resolved.ToString();
+        }
+
+        // When a specific interface binding is active but cannot be resolved or is down, fail closed.
+        return "127.0.0.1";
+    }
+
     private async Task EnsureDaemonRunningAsync()
     {
         var binary = GetDaemonBinaryPath();
@@ -1098,10 +1269,23 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             var configDir = Path.Combine(Path.GetTempPath(), "leecharr-transmission");
             Directory.CreateDirectory(configDir);
 
+            var bindIp = this.ResolveBoundIpv4Address();
+            var arguments = $"--foreground --config-dir \"{configDir}\" --port 9091 --allowed 127.0.0.1,::1";
+
+            if (!string.IsNullOrWhiteSpace(bindIp))
+            {
+                arguments += $" --bind-address-ipv4 {bindIp}";
+            }
+
+            if (this.configService?.BlocklistEnabled == true)
+            {
+                arguments += " --blocklist";
+            }
+
             var startInfo = new ProcessStartInfo
             {
                 FileName = binary,
-                Arguments = $"--foreground --config-dir \"{configDir}\" --port 9091 --allowed 127.0.0.1,::1",
+                Arguments = arguments,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
