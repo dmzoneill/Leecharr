@@ -614,7 +614,7 @@ public class ProxyTunnelBindingProviderTest
             otherProvider.ProviderId.Returns("ManagedSocket");
             bindingService.ActiveProvider.Returns(otherProvider);
 
-            var provider = new ProxyTunnelBindingProvider(config, bindingService);
+            var provider = new ProxyTunnelBindingProvider(config) { NetworkBindingService = bindingService };
             using var socket = await provider.ConnectTunnelAsync("127.0.0.1", port);
 
             bindingService.Received(1).BindSocket(Arg.Any<Socket>(), "eth0", 0);

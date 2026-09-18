@@ -5626,7 +5626,7 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
 
         if (!isDatagram && isProxyConfigured)
         {
-            var fallbackProxy = new ProxyTunnelBindingProvider(this.configService, this.networkBindingService, this.blocklistService);
+            var fallbackProxy = new ProxyTunnelBindingProvider(this.configService, this.blocklistService) { NetworkBindingService = this.networkBindingService };
             return await fallbackProxy.ConnectTunnelAsync(uri.Host, uri.Port, token).ConfigureAwait(false);
         }
 
