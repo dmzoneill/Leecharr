@@ -13,6 +13,8 @@ using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http.Transport;
+using NzbDrone.Core.Network.Binding;
+using NzbDrone.Core.Network.Vpn;
 
 namespace NzbDrone.Core.Http;
 
@@ -25,6 +27,8 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
     private readonly Logger logger;
     private readonly IConfigService configService;
     private readonly IConfigFileProvider configFileProvider;
+    private readonly INetworkBindingService networkBindingService;
+    private readonly IVpnKillSwitchService vpnKillSwitchService;
 
     private bool? allowPrivateNetworkRequestsOverride;
     private string allowedSsrfHostnamesOverride;
@@ -52,11 +56,15 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
         IHttpTransportEngine transportEngine = null,
         IConfigService configService = null,
         IConfigFileProvider configFileProvider = null,
-        HttpClient httpClient = null)
+        HttpClient httpClient = null,
+        INetworkBindingService networkBindingService = null,
+        IVpnKillSwitchService vpnKillSwitchService = null)
     {
         this.logger = LogManager.GetCurrentClassLogger();
         this.configService = configService;
         this.configFileProvider = configFileProvider;
+        this.networkBindingService = networkBindingService;
+        this.vpnKillSwitchService = vpnKillSwitchService;
 
         if (httpClient != null)
         {
@@ -581,12 +589,19 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
         }
     }
 
+    internal SocketsHttpHandler CreateSafeSocketsHttpHandlerInternal() => this.CreateSafeSocketsHttpHandler();
+
     private SocketsHttpHandler CreateSafeSocketsHttpHandler()
     {
-        return new SocketsHttpHandler
+        var handler = new SocketsHttpHandler
         {
             ConnectCallback = async (context, cancellationToken) =>
             {
+                if (this.vpnKillSwitchService?.IsFailClosedActive == true)
+                {
+                    throw new SocketException((int)SocketError.NetworkUnreachable);
+                }
+
                 var host = context.DnsEndPoint.Host;
                 var port = context.DnsEndPoint.Port;
                 var isAllowedHost = this.IsAllowedHost(host);
@@ -620,6 +635,12 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
                     NoDelay = true,
                 };
 
+                var iface = this.configService?.BindInterface;
+                if (!string.IsNullOrWhiteSpace(iface) && this.networkBindingService != null)
+                {
+                    this.networkBindingService.BindSocket(socket, iface);
+                }
+
                 try
                 {
                     await socket.ConnectAsync(new IPEndPoint(targetIp, port), cancellationToken);
@@ -637,5 +658,31 @@ public class SafeHttpClientService : ISafeHttpClientService, IDisposable
             AllowAutoRedirect = true,
             MaxAutomaticRedirections = 5,
         };
+
+        var proxyType = this.configService?.ProxyType?.ToLowerInvariant() ?? "none";
+        var proxyHost = this.configService?.ProxyHost;
+        var proxyPort = this.configService?.ProxyPort ?? (proxyType is "socks5" or "socks4" ? 1080 : 8080);
+
+        if (!string.Equals(proxyType, "none", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(proxyHost))
+        {
+            var scheme = proxyType switch
+            {
+                "socks5" => "socks5",
+                "socks4" => "socks4",
+                "http" => "http",
+                _ => "http",
+            };
+
+            var proxy = new WebProxy($"{scheme}://{proxyHost}:{proxyPort}");
+            if (this.configService.ProxyAuthEnabled && !string.IsNullOrEmpty(this.configService.ProxyUsername))
+            {
+                proxy.Credentials = new NetworkCredential(this.configService.ProxyUsername, this.configService.ProxyPassword ?? string.Empty);
+            }
+
+            handler.Proxy = proxy;
+            handler.UseProxy = true;
+        }
+
+        return handler;
     }
 }
