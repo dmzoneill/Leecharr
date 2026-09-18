@@ -17,9 +17,10 @@ namespace NzbDrone.Core.Network.Binding;
 public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
 {
     private readonly IConfigService configService;
-    private readonly INetworkBindingService networkBindingService;
     private readonly IBlocklistService blocklistService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
+
+    public INetworkBindingService NetworkBindingService { get; set; }
 
     public string ProviderId => "ProxyTunnel";
 
@@ -43,11 +44,9 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
 
     public ProxyTunnelBindingProvider(
         IConfigService configService = null,
-        INetworkBindingService networkBindingService = null,
         IBlocklistService blocklistService = null)
     {
         this.configService = configService;
-        this.networkBindingService = networkBindingService;
         this.blocklistService = blocklistService;
     }
 
@@ -233,9 +232,9 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
             return;
         }
 
-        if (this.networkBindingService != null && !(this.networkBindingService.ActiveProvider is IProxyTunnelBindingProvider))
+        if (this.NetworkBindingService != null && !(this.NetworkBindingService.ActiveProvider is IProxyTunnelBindingProvider))
         {
-            this.networkBindingService.BindSocket(socket, iface);
+            this.NetworkBindingService.BindSocket(socket, iface);
             return;
         }
 

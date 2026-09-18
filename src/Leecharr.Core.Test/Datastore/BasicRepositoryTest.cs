@@ -181,6 +181,10 @@ public class BasicRepositoryTest
         cmd.CommandText = "PRAGMA synchronous;";
         var synchronous = Convert.ToInt32(cmd.ExecuteScalar());
         synchronous.Should().Be(1);
+
+        cmd.CommandText = "PRAGMA wal_autocheckpoint;";
+        var walAutocheckpoint = Convert.ToInt32(cmd.ExecuteScalar());
+        walAutocheckpoint.Should().Be(1000);
     }
 
     [Test]
