@@ -2,12 +2,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Webhooks;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
-using NUnit.Framework.Legacy;
 using NzbDrone.Core.ArrIntegration;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Torrents;
@@ -35,9 +35,9 @@ public class ArrWebhookControllerTest
     }
 
     [Test]
-    public void HandleArr_WhenPayloadNull_ReturnsBadRequest()
+    public async Task HandleArr_WhenPayloadNull_ReturnsBadRequest()
     {
-        var result = this.controller.HandleArr(null!);
+        var result = await this.controller.HandleArr(null!);
         var badRequest = result.Result as BadRequestObjectResult;
         badRequest.Should().NotBeNull();
 
@@ -47,7 +47,7 @@ public class ArrWebhookControllerTest
     }
 
     [Test]
-    public void HandleSonarr_WhenTestEvent_ReturnsOk()
+    public async Task HandleSonarr_WhenTestEvent_ReturnsOk()
     {
         var payload = new ArrWebhookPayload
         {
@@ -55,7 +55,7 @@ public class ArrWebhookControllerTest
             InstanceName = "Sonarr",
         };
 
-        var result = this.controller.HandleSonarr(payload);
+        var result = await this.controller.HandleSonarr(payload);
         var okResult = result.Result as OkObjectResult;
         okResult.Should().NotBeNull();
 
@@ -67,7 +67,7 @@ public class ArrWebhookControllerTest
     }
 
     [Test]
-    public void HandleSonarr_WhenImportEvent_UpdatesTorrentImportStateAndMetadata()
+    public async Task HandleSonarr_WhenImportEvent_UpdatesTorrentImportStateAndMetadata()
     {
         var hash = "0123456789abcdef0123456789abcdef01234567";
         var torrent = new Torrent
@@ -102,7 +102,7 @@ public class ArrWebhookControllerTest
             },
         };
 
-        var result = this.controller.HandleSonarr(payload);
+        var result = await this.controller.HandleSonarr(payload);
         var okResult = result.Result as OkObjectResult;
         okResult.Should().NotBeNull();
 
@@ -130,7 +130,7 @@ public class ArrWebhookControllerTest
     }
 
     [Test]
-    public void HandleRadarr_WhenUpgradeEvent_UpdatesTorrentImportState()
+    public async Task HandleRadarr_WhenUpgradeEvent_UpdatesTorrentImportState()
     {
         var hash = "fedcba9876543210fedcba9876543210fedcba98";
         var torrent = new Torrent
@@ -166,7 +166,7 @@ public class ArrWebhookControllerTest
             },
         };
 
-        var result = this.controller.HandleRadarr(payload);
+        var result = await this.controller.HandleRadarr(payload);
         var okResult = result.Result as OkObjectResult;
         okResult.Should().NotBeNull();
 
@@ -183,7 +183,7 @@ public class ArrWebhookControllerTest
     }
 
     [Test]
-    public void HandleLidarr_WhenRenameEvent_UpdatesTorrentImportState()
+    public async Task HandleLidarr_WhenRenameEvent_UpdatesTorrentImportState()
     {
         var hash = "abcdef0123456789abcdef0123456789abcdef01";
         var torrent = new Torrent
@@ -217,7 +217,7 @@ public class ArrWebhookControllerTest
             },
         };
 
-        var result = this.controller.HandleLidarr(payload);
+        var result = await this.controller.HandleLidarr(payload);
         var okResult = result.Result as OkObjectResult;
         okResult.Should().NotBeNull();
 
@@ -234,7 +234,7 @@ public class ArrWebhookControllerTest
     }
 
     [Test]
-    public void HandleReadarr_WhenImportEvent_UpdatesTorrentImportState()
+    public async Task HandleReadarr_WhenImportEvent_UpdatesTorrentImportState()
     {
         var torrent = new Torrent
         {
@@ -262,7 +262,7 @@ public class ArrWebhookControllerTest
             },
         };
 
-        var result = this.controller.HandleReadarr(payload);
+        var result = await this.controller.HandleReadarr(payload);
         var okResult = result.Result as OkObjectResult;
         okResult.Should().NotBeNull();
 
@@ -279,7 +279,7 @@ public class ArrWebhookControllerTest
     }
 
     [Test]
-    public void HandleSonarr_WhenGrabEvent_DoesNotMarkImported()
+    public async Task HandleSonarr_WhenGrabEvent_DoesNotMarkImported()
     {
         var hash = "9999888877776666555544443333222211110000";
         var torrent = new Torrent
@@ -305,7 +305,7 @@ public class ArrWebhookControllerTest
             },
         };
 
-        var result = this.controller.HandleSonarr(payload);
+        var result = await this.controller.HandleSonarr(payload);
         var okResult = result.Result as OkObjectResult;
         okResult.Should().NotBeNull();
 
@@ -318,7 +318,7 @@ public class ArrWebhookControllerTest
     }
 
     [Test]
-    public void HandleSonarr_WhenGrabEventAndCategoryMissing_AssignsCategory()
+    public async Task HandleSonarr_WhenGrabEventAndCategoryMissing_AssignsCategory()
     {
         var hash = "9999888877776666555544443333222211110001";
         var torrent = new Torrent
@@ -344,7 +344,7 @@ public class ArrWebhookControllerTest
             },
         };
 
-        var result = this.controller.HandleSonarr(payload);
+        var result = await this.controller.HandleSonarr(payload);
         var okResult = result.Result as OkObjectResult;
         okResult.Should().NotBeNull();
 
@@ -359,7 +359,7 @@ public class ArrWebhookControllerTest
     }
 
     [Test]
-    public void HandleGeneric_WhenTorrentNotFound_ReturnsOkWithUnmatchedStatus()
+    public async Task HandleGeneric_WhenTorrentNotFound_ReturnsOkWithUnmatchedStatus()
     {
         this.torrentRepository.All().Returns(new List<Torrent>());
 
@@ -369,7 +369,7 @@ public class ArrWebhookControllerTest
             DownloadClientId = "nonexistent-hash",
         };
 
-        var result = this.controller.HandleGeneric("Sonarr", payload);
+        var result = await this.controller.HandleGeneric("Sonarr", payload);
         var okResult = result.Result as OkObjectResult;
         okResult.Should().NotBeNull();
 
@@ -378,5 +378,149 @@ public class ArrWebhookControllerTest
         res!.Success.Should().BeTrue();
         res.Updated.Should().BeFalse();
         res.TorrentId.Should().BeNull();
+    }
+
+    [Test]
+    public async Task HandleArr_WhenDownloadIdHasUrnBtih_MatchesTorrent()
+    {
+        var hash = "0123456789abcdef0123456789abcdef01234567";
+        var torrent = new Torrent
+        {
+            Id = 10,
+            Name = "UrnBtih.Test.Torrent",
+            InfoHash = hash,
+            IsImported = false,
+        };
+
+        this.torrentRepository.GetByInfoHash(hash).Returns(torrent);
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "Grab",
+            DownloadId = $"urn:btih:{hash}",
+        };
+
+        var result = await this.controller.HandleArr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var res = okResult!.Value as ArrWebhookResult;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
+        res.TorrentId.Should().Be(10);
+        res.InfoHash.Should().Be(hash);
+    }
+
+    [Test]
+    public async Task HandleArr_WhenDownloadIdHasBase32Hash_MatchesTorrent()
+    {
+        var base32 = "JBSWY3DPEBLW64TMMQQQJBSWY3DPEBLW";
+        var expectedHex = MagnetLinkParser.Base32ToHex(base32).ToLowerInvariant();
+
+        var torrent = new Torrent
+        {
+            Id = 11,
+            Name = "Base32.Test.Torrent",
+            InfoHash = expectedHex,
+            IsImported = false,
+        };
+
+        this.torrentRepository.GetByInfoHash(expectedHex).Returns(torrent);
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "Grab",
+            DownloadId = $"urn:btih:{base32}",
+        };
+
+        var result = await this.controller.HandleArr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var res = okResult!.Value as ArrWebhookResult;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
+        res.TorrentId.Should().Be(11);
+        res.InfoHash.Should().Be(expectedHex);
+    }
+
+    [Test]
+    public async Task HandleArr_WhenReleaseDownloadUrlIsMagnetLink_MatchesTorrent()
+    {
+        var hash = "0123456789abcdef0123456789abcdef01234567";
+        var torrent = new Torrent
+        {
+            Id = 12,
+            Name = "Magnet.Test.Torrent",
+            InfoHash = hash,
+            IsImported = false,
+        };
+
+        this.torrentRepository.GetByInfoHash(hash).Returns(torrent);
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "Grab",
+            Release = new ArrWebhookRelease
+            {
+                ReleaseTitle = "Magnet.Test.Torrent",
+                DownloadUrl = $"magnet:?xt=urn:btih:{hash}&dn=Magnet.Test.Torrent",
+            },
+        };
+
+        var result = await this.controller.HandleArr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var res = okResult!.Value as ArrWebhookResult;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
+        res.TorrentId.Should().Be(12);
+        res.InfoHash.Should().Be(hash);
+    }
+
+    [Test]
+    public async Task HandleSonarr_WhenTorrentServiceProvidedAndCategoryMissing_CallsSetCategoryAsync()
+    {
+        var hash = "9999888877776666555544443333222211110002";
+        var torrent = new Torrent
+        {
+            Id = 20,
+            Name = "Show.S01E03.720p",
+            InfoHash = hash,
+            Category = null,
+        };
+
+        var service = Substitute.For<ITorrentService>();
+        service.GetByInfoHash(hash).Returns(torrent);
+        service.Get(20).Returns(torrent);
+
+        var serviceController = new ArrWebhookController(
+            this.torrentRepository,
+            this.mediaMetadataRepository,
+            this.arrConnectionRepository,
+            torrentService: service);
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "Grab",
+            InstanceName = "Sonarr",
+            DownloadClientId = hash,
+            Release = new ArrWebhookRelease
+            {
+                ReleaseTitle = "Show.S01E03.720p",
+            },
+        };
+
+        var result = await serviceController.HandleSonarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var res = okResult!.Value as ArrWebhookResult;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
+        res.Updated.Should().BeTrue();
+
+        await service.Received(1).SetCategoryAsync(20, "tv-sonarr");
     }
 }
