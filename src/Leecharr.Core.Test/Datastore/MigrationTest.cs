@@ -355,4 +355,57 @@ public class MigrationTest
         columns.Should().Contain("IsPrivate");
         columns.Should().Contain("Trackers");
     }
+
+    [Test]
+    public void Migration032_CreatesUserExternalLoginsIndexes()
+    {
+        var connectionString = $"Data Source={this.tempDbPath};";
+
+        var serviceProvider = new ServiceCollection()
+            .AddFluentMigratorCore()
+            .ConfigureRunner(rb => rb
+                .AddSQLite()
+                .WithGlobalConnectionString(connectionString)
+                .ScanIn(typeof(InitialSetup).Assembly).For.Migrations())
+            .AddLogging(lb => lb.AddFluentMigratorConsole())
+            .BuildServiceProvider(false);
+
+        using (var scope = serviceProvider.CreateScope())
+        {
+            var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+            runner.MigrateUp();
+        }
+
+        using var connection = new SqliteConnection(connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT count(*) FROM sqlite_master 
+            WHERE type='index' AND name IN (
+                'IX_UserExternalLogins_UserId',
+                'IX_UserExternalLogins_Provider_Key'
+            );";
+
+        var count = Convert.ToInt32(command.ExecuteScalar());
+        count.Should().Be(2);
+
+        command.CommandText = @"
+            INSERT INTO Users (Identifier, Username, CreatedAt, UpdatedAt)
+            VALUES ('11111111-1111-1111-1111-111111111111', 'testuser', datetime('now'), datetime('now'));
+            INSERT INTO UserExternalLogins (UserId, LoginProvider, ProviderKey, LinkedAt)
+            VALUES (1, 'Google', 'google-key-1', datetime('now'));";
+        command.ExecuteNonQuery();
+
+        var duplicateInsert = () =>
+        {
+            using var dupCmd = connection.CreateCommand();
+            dupCmd.CommandText = @"
+                INSERT INTO UserExternalLogins (UserId, LoginProvider, ProviderKey, LinkedAt)
+                VALUES (1, 'Google', 'google-key-1', datetime('now'));";
+            dupCmd.ExecuteNonQuery();
+        };
+
+        duplicateInsert.Should().Throw<SqliteException>();
+    }
 }
