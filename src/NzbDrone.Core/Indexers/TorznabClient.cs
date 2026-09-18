@@ -272,12 +272,20 @@ public class TorznabClient : ITorznabClient
         try
         {
             var uriBuilder = new UriBuilder(indexer.Url);
+            var isTvCategory = (criteria.Categories != null && criteria.Categories.Any(c => c is >= 5000 and <= 5999)) ||
+                               (criteria.CategoryId.HasValue && criteria.CategoryId.Value is >= 5000 and <= 5999) ||
+                               ((criteria.Categories == null || criteria.Categories.Count == 0) &&
+                                !criteria.CategoryId.HasValue &&
+                                indexer.Categories != null &&
+                                indexer.Categories.Count > 0 &&
+                                indexer.Categories.All(c => c is >= 5000 and <= 5999));
+
             var mode = !string.IsNullOrWhiteSpace(criteria.SearchType)
                 ? criteria.SearchType
                 : (criteria.Season.HasValue || criteria.Ep.HasValue || !string.IsNullOrWhiteSpace(criteria.TvdbId) || !string.IsNullOrWhiteSpace(criteria.Rid)
                     ? "tvsearch"
                     : (!string.IsNullOrWhiteSpace(criteria.ImdbId) || !string.IsNullOrWhiteSpace(criteria.TmdbId)
-                        ? "movie"
+                        ? (isTvCategory ? "tvsearch" : "movie")
                         : (!string.IsNullOrWhiteSpace(criteria.Artist) || !string.IsNullOrWhiteSpace(criteria.Album)
                             ? "music"
                             : (!string.IsNullOrWhiteSpace(criteria.Author) || !string.IsNullOrWhiteSpace(criteria.Isbn)
@@ -297,7 +305,7 @@ public class TorznabClient : ITorznabClient
                 queryParams += $"&season={criteria.Season.Value}";
             }
 
-            if (criteria.Ep.HasValue)
+            if (criteria.Season.HasValue && criteria.Ep.HasValue)
             {
                 queryParams += $"&ep={criteria.Ep.Value}";
             }
@@ -353,7 +361,15 @@ public class TorznabClient : ITorznabClient
                 queryParams += $"&apikey={Uri.EscapeDataString(indexer.ApiKey)}";
             }
 
-            if (criteria.CategoryId.HasValue && criteria.CategoryId.Value > 0)
+            if (criteria.Categories != null && criteria.Categories.Count > 0)
+            {
+                var cats = criteria.Categories.Where(c => c > 0).Distinct().ToList();
+                if (cats.Count > 0)
+                {
+                    queryParams += $"&cat={string.Join(",", cats)}";
+                }
+            }
+            else if (criteria.CategoryId.HasValue && criteria.CategoryId.Value > 0)
             {
                 if (CategoryHierarchy.TryGetValue(criteria.CategoryId.Value, out var subcats))
                 {
