@@ -52,7 +52,7 @@ public class TagLibInspectorProviderTest
         result.VideoCodec.Should().Be("HEVC (H.265)");
         result.Width.Should().Be(1920);
         result.Height.Should().Be(1080);
-        result.AudioCodec.Should().Be("Dolby TrueHD / Atmos");
+        result.AudioCodec.Should().Be("Dolby TrueHD");
         result.AudioChannels.Should().Be("7.1");
     }
 
@@ -83,7 +83,7 @@ public class TagLibInspectorProviderTest
     [TestCase("A_EAC3", 2, "E-AC3 / Dolby Digital Plus", "2.0")]
     [TestCase("A_EAC3/JOC", 6, "Dolby Atmos", "5.1")]
     [TestCase("A_EAC3/JOC", 8, "Dolby Atmos", "7.1")]
-    [TestCase("A_TRUEHD", 6, "Dolby TrueHD / Atmos", "5.1")]
+    [TestCase("A_TRUEHD", 6, "Dolby TrueHD", "5.1")]
     public void Inspect_Matroska_EbmlChannelsOverridesCodecIdDefaults(string audioCodecId, int channelCount, string expectedCodec, string expectedChannels)
     {
         var ebmlData = CreateMatroskaHeader("matroska", "V_MPEGH/ISO/HEVC", 1920, 1080, audioCodecId, channelCount);
@@ -648,7 +648,7 @@ public class TagLibInspectorProviderTest
         result.VideoCodec.Should().Be("HEVC (H.265)");
         result.Width.Should().Be(3840);
         result.Height.Should().Be(2160);
-        result.AudioCodec.Should().Be("Dolby TrueHD / Atmos");
+        result.AudioCodec.Should().Be("Dolby TrueHD");
         result.AudioChannels.Should().Be("7.1");
         result.SubtitleTracks.Should().ContainInOrder("SubRip (SRT)", "Advanced SubStation Alpha", "PGS Subtitles");
     }
@@ -673,7 +673,7 @@ public class TagLibInspectorProviderTest
         var result = this.provider.Inspect(ms, "show.mkv");
 
         result.Should().NotBeNull();
-        result.AudioCodec.Should().Be("Dolby TrueHD / Atmos");
+        result.AudioCodec.Should().Be("Dolby TrueHD");
         result.AudioChannels.Should().Be("7.1");
         result.SubtitleTracks.Should().ContainInOrder("VobSub", "DVB Subtitles");
     }
@@ -734,7 +734,7 @@ public class TagLibInspectorProviderTest
         result.Should().NotBeNull();
         result.ContainerFormat.Should().Be("MP4");
         result.VideoCodec.Should().Be("HEVC (H.265)");
-        result.AudioCodec.Should().Be("Dolby TrueHD / Atmos");
+        result.AudioCodec.Should().Be("Dolby TrueHD");
         result.AudioChannels.Should().Be("7.1");
         result.SubtitleTracks.Should().Contain("tx3g");
         result.SubtitleTracks.Should().Contain("WebVTT");
@@ -898,7 +898,7 @@ public class TagLibInspectorProviderTest
         var result = this.provider.Inspect(ms, "movie.mkv");
 
         result.Should().NotBeNull();
-        result.AudioCodec.Should().Be("Dolby TrueHD / Atmos");
+        result.AudioCodec.Should().Be("Dolby TrueHD");
         result.AudioChannels.Should().Be("5.1");
     }
 
@@ -1160,6 +1160,143 @@ public class TagLibInspectorProviderTest
         result.AudioChannels.Should().Be("2.0");
         result.AudioBitDepth.Should().Be(16);
         result.DurationSeconds.Should().BeApproximately(10.0, 0.001);
+    }
+
+    [TestCase(1, "1.0")]
+    [TestCase(2, "2.0")]
+    [TestCase(3, "2.1")]
+    [TestCase(4, "4.0")]
+    [TestCase(5, "5.0")]
+    [TestCase(6, "5.1")]
+    [TestCase(7, "6.1")]
+    [TestCase(8, "7.1")]
+    [TestCase(0, null)]
+    [TestCase(-1, null)]
+    public void FormatAudioChannels_ReturnsCorrectLayout(int channels, string expected)
+    {
+        TagLibInspectorProvider.FormatAudioChannels(channels).Should().Be(expected);
+    }
+
+    [Test]
+    public void Inspect_TrueHd_DefaultsToTrueHdWithoutAtmos()
+    {
+        var ebmlData = CreateMatroskaHeader("matroska", "V_MPEGH/ISO/HEVC", 1920, 1080, "A_TRUEHD", 8);
+        using var ms = new MemoryStream(ebmlData);
+
+        var result = this.provider.Inspect(ms, "movie.mkv");
+
+        result.Should().NotBeNull();
+        result.AudioCodec.Should().Be("Dolby TrueHD");
+        result.AudioChannels.Should().Be("7.1");
+    }
+
+    [Test]
+    public void Inspect_TrueHd_PromotesToAtmosWhenFilenameHasAtmos()
+    {
+        var ebmlData = CreateMatroskaHeader("matroska", "V_MPEGH/ISO/HEVC", 1920, 1080, "A_TRUEHD", 8);
+        using var ms = new MemoryStream(ebmlData);
+
+        var result = this.provider.Inspect(ms, "movie.TrueHD.Atmos.7.1.mkv");
+
+        result.Should().NotBeNull();
+        result.AudioCodec.Should().Be("Dolby TrueHD / Atmos");
+        result.AudioChannels.Should().Be("7.1");
+    }
+
+    [Test]
+    public void Inspect_TrueHd_PromotesToAtmosWhenTrackNameHasAtmos()
+    {
+        var ebmlData = CreateMatroskaHeaderWithTrackName("matroska", "V_MPEGH/ISO/HEVC", 1920, 1080, "A_TRUEHD", 8, "TrueHD Atmos 7.1");
+        using var ms = new MemoryStream(ebmlData);
+
+        var result = this.provider.Inspect(ms, "movie.mkv");
+
+        result.Should().NotBeNull();
+        result.AudioCodec.Should().Be("Dolby TrueHD / Atmos");
+        result.AudioChannels.Should().Be("7.1");
+    }
+
+    [TestCase(5, false, 0, "Dolby Vision (Profile 5)")]
+    [TestCase(7, true, 6, "Dolby Vision (Profile 7 FEL)")]
+    [TestCase(7, false, 6, "Dolby Vision (Profile 7 MEL)")]
+    [TestCase(8, false, 1, "Dolby Vision / HDR10 (Profile 8.1)")]
+    public void Inspect_Mp4_DvcCBox_ExtractsSpecificDolbyVisionProfiles(int profile, bool elPresent, int compatId, string expectedHdr)
+    {
+        var dvcCPayload = new byte[24];
+        dvcCPayload[0] = 1; // major version
+        dvcCPayload[1] = 0; // minor version
+        dvcCPayload[2] = (byte)(profile << 1);
+        dvcCPayload[3] = (byte)(0x02 | (elPresent ? 0x01 : 0));
+        dvcCPayload[4] = (byte)(compatId << 2);
+
+        var dvcCBox = CreateMp4Box("dvcC", dvcCPayload);
+        var sampleEntry = CreateVisualSampleEntryWithExtraBox("dvh1", 3840, 2160, dvcCBox);
+        var stsdBox = CreateStsdBox(sampleEntry);
+        var trakBox = CreateTrackBox(stsdBox);
+        var moovBox = CreateMoovBox(trakBox);
+        var ftypBox = CreateMp4Box("ftyp", Encoding.ASCII.GetBytes("isom    isommp42"));
+
+        using var ms = new MemoryStream();
+        ms.Write(ftypBox, 0, ftypBox.Length);
+        ms.Write(moovBox, 0, moovBox.Length);
+        ms.Position = 0;
+
+        var result = this.provider.Inspect(ms, "movie.mp4");
+
+        result.Should().NotBeNull();
+        result.HdrFormat.Should().Be(expectedHdr);
+    }
+
+    [Test]
+    public void ParseHvcCForHdr10Plus_WithTruncatedNal_TerminatesWithoutStalling()
+    {
+        var buffer = new byte[60];
+        buffer[22] = 1; // numOfArrays
+        buffer[23] = 39; // nalUnitType 39 (SEI)
+        buffer[24] = 0; // numNalus high byte
+        buffer[25] = 5; // numNalus = 5
+        buffer[26] = 0xFF; // nalLength = 0xFF00 (truncated, exceeds buffer length)
+        buffer[27] = 0x00;
+
+        var result = TagLibInspectorProvider.ParseHvcCForHdr10Plus(buffer, 0, buffer.Length);
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public void ParseHvcCForHdr10Plus_WithZeroNalLength_TerminatesWithoutDesynchronizing()
+    {
+        var buffer = new byte[40];
+        buffer[22] = 1; // numOfArrays
+        buffer[23] = 39; // nalUnitType
+        buffer[24] = 0;
+        buffer[25] = 3; // numNalus = 3
+        buffer[26] = 0; // nalLength = 0
+        buffer[27] = 0;
+
+        var result = TagLibInspectorProvider.ParseHvcCForHdr10Plus(buffer, 0, buffer.Length);
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public void Inspect_Mp4_PreservesAudioSampleRateForAacAndAc3()
+    {
+        var audioSampleEntry = CreateAudioSampleEntry("mp4a", 2, 16, 48000);
+        var stsdBox = CreateStsdBox(audioSampleEntry);
+        var trakBox = CreateTrackBox(stsdBox);
+        var moovBox = CreateMoovBox(trakBox);
+        var ftypBox = CreateMp4Box("ftyp", Encoding.ASCII.GetBytes("isom    isommp42"));
+
+        using var ms = new MemoryStream();
+        ms.Write(ftypBox, 0, ftypBox.Length);
+        ms.Write(moovBox, 0, moovBox.Length);
+        ms.Position = 0;
+
+        var result = this.provider.Inspect(ms, "music.m4a");
+
+        result.Should().NotBeNull();
+        result.AudioCodec.Should().Be("AAC");
+        result.AudioSampleRate.Should().Be(48000);
+        result.AudioChannels.Should().Be("2.0");
     }
 
     private static byte[] CreateFlacHeader(int sampleRate, int channels, int bitDepth, ulong totalSamples)
