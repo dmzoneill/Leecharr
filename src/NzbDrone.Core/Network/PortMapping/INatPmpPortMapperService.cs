@@ -36,6 +36,8 @@ public class ActivePortMapping
 
     public IPAddress GatewayAddress { get; set; }
 
+    public IPAddress LocalIpAddress { get; set; }
+
     public uint LastEpoch { get; set; }
 
     public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
