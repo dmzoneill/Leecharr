@@ -2611,4 +2611,171 @@ public class DelugeJsonRpcControllerTest
         var config = resultDoc.RootElement.GetProperty("result");
         config.GetProperty("seed_time_limit").GetInt32().Should().Be(0);
     }
+
+    [Test]
+    public async Task HandleRpc_CoreAddTorrentFile_CorruptedBase64_ReturnsStructuredDelugeError()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.add_torrent_file\",\"params\":[\"bad.torrent\",\"not_valid_base64!!!\"],\"id\":99}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+
+        using var resultDoc = JsonDocument.Parse(json);
+        resultDoc.RootElement.GetProperty("result").ValueKind.Should().Be(JsonValueKind.Null);
+        var err = resultDoc.RootElement.GetProperty("error");
+        err.GetProperty("message").GetString().Should().Be("Failed to decode or parse torrent file");
+        err.GetProperty("code").GetInt32().Should().Be(1);
+        resultDoc.RootElement.GetProperty("id").GetInt32().Should().Be(99);
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreAddTorrentFile_ParserFails_ReturnsStructuredDelugeError()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns((ParsedTorrent)null);
+
+        var dummyB64 = Convert.ToBase64String(new byte[] { 1, 2, 3 });
+        using var doc = JsonDocument.Parse($"{{\"method\":\"core.add_torrent_file\",\"params\":[\"bad.torrent\",\"{dummyB64}\"],\"id\":100}}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+
+        using var resultDoc = JsonDocument.Parse(json);
+        resultDoc.RootElement.GetProperty("result").ValueKind.Should().Be(JsonValueKind.Null);
+        var err = resultDoc.RootElement.GetProperty("error");
+        err.GetProperty("message").GetString().Should().Be("Failed to decode or parse torrent file");
+        err.GetProperty("code").GetInt32().Should().Be(1);
+        resultDoc.RootElement.GetProperty("id").GetInt32().Should().Be(100);
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreAddTorrentFile_WithAddOptions_AppliesOptionsToTorrentAndEngine()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var parsed = new ParsedTorrent { InfoHash = "aabbccddeeff00112233445566778899aabbccdd", Name = "OptionsTest" };
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsed);
+
+        var createdTorrent = new Torrent
+        {
+            Id = 42,
+            InfoHash = "aabbccddeeff00112233445566778899aabbccdd",
+        };
+        this.torrentService.AddFromParsedTorrentAsync(parsed, null, null, false, Arg.Any<byte[]>())
+            .Returns(Task.FromResult(createdTorrent));
+
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 10, TorrentId = 42, Path = "file1.mkv" },
+            new() { Id = 11, TorrentId = 42, Path = "file2.mkv" },
+            new() { Id = 12, TorrentId = 42, Path = "file3.mkv" },
+            new() { Id = 13, TorrentId = 42, Path = "file4.mkv" },
+        };
+        this.torrentFileService.GetFiles(42).Returns(files);
+
+        var dummyB64 = Convert.ToBase64String(new byte[] { 1, 2, 3 });
+        var optsJson = "{\"max_download_speed\": 1500.0, \"max_upload_speed\": 500.0, \"sequential_download\": true, \"prioritize_first_last_pieces\": true, \"stop_ratio\": 2.5, \"file_priorities\": [0, 1, 3, 5], \"max_connections\": 50}";
+        using var doc = JsonDocument.Parse($"{{\"method\":\"core.add_torrent_file\",\"params\":[\"test.torrent\", \"{dummyB64}\", {optsJson}],\"id\":101}}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain(createdTorrent.InfoHash);
+
+        createdTorrent.DownloadLimit.Should().Be(1500);
+        createdTorrent.UploadLimit.Should().Be(500);
+        createdTorrent.SequentialDownload.Should().BeTrue();
+        createdTorrent.FirstLastPiecePriority.Should().BeTrue();
+        createdTorrent.TargetRatio.Should().Be(2.5);
+
+        await this.torrentService.Received().UpdateAsync(createdTorrent);
+        await this.downloadEngine.Received(1).SetSequentialDownloadAsync(42, true);
+        await this.downloadEngine.Received(1).SetFirstLastPiecePriorityAsync(42, true);
+        await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(42, 1500, 500);
+        await this.torrentFileService.Received(1).SetPriorityAsync(10, 0);
+        await this.torrentFileService.Received(1).SetPriorityAsync(11, 2);
+        await this.torrentFileService.Received(1).SetPriorityAsync(12, 3);
+        await this.torrentFileService.Received(1).SetPriorityAsync(13, 4);
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreAddTorrentMagnet_WithAddOptions_AppliesOptionsToTorrentAndEngine()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        const string magnetUri = "magnet:?xt=urn:btih:1122334455667788990011223344556677889900&dn=MagnetOptions";
+        var createdTorrent = new Torrent
+        {
+            Id = 55,
+            InfoHash = "1122334455667788990011223344556677889900",
+        };
+        this.torrentService.AddFromMagnetAsync(magnetUri, null, null, false)
+            .Returns(Task.FromResult(createdTorrent));
+
+        var optsJson = "{\"max_download_speed\": 2500, \"max_upload_speed\": 1200, \"sequential_download\": true, \"prioritize_first_last_pieces\": true, \"stop_ratio\": 3.0}";
+        using var doc = JsonDocument.Parse($"{{\"method\":\"core.add_torrent_magnet\",\"params\":[\"{magnetUri}\", {optsJson}],\"id\":102}}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain(createdTorrent.InfoHash);
+
+        createdTorrent.DownloadLimit.Should().Be(2500);
+        createdTorrent.UploadLimit.Should().Be(1200);
+        createdTorrent.SequentialDownload.Should().BeTrue();
+        createdTorrent.FirstLastPiecePriority.Should().BeTrue();
+        createdTorrent.TargetRatio.Should().Be(3.0);
+
+        await this.torrentService.Received().UpdateAsync(createdTorrent);
+        await this.downloadEngine.Received(1).SetSequentialDownloadAsync(55, true);
+        await this.downloadEngine.Received(1).SetFirstLastPiecePriorityAsync(55, true);
+        await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(55, 2500, 1200);
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreSetTorrentOptions_WithSequentialAndFirstLastPiece_InvokesDownloadEngine()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 60,
+            InfoHash = "3344556677889900112233445566778899001122",
+        };
+        this.torrentService.GetByInfoHash(torrent.InfoHash).Returns(torrent);
+
+        var optsJson = "{\"max_download_speed\": 1000, \"max_upload_speed\": 300, \"sequential_download\": true, \"prioritize_first_last_pieces\": true}";
+        using var doc = JsonDocument.Parse($"{{\"method\":\"core.set_torrent_options\",\"params\":[[\"{torrent.InfoHash}\"], {optsJson}],\"id\":103}}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        torrent.DownloadLimit.Should().Be(1000);
+        torrent.UploadLimit.Should().Be(300);
+        torrent.SequentialDownload.Should().BeTrue();
+        torrent.FirstLastPiecePriority.Should().BeTrue();
+
+        await this.torrentService.Received().UpdateAsync(torrent);
+        await this.downloadEngine.Received(1).SetSequentialDownloadAsync(60, true);
+        await this.downloadEngine.Received(1).SetFirstLastPiecePriorityAsync(60, true);
+        await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(60, 1000, 300);
+    }
 }
