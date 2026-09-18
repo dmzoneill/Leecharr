@@ -543,19 +543,25 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     {
         request ??= new QBitAddTorrentsRequest();
 
-        await this.AddTorrentsFromUrlsAsync(request);
-        await this.AddTorrentsFromFilesAsync(request);
+        var addedFromUrls = await this.AddTorrentsFromUrlsAsync(request);
+        var addedFromFiles = await this.AddTorrentsFromFilesAsync(request);
 
-        return this.Content("Ok.", "text/plain");
+        if (addedFromUrls + addedFromFiles > 0)
+        {
+            return this.Content("Ok.", "text/plain");
+        }
+
+        return this.Content("Fails.", "text/plain");
     }
 
-    private async Task AddTorrentsFromUrlsAsync(QBitAddTorrentsRequest request)
+    private async Task<int> AddTorrentsFromUrlsAsync(QBitAddTorrentsRequest request)
     {
         if (string.IsNullOrWhiteSpace(request?.Urls))
         {
-            return;
+            return 0;
         }
 
+        var addedCount = 0;
         var lines = request.Urls.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
         foreach (var url in lines)
         {
@@ -565,25 +571,58 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 continue;
             }
 
-            if (trimmed.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+            try
             {
-                var added = await this.torrentService.AddFromMagnetAsync(trimmed, request.Category, request.EffectiveSavePath, request.IsPaused);
-                await this.ApplyTorrentRequestOptionsAsync(added, request);
-                continue;
-            }
+                if (trimmed.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+                {
+                    var added = await this.torrentService.AddFromMagnetAsync(trimmed, request.Category, request.EffectiveSavePath, request.IsPaused);
+                    if (added != null)
+                    {
+                        await this.ApplyTorrentRequestOptionsAsync(added, request);
+                        addedCount++;
+                    }
 
-            if (trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                }
+
+                if (trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                {
+                    var added = await this.AddTorrentFromHttpUrlAsync(trimmed, request);
+                    if (added)
+                    {
+                        addedCount++;
+                    }
+                }
+            }
+            catch (Exception ex)
             {
-                await this.AddTorrentFromHttpUrlAsync(trimmed, request);
+                this.logger.Error(ex, "Failed to add torrent from URL: {0}", trimmed);
             }
         }
+
+        return addedCount;
     }
 
-    private async Task AddTorrentFromHttpUrlAsync(string url, QBitAddTorrentsRequest request)
+    private long GetMaxTorrentFileSizeBytes()
+    {
+        if (this.configService != null && this.configService.MaxTorrentFileSizeBytes > 0)
+        {
+            return this.configService.MaxTorrentFileSizeBytes;
+        }
+
+        if (this.configFileProvider != null && this.configFileProvider.MaxTorrentFileSizeBytes > 0)
+        {
+            return this.configFileProvider.MaxTorrentFileSizeBytes;
+        }
+
+        return 250L * 1024 * 1024;
+    }
+
+    private async Task<bool> AddTorrentFromHttpUrlAsync(string url, QBitAddTorrentsRequest request)
     {
         try
         {
-            var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+            var maxTorrentBytes = this.GetMaxTorrentFileSizeBytes();
             byte[] bytes;
             if (!string.IsNullOrWhiteSpace(request.EffectiveCookie) && Uri.TryCreate(url, UriKind.Absolute, out var uri))
             {
@@ -598,22 +637,42 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 bytes = await this.safeHttpClientService.DownloadBytesAsync(url, maxSizeBytes: maxTorrentBytes);
             }
 
+            if (bytes == null || bytes.Length == 0)
+            {
+                return false;
+            }
+
             var parsed = this.torrentFileParser.Parse(bytes);
+            if (parsed == null)
+            {
+                return false;
+            }
+
             var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.EffectiveSavePath, request.IsPaused, bytes);
-            await this.ApplyTorrentRequestOptionsAsync(added, request);
+            if (added != null)
+            {
+                await this.ApplyTorrentRequestOptionsAsync(added, request);
+                return true;
+            }
+
+            return false;
         }
         catch (Exception ex)
         {
             this.logger.Error(ex, "Failed to download torrent file from URL: {0}", url);
+            return false;
         }
     }
 
-    private async Task AddTorrentsFromFilesAsync(QBitAddTorrentsRequest request)
+    private async Task<int> AddTorrentsFromFilesAsync(QBitAddTorrentsRequest request)
     {
         if (request?.Torrents == null || request.Torrents.Count == 0)
         {
-            return;
+            return 0;
         }
+
+        var addedCount = 0;
+        var maxTorrentBytes = this.GetMaxTorrentFileSizeBytes();
 
         foreach (var file in request.Torrents)
         {
@@ -622,13 +681,44 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 continue;
             }
 
-            using var ms = new MemoryStream();
-            await file.CopyToAsync(ms);
-            var bytes = ms.ToArray();
-            var parsed = this.torrentFileParser.Parse(bytes);
-            var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.EffectiveSavePath, request.IsPaused, bytes);
-            await this.ApplyTorrentRequestOptionsAsync(added, request);
+            if (file.Length > maxTorrentBytes)
+            {
+                this.logger.Warn("Uploaded torrent file exceeds maximum allowed size: {0} bytes (max: {1})", file.Length, maxTorrentBytes);
+                continue;
+            }
+
+            try
+            {
+                using var ms = new MemoryStream();
+                await file.CopyToAsync(ms);
+                var bytes = ms.ToArray();
+                if (bytes.Length > maxTorrentBytes)
+                {
+                    this.logger.Warn("Uploaded torrent bytes exceed maximum allowed size: {0} bytes (max: {1})", bytes.Length, maxTorrentBytes);
+                    continue;
+                }
+
+                var parsed = this.torrentFileParser.Parse(bytes);
+                if (parsed == null)
+                {
+                    this.logger.Warn("Failed to parse uploaded torrent file: {0}", file.FileName);
+                    continue;
+                }
+
+                var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.EffectiveSavePath, request.IsPaused, bytes);
+                if (added != null)
+                {
+                    await this.ApplyTorrentRequestOptionsAsync(added, request);
+                    addedCount++;
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Error(ex, "Failed to parse or add uploaded torrent file: {0}", file.FileName);
+            }
         }
+
+        return addedCount;
     }
 
     private async Task ApplyTorrentRequestOptionsAsync(Torrent added, QBitAddTorrentsRequest request)

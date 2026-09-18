@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.QBittorrent;
@@ -2363,6 +2364,117 @@ public class QBittorrentApiControllerTest
         var deleteResult = customController.DeleteSearch(id: null, formId: 42);
         deleteResult.Should().BeOfType<ContentResult>();
         searchService.Received(1).DeleteSearch(42);
+    }
+
+    [Test]
+    public async Task AddTorrents_WithEmptyRequest_ReturnsFails()
+    {
+        var result = await this.controller.AddTorrents(new QBitAddTorrentsRequest());
+        var content = result.Should().BeOfType<ContentResult>().Subject;
+        content.Content.Should().Be("Fails.");
+        content.ContentType.Should().Be("text/plain");
+    }
+
+    [Test]
+    public async Task AddTorrents_WithNullRequest_ReturnsFails()
+    {
+        var result = await this.controller.AddTorrents(null);
+        var content = result.Should().BeOfType<ContentResult>().Subject;
+        content.Content.Should().Be("Fails.");
+        content.ContentType.Should().Be("text/plain");
+    }
+
+    [Test]
+    public async Task AddTorrents_WithOversizedFile_SkipsAndReturnsFails()
+    {
+        this.configService.MaxTorrentFileSizeBytes.Returns(100);
+        var formFile = Substitute.For<IFormFile>();
+        formFile.Length.Returns(500);
+
+        var result = await this.controller.AddTorrents(new QBitAddTorrentsRequest
+        {
+            Torrents = new List<IFormFile> { formFile },
+        });
+
+        var content = result.Should().BeOfType<ContentResult>().Subject;
+        content.Content.Should().Be("Fails.");
+        await this.torrentService.DidNotReceiveWithAnyArgs().AddFromParsedTorrentAsync(default, default, default, default, default);
+    }
+
+    [Test]
+    public async Task AddTorrents_WithCorruptedFile_CatchesExceptionAndReturnsFails()
+    {
+        var dummyBytes = new byte[] { 1, 2, 3 };
+        var formFile = Substitute.For<IFormFile>();
+        formFile.Length.Returns(dummyBytes.Length);
+        formFile.CopyToAsync(Arg.Any<Stream>()).Returns(ci =>
+        {
+            var stream = ci.Arg<Stream>();
+            stream.Write(dummyBytes, 0, dummyBytes.Length);
+            return Task.CompletedTask;
+        });
+
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(x => throw new InvalidOperationException("Invalid BEncoding"));
+
+        var result = await this.controller.AddTorrents(new QBitAddTorrentsRequest
+        {
+            Torrents = new List<IFormFile> { formFile },
+        });
+
+        var content = result.Should().BeOfType<ContentResult>().Subject;
+        content.Content.Should().Be("Fails.");
+    }
+
+    [Test]
+    public async Task AddTorrents_WithFailedUrlDownload_ReturnsFails()
+    {
+        this.safeHttpClientService.DownloadBytesAsync(Arg.Any<string>(), Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<byte[]>(new InvalidOperationException("Download error")));
+
+        var result = await this.controller.AddTorrents(new QBitAddTorrentsRequest
+        {
+            Urls = "http://example.com/failed.torrent",
+        });
+
+        var content = result.Should().BeOfType<ContentResult>().Subject;
+        content.Content.Should().Be("Fails.");
+    }
+
+    [Test]
+    public void QBitAddTorrentsRequest_HelperProperties_ParseFlagsCorrectly()
+    {
+        var req = new QBitAddTorrentsRequest
+        {
+            Skip_checking = "true",
+            AutoTMM = "true",
+            Root_folder = "true",
+        };
+
+        req.IsSkipChecking.Should().BeTrue();
+        req.IsAutoTMM.Should().BeTrue();
+        req.IsRootFolder.Should().BeTrue();
+
+        var req2 = new QBitAddTorrentsRequest
+        {
+            SkipChecking = "1",
+            AutoTmm = "1",
+            RootFolder = "1",
+        };
+
+        req2.IsSkipChecking.Should().BeTrue();
+        req2.IsAutoTMM.Should().BeTrue();
+        req2.IsRootFolder.Should().BeTrue();
+
+        var req3 = new QBitAddTorrentsRequest
+        {
+            Skip_checking = "false",
+            AutoTMM = "false",
+            Root_folder = "false",
+        };
+
+        req3.IsSkipChecking.Should().BeFalse();
+        req3.IsAutoTMM.Should().BeFalse();
+        req3.IsRootFolder.Should().BeFalse();
     }
 
     private static ActionExecutingContext CreateActionExecutingContext(QBittorrentApiController controller, HttpContext httpContext, string actionName)
