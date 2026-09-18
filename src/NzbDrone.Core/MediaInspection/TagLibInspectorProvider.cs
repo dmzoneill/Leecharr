@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -226,7 +227,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
         if (!stream.CanSeek)
         {
-            var ms = new MemoryStream();
+            using var ms = new MemoryStream();
             var buf = new byte[4096];
             int read;
             int totalRead = 0;
@@ -1752,20 +1753,27 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             {
                 long payloadSize = boxSize - headerSize;
                 int bytesToRead = (int)Math.Min(payloadSize, 32 * 1024 * 1024);
-                var moovData = new byte[bytesToRead];
-                int totalRead = 0;
-                while (totalRead < bytesToRead)
+                var moovData = ArrayPool<byte>.Shared.Rent(bytesToRead);
+                try
                 {
-                    int r = stream.Read(moovData, totalRead, bytesToRead - totalRead);
-                    if (r <= 0)
+                    int totalRead = 0;
+                    while (totalRead < bytesToRead)
                     {
-                        break;
+                        int r = stream.Read(moovData, totalRead, bytesToRead - totalRead);
+                        if (r <= 0)
+                        {
+                            break;
+                        }
+
+                        totalRead += r;
                     }
 
-                    totalRead += r;
+                    ParseMp4Boxes(moovData, 0, totalRead, info);
                 }
-
-                ParseMp4Boxes(moovData, 0, totalRead, info);
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(moovData);
+                }
             }
             else if (boxType == "ftyp")
             {
