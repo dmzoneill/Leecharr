@@ -1342,5 +1342,116 @@ public class RssSyncServiceTest
             Arg.Any<string>());
     }
 
+    [Test]
+    public async Task SyncRssFeedsAsync_WhenReleaseHasMinimumRatioAndSeedTime_UpdatesTorrentTargetsAndPersists()
+    {
+        var torrentRepo = Substitute.For<ITorrentRepository>();
+        var indexer = new IndexerDefinition { Id = 1, Name = "AlphaTracker", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
+
+        var rule = new RssRule
+        {
+            Id = 1,
+            Name = "CatchAll",
+            IsEnabled = true,
+            MustContain = ".*",
+        };
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { rule });
+
+        var createdTorrent = new Torrent
+        {
+            Id = 42,
+            Name = "Test.Private.Release",
+            InfoHash = "1122334455667788990011223344556677889900",
+            TargetRatio = 1.0,
+            TargetSeedTimeMinutes = 60,
+        };
+
+        this.torrentService.AddFromMagnetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(Task.FromResult(createdTorrent));
+
+        var release = new TorznabSearchResult
+        {
+            Guid = "urn:guid:private-ratio-test",
+            Title = "Test.Private.Release",
+            MagnetUrl = "magnet:?xt=urn:btih:1122334455667788990011223344556677889900",
+            Seeders = 10,
+            MinimumRatio = 1.8,
+            MinimumSeedTime = 86400, // 24 hours = 1440 minutes
+        };
+
+        this.torznabClient.FetchRssAsync(indexer).Returns(Task.FromResult(new List<TorznabSearchResult> { release }));
+
+        var syncService = new RssSyncService(
+            this.indexerRepository,
+            this.rssRuleRepository,
+            this.torznabClient,
+            this.torrentService,
+            downloadHistoryService: this.downloadHistoryService,
+            torrentRepository: torrentRepo);
+
+        var grabbedCount = await syncService.SyncRssFeedsAsync();
+
+        grabbedCount.Should().Be(1);
+        createdTorrent.TargetRatio.Should().Be(1.8);
+        createdTorrent.TargetSeedTimeMinutes.Should().Be(1440);
+        torrentRepo.Received(1).Update(createdTorrent);
+        await this.torrentService.Received(1).UpdateAsync(createdTorrent);
+    }
+
+    [Test]
+    public async Task SyncRssFeedsAsync_WhenReleaseHasMinimumRatioAndSeedTime_UpdatesViaTorrentService()
+    {
+        var indexer = new IndexerDefinition { Id = 1, Name = "AlphaTracker", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
+
+        var rule = new RssRule
+        {
+            Id = 1,
+            Name = "CatchAll",
+            IsEnabled = true,
+            MustContain = ".*",
+        };
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { rule });
+
+        var createdTorrent = new Torrent
+        {
+            Id = 43,
+            Name = "Test.Private.Release.2",
+            InfoHash = "2233445566778899001122334455667788990011",
+            TargetRatio = 0,
+            TargetSeedTimeMinutes = 0,
+        };
+
+        this.torrentService.AddFromMagnetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(Task.FromResult(createdTorrent));
+
+        var release = new TorznabSearchResult
+        {
+            Guid = "urn:guid:private-ratio-test-2",
+            Title = "Test.Private.Release.2",
+            MagnetUrl = "magnet:?xt=urn:btih:2233445566778899001122334455667788990011",
+            Seeders = 10,
+            MinimumRatio = 2.0,
+            MinimumSeedTime = 3600, // 1 hour = 60 minutes
+        };
+
+        this.torznabClient.FetchRssAsync(indexer).Returns(Task.FromResult(new List<TorznabSearchResult> { release }));
+
+        var syncService = new RssSyncService(
+            this.indexerRepository,
+            this.rssRuleRepository,
+            this.torznabClient,
+            this.torrentService,
+            downloadHistoryService: this.downloadHistoryService);
+
+        var grabbedCount = await syncService.SyncRssFeedsAsync();
+
+        grabbedCount.Should().Be(1);
+        createdTorrent.TargetRatio.Should().Be(2.0);
+        createdTorrent.TargetSeedTimeMinutes.Should().Be(60);
+        await this.torrentService.Received(1).UpdateAsync(createdTorrent);
+    }
+
     #endregion
 }

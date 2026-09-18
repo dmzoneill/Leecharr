@@ -1062,4 +1062,77 @@ public class IndexerControllerTest
         result.Result.Should().BeOfType<OkObjectResult>();
         this.indexerRepository.Received(1).Update(Arg.Is<IndexerDefinition>(idx => idx.Id == 1 && idx.Url == url));
     }
+
+    [Test]
+    public async Task DownloadRelease_WithMinimumRatioAndMinimumSeedTime_UpdatesTorrentTargetsAndPersists()
+    {
+        var request = new DownloadReleaseRequest
+        {
+            Title = "Arch Linux ISO",
+            MagnetUrl = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Arch",
+            MinimumRatio = 1.5,
+            MinimumSeedTime = 7200, // 7200 seconds = 120 minutes
+        };
+
+        var createdTorrent = new Torrent
+        {
+            Id = 12,
+            Name = request.Title,
+            InfoHash = "0123456789abcdef0123456789abcdef01234567",
+            TargetRatio = 1.0,
+            TargetSeedTimeMinutes = 60,
+        };
+
+        this.torrentService.AddFromMagnetAsync(request.MagnetUrl, null, null, false)
+            .Returns(Task.FromResult(createdTorrent));
+
+        var result = await this.controller.DownloadRelease(request);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        createdTorrent.TargetRatio.Should().Be(1.5);
+        createdTorrent.TargetSeedTimeMinutes.Should().Be(120);
+        await this.torrentService.Received(1).UpdateAsync(createdTorrent);
+    }
+
+    [Test]
+    public async Task DownloadRelease_WithTorrentRepository_UpdatesRepositoryDirectly()
+    {
+        var torrentRepo = Substitute.For<ITorrentRepository>();
+        var ctrl = new IndexerController(
+            this.indexerRepository,
+            this.torznabClient,
+            this.prowlarrSyncService,
+            this.torrentService,
+            this.torrentFileParser,
+            this.safeHttpClientService,
+            downloadHistoryService: this.downloadHistoryService,
+            torrentRepository: torrentRepo);
+
+        var request = new DownloadReleaseRequest
+        {
+            Title = "Arch Linux ISO",
+            MagnetUrl = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Arch",
+            MinimumRatio = 2.0,
+            MinimumSeedTime = 3600, // 3600 seconds = 60 minutes
+        };
+
+        var createdTorrent = new Torrent
+        {
+            Id = 13,
+            Name = request.Title,
+            InfoHash = "0123456789abcdef0123456789abcdef01234567",
+            TargetRatio = 0,
+            TargetSeedTimeMinutes = 0,
+        };
+
+        this.torrentService.AddFromMagnetAsync(request.MagnetUrl, null, null, false)
+            .Returns(Task.FromResult(createdTorrent));
+
+        var result = await ctrl.DownloadRelease(request);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        createdTorrent.TargetRatio.Should().Be(2.0);
+        createdTorrent.TargetSeedTimeMinutes.Should().Be(60);
+        torrentRepo.Received(1).Update(createdTorrent);
+    }
 }

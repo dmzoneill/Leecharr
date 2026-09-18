@@ -215,6 +215,10 @@ public class DownloadReleaseRequest
     public string Cookie { get; set; }
 
     public string UserAgent { get; set; }
+
+    public double? MinimumRatio { get; set; }
+
+    public long? MinimumSeedTime { get; set; }
 }
 
 public class ReleaseInfoResource
@@ -256,6 +260,10 @@ public class ReleaseInfoResource
     public int? ResponseTotal { get; set; }
 
     public int? ResponseOffset { get; set; }
+
+    public double? MinimumRatio { get; set; }
+
+    public long? MinimumSeedTime { get; set; }
 }
 
 [JsonConverter(typeof(IndexerSearchEnvelopeConverter))]
