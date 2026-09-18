@@ -1222,6 +1222,138 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         }
     }
 
+    public async Task MoveQueueBatchAsync(IEnumerable<int> ids, string direction)
+    {
+        if (ids == null)
+        {
+            return;
+        }
+
+        var idList = ids.Distinct().ToList();
+        if (idList.Count == 0)
+        {
+            return;
+        }
+
+        await QueueLock.WaitAsync();
+        try
+        {
+            var allTorrents = this.torrentRepository.All().OrderBy(t => t.QueuePosition).ToList();
+            if (allTorrents.Count == 0)
+            {
+                return;
+            }
+
+            var targetSet = new HashSet<int>(idList);
+            var targetTorrents = allTorrents.Where(t => targetSet.Contains(t.Id)).ToList();
+            if (targetTorrents.Count == 0)
+            {
+                return;
+            }
+
+            var dir = direction?.ToLowerInvariant();
+            if (dir == "up")
+            {
+                var limit = 0;
+                foreach (var target in targetTorrents)
+                {
+                    var currentIndex = allTorrents.IndexOf(target);
+                    if (currentIndex < 0)
+                    {
+                        continue;
+                    }
+
+                    if (currentIndex <= limit)
+                    {
+                        limit = limit + 1;
+                    }
+                    else
+                    {
+                        var targetIndex = currentIndex - 1;
+                        allTorrents.RemoveAt(currentIndex);
+                        allTorrents.Insert(targetIndex, target);
+                        if (targetIndex == limit)
+                        {
+                            limit = limit + 1;
+                        }
+                    }
+                }
+            }
+            else if (dir == "down")
+            {
+                var limit = allTorrents.Count - 1;
+                for (var i = targetTorrents.Count - 1; i >= 0; i--)
+                {
+                    var target = targetTorrents[i];
+                    var currentIndex = allTorrents.IndexOf(target);
+                    if (currentIndex < 0)
+                    {
+                        continue;
+                    }
+
+                    if (currentIndex >= limit)
+                    {
+                        limit = limit - 1;
+                    }
+                    else
+                    {
+                        var targetIndex = currentIndex + 1;
+                        allTorrents.RemoveAt(currentIndex);
+                        allTorrents.Insert(targetIndex, target);
+                        if (targetIndex == limit)
+                        {
+                            limit = limit - 1;
+                        }
+                    }
+                }
+            }
+            else if (dir == "top")
+            {
+                for (var i = 0; i < targetTorrents.Count; i++)
+                {
+                    allTorrents.Remove(targetTorrents[i]);
+                    allTorrents.Insert(i, targetTorrents[i]);
+                }
+            }
+            else if (dir == "bottom")
+            {
+                foreach (var target in targetTorrents)
+                {
+                    allTorrents.Remove(target);
+                    allTorrents.Add(target);
+                }
+            }
+            else
+            {
+                return;
+            }
+
+            for (var i = 0; i < allTorrents.Count; i++)
+            {
+                allTorrents[i].QueuePosition = i + 1;
+            }
+
+            this.torrentRepository.UpdateMany(allTorrents);
+
+            if (this.eventAggregator != null)
+            {
+                foreach (var t in allTorrents)
+                {
+                    this.eventAggregator.PublishEvent(new TorrentUpdatedEvent { Torrent = t });
+                }
+            }
+
+            if (this.queueManagerService != null)
+            {
+                await this.queueManagerService.ProcessQueueAsync();
+            }
+        }
+        finally
+        {
+            QueueLock.Release();
+        }
+    }
+
     private void SyncWithEngine(Torrent torrent)
     {
         var task = this.downloadEngine.GetTask(torrent.Id);
