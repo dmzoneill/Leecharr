@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Globalization;
 using System.Reflection;
 using Dapper;
 using FluentMigrator.Runner;
@@ -46,7 +47,14 @@ public class TimeOnlyTypeHandler : SqlMapper.TypeHandler<TimeOnly>
 
     public override TimeOnly Parse(object value)
     {
-        return TimeOnly.Parse((string)value);
+        return value switch
+        {
+            TimeOnly to => to,
+            TimeSpan ts => TimeOnly.FromTimeSpan(ts),
+            DateTime dt => TimeOnly.FromDateTime(dt),
+            string s => TimeOnly.Parse(s, CultureInfo.InvariantCulture),
+            _ => TimeOnly.Parse(value?.ToString() ?? "00:00:00", CultureInfo.InvariantCulture),
+        };
     }
 }
 
