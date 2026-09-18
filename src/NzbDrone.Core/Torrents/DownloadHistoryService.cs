@@ -234,6 +234,13 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                 existing.Trackers = dbTrackers;
                 existing.PrimaryTracker = tracker;
             }
+            else if (existing.Trackers != null && existing.Trackers.Count > 0)
+            {
+                if (string.IsNullOrWhiteSpace(existing.PrimaryTracker))
+                {
+                    existing.PrimaryTracker = existing.Trackers.FirstOrDefault();
+                }
+            }
 
             if (!string.IsNullOrWhiteSpace(source))
             {
@@ -354,12 +361,12 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
 
         var tracker = dbTrackers.FirstOrDefault() ?? torrent.TrackerUrl;
 
-        var entry = this.historyRepository.FindByTorrentId(torrent.Id)
+        var existing = this.historyRepository.FindByTorrentId(torrent.Id)
             ?? (!string.IsNullOrEmpty(torrent.InfoHash) ? this.historyRepository.FindByInfoHash(torrent.InfoHash) : null);
 
-        if (entry == null)
+        if (existing == null)
         {
-            entry = new DownloadHistory
+            existing = new DownloadHistory
             {
                 Title = torrent.Name ?? "Unknown Release",
                 InfoHash = torrent.InfoHash ?? string.Empty,
@@ -384,41 +391,48 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                 var metadata = this.mediaMetadataRepository.GetByTorrentId(torrent.Id);
                 if (metadata != null)
                 {
-                    entry.DataJson = JsonSerializer.Serialize(metadata);
+                    existing.DataJson = JsonSerializer.Serialize(metadata);
                 }
             }
 
-            this.historyRepository.Insert(entry);
+            this.historyRepository.Insert(existing);
             return;
         }
 
         if (this.mediaMetadataRepository != null)
         {
-            var metadata = (entry.TorrentId.HasValue ? this.mediaMetadataRepository.GetByTorrentId(entry.TorrentId.Value) : null)
+            var metadata = (existing.TorrentId.HasValue ? this.mediaMetadataRepository.GetByTorrentId(existing.TorrentId.Value) : null)
                 ?? (torrent.Id > 0 ? this.mediaMetadataRepository.GetByTorrentId(torrent.Id) : null);
 
             if (metadata != null)
             {
-                entry.DataJson = JsonSerializer.Serialize(metadata);
+                existing.DataJson = JsonSerializer.Serialize(metadata);
             }
         }
 
-        entry.TorrentId = null;
-        entry.DateRemoved = DateTime.UtcNow;
-        entry.Uploaded = torrent.Uploaded;
-        entry.Downloaded = torrent.Downloaded;
-        entry.Ratio = torrent.Ratio;
-        entry.Status = "Removed";
-        entry.RemovalReason = reason;
-        entry.IsPrivate = torrent.IsPrivate;
+        existing.TorrentId = null;
+        existing.DateRemoved = DateTime.UtcNow;
+        existing.Uploaded = torrent.Uploaded;
+        existing.Downloaded = torrent.Downloaded;
+        existing.Ratio = torrent.Ratio;
+        existing.Status = "Removed";
+        existing.RemovalReason = reason;
+        existing.IsPrivate = torrent.IsPrivate;
 
         if (dbTrackers.Count > 0)
         {
-            entry.Trackers = dbTrackers;
-            entry.PrimaryTracker = tracker;
+            existing.Trackers = dbTrackers;
+            existing.PrimaryTracker = tracker;
+        }
+        else if (existing.Trackers != null && existing.Trackers.Count > 0)
+        {
+            if (string.IsNullOrWhiteSpace(existing.PrimaryTracker))
+            {
+                existing.PrimaryTracker = existing.Trackers.FirstOrDefault();
+            }
         }
 
-        this.historyRepository.Update(entry);
+        this.historyRepository.Update(existing);
     }
 
     public Torrent ReAdd(int historyId)
@@ -816,6 +830,11 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                 .Where(u => !string.IsNullOrWhiteSpace(u))
                 .Distinct()
                 .ToList();
+
+            if ((allRegisteredTrackers == null || allRegisteredTrackers.Count == 0) && allHistoryTrackers.Count > 0)
+            {
+                allRegisteredTrackers = allHistoryTrackers.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            }
 
             if (allRegisteredTrackers != null && allRegisteredTrackers.Count > 0)
             {
