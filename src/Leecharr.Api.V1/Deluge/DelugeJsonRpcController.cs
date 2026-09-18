@@ -1040,180 +1040,329 @@ public class DelugeJsonRpcController : ControllerBase
         return this.DelugeResult(new { result = this.MapTorrentToDelugeStatus(found, singleTorrentKeys), error = (object)null, id });
     }
 
-    private async Task<IActionResult> HandleCoreAddTorrentFileAsync(JsonElement paramsElem, object id)
+    private async Task ApplyTorrentAddOptionsAsync(Torrent added, JsonElement opts)
     {
-        string addedHash = null;
-        if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 2)
+        if (added == null || opts.ValueKind != JsonValueKind.Object)
         {
-            var b64 = paramsElem[1].ValueKind == JsonValueKind.String ? paramsElem[1].GetString() : null;
-            if (!string.IsNullOrWhiteSpace(b64))
+            return;
+        }
+
+        var hasUpdates = false;
+
+        if (opts.TryGetProperty("stop_ratio", out var sr) && sr.ValueKind == JsonValueKind.Number && sr.TryGetDouble(out var ratioVal))
+        {
+            if (ratioVal > 0)
             {
-                var bytes = Convert.FromBase64String(b64);
-                var parsed = this.torrentFileParser.Parse(bytes);
-                var isPaused = false;
-                string savePath = null;
-                string category = null;
-                double? targetRatio = null;
-
-                if (paramsElem.GetArrayLength() >= 3 && paramsElem[2].ValueKind == JsonValueKind.Object)
-                {
-                    var opts = paramsElem[2];
-                    if (opts.TryGetProperty("add_paused", out var ap))
-                    {
-                        isPaused = SafeGetBoolean(ap);
-                    }
-
-                    if (opts.TryGetProperty("download_location", out var dl) && dl.ValueKind == JsonValueKind.String)
-                    {
-                        savePath = dl.GetString();
-                    }
-                    else if (opts.TryGetProperty("move_completed_path", out var mcp) && mcp.ValueKind == JsonValueKind.String)
-                    {
-                        savePath = mcp.GetString();
-                    }
-
-                    if (opts.TryGetProperty("label", out var lbl) && lbl.ValueKind == JsonValueKind.String)
-                    {
-                        category = lbl.GetString();
-                    }
-
-                    if (opts.TryGetProperty("stop_ratio", out var sr) && sr.ValueKind == JsonValueKind.Number)
-                    {
-                        targetRatio = sr.GetDouble();
-                    }
-                }
-
-                var added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
-                if (added != null && targetRatio.HasValue && targetRatio.Value > 0)
-                {
-                    added.TargetRatio = targetRatio.Value;
-                    await this.torrentService.UpdateAsync(added);
-                }
-
-                addedHash = added?.InfoHash;
+                added.TargetRatio = ratioVal;
+                hasUpdates = true;
             }
         }
 
-        return this.DelugeResult(new { result = addedHash, error = (object)null, id });
+        var rateLimitsSpecified = false;
+        if (opts.TryGetProperty("max_download_speed", out var mds))
+        {
+            rateLimitsSpecified = true;
+            if (mds.ValueKind == JsonValueKind.Number && mds.TryGetDouble(out var dlVal))
+            {
+                added.DownloadLimit = dlVal > 0 ? (int)Math.Round(dlVal) : 0;
+                hasUpdates = true;
+            }
+            else if (mds.ValueKind == JsonValueKind.Null)
+            {
+                added.DownloadLimit = 0;
+                hasUpdates = true;
+            }
+        }
+
+        if (opts.TryGetProperty("max_upload_speed", out var mus))
+        {
+            rateLimitsSpecified = true;
+            if (mus.ValueKind == JsonValueKind.Number && mus.TryGetDouble(out var ulVal))
+            {
+                added.UploadLimit = ulVal > 0 ? (int)Math.Round(ulVal) : 0;
+                hasUpdates = true;
+            }
+            else if (mus.ValueKind == JsonValueKind.Null)
+            {
+                added.UploadLimit = 0;
+                hasUpdates = true;
+            }
+        }
+
+        if (opts.TryGetProperty("sequential_download", out var seq) && seq.ValueKind != JsonValueKind.Null)
+        {
+            added.SequentialDownload = SafeGetBoolean(seq);
+            hasUpdates = true;
+            if (this.downloadEngine != null)
+            {
+                await this.downloadEngine.SetSequentialDownloadAsync(added.Id, added.SequentialDownload);
+            }
+        }
+
+        if (opts.TryGetProperty("prioritize_first_last_pieces", out var pflp) && pflp.ValueKind != JsonValueKind.Null)
+        {
+            added.FirstLastPiecePriority = SafeGetBoolean(pflp);
+            hasUpdates = true;
+            if (this.downloadEngine != null)
+            {
+                await this.downloadEngine.SetFirstLastPiecePriorityAsync(added.Id, added.FirstLastPiecePriority);
+            }
+        }
+
+        if (opts.TryGetProperty("max_connections", out var mc) && mc.ValueKind == JsonValueKind.Number)
+        {
+            // Extracted from Deluge add options; connection limits are managed globally or via engine.
+        }
+
+        if (opts.TryGetProperty("file_priorities", out var fp) && fp.ValueKind == JsonValueKind.Array && this.torrentFileService != null)
+        {
+            var files = this.torrentFileService.GetFiles(added.Id)?.ToList();
+            if (files != null && files.Count > 0)
+            {
+                var fIdx = 0;
+                foreach (var prioElem in fp.EnumerateArray())
+                {
+                    if (fIdx < files.Count && prioElem.TryGetInt32(out var prio))
+                    {
+                        await this.torrentFileService.SetPriorityAsync(files[fIdx].Id, FromDelugePriority(prio));
+                    }
+
+                    fIdx++;
+                }
+            }
+        }
+
+        if (hasUpdates)
+        {
+            await this.torrentService.UpdateAsync(added);
+        }
+
+        if (this.downloadEngine != null && (rateLimitsSpecified || added.DownloadLimit > 0 || added.UploadLimit > 0))
+        {
+            await this.downloadEngine.SetTorrentRateLimitsAsync(added.Id, added.DownloadLimit, added.UploadLimit);
+        }
+    }
+
+    private async Task<IActionResult> HandleCoreAddTorrentFileAsync(JsonElement paramsElem, object id)
+    {
+        if (paramsElem.ValueKind != JsonValueKind.Array || paramsElem.GetArrayLength() < 2)
+        {
+            return this.DelugeError("Failed to decode or parse torrent file", 1, id);
+        }
+
+        var b64 = paramsElem[1].ValueKind == JsonValueKind.String ? paramsElem[1].GetString() : null;
+        if (string.IsNullOrWhiteSpace(b64))
+        {
+            return this.DelugeError("Failed to decode or parse torrent file", 1, id);
+        }
+
+        byte[] bytes;
+        ParsedTorrent parsed;
+        try
+        {
+            bytes = Convert.FromBase64String(b64);
+            parsed = this.torrentFileParser.Parse(bytes);
+            if (parsed == null)
+            {
+                return this.DelugeError("Failed to decode or parse torrent file", 1, id);
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Deluge core.add_torrent_file failed to decode or parse torrent file");
+            return this.DelugeError("Failed to decode or parse torrent file", 1, id);
+        }
+
+        var isPaused = false;
+        string savePath = null;
+        string category = null;
+        JsonElement? optsElem = null;
+
+        if (paramsElem.GetArrayLength() >= 3 && paramsElem[2].ValueKind == JsonValueKind.Object)
+        {
+            optsElem = paramsElem[2];
+            var opts = optsElem.Value;
+            if (opts.TryGetProperty("add_paused", out var ap))
+            {
+                isPaused = SafeGetBoolean(ap);
+            }
+
+            if (opts.TryGetProperty("download_location", out var dl) && dl.ValueKind == JsonValueKind.String)
+            {
+                savePath = dl.GetString();
+            }
+            else if (opts.TryGetProperty("move_completed_path", out var mcp) && mcp.ValueKind == JsonValueKind.String)
+            {
+                savePath = mcp.GetString();
+            }
+
+            if (opts.TryGetProperty("label", out var lbl) && lbl.ValueKind == JsonValueKind.String)
+            {
+                category = lbl.GetString();
+            }
+        }
+
+        Torrent added;
+        try
+        {
+            added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Deluge core.add_torrent_file failed to add torrent to service");
+            return this.DelugeError("Failed to decode or parse torrent file", 1, id);
+        }
+
+        if (added == null)
+        {
+            return this.DelugeError("Failed to decode or parse torrent file", 1, id);
+        }
+
+        if (optsElem.HasValue)
+        {
+            await this.ApplyTorrentAddOptionsAsync(added, optsElem.Value);
+        }
+
+        return this.DelugeResult(new { result = added.InfoHash, error = (object)null, id });
     }
 
     private async Task<IActionResult> HandleCoreAddTorrentMagnetAsync(JsonElement paramsElem, object id)
     {
-        string magnetHash = null;
-        if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 1)
+        if (paramsElem.ValueKind != JsonValueKind.Array || paramsElem.GetArrayLength() < 1)
         {
-            var magnetUri = paramsElem[0].ValueKind == JsonValueKind.String ? paramsElem[0].GetString() : null;
-            var isPaused = false;
-            string savePath = null;
-            string category = null;
-            double? targetRatio = null;
-
-            if (paramsElem.GetArrayLength() >= 2 && paramsElem[1].ValueKind == JsonValueKind.Object)
-            {
-                var opts = paramsElem[1];
-                if (opts.TryGetProperty("add_paused", out var ap))
-                {
-                    isPaused = SafeGetBoolean(ap);
-                }
-
-                if (opts.TryGetProperty("download_location", out var dl) && dl.ValueKind == JsonValueKind.String)
-                {
-                    savePath = dl.GetString();
-                }
-                else if (opts.TryGetProperty("move_completed_path", out var mcp) && mcp.ValueKind == JsonValueKind.String)
-                {
-                    savePath = mcp.GetString();
-                }
-
-                if (opts.TryGetProperty("label", out var lbl) && lbl.ValueKind == JsonValueKind.String)
-                {
-                    category = lbl.GetString();
-                }
-
-                if (opts.TryGetProperty("stop_ratio", out var sr) && sr.ValueKind == JsonValueKind.Number)
-                {
-                    targetRatio = sr.GetDouble();
-                }
-            }
-
-            var added = await this.torrentService.AddFromMagnetAsync(magnetUri, category, savePath, isPaused);
-            if (added != null && targetRatio.HasValue && targetRatio.Value > 0)
-            {
-                added.TargetRatio = targetRatio.Value;
-                await this.torrentService.UpdateAsync(added);
-            }
-
-            magnetHash = added?.InfoHash;
+            return this.DelugeError("Failed to add magnet torrent", 1, id);
         }
 
-        return this.DelugeResult(new { result = magnetHash, error = (object)null, id });
+        var magnetUri = paramsElem[0].ValueKind == JsonValueKind.String ? paramsElem[0].GetString() : null;
+        if (string.IsNullOrWhiteSpace(magnetUri))
+        {
+            return this.DelugeError("Failed to add magnet torrent", 1, id);
+        }
+
+        var isPaused = false;
+        string savePath = null;
+        string category = null;
+        JsonElement? optsElem = null;
+
+        if (paramsElem.GetArrayLength() >= 2 && paramsElem[1].ValueKind == JsonValueKind.Object)
+        {
+            optsElem = paramsElem[1];
+            var opts = optsElem.Value;
+            if (opts.TryGetProperty("add_paused", out var ap))
+            {
+                isPaused = SafeGetBoolean(ap);
+            }
+
+            if (opts.TryGetProperty("download_location", out var dl) && dl.ValueKind == JsonValueKind.String)
+            {
+                savePath = dl.GetString();
+            }
+            else if (opts.TryGetProperty("move_completed_path", out var mcp) && mcp.ValueKind == JsonValueKind.String)
+            {
+                savePath = mcp.GetString();
+            }
+
+            if (opts.TryGetProperty("label", out var lbl) && lbl.ValueKind == JsonValueKind.String)
+            {
+                category = lbl.GetString();
+            }
+        }
+
+        Torrent added;
+        try
+        {
+            added = await this.torrentService.AddFromMagnetAsync(magnetUri, category, savePath, isPaused);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Deluge core.add_torrent_magnet failed to add magnet torrent");
+            return this.DelugeError("Failed to add magnet torrent", 1, id);
+        }
+
+        if (added == null)
+        {
+            return this.DelugeError("Failed to add magnet torrent", 1, id);
+        }
+
+        if (optsElem.HasValue)
+        {
+            await this.ApplyTorrentAddOptionsAsync(added, optsElem.Value);
+        }
+
+        return this.DelugeResult(new { result = added.InfoHash, error = (object)null, id });
     }
 
     private async Task<IActionResult> HandleCoreAddTorrentUrlAsync(JsonElement paramsElem, object id)
     {
-        string urlHash = null;
-        if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 1)
+        if (paramsElem.ValueKind != JsonValueKind.Array || paramsElem.GetArrayLength() < 1)
         {
-            var url = paramsElem[0].ValueKind == JsonValueKind.String ? paramsElem[0].GetString() : null;
-            var isPaused = false;
-            string savePath = null;
-            string category = null;
-            double? targetRatio = null;
+            return this.DelugeError("Failed to add torrent from URL", 1, id);
+        }
 
-            if (paramsElem.GetArrayLength() >= 2 && paramsElem[1].ValueKind == JsonValueKind.Object)
+        var url = paramsElem[0].ValueKind == JsonValueKind.String ? paramsElem[0].GetString() : null;
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return this.DelugeError("Failed to add torrent from URL", 1, id);
+        }
+
+        var isPaused = false;
+        string savePath = null;
+        string category = null;
+        JsonElement? optsElem = null;
+
+        if (paramsElem.GetArrayLength() >= 2 && paramsElem[1].ValueKind == JsonValueKind.Object)
+        {
+            optsElem = paramsElem[1];
+            var opts = optsElem.Value;
+            if (opts.TryGetProperty("add_paused", out var ap))
             {
-                var opts = paramsElem[1];
-                if (opts.TryGetProperty("add_paused", out var ap))
-                {
-                    isPaused = SafeGetBoolean(ap);
-                }
-
-                if (opts.TryGetProperty("download_location", out var dl) && dl.ValueKind == JsonValueKind.String)
-                {
-                    savePath = dl.GetString();
-                }
-                else if (opts.TryGetProperty("move_completed_path", out var mcp) && mcp.ValueKind == JsonValueKind.String)
-                {
-                    savePath = mcp.GetString();
-                }
-
-                if (opts.TryGetProperty("label", out var lbl) && lbl.ValueKind == JsonValueKind.String)
-                {
-                    category = lbl.GetString();
-                }
-
-                if (opts.TryGetProperty("stop_ratio", out var sr) && sr.ValueKind == JsonValueKind.Number)
-                {
-                    targetRatio = sr.GetDouble();
-                }
+                isPaused = SafeGetBoolean(ap);
             }
 
-            if (!string.IsNullOrWhiteSpace(url))
+            if (opts.TryGetProperty("download_location", out var dl) && dl.ValueKind == JsonValueKind.String)
             {
-                Torrent added = null;
-                if (url.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
-                {
-                    added = await this.torrentService.AddFromMagnetAsync(url, category, savePath, isPaused);
-                    urlHash = added?.InfoHash;
-                }
-                else
-                {
-                    var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
-                    var bytes = await this.safeHttpClientService.DownloadBytesAsync(url, maxSizeBytes: maxTorrentBytes);
-                    var parsed = this.torrentFileParser.Parse(bytes);
-                    added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
-                    urlHash = added?.InfoHash;
-                }
+                savePath = dl.GetString();
+            }
+            else if (opts.TryGetProperty("move_completed_path", out var mcp) && mcp.ValueKind == JsonValueKind.String)
+            {
+                savePath = mcp.GetString();
+            }
 
-                if (added != null && targetRatio.HasValue && targetRatio.Value > 0)
-                {
-                    added.TargetRatio = targetRatio.Value;
-                    await this.torrentService.UpdateAsync(added);
-                }
+            if (opts.TryGetProperty("label", out var lbl) && lbl.ValueKind == JsonValueKind.String)
+            {
+                category = lbl.GetString();
             }
         }
 
-        return this.DelugeResult(new { result = urlHash, error = (object)null, id });
+        Torrent added;
+        if (url.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
+        {
+            added = await this.torrentService.AddFromMagnetAsync(url, category, savePath, isPaused);
+        }
+        else
+        {
+            var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+            var bytes = await this.safeHttpClientService.DownloadBytesAsync(url, maxSizeBytes: maxTorrentBytes);
+            var parsed = this.torrentFileParser.Parse(bytes);
+            if (parsed == null)
+            {
+                return this.DelugeError("Failed to add torrent from URL", 1, id);
+            }
+
+            added = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPaused, bytes);
+        }
+
+        if (added == null)
+        {
+            return this.DelugeError("Failed to add torrent from URL", 1, id);
+        }
+
+        if (optsElem.HasValue)
+        {
+            await this.ApplyTorrentAddOptionsAsync(added, optsElem.Value);
+        }
+
+        return this.DelugeResult(new { result = added.InfoHash, error = (object)null, id });
     }
 
     private async Task<IActionResult> HandleWebUploadTorrentAsync(JsonElement paramsElem, object id)
@@ -1383,10 +1532,9 @@ public class DelugeJsonRpcController : ControllerBase
                         continue;
                     }
 
-                    if (targetRatio.HasValue && targetRatio.Value > 0)
+                    if (item.TryGetProperty("options", out var addOpts) && addOpts.ValueKind == JsonValueKind.Object)
                     {
-                        added.TargetRatio = targetRatio.Value;
-                        await this.torrentService.UpdateAsync(added);
+                        await this.ApplyTorrentAddOptionsAsync(added, addOpts);
                     }
                 }
                 catch (Exception ex)
@@ -1626,6 +1774,26 @@ public class DelugeJsonRpcController : ControllerBase
                         hasOtherUpdates = true;
                     }
 
+                    if (opts.TryGetProperty("sequential_download", out var seq) && seq.ValueKind != JsonValueKind.Null)
+                    {
+                        t.SequentialDownload = SafeGetBoolean(seq);
+                        hasOtherUpdates = true;
+                        if (this.downloadEngine != null)
+                        {
+                            await this.downloadEngine.SetSequentialDownloadAsync(t.Id, t.SequentialDownload);
+                        }
+                    }
+
+                    if (opts.TryGetProperty("prioritize_first_last_pieces", out var pflp) && pflp.ValueKind != JsonValueKind.Null)
+                    {
+                        t.FirstLastPiecePriority = SafeGetBoolean(pflp);
+                        hasOtherUpdates = true;
+                        if (this.downloadEngine != null)
+                        {
+                            await this.downloadEngine.SetFirstLastPiecePriorityAsync(t.Id, t.FirstLastPiecePriority);
+                        }
+                    }
+
                     if (opts.TryGetProperty("file_priorities", out var fp) && fp.ValueKind == JsonValueKind.Array)
                     {
                         var files = this.torrentFileService.GetFiles(t.Id).ToList();
@@ -1644,6 +1812,12 @@ public class DelugeJsonRpcController : ControllerBase
                     if (hasOtherUpdates)
                     {
                         await this.torrentService.UpdateAsync(t);
+                    }
+
+                    var rateLimitsSpecified = opts.TryGetProperty("max_download_speed", out _) || opts.TryGetProperty("max_upload_speed", out _);
+                    if (this.downloadEngine != null && (rateLimitsSpecified || t.DownloadLimit > 0 || t.UploadLimit > 0))
+                    {
+                        await this.downloadEngine.SetTorrentRateLimitsAsync(t.Id, t.DownloadLimit, t.UploadLimit);
                     }
                 }
             }
