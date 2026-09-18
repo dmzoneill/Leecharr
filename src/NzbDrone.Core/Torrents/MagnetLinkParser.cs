@@ -61,7 +61,7 @@ public static class MagnetLinkParser
 
             switch (key)
             {
-                case "xt":
+                case string k when k == "xt" || k.StartsWith("xt.", StringComparison.Ordinal):
                     if (value.StartsWith("urn:btih:", StringComparison.OrdinalIgnoreCase))
                     {
                         var hash = value.Substring("urn:btih:".Length).Trim();
@@ -91,10 +91,14 @@ public static class MagnetLinkParser
                         {
                             result.V2InfoHash = hash.ToLowerInvariant();
                         }
-                        else if (hash.Length == 52 || hash.Length == 56)
+                        else if (hash.Length is 52 or 55 or 56)
                         {
                             var hex = Base32ToHex(hash).ToLowerInvariant();
-                            if (hex.Length == 64)
+                            if (hex.Length == 68 && hex.StartsWith("1220", StringComparison.OrdinalIgnoreCase))
+                            {
+                                result.V2InfoHash = hex.Substring(4);
+                            }
+                            else if (hex.Length == 64)
                             {
                                 result.V2InfoHash = hex;
                             }
@@ -155,12 +159,17 @@ public static class MagnetLinkParser
         }
 
         var clean = infoHash.Trim();
-        if (clean.Length == 32 || clean.Length == 52 || clean.Length == 56)
+        if (clean.Length is 32 or 52 or 55 or 56)
         {
             try
             {
                 var hex = Base32ToHex(clean).ToLowerInvariant();
-                if (hex.Length == 40 || hex.Length == 64)
+                if (hex.Length == 68 && hex.StartsWith("1220", StringComparison.OrdinalIgnoreCase))
+                {
+                    return hex.Substring(4);
+                }
+
+                if (hex.Length is 40 or 64)
                 {
                     return hex;
                 }

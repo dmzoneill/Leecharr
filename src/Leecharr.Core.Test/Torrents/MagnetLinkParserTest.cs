@@ -155,6 +155,66 @@ public class MagnetLinkParserTest
         normalizedPadded.Should().Be("0000000000000000000000000000000000000000000000000000000000000000");
     }
 
+    [Test]
+    public void Parse_WhenBEP52Multihash55CharBase32_ParsesSuccessfully()
+    {
+        var magnet = "magnet:?xt=urn:btmh:CIQNR6W5AE5FMPPCCIYJ2NQ5JAIBQYDWWY5WVU6WFE2QFZSF4OASPDA&dn=UnpaddedBase32V2Torrent";
+
+        var parsed = MagnetLinkParser.Parse(magnet);
+
+        parsed.InfoHash.Should().Be("d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c");
+        parsed.V2InfoHash.Should().Be("d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c");
+        parsed.DisplayName.Should().Be("UnpaddedBase32V2Torrent");
+    }
+
+    [Test]
+    public void Parse_WhenBEP52Multihash56CharBase32WithPadding_ParsesSuccessfully()
+    {
+        var magnet = "magnet:?xt=urn:btmh:CIQNR6W5AE5FMPPCCIYJ2NQ5JAIBQYDWWY5WVU6WFE2QFZSF4OASPDA=&dn=PaddedBase32V2Multihash";
+
+        var parsed = MagnetLinkParser.Parse(magnet);
+
+        parsed.InfoHash.Should().Be("d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c");
+        parsed.V2InfoHash.Should().Be("d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c");
+        parsed.DisplayName.Should().Be("PaddedBase32V2Multihash");
+    }
+
+    [Test]
+    public void Parse_WhenHybridMagnetWithBtmhFollowedByBtih_PopulatesBothHashes()
+    {
+        var magnet = "magnet:?xt=urn:btmh:CIQNR6W5AE5FMPPCCIYJ2NQ5JAIBQYDWWY5WVU6WFE2QFZSF4OASPDA&xt=urn:btih:3333333333333333333333333333333333333333&dn=HybridTorrent";
+
+        var parsed = MagnetLinkParser.Parse(magnet);
+
+        parsed.V1InfoHash.Should().Be("3333333333333333333333333333333333333333");
+        parsed.V2InfoHash.Should().Be("d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c");
+        parsed.InfoHash.Should().Be("3333333333333333333333333333333333333333");
+        parsed.DisplayName.Should().Be("HybridTorrent");
+    }
+
+    [Test]
+    public void Parse_WhenHybridMagnetWithNumberedXt_PopulatesBothHashes()
+    {
+        var magnet = "magnet:?xt.1=urn:btmh:CIQNR6W5AE5FMPPCCIYJ2NQ5JAIBQYDWWY5WVU6WFE2QFZSF4OASPDA&xt.2=urn:btih:3333333333333333333333333333333333333333&dn=HybridNumbered";
+
+        var parsed = MagnetLinkParser.Parse(magnet);
+
+        parsed.V1InfoHash.Should().Be("3333333333333333333333333333333333333333");
+        parsed.V2InfoHash.Should().Be("d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c");
+        parsed.InfoHash.Should().Be("3333333333333333333333333333333333333333");
+        parsed.DisplayName.Should().Be("HybridNumbered");
+    }
+
+    [Test]
+    public void NormalizeInfoHash_When55CharOr56CharBase32Multihash_NormalizesTo64HexChars()
+    {
+        var unpadded = MagnetLinkParser.NormalizeInfoHash("CIQNR6W5AE5FMPPCCIYJ2NQ5JAIBQYDWWY5WVU6WFE2QFZSF4OASPDA");
+        unpadded.Should().Be("d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c");
+
+        var padded = MagnetLinkParser.NormalizeInfoHash("CIQNR6W5AE5FMPPCCIYJ2NQ5JAIBQYDWWY5WVU6WFE2QFZSF4OASPDA=");
+        padded.Should().Be("d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c");
+    }
+
     [TestCase("0123456789abcdef0123456789abcdef01234567")] // 40-hex chars (SHA-1)
     [TestCase("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")] // 32-char Base32 (SHA-1)
     [TestCase("1220invalid")]
