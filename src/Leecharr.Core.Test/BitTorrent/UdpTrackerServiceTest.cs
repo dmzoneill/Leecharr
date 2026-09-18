@@ -212,7 +212,7 @@ public class UdpTrackerServiceTest
     }
 
     [Test]
-    public void HandlePacket_Announce_InvalidConnectionId_ReturnsErrorResponse()
+    public void HandlePacket_Announce_InvalidConnectionId_SilentlyDropsPacket()
     {
         var announcePacket = new byte[98];
         BinaryPrimitives.WriteInt64BigEndian(announcePacket.AsSpan(0, 8), 0x99999999L);
@@ -220,10 +220,7 @@ public class UdpTrackerServiceTest
         BinaryPrimitives.WriteInt32BigEndian(announcePacket.AsSpan(12, 4), 123);
 
         var response = this.udpTrackerService.HandlePacket(announcePacket, new IPEndPoint(IPAddress.Loopback, 12345));
-        response.Should().NotBeNull();
-        BinaryPrimitives.ReadInt32BigEndian(response.AsSpan(0, 4)).Should().Be(3);
-        BinaryPrimitives.ReadInt32BigEndian(response.AsSpan(4, 4)).Should().Be(123);
-        Encoding.UTF8.GetString(response.AsSpan(8)).Should().Contain("Connection ID expired or invalid");
+        response.Should().BeNull();
     }
 
     [Test]
@@ -364,7 +361,7 @@ public class UdpTrackerServiceTest
     }
 
     [Test]
-    public void HandlePacket_Announce_DifferentClientIp_ReturnsErrorResponse()
+    public void HandlePacket_Announce_DifferentClientIp_SilentlyDropsPacket()
     {
         // 1. Connect first with 127.0.0.1
         var connectPacket = new byte[16];
@@ -384,10 +381,7 @@ public class UdpTrackerServiceTest
         var spoofedIp = IPAddress.Parse("10.0.0.1");
         var response = this.udpTrackerService.HandlePacket(announcePacket, new IPEndPoint(spoofedIp, 54321));
 
-        response.Should().NotBeNull();
-        BinaryPrimitives.ReadInt32BigEndian(response.AsSpan(0, 4)).Should().Be(3); // Action = Error
-        BinaryPrimitives.ReadInt32BigEndian(response.AsSpan(4, 4)).Should().Be(2); // TransactionId = 2
-        Encoding.UTF8.GetString(response.AsSpan(8)).Should().Contain("Connection ID expired or invalid");
+        response.Should().BeNull();
     }
 
     [Test]
@@ -467,5 +461,112 @@ public class UdpTrackerServiceTest
         var result = this.udpTrackerService.HandlePacket(packet, new IPEndPoint(IPAddress.Loopback, 12345));
 
         result.Should().BeNull();
+    }
+
+    [Test]
+    public void HandlePacket_Scrape_Exceeding74Hashes_ReturnsErrorResponse()
+    {
+        var connectPacket = new byte[16];
+        BinaryPrimitives.WriteInt64BigEndian(connectPacket.AsSpan(0, 8), 0x41727101980L);
+        BinaryPrimitives.WriteInt32BigEndian(connectPacket.AsSpan(8, 4), 0);
+        BinaryPrimitives.WriteInt32BigEndian(connectPacket.AsSpan(12, 4), 1);
+        var connectResp = this.udpTrackerService.HandlePacket(connectPacket, new IPEndPoint(IPAddress.Loopback, 12345));
+        var connectionId = BinaryPrimitives.ReadInt64BigEndian(connectResp.AsSpan(8, 8));
+
+        // 75 infohashes -> 16 + 75 * 20 = 1516 bytes
+        var scrapePacket = new byte[16 + (75 * 20)];
+        BinaryPrimitives.WriteInt64BigEndian(scrapePacket.AsSpan(0, 8), connectionId);
+        BinaryPrimitives.WriteInt32BigEndian(scrapePacket.AsSpan(8, 4), 2);
+        BinaryPrimitives.WriteInt32BigEndian(scrapePacket.AsSpan(12, 4), 555);
+
+        var response = this.udpTrackerService.HandlePacket(scrapePacket, new IPEndPoint(IPAddress.Loopback, 12345));
+        response.Should().NotBeNull();
+        BinaryPrimitives.ReadInt32BigEndian(response.AsSpan(0, 4)).Should().Be(3);
+        BinaryPrimitives.ReadInt32BigEndian(response.AsSpan(4, 4)).Should().Be(555);
+        Encoding.UTF8.GetString(response.AsSpan(8)).Should().Contain("Too many infohashes in scrape (max 74).");
+    }
+
+    [Test]
+    public void HandlePacket_Announce_WhenClientIpIsNotLoopback_DoesNotTrustCustomIpField()
+    {
+        var dockerIp = IPAddress.Parse("172.17.0.2");
+        var ep = new IPEndPoint(dockerIp, 12345);
+
+        var connectPacket = new byte[16];
+        BinaryPrimitives.WriteInt64BigEndian(connectPacket.AsSpan(0, 8), 0x41727101980L);
+        BinaryPrimitives.WriteInt32BigEndian(connectPacket.AsSpan(8, 4), 0);
+        BinaryPrimitives.WriteInt32BigEndian(connectPacket.AsSpan(12, 4), 1);
+        var connectResp = this.udpTrackerService.HandlePacket(connectPacket, ep);
+        var connectionId = BinaryPrimitives.ReadInt64BigEndian(connectResp.AsSpan(8, 8));
+
+        this.trackerService.Announce(Arg.Any<TrackerAnnounceRequest>())
+            .Returns(new TrackerAnnounceResult { Success = true, Interval = 1800 });
+
+        var announcePacket = new byte[98];
+        BinaryPrimitives.WriteInt64BigEndian(announcePacket.AsSpan(0, 8), connectionId);
+        BinaryPrimitives.WriteInt32BigEndian(announcePacket.AsSpan(8, 4), 1);
+        BinaryPrimitives.WriteInt32BigEndian(announcePacket.AsSpan(12, 4), 2);
+
+        // Put spoofed IP 198.51.100.1 at offset 84
+        var spoofedIp = IPAddress.Parse("198.51.100.1").GetAddressBytes();
+        spoofedIp.CopyTo(announcePacket.AsSpan(84, 4));
+
+        this.udpTrackerService.HandlePacket(announcePacket, ep);
+
+        this.trackerService.Received(1).Announce(Arg.Is<TrackerAnnounceRequest>(r => r.RemoteIp.Equals(dockerIp)));
+    }
+
+    [Test]
+    public void HandlePacket_Announce_WhenClientIpIsLoopback_AcceptsCustomIpField()
+    {
+        var ep = new IPEndPoint(IPAddress.Loopback, 12345);
+
+        var connectPacket = new byte[16];
+        BinaryPrimitives.WriteInt64BigEndian(connectPacket.AsSpan(0, 8), 0x41727101980L);
+        BinaryPrimitives.WriteInt32BigEndian(connectPacket.AsSpan(8, 4), 0);
+        BinaryPrimitives.WriteInt32BigEndian(connectPacket.AsSpan(12, 4), 1);
+        var connectResp = this.udpTrackerService.HandlePacket(connectPacket, ep);
+        var connectionId = BinaryPrimitives.ReadInt64BigEndian(connectResp.AsSpan(8, 8));
+
+        this.trackerService.Announce(Arg.Any<TrackerAnnounceRequest>())
+            .Returns(new TrackerAnnounceResult { Success = true, Interval = 1800 });
+
+        var announcePacket = new byte[98];
+        BinaryPrimitives.WriteInt64BigEndian(announcePacket.AsSpan(0, 8), connectionId);
+        BinaryPrimitives.WriteInt32BigEndian(announcePacket.AsSpan(8, 4), 1);
+        BinaryPrimitives.WriteInt32BigEndian(announcePacket.AsSpan(12, 4), 2);
+
+        // Put custom IP 192.168.1.50 at offset 84
+        var customIp = IPAddress.Parse("192.168.1.50");
+        customIp.GetAddressBytes().CopyTo(announcePacket.AsSpan(84, 4));
+
+        this.udpTrackerService.HandlePacket(announcePacket, ep);
+
+        this.trackerService.Received(1).Announce(Arg.Is<TrackerAnnounceRequest>(r => r.RemoteIp.Equals(customIp)));
+    }
+
+    [Test]
+    public void HandlePacket_WhenRateLimitExceeded_ReturnsErrorResponse()
+    {
+        this.configService.TrackerRateLimitPerMinute.Returns(2);
+
+        var connectPacket = new byte[16];
+        BinaryPrimitives.WriteInt64BigEndian(connectPacket.AsSpan(0, 8), 0x41727101980L);
+        BinaryPrimitives.WriteInt32BigEndian(connectPacket.AsSpan(8, 4), 0);
+        BinaryPrimitives.WriteInt32BigEndian(connectPacket.AsSpan(12, 4), 1);
+        var ep = new IPEndPoint(IPAddress.Loopback, 12345);
+
+        var resp1 = this.udpTrackerService.HandlePacket(connectPacket, ep);
+        resp1.Should().NotBeNull();
+        BinaryPrimitives.ReadInt32BigEndian(resp1.AsSpan(0, 4)).Should().Be(0);
+
+        var resp2 = this.udpTrackerService.HandlePacket(connectPacket, ep);
+        resp2.Should().NotBeNull();
+        BinaryPrimitives.ReadInt32BigEndian(resp2.AsSpan(0, 4)).Should().Be(0);
+
+        var resp3 = this.udpTrackerService.HandlePacket(connectPacket, ep);
+        resp3.Should().NotBeNull();
+        BinaryPrimitives.ReadInt32BigEndian(resp3.AsSpan(0, 4)).Should().Be(3);
+        Encoding.UTF8.GetString(resp3.AsSpan(8)).Should().Contain("Rate limit exceeded.");
     }
 }

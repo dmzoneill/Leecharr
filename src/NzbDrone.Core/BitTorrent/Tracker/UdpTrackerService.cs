@@ -20,10 +20,15 @@ public class UdpTrackerService : IUdpTrackerService
 {
     private const long MagicProtocolId = 0x41727101980L;
 
+    private const int MaxConnectionIds = 10000;
+
     private readonly IEmbeddedTrackerService trackerService;
     private readonly IConfigService configService;
     private readonly ConcurrentDictionary<long, (IPAddress Ip, DateTime ExpiresUtc)> connectionIds = new();
+    private readonly ConcurrentDictionary<IPAddress, (int Count, long WindowMinute)> clientRateLimits = new();
+    private readonly object pruneLock = new();
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
+    private DateTime lastPruneUtc = DateTime.UtcNow;
 
     private Socket socket;
     private CancellationTokenSource cts;
@@ -153,8 +158,6 @@ public class UdpTrackerService : IUdpTrackerService
             return null;
         }
 
-        this.PruneConnectionIds();
-
         var clientIp = remoteEndPoint?.Address ?? IPAddress.Loopback;
         if (clientIp.IsIPv4MappedToIPv6)
         {
@@ -165,6 +168,11 @@ public class UdpTrackerService : IUdpTrackerService
         var action = BinaryPrimitives.ReadInt32BigEndian(packet.Slice(8, 4));
         var transactionId = BinaryPrimitives.ReadInt32BigEndian(packet.Slice(12, 4));
 
+        if (this.IsRateLimited(clientIp))
+        {
+            return BuildErrorResponse(transactionId, "Rate limit exceeded.");
+        }
+
         // Connect
         if (action == 0)
         {
@@ -172,6 +180,8 @@ public class UdpTrackerService : IUdpTrackerService
             {
                 return BuildErrorResponse(transactionId, "Invalid protocol_id.");
             }
+
+            this.PruneConnectionIdsIfNeeded();
 
             var connectionId = GenerateConnectionId();
             this.connectionIds[connectionId] = (clientIp, DateTime.UtcNow.AddMinutes(2));
@@ -186,7 +196,8 @@ public class UdpTrackerService : IUdpTrackerService
         var connectionIdIn = first8;
         if (!this.IsValidConnectionId(connectionIdIn, clientIp))
         {
-            return BuildErrorResponse(transactionId, "Connection ID expired or invalid.");
+            // Silently drop packets with invalid or expired connection IDs to avoid UDP reflection/amplification attacks
+            return null;
         }
 
         // Announce
@@ -203,7 +214,6 @@ public class UdpTrackerService : IUdpTrackerService
             var left = BinaryPrimitives.ReadInt64BigEndian(packet.Slice(64, 8));
             var uploaded = BinaryPrimitives.ReadInt64BigEndian(packet.Slice(72, 8));
             var eventCode = BinaryPrimitives.ReadInt32BigEndian(packet.Slice(80, 4));
-            var ipInt = BinaryPrimitives.ReadUInt32BigEndian(packet.Slice(84, 4));
             var key = BinaryPrimitives.ReadUInt32BigEndian(packet.Slice(88, 4));
             var numWant = BinaryPrimitives.ReadInt32BigEndian(packet.Slice(92, 4));
             var port = (int)BinaryPrimitives.ReadUInt16BigEndian(packet.Slice(96, 2));
@@ -217,9 +227,13 @@ public class UdpTrackerService : IUdpTrackerService
             };
 
             var announceIp = clientIp;
-            if (ipInt != 0 && (IPAddress.IsLoopback(clientIp) || IsPrivateNetwork(clientIp)))
+            if (IPAddress.IsLoopback(clientIp))
             {
-                announceIp = new IPAddress(BinaryPrimitives.ReverseEndianness(ipInt));
+                var customIp = new IPAddress(packet.Slice(84, 4));
+                if (!customIp.Equals(IPAddress.Any) && !customIp.Equals(IPAddress.None))
+                {
+                    announceIp = customIp;
+                }
             }
 
             var req = new TrackerAnnounceRequest
@@ -290,6 +304,11 @@ public class UdpTrackerService : IUdpTrackerService
             }
 
             var hashCount = (packet.Length - 16) / 20;
+            if (hashCount > 74)
+            {
+                return BuildErrorResponse(transactionId, "Too many infohashes in scrape (max 74).");
+            }
+
             var hashes = new List<byte[]>(hashCount);
             for (var i = 0; i < hashCount; i++)
             {
@@ -451,81 +470,65 @@ public class UdpTrackerService : IUdpTrackerService
         return false;
     }
 
-    private void PruneConnectionIds()
+    private void PruneConnectionIdsIfNeeded()
     {
         var now = DateTime.UtcNow;
-        foreach (var kvp in this.connectionIds)
+        if (now - this.lastPruneUtc < TimeSpan.FromSeconds(30) && this.connectionIds.Count < MaxConnectionIds)
         {
-            if (kvp.Value.ExpiresUtc < now)
+            return;
+        }
+
+        lock (this.pruneLock)
+        {
+            if (now - this.lastPruneUtc < TimeSpan.FromSeconds(30) && this.connectionIds.Count < MaxConnectionIds)
             {
-                this.connectionIds.TryRemove(kvp.Key, out _);
+                return;
+            }
+
+            this.lastPruneUtc = now;
+            foreach (var kvp in this.connectionIds)
+            {
+                if (kvp.Value.ExpiresUtc < now)
+                {
+                    this.connectionIds.TryRemove(kvp.Key, out _);
+                }
+            }
+
+            if (this.connectionIds.Count >= MaxConnectionIds)
+            {
+                var excess = this.connectionIds.Count - MaxConnectionIds + 1000;
+                var toEvict = this.connectionIds.OrderBy(kvp => kvp.Value.ExpiresUtc).Take(excess);
+                foreach (var item in toEvict)
+                {
+                    this.connectionIds.TryRemove(item.Key, out _);
+                }
+            }
+
+            var currentMinute = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 60;
+            foreach (var kvp in this.clientRateLimits)
+            {
+                if (kvp.Value.WindowMinute < currentMinute)
+                {
+                    this.clientRateLimits.TryRemove(kvp.Key, out _);
+                }
             }
         }
     }
 
-    private static bool IsPrivateNetwork(IPAddress ip)
+    private bool IsRateLimited(IPAddress clientIp)
     {
-        if (ip == null || IPAddress.IsLoopback(ip))
+        var limit = this.configService?.TrackerRateLimitPerMinute ?? 0;
+        if (limit <= 0)
         {
-            return true;
+            return false;
         }
 
-        if (ip.IsIPv4MappedToIPv6)
-        {
-            ip = ip.MapToIPv4();
-        }
+        var currentMinute = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 60;
+        var entry = this.clientRateLimits.AddOrUpdate(
+            clientIp,
+            _ => (1, currentMinute),
+            (_, existing) => existing.WindowMinute == currentMinute ? (existing.Count + 1, currentMinute) : (1, currentMinute));
 
-        var bytes = ip.GetAddressBytes();
-        if (ip.AddressFamily == AddressFamily.InterNetwork)
-        {
-            if (bytes[0] == 10)
-            {
-                return true;
-            }
-
-            if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31)
-            {
-                return true;
-            }
-
-            if (bytes[0] == 192 && bytes[1] == 168)
-            {
-                return true;
-            }
-
-            if (bytes[0] == 127)
-            {
-                return true;
-            }
-
-            if (bytes[0] == 169 && bytes[1] == 254)
-            {
-                return true;
-            }
-
-            if (bytes[0] == 100 && bytes[1] >= 64 && bytes[1] <= 127)
-            {
-                return true;
-            }
-        }
-        else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
-        {
-            if (ip.Equals(IPAddress.IPv6Loopback))
-            {
-                return true;
-            }
-
-            if ((bytes[0] & 0xFE) == 0xFC)
-            {
-                return true;
-            }
-
-            if (bytes[0] == 0xFE && (bytes[1] & 0xC0) == 0x80)
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return entry.Count > limit;
     }
 }
