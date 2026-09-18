@@ -141,6 +141,34 @@ public class PiecePicker
 
     public bool EndGamePickerEnabled { get; set; } = true;
 
+    public IReadOnlyCollection<int> PartialPieces => this.GetPartialPieces();
+
+    public IReadOnlyCollection<int> GetPartialPieces()
+    {
+        lock (this.syncLock)
+        {
+            var result = new HashSet<int>();
+            for (var i = 0; i < this.pieceCount; i++)
+            {
+                if (this.pieces[i].ReceivedBlocks > 0 && !this.pieces[i].IsComplete)
+                {
+                    result.Add(i);
+                }
+            }
+
+            foreach (var key in this.inFlightBlocks.Keys)
+            {
+                var colonIndex = key.IndexOf(':');
+                if (colonIndex > 0 && int.TryParse(key.AsSpan(0, colonIndex), out var pieceIdx))
+                {
+                    result.Add(pieceIdx);
+                }
+            }
+
+            return result;
+        }
+    }
+
     public int InFlightBlockCount
     {
         get

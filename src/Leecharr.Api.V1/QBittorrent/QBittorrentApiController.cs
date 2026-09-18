@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
 using NLog;
 using NzbDrone.Common.Disk;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Bandwidth;
 using NzbDrone.Core.BitTorrent;
@@ -53,6 +54,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     private readonly ISpeedSchedulerService speedSchedulerService;
     private readonly IDiskProvider diskProvider;
     private readonly IStoragePathService storagePathService;
+    private readonly IAppFolderInfo appFolderInfo;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public QBittorrentApiController(
@@ -71,7 +73,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         IDownloadEngine downloadEngine = null,
         ISpeedSchedulerService speedSchedulerService = null,
         IDiskProvider diskProvider = null,
-        IStoragePathService storagePathService = null)
+        IStoragePathService storagePathService = null,
+        IAppFolderInfo appFolderInfo = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -89,6 +92,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         this.speedSchedulerService = speedSchedulerService;
         this.diskProvider = diskProvider;
         this.storagePathService = storagePathService;
+        this.appFolderInfo = appFolderInfo;
     }
 
     [NonAction]
@@ -1916,15 +1920,85 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
         var task = this.downloadEngine?.GetTask(torrent.Id);
         var bitfield = task?.PieceBitfield;
+
+        var downloadingPieces = new HashSet<int>();
+        if (task?.PartialPieces != null)
+        {
+            foreach (var p in task.PartialPieces)
+            {
+                downloadingPieces.Add(p);
+            }
+        }
+
+        if (task?.Picker?.PartialPieces != null)
+        {
+            foreach (var p in task.Picker.PartialPieces)
+            {
+                downloadingPieces.Add(p);
+            }
+        }
+
+        try
+        {
+            var managerProp = task?.GetType().GetProperty("Manager");
+            if (managerProp != null)
+            {
+                var mgr = managerProp.GetValue(task);
+                if (mgr != null)
+                {
+                    var activePiecesProp = mgr.GetType().GetProperty("PartialPieces") ?? mgr.GetType().GetProperty("ActivePieces");
+                    if (activePiecesProp?.GetValue(mgr) is IEnumerable<int> mgrPieces)
+                    {
+                        foreach (var p in mgrPieces)
+                        {
+                            downloadingPieces.Add(p);
+                        }
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Ignore reflection errors
+        }
+
         if (bitfield == null || bitfield.Length == 0)
         {
-            return this.Ok(new List<int>());
+            var pieceCount = torrent.PieceCount > 0 ? torrent.PieceCount : 0;
+            if (pieceCount == 0)
+            {
+                return this.Ok(new List<int>());
+            }
+
+            if (torrent.Status == TorrentStatus.Completed || torrent.Status == TorrentStatus.Seeding)
+            {
+                return this.Ok(Enumerable.Repeat(2, pieceCount).ToList());
+            }
+
+            var uncompletedStates = new List<int>(pieceCount);
+            for (var i = 0; i < pieceCount; i++)
+            {
+                uncompletedStates.Add(downloadingPieces.Contains(i) ? 1 : 0);
+            }
+
+            return this.Ok(uncompletedStates);
         }
 
         var states = new List<int>(bitfield.Length);
-        for (int i = 0; i < bitfield.Length; i++)
+        for (var i = 0; i < bitfield.Length; i++)
         {
-            states.Add(bitfield[i] ? 2 : 0);
+            if (bitfield[i])
+            {
+                states.Add(2);
+            }
+            else if (downloadingPieces.Contains(i))
+            {
+                states.Add(1);
+            }
+            else
+            {
+                states.Add(0);
+            }
         }
 
         return this.Ok(states);
@@ -1948,7 +2022,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
         try
         {
-            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            var appData = !string.IsNullOrWhiteSpace(this.appFolderInfo?.AppDataFolder)
+                ? this.appFolderInfo.AppDataFolder
+                : Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             var filePath = Path.Combine(appData, "Torrents", $"{torrent.InfoHash.ToLowerInvariant()}.torrent");
             if (global::System.IO.File.Exists(filePath))
             {
