@@ -2102,4 +2102,93 @@ public class DelugeJsonRpcControllerTest
             this.torrentService.MoveQueueAsync(2, "down");
         });
     }
+
+    [Test]
+    public async Task HandleRpc_Errors_ReturnStructuredErrorObjectWithCodeAndMessage()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.torrentService.GetByInfoHash("missing_hash").Returns((Torrent)null);
+
+        using var docNotFound = JsonDocument.Parse("{\"method\":\"core.get_torrent_status\",\"params\":[\"missing_hash\",[\"name\"]],\"id\":1}");
+        var resNotFound = await this.controller.HandleRpc(docNotFound.RootElement);
+        resNotFound.Should().BeOfType<JsonResult>();
+        var jsonNotFound = JsonSerializer.Serialize(((JsonResult)resNotFound).Value);
+        using var docRes = JsonDocument.Parse(jsonNotFound);
+        var errProp = docRes.RootElement.GetProperty("error");
+        errProp.ValueKind.Should().Be(JsonValueKind.Object);
+        errProp.GetProperty("message").GetString().Should().Be("Torrent not found");
+        errProp.GetProperty("code").GetInt32().Should().Be(1);
+
+        using var docUnknown = JsonDocument.Parse("{\"method\":\"nonexistent.action\",\"params\":[],\"id\":2}");
+        var resUnknown = await this.controller.HandleRpc(docUnknown.RootElement);
+        resUnknown.Should().BeOfType<JsonResult>();
+        var jsonUnknown = JsonSerializer.Serialize(((JsonResult)resUnknown).Value);
+        using var docUnknownRes = JsonDocument.Parse(jsonUnknown);
+        var errUnknown = docUnknownRes.RootElement.GetProperty("error");
+        errUnknown.ValueKind.Should().Be(JsonValueKind.Object);
+        errUnknown.GetProperty("message").GetString().Should().Be("Unknown method: nonexistent.action");
+        errUnknown.GetProperty("code").GetInt32().Should().Be(1);
+    }
+
+    [Test]
+    public async Task HandleRpc_PluginMethods_DispatchGracefullyWithoutUnknownMethodError()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        // Test scheduler.get_config
+        using var docScheduler = JsonDocument.Parse("{\"method\":\"scheduler.get_config\",\"params\":[],\"id\":1}");
+        var resScheduler = await this.controller.HandleRpc(docScheduler.RootElement);
+        resScheduler.Should().BeOfType<JsonResult>();
+        var jsonScheduler = JsonSerializer.Serialize(((JsonResult)resScheduler).Value);
+        using var docSchedulerRes = JsonDocument.Parse(jsonScheduler);
+        docSchedulerRes.RootElement.GetProperty("error").ValueKind.Should().Be(JsonValueKind.Null);
+        docSchedulerRes.RootElement.GetProperty("result").ValueKind.Should().Be(JsonValueKind.Object);
+
+        // Test extractor.get_config
+        using var docExtractor = JsonDocument.Parse("{\"method\":\"extractor.get_config\",\"params\":[],\"id\":2}");
+        var resExtractor = await this.controller.HandleRpc(docExtractor.RootElement);
+        resExtractor.Should().BeOfType<JsonResult>();
+        var jsonExtractor = JsonSerializer.Serialize(((JsonResult)resExtractor).Value);
+        using var docExtractorRes = JsonDocument.Parse(jsonExtractor);
+        docExtractorRes.RootElement.GetProperty("error").ValueKind.Should().Be(JsonValueKind.Null);
+
+        // Test execute.get_commands
+        using var docExecute = JsonDocument.Parse("{\"method\":\"execute.get_commands\",\"params\":[],\"id\":3}");
+        var resExecute = await this.controller.HandleRpc(docExecute.RootElement);
+        resExecute.Should().BeOfType<JsonResult>();
+        var jsonExecute = JsonSerializer.Serialize(((JsonResult)resExecute).Value);
+        using var docExecuteRes = JsonDocument.Parse(jsonExecute);
+        docExecuteRes.RootElement.GetProperty("error").ValueKind.Should().Be(JsonValueKind.Null);
+        docExecuteRes.RootElement.GetProperty("result").ValueKind.Should().Be(JsonValueKind.Array);
+
+        // Test autoadd.set_config
+        using var docAutoadd = JsonDocument.Parse("{\"method\":\"autoadd.set_config\",\"params\":[{}],\"id\":4}");
+        var resAutoadd = await this.controller.HandleRpc(docAutoadd.RootElement);
+        resAutoadd.Should().BeOfType<JsonResult>();
+        var jsonAutoadd = JsonSerializer.Serialize(((JsonResult)resAutoadd).Value);
+        using var docAutoaddRes = JsonDocument.Parse(jsonAutoadd);
+        docAutoaddRes.RootElement.GetProperty("error").ValueKind.Should().Be(JsonValueKind.Null);
+        docAutoaddRes.RootElement.GetProperty("result").GetBoolean().Should().BeTrue();
+
+        // Test blocklist.check
+        using var docBlocklist = JsonDocument.Parse("{\"method\":\"blocklist.check\",\"params\":[],\"id\":5}");
+        var resBlocklist = await this.controller.HandleRpc(docBlocklist.RootElement);
+        resBlocklist.Should().BeOfType<JsonResult>();
+        var jsonBlocklist = JsonSerializer.Serialize(((JsonResult)resBlocklist).Value);
+        using var docBlocklistRes = JsonDocument.Parse(jsonBlocklist);
+        docBlocklistRes.RootElement.GetProperty("error").ValueKind.Should().Be(JsonValueKind.Null);
+
+        // Test stats.get_stats
+        using var docStats = JsonDocument.Parse("{\"method\":\"stats.get_stats\",\"params\":[],\"id\":6}");
+        var resStats = await this.controller.HandleRpc(docStats.RootElement);
+        resStats.Should().BeOfType<JsonResult>();
+        var jsonStats = JsonSerializer.Serialize(((JsonResult)resStats).Value);
+        using var docStatsRes = JsonDocument.Parse(jsonStats);
+        docStatsRes.RootElement.GetProperty("error").ValueKind.Should().Be(JsonValueKind.Null);
+    }
 }
