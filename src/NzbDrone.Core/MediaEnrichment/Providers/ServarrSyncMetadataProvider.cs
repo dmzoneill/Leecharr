@@ -903,10 +903,10 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
 
         // Handle abbreviations with dots (e.g. S.W.A.T., Agents of S.H.I.E.L.D., A.I.)
         // First insert space if abbreviation ending with dot is immediately followed by a 4-digit year: S.W.A.T.2003 -> S.W.A.T. 2003
-        var text = Regex.Replace(raw, @"(\b(?:[A-Za-z]\.){1,}[A-Za-z]\.)(?=\d{4}\b)", "$1 ");
+        var text = Regex.Replace(raw, @"(\b(?:[A-Za-z]\.){2,})(?=\d{4}\b)", "$1 ");
 
         // Protect internal abbreviation dots by replacing with placeholder
-        text = Regex.Replace(text, @"\b[A-Za-z](?:\.[A-Za-z])+\.?\b", m => m.Value.Replace('.', '\uE000'));
+        text = Regex.Replace(text, @"\b(?:[A-Za-z]\.){2,}|\b(?:[A-Za-z]\.)+[A-Za-z](?![A-Za-z0-9])", m => m.Value.Replace('.', '\uE000'));
 
         var clean = Regex.Replace(text, @"[._]", " ");
         clean = clean.Replace('\uE000', '.');
