@@ -410,16 +410,27 @@ public class TransmissionRpcController : ControllerBase
         var totalUploaded = allTorrents.Sum(t => t.Uploaded);
         var secondsActive = (long)Math.Max(0, (DateTime.UtcNow - ServiceStartTime).TotalSeconds);
 
+        var activeTasks = this.downloadEngine?.GetAllTasks()?.ToList();
+        var downloadSpeed = activeTasks != null && activeTasks.Count > 0
+            ? activeTasks.Sum(t => t.DownloadSpeed)
+            : allTorrents.Sum(t => t.DownloadSpeed);
+        var uploadSpeed = activeTasks != null && activeTasks.Count > 0
+            ? activeTasks.Sum(t => t.UploadSpeed)
+            : allTorrents.Sum(t => t.UploadSpeed);
+        var sessionDownloaded = activeTasks?.Sum(t => t.DownloadedBytes) ?? 0L;
+        var sessionUploaded = activeTasks?.Sum(t => t.UploadedBytes) ?? 0L;
+        var sessionFilesAdded = allTorrents.Count(t => t.DateAdded >= ServiceStartTime);
+
         return this.Ok(new TransmissionRpcResponse
         {
             Result = "success",
             Arguments = new Dictionary<string, object>
                         {
                             { "activeTorrentCount", activeTorrents },
-                            { "downloadSpeed", allTorrents.Sum(t => t.DownloadSpeed) },
+                            { "downloadSpeed", downloadSpeed },
                             { "pausedTorrentCount", pausedTorrents },
                             { "torrentCount", allTorrents.Count },
-                            { "uploadSpeed", allTorrents.Sum(t => t.UploadSpeed) },
+                            { "uploadSpeed", uploadSpeed },
                             {
                                 "cumulative-stats", new Dictionary<string, object>
                                 {
@@ -433,11 +444,11 @@ public class TransmissionRpcController : ControllerBase
                             {
                                 "current-stats", new Dictionary<string, object>
                                 {
-                                    { "downloadedBytes", totalDownloaded },
-                                    { "filesAdded", allTorrents.Count },
+                                    { "downloadedBytes", sessionDownloaded },
+                                    { "filesAdded", sessionFilesAdded },
                                     { "secondsActive", secondsActive },
                                     { "sessionCount", 1 },
-                                    { "uploadedBytes", totalUploaded },
+                                    { "uploadedBytes", sessionUploaded },
                                 }
                             },
                         },
