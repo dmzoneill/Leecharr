@@ -75,6 +75,18 @@ public class CategoryService : ICategoryService
         return this.repository.Get(id);
     }
 
+    public static string NormalizeCategoryName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = name.Trim().Replace('\\', '/');
+        var parts = trimmed.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return string.Join('/', parts);
+    }
+
     public Category GetByName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -82,7 +94,8 @@ public class CategoryService : ICategoryService
             return this.repository.GetDefault();
         }
 
-        return this.repository.GetByName(name);
+        var normalized = NormalizeCategoryName(name);
+        return this.repository.GetByName(normalized) ?? this.repository.GetByName(name.Trim());
     }
 
     public Category Add(Category category)
@@ -103,7 +116,12 @@ public class CategoryService : ICategoryService
             throw new ArgumentException("Category limits and seed targets must be non-negative.", nameof(category));
         }
 
-        category.Name = category.Name.Trim();
+        category.Name = NormalizeCategoryName(category.Name);
+        if (string.IsNullOrWhiteSpace(category.Name))
+        {
+            throw new ArgumentException("Category name is required.", nameof(category));
+        }
+
         if (category.SavePath != null)
         {
             category.SavePath = category.SavePath.Trim();
@@ -154,7 +172,12 @@ public class CategoryService : ICategoryService
             throw new ArgumentException("Category limits and seed targets must be non-negative.", nameof(category));
         }
 
-        category.Name = category.Name.Trim();
+        category.Name = NormalizeCategoryName(category.Name);
+        if (string.IsNullOrWhiteSpace(category.Name))
+        {
+            throw new ArgumentException("Category name is required.", nameof(category));
+        }
+
         if (category.SavePath != null)
         {
             category.SavePath = category.SavePath.Trim();
@@ -172,17 +195,52 @@ public class CategoryService : ICategoryService
 
         var updated = this.repository.Update(category);
 
-        if (this.torrentRepository != null && existing != null &&
-            !string.IsNullOrWhiteSpace(existing.Name) &&
-            !string.Equals(existing.Name, updated.Name, StringComparison.OrdinalIgnoreCase))
+        if (existing != null && !string.IsNullOrWhiteSpace(existing.Name))
         {
-            var torrents = this.torrentRepository.GetByCategory(existing.Name);
-            if (torrents != null)
+            var oldName = existing.Name;
+            var newName = updated.Name;
+
+            if (!string.Equals(oldName, newName, StringComparison.OrdinalIgnoreCase))
             {
-                foreach (var torrent in torrents)
+                if (this.torrentRepository != null)
                 {
-                    torrent.Category = updated.Name;
-                    this.torrentRepository.Update(torrent);
+                    var torrents = this.torrentRepository.GetByCategory(oldName);
+                    if (torrents != null)
+                    {
+                        foreach (var torrent in torrents)
+                        {
+                            torrent.Category = newName;
+                            this.torrentRepository.Update(torrent);
+                        }
+                    }
+                }
+
+                var oldPrefix = oldName + "/";
+                var subcategories = this.repository.All()
+                    .Where(c => c.Id != updated.Id && c.Name.StartsWith(oldPrefix, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                foreach (var subCat in subcategories)
+                {
+                    var oldSubName = subCat.Name;
+                    var newSubName = newName + oldSubName[oldName.Length..];
+                    subCat.Name = newSubName;
+                    this.repository.Update(subCat);
+
+                    if (this.torrentRepository != null)
+                    {
+                        var subTorrents = this.torrentRepository.GetByCategory(oldSubName);
+                        if (subTorrents != null)
+                        {
+                            foreach (var torrent in subTorrents)
+                            {
+                                torrent.Category = newSubName;
+                                this.torrentRepository.Update(torrent);
+                            }
+                        }
+                    }
+
+                    this.eventAggregator.PublishEvent(new CategoryUpdatedEvent { Category = subCat });
                 }
             }
         }
@@ -260,6 +318,21 @@ public class CategoryService : ICategoryService
 
         this.logger.Info("Deleting category id: {0} ({1})", id, cat.Name);
 
+        if (!string.IsNullOrWhiteSpace(cat.Name))
+        {
+            var prefix = cat.Name + "/";
+            var directSubcategories = this.repository.All()
+                .Where(c => c.Id != id &&
+                            c.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
+                            !c.Name[prefix.Length..].Contains('/'))
+                .ToList();
+
+            foreach (var subCat in directSubcategories)
+            {
+                this.Delete(subCat.Id);
+            }
+        }
+
         var affectedTorrentIds = new List<int>();
         if (this.torrentRepository != null && !string.IsNullOrWhiteSpace(cat.Name))
         {
@@ -298,10 +371,11 @@ public class CategoryService : ICategoryService
     {
         if (!string.IsNullOrWhiteSpace(categoryName))
         {
-            var cat = this.repository.GetByName(categoryName);
-            if (cat != null && !string.IsNullOrWhiteSpace(cat.SavePath))
+            var normalized = NormalizeCategoryName(categoryName);
+            var path = this.GetExplicitOrInheritedSavePath(normalized);
+            if (!string.IsNullOrWhiteSpace(path))
             {
-                return cat.SavePath;
+                return path;
             }
         }
 
@@ -312,5 +386,33 @@ public class CategoryService : ICategoryService
         }
 
         return defaultPath;
+    }
+
+    private string GetExplicitOrInheritedSavePath(string normalizedCategory)
+    {
+        if (string.IsNullOrWhiteSpace(normalizedCategory))
+        {
+            return null;
+        }
+
+        var cat = this.repository.GetByName(normalizedCategory);
+        if (cat != null && !string.IsNullOrWhiteSpace(cat.SavePath))
+        {
+            return cat.SavePath;
+        }
+
+        var slashIndex = normalizedCategory.LastIndexOf('/');
+        if (slashIndex > 0 && slashIndex < normalizedCategory.Length - 1)
+        {
+            var parentName = normalizedCategory[..slashIndex];
+            var childSegment = normalizedCategory[(slashIndex + 1)..];
+            var parentPath = this.GetExplicitOrInheritedSavePath(parentName);
+            if (!string.IsNullOrWhiteSpace(parentPath))
+            {
+                return Path.Combine(parentPath, childSegment);
+            }
+        }
+
+        return null;
     }
 }
