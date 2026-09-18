@@ -3568,5 +3568,75 @@ public class MonoTorrentDownloadEngineTest
         v2Hash.Should().Equal(SHA256.HashData(testData));
     }
 
+    [Test]
+    public void GetConfiguredWebProxy_WhenNoProxyConfigured_ReturnsNull()
+    {
+        this.configService.ProxyType.Returns((string)null!);
+        this.configService.ProxyHost.Returns((string)null!);
+
+        var proxy = this.engine.GetConfiguredWebProxy();
+        proxy.Should().BeNull();
+
+        this.configService.ProxyType.Returns("none");
+        this.configService.ProxyHost.Returns("127.0.0.1");
+
+        proxy = this.engine.GetConfiguredWebProxy();
+        proxy.Should().BeNull();
+    }
+
+    [Test]
+    public void GetConfiguredWebProxy_WhenSocks5Configured_ReturnsWebProxyWithCorrectUriAndCredentials()
+    {
+        this.configService.ProxyType.Returns("socks5");
+        this.configService.ProxyHost.Returns("10.0.0.1");
+        this.configService.ProxyPort.Returns(1080);
+        this.configService.ProxyUsername.Returns("proxyuser");
+        this.configService.ProxyPassword.Returns("proxypass");
+
+        var proxy = this.engine.GetConfiguredWebProxy() as WebProxy;
+        proxy.Should().NotBeNull();
+        proxy!.Address.Should().Be(new Uri("socks5://10.0.0.1:1080"));
+        proxy.Credentials.Should().NotBeNull();
+    }
+
+    [Test]
+    public void GetConfiguredWebProxy_WhenHttpConfigured_ReturnsWebProxyWithCorrectUri()
+    {
+        this.configService.ProxyType.Returns("http");
+        this.configService.ProxyHost.Returns("proxy.example.com");
+        this.configService.ProxyPort.Returns(8080);
+        this.configService.ProxyUsername.Returns((string)null!);
+        this.configService.ProxyPassword.Returns((string)null!);
+
+        var proxy = this.engine.GetConfiguredWebProxy() as WebProxy;
+        proxy.Should().NotBeNull();
+        proxy!.Address.Should().Be(new Uri("http://proxy.example.com:8080"));
+        proxy.Credentials.Should().BeNull();
+    }
+
+    [Test]
+    public async Task ApplyConfigChangesAsync_WhenInterfaceBindingOrProxyChanges_UpdatesLastAppliedSettings()
+    {
+        await this.engine.StartAsync();
+
+        // Change interface
+        this.configService.NetworkInterfaceBinding.Returns("tun0");
+        await this.engine.ApplyConfigChangesAsync();
+
+        this.engine.LastAppliedInterfaceBinding.Should().Be("tun0");
+
+        // Change proxy
+        this.configService.ProxyType.Returns("socks5");
+        this.configService.ProxyHost.Returns("127.0.0.1");
+        this.configService.ProxyPort.Returns(1080);
+        await this.engine.ApplyConfigChangesAsync();
+
+        this.engine.LastAppliedProxyType.Should().Be("socks5");
+        this.engine.LastAppliedProxyHost.Should().Be("127.0.0.1");
+        this.engine.LastAppliedProxyPort.Should().Be(1080);
+
+        await this.engine.StopAsync();
+    }
+
     #endregion
 }
