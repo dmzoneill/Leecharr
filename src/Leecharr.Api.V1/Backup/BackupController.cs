@@ -130,7 +130,7 @@ public class BackupController : Controller
             {
                 Id = id++,
                 Name = fi.Name,
-                Path = fi.FullName,
+                Path = fi.Name,
                 Size = fi.Length,
                 Time = fi.LastWriteTimeUtc,
                 Type = isManual ? "Manual" : "Scheduled",
@@ -153,12 +153,18 @@ public class BackupController : Controller
     {
         var backups = this.GetBackupsInternal();
         var backup = backups.FirstOrDefault(b => b.Id == id);
-        if (backup == null || !global::System.IO.File.Exists(backup.Path))
+        if (backup == null)
         {
             return this.NotFound();
         }
 
-        var stream = global::System.IO.File.OpenRead(backup.Path);
+        var physicalPath = this.ResolveBackupPhysicalPath(backup.Name);
+        if (string.IsNullOrEmpty(physicalPath) || !global::System.IO.File.Exists(physicalPath))
+        {
+            return this.NotFound();
+        }
+
+        var stream = global::System.IO.File.OpenRead(physicalPath);
         return this.File(stream, "application/zip", backup.Name);
     }
 
@@ -266,7 +272,7 @@ public class BackupController : Controller
             {
                 Id = 1,
                 Name = zipName,
-                Path = zipPath,
+                Path = zipName,
                 Type = "Manual",
                 Size = fi.Length,
                 Time = fi.LastWriteTimeUtc,
@@ -287,7 +293,7 @@ public class BackupController : Controller
         catch (Exception ex)
         {
             this.logger.Error(ex, "Failed to create backup archive");
-            return this.StatusCode(500, new { success = false, message = ex.Message });
+            return this.StatusCode(500, new { success = false, message = "Failed to create backup archive." });
         }
         finally
         {
@@ -310,16 +316,20 @@ public class BackupController : Controller
     {
         var backups = this.GetBackupsInternal();
         var match = backups.FirstOrDefault(b => b.Id == id);
-        if (match != null && global::System.IO.File.Exists(match.Path))
+        if (match != null)
         {
-            try
+            var physicalPath = this.ResolveBackupPhysicalPath(match.Name);
+            if (!string.IsNullOrEmpty(physicalPath) && global::System.IO.File.Exists(physicalPath))
             {
-                global::System.IO.File.Delete(match.Path);
-                this.logger.Info("Deleted backup archive: {0}", match.Path);
-            }
-            catch (Exception ex)
-            {
-                this.logger.Warn(ex, "Failed to delete backup archive: {0}", match.Path);
+                try
+                {
+                    global::System.IO.File.Delete(physicalPath);
+                    this.logger.Info("Deleted backup archive: {0}", physicalPath);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to delete backup archive: {0}", physicalPath);
+                }
             }
         }
 
@@ -337,9 +347,12 @@ public class BackupController : Controller
         var backups = this.GetBackupsInternal();
         var backup = backups.FirstOrDefault(b =>
             (request.BackupId.HasValue && request.BackupId.Value > 0 && b.Id == request.BackupId.Value) ||
-            (!string.IsNullOrWhiteSpace(request.Path) && string.Equals(b.Path, request.Path, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrWhiteSpace(request.Path) && (string.Equals(b.Path, request.Path, StringComparison.OrdinalIgnoreCase) || string.Equals(b.Name, Path.GetFileName(request.Path), StringComparison.OrdinalIgnoreCase))) ||
             (!string.IsNullOrWhiteSpace(request.FileName) && (string.Equals(b.Name, request.FileName, StringComparison.OrdinalIgnoreCase) || string.Equals(Path.GetFileName(b.Path), request.FileName, StringComparison.OrdinalIgnoreCase))));
-        if (backup == null || !global::System.IO.File.Exists(backup.Path))
+
+        var targetNameOrPath = backup?.Name ?? request.FileName ?? request.Path;
+        var physicalPath = this.ResolveBackupPhysicalPath(targetNameOrPath);
+        if (string.IsNullOrEmpty(physicalPath) || !global::System.IO.File.Exists(physicalPath))
         {
             return this.BadRequest(new { success = false, message = "Backup not found." });
         }
@@ -351,7 +364,7 @@ public class BackupController : Controller
 
             try
             {
-                using (var zip = ZipFile.OpenRead(backup.Path))
+                using (var zip = ZipFile.OpenRead(physicalPath))
                 {
                     foreach (var entry in zip.Entries)
                     {
@@ -369,8 +382,8 @@ public class BackupController : Controller
             }
             catch (Exception ex)
             {
-                this.logger.Error(ex, "Failed to extract backup archive {0}", backup.Path);
-                return this.StatusCode(500, new { success = false, message = $"Failed to extract backup archive: {ex.Message}" });
+                this.logger.Error(ex, "Failed to extract backup archive {0}", physicalPath);
+                return this.StatusCode(500, new { success = false, message = "Failed to extract backup archive." });
             }
 
             var stagedDb = Path.Combine(stagingDir, "leecharr.db");
@@ -402,12 +415,12 @@ public class BackupController : Controller
                                 global::System.IO.File.Copy(stagedConfig, destConfig, overwrite: true);
                             }
 
-                            this.logger.Info("PostgreSQL database successfully restored via psql from backup {0}", backup.Path);
+                            this.logger.Info("PostgreSQL database successfully restored via psql from backup {0}", physicalPath);
                             return this.Ok(new { success = true, message = "Backup and PostgreSQL database restored successfully. Please restart Leecharr." });
                         }
                         else
                         {
-                            this.logger.Error("Failed to execute psql restore from backup {0}", backup.Path);
+                            this.logger.Error("Failed to execute psql restore from backup {0}", physicalPath);
                             return this.StatusCode(500, new { success = false, message = "psql database restoration failed or timed out. Please inspect database logs." });
                         }
                     }
@@ -488,7 +501,7 @@ public class BackupController : Controller
                     catch (Exception ex)
                     {
                         this.logger.Error(ex, "Failed to verify SQLite integrity check for staged backup at {0}", stagedDb);
-                        return this.StatusCode(500, new { success = false, message = $"Corrupted database in backup archive: {ex.Message}" });
+                        return this.StatusCode(500, new { success = false, message = "Corrupted database in backup archive." });
                     }
                     finally
                     {
@@ -604,7 +617,7 @@ public class BackupController : Controller
                         this.logger.Fatal(rollbackEx, "Critical error during rollback of restored files.");
                     }
 
-                    return this.StatusCode(500, new { success = false, message = $"Failed to restore database files: {copyEx.Message}" });
+                    return this.StatusCode(500, new { success = false, message = "Failed to restore database files." });
                 }
                 finally
                 {
@@ -622,14 +635,14 @@ public class BackupController : Controller
                     }
                 }
 
-                this.logger.Info("Restored backup archive from {0}", backup.Path);
+                this.logger.Info("Restored backup archive from {0}", physicalPath);
                 return this.Ok(new { success = true, message = "Backup restored successfully. Please restart Leecharr." });
             }
         }
         catch (Exception ex)
         {
-            this.logger.Error(ex, "Failed to restore backup archive from {0}", backup.Path);
-            return this.StatusCode(500, new { success = false, message = ex.Message });
+            this.logger.Error(ex, "Failed to restore backup archive from {0}", physicalPath);
+            return this.StatusCode(500, new { success = false, message = "Failed to restore backup archive." });
         }
         finally
         {
@@ -645,6 +658,40 @@ public class BackupController : Controller
                 // Ignore temp staging cleanup error
             }
         }
+    }
+
+    public string ResolveBackupPhysicalPath(string fileNameOrPath)
+    {
+        if (string.IsNullOrWhiteSpace(fileNameOrPath))
+        {
+            return null;
+        }
+
+        var backupDir = Path.Combine(this.appFolderInfo.AppDataFolder, "Backups");
+        if (!Directory.Exists(backupDir))
+        {
+            return null;
+        }
+
+        if (Path.IsPathRooted(fileNameOrPath) && global::System.IO.File.Exists(fileNameOrPath))
+        {
+            var fullBackupDir = Path.GetFullPath(backupDir);
+            var fullGivenPath = Path.GetFullPath(fileNameOrPath);
+            if (fullGivenPath.StartsWith(fullBackupDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(fullGivenPath, fullBackupDir, StringComparison.OrdinalIgnoreCase))
+            {
+                return fullGivenPath;
+            }
+        }
+
+        var fileName = Path.GetFileName(fileNameOrPath);
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return null;
+        }
+
+        var matches = Directory.GetFiles(backupDir, fileName, SearchOption.AllDirectories);
+        return matches.FirstOrDefault();
     }
 
     [NonAction]

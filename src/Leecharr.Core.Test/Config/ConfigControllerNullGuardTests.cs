@@ -1,6 +1,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Config;
@@ -157,5 +159,20 @@ public class ConfigControllerNullGuardTests
         var badRequest = (BadRequestObjectResult)result.Result!;
         badRequest.StatusCode.Should().Be(400);
         badRequest.Value.Should().Be("Request body cannot be empty.");
+    }
+
+    [Test]
+    public async Task SeedingConfigController_SaveConfig_WhenExceptionThrown_Returns500WithoutThrowing()
+    {
+        this.configService.When(x => x.SaveConfigDictionary(Arg.Any<Dictionary<string, object>>()))
+            .Do(_ => throw new IOException("Internal disk write error details /var/log/secret.txt"));
+
+        var controller = new SeedingConfigController(this.configService);
+        var result = await controller.SaveConfig(new SeedingConfigResource());
+
+        result.Result.Should().BeOfType<ObjectResult>();
+        var objResult = (ObjectResult)result.Result!;
+        objResult.StatusCode.Should().Be(500);
+        objResult.Value.Should().Be("Failed to save configuration.");
     }
 }
