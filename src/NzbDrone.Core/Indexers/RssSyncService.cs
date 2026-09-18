@@ -40,6 +40,7 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
     private readonly IDownloadHistoryService downloadHistoryService;
     private readonly ICategoryService categoryService;
     private readonly IIndexerStatusService indexerStatusService;
+    private readonly ITorrentRepository torrentRepository;
     private readonly BoundedSet<string> grabbedReleaseIds;
     private readonly SemaphoreSlim syncLock = new(1, 1);
     private readonly Logger logger;
@@ -50,7 +51,8 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
         ITorznabClient torznabClient,
         ITorrentService torrentService,
         IRssSyncContext context,
-        int maxGrabbedReleasesCapacity = DefaultMaxGrabbedReleasesCapacity)
+        int maxGrabbedReleasesCapacity = DefaultMaxGrabbedReleasesCapacity,
+        ITorrentRepository torrentRepository = null)
     {
         this.indexerRepository = indexerRepository;
         this.rssRuleRepository = rssRuleRepository;
@@ -63,6 +65,7 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
         this.downloadHistoryService = this.context.DownloadHistoryService;
         this.categoryService = this.context.CategoryService;
         this.indexerStatusService = this.context.IndexerStatusService;
+        this.torrentRepository = torrentRepository ?? this.context.TorrentRepository;
         this.grabbedReleaseIds = new BoundedSet<string>(
             maxGrabbedReleasesCapacity > 0 ? maxGrabbedReleasesCapacity : DefaultMaxGrabbedReleasesCapacity,
             StringComparer.OrdinalIgnoreCase);
@@ -76,14 +79,16 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
         ITorrentService torrentService,
         IRssSyncContext context,
         IIndexerStatusService indexerStatusService,
-        int maxGrabbedReleasesCapacity = DefaultMaxGrabbedReleasesCapacity)
+        int maxGrabbedReleasesCapacity = DefaultMaxGrabbedReleasesCapacity,
+        ITorrentRepository torrentRepository = null)
         : this(
             indexerRepository,
             rssRuleRepository,
             torznabClient,
             torrentService,
             context,
-            maxGrabbedReleasesCapacity)
+            maxGrabbedReleasesCapacity,
+            torrentRepository)
     {
         if (indexerStatusService != null)
         {
@@ -102,7 +107,8 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
         IDownloadHistoryService downloadHistoryService = null,
         ICategoryService categoryService = null,
         IIndexerStatusService indexerStatusService = null,
-        int maxGrabbedReleasesCapacity = DefaultMaxGrabbedReleasesCapacity)
+        int maxGrabbedReleasesCapacity = DefaultMaxGrabbedReleasesCapacity,
+        ITorrentRepository torrentRepository = null)
         : this(
             indexerRepository,
             rssRuleRepository,
@@ -114,8 +120,10 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                 safeHttpClientService,
                 downloadHistoryService,
                 categoryService,
-                indexerStatusService),
-            maxGrabbedReleasesCapacity)
+                indexerStatusService,
+                torrentRepository),
+            maxGrabbedReleasesCapacity,
+            torrentRepository)
     {
     }
 
@@ -362,6 +370,29 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
 
                                 if (grabbed && addedTorrent != null)
                                 {
+                                    var torrentUpdated = false;
+                                    if (release.MinimumRatio.HasValue && release.MinimumRatio.Value > 0)
+                                    {
+                                        addedTorrent.TargetRatio = Math.Max(addedTorrent.TargetRatio, release.MinimumRatio.Value);
+                                        torrentUpdated = true;
+                                    }
+
+                                    if (release.MinimumSeedTime.HasValue && release.MinimumSeedTime.Value > 0)
+                                    {
+                                        var seedTimeMinutes = (int)Math.Ceiling(release.MinimumSeedTime.Value / 60.0);
+                                        addedTorrent.TargetSeedTimeMinutes = Math.Max(addedTorrent.TargetSeedTimeMinutes, seedTimeMinutes);
+                                        torrentUpdated = true;
+                                    }
+
+                                    if (torrentUpdated)
+                                    {
+                                        this.torrentRepository?.Update(addedTorrent);
+                                        if (this.torrentService != null)
+                                        {
+                                            await this.torrentService.UpdateAsync(addedTorrent);
+                                        }
+                                    }
+
                                     var normalizedAddedHash = MagnetLinkParser.NormalizeInfoHash(addedTorrent.InfoHash);
                                     var existingHistoryEntry = !string.IsNullOrEmpty(normalizedAddedHash)
                                         ? this.downloadHistoryService?.GetByInfoHash(normalizedAddedHash)
