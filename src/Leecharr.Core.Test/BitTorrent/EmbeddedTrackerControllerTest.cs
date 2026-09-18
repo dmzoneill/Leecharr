@@ -2,13 +2,16 @@
 
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Reflection;
 using FluentAssertions;
 using Leecharr.Api.V1.Tracker;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.BitTorrent.Tracker;
+using NzbDrone.Core.Configuration;
 
 namespace Leecharr.Core.Test.BitTorrent;
 
@@ -218,5 +221,112 @@ public class EmbeddedTrackerControllerTest
             r.RemoteIp != null &&
             r.RemoteIp.ToString() == "192.168.1.200" &&
             r.RemoteIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork));
+    }
+
+    [Test]
+    public void Controller_SecurityAttributes_EnforceAuthenticationOnAdminEndpoints()
+    {
+        typeof(EmbeddedTrackerController).GetCustomAttribute<AllowAnonymousAttribute>().Should().BeNull();
+
+        var announceMethod = typeof(EmbeddedTrackerController).GetMethod(nameof(EmbeddedTrackerController.Announce));
+        announceMethod!.GetCustomAttribute<AllowAnonymousAttribute>().Should().NotBeNull();
+
+        var scrapeMethod = typeof(EmbeddedTrackerController).GetMethod(nameof(EmbeddedTrackerController.Scrape));
+        scrapeMethod!.GetCustomAttribute<AllowAnonymousAttribute>().Should().NotBeNull();
+
+        var getStatsMethod = typeof(EmbeddedTrackerController).GetMethod(nameof(EmbeddedTrackerController.GetStats));
+        getStatsMethod!.GetCustomAttribute<AuthorizeAttribute>().Should().NotBeNull();
+        getStatsMethod.GetCustomAttribute<AllowAnonymousAttribute>().Should().BeNull();
+
+        var getTorrentsMethod = typeof(EmbeddedTrackerController).GetMethod(nameof(EmbeddedTrackerController.GetTorrents));
+        getTorrentsMethod!.GetCustomAttribute<AuthorizeAttribute>().Should().NotBeNull();
+        getTorrentsMethod.GetCustomAttribute<AllowAnonymousAttribute>().Should().BeNull();
+    }
+
+    [Test]
+    public void Announce_WhenUntrustedProxy_IgnoresForwardedHeaders()
+    {
+        var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        httpContext.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881&uploaded=0&downloaded=0&left=100");
+        httpContext.Connection.RemoteIpAddress = IPAddress.Parse("192.168.1.50");
+        httpContext.Request.Headers["X-Forwarded-For"] = "203.0.113.10";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        this.trackerService.ProcessAnnounce(Arg.Any<TrackerAnnounceRequest>()).Returns(Array.Empty<byte>());
+
+        var result = this.controller.Announce();
+        result.Should().BeOfType<FileContentResult>();
+
+        this.trackerService.Received(1).ProcessAnnounce(Arg.Is<TrackerAnnounceRequest>(r =>
+            r.RemoteIp != null &&
+            r.RemoteIp.ToString() == "192.168.1.50"));
+    }
+
+    [Test]
+    public void Announce_WhenTrustedProxy_AcceptsForwardedHeaders()
+    {
+        var configService = Substitute.For<IConfigService>();
+        configService.GetValue("TrackerTrustedProxies", string.Empty).Returns("10.0.0.0/24");
+
+        var customController = new EmbeddedTrackerController(this.trackerService, configService: configService);
+
+        var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        httpContext.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881&uploaded=0&downloaded=0&left=100");
+        httpContext.Connection.RemoteIpAddress = IPAddress.Parse("10.0.0.5");
+        httpContext.Request.Headers["X-Forwarded-For"] = "203.0.113.10";
+        customController.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        this.trackerService.ProcessAnnounce(Arg.Any<TrackerAnnounceRequest>()).Returns(Array.Empty<byte>());
+
+        var result = customController.Announce();
+        result.Should().BeOfType<FileContentResult>();
+
+        this.trackerService.Received(1).ProcessAnnounce(Arg.Is<TrackerAnnounceRequest>(r =>
+            r.RemoteIp != null &&
+            r.RemoteIp.ToString() == "203.0.113.10"));
+    }
+
+    [Test]
+    public void Announce_WhenTrustedProxy_RejectsSpoofedLoopbackOrLinkLocalForwardedHeaders()
+    {
+        var configService = Substitute.For<IConfigService>();
+        configService.GetValue("TrackerTrustedProxies", string.Empty).Returns("10.0.0.0/24");
+
+        var customController = new EmbeddedTrackerController(this.trackerService, configService: configService);
+
+        var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        httpContext.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881&uploaded=0&downloaded=0&left=100");
+        httpContext.Connection.RemoteIpAddress = IPAddress.Parse("10.0.0.5");
+        httpContext.Request.Headers["X-Forwarded-For"] = "127.0.0.1";
+        customController.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        this.trackerService.ProcessAnnounce(Arg.Any<TrackerAnnounceRequest>()).Returns(Array.Empty<byte>());
+
+        var result = customController.Announce();
+        result.Should().BeOfType<FileContentResult>();
+
+        // Spoofed loopback must be rejected; RemoteIp should remain the trusted proxy IP
+        this.trackerService.Received(1).ProcessAnnounce(Arg.Is<TrackerAnnounceRequest>(r =>
+            r.RemoteIp != null &&
+            r.RemoteIp.ToString() == "10.0.0.5"));
+    }
+
+    [Test]
+    public void Announce_WhenOriginatingLocally_AllowsLoopbackForwardedHeaders()
+    {
+        var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        httpContext.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?info_hash=0123456789012345678901234567890123456789&peer_id=-qB4650-123456789012&port=6881&uploaded=0&downloaded=0&left=100");
+        httpContext.Connection.RemoteIpAddress = IPAddress.Loopback;
+        httpContext.Request.Headers["X-Forwarded-For"] = "127.0.0.2";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        this.trackerService.ProcessAnnounce(Arg.Any<TrackerAnnounceRequest>()).Returns(Array.Empty<byte>());
+
+        var result = this.controller.Announce();
+        result.Should().BeOfType<FileContentResult>();
+
+        this.trackerService.Received(1).ProcessAnnounce(Arg.Is<TrackerAnnounceRequest>(r =>
+            r.RemoteIp != null &&
+            r.RemoteIp.ToString() == "127.0.0.2"));
     }
 }
