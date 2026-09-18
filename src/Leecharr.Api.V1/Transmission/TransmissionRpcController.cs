@@ -667,7 +667,7 @@ public class TransmissionRpcController : ControllerBase
                     }
                     else if (trackerListVal.ValueKind == JsonValueKind.Array)
                     {
-                        raw = string.Join("\n", trackerListVal.EnumerateArray().Select(x => x.GetString()).Where(x => !string.IsNullOrEmpty(x)));
+                        raw = string.Join("\n", trackerListVal.EnumerateArray().Select(x => x.ValueKind == JsonValueKind.String ? x.GetString() ?? string.Empty : string.Empty));
                     }
 
                     if (raw != null)
@@ -747,32 +747,58 @@ public class TransmissionRpcController : ControllerBase
                 if (request.Arguments.TryGetValue("trackerAdd", out var trackerAddVal) && trackerAddVal.ValueKind == JsonValueKind.Array)
                 {
                     var addedUrls = new List<string>();
+                    var existingTrackers = this.trackerEntryRepository?.GetByTorrentId(t.Id)?.ToList() ?? new List<TrackerEntry>();
+                    var currentTier = existingTrackers.Count > 0 ? existingTrackers.Max(x => x.Tier) + 1 : 0;
+                    var hasTrackersInCurrentTier = false;
+
                     foreach (var item in trackerAddVal.EnumerateArray())
                     {
                         if (item.ValueKind == JsonValueKind.String)
                         {
-                            var url = item.GetString();
-                            if (!string.IsNullOrWhiteSpace(url))
+                            var rawItem = item.GetString();
+                            if (rawItem == null)
                             {
-                                addedUrls.Add(url);
-                                if (this.trackerEntryRepository != null)
+                                continue;
+                            }
+
+                            var lines = rawItem.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+                            foreach (var rawLine in lines)
+                            {
+                                var line = rawLine.Trim();
+                                if (string.IsNullOrEmpty(line))
                                 {
-                                    var existing = this.trackerEntryRepository.GetByTorrentId(t.Id)?.FirstOrDefault(x => string.Equals(x.Url, url, StringComparison.OrdinalIgnoreCase));
-                                    if (existing == null)
+                                    if (hasTrackersInCurrentTier)
                                     {
-                                        this.trackerEntryRepository.Insert(new TrackerEntry
-                                        {
-                                            TorrentId = t.Id,
-                                            Url = url,
-                                            Tier = 0,
-                                            Enabled = true,
-                                        });
+                                        currentTier++;
+                                        hasTrackersInCurrentTier = false;
                                     }
                                 }
-
-                                if (string.IsNullOrWhiteSpace(t.TrackerUrl))
+                                else
                                 {
-                                    t.TrackerUrl = url;
+                                    addedUrls.Add(line);
+                                    if (this.trackerEntryRepository != null)
+                                    {
+                                        var existing = existingTrackers.FirstOrDefault(x => string.Equals(x.Url, line, StringComparison.OrdinalIgnoreCase));
+                                        if (existing == null)
+                                        {
+                                            var newEntry = new TrackerEntry
+                                            {
+                                                TorrentId = t.Id,
+                                                Url = line,
+                                                Tier = currentTier,
+                                                Enabled = true,
+                                            };
+                                            this.trackerEntryRepository.Insert(newEntry);
+                                            existingTrackers.Add(newEntry);
+                                        }
+                                    }
+
+                                    if (string.IsNullOrWhiteSpace(t.TrackerUrl))
+                                    {
+                                        t.TrackerUrl = line;
+                                    }
+
+                                    hasTrackersInCurrentTier = true;
                                 }
                             }
                         }
@@ -780,7 +806,7 @@ public class TransmissionRpcController : ControllerBase
 
                     if (addedUrls.Count > 0 && this.downloadEngine != null)
                     {
-                        await this.downloadEngine.AddTrackersAsync(t.Id, addedUrls);
+                        await this.downloadEngine.AddTrackersAsync(t.Id, addedUrls.Distinct(StringComparer.OrdinalIgnoreCase));
                     }
                 }
 
