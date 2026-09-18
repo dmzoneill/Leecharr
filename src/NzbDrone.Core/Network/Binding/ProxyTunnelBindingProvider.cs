@@ -289,12 +289,20 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
             var userBytes = Encoding.UTF8.GetBytes(username ?? string.Empty);
             var passBytes = Encoding.UTF8.GetBytes(password ?? string.Empty);
 
-            var authPayload = new byte[1 + 1 + userBytes.Length + 1 + passBytes.Length];
+            var userLen = Math.Min(userBytes.Length, 255);
+            var passLen = Math.Min(passBytes.Length, 255);
+
+            if (userBytes.Length > 255 || passBytes.Length > 255)
+            {
+                this.logger.Warn("SOCKS5 credentials exceed RFC 1929 255-byte limit (username: {0} bytes, password: {1} bytes); clamping to 255 bytes.", userBytes.Length, passBytes.Length);
+            }
+
+            var authPayload = new byte[1 + 1 + userLen + 1 + passLen];
             authPayload[0] = 0x01; // subnegotiation version
-            authPayload[1] = (byte)userBytes.Length;
-            Buffer.BlockCopy(userBytes, 0, authPayload, 2, userBytes.Length);
-            authPayload[2 + userBytes.Length] = (byte)passBytes.Length;
-            Buffer.BlockCopy(passBytes, 0, authPayload, 3 + userBytes.Length, passBytes.Length);
+            authPayload[1] = (byte)userLen;
+            Buffer.BlockCopy(userBytes, 0, authPayload, 2, userLen);
+            authPayload[2 + userLen] = (byte)passLen;
+            Buffer.BlockCopy(passBytes, 0, authPayload, 3 + userLen, passLen);
 
             await stream.WriteAsync(authPayload, 0, authPayload.Length, cancellationToken);
             await stream.FlushAsync(cancellationToken);

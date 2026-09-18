@@ -641,4 +641,179 @@ public class ProxyTunnelBindingProviderTest
         var ex = await act.Should().ThrowAsync<SocketException>();
         ex.Which.SocketErrorCode.Should().Be(SocketError.AccessDenied);
     }
+
+    [Test]
+    public async Task ConnectTunnelAsync_Socks5_WithCredentialsOver255Bytes_ClampsTo255BytesWithoutByteOverflow()
+    {
+        var proxyListener = new TcpListener(IPAddress.Loopback, 0);
+        proxyListener.Start();
+        var proxyPort = ((IPEndPoint)proxyListener.LocalEndpoint).Port;
+
+        var longUsername = new string('u', 300);
+        var longPassword = new string('p', 280);
+
+        var proxyServerTask = Task.Run(async () =>
+        {
+            using var client = await proxyListener.AcceptTcpClientAsync();
+            using var stream = client.GetStream();
+
+            // 1. Read Greeting: [0x05, 0x02, 0x00, 0x02]
+            var greeting = new byte[4];
+            await stream.ReadExactlyAsync(greeting, 0, 4);
+            greeting[0].Should().Be(0x05);
+            greeting[1].Should().Be(0x02);
+
+            // Respond with Username/Password Auth (0x02)
+            await stream.WriteAsync(new byte[] { 0x05, 0x02 });
+
+            // 2. Read Auth Subnegotiation: [0x01, ULEN, UNAME, PLEN, PASSWD]
+            var authVer = stream.ReadByte();
+            authVer.Should().Be(0x01);
+
+            var ulen = stream.ReadByte();
+            ulen.Should().Be(255, "Username length must be clamped to 255 bytes without byte overflow");
+
+            var unameBytes = new byte[ulen];
+            await stream.ReadExactlyAsync(unameBytes, 0, ulen);
+            unameBytes.Should().Equal(Encoding.UTF8.GetBytes(new string('u', 255)));
+
+            var plen = stream.ReadByte();
+            plen.Should().Be(255, "Password length must be clamped to 255 bytes without byte overflow");
+
+            var passwdBytes = new byte[plen];
+            await stream.ReadExactlyAsync(passwdBytes, 0, plen);
+            passwdBytes.Should().Equal(Encoding.UTF8.GetBytes(new string('p', 255)));
+
+            // Respond with auth success: [0x01, 0x00]
+            await stream.WriteAsync(new byte[] { 0x01, 0x00 });
+
+            // 3. Read CONNECT Request
+            var reqHeader = new byte[4];
+            await stream.ReadExactlyAsync(reqHeader, 0, 4);
+            reqHeader[0].Should().Be(0x05);
+            reqHeader[1].Should().Be(0x01);
+
+            var domainLen = stream.ReadByte();
+            var domainBytes = new byte[domainLen];
+            await stream.ReadExactlyAsync(domainBytes, 0, domainLen);
+
+            var portBytes = new byte[2];
+            await stream.ReadExactlyAsync(portBytes, 0, 2);
+
+            // Respond success
+            await stream.WriteAsync(new byte[] { 0x05, 0x00, 0x00, 0x01, 127, 0, 0, 1, 0x1B, 0x39 });
+
+            // Tunnel data
+            var dataBuf = new byte[4];
+            await stream.ReadExactlyAsync(dataBuf, 0, 4);
+            await stream.WriteAsync(Encoding.ASCII.GetBytes("OKAY"));
+        });
+
+        try
+        {
+            var config = Substitute.For<IConfigService>();
+            config.ProxyType.Returns("socks5");
+            config.ProxyHost.Returns("127.0.0.1");
+            config.ProxyPort.Returns(proxyPort);
+            config.ProxyUsername.Returns(longUsername);
+            config.ProxyPassword.Returns(longPassword);
+
+            var provider = new ProxyTunnelBindingProvider(config);
+            using var socket = await provider.ConnectTunnelAsync("target.tracker.org", 6969);
+            socket.Connected.Should().BeTrue();
+
+            using var stream = new NetworkStream(socket, ownsSocket: false);
+            await stream.WriteAsync(Encoding.ASCII.GetBytes("TEST"));
+            var reply = new byte[4];
+            await stream.ReadExactlyAsync(reply, 0, 4);
+            Encoding.ASCII.GetString(reply).Should().Be("OKAY");
+        }
+        finally
+        {
+            proxyListener.Stop();
+            await proxyServerTask;
+        }
+    }
+
+    [Test]
+    public async Task ConnectTunnelAsync_Socks5_WithCredentialsExactly255Bytes_SendsFullCredentials()
+    {
+        var proxyListener = new TcpListener(IPAddress.Loopback, 0);
+        proxyListener.Start();
+        var proxyPort = ((IPEndPoint)proxyListener.LocalEndpoint).Port;
+
+        var exactUsername = new string('a', 255);
+        var exactPassword = new string('b', 255);
+
+        var proxyServerTask = Task.Run(async () =>
+        {
+            using var client = await proxyListener.AcceptTcpClientAsync();
+            using var stream = client.GetStream();
+
+            var greeting = new byte[4];
+            await stream.ReadExactlyAsync(greeting, 0, 4);
+
+            await stream.WriteAsync(new byte[] { 0x05, 0x02 });
+
+            var authVer = stream.ReadByte();
+            authVer.Should().Be(0x01);
+
+            var ulen = stream.ReadByte();
+            ulen.Should().Be(255);
+
+            var unameBytes = new byte[ulen];
+            await stream.ReadExactlyAsync(unameBytes, 0, ulen);
+            unameBytes.Should().Equal(Encoding.UTF8.GetBytes(exactUsername));
+
+            var plen = stream.ReadByte();
+            plen.Should().Be(255);
+
+            var passwdBytes = new byte[plen];
+            await stream.ReadExactlyAsync(passwdBytes, 0, plen);
+            passwdBytes.Should().Equal(Encoding.UTF8.GetBytes(exactPassword));
+
+            await stream.WriteAsync(new byte[] { 0x01, 0x00 });
+
+            var reqHeader = new byte[4];
+            await stream.ReadExactlyAsync(reqHeader, 0, 4);
+
+            var domainLen = stream.ReadByte();
+            var domainBytes = new byte[domainLen];
+            await stream.ReadExactlyAsync(domainBytes, 0, domainLen);
+
+            var portBytes = new byte[2];
+            await stream.ReadExactlyAsync(portBytes, 0, 2);
+
+            await stream.WriteAsync(new byte[] { 0x05, 0x00, 0x00, 0x01, 127, 0, 0, 1, 0x1B, 0x39 });
+
+            var dataBuf = new byte[4];
+            await stream.ReadExactlyAsync(dataBuf, 0, 4);
+            await stream.WriteAsync(Encoding.ASCII.GetBytes("OKAY"));
+        });
+
+        try
+        {
+            var config = Substitute.For<IConfigService>();
+            config.ProxyType.Returns("socks5");
+            config.ProxyHost.Returns("127.0.0.1");
+            config.ProxyPort.Returns(proxyPort);
+            config.ProxyUsername.Returns(exactUsername);
+            config.ProxyPassword.Returns(exactPassword);
+
+            var provider = new ProxyTunnelBindingProvider(config);
+            using var socket = await provider.ConnectTunnelAsync("target.tracker.org", 6969);
+            socket.Connected.Should().BeTrue();
+
+            using var stream = new NetworkStream(socket, ownsSocket: false);
+            await stream.WriteAsync(Encoding.ASCII.GetBytes("TEST"));
+            var reply = new byte[4];
+            await stream.ReadExactlyAsync(reply, 0, 4);
+            Encoding.ASCII.GetString(reply).Should().Be("OKAY");
+        }
+        finally
+        {
+            proxyListener.Stop();
+            await proxyServerTask;
+        }
+    }
 }
