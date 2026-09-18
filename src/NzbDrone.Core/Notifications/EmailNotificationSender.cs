@@ -3,7 +3,10 @@
 using System;
 using System.Net;
 using System.Net.Mail;
+using System.Net.Security;
 using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.Notifications;
@@ -18,6 +21,49 @@ public static class EmailNotificationSender
         object genericPayload,
         Action<SmtpClient, MailMessage> smtpSender = null)
     {
+        Func<SmtpClient, MailMessage, Task> asyncSender = null;
+        if (smtpSender != null)
+        {
+            asyncSender = (client, mail) =>
+            {
+                smtpSender(client, mail);
+                return Task.CompletedTask;
+            };
+        }
+
+        SendEmailNotificationAsync(settings, eventType, torrent, meta, genericPayload, asyncSender)
+            .GetAwaiter().GetResult();
+    }
+
+    public static Task SendEmailNotificationAsync(
+        string settings,
+        string eventType,
+        Torrent torrent,
+        dynamic meta,
+        object genericPayload,
+        Action<SmtpClient, MailMessage> smtpSender)
+    {
+        Func<SmtpClient, MailMessage, Task> asyncSender = null;
+        if (smtpSender != null)
+        {
+            asyncSender = (client, mail) =>
+            {
+                smtpSender(client, mail);
+                return Task.CompletedTask;
+            };
+        }
+
+        return SendEmailNotificationAsync(settings, eventType, torrent, meta, genericPayload, asyncSender);
+    }
+
+    public static async Task SendEmailNotificationAsync(
+        string settings,
+        string eventType,
+        Torrent torrent,
+        dynamic meta,
+        object genericPayload,
+        Func<SmtpClient, MailMessage, Task> smtpSenderAsync = null)
+    {
         if (string.IsNullOrWhiteSpace(settings))
         {
             throw new ArgumentException("Email settings are required.", nameof(settings));
@@ -26,6 +72,7 @@ public static class EmailNotificationSender
         var host = "localhost";
         var port = 25;
         var ssl = false;
+        var ignoreSslErrors = false;
         string user = null;
         string pass = null;
         var from = "leecharr@localhost";
@@ -55,6 +102,18 @@ public static class EmailNotificationSender
             if (root.TryGetProperty("useSsl", out var sslProp) || root.TryGetProperty("ssl", out sslProp))
             {
                 ssl = sslProp.GetBoolean();
+            }
+
+            if (root.TryGetProperty("ignoreSslErrors", out var ignoreSslProp) ||
+                root.TryGetProperty("ignoreCertificateErrors", out ignoreSslProp) ||
+                root.TryGetProperty("allowInvalidCertificates", out ignoreSslProp))
+            {
+                ignoreSslErrors = ignoreSslProp.GetBoolean();
+            }
+            else if (root.TryGetProperty("validateCertificate", out var validateCertProp) ||
+                     root.TryGetProperty("validateCertificates", out validateCertProp))
+            {
+                ignoreSslErrors = !validateCertProp.GetBoolean();
             }
 
             if (root.TryGetProperty("username", out var u) || root.TryGetProperty("user", out u))
@@ -111,6 +170,23 @@ public static class EmailNotificationSender
                         }
 
                         break;
+                    case "ignoresslerrors":
+                    case "ignorecertificateerrors":
+                    case "allowinvalidcertificates":
+                        if (bool.TryParse(val, out var ign))
+                        {
+                            ignoreSslErrors = ign;
+                        }
+
+                        break;
+                    case "validatecertificate":
+                    case "validatecertificates":
+                        if (bool.TryParse(val, out var valCert))
+                        {
+                            ignoreSslErrors = !valCert;
+                        }
+
+                        break;
                     case "user":
                     case "username":
                         user = val;
@@ -137,7 +213,9 @@ public static class EmailNotificationSender
         }
 
         var torrentName = torrent?.Name ?? NotificationPayloadBuilder.ExtractMessage(genericPayload, eventType);
-        var subject = $"[Leecharr] [{eventType}] {torrentName}";
+        var rawSubject = $"[Leecharr] [{eventType}] {torrentName}";
+        var subject = Regex.Replace(rawSubject, @"[\r\n]+", " ").Trim();
+
         var torrentDetails = torrent != null
             ? $"Torrent: {torrent.Name}\nCategory: {torrent.Category ?? "None"}\nProgress: {torrent.Progress * 100:F1}%\nStatus: {torrent.Status}\nSize: {torrent.TotalSize / (1024.0 * 1024.0):F2} MB"
             : NotificationPayloadBuilder.ExtractMessage(genericPayload, $"Event: {eventType}");
@@ -146,7 +224,26 @@ public static class EmailNotificationSender
             ? $"{torrentDetails}\n\n{overview}"
             : torrentDetails;
 
-        using var mail = new MailMessage(from, to, subject, body);
+        using var mail = new MailMessage();
+        mail.From = new MailAddress(from.Trim());
+        mail.Subject = subject;
+        mail.Body = body;
+
+        var recipients = to.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var recipient in recipients)
+        {
+            var trimmedRecipient = recipient.Trim();
+            if (!string.IsNullOrWhiteSpace(trimmedRecipient))
+            {
+                mail.To.Add(new MailAddress(trimmedRecipient));
+            }
+        }
+
+        if (mail.To.Count == 0)
+        {
+            throw new InvalidOperationException("Recipient email address ('to') is required.");
+        }
+
         using var client = new SmtpClient(host, port)
         {
             EnableSsl = ssl,
@@ -158,13 +255,32 @@ public static class EmailNotificationSender
             client.Credentials = new NetworkCredential(user, pass);
         }
 
-        if (smtpSender != null)
+#pragma warning disable SYSLIB0014
+        RemoteCertificateValidationCallback previousCallback = null;
+        if (ignoreSslErrors)
         {
-            smtpSender(client, mail);
+            previousCallback = ServicePointManager.ServerCertificateValidationCallback;
+            ServicePointManager.ServerCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true;
         }
-        else
+
+        try
         {
-            client.Send(mail);
+            if (smtpSenderAsync != null)
+            {
+                await smtpSenderAsync(client, mail).ConfigureAwait(false);
+            }
+            else
+            {
+                await client.SendMailAsync(mail).ConfigureAwait(false);
+            }
         }
+        finally
+        {
+            if (ignoreSslErrors)
+            {
+                ServicePointManager.ServerCertificateValidationCallback = previousCallback;
+            }
+        }
+#pragma warning restore SYSLIB0014
     }
 }
