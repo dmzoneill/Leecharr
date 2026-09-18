@@ -23,16 +23,17 @@ using NzbDrone.Core.Configuration;
 using NzbDrone.Core.DownloadClients;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Network.Binding;
+using NzbDrone.Core.Network.Vpn;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
 
 namespace NzbDrone.Core.TrackerBoost;
 
-public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedEvent>
+public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedEvent>, IDisposable
 {
     private const int MaxLogEntries = 500;
 
-    private static readonly HttpClient HttpClient = new(new HttpClientHandler { CheckCertificateRevocationList = true }) { Timeout = TimeSpan.FromSeconds(6) };
     private static readonly BencodeParser BParser = new();
     private static readonly TimeSpan ScrapeCacheTtl = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan DnsCacheTtl = TimeSpan.FromMinutes(10);
@@ -61,6 +62,10 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
     private readonly IDownloadEngine downloadEngine;
     private readonly IDownloadClientRepository downloadClientRepository;
     private readonly ITrackerBoostStateStore stateStore;
+    private readonly INetworkBindingService networkBindingService;
+    private readonly IVpnKillSwitchService vpnKillSwitchService;
+    private readonly HttpClient httpClient;
+    private readonly bool ownsHttpClient;
     private readonly SemaphoreSlim globalScrapeThrottle = new(10, 10);
     private readonly ConcurrentDictionary<string, (bool Success, int Seeders, int Leechers, int Downloaded, DateTime CachedUtc)> scrapeCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Logger logger;
@@ -73,7 +78,10 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         IConfigService configService,
         IDownloadEngine downloadEngine = null,
         IDownloadClientRepository downloadClientRepository = null,
-        ITrackerBoostStateStore stateStore = null)
+        ITrackerBoostStateStore stateStore = null,
+        INetworkBindingService networkBindingService = null,
+        IVpnKillSwitchService vpnKillSwitchService = null,
+        HttpClient httpClient = null)
     {
         this.trackerRepository = trackerRepository;
         this.torrentService = torrentService;
@@ -83,9 +91,181 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         this.downloadEngine = downloadEngine;
         this.downloadClientRepository = downloadClientRepository;
         this.stateStore = stateStore ?? TrackerBoostStateStore.Shared;
+        this.networkBindingService = networkBindingService;
+        this.vpnKillSwitchService = vpnKillSwitchService;
         this.logger = LogManager.GetCurrentClassLogger();
 
+        if (httpClient != null)
+        {
+            this.httpClient = httpClient;
+            this.ownsHttpClient = false;
+        }
+        else
+        {
+            this.httpClient = this.CreateConfiguredHttpClient();
+            this.ownsHttpClient = true;
+        }
+
         this.EnsureDefaultTrackersBootstrapped();
+    }
+
+    public void Dispose()
+    {
+        if (this.ownsHttpClient)
+        {
+            this.httpClient?.Dispose();
+        }
+
+        this.globalScrapeThrottle?.Dispose();
+    }
+
+    internal string GetBoundInterfaceName()
+    {
+        var iface = !string.IsNullOrWhiteSpace(this.configService?.NetworkInterfaceBinding)
+            ? this.configService.NetworkInterfaceBinding
+            : this.configService?.BindInterface;
+
+        if (string.IsNullOrWhiteSpace(iface) && this.vpnKillSwitchService != null && !string.IsNullOrWhiteSpace(this.vpnKillSwitchService.VpnInterfaceName))
+        {
+            iface = this.vpnKillSwitchService.VpnInterfaceName;
+        }
+
+        return iface;
+    }
+
+    internal void BindUdpSocket(Socket socket)
+    {
+        ArgumentNullException.ThrowIfNull(socket);
+
+        if (this.vpnKillSwitchService?.IsFailClosedActive == true)
+        {
+            this.logger.Warn("VPN kill switch fail-closed is active; refusing to bind UDP socket");
+            throw new SocketException((int)SocketError.NetworkUnreachable);
+        }
+
+        var iface = this.GetBoundInterfaceName();
+        if (!string.IsNullOrWhiteSpace(iface))
+        {
+            if (IPAddress.TryParse(iface, out var localIp))
+            {
+                if (socket.AddressFamily == localIp.AddressFamily)
+                {
+                    socket.Bind(new IPEndPoint(localIp, 0));
+                }
+            }
+            else if (this.networkBindingService != null)
+            {
+                this.networkBindingService.BindSocket(socket, iface, 0);
+            }
+            else if (this.vpnKillSwitchService != null && string.Equals(iface, this.vpnKillSwitchService.VpnInterfaceName, StringComparison.OrdinalIgnoreCase))
+            {
+                var vpnIp = this.vpnKillSwitchService.GetVpnInterfaceIpAddress(socket.AddressFamily);
+                if (vpnIp != null)
+                {
+                    socket.Bind(new IPEndPoint(vpnIp, 0));
+                }
+            }
+        }
+    }
+
+    private HttpClient CreateConfiguredHttpClient()
+    {
+        var handler = new SocketsHttpHandler
+        {
+            PooledConnectionLifetime = TimeSpan.FromMinutes(15),
+            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
+            AutomaticDecompression = DecompressionMethods.All,
+            AllowAutoRedirect = true,
+            MaxAutomaticRedirections = 5,
+            ConnectCallback = async (context, cancellationToken) =>
+            {
+                if (this.vpnKillSwitchService?.IsFailClosedActive == true)
+                {
+                    this.logger.Warn("VPN kill switch fail-closed is active; aborting HTTP connection to {0}", context.DnsEndPoint.Host);
+                    throw new SocketException((int)SocketError.NetworkUnreachable);
+                }
+
+                var host = context.DnsEndPoint.Host;
+                var port = context.DnsEndPoint.Port;
+
+                IPAddress[] addresses;
+                if (IPAddress.TryParse(host, out var parsedIp))
+                {
+                    addresses = [parsedIp];
+                }
+                else
+                {
+                    addresses = await ResolveHostAddressesAsync(host, this.vpnKillSwitchService, cancellationToken).ConfigureAwait(false);
+                }
+
+                if (addresses == null || addresses.Length == 0)
+                {
+                    throw new SocketException((int)SocketError.HostNotFound);
+                }
+
+                var targetIp = addresses[0];
+                var socket = new Socket(targetIp.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
+                {
+                    NoDelay = true,
+                };
+
+                var iface = this.GetBoundInterfaceName();
+                if (!string.IsNullOrWhiteSpace(iface))
+                {
+                    if (IPAddress.TryParse(iface, out var localIp))
+                    {
+                        if (socket.AddressFamily == localIp.AddressFamily)
+                        {
+                            socket.Bind(new IPEndPoint(localIp, 0));
+                        }
+                    }
+                    else if (this.networkBindingService != null)
+                    {
+                        this.networkBindingService.BindSocket(socket, iface);
+                    }
+                }
+
+                try
+                {
+                    await socket.ConnectAsync(new IPEndPoint(targetIp, port), cancellationToken).ConfigureAwait(false);
+                    return new NetworkStream(socket, ownsSocket: true);
+                }
+                catch
+                {
+                    socket.Dispose();
+                    throw;
+                }
+            },
+        };
+
+        var proxyType = this.configService?.ProxyType?.ToLowerInvariant() ?? "none";
+        var proxyHost = this.configService?.ProxyHost;
+        var proxyPort = this.configService?.ProxyPort ?? (proxyType is "socks5" or "socks4" ? 1080 : 8080);
+
+        if (!string.Equals(proxyType, "none", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(proxyHost))
+        {
+            var scheme = proxyType switch
+            {
+                "socks5" => "socks5",
+                "socks4" => "socks4",
+                "http" => "http",
+                _ => "http",
+            };
+
+            var proxy = new WebProxy($"{scheme}://{proxyHost}:{proxyPort}");
+            if (this.configService.ProxyAuthEnabled && !string.IsNullOrEmpty(this.configService.ProxyUsername))
+            {
+                proxy.Credentials = new NetworkCredential(this.configService.ProxyUsername, this.configService.ProxyPassword ?? string.Empty);
+            }
+
+            handler.Proxy = proxy;
+            handler.UseProxy = true;
+        }
+
+        return new HttpClient(handler, disposeHandler: true)
+        {
+            Timeout = TimeSpan.FromSeconds(6),
+        };
     }
 
     public static bool HasPasskey(string url)
@@ -464,6 +644,12 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
     public async Task<int> HarvestFromProwlarrAsync()
     {
+        if (this.vpnKillSwitchService?.IsFailClosedActive == true)
+        {
+            this.logger.Warn("VPN kill switch fail-closed is active; aborting Prowlarr tracker harvesting");
+            return 0;
+        }
+
         var harvestedCount = 0;
         try
         {
@@ -495,7 +681,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                     request.Headers.Add("X-Api-Key", prowlarr.ApiKey);
                 }
 
-                using var response = await HttpClient.SendAsync(request);
+                using var response = await this.httpClient.SendAsync(request);
                 if (!response.IsSuccessStatusCode)
                 {
                     continue;
@@ -607,6 +793,12 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
     public async Task<int> HarvestFromCuratedListsAsync()
     {
+        if (this.vpnKillSwitchService?.IsFailClosedActive == true)
+        {
+            this.logger.Warn("VPN kill switch fail-closed is active; aborting curated list tracker harvesting");
+            return 0;
+        }
+
         var count = 0;
         var feedUrls = new[]
         {
@@ -618,7 +810,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         {
             try
             {
-                var content = await HttpClient.GetStringAsync(feed);
+                var content = await this.httpClient.GetStringAsync(feed);
                 using var reader = new StringReader(content);
                 string line;
                 while ((line = await reader.ReadLineAsync()) != null)
@@ -664,6 +856,20 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
     internal static async Task<IPAddress[]> ResolveHostAddressesAsync(string host, CancellationToken cancellationToken = default)
     {
+        return await ResolveHostAddressesAsync(host, null, cancellationToken).ConfigureAwait(false);
+    }
+
+    internal static async Task<IPAddress[]> ResolveHostAddressesAsync(
+        string host,
+        IVpnKillSwitchService vpnKillSwitchService,
+        CancellationToken cancellationToken = default)
+    {
+        if (vpnKillSwitchService?.IsFailClosedActive == true)
+        {
+            LogManager.GetCurrentClassLogger().Warn("VPN kill switch fail-closed is active; aborting DNS resolution for {0}", host);
+            return Array.Empty<IPAddress>();
+        }
+
         if (string.IsNullOrWhiteSpace(host))
         {
             return Array.Empty<IPAddress>();
@@ -702,6 +908,12 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
     public async Task<int> ProbeTrackerHealthAsync()
     {
+        if (this.vpnKillSwitchService?.IsFailClosedActive == true)
+        {
+            this.logger.Warn("VPN kill switch fail-closed is active; aborting tracker health probe");
+            return 0;
+        }
+
         var trackers = this.trackerRepository.All().Where(t => t.Enabled).ToList();
         var testedCount = 0;
 
@@ -711,11 +923,22 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             await semaphore.WaitAsync();
             try
             {
+                if (this.vpnKillSwitchService?.IsFailClosedActive == true)
+                {
+                    this.logger.Warn("VPN kill switch fail-closed is active; skipping probe for {0}", tracker.Url);
+                    tracker.Status = TrackerHealthStatus.Offline;
+                    tracker.FailedScrapes++;
+                    this.trackerRepository.Update(tracker);
+                    this.LogActivity("Warn", "Health", $"VPN kill switch active - probe skipped for {tracker.Url}", tracker.Url);
+                    Interlocked.Increment(ref testedCount);
+                    return;
+                }
+
                 var isAlive = false;
 
                 if (tracker.Protocol == TrackerProtocol.Udp)
                 {
-                    var addresses = await ResolveHostAddressesAsync(tracker.Host).ConfigureAwait(false);
+                    var addresses = await ResolveHostAddressesAsync(tracker.Host, this.vpnKillSwitchService).ConfigureAwait(false);
                     if (addresses.Length == 0)
                     {
                         tracker.Status = TrackerHealthStatus.Offline;
@@ -735,7 +958,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                 {
                     if (Uri.TryCreate(tracker.Url, UriKind.Absolute, out var uri))
                     {
-                        await ResolveHostAddressesAsync(uri.Host).ConfigureAwait(false);
+                        await ResolveHostAddressesAsync(uri.Host, this.vpnKillSwitchService).ConfigureAwait(false);
                     }
 
                     var sw = Stopwatch.StartNew();
@@ -1517,6 +1740,13 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
     public async Task RunOptimizationCycleAsync()
     {
+        if (this.vpnKillSwitchService?.IsFailClosedActive == true)
+        {
+            this.logger.Warn("VPN kill switch fail-closed is active; aborting tracker optimization cycle");
+            this.LogActivity("Warn", "Cycle", "VPN kill switch active; tracker optimization cycle aborted");
+            return;
+        }
+
         this.LogActivity("Info", "Cycle", "Background tracker optimization cycle started");
 
         this.EnsureDefaultTrackersBootstrapped();
@@ -1664,6 +1894,12 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            if (this.vpnKillSwitchService?.IsFailClosedActive == true)
+            {
+                this.logger.Warn("VPN kill switch fail-closed is active; aborting UDP transaction {0}", transactionId);
+                return new UdpResponseResult { IsUnreachable = true };
+            }
+
             try
             {
                 await client.SendAsync(packet, packet.Length, endpoint).ConfigureAwait(false);
@@ -1762,6 +1998,12 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         int maxRetries = 2,
         CancellationToken cancellationToken = default)
     {
+        if (this.vpnKillSwitchService?.IsFailClosedActive == true)
+        {
+            this.logger.Warn("VPN kill switch fail-closed is active; aborting UDP tracker probe");
+            return false;
+        }
+
         if (addresses == null || addresses.Length == 0)
         {
             return false;
@@ -1771,6 +2013,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         {
             var targetAddress = addresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork) ?? addresses[0];
             using var client = new UdpClient(targetAddress.AddressFamily);
+            this.BindUdpSocket(client.Client);
             var endpoint = new IPEndPoint(targetAddress, port);
 
             var transactionId = Random.Shared.Next();
@@ -1810,6 +2053,11 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             this.logger.Debug(ex, "UDP tracker probe unreachable: {0}", ex.SocketErrorCode);
             return false;
         }
+        catch (InvalidOperationException ex)
+        {
+            this.logger.Debug(ex, "UDP tracker probe failed to bind to interface: {0}", ex.Message);
+            return false;
+        }
         catch (SocketException ex)
         {
             this.logger.Debug(ex, "UDP tracker probe socket error: {0}", ex.SocketErrorCode);
@@ -1829,17 +2077,34 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         int maxRetries = 2,
         CancellationToken cancellationToken = default)
     {
-        var addresses = await ResolveHostAddressesAsync(host, cancellationToken).ConfigureAwait(false);
+        if (this.vpnKillSwitchService?.IsFailClosedActive == true)
+        {
+            this.logger.Warn("VPN kill switch fail-closed is active; aborting UDP tracker probe for {0}:{1}", host, port);
+            return false;
+        }
+
+        var addresses = await ResolveHostAddressesAsync(host, this.vpnKillSwitchService, cancellationToken).ConfigureAwait(false);
+        if (addresses.Length == 0)
+        {
+            return false;
+        }
+
         return await this.ProbeUdpTrackerAsync(addresses, port, initialTimeoutMs, maxRetries, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<bool> ProbeHttpTrackerAsync(string url)
     {
+        if (this.vpnKillSwitchService?.IsFailClosedActive == true)
+        {
+            this.logger.Warn("VPN kill switch fail-closed is active; aborting HTTP tracker probe for {0}", url);
+            return false;
+        }
+
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Head, url);
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-            using var resp = await HttpClient.SendAsync(req, cts.Token);
+            using var resp = await this.httpClient.SendAsync(req, cts.Token);
             return resp.IsSuccessStatusCode || resp.StatusCode == HttpStatusCode.BadRequest;
         }
         catch
@@ -1892,7 +2157,13 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
                 if (!string.IsNullOrWhiteSpace(infoHash) && !isPrivate)
                 {
-                    var scrape = await this.ScrapeTrackerForHashAsync(tracker, infoHash);
+                    if (this.vpnKillSwitchService?.IsFailClosedActive == true)
+                    {
+                        detection.DetectionStatus = isAttached ? "Attached (VPN Kill Switch Active)" : "VPN Kill Switch Active";
+                    }
+                    else
+                    {
+                        var scrape = await this.ScrapeTrackerForHashAsync(tracker, infoHash);
                     if (scrape.Success)
                     {
                         detection.Seeders = Math.Max(detection.Seeders, scrape.Seeders);
@@ -1924,6 +2195,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                     else
                     {
                         detection.DetectionStatus = isAttached ? "Attached (Scrape Failed)" : (tracker.Status == TrackerHealthStatus.Offline ? "Offline" : "Unresponsive");
+                    }
                     }
                 }
                 else
@@ -1995,6 +2267,12 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         string infoHash,
         CancellationToken cancellationToken = default)
     {
+        if (this.vpnKillSwitchService?.IsFailClosedActive == true)
+        {
+            this.logger.Warn("VPN kill switch fail-closed is active; aborting tracker scrape for hash {0}", infoHash);
+            return (false, 0, 0, 0);
+        }
+
         if (tracker == null || string.IsNullOrWhiteSpace(infoHash))
         {
             return (false, 0, 0, 0);
@@ -2073,9 +2351,15 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         int initialTimeoutMs = 1000,
         int maxRetries = 2)
     {
+        if (this.vpnKillSwitchService?.IsFailClosedActive == true)
+        {
+            this.logger.Warn("VPN kill switch fail-closed is active; aborting UDP scrape for host {0}:{1}", host, port);
+            return (false, 0, 0, 0);
+        }
+
         try
         {
-            var addresses = await ResolveHostAddressesAsync(host, cancellationToken).ConfigureAwait(false);
+            var addresses = await ResolveHostAddressesAsync(host, this.vpnKillSwitchService, cancellationToken).ConfigureAwait(false);
             if (addresses.Length == 0)
             {
                 return (false, 0, 0, 0);
@@ -2083,6 +2367,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
             var targetAddress = addresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork) ?? addresses[0];
             using var client = new UdpClient(targetAddress.AddressFamily);
+            this.BindUdpSocket(client.Client);
             var endpoint = new IPEndPoint(targetAddress, port);
 
             var connectTxId = Random.Shared.Next();
@@ -2150,6 +2435,11 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             this.logger.Debug(ex, "UDP scrape host {0}:{1} unreachable ({2})", host, port, ex.SocketErrorCode);
             return (false, 0, 0, 0);
         }
+        catch (InvalidOperationException ex)
+        {
+            this.logger.Debug(ex, "UDP scrape host {0}:{1} failed to bind to interface: {2}", host, port, ex.Message);
+            return (false, 0, 0, 0);
+        }
         catch (SocketException ex)
         {
             this.logger.Debug(ex, "UDP scrape socket error for {0}:{1} ({2})", host, port, ex.SocketErrorCode);
@@ -2196,6 +2486,12 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         string hexHash,
         CancellationToken cancellationToken)
     {
+        if (this.vpnKillSwitchService?.IsFailClosedActive == true)
+        {
+            this.logger.Warn("VPN kill switch fail-closed is active; aborting HTTP tracker scrape for {0}", announceUrl);
+            return (false, 0, 0, 0);
+        }
+
         try
         {
             var requestUrl = BuildScrapeUrl(announceUrl, hexHash);
@@ -2206,7 +2502,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
             var hashBytes = Convert.FromHexString(hexHash);
 
-            using var resp = await HttpClient.GetAsync(requestUrl, cancellationToken).ConfigureAwait(false);
+            using var resp = await this.httpClient.GetAsync(requestUrl, cancellationToken).ConfigureAwait(false);
             if (!resp.IsSuccessStatusCode)
             {
                 return (false, 0, 0, 0);
