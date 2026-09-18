@@ -2507,6 +2507,16 @@ public class QBittorrentApiControllerTest
     }
 
     [Test]
+    public void GetSearchResults_WhenJobDoesNotExist_ReturnsNotFound()
+    {
+        var result = this.controller.GetSearchResults(id: 99999);
+        result.Should().BeOfType<NotFoundResult>();
+
+        var nullResult = this.controller.GetSearchResults(id: null);
+        nullResult.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Test]
     public async Task AddTorrents_WithEmptyRequest_ReturnsFails()
     {
         var result = await this.controller.AddTorrents(new QBitAddTorrentsRequest());
