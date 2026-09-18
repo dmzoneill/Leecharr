@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
@@ -10,6 +11,8 @@ using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.DiskSpace;
+using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Core.Test.DiskSpace;
 
@@ -164,5 +167,76 @@ public class DiskSpaceServiceTest
 
         result.Should().Contain(d => d.Label == "Downloads" && d.Path == "/downloads/torrents" && d.FreeSpace == 50_000_000_000L);
         result.Should().Contain(d => d.Label == "Incomplete Downloads" && d.Path == "/downloads/incomplete" && d.FreeSpace == 30_000_000_000L);
+    }
+
+    [Test]
+    public void GetDiskSpace_DeduplicatesSharedPhysicalVolumes()
+    {
+        this.configService.DownloadDir.Returns("/downloads");
+        this.configService.IncompleteDownloadDir.Returns("/downloads/incomplete");
+        this.appFolderInfo.AppDataFolder.Returns("/downloads/appdata");
+
+        // Simulate all three paths sharing the same physical drive / mount
+        this.diskProvider.GetAvailableSpace(Arg.Is<string>(s => s.StartsWith("/downloads"))).Returns(50_000_000_000L);
+        this.diskProvider.GetTotalSize(Arg.Is<string>(s => s.StartsWith("/downloads"))).Returns(100_000_000_000L);
+
+        var result = this.service.GetDiskSpace();
+
+        // Should only contain 1 entry for /downloads, not 3 duplicate entries
+        result.Where(d => d.Path.StartsWith("/downloads")).Should().HaveCount(1);
+    }
+
+    [TestCase(0)]
+    [TestCase(-1)]
+    public void GetDiskSpace_WhenLowDiskSpaceThresholdMbIsZeroOrNegative_DisablesLowDiskSpaceEvent(int thresholdMb)
+    {
+        var eventAggregator = Substitute.For<IEventAggregator>();
+        this.configService.LowDiskSpaceThresholdMb.Returns(thresholdMb);
+        this.configService.DownloadDir.Returns("/downloads");
+
+        // 4% free space (less than 5% freePercent), but 40 GB free (well above 1 GB critical threshold)
+        this.diskProvider.GetAvailableSpace("/downloads").Returns(40_000_000_000L);
+        this.diskProvider.GetTotalSize("/downloads").Returns(1_000_000_000_000L);
+
+        var diskService = new DiskSpaceService(this.appFolderInfo, this.configService, this.diskProvider, eventAggregator: eventAggregator);
+        diskService.GetDiskSpace();
+
+        eventAggregator.DidNotReceive().PublishEvent(Arg.Any<DiskSpaceLowEvent>());
+        eventAggregator.DidNotReceive().PublishEvent(Arg.Is<DiskSpaceCriticalEvent>(e => e.DrivePath == "/downloads"));
+    }
+
+    [Test]
+    public void GetDiskSpace_WhenLowDiskSpaceThresholdMbIsPositive_PublishesLowDiskSpaceEventWhenFreePercentBelowFivePercent()
+    {
+        var eventAggregator = Substitute.For<IEventAggregator>();
+        this.configService.LowDiskSpaceThresholdMb.Returns(500);
+        this.configService.DownloadDir.Returns("/downloads");
+
+        // 4% free space (less than 5% freePercent), 40 GB free
+        this.diskProvider.GetAvailableSpace("/downloads").Returns(40_000_000_000L);
+        this.diskProvider.GetTotalSize("/downloads").Returns(1_000_000_000_000L);
+
+        var diskService = new DiskSpaceService(this.appFolderInfo, this.configService, this.diskProvider, eventAggregator: eventAggregator);
+        diskService.GetDiskSpace();
+
+        eventAggregator.Received(1).PublishEvent(Arg.Is<DiskSpaceLowEvent>(e => e.DrivePath == "/downloads"));
+    }
+
+    [Test]
+    public void GetDiskSpace_WhenFreeSpaceBelowOneGigabyte_PublishesCriticalEventEvenWhenThresholdDisabled()
+    {
+        var eventAggregator = Substitute.For<IEventAggregator>();
+        this.configService.LowDiskSpaceThresholdMb.Returns(0);
+        this.configService.DownloadDir.Returns("/downloads");
+
+        // 500 MB free (less than 1 GB critical threshold)
+        this.diskProvider.GetAvailableSpace("/downloads").Returns(500L * 1024 * 1024);
+        this.diskProvider.GetTotalSize("/downloads").Returns(100L * 1024 * 1024 * 1024);
+
+        var diskService = new DiskSpaceService(this.appFolderInfo, this.configService, this.diskProvider, eventAggregator: eventAggregator);
+        diskService.GetDiskSpace();
+
+        eventAggregator.Received(1).PublishEvent(Arg.Is<DiskSpaceCriticalEvent>(e => e.DrivePath == "/downloads"));
+        eventAggregator.DidNotReceive().PublishEvent(Arg.Any<DiskSpaceLowEvent>());
     }
 }

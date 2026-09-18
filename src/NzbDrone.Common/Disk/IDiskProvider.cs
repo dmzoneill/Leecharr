@@ -12,6 +12,8 @@ public interface IDiskProvider
 
     long? GetTotalSize(string path);
 
+    DriveInfo GetDrive(string path) => null;
+
     DateTime FolderGetCreationTime(string path);
 
     DateTime FolderGetLastWrite(string path);

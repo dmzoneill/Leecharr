@@ -52,6 +52,11 @@ public class DiskProvider : IDiskProvider
         }
     }
 
+    public DriveInfo GetDrive(string path)
+    {
+        return GetBestMatchingDrive(path);
+    }
+
     private static DriveInfo GetBestMatchingDrive(string path)
     {
         var rawPath = path;
@@ -65,6 +70,7 @@ public class DiskProvider : IDiskProvider
         }
 
         var fullPath = Path.GetFullPath(rawPath);
+        fullPath = ResolveSymlinkPath(fullPath);
 
         DriveInfo[] drives;
         try
@@ -407,6 +413,69 @@ public class DiskProvider : IDiskProvider
         if (path.Length >= 2 && char.IsLetter(path[0]) && path[1] == ':')
         {
             return @"\\?\" + path;
+        }
+
+        return path;
+    }
+
+    private static string ResolveSymlinkPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return path;
+        }
+
+        try
+        {
+            if (Directory.Exists(path))
+            {
+                var target = Directory.ResolveLinkTarget(path, returnFinalTarget: true);
+                if (target != null)
+                {
+                    return target.FullName;
+                }
+            }
+            else if (File.Exists(path))
+            {
+                var target = File.ResolveLinkTarget(path, returnFinalTarget: true);
+                if (target != null)
+                {
+                    return target.FullName;
+                }
+            }
+
+            if (!OperatingSystem.IsWindows())
+            {
+                var parts = path.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+                var current = path.StartsWith(Path.DirectorySeparatorChar) ? Path.DirectorySeparatorChar.ToString() : string.Empty;
+
+                foreach (var part in parts)
+                {
+                    current = Path.Combine(current, part);
+                    if (Directory.Exists(current))
+                    {
+                        var target = Directory.ResolveLinkTarget(current, returnFinalTarget: true);
+                        if (target != null)
+                        {
+                            current = target.FullName;
+                        }
+                    }
+                    else if (File.Exists(current))
+                    {
+                        var target = File.ResolveLinkTarget(current, returnFinalTarget: true);
+                        if (target != null)
+                        {
+                            current = target.FullName;
+                        }
+                    }
+                }
+
+                return current;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Trace(ex, "Failed to resolve symlink for path '{0}'", path);
         }
 
         return path;
