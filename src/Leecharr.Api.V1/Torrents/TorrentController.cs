@@ -1035,11 +1035,6 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             await this.torrentService.SetSuperSeedingAsync(updated.Id, updated.InitialSeeding);
         }
 
-        if (this.downloadEngine != null && (resource.UploadLimit.HasValue || resource.DownloadLimit.HasValue))
-        {
-            await this.downloadEngine.SetTorrentRateLimitsAsync(updated.Id, updated.DownloadLimit, updated.UploadLimit);
-        }
-
         if (this.downloadEngine != null && isPrivateChanged)
         {
             await this.downloadEngine.SetTorrentPrivateStatusAsync(updated.Id, updated.IsPrivate);
@@ -1255,10 +1250,6 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                     }
 
                     await this.torrentService.UpdateAsync(torrent);
-                    if (this.downloadEngine != null)
-                    {
-                        await this.downloadEngine.SetTorrentRateLimitsAsync(torrent.Id, torrent.DownloadLimit, torrent.UploadLimit);
-                    }
 
                     break;
                 }
