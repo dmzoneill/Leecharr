@@ -86,6 +86,28 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private long lastProtoDownSpeed;
     private long lastProtoUpSpeed;
 
+    private string lastAppliedInterfaceBinding = string.Empty;
+    private int lastAppliedListenPort;
+    private string lastAppliedProxyType = string.Empty;
+    private string lastAppliedProxyHost = string.Empty;
+    private int lastAppliedProxyPort;
+    private string lastAppliedProxyUsername = string.Empty;
+    private string lastAppliedProxyPassword = string.Empty;
+
+    internal string LastAppliedInterfaceBinding => this.lastAppliedInterfaceBinding;
+
+    internal int LastAppliedListenPort => this.lastAppliedListenPort;
+
+    internal string LastAppliedProxyType => this.lastAppliedProxyType;
+
+    internal string LastAppliedProxyHost => this.lastAppliedProxyHost;
+
+    internal int LastAppliedProxyPort => this.lastAppliedProxyPort;
+
+    internal string LastAppliedProxyUsername => this.lastAppliedProxyUsername;
+
+    internal string LastAppliedProxyPassword => this.lastAppliedProxyPassword;
+
     public bool IsHaltedByKillSwitch => this.isHaltedByKillSwitch;
 
     public long BlockedPeersCount => Interlocked.Read(ref this.blockedPeersCount);
@@ -206,6 +228,16 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         var fastResumeIntervalSec = Math.Max(5, this.configService?.AutoSaveFastResumeIntervalSeconds > 0 ? this.configService.AutoSaveFastResumeIntervalSeconds : 300);
         this.fastResumeAutoSaveTimer = new Timer(_ => this.PerformPeriodicFastResumeSave(), null, TimeSpan.FromSeconds(fastResumeIntervalSec), TimeSpan.FromSeconds(fastResumeIntervalSec));
+
+        this.lastAppliedInterfaceBinding = !string.IsNullOrWhiteSpace(this.configService?.NetworkInterfaceBinding)
+            ? this.configService.NetworkInterfaceBinding
+            : this.configService?.BindInterface ?? string.Empty;
+        this.lastAppliedListenPort = this.configService?.ListeningPort > 0 ? this.configService.ListeningPort : 51413;
+        this.lastAppliedProxyType = this.configService?.ProxyType ?? string.Empty;
+        this.lastAppliedProxyHost = this.configService?.ProxyHost ?? string.Empty;
+        this.lastAppliedProxyPort = this.configService?.ProxyPort ?? 0;
+        this.lastAppliedProxyUsername = this.configService?.ProxyUsername ?? string.Empty;
+        this.lastAppliedProxyPassword = this.configService?.ProxyPassword ?? string.Empty;
     }
 
     public async Task StartAsync()
@@ -475,27 +507,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         ConfigureGlobalMonoTorrentDefaults(peerIdPrefix, userAgent);
 
-        WebProxy webProxy = null;
-        if (this.configService.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
-            !string.IsNullOrWhiteSpace(this.configService.ProxyHost))
+        var webProxy = this.GetConfiguredWebProxy();
+        if (webProxy is WebProxy wp)
         {
-            var proxyType = this.configService.ProxyType.ToLowerInvariant();
-            var proxyHost = this.configService.ProxyHost;
-            var proxyPort = this.configService.ProxyPort > 0 ? this.configService.ProxyPort : (proxyType == "socks5" ? 1080 : 8080);
-            var proxyUri = new Uri($"{proxyType}://{proxyHost}:{proxyPort}");
-
-            ICredentials credentials = null;
-            if (!string.IsNullOrWhiteSpace(this.configService.ProxyUsername))
-            {
-                credentials = new NetworkCredential(this.configService.ProxyUsername, this.configService.ProxyPassword ?? string.Empty);
-            }
-
-            webProxy = new WebProxy(proxyUri)
-            {
-                Credentials = credentials,
-            };
-
-            this.logger.Info("Configured MonoTorrent tracker proxy via {0}://{1}:{2}", proxyType, proxyHost, proxyPort);
+            this.logger.Info("Configured MonoTorrent tracker proxy via {0}", wp.Address);
         }
 
         factories = factories.WithHttpClientCreator(af =>
@@ -505,9 +520,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 PooledConnectionLifetime = TimeSpan.FromMinutes(15),
                 PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
             };
-            if (webProxy != null)
+            var proxy = this.GetConfiguredWebProxy();
+            if (proxy != null)
             {
-                handler.Proxy = webProxy;
+                handler.Proxy = proxy;
                 handler.UseProxy = true;
             }
 
@@ -551,9 +567,63 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         this.ApplyCustomPeerId(this.engine, peerIdPrefix);
 
+        this.lastAppliedInterfaceBinding = !string.IsNullOrWhiteSpace(this.configService.NetworkInterfaceBinding)
+            ? this.configService.NetworkInterfaceBinding
+            : this.configService.BindInterface;
+        this.lastAppliedListenPort = this.configService.ListeningPort > 0 ? this.configService.ListeningPort : 51413;
+        this.lastAppliedProxyType = this.configService.ProxyType ?? string.Empty;
+        this.lastAppliedProxyHost = this.configService.ProxyHost ?? string.Empty;
+        this.lastAppliedProxyPort = this.configService.ProxyPort;
+        this.lastAppliedProxyUsername = this.configService.ProxyUsername ?? string.Empty;
+        this.lastAppliedProxyPassword = this.configService.ProxyPassword ?? string.Empty;
+
         this.logger.Info("MonoTorrent engine started successfully on {0}:{1}.", listenIp, port);
 
         await this.DrainPendingTorrentsAsync().ConfigureAwait(false);
+    }
+
+    internal async Task RestartEngineAsyncCore()
+    {
+        await this.engineStateLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            this.logger.Info("Restarting MonoTorrent download engine to apply configuration changes...");
+            await this.StopEngineAsyncCore().ConfigureAwait(false);
+            await this.StartEngineAsyncCore().ConfigureAwait(false);
+        }
+        finally
+        {
+            this.engineStateLock.Release();
+        }
+    }
+
+    internal IWebProxy GetConfiguredWebProxy()
+    {
+        if (!string.IsNullOrWhiteSpace(this.configService?.ProxyType) &&
+            !string.Equals(this.configService.ProxyType, "none", StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(this.configService.ProxyHost))
+        {
+            var proxyType = this.configService.ProxyType.ToLowerInvariant();
+            if (proxyType is "socks5" or "http")
+            {
+                var proxyHost = this.configService.ProxyHost;
+                var proxyPort = this.configService.ProxyPort > 0 ? this.configService.ProxyPort : (proxyType == "socks5" ? 1080 : 8080);
+                var proxyUri = new Uri($"{proxyType}://{proxyHost}:{proxyPort}");
+
+                ICredentials credentials = null;
+                if (!string.IsNullOrWhiteSpace(this.configService.ProxyUsername))
+                {
+                    credentials = new NetworkCredential(this.configService.ProxyUsername, this.configService.ProxyPassword ?? string.Empty);
+                }
+
+                return new WebProxy(proxyUri)
+                {
+                    Credentials = credentials,
+                };
+            }
+        }
+
+        return null;
     }
 
     private async Task StopEngineAsyncCore()
@@ -3224,7 +3294,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
-    private async Task UpdateEngineListenEndpointsAsync()
+    internal async Task UpdateEngineListenEndpointsAsync()
     {
         if (this.engine == null)
         {
@@ -3281,6 +3351,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
         }
 
+        var isProxyConfigured = this.configService.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
+            !string.IsNullOrWhiteSpace(this.configService.ProxyHost);
+        var isProxyActive = isProxyConfigured || this.configService.ForceProxy || (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider);
+
         var newSettingsBuilder = new EngineSettingsBuilder(this.engine.Settings)
         {
             ListenEndPoints = listenEndPoints,
@@ -3288,6 +3362,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             DiskCacheBytes = this.CalculateDynamicDiskCacheBytes(this.engine.TotalDownloadRate),
             DiskCachePolicy = this.GetConfiguredCachePolicy(),
             FastResumeMode = this.GetConfiguredFastResumeMode(),
+            AllowLocalPeerDiscovery = !isProxyActive && this.configService.EnableLpd,
         };
 
         await this.engine.UpdateSettingsAsync(newSettingsBuilder.ToSettings()).ConfigureAwait(false);
@@ -3432,6 +3507,64 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
+    internal async Task ApplyConfigChangesAsync()
+    {
+        if (this.engine == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var updatedSettings = new EngineSettingsBuilder(this.engine.Settings)
+            {
+                DiskCacheBytes = this.CalculateDynamicDiskCacheBytes(this.engine.TotalDownloadRate),
+                DiskCachePolicy = this.GetConfiguredCachePolicy(),
+                FastResumeMode = this.GetConfiguredFastResumeMode(),
+            }.ToSettings();
+            await this.engine.UpdateSettingsAsync(updatedSettings).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Failed to update engine settings on config change");
+        }
+
+        var currentIface = !string.IsNullOrWhiteSpace(this.configService.NetworkInterfaceBinding)
+            ? this.configService.NetworkInterfaceBinding
+            : this.configService.BindInterface;
+        var currentPort = this.configService.ListeningPort > 0 ? this.configService.ListeningPort : 51413;
+
+        var currentProxyType = this.configService.ProxyType ?? string.Empty;
+        var currentProxyHost = this.configService.ProxyHost ?? string.Empty;
+        var currentProxyPort = this.configService.ProxyPort;
+        var currentProxyUsername = this.configService.ProxyUsername ?? string.Empty;
+        var currentProxyPassword = this.configService.ProxyPassword ?? string.Empty;
+
+        var interfaceOrPortChanged = !string.Equals(this.lastAppliedInterfaceBinding, currentIface, StringComparison.OrdinalIgnoreCase) ||
+                                     this.lastAppliedListenPort != currentPort;
+
+        var proxyChanged = !string.Equals(this.lastAppliedProxyType, currentProxyType, StringComparison.OrdinalIgnoreCase) ||
+                           !string.Equals(this.lastAppliedProxyHost, currentProxyHost, StringComparison.OrdinalIgnoreCase) ||
+                           this.lastAppliedProxyPort != currentProxyPort ||
+                           !string.Equals(this.lastAppliedProxyUsername, currentProxyUsername, StringComparison.Ordinal) ||
+                           !string.Equals(this.lastAppliedProxyPassword, currentProxyPassword, StringComparison.Ordinal);
+
+        if (interfaceOrPortChanged || proxyChanged)
+        {
+            this.logger.Info("Network interface, listen port, or proxy configuration changed. Updating listen endpoints and cycling peer sockets.");
+            await this.UpdateEngineListenEndpointsAsync().ConfigureAwait(false);
+            await this.ResetPeerSocketsAsync().ConfigureAwait(false);
+
+            this.lastAppliedInterfaceBinding = currentIface;
+            this.lastAppliedListenPort = currentPort;
+            this.lastAppliedProxyType = currentProxyType;
+            this.lastAppliedProxyHost = currentProxyHost;
+            this.lastAppliedProxyPort = currentProxyPort;
+            this.lastAppliedProxyUsername = currentProxyUsername;
+            this.lastAppliedProxyPassword = currentProxyPassword;
+        }
+    }
+
     public void Handle(ConfigSavedEvent message)
     {
         if (this.engine != null)
@@ -3442,17 +3575,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             {
                 try
                 {
-                    var updatedSettings = new EngineSettingsBuilder(this.engine.Settings)
-                    {
-                        DiskCacheBytes = this.CalculateDynamicDiskCacheBytes(this.engine.TotalDownloadRate),
-                        DiskCachePolicy = this.GetConfiguredCachePolicy(),
-                        FastResumeMode = this.GetConfiguredFastResumeMode(),
-                    }.ToSettings();
-                    await this.engine.UpdateSettingsAsync(updatedSettings).ConfigureAwait(false);
+                    await this.ApplyConfigChangesAsync().ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
-                    this.logger.Debug(ex, "Failed to update engine settings on config save");
+                    this.logger.Debug(ex, "Failed to apply config changes on config save");
                 }
             });
         }
@@ -3468,17 +3595,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             {
                 try
                 {
-                    var updatedSettings = new EngineSettingsBuilder(this.engine.Settings)
-                    {
-                        DiskCacheBytes = this.CalculateDynamicDiskCacheBytes(this.engine.TotalDownloadRate),
-                        DiskCachePolicy = this.GetConfiguredCachePolicy(),
-                        FastResumeMode = this.GetConfiguredFastResumeMode(),
-                    }.ToSettings();
-                    await this.engine.UpdateSettingsAsync(updatedSettings).ConfigureAwait(false);
+                    await this.ApplyConfigChangesAsync().ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
-                    this.logger.Debug(ex, "Failed to update engine settings on config file save");
+                    this.logger.Debug(ex, "Failed to apply config changes on config file save");
                 }
             });
         }
