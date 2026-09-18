@@ -2291,9 +2291,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         [FromQuery] string pattern = null,
         [FromQuery] string plugins = null,
         [FromQuery] string category = null,
-        [FromForm] string formPattern = null,
-        [FromForm] string formPlugins = null,
-        [FromForm] string formCategory = null)
+        [FromForm(Name = "pattern")] string formPattern = null,
+        [FromForm(Name = "plugins")] string formPlugins = null,
+        [FromForm(Name = "category")] string formCategory = null)
     {
         var finalPattern = !string.IsNullOrWhiteSpace(formPattern) ? formPattern : pattern;
         var finalPlugins = !string.IsNullOrWhiteSpace(formPlugins) ? formPlugins : plugins;
@@ -2309,9 +2309,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     }
 
     [HttpPost("search/stop")]
-    public ActionResult StopSearch([FromQuery] int? id = null, [FromForm] int? formId = null)
+    public ActionResult StopSearch([FromQuery] int? id = null, [FromForm(Name = "id")] int? formId = null)
     {
-        var targetId = id ?? formId;
+        var targetId = formId ?? id;
         if (targetId.HasValue)
         {
             this.qbittorrentSearchService.StopSearch(targetId.Value);
@@ -2322,9 +2322,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
     [HttpGet("search/status")]
     [HttpPost("search/status")]
-    public ActionResult GetSearchStatus([FromQuery] int? id, [FromForm] int? formId)
+    public ActionResult GetSearchStatus([FromQuery] int? id = null, [FromForm(Name = "id")] int? formId = null)
     {
-        var targetId = id ?? formId;
+        var targetId = formId ?? id;
         if (targetId.HasValue)
         {
             var status = this.qbittorrentSearchService.GetStatus(targetId.Value);
@@ -2342,14 +2342,14 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     [HttpGet("search/results")]
     [HttpPost("search/results")]
     public ActionResult GetSearchResults(
-        [FromQuery] int id,
+        [FromQuery] int? id = null,
         [FromQuery] int limit = 0,
         [FromQuery] int offset = 0,
-        [FromForm] int? formId = null,
-        [FromForm] int? formLimit = null,
-        [FromForm] int? formOffset = null)
+        [FromForm(Name = "id")] int? formId = null,
+        [FromForm(Name = "limit")] int? formLimit = null,
+        [FromForm(Name = "offset")] int? formOffset = null)
     {
-        var searchId = formId ?? id;
+        var searchId = formId ?? id ?? 0;
         var searchLimit = formLimit ?? limit;
         var searchOffset = formOffset ?? offset;
 
@@ -2358,9 +2358,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     }
 
     [HttpPost("search/delete")]
-    public ActionResult DeleteSearch([FromQuery] int? id = null, [FromForm] int? formId = null)
+    public ActionResult DeleteSearch([FromQuery] int? id = null, [FromForm(Name = "id")] int? formId = null)
     {
-        var targetId = id ?? formId;
+        var targetId = formId ?? id;
         if (targetId.HasValue)
         {
             this.qbittorrentSearchService.DeleteSearch(targetId.Value);

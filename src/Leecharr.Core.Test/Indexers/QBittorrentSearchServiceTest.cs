@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -330,5 +331,82 @@ public class QBittorrentSearchServiceTest
         var status = this.searchService.GetStatus(id);
         status.Should().NotBeNull();
         status.Status.Should().Be("Stopped");
+    }
+
+    [Test]
+    public async Task GetResults_WithNegativeOffset_CountsBackwards()
+    {
+        var indexer = new IndexerDefinition { Id = 1, Name = "IndexerOne", Enable = true, EnableSearch = true, Url = "http://indexer1" };
+        this.indexerRepository.GetSearchEnabled().Returns(new[] { indexer });
+
+        this.torznabClient.SearchAsync(indexer, "items", limit: 100, cancellationToken: Arg.Any<CancellationToken>())
+            .Returns(new List<TorznabSearchResult>
+            {
+                new() { Title = "Item 1", DownloadUrl = "http://dl1" },
+                new() { Title = "Item 2", DownloadUrl = "http://dl2" },
+                new() { Title = "Item 3", DownloadUrl = "http://dl3" },
+            });
+
+        var id = this.searchService.StartSearch("items");
+        await Task.Delay(200);
+
+        var lastTwo = this.searchService.GetResults(id, offset: -2);
+        lastTwo.Results.Should().HaveCount(2);
+        lastTwo.Results[0].FileName.Should().Be("Item 2");
+        lastTwo.Results[1].FileName.Should().Be("Item 3");
+
+        var lastOne = this.searchService.GetResults(id, offset: -1);
+        lastOne.Results.Should().HaveCount(1);
+        lastOne.Results[0].FileName.Should().Be("Item 3");
+
+        var allItems = this.searchService.GetResults(id, offset: -10);
+        allItems.Results.Should().HaveCount(3);
+        allItems.Results[0].FileName.Should().Be("Item 1");
+
+        var limitedBackward = this.searchService.GetResults(id, limit: 1, offset: -2);
+        limitedBackward.Results.Should().HaveCount(1);
+        limitedBackward.Results[0].FileName.Should().Be("Item 2");
+    }
+
+    [Test]
+    public async Task StartSearch_SiteUrl_PrioritizesIndexerUrlThenDetailsUrlThenName()
+    {
+        var indexer1 = new IndexerDefinition { Id = 1, Name = "IndexerOne", Enable = true, EnableSearch = true, Url = "http://indexer1" };
+        var indexer2 = new IndexerDefinition { Id = 2, Name = "IndexerTwo", Enable = true, EnableSearch = true, Url = null };
+        var indexer3 = new IndexerDefinition { Id = 3, Name = "IndexerThree", Enable = true, EnableSearch = true, Url = string.Empty };
+        this.indexerRepository.GetSearchEnabled().Returns(new[] { indexer1, indexer2, indexer3 });
+
+        this.torznabClient.SearchAsync(indexer1, "siteurl", limit: 100, cancellationToken: Arg.Any<CancellationToken>())
+            .Returns(new List<TorznabSearchResult>
+            {
+                new() { Title = "Result 1", DetailsUrl = "http://details1", DownloadUrl = "http://dl1" },
+            });
+
+        this.torznabClient.SearchAsync(indexer2, "siteurl", limit: 100, cancellationToken: Arg.Any<CancellationToken>())
+            .Returns(new List<TorznabSearchResult>
+            {
+                new() { Title = "Result 2", DetailsUrl = "http://details2", DownloadUrl = "http://dl2" },
+            });
+
+        this.torznabClient.SearchAsync(indexer3, "siteurl", limit: 100, cancellationToken: Arg.Any<CancellationToken>())
+            .Returns(new List<TorznabSearchResult>
+            {
+                new() { Title = "Result 3", DownloadUrl = "http://dl3" },
+            });
+
+        var id = this.searchService.StartSearch("siteurl");
+        await Task.Delay(200);
+
+        var results = this.searchService.GetResults(id);
+        results.Results.Should().HaveCount(3);
+
+        var r1 = results.Results.First(r => r.FileName == "Result 1");
+        r1.SiteUrl.Should().Be("http://indexer1");
+
+        var r2 = results.Results.First(r => r.FileName == "Result 2");
+        r2.SiteUrl.Should().Be("http://details2");
+
+        var r3 = results.Results.First(r => r.FileName == "Result 3");
+        r3.SiteUrl.Should().Be("IndexerThree");
     }
 }
