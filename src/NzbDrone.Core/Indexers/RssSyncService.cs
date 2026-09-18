@@ -272,31 +272,86 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                                         }
                                         else
                                         {
-                                            var torrentBytes = await this.safeHttpClientService.DownloadBytesAsync(release.DownloadUrl, maxSizeBytes: 10 * 1024 * 1024);
-                                            if (torrentBytes == null || torrentBytes.Length == 0 || torrentBytes[0] == (byte)'<')
+                                            byte[] torrentBytes = null;
+                                            try
+                                            {
+                                                torrentBytes = await this.safeHttpClientService.DownloadBytesAsync(release.DownloadUrl, maxSizeBytes: 10 * 1024 * 1024);
+                                            }
+                                            catch (Exception dlEx)
+                                            {
+                                                this.logger.Warn(dlEx, "Failed to download .torrent payload for '{0}' from {1}", release.Title, release.DownloadUrl);
+                                            }
+
+                                            if (torrentBytes != null && torrentBytes.Length > 0 && torrentBytes[0] == (byte)'<')
                                             {
                                                 this.logger.Warn("Downloaded payload for '{0}' from {1} appears to be XML/NZB rather than a .torrent file. Skipping non-torrent release.", release.Title, release.DownloadUrl);
                                                 break;
                                             }
 
-                                            var parsed = this.torrentFileParser.Parse(torrentBytes);
-                                            var parsedInfoHash = MagnetLinkParser.NormalizeInfoHash(parsed?.InfoHash);
-
-                                            if (!string.IsNullOrWhiteSpace(parsedInfoHash))
+                                            if (torrentBytes != null && torrentBytes.Length > 0)
                                             {
-                                                var existingTorrent = this.torrentService?.GetByInfoHash(parsedInfoHash);
-                                                var existingHistory = this.downloadHistoryService?.GetByInfoHash(parsedInfoHash);
-
-                                                if (existingTorrent != null || existingHistory != null)
+                                                try
                                                 {
-                                                    this.RecordGrabbed(releaseId, parsedInfoHash);
-                                                    this.logger.Info("Release '{0}' with infohash '{1}' has already been grabbed. Skipping duplicate.", release.Title, parsedInfoHash);
-                                                    break;
+                                                    var parsed = this.torrentFileParser.Parse(torrentBytes);
+                                                    var parsedInfoHash = MagnetLinkParser.NormalizeInfoHash(parsed?.InfoHash);
+
+                                                    if (!string.IsNullOrWhiteSpace(parsedInfoHash))
+                                                    {
+                                                        var existingTorrent = this.torrentService?.GetByInfoHash(parsedInfoHash);
+                                                        var existingHistory = this.downloadHistoryService?.GetByInfoHash(parsedInfoHash);
+
+                                                        if (existingTorrent != null || existingHistory != null)
+                                                        {
+                                                            this.RecordGrabbed(releaseId, parsedInfoHash);
+                                                            this.logger.Info("Release '{0}' with infohash '{1}' has already been grabbed. Skipping duplicate.", release.Title, parsedInfoHash);
+                                                            break;
+                                                        }
+                                                    }
+
+                                                    addedTorrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, categoryName, savePath, false, torrentBytes);
+                                                    grabbed = true;
+                                                }
+                                                catch (Exception parseEx)
+                                                {
+                                                    this.logger.Warn(parseEx, "Failed to parse .torrent for '{0}'", release.Title);
                                                 }
                                             }
 
-                                            addedTorrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, categoryName, savePath, false, torrentBytes);
-                                            grabbed = true;
+                                            if (!grabbed)
+                                            {
+                                                var fallbackMagnet = !string.IsNullOrWhiteSpace(release.MagnetUrl)
+                                                    ? release.MagnetUrl
+                                                    : (!string.IsNullOrWhiteSpace(release.InfoHash)
+                                                        ? $"magnet:?xt=urn:btih:{release.InfoHash.Trim()}&dn={Uri.EscapeDataString(release.Title ?? release.InfoHash.Trim())}"
+                                                        : null);
+
+                                                if (!string.IsNullOrWhiteSpace(fallbackMagnet))
+                                                {
+                                                    try
+                                                    {
+                                                        var fallbackHash = MagnetLinkParser.NormalizeInfoHash(MagnetLinkParser.Parse(fallbackMagnet)?.InfoHash);
+                                                        if (!string.IsNullOrWhiteSpace(fallbackHash))
+                                                        {
+                                                            var existingTorrent = this.torrentService?.GetByInfoHash(fallbackHash);
+                                                            var existingHistory = this.downloadHistoryService?.GetByInfoHash(fallbackHash);
+
+                                                            if (existingTorrent != null || existingHistory != null)
+                                                            {
+                                                                this.RecordGrabbed(releaseId, fallbackHash);
+                                                                this.logger.Info("Release '{0}' with infohash '{1}' has already been grabbed via fallback magnet. Skipping duplicate.", release.Title, fallbackHash);
+                                                                break;
+                                                            }
+                                                        }
+
+                                                        addedTorrent = await this.torrentService.AddFromMagnetAsync(fallbackMagnet, categoryName, savePath);
+                                                        grabbed = true;
+                                                    }
+                                                    catch (Exception magEx)
+                                                    {
+                                                        this.logger.Warn(magEx, "Failed to add release '{0}' via fallback magnet", release.Title);
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }

@@ -28,7 +28,7 @@ public class TorznabSearchResult
 
     public double UploadVolumeFactor { get; set; } = 1.0;
 
-    public bool IsFreeleech => this.DownloadVolumeFactor == 0.0;
+    public bool IsFreeleech => this.DownloadVolumeFactor <= 0.0001;
 
     public string Category { get; set; }
 
