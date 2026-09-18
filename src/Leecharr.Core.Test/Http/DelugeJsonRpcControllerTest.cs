@@ -734,13 +734,185 @@ public class DelugeJsonRpcControllerTest
     }
 
     [Test]
+    public async Task HandleRpc_WebGetTorrentInfo_RejectsPathsOutsideTempPath()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var outsideDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "deluge_outside_folder_" + System.Guid.NewGuid().ToString("N"));
+        System.IO.Directory.CreateDirectory(outsideDir);
+        var outsideFile = System.IO.Path.Combine(outsideDir, "not_deluge_upload.torrent");
+        await System.IO.File.WriteAllBytesAsync(outsideFile, new byte[] { 1, 2, 3, 4 });
+
+        try
+        {
+            var escapedOutsideFile = outsideFile.Replace("\\", "\\\\");
+            using var doc = JsonDocument.Parse($"{{\"method\":\"web.get_torrent_info\",\"params\":[\"{escapedOutsideFile}\"],\"id\":1}}");
+            var result = await this.controller.HandleRpc(doc.RootElement);
+
+            result.Should().BeOfType<JsonResult>();
+            var jsonResult = (JsonResult)result;
+            var json = JsonSerializer.Serialize(jsonResult.Value);
+            json.Should().Contain("\"result\":null");
+            this.torrentFileParser.DidNotReceiveWithAnyArgs().Parse(Arg.Any<byte[]>());
+
+            // Traversal path test
+            using var docTraversal = JsonDocument.Parse("{\"method\":\"web.get_torrent_info\",\"params\":[\"/tmp/../etc/passwd\"],\"id\":2}");
+            var resultTraversal = await this.controller.HandleRpc(docTraversal.RootElement);
+            resultTraversal.Should().BeOfType<JsonResult>();
+            var jsonTraversal = JsonSerializer.Serialize(((JsonResult)resultTraversal).Value);
+            jsonTraversal.Should().Contain("\"result\":null");
+        }
+        finally
+        {
+            if (System.IO.Directory.Exists(outsideDir))
+            {
+                System.IO.Directory.Delete(outsideDir, true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task HandleRpc_WebAddTorrents_RejectsPathsOutsideTempPath_AndDoesNotDeleteArbitraryFiles()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var outsideDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "deluge_test_host_" + System.Guid.NewGuid().ToString("N"));
+        System.IO.Directory.CreateDirectory(outsideDir);
+        var hostFile = System.IO.Path.Combine(outsideDir, "important_host_file.txt");
+        await System.IO.File.WriteAllTextAsync(hostFile, "CRITICAL DATA");
+
+        try
+        {
+            var escapedHostFile = hostFile.Replace("\\", "\\\\");
+            using var doc = JsonDocument.Parse($"{{\"method\":\"web.add_torrents\",\"params\":[[{{\"path\":\"{escapedHostFile}\",\"options\":{{}}}}]],\"id\":1}}");
+            var result = await this.controller.HandleRpc(doc.RootElement);
+
+            result.Should().BeOfType<JsonResult>();
+            var jsonResult = (JsonResult)result;
+            var json = JsonSerializer.Serialize(jsonResult.Value);
+            json.Should().Contain("\"result\":false");
+
+            // File must NOT be deleted
+            System.IO.File.Exists(hostFile).Should().BeTrue();
+            var contentOnDisk = await System.IO.File.ReadAllTextAsync(hostFile);
+            contentOnDisk.Should().Be("CRITICAL DATA");
+
+            // Torrent parser and service must not be invoked
+            this.torrentFileParser.DidNotReceiveWithAnyArgs().Parse(Arg.Any<byte[]>());
+            await this.torrentService.DidNotReceiveWithAnyArgs().AddFromParsedTorrentAsync(Arg.Any<ParsedTorrent>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<byte[]>());
+        }
+        finally
+        {
+            if (System.IO.Directory.Exists(outsideDir))
+            {
+                System.IO.Directory.Delete(outsideDir, true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task HandleRpc_WebAddTorrents_WithNonExistentOrInvalidFilePath_ReturnsResultFalse()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        // Non-existent path in temp dir
+        var nonExistentPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"deluge_upload_{System.Guid.NewGuid():N}.torrent");
+        var escapedNonExistent = nonExistentPath.Replace("\\", "\\\\");
+        using var doc1 = JsonDocument.Parse($"{{\"method\":\"web.add_torrents\",\"params\":[[{{\"path\":\"{escapedNonExistent}\",\"options\":{{}}}}]],\"id\":1}}");
+        var result1 = await this.controller.HandleRpc(doc1.RootElement);
+
+        result1.Should().BeOfType<JsonResult>();
+        var json1 = JsonSerializer.Serialize(((JsonResult)result1).Value);
+        json1.Should().Contain("\"result\":false");
+
+        // Traversal path
+        using var doc2 = JsonDocument.Parse("{\"method\":\"web.add_torrents\",\"params\":[[{\"path\":\"/tmp/../etc/passwd\",\"options\":{}}]],\"id\":2}");
+        var result2 = await this.controller.HandleRpc(doc2.RootElement);
+
+        result2.Should().BeOfType<JsonResult>();
+        var json2 = JsonSerializer.Serialize(((JsonResult)result2).Value);
+        json2.Should().Contain("\"result\":false");
+
+        // Empty items list
+        using var doc3 = JsonDocument.Parse("{\"method\":\"web.add_torrents\",\"params\":[[]],\"id\":3}");
+        var result3 = await this.controller.HandleRpc(doc3.RootElement);
+
+        result3.Should().BeOfType<JsonResult>();
+        var json3 = JsonSerializer.Serialize(((JsonResult)result3).Value);
+        json3.Should().Contain("\"result\":false");
+    }
+
+    [Test]
+    public async Task HandleRpc_WebAddTorrents_WhenTorrentParsingFails_ReturnsResultFalseAndCleansUpTempFile()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"deluge_upload_{System.Guid.NewGuid():N}.torrent");
+        await System.IO.File.WriteAllBytesAsync(tempPath, new byte[] { 0xde, 0xad, 0xbe, 0xef });
+
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns((ParsedTorrent)null);
+
+        var escapedPath = tempPath.Replace("\\", "\\\\");
+        using var doc = JsonDocument.Parse($"{{\"method\":\"web.add_torrents\",\"params\":[[{{\"path\":\"{escapedPath}\",\"options\":{{}}}}]],\"id\":1}}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var json = JsonSerializer.Serialize(((JsonResult)result).Value);
+        json.Should().Contain("\"result\":false");
+
+        // Temp file must still be cleaned up
+        System.IO.File.Exists(tempPath).Should().BeFalse();
+        await this.torrentService.DidNotReceiveWithAnyArgs().AddFromParsedTorrentAsync(Arg.Any<ParsedTorrent>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task HandleRpc_WebAddTorrents_WhenTorrentServiceFails_ReturnsResultFalseAndCleansUpTempFile()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"deluge_upload_{System.Guid.NewGuid():N}.torrent");
+        await System.IO.File.WriteAllBytesAsync(tempPath, new byte[] { 1, 2, 3 });
+
+        var parsed = new ParsedTorrent
+        {
+            InfoHash = "1234567890123456789012345678901234567890",
+            Name = "Failed Torrent",
+            TotalSize = 100,
+        };
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsed);
+        this.torrentService.AddFromParsedTorrentAsync(Arg.Any<ParsedTorrent>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<byte[]>())
+            .Returns(Task.FromResult<Torrent>(null));
+
+        var escapedPath = tempPath.Replace("\\", "\\\\");
+        using var doc = JsonDocument.Parse($"{{\"method\":\"web.add_torrents\",\"params\":[[{{\"path\":\"{escapedPath}\",\"options\":{{}}}}]],\"id\":1}}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var json = JsonSerializer.Serialize(((JsonResult)result).Value);
+        json.Should().Contain("\"result\":false");
+
+        // Temp file must still be cleaned up
+        System.IO.File.Exists(tempPath).Should().BeFalse();
+    }
+
+    [Test]
     public async Task HandleRpc_WebGetTorrentInfo_ReturnsParsedTorrentMetadata()
     {
         var context = new DefaultHttpContext();
         context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
         this.controller.ControllerContext = new ControllerContext { HttpContext = context };
 
-        var tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"deluge_info_test_{System.Guid.NewGuid():N}.torrent");
+        var tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"deluge_upload_{System.Guid.NewGuid():N}.torrent");
         var dummyBytes = new byte[] { 1, 2, 3, 4 };
         await System.IO.File.WriteAllBytesAsync(tempPath, dummyBytes);
 
@@ -787,7 +959,7 @@ public class DelugeJsonRpcControllerTest
         context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
         this.controller.ControllerContext = new ControllerContext { HttpContext = context };
 
-        var tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"deluge_add_test_{System.Guid.NewGuid():N}.torrent");
+        var tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"deluge_upload_{System.Guid.NewGuid():N}.torrent");
         var dummyBytes = new byte[] { 5, 6, 7, 8 };
         await System.IO.File.WriteAllBytesAsync(tempPath, dummyBytes);
 
