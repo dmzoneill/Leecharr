@@ -62,7 +62,7 @@ public class ProwlarrFieldDto
 
 public interface IProwlarrSyncService
 {
-    Task<int> SyncFromProwlarrAsync(string prowlarrUrl, string apiKey);
+    Task<int> SyncFromProwlarrAsync(string prowlarrUrl, string apiKey, bool? syncCategories = null);
 
     Task<int> SyncAllAsync();
 
@@ -165,7 +165,7 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
 
     public async Task<int> SyncAllAsync()
     {
-        var targets = new List<(string Url, string ApiKey)>();
+        var targets = new List<(string Url, string ApiKey, bool SyncCategories)>();
 
         var indexers = this.repository.All().Where(i =>
             !string.IsNullOrWhiteSpace(i.Url) &&
@@ -184,7 +184,7 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
 
             if (!targets.Any(t => string.Equals(t.Url, url, StringComparison.OrdinalIgnoreCase)))
             {
-                targets.Add((url, idx.ApiKey));
+                targets.Add((url, idx.ApiKey, true));
             }
         }
 
@@ -203,9 +203,14 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
                     url = $"{parsed.Scheme}://{parsed.Authority}";
                 }
 
-                if (!targets.Any(t => string.Equals(t.Url, url, StringComparison.OrdinalIgnoreCase)))
+                var existingTargetIndex = targets.FindIndex(t => string.Equals(t.Url, url, StringComparison.OrdinalIgnoreCase));
+                if (existingTargetIndex >= 0)
                 {
-                    targets.Add((url, arr.ApiKey));
+                    targets[existingTargetIndex] = (url, arr.ApiKey, arr.SyncCategories);
+                }
+                else
+                {
+                    targets.Add((url, arr.ApiKey, arr.SyncCategories));
                 }
             }
         }
@@ -217,16 +222,16 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
         }
 
         var totalSynced = 0;
-        foreach (var (url, apiKey) in targets)
+        foreach (var (url, apiKey, syncCategories) in targets)
         {
-            var count = await this.SyncFromProwlarrAsync(url, apiKey);
+            var count = await this.SyncFromProwlarrAsync(url, apiKey, syncCategories);
             totalSynced += count;
         }
 
         return totalSynced;
     }
 
-    public async Task<int> SyncFromProwlarrAsync(string prowlarrUrl, string apiKey)
+    public async Task<int> SyncFromProwlarrAsync(string prowlarrUrl, string apiKey, bool? syncCategories = null)
     {
         if (string.IsNullOrWhiteSpace(prowlarrUrl) || string.IsNullOrWhiteSpace(apiKey))
         {
@@ -237,6 +242,22 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
         try
         {
             var baseUri = prowlarrUrl.TrimEnd('/');
+
+            var shouldSyncCategories = syncCategories;
+            if (!shouldSyncCategories.HasValue && this.arrRepository != null)
+            {
+                var arr = this.arrRepository.GetEnabled().FirstOrDefault(c =>
+                    string.Equals(c.ArrType, "Prowlarr", StringComparison.OrdinalIgnoreCase) &&
+                    (string.Equals(c.Url?.TrimEnd('/'), baseUri, StringComparison.OrdinalIgnoreCase) ||
+                     (Uri.TryCreate(c.Url, UriKind.Absolute, out var cu) && Uri.TryCreate(baseUri, UriKind.Absolute, out var bu) &&
+                      string.Equals(cu.Authority, bu.Authority, StringComparison.OrdinalIgnoreCase))));
+                if (arr != null)
+                {
+                    shouldSyncCategories = arr.SyncCategories;
+                }
+            }
+
+            var doSyncCategories = shouldSyncCategories ?? true;
             var requestUrl = $"{baseUri}/api/v1/indexer";
 
             var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
@@ -269,8 +290,14 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
             }
 
             var supportedIndexers = indexers.Where(i =>
-                string.Equals(i.Protocol, "torrent", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(i.Protocol, "usenet", StringComparison.OrdinalIgnoreCase)).ToList();
+                string.Equals(i.Protocol, "torrent", StringComparison.OrdinalIgnoreCase)).ToList();
+
+            var skippedUsenetCount = indexers.Count(i => string.Equals(i.Protocol, "usenet", StringComparison.OrdinalIgnoreCase));
+            if (skippedUsenetCount > 0)
+            {
+                this.logger.Info("Skipped {0} Usenet indexers from Prowlarr: Leecharr operates as a BitTorrent-only engine.", skippedUsenetCount);
+            }
+
             if (supportedIndexers.Count == 0)
             {
                 var allExisting = this.repository.All().ToList();
@@ -316,10 +343,9 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
 
                 syncedProwlarrIds.Add(pIndexer.Id);
 
-                var isUsenet = string.Equals(pIndexer.Protocol, "usenet", StringComparison.OrdinalIgnoreCase);
                 var implementation = !string.IsNullOrWhiteSpace(pIndexer.Implementation)
                     ? pIndexer.Implementation
-                    : (isUsenet ? "Newznab" : "Torznab");
+                    : "Torznab";
 
                 var existing = existingIndexers.FirstOrDefault(e => e.ProwlarrIndexerId == pIndexer.Id)
                                 ?? existingIndexers.FirstOrDefault(e => !string.IsNullOrWhiteSpace(e.Url) && string.Equals(e.Url.TrimEnd('/'), feedUrl.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
@@ -338,7 +364,7 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
                         Priority = pIndexer.Priority,
                         EnableRss = pIndexer.EnableRss,
                         EnableSearch = pIndexer.EnableAutomaticSearch || pIndexer.EnableInteractiveSearch,
-                        Categories = categories,
+                        Categories = doSyncCategories ? categories : new List<int>(),
                         ProwlarrIndexerId = pIndexer.Id,
                         IsProwlarrManaged = true,
                     };
@@ -370,11 +396,14 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
                         existing.ConfigContract = "ProwlarrSettings";
                     }
 
-                    // Preserve local custom overrides: Priority, FreeleechOnly, MinSeeders, DownloadClientId, Tags
-                    // and category filters if already configured locally
-                    if (existing.Categories == null || existing.Categories.Count == 0)
+                    // Respect SyncCategories setting
+                    if (doSyncCategories)
                     {
                         existing.Categories = categories;
+                    }
+                    else if (existing.Categories == null)
+                    {
+                        existing.Categories = new List<int>();
                     }
 
                     this.repository.Update(existing);

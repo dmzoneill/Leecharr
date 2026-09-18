@@ -35,7 +35,7 @@ public class ProwlarrSyncServiceTest
     }
 
     [Test]
-    public async Task SyncFromProwlarrAsync_ParsesProwlarrJson_InsertsTorrentAndUsenetIndexers()
+    public async Task SyncFromProwlarrAsync_ParsesProwlarrJson_InsertsTorrentIndexersAndSkipsUsenet()
     {
         var json = @"[
           {
@@ -68,7 +68,7 @@ public class ProwlarrSyncServiceTest
 
         var synced = await service.SyncFromProwlarrAsync("http://prowlarr.local:9696", "fake-prowlarr-key");
 
-        synced.Should().Be(2);
+        synced.Should().Be(1);
         this.repository.Received(1).Insert(Arg.Is<IndexerDefinition>(i =>
             i.Name == "Prowlarr Tracker 1" &&
             i.Implementation == "Torznab" &&
@@ -79,15 +79,8 @@ public class ProwlarrSyncServiceTest
             i.ProwlarrIndexerId == 1 &&
             i.IsProwlarrManaged == true));
 
-        this.repository.Received(1).Insert(Arg.Is<IndexerDefinition>(i =>
-            i.Name == "Prowlarr Usenet 1" &&
-            i.Implementation == "Newznab" &&
-            i.Url == "http://prowlarr.local:9696/2/api" &&
-            i.ApiKey == "fake-prowlarr-key" &&
-            i.Enable == true &&
-            i.Priority == 25 &&
-            i.ProwlarrIndexerId == 2 &&
-            i.IsProwlarrManaged == true));
+        this.repository.DidNotReceive().Insert(Arg.Is<IndexerDefinition>(i =>
+            i.Name == "Prowlarr Usenet 1"));
     }
 
     [Test]
@@ -177,7 +170,7 @@ public class ProwlarrSyncServiceTest
         };
         this.repository.All().Returns(new List<IndexerDefinition> { existing });
 
-        var synced = await service.SyncFromProwlarrAsync("http://prowlarr.local:9696", "new-key");
+        var synced = await service.SyncFromProwlarrAsync("http://prowlarr.local:9696", "new-key", syncCategories: false);
 
         synced.Should().Be(1);
         this.repository.Received(1).Update(Arg.Is<IndexerDefinition>(i =>
@@ -189,6 +182,61 @@ public class ProwlarrSyncServiceTest
             i.Categories.Count == 2 &&
             i.Categories.Contains(8000) &&
             i.Categories.Contains(8010) &&
+            i.Tags.Contains(1)));
+    }
+
+    [Test]
+    public async Task SyncFromProwlarrAsync_WhenSyncCategoriesIsTrue_UpdatesExistingCategories()
+    {
+        var json = @"[
+          {
+            ""id"": 5,
+            ""name"": ""Existing Tracker"",
+            ""implementation"": ""Torznab"",
+            ""enable"": true,
+            ""priority"": 10,
+            ""protocol"": ""torrent"",
+            ""categories"": [2000, 5000]
+          }
+        ]";
+
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json),
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var service = new ProwlarrSyncService(this.repository, httpClient);
+
+        var existing = new IndexerDefinition
+        {
+            Id = 100,
+            Name = "Existing Tracker",
+            Url = "http://old-url",
+            ApiKey = "old-key",
+            Priority = 3,
+            FreeleechOnly = true,
+            MinSeeders = 15,
+            DownloadClientId = 2,
+            Categories = new List<int> { 8000, 8010 },
+            Tags = new List<int> { 1, 2 },
+            ProwlarrIndexerId = 5,
+            IsProwlarrManaged = true,
+        };
+        this.repository.All().Returns(new List<IndexerDefinition> { existing });
+
+        var synced = await service.SyncFromProwlarrAsync("http://prowlarr.local:9696", "new-key", syncCategories: true);
+
+        synced.Should().Be(1);
+        this.repository.Received(1).Update(Arg.Is<IndexerDefinition>(i =>
+            i.Id == 100 &&
+            i.Priority == 3 &&
+            i.FreeleechOnly == true &&
+            i.MinSeeders == 15 &&
+            i.DownloadClientId == 2 &&
+            i.Categories.Count == 2 &&
+            i.Categories.Contains(2000) &&
+            i.Categories.Contains(5000) &&
             i.Tags.Contains(1)));
     }
 
