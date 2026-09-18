@@ -912,7 +912,7 @@ public class QBittorrentApiControllerTest
         var torrent = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
         this.torrentService.GetByInfoHash("hash1").Returns(torrent);
 
-        var result = controllerWithEngine.GetTorrentPeers("hash1", rid: 5);
+        var result = controllerWithEngine.GetTorrentPeers("hash1", rid: 0);
         var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
         var data = okResult.Value;
 
@@ -921,8 +921,105 @@ public class QBittorrentApiControllerTest
         var peerDict = (Dictionary<string, object>)data!.GetType().GetProperty("peers")!.GetValue(data)!;
 
         fullUpdate.Should().BeTrue();
-        rid.Should().Be(6);
+        rid.Should().Be(1);
         peerDict.Should().ContainKey("192.168.1.50:6881");
+    }
+
+    [Test]
+    public void GetTorrentPeers_WithRidGreaterThanZero_ReturnsIncrementalUpdateWithRemovedPeers()
+    {
+        var downloadEngine = Substitute.For<NzbDrone.Core.BitTorrent.IDownloadEngine>();
+        var downloadTask = Substitute.For<NzbDrone.Core.BitTorrent.IDownloadTask>();
+        var peer1 = new NzbDrone.Core.BitTorrent.PeerInfo
+        {
+            Ip = "192.168.1.50",
+            Port = 6881,
+            Client = "Leecharr/1.0",
+            Flags = "uI",
+            Progress = 0.5,
+            DownloadSpeed = 1048576,
+            UploadSpeed = 524288,
+            Downloaded = 100000000,
+            Uploaded = 50000000,
+        };
+        var peer2 = new NzbDrone.Core.BitTorrent.PeerInfo
+        {
+            Ip = "192.168.1.51",
+            Port = 6882,
+            Client = "qBittorrent/4.5.0",
+            Flags = "d",
+            Progress = 0.2,
+            DownloadSpeed = 512000,
+            UploadSpeed = 0,
+            Downloaded = 20000000,
+            Uploaded = 0,
+        };
+
+        downloadTask.GetPeers().Returns(new List<NzbDrone.Core.BitTorrent.PeerInfo> { peer1, peer2 });
+        downloadEngine.GetTask(1).Returns(downloadTask);
+
+        var controllerWithEngine = new QBittorrentApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.trackerEntryRepository,
+            downloadEngine: downloadEngine);
+
+        var torrent = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent);
+
+        // Initial sync: rid = 0 returns full update
+        var initialResult = controllerWithEngine.GetTorrentPeers("hash1", rid: 0);
+        var initialData = initialResult.Should().BeOfType<OkObjectResult>().Subject.Value;
+        var initialFullUpdate = (bool)initialData!.GetType().GetProperty("full_update")!.GetValue(initialData)!;
+        var initialRid = (int)initialData!.GetType().GetProperty("rid")!.GetValue(initialData)!;
+
+        initialFullUpdate.Should().BeTrue();
+        initialRid.Should().Be(1);
+
+        // Incremental sync: peer2 disconnects, peer1 updates download speed, peer3 connects
+        var peer1Updated = new NzbDrone.Core.BitTorrent.PeerInfo
+        {
+            Ip = "192.168.1.50",
+            Port = 6881,
+            Client = "Leecharr/1.0",
+            Flags = "uI",
+            Progress = 0.6,
+            DownloadSpeed = 2097152,
+            UploadSpeed = 524288,
+            Downloaded = 120000000,
+            Uploaded = 50000000,
+        };
+        var peer3 = new NzbDrone.Core.BitTorrent.PeerInfo
+        {
+            Ip = "192.168.1.52",
+            Port = 6883,
+            Client = "Transmission/3.0",
+            Flags = "u",
+            Progress = 0.1,
+            DownloadSpeed = 100000,
+            UploadSpeed = 10000,
+            Downloaded = 1000000,
+            Uploaded = 500000,
+        };
+
+        downloadTask.GetPeers().Returns(new List<NzbDrone.Core.BitTorrent.PeerInfo> { peer1Updated, peer3 });
+
+        var deltaResult = controllerWithEngine.GetTorrentPeers("hash1", rid: 1);
+        var deltaData = deltaResult.Should().BeOfType<OkObjectResult>().Subject.Value;
+        var deltaFullUpdate = (bool)deltaData!.GetType().GetProperty("full_update")!.GetValue(deltaData)!;
+        var deltaRid = (int)deltaData!.GetType().GetProperty("rid")!.GetValue(deltaData)!;
+        var deltaPeers = (Dictionary<string, object>)deltaData!.GetType().GetProperty("peers")!.GetValue(deltaData)!;
+        var peersRemoved = (string[])deltaData!.GetType().GetProperty("peers_removed")!.GetValue(deltaData)!;
+
+        deltaFullUpdate.Should().BeFalse();
+        deltaRid.Should().Be(2);
+        deltaPeers.Should().ContainKey("192.168.1.50:6881");
+        deltaPeers.Should().ContainKey("192.168.1.52:6883");
+        deltaPeers.Should().NotContainKey("192.168.1.51:6882");
+        peersRemoved.Should().ContainSingle().Which.Should().Be("192.168.1.51:6882");
     }
 
     [Test]
@@ -955,12 +1052,16 @@ public class QBittorrentApiControllerTest
     [Test]
     public void GetProperties_ReturnsCompletePropertySet()
     {
+        var createdDate = new DateTime(2025, 6, 15, 10, 0, 0, DateTimeKind.Utc);
+        var addedDate = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
         var torrent = new Torrent
         {
             Id = 1,
             InfoHash = "hash1",
             Name = "T1",
             CreatedBy = "Leecharr",
+            CreationDate = createdDate,
+            DateAdded = addedDate,
             DownloadSpeed = 1048576,
             UploadSpeed = 524288,
             Eta = 300,
@@ -974,11 +1075,16 @@ public class QBittorrentApiControllerTest
             Uploaded = 250000000,
         };
         this.torrentService.GetByInfoHash("hash1").Returns(torrent);
+        this.downloadEngine.GetTorrentResourceMetrics(1).Returns(new TorrentResourceMetrics
+        {
+            WastedBytes = 8192,
+        });
 
         var actionResult = this.controller.GetProperties("hash1");
         var okResult = actionResult.Result.Should().BeOfType<OkObjectResult>().Subject;
         var dict = okResult.Value.Should().BeOfType<Dictionary<string, object>>().Subject;
 
+        dict.Should().ContainKey("creation_date");
         dict.Should().ContainKey("addition_date");
         dict.Should().ContainKey("completion_date");
         dict.Should().ContainKey("created_by");
@@ -988,13 +1094,46 @@ public class QBittorrentApiControllerTest
         dict.Should().ContainKey("peers");
         dict.Should().ContainKey("seeds");
         dict.Should().ContainKey("total_size");
+        dict.Should().ContainKey("total_wasted");
+        dict.Should().ContainKey("piece_size");
 
+        dict["creation_date"].Should().Be(new DateTimeOffset(createdDate).ToUnixTimeSeconds());
+        dict["addition_date"].Should().Be(new DateTimeOffset(addedDate).ToUnixTimeSeconds());
+        dict["total_wasted"].Should().Be(8192L);
+        dict["piece_size"].Should().Be(262144);
         dict["dl_speed"].Should().Be(1048576L);
         dict["up_speed"].Should().Be(524288L);
         dict["eta"].Should().Be(300L);
         dict["seeds"].Should().Be(5);
         dict["peers"].Should().Be(10);
         dict["total_size"].Should().Be(1000000000L);
+    }
+
+    [Test]
+    public void GetProperties_CalculatesFallbackPieceSizeAndCreationDateWhenMissing()
+    {
+        var addedDate = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        var torrent = new Torrent
+        {
+            Id = 2,
+            InfoHash = "hash2",
+            Name = "T2",
+            CreationDate = null,
+            DateAdded = addedDate,
+            TotalSize = 10485760,
+            PieceLength = 0,
+            PieceCount = 40,
+        };
+        this.torrentService.GetByInfoHash("hash2").Returns(torrent);
+        this.downloadEngine.GetTorrentResourceMetrics(2).Returns((TorrentResourceMetrics)null!);
+
+        var actionResult = this.controller.GetProperties("hash2");
+        var okResult = actionResult.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var dict = okResult.Value.Should().BeOfType<Dictionary<string, object>>().Subject;
+
+        dict["creation_date"].Should().Be(new DateTimeOffset(addedDate).ToUnixTimeSeconds());
+        dict["piece_size"].Should().Be((int)(10485760 / 40));
+        dict["total_wasted"].Should().Be(0L);
     }
 
     [Test]
