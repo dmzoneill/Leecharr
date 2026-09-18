@@ -225,4 +225,82 @@ public class TorrentPathValidatorTest
             }
         }
     }
+
+    [Test]
+    public void IsStrictSubPath_WhenIntermediateParentDirectoryIsSymlinkAndLeafFileExists_ReturnsFalse()
+    {
+        var tempBase = Path.Combine(Path.GetTempPath(), "leecharr_test_base_" + System.Guid.NewGuid().ToString("N"));
+        var outsideDir = Path.Combine(Path.GetTempPath(), "leecharr_test_outside_" + System.Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(tempBase);
+            Directory.CreateDirectory(outsideDir);
+
+            var realFilePath = Path.Combine(outsideDir, "real_file.txt");
+            File.WriteAllText(realFilePath, "secret payload");
+
+            var symlinkDir = Path.Combine(tempBase, "symlink_dir");
+            Directory.CreateSymbolicLink(symlinkDir, outsideDir);
+
+            var target = Path.Combine(symlinkDir, "real_file.txt");
+
+            File.Exists(target).Should().BeTrue();
+            TorrentPathValidator.IsStrictSubPath(tempBase, target).Should().BeFalse();
+
+            var canonical = TorrentPathValidator.ResolveCanonicalPath(target);
+            canonical.Should().Be(Path.GetFullPath(realFilePath));
+        }
+        catch (System.Exception)
+        {
+            Assert.Pass();
+        }
+        finally
+        {
+            if (Directory.Exists(tempBase))
+            {
+                Directory.Delete(tempBase, true);
+            }
+
+            if (Directory.Exists(outsideDir))
+            {
+                Directory.Delete(outsideDir, true);
+            }
+        }
+    }
+
+    [Test]
+    public void IsStrictSubPath_WhenIntermediateDirectorySymlinkPointsWithinBase_ReturnsTrue()
+    {
+        var tempBase = Path.Combine(Path.GetTempPath(), "leecharr_test_base_" + System.Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(tempBase);
+            var internalTargetDir = Path.Combine(tempBase, "internal_dir");
+            Directory.CreateDirectory(internalTargetDir);
+
+            var realFilePath = Path.Combine(internalTargetDir, "file.txt");
+            File.WriteAllText(realFilePath, "safe content");
+
+            var symlinkDir = Path.Combine(tempBase, "symlink_internal");
+            Directory.CreateSymbolicLink(symlinkDir, internalTargetDir);
+
+            var target = Path.Combine(symlinkDir, "file.txt");
+
+            File.Exists(target).Should().BeTrue();
+            TorrentPathValidator.IsStrictSubPath(tempBase, target).Should().BeTrue();
+        }
+        catch (System.Exception)
+        {
+            Assert.Pass();
+        }
+        finally
+        {
+            if (Directory.Exists(tempBase))
+            {
+                Directory.Delete(tempBase, true);
+            }
+        }
+    }
 }

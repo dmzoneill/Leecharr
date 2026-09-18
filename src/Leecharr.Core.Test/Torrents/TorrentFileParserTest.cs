@@ -666,4 +666,54 @@ public class TorrentFileParserTest
         var act = () => this.parser.Parse(bytes);
         act.Should().Throw<InvalidTorrentFileException>();
     }
+
+    [TestCase("%2e%2e")]
+    [TestCase("%2E%2E")]
+    [TestCase("sub/%2e%2e/escaped")]
+    [TestCase("%2e%2e%2fetc%2fpasswd")]
+    public void Parse_WhenMultiFilePathComponentContainsUrlEncodedTraversal_ThrowsInvalidTorrentFileException(string traversalPart)
+    {
+        var bytes = CreateMultiFileTorrentBytes("MyTorrent", (1024, new[] { traversalPart, "file.txt" }));
+
+        var act = () => this.parser.Parse(bytes);
+
+        act.Should().Throw<InvalidTorrentFileException>()
+            .WithMessage("*directory traversal*");
+    }
+
+    [TestCase("CON")]
+    [TestCase("PRN")]
+    [TestCase("AUX")]
+    [TestCase("NUL")]
+    [TestCase("COM1")]
+    [TestCase("LPT1")]
+    [TestCase("con.txt")]
+    [TestCase("aux.mp4")]
+    [TestCase("%43%4f%4e")]
+    public void Parse_WhenMultiFilePathComponentContainsReservedDeviceName_ThrowsInvalidTorrentFileException(string deviceName)
+    {
+        var bytes = CreateMultiFileTorrentBytes("MyTorrent", (1024, new[] { deviceName, "file.txt" }));
+
+        var act = () => this.parser.Parse(bytes);
+
+        act.Should().Throw<InvalidTorrentFileException>()
+            .WithMessage("*reserved device name*");
+    }
+
+    [TestCase("movie:title.mp4")]
+    [TestCase("file*star.txt")]
+    [TestCase("foo?bar")]
+    [TestCase("file<tag>")]
+    [TestCase("pipe|file")]
+    [TestCase("quote\"file")]
+    [TestCase("movie%3atitle.mp4")]
+    public void Parse_WhenMultiFilePathComponentContainsInvalidPathCharacters_ThrowsInvalidTorrentFileException(string invalidPart)
+    {
+        var bytes = CreateMultiFileTorrentBytes("MyTorrent", (1024, new[] { invalidPart, "file.txt" }));
+
+        var act = () => this.parser.Parse(bytes);
+
+        act.Should().Throw<InvalidTorrentFileException>()
+            .WithMessage("*invalid path characters*");
+    }
 }

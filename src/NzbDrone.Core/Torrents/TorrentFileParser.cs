@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using BencodeNET.Objects;
 using BencodeNET.Parsing;
 using NLog;
@@ -631,19 +632,41 @@ public class TorrentFileParser : ITorrentFileParser
             throw new InvalidTorrentFileException($"Malformed torrent file: file path component contains null byte: '{part}'.");
         }
 
-        if (part.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
+        string decoded;
+        try
         {
-            throw new InvalidTorrentFileException($"Malformed torrent file: file path component contains invalid path characters: '{part}'.");
+            decoded = WebUtility.UrlDecode(part);
+        }
+        catch
+        {
+            decoded = part;
+        }
+
+        if (decoded.Contains('\0'))
+        {
+            throw new InvalidTorrentFileException($"Malformed torrent file: file path component contains null byte: '{part}'.");
         }
 
         if (Path.IsPathRooted(part) || part.StartsWith('/') || part.StartsWith('\\') ||
-            (part.Length >= 2 && char.IsLetter(part[0]) && part[1] == ':'))
+            (part.Length >= 2 && char.IsLetter(part[0]) && part[1] == ':') ||
+            Path.IsPathRooted(decoded) || decoded.StartsWith('/') || decoded.StartsWith('\\') ||
+            (decoded.Length >= 2 && char.IsLetter(decoded[0]) && decoded[1] == ':'))
         {
             throw new InvalidTorrentFileException($"Malformed torrent file: file path component cannot be an absolute path: '{part}'.");
         }
 
+        if (part.IndexOfAny(Path.GetInvalidPathChars()) >= 0 ||
+            decoded.IndexOfAny(Path.GetInvalidPathChars()) >= 0 ||
+            TorrentPathValidator.HasUniversalInvalidChars(part) ||
+            TorrentPathValidator.HasUniversalInvalidChars(decoded))
+        {
+            throw new InvalidTorrentFileException($"Malformed torrent file: file path component contains invalid path characters: '{part}'.");
+        }
+
         var segments = part.Split(new[] { '/', '\\' }, StringSplitOptions.None);
-        foreach (var segment in segments)
+        var decodedSegments = decoded.Split(new[] { '/', '\\' }, StringSplitOptions.None);
+
+        foreach (var segment in segments.Concat(decodedSegments))
         {
             var trimmed = segment.Trim();
             if (string.IsNullOrWhiteSpace(trimmed))
@@ -654,6 +677,11 @@ public class TorrentFileParser : ITorrentFileParser
             if (trimmed == "." || trimmed == "..")
             {
                 throw new InvalidTorrentFileException($"Malformed torrent file: file path component contains directory traversal sequence: '{part}'.");
+            }
+
+            if (TorrentPathValidator.IsReservedDeviceName(trimmed))
+            {
+                throw new InvalidTorrentFileException($"Malformed torrent file: file path component contains reserved device name: '{part}'.");
             }
         }
     }
