@@ -389,4 +389,36 @@ public class BasicAuthenticationHandlerTest
         result.Principal.Identity.Name.Should().Be("serviceuser");
         result.Principal.IsInRole("Operator").Should().BeTrue();
     }
+
+    [Test]
+    public async Task AuthenticateAsync_WhenUntrustedClientSpoofsForwardedFor_ThrottlesAttackerIp()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("valid-password");
+
+        var wrongEncoded = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:wrong-password"));
+
+        // 5 failed attempts from 192.0.2.2 rotating X-Forwarded-For
+        for (var i = 1; i <= 5; i++)
+        {
+            var failCtx = new DefaultHttpContext();
+            failCtx.Connection.RemoteIpAddress = System.Net.IPAddress.Parse("192.0.2.2");
+            failCtx.Request.Headers["Authorization"] = "Basic " + wrongEncoded;
+            failCtx.Request.Headers["X-Forwarded-For"] = $"203.0.113.{i}";
+            var h = this.CreateHandler(failCtx);
+            var failResult = await h.AuthenticateAsync();
+            failResult.Succeeded.Should().BeFalse();
+        }
+
+        // 6th attempt with another spoofed header must be throttled
+        var nextCtx = new DefaultHttpContext();
+        nextCtx.Connection.RemoteIpAddress = System.Net.IPAddress.Parse("192.0.2.2");
+        nextCtx.Request.Headers["Authorization"] = "Basic " + wrongEncoded;
+        nextCtx.Request.Headers["X-Forwarded-For"] = "203.0.113.99";
+        var throttledHandler = this.CreateHandler(nextCtx);
+        var throttledResult = await throttledHandler.AuthenticateAsync();
+
+        throttledResult.Succeeded.Should().BeFalse();
+        throttledResult.Failure!.Message.Should().Contain("Too many failed authentication attempts");
+    }
 }

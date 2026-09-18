@@ -1450,6 +1450,38 @@ public class QBittorrentApiControllerTest
     }
 
     [Test]
+    public void Login_WhenHttps_SetsSecureSidCookie()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(false);
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Scheme = "https";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var result = this.controller.Login("any_user", "any_pass");
+
+        result.Should().BeOfType<ContentResult>();
+        httpContext.Response.Headers.TryGetValue("Set-Cookie", out var cookies).Should().BeTrue();
+        cookies.ToString().Should().Contain("SID=");
+        cookies.ToString().ToLowerInvariant().Should().Contain("secure");
+    }
+
+    [Test]
+    public void Login_WhenHttp_DoesNotSetSecureSidCookie()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(false);
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Scheme = "http";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var result = this.controller.Login("any_user", "any_pass");
+
+        result.Should().BeOfType<ContentResult>();
+        httpContext.Response.Headers.TryGetValue("Set-Cookie", out var cookies).Should().BeTrue();
+        cookies.ToString().Should().Contain("SID=");
+        cookies.ToString().ToLowerInvariant().Should().NotContain("secure");
+    }
+
+    [Test]
     public void Login_WhenAuthenticationEnabled_WithCorrectPassword_ReturnsOkAndSetsCookie()
     {
         this.configFileProvider.AuthenticationEnabled.Returns(true);
