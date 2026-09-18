@@ -632,6 +632,53 @@ public class IndexerControllerTest
             Arg.Any<System.Threading.CancellationToken>());
     }
 
+    [TestCase("2000,2040", new[] { 2000, 2040 }, 2000)]
+    [TestCase("movies,tv", new[] { 2000, 5000 }, 2000)]
+    [TestCase("tv, 5040, anime", new[] { 5000, 5040, 5070 }, 5000)]
+    [TestCase("2000, 2000", new[] { 2000 }, 2000)]
+    [TestCase("", new int[0], null)]
+    [TestCase(null, new int[0], null)]
+    public void ParseCategoriesAndCategoryId_CommaSeparatedInput_ReturnsParsedListsAndPrimaryId(
+        string categoryInput,
+        int[] expectedCategories,
+        int? expectedPrimaryId)
+    {
+        var categories = IndexerController.ParseCategories(categoryInput);
+        var primaryId = IndexerController.ParseCategoryId(categoryInput);
+
+        categories.Should().Equal(expectedCategories);
+        primaryId.Should().Be(expectedPrimaryId);
+    }
+
+    [Test]
+    public async Task SearchGet_WithCommaDelimitedCategories_PopulatesBothCategoriesAndCategoryId()
+    {
+        var indexer = new IndexerDefinition { Id = 1, Name = "Alpha", Enable = true, EnableSearch = true, Url = "http://alpha" };
+        this.indexerRepository.Get(1).Returns(indexer);
+
+        this.torznabClient.SearchAsync(
+            indexer,
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "multi cat" && c.CategoryId == 2000 && c.Categories.SequenceEqual(new[] { 2000, 2040 })),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new() { Title = "Result 1", Seeders = 10, DownloadUrl = "http://dl" },
+            }));
+
+        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest
+        {
+            Query = "multi cat",
+            IndexerId = 1,
+            Category = "2000,2040",
+        });
+
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        await this.torznabClient.Received(1).SearchAsync(
+            indexer,
+            Arg.Is<TorznabSearchCriteria>(c => c.Query == "multi cat" && c.CategoryId == 2000 && c.Categories.SequenceEqual(new[] { 2000, 2040 })),
+            Arg.Any<System.Threading.CancellationToken>());
+    }
+
     [Test]
     public async Task SearchGet_MultiIndexerPagination_QueriesIndexersFromOffsetZeroAndPaginatesGlobally()
     {
