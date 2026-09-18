@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -24,6 +25,7 @@ namespace Leecharr.Api.V1.RTorrent;
 [ApiController]
 public class RTorrentController : ControllerBase
 {
+    private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, string>> CustomFieldsStore = new(StringComparer.OrdinalIgnoreCase);
     private readonly ITorrentService torrentService;
     private readonly ITorrentFileParser torrentFileParser;
     private readonly ITorrentFileService torrentFileService;
@@ -605,16 +607,41 @@ public class RTorrentController : ControllerBase
 
             case "d.custom1":
             case "d.get_custom1":
-                if (paramValues.Count > 0 && paramValues[0] is string hashForCustom)
+                if (paramValues.Count > 0 && paramValues[0] != null)
                 {
+                    var hashForCustom = paramValues[0].ToString()?.Trim();
                     var t = this.torrentService.GetByInfoHash(hashForCustom);
                     if (t != null)
                     {
-                        return new XElement("string", t.Category ?? string.Empty);
+                        var cat = t.Category;
+                        if (!string.IsNullOrEmpty(cat))
+                        {
+                            return new XElement("string", cat);
+                        }
+
+                        return new XElement("string", GetCustomField(hashForCustom, "custom1"));
                     }
+
+                    return new XElement("string", GetCustomField(hashForCustom, "custom1"));
                 }
 
                 return new XElement("string", string.Empty);
+
+            case "d.custom2":
+            case "d.get_custom2":
+                return this.HandleGetCustomField(paramValues, "custom2");
+
+            case "d.custom3":
+            case "d.get_custom3":
+                return this.HandleGetCustomField(paramValues, "custom3");
+
+            case "d.custom4":
+            case "d.get_custom4":
+                return this.HandleGetCustomField(paramValues, "custom4");
+
+            case "d.custom5":
+            case "d.get_custom5":
+                return this.HandleGetCustomField(paramValues, "custom5");
 
             case "d.delete_tied":
                 if (paramValues.Count > 0 && paramValues[0] is string hashToDeleteTied)
@@ -706,18 +733,52 @@ public class RTorrentController : ControllerBase
             case "d.custom1.set":
             case "d.set_custom1":
                 var targetCat = string.Empty;
-                if (paramValues.Count >= 2 && paramValues[0] is string targetHash && paramValues[1] is string newCategory)
+                if (paramValues.Count >= 2 && paramValues[0] != null)
                 {
+                    var targetHash = paramValues[0].ToString()?.Trim();
+                    var newCategory = paramValues[1]?.ToString() ?? string.Empty;
                     var t = this.torrentService.GetByInfoHash(targetHash);
                     if (t != null)
                     {
                         t.Category = newCategory;
                         await this.torrentService.UpdateAsync(t);
-                        targetCat = newCategory;
                     }
+
+                    SetCustomField(targetHash, "custom1", newCategory);
+                    targetCat = newCategory;
                 }
 
                 return new XElement("string", targetCat);
+
+            case "d.custom2.set":
+            case "d.set_custom2":
+                return this.HandleSetCustomField(paramValues, "custom2");
+
+            case "d.custom3.set":
+            case "d.set_custom3":
+                return this.HandleSetCustomField(paramValues, "custom3");
+
+            case "d.custom4.set":
+            case "d.set_custom4":
+                return this.HandleSetCustomField(paramValues, "custom4");
+
+            case "d.custom5.set":
+            case "d.set_custom5":
+                return this.HandleSetCustomField(paramValues, "custom5");
+
+            case "d.views.has":
+                if (paramValues.Count >= 2 && paramValues[0] != null && paramValues[1] != null)
+                {
+                    var vHash = paramValues[0].ToString()?.Trim();
+                    var vName = paramValues[1].ToString()?.Trim();
+                    var t = this.torrentService.GetByInfoHash(vHash);
+                    if (t != null)
+                    {
+                        return new XElement("i4", MatchesView(t, vName) ? 1 : 0);
+                    }
+                }
+
+                return new XElement("i4", 0);
 
             case "d.directory.set":
             case "d.directory_base.set":
@@ -900,6 +961,12 @@ public class RTorrentController : ControllerBase
     {
         var torrents = this.torrentService.GetAll().ToList();
         var requestedFields = new List<string>();
+        string view = string.Empty;
+
+        var knownViews = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "started", "active", "stopped", "complete", "completed", "incomplete", "seeding", "leeching", "main", "default", "all",
+        };
 
         foreach (var item in paramValues)
         {
@@ -913,7 +980,16 @@ public class RTorrentController : ControllerBase
                 {
                     requestedFields.Add(trimmed);
                 }
+                else if (string.IsNullOrEmpty(view) || knownViews.Contains(trimmed))
+                {
+                    view = trimmed;
+                }
             }
+        }
+
+        if (!string.IsNullOrEmpty(view))
+        {
+            torrents = torrents.Where(t => MatchesView(t, view)).ToList();
         }
 
         var arrayData = new XElement("data");
@@ -936,6 +1012,18 @@ public class RTorrentController : ControllerBase
 
     private XElement GetTorrentXmlFieldValue(Torrent torrent, string field)
     {
+        if (field.StartsWith("d.views.has=", StringComparison.OrdinalIgnoreCase))
+        {
+            var viewName = field["d.views.has=".Length..].Trim('"', '\'', ' ', ')');
+            return new XElement("i4", MatchesView(torrent, viewName) ? 1 : 0);
+        }
+
+        if (field.StartsWith("d.views.has(", StringComparison.OrdinalIgnoreCase))
+        {
+            var viewName = field["d.views.has(".Length..].Trim('"', '\'', ' ', ')');
+            return new XElement("i4", MatchesView(torrent, viewName) ? 1 : 0);
+        }
+
         switch (field.ToLowerInvariant())
         {
             case "d.hash":
@@ -994,7 +1082,26 @@ public class RTorrentController : ControllerBase
 
             case "d.custom1":
             case "d.get_custom1":
-                return new XElement("string", torrent.Category ?? string.Empty);
+                return new XElement("string", torrent.Category ?? GetCustomField(torrent.InfoHash, "custom1"));
+
+            case "d.custom2":
+            case "d.get_custom2":
+                return new XElement("string", GetCustomField(torrent.InfoHash, "custom2"));
+
+            case "d.custom3":
+            case "d.get_custom3":
+                return new XElement("string", GetCustomField(torrent.InfoHash, "custom3"));
+
+            case "d.custom4":
+            case "d.get_custom4":
+                return new XElement("string", GetCustomField(torrent.InfoHash, "custom4"));
+
+            case "d.custom5":
+            case "d.get_custom5":
+                return new XElement("string", GetCustomField(torrent.InfoHash, "custom5"));
+
+            case "d.views.has":
+                return new XElement("i4", 1);
 
             case "d.timestamp.started":
             case "d.get_timestamp.started":
@@ -1226,6 +1333,99 @@ public class RTorrentController : ControllerBase
         }
 
         return null;
+    }
+
+    private static void SetCustomField(string infoHash, string fieldName, string value)
+    {
+        if (string.IsNullOrWhiteSpace(infoHash))
+        {
+            return;
+        }
+
+        var normalizedHash = infoHash.Trim().ToLowerInvariant();
+        var normalizedField = fieldName.Trim().ToLowerInvariant();
+        var dict = CustomFieldsStore.GetOrAdd(normalizedHash, _ => new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase));
+        dict[normalizedField] = value ?? string.Empty;
+    }
+
+    private static string GetCustomField(string infoHash, string fieldName)
+    {
+        if (string.IsNullOrWhiteSpace(infoHash))
+        {
+            return string.Empty;
+        }
+
+        var normalizedHash = infoHash.Trim().ToLowerInvariant();
+        var normalizedField = fieldName.Trim().ToLowerInvariant();
+        if (CustomFieldsStore.TryGetValue(normalizedHash, out var dict) &&
+            dict.TryGetValue(normalizedField, out var value))
+        {
+            return value ?? string.Empty;
+        }
+
+        return string.Empty;
+    }
+
+    private static bool MatchesView(Torrent torrent, string view)
+    {
+        if (torrent == null)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(view) ||
+            view.Equals("main", StringComparison.OrdinalIgnoreCase) ||
+            view.Equals("default", StringComparison.OrdinalIgnoreCase) ||
+            view.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        switch (view.ToLowerInvariant())
+        {
+            case "started":
+            case "active":
+                return torrent.Status == TorrentStatus.Downloading || torrent.Status == TorrentStatus.Seeding;
+
+            case "stopped":
+                return torrent.Status == TorrentStatus.Stopped || torrent.Status == TorrentStatus.Paused;
+
+            case "complete":
+            case "completed":
+            case "seeding":
+                return torrent.Progress >= 1.0 || torrent.Status == TorrentStatus.Seeding;
+
+            case "incomplete":
+            case "leeching":
+                return torrent.Progress < 1.0;
+
+            default:
+                return true;
+        }
+    }
+
+    private XElement HandleGetCustomField(List<object> paramValues, string fieldName)
+    {
+        if (paramValues.Count > 0 && paramValues[0] != null)
+        {
+            var hash = paramValues[0].ToString()?.Trim();
+            return new XElement("string", GetCustomField(hash, fieldName));
+        }
+
+        return new XElement("string", string.Empty);
+    }
+
+    private XElement HandleSetCustomField(List<object> paramValues, string fieldName)
+    {
+        var targetVal = string.Empty;
+        if (paramValues.Count >= 2 && paramValues[0] != null)
+        {
+            var targetHash = paramValues[0].ToString()?.Trim();
+            targetVal = paramValues[1]?.ToString() ?? string.Empty;
+            SetCustomField(targetHash, fieldName, targetVal);
+        }
+
+        return new XElement("string", targetVal);
     }
 
     private static long ExtractRateValue(List<object> paramValues)
