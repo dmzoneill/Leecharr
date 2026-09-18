@@ -212,7 +212,9 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
                                         FileUrl = item.MagnetUrl ?? item.DownloadUrl ?? string.Empty,
                                         NbLeechers = item.Leechers,
                                         NbSeeders = item.Seeders,
-                                        SiteUrl = item.IndexerName ?? indexer.Name ?? "Leecharr",
+                                        SiteUrl = !string.IsNullOrWhiteSpace(indexer.Url)
+                                            ? indexer.Url
+                                            : (!string.IsNullOrWhiteSpace(item.DetailsUrl) ? item.DetailsUrl : (item.IndexerName ?? indexer.Name ?? "Leecharr")),
                                     });
                                 }
                             }
@@ -320,7 +322,8 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
         {
             lock (job.Results)
             {
-                var query = job.Results.Skip(Math.Max(0, offset));
+                var skipCount = offset < 0 ? Math.Max(0, job.Results.Count + offset) : offset;
+                var query = job.Results.Skip(skipCount);
                 if (limit > 0)
                 {
                     query = query.Take(limit);

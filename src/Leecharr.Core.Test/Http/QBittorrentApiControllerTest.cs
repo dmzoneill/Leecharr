@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -25,6 +26,7 @@ using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
+using NzbDrone.Core.Indexers.Search;
 using NzbDrone.Core.Peers;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
@@ -2275,6 +2277,92 @@ public class QBittorrentApiControllerTest
         var json = JsonSerializer.Serialize(okResult.Value);
         using var doc = JsonDocument.Parse(json);
         doc.RootElement.GetArrayLength().Should().Be(0);
+    }
+
+    [Test]
+    public void SearchEndpoints_FormParameters_HaveExplicitFromFormNameAttributes()
+    {
+        var methods = typeof(QBittorrentApiController).GetMethods(BindingFlags.Public | BindingFlags.Instance);
+
+        var startMethod = methods.First(m => m.Name == nameof(QBittorrentApiController.StartSearch));
+        AssertFromFormName(startMethod, "formPattern", "pattern");
+        AssertFromFormName(startMethod, "formPlugins", "plugins");
+        AssertFromFormName(startMethod, "formCategory", "category");
+
+        var stopMethod = methods.First(m => m.Name == nameof(QBittorrentApiController.StopSearch));
+        AssertFromFormName(stopMethod, "formId", "id");
+
+        var statusMethod = methods.First(m => m.Name == nameof(QBittorrentApiController.GetSearchStatus));
+        AssertFromFormName(statusMethod, "formId", "id");
+
+        var resultsMethod = methods.First(m => m.Name == nameof(QBittorrentApiController.GetSearchResults));
+        AssertFromFormName(resultsMethod, "formId", "id");
+        AssertFromFormName(resultsMethod, "formLimit", "limit");
+        AssertFromFormName(resultsMethod, "formOffset", "offset");
+
+        var deleteMethod = methods.First(m => m.Name == nameof(QBittorrentApiController.DeleteSearch));
+        AssertFromFormName(deleteMethod, "formId", "id");
+
+        static void AssertFromFormName(MethodInfo method, string parameterName, string expectedFormName)
+        {
+            var param = method.GetParameters().FirstOrDefault(p => p.Name == parameterName);
+            param.Should().NotBeNull($"Parameter '{parameterName}' should exist on {method.Name}");
+            var attr = param!.GetCustomAttribute<FromFormAttribute>();
+            attr.Should().NotBeNull($"Parameter '{parameterName}' should have [FromForm]");
+            attr!.Name.Should().Be(expectedFormName, $"Parameter '{parameterName}' on {method.Name} must map from form field '{expectedFormName}'");
+        }
+    }
+
+    [Test]
+    public void SearchEndpoints_WithFormParameters_DelegatesToSearchService()
+    {
+        var searchService = Substitute.For<IQBittorrentSearchService>();
+        searchService.StartSearch("archlinux", "plugin1", "iso").Returns(42);
+        searchService.GetStatus(42).Returns(new QBittorrentSearchStatus { Id = 42, Status = "Running", Total = 10 });
+        searchService.GetResults(42, 5, -2).Returns(new QBittorrentSearchResultsResponse
+        {
+            Results = new List<QBittorrentSearchResultItem> { new() { FileName = "arch.iso" } },
+            Status = "Running",
+            Total = 10,
+        });
+
+        var customController = new QBittorrentApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.trackerEntryRepository,
+            configFileProvider: this.configFileProvider,
+            qbittorrentSearchService: searchService);
+
+        var startResult = customController.StartSearch(formPattern: "archlinux", formPlugins: "plugin1", formCategory: "iso");
+        var okStart = startResult.Should().BeOfType<OkObjectResult>().Subject;
+        var startJson = JsonSerializer.Serialize(okStart.Value);
+        using (var doc = JsonDocument.Parse(startJson))
+        {
+            doc.RootElement.GetProperty("id").GetInt32().Should().Be(42);
+        }
+
+        var statusResult = customController.GetSearchStatus(id: null, formId: 42);
+        var okStatus = statusResult.Should().BeOfType<OkObjectResult>().Subject;
+        var statuses = okStatus.Value.Should().BeAssignableTo<IEnumerable<QBittorrentSearchStatus>>().Subject.ToList();
+        statuses.Should().HaveCount(1);
+        statuses[0].Id.Should().Be(42);
+
+        var resultsResult = customController.GetSearchResults(id: null, formId: 42, formLimit: 5, formOffset: -2);
+        var okResults = resultsResult.Should().BeOfType<OkObjectResult>().Subject;
+        var resultsObj = okResults.Value.Should().BeOfType<QBittorrentSearchResultsResponse>().Subject;
+        resultsObj.Results.Should().HaveCount(1);
+        resultsObj.Results[0].FileName.Should().Be("arch.iso");
+
+        var stopResult = customController.StopSearch(id: null, formId: 42);
+        stopResult.Should().BeOfType<ContentResult>();
+        searchService.Received(1).StopSearch(42);
+
+        var deleteResult = customController.DeleteSearch(id: null, formId: 42);
+        deleteResult.Should().BeOfType<ContentResult>();
+        searchService.Received(1).DeleteSearch(42);
     }
 
     private static ActionExecutingContext CreateActionExecutingContext(QBittorrentApiController controller, HttpContext httpContext, string actionName)
