@@ -646,6 +646,92 @@ public class TransmissionRpcController : ControllerBase
                     }
                 }
 
+                if (request.Arguments.TryGetValue("trackerList", out var trackerListVal))
+                {
+                    string raw = null;
+                    if (trackerListVal.ValueKind == JsonValueKind.String)
+                    {
+                        raw = trackerListVal.GetString();
+                    }
+                    else if (trackerListVal.ValueKind == JsonValueKind.Array)
+                    {
+                        raw = string.Join("\n", trackerListVal.EnumerateArray().Select(x => x.GetString()).Where(x => !string.IsNullOrEmpty(x)));
+                    }
+
+                    if (raw != null)
+                    {
+                        var parsedTrackers = new List<(string Url, int Tier)>();
+                        var lines = raw.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+                        var currentTier = 0;
+                        var hasTrackersInCurrentTier = false;
+
+                        foreach (var rawLine in lines)
+                        {
+                            var line = rawLine.Trim();
+                            if (string.IsNullOrEmpty(line))
+                            {
+                                if (hasTrackersInCurrentTier)
+                                {
+                                    currentTier++;
+                                    hasTrackersInCurrentTier = false;
+                                }
+                            }
+                            else
+                            {
+                                parsedTrackers.Add((line, currentTier));
+                                hasTrackersInCurrentTier = true;
+                            }
+                        }
+
+                        var existingTrackers = this.trackerEntryRepository?.GetByTorrentId(t.Id)?.ToList() ?? new List<TrackerEntry>();
+                        var oldUrls = existingTrackers
+                            .Select(x => x.Url)
+                            .Where(u => !string.IsNullOrWhiteSpace(u))
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+
+                        if (!string.IsNullOrWhiteSpace(t.TrackerUrl) && !oldUrls.Contains(t.TrackerUrl, StringComparer.OrdinalIgnoreCase))
+                        {
+                            oldUrls.Add(t.TrackerUrl);
+                        }
+
+                        if (this.trackerEntryRepository != null)
+                        {
+                            this.trackerEntryRepository.DeleteByTorrentId(t.Id);
+                            foreach (var pt in parsedTrackers)
+                            {
+                                this.trackerEntryRepository.Insert(new TrackerEntry
+                                {
+                                    TorrentId = t.Id,
+                                    Url = pt.Url,
+                                    Tier = pt.Tier,
+                                    Enabled = true,
+                                });
+                            }
+                        }
+
+                        t.TrackerUrl = parsedTrackers.Count > 0 ? parsedTrackers[0].Url : string.Empty;
+
+                        if (this.downloadEngine != null)
+                        {
+                            if (oldUrls.Count > 0)
+                            {
+                                await this.downloadEngine.RemoveTrackersAsync(t.Id, oldUrls);
+                            }
+
+                            var newUrls = parsedTrackers
+                                .Select(x => x.Url)
+                                .Distinct(StringComparer.OrdinalIgnoreCase)
+                                .ToList();
+
+                            if (newUrls.Count > 0)
+                            {
+                                await this.downloadEngine.AddTrackersAsync(t.Id, newUrls);
+                            }
+                        }
+                    }
+                }
+
                 if (request.Arguments.TryGetValue("trackerAdd", out var trackerAddVal) && trackerAddVal.ValueKind == JsonValueKind.Array)
                 {
                     var addedUrls = new List<string>();
@@ -1312,6 +1398,9 @@ public class TransmissionRpcController : ControllerBase
         var addedDate = new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds();
         var doneDate = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : 0L;
         var editDate = t.LastActive.HasValue ? new DateTimeOffset(t.LastActive.Value).ToUnixTimeSeconds() : addedDate;
+        var activityDate = t.LastActive.HasValue ? new DateTimeOffset(t.LastActive.Value).ToUnixTimeSeconds() : addedDate;
+        var dateCreated = t.CreationDate.HasValue ? new DateTimeOffset(t.CreationDate.Value).ToUnixTimeSeconds() : addedDate;
+        var startDate = (t.Status == TorrentStatus.Stopped || t.Status == TorrentStatus.Paused) ? 0L : addedDate;
         var isError = t.Status == TorrentStatus.Error;
 
         var swarmPeers = downloadTask?.GetPeers() ?? Array.Empty<PeerInfo>();
@@ -1369,8 +1458,8 @@ public class TransmissionRpcController : ControllerBase
             { "addedDate", addedDate },
             { "doneDate", doneDate },
             { "editDate", editDate },
-            { "startDate", addedDate },
-            { "activityDate", addedDate },
+            { "startDate", startDate },
+            { "activityDate", activityDate },
             { "queuePosition", t.QueuePosition },
             { "recheckProgress", t.Status == TorrentStatus.Checking ? t.Progress : 0.0 },
             { "seedRatioLimit", t.TargetRatio },
@@ -1404,7 +1493,7 @@ public class TransmissionRpcController : ControllerBase
             { "pieces", piecesBase64 },
             { "creator", t.CreatedBy ?? string.Empty },
             { "comment", t.Comment ?? string.Empty },
-            { "dateCreated", addedDate },
+            { "dateCreated", dateCreated },
         };
 
         if (requestedFields != null && requestedFields.Count > 0)
