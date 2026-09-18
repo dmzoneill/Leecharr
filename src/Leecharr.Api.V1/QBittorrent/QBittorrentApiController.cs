@@ -1320,12 +1320,17 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
         var addedDate = new DateTimeOffset(torrent.DateAdded).ToUnixTimeSeconds();
         var completionDate = torrent.DateCompleted.HasValue ? new DateTimeOffset(torrent.DateCompleted.Value).ToUnixTimeSeconds() : 0L;
+        var creationDate = torrent.CreationDate.HasValue ? new DateTimeOffset(torrent.CreationDate.Value).ToUnixTimeSeconds() : addedDate;
+        var totalWasted = this.downloadEngine?.GetTorrentResourceMetrics(torrent.Id)?.WastedBytes ?? 0L;
+        var pieceSize = torrent.PieceLength > 0
+            ? torrent.PieceLength
+            : (torrent.PieceCount > 0 && torrent.TotalSize > 0 ? (int)(torrent.TotalSize / torrent.PieceCount) : 0);
 
         var (resolvedSavePath, _) = ResolvePaths(torrent);
         return this.Ok(new Dictionary<string, object>
         {
             ["save_path"] = resolvedSavePath,
-            ["creation_date"] = addedDate,
+            ["creation_date"] = creationDate,
             ["addition_date"] = addedDate,
             ["completion_date"] = completionDate,
             ["created_by"] = torrent.CreatedBy ?? string.Empty,
@@ -1339,8 +1344,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             ["seeds"] = torrent.Seeders,
             ["seeds_total"] = torrent.Seeders,
             ["total_size"] = torrent.TotalSize,
-            ["total_wasted"] = 0L,
-            ["piece_size"] = torrent.PieceLength,
+            ["total_wasted"] = totalWasted,
+            ["piece_size"] = pieceSize,
             ["pieces_num"] = torrent.PieceCount,
             ["pieces_have"] = (int)(torrent.PieceCount * torrent.Progress),
             ["total_downloaded"] = torrent.Downloaded,
@@ -2034,38 +2039,132 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             return this.NotFound();
         }
 
-        var task = this.downloadEngine?.GetTask(torrent.Id);
-        var peers = task?.GetPeers() ?? Array.Empty<PeerInfo>();
+        CleanupExpiredSessionSyncStates();
 
-        var peerDict = new Dictionary<string, object>();
-        foreach (var p in peers)
+        var sessionKey = this.GetClientSessionKey();
+        var sessionState = sessionSyncStates.GetOrAdd(sessionKey, _ => new QBitSessionSyncState());
+
+        lock (sessionState.Lock)
         {
-            var key = $"{p.Ip}:{p.Port}";
-            peerDict[key] = new
+            sessionState.LastAccessed = DateTime.UtcNow;
+
+            var task = this.downloadEngine?.GetTask(torrent.Id);
+            var peers = task?.GetPeers() ?? Array.Empty<PeerInfo>();
+
+            if (!sessionState.PeerSyncStates.TryGetValue(torrent.InfoHash, out var peerSyncState))
             {
-                client = p.Client ?? string.Empty,
-                ip = p.Ip ?? string.Empty,
-                port = p.Port,
-                connection = (p.IsUtp || p.Flags?.Contains("P", StringComparison.OrdinalIgnoreCase) == true) ? "uTP" : "TCP",
-                flags = p.Flags ?? string.Empty,
-                flags_desc = string.Empty,
-                progress = p.Progress,
-                dl_speed = p.DownloadSpeed,
-                up_speed = p.UploadSpeed,
-                downloaded = p.Downloaded,
-                uploaded = p.Uploaded,
-                relevance = 1.0,
-                files = string.Empty,
-            };
-        }
+                peerSyncState = new QBitTorrentPeersSyncState();
+                sessionState.PeerSyncStates[torrent.InfoHash] = peerSyncState;
+            }
 
-        return this.Ok(new
-        {
-            full_update = true,
-            peers = peerDict,
-            rid = rid <= 0 ? 1 : rid + 1,
-            show_flags = true,
-        });
+            if (rid <= 0)
+            {
+                peerSyncState.Initialized = true;
+                peerSyncState.CurrentRid = 1;
+                peerSyncState.CachedPeers.Clear();
+                peerSyncState.RemovedPeers.Clear();
+
+                var peerDict = new Dictionary<string, object>();
+                foreach (var p in peers)
+                {
+                    var key = $"{p.Ip}:{p.Port}";
+                    var snapshot = QBitPeerSnapshot.FromPeerInfo(p);
+                    peerSyncState.CachedPeers[key] = (snapshot, peerSyncState.CurrentRid);
+
+                    peerDict[key] = new
+                    {
+                        client = snapshot.Client,
+                        ip = snapshot.Ip,
+                        port = snapshot.Port,
+                        connection = snapshot.Connection,
+                        flags = snapshot.Flags,
+                        flags_desc = snapshot.FlagsDesc,
+                        progress = snapshot.Progress,
+                        dl_speed = snapshot.DlSpeed,
+                        up_speed = snapshot.UpSpeed,
+                        downloaded = snapshot.Downloaded,
+                        uploaded = snapshot.Uploaded,
+                        relevance = snapshot.Relevance,
+                        files = snapshot.Files,
+                    };
+                }
+
+                return this.Ok(new
+                {
+                    full_update = true,
+                    peers = peerDict,
+                    rid = peerSyncState.CurrentRid,
+                    show_flags = true,
+                });
+            }
+
+            // Incremental delta sync (rid > 0)
+            var nextRid = rid + 1;
+            var updatedPeers = new Dictionary<string, object>();
+            var currentPeerKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var p in peers)
+            {
+                var key = $"{p.Ip}:{p.Port}";
+                currentPeerKeys.Add(key);
+                var snapshot = QBitPeerSnapshot.FromPeerInfo(p);
+
+                var isNewOrChanged = !peerSyncState.CachedPeers.TryGetValue(key, out var existing) || existing.Snapshot != snapshot;
+                if (isNewOrChanged)
+                {
+                    peerSyncState.CachedPeers[key] = (snapshot, nextRid);
+                }
+
+                if (isNewOrChanged || existing.ChangedAtRid > rid)
+                {
+                    updatedPeers[key] = new
+                    {
+                        client = snapshot.Client,
+                        ip = snapshot.Ip,
+                        port = snapshot.Port,
+                        connection = snapshot.Connection,
+                        flags = snapshot.Flags,
+                        flags_desc = snapshot.FlagsDesc,
+                        progress = snapshot.Progress,
+                        dl_speed = snapshot.DlSpeed,
+                        up_speed = snapshot.UpSpeed,
+                        downloaded = snapshot.Downloaded,
+                        uploaded = snapshot.Uploaded,
+                        relevance = snapshot.Relevance,
+                        files = snapshot.Files,
+                    };
+                }
+            }
+
+            // Detect removed peers
+            var removedNow = peerSyncState.CachedPeers.Keys.Where(k => !currentPeerKeys.Contains(k)).ToList();
+            foreach (var key in removedNow)
+            {
+                peerSyncState.CachedPeers.Remove(key);
+                peerSyncState.RemovedPeers.Add((key, nextRid));
+            }
+
+            if (peerSyncState.RemovedPeers.Count > 500)
+            {
+                peerSyncState.RemovedPeers.RemoveRange(0, peerSyncState.RemovedPeers.Count - 500);
+            }
+
+            var peersRemoved = peerSyncState.RemovedPeers
+                .Where(r => r.RemovedAtRid > rid)
+                .Select(r => r.PeerKey)
+                .ToArray();
+
+            peerSyncState.CurrentRid = nextRid;
+
+            return this.Ok(new
+            {
+                full_update = false,
+                peers = updatedPeers,
+                peers_removed = peersRemoved,
+                rid = nextRid,
+                show_flags = true,
+            });
+        }
     }
 
     [HttpGet("torrents/pieceStates")]
@@ -2928,7 +3027,71 @@ public class QBitSessionSyncState
 
     public List<(string Hash, int RemovedAtRid)> RemovedTorrents { get; } = new();
 
+    public Dictionary<string, QBitTorrentPeersSyncState> PeerSyncStates { get; } = new(StringComparer.OrdinalIgnoreCase);
+
     public object Lock { get; } = new();
 
     public DateTime LastAccessed { get; set; } = DateTime.UtcNow;
+}
+
+public record QBitPeerSnapshot
+{
+    public string Client { get; init; } = string.Empty;
+
+    public string Ip { get; init; } = string.Empty;
+
+    public int Port { get; init; }
+
+    public string Connection { get; init; } = string.Empty;
+
+    public string Flags { get; init; } = string.Empty;
+
+    public string FlagsDesc { get; init; } = string.Empty;
+
+    public double Progress { get; init; }
+
+    public long DlSpeed { get; init; }
+
+    public long UpSpeed { get; init; }
+
+    public long Downloaded { get; init; }
+
+    public long Uploaded { get; init; }
+
+    public double Relevance { get; init; }
+
+    public string Files { get; init; } = string.Empty;
+
+    public static QBitPeerSnapshot FromPeerInfo(PeerInfo p)
+    {
+        ArgumentNullException.ThrowIfNull(p);
+
+        return new QBitPeerSnapshot
+        {
+            Client = p.Client ?? string.Empty,
+            Ip = p.Ip ?? string.Empty,
+            Port = p.Port,
+            Connection = (p.IsUtp || p.Flags?.Contains("P", StringComparison.OrdinalIgnoreCase) == true) ? "uTP" : "TCP",
+            Flags = p.Flags ?? string.Empty,
+            FlagsDesc = string.Empty,
+            Progress = p.Progress,
+            DlSpeed = p.DownloadSpeed,
+            UpSpeed = p.UploadSpeed,
+            Downloaded = p.Downloaded,
+            Uploaded = p.Uploaded,
+            Relevance = 1.0,
+            Files = string.Empty,
+        };
+    }
+}
+
+public class QBitTorrentPeersSyncState
+{
+    public bool Initialized { get; set; }
+
+    public int CurrentRid { get; set; }
+
+    public Dictionary<string, (QBitPeerSnapshot Snapshot, int ChangedAtRid)> CachedPeers { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public List<(string PeerKey, int RemovedAtRid)> RemovedPeers { get; } = new();
 }
