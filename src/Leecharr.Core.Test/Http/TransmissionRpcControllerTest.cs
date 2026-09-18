@@ -2652,4 +2652,111 @@ public class TransmissionRpcControllerTest
 
         await this.safeHttpClientService.DidNotReceiveWithAnyArgs().DownloadStringAsync(default(string)!, default, default);
     }
+
+    [Test]
+    public async Task HandleRpc_TorrentSet_WithTrackerList_PreservesMultitrackerTiers()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var testTorrent = new Torrent
+        {
+            Id = 10,
+            Name = "Tier Torrent",
+        };
+        this.torrentService.Get(10).Returns(testTorrent);
+        this.trackerEntryRepository.GetByTorrentId(10).Returns(new List<TrackerEntry>());
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[10]");
+        using var trackerListDoc = JsonDocument.Parse("\"http://t0a\\nhttp://t0b\\n\\nhttp://t1a\\n\\nhttp://t2a\"");
+        args["ids"] = idsDoc.RootElement.Clone();
+        args["trackerList"] = trackerListDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://t0a" && t.Tier == 0));
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://t0b" && t.Tier == 0));
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://t1a" && t.Tier == 1));
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://t2a" && t.Tier == 2));
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentSet_WithTrackerListArray_PreservesTiers()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var testTorrent = new Torrent
+        {
+            Id = 11,
+            Name = "Array Tier Torrent",
+        };
+        this.torrentService.Get(11).Returns(testTorrent);
+        this.trackerEntryRepository.GetByTorrentId(11).Returns(new List<TrackerEntry>());
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[11]");
+        using var trackerListDoc = JsonDocument.Parse("[\"http://t0a\", \"\", \"http://t1a\"]");
+        args["ids"] = idsDoc.RootElement.Clone();
+        args["trackerList"] = trackerListDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://t0a" && t.Tier == 0));
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://t1a" && t.Tier == 1));
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentSet_WithTrackerAdd_PreservesTiersAndCalculatesStartingTier()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var testTorrent = new Torrent
+        {
+            Id = 12,
+            Name = "Add Tier Torrent",
+        };
+        this.torrentService.Get(12).Returns(testTorrent);
+        this.trackerEntryRepository.GetByTorrentId(12).Returns(new List<TrackerEntry>
+        {
+            new TrackerEntry { TorrentId = 12, Url = "http://existing", Tier = 1 },
+        });
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[12]");
+        using var trackerAddDoc = JsonDocument.Parse("[\"http://new0\\n\\nhttp://new1\"]");
+        args["ids"] = idsDoc.RootElement.Clone();
+        args["trackerAdd"] = trackerAddDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://new0" && t.Tier == 2));
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://new1" && t.Tier == 3));
+    }
 }

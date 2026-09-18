@@ -2620,4 +2620,51 @@ public class QBittorrentApiControllerTest
             new Dictionary<string, object>(),
             controller);
     }
+
+    [Test]
+    public async Task AddTrackers_WithMultitrackerTiers_PreservesTiersCorrectly()
+    {
+        var torrent = new Torrent
+        {
+            Id = 99,
+            Name = "TierTorrent",
+            InfoHash = "hash_tier_test",
+            IsPrivate = false,
+        };
+        this.torrentService.GetByInfoHash("hash_tier_test").Returns(torrent);
+        this.trackerEntryRepository.GetByTorrentId(99).Returns(new List<TrackerEntry>());
+
+        var urls = "http://t0a\nhttp://t0b\n\nhttp://t1a\n\n\nhttp://t2a";
+        var result = await this.controller.AddTrackers("hash_tier_test", urls);
+
+        result.Should().BeOfType<ContentResult>();
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://t0a" && t.Tier == 0));
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://t0b" && t.Tier == 0));
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://t1a" && t.Tier == 1));
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://t2a" && t.Tier == 2));
+    }
+
+    [Test]
+    public async Task AddTrackers_WhenExistingTrackersPresent_CalculatesStartingTierCorrectly()
+    {
+        var torrent = new Torrent
+        {
+            Id = 100,
+            Name = "ExistingTrackersTorrent",
+            InfoHash = "hash_existing_tier",
+            IsPrivate = false,
+        };
+        this.torrentService.GetByInfoHash("hash_existing_tier").Returns(torrent);
+        this.trackerEntryRepository.GetByTorrentId(100).Returns(new List<TrackerEntry>
+        {
+            new TrackerEntry { TorrentId = 100, Url = "http://existing", Tier = 1 },
+        });
+
+        var urls = "http://new_t0\n\nhttp://new_t1";
+        var result = await this.controller.AddTrackers("hash_existing_tier", urls);
+
+        result.Should().BeOfType<ContentResult>();
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://new_t0" && t.Tier == 2));
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://new_t1" && t.Tier == 3));
+    }
 }
