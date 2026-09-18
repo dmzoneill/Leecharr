@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Text.Json;
 using System.Threading;
@@ -2666,5 +2667,106 @@ public class QBittorrentApiControllerTest
         result.Should().BeOfType<ContentResult>();
         this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://new_t0" && t.Tier == 2));
         this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://new_t1" && t.Tier == 3));
+    }
+
+    [Test]
+    public void GetClientSessionKey_DifferentiatesClientsWithDifferentUserAgentHeaders()
+    {
+        var sonarrContext = new DefaultHttpContext();
+        sonarrContext.Request.Headers["X-Api-Key"] = "shared_api_key";
+        sonarrContext.Request.Headers["User-Agent"] = "Sonarr/4.0.13.2933";
+        sonarrContext.Connection.RemoteIpAddress = IPAddress.Parse("127.0.0.1");
+
+        this.controller.ControllerContext = new ControllerContext { HttpContext = sonarrContext };
+        var sonarrKey = this.controller.GetClientSessionKey();
+
+        var radarrContext = new DefaultHttpContext();
+        radarrContext.Request.Headers["X-Api-Key"] = "shared_api_key";
+        radarrContext.Request.Headers["User-Agent"] = "Radarr/5.19.3.9730";
+        radarrContext.Connection.RemoteIpAddress = IPAddress.Parse("127.0.0.1");
+
+        this.controller.ControllerContext = new ControllerContext { HttpContext = radarrContext };
+        var radarrKey = this.controller.GetClientSessionKey();
+
+        sonarrKey.Should().Be("key:shared_api_key:127.0.0.1:Sonarr");
+        radarrKey.Should().Be("key:shared_api_key:127.0.0.1:Radarr");
+        sonarrKey.Should().NotBe(radarrKey);
+    }
+
+    [Test]
+    public void GetClientSessionKey_DifferentiatesClientsUsingClientIdOrArrInstanceHeaders()
+    {
+        var client1Context = new DefaultHttpContext();
+        client1Context.Request.Headers["X-Api-Key"] = "shared_key";
+        client1Context.Request.Headers["X-Client-Id"] = "sonarr-standard";
+        client1Context.Connection.RemoteIpAddress = IPAddress.Parse("127.0.0.1");
+
+        this.controller.ControllerContext = new ControllerContext { HttpContext = client1Context };
+        var client1Key = this.controller.GetClientSessionKey();
+
+        var client2Context = new DefaultHttpContext();
+        client2Context.Request.Headers["X-Api-Key"] = "shared_key";
+        client2Context.Request.Headers["X-Arr-Instance"] = "sonarr-4k";
+        client2Context.Connection.RemoteIpAddress = IPAddress.Parse("127.0.0.1");
+
+        this.controller.ControllerContext = new ControllerContext { HttpContext = client2Context };
+        var client2Key = this.controller.GetClientSessionKey();
+
+        var queryClientContext = new DefaultHttpContext();
+        queryClientContext.Request.Headers["X-Api-Key"] = "shared_key";
+        queryClientContext.Request.QueryString = new QueryString("?client_id=tab-session-99");
+        queryClientContext.Connection.RemoteIpAddress = IPAddress.Parse("127.0.0.1");
+
+        this.controller.ControllerContext = new ControllerContext { HttpContext = queryClientContext };
+        var queryClientKey = this.controller.GetClientSessionKey();
+
+        client1Key.Should().Be("key:shared_key:127.0.0.1:sonarr-standard");
+        client2Key.Should().Be("key:shared_key:127.0.0.1:sonarr-4k");
+        queryClientKey.Should().Be("key:shared_key:127.0.0.1:tab-session-99");
+    }
+
+    [Test]
+    public void GetMainData_MaintainsIsolatedRidSequencesForDifferentClients()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "Torrent 1",
+            InfoHash = "hash1",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.2,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var sonarrContext = new DefaultHttpContext();
+        sonarrContext.Request.Headers["X-Api-Key"] = "shared_api_key";
+        sonarrContext.Request.Headers["User-Agent"] = "Sonarr/4.0";
+        sonarrContext.Connection.RemoteIpAddress = IPAddress.Parse("127.0.0.1");
+
+        var radarrContext = new DefaultHttpContext();
+        radarrContext.Request.Headers["X-Api-Key"] = "shared_api_key";
+        radarrContext.Request.Headers["User-Agent"] = "Radarr/5.0";
+        radarrContext.Connection.RemoteIpAddress = IPAddress.Parse("127.0.0.1");
+
+        // Client 1 (Sonarr) initial full sync (rid = 0) -> receives rid 1
+        this.controller.ControllerContext = new ControllerContext { HttpContext = sonarrContext };
+        var sonarrRes1 = ((OkObjectResult)this.controller.GetMainData(0).Result!).Value as Dictionary<string, object>;
+        sonarrRes1!["full_update"].Should().Be(true);
+        sonarrRes1["rid"].Should().Be(1);
+
+        // Client 1 (Sonarr) increments to rid 2
+        var sonarrRes2 = ((OkObjectResult)this.controller.GetMainData(1).Result!).Value as Dictionary<string, object>;
+        sonarrRes2!["rid"].Should().Be(2);
+
+        // Client 2 (Radarr) starts fresh at rid 0 -> should receive rid 1 and full_update, without resetting Sonarr session
+        this.controller.ControllerContext = new ControllerContext { HttpContext = radarrContext };
+        var radarrRes1 = ((OkObjectResult)this.controller.GetMainData(0).Result!).Value as Dictionary<string, object>;
+        radarrRes1!["full_update"].Should().Be(true);
+        radarrRes1["rid"].Should().Be(1);
+
+        // Client 1 (Sonarr) requests next delta with rid 2 -> should advance to rid 3, isolated from Radarr!
+        this.controller.ControllerContext = new ControllerContext { HttpContext = sonarrContext };
+        var sonarrRes3 = ((OkObjectResult)this.controller.GetMainData(2).Result!).Value as Dictionary<string, object>;
+        sonarrRes3!["rid"].Should().Be(3);
     }
 }

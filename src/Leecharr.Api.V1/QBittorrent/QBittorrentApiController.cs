@@ -1747,15 +1747,46 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         }
     }
 
-    private string GetClientSessionKey()
+    internal string GetClientSessionKey()
     {
         try
         {
             if (this.HttpContext != null && this.Request != null)
             {
+                var clientId = this.Request.Headers?["X-Client-Id"].FirstOrDefault();
+                if (string.IsNullOrWhiteSpace(clientId))
+                {
+                    clientId = this.Request.Headers?["X-Arr-Instance"].FirstOrDefault();
+                }
+
+                if (string.IsNullOrWhiteSpace(clientId) && this.Request.Query != null && this.Request.Query.TryGetValue("client_id", out var qClientId))
+                {
+                    clientId = qClientId.FirstOrDefault();
+                }
+
+                string clientTag = null;
+                if (!string.IsNullOrWhiteSpace(clientId))
+                {
+                    clientTag = clientId.Trim();
+                }
+                else
+                {
+                    var userAgent = this.Request.Headers?["User-Agent"].FirstOrDefault();
+                    if (!string.IsNullOrWhiteSpace(userAgent))
+                    {
+                        var trimmedUa = userAgent.Trim();
+                        var slashIndex = trimmedUa.IndexOf('/');
+                        var tag = (slashIndex >= 0 ? trimmedUa[..slashIndex] : trimmedUa).Trim();
+                        if (!string.IsNullOrWhiteSpace(tag))
+                        {
+                            clientTag = tag;
+                        }
+                    }
+                }
+
                 if (this.Request.Cookies != null && this.Request.Cookies.TryGetValue("SID", out var sid) && !string.IsNullOrWhiteSpace(sid))
                 {
-                    return $"sid:{sid}";
+                    return !string.IsNullOrWhiteSpace(clientTag) ? $"sid:{sid}:{clientTag}" : $"sid:{sid}";
                 }
 
                 var apiKey = this.Request.Headers?["X-Api-Key"].FirstOrDefault();
@@ -1764,16 +1795,31 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     apiKey = qKey.FirstOrDefault();
                 }
 
+                var ip = this.HttpContext.Connection?.RemoteIpAddress?.ToString();
                 if (!string.IsNullOrWhiteSpace(apiKey))
                 {
-                    var ip = this.HttpContext.Connection?.RemoteIpAddress?.ToString() ?? "unknown";
-                    return $"key:{apiKey}:{ip}";
+                    var resolvedIp = !string.IsNullOrWhiteSpace(ip) ? ip : "unknown";
+                    return !string.IsNullOrWhiteSpace(clientTag)
+                        ? $"key:{apiKey}:{resolvedIp}:{clientTag}"
+                        : $"key:{apiKey}:{resolvedIp}";
                 }
 
-                var remoteIp = this.HttpContext.Connection?.RemoteIpAddress?.ToString();
-                if (!string.IsNullOrWhiteSpace(remoteIp))
+                if (!string.IsNullOrWhiteSpace(ip))
                 {
-                    return $"ip:{remoteIp}";
+                    return !string.IsNullOrWhiteSpace(clientTag)
+                        ? $"ip:{ip}:{clientTag}"
+                        : $"ip:{ip}";
+                }
+
+                if (!string.IsNullOrWhiteSpace(clientTag))
+                {
+                    return $"client:{clientTag}";
+                }
+
+                var connId = this.HttpContext.Connection?.Id;
+                if (!string.IsNullOrWhiteSpace(connId))
+                {
+                    return $"conn:{connId}";
                 }
             }
         }
