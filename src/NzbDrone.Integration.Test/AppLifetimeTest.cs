@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,6 +14,7 @@ using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.BitTorrent.Tracker;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Lifecycle;
 using NzbDrone.Core.Messaging.Events;
@@ -450,6 +452,42 @@ public class AppLifetimeTest
         mockToken.Received(1).Dispose();
     }
 
+    [Test]
+    public async Task BackgroundLoop_WhenDatabaseIsSqlite_ExecutesPeriodicPassiveWalCheckpoint()
+    {
+        var mockDb = Substitute.For<IDatabase>();
+        mockDb.DatabaseType.Returns(DatabaseType.SQLite);
+        var mockConn = Substitute.For<IDbConnection>();
+        var mockCmd = Substitute.For<IDbCommand>();
+        mockDb.OpenConnection().Returns(mockConn);
+        mockConn.CreateCommand().Returns(mockCmd);
+
+        this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
+        this.downloadEngine.GetAllTasks().Returns(new List<IDownloadTask>());
+
+        var tcs = new TaskCompletionSource<bool>();
+        mockCmd.When(c => c.ExecuteNonQuery()).Do(call =>
+        {
+            if (mockCmd.CommandText == "PRAGMA wal_checkpoint(PASSIVE);")
+            {
+                tcs.TrySetResult(true);
+            }
+        });
+
+        using var lifetime = new AppLifetime(
+            this.CreateServices(database: mockDb),
+            backgroundLoopInterval: TimeSpan.FromMilliseconds(5));
+
+        await lifetime.StartAsync(CancellationToken.None);
+
+        var completed = await Task.WhenAny(tcs.Task, Task.Delay(2000));
+        completed.Should().Be(tcs.Task, "PASSIVE wal checkpoint should be executed periodically");
+
+        await lifetime.StopAsync(CancellationToken.None);
+
+        mockCmd.Received().CommandText = "PRAGMA wal_checkpoint(PASSIVE);";
+    }
+
     private static bool CheckRatioInSpeedPulse(object body, int expectedId, double expectedRatio)
     {
         if (body is not IEnumerable<object> items)
@@ -478,7 +516,8 @@ public class AppLifetimeTest
     private AppLifetimeServices CreateServices(
         IBroadcastSignalRMessage signalRBroadcaster = null,
         IPowerManagementService powerManagementService = null,
-        IAppFolderInfo appFolderInfo = null)
+        IAppFolderInfo appFolderInfo = null,
+        IDatabase database = null)
     {
         return new AppLifetimeServices(
             this.configService,
@@ -492,6 +531,7 @@ public class AppLifetimeTest
             this.torrentService,
             signalRBroadcaster: signalRBroadcaster,
             powerManagementService: powerManagementService ?? this.powerManagementService,
-            appFolderInfo: appFolderInfo);
+            appFolderInfo: appFolderInfo,
+            database: database);
     }
 }
