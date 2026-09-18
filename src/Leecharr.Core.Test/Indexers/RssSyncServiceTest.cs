@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -1245,6 +1246,58 @@ public class RssSyncServiceTest
 
         parser.DidNotReceive().Parse(Arg.Any<byte[]>());
         await this.torrentService.DidNotReceiveWithAnyArgs().AddFromParsedTorrentAsync(default!, default!, default!, default!, default!);
+    }
+
+    [Test]
+    public async Task SyncRssFeedsAsync_WhenTorznabThrowsTorznabException_RecordsFailureAndDoesNotRecordSuccess()
+    {
+        var mockStatusService = Substitute.For<IIndexerStatusService>();
+        var testService = new RssSyncService(
+            this.indexerRepository,
+            this.rssRuleRepository,
+            this.torznabClient,
+            this.torrentService,
+            indexerStatusService: mockStatusService);
+
+        var indexer = new IndexerDefinition { Id = 10, Name = "FailingIndexer", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
+
+        var rule = new RssRule { Id = 1, Name = "Rule", IsEnabled = true };
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { rule });
+
+        this.torznabClient.FetchRssAsync(indexer)
+            .Returns(Task.FromException<List<TorznabSearchResult>>(new TorznabException(101, "Account suspended")));
+
+        var grabbedCount = await testService.SyncRssFeedsAsync();
+        grabbedCount.Should().Be(0);
+
+        mockStatusService.Received(1).RecordFailure(10, 101, Arg.Is<string>(msg => msg.Contains("Account suspended")), Arg.Any<Exception>());
+        mockStatusService.DidNotReceive().RecordSuccess(10);
+    }
+
+    [Test]
+    public async Task SyncRssFeedsAsync_WhenIndexerIsDisabledInStatusService_SkipsIndexer()
+    {
+        var mockStatusService = Substitute.For<IIndexerStatusService>();
+        var testService = new RssSyncService(
+            this.indexerRepository,
+            this.rssRuleRepository,
+            this.torznabClient,
+            this.torrentService,
+            indexerStatusService: mockStatusService);
+
+        var indexer = new IndexerDefinition { Id = 20, Name = "DisabledIndexer", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
+
+        var rule = new RssRule { Id = 1, Name = "Rule", IsEnabled = true };
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { rule });
+
+        mockStatusService.IsDisabled(20).Returns(true);
+
+        var grabbedCount = await testService.SyncRssFeedsAsync();
+        grabbedCount.Should().Be(0);
+
+        await this.torznabClient.DidNotReceive().FetchRssAsync(indexer);
     }
 
     #endregion

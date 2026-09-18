@@ -388,6 +388,7 @@ public class IndexerController : Controller
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
         var allResults = new ConcurrentBag<ReleaseInfoResource>();
+        var searchErrors = new ConcurrentBag<string>();
         var searchTasks = indexers.Select(async idx =>
         {
             await semaphore.WaitAsync(linkedCts.Token).ConfigureAwait(false);
@@ -452,16 +453,25 @@ public class IndexerController : Controller
             {
                 this.logger.Warn("Search timed out or cancelled for indexer {0}", idx.Name);
                 this.indexerStatusService?.RecordFailure(idx.Id, errorMessage: "Search timed out", ex: ex);
+                searchErrors.Add($"{idx.Name}: Search timed out");
             }
             catch (HttpRequestException ex)
             {
                 this.logger.Warn(ex, "Failed to search indexer {0}", idx.Name);
                 this.indexerStatusService?.RecordFailure(idx.Id, (int?)ex.StatusCode, ex.Message, ex);
+                searchErrors.Add($"{idx.Name}: {ex.Message}");
+            }
+            catch (TorznabException ex)
+            {
+                this.logger.Warn(ex, "Torznab error for indexer {0}: {1}", idx.Name, ex.Message);
+                this.indexerStatusService?.RecordFailure(idx.Id, ex.Code, ex.Message, ex);
+                searchErrors.Add($"{idx.Name}: {ex.Message}");
             }
             catch (Exception ex)
             {
                 this.logger.Warn(ex, "Failed to search indexer {0}", idx.Name);
                 this.indexerStatusService?.RecordFailure(idx.Id, errorMessage: ex.Message, ex: ex);
+                searchErrors.Add($"{idx.Name}: {ex.Message}");
             }
             finally
             {
@@ -470,6 +480,11 @@ public class IndexerController : Controller
         });
 
         await Task.WhenAll(searchTasks).ConfigureAwait(false);
+
+        if (this.Response?.Headers != null && !searchErrors.IsEmpty)
+        {
+            this.Response.Headers["X-Leecharr-Indexer-Errors"] = string.Join("; ", searchErrors);
+        }
 
         var filteredResults = allResults.ToList();
         if (request.FreeleechOnly)
