@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 
 namespace NzbDrone.Core.Indexers.Search;
@@ -57,5 +58,5 @@ public interface IQBittorrentSearchService
 
     List<string> GetCategories();
 
-    int PruneExpiredJobs();
+    int PruneExpiredJobs(TimeSpan? ttl = null);
 }

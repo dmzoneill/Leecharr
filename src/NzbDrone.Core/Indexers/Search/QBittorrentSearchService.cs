@@ -21,9 +21,13 @@ public class QBittorrentSearchJob
 
     public List<QBittorrentSearchResultItem> Results { get; set; } = new();
 
+    public HashSet<string> SeenKeys { get; } = new(StringComparer.OrdinalIgnoreCase);
+
     public CancellationTokenSource Cts { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public DateTime? StoppedAt { get; set; }
 }
 
 public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
@@ -36,6 +40,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
     private readonly IConfigService configService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private readonly ConcurrentDictionary<int, QBittorrentSearchJob> activeJobs = new();
+    private readonly Timer cleanupTimer;
     private readonly int maxJobs;
     private readonly TimeSpan jobTtl;
     private int nextJobId = 1;
@@ -53,13 +58,35 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
         this.configService = configService;
         this.maxJobs = maxJobs > 0 ? maxJobs : DefaultMaxJobs;
         this.jobTtl = jobTtl ?? DefaultJobTtl;
+
+        var timerInterval = this.jobTtl > TimeSpan.Zero && this.jobTtl < TimeSpan.FromMinutes(5)
+            ? this.jobTtl
+            : TimeSpan.FromMinutes(5);
+
+        this.cleanupTimer = new Timer(
+            _ =>
+            {
+                try
+                {
+                    this.PruneExpiredJobs();
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to prune expired QBittorrent search jobs");
+                }
+            },
+            null,
+            timerInterval,
+            timerInterval);
     }
 
-    public int PruneExpiredJobs()
+    public int PruneExpiredJobs(TimeSpan? ttl = null)
     {
+        var effectiveTtl = ttl ?? this.jobTtl;
         var now = DateTime.UtcNow;
         var expiredJobIds = this.activeJobs.Values
-            .Where(j => now - j.CreatedAt > this.jobTtl)
+            .Where(j => (now - j.CreatedAt > effectiveTtl) ||
+                        (j.StoppedAt.HasValue && now - j.StoppedAt.Value > effectiveTtl))
             .Select(j => j.Id)
             .ToList();
 
@@ -68,7 +95,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
         {
             if (this.activeJobs.TryRemove(id, out var job))
             {
-                SafeDisposeJob(job);
+                SafeDisposeJob(job, cleanResults: true);
                 prunedCount++;
             }
         }
@@ -95,7 +122,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
 
             if (this.activeJobs.TryRemove(target.Id, out var removed))
             {
-                SafeDisposeJob(removed);
+                SafeDisposeJob(removed, cleanResults: true);
             }
         }
 
@@ -133,6 +160,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
                     {
                         this.logger.Warn("No matching search-enabled indexers configured in Leecharr.");
                         job.Status = "Stopped";
+                        job.StoppedAt = DateTime.UtcNow;
                         return;
                     }
 
@@ -204,19 +232,86 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
                             {
                                 foreach (var item in results)
                                 {
-                                    job.Results.Add(new QBittorrentSearchResultItem
+                                    var infoHash = !string.IsNullOrWhiteSpace(item.InfoHash)
+                                        ? item.InfoHash.Trim()
+                                        : ExtractBtih(item.MagnetUrl ?? item.DownloadUrl);
+                                    var fileUrl = (item.MagnetUrl ?? item.DownloadUrl ?? string.Empty).Trim();
+                                    var descrLink = (item.Guid ?? item.DownloadUrl ?? string.Empty).Trim();
+                                    var guid = (item.Guid ?? string.Empty).Trim();
+
+                                    var isDuplicate = false;
+                                    if (!string.IsNullOrWhiteSpace(infoHash) && job.SeenKeys.Contains("hash:" + infoHash))
                                     {
-                                        DescrLink = item.Guid ?? item.DownloadUrl ?? string.Empty,
-                                        FileName = item.Title ?? "Unknown",
-                                        FileSize = item.Size,
-                                        FileUrl = item.MagnetUrl ?? item.DownloadUrl ?? string.Empty,
-                                        NbLeechers = item.Leechers,
-                                        NbSeeders = item.Seeders,
-                                        SiteUrl = !string.IsNullOrWhiteSpace(indexer.Url)
-                                            ? indexer.Url
-                                            : (!string.IsNullOrWhiteSpace(item.DetailsUrl) ? item.DetailsUrl : (item.IndexerName ?? indexer.Name ?? "Leecharr")),
-                                    });
+                                        isDuplicate = true;
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(fileUrl) && job.SeenKeys.Contains("url:" + fileUrl))
+                                    {
+                                        isDuplicate = true;
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(descrLink) && job.SeenKeys.Contains("descr:" + descrLink))
+                                    {
+                                        isDuplicate = true;
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(guid) && job.SeenKeys.Contains("guid:" + guid))
+                                    {
+                                        isDuplicate = true;
+                                    }
+
+                                    if (isDuplicate)
+                                    {
+                                        var existing = job.Results.FirstOrDefault(r =>
+                                            (!string.IsNullOrWhiteSpace(infoHash) && string.Equals(ExtractBtih(r.FileUrl), infoHash, StringComparison.OrdinalIgnoreCase)) ||
+                                            (!string.IsNullOrWhiteSpace(fileUrl) && string.Equals(r.FileUrl, fileUrl, StringComparison.OrdinalIgnoreCase)) ||
+                                            (!string.IsNullOrWhiteSpace(descrLink) && string.Equals(r.DescrLink, descrLink, StringComparison.OrdinalIgnoreCase)));
+
+                                        if (existing != null && item.Seeders > existing.NbSeeders)
+                                        {
+                                            existing.NbSeeders = item.Seeders;
+                                            existing.NbLeechers = Math.Max(existing.NbLeechers, item.Leechers);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if (!string.IsNullOrWhiteSpace(infoHash))
+                                        {
+                                            job.SeenKeys.Add("hash:" + infoHash);
+                                        }
+
+                                        if (!string.IsNullOrWhiteSpace(fileUrl))
+                                        {
+                                            job.SeenKeys.Add("url:" + fileUrl);
+                                        }
+
+                                        if (!string.IsNullOrWhiteSpace(descrLink))
+                                        {
+                                            job.SeenKeys.Add("descr:" + descrLink);
+                                        }
+
+                                        if (!string.IsNullOrWhiteSpace(guid))
+                                        {
+                                            job.SeenKeys.Add("guid:" + guid);
+                                        }
+
+                                        job.Results.Add(new QBittorrentSearchResultItem
+                                        {
+                                            DescrLink = descrLink,
+                                            FileName = item.Title ?? "Unknown",
+                                            FileSize = item.Size,
+                                            FileUrl = fileUrl,
+                                            NbLeechers = item.Leechers,
+                                            NbSeeders = item.Seeders,
+                                            SiteUrl = !string.IsNullOrWhiteSpace(indexer.Url)
+                                                ? indexer.Url
+                                                : (!string.IsNullOrWhiteSpace(item.DetailsUrl) ? item.DetailsUrl : (item.IndexerName ?? indexer.Name ?? "Leecharr")),
+                                        });
+                                    }
                                 }
+
+                                job.Results.Sort((a, b) =>
+                                {
+                                    var cmp = b.NbSeeders.CompareTo(a.NbSeeders);
+                                    return cmp != 0 ? cmp : string.Compare(a.FileName, b.FileName, StringComparison.OrdinalIgnoreCase);
+                                });
                             }
                         }
                         catch (OperationCanceledException)
@@ -250,6 +345,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
                 finally
                 {
                     job.Status = "Stopped";
+                    job.StoppedAt ??= DateTime.UtcNow;
                 }
             });
 
@@ -261,7 +357,8 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
         if (this.activeJobs.TryGetValue(id, out var job))
         {
             job.Status = "Stopped";
-            SafeDisposeJob(job);
+            job.StoppedAt = DateTime.UtcNow;
+            SafeDisposeJob(job, cleanResults: false);
             return true;
         }
 
@@ -272,7 +369,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
     {
         if (this.activeJobs.TryRemove(id, out var job))
         {
-            SafeDisposeJob(job);
+            SafeDisposeJob(job, cleanResults: true);
             return true;
         }
 
@@ -338,11 +435,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
             }
         }
 
-        return new QBittorrentSearchResultsResponse
-        {
-            Status = "Stopped",
-            Total = 0,
-        };
+        return null;
     }
 
     public List<object> GetPlugins()
@@ -426,9 +519,11 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
         {
             if (disposing)
             {
+                this.cleanupTimer?.Dispose();
+
                 foreach (var job in this.activeJobs.Values)
                 {
-                    SafeDisposeJob(job);
+                    SafeDisposeJob(job, cleanResults: true);
                 }
 
                 this.activeJobs.Clear();
@@ -438,7 +533,31 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
         }
     }
 
-    private static void SafeDisposeJob(QBittorrentSearchJob job)
+    private static string ExtractBtih(string url)
+    {
+        if (string.IsNullOrEmpty(url))
+        {
+            return null;
+        }
+
+        var idx = url.IndexOf("urn:btih:", StringComparison.OrdinalIgnoreCase);
+        if (idx < 0)
+        {
+            return null;
+        }
+
+        var hashPart = url.Substring(idx + "urn:btih:".Length);
+        var ampIdx = hashPart.IndexOf('&');
+        if (ampIdx >= 0)
+        {
+            hashPart = hashPart.Substring(0, ampIdx);
+        }
+
+        var clean = hashPart.Trim();
+        return clean.Length > 0 ? clean : null;
+    }
+
+    private static void SafeDisposeJob(QBittorrentSearchJob job, bool cleanResults = false)
     {
         if (job?.Cts != null)
         {
@@ -456,6 +575,15 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
             }
             catch (Exception)
             {
+            }
+        }
+
+        if (cleanResults && job != null)
+        {
+            lock (job.Results)
+            {
+                job.Results.Clear();
+                job.SeenKeys.Clear();
             }
         }
     }
