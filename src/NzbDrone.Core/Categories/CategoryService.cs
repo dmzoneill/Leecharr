@@ -111,6 +111,20 @@ public class CategoryService : ICategoryService
 
         this.ValidateSavePath(category.SavePath);
 
+        var existing = this.repository.GetByName(category.Name);
+        if (existing != null)
+        {
+            this.logger.Info("Category already exists: {0}, returning existing category", category.Name);
+            if (!string.IsNullOrWhiteSpace(category.SavePath))
+            {
+                existing.SavePath = category.SavePath;
+                this.repository.Update(existing);
+                this.eventAggregator.PublishEvent(new CategoryUpdatedEvent { Category = existing });
+            }
+
+            return existing;
+        }
+
         this.logger.Info("Adding category: {0}", category.Name);
         if (category.IsDefault)
         {
