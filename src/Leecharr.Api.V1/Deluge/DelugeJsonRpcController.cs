@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Common.Disk;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
@@ -44,6 +45,7 @@ public class DelugeJsonRpcController : ControllerBase
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly IDiskProvider diskProvider;
     private readonly IStoragePathService storagePathService;
+    private readonly IDownloadEngine downloadEngine;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public DelugeJsonRpcController(
@@ -55,7 +57,8 @@ public class DelugeJsonRpcController : ControllerBase
         IConfigFileProvider configFileProvider = null,
         ISafeHttpClientService safeHttpClientService = null,
         IDiskProvider diskProvider = null,
-        IStoragePathService storagePathService = null)
+        IStoragePathService storagePathService = null,
+        IDownloadEngine downloadEngine = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -66,6 +69,7 @@ public class DelugeJsonRpcController : ControllerBase
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
         this.diskProvider = diskProvider;
         this.storagePathService = storagePathService;
+        this.downloadEngine = downloadEngine;
     }
 
     private bool IsDelugeAuthenticated()
@@ -226,7 +230,7 @@ public class DelugeJsonRpcController : ControllerBase
             "core.get_config" => this.HandleCoreGetConfig(id),
             "core.get_config_values" => this.HandleCoreGetConfigValues(args, id),
             "core.get_config_value" => this.HandleCoreGetConfigValue(args, id),
-            "core.set_config" or "core.set_config_values" => this.HandleCoreSetConfig(args, id),
+            "core.set_config" or "core.set_config_values" => await this.HandleCoreSetConfigAsync(args, id),
             "core.get_session_status" => this.HandleCoreGetSessionStatus(id),
             "core.get_free_space" or "core.get_path_free_space" or "core.get_free_space_bytes" => this.HandleCoreGetFreeSpace(args, id),
             "core.get_torrents_status" => this.HandleGetTorrentsStatus(args, id, isWeb: false),
@@ -260,7 +264,7 @@ public class DelugeJsonRpcController : ControllerBase
             "web.get_host_status" => this.HandleWebGetHostStatus(id),
             "web.update_ui" => this.HandleWebUpdateUi(args, id),
             "web.get_config" => this.HandleCoreGetConfig(id),
-            "web.set_config" => this.HandleCoreSetConfig(args, id),
+            "web.set_config" => await this.HandleCoreSetConfigAsync(args, id),
             "web.get_torrents_status" => this.HandleGetTorrentsStatus(args, id, isWeb: true),
             "web.get_torrent_status" => this.HandleGetTorrentStatus(args, id),
             "web.upload_torrent" => await this.HandleWebUploadTorrentAsync(args, id),
@@ -696,9 +700,13 @@ public class DelugeJsonRpcController : ControllerBase
     {
         var fullConfig = this.GetDelugeConfigDictionary();
         var requestedConfig = new Dictionary<string, object>();
-        if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() > 0 && paramsElem[0].ValueKind == JsonValueKind.Array)
+        if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() > 0)
         {
-            foreach (var keyElem in paramsElem[0].EnumerateArray())
+            var keysEnumerable = paramsElem[0].ValueKind == JsonValueKind.Array
+                ? paramsElem[0].EnumerateArray()
+                : paramsElem.EnumerateArray();
+
+            foreach (var keyElem in keysEnumerable)
             {
                 if (keyElem.ValueKind == JsonValueKind.String)
                 {
@@ -722,7 +730,7 @@ public class DelugeJsonRpcController : ControllerBase
         return this.DelugeResult(new { result = foundVal, error = (object)null, id });
     }
 
-    private IActionResult HandleCoreSetConfig(JsonElement paramsElem, object id)
+    private async Task<IActionResult> HandleCoreSetConfigAsync(JsonElement paramsElem, object id)
     {
         if (this.configService != null)
         {
@@ -740,23 +748,37 @@ public class DelugeJsonRpcController : ControllerBase
 
             if (cfgElem.ValueKind == JsonValueKind.Object)
             {
+                var rateLimitsUpdated = false;
+                var newDlKbps = this.configService.MaxDownloadSpeedKbps;
+                var newUlKbps = this.configService.MaxUploadSpeedKbps;
+
                 if (cfgElem.TryGetProperty("max_download_speed", out var dlProp) && dlProp.ValueKind == JsonValueKind.Number && dlProp.TryGetDouble(out var dlVal))
                 {
-                    cfgUpdates["MaxDownloadSpeedKbps"] = (int)Math.Round(dlVal);
+                    newDlKbps = (int)Math.Round(dlVal);
+                    cfgUpdates["MaxDownloadSpeedKbps"] = newDlKbps;
+                    rateLimitsUpdated = true;
                 }
 
                 if (cfgElem.TryGetProperty("max_upload_speed", out var ulProp) && ulProp.ValueKind == JsonValueKind.Number && ulProp.TryGetDouble(out var ulVal))
                 {
-                    cfgUpdates["MaxUploadSpeedKbps"] = (int)Math.Round(ulVal);
+                    newUlKbps = (int)Math.Round(ulVal);
+                    cfgUpdates["MaxUploadSpeedKbps"] = newUlKbps;
+                    rateLimitsUpdated = true;
                 }
 
                 if (cfgElem.TryGetProperty("download_location", out var dlLocProp) && dlLocProp.ValueKind == JsonValueKind.String)
                 {
                     cfgUpdates["DownloadDir"] = dlLocProp.GetString();
                 }
-                else if (cfgElem.TryGetProperty("move_completed_path", out var mcpProp) && mcpProp.ValueKind == JsonValueKind.String)
+
+                if (cfgElem.TryGetProperty("move_completed_path", out var mcpProp) && mcpProp.ValueKind == JsonValueKind.String)
                 {
-                    cfgUpdates["DownloadDir"] = mcpProp.GetString();
+                    cfgUpdates["MoveCompletedPath"] = mcpProp.GetString();
+                }
+
+                if (cfgElem.TryGetProperty("move_completed", out var mcProp))
+                {
+                    cfgUpdates["MoveCompleted"] = SafeGetBoolean(mcProp);
                 }
 
                 if (cfgElem.TryGetProperty("max_connections_global", out var mcgProp) && mcgProp.ValueKind == JsonValueKind.Number && mcgProp.TryGetInt32(out var mcgVal))
@@ -862,6 +884,11 @@ public class DelugeJsonRpcController : ControllerBase
                 if (cfgUpdates.Count > 0)
                 {
                     this.configService.SaveConfigDictionary(cfgUpdates);
+                }
+
+                if (rateLimitsUpdated && this.downloadEngine != null)
+                {
+                    await this.downloadEngine.SetRateLimitsAsync(newDlKbps, newUlKbps);
                 }
             }
         }
@@ -2338,8 +2365,8 @@ public class DelugeJsonRpcController : ControllerBase
         return new Dictionary<string, object>
         {
             { "download_location", this.configService.DownloadDir ?? "/downloads" },
-            { "move_completed", false },
-            { "move_completed_path", this.configService.DownloadDir ?? "/downloads" },
+            { "move_completed", this.configService.GetValueBoolean("MoveCompleted", false) },
+            { "move_completed_path", this.configService.GetValue("MoveCompletedPath", this.configService.DownloadDir ?? "/downloads") },
             { "max_connections_global", this.configService.MaxGlobalConnections },
             { "max_connections_per_torrent", this.configService.MaxPerTorrentConnections > 0 ? this.configService.MaxPerTorrentConnections : 50 },
             { "max_upload_slots_global", this.configService.MaxUploadSlots > 0 ? this.configService.MaxUploadSlots : 4 },
