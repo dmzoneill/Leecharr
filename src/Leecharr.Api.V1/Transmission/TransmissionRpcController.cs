@@ -1164,12 +1164,22 @@ public class TransmissionRpcController : ControllerBase
         var isPaused = false;
         string downloadDir = null;
         string category = null;
+        Dictionary<string, string> customHeaders = null;
 
         if (request.Arguments != null)
         {
             if (request.Arguments.TryGetValue("paused", out var pVal))
             {
                 isPaused = SafeGetBoolean(pVal);
+            }
+
+            if (request.Arguments.TryGetValue("cookies", out var cookiesVal) && cookiesVal.ValueKind == JsonValueKind.String)
+            {
+                var cookies = cookiesVal.GetString();
+                if (!string.IsNullOrWhiteSpace(cookies))
+                {
+                    customHeaders = new Dictionary<string, string> { ["Cookie"] = cookies };
+                }
             }
 
             if (request.Arguments.TryGetValue("download-dir", out var ddVal))
@@ -1204,9 +1214,23 @@ public class TransmissionRpcController : ControllerBase
                 var b64 = metaVal.GetString();
                 if (!string.IsNullOrWhiteSpace(b64))
                 {
-                    var bytes = Convert.FromBase64String(b64);
+                    byte[] bytes;
+                    try
+                    {
+                        bytes = Convert.FromBase64String(b64);
+                    }
+                    catch
+                    {
+                        return this.Ok(new TransmissionRpcResponse { Result = "invalid or corrupt torrent file", Tag = tag });
+                    }
+
                     var parsed = this.torrentFileParser.Parse(bytes);
-                    var existing = !string.IsNullOrWhiteSpace(parsed?.InfoHash)
+                    if (parsed == null)
+                    {
+                        return this.Ok(new TransmissionRpcResponse { Result = "invalid or corrupt torrent file", Tag = tag });
+                    }
+
+                    var existing = !string.IsNullOrWhiteSpace(parsed.InfoHash)
                         ? this.torrentService.GetByInfoHash(parsed.InfoHash)
                         : null;
 
@@ -1217,7 +1241,12 @@ public class TransmissionRpcController : ControllerBase
                     }
                     else
                     {
+                        var existingTorrents = this.torrentService.GetAll();
                         addedTorrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, downloadDir, isPaused, bytes);
+                        if (addedTorrent != null && existingTorrents.Any(t => t.Id == addedTorrent.Id || (!string.IsNullOrWhiteSpace(t.InfoHash) && string.Equals(t.InfoHash, addedTorrent.InfoHash, StringComparison.OrdinalIgnoreCase))))
+                        {
+                            isDuplicate = true;
+                        }
                     }
                 }
             }
@@ -1228,35 +1257,60 @@ public class TransmissionRpcController : ControllerBase
                 {
                     if (fn.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                     {
+                        ParsedMagnetLink parsedMagnet = null;
                         try
                         {
-                            var parsedMagnet = MagnetLinkParser.Parse(fn);
-                            if (!string.IsNullOrWhiteSpace(parsedMagnet?.InfoHash))
-                            {
-                                var existing = this.torrentService.GetByInfoHash(parsedMagnet.InfoHash);
-                                if (existing != null)
-                                {
-                                    isDuplicate = true;
-                                    addedTorrent = existing;
-                                }
-                            }
+                            parsedMagnet = MagnetLinkParser.Parse(fn);
                         }
                         catch
                         {
                             // Ignore magnet parsing error, defer to AddFromMagnetAsync
                         }
 
-                        if (addedTorrent == null)
+                        var existing = !string.IsNullOrWhiteSpace(parsedMagnet?.InfoHash)
+                            ? this.torrentService.GetByInfoHash(parsedMagnet.InfoHash)
+                            : null;
+
+                        if (existing != null)
                         {
+                            isDuplicate = true;
+                            addedTorrent = existing;
+                        }
+                        else
+                        {
+                            var existingTorrents = this.torrentService.GetAll();
                             addedTorrent = await this.torrentService.AddFromMagnetAsync(fn, category, downloadDir, isPaused);
+                            if (addedTorrent != null && existingTorrents.Any(t => t.Id == addedTorrent.Id || (!string.IsNullOrWhiteSpace(t.InfoHash) && string.Equals(t.InfoHash, addedTorrent.InfoHash, StringComparison.OrdinalIgnoreCase))))
+                            {
+                                isDuplicate = true;
+                            }
                         }
                     }
                     else if (fn.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || fn.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                     {
                         var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
-                        var bytes = await this.safeHttpClientService.DownloadBytesAsync(fn, maxSizeBytes: maxTorrentBytes);
+                        byte[] bytes;
+                        try
+                        {
+                            bytes = await this.safeHttpClientService.DownloadBytesAsync(fn, maxSizeBytes: maxTorrentBytes, customHeaders: customHeaders);
+                        }
+                        catch
+                        {
+                            return this.Ok(new TransmissionRpcResponse { Result = "invalid or corrupt torrent file", Tag = tag });
+                        }
+
+                        if (bytes == null || bytes.Length == 0)
+                        {
+                            return this.Ok(new TransmissionRpcResponse { Result = "invalid or corrupt torrent file", Tag = tag });
+                        }
+
                         var parsed = this.torrentFileParser.Parse(bytes);
-                        var existing = !string.IsNullOrWhiteSpace(parsed?.InfoHash)
+                        if (parsed == null)
+                        {
+                            return this.Ok(new TransmissionRpcResponse { Result = "invalid or corrupt torrent file", Tag = tag });
+                        }
+
+                        var existing = !string.IsNullOrWhiteSpace(parsed.InfoHash)
                             ? this.torrentService.GetByInfoHash(parsed.InfoHash)
                             : null;
 
@@ -1267,14 +1321,24 @@ public class TransmissionRpcController : ControllerBase
                         }
                         else
                         {
+                            var existingTorrents = this.torrentService.GetAll();
                             addedTorrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, downloadDir, isPaused, bytes);
+                            if (addedTorrent != null && existingTorrents.Any(t => t.Id == addedTorrent.Id || (!string.IsNullOrWhiteSpace(t.InfoHash) && string.Equals(t.InfoHash, addedTorrent.InfoHash, StringComparison.OrdinalIgnoreCase))))
+                            {
+                                isDuplicate = true;
+                            }
                         }
                     }
                     else if (global::System.IO.File.Exists(fn))
                     {
                         var bytes = await global::System.IO.File.ReadAllBytesAsync(fn);
                         var parsed = this.torrentFileParser.Parse(bytes);
-                        var existing = !string.IsNullOrWhiteSpace(parsed?.InfoHash)
+                        if (parsed == null)
+                        {
+                            return this.Ok(new TransmissionRpcResponse { Result = "invalid or corrupt torrent file", Tag = tag });
+                        }
+
+                        var existing = !string.IsNullOrWhiteSpace(parsed.InfoHash)
                             ? this.torrentService.GetByInfoHash(parsed.InfoHash)
                             : null;
 
@@ -1285,7 +1349,12 @@ public class TransmissionRpcController : ControllerBase
                         }
                         else
                         {
+                            var existingTorrents = this.torrentService.GetAll();
                             addedTorrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, downloadDir, isPaused, bytes);
+                            if (addedTorrent != null && existingTorrents.Any(t => t.Id == addedTorrent.Id || (!string.IsNullOrWhiteSpace(t.InfoHash) && string.Equals(t.InfoHash, addedTorrent.InfoHash, StringComparison.OrdinalIgnoreCase))))
+                            {
+                                isDuplicate = true;
+                            }
                         }
                     }
                 }
@@ -1294,6 +1363,19 @@ public class TransmissionRpcController : ControllerBase
 
         if (addedTorrent != null)
         {
+            if (request.Arguments != null && request.Arguments.TryGetValue("bandwidthPriority", out var bpVal))
+            {
+                int? priority = bpVal.ValueKind == JsonValueKind.Number
+                    ? bpVal.GetInt32()
+                    : (bpVal.ValueKind == JsonValueKind.String && int.TryParse(bpVal.GetString(), out var p) ? p : null);
+
+                if (priority.HasValue)
+                {
+                    addedTorrent.Priority = priority.Value;
+                    await this.torrentService.UpdateAsync(addedTorrent);
+                }
+            }
+
             var responseKey = isDuplicate ? "torrent-duplicate" : "torrent-added";
             return this.Ok(new TransmissionRpcResponse
             {

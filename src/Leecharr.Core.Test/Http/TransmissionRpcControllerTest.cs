@@ -17,6 +17,7 @@ using NzbDrone.Common.Disk;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.DiskSpace;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
@@ -37,6 +38,7 @@ public class TransmissionRpcControllerTest
     private ITrackerEntryRepository trackerEntryRepository = null!;
     private IBlocklistUpdateService blocklistUpdateService = null!;
     private IBlocklistService blocklistService = null!;
+    private ISafeHttpClientService safeHttpClientService = null!;
     private TransmissionRpcController controller = null!;
 
     [SetUp]
@@ -53,6 +55,7 @@ public class TransmissionRpcControllerTest
         this.trackerEntryRepository = Substitute.For<ITrackerEntryRepository>();
         this.blocklistUpdateService = Substitute.For<IBlocklistUpdateService>();
         this.blocklistService = Substitute.For<IBlocklistService>();
+        this.safeHttpClientService = Substitute.For<ISafeHttpClientService>();
 
         this.configFileProvider.AuthenticationEnabled.Returns(true);
         this.configFileProvider.ApiKey.Returns("secret_api_key_123");
@@ -65,6 +68,7 @@ public class TransmissionRpcControllerTest
             this.torrentFileParser,
             this.configService,
             diskSpaceService: this.diskSpaceService,
+            safeHttpClientService: this.safeHttpClientService,
             configFileProvider: this.configFileProvider,
             diskProvider: this.diskProvider,
             downloadEngine: this.downloadEngine,
@@ -2361,5 +2365,171 @@ public class TransmissionRpcControllerTest
         await this.downloadEngine.Received(1).RemoveTrackersAsync(1, Arg.Is<IEnumerable<string>>(urls => urls.Contains("http://oldtracker.org/announce")));
         await this.downloadEngine.DidNotReceive().AddTrackersAsync(Arg.Any<int>(), Arg.Any<IEnumerable<string>>());
         testTorrent.TrackerUrl.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentAdd_WhenUrlWithCookies_PassesCookiesToDownloadBytesAsync()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrentUrl = "https://tracker.example.com/download.torrent";
+        var fakeBytes = new byte[] { 0x64, 0x38, 0x3a, 0x61 };
+        var parsed = new ParsedTorrent
+        {
+            Name = "Auth.Torrent",
+            InfoHash = "aaaabbbbccccddddeeeeffff0000111122223333",
+            TotalSize = 1024,
+        };
+        var added = new Torrent
+        {
+            Id = 55,
+            Name = parsed.Name,
+            InfoHash = parsed.InfoHash,
+        };
+
+        this.safeHttpClientService.DownloadBytesAsync(
+            torrentUrl,
+            maxSizeBytes: Arg.Any<long>(),
+            customHeaders: Arg.Is<IDictionary<string, string>>(h => h != null && h["Cookie"] == "uid=123; pass=secret"))
+            .Returns(fakeBytes);
+
+        this.torrentFileParser.Parse(fakeBytes).Returns(parsed);
+        this.torrentService.AddFromParsedTorrentAsync(parsed, Arg.Any<string>(), Arg.Any<string>(), false, fakeBytes)
+            .Returns(added);
+
+        var args = new Dictionary<string, JsonElement>();
+        using var fnDoc = JsonDocument.Parse($"\"{torrentUrl}\"");
+        using var cookieDoc = JsonDocument.Parse("\"uid=123; pass=secret\"");
+        args["filename"] = fnDoc.RootElement.Clone();
+        args["cookies"] = cookieDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-add",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+
+        var argsDict = response.Arguments as Dictionary<string, object>;
+        argsDict.Should().NotBeNull();
+        argsDict!.ContainsKey("torrent-added").Should().BeTrue();
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentAdd_WhenDuplicateMagnetSubmitted_ReturnsTorrentDuplicate()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var magnetUri = "magnet:?xt=urn:btih:4444555566667777888899990000111122223333&dn=Duplicate.Magnet";
+        var existingTorrent = new Torrent
+        {
+            Id = 88,
+            Name = "Duplicate.Magnet",
+            InfoHash = "4444555566667777888899990000111122223333",
+        };
+
+        this.torrentService.GetByInfoHash("4444555566667777888899990000111122223333").Returns(existingTorrent);
+
+        var args = new Dictionary<string, JsonElement>();
+        using var fnDoc = JsonDocument.Parse($"\"{magnetUri}\"");
+        args["filename"] = fnDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-add",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+
+        var argsDict = response.Arguments as Dictionary<string, object>;
+        argsDict.Should().NotBeNull();
+        argsDict!.ContainsKey("torrent-duplicate").Should().BeTrue();
+        argsDict.ContainsKey("torrent-added").Should().BeFalse();
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentAdd_WhenCorruptTorrentFile_ReturnsInvalidOrCorruptTorrentFile()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns((ParsedTorrent)null);
+
+        var args = new Dictionary<string, JsonElement>();
+        var corruptB64 = Convert.ToBase64String(Encoding.UTF8.GetBytes("not-a-valid-bencoded-torrent"));
+        using var metaDoc = JsonDocument.Parse($"\"{corruptB64}\"");
+        args["metainfo"] = metaDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-add",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("invalid or corrupt torrent file");
+
+        await this.torrentService.DidNotReceiveWithAnyArgs().AddFromParsedTorrentAsync(default!, default!, default!, default!, default!);
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentAdd_WithBandwidthPriority_SetsPriorityAndUpdatesTorrent()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var magnetUri = "magnet:?xt=urn:btih:9999888877776666555544443333222211110000&dn=Prio.Torrent";
+        var added = new Torrent
+        {
+            Id = 99,
+            Name = "Prio.Torrent",
+            InfoHash = "9999888877776666555544443333222211110000",
+            Priority = 0,
+        };
+
+        this.torrentService.AddFromMagnetAsync(magnetUri, Arg.Any<string>(), Arg.Any<string>(), false).Returns(added);
+
+        var args = new Dictionary<string, JsonElement>();
+        using var fnDoc = JsonDocument.Parse($"\"{magnetUri}\"");
+        using var bpDoc = JsonDocument.Parse("1");
+        args["filename"] = fnDoc.RootElement.Clone();
+        args["bandwidthPriority"] = bpDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-add",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        added.Priority.Should().Be(1);
+        await this.torrentService.Received(1).UpdateAsync(added);
     }
 }
