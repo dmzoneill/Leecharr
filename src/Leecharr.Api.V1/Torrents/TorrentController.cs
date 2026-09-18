@@ -1,12 +1,15 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Http;
@@ -41,6 +44,67 @@ public class SetFilePriorityRequest
 {
     [Range(0, 7)]
     public int Priority { get; set; }
+}
+
+public class SetFilePriorityItem
+{
+    [JsonPropertyName("fileId")]
+    public int FileId { get; set; }
+
+    [JsonPropertyName("priority")]
+    [Range(0, 7)]
+    public int Priority { get; set; }
+}
+
+public class SetFilePrioritiesRequestConverter : JsonConverter<SetFilePrioritiesRequest>
+{
+    public override SetFilePrioritiesRequest Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        var request = new SetFilePrioritiesRequest();
+        if (reader.TokenType == JsonTokenType.StartArray)
+        {
+            var items = JsonSerializer.Deserialize<List<SetFilePriorityItem>>(ref reader, options);
+            request.Files = items ?? new List<SetFilePriorityItem>();
+        }
+        else if (reader.TokenType == JsonTokenType.StartObject)
+        {
+            using var doc = JsonDocument.ParseValue(ref reader);
+            if (doc.RootElement.TryGetProperty("files", out var filesProp) && filesProp.ValueKind == JsonValueKind.Array)
+            {
+                var items = JsonSerializer.Deserialize<List<SetFilePriorityItem>>(filesProp.GetRawText(), options);
+                request.Files = items ?? new List<SetFilePriorityItem>();
+            }
+        }
+
+        return request;
+    }
+
+    public override void Write(Utf8JsonWriter writer, SetFilePrioritiesRequest value, JsonSerializerOptions options)
+    {
+        JsonSerializer.Serialize(writer, value?.Files ?? new List<SetFilePriorityItem>(), options);
+    }
+}
+
+[JsonConverter(typeof(SetFilePrioritiesRequestConverter))]
+public class SetFilePrioritiesRequest : IEnumerable<SetFilePriorityItem>
+{
+    [JsonPropertyName("files")]
+    public List<SetFilePriorityItem> Files { get; set; } = new();
+
+    public SetFilePrioritiesRequest()
+    {
+    }
+
+    public SetFilePrioritiesRequest(IEnumerable<SetFilePriorityItem> files)
+    {
+        this.Files = files?.ToList() ?? new();
+    }
+
+    public static implicit operator SetFilePrioritiesRequest(List<SetFilePriorityItem> list) => new(list);
+
+    public IEnumerator<SetFilePriorityItem> GetEnumerator() => this.Files.GetEnumerator();
+
+    IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
 }
 
 public class AddTorrentJsonRequest
@@ -241,8 +305,62 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     [HttpPost("{id:int}/files/{fileId:int}/priority")]
     public async Task<ActionResult> SetFilePriority(int id, int fileId, [FromBody] SetFilePriorityRequest request = null, [FromQuery] int? priority = null)
     {
-        var prio = request?.Priority ?? priority ?? 3;
-        await this.torrentFileService.SetPriorityAsync(fileId, prio);
+        var torrent = this.torrentService.Get(id);
+        if (torrent == null)
+        {
+            return this.NotFound();
+        }
+
+        var prio = request?.Priority ?? priority;
+        if (!prio.HasValue)
+        {
+            return this.BadRequest("Priority must be specified.");
+        }
+
+        if (prio.Value < 0 || prio.Value > 7)
+        {
+            return this.BadRequest("Priority must be between 0 and 7.");
+        }
+
+        var success = await this.torrentFileService.SetPriorityAsync(id, fileId, prio.Value);
+        if (!success)
+        {
+            return this.NotFound("File not found or does not belong to torrent.");
+        }
+
+        return this.Ok();
+    }
+
+    [HttpPut("{id:int}/files/priorities")]
+    [HttpPost("{id:int}/files/priorities")]
+    public async Task<ActionResult> SetFilePriorities(int id, [FromBody] SetFilePrioritiesRequest request)
+    {
+        var torrent = this.torrentService.Get(id);
+        if (torrent == null)
+        {
+            return this.NotFound();
+        }
+
+        if (request?.Files == null || request.Files.Count == 0)
+        {
+            return this.BadRequest("Files list cannot be empty.");
+        }
+
+        foreach (var item in request.Files)
+        {
+            if (item.Priority < 0 || item.Priority > 7)
+            {
+                return this.BadRequest("Priority must be between 0 and 7.");
+            }
+        }
+
+        var priorities = request.Files.Select(f => (f.FileId, f.Priority));
+        var success = await this.torrentFileService.SetPrioritiesAsync(id, priorities);
+        if (!success)
+        {
+            return this.NotFound("One or more files not found or do not belong to torrent.");
+        }
+
         return this.Ok();
     }
 

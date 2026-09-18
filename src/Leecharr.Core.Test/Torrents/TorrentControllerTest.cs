@@ -1019,4 +1019,133 @@ public class TorrentControllerTest
         resource.Id.Should().Be(54);
         await this.torrentService.Received(1).AddFromParsedTorrentAsync(parsed, "music", "/music/path", true, Arg.Any<byte[]>());
     }
+
+    [Test]
+    public async Task SetFilePriority_WhenTorrentNotFound_ReturnsNotFound()
+    {
+        this.torrentService.Get(42).Returns((Torrent)null!);
+
+        var result = await this.controller.SetFilePriority(42, 10, new SetFilePriorityRequest { Priority = 3 });
+
+        result.Should().BeOfType<NotFoundResult>();
+        await this.torrentFileService.DidNotReceiveWithAnyArgs().SetPriorityAsync(default, default, default);
+    }
+
+    [TestCase(-1)]
+    [TestCase(8)]
+    [TestCase(99)]
+    public async Task SetFilePriority_WhenPriorityOutOfRange_ReturnsBadRequest(int invalidPriority)
+    {
+        this.torrentService.Get(42).Returns(new Torrent { Id = 42 });
+
+        var result = await this.controller.SetFilePriority(42, 10, new SetFilePriorityRequest { Priority = invalidPriority });
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        await this.torrentFileService.DidNotReceiveWithAnyArgs().SetPriorityAsync(default, default, default);
+    }
+
+    [Test]
+    public async Task SetFilePriority_WhenFileDoesNotExistOrBelongsToDifferentTorrent_ReturnsNotFound()
+    {
+        this.torrentService.Get(42).Returns(new Torrent { Id = 42 });
+        this.torrentFileService.SetPriorityAsync(42, 10, 4).Returns(false);
+
+        var result = await this.controller.SetFilePriority(42, 10, new SetFilePriorityRequest { Priority = 4 });
+
+        result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Test]
+    public async Task SetFilePriority_WhenValid_CallsServiceAndReturnsOk()
+    {
+        this.torrentService.Get(42).Returns(new Torrent { Id = 42 });
+        this.torrentFileService.SetPriorityAsync(42, 10, 4).Returns(true);
+
+        var result = await this.controller.SetFilePriority(42, 10, new SetFilePriorityRequest { Priority = 4 });
+
+        result.Should().BeOfType<OkResult>();
+        await this.torrentFileService.Received(1).SetPriorityAsync(42, 10, 4);
+    }
+
+    [Test]
+    public async Task SetFilePriorities_WhenTorrentNotFound_ReturnsNotFound()
+    {
+        this.torrentService.Get(42).Returns((Torrent)null!);
+
+        var request = new SetFilePrioritiesRequest
+        {
+            Files = new() { new() { FileId = 1, Priority = 3 } },
+        };
+
+        var result = await this.controller.SetFilePriorities(42, request);
+
+        result.Should().BeOfType<NotFoundResult>();
+        await this.torrentFileService.DidNotReceiveWithAnyArgs().SetPrioritiesAsync(default, default!);
+    }
+
+    [Test]
+    public async Task SetFilePriorities_WhenPriorityOutOfRange_ReturnsBadRequest()
+    {
+        this.torrentService.Get(42).Returns(new Torrent { Id = 42 });
+
+        var request = new SetFilePrioritiesRequest
+        {
+            Files = new() { new() { FileId = 1, Priority = 9 } },
+        };
+
+        var result = await this.controller.SetFilePriorities(42, request);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        await this.torrentFileService.DidNotReceiveWithAnyArgs().SetPrioritiesAsync(default, default!);
+    }
+
+    [Test]
+    public async Task SetFilePriorities_WhenEmptyList_ReturnsBadRequest()
+    {
+        this.torrentService.Get(42).Returns(new Torrent { Id = 42 });
+
+        var request = new SetFilePrioritiesRequest { Files = new() };
+
+        var result = await this.controller.SetFilePriorities(42, request);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        await this.torrentFileService.DidNotReceiveWithAnyArgs().SetPrioritiesAsync(default, default!);
+    }
+
+    [Test]
+    public async Task SetFilePriorities_WhenValid_CallsServiceAndReturnsOk()
+    {
+        this.torrentService.Get(42).Returns(new Torrent { Id = 42 });
+        this.torrentFileService.SetPrioritiesAsync(42, Arg.Any<IEnumerable<(int, int)>>()).Returns(true);
+
+        var request = new SetFilePrioritiesRequest
+        {
+            Files = new()
+            {
+                new() { FileId = 1, Priority = 0 },
+                new() { FileId = 2, Priority = 5 },
+            },
+        };
+
+        var result = await this.controller.SetFilePriorities(42, request);
+
+        result.Should().BeOfType<OkResult>();
+        await this.torrentFileService.Received(1).SetPrioritiesAsync(42, Arg.Is<IEnumerable<(int, int)>>(p => p.Count() == 2));
+    }
+
+    [Test]
+    public async Task SetFilePriorities_WhenOneOrMoreFilesNotFound_ReturnsNotFound()
+    {
+        this.torrentService.Get(42).Returns(new Torrent { Id = 42 });
+        this.torrentFileService.SetPrioritiesAsync(42, Arg.Any<IEnumerable<(int, int)>>()).Returns(false);
+
+        var request = new SetFilePrioritiesRequest
+        {
+            Files = new() { new() { FileId = 1, Priority = 0 } },
+        };
+
+        var result = await this.controller.SetFilePriorities(42, request);
+
+        result.Should().BeOfType<NotFoundObjectResult>();
+    }
 }
