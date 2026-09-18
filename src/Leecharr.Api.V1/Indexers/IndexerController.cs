@@ -515,6 +515,11 @@ public class IndexerController : Controller
             {
                 torrent = await this.torrentService.AddFromMagnetAsync(request.DownloadUrl, request.Category, request.SavePath, request.StartPaused);
             }
+            else if (request.DownloadUrl.EndsWith(".nzb", StringComparison.OrdinalIgnoreCase))
+            {
+                this.logger.Warn("Cannot grab NZB release '{0}' from {1}: Leecharr operates exclusively as a BitTorrent engine.", request.Title, request.DownloadUrl);
+                return this.BadRequest("Usenet/NZB releases are not supported. Leecharr is a BitTorrent engine.");
+            }
             else
             {
                 try
@@ -575,6 +580,12 @@ public class IndexerController : Controller
                     var bytes = customHeaders != null && customHeaders.Count > 0
                         ? await this.safeHttpClientService.DownloadBytesAsync(request.DownloadUrl, customHeaders).ConfigureAwait(false)
                         : await this.safeHttpClientService.DownloadBytesAsync(request.DownloadUrl).ConfigureAwait(false);
+
+                    if (bytes != null && bytes.Length > 0 && bytes[0] == (byte)'<')
+                    {
+                        this.logger.Warn("Downloaded payload for '{0}' from {1} appears to be XML/NZB rather than a .torrent file.", request.Title, request.DownloadUrl);
+                        return this.BadRequest("Downloaded release payload is an XML/NZB file or web error, not a valid .torrent file. Leecharr is a BitTorrent engine.");
+                    }
 
                     var parsed = this.torrentFileParser.Parse(bytes);
                     torrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePath, request.StartPaused, bytes);

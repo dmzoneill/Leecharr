@@ -213,6 +213,12 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                                     }
                                     else if (!string.IsNullOrEmpty(release.DownloadUrl))
                                     {
+                                        if (release.DownloadUrl.EndsWith(".nzb", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            this.logger.Warn("Skipping Usenet/NZB release '{0}' from {1}: Leecharr operates exclusively as a BitTorrent engine.", release.Title, release.DownloadUrl);
+                                            break;
+                                        }
+
                                         if (release.DownloadUrl.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
                                         {
                                             var magnetInfoHash = MagnetLinkParser.NormalizeInfoHash(MagnetLinkParser.Parse(release.DownloadUrl)?.InfoHash);
@@ -235,6 +241,12 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                                         else
                                         {
                                             var torrentBytes = await this.safeHttpClientService.DownloadBytesAsync(release.DownloadUrl, maxSizeBytes: 10 * 1024 * 1024);
+                                            if (torrentBytes == null || torrentBytes.Length == 0 || torrentBytes[0] == (byte)'<')
+                                            {
+                                                this.logger.Warn("Downloaded payload for '{0}' from {1} appears to be XML/NZB rather than a .torrent file. Skipping non-torrent release.", release.Title, release.DownloadUrl);
+                                                break;
+                                            }
+
                                             var parsed = this.torrentFileParser.Parse(torrentBytes);
                                             var parsedInfoHash = MagnetLinkParser.NormalizeInfoHash(parsed?.InfoHash);
 

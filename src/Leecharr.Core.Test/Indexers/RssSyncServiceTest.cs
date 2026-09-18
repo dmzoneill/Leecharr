@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -1150,6 +1151,100 @@ public class RssSyncServiceTest
         this.torznabClient.FetchRssAsync(indexer).Returns(Task.FromResult(new List<TorznabSearchResult> { release1 }));
         var count3 = await customService.SyncRssFeedsAsync();
         count3.Should().Be(1);
+    }
+
+    [Test]
+    public async Task SyncRssFeedsAsync_WhenDownloadUrlEndsWithNzb_SkipsGrab()
+    {
+        var safeHttpClient = Substitute.For<ISafeHttpClientService>();
+        var parser = Substitute.For<ITorrentFileParser>();
+
+        var testService = new RssSyncService(
+            this.indexerRepository,
+            this.rssRuleRepository,
+            this.torznabClient,
+            this.torrentService,
+            torrentFileParser: parser,
+            safeHttpClientService: safeHttpClient,
+            downloadHistoryService: this.downloadHistoryService);
+
+        var indexer = new IndexerDefinition { Id = 1, Name = "AlphaTracker", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
+
+        var rule = new RssRule
+        {
+            Id = 1,
+            Name = "Torrent Rule",
+            IsEnabled = true,
+            MinSeeders = 1,
+        };
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { rule });
+
+        var release = new TorznabSearchResult
+        {
+            Guid = "urn:guid:nzb-release-1",
+            Title = "Usenet.Release.NZB",
+            DownloadUrl = "https://tracker.example.com/file.nzb",
+            MagnetUrl = null,
+            Seeders = 10,
+        };
+
+        this.torznabClient.FetchRssAsync(indexer).Returns(Task.FromResult(new List<TorznabSearchResult> { release }));
+
+        var grabbedCount = await testService.SyncRssFeedsAsync();
+        grabbedCount.Should().Be(0);
+
+        await this.torrentService.DidNotReceiveWithAnyArgs().AddFromParsedTorrentAsync(default!, default!, default!, default!, default!);
+        await this.torrentService.DidNotReceiveWithAnyArgs().AddFromMagnetAsync(default!, default!, default!, default!);
+    }
+
+    [Test]
+    public async Task SyncRssFeedsAsync_WhenDownloadedPayloadIsXmlNzb_SkipsGrab()
+    {
+        var safeHttpClient = Substitute.For<ISafeHttpClientService>();
+        var parser = Substitute.For<ITorrentFileParser>();
+        var xmlBytes = Encoding.UTF8.GetBytes("<?xml version=\"1.0\" encoding=\"utf-8\" ?><nzb></nzb>");
+
+        safeHttpClient.DownloadBytesAsync("https://tracker.example.com/file.torrent", Arg.Any<long>(), Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(xmlBytes));
+
+        var testService = new RssSyncService(
+            this.indexerRepository,
+            this.rssRuleRepository,
+            this.torznabClient,
+            this.torrentService,
+            torrentFileParser: parser,
+            safeHttpClientService: safeHttpClient,
+            downloadHistoryService: this.downloadHistoryService);
+
+        var indexer = new IndexerDefinition { Id = 1, Name = "AlphaTracker", EnableRss = true };
+        this.indexerRepository.GetRssEnabled().Returns(new List<IndexerDefinition> { indexer });
+
+        var rule = new RssRule
+        {
+            Id = 1,
+            Name = "Torrent Rule",
+            IsEnabled = true,
+            MinSeeders = 1,
+        };
+        this.rssRuleRepository.GetEnabled().Returns(new List<RssRule> { rule });
+
+        var release = new TorznabSearchResult
+        {
+            Guid = "urn:guid:xml-payload-grab",
+            Title = "Bogus.Release",
+            DownloadUrl = "https://tracker.example.com/file.torrent",
+            MagnetUrl = null,
+            Seeders = 10,
+        };
+
+        this.torznabClient.FetchRssAsync(indexer).Returns(Task.FromResult(new List<TorznabSearchResult> { release }));
+
+        var grabbedCount = await testService.SyncRssFeedsAsync();
+        grabbedCount.Should().Be(0);
+
+        parser.DidNotReceive().Parse(Arg.Any<byte[]>());
+        await this.torrentService.DidNotReceiveWithAnyArgs().AddFromParsedTorrentAsync(default!, default!, default!, default!, default!);
     }
 
     #endregion
