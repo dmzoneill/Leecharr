@@ -2506,6 +2506,100 @@ public class QBittorrentApiControllerTest
         this.categoryService.DidNotReceive().Add(Arg.Any<Category>());
     }
 
+    [Test]
+    public async Task RenameFile_WithBareFilename_PreservesParentDirectoryStructure()
+    {
+        var torrent = new Torrent { Id = 1, InfoHash = "hash1" };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent);
+
+        var file0 = new TorrentFile { Id = 101, TorrentId = 1, Path = "Season 1/Episode 01.mkv" };
+        this.torrentFileService.GetFiles(1).Returns(new List<TorrentFile> { file0 });
+        this.torrentService.RenameFileAsync(1, "Season 1/Episode 01.mkv", "Season 1/Episode 01 - Pilot.mkv").Returns(Task.FromResult(true));
+
+        var result = await this.controller.RenameFile("hash1", oldPath: "Season 1/Episode 01.mkv", newPath: "Episode 01 - Pilot.mkv");
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.Received(1).RenameFileAsync(1, "Season 1/Episode 01.mkv", "Season 1/Episode 01 - Pilot.mkv");
+    }
+
+    [Test]
+    public async Task RenameFile_WithExplicitSubdirectory_DoesNotPrependParentDirectory()
+    {
+        var torrent = new Torrent { Id = 1, InfoHash = "hash1" };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent);
+
+        var file0 = new TorrentFile { Id = 101, TorrentId = 1, Path = "Season 1/Episode 01.mkv" };
+        this.torrentFileService.GetFiles(1).Returns(new List<TorrentFile> { file0 });
+        this.torrentService.RenameFileAsync(1, "Season 1/Episode 01.mkv", "Season 2/Episode 01.mkv").Returns(Task.FromResult(true));
+
+        var result = await this.controller.RenameFile("hash1", oldPath: "Season 1/Episode 01.mkv", newPath: "Season 2/Episode 01.mkv");
+
+        result.Should().BeOfType<ContentResult>();
+        await this.torrentService.Received(1).RenameFileAsync(1, "Season 1/Episode 01.mkv", "Season 2/Episode 01.mkv");
+    }
+
+    [Test]
+    public void GetTorrentsInfo_And_GetMainData_HaveConsistentAmountLeft_WhenCompletedOrCrossSeeded()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            InfoHash = "hash1",
+            Name = "Torrent 1",
+            TotalSize = 100_000_000,
+            Progress = 1.0,
+            Downloaded = 0,
+            DateAdded = DateTime.UtcNow.AddHours(-1),
+            Status = TorrentStatus.Seeding,
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var infoResult = this.controller.GetTorrentsInfo();
+        var okInfo = infoResult.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var infoList = okInfo.Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        infoList[0]["amount_left"].Should().Be(0L);
+
+        var mainDataResult = this.controller.GetMainData(0);
+        var okMain = mainDataResult.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var mainDict = okMain.Value.Should().BeOfType<Dictionary<string, object>>().Subject;
+        var torrents = mainDict["torrents"].Should().BeAssignableTo<System.Collections.IDictionary>().Subject;
+        var json = JsonSerializer.Serialize(torrents["hash1"]);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("amount_left").GetInt64().Should().Be(0L);
+    }
+
+    [Test]
+    public void GetTorrentsInfo_And_GetMainData_HaveConsistentAmountLeft_WhenInProgress()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            InfoHash = "hash1",
+            Name = "Torrent 1",
+            TotalSize = 100_000_000,
+            Progress = 0.6,
+            Downloaded = 50_000_000,
+            DateAdded = DateTime.UtcNow.AddHours(-1),
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var infoResult = this.controller.GetTorrentsInfo();
+        var okInfo = infoResult.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var infoList = okInfo.Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        infoList[0]["amount_left"].Should().Be(40_000_000L);
+
+        var mainDataResult = this.controller.GetMainData(0);
+        var okMain = mainDataResult.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var mainDict = okMain.Value.Should().BeOfType<Dictionary<string, object>>().Subject;
+        var torrents = mainDict["torrents"].Should().BeAssignableTo<System.Collections.IDictionary>().Subject;
+        var json = JsonSerializer.Serialize(torrents["hash1"]);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("amount_left").GetInt64().Should().Be(40_000_000L);
+    }
+
     private static ActionExecutingContext CreateActionExecutingContext(QBittorrentApiController controller, HttpContext httpContext, string actionName)
     {
         var actionDescriptor = new ControllerActionDescriptor
