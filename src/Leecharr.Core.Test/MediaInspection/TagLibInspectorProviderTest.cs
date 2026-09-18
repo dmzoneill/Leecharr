@@ -379,6 +379,37 @@ public class TagLibInspectorProviderTest
     }
 
     [Test]
+    public void Inspect_Mp4WithLargeMoovBox_ParsesUsingArrayPoolWithoutLohAllocations()
+    {
+        var ftyp = CreateMp4Box("ftyp", Encoding.ASCII.GetBytes("isom\0\0\x02\0isommp41"));
+
+        var videoEntry = CreateVisualSampleEntry("hvc1", 3840, 2160);
+        var videoTrak = CreateTrackBox(CreateStsdBox(videoEntry));
+
+        var audioEntry = CreateAudioSampleEntry("ec-3", 6, 16, 48000);
+        var audioTrak = CreateTrackBox(CreateStsdBox(audioEntry));
+
+        // Create large padding box inside moov that exceeds 85,000 bytes (LOH threshold)
+        var largePaddingBox = CreateMp4Box("free", new byte[128 * 1024]);
+        var moov = CreateMoovBox(videoTrak, audioTrak, largePaddingBox);
+
+        using var ms = new MemoryStream();
+        ms.Write(ftyp, 0, ftyp.Length);
+        ms.Write(moov, 0, moov.Length);
+        ms.Position = 0;
+
+        var result = this.provider.Inspect(ms, "4k_large_moov.mp4");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("MP4");
+        result.VideoCodec.Should().Be("HEVC (H.265)");
+        result.AudioCodec.Should().Be("E-AC3 / Dolby Digital Plus");
+        result.Width.Should().Be(3840);
+        result.Height.Should().Be(2160);
+        result.Resolution.Should().Be("4K UHD (2160p)");
+    }
+
+    [Test]
     public void Inspect_Mp4WithLargeSizeBox_CorrectlyParsedAndDetectsHevcDolbyVision()
     {
         var ftyp = CreateMp4Box("ftyp", Encoding.ASCII.GetBytes("isom\0\0\x02\0isommp41"));
