@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using FluentAssertions;
 using NSubstitute;
@@ -320,5 +321,159 @@ public class CategoryServiceTest
         result.SavePath.Should().Be("/downloads/music");
         this.repository.DidNotReceive().Update(Arg.Any<Category>());
         this.repository.DidNotReceive().Insert(Arg.Any<Category>());
+    }
+
+    [TestCase("/movies///uhd/", "movies/uhd")]
+    [TestCase("\\movies\\\\uhd\\", "movies/uhd")]
+    [TestCase("  / movies / uhd /  ", "movies/uhd")]
+    [TestCase("movies", "movies")]
+    [TestCase("///", "")]
+    [TestCase("", "")]
+    [TestCase(null, "")]
+    public void NormalizeCategoryName_NormalizesSlashesAndWhitespace(string input, string expected)
+    {
+        var result = CategoryService.NormalizeCategoryName(input);
+        result.Should().Be(expected);
+    }
+
+    [Test]
+    public void Add_WithUnnormalizedName_NormalizesCategoryName()
+    {
+        var category = new Category { Name = "/movies///uhd/", SavePath = "/downloads/movies/uhd" };
+        this.repository.Insert(Arg.Any<Category>()).Returns(callInfo => callInfo.Arg<Category>());
+
+        var inserted = this.service.Add(category);
+
+        inserted.Name.Should().Be("movies/uhd");
+    }
+
+    [Test]
+    public void GetSavePathForCategory_WithSubcategoryAndEmptySavePath_InheritsParentSavePath()
+    {
+        var parentCat = new Category { Id = 1, Name = "movies", SavePath = "/downloads/movies" };
+        var childCat = new Category { Id = 2, Name = "movies/uhd", SavePath = string.Empty };
+
+        this.repository.GetByName("movies/uhd").Returns(childCat);
+        this.repository.GetByName("movies").Returns(parentCat);
+
+        var path = this.service.GetSavePathForCategory("movies/uhd");
+
+        path.Should().Be(Path.Combine("/downloads/movies", "uhd"));
+    }
+
+    [Test]
+    public void GetSavePathForCategory_WithMultiLevelSubcategory_InheritsAncestorSavePath()
+    {
+        var mediaCat = new Category { Id = 1, Name = "media", SavePath = "/storage/media" };
+        var moviesCat = new Category { Id = 2, Name = "media/movies", SavePath = string.Empty };
+        var uhdCat = new Category { Id = 3, Name = "media/movies/uhd", SavePath = string.Empty };
+
+        this.repository.GetByName("media/movies/uhd").Returns(uhdCat);
+        this.repository.GetByName("media/movies").Returns(moviesCat);
+        this.repository.GetByName("media").Returns(mediaCat);
+
+        var path = this.service.GetSavePathForCategory("media/movies/uhd");
+
+        var expected = Path.Combine(Path.Combine("/storage/media", "movies"), "uhd");
+        path.Should().Be(expected);
+    }
+
+    [Test]
+    public void GetSavePathForCategory_WithBackslashes_NormalizesAndInherits()
+    {
+        var parentCat = new Category { Id = 1, Name = "movies", SavePath = "/downloads/movies" };
+        this.repository.GetByName("movies/uhd").Returns(new Category { Name = "movies/uhd", SavePath = string.Empty });
+        this.repository.GetByName("movies").Returns(parentCat);
+
+        var path = this.service.GetSavePathForCategory("movies\\uhd");
+
+        path.Should().Be(Path.Combine("/downloads/movies", "uhd"));
+    }
+
+    [Test]
+    public void GetSavePathForCategory_WithExplicitChildSavePath_DoesNotInheritParentSavePath()
+    {
+        var parentCat = new Category { Id = 1, Name = "movies", SavePath = "/downloads/movies" };
+        var childCat = new Category { Id = 2, Name = "movies/uhd", SavePath = "/fast/uhd" };
+
+        this.repository.GetByName("movies/uhd").Returns(childCat);
+        this.repository.GetByName("movies").Returns(parentCat);
+
+        var path = this.service.GetSavePathForCategory("movies/uhd");
+
+        path.Should().Be("/fast/uhd");
+    }
+
+    [Test]
+    public void Update_WhenParentCategoryRenamed_CascadesNewNameToSubcategoriesAndTorrents()
+    {
+        var existingParent = new Category { Id = 1, Name = "movies", SavePath = "/downloads/movies" };
+        var updatedParent = new Category { Id = 1, Name = "films", SavePath = "/downloads/movies" };
+
+        var child1 = new Category { Id = 2, Name = "movies/uhd", SavePath = string.Empty };
+        var child2 = new Category { Id = 3, Name = "movies/uhd/remux", SavePath = string.Empty };
+        var other = new Category { Id = 4, Name = "other", SavePath = string.Empty };
+
+        this.repository.Get(1).Returns(existingParent);
+        this.repository.Update(updatedParent).Returns(updatedParent);
+        this.repository.All().Returns(new List<Category> { updatedParent, child1, child2, other });
+
+        var torrentParent = new Torrent { Id = 10, Name = "Movie1", Category = "movies" };
+        var torrentChild1 = new Torrent { Id = 11, Name = "Movie2", Category = "movies/uhd" };
+        var torrentChild2 = new Torrent { Id = 12, Name = "Movie3", Category = "movies/uhd/remux" };
+
+        this.torrentRepository.GetByCategory("movies").Returns(new List<Torrent> { torrentParent });
+        this.torrentRepository.GetByCategory("movies/uhd").Returns(new List<Torrent> { torrentChild1 });
+        this.torrentRepository.GetByCategory("movies/uhd/remux").Returns(new List<Torrent> { torrentChild2 });
+
+        this.service.Update(updatedParent);
+
+        torrentParent.Category.Should().Be("films");
+        torrentChild1.Category.Should().Be("films/uhd");
+        torrentChild2.Category.Should().Be("films/uhd/remux");
+
+        this.torrentRepository.Received(1).Update(torrentParent);
+        this.torrentRepository.Received(1).Update(torrentChild1);
+        this.torrentRepository.Received(1).Update(torrentChild2);
+
+        child1.Name.Should().Be("films/uhd");
+        child2.Name.Should().Be("films/uhd/remux");
+        other.Name.Should().Be("other");
+
+        this.repository.Received(1).Update(child1);
+        this.repository.Received(1).Update(child2);
+        this.repository.DidNotReceive().Update(other);
+
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<CategoryUpdatedEvent>(e => e.Category.Name == "films/uhd"));
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<CategoryUpdatedEvent>(e => e.Category.Name == "films/uhd/remux"));
+    }
+
+    [Test]
+    public void Delete_WhenParentCategoryDeleted_CascadesDeletionToSubcategories()
+    {
+        var parent = new Category { Id = 1, Name = "movies" };
+        var child1 = new Category { Id = 2, Name = "movies/uhd" };
+        var child2 = new Category { Id = 3, Name = "movies/uhd/remux" };
+        var other = new Category { Id = 4, Name = "music" };
+
+        this.repository.Get(1).Returns(parent);
+        this.repository.Get(2).Returns(child1);
+        this.repository.Get(3).Returns(child2);
+        this.repository.Get(4).Returns(other);
+
+        this.repository.All().Returns(new List<Category> { parent, child1, child2, other });
+
+        var torrentChild = new Torrent { Id = 20, Name = "UhdTorrent", Category = "movies/uhd" };
+        this.torrentRepository.GetByCategory("movies/uhd").Returns(new List<Torrent> { torrentChild });
+
+        this.service.Delete(1);
+
+        this.repository.Received(1).Delete(1);
+        this.repository.Received(1).Delete(2);
+        this.repository.Received(1).Delete(3);
+        this.repository.DidNotReceive().Delete(4);
+
+        torrentChild.Category.Should().BeEmpty();
+        this.torrentRepository.Received(1).Update(torrentChild);
     }
 }

@@ -53,7 +53,12 @@ public class CategoryController : RestControllerWithSignalR<CategoryResource, Ca
             return this.BadRequest("Category name is required.");
         }
 
-        var trimmedName = resource.Name.Trim();
+        var trimmedName = CategoryService.NormalizeCategoryName(resource.Name);
+        if (string.IsNullOrWhiteSpace(trimmedName))
+        {
+            return this.BadRequest("Category name is required.");
+        }
+
         if (trimmedName.Contains('\0'))
         {
             return this.BadRequest("Category name contains invalid characters.");
@@ -107,7 +112,12 @@ public class CategoryController : RestControllerWithSignalR<CategoryResource, Ca
             return this.NotFound();
         }
 
-        var trimmedName = resource.Name.Trim();
+        var trimmedName = CategoryService.NormalizeCategoryName(resource.Name);
+        if (string.IsNullOrWhiteSpace(trimmedName))
+        {
+            return this.BadRequest("Category name is required.");
+        }
+
         if (trimmedName.Contains('\0'))
         {
             return this.BadRequest("Category name contains invalid characters.");
