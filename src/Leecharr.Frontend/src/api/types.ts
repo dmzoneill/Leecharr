@@ -786,6 +786,7 @@ export interface UpdateEntry {
   releaseDate: string;
   installed: boolean;
   latest: boolean;
+  isContainer?: boolean;
   changes: UpdateChanges;
 }
 
