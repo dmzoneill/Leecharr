@@ -6,35 +6,11 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Http;
-using Leecharr.Http.REST;
 using Microsoft.AspNetCore.Mvc;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Update;
 
 namespace Leecharr.Api.V1.Update;
-
-public class UpdateChangesResource
-{
-    public List<string> New { get; set; } = new();
-
-    public List<string> Fixed { get; set; } = new();
-}
-
-public class UpdateResource : RestResource
-{
-    public string Version { get; set; }
-
-    public DateTime ReleaseDate { get; set; }
-
-    public string FileName { get; set; }
-
-    public string Url { get; set; }
-
-    public bool Installed { get; set; }
-
-    public bool Latest { get; set; }
-
-    public UpdateChangesResource Changes { get; set; } = new();
-}
 
 [V1ApiController("update")]
 public class UpdateController : Controller
@@ -53,6 +29,7 @@ public class UpdateController : Controller
         var packages = await service.GetAvailableUpdatesAsync(cancellationToken).ConfigureAwait(false);
 
         var id = 1;
+        var isContainer = OsInfo.IsContainer;
         var resources = packages.Select(p => new UpdateResource
         {
             Id = id++,
@@ -62,6 +39,7 @@ public class UpdateController : Controller
             Url = p.Url,
             Installed = p.Installed,
             Latest = p.Latest,
+            IsContainer = isContainer,
             Changes = new UpdateChangesResource
             {
                 New = p.Changes?.New ?? new List<string>(),
