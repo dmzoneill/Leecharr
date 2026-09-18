@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.IO;
 using FluentAssertions;
 using NUnit.Framework;
@@ -302,5 +303,114 @@ public class TorrentPathValidatorTest
                 Directory.Delete(tempBase, true);
             }
         }
+    }
+
+    [Test]
+    public void ResolveCanonicalPath_WithWindowsRootedPath_DoesNotCorruptDriveOrSegments()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Pass("Windows drive paths can only be canonicalized on Windows OS.");
+            return;
+        }
+
+        var path = @"C:\downloads\movie.mkv";
+        var resolved = TorrentPathValidator.ResolveCanonicalPath(path);
+        resolved.Should().Be(@"C:\downloads\movie.mkv");
+
+        var subPath = @"C:\downloads\sub\file.txt";
+        var resolvedSub = TorrentPathValidator.ResolveCanonicalPath(subPath);
+        resolvedSub.Should().Be(@"C:\downloads\sub\file.txt");
+    }
+
+    [Test]
+    public void ResolveCanonicalPath_WithUncPath_DoesNotCorruptUncRoot()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Pass("UNC paths can only be canonicalized on Windows OS.");
+            return;
+        }
+
+        var uncPath = @"\\server\share\sub\file.txt";
+        var resolved = TorrentPathValidator.ResolveCanonicalPath(uncPath);
+        resolved.Should().Be(@"\\server\share\sub\file.txt");
+    }
+
+    [Test]
+    public void IsStrictSubPath_WithWindowsRootedPath_ValidatesCorrectly()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Pass("Windows drive paths can only be canonicalized on Windows OS.");
+            return;
+        }
+
+        var basePath = @"C:\downloads";
+        var targetFile = @"C:\downloads\movie.mkv";
+        var targetSub = @"C:\downloads\sub\file.txt";
+        var outsideFile = @"C:\other\movie.mkv";
+        var differentDrive = @"D:\downloads\movie.mkv";
+
+        TorrentPathValidator.IsStrictSubPath(basePath, targetFile).Should().BeTrue();
+        TorrentPathValidator.IsStrictSubPath(basePath, targetSub).Should().BeTrue();
+        TorrentPathValidator.IsStrictSubPath(basePath, outsideFile).Should().BeFalse();
+        TorrentPathValidator.IsStrictSubPath(basePath, differentDrive).Should().BeFalse();
+    }
+
+    [Test]
+    public void IsStrictSubPath_WithUncPath_ValidatesCorrectly()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Pass("UNC paths can only be canonicalized on Windows OS.");
+            return;
+        }
+
+        var basePath = @"\\server\share";
+        var target = @"\\server\share\downloads\file.txt";
+        var outside = @"\\server\other\file.txt";
+        var differentServer = @"\\other\share\downloads\file.txt";
+
+        TorrentPathValidator.IsStrictSubPath(basePath, target).Should().BeTrue();
+        TorrentPathValidator.IsStrictSubPath(basePath, outside).Should().BeFalse();
+        TorrentPathValidator.IsStrictSubPath(basePath, differentServer).Should().BeFalse();
+    }
+
+    [Test]
+    public void ResolveCanonicalPath_WithUnixRootedPath_ResolvesRootCorrectly()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            Assert.Pass("Unix rooted paths can only be canonicalized on non-Windows OS.");
+            return;
+        }
+
+        var path = "/downloads/movie.mkv";
+        var resolved = TorrentPathValidator.ResolveCanonicalPath(path);
+        resolved.Should().Be("/downloads/movie.mkv");
+
+        var subPath = "/downloads/sub/file.txt";
+        var resolvedSub = TorrentPathValidator.ResolveCanonicalPath(subPath);
+        resolvedSub.Should().Be("/downloads/sub/file.txt");
+    }
+
+    [Test]
+    public void IsStrictSubPath_WithUnixRootedPath_ValidatesCorrectly()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            Assert.Pass("Unix rooted paths can only be canonicalized on non-Windows OS.");
+            return;
+        }
+
+        var basePath = "/downloads";
+        var targetFile = "/downloads/movie.mkv";
+        var targetSub = "/downloads/sub/file.txt";
+        var outsideFile = "/other/movie.mkv";
+
+        TorrentPathValidator.IsStrictSubPath(basePath, targetFile).Should().BeTrue();
+        TorrentPathValidator.IsStrictSubPath(basePath, targetSub).Should().BeTrue();
+        TorrentPathValidator.IsStrictSubPath(basePath, outsideFile).Should().BeFalse();
     }
 }
