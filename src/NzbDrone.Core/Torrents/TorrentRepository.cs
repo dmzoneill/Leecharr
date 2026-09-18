@@ -11,6 +11,7 @@ namespace NzbDrone.Core.Torrents;
 
 public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
 {
+    private static readonly object QueuePositionLock = new();
     private readonly IEventAggregator eventAggregator;
 
     public TorrentRepository(IDatabase database, IEventAggregator eventAggregator = null)
@@ -22,6 +23,19 @@ public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
     public override Torrent Insert(Torrent model)
     {
         NormalizeTorrent(model);
+        if (model != null && model.QueuePosition <= 0)
+        {
+            lock (QueuePositionLock)
+            {
+                if (model.QueuePosition <= 0)
+                {
+                    model.QueuePosition = this.GetNextQueuePositionInternal();
+                }
+
+                return base.Insert(model);
+            }
+        }
+
         return base.Insert(model);
     }
 
@@ -35,9 +49,32 @@ public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
     {
         if (toInsert != null)
         {
-            foreach (var item in toInsert)
+            lock (QueuePositionLock)
             {
-                NormalizeTorrent(item);
+                var nextPos = this.GetNextQueuePositionInternal();
+                foreach (var item in toInsert)
+                {
+                    NormalizeTorrent(item);
+                    if (item.QueuePosition <= 0)
+                    {
+                        item.QueuePosition = nextPos++;
+                    }
+                    else if (item.QueuePosition >= nextPos)
+                    {
+                        nextPos = item.QueuePosition + 1;
+                    }
+                }
+
+                if (toUpdate != null)
+                {
+                    foreach (var item in toUpdate)
+                    {
+                        NormalizeTorrent(item);
+                    }
+                }
+
+                base.UpsertMany(toInsert, toUpdate);
+                return;
             }
         }
 
@@ -131,6 +168,14 @@ public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
     }
 
     public int GetNextQueuePosition()
+    {
+        lock (QueuePositionLock)
+        {
+            return this.GetNextQueuePositionInternal();
+        }
+    }
+
+    private int GetNextQueuePositionInternal()
     {
         return this.ExecuteWithRetry(connection =>
             connection.ExecuteScalar<int>($"SELECT COALESCE(MAX(\"QueuePosition\"), 0) + 1 FROM \"{this.table}\""));
