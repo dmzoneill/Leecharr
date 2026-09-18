@@ -1,19 +1,30 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using NLog;
+using NzbDrone.Common.Disk;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Datastore.Events;
 using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Notifications;
 using NzbDrone.Core.Tags;
 using NzbDrone.Core.Torrents;
+using NzbDrone.Core.TrackerBoost;
 
 namespace NzbDrone.Core.Automation;
+
+public interface IExtractorService
+{
+    Task<bool> ExtractAsync(Torrent torrent, string? destination = null, bool deleteArchive = false);
+}
 
 public class AutomationService : IAutomationService
 {
@@ -25,6 +36,11 @@ public class AutomationService : IAutomationService
     private readonly ICustomScriptService? _customScriptService;
     private readonly INotificationRepository? _notificationRepository;
     private readonly IWebhookDispatcher? _webhookDispatcher;
+    private readonly IDownloadEngine? _downloadEngine;
+    private readonly IBlocklistService? _blocklistService;
+    private readonly ITrackerBoostService? _trackerBoostService;
+    private readonly IExtractorService? _extractorService;
+    private readonly IDiskProvider? _diskProvider;
     private readonly Logger _logger;
     private readonly JintScriptRunner _jintRunner;
     private readonly YamlScriptRunner _yamlRunner;
@@ -38,7 +54,12 @@ public class AutomationService : IAutomationService
         IConfigFileProvider? configFileProvider = null,
         ICustomScriptService? customScriptService = null,
         INotificationRepository? notificationRepository = null,
-        IWebhookDispatcher? webhookDispatcher = null)
+        IWebhookDispatcher? webhookDispatcher = null,
+        IDownloadEngine? downloadEngine = null,
+        IBlocklistService? blocklistService = null,
+        ITrackerBoostService? trackerBoostService = null,
+        IExtractorService? extractorService = null,
+        IDiskProvider? diskProvider = null)
     {
         _scriptRepository = scriptRepository;
         _torrentRepository = torrentRepository;
@@ -48,6 +69,11 @@ public class AutomationService : IAutomationService
         _customScriptService = customScriptService;
         _notificationRepository = notificationRepository;
         _webhookDispatcher = webhookDispatcher;
+        _downloadEngine = downloadEngine;
+        _blocklistService = blocklistService;
+        _trackerBoostService = trackerBoostService;
+        _extractorService = extractorService;
+        _diskProvider = diskProvider;
         _logger = LogManager.GetCurrentClassLogger();
         _jintRunner = new JintScriptRunner(commandQueue, configFileProvider);
         _yamlRunner = new YamlScriptRunner(commandQueue);
@@ -278,6 +304,8 @@ public class AutomationService : IAutomationService
 
     private void ApplyTorrentMutations(Torrent torrent, AutomationExecutionResult result)
     {
+        ExecuteAutomationActions(torrent, result);
+
         var changed = false;
 
         // Tags to add
@@ -421,5 +449,290 @@ public class AutomationService : IAutomationService
             _torrentRepository.Update(torrent);
             _eventAggregator.PublishEvent(new ModelEvent<Torrent>(torrent, ModelAction.Updated));
         }
+    }
+
+    private void ExecuteAutomationActions(Torrent torrent, AutomationExecutionResult result)
+    {
+        // 1. Peers to ban
+        if (result.PeersToBan.Count > 0)
+        {
+            foreach (var ip in result.PeersToBan)
+            {
+                if (string.IsNullOrWhiteSpace(ip))
+                {
+                    continue;
+                }
+
+                if (_blocklistService != null)
+                {
+                    try
+                    {
+                        var blockMethod = _blocklistService.GetType().GetMethod("AddBlockedIp", new[] { typeof(string) })
+                                          ?? _blocklistService.GetType().GetMethod("BlockIp", new[] { typeof(string) });
+                        if (blockMethod != null)
+                        {
+                            var ret = blockMethod.Invoke(_blocklistService, new object[] { ip });
+                            if (ret is Task task)
+                            {
+                                task.ContinueWith(
+                                    t =>
+                                    {
+                                        if (t.IsFaulted && t.Exception != null)
+                                        {
+                                            _logger.Error(t.Exception.GetBaseException(), "Failed to add peer {0} to blocklist", ip);
+                                        }
+                                    },
+                                    TaskContinuationOptions.OnlyOnFaulted);
+                            }
+                        }
+                        else
+                        {
+                            var task = _blocklistService.LoadRulesAsync(new[] { ip });
+                            if (task != null)
+                            {
+                                task.ContinueWith(
+                                    t =>
+                                    {
+                                        if (t.IsFaulted && t.Exception != null)
+                                        {
+                                            _logger.Error(t.Exception.GetBaseException(), "Failed to load peer rule {0} into blocklist", ip);
+                                        }
+                                    },
+                                    TaskContinuationOptions.OnlyOnFaulted);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error(ex, "Failed to ban peer IP {0} via blocklist service", ip);
+                    }
+                }
+
+                if (_downloadEngine != null)
+                {
+                    try
+                    {
+                        var disconnectMethod = _downloadEngine.GetType().GetMethod("DisconnectPeerAsync", new[] { typeof(int), typeof(string) })
+                                               ?? _downloadEngine.GetType().GetMethod("DisconnectPeer", new[] { typeof(int), typeof(string) })
+                                               ?? _downloadEngine.GetType().GetMethod("BanPeerAsync", new[] { typeof(int), typeof(string) });
+                        if (disconnectMethod != null)
+                        {
+                            var ret = disconnectMethod.Invoke(_downloadEngine, new object[] { torrent.Id, ip });
+                            if (ret is Task task)
+                            {
+                                task.ContinueWith(
+                                    t =>
+                                    {
+                                        if (t.IsFaulted && t.Exception != null)
+                                        {
+                                            _logger.Error(t.Exception.GetBaseException(), "Failed to disconnect peer {0} on torrent {1}", ip, torrent.Id);
+                                        }
+                                    },
+                                    TaskContinuationOptions.OnlyOnFaulted);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error(ex, "Failed to disconnect peer {0} on torrent {1}", ip, torrent.Id);
+                    }
+                }
+            }
+        }
+
+        // 2. Boost Tracker
+        if (result.ShouldBoostTracker)
+        {
+            try
+            {
+                if (_trackerBoostService != null)
+                {
+                    var boostMethod = _trackerBoostService.GetType().GetMethod("BoostAsync", new[] { typeof(int) });
+                    if (boostMethod != null)
+                    {
+                        var ret = boostMethod.Invoke(_trackerBoostService, new object[] { torrent.Id });
+                        if (ret is Task task)
+                        {
+                            task.ContinueWith(
+                                t =>
+                                {
+                                    if (t.IsFaulted && t.Exception != null)
+                                    {
+                                        _logger.Error(t.Exception.GetBaseException(), "Failed to boost tracker for torrent {0}", torrent.Name);
+                                    }
+                                },
+                                TaskContinuationOptions.OnlyOnFaulted);
+                        }
+                    }
+                    else
+                    {
+                        var task = _trackerBoostService.BoostTorrentAsync(torrent.Id);
+                        if (task != null)
+                        {
+                            task.ContinueWith(
+                                t =>
+                                {
+                                    if (t.IsFaulted && t.Exception != null)
+                                    {
+                                        _logger.Error(t.Exception.GetBaseException(), "Failed to boost tracker for torrent {0}", torrent.Name);
+                                    }
+                                },
+                                TaskContinuationOptions.OnlyOnFaulted);
+                        }
+                    }
+                }
+                else if (_downloadEngine != null)
+                {
+                    var task = _downloadEngine.ForceAnnounceAsync(torrent.Id);
+                    if (task != null)
+                    {
+                        task.ContinueWith(
+                            t =>
+                            {
+                                if (t.IsFaulted && t.Exception != null)
+                                {
+                                    _logger.Error(t.Exception.GetBaseException(), "Failed to force announce for torrent {0}", torrent.Name);
+                                }
+                            },
+                            TaskContinuationOptions.OnlyOnFaulted);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Failed to boost tracker for torrent {0}", torrent.Name);
+            }
+        }
+
+        // 3. Extract Archive
+        if (result.ShouldExtractArchive && _extractorService != null)
+        {
+            try
+            {
+                var task = _extractorService.ExtractAsync(torrent, result.ExtractDestination, result.DeleteArchiveOnExtract);
+                if (task != null)
+                {
+                    task.ContinueWith(
+                        t =>
+                        {
+                            if (t.IsFaulted && t.Exception != null)
+                            {
+                                _logger.Error(t.Exception.GetBaseException(), "Failed to extract archive for torrent {0}", torrent.Name);
+                            }
+                        },
+                        TaskContinuationOptions.OnlyOnFaulted);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Failed to extract archive for torrent {0}", torrent.Name);
+            }
+        }
+
+        // 4. Clean Unwanted Files
+        if (result.CleanFilePatterns.Count > 0 && !string.IsNullOrWhiteSpace(torrent.SavePath))
+        {
+            try
+            {
+                CleanUnwantedFiles(torrent.SavePath, result.CleanFilePatterns);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Failed to clean unwanted files for torrent {0}", torrent.Name);
+            }
+        }
+    }
+
+    private void CleanUnwantedFiles(string rootPath, List<string> patterns)
+    {
+        if (string.IsNullOrWhiteSpace(rootPath) || patterns == null || patterns.Count == 0)
+        {
+            return;
+        }
+
+        IEnumerable<string> files;
+        if (_diskProvider != null)
+        {
+            if (_diskProvider.FolderExists(rootPath))
+            {
+                files = _diskProvider.GetFiles(rootPath, recursive: true);
+            }
+            else if (_diskProvider.FileExists(rootPath))
+            {
+                files = new[] { rootPath };
+            }
+            else
+            {
+                return;
+            }
+        }
+        else
+        {
+            if (Directory.Exists(rootPath))
+            {
+                files = Directory.GetFiles(rootPath, "*", SearchOption.AllDirectories);
+            }
+            else if (File.Exists(rootPath))
+            {
+                files = new[] { rootPath };
+            }
+            else
+            {
+                return;
+            }
+        }
+
+        foreach (var file in files)
+        {
+            var fileName = Path.GetFileName(file);
+            var matched = false;
+
+            foreach (var pattern in patterns)
+            {
+                if (MatchesPattern(fileName, pattern))
+                {
+                    matched = true;
+                    break;
+                }
+            }
+
+            if (matched)
+            {
+                try
+                {
+                    _logger.Info("Deleting unwanted file {0} matching automation pattern", file);
+                    if (_diskProvider != null)
+                    {
+                        _diskProvider.DeleteFile(file);
+                    }
+                    else
+                    {
+                        File.Delete(file);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warn(ex, "Failed to delete unwanted file {0}", file);
+                }
+            }
+        }
+    }
+
+    private static bool MatchesPattern(string fileName, string pattern)
+    {
+        if (string.IsNullOrWhiteSpace(pattern) || string.IsNullOrWhiteSpace(fileName))
+        {
+            return false;
+        }
+
+        var trimmed = pattern.Trim();
+        if (trimmed.Contains('*') || trimmed.Contains('?'))
+        {
+            var regexPattern = "^" + Regex.Escape(trimmed).Replace(@"\*", ".*").Replace(@"\?", ".") + "$";
+            return Regex.IsMatch(fileName, regexPattern, RegexOptions.IgnoreCase);
+        }
+
+        return string.Equals(fileName, trimmed, StringComparison.OrdinalIgnoreCase) ||
+               fileName.EndsWith("." + trimmed.TrimStart('.'), StringComparison.OrdinalIgnoreCase);
     }
 }
