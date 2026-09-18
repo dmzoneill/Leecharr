@@ -344,6 +344,17 @@ public class NotificationEventHandler :
         EmailNotificationSender.SendEmailNotification(settings, eventType, torrent, (object)meta, genericPayload, smtpSender);
     }
 
+    public static Task SendEmailNotificationAsync(
+        string settings,
+        string eventType,
+        Torrent torrent,
+        dynamic meta,
+        object genericPayload,
+        Func<System.Net.Mail.SmtpClient, System.Net.Mail.MailMessage, Task> smtpSenderAsync = null)
+    {
+        return EmailNotificationSender.SendEmailNotificationAsync(settings, eventType, torrent, (object)meta, genericPayload, smtpSenderAsync);
+    }
+
     internal static object BuildProviderPayload(string implementation, string eventType, Torrent torrent, dynamic meta, object genericPayload, string settings = null)
     {
         return NotificationPayloadBuilder.BuildProviderPayload(implementation, eventType, torrent, (object)meta, genericPayload, settings);
@@ -376,11 +387,11 @@ public class NotificationEventHandler :
             }
             else if (string.Equals(notif.Implementation, "Email", StringComparison.OrdinalIgnoreCase))
             {
-                Task.Run(() =>
+                Task.Run(async () =>
                 {
                     try
                     {
-                        EmailNotificationSender.SendEmailNotification(notif.Settings, eventType, null, null, payload);
+                        await EmailNotificationSender.SendEmailNotificationAsync(notif.Settings, eventType, null, null, payload);
                     }
                     catch (Exception ex)
                     {
@@ -524,11 +535,11 @@ public class NotificationEventHandler :
             }
             else if (string.Equals(notif.Implementation, "Email", StringComparison.OrdinalIgnoreCase))
             {
-                Task.Run(() =>
+                Task.Run(async () =>
                 {
                     try
                     {
-                        EmailNotificationSender.SendEmailNotification(notif.Settings, eventType, torrent, meta, payload);
+                        await EmailNotificationSender.SendEmailNotificationAsync(notif.Settings, eventType, torrent, meta, payload);
                     }
                     catch (Exception ex)
                     {
