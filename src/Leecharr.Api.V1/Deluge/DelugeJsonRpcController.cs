@@ -113,6 +113,16 @@ public class DelugeJsonRpcController : ControllerBase
         return new JsonResult(value, DelugeJsonOptions);
     }
 
+    private IActionResult DelugeError(string message, int code = 1, object id = null)
+    {
+        return this.DelugeResult(new
+        {
+            result = (object)null,
+            error = new { message, code },
+            id,
+        });
+    }
+
     [HttpPost]
     public async Task<IActionResult> HandleRpc([FromBody] JsonElement root)
     {
@@ -132,7 +142,7 @@ public class DelugeJsonRpcController : ControllerBase
                 }
                 else
                 {
-                    responses.Add(new { result = (object)null, error = "Unknown RPC result", id = (object)null });
+                    responses.Add(new { result = (object)null, error = new { message = "Unknown RPC result", code = 1 }, id = (object)null });
                 }
             }
 
@@ -146,7 +156,7 @@ public class DelugeJsonRpcController : ControllerBase
     {
         if (root.ValueKind != JsonValueKind.Object)
         {
-            return this.DelugeResult(new { result = (object)null, error = new { message = "Invalid JSON-RPC format", code = 1 }, id = (object)null });
+            return this.DelugeError("Invalid JSON-RPC format", 1, null);
         }
 
         var methodElem = root.TryGetProperty("method", out var m) ? m : default;
@@ -188,7 +198,7 @@ public class DelugeJsonRpcController : ControllerBase
 
             if (!this.IsDelugeAuthenticated())
             {
-                return this.DelugeResult(new { result = (object)null, error = new { message = "Not authenticated", code = 1 }, id });
+                return this.DelugeError("Not authenticated", 1, id);
             }
 
             if (lowerMethod.StartsWith("core."))
@@ -211,12 +221,22 @@ public class DelugeJsonRpcController : ControllerBase
                 return await this.DispatchLabelRpcAsync(lowerMethod, paramsElem, id);
             }
 
+            if (lowerMethod.StartsWith("extractor.") ||
+                lowerMethod.StartsWith("execute.") ||
+                lowerMethod.StartsWith("autoadd.") ||
+                lowerMethod.StartsWith("blocklist.") ||
+                lowerMethod.StartsWith("scheduler.") ||
+                lowerMethod.StartsWith("stats."))
+            {
+                return this.DispatchPluginRpc(lowerMethod, paramsElem, id);
+            }
+
             return this.HandleUnknownMethod(method, id);
         }
         catch (Exception ex)
         {
             this.logger.Error(ex, "Error handling Deluge RPC method: {0}", method);
-            return this.DelugeResult(new { result = (object)null, error = ex.Message, id });
+            return this.DelugeError(ex.Message, 1, id);
         }
     }
 
@@ -301,6 +321,40 @@ public class DelugeJsonRpcController : ControllerBase
             "label.set_torrent" => await this.HandleLabelSetTorrentAsync(args, id),
             _ => this.HandleUnknownMethod(method, id),
         };
+    }
+
+    private IActionResult DispatchPluginRpc(string method, JsonElement args, object id)
+    {
+        var lowerMethod = method.ToLowerInvariant();
+
+        if (lowerMethod.EndsWith(".get_config") ||
+            lowerMethod.EndsWith(".get_options") ||
+            lowerMethod.EndsWith(".get_status") ||
+            lowerMethod.EndsWith(".get_info") ||
+            lowerMethod.EndsWith(".status") ||
+            lowerMethod.EndsWith(".get_stats"))
+        {
+            return this.DelugeResult(new { result = new Dictionary<string, object>(), error = (object)null, id });
+        }
+
+        if (lowerMethod.EndsWith(".get_commands") ||
+            lowerMethod.EndsWith(".get_watchdirs"))
+        {
+            return this.DelugeResult(new { result = Array.Empty<object>(), error = (object)null, id });
+        }
+
+        if (lowerMethod.EndsWith(".set_config") ||
+            lowerMethod.EndsWith(".set_options") ||
+            lowerMethod.EndsWith(".check") ||
+            lowerMethod.EndsWith(".import") ||
+            lowerMethod.EndsWith(".extract") ||
+            lowerMethod.EndsWith(".enable") ||
+            lowerMethod.EndsWith(".disable"))
+        {
+            return this.DelugeResult(new { result = true, error = (object)null, id });
+        }
+
+        return this.DelugeResult(new { result = new Dictionary<string, object>(), error = (object)null, id });
     }
 
     private IActionResult HandleAuthLogin(JsonElement paramsElem, object id)
@@ -934,7 +988,7 @@ public class DelugeJsonRpcController : ControllerBase
         var found = this.torrentService.GetByInfoHash(targetHash);
         if (found == null)
         {
-            return this.DelugeResult(new { result = (object)null, error = "Torrent not found", id });
+            return this.DelugeError("Torrent not found", 1, id);
         }
 
         HashSet<string> singleTorrentKeys = null;
@@ -1654,12 +1708,7 @@ public class DelugeJsonRpcController : ControllerBase
     private IActionResult HandleUnknownMethod(string method, object id)
     {
         this.logger.Debug("Unhandled Deluge RPC method: {0}", method);
-        return this.DelugeResult(new
-        {
-            result = (object)null,
-            error = new { message = $"Unknown method: {method}", code = 1 },
-            id,
-        });
+        return this.DelugeError($"Unknown method: {method}", 1, id);
     }
 
     private static string GetFirstStringParam(JsonElement parameters)
