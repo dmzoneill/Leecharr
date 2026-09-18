@@ -622,11 +622,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 this.logger.Warn(ex, "Error removing torrent {0} from download engine", id);
             }
 
-            this.fileRepository.DeleteByTorrentId(id);
-            this.trackerEntryRepository?.DeleteByTorrentId(id);
-            this.mediaEnrichmentService.DeleteMetadata(id);
-            this.mediaEnrichmentService.CleanupTorrentCache(id);
-            this.torrentRepository.Delete(id);
+            this.eventAggregator.PublishEvent(new TorrentDeletedEvent { Torrent = torrent, DeleteFiles = deleteFiles });
 
             // Note: Cached .torrent files in AppDataFolder/Torrents are preserved for Download History
             // so historical torrents can be losslessly re-added. They are cleaned up when history records are deleted.
@@ -635,7 +631,11 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 await this.DeleteTorrentDataOnDiskAsync(torrent, torrentFiles);
             }
 
-            this.eventAggregator.PublishEvent(new TorrentDeletedEvent { Torrent = torrent, DeleteFiles = deleteFiles });
+            this.fileRepository.DeleteByTorrentId(id);
+            this.trackerEntryRepository?.DeleteByTorrentId(id);
+            this.mediaEnrichmentService.DeleteMetadata(id);
+            this.mediaEnrichmentService.CleanupTorrentCache(id);
+            this.torrentRepository.Delete(id);
         }
         finally
         {
