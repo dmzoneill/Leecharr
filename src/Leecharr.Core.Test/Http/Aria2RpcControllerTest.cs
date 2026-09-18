@@ -847,9 +847,64 @@ public class Aria2RpcControllerTest
         var contentResult = (ContentResult)actionResult;
         var resDoc = XDocument.Parse(contentResult.Content);
         var intVal = resDoc.Root?.Element("params")?.Element("param")?.Element("value")?.Element("int")?.Value;
-        intVal.Should().Be("1");
+        intVal.Should().Be("0");
 
-        await this.torrentService.Received().MoveQueueAsync(55, "top");
+        await this.torrentService.Received().MoveQueueAsync(55, "0");
+    }
+
+    [Test]
+    public async Task ChangePosition_JsonRpc_PosCur_MovesRelativeAndClamps()
+    {
+        var t1 = new Torrent { Id = 55, Name = "T1", InfoHash = FullInfoHash, QueuePosition = 1 };
+        var t2 = new Torrent { Id = 56, Name = "T2", InfoHash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", QueuePosition = 2 };
+        var t3 = new Torrent { Id = 57, Name = "T3", InfoHash = "cccccccccccccccccccccccccccccccccccccccc", QueuePosition = 3 };
+        this.torrentService.GetAll().Returns(new List<Torrent> { t1, t2, t3 });
+
+        var gid2 = "bbbbbbbbbbbbbbbb";
+        this.SetJsonRequestBody($$"""
+            {
+                "jsonrpc": "2.0",
+                "id": "pos-cur-test",
+                "method": "aria2.changePosition",
+                "params": ["{{gid2}}", -5, "POS_CUR"]
+            }
+            """);
+
+        var actionResult = await this.controller.HandleRpc();
+        var okResult = actionResult.Should().BeOfType<OkObjectResult>().Subject;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var jsonDoc = JsonDocument.Parse(json);
+        var resultInt = jsonDoc.RootElement.GetProperty("result").GetInt32();
+        resultInt.Should().Be(0);
+
+        await this.torrentService.Received().MoveQueueAsync(56, "0");
+    }
+
+    [Test]
+    public async Task ChangePosition_JsonRpc_PosEnd_MovesFromEnd()
+    {
+        var t1 = new Torrent { Id = 55, Name = "T1", InfoHash = FullInfoHash, QueuePosition = 1 };
+        var t2 = new Torrent { Id = 56, Name = "T2", InfoHash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", QueuePosition = 2 };
+        var t3 = new Torrent { Id = 57, Name = "T3", InfoHash = "cccccccccccccccccccccccccccccccccccccccc", QueuePosition = 3 };
+        this.torrentService.GetAll().Returns(new List<Torrent> { t1, t2, t3 });
+
+        this.SetJsonRequestBody($$"""
+            {
+                "jsonrpc": "2.0",
+                "id": "pos-end-test",
+                "method": "aria2.changePosition",
+                "params": ["{{ExpectedGid}}", -1, "POS_END"]
+            }
+            """);
+
+        var actionResult = await this.controller.HandleRpc();
+        var okResult = actionResult.Should().BeOfType<OkObjectResult>().Subject;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var jsonDoc = JsonDocument.Parse(json);
+        var resultInt = jsonDoc.RootElement.GetProperty("result").GetInt32();
+        resultInt.Should().Be(1);
+
+        await this.torrentService.Received().MoveQueueAsync(55, "1");
     }
 
     [Test]

@@ -1177,23 +1177,32 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
             allTorrents.RemoveAt(index);
 
-            switch (position?.ToLowerInvariant())
+            var posStr = position?.ToLowerInvariant();
+            if (int.TryParse(posStr, out var targetIndex))
             {
-                case "top":
-                    allTorrents.Insert(0, torrent);
-                    break;
-                case "up":
-                    allTorrents.Insert(Math.Max(0, index - 1), torrent);
-                    break;
-                case "down":
-                    allTorrents.Insert(Math.Min(allTorrents.Count, index + 1), torrent);
-                    break;
-                case "bottom":
-                    allTorrents.Add(torrent);
-                    break;
-                default:
-                    allTorrents.Insert(index, torrent);
-                    break;
+                var clampedIndex = Math.Clamp(targetIndex, 0, allTorrents.Count);
+                allTorrents.Insert(clampedIndex, torrent);
+            }
+            else
+            {
+                switch (posStr)
+                {
+                    case "top":
+                        allTorrents.Insert(0, torrent);
+                        break;
+                    case "up":
+                        allTorrents.Insert(Math.Max(0, index - 1), torrent);
+                        break;
+                    case "down":
+                        allTorrents.Insert(Math.Min(allTorrents.Count, index + 1), torrent);
+                        break;
+                    case "bottom":
+                        allTorrents.Add(torrent);
+                        break;
+                    default:
+                        allTorrents.Insert(index, torrent);
+                        break;
+                }
             }
 
             for (var i = 0; i < allTorrents.Count; i++)

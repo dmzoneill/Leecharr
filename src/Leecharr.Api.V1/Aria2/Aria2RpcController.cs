@@ -1211,29 +1211,51 @@ public class Aria2RpcController : ControllerBase
 
     private async Task<int> MoveQueuePositionAsync(string gid, int offset, string how)
     {
-        var t = this.FindByGid(gid);
+        var allTorrents = this.torrentService.GetAll()
+            .OrderBy(x => x.QueuePosition > 0 ? x.QueuePosition : x.Id)
+            .ToList();
+
+        if (string.IsNullOrWhiteSpace(gid))
+        {
+            return 0;
+        }
+
+        var clean = gid.Trim();
+        var t = allTorrents.FirstOrDefault(x => x.InfoHash.StartsWith(clean, StringComparison.OrdinalIgnoreCase) || x.InfoHash.Equals(clean, StringComparison.OrdinalIgnoreCase));
         if (t == null)
         {
             return 0;
         }
 
-        var normHow = how?.ToLowerInvariant();
-        var dir = "down";
-        if (normHow == "pos_set" && offset == 0)
+        var count = allTorrents.Count;
+        var currentIndex = allTorrents.FindIndex(x => x.Id == t.Id);
+        if (currentIndex < 0)
         {
-            dir = "top";
-        }
-        else if (normHow == "pos_end")
-        {
-            dir = "bottom";
-        }
-        else if (offset < 0)
-        {
-            dir = "up";
+            currentIndex = 0;
         }
 
-        await this.torrentService.MoveQueueAsync(t.Id, dir);
-        return 1;
+        var normHow = how?.ToUpperInvariant() ?? "POS_CUR";
+        int targetIndex;
+        switch (normHow)
+        {
+            case "POS_SET":
+                targetIndex = offset;
+                break;
+            case "POS_CUR":
+                targetIndex = currentIndex + offset;
+                break;
+            case "POS_END":
+                targetIndex = (count - 1) + offset;
+                break;
+            default:
+                targetIndex = currentIndex + offset;
+                break;
+        }
+
+        targetIndex = Math.Clamp(targetIndex, 0, Math.Max(0, count - 1));
+
+        await this.torrentService.MoveQueueAsync(t.Id, targetIndex.ToString());
+        return targetIndex;
     }
 
     private async Task ApplyOptionsAsync(string gid, IReadOnlyDictionary<string, string> options)
