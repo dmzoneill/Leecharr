@@ -1,6 +1,8 @@
 #nullable enable
 using System;
+using System.Collections.Concurrent;
 using System.Linq;
+using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Extraction;
@@ -53,11 +55,19 @@ public class AutomationEventService :
 {
     private readonly IAutomationService _automationService;
     private readonly Logger _logger;
+    private readonly TimeSpan _cooldownWindow;
+    private readonly ConcurrentDictionary<(int ScriptId, int? TorrentId, AutomationTrigger Trigger), DateTime> _lastExecutionTime = new();
 
     public AutomationEventService(IAutomationService automationService)
+        : this(automationService, null)
+    {
+    }
+
+    public AutomationEventService(IAutomationService automationService, TimeSpan? cooldownWindow)
     {
         _automationService = automationService;
         _logger = LogManager.GetCurrentClassLogger();
+        _cooldownWindow = cooldownWindow ?? TimeSpan.FromSeconds(2);
     }
 
     public void Handle(TorrentAddedEvent message)
@@ -67,7 +77,7 @@ public class AutomationEventService :
             return;
         }
 
-        DispatchTrigger(AutomationTrigger.TorrentAdded, message.Torrent);
+        _ = DispatchTrigger(AutomationTrigger.TorrentAdded, message.Torrent);
     }
 
     public void Handle(TorrentDownloadCompletedEvent message)
@@ -77,7 +87,7 @@ public class AutomationEventService :
             return;
         }
 
-        DispatchTrigger(AutomationTrigger.TorrentCompleted, message.Torrent);
+        _ = DispatchTrigger(AutomationTrigger.TorrentCompleted, message.Torrent);
     }
 
     public void Handle(TorrentSeedGoalReachedEvent message)
@@ -87,7 +97,7 @@ public class AutomationEventService :
             return;
         }
 
-        DispatchTrigger(AutomationTrigger.RatioReached, message.Torrent);
+        _ = DispatchTrigger(AutomationTrigger.RatioReached, message.Torrent);
     }
 
     public void Handle(TorrentRatioReachedEvent message)
@@ -97,7 +107,7 @@ public class AutomationEventService :
             return;
         }
 
-        DispatchTrigger(AutomationTrigger.RatioReached, message.Torrent);
+        _ = DispatchTrigger(AutomationTrigger.RatioReached, message.Torrent);
     }
 
     public void Handle(HealthIssueEvent message)
@@ -108,7 +118,7 @@ public class AutomationEventService :
         }
 
         var trigger = message.IsResolved ? AutomationTrigger.HealthRestored : AutomationTrigger.TorrentError;
-        DispatchTrigger(trigger, message.Torrent);
+        _ = DispatchTrigger(trigger, message.Torrent);
     }
 
     public void Handle(TorrentDeletedEvent message)
@@ -118,7 +128,7 @@ public class AutomationEventService :
             return;
         }
 
-        DispatchTrigger(AutomationTrigger.TorrentDeleted, message.Torrent);
+        _ = DispatchTrigger(AutomationTrigger.TorrentDeleted, message.Torrent);
     }
 
     public void Handle(TorrentStatusChangedEvent message)
@@ -128,14 +138,14 @@ public class AutomationEventService :
             return;
         }
 
-        DispatchTrigger(AutomationTrigger.TorrentStatusChanged, message.Torrent);
+        _ = DispatchTrigger(AutomationTrigger.TorrentStatusChanged, message.Torrent);
     }
 
     public void Handle(MediaEnrichedEvent message)
     {
         if (message?.TorrentId > 0)
         {
-            DispatchTrigger(AutomationTrigger.MediaEnriched, null);
+            _ = DispatchTrigger(AutomationTrigger.MediaEnriched, null);
         }
     }
 
@@ -143,7 +153,7 @@ public class AutomationEventService :
     {
         if (message?.Torrent != null)
         {
-            DispatchTrigger(AutomationTrigger.ArchiveExtracted, message.Torrent);
+            _ = DispatchTrigger(AutomationTrigger.ArchiveExtracted, message.Torrent);
         }
     }
 
@@ -151,35 +161,35 @@ public class AutomationEventService :
     {
         if (message?.Torrent != null)
         {
-            DispatchTrigger(AutomationTrigger.ExtractionFailed, message.Torrent);
+            _ = DispatchTrigger(AutomationTrigger.ExtractionFailed, message.Torrent);
         }
     }
 
     public void Handle(VpnKillSwitchTriggeredEvent message)
     {
-        DispatchTrigger(AutomationTrigger.VpnDisconnected, null);
+        _ = DispatchTrigger(AutomationTrigger.VpnDisconnected, null);
     }
 
     public void Handle(VpnInterfaceRestoredEvent message)
     {
-        DispatchTrigger(AutomationTrigger.VpnRestored, null);
+        _ = DispatchTrigger(AutomationTrigger.VpnRestored, null);
     }
 
     public void Handle(CategoryUpdatedEvent message)
     {
-        DispatchTrigger(AutomationTrigger.CategoryChanged, null);
+        _ = DispatchTrigger(AutomationTrigger.CategoryChanged, null);
     }
 
     public void Handle(ApplicationStartedEvent message)
     {
-        DispatchTrigger(AutomationTrigger.ApplicationStarted, null);
+        _ = DispatchTrigger(AutomationTrigger.ApplicationStarted, null);
     }
 
     public void Handle(TorrentStartedEvent message)
     {
         if (message?.Torrent != null)
         {
-            DispatchTrigger(AutomationTrigger.TorrentStarted, message.Torrent);
+            _ = DispatchTrigger(AutomationTrigger.TorrentStarted, message.Torrent);
         }
     }
 
@@ -187,7 +197,7 @@ public class AutomationEventService :
     {
         if (message?.Torrent != null)
         {
-            DispatchTrigger(AutomationTrigger.TorrentPaused, message.Torrent);
+            _ = DispatchTrigger(AutomationTrigger.TorrentPaused, message.Torrent);
         }
     }
 
@@ -195,7 +205,7 @@ public class AutomationEventService :
     {
         if (message?.Torrent != null)
         {
-            DispatchTrigger(AutomationTrigger.TorrentStalled, message.Torrent);
+            _ = DispatchTrigger(AutomationTrigger.TorrentStalled, message.Torrent);
         }
     }
 
@@ -203,7 +213,7 @@ public class AutomationEventService :
     {
         if (message?.Torrent != null)
         {
-            DispatchTrigger(AutomationTrigger.SeedingTimeReached, message.Torrent);
+            _ = DispatchTrigger(AutomationTrigger.SeedingTimeReached, message.Torrent);
         }
     }
 
@@ -211,7 +221,7 @@ public class AutomationEventService :
     {
         if (message?.Torrent != null)
         {
-            DispatchTrigger(AutomationTrigger.HashCheckCompleted, message.Torrent);
+            _ = DispatchTrigger(AutomationTrigger.HashCheckCompleted, message.Torrent);
         }
     }
 
@@ -219,142 +229,195 @@ public class AutomationEventService :
     {
         if (message?.Torrent != null)
         {
-            DispatchTrigger(AutomationTrigger.ProgressMilestone, message.Torrent);
+            _ = DispatchTrigger(AutomationTrigger.ProgressMilestone, message.Torrent);
         }
     }
 
     public void Handle(SpeedThresholdExceededEvent message)
     {
-        DispatchTrigger(AutomationTrigger.SpeedThresholdExceeded, null);
+        _ = DispatchTrigger(AutomationTrigger.SpeedThresholdExceeded, null);
     }
 
     public void Handle(SpeedThresholdDroppedEvent message)
     {
-        DispatchTrigger(AutomationTrigger.SpeedThresholdDropped, null);
+        _ = DispatchTrigger(AutomationTrigger.SpeedThresholdDropped, null);
     }
 
     public void Handle(BandwidthQuotaApproachingEvent message)
     {
-        DispatchTrigger(AutomationTrigger.BandwidthQuotaApproaching, null);
+        _ = DispatchTrigger(AutomationTrigger.BandwidthQuotaApproaching, null);
     }
 
     public void Handle(PortForwardingFailedEvent message)
     {
-        DispatchTrigger(AutomationTrigger.PortForwardingFailed, null);
+        _ = DispatchTrigger(AutomationTrigger.PortForwardingFailed, null);
     }
 
     public void Handle(PeerBannedEvent message)
     {
-        DispatchTrigger(AutomationTrigger.PeerBanned, null);
+        _ = DispatchTrigger(AutomationTrigger.PeerBanned, null);
     }
 
     public void Handle(TrackerUnreachableEvent message)
     {
-        DispatchTrigger(AutomationTrigger.TrackerUnreachable, message?.Torrent);
+        _ = DispatchTrigger(AutomationTrigger.TrackerUnreachable, message?.Torrent);
     }
 
     public void Handle(TrackerBoostAppliedEvent message)
     {
-        DispatchTrigger(AutomationTrigger.TrackerBoostApplied, message?.Torrent);
+        _ = DispatchTrigger(AutomationTrigger.TrackerBoostApplied, message?.Torrent);
     }
 
     public void Handle(DiskSpaceLowEvent message)
     {
-        DispatchTrigger(AutomationTrigger.DiskSpaceLow, null);
+        _ = DispatchTrigger(AutomationTrigger.DiskSpaceLow, null);
     }
 
     public void Handle(DiskSpaceCriticalEvent message)
     {
-        DispatchTrigger(AutomationTrigger.DiskSpaceCritical, null);
+        _ = DispatchTrigger(AutomationTrigger.DiskSpaceCritical, null);
     }
 
     public void Handle(FileMoveFailedEvent message)
     {
-        DispatchTrigger(AutomationTrigger.FileMoveFailed, message?.Torrent);
+        _ = DispatchTrigger(AutomationTrigger.FileMoveFailed, message?.Torrent);
     }
 
     public void Handle(MediaInspectionFailedEvent message)
     {
-        DispatchTrigger(AutomationTrigger.MediaInspectionFailed, message?.Torrent);
+        _ = DispatchTrigger(AutomationTrigger.MediaInspectionFailed, message?.Torrent);
     }
 
     public void Handle(ArrImportCompletedEvent message)
     {
-        DispatchTrigger(AutomationTrigger.ArrImportCompleted, message?.Torrent);
+        _ = DispatchTrigger(AutomationTrigger.ArrImportCompleted, message?.Torrent);
     }
 
     public void Handle(ApplicationUpdatedEvent message)
     {
-        DispatchTrigger(AutomationTrigger.ApplicationUpdated, null);
+        _ = DispatchTrigger(AutomationTrigger.ApplicationUpdated, null);
     }
 
     public void Handle(BackupCompletedEvent message)
     {
-        DispatchTrigger(AutomationTrigger.BackupCompleted, null);
+        _ = DispatchTrigger(AutomationTrigger.BackupCompleted, null);
     }
 
     public void Handle(BackupFailedEvent message)
     {
-        DispatchTrigger(AutomationTrigger.BackupFailed, null);
+        _ = DispatchTrigger(AutomationTrigger.BackupFailed, null);
     }
 
     public void Handle(TaskFailedEvent message)
     {
-        DispatchTrigger(AutomationTrigger.TaskFailed, null);
+        _ = DispatchTrigger(AutomationTrigger.TaskFailed, null);
     }
 
-    private void DispatchTrigger(AutomationTrigger trigger, Torrent? torrent = null)
+    internal Task DispatchTrigger(AutomationTrigger trigger, Torrent? torrent = null)
     {
-        try
+        return Task.Run(() =>
         {
-            var allScripts = _automationService.GetAll();
-            var matchingScripts = allScripts
-                .Where(s => s.IsEnabled && s.Trigger == trigger)
-                .ToList();
-
-            if (matchingScripts.Count == 0)
+            try
             {
-                return;
-            }
-
-            _logger.Debug("Found {0} automation scripts for trigger {1}", matchingScripts.Count, trigger);
-
-            foreach (var script in matchingScripts)
-            {
-                if (torrent != null)
+                var allScripts = _automationService.GetAll();
+                if (allScripts == null || allScripts.Count == 0)
                 {
-                    // Category filter
-                    if (script.TargetCategories != null && script.TargetCategories.Count > 0)
+                    return;
+                }
+
+                var matchingScripts = allScripts
+                    .Where(s => s.IsEnabled && s.Trigger == trigger)
+                    .ToList();
+
+                if (matchingScripts.Count == 0)
+                {
+                    return;
+                }
+
+                _logger.Debug("Found {0} automation scripts for trigger {1}", matchingScripts.Count, trigger);
+
+                foreach (var script in matchingScripts)
+                {
+                    if (torrent != null)
                     {
-                        if (string.IsNullOrEmpty(torrent.Category) || !script.TargetCategories.Contains(torrent.Category, StringComparer.OrdinalIgnoreCase))
+                        // Category filter
+                        if (script.TargetCategories != null && script.TargetCategories.Count > 0)
                         {
-                            continue;
+                            if (string.IsNullOrEmpty(torrent.Category) || !script.TargetCategories.Contains(torrent.Category, StringComparer.OrdinalIgnoreCase))
+                            {
+                                continue;
+                            }
+                        }
+
+                        // Tag filter
+                        if (script.TargetTagIds != null && script.TargetTagIds.Count > 0)
+                        {
+                            if (torrent.TagIds == null || !script.TargetTagIds.Any(t => torrent.TagIds.Contains(t)))
+                            {
+                                continue;
+                            }
                         }
                     }
 
-                    // Tag filter
-                    if (script.TargetTagIds != null && script.TargetTagIds.Count > 0)
-                    {
-                        if (torrent.TagIds == null || !script.TargetTagIds.Any(t => torrent.TagIds.Contains(t)))
+                    var key = (script.Id, torrent?.Id, trigger);
+                    var now = DateTime.UtcNow;
+                    var shouldExecute = false;
+
+                    _lastExecutionTime.AddOrUpdate(
+                        key,
+                        _ =>
                         {
-                            continue;
-                        }
+                            shouldExecute = true;
+                            return now;
+                        },
+                        (_, lastRun) =>
+                        {
+                            if (now - lastRun < _cooldownWindow)
+                            {
+                                return lastRun;
+                            }
+
+                            shouldExecute = true;
+                            return now;
+                        });
+
+                    if (!shouldExecute)
+                    {
+                        _logger.Debug("Debouncing execution of script '{0}' for trigger {1}", script.Name, trigger);
+                        continue;
+                    }
+
+                    try
+                    {
+                        _automationService.ExecuteScript(script, torrent);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error(ex, "Failed to execute automation script '{0}' on trigger {1}", script.Name, trigger);
                     }
                 }
 
-                try
+                if (_lastExecutionTime.Count > 1000)
                 {
-                    _automationService.ExecuteScript(script, torrent);
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error(ex, "Failed to execute automation script '{0}' on trigger {1}", script.Name, trigger);
+                    CleanupExecutionCache();
                 }
             }
-        }
-        catch (Exception ex)
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Error dispatching automation trigger {0}", trigger);
+            }
+        });
+    }
+
+    private void CleanupExecutionCache()
+    {
+        var cutoff = DateTime.UtcNow - TimeSpan.FromMinutes(5);
+        foreach (var kvp in _lastExecutionTime)
         {
-            _logger.Error(ex, "Error dispatching automation trigger {0}", trigger);
+            if (kvp.Value < cutoff)
+            {
+                _lastExecutionTime.TryRemove(kvp.Key, out _);
+            }
         }
     }
 }
