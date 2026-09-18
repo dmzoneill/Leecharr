@@ -202,7 +202,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             res.QueuePosition = t.QueuePosition > 0 ? t.QueuePosition : idx + 1;
             if (allDbTrackers.TryGetValue(t.Id, out var trackerEntries) && trackerEntries.Count > 0)
             {
-                res.Trackers = trackerEntries.Select(x => x.Url).Where(u => !string.IsNullOrWhiteSpace(u)).ToList();
+                res.Trackers = trackerEntries.Select(x => TrackerUrlSanitizer.Sanitize(x.Url)).Where(u => !string.IsNullOrWhiteSpace(u)).ToList();
                 if (string.IsNullOrWhiteSpace(res.TrackerUrl) && res.Trackers.Count > 0)
                 {
                     res.TrackerUrl = res.Trackers[0];
@@ -254,7 +254,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
         if (dbTrackers != null && dbTrackers.Count > 0)
         {
-            res.Trackers = dbTrackers.Select(x => x.Url).Where(u => !string.IsNullOrWhiteSpace(u)).ToList();
+            res.Trackers = dbTrackers.Select(x => TrackerUrlSanitizer.Sanitize(x.Url)).Where(u => !string.IsNullOrWhiteSpace(u)).ToList();
             if (string.IsNullOrWhiteSpace(res.TrackerUrl) && res.Trackers.Count > 0)
             {
                 res.TrackerUrl = dbTrackers[0].Url;
@@ -449,7 +449,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             return new TrackerResource
             {
                 Id = t.Id,
-                Url = t.Url,
+                Url = TrackerUrlSanitizer.Sanitize(t.Url),
                 Tier = t.Tier,
                 Status = statusStr,
                 Seeders = t.Seeders > 0 ? t.Seeders : torrent.Seeders,
@@ -1290,7 +1290,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             {
                 Name = !string.IsNullOrWhiteSpace(parsedMagnet.DisplayName) ? parsedMagnet.DisplayName : parsedMagnet.InfoHash,
                 InfoHash = parsedMagnet.InfoHash.ToLowerInvariant(),
-                Trackers = parsedMagnet.Trackers?.ToList() ?? new List<string>(),
+                Trackers = parsedMagnet.Trackers?.Select(TrackerUrlSanitizer.Sanitize).ToList() ?? new List<string>(),
                 TotalSize = 0,
                 PieceCount = 0,
                 PieceLength = 0,
@@ -1375,7 +1375,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             Comment = parsed.Comment,
             CreatedBy = parsed.CreatedBy,
             CreationDate = parsed.CreationDate,
-            Trackers = trackers.Distinct().ToList(),
+            Trackers = trackers.Select(TrackerUrlSanitizer.Sanitize).Distinct().ToList(),
             Files = parsed.Files?.Select(f => new TorrentPreviewFileResource
             {
                 Path = f.Path,
@@ -1399,6 +1399,21 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         var bitfield = task?.PieceBitfield != null && task.PieceBitfield.Length > 0
             ? TorrentResourceMapper.EncodeBitfield(task.PieceBitfield)
             : null;
-        return TorrentResourceMapper.ToResource(model, meta, bitfield);
+        var res = TorrentResourceMapper.ToResource(model, meta, bitfield);
+        var dbTrackers = this.trackerEntryRepository?.GetByTorrentId(model.Id)?.ToList();
+        if (dbTrackers != null && dbTrackers.Count > 0)
+        {
+            res.Trackers = dbTrackers.Select(x => TrackerUrlSanitizer.Sanitize(x.Url)).Where(u => !string.IsNullOrWhiteSpace(u)).ToList();
+            if (string.IsNullOrWhiteSpace(res.TrackerUrl) && res.Trackers.Count > 0)
+            {
+                res.TrackerUrl = res.Trackers[0];
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(res.TrackerUrl))
+        {
+            res.Trackers = new List<string> { res.TrackerUrl };
+        }
+
+        return res;
     }
 }
