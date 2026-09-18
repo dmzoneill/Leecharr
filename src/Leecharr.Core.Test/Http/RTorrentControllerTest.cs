@@ -1000,4 +1000,159 @@ public class RTorrentControllerTest
         res3.Content.Should().Contain("<i4>0</i4>");
         res3.Content.Should().Contain("<string></string>");
     }
+
+    [Test]
+    public async Task HandleXmlRpc_CompletedAndLeftBytes_AlignsWithProgress()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "Progress.Torrent",
+            InfoHash = "1111111111111111111111111111111111111111",
+            TotalSize = 10_000_000L,
+            Downloaded = 50_000_000L, // Raw transfer exceeds size due to retransmission/waste
+            Progress = 0.75,
+            Status = TorrentStatus.Downloading,
+        };
+        this.torrentService.GetByInfoHash("1111111111111111111111111111111111111111").Returns(torrent);
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.multicall</methodName>
+              <params>
+                <param><value><string>main</string></value></param>
+                <param><value><string>d.completed_bytes=</string></value></param>
+                <param><value><string>d.get_completed_bytes=</string></value></param>
+                <param><value><string>d.bytes_done=</string></value></param>
+                <param><value><string>d.get_bytes_done=</string></value></param>
+                <param><value><string>d.left_bytes=</string></value></param>
+                <param><value><string>d.get_left_bytes=</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var res = (ContentResult)await this.controller.HandleXmlRpc();
+
+        // 0.75 * 10,000,000 = 7,500,000 completed
+        res.Content.Should().Contain("<i8>7500000</i8>");
+        res.Content.Should().NotContain("<i8>50000000</i8>");
+        // 0.25 * 10,000,000 = 2,500,000 left
+        res.Content.Should().Contain("<i8>2500000</i8>");
+
+        // Test fully complete torrent with 0 raw downloaded (e.g. seeded/imported)
+        var completeTorrent = new Torrent
+        {
+            Id = 2,
+            Name = "Complete.Torrent",
+            InfoHash = "2222222222222222222222222222222222222222",
+            TotalSize = 10_000_000L,
+            Downloaded = 0L,
+            Progress = 1.0,
+            Status = TorrentStatus.Seeding,
+        };
+        this.torrentService.GetByInfoHash("2222222222222222222222222222222222222222").Returns(completeTorrent);
+        this.torrentService.GetAll().Returns(new List<Torrent> { completeTorrent });
+
+        var xmlComplete = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.multicall</methodName>
+              <params>
+                <param><value><string>2222222222222222222222222222222222222222</string></value></param>
+                <param><value><string>d.completed_bytes=</string></value></param>
+                <param><value><string>d.left_bytes=</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xmlComplete);
+
+        var resComplete = (ContentResult)await this.controller.HandleXmlRpc();
+        resComplete.Content.Should().Contain("<i8>10000000</i8>");
+        resComplete.Content.Should().Contain("<i8>0</i8>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_SystemMulticall_WhenSubcallFails_ReturnsFaultStructWithoutFailingEntireMulticall()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "Success.Torrent",
+            InfoHash = "1111111111111111111111111111111111111111",
+        };
+        this.torrentService.GetByInfoHash("1111111111111111111111111111111111111111").Returns(torrent);
+
+        this.torrentService.GetByInfoHash("9999999999999999999999999999999999999999")
+            .Returns(_ => throw new System.InvalidOperationException("Failed to query torrent"));
+
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>system.multicall</methodName>
+              <params>
+                <param>
+                  <value>
+                    <array>
+                      <data>
+                        <value>
+                          <struct>
+                            <member>
+                              <name>methodName</name>
+                              <value><string>d.name</string></value>
+                            </member>
+                            <member>
+                              <name>params</name>
+                              <value>
+                                <array>
+                                  <data>
+                                    <value><string>1111111111111111111111111111111111111111</string></value>
+                                  </data>
+                                </array>
+                              </value>
+                            </member>
+                          </struct>
+                        </value>
+                        <value>
+                          <struct>
+                            <member>
+                              <name>methodName</name>
+                              <value><string>d.erase</string></value>
+                            </member>
+                            <member>
+                              <name>params</name>
+                              <value>
+                                <array>
+                                  <data>
+                                    <value><string>9999999999999999999999999999999999999999</string></value>
+                                  </data>
+                                </array>
+                              </value>
+                            </member>
+                          </struct>
+                        </value>
+                      </data>
+                    </array>
+                  </value>
+                </param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+
+        // Multicall overall returned array with 2 responses
+        contentResult.Content.Should().Contain("<methodResponse><params><param><value><array><data>");
+        // First subcall succeeded
+        contentResult.Content.Should().Contain("<string>Success.Torrent</string>");
+        // Second subcall returned a fault struct
+        contentResult.Content.Should().Contain("<name>faultCode</name><value><int>1</int></value>");
+        contentResult.Content.Should().Contain("<name>faultString</name><value><string>Failed to query torrent</string></value>");
+    }
 }
