@@ -102,8 +102,11 @@ public class ClientEmulationPresetsTest
                 var clientVer = gitInfoType.GetProperty("ClientVersion", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.GetValue(null) as string;
                 var dhtVer = gitInfoType.GetProperty("DhtClientVersion", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.GetValue(null) as string;
 
+                var clientIdentifier = gitInfoType.GetProperty("ClientIdentifier", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.GetValue(null) as string;
+
                 clientVer.Should().Be("qBittorrent/4.4.2");
                 dhtVer.Should().Be("qB4420");
+                clientIdentifier.Should().Be("qB");
             }
 
             var dhtMsgType = asm.GetType("MonoTorrent.Dht.Messages.DhtMessage");
@@ -135,8 +138,11 @@ public class ClientEmulationPresetsTest
                 var clientVer = gitInfoType.GetProperty("ClientVersion", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.GetValue(null) as string;
                 var dhtVer = gitInfoType.GetProperty("DhtClientVersion", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.GetValue(null) as string;
 
+                var clientIdentifier = gitInfoType.GetProperty("ClientIdentifier", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.GetValue(null) as string;
+
                 clientVer.Should().Be("Deluge/2.1.1");
                 dhtVer.Should().Be("DE2110");
+                clientIdentifier.Should().Be("DE");
             }
         }
     }
