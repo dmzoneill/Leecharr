@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using NzbDrone.Core.Torrents;
@@ -11,15 +12,16 @@ namespace NzbDrone.Core.Notifications;
 
 public static class NotificationPayloadBuilder
 {
-    public static (string ChatId, string Token, string User) ExtractProviderSettings(string settings)
+    public static (string ChatId, string Token, string User, string Sound) ExtractProviderSettings(string settings)
     {
         var chatId = string.Empty;
         var token = string.Empty;
         var user = string.Empty;
+        var sound = string.Empty;
 
         if (string.IsNullOrWhiteSpace(settings))
         {
-            return (chatId, token, user);
+            return (chatId, token, user, sound);
         }
 
         if (settings.TrimStart().StartsWith("{"))
@@ -41,6 +43,11 @@ public static class NotificationPayloadBuilder
                 if (root.TryGetProperty("user", out var u) || root.TryGetProperty("userKey", out u))
                 {
                     user = u.GetString() ?? u.ToString();
+                }
+
+                if (root.TryGetProperty("sound", out var s) || root.TryGetProperty("Sound", out s))
+                {
+                    sound = s.GetString() ?? s.ToString();
                 }
             }
             catch
@@ -75,7 +82,16 @@ public static class NotificationPayloadBuilder
             }
         }
 
-        return (chatId, token, user);
+        if (string.IsNullOrEmpty(sound) && settings.Contains("sound=", StringComparison.OrdinalIgnoreCase))
+        {
+            var match = Regex.Match(settings, @"sound=([^&]+)", RegexOptions.IgnoreCase);
+            if (match.Success)
+            {
+                sound = Uri.UnescapeDataString(match.Groups[1].Value);
+            }
+        }
+
+        return (chatId, token, user, sound);
     }
 
     public static string ResolveTargetUrl(string implementation, string settings)
@@ -89,7 +105,7 @@ public static class NotificationPayloadBuilder
 
         if (string.Equals(implementation, "Telegram", StringComparison.OrdinalIgnoreCase))
         {
-            var (_, token, _) = ExtractProviderSettings(trimmed);
+            var (_, token, _, _) = ExtractProviderSettings(trimmed);
             if (!string.IsNullOrEmpty(token))
             {
                 return $"https://api.telegram.org/bot{token}/sendMessage";
@@ -212,7 +228,7 @@ public static class NotificationPayloadBuilder
 
         if (string.Equals(implementation, "Gotify", StringComparison.OrdinalIgnoreCase))
         {
-            var (_, token, _) = ExtractProviderSettings(trimmed);
+            var (_, token, _, _) = ExtractProviderSettings(trimmed);
             if (!string.IsNullOrWhiteSpace(token))
             {
                 if (string.IsNullOrWhiteSpace(explicitHeaders))
@@ -255,7 +271,7 @@ public static class NotificationPayloadBuilder
 
     public static object BuildProviderPayload(string implementation, string eventType, Torrent torrent, dynamic meta, object genericPayload, string settings = null)
     {
-        var (chatId, token, user) = ExtractProviderSettings(settings);
+        var (chatId, token, user, sound) = ExtractProviderSettings(settings);
         var torrentName = torrent?.Name ?? ExtractMessage(genericPayload, eventType);
 
         if (string.Equals(implementation, "Discord", StringComparison.OrdinalIgnoreCase))
@@ -292,22 +308,74 @@ public static class NotificationPayloadBuilder
                 ? $"*Leecharr [{eventType}]* - *{torrent.Name}*\nCategory: {torrent.Category ?? "None"} | Status: {torrent.Status} | Size: {torrent.TotalSize / (1024.0 * 1024.0):F2} MB"
                 : $"*Leecharr [{eventType}]*\n{ExtractMessage(genericPayload, eventType)}";
 
+            object[] sectionFields;
+            if (torrent != null)
+            {
+                sectionFields = new object[]
+                {
+                    new { type = "mrkdwn", text = $"*Torrent:*\n{torrent.Name}" },
+                    new { type = "mrkdwn", text = $"*Category:*\n{torrent.Category ?? "None"}" },
+                    new { type = "mrkdwn", text = $"*Status:*\n{torrent.Status}" },
+                    new { type = "mrkdwn", text = $"*Size:*\n{torrent.TotalSize / (1024.0 * 1024.0):F2} MB" },
+                };
+            }
+            else
+            {
+                sectionFields = new object[]
+                {
+                    new { type = "mrkdwn", text = $"*Event:*\n{eventType}" },
+                    new { type = "mrkdwn", text = $"*Message:*\n{ExtractMessage(genericPayload, eventType)}" },
+                };
+            }
+
+            var blocks = new object[]
+            {
+                new
+                {
+                    type = "header",
+                    text = new
+                    {
+                        type = "plain_text",
+                        text = Truncate($"Leecharr [{eventType}]", 150),
+                        emoji = true,
+                    },
+                },
+                new
+                {
+                    type = "section",
+                    fields = sectionFields,
+                },
+                new
+                {
+                    type = "context",
+                    elements = new object[]
+                    {
+                        new
+                        {
+                            type = "mrkdwn",
+                            text = "Leecharr Notification",
+                        },
+                    },
+                },
+            };
+
             return new
             {
                 text = Truncate(text, 3500),
                 username = "Leecharr",
+                blocks,
             };
         }
 
         if (string.Equals(implementation, "Telegram", StringComparison.OrdinalIgnoreCase))
         {
             var text = torrent != null
-                ? $"*Leecharr [{EpisodicParser.EscapeMarkdownStatic(eventType)}]*\n*{EpisodicParser.EscapeMarkdownStatic(torrent.Name)}*\nCategory: {EpisodicParser.EscapeMarkdownStatic(torrent.Category ?? "None")}\nProgress: {torrent.Progress * 100:F1}%\nStatus: {torrent.Status}"
-                : $"*Leecharr [{EpisodicParser.EscapeMarkdownStatic(eventType)}]*\n{EpisodicParser.EscapeMarkdownStatic(ExtractMessage(genericPayload, eventType))}";
+                ? $"*Leecharr [{EscapeTelegramMarkdown(eventType)}]*\n*{EscapeTelegramMarkdown(torrent.Name)}*\nCategory: {EscapeTelegramMarkdown(torrent.Category ?? "None")}\nProgress: {torrent.Progress * 100:F1}%\nStatus: {torrent.Status}"
+                : $"*Leecharr [{EscapeTelegramMarkdown(eventType)}]*\n{EscapeTelegramMarkdown(ExtractMessage(genericPayload, eventType))}";
 
             var payloadDict = new Dictionary<string, object>
             {
-                ["text"] = Truncate(text, 4096),
+                ["text"] = TruncateTelegramMarkdown(text, 4096),
                 ["parse_mode"] = "Markdown",
             };
 
@@ -325,16 +393,20 @@ public static class NotificationPayloadBuilder
             {
                 title = $"Leecharr: {eventType}",
                 message = torrent != null ? $"{torrent.Name} ({torrent.Category ?? "Default"}) - {torrent.Status}" : ExtractMessage(genericPayload, eventType),
-                priority = 5,
+                priority = ResolveGotifyPriority(eventType),
             };
         }
 
         if (string.Equals(implementation, "Pushover", StringComparison.OrdinalIgnoreCase))
         {
+            var rawTitle = $"Leecharr: {eventType}";
+            var rawMessage = torrent != null ? $"{torrent.Name} ({torrent.Category ?? "Default"}) - {torrent.Status}" : ExtractMessage(genericPayload, eventType);
+
             var payloadDict = new Dictionary<string, object>
             {
-                ["title"] = $"Leecharr: {eventType}",
-                ["message"] = torrent != null ? $"{torrent.Name} ({torrent.Category ?? "Default"}) - {torrent.Status}" : ExtractMessage(genericPayload, eventType),
+                ["title"] = Truncate(rawTitle, 250),
+                ["message"] = Truncate(rawMessage, 1024),
+                ["priority"] = ResolvePushoverPriority(eventType),
             };
 
             if (!string.IsNullOrEmpty(token))
@@ -345,6 +417,11 @@ public static class NotificationPayloadBuilder
             if (!string.IsNullOrEmpty(user))
             {
                 payloadDict["user"] = user;
+            }
+
+            if (!string.IsNullOrWhiteSpace(sound))
+            {
+                payloadDict["sound"] = sound;
             }
 
             return payloadDict;
@@ -459,5 +536,254 @@ public static class NotificationPayloadBuilder
 
         var clean = candidateUrl.TrimEnd('/');
         return clean.EndsWith($"/{endpoint}", StringComparison.OrdinalIgnoreCase) ? clean : $"{clean}/{endpoint}";
+    }
+
+    internal static int ResolveGotifyPriority(string eventType)
+    {
+        if (string.Equals(eventType, "OnHealthIssue", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(eventType, "OnManualInteractionRequired", StringComparison.OrdinalIgnoreCase))
+        {
+            return 8;
+        }
+
+        if (string.Equals(eventType, "OnDownloadComplete", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(eventType, "OnSeedGoalReached", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(eventType, "OnExtractComplete", StringComparison.OrdinalIgnoreCase))
+        {
+            return 5;
+        }
+
+        if (string.Equals(eventType, "OnGrab", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(eventType, "OnMediaInspected", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(eventType, "OnTorrentDeleted", StringComparison.OrdinalIgnoreCase))
+        {
+            return 3;
+        }
+
+        return 5;
+    }
+
+    internal static int ResolvePushoverPriority(string eventType)
+    {
+        if (string.Equals(eventType, "OnHealthIssue", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(eventType, "OnManualInteractionRequired", StringComparison.OrdinalIgnoreCase))
+        {
+            return 1;
+        }
+
+        if (string.Equals(eventType, "OnDownloadComplete", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(eventType, "OnSeedGoalReached", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(eventType, "OnExtractComplete", StringComparison.OrdinalIgnoreCase))
+        {
+            return 0;
+        }
+
+        if (string.Equals(eventType, "OnGrab", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(eventType, "OnMediaInspected", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(eventType, "OnTorrentDeleted", StringComparison.OrdinalIgnoreCase))
+        {
+            return -1;
+        }
+
+        return 0;
+    }
+
+    internal static string EscapeTelegramMarkdown(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return string.Empty;
+        }
+
+        var sb = new StringBuilder(text.Length * 2);
+        foreach (var c in text)
+        {
+            if (c is '_' or '*' or '[' or ']' or '`' or '\\')
+            {
+                sb.Append('\\');
+            }
+
+            sb.Append(c);
+        }
+
+        return sb.ToString();
+    }
+
+    internal static string TruncateTelegramMarkdown(string text, int maxLength = 4096)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return string.Empty;
+        }
+
+        if (text.Length <= maxLength)
+        {
+            var closing = GetClosingTags(text, text.Length);
+            var cleanLen = text.Length;
+
+            while (cleanLen > 0 && HasOddTrailingBackslashes(text, cleanLen))
+            {
+                cleanLen--;
+            }
+
+            var baseText = cleanLen == text.Length ? text : text.Substring(0, cleanLen);
+            if (string.IsNullOrEmpty(closing))
+            {
+                return baseText;
+            }
+
+            if (baseText.Length + closing.Length <= maxLength)
+            {
+                return baseText + closing;
+            }
+        }
+
+        var targetLen = Math.Min(text.Length, maxLength - 3);
+
+        while (targetLen > 0)
+        {
+            if (HasOddTrailingBackslashes(text, targetLen))
+            {
+                targetLen--;
+                continue;
+            }
+
+            var closing = GetClosingTags(text, targetLen);
+            if (targetLen + 3 + closing.Length <= maxLength)
+            {
+                return text.Substring(0, targetLen) + "..." + closing;
+            }
+
+            targetLen--;
+        }
+
+        return Truncate(text, maxLength);
+    }
+
+    internal static string GetClosingTags(string text, int length)
+    {
+        if (string.IsNullOrEmpty(text) || length <= 0)
+        {
+            return string.Empty;
+        }
+
+        var stack = new List<string>();
+        var i = 0;
+        var limit = Math.Min(length, text.Length);
+
+        while (i < limit)
+        {
+            if (text[i] == '\\')
+            {
+                i += 2;
+                continue;
+            }
+
+            if (i + 2 < limit && text[i] == '`' && text[i + 1] == '`' && text[i + 2] == '`')
+            {
+                if (stack.Count > 0 && stack[^1] == "```")
+                {
+                    stack.RemoveAt(stack.Count - 1);
+                }
+                else
+                {
+                    stack.Add("```");
+                }
+
+                i += 3;
+                continue;
+            }
+
+            if (text[i] == '`')
+            {
+                if (stack.Count > 0 && stack[^1] == "```")
+                {
+                    i++;
+                    continue;
+                }
+
+                if (stack.Count > 0 && stack[^1] == "`")
+                {
+                    stack.RemoveAt(stack.Count - 1);
+                }
+                else
+                {
+                    stack.Add("`");
+                }
+
+                i++;
+                continue;
+            }
+
+            if (text[i] == '*')
+            {
+                if (stack.Count > 0 && (stack[^1] == "`" || stack[^1] == "```"))
+                {
+                    i++;
+                    continue;
+                }
+
+                if (stack.Count > 0 && stack[^1] == "*")
+                {
+                    stack.RemoveAt(stack.Count - 1);
+                }
+                else
+                {
+                    stack.Add("*");
+                }
+
+                i++;
+                continue;
+            }
+
+            if (text[i] == '_')
+            {
+                if (stack.Count > 0 && (stack[^1] == "`" || stack[^1] == "```"))
+                {
+                    i++;
+                    continue;
+                }
+
+                if (stack.Count > 0 && stack[^1] == "_")
+                {
+                    stack.RemoveAt(stack.Count - 1);
+                }
+                else
+                {
+                    stack.Add("_");
+                }
+
+                i++;
+                continue;
+            }
+
+            i++;
+        }
+
+        if (stack.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var sb = new StringBuilder();
+        for (var idx = stack.Count - 1; idx >= 0; idx--)
+        {
+            sb.Append(stack[idx]);
+        }
+
+        return sb.ToString();
+    }
+
+    internal static bool HasOddTrailingBackslashes(string text, int length)
+    {
+        var count = 0;
+        var idx = length - 1;
+        while (idx >= 0 && text[idx] == '\\')
+        {
+            count++;
+            idx--;
+        }
+
+        return (count % 2) == 1;
     }
 }
