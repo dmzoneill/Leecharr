@@ -277,6 +277,158 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public void FilteringPeerConnectionListener_WhenHalfOpenLimitExceeded_RejectsAndDisposesIncomingConnection()
+    {
+        var innerListener = Substitute.For<MonoTorrent.Connections.Peer.IPeerConnectionListener>();
+        var filteringListener = new FilteringPeerConnectionListener(
+            innerListener,
+            maxHalfOpenConnections: 2);
+
+        var receivedCount = 0;
+        filteringListener.ConnectionReceived += (_, _) => receivedCount++;
+
+        var conn1 = new FakePeerConnection();
+        var conn2 = new FakePeerConnection();
+        var conn3 = new FakePeerConnection();
+
+        innerListener.ConnectionReceived += Raise.Event<EventHandler<MonoTorrent.Connections.Peer.PeerConnectionEventArgs>>(
+            innerListener,
+            new MonoTorrent.Connections.Peer.PeerConnectionEventArgs(conn1, null));
+        innerListener.ConnectionReceived += Raise.Event<EventHandler<MonoTorrent.Connections.Peer.PeerConnectionEventArgs>>(
+            innerListener,
+            new MonoTorrent.Connections.Peer.PeerConnectionEventArgs(conn2, null));
+
+        receivedCount.Should().Be(2);
+        filteringListener.HalfOpenConnections.Should().Be(2);
+        conn1.Disposed.Should().BeFalse();
+        conn2.Disposed.Should().BeFalse();
+
+        // 3rd connection exceeds limit of 2
+        innerListener.ConnectionReceived += Raise.Event<EventHandler<MonoTorrent.Connections.Peer.PeerConnectionEventArgs>>(
+            innerListener,
+            new MonoTorrent.Connections.Peer.PeerConnectionEventArgs(conn3, null));
+
+        receivedCount.Should().Be(2);
+        filteringListener.HalfOpenConnections.Should().Be(2);
+        conn3.Disposed.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task FilteringPeerConnectionListener_WhenHandshakeTimesOut_AbortsSocketAndDecrementsHalfOpenCount()
+    {
+        var innerListener = Substitute.For<MonoTorrent.Connections.Peer.IPeerConnectionListener>();
+        var filteringListener = new FilteringPeerConnectionListener(
+            innerListener,
+            handshakeTimeout: TimeSpan.FromMilliseconds(50));
+
+        filteringListener.ConnectionReceived += (_, _) => { };
+
+        var conn = new FakePeerConnection();
+        innerListener.ConnectionReceived += Raise.Event<EventHandler<MonoTorrent.Connections.Peer.PeerConnectionEventArgs>>(
+            innerListener,
+            new MonoTorrent.Connections.Peer.PeerConnectionEventArgs(conn, null));
+
+        filteringListener.HalfOpenConnections.Should().Be(1);
+        conn.Disposed.Should().BeFalse();
+
+        // Wait for handshake timeout to fire
+        await Task.Delay(150);
+
+        conn.Disposed.Should().BeTrue();
+        filteringListener.HalfOpenConnections.Should().Be(0);
+    }
+
+    [Test]
+    public async Task FilteringPeerConnectionListener_WhenHandshakeCompletes_DecrementsHalfOpenCountAndDoesNotTimeout()
+    {
+        var innerListener = Substitute.For<MonoTorrent.Connections.Peer.IPeerConnectionListener>();
+        var filteringListener = new FilteringPeerConnectionListener(
+            innerListener,
+            handshakeTimeout: TimeSpan.FromMilliseconds(80));
+
+        MonoTorrent.Connections.Peer.IPeerConnection wrappedConn = null!;
+        filteringListener.ConnectionReceived += (_, e) => wrappedConn = e.Connection;
+
+        var conn = new FakePeerConnection { BytesToReturnOnReceive = 68 };
+        innerListener.ConnectionReceived += Raise.Event<EventHandler<MonoTorrent.Connections.Peer.PeerConnectionEventArgs>>(
+            innerListener,
+            new MonoTorrent.Connections.Peer.PeerConnectionEventArgs(conn, null));
+
+        filteringListener.HalfOpenConnections.Should().Be(1);
+
+        // Read handshake bytes (68 bytes)
+        var read = await wrappedConn.ReceiveAsync(new byte[68]);
+        read.Should().Be(68);
+
+        // HalfOpenConnections decrements immediately on handshake completion
+        filteringListener.HalfOpenConnections.Should().Be(0);
+
+        // Wait past handshake timeout
+        await Task.Delay(150);
+
+        // Connection was not aborted by timeout
+        conn.Disposed.Should().BeFalse();
+    }
+
+    [Test]
+    public void FilteringPeerConnectionListener_WhenConnectionDisposedBeforeHandshake_DecrementsHalfOpenCount()
+    {
+        var innerListener = Substitute.For<MonoTorrent.Connections.Peer.IPeerConnectionListener>();
+        var filteringListener = new FilteringPeerConnectionListener(innerListener);
+
+        MonoTorrent.Connections.Peer.IPeerConnection wrappedConn = null!;
+        filteringListener.ConnectionReceived += (_, e) => wrappedConn = e.Connection;
+
+        var conn = new FakePeerConnection();
+        innerListener.ConnectionReceived += Raise.Event<EventHandler<MonoTorrent.Connections.Peer.PeerConnectionEventArgs>>(
+            innerListener,
+            new MonoTorrent.Connections.Peer.PeerConnectionEventArgs(conn, null));
+
+        filteringListener.HalfOpenConnections.Should().Be(1);
+
+        wrappedConn.Dispose();
+
+        filteringListener.HalfOpenConnections.Should().Be(0);
+        conn.Disposed.Should().BeTrue();
+    }
+
+    private sealed class FakePeerConnection : MonoTorrent.Connections.Peer.IPeerConnection, IDisposable
+    {
+        public bool Disposed { get; private set; }
+
+        public bool CanReconnect => false;
+
+        public bool IsIncoming => true;
+
+        public IPEndPoint EndPoint { get; set; } = new IPEndPoint(IPAddress.Loopback, 12345);
+
+        public Uri Uri => new Uri("ipv4://127.0.0.1:12345");
+
+        public ReadOnlyMemory<byte> AddressBytes => new byte[4];
+
+        public int BytesToReturnOnReceive { get; set; }
+
+        public ReusableTasks.ReusableTask ConnectAsync() => default;
+
+        public async ReusableTasks.ReusableTask<int> ReceiveAsync(Memory<byte> buffer)
+        {
+            await Task.Yield();
+            return this.BytesToReturnOnReceive;
+        }
+
+        public async ReusableTasks.ReusableTask<int> SendAsync(Memory<byte> buffer)
+        {
+            await Task.Yield();
+            return buffer.Length;
+        }
+
+        public void Dispose()
+        {
+            this.Disposed = true;
+        }
+    }
+
+    [Test]
     public async Task ProbeHealthAsync_ReturnsHealthy()
     {
         var health = await this.engine.ProbeHealthAsync();
