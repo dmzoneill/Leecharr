@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using NLog;
 using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
+using NzbDrone.Common.Instrumentation;
 using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Bandwidth;
 using NzbDrone.Core.BitTorrent;
@@ -26,6 +27,7 @@ using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Indexers.Search;
+using NzbDrone.Core.Peers;
 using NzbDrone.Core.Tags;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
@@ -55,6 +57,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     private readonly IDiskProvider diskProvider;
     private readonly IStoragePathService storagePathService;
     private readonly IAppFolderInfo appFolderInfo;
+    private readonly IPeerConnectionHistoryService peerConnectionHistoryService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public QBittorrentApiController(
@@ -74,7 +77,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         ISpeedSchedulerService speedSchedulerService = null,
         IDiskProvider diskProvider = null,
         IStoragePathService storagePathService = null,
-        IAppFolderInfo appFolderInfo = null)
+        IAppFolderInfo appFolderInfo = null,
+        IPeerConnectionHistoryService peerConnectionHistoryService = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -93,6 +97,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         this.diskProvider = diskProvider;
         this.storagePathService = storagePathService;
         this.appFolderInfo = appFolderInfo;
+        this.peerConnectionHistoryService = peerConnectionHistoryService;
     }
 
     [NonAction]
@@ -2575,6 +2580,101 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         {
             return 0L;
         }
+    }
+
+    [HttpGet("log/main")]
+    public ActionResult<List<object>> GetLogMain(
+        [FromQuery] bool normal = true,
+        [FromQuery] bool info = true,
+        [FromQuery] bool warning = true,
+        [FromQuery] bool critical = true,
+        [FromQuery(Name = "last_known_id")] int last_known_id = -1)
+    {
+        var target = RingBufferTarget.Instance;
+        var entries = target?.GetEntries(2048, LogLevel.Trace) ?? new List<LogEntryRecord>();
+        var results = new List<object>();
+
+        foreach (var entry in entries)
+        {
+            if (entry == null || entry.Id <= last_known_id)
+            {
+                continue;
+            }
+
+            var type = MapLogLevelToQBitType(entry.Level);
+            var include = (type == 1 && normal) ||
+                          (type == 2 && info) ||
+                          (type == 4 && warning) ||
+                          (type == 8 && critical);
+
+            if (!include)
+            {
+                continue;
+            }
+
+            results.Add(new
+            {
+                id = (int)entry.Id,
+                message = entry.Message ?? string.Empty,
+                timestamp = new DateTimeOffset(entry.Time.ToUniversalTime()).ToUnixTimeSeconds(),
+                type = type,
+            });
+        }
+
+        return this.Ok(results);
+    }
+
+    [HttpGet("log/peers")]
+    public ActionResult<List<object>> GetLogPeers([FromQuery(Name = "last_known_id")] int last_known_id = -1)
+    {
+        var records = this.peerConnectionHistoryService?.GetRecords();
+        var results = new List<object>();
+
+        if (records != null)
+        {
+            foreach (var r in records)
+            {
+                if (r == null || r.Id <= last_known_id)
+                {
+                    continue;
+                }
+
+                var isBlocked = string.Equals(r.EventType, "Blocked", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(r.EventType, "Rejected", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(r.EventType, "Banned", StringComparison.OrdinalIgnoreCase);
+
+                if (isBlocked)
+                {
+                    results.Add(new
+                    {
+                        id = (int)r.Id,
+                        ip = r.RemoteIp ?? string.Empty,
+                        timestamp = new DateTimeOffset(r.Timestamp.ToUniversalTime()).ToUnixTimeSeconds(),
+                        blocked = true,
+                        reason = r.EventType ?? string.Empty,
+                    });
+                }
+            }
+        }
+
+        return this.Ok(results);
+    }
+
+    private static int MapLogLevelToQBitType(string level)
+    {
+        if (string.IsNullOrWhiteSpace(level))
+        {
+            return 1;
+        }
+
+        return level.ToLowerInvariant() switch
+        {
+            "trace" or "debug" or "normal" => 1,
+            "info" or "information" => 2,
+            "warn" or "warning" => 4,
+            "error" or "fatal" or "critical" => 8,
+            _ => 1,
+        };
     }
 }
 
