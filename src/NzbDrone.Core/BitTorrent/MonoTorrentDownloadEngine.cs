@@ -5255,17 +5255,26 @@ public class FilteringPeerConnectionListener : MonoTorrent.Connections.Peer.IPee
     private readonly MonoTorrent.Connections.Peer.IPeerConnectionListener inner;
     private readonly IBlocklistService blocklistService;
     private readonly Action onPeerBlocked;
+    private readonly int maxHalfOpenConnections;
+    private readonly TimeSpan handshakeTimeout;
+    private int halfOpenCount;
 
     public FilteringPeerConnectionListener(
         MonoTorrent.Connections.Peer.IPeerConnectionListener inner,
         IBlocklistService blocklistService = null,
-        Action onPeerBlocked = null)
+        Action onPeerBlocked = null,
+        int maxHalfOpenConnections = 50,
+        TimeSpan? handshakeTimeout = null)
     {
         this.inner = inner ?? throw new ArgumentNullException(nameof(inner));
         this.blocklistService = blocklistService;
         this.onPeerBlocked = onPeerBlocked;
+        this.maxHalfOpenConnections = maxHalfOpenConnections > 0 ? maxHalfOpenConnections : 50;
+        this.handshakeTimeout = handshakeTimeout ?? TimeSpan.FromSeconds(15);
         this.inner.ConnectionReceived += this.OnInnerConnectionReceived;
     }
+
+    public int HalfOpenConnections => Volatile.Read(ref this.halfOpenCount);
 
     public IPEndPoint LocalEndPoint => this.inner.LocalEndPoint;
 
@@ -5308,7 +5317,146 @@ public class FilteringPeerConnectionListener : MonoTorrent.Connections.Peer.IPee
         {
         }
 
-        this.ConnectionReceived?.Invoke(this, e);
+        if (e.Connection == null)
+        {
+            this.ConnectionReceived?.Invoke(this, e);
+            return;
+        }
+
+        if (Interlocked.Increment(ref this.halfOpenCount) > this.maxHalfOpenConnections)
+        {
+            Interlocked.Decrement(ref this.halfOpenCount);
+            try
+            {
+                (e.Connection as IDisposable)?.Dispose();
+            }
+            catch
+            {
+            }
+
+            return;
+        }
+
+        var monitored = new HandshakeMonitoredPeerConnection(
+            e.Connection,
+            this.handshakeTimeout,
+            () => Interlocked.Decrement(ref this.halfOpenCount));
+
+        var args = new MonoTorrent.Connections.Peer.PeerConnectionEventArgs(monitored, e.InfoHash);
+
+        var handler = this.ConnectionReceived;
+        if (handler == null)
+        {
+            monitored.Dispose();
+            return;
+        }
+
+        handler.Invoke(this, args);
+    }
+}
+
+public sealed class HandshakeMonitoredPeerConnection : MonoTorrent.Connections.Peer.IPeerConnection, IDisposable
+{
+    private readonly MonoTorrent.Connections.Peer.IPeerConnection inner;
+    private readonly Action onHandshakeCompletedOrClosed;
+    private readonly CancellationTokenSource timeoutCts;
+    private int completedOrDisposed;
+    private int totalBytesReceived;
+
+    public HandshakeMonitoredPeerConnection(
+        MonoTorrent.Connections.Peer.IPeerConnection inner,
+        TimeSpan handshakeTimeout,
+        Action onHandshakeCompletedOrClosed)
+    {
+        this.inner = inner ?? throw new ArgumentNullException(nameof(inner));
+        this.onHandshakeCompletedOrClosed = onHandshakeCompletedOrClosed;
+        this.timeoutCts = new CancellationTokenSource(handshakeTimeout);
+        this.timeoutCts.Token.Register(() =>
+        {
+            if (Interlocked.CompareExchange(ref this.completedOrDisposed, 1, 0) == 0)
+            {
+                try
+                {
+                    this.inner.Dispose();
+                }
+                catch
+                {
+                }
+
+                this.onHandshakeCompletedOrClosed?.Invoke();
+            }
+        });
+    }
+
+    public ReadOnlyMemory<byte> AddressBytes => this.inner.AddressBytes;
+
+    public bool CanReconnect => this.inner.CanReconnect;
+
+    public bool Disposed => this.inner.Disposed;
+
+    public IPEndPoint EndPoint => this.inner.EndPoint;
+
+    public bool IsIncoming => this.inner.IsIncoming;
+
+    public Uri Uri => this.inner.Uri;
+
+    public ReusableTasks.ReusableTask ConnectAsync() => this.inner.ConnectAsync();
+
+    public async ReusableTasks.ReusableTask<int> ReceiveAsync(Memory<byte> buffer)
+    {
+        var read = await this.inner.ReceiveAsync(buffer);
+        if (read <= 0)
+        {
+            this.Dispose();
+            return read;
+        }
+
+        if (Volatile.Read(ref this.completedOrDisposed) == 0)
+        {
+            var total = Interlocked.Add(ref this.totalBytesReceived, read);
+            if (total >= 68 && Interlocked.CompareExchange(ref this.completedOrDisposed, 1, 0) == 0)
+            {
+                try
+                {
+                    this.timeoutCts.CancelAfter(Timeout.InfiniteTimeSpan);
+                    this.timeoutCts.Dispose();
+                }
+                catch
+                {
+                }
+
+                this.onHandshakeCompletedOrClosed?.Invoke();
+            }
+        }
+
+        return read;
+    }
+
+    public ReusableTasks.ReusableTask<int> SendAsync(Memory<byte> buffer) => this.inner.SendAsync(buffer);
+
+    public void Dispose()
+    {
+        if (Interlocked.CompareExchange(ref this.completedOrDisposed, 1, 0) == 0)
+        {
+            try
+            {
+                this.timeoutCts.CancelAfter(Timeout.InfiniteTimeSpan);
+                this.timeoutCts.Dispose();
+            }
+            catch
+            {
+            }
+
+            this.onHandshakeCompletedOrClosed?.Invoke();
+        }
+
+        try
+        {
+            this.inner.Dispose();
+        }
+        catch
+        {
+        }
     }
 }
 
