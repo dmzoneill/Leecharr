@@ -39,6 +39,7 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly IDownloadHistoryService downloadHistoryService;
     private readonly ICategoryService categoryService;
+    private readonly IIndexerStatusService indexerStatusService;
     private readonly BoundedSet<string> grabbedReleaseIds;
     private readonly SemaphoreSlim syncLock = new(1, 1);
     private readonly Logger logger;
@@ -61,10 +62,33 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
         this.safeHttpClientService = this.context.SafeHttpClientService;
         this.downloadHistoryService = this.context.DownloadHistoryService;
         this.categoryService = this.context.CategoryService;
+        this.indexerStatusService = this.context.IndexerStatusService;
         this.grabbedReleaseIds = new BoundedSet<string>(
             maxGrabbedReleasesCapacity > 0 ? maxGrabbedReleasesCapacity : DefaultMaxGrabbedReleasesCapacity,
             StringComparer.OrdinalIgnoreCase);
         this.logger = LogManager.GetCurrentClassLogger();
+    }
+
+    public RssSyncService(
+        IIndexerRepository indexerRepository,
+        IRssRuleRepository rssRuleRepository,
+        ITorznabClient torznabClient,
+        ITorrentService torrentService,
+        IRssSyncContext context,
+        IIndexerStatusService indexerStatusService,
+        int maxGrabbedReleasesCapacity = DefaultMaxGrabbedReleasesCapacity)
+        : this(
+            indexerRepository,
+            rssRuleRepository,
+            torznabClient,
+            torrentService,
+            context,
+            maxGrabbedReleasesCapacity)
+    {
+        if (indexerStatusService != null)
+        {
+            this.indexerStatusService = indexerStatusService;
+        }
     }
 
     public RssSyncService(
@@ -77,6 +101,7 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
         ISafeHttpClientService safeHttpClientService = null,
         IDownloadHistoryService downloadHistoryService = null,
         ICategoryService categoryService = null,
+        IIndexerStatusService indexerStatusService = null,
         int maxGrabbedReleasesCapacity = DefaultMaxGrabbedReleasesCapacity)
         : this(
             indexerRepository,
@@ -88,7 +113,8 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                 httpClient,
                 safeHttpClientService,
                 downloadHistoryService,
-                categoryService),
+                categoryService,
+                indexerStatusService),
             maxGrabbedReleasesCapacity)
     {
     }
@@ -110,6 +136,11 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
         try
         {
             var activeIndexers = this.indexerRepository.GetRssEnabled().ToList();
+            if (this.indexerStatusService != null)
+            {
+                activeIndexers = activeIndexers.Where(i => !this.indexerStatusService.IsDisabled(i.Id)).ToList();
+            }
+
             var activeRules = this.rssRuleRepository.GetEnabled().ToList();
 
             if (activeIndexers.Count == 0 || activeRules.Count == 0)
@@ -124,6 +155,7 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                 try
                 {
                     var releases = await this.torznabClient.FetchRssAsync(indexer);
+                    this.indexerStatusService?.RecordSuccess(indexer.Id);
                     foreach (var release in releases)
                     {
                         if (release != null)
@@ -307,9 +339,20 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                         }
                     }
                 }
+                catch (HttpRequestException ex)
+                {
+                    this.logger.Warn(ex, "Failed to fetch RSS for indexer {0}: HTTP {1}", indexer.Name, ex.StatusCode);
+                    this.indexerStatusService?.RecordFailure(indexer.Id, (int?)ex.StatusCode, ex.Message, ex);
+                }
+                catch (TorznabException ex)
+                {
+                    this.logger.Warn(ex, "Torznab error while fetching RSS for indexer {0}: {1}", indexer.Name, ex.Message);
+                    this.indexerStatusService?.RecordFailure(indexer.Id, ex.Code, ex.Message, ex);
+                }
                 catch (Exception ex)
                 {
                     this.logger.Error(ex, "Error syncing RSS for indexer: {0}", indexer.Name);
+                    this.indexerStatusService?.RecordFailure(indexer.Id, errorMessage: ex.Message, ex: ex);
                 }
             }
 

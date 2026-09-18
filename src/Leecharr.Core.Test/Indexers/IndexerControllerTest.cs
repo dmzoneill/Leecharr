@@ -936,4 +936,33 @@ public class IndexerControllerTest
         var badRequest = (BadRequestObjectResult)result.Result!;
         badRequest.Value!.ToString().Should().Contain("XML/NZB");
     }
+
+    [Test]
+    public async Task SearchGet_WhenTorznabClientThrowsTorznabException_RecordsFailureInIndexerStatusService()
+    {
+        var mockStatusService = Substitute.For<IIndexerStatusService>();
+        var customController = new IndexerController(
+            this.indexerRepository,
+            this.torznabClient,
+            this.prowlarrSyncService,
+            this.torrentService,
+            this.torrentFileParser,
+            this.safeHttpClientService,
+            downloadHistoryService: this.downloadHistoryService,
+            indexerStatusService: mockStatusService);
+
+        var indexer = new IndexerDefinition { Id = 42, Name = "ErrTracker", Enable = true, EnableSearch = true, Url = "http://err" };
+        this.indexerRepository.Get(42).Returns(indexer);
+
+        this.torznabClient.SearchAsync(
+            indexer,
+            Arg.Any<TorznabSearchCriteria>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromException<List<TorznabSearchResult>>(new TorznabException(100, "Invalid API Key")));
+
+        var actionResult = await customController.SearchGet(new IndexerSearchRequest { Query = "test", IndexerId = 42 });
+
+        mockStatusService.Received(1).RecordFailure(42, 100, Arg.Is<string>(msg => msg.Contains("Invalid API Key")), Arg.Any<Exception>());
+        mockStatusService.DidNotReceive().RecordSuccess(42);
+    }
 }

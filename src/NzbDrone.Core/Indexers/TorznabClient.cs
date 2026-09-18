@@ -380,11 +380,26 @@ public class TorznabClient : ITorznabClient
             if (!response.IsSuccessStatusCode)
             {
                 this.logger.Warn("Torznab query failed for {0}: HTTP {1}", indexer.Name, response.StatusCode);
-                return new List<TorznabSearchResult>();
+                throw new HttpRequestException(
+                    $"Torznab query failed for {indexer.Name}: HTTP {(int)response.StatusCode} {response.ReasonPhrase}",
+                    null,
+                    response.StatusCode);
             }
 
             var xml = await response.Content.ReadAsStringAsync(cancellationToken);
             return this.ParseTorznabFeedXml(xml, indexer);
+        }
+        catch (HttpRequestException)
+        {
+            throw;
+        }
+        catch (TorznabException)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -423,11 +438,26 @@ public class TorznabClient : ITorznabClient
             if (!response.IsSuccessStatusCode)
             {
                 this.logger.Warn("Failed to fetch RSS from Torznab indexer: {0}: HTTP {1}", indexer.Name, response.StatusCode);
-                return new List<TorznabSearchResult>();
+                throw new HttpRequestException(
+                    $"Torznab RSS fetch failed for {indexer.Name}: HTTP {(int)response.StatusCode} {response.ReasonPhrase}",
+                    null,
+                    response.StatusCode);
             }
 
             var xml = await response.Content.ReadAsStringAsync(cancellationToken);
             return this.ParseTorznabFeedXml(xml, indexer);
+        }
+        catch (HttpRequestException)
+        {
+            throw;
+        }
+        catch (TorznabException)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -457,12 +487,14 @@ public class TorznabClient : ITorznabClient
             var errorElem = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("error", StringComparison.OrdinalIgnoreCase));
             if (errorElem != null)
             {
+                var codeStr = GetAttributeValue(errorElem, "code");
+                var description = WebUtility.HtmlDecode(GetAttributeValue(errorElem, "description") ?? errorElem.Value);
                 this.logger.Warn(
                     "Torznab indexer '{0}' returned error code {1}: {2}",
                     indexer?.Name ?? "Unknown",
-                    GetAttributeValue(errorElem, "code") ?? "unknown",
-                    WebUtility.HtmlDecode(GetAttributeValue(errorElem, "description") ?? errorElem.Value));
-                return results;
+                    codeStr ?? "unknown",
+                    description);
+                throw new TorznabException(codeStr, description);
             }
 
             var responseElem = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("response", StringComparison.OrdinalIgnoreCase));
@@ -808,6 +840,10 @@ public class TorznabClient : ITorznabClient
 
                 results.Add(result);
             }
+        }
+        catch (TorznabException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
