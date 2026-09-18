@@ -2477,6 +2477,35 @@ public class QBittorrentApiControllerTest
         req3.IsRootFolder.Should().BeFalse();
     }
 
+    [Test]
+    public void CreateCategory_WithValidCategory_CallsAddAndReturnsOk()
+    {
+        var result = this.controller.CreateCategory("movies", "/downloads/movies");
+
+        var content = result.Should().BeOfType<ContentResult>().Subject;
+        content.Content.Should().Be("Ok.");
+        this.categoryService.Received(1).Add(Arg.Is<Category>(c => c.Name == "movies" && c.SavePath == "/downloads/movies"));
+    }
+
+    [Test]
+    public void CreateCategory_WithExistingCategoryWithoutSavePath_PassesEmptySavePathAndReturnsOk()
+    {
+        var result = this.controller.CreateCategory("tv", null);
+
+        var content = result.Should().BeOfType<ContentResult>().Subject;
+        content.Content.Should().Be("Ok.");
+        this.categoryService.Received(1).Add(Arg.Is<Category>(c => c.Name == "tv" && c.SavePath == string.Empty));
+    }
+
+    [Test]
+    public void CreateCategory_WithEmptyCategoryName_ReturnsBadRequest()
+    {
+        var result = this.controller.CreateCategory("   ", "/downloads");
+
+        result.Should().BeOfType<BadRequestResult>();
+        this.categoryService.DidNotReceive().Add(Arg.Any<Category>());
+    }
+
     private static ActionExecutingContext CreateActionExecutingContext(QBittorrentApiController controller, HttpContext httpContext, string actionName)
     {
         var actionDescriptor = new ControllerActionDescriptor

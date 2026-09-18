@@ -275,4 +275,50 @@ public class CategoryServiceTest
         Action act = () => serviceWithDisk.Add(category);
         act.Should().Throw<InvalidOperationException>().WithMessage("*not writable*");
     }
+
+    [Test]
+    public void Add_WhenCategoryAlreadyExists_UpdatesSavePathAndReturnsExistingWithoutInsert()
+    {
+        var existing = new Category { Id = 3, Name = "movies", SavePath = "/downloads/movies-old" };
+        this.repository.GetByName("movies").Returns(existing);
+
+        var newCategory = new Category { Name = "movies", SavePath = "/downloads/movies-new" };
+        var result = this.service.Add(newCategory);
+
+        result.Should().BeSameAs(existing);
+        result.SavePath.Should().Be("/downloads/movies-new");
+        this.repository.Received(1).Update(existing);
+        this.repository.DidNotReceive().Insert(Arg.Any<Category>());
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<CategoryUpdatedEvent>(e => e.Category.Id == 3));
+    }
+
+    [Test]
+    public void Add_WhenCategoryAlreadyExistsWithDifferentCase_UpdatesSavePathAndReturnsExisting()
+    {
+        var existing = new Category { Id = 4, Name = "tv", SavePath = "/downloads/tv-old" };
+        this.repository.GetByName("TV").Returns(existing);
+
+        var newCategory = new Category { Name = "TV", SavePath = "/downloads/tv-new" };
+        var result = this.service.Add(newCategory);
+
+        result.Should().BeSameAs(existing);
+        result.SavePath.Should().Be("/downloads/tv-new");
+        this.repository.Received(1).Update(existing);
+        this.repository.DidNotReceive().Insert(Arg.Any<Category>());
+    }
+
+    [Test]
+    public void Add_WhenCategoryAlreadyExistsAndSavePathEmpty_PreservesExistingSavePathAndDoesNotInsert()
+    {
+        var existing = new Category { Id = 5, Name = "music", SavePath = "/downloads/music" };
+        this.repository.GetByName("music").Returns(existing);
+
+        var newCategory = new Category { Name = "music", SavePath = string.Empty };
+        var result = this.service.Add(newCategory);
+
+        result.Should().BeSameAs(existing);
+        result.SavePath.Should().Be("/downloads/music");
+        this.repository.DidNotReceive().Update(Arg.Any<Category>());
+        this.repository.DidNotReceive().Insert(Arg.Any<Category>());
+    }
 }
