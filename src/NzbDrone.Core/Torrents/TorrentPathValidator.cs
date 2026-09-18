@@ -73,7 +73,12 @@ public static class TorrentPathValidator
 
     public static string ResolveCanonicalPath(string path)
     {
-        if (string.IsNullOrWhiteSpace(path))
+        return ResolveCanonicalPathInternal(path, 0);
+    }
+
+    private static string ResolveCanonicalPathInternal(string path, int depth)
+    {
+        if (string.IsNullOrWhiteSpace(path) || depth > 40)
         {
             return path;
         }
@@ -82,19 +87,48 @@ public static class TorrentPathValidator
 
         try
         {
-            if (File.Exists(fullPath))
+            var segments = fullPath.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
+            var root = Path.GetPathRoot(fullPath);
+            var current = root ?? string.Empty;
+
+            for (var i = 0; i < segments.Length; i++)
             {
-                var fileInfo = new FileInfo(fullPath);
-                var target = fileInfo.ResolveLinkTarget(returnFinalTarget: true);
+                var next = Path.Combine(current, segments[i]);
+                var resolved = ResolveSegmentLinkTarget(next);
+                if (!string.Equals(resolved, next, StringComparison.Ordinal))
+                {
+                    current = ResolveCanonicalPathInternal(resolved, depth + 1);
+                }
+                else
+                {
+                    current = next;
+                }
+            }
+
+            return Path.GetFullPath(current);
+        }
+        catch
+        {
+            // If symlink resolution fails, fallback to GetFullPath
+            return fullPath;
+        }
+    }
+
+    private static string ResolveSegmentLinkTarget(string currentPath)
+    {
+        try
+        {
+            if (File.Exists(currentPath))
+            {
+                var target = File.ResolveLinkTarget(currentPath, returnFinalTarget: true);
                 if (target != null)
                 {
                     return Path.GetFullPath(target.FullName);
                 }
             }
-            else if (Directory.Exists(fullPath))
+            else if (Directory.Exists(currentPath))
             {
-                var dirInfo = new DirectoryInfo(fullPath);
-                var target = dirInfo.ResolveLinkTarget(returnFinalTarget: true);
+                var target = Directory.ResolveLinkTarget(currentPath, returnFinalTarget: true);
                 if (target != null)
                 {
                     return Path.GetFullPath(target.FullName);
@@ -102,36 +136,33 @@ public static class TorrentPathValidator
             }
             else
             {
-                var segments = fullPath.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
-                var root = Path.GetPathRoot(fullPath);
-                var current = root ?? string.Empty;
-
-                for (var i = 0; i < segments.Length; i++)
+                var fileInfo = new FileInfo(currentPath);
+                if (fileInfo.LinkTarget != null)
                 {
-                    var next = Path.Combine(current, segments[i]);
-                    if (Directory.Exists(next) || File.Exists(next))
+                    var target = fileInfo.ResolveLinkTarget(returnFinalTarget: true);
+                    if (target != null)
                     {
-                        var dirInfo = new DirectoryInfo(next);
-                        var target = dirInfo.ResolveLinkTarget(returnFinalTarget: true);
-                        if (target != null)
-                        {
-                            current = Path.GetFullPath(target.FullName);
-                            continue;
-                        }
+                        return Path.GetFullPath(target.FullName);
                     }
-
-                    current = next;
                 }
 
-                return Path.GetFullPath(current);
+                var dirInfo = new DirectoryInfo(currentPath);
+                if (dirInfo.LinkTarget != null)
+                {
+                    var target = dirInfo.ResolveLinkTarget(returnFinalTarget: true);
+                    if (target != null)
+                    {
+                        return Path.GetFullPath(target.FullName);
+                    }
+                }
             }
         }
         catch
         {
-            // If symlink resolution fails, fallback to GetFullPath
+            // Ignore errors for individual segment resolution
         }
 
-        return fullPath;
+        return currentPath;
     }
 
     public static bool IsStrictSubPath(string basePath, string targetPath)
