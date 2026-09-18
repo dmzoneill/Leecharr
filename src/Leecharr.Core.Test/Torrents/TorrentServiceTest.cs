@@ -1303,6 +1303,48 @@ public class TorrentServiceTest
     }
 
     [Test]
+    public async Task MoveQueueAsync_WithNumericIndex_InsertsAtTargetIndexAndReindexes()
+    {
+        var t1 = new Torrent { Id = 1, Name = "T1", QueuePosition = 1 };
+        var t2 = new Torrent { Id = 2, Name = "T2", QueuePosition = 2 };
+        var t3 = new Torrent { Id = 3, Name = "T3", QueuePosition = 3 };
+        var t4 = new Torrent { Id = 4, Name = "T4", QueuePosition = 4 };
+
+        this.torrentRepository.Get(1).Returns(t1);
+        this.torrentRepository.All().Returns(new List<Torrent> { t1, t2, t3, t4 });
+
+        await this.service.MoveQueueAsync(1, "2");
+
+        this.torrentRepository.Received(1).UpdateMany(Arg.Is<IEnumerable<Torrent>>(torrents =>
+            torrents != null &&
+            torrents.Count() == 4 &&
+            torrents.ElementAt(0).Id == 2 && torrents.ElementAt(0).QueuePosition == 1 &&
+            torrents.ElementAt(1).Id == 3 && torrents.ElementAt(1).QueuePosition == 2 &&
+            torrents.ElementAt(2).Id == 1 && torrents.ElementAt(2).QueuePosition == 3 &&
+            torrents.ElementAt(3).Id == 4 && torrents.ElementAt(3).QueuePosition == 4));
+    }
+
+    [Test]
+    public async Task MoveQueueAsync_WithOutOfBoundsNumericIndex_ClampsIndex()
+    {
+        var t1 = new Torrent { Id = 1, Name = "T1", QueuePosition = 1 };
+        var t2 = new Torrent { Id = 2, Name = "T2", QueuePosition = 2 };
+        var t3 = new Torrent { Id = 3, Name = "T3", QueuePosition = 3 };
+
+        this.torrentRepository.Get(3).Returns(t3);
+        this.torrentRepository.All().Returns(new List<Torrent> { t1, t2, t3 });
+
+        await this.service.MoveQueueAsync(3, "-10");
+
+        this.torrentRepository.Received(1).UpdateMany(Arg.Is<IEnumerable<Torrent>>(torrents =>
+            torrents != null &&
+            torrents.Count() == 3 &&
+            torrents.ElementAt(0).Id == 3 && torrents.ElementAt(0).QueuePosition == 1 &&
+            torrents.ElementAt(1).Id == 1 && torrents.ElementAt(1).QueuePosition == 2 &&
+            torrents.ElementAt(2).Id == 2 && torrents.ElementAt(2).QueuePosition == 3));
+    }
+
+    [Test]
     public async Task MoveQueueBatchAsync_MoveUp_AtTopBoundary_LocksBoundaryAndPreventsLeapfrogging()
     {
         var t1 = new Torrent { Id = 1, Name = "T1", QueuePosition = 1 };
