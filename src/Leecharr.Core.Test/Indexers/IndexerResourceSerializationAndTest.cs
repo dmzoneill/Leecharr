@@ -13,6 +13,7 @@ using Leecharr.Api.V1.Indexers;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Torrents;
 
@@ -134,7 +135,8 @@ public class IndexerResourceSerializationAndTest
         var torrentService = Substitute.For<ITorrentService>();
         var torrentParser = Substitute.For<ITorrentFileParser>();
 
-        var controller = new IndexerController(repo, torznabClient, prowlarrSync, torrentService, torrentParser, httpClient: httpClient);
+        var safeHttpClient = Substitute.For<ISafeHttpClientService>();
+        var controller = new IndexerController(repo, torznabClient, prowlarrSync, torrentService, torrentParser, safeHttpClientService: safeHttpClient, httpClient: httpClient);
 
         var resource = new IndexerResource
         {
@@ -181,7 +183,8 @@ public class IndexerResourceSerializationAndTest
         var torrentService = Substitute.For<ITorrentService>();
         var torrentParser = Substitute.For<ITorrentFileParser>();
 
-        var controller = new IndexerController(repo, torznabClient, prowlarrSync, torrentService, torrentParser, httpClient: httpClient);
+        var safeHttpClient = Substitute.For<ISafeHttpClientService>();
+        var controller = new IndexerController(repo, torznabClient, prowlarrSync, torrentService, torrentParser, safeHttpClientService: safeHttpClient, httpClient: httpClient);
 
         var resource = new IndexerResource
         {
@@ -218,7 +221,8 @@ public class IndexerResourceSerializationAndTest
         var torrentService = Substitute.For<ITorrentService>();
         var torrentParser = Substitute.For<ITorrentFileParser>();
 
-        var controller = new IndexerController(repo, torznabClient, prowlarrSync, torrentService, torrentParser, httpClient: httpClient);
+        var safeHttpClient = Substitute.For<ISafeHttpClientService>();
+        var controller = new IndexerController(repo, torznabClient, prowlarrSync, torrentService, torrentParser, safeHttpClientService: safeHttpClient, httpClient: httpClient);
 
         var resource = new IndexerResource
         {
