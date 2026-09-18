@@ -13,16 +13,19 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Routing;
+using NLog;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
+using NzbDrone.Common.Instrumentation;
 using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Bandwidth;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
+using NzbDrone.Core.Peers;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
 
@@ -2149,6 +2152,129 @@ public class QBittorrentApiControllerTest
                 Directory.Delete(tempDir, true);
             }
         }
+    }
+
+    private class TestableRingBufferTarget : RingBufferTarget
+    {
+        public TestableRingBufferTarget(int capacity = 2048)
+            : base(capacity)
+        {
+        }
+
+        public void WriteLog(LogLevel level, string logger, string message)
+        {
+            var logEvent = new LogEventInfo(level, logger, message)
+            {
+                TimeStamp = DateTime.UtcNow,
+            };
+
+            this.Write(logEvent);
+        }
+    }
+
+    [Test]
+    public void GetLogMain_ReturnsFilteredEntries()
+    {
+        var target = new TestableRingBufferTarget(10);
+        target.WriteLog(LogLevel.Info, "TestLogger", "Message 1");
+        target.WriteLog(LogLevel.Warn, "TestLogger", "Message 2");
+        target.WriteLog(LogLevel.Error, "TestLogger", "Message 3");
+        target.WriteLog(LogLevel.Debug, "TestLogger", "Message 4");
+
+        var previousTarget = RingBufferTarget.Instance;
+        RingBufferTarget.Instance = target;
+
+        try
+        {
+            var resultAll = this.controller.GetLogMain();
+            var okResult = resultAll.Result.Should().BeOfType<OkObjectResult>().Subject;
+            var json = JsonSerializer.Serialize(okResult.Value);
+            using var doc = JsonDocument.Parse(json);
+            var array = doc.RootElement.EnumerateArray().ToList();
+            array.Should().HaveCount(4);
+
+            array[0].GetProperty("type").GetInt32().Should().Be(2); // Info
+            array[0].GetProperty("message").GetString().Should().Be("Message 1");
+            array[1].GetProperty("type").GetInt32().Should().Be(4); // Warning
+            array[2].GetProperty("type").GetInt32().Should().Be(8); // Critical
+            array[3].GetProperty("type").GetInt32().Should().Be(1); // Normal
+
+            var resultInfoOnly = this.controller.GetLogMain(normal: false, info: true, warning: false, critical: false);
+            var okInfoResult = resultInfoOnly.Result.Should().BeOfType<OkObjectResult>().Subject;
+            var jsonInfo = JsonSerializer.Serialize(okInfoResult.Value);
+            using var docInfo = JsonDocument.Parse(jsonInfo);
+            var arrayInfo = docInfo.RootElement.EnumerateArray().ToList();
+            arrayInfo.Should().HaveCount(1);
+            arrayInfo[0].GetProperty("type").GetInt32().Should().Be(2);
+
+            var firstId = array[0].GetProperty("id").GetInt32();
+            var resultSinceFirst = this.controller.GetLogMain(last_known_id: firstId);
+            var okSinceResult = resultSinceFirst.Result.Should().BeOfType<OkObjectResult>().Subject;
+            var jsonSince = JsonSerializer.Serialize(okSinceResult.Value);
+            using var docSince = JsonDocument.Parse(jsonSince);
+            var arraySince = docSince.RootElement.EnumerateArray().ToList();
+            arraySince.Should().HaveCount(3);
+        }
+        finally
+        {
+            RingBufferTarget.Instance = previousTarget;
+        }
+    }
+
+    [Test]
+    public void GetLogPeers_ReturnsBlockedPeers()
+    {
+        var peerService = Substitute.For<IPeerConnectionHistoryService>();
+        var now = DateTime.UtcNow;
+        var records = new List<PeerConnectionEvent>
+        {
+            new() { Id = 1, RemoteIp = "1.2.3.4", EventType = "Blocked", Timestamp = now },
+            new() { Id = 2, RemoteIp = "5.6.7.8", EventType = "Connected", Timestamp = now },
+            new() { Id = 3, RemoteIp = "9.10.11.12", EventType = "Rejected", Timestamp = now },
+        };
+        peerService.GetRecords().Returns(records);
+
+        var ctrlWithPeers = new QBittorrentApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.trackerEntryRepository,
+            peerConnectionHistoryService: peerService);
+
+        var result = ctrlWithPeers.GetLogPeers(last_known_id: -1);
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var array = doc.RootElement.EnumerateArray().ToList();
+
+        array.Should().HaveCount(2);
+        array[0].GetProperty("id").GetInt32().Should().Be(1);
+        array[0].GetProperty("ip").GetString().Should().Be("1.2.3.4");
+        array[0].GetProperty("blocked").GetBoolean().Should().BeTrue();
+        array[1].GetProperty("id").GetInt32().Should().Be(3);
+        array[1].GetProperty("ip").GetString().Should().Be("9.10.11.12");
+        array[1].GetProperty("blocked").GetBoolean().Should().BeTrue();
+
+        var resultFiltered = ctrlWithPeers.GetLogPeers(last_known_id: 1);
+        var okFiltered = resultFiltered.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var jsonFiltered = JsonSerializer.Serialize(okFiltered.Value);
+        using var docFiltered = JsonDocument.Parse(jsonFiltered);
+        var arrayFiltered = docFiltered.RootElement.EnumerateArray().ToList();
+
+        arrayFiltered.Should().HaveCount(1);
+        arrayFiltered[0].GetProperty("id").GetInt32().Should().Be(3);
+    }
+
+    [Test]
+    public void GetLogPeers_WhenNoHistoryService_ReturnsEmptyList()
+    {
+        var result = this.controller.GetLogPeers();
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetArrayLength().Should().Be(0);
     }
 
     private static ActionExecutingContext CreateActionExecutingContext(QBittorrentApiController controller, HttpContext httpContext, string actionName)
