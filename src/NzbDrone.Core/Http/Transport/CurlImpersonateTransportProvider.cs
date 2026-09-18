@@ -14,9 +14,14 @@ namespace NzbDrone.Core.Http.Transport;
 public class CurlImpersonateTransportProvider : IHttpTransportProvider, IDisposable
 {
     private readonly HttpClient fallbackClient;
+    private readonly SocketsHttpHandler handler;
     private readonly IConfigService configService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private bool disposed;
+
+    internal SocketsHttpHandler Handler => this.handler;
+
+    internal WebProxy Proxy => this.handler.Proxy as WebProxy;
 
     public string ProviderId => "CurlImpersonate";
 
@@ -41,7 +46,7 @@ public class CurlImpersonateTransportProvider : IHttpTransportProvider, IDisposa
     public CurlImpersonateTransportProvider(IConfigService configService = null)
     {
         this.configService = configService;
-        var handler = new SocketsHttpHandler
+        this.handler = new SocketsHttpHandler
         {
             AutomaticDecompression = DecompressionMethods.All,
             EnableMultipleHttp2Connections = true,
@@ -55,7 +60,7 @@ public class CurlImpersonateTransportProvider : IHttpTransportProvider, IDisposa
         {
             var scheme = proxyType switch
             {
-                "socks5" => "socks5",
+                "socks5" => "socks5h",
                 "socks4" => "socks4",
                 "http" => "http",
                 _ => "http",
@@ -67,11 +72,11 @@ public class CurlImpersonateTransportProvider : IHttpTransportProvider, IDisposa
                 proxy.Credentials = new NetworkCredential(configService.ProxyUsername, configService.ProxyPassword ?? string.Empty);
             }
 
-            handler.Proxy = proxy;
-            handler.UseProxy = true;
+            this.handler.Proxy = proxy;
+            this.handler.UseProxy = true;
         }
 
-        this.fallbackClient = new HttpClient(handler, disposeHandler: true)
+        this.fallbackClient = new HttpClient(this.handler, disposeHandler: true)
         {
             Timeout = TimeSpan.FromSeconds(30),
         };

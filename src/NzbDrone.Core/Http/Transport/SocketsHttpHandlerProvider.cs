@@ -60,6 +60,7 @@ public class SocketsHttpHandlerProvider : IHttpTransportProvider, IDisposable
             PooledConnectionLifetime = TimeSpan.FromMinutes(15),
             PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
             MaxConnectionsPerServer = 50,
+            UseProxy = false,
             ConnectCallback = async (context, cancellationToken) =>
             {
                 if (this.vpnKillSwitchService?.IsFailClosedActive == true)
@@ -126,26 +127,35 @@ public class SocketsHttpHandlerProvider : IHttpTransportProvider, IDisposable
 
         var proxyType = configService?.ProxyType?.ToLowerInvariant() ?? "none";
         var proxyHost = configService?.ProxyHost;
-        var proxyPort = configService?.ProxyPort ?? (proxyType is "socks5" or "socks4" ? 1080 : 8080);
+        var proxyPort = configService?.ProxyPort ?? (proxyType is "socks5" or "socks4" or "socks4a" ? 1080 : 8080);
 
         if (!string.Equals(proxyType, "none", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(proxyHost))
         {
-            var scheme = proxyType switch
+            if (proxyType is "socks4" or "socks4a")
             {
-                "socks5" => "socks5",
-                "socks4" => "socks4",
-                "http" => "http",
-                _ => "http",
-            };
-
-            var proxy = new WebProxy($"{scheme}://{proxyHost}:{proxyPort}");
-            if (configService.ProxyAuthEnabled && !string.IsNullOrEmpty(configService.ProxyUsername))
-            {
-                proxy.Credentials = new NetworkCredential(configService.ProxyUsername, configService.ProxyPassword ?? string.Empty);
+                this.logger.Warn("SOCKS4/SOCKS4a proxy is not supported by .NET SocketsHttpHandler for HTTP traffic (supported only for raw TCP sockets). Proxy configuration ignored for SocketsHttpHandler.");
+                this.handler.UseProxy = false;
+                this.handler.Proxy = null;
             }
+            else
+            {
+                var scheme = proxyType switch
+                {
+                    "socks5" => "socks5",
+                    "http" => "http",
+                    "https" => "https",
+                    _ => "http",
+                };
 
-            this.handler.Proxy = proxy;
-            this.handler.UseProxy = true;
+                var proxy = new WebProxy($"{scheme}://{proxyHost}:{proxyPort}");
+                if (configService.ProxyAuthEnabled && !string.IsNullOrEmpty(configService.ProxyUsername))
+                {
+                    proxy.Credentials = new NetworkCredential(configService.ProxyUsername, configService.ProxyPassword ?? string.Empty);
+                }
+
+                this.handler.Proxy = proxy;
+                this.handler.UseProxy = true;
+            }
         }
 
         this.httpClient = new HttpClient(this.handler, disposeHandler: true)
@@ -156,11 +166,19 @@ public class SocketsHttpHandlerProvider : IHttpTransportProvider, IDisposable
 
     public Task<HttpTransportHealthCheckResult> ProbeHealthAsync()
     {
-        return Task.FromResult(new HttpTransportHealthCheckResult
+        var proxyType = this.configService?.ProxyType?.ToLowerInvariant() ?? "none";
+        var result = new HttpTransportHealthCheckResult
         {
             IsHealthy = true,
             StatusMessage = "SocketsHttpHandler pipeline is healthy (HTTP/1.1, HTTP/2, HTTP/3 QUIC enabled).",
-        });
+        };
+
+        if (proxyType is "socks4" or "socks4a")
+        {
+            result.Warnings.Add("SOCKS4 proxy is configured but is not supported by SocketsHttpHandler. SOCKS4 is only supported for raw TCP socket connections.");
+        }
+
+        return Task.FromResult(result);
     }
 
     public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken = default)
