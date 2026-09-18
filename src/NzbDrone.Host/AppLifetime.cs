@@ -58,52 +58,49 @@ public class AppLifetime : IHostedService, IDisposable
         {
             await this.services.DownloadEngine.StartAsync();
 
-            if (this.services.ConfigService.AutoStart)
+            var pathsToTryDirs = new List<string>();
+            if (this.services.AppFolderInfo != null && !string.IsNullOrWhiteSpace(this.services.AppFolderInfo.AppDataFolder))
             {
-                var pathsToTryDirs = new List<string>();
-                if (this.services.AppFolderInfo != null && !string.IsNullOrWhiteSpace(this.services.AppFolderInfo.AppDataFolder))
-                {
-                    pathsToTryDirs.Add(Path.Combine(this.services.AppFolderInfo.AppDataFolder, "Torrents"));
-                    pathsToTryDirs.Add(Path.Combine(this.services.AppFolderInfo.AppDataFolder, "Leecharr", "Torrents"));
-                }
+                pathsToTryDirs.Add(Path.Combine(this.services.AppFolderInfo.AppDataFolder, "Torrents"));
+                pathsToTryDirs.Add(Path.Combine(this.services.AppFolderInfo.AppDataFolder, "Leecharr", "Torrents"));
+            }
 
-                var legacyAppData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                if (!string.IsNullOrWhiteSpace(legacyAppData))
-                {
-                    pathsToTryDirs.Add(Path.Combine(legacyAppData, "Torrents"));
-                    pathsToTryDirs.Add(Path.Combine(legacyAppData, "Leecharr", "Torrents"));
-                }
+            var legacyAppData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            if (!string.IsNullOrWhiteSpace(legacyAppData))
+            {
+                pathsToTryDirs.Add(Path.Combine(legacyAppData, "Torrents"));
+                pathsToTryDirs.Add(Path.Combine(legacyAppData, "Leecharr", "Torrents"));
+            }
 
-                var torrents = this.services.TorrentRepository.All();
+            var torrents = this.services.TorrentRepository.All();
 
-                foreach (var torrent in torrents)
+            foreach (var torrent in torrents)
+            {
+                try
                 {
-                    try
+                    byte[] fileBytes = null;
+                    if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
                     {
-                        byte[] fileBytes = null;
-                        if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
+                        var hash = torrent.InfoHash.ToLowerInvariant();
+                        foreach (var dir in pathsToTryDirs.Distinct())
                         {
-                            var hash = torrent.InfoHash.ToLowerInvariant();
-                            foreach (var dir in pathsToTryDirs.Distinct())
+                            var path = Path.Combine(dir, $"{hash}.torrent");
+                            if (File.Exists(path))
                             {
-                                var path = Path.Combine(dir, $"{hash}.torrent");
-                                if (File.Exists(path))
+                                fileBytes = await File.ReadAllBytesAsync(path, cancellationToken);
+                                if (fileBytes != null && fileBytes.Length > 0)
                                 {
-                                    fileBytes = await File.ReadAllBytesAsync(path, cancellationToken);
-                                    if (fileBytes != null && fileBytes.Length > 0)
-                                    {
-                                        break;
-                                    }
+                                    break;
                                 }
                             }
                         }
+                    }
 
-                        await this.services.DownloadEngine.AddTorrentAsync(torrent, fileBytes);
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Warn(ex, "Failed to restore torrent {0} into engine on startup", torrent.Name);
-                    }
+                    await this.services.DownloadEngine.AddTorrentAsync(torrent, fileBytes);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to restore torrent {0} into engine on startup", torrent.Name);
                 }
             }
         }
