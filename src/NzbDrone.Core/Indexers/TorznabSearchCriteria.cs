@@ -1,5 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System.Collections.Generic;
+
 namespace NzbDrone.Core.Indexers;
 
 public class TorznabSearchCriteria
@@ -7,6 +9,8 @@ public class TorznabSearchCriteria
     public string Query { get; set; }
 
     public int? CategoryId { get; set; }
+
+    public List<int> Categories { get; set; } = new();
 
     public int Limit { get; set; } = 50;
 

@@ -395,7 +395,8 @@ public class IndexerController : Controller
             return this.Ok(emptyEnvelope);
         }
 
-        var catId = ParseCategoryId(request.Category);
+        var parsedCategories = ParseCategories(request.Category);
+        var catId = parsedCategories.Count > 0 ? parsedCategories[0] : (int?)null;
         var isMulti = indexers.Count > 1;
         var fetchLimit = isMulti
             ? (effectiveOffset > 0 && effectiveOffset < 100 ? Math.Min(effectiveOffset + effectiveLimit, 100) : Math.Min(effectiveLimit, 100))
@@ -419,6 +420,7 @@ public class IndexerController : Controller
                 {
                     Query = request.Query ?? string.Empty,
                     CategoryId = catId,
+                    Categories = parsedCategories,
                     Limit = fetchLimit,
                     Offset = fetchOffset,
                     Season = request.Season,
@@ -1165,7 +1167,34 @@ public class IndexerController : Controller
         return null;
     }
 
-    private static int? ParseCategoryId(string category)
+    internal static List<int> ParseCategories(string category)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return new List<int>();
+        }
+
+        var results = new List<int>();
+        var parts = category.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        foreach (var part in parts)
+        {
+            var id = ParseSingleCategoryId(part);
+            if (id.HasValue && !results.Contains(id.Value))
+            {
+                results.Add(id.Value);
+            }
+        }
+
+        return results;
+    }
+
+    internal static int? ParseCategoryId(string category)
+    {
+        var categories = ParseCategories(category);
+        return categories.Count > 0 ? categories[0] : null;
+    }
+
+    private static int? ParseSingleCategoryId(string category)
     {
         if (string.IsNullOrWhiteSpace(category))
         {

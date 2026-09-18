@@ -1362,6 +1362,170 @@ public class TorznabClientTest
     }
 
     [Test]
+    public async Task SearchAsync_WithImdbIdAndTvCategory_SelectsTvSearchMode()
+    {
+        Uri capturedUri = null!;
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            capturedUri = req.RequestUri!;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("<rss><channel><title>Results</title></channel></rss>"),
+            };
+        });
+
+        var customClient = new TorznabClient(new HttpClient(handler));
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "Tracker",
+            Url = "https://tracker.local/api",
+            ApiKey = "key",
+        };
+
+        // Single CategoryId in TV range (5000-5999) with IMDb ID should use t=tvsearch
+        await customClient.SearchAsync(indexer, query: "Severance", categoryId: 5000, imdbId: "tt11280740");
+        capturedUri.Query.Should().Contain("t=tvsearch");
+        capturedUri.Query.Should().Contain("imdbid=11280740");
+    }
+
+    [Test]
+    public async Task SearchAsync_WithTmdbIdAndTvCategoriesList_SelectsTvSearchMode()
+    {
+        Uri capturedUri = null!;
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            capturedUri = req.RequestUri!;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("<rss><channel><title>Results</title></channel></rss>"),
+            };
+        });
+
+        var customClient = new TorznabClient(new HttpClient(handler));
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "Tracker",
+            Url = "https://tracker.local/api",
+            ApiKey = "key",
+        };
+
+        var criteria = new TorznabSearchCriteria
+        {
+            TmdbId = "94954",
+            Categories = new List<int> { 5040, 5030 },
+        };
+
+        await customClient.SearchAsync(indexer, criteria);
+        capturedUri.Query.Should().Contain("t=tvsearch");
+        capturedUri.Query.Should().Contain("tmdbid=94954");
+    }
+
+    [Test]
+    public async Task SearchAsync_WithEpWithoutSeason_DoesNotAppendEpParameter()
+    {
+        Uri capturedUri = null!;
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            capturedUri = req.RequestUri!;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("<rss><channel><title>Results</title></channel></rss>"),
+            };
+        });
+
+        var customClient = new TorznabClient(new HttpClient(handler));
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "Tracker",
+            Url = "https://tracker.local/api",
+            ApiKey = "key",
+        };
+
+        var criteria = new TorznabSearchCriteria
+        {
+            Query = "Show Title",
+            Season = null,
+            Ep = 5,
+        };
+
+        await customClient.SearchAsync(indexer, criteria);
+        capturedUri.Query.Should().Contain("t=tvsearch");
+        capturedUri.Query.Should().NotContain("ep=");
+        capturedUri.Query.Should().NotContain("season=");
+    }
+
+    [Test]
+    public async Task SearchAsync_WithEpAndSeason_AppendsBothParameters()
+    {
+        Uri capturedUri = null!;
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            capturedUri = req.RequestUri!;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("<rss><channel><title>Results</title></channel></rss>"),
+            };
+        });
+
+        var customClient = new TorznabClient(new HttpClient(handler));
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "Tracker",
+            Url = "https://tracker.local/api",
+            ApiKey = "key",
+        };
+
+        var criteria = new TorznabSearchCriteria
+        {
+            Query = "Show Title",
+            Season = 2,
+            Ep = 5,
+        };
+
+        await customClient.SearchAsync(indexer, criteria);
+        capturedUri.Query.Should().Contain("t=tvsearch");
+        capturedUri.Query.Should().Contain("season=2");
+        capturedUri.Query.Should().Contain("ep=5");
+    }
+
+    [Test]
+    public async Task SearchAsync_WithMultiCategories_FormatsCommaDelimitedCategories()
+    {
+        Uri capturedUri = null!;
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            capturedUri = req.RequestUri!;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("<rss><channel><title>Results</title></channel></rss>"),
+            };
+        });
+
+        var customClient = new TorznabClient(new HttpClient(handler));
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "Tracker",
+            Url = "https://tracker.local/api",
+            ApiKey = "key",
+        };
+
+        var criteria = new TorznabSearchCriteria
+        {
+            Query = "Inception",
+            Categories = new List<int> { 2000, 2040 },
+        };
+
+        await customClient.SearchAsync(indexer, criteria);
+        var query = System.Web.HttpUtility.UrlDecode(capturedUri.Query);
+        query.Should().Contain("cat=2000,2040");
+    }
+
+    [Test]
     public void ParseTorznabFeedXml_CaseInsensitiveAttributes_ParsesCorrectly()
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
