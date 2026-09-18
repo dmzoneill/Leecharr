@@ -54,16 +54,16 @@ public class DiskSpaceService : IDiskSpaceService
             downloadDir = Path.Combine(appData, "downloads");
         }
 
-        this.AddDriveInfo(result, seen, downloadDir, "Downloads");
+        this.AddDriveInfo(result, seen, seenVolumes, downloadDir, "Downloads");
 
         var incompleteDir = this.configService?.IncompleteDownloadDir;
         if (!string.IsNullOrWhiteSpace(incompleteDir))
         {
-            this.AddDriveInfo(result, seen, incompleteDir, "Incomplete Downloads");
+            this.AddDriveInfo(result, seen, seenVolumes, incompleteDir, "Incomplete Downloads");
         }
 
-        this.AddDriveInfo(result, seen, this.appFolderInfo?.AppDataFolder, "AppData");
-        this.AddDriveInfo(result, seen, this.appFolderInfo?.StartUpFolder, "Startup");
+        this.AddDriveInfo(result, seen, seenVolumes, this.appFolderInfo?.AppDataFolder, "AppData");
+        this.AddDriveInfo(result, seen, seenVolumes, this.appFolderInfo?.StartUpFolder, "Startup");
 
         if (this.categoryService != null)
         {
@@ -74,7 +74,7 @@ public class DiskSpaceService : IDiskSpaceService
                 {
                     if (!string.IsNullOrWhiteSpace(cat.SavePath) && Directory.Exists(cat.SavePath))
                     {
-                        this.AddDriveInfo(result, seen, cat.SavePath, $"Category: {cat.Name}");
+                        this.AddDriveInfo(result, seen, seenVolumes, cat.SavePath, $"Category: {cat.Name}");
                     }
                 }
             }
@@ -126,6 +126,7 @@ public class DiskSpaceService : IDiskSpaceService
     private void AddDriveInfo(
         List<DiskSpaceInfo> result,
         HashSet<string> seen,
+        HashSet<string> seenVolumes,
         string path,
         string label)
     {
@@ -141,8 +142,30 @@ public class DiskSpaceService : IDiskSpaceService
 
             if (freeSpace.HasValue && totalSpace.HasValue && totalSpace.Value > 0)
             {
-                if (seen.Add(path))
+                var drive = this.diskProvider.GetDrive(path);
+                string volumeKey;
+                string driveRoot = null;
+                if (drive != null)
                 {
+                    driveRoot = drive.RootDirectory.FullName;
+                    volumeKey = $"{drive.DriveFormat}_{totalSpace.Value}_{drive.VolumeLabel}_{driveRoot}";
+                }
+                else
+                {
+                    var root = Path.GetPathRoot(path);
+                    driveRoot = root;
+                    volumeKey = !string.IsNullOrEmpty(root) ? $"{totalSpace.Value}_{root}" : $"{totalSpace.Value}_{path}";
+                }
+
+                if (!seenVolumes.Contains(volumeKey) && !seen.Contains(path))
+                {
+                    seenVolumes.Add(volumeKey);
+                    seen.Add(path);
+                    if (!string.IsNullOrWhiteSpace(driveRoot))
+                    {
+                        seen.Add(driveRoot);
+                    }
+
                     var info = new DiskSpaceInfo
                     {
                         Path = path,
@@ -177,7 +200,7 @@ public class DiskSpaceService : IDiskSpaceService
         {
             this.eventAggregator.PublishEvent(new DiskSpaceCriticalEvent(info.Path, info.FreeSpace));
         }
-        else if (info.FreeSpace < warningThresholdBytes || freePercent < 0.05)
+        else if (thresholdMb > 0 && (info.FreeSpace < warningThresholdBytes || freePercent < 0.05))
         {
             this.eventAggregator.PublishEvent(new DiskSpaceLowEvent(info.Path, info.FreeSpace, info.TotalSpace, freePercent));
         }

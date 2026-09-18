@@ -514,4 +514,44 @@ public class DiskProviderTest
 
         result.Should().Be(shortPath);
     }
+
+    [Test]
+    public void GetAvailableSpace_WhenPathIsSymlink_ResolvesTargetAndReturnsSpace()
+    {
+        var targetDir = Path.Combine(this.tempDir, "real_target");
+        Directory.CreateDirectory(targetDir);
+        var linkDir = Path.Combine(this.tempDir, "symlink_dir");
+        Directory.CreateSymbolicLink(linkDir, targetDir);
+
+        var directSpace = this.diskProvider.GetAvailableSpace(targetDir);
+        var symlinkSpace = this.diskProvider.GetAvailableSpace(linkDir);
+
+        symlinkSpace.Should().NotBeNull();
+        symlinkSpace.Should().Be(directSpace);
+
+        var directTotal = this.diskProvider.GetTotalSize(targetDir);
+        var symlinkTotal = this.diskProvider.GetTotalSize(linkDir);
+
+        symlinkTotal.Should().NotBeNull();
+        symlinkTotal.Should().Be(directTotal);
+    }
+
+    [Test]
+    public void GetAvailableSpace_WhenSubfolderInSymlinkDoesNotExist_ResolvesTargetParentAndReturnsSpace()
+    {
+        var targetDir = Path.Combine(this.tempDir, "real_target");
+        Directory.CreateDirectory(targetDir);
+        var linkDir = Path.Combine(this.tempDir, "symlink_dir");
+        Directory.CreateSymbolicLink(linkDir, targetDir);
+
+        var subfolderInLink = Path.Combine(linkDir, "nonexistent", "subfolder");
+        var space = this.diskProvider.GetAvailableSpace(subfolderInLink);
+
+        space.Should().NotBeNull();
+        space.Should().BeGreaterThan(0);
+
+        var total = this.diskProvider.GetTotalSize(subfolderInLink);
+        total.Should().NotBeNull();
+        total.Should().BeGreaterThan(0);
+    }
 }
