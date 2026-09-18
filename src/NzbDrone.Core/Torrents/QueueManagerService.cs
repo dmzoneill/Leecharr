@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -14,23 +15,42 @@ namespace NzbDrone.Core.Torrents;
 
 public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusChangedEvent>, IHandle<TorrentAddedEvent>, IHandle<TorrentDeletedEvent>, IHandle<ConfigSavedEvent>
 {
+    public const int DefaultRequiredSlowTicks = 3;
+    public static readonly TimeSpan DefaultMinimumActiveCooldown = TimeSpan.FromSeconds(30);
+
     private readonly ITorrentRepository torrentRepository;
     private readonly IConfigService configService;
     private readonly IDownloadEngine downloadEngine;
     private readonly IEventAggregator eventAggregator;
     private readonly Logger logger;
     private readonly SemaphoreSlim queueLock = new(1, 1);
+    private readonly ConcurrentDictionary<int, TorrentQueueState> torrentStates = new();
+    private readonly int requiredSlowTicks;
+    private readonly TimeSpan minimumActiveCooldown;
 
     public QueueManagerService(
         ITorrentRepository torrentRepository,
         IConfigService configService,
         IDownloadEngine downloadEngine,
         IEventAggregator eventAggregator)
+        : this(torrentRepository, configService, downloadEngine, eventAggregator, DefaultRequiredSlowTicks, DefaultMinimumActiveCooldown)
+    {
+    }
+
+    internal QueueManagerService(
+        ITorrentRepository torrentRepository,
+        IConfigService configService,
+        IDownloadEngine downloadEngine,
+        IEventAggregator eventAggregator,
+        int requiredSlowTicks,
+        TimeSpan? minimumActiveCooldown = null)
     {
         this.torrentRepository = torrentRepository;
         this.configService = configService;
         this.downloadEngine = downloadEngine;
         this.eventAggregator = eventAggregator;
+        this.requiredSlowTicks = requiredSlowTicks > 0 ? requiredSlowTicks : DefaultRequiredSlowTicks;
+        this.minimumActiveCooldown = minimumActiveCooldown ?? DefaultMinimumActiveCooldown;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -63,13 +83,24 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
             var idleSeedingLimitMinutes = this.configService.IdleSeedingLimitMinutes;
 
             var allTorrents = this.torrentRepository.All()
-                .OrderBy(t => t.QueuePosition > 0 ? t.QueuePosition : int.MaxValue)
+                .OrderByDescending(t => t.Priority)
+                .ThenBy(t => t.QueuePosition > 0 ? t.QueuePosition : int.MaxValue)
                 .ThenBy(t => t.Id)
                 .ToList();
 
             if (allTorrents.Count == 0)
             {
+                this.torrentStates.Clear();
                 return;
+            }
+
+            var torrentIds = new HashSet<int>(allTorrents.Select(t => t.Id));
+            foreach (var id in this.torrentStates.Keys)
+            {
+                if (!torrentIds.Contains(id))
+                {
+                    this.torrentStates.TryRemove(id, out _);
+                }
             }
 
             var activeDownloads = 0;
@@ -89,6 +120,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                     continue;
                 }
 
+                var state = this.torrentStates.GetOrAdd(torrent.Id, _ => new TorrentQueueState());
                 var task = this.downloadEngine?.GetTask(torrent.Id);
                 var isComplete = torrent.Status == TorrentStatus.Seeding ||
                                  torrent.Progress >= 1.0 ||
@@ -103,10 +135,21 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                         torrent.LastActive = DateTime.UtcNow;
                     }
 
-                    var isSlow = ignoreSlow &&
-                                 torrent.Status == TorrentStatus.Downloading &&
-                                 task != null &&
-                                 task.DownloadSpeed < slowDownThresholdBytes;
+                    var isCurrentlySlow = ignoreSlow &&
+                                         torrent.Status == TorrentStatus.Downloading &&
+                                         task != null &&
+                                         task.DownloadSpeed < slowDownThresholdBytes;
+
+                    if (isCurrentlySlow)
+                    {
+                        state.SlowDownloadTicks++;
+                    }
+                    else
+                    {
+                        state.SlowDownloadTicks = 0;
+                    }
+
+                    var isSlow = isCurrentlySlow && state.SlowDownloadTicks >= this.requiredSlowTicks;
 
                     var isStalled = ((task != null && task.IsStalled) ||
                                     (queueStalledEnabled &&
@@ -132,6 +175,8 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                 }
 
                                 torrent.Status = TorrentStatus.Downloading;
+                                state.ActivatedAt = DateTime.UtcNow;
+                                state.SlowDownloadTicks = 0;
                                 this.torrentRepository.Update(torrent);
                                 this.logger.Info("[State Machine] Queue manager promoted torrent #{0} ('{1}') from Queued to Downloading", torrent.Id, torrent.Name);
 
@@ -160,34 +205,51 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                         // Exceeded download concurrency limit
                         if (torrent.Status == TorrentStatus.Downloading)
                         {
-                            var oldStatus = torrent.Status;
-                            try
+                            var inCooldown = state.ActivatedAt.HasValue &&
+                                             (DateTime.UtcNow - state.ActivatedAt.Value) < this.minimumActiveCooldown;
+
+                            if (inCooldown)
                             {
-                                if (this.downloadEngine != null)
+                                this.logger.Debug("[State Machine] Torrent #{0} ('{1}') is in active run cooldown window; deferring demotion", torrent.Id, torrent.Name);
+                                if (!isIgnoredDownload)
                                 {
-                                    await this.downloadEngine.PauseTorrentAsync(torrent.Id);
+                                    activeDownloads++;
+                                    activeTotal++;
                                 }
-
-                                torrent.Status = TorrentStatus.Queued;
-                                torrent.DownloadSpeed = 0;
-                                torrent.UploadSpeed = 0;
-                                torrent.Eta = 0;
-                                torrent.Seeders = 0;
-                                torrent.Leechers = 0;
-                                this.torrentRepository.Update(torrent);
-                                this.logger.Info("[State Machine] Queue manager demoted torrent #{0} ('{1}') from Downloading to Queued (Active downloads: {2}/{3})", torrent.Id, torrent.Name, activeDownloads, maxDownloads);
-
-                                eventsToPublish.Add(new TorrentStatusChangedEvent
-                                {
-                                    Torrent = torrent,
-                                    OldStatus = oldStatus,
-                                    NewStatus = TorrentStatus.Queued,
-                                    IsQueueManagerInternal = true,
-                                });
                             }
-                            catch (Exception ex)
+                            else
                             {
-                                this.logger.Warn(ex, "Failed to pause torrent {0} in download engine", torrent.Id);
+                                var oldStatus = torrent.Status;
+                                try
+                                {
+                                    if (this.downloadEngine != null)
+                                    {
+                                        await this.downloadEngine.PauseTorrentAsync(torrent.Id);
+                                    }
+
+                                    torrent.Status = TorrentStatus.Queued;
+                                    torrent.DownloadSpeed = 0;
+                                    torrent.UploadSpeed = 0;
+                                    torrent.Eta = 0;
+                                    torrent.Seeders = 0;
+                                    torrent.Leechers = 0;
+                                    state.ActivatedAt = null;
+                                    state.SlowDownloadTicks = 0;
+                                    this.torrentRepository.Update(torrent);
+                                    this.logger.Info("[State Machine] Queue manager demoted torrent #{0} ('{1}') from Downloading to Queued (Active downloads: {2}/{3})", torrent.Id, torrent.Name, activeDownloads, maxDownloads);
+
+                                    eventsToPublish.Add(new TorrentStatusChangedEvent
+                                    {
+                                        Torrent = torrent,
+                                        OldStatus = oldStatus,
+                                        NewStatus = TorrentStatus.Queued,
+                                        IsQueueManagerInternal = true,
+                                    });
+                                }
+                                catch (Exception ex)
+                                {
+                                    this.logger.Warn(ex, "Failed to pause torrent {0} in download engine", torrent.Id);
+                                }
                             }
                         }
                     }
@@ -201,10 +263,21 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                         torrent.LastActive = DateTime.UtcNow;
                     }
 
-                    var isSlow = ignoreSlow &&
-                                 torrent.Status == TorrentStatus.Seeding &&
-                                 task != null &&
-                                 task.UploadSpeed < slowUpThresholdBytes;
+                    var isCurrentlySlow = ignoreSlow &&
+                                         torrent.Status == TorrentStatus.Seeding &&
+                                         task != null &&
+                                         task.UploadSpeed < slowUpThresholdBytes;
+
+                    if (isCurrentlySlow)
+                    {
+                        state.SlowUploadTicks++;
+                    }
+                    else
+                    {
+                        state.SlowUploadTicks = 0;
+                    }
+
+                    var isSlow = isCurrentlySlow && state.SlowUploadTicks >= this.requiredSlowTicks;
 
                     var isIdleSeeder = idleSeedingLimitMinutes > 0 &&
                                        torrent.Status == TorrentStatus.Seeding &&
@@ -228,6 +301,8 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                 }
 
                                 torrent.Status = TorrentStatus.Seeding;
+                                state.ActivatedAt = DateTime.UtcNow;
+                                state.SlowUploadTicks = 0;
                                 this.torrentRepository.Update(torrent);
                                 this.logger.Info("[State Machine] Queue manager promoted torrent #{0} ('{1}') from Queued to Seeding", torrent.Id, torrent.Name);
 
@@ -256,34 +331,51 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                         // Exceeded upload concurrency limit
                         if (torrent.Status == TorrentStatus.Seeding)
                         {
-                            var oldStatus = torrent.Status;
-                            try
+                            var inCooldown = state.ActivatedAt.HasValue &&
+                                             (DateTime.UtcNow - state.ActivatedAt.Value) < this.minimumActiveCooldown;
+
+                            if (inCooldown)
                             {
-                                if (this.downloadEngine != null)
+                                this.logger.Debug("[State Machine] Seeding torrent #{0} ('{1}') is in active run cooldown window; deferring demotion", torrent.Id, torrent.Name);
+                                if (!isIgnoredUpload)
                                 {
-                                    await this.downloadEngine.PauseTorrentAsync(torrent.Id);
+                                    activeUploads++;
+                                    activeTotal++;
                                 }
-
-                                torrent.Status = TorrentStatus.Queued;
-                                torrent.DownloadSpeed = 0;
-                                torrent.UploadSpeed = 0;
-                                torrent.Eta = 0;
-                                torrent.Seeders = 0;
-                                torrent.Leechers = 0;
-                                this.torrentRepository.Update(torrent);
-                                this.logger.Info("[State Machine] Queue manager demoted torrent #{0} ('{1}') from Seeding to Queued (Active uploads: {2}/{3})", torrent.Id, torrent.Name, activeUploads, maxUploads);
-
-                                eventsToPublish.Add(new TorrentStatusChangedEvent
-                                {
-                                    Torrent = torrent,
-                                    OldStatus = oldStatus,
-                                    NewStatus = TorrentStatus.Queued,
-                                    IsQueueManagerInternal = true,
-                                });
                             }
-                            catch (Exception ex)
+                            else
                             {
-                                this.logger.Warn(ex, "Failed to pause seeding torrent {0} in download engine", torrent.Id);
+                                var oldStatus = torrent.Status;
+                                try
+                                {
+                                    if (this.downloadEngine != null)
+                                    {
+                                        await this.downloadEngine.PauseTorrentAsync(torrent.Id);
+                                    }
+
+                                    torrent.Status = TorrentStatus.Queued;
+                                    torrent.DownloadSpeed = 0;
+                                    torrent.UploadSpeed = 0;
+                                    torrent.Eta = 0;
+                                    torrent.Seeders = 0;
+                                    torrent.Leechers = 0;
+                                    state.ActivatedAt = null;
+                                    state.SlowUploadTicks = 0;
+                                    this.torrentRepository.Update(torrent);
+                                    this.logger.Info("[State Machine] Queue manager demoted torrent #{0} ('{1}') from Seeding to Queued (Active uploads: {2}/{3})", torrent.Id, torrent.Name, activeUploads, maxUploads);
+
+                                    eventsToPublish.Add(new TorrentStatusChangedEvent
+                                    {
+                                        Torrent = torrent,
+                                        OldStatus = oldStatus,
+                                        NewStatus = TorrentStatus.Queued,
+                                        IsQueueManagerInternal = true,
+                                    });
+                                }
+                                catch (Exception ex)
+                                {
+                                    this.logger.Warn(ex, "Failed to pause seeding torrent {0} in download engine", torrent.Id);
+                                }
                             }
                         }
                     }
@@ -308,6 +400,23 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
             return;
         }
 
+        if (message.Torrent != null)
+        {
+            if (message.NewStatus == TorrentStatus.Paused ||
+                message.NewStatus == TorrentStatus.Stopped ||
+                message.NewStatus == TorrentStatus.Completed ||
+                message.NewStatus == TorrentStatus.Error ||
+                message.NewStatus == TorrentStatus.Queued)
+            {
+                if (this.torrentStates.TryGetValue(message.Torrent.Id, out var state))
+                {
+                    state.ActivatedAt = null;
+                    state.SlowDownloadTicks = 0;
+                    state.SlowUploadTicks = 0;
+                }
+            }
+        }
+
         // Trigger queue evaluation when an active torrent vacates a slot (paused, stopped, error, stalled, completed)
         // or when checking finishes and the torrent enters Queued state.
         if (message.NewStatus == TorrentStatus.Paused ||
@@ -329,11 +438,25 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
 
     public void Handle(TorrentDeletedEvent message)
     {
+        if (message?.Torrent != null)
+        {
+            this.torrentStates.TryRemove(message.Torrent.Id, out _);
+        }
+
         _ = Task.Run(this.ProcessQueueAsync);
     }
 
     public void Handle(ConfigSavedEvent message)
     {
         _ = Task.Run(this.ProcessQueueAsync);
+    }
+
+    private sealed class TorrentQueueState
+    {
+        public int SlowDownloadTicks { get; set; }
+
+        public int SlowUploadTicks { get; set; }
+
+        public DateTime? ActivatedAt { get; set; }
     }
 }
