@@ -1691,6 +1691,64 @@ public class TorznabClientTest
             .Where(ex => ex.Code == 100 && ex.Description == "Invalid API Key");
     }
 
+    [Test]
+    public void ParseTorznabFeedXml_WhenEnclosureLengthIsZero_FallsBackToSizeElement()
+    {
+        var xml = @"<rss version=""2.0"">
+  <channel>
+    <title>Test Feed</title>
+    <item>
+      <title>Show.S01E01.1080p</title>
+      <guid>12345</guid>
+      <link>http://tracker.local/details/12345</link>
+      <enclosure url=""http://tracker.local/download/12345.torrent"" length=""0"" type=""application/x-bittorrent"" />
+      <size>1073741824</size>
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition { MinSeeders = 0 });
+
+        results.Should().HaveCount(1);
+        results[0].Size.Should().Be(1073741824L);
+    }
+
+    [TestCase("yes")]
+    [TestCase("free")]
+    [TestCase("true")]
+    [TestCase("1")]
+    public void ParseTorznabFeedXml_WhenFreeleechAttributeHasNonStandardValue_SetsFreeleechTrue(string freeleechVal)
+    {
+        var xml = $@"<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <title>Test Feed</title>
+    <item>
+      <title>Show.S01E01.Freeleech</title>
+      <guid>12346</guid>
+      <link>http://tracker.local/details/12346</link>
+      <torznab:attr name=""freeleech"" value=""{freeleechVal}"" />
+    </item>
+  </channel>
+</rss>";
+
+        var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition { MinSeeders = 0 });
+
+        results.Should().HaveCount(1);
+        results[0].IsFreeleech.Should().BeTrue();
+        results[0].DownloadVolumeFactor.Should().Be(0.0);
+    }
+
+    [Test]
+    public void TorznabSearchResult_IsFreeleech_WhenFactorNearZero_ReturnsTrue()
+    {
+        var result = new TorznabSearchResult
+        {
+            DownloadVolumeFactor = 0.00005,
+        };
+
+        result.IsFreeleech.Should().BeTrue();
+    }
+
     #endregion
 
     private class TestHttpMessageHandler : HttpMessageHandler
