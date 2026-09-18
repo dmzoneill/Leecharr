@@ -16,6 +16,7 @@ using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Torrents;
+using NzbDrone.Core.Trackers;
 
 namespace Leecharr.Core.Test.Http;
 
@@ -30,6 +31,7 @@ public class DelugeJsonRpcControllerTest
     private IConfigFileProvider configFileProvider = null!;
     private IDiskProvider diskProvider = null!;
     private IDownloadEngine downloadEngine = null!;
+    private ITrackerEntryRepository trackerEntryRepository = null!;
     private DelugeJsonRpcController controller = null!;
 
     [SetUp]
@@ -43,6 +45,7 @@ public class DelugeJsonRpcControllerTest
         this.configFileProvider = Substitute.For<IConfigFileProvider>();
         this.diskProvider = Substitute.For<IDiskProvider>();
         this.downloadEngine = Substitute.For<IDownloadEngine>();
+        this.trackerEntryRepository = Substitute.For<ITrackerEntryRepository>();
 
         this.configFileProvider.AuthenticationEnabled.Returns(true);
         this.configFileProvider.ApiKey.Returns("deluge_secret_key");
@@ -55,7 +58,8 @@ public class DelugeJsonRpcControllerTest
             this.configService,
             this.configFileProvider,
             diskProvider: this.diskProvider,
-            downloadEngine: this.downloadEngine);
+            downloadEngine: this.downloadEngine,
+            trackerEntryRepository: this.trackerEntryRepository);
     }
 
     [Test]
@@ -2318,5 +2322,121 @@ public class DelugeJsonRpcControllerTest
         stats.GetProperty("max_download").GetDouble().Should().Be(2048.0 * 1024.0);
         stats.GetProperty("max_upload").GetDouble().Should().Be(-1.0);
         stats.GetProperty("dht_nodes").GetInt32().Should().Be(42);
+    }
+
+    [Test]
+    public async Task HandleRpc_WebGetFilterTree_ReturnsAllAsFirstElementOfTrackerHost()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent
+            {
+                Id = 1,
+                InfoHash = "1111111111111111111111111111111111111111",
+                TrackerUrl = "http://tracker1.org/announce",
+            },
+            new Torrent
+            {
+                Id = 2,
+                InfoHash = "2222222222222222222222222222222222222222",
+                TrackerUrl = "http://tracker2.com:8080/announce?passkey=abc",
+            },
+        };
+
+        this.torrentService.GetAll().Returns(torrents);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"web.get_filter_tree\",\"params\":[],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var json = JsonSerializer.Serialize(((JsonResult)result).Value);
+        using var resDoc = JsonDocument.Parse(json);
+        var filterTree = resDoc.RootElement.GetProperty("result");
+
+        var trackerHostList = filterTree.GetProperty("tracker_host");
+        trackerHostList[0][0].GetString().Should().Be("All");
+        trackerHostList[0][1].GetInt32().Should().Be(2);
+    }
+
+    [Test]
+    public async Task HandleRpc_WebGetFilterTree_MultiTrackerEmptyTrackerUrl_PopulatesFromTrackerEntryRepository()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 42,
+            InfoHash = "4444444444444444444444444444444444444444",
+            TrackerUrl = string.Empty,
+        };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+        this.trackerEntryRepository.GetByTorrentId(42).Returns(new List<TrackerEntry>
+        {
+            new TrackerEntry { TorrentId = 42, Url = "udp://tracker.openbittorrent.com:6969/announce" },
+            new TrackerEntry { TorrentId = 42, Url = "http://tracker.publicbt.com:80/announce" },
+        });
+
+        using var doc = JsonDocument.Parse("{\"method\":\"web.get_filter_tree\",\"params\":[],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var json = JsonSerializer.Serialize(((JsonResult)result).Value);
+        using var resDoc = JsonDocument.Parse(json);
+        var trackerHostList = resDoc.RootElement.GetProperty("result").GetProperty("tracker_host");
+
+        trackerHostList[0][0].GetString().Should().Be("All");
+        trackerHostList[0][1].GetInt32().Should().Be(1);
+
+        var entry = trackerHostList.EnumerateArray().FirstOrDefault(arr => arr[0].GetString() == "tracker.openbittorrent.com");
+        entry.Should().NotBeNull();
+        entry[1].GetInt32().Should().Be(1);
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreSetConfig_UpnpTrueAndNatpmpFalse_PreservesUpnpEnabledTrue()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var setConfigJson = "{\"method\":\"core.set_config\",\"params\":[{\"upnp\":true,\"natpmp\":false}],\"id\":1}";
+        using var doc = JsonDocument.Parse(setConfigJson);
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":true");
+
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            d.ContainsKey("UpnpEnabled") && (bool)d["UpnpEnabled"] == true));
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreGetConfig_ReturnsSeedTimeLimitZero_WhenIdleSeedingLimitZero()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.IdleSeedingLimitMinutes.Returns(0);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_config\",\"params\":[],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+
+        using var resultDoc = JsonDocument.Parse(json);
+        var config = resultDoc.RootElement.GetProperty("result");
+        config.GetProperty("seed_time_limit").GetInt32().Should().Be(0);
     }
 }
