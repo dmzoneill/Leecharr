@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using NLog;
 using NzbDrone.Core.BitTorrent;
+using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Lifecycle;
 using NzbDrone.Core.Messaging.Commands;
@@ -294,6 +295,7 @@ public class AppLifetime : IHostedService, IDisposable
     {
         var watchFolderTickCounter = 0;
         var maintenanceTickCounter = 0;
+        var walCheckpointTickCounter = 0;
         var seedingTickCounter = 0;
         var lastSeedingTickUtc = DateTime.UtcNow;
 
@@ -486,6 +488,26 @@ public class AppLifetime : IHostedService, IDisposable
                 {
                     maintenanceTickCounter = 0;
                     this.services.NetworkSecurityService.CheckVpnKillSwitch();
+
+                    walCheckpointTickCounter++;
+                    if (walCheckpointTickCounter >= 12)
+                    {
+                        walCheckpointTickCounter = 0;
+                        try
+                        {
+                            if (this.services.Database?.DatabaseType == DatabaseType.SQLite)
+                            {
+                                using var conn = this.services.Database.OpenConnection();
+                                using var cmd = conn.CreateCommand();
+                                cmd.CommandText = "PRAGMA wal_checkpoint(PASSIVE);";
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            this.logger.Debug(ex, "Error performing periodic SQLite WAL checkpoint");
+                        }
+                    }
 
                     if (this.services.QueueManagerService != null)
                     {
