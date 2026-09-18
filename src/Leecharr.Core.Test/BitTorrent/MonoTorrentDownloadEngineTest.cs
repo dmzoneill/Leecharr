@@ -39,6 +39,7 @@ public class MonoTorrentDownloadEngineTest
     private IDiskProvider diskProvider = null!;
     private IEventAggregator eventAggregator = null!;
     private IAppFolderInfo appFolderInfo = null!;
+    private ITorrentLogService torrentLogService = null!;
     private MonoTorrentDownloadEngine engine = null!;
 
     private string testIncompleteDir = null!;
@@ -80,6 +81,7 @@ public class MonoTorrentDownloadEngineTest
 
         this.appFolderInfo = Substitute.For<IAppFolderInfo>();
         this.appFolderInfo.AppDataFolder.Returns(this.testAppDataDir);
+        this.torrentLogService = Substitute.For<ITorrentLogService>();
 
         this.engine = new MonoTorrentDownloadEngine(
             this.configService,
@@ -87,7 +89,8 @@ public class MonoTorrentDownloadEngineTest
             this.categoryService,
             this.diskProvider,
             this.eventAggregator,
-            appFolderInfo: this.appFolderInfo);
+            appFolderInfo: this.appFolderInfo,
+            torrentLogService: this.torrentLogService);
     }
 
     [TearDown]
@@ -3730,4 +3733,246 @@ public class MonoTorrentDownloadEngineTest
     }
 
     #endregion
+    private static byte[] CreateSampleTorrentWithTiers(
+        string name,
+        List<List<string>> tiers)
+    {
+        var pieceLength = 16384;
+        var length = 16384;
+        var pieces = new byte[20];
+        for (var i = 0; i < pieces.Length; i++)
+        {
+            pieces[i] = (byte)((i % 250) + 1);
+        }
+
+        var infoDict = new BEncodedDictionary
+        {
+            { "name", new BEncodedString(name) },
+            { "piece length", new BEncodedNumber(pieceLength) },
+            { "pieces", new BEncodedString(pieces) },
+            { "length", new BEncodedNumber(length) },
+        };
+
+        var primaryAnnounce = tiers != null && tiers.Count > 0 && tiers[0].Count > 0
+            ? tiers[0][0]
+            : "http://tracker1.example.com/announce";
+
+        var rootDict = new BEncodedDictionary
+        {
+            { "announce", new BEncodedString(primaryAnnounce) },
+            { "info", infoDict },
+        };
+
+        if (tiers != null && tiers.Count > 0)
+        {
+            var announceList = new BEncodedList();
+            foreach (var tier in tiers)
+            {
+                var tierList = new BEncodedList();
+                foreach (var url in tier)
+                {
+                    tierList.Add(new BEncodedString(url));
+                }
+
+                announceList.Add(tierList);
+            }
+
+            rootDict.Add("announce-list", announceList);
+        }
+
+        return rootDict.Encode();
+    }
+
+    [Test]
+    public async Task ForceAnnounceAsync_WhenAnnounceToAllInTier_DispatchesToAllTrackersAndLogsAccurately()
+    {
+        this.configService.AnnounceToAllInTier.Returns(true);
+        this.configService.AnnounceToAllTiers.Returns(false);
+
+        var tiers = new List<List<string>>
+        {
+            new() { "http://127.0.0.1:51111/announce", "http://127.0.0.1:51112/announce" },
+            new() { "http://127.0.0.1:51113/announce", "http://127.0.0.1:51114/announce" },
+        };
+
+        var torrentBytes = CreateSampleTorrentWithTiers("force_announce_all_in_tier.bin", tiers);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 601,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "force_announce_all_in_tier.bin",
+            Status = TorrentStatus.Downloading,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.Should().NotBeNull();
+
+        var timeout = DateTime.UtcNow.AddSeconds(5);
+        while (task.Manager.State != TorrentState.Downloading && DateTime.UtcNow < timeout)
+        {
+            await Task.Delay(20);
+        }
+
+        await this.engine.ForceAnnounceAsync(torrent.Id);
+
+        this.torrentLogService.Received().Log(
+            torrent.Id,
+            "Info",
+            "Tracker",
+            Arg.Is<string>(msg => msg.Contains("Dispatched announce & scrape request to 4 tracker(s)")));
+    }
+
+    [Test]
+    public async Task ForceAnnounceAsync_WhenAnnounceToAllTiers_DispatchesToAllTiersAndLogsAccurately()
+    {
+        this.configService.AnnounceToAllInTier.Returns(false);
+        this.configService.AnnounceToAllTiers.Returns(true);
+
+        var tiers = new List<List<string>>
+        {
+            new() { "http://127.0.0.1:52111/announce", "http://127.0.0.1:52112/announce" },
+            new() { "http://127.0.0.1:52113/announce", "http://127.0.0.1:52114/announce" },
+        };
+
+        var torrentBytes = CreateSampleTorrentWithTiers("force_announce_all_tiers.bin", tiers);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 602,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "force_announce_all_tiers.bin",
+            Status = TorrentStatus.Downloading,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.Should().NotBeNull();
+
+        var timeout = DateTime.UtcNow.AddSeconds(5);
+        while (task.Manager.State != TorrentState.Downloading && DateTime.UtcNow < timeout)
+        {
+            await Task.Delay(20);
+        }
+
+        await this.engine.ForceAnnounceAsync(torrent.Id);
+
+        this.torrentLogService.Received().Log(
+            torrent.Id,
+            "Info",
+            "Tracker",
+            Arg.Is<string>(msg => msg.Contains("Dispatched announce & scrape request to 2 tier(s)")));
+    }
+
+    [Test]
+    public async Task ForceAnnounceAsync_WhenSingleTracker_DispatchesToSingleTrackerAndLogsAccurately()
+    {
+        this.configService.AnnounceToAllInTier.Returns(false);
+        this.configService.AnnounceToAllTiers.Returns(false);
+
+        var tiers = new List<List<string>>
+        {
+            new() { "http://127.0.0.1:53111/announce", "http://127.0.0.1:53112/announce" },
+            new() { "http://127.0.0.1:53113/announce", "http://127.0.0.1:53114/announce" },
+        };
+
+        var torrentBytes = CreateSampleTorrentWithTiers("force_announce_single.bin", tiers);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 603,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "force_announce_single.bin",
+            Status = TorrentStatus.Downloading,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.Should().NotBeNull();
+
+        var timeout = DateTime.UtcNow.AddSeconds(5);
+        while (task.Manager.State != TorrentState.Downloading && DateTime.UtcNow < timeout)
+        {
+            await Task.Delay(20);
+        }
+
+        await this.engine.ForceAnnounceAsync(torrent.Id);
+
+        this.torrentLogService.Received().Log(
+            torrent.Id,
+            "Info",
+            "Tracker",
+            Arg.Is<string>(msg => msg.Contains("Dispatched announce & scrape request to 1 tracker(s)")));
+    }
+
+    [Test]
+    public async Task ForceAnnounceAsync_WhenTorrentIsStopped_GuardsAndLogsWarning()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("force_announce_stopped.bin");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 604,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "force_announce_stopped.bin",
+            Status = TorrentStatus.Stopped,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.Should().NotBeNull();
+
+        await this.engine.ForceAnnounceAsync(torrent.Id);
+
+        this.torrentLogService.Received().Log(
+            torrent.Id,
+            "Warn",
+            "Tracker",
+            Arg.Is<string>(msg => msg.Contains("Cannot announce to tracker: torrent is in Stopped state")));
+        this.torrentLogService.DidNotReceive().Log(
+            torrent.Id,
+            "Info",
+            "Tracker",
+            Arg.Is<string>(msg => msg.Contains("Dispatched announce & scrape request")));
+    }
+
+    [Test]
+    public async Task ForceAnnounceAsync_WhenTorrentIsPaused_GuardsAndLogsWarning()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("force_announce_paused.bin");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 605,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "force_announce_paused.bin",
+            Status = TorrentStatus.Downloading,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.Should().NotBeNull();
+
+        var timeout = DateTime.UtcNow.AddSeconds(5);
+        while (task.Manager.State != TorrentState.Downloading && DateTime.UtcNow < timeout)
+        {
+            await Task.Delay(20);
+        }
+
+        await this.engine.PauseTorrentAsync(torrent.Id);
+
+        await this.engine.ForceAnnounceAsync(torrent.Id);
+
+        this.torrentLogService.Received().Log(
+            torrent.Id,
+            "Warn",
+            "Tracker",
+            Arg.Is<string>(msg => msg.Contains("Cannot announce to tracker: torrent is in Paused state")));
+        this.torrentLogService.DidNotReceive().Log(
+            torrent.Id,
+            "Info",
+            "Tracker",
+            Arg.Is<string>(msg => msg.Contains("Dispatched announce & scrape request")));
+    }
 }
