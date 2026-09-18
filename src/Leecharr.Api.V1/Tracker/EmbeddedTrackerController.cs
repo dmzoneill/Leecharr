@@ -4,25 +4,35 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Net;
+using System.Net.Sockets;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
+using NzbDrone.Core.Authentication;
 using NzbDrone.Core.BitTorrent.Tracker;
+using NzbDrone.Core.Configuration;
 
 namespace Leecharr.Api.V1.Tracker;
 
-[AllowAnonymous]
 [ApiController]
 public class EmbeddedTrackerController : ControllerBase
 {
     private readonly IEmbeddedTrackerService trackerService;
+    private readonly ITrustedNetworkService trustedNetworkService;
+    private readonly IConfigService configService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
-    public EmbeddedTrackerController(IEmbeddedTrackerService trackerService)
+    public EmbeddedTrackerController(
+        IEmbeddedTrackerService trackerService,
+        ITrustedNetworkService trustedNetworkService = null,
+        IConfigService configService = null)
     {
         this.trackerService = trackerService;
+        this.trustedNetworkService = trustedNetworkService ?? new TrustedNetworkService();
+        this.configService = configService;
     }
 
+    [AllowAnonymous]
     [HttpGet("/announce")]
     public ActionResult Announce()
     {
@@ -33,21 +43,32 @@ public class EmbeddedTrackerController : ControllerBase
             remoteIp = remoteIp.MapToIPv4();
         }
 
-        if (remoteIp == null || IPAddress.IsLoopback(remoteIp) || IsPrivateNetwork(remoteIp))
+        var trustedCidrs = this.GetTrustedProxies();
+        if (remoteIp != null && this.trustedNetworkService.IsTrustedProxy(remoteIp, trustedCidrs))
         {
+            IPAddress candidateIp = null;
             if (this.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor) && !string.IsNullOrWhiteSpace(forwardedFor))
             {
                 var firstIp = forwardedFor.ToString().Split(',')[0].Trim();
                 if (IPAddress.TryParse(firstIp, out var parsedFwd))
                 {
-                    remoteIp = parsedFwd.IsIPv4MappedToIPv6 ? parsedFwd.MapToIPv4() : parsedFwd;
+                    candidateIp = parsedFwd.IsIPv4MappedToIPv6 ? parsedFwd.MapToIPv4() : parsedFwd;
                 }
             }
             else if (this.Request.Headers.TryGetValue("X-Real-IP", out var realIp) && !string.IsNullOrWhiteSpace(realIp))
             {
                 if (IPAddress.TryParse(realIp.ToString().Trim(), out var parsedReal))
                 {
-                    remoteIp = parsedReal.IsIPv4MappedToIPv6 ? parsedReal.MapToIPv4() : parsedReal;
+                    candidateIp = parsedReal.IsIPv4MappedToIPv6 ? parsedReal.MapToIPv4() : parsedReal;
+                }
+            }
+
+            if (candidateIp != null)
+            {
+                var isOriginatingLocally = IPAddress.IsLoopback(remoteIp);
+                if (isOriginatingLocally || !IsLoopbackOrLinkLocal(candidateIp))
+                {
+                    remoteIp = candidateIp;
                 }
             }
         }
@@ -58,6 +79,7 @@ public class EmbeddedTrackerController : ControllerBase
         return this.File(responseBytes, "text/plain");
     }
 
+    [AllowAnonymous]
     [HttpGet("/scrape")]
     public ActionResult Scrape()
     {
@@ -68,6 +90,7 @@ public class EmbeddedTrackerController : ControllerBase
         return this.File(responseBytes, "text/plain");
     }
 
+    [Authorize]
     [HttpGet("/api/v1/trackerserver/stats")]
     [HttpGet("/api/v1/tracker/stats")]
     public ActionResult GetStats()
@@ -85,6 +108,7 @@ public class EmbeddedTrackerController : ControllerBase
         });
     }
 
+    [Authorize]
     [HttpGet("/api/v1/trackerserver/torrents")]
     [HttpGet("/api/v1/tracker/torrents")]
     public ActionResult GetTorrents()
@@ -208,7 +232,8 @@ public class EmbeddedTrackerController : ControllerBase
                         request.Ipv6Port = explicitPort.Value;
                     }
 
-                    if (request.RemoteIp == null || IPAddress.IsLoopback(request.RemoteIp) || IsPrivateNetwork(request.RemoteIp))
+                    if ((request.RemoteIp == null || IPAddress.IsLoopback(request.RemoteIp) || IsPrivateNetwork(request.RemoteIp)) &&
+                        (IPAddress.IsLoopback(request.RemoteIp) || !IsLoopbackOrLinkLocal(queryIpv6)))
                     {
                         request.RemoteIp = queryIpv6;
                     }
@@ -223,7 +248,10 @@ public class EmbeddedTrackerController : ControllerBase
                     queryIp = queryIp.MapToIPv4();
                 }
 
-                request.RemoteIp = queryIp;
+                if (IPAddress.IsLoopback(request.RemoteIp) || !IsLoopbackOrLinkLocal(queryIp))
+                {
+                    request.RemoteIp = queryIp;
+                }
             }
         }
 
@@ -307,6 +335,60 @@ public class EmbeddedTrackerController : ControllerBase
         }
 
         return true;
+    }
+
+    private string GetTrustedProxies()
+    {
+        var cidrs = this.configService?.GetValue("TrackerTrustedProxies", string.Empty);
+        if (!string.IsNullOrWhiteSpace(cidrs))
+        {
+            return cidrs;
+        }
+
+        cidrs = this.configService?.GetValue("ForwardAuthTrustedProxies", string.Empty);
+        if (!string.IsNullOrWhiteSpace(cidrs))
+        {
+            return cidrs;
+        }
+
+        return this.configService?.GetValue("TrustedProxies", string.Empty) ?? string.Empty;
+    }
+
+    private static bool IsLoopbackOrLinkLocal(IPAddress ip)
+    {
+        if (ip == null)
+        {
+            return false;
+        }
+
+        if (ip.IsIPv4MappedToIPv6)
+        {
+            ip = ip.MapToIPv4();
+        }
+
+        if (IPAddress.IsLoopback(ip))
+        {
+            return true;
+        }
+
+        if (ip.AddressFamily == AddressFamily.InterNetwork)
+        {
+            var bytes = ip.GetAddressBytes();
+            return bytes[0] == 127 || (bytes[0] == 169 && bytes[1] == 254);
+        }
+
+        if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+        {
+            if (ip.IsIPv6LinkLocal)
+            {
+                return true;
+            }
+
+            var bytes = ip.GetAddressBytes();
+            return bytes[0] == 0xFE && (bytes[1] & 0xC0) == 0x80;
+        }
+
+        return false;
     }
 
     private static bool IsPrivateNetwork(IPAddress ip)
