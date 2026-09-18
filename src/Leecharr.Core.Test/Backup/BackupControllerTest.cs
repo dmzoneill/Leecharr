@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -446,9 +447,12 @@ public class BackupControllerTest
         var okResult = (OkObjectResult)result.Result!;
         var backup = (BackupResource)okResult.Value!;
         backup.Should().NotBeNull();
-        File.Exists(backup.Path).Should().BeTrue();
+        backup.Path.Should().Be(backup.Name);
+        backup.Path.Should().NotContain(this.testTempDir);
+        var physicalPath = Path.Combine(this.testTempDir, "Backups", "manual", backup.Name);
+        File.Exists(physicalPath).Should().BeTrue();
 
-        using (var zip = ZipFile.OpenRead(backup.Path))
+        using (var zip = ZipFile.OpenRead(physicalPath))
         {
             zip.Entries.Should().Contain(e => e.FullName == "leecharr.db");
 
@@ -483,8 +487,11 @@ public class BackupControllerTest
         var okResult = (OkObjectResult)result.Result!;
         var backup = (BackupResource)okResult.Value!;
         backup.Should().NotBeNull();
+        backup.Path.Should().Be(backup.Name);
+        backup.Path.Should().NotContain(this.testTempDir);
 
-        using var zip = ZipFile.OpenRead(backup.Path);
+        var physicalPath = Path.Combine(this.testTempDir, "Backups", "manual", backup.Name);
+        using var zip = ZipFile.OpenRead(physicalPath);
         zip.Entries.Should().Contain(e => e.FullName == "config.xml");
         zip.Entries.Should().NotContain(e => e.FullName == "leecharr.db");
     }
@@ -695,8 +702,11 @@ public class BackupControllerTest
         backup.Should().NotBeNull();
         backup.DatabaseType.Should().Be("PostgreSQL");
         backup.IncludesDatabase.Should().BeTrue();
+        backup.Path.Should().Be(backup.Name);
+        backup.Path.Should().NotContain(this.testTempDir);
 
-        using var zip = ZipFile.OpenRead(backup.Path);
+        var physicalPath = Path.Combine(this.testTempDir, "Backups", "manual", backup.Name);
+        using var zip = ZipFile.OpenRead(physicalPath);
         zip.Entries.Should().Contain(e => e.FullName == "config.xml");
         zip.Entries.Should().Contain(e => e.FullName == "leecharr_postgres.sql", "PostgreSQL backup must include postgres dump file");
         zip.Entries.Should().NotContain(e => e.FullName == "leecharr.db", "PostgreSQL backup must not include stale SQLite database");
@@ -1171,5 +1181,44 @@ public class BackupControllerTest
         this.controller.PruneOldBackups(empty).Should().Be(0);
         this.controller.PruneOldBackups(null!).Should().Be(0);
         this.controller.PruneOldBackups(string.Empty).Should().Be(0);
+    }
+
+    [Test]
+    public async Task GetAll_DoesNotDisclosePhysicalDiskPath()
+    {
+        await this.controller.Create();
+
+        var result = this.controller.GetAll();
+        result.Result.Should().BeOfType<OkObjectResult>();
+
+        var okResult = (OkObjectResult)result.Result!;
+        var backups = (List<BackupResource>)okResult.Value!;
+        backups.Should().NotBeEmpty();
+
+        foreach (var b in backups)
+        {
+            b.Path.Should().Be(b.Name);
+            b.Path.Should().NotContain(this.testTempDir);
+            b.Path.Should().NotContain(Path.DirectorySeparatorChar.ToString());
+        }
+    }
+
+    [Test]
+    public async Task Restore_WhenArchiveCorrupted_ReturnsGeneric500MessageWithoutRawExceptionDetails()
+    {
+        var corruptZipPath = Path.Combine(this.testTempDir, "Backups", "manual", "Leecharr_corrupt.zip");
+        Directory.CreateDirectory(Path.GetDirectoryName(corruptZipPath)!);
+        File.WriteAllText(corruptZipPath, "this is definitely not a zip file");
+
+        var result = await this.controller.Restore(new RestoreBackupRequest { FileName = "Leecharr_corrupt.zip" });
+        result.Should().BeOfType<ObjectResult>();
+
+        var objResult = (ObjectResult)result;
+        objResult.StatusCode.Should().Be(500);
+
+        var json = System.Text.Json.JsonSerializer.Serialize(objResult.Value);
+        json.Should().Contain("Failed to extract backup archive.");
+        json.Should().NotContain("EndOfCentralDirectoryBlock");
+        json.Should().NotContain("InvalidDataException");
     }
 }

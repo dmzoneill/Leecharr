@@ -96,4 +96,31 @@ public class SystemControllerTest
         status!.DatabaseType.Should().Be("PostgreSQL");
         status.DatabaseVersion.Should().Be("PostgreSQL");
     }
+
+    [Test]
+    [TestCase("/home/johndoe/.config/Leecharr", "~/.config/Leecharr")]
+    [TestCase("/Users/johndoe/Library/Application Support/Leecharr", "~/Library/Application Support/Leecharr")]
+    [TestCase(@"C:\Users\johndoe\AppData\Roaming\Leecharr", @"~\AppData\Roaming\Leecharr")]
+    public void SanitizeHostPath_RedactsUserHomeDirectories(string input, string expected)
+    {
+        SystemController.SanitizeHostPath(input).Should().Be(expected);
+    }
+
+    [Test]
+    public void GetStatus_WhenAppDataInUserHome_RedactsHomeDirectory()
+    {
+        this.appFolderInfo.AppDataFolder.Returns("/home/someuser/.config/Leecharr");
+        this.appFolderInfo.StartUpFolder.Returns("/home/someuser/bin/Leecharr");
+
+        var controller = new SystemController(this.appFolderInfo);
+        var actionResult = controller.GetStatus();
+
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var status = okResult!.Value as SystemStatusResource;
+        status.Should().NotBeNull();
+        status!.AppDataFolder.Should().Be("~/.config/Leecharr");
+        status.StartupPath.Should().Be("~/bin/Leecharr");
+    }
 }

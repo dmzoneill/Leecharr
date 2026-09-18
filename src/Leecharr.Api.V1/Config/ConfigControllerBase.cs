@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Leecharr.Http.REST;
 using Microsoft.AspNetCore.Mvc;
+using NLog;
 using NzbDrone.Core.Configuration;
 
 namespace Leecharr.Api.V1.Config;
@@ -13,6 +14,7 @@ namespace Leecharr.Api.V1.Config;
 public abstract class ConfigController<TResource> : Controller
     where TResource : RestResource, new()
 {
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
     protected readonly IConfigService configService;
 
     protected ResourceValidator<TResource> SharedValidator { get; set; }
@@ -73,8 +75,8 @@ public abstract class ConfigController<TResource> : Controller
         }
         catch (Exception ex)
         {
-            Console.WriteLine("SAVECONFIG EXCEPTION: " + ex);
-            throw;
+            this.logger.Error(ex, "Failed to save configuration.");
+            return this.StatusCode(500, "Failed to save configuration.");
         }
     }
 
