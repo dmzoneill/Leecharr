@@ -628,4 +628,114 @@ public class CompatibilityRpcAuthTest
         var isAllowedProp = okResult.Value!.GetType().GetProperty("isAllowed")!.GetValue(okResult.Value);
         isAllowedProp.Should().Be(true);
     }
+
+    [Test]
+    public void UTorrentWebUi_WhenHttps_SetsSecureGuidCookie()
+    {
+        var controller = new UTorrentWebUiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            configFileProvider: this.configFileProvider);
+
+        var tokenContext = new DefaultHttpContext();
+        tokenContext.Request.Scheme = "https";
+        tokenContext.Request.Headers["X-Api-Key"] = "master_api_key_xyz";
+        controller.ControllerContext = new ControllerContext { HttpContext = tokenContext };
+
+        var tokenResult = controller.GetToken();
+        tokenResult.Should().BeOfType<ContentResult>();
+
+        tokenContext.Response.Headers.TryGetValue("Set-Cookie", out var setCookieHeaders).Should().BeTrue();
+        var setCookie = setCookieHeaders.ToString();
+        setCookie.Should().Contain("GUID=");
+        setCookie.ToLowerInvariant().Should().Contain("secure");
+    }
+
+    [Test]
+    public void UTorrentWebUi_WhenHttp_DoesNotSetSecureGuidCookie()
+    {
+        var controller = new UTorrentWebUiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            configFileProvider: this.configFileProvider);
+
+        var tokenContext = new DefaultHttpContext();
+        tokenContext.Request.Scheme = "http";
+        tokenContext.Request.Headers["X-Api-Key"] = "master_api_key_xyz";
+        controller.ControllerContext = new ControllerContext { HttpContext = tokenContext };
+
+        var tokenResult = controller.GetToken();
+        tokenResult.Should().BeOfType<ContentResult>();
+
+        tokenContext.Response.Headers.TryGetValue("Set-Cookie", out var setCookieHeaders).Should().BeTrue();
+        var setCookie = setCookieHeaders.ToString();
+        setCookie.Should().Contain("GUID=");
+        setCookie.ToLowerInvariant().Should().NotContain("secure");
+    }
+
+    [Test]
+    public void FloodAuthenticate_WhenHttps_SetsSecureCookies()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("master_api_key_xyz");
+
+        var controller = new FloodApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.configFileProvider);
+
+        var loginContext = new DefaultHttpContext();
+        loginContext.Request.Scheme = "https";
+        controller.ControllerContext = new ControllerContext { HttpContext = loginContext };
+
+        var loginResult = controller.Authenticate(new FloodAuthRequest { Password = "master_api_key_xyz" });
+        loginResult.Should().BeOfType<OkObjectResult>();
+
+        loginContext.Response.Headers.TryGetValue("Set-Cookie", out var setCookieHeaders).Should().BeTrue();
+        var setCookies = setCookieHeaders.ToArray();
+        setCookies.Should().NotBeEmpty();
+        foreach (var cookie in setCookies)
+        {
+            cookie.ToLowerInvariant().Should().Contain("secure");
+        }
+    }
+
+    [Test]
+    public void FloodAuthenticate_WhenHttp_DoesNotSetSecureCookies()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("master_api_key_xyz");
+
+        var controller = new FloodApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.configFileProvider);
+
+        var loginContext = new DefaultHttpContext();
+        loginContext.Request.Scheme = "http";
+        controller.ControllerContext = new ControllerContext { HttpContext = loginContext };
+
+        var loginResult = controller.Authenticate(new FloodAuthRequest { Password = "master_api_key_xyz" });
+        loginResult.Should().BeOfType<OkObjectResult>();
+
+        loginContext.Response.Headers.TryGetValue("Set-Cookie", out var setCookieHeaders).Should().BeTrue();
+        var setCookies = setCookieHeaders.ToArray();
+        setCookies.Should().NotBeEmpty();
+        foreach (var cookie in setCookies)
+        {
+            cookie.ToLowerInvariant().Should().NotContain("secure");
+        }
+    }
 }

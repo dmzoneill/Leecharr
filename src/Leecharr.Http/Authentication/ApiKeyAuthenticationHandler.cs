@@ -7,9 +7,11 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Configuration;
 
 namespace Leecharr.Http.Authentication;
@@ -25,17 +27,23 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
 {
     private readonly IConfigFileProvider configFileProvider;
     private readonly AuthRateLimiter rateLimiter;
+    private readonly ITrustedNetworkService trustedNetworkService;
+    private readonly IConfigService configService;
 
     public ApiKeyAuthenticationHandler(
         IOptionsMonitor<ApiKeyAuthenticationOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder,
         IConfigFileProvider configFileProvider,
-        AuthRateLimiter rateLimiter = null)
+        AuthRateLimiter rateLimiter = null,
+        ITrustedNetworkService trustedNetworkService = null,
+        IConfigService configService = null)
         : base(options, logger, encoder)
     {
         this.configFileProvider = configFileProvider;
         this.rateLimiter = rateLimiter ?? AuthRateLimiter.Shared;
+        this.trustedNetworkService = trustedNetworkService;
+        this.configService = configService;
     }
 
     public static void ResetThrottling()
@@ -126,6 +134,6 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
 
     private string GetClientIpAddress()
     {
-        return this.Context.Connection?.RemoteIpAddress?.ToString() ?? "127.0.0.1";
+        return ClientIpResolver.ResolveClientIp(this.Context, this.trustedNetworkService, this.configService);
     }
 }

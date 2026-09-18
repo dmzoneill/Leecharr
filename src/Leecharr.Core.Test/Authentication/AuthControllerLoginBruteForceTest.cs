@@ -196,4 +196,153 @@ public class AuthControllerLoginBruteForceTest
         // Expired entries were pruned and current request IP was recorded
         AuthController.TrackedLoginAttemptsCount.Should().Be(1);
     }
+
+    [Test]
+    public async Task Login_WhenUntrustedClientSpoofsForwardedFor_IgnoresHeaderAndThrottlesActualRemoteIp()
+    {
+        this.userService.Authenticate("admin", "wrongpassword").Returns((User)null!);
+
+        var failRequest = new LoginRequestResource
+        {
+            Username = "admin",
+            Password = "wrongpassword",
+        };
+
+        // Attacker is at 198.51.100.42 (untrusted) and rotates X-Forwarded-For on each attempt
+        for (var i = 1; i <= 5; i++)
+        {
+            this.controller.ControllerContext.HttpContext.Request.Headers["X-Forwarded-For"] = $"203.0.113.{i}";
+            var result = await this.controller.Login(failRequest);
+            result.Result.Should().BeOfType<UnauthorizedObjectResult>();
+        }
+
+        // 6th attempt with another spoofed header must be throttled because actual remote IP is tracked
+        this.controller.ControllerContext.HttpContext.Request.Headers["X-Forwarded-For"] = "203.0.113.99";
+        var throttledResult = await this.controller.Login(failRequest);
+        throttledResult.Result.Should().BeOfType<ObjectResult>();
+        var objectResult = (ObjectResult)throttledResult.Result;
+        objectResult.StatusCode.Should().Be(429);
+
+        // Actual attacker IP is throttled, but spoofed target IPs are not
+        AuthController.IsThrottledForIp("198.51.100.42").Should().BeTrue();
+        AuthController.IsThrottledForIp("203.0.113.1").Should().BeFalse();
+        AuthController.IsThrottledForIp("203.0.113.99").Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Login_WhenUntrustedClientSpoofsTargetIp_DoesNotLockOutTargetIp()
+    {
+        this.userService.Authenticate("admin", "wrongpassword").Returns((User)null!);
+
+        var failRequest = new LoginRequestResource
+        {
+            Username = "admin",
+            Password = "wrongpassword",
+        };
+
+        // Attacker at 198.51.100.42 attempts to lock out victim administrator at 192.168.1.100
+        this.controller.ControllerContext.HttpContext.Request.Headers["X-Forwarded-For"] = "192.168.1.100";
+
+        for (var i = 0; i < 5; i++)
+        {
+            var result = await this.controller.Login(failRequest);
+            result.Result.Should().BeOfType<UnauthorizedObjectResult>();
+        }
+
+        // Target administrator IP must NOT be throttled
+        AuthController.IsThrottledForIp("192.168.1.100").Should().BeFalse();
+
+        // Attacker remote IP must be throttled
+        AuthController.IsThrottledForIp("198.51.100.42").Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Login_WhenTrustedProxy_AcceptsForwardedForAndThrottlesClientIp()
+    {
+        this.configService.GetValue("TrustedProxies", string.Empty).Returns("10.0.0.0/24");
+        this.userService.Authenticate("admin", "wrongpassword").Returns((User)null!);
+
+        var proxyController = new AuthController(
+            this.userService,
+            this.identityProviderService,
+            this.configFileProvider,
+            this.configService,
+            this.sessionRepository);
+
+        var httpContext = new DefaultHttpContext();
+        httpContext.Connection.RemoteIpAddress = IPAddress.Parse("10.0.0.5");
+        httpContext.Request.Headers["X-Forwarded-For"] = "203.0.113.55";
+        var authService = Substitute.For<IAuthenticationService>();
+        var serviceProvider = Substitute.For<IServiceProvider>();
+        serviceProvider.GetService(typeof(IAuthenticationService)).Returns(authService);
+        httpContext.RequestServices = serviceProvider;
+
+        proxyController.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var failRequest = new LoginRequestResource
+        {
+            Username = "admin",
+            Password = "wrongpassword",
+        };
+
+        for (var i = 0; i < 5; i++)
+        {
+            var result = await proxyController.Login(failRequest);
+            result.Result.Should().BeOfType<UnauthorizedObjectResult>();
+        }
+
+        // 6th attempt from 203.0.113.55 is throttled
+        var throttledResult = await proxyController.Login(failRequest);
+        throttledResult.Result.Should().BeOfType<ObjectResult>();
+        ((ObjectResult)throttledResult.Result).StatusCode.Should().Be(429);
+
+        // Client IP behind trusted proxy is throttled, but proxy itself is not throttled for other clients
+        AuthController.IsThrottledForIp("203.0.113.55").Should().BeTrue();
+        AuthController.IsThrottledForIp("10.0.0.5").Should().BeFalse();
+
+        // Another client behind the same trusted proxy can still attempt login
+        httpContext.Request.Headers["X-Forwarded-For"] = "203.0.113.66";
+        var allowedResult = await proxyController.Login(failRequest);
+        allowedResult.Result.Should().BeOfType<UnauthorizedObjectResult>();
+    }
+
+    [Test]
+    public async Task Login_WhenTrustedProxy_RejectsSpoofedLoopbackForwardedFor()
+    {
+        this.configService.GetValue("TrustedProxies", string.Empty).Returns("10.0.0.0/24");
+        this.userService.Authenticate("admin", "wrongpassword").Returns((User)null!);
+
+        var proxyController = new AuthController(
+            this.userService,
+            this.identityProviderService,
+            this.configFileProvider,
+            this.configService,
+            this.sessionRepository);
+
+        var httpContext = new DefaultHttpContext();
+        httpContext.Connection.RemoteIpAddress = IPAddress.Parse("10.0.0.5");
+        httpContext.Request.Headers["X-Forwarded-For"] = "127.0.0.1";
+        var authService = Substitute.For<IAuthenticationService>();
+        var serviceProvider = Substitute.For<IServiceProvider>();
+        serviceProvider.GetService(typeof(IAuthenticationService)).Returns(authService);
+        httpContext.RequestServices = serviceProvider;
+
+        proxyController.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var failRequest = new LoginRequestResource
+        {
+            Username = "admin",
+            Password = "wrongpassword",
+        };
+
+        for (var i = 0; i < 5; i++)
+        {
+            var result = await proxyController.Login(failRequest);
+            result.Result.Should().BeOfType<UnauthorizedObjectResult>();
+        }
+
+        // Spoofed loopback is rejected; proxy IP 10.0.0.5 is recorded instead of loopback
+        AuthController.IsThrottledForIp("127.0.0.1").Should().BeFalse();
+        AuthController.IsThrottledForIp("10.0.0.5").Should().BeTrue();
+    }
 }

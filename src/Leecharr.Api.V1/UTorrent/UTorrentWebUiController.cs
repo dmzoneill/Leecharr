@@ -97,7 +97,12 @@ public class UTorrentWebUiController : ControllerBase
         var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
         TokenStore[guid] = (token, DateTime.UtcNow.AddHours(24));
 
-        this.Response.Cookies.Append("GUID", guid, new CookieOptions { HttpOnly = true, SameSite = SameSiteMode.Lax });
+        this.Response.Cookies.Append("GUID", guid, new CookieOptions
+        {
+            HttpOnly = true,
+            SameSite = SameSiteMode.Lax,
+            Secure = this.Request.IsHttps,
+        });
         var html = $"<html><div id=\"token\">{token}</div></html>";
         return this.Content(html, "text/html", Encoding.UTF8);
     }

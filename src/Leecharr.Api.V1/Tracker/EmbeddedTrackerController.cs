@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
@@ -356,39 +357,7 @@ public class EmbeddedTrackerController : ControllerBase
 
     private static bool IsLoopbackOrLinkLocal(IPAddress ip)
     {
-        if (ip == null)
-        {
-            return false;
-        }
-
-        if (ip.IsIPv4MappedToIPv6)
-        {
-            ip = ip.MapToIPv4();
-        }
-
-        if (IPAddress.IsLoopback(ip))
-        {
-            return true;
-        }
-
-        if (ip.AddressFamily == AddressFamily.InterNetwork)
-        {
-            var bytes = ip.GetAddressBytes();
-            return bytes[0] == 127 || (bytes[0] == 169 && bytes[1] == 254);
-        }
-
-        if (ip.AddressFamily == AddressFamily.InterNetworkV6)
-        {
-            if (ip.IsIPv6LinkLocal)
-            {
-                return true;
-            }
-
-            var bytes = ip.GetAddressBytes();
-            return bytes[0] == 0xFE && (bytes[1] & 0xC0) == 0x80;
-        }
-
-        return false;
+        return ClientIpResolver.IsLoopbackOrLinkLocal(ip);
     }
 
     private static bool IsPrivateNetwork(IPAddress ip)
