@@ -13,10 +13,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
+using NzbDrone.Core.Trackers;
 
 namespace Leecharr.Api.V1.UTorrent;
 
@@ -53,6 +55,8 @@ public class UTorrentWebUiController : ControllerBase
     private readonly IConfigService configService;
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly IConfigFileProvider configFileProvider;
+    private readonly ITrackerEntryRepository trackerEntryRepository;
+    private readonly IDownloadEngine downloadEngine;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public UTorrentWebUiController(
@@ -62,7 +66,9 @@ public class UTorrentWebUiController : ControllerBase
         ICategoryService categoryService,
         IConfigService configService,
         ISafeHttpClientService safeHttpClientService = null,
-        IConfigFileProvider configFileProvider = null)
+        IConfigFileProvider configFileProvider = null,
+        ITrackerEntryRepository trackerEntryRepository = null,
+        IDownloadEngine downloadEngine = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -71,6 +77,8 @@ public class UTorrentWebUiController : ControllerBase
         this.configService = configService;
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
         this.configFileProvider = configFileProvider;
+        this.trackerEntryRepository = trackerEntryRepository;
+        this.downloadEngine = downloadEngine;
     }
 
     [HttpGet]
@@ -304,11 +312,83 @@ public class UTorrentWebUiController : ControllerBase
                             }
                             else if ((string.Equals(effS, "dlrate", StringComparison.OrdinalIgnoreCase) || string.Equals(effS, "max_dl_rate", StringComparison.OrdinalIgnoreCase)) && int.TryParse(effV, out var dlVal))
                             {
-                                t.DownloadLimit = dlVal > 0 ? dlVal / 1024 : 0;
+                                t.DownloadLimit = dlVal > 0 ? Math.Max(1, (int)Math.Ceiling(dlVal / 1024.0)) : 0;
                             }
                             else if ((string.Equals(effS, "ulrate", StringComparison.OrdinalIgnoreCase) || string.Equals(effS, "max_ul_rate", StringComparison.OrdinalIgnoreCase)) && int.TryParse(effV, out var ulVal))
                             {
-                                t.UploadLimit = ulVal > 0 ? ulVal / 1024 : 0;
+                                t.UploadLimit = ulVal > 0 ? Math.Max(1, (int)Math.Ceiling(ulVal / 1024.0)) : 0;
+                            }
+                            else if (string.Equals(effS, "trackers", StringComparison.OrdinalIgnoreCase) && effV != null)
+                            {
+                                var parsedTrackers = new List<(string Url, int Tier)>();
+                                var lines = effV.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+                                var currentTier = 0;
+                                var hasTrackersInCurrentTier = false;
+
+                                foreach (var rawLine in lines)
+                                {
+                                    var line = rawLine.Trim();
+                                    if (string.IsNullOrEmpty(line))
+                                    {
+                                        if (hasTrackersInCurrentTier)
+                                        {
+                                            currentTier++;
+                                            hasTrackersInCurrentTier = false;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        parsedTrackers.Add((line, currentTier));
+                                        hasTrackersInCurrentTier = true;
+                                    }
+                                }
+
+                                var existingTrackers = this.trackerEntryRepository?.GetByTorrentId(t.Id)?.ToList() ?? new List<TrackerEntry>();
+                                var oldUrls = existingTrackers
+                                    .Select(x => x.Url)
+                                    .Where(u => !string.IsNullOrWhiteSpace(u))
+                                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                                    .ToList();
+
+                                if (!string.IsNullOrWhiteSpace(t.TrackerUrl) && !oldUrls.Contains(t.TrackerUrl, StringComparer.OrdinalIgnoreCase))
+                                {
+                                    oldUrls.Add(t.TrackerUrl);
+                                }
+
+                                if (this.trackerEntryRepository != null)
+                                {
+                                    this.trackerEntryRepository.DeleteByTorrentId(t.Id);
+                                    foreach (var pt in parsedTrackers)
+                                    {
+                                        this.trackerEntryRepository.Insert(new TrackerEntry
+                                        {
+                                            TorrentId = t.Id,
+                                            Url = pt.Url,
+                                            Tier = pt.Tier,
+                                            Enabled = true,
+                                        });
+                                    }
+                                }
+
+                                t.TrackerUrl = parsedTrackers.Count > 0 ? parsedTrackers[0].Url : string.Empty;
+
+                                if (this.downloadEngine != null)
+                                {
+                                    if (oldUrls.Count > 0)
+                                    {
+                                        await this.downloadEngine.RemoveTrackersAsync(t.Id, oldUrls);
+                                    }
+
+                                    var newUrls = parsedTrackers
+                                        .Select(x => x.Url)
+                                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                                        .ToList();
+
+                                    if (newUrls.Count > 0)
+                                    {
+                                        await this.downloadEngine.AddTrackersAsync(t.Id, newUrls);
+                                    }
+                                }
                             }
 
                             await this.torrentService.UpdateAsync(t);
@@ -331,7 +411,7 @@ public class UTorrentWebUiController : ControllerBase
                                     new Dictionary<string, object>
                                     {
                                         { "hash", t.InfoHash.ToUpperInvariant() },
-                                        { "trackers", string.Empty },
+                                        { "trackers", this.FormatTrackers(t) },
                                         { "ulrate", t.UploadLimit * 1024 },
                                         { "dlrate", t.DownloadLimit * 1024 },
                                         { "super_seed", 0 },
@@ -339,7 +419,7 @@ public class UTorrentWebUiController : ControllerBase
                                         { "pex", 1 },
                                         { "seed_override", t.TargetRatio > 0 ? 1 : 0 },
                                         { "seed_ratio", (int)(t.TargetRatio * 1000) },
-                                        { "seed_time", 0 },
+                                        { "seed_time", t.TargetSeedTimeMinutes * 60 },
                                         { "ul_slots", 0 }
                                     }
                                 },
@@ -364,6 +444,8 @@ public class UTorrentWebUiController : ControllerBase
                                 f.Size,
                                 f.BytesCompleted,
                                 ToUTorrentPriority(f.Priority),
+                                f.PieceOffset,
+                                f.PieceCount,
                             }).ToList();
 
                             return this.Ok(new
@@ -642,5 +724,22 @@ public class UTorrentWebUiController : ControllerBase
             3 => 2,
             >= 4 => 3,
         };
+    }
+
+    private string FormatTrackers(Torrent t)
+    {
+        var dbTrackers = this.trackerEntryRepository?.GetByTorrentId(t.Id)?.ToList() ?? new List<TrackerEntry>();
+        var validTrackers = dbTrackers.Where(x => !string.IsNullOrWhiteSpace(x.Url)).ToList();
+        if (validTrackers.Count == 0)
+        {
+            return !string.IsNullOrWhiteSpace(t.TrackerUrl) ? t.TrackerUrl.Trim() : string.Empty;
+        }
+
+        var tiers = validTrackers
+            .GroupBy(x => x.Tier)
+            .OrderBy(g => g.Key)
+            .Select(g => string.Join("\r\n", g.Select(x => x.Url.Trim())));
+
+        return string.Join("\r\n\r\n", tiers);
     }
 }
