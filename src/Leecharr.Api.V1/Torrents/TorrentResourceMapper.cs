@@ -1,10 +1,12 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Text.Json;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.MediaInspection;
 using NzbDrone.Core.Torrents;
+using NzbDrone.Core.Trackers;
 
 namespace Leecharr.Api.V1.Torrents;
 
@@ -63,7 +65,10 @@ public static class TorrentResourceMapper
             SavePath = model.SavePath,
             Category = model.Category,
             Label = model.Label,
-            TrackerUrl = model.TrackerUrl,
+            TrackerUrl = TrackerUrlSanitizer.Sanitize(model.TrackerUrl),
+            Trackers = !string.IsNullOrWhiteSpace(model.TrackerUrl)
+                ? new List<string> { TrackerUrlSanitizer.Sanitize(model.TrackerUrl) }
+                : new List<string>(),
             ErrorMessage = model.ErrorMessage,
             Priority = model.Priority,
             QueuePosition = model.QueuePosition,

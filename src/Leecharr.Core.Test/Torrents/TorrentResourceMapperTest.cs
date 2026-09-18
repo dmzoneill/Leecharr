@@ -84,4 +84,53 @@ public class TorrentResourceMapperTest
         resource.PosterUrl.Should().Be("/api/v1/media/artwork/456/poster");
         resource.BackdropUrl.Should().Be("/api/v1/media/artwork/456/backdrop");
     }
+
+    [Test]
+    [TestCase("https://private.tracker.org/announce?passkey=secret123456", "https://private.tracker.org/announce?passkey=********")]
+    [TestCase("https://private.tracker.org/announce?authkey=secret123456", "https://private.tracker.org/announce?authkey=********")]
+    [TestCase("https://private.tracker.org/announce?torrent_pass=secret123456", "https://private.tracker.org/announce?torrent_pass=********")]
+    [TestCase("https://private.tracker.org/announce?token=secret123456789012", "https://private.tracker.org/announce?token=********")]
+    [TestCase("https://gazelle.tracker.org/0123456789abcdef0123456789abcdef/announce", "https://gazelle.tracker.org/********/announce")]
+    [TestCase("https://ptp.tracker.org/announce/0123456789abcdef0123456789abcdef", "https://ptp.tracker.org/announce/********")]
+    [TestCase("https://unit3d.tracker.org/announce/MySecretToken123456", "https://unit3d.tracker.org/announce/********")]
+    [TestCase("http://user:secret123456@tracker.site/announce", "http://user:********@tracker.site/announce")]
+    public void ToResource_WhenTrackerUrlContainsPasskey_SanitizesTrackerUrlAndTrackersList(string rawUrl, string expectedSanitized)
+    {
+        var torrent = new Torrent
+        {
+            Id = 200,
+            Name = "Private Torrent",
+            TrackerUrl = rawUrl,
+        };
+
+        var resource = TorrentResourceMapper.ToResource(torrent);
+
+        resource.Should().NotBeNull();
+        resource.TrackerUrl.Should().Be(expectedSanitized);
+        resource.TrackerUrl.Should().NotContain("secret");
+        resource.TrackerUrl.Should().NotContain("0123456789abcdef0123456789abcdef");
+        resource.Trackers.Should().ContainSingle();
+        resource.Trackers[0].Should().Be(expectedSanitized);
+    }
+
+    [Test]
+    [TestCase("udp://tracker.opentrackr.org:1337/announce")]
+    [TestCase("http://tracker.files.fm:6969/announce")]
+    [TestCase("http://tracker.example.com/announce.php")]
+    public void ToResource_WhenTrackerUrlIsPublic_PreservesTrackerUrl(string publicUrl)
+    {
+        var torrent = new Torrent
+        {
+            Id = 201,
+            Name = "Public Torrent",
+            TrackerUrl = publicUrl,
+        };
+
+        var resource = TorrentResourceMapper.ToResource(torrent);
+
+        resource.Should().NotBeNull();
+        resource.TrackerUrl.Should().Be(publicUrl);
+        resource.Trackers.Should().ContainSingle();
+        resource.Trackers[0].Should().Be(publicUrl);
+    }
 }
