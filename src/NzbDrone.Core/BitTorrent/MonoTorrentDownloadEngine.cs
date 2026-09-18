@@ -10,6 +10,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Threading;
@@ -517,6 +518,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             var handler = new SocketsHttpHandler
             {
+                AutomaticDecompression = DecompressionMethods.All,
                 PooledConnectionLifetime = TimeSpan.FromMinutes(15),
                 PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
             };
@@ -536,6 +538,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
             client.DefaultRequestHeaders.Remove("User-Agent");
             client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", currentUserAgent);
+            client.DefaultRequestHeaders.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate");
+            client.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "*/*");
 
             return client;
         });
@@ -3645,6 +3649,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         try
         {
             var cleanVersion = ClientEmulationPresets.CleanClientVersion(prefix);
+            var cleanIdentifier = ClientEmulationPresets.CleanClientIdentifier(prefix);
 
             var knownMonoTorrentAssemblyNames = new[]
             {
@@ -3683,10 +3688,18 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                             ?.SetValue(null, userAgent);
                         gitInfoType.GetProperty("DhtClientVersion", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
                             ?.SetValue(null, cleanVersion);
+                        var clientIdentifierProp = gitInfoType.GetProperty("ClientIdentifier", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+                        if (clientIdentifierProp?.CanWrite == true)
+                        {
+                            clientIdentifierProp.SetValue(null, cleanIdentifier);
+                        }
+
                         gitInfoType.GetField("<ClientVersion>k__BackingField", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
                             ?.SetValue(null, userAgent);
                         gitInfoType.GetField("<DhtClientVersion>k__BackingField", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
                             ?.SetValue(null, cleanVersion);
+                        var clientIdentifierField = gitInfoType.GetField("<ClientIdentifier>k__BackingField", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+                        SetStaticField(clientIdentifierField, cleanIdentifier);
                     }
                 }
                 catch
@@ -3706,11 +3719,60 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 catch
                 {
                 }
+
+                try
+                {
+                    var extHandshakeType = asm.GetType("MonoTorrent.Messages.Peer.Libtorrent.ExtendedHandshakeMessage");
+                    if (extHandshakeType != null)
+                    {
+                        var extVerProp = extHandshakeType.GetProperty("Version", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+                        if (extVerProp?.CanWrite == true)
+                        {
+                            extVerProp.SetValue(null, userAgent);
+                        }
+
+                        var extVerField = extHandshakeType.GetField("version", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+                            ?? extHandshakeType.GetField("<Version>k__BackingField", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+                        SetStaticField(extVerField, userAgent);
+                    }
+                }
+                catch
+                {
+                }
             }
         }
         catch
         {
             // Best-effort configuration of MonoTorrent static version info
+        }
+    }
+
+    private static void SetStaticField(FieldInfo field, object value)
+    {
+        if (field == null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (field.IsInitOnly)
+            {
+                var dm = new DynamicMethod("SetStaticField_" + Guid.NewGuid().ToString("N"), null, new[] { field.FieldType }, field.DeclaringType?.Module ?? typeof(MonoTorrentDownloadEngine).Module, true);
+                var il = dm.GetILGenerator();
+                il.Emit(OpCodes.Ldarg_0);
+                il.Emit(OpCodes.Stsfld, field);
+                il.Emit(OpCodes.Ret);
+                dm.Invoke(null, new[] { value });
+            }
+            else
+            {
+                field.SetValue(null, value);
+            }
+        }
+        catch
+        {
+            // Best effort
         }
     }
 
