@@ -1190,6 +1190,17 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 await manager.StartAsync();
                 torrent.Status = TorrentStatus.Seeding;
                 this.logger.Info("AutoStarted complete/seeding torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
+                try
+                {
+                    if (manager.TrackerManager != null)
+                    {
+                        _ = this.AnnounceTrackersAsync(manager, torrent.Id, isResumeOrStartup: true);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Debug(ex, "Failed to announce tracker on startup for torrent {0}", torrent.Id);
+                }
             }
             else
             {
@@ -1213,6 +1224,17 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             {
                 await manager.StartAsync();
                 this.logger.Info("Added and started torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
+                try
+                {
+                    if (manager.TrackerManager != null)
+                    {
+                        _ = this.AnnounceTrackersAsync(manager, torrent.Id, isResumeOrStartup: true);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Debug(ex, "Failed to announce tracker on startup for torrent {0}", torrent.Id);
+                }
             }
         }
 
@@ -1432,7 +1454,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             {
                 if (activeTask.Manager.TrackerManager != null)
                 {
-                    _ = activeTask.Manager.TrackerManager.AnnounceAsync(CancellationToken.None);
+                    _ = this.AnnounceTrackersAsync(activeTask.Manager, torrentId, isResumeOrStartup: true);
                 }
             }
             catch (Exception ex)
@@ -1503,7 +1525,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     {
                         if (task.Manager.TrackerManager != null)
                         {
-                            _ = task.Manager.TrackerManager.AnnounceAsync(CancellationToken.None);
+                            _ = this.AnnounceTrackersAsync(task.Manager, task.TorrentId, isResumeOrStartup: true);
                         }
                     }
                     catch (Exception ex)
@@ -1707,10 +1729,16 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
         {
+            if (task.Manager.State is TorrentState.Stopped or TorrentState.Stopping or TorrentState.Paused)
+            {
+                this.logger.Warn("Cannot force announce torrent id {0}: torrent is in {1} state.", torrentId, task.Manager.State);
+                this.torrentLogService?.Log(torrentId, "Warn", "Tracker", $"Cannot announce to tracker: torrent is in {task.Manager.State} state");
+                return;
+            }
+
             if (task.Manager.TrackerManager != null)
             {
-                var trackerCount = task.Manager.TrackerManager.Tiers?.SelectMany(t => t.Trackers).Count() ?? 0;
-                await task.Manager.TrackerManager.AnnounceAsync(CancellationToken.None).ConfigureAwait(false);
+                var (dispatchedCount, unit) = await this.AnnounceTrackersAsync(task.Manager, torrentId, isResumeOrStartup: false).ConfigureAwait(false);
                 try
                 {
                     await task.Manager.TrackerManager.ScrapeAsync(CancellationToken.None).ConfigureAwait(false);
@@ -1720,10 +1748,116 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     this.logger.Debug(ex, "Tracker scrape on force announce failed for torrent id {0}", torrentId);
                 }
 
-                this.logger.Info("Dispatched announce and scrape request for torrent id {0} to {1} tracker(s)", torrentId, trackerCount);
-                this.torrentLogService?.Log(torrentId, "Info", "Tracker", $"Dispatched announce & scrape request to {trackerCount} tracker(s) to discover peers");
+                this.logger.Info("Dispatched announce and scrape request for torrent id {0} to {1} {2}", torrentId, dispatchedCount, unit);
+                this.torrentLogService?.Log(torrentId, "Info", "Tracker", $"Dispatched announce & scrape request to {dispatchedCount} {unit} to discover peers");
             }
         }
+    }
+
+    private async Task<(int DispatchedCount, string Unit)> AnnounceTrackersAsync(TorrentManager manager, int torrentId, bool isResumeOrStartup = false)
+    {
+        if (manager == null || manager.TrackerManager == null)
+        {
+            return (0, "tracker(s)");
+        }
+
+        if (manager.State is TorrentState.Stopped or TorrentState.Stopping or TorrentState.Paused)
+        {
+            this.logger.Debug("Skipping tracker announce for torrent id {0}: torrent is in {1} state.", torrentId, manager.State);
+            return (0, "tracker(s)");
+        }
+
+        var announceToAllInTier = this.configService?.AnnounceToAllInTier == true;
+        var announceToAllTiers = this.configService?.AnnounceToAllTiers == true;
+
+        var dispatchedCount = 0;
+        var unit = "tracker(s)";
+
+        try
+        {
+            if (announceToAllInTier)
+            {
+                unit = "tracker(s)";
+                var tiers = manager.TrackerManager.Tiers?.ToList();
+                if (tiers != null)
+                {
+                    foreach (var tier in tiers)
+                    {
+                        var trackers = tier?.Trackers?.ToList();
+                        if (trackers != null)
+                        {
+                            foreach (var tracker in trackers)
+                            {
+                                if (tracker != null)
+                                {
+                                    try
+                                    {
+                                        await manager.TrackerManager.AnnounceAsync(tracker, CancellationToken.None).ConfigureAwait(false);
+                                        dispatchedCount++;
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        this.logger.Debug(ex, "Failed to announce to tracker {0} for torrent {1}", tracker.Uri, torrentId);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else if (announceToAllTiers)
+            {
+                unit = "tier(s)";
+                var tiers = manager.TrackerManager.Tiers?.ToList();
+                if (tiers != null)
+                {
+                    foreach (var tier in tiers)
+                    {
+                        var tracker = tier?.ActiveTracker ?? tier?.Trackers?.FirstOrDefault();
+                        if (tracker != null)
+                        {
+                            try
+                            {
+                                await manager.TrackerManager.AnnounceAsync(tracker, CancellationToken.None).ConfigureAwait(false);
+                                dispatchedCount++;
+                            }
+                            catch (Exception ex)
+                            {
+                                this.logger.Debug(ex, "Failed to announce to tracker tier for torrent {0}", torrentId);
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                unit = "tracker(s)";
+                var hasAnyTrackers = manager.TrackerManager.Tiers?.Any(t => t.Trackers.Count > 0) == true;
+                if (hasAnyTrackers)
+                {
+                    try
+                    {
+                        await manager.TrackerManager.AnnounceAsync(CancellationToken.None).ConfigureAwait(false);
+                        dispatchedCount = 1;
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Debug(ex, "Failed to announce to default tracker for torrent {0}", torrentId);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Error announcing trackers for torrent {0}", torrentId);
+        }
+
+        if (isResumeOrStartup)
+        {
+            this.logger.Info("Dispatched startup/resume announce request for torrent id {0} to {1} {2}", torrentId, dispatchedCount, unit);
+        }
+
+        return (dispatchedCount, unit);
     }
 
     public async Task AddTrackersAsync(int torrentId, IEnumerable<string> trackers)
@@ -1763,7 +1897,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 {
                     try
                     {
-                        await task.Manager.TrackerManager.AnnounceAsync(CancellationToken.None);
+                        await this.AnnounceTrackersAsync(task.Manager, torrentId, isResumeOrStartup: false).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
