@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -139,11 +140,70 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                         ApplyResolution(info, info.Width, info.Height);
                     }
                 }
+
+                if (tagFile.Tag != null)
+                {
+                    if (tagFile.Tag.Track > 0 && info.Track == 0)
+                    {
+                        info.Track = (int)tagFile.Tag.Track;
+                    }
+
+                    if (tagFile.Tag.TrackCount > 0 && info.TrackCount == 0)
+                    {
+                        info.TrackCount = (int)tagFile.Tag.TrackCount;
+                    }
+
+                    if (tagFile.Tag.Disc > 0 && info.Disc == 0)
+                    {
+                        info.Disc = (int)tagFile.Tag.Disc;
+                    }
+
+                    if (tagFile.Tag.DiscCount > 0 && info.DiscCount == 0)
+                    {
+                        info.DiscCount = (int)tagFile.Tag.DiscCount;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(tagFile.Tag.Title) && string.IsNullOrEmpty(info.Title))
+                    {
+                        info.Title = tagFile.Tag.Title.Trim();
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(tagFile.Tag.FirstPerformer) && string.IsNullOrEmpty(info.Artist))
+                    {
+                        info.Artist = tagFile.Tag.FirstPerformer.Trim();
+                    }
+                    else if (!string.IsNullOrWhiteSpace(tagFile.Tag.FirstAlbumArtist) && string.IsNullOrEmpty(info.Artist))
+                    {
+                        info.Artist = tagFile.Tag.FirstAlbumArtist.Trim();
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(tagFile.Tag.Album) && string.IsNullOrEmpty(info.Album))
+                    {
+                        info.Album = tagFile.Tag.Album.Trim();
+                    }
+
+                    if (tagFile.Tag.Pictures?.Length > 0)
+                    {
+                        foreach (var pic in tagFile.Tag.Pictures)
+                        {
+                            if (pic?.Data?.Data?.Length > 0)
+                            {
+                                info.Pictures.Add(pic.Data.Data);
+                                if (info.PictureData == null)
+                                {
+                                    info.PictureData = pic.Data.Data;
+                                }
+                            }
+                        }
+                    }
+                }
             }
             catch (Exception ex)
             {
                 this.logger.Debug(ex, "TagLib file inspection fallback skipped for {0}", filePath);
             }
+
+            ApplyFilenameHints(info, Path.GetFileName(filePath));
 
             return info;
         }
@@ -254,6 +314,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         public double DurationRaw;
         public bool IsCurrentAudioTrackAccepted;
         public int CurrentTrackChannels;
+        public string CurrentTrackName;
         public bool HasHdr10Plus;
         public long SegmentDataStart;
         public long TracksSeekPosition;
@@ -390,6 +451,24 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                     offset += elemSize;
                     break;
 
+                case 0x536E: // Name (Track Name)
+                    var trackName = ReadEbmlString(header, offset, elemSize);
+                    context.CurrentTrackName = trackName;
+                    if (context.IsCurrentAudioTrackAccepted &&
+                        !string.IsNullOrEmpty(info.AudioCodec) &&
+                        (info.AudioCodec.Contains("E-AC3", StringComparison.OrdinalIgnoreCase) ||
+                         info.AudioCodec.Contains("DD+", StringComparison.OrdinalIgnoreCase) ||
+                         info.AudioCodec.Contains("Dolby Digital Plus", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        if (Regex.IsMatch(trackName, @"\b(ATMOS|JOC)\b", RegexOptions.IgnoreCase))
+                        {
+                            ApplyAudioCodec(info, "Dolby Atmos", null, 48);
+                        }
+                    }
+
+                    offset += elemSize;
+                    break;
+
                 case 0x63A2: // CodecPrivate
                     ParseEbmlCodecPrivate(header, offset, elemSize, ref context);
                     offset += elemSize;
@@ -430,6 +509,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
     {
         context.IsCurrentAudioTrackAccepted = false;
         context.CurrentTrackChannels = 0;
+        context.CurrentTrackName = null;
 
         while (offset < trackEnd)
         {
@@ -455,6 +535,24 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
             switch (id)
             {
+                case 0x536E: // Name (Track Name)
+                    var trackName = ReadEbmlString(header, offset, elemSize);
+                    context.CurrentTrackName = trackName;
+                    if (context.IsCurrentAudioTrackAccepted &&
+                        !string.IsNullOrEmpty(info.AudioCodec) &&
+                        (info.AudioCodec.Contains("E-AC3", StringComparison.OrdinalIgnoreCase) ||
+                         info.AudioCodec.Contains("DD+", StringComparison.OrdinalIgnoreCase) ||
+                         info.AudioCodec.Contains("Dolby Digital Plus", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        if (Regex.IsMatch(trackName, @"\b(ATMOS|JOC)\b", RegexOptions.IgnoreCase))
+                        {
+                            ApplyAudioCodec(info, "Dolby Atmos", null, 48);
+                        }
+                    }
+
+                    offset += elemSize;
+                    break;
+
                 case 0x86: // CodecID
                     ParseEbmlCodecId(header, offset, elemSize, info, ref context);
                     offset += elemSize;
@@ -668,7 +766,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
     private static void ParseEbmlCodecId(byte[] data, int offset, int length, MediaContainerInfo info, ref EbmlParserContext context)
     {
         var codecId = ReadEbmlString(data, offset, length);
-        context.IsCurrentAudioTrackAccepted = ApplyCodecId(info, codecId);
+        context.IsCurrentAudioTrackAccepted = ApplyCodecId(info, codecId, context.CurrentTrackName);
         if (context.IsCurrentAudioTrackAccepted && context.CurrentTrackChannels > 0)
         {
             info.AudioChannels = FormatAudioChannels(context.CurrentTrackChannels);
@@ -800,6 +898,18 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         ScanFallbackAudioCodecs(span, info);
         ScanFallbackSubtitles(span, info);
 
+        if (!string.IsNullOrEmpty(info.AudioCodec) &&
+            (info.AudioCodec.Contains("E-AC3", StringComparison.OrdinalIgnoreCase) ||
+             info.AudioCodec.Contains("DD+", StringComparison.OrdinalIgnoreCase) ||
+             info.AudioCodec.Contains("Dolby Digital Plus", StringComparison.OrdinalIgnoreCase)))
+        {
+            var headerText = Encoding.UTF8.GetString(header);
+            if (Regex.IsMatch(headerText, @"\b(ATMOS|JOC)\b", RegexOptions.IgnoreCase))
+            {
+                ApplyAudioCodec(info, "Dolby Atmos", null, 48);
+            }
+        }
+
         ApplyFilenameHints(info, fileName);
     }
 
@@ -873,7 +983,15 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         }
         else if (span.IndexOf("A_EAC3"u8) >= 0)
         {
-            ApplyAudioCodec(info, "E-AC3 / Dolby Digital Plus", null, 25);
+            var headerText = Encoding.UTF8.GetString(span);
+            if (Regex.IsMatch(headerText, @"\b(ATMOS|JOC)\b", RegexOptions.IgnoreCase))
+            {
+                ApplyAudioCodec(info, "Dolby Atmos", null, 48);
+            }
+            else
+            {
+                ApplyAudioCodec(info, "E-AC3 / Dolby Digital Plus", null, 25);
+            }
         }
         else if (span.IndexOf("A_AC3"u8) >= 0)
         {
@@ -1212,7 +1330,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         return 0.0;
     }
 
-    private static bool ApplyCodecId(MediaContainerInfo info, string codecId)
+    private static bool ApplyCodecId(MediaContainerInfo info, string codecId, string trackName = null)
     {
         if (string.IsNullOrWhiteSpace(codecId))
         {
@@ -1365,6 +1483,11 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                  codecId.StartsWith("A_EAC-3", StringComparison.OrdinalIgnoreCase) ||
                  codecId.StartsWith("A_DDP", StringComparison.OrdinalIgnoreCase))
         {
+            if (!string.IsNullOrEmpty(trackName) && Regex.IsMatch(trackName, @"\b(ATMOS|JOC)\b", RegexOptions.IgnoreCase))
+            {
+                return ApplyAudioCodec(info, "Dolby Atmos", null, 48);
+            }
+
             return ApplyAudioCodec(info, "E-AC3 / Dolby Digital Plus", null, 25);
         }
         else if (codecId.StartsWith("A_DTS", StringComparison.OrdinalIgnoreCase))
@@ -2940,6 +3063,16 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             }
         }
 
+        // Promote E-AC3 / DD+ to Dolby Atmos if filename hints include ATMOS or JOC (Joint Object Coding)
+        if (!string.IsNullOrEmpty(info.AudioCodec) &&
+            (info.AudioCodec.Contains("E-AC3", StringComparison.OrdinalIgnoreCase) ||
+             info.AudioCodec.Contains("DD+", StringComparison.OrdinalIgnoreCase) ||
+             info.AudioCodec.Contains("Dolby Digital Plus", StringComparison.OrdinalIgnoreCase)) &&
+            Regex.IsMatch(normalized, @"\b(ATMOS|JOC)\b"))
+        {
+            info.AudioCodec = "Dolby Atmos";
+        }
+
         // Audio Codec & Channels (only if missing)
         if (string.IsNullOrEmpty(info.AudioCodec) || string.IsNullOrEmpty(info.AudioChannels))
         {
@@ -2963,7 +3096,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 hintedChannels = "1.0";
             }
 
-            if (Regex.IsMatch(normalized, @"\bATMOS\b"))
+            if (Regex.IsMatch(normalized, @"\b(ATMOS|JOC)\b"))
             {
                 hintedCodec = "Dolby Atmos";
             }
