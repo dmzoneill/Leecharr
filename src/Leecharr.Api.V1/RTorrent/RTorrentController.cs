@@ -110,8 +110,16 @@ public class RTorrentController : ControllerBase
                     {
                         var subMethod = callDict.TryGetValue("methodName", out var mn) ? mn?.ToString() : string.Empty;
                         var subParams = callDict.TryGetValue("params", out var p) && p is List<object> pl ? pl : new List<object>();
-                        var subResult = await this.ExecuteXmlRpcMethodAsync(subMethod ?? string.Empty, subParams);
-                        resultsArray.Add(new XElement("value", new XElement("array", new XElement("data", new XElement("value", subResult)))));
+                        try
+                        {
+                            var subResult = await this.ExecuteXmlRpcMethodAsync(subMethod ?? string.Empty, subParams);
+                            resultsArray.Add(new XElement("value", new XElement("array", new XElement("data", new XElement("value", subResult)))));
+                        }
+                        catch (Exception ex)
+                        {
+                            this.logger.Warn(ex, "Error executing system.multicall subcall '{0}'", subMethod);
+                            resultsArray.Add(new XElement("value", BuildFaultStruct(1, ex.Message)));
+                        }
                     }
                 }
 
@@ -1046,7 +1054,10 @@ public class RTorrentController : ControllerBase
             case "d.get_bytes_done":
             case "d.completed_bytes":
             case "d.get_completed_bytes":
-                return new XElement("i8", torrent.Downloaded);
+                var completedBytes = torrent.Progress >= 1.0
+                    ? torrent.TotalSize
+                    : (long)Math.Min(torrent.TotalSize, Math.Max(0, torrent.Progress * torrent.TotalSize));
+                return new XElement("i8", completedBytes);
 
             case "d.size_bytes":
             case "d.get_size_bytes":
@@ -1054,7 +1065,10 @@ public class RTorrentController : ControllerBase
 
             case "d.left_bytes":
             case "d.get_left_bytes":
-                return new XElement("i8", Math.Max(0, torrent.TotalSize - torrent.Downloaded));
+                var leftBytes = torrent.Progress >= 1.0
+                    ? 0L
+                    : (long)Math.Max(0, (1.0 - torrent.Progress) * torrent.TotalSize);
+                return new XElement("i8", leftBytes);
 
             case "d.down.rate":
             case "d.get_down_rate":
@@ -1255,6 +1269,20 @@ public class RTorrentController : ControllerBase
         return this.Content(doc.ToString(SaveOptions.DisableFormatting), "text/xml", Encoding.UTF8);
     }
 
+    private static XElement BuildFaultStruct(int faultCode, string faultString)
+    {
+        return new XElement(
+            "struct",
+            new XElement(
+                "member",
+                new XElement("name", "faultCode"),
+                new XElement("value", new XElement("int", faultCode))),
+            new XElement(
+                "member",
+                new XElement("name", "faultString"),
+                new XElement("value", new XElement("string", faultString))));
+    }
+
     private IActionResult BuildXmlRpcFault(int faultCode, string faultString)
     {
         var doc = new XDocument(
@@ -1264,16 +1292,7 @@ public class RTorrentController : ControllerBase
                     "fault",
                     new XElement(
                         "value",
-                        new XElement(
-                            "struct",
-                            new XElement(
-                                "member",
-                                new XElement("name", "faultCode"),
-                                new XElement("value", new XElement("int", faultCode))),
-                            new XElement(
-                                "member",
-                                new XElement("name", "faultString"),
-                                new XElement("value", new XElement("string", faultString))))))));
+                        BuildFaultStruct(faultCode, faultString)))));
 
         return this.Content(doc.ToString(SaveOptions.DisableFormatting), "text/xml", Encoding.UTF8);
     }
