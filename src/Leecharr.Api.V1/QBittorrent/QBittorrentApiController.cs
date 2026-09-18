@@ -1249,9 +1249,15 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             return this.BadRequest();
         }
 
+        var normalized = CategoryService.NormalizeCategoryName(category);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return this.BadRequest();
+        }
+
         this.categoryService.Add(new Category
         {
-            Name = category,
+            Name = normalized,
             SavePath = savePath ?? string.Empty,
         });
 
@@ -1266,9 +1272,10 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             return this.Content("Ok.", "text/plain");
         }
 
+        var normalized = CategoryService.NormalizeCategoryName(category);
         foreach (var torrent in this.ResolveTorrents(hashes))
         {
-            await this.torrentService.SetCategoryAsync(torrent.Id, category);
+            await this.torrentService.SetCategoryAsync(torrent.Id, normalized);
         }
 
         return this.Content("Ok.", "text/plain");
@@ -1277,7 +1284,18 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     [HttpPost("torrents/editCategory")]
     public ActionResult EditCategory([FromForm] string category, [FromForm] string savePath)
     {
-        var existing = this.categoryService.GetByName(category);
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return this.BadRequest();
+        }
+
+        var normalized = CategoryService.NormalizeCategoryName(category);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return this.BadRequest();
+        }
+
+        var existing = this.categoryService.GetByName(normalized) ?? this.categoryService.GetByName(category);
         if (existing != null)
         {
             existing.SavePath = savePath ?? string.Empty;
@@ -1285,7 +1303,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         }
         else
         {
-            this.categoryService.Add(new Category { Name = category, SavePath = savePath ?? string.Empty });
+            this.categoryService.Add(new Category { Name = normalized, SavePath = savePath ?? string.Empty });
         }
 
         return this.Content("Ok.", "text/plain");
@@ -1299,7 +1317,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             var cats = categories.Split(new[] { '\r', '\n', '|' }, StringSplitOptions.RemoveEmptyEntries);
             foreach (var c in cats)
             {
-                var existing = this.categoryService.GetByName(c);
+                var normalized = CategoryService.NormalizeCategoryName(c);
+                var existing = this.categoryService.GetByName(normalized) ?? this.categoryService.GetByName(c);
                 if (existing != null)
                 {
                     this.categoryService.Delete(existing.Id);
