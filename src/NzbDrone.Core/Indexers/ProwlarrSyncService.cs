@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
@@ -176,10 +177,12 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
 
         foreach (var idx in indexers)
         {
-            var url = idx.Url;
+            var url = idx.Url.Trim().TrimEnd('/');
             if (Uri.TryCreate(url, UriKind.Absolute, out var parsed))
             {
-                url = $"{parsed.Scheme}://{parsed.Authority}";
+                var path = Regex.Replace(parsed.AbsolutePath, @"/\d+/api/?$", string.Empty, RegexOptions.IgnoreCase);
+                path = Regex.Replace(path, @"/api/?$", string.Empty, RegexOptions.IgnoreCase);
+                url = $"{parsed.Scheme}://{parsed.Authority}{path.TrimEnd('/')}";
             }
 
             if (!targets.Any(t => string.Equals(t.Url, url, StringComparison.OrdinalIgnoreCase)))
@@ -197,11 +200,7 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
 
             foreach (var arr in arrs)
             {
-                var url = arr.Url;
-                if (Uri.TryCreate(url, UriKind.Absolute, out var parsed))
-                {
-                    url = $"{parsed.Scheme}://{parsed.Authority}";
-                }
+                var url = arr.Url.Trim().TrimEnd('/');
 
                 var existingTargetIndex = targets.FindIndex(t => string.Equals(t.Url, url, StringComparison.OrdinalIgnoreCase));
                 if (existingTargetIndex >= 0)
