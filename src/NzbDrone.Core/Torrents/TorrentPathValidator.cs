@@ -87,9 +87,12 @@ public static class TorrentPathValidator
 
         try
         {
-            var segments = fullPath.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
             var root = Path.GetPathRoot(fullPath);
             var current = root ?? string.Empty;
+            var relativePart = !string.IsNullOrEmpty(root) && fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase)
+                ? fullPath.Substring(root.Length)
+                : fullPath;
+            var segments = relativePart.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
 
             for (var i = 0; i < segments.Length; i++)
             {
