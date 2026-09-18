@@ -423,6 +423,14 @@ public class WebhookDispatcherTest
     [TestCase("http://224.0.0.1/test")]
     [TestCase("http://instance-data/test")]
     [TestCase("http://metadata.google.internal/test")]
+    [TestCase("http://10.0.0.1/webhook")]
+    [TestCase("http://172.16.0.1/webhook")]
+    [TestCase("http://172.31.255.255/webhook")]
+    [TestCase("http://192.168.1.1/webhook")]
+    [TestCase("http://100.64.0.1/webhook")]
+    [TestCase("http://[fd00::1]/webhook")]
+    [TestCase("http://[fc00::1]/webhook")]
+    [TestCase("http://[fe80::1]/webhook")]
     public void IsValidTargetUrl_WhenProhibitedSsrfTarget_ReturnsFalse(string url)
     {
         WebhookDispatcher.IsValidTargetUrl(url, allowLoopback: false).Should().BeFalse();
@@ -431,6 +439,9 @@ public class WebhookDispatcherTest
     [TestCase("http://127.0.0.1:8080/webhook")]
     [TestCase("http://localhost:5000/webhook")]
     [TestCase("http://[::1]:8080/webhook")]
+    [TestCase("http://10.0.0.1:8080/webhook")]
+    [TestCase("http://192.168.1.1:8080/webhook")]
+    [TestCase("http://[fd00::1]:8080/webhook")]
     public void IsValidTargetUrl_WhenAllowLoopbackIsTrue_AllowsLoopback(string url)
     {
         WebhookDispatcher.IsValidTargetUrl(url, allowLoopback: true).Should().BeTrue();
@@ -473,5 +484,83 @@ public class WebhookDispatcherTest
         var request = this.handler.SentRequests.Single();
         var body = await request.Content!.ReadAsStringAsync();
         body.Should().Contain($"\"ratio\":\"{expectedToken}\"");
+    }
+
+    [Test]
+    public async Task DispatchAsync_WhenRedirectToProhibitedTarget_BlocksRedirectAndReturnsFalse()
+    {
+        this.handler.ResponseFactory = req =>
+        {
+            var res = new HttpResponseMessage(HttpStatusCode.Redirect);
+            res.Headers.Location = new Uri("http://169.254.169.254/latest/meta-data/");
+            return res;
+        };
+
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" });
+
+        result.Should().BeFalse();
+        this.handler.SentRequests.Should().HaveCount(1);
+    }
+
+    [Test]
+    public async Task DispatchAsync_WhenRedirectToPrivateIp_BlocksRedirectAndReturnsFalse()
+    {
+        this.handler.ResponseFactory = req =>
+        {
+            var res = new HttpResponseMessage(HttpStatusCode.Redirect);
+            res.Headers.Location = new Uri("http://10.0.0.1/internal");
+            return res;
+        };
+
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" });
+
+        result.Should().BeFalse();
+        this.handler.SentRequests.Should().HaveCount(1);
+    }
+
+    [Test]
+    public async Task DispatchAsync_WhenRedirectToSafeTarget_FollowsRedirectAndReturnsTrue()
+    {
+        var count = 0;
+        this.handler.ResponseFactory = req =>
+        {
+            count++;
+            if (count == 1)
+            {
+                var res = new HttpResponseMessage(HttpStatusCode.Redirect);
+                res.Headers.Location = new Uri("https://example.com/redirected-webhook");
+                return res;
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        };
+
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" });
+
+        result.Should().BeTrue();
+        this.handler.SentRequests.Should().HaveCount(2);
+        this.handler.SentRequests[1].RequestUri.Should().Be(new Uri("https://example.com/redirected-webhook"));
+    }
+
+    [Test]
+    public void ExtractRetryAfter_WithRetryAfterSecondsHeader_ReturnsTimeSpan()
+    {
+        using var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+        response.Headers.TryAddWithoutValidation("Retry-After", "30");
+
+        var retryAfter = WebhookDispatcher.ExtractRetryAfter(response);
+
+        retryAfter.Should().Be(TimeSpan.FromSeconds(30));
+    }
+
+    [Test]
+    public void ExtractRetryAfter_WithXRetryAfterHeader_ReturnsTimeSpan()
+    {
+        using var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+        response.Headers.TryAddWithoutValidation("X-Retry-After", "45");
+
+        var retryAfter = WebhookDispatcher.ExtractRetryAfter(response);
+
+        retryAfter.Should().Be(TimeSpan.FromSeconds(45));
     }
 }

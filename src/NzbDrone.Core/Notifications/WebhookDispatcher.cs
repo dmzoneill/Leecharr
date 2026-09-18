@@ -34,7 +34,7 @@ public class WebhookDispatcher : IWebhookDispatcher
 
     public WebhookDispatcher(IHttpTransportEngine transportEngine = null, HttpClient httpClient = null, TimeSpan? timeout = null, bool allowLoopback = false)
         : this(
-            httpClient ?? (transportEngine != null ? new HttpClient(new DynamicHttpTransportHandler(transportEngine), disposeHandler: true) { Timeout = timeout ?? TimeSpan.FromSeconds(10) } : new HttpClient { Timeout = timeout ?? TimeSpan.FromSeconds(10) }),
+            httpClient ?? CreateDefaultHttpClient(transportEngine, timeout),
             null,
             timeout,
             allowLoopback)
@@ -50,9 +50,21 @@ public class WebhookDispatcher : IWebhookDispatcher
     {
         this.timeout = timeout ?? TimeSpan.FromSeconds(10);
         this.allowLoopback = allowLoopback;
-        this.httpClient = httpClient ?? new HttpClient { Timeout = this.timeout };
+        this.httpClient = httpClient ?? CreateDefaultHttpClient(null, this.timeout);
         this.logger = LogManager.GetCurrentClassLogger();
         this.retryPolicy = retryPolicy ?? CreateRetryPolicy();
+    }
+
+    private static HttpClient CreateDefaultHttpClient(IHttpTransportEngine transportEngine, TimeSpan? timeout)
+    {
+        var handler = transportEngine != null
+            ? (HttpMessageHandler)new DynamicHttpTransportHandler(transportEngine)
+            : new SocketsHttpHandler { AllowAutoRedirect = false };
+
+        return new HttpClient(handler, disposeHandler: true)
+        {
+            Timeout = timeout ?? TimeSpan.FromSeconds(10),
+        };
     }
 
     public static bool IsValidTargetUrl(string targetUrl, bool allowLoopback = false)
@@ -85,6 +97,7 @@ public class WebhookDispatcher : IWebhookDispatcher
 
         if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) ||
             host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase) ||
+            host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(host, "instance-data", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(host, "metadata.google.internal", StringComparison.OrdinalIgnoreCase))
         {
@@ -93,51 +106,95 @@ public class WebhookDispatcher : IWebhookDispatcher
 
         if (IPAddress.TryParse(host, out var ip))
         {
-            if (IPAddress.IsLoopback(ip))
+            if (IsBlockedIp(ip, allowLoopback))
             {
                 return false;
             }
-
-            if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+        }
+        else
+        {
+            try
             {
-                var bytes = ip.GetAddressBytes();
-                if (bytes[0] == 127 ||
-                    bytes[0] == 0 ||
-                    (bytes[0] == 169 && bytes[1] == 254) ||
-                    (bytes[0] == 255 && bytes[1] == 255 && bytes[2] == 255 && bytes[3] == 255) ||
-                    bytes[0] >= 224)
+                var addresses = Dns.GetHostAddresses(host);
+                if (addresses.Length > 0 && addresses.Any(a => IsBlockedIp(a, allowLoopback)))
                 {
                     return false;
                 }
             }
-            else if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+            catch
             {
-                if (ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || ip.IsIPv6Multicast)
-                {
-                    return false;
-                }
-
-                if (IPAddress.IPv6Any.Equals(ip) || IPAddress.IPv6None.Equals(ip) || IPAddress.IPv6Loopback.Equals(ip))
-                {
-                    return false;
-                }
-
-                if (ip.IsIPv4MappedToIPv6)
-                {
-                    var ipv4 = ip.MapToIPv4();
-                    var bytes = ipv4.GetAddressBytes();
-                    if (bytes[0] == 127 ||
-                        bytes[0] == 0 ||
-                        (bytes[0] == 169 && bytes[1] == 254) ||
-                        bytes[0] >= 224)
-                    {
-                        return false;
-                    }
-                }
+                // DNS lookup failure (e.g. offline, mock hostname in test)
             }
         }
 
         return true;
+    }
+
+    internal static bool IsBlockedIp(IPAddress ip, bool allowLoopback = false)
+    {
+        if (ip == null)
+        {
+            return true;
+        }
+
+        if (allowLoopback)
+        {
+            return false;
+        }
+
+        if (IPAddress.IsLoopback(ip))
+        {
+            return true;
+        }
+
+        if (ip.IsIPv4MappedToIPv6)
+        {
+            ip = ip.MapToIPv4();
+        }
+
+        if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+        {
+            var bytes = ip.GetAddressBytes();
+            if (bytes[0] == 127 ||
+                bytes[0] == 0 ||
+                (bytes[0] == 169 && bytes[1] == 254) ||
+                (bytes[0] == 255 && bytes[1] == 255 && bytes[2] == 255 && bytes[3] == 255) ||
+                bytes[0] >= 224)
+            {
+                return true;
+            }
+
+            // Private CIDRs (RFC 1918) and Carrier-Grade NAT (RFC 6598)
+            if (bytes[0] == 10 ||
+                (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) ||
+                (bytes[0] == 192 && bytes[1] == 168) ||
+                (bytes[0] == 100 && (bytes[1] & 0xC0) == 64))
+            {
+                return true;
+            }
+        }
+        else if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+        {
+            if (ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || ip.IsIPv6Multicast)
+            {
+                return true;
+            }
+
+            if (IPAddress.IPv6Any.Equals(ip) || IPAddress.IPv6None.Equals(ip) || IPAddress.IPv6Loopback.Equals(ip))
+            {
+                return true;
+            }
+
+            var bytes = ip.GetAddressBytes();
+
+            // IPv6 Unique Local Addresses (fc00::/7)
+            if ((bytes[0] & 0xFE) == 0xFC)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     internal static AsyncRetryPolicy<HttpResponseMessage> CreateRetryPolicy(
@@ -231,40 +288,13 @@ public class WebhookDispatcher : IWebhookDispatcher
                 }
             }
 
-            if (response.Content != null)
+            if (response.Headers.TryGetValues("X-Retry-After", out var xRetryValues))
             {
-                var rawBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-                if (!string.IsNullOrWhiteSpace(rawBody) && rawBody.TrimStart().StartsWith("{"))
+                var val = xRetryValues.FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(val) &&
+                    double.TryParse(val, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var seconds))
                 {
-                    using var doc = JsonDocument.Parse(rawBody);
-                    var root = doc.RootElement;
-
-                    if (root.TryGetProperty("parameters", out var paramsElem) &&
-                        paramsElem.ValueKind == JsonValueKind.Object &&
-                        paramsElem.TryGetProperty("retry_after", out var tgRetry))
-                    {
-                        if (tgRetry.TryGetDouble(out var s))
-                        {
-                            return TimeSpan.FromSeconds(s);
-                        }
-                    }
-
-                    var retryProps = new[] { "retry_after", "retryAfter", "retry_after_seconds", "retryAfterSeconds" };
-                    foreach (var prop in retryProps)
-                    {
-                        if (root.TryGetProperty(prop, out var elem))
-                        {
-                            if (elem.ValueKind == JsonValueKind.Number && elem.TryGetDouble(out var s))
-                            {
-                                return TimeSpan.FromSeconds(s);
-                            }
-
-                            if (elem.ValueKind == JsonValueKind.String && double.TryParse(elem.GetString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var sParsed))
-                            {
-                                return TimeSpan.FromSeconds(sParsed);
-                            }
-                        }
-                    }
+                    return TimeSpan.FromSeconds(seconds);
                 }
             }
         }
@@ -290,21 +320,58 @@ public class WebhookDispatcher : IWebhookDispatcher
 
         try
         {
-            using var response = await this.retryPolicy.ExecuteAsync(
-                async (ct) =>
-                {
-                    var request = this.BuildHttpRequest(targetUrl, payload, customHeadersJson);
-                    return await this.httpClient.SendAsync(request, ct).ConfigureAwait(false);
-                },
-                cancellationToken).ConfigureAwait(false);
+            var currentUrl = targetUrl;
+            var redirectCount = 0;
+            const int maxRedirects = 5;
 
-            if (response.IsSuccessStatusCode)
+            while (redirectCount <= maxRedirects)
             {
-                this.logger.Info("Webhook successfully dispatched to {0} (Status: {1})", targetUrl, response.StatusCode);
-                return true;
+                using var response = await this.retryPolicy.ExecuteAsync(
+                    async (ct) =>
+                    {
+                        var request = this.BuildHttpRequest(currentUrl, payload, customHeadersJson);
+                        return await this.httpClient.SendAsync(request, ct).ConfigureAwait(false);
+                    },
+                    cancellationToken).ConfigureAwait(false);
+
+                if ((int)response.StatusCode >= 300 && (int)response.StatusCode <= 399 && response.Headers.Location != null)
+                {
+                    redirectCount++;
+                    if (redirectCount > maxRedirects)
+                    {
+                        this.logger.Warn("Webhook dispatch to {0} exceeded maximum redirect limit ({1})", targetUrl, maxRedirects);
+                        return false;
+                    }
+
+                    var baseUri = new Uri(currentUrl);
+                    if (!Uri.TryCreate(baseUri, response.Headers.Location, out var redirectUri))
+                    {
+                        this.logger.Warn("Webhook dispatch to {0} returned invalid redirect location: {1}", currentUrl, response.Headers.Location);
+                        return false;
+                    }
+
+                    var nextUrl = redirectUri.AbsoluteUri;
+                    if (!IsValidTargetUrl(nextUrl, this.allowLoopback))
+                    {
+                        this.logger.Warn("Webhook redirect blocked: Target prohibited by SSRF protection: {0}", nextUrl);
+                        return false;
+                    }
+
+                    this.logger.Debug("Webhook redirected from {0} to {1}", currentUrl, nextUrl);
+                    currentUrl = nextUrl;
+                    continue;
+                }
+
+                if (response.IsSuccessStatusCode)
+                {
+                    this.logger.Info("Webhook successfully dispatched to {0} (Status: {1})", currentUrl, response.StatusCode);
+                    return true;
+                }
+
+                this.logger.Warn("Webhook dispatch to {0} returned non-success status code: {1}", currentUrl, response.StatusCode);
+                return false;
             }
 
-            this.logger.Warn("Webhook dispatch to {0} returned non-success status code: {1}", targetUrl, response.StatusCode);
             return false;
         }
         catch (Exception ex)
