@@ -1396,6 +1396,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 {
                     ["url"] = t.Url ?? string.Empty,
                     ["status"] = qbStatus,
+                    ["tier"] = t.Tier,
                     ["num_peers"] = t.Seeders + t.Leechers,
                     ["num_seeds"] = t.Seeders,
                     ["num_leeches"] = t.Leechers,
@@ -1410,6 +1411,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             {
                 ["url"] = torrent.TrackerUrl ?? string.Empty,
                 ["status"] = 2,
+                ["tier"] = 0,
                 ["num_peers"] = torrent.Seeders + torrent.Leechers,
                 ["num_seeds"] = torrent.Seeders,
                 ["num_leeches"] = torrent.Leechers,
@@ -1434,40 +1436,56 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     return this.BadRequest("Cannot add public trackers to private torrents");
                 }
 
-                var existingTrackers = this.trackerEntryRepository.GetByTorrentId(torrent.Id) ?? Enumerable.Empty<TrackerEntry>();
+                var existingTrackers = (this.trackerEntryRepository.GetByTorrentId(torrent.Id) ?? Enumerable.Empty<TrackerEntry>()).ToList();
                 var existingUrls = existingTrackers
                     .Where(t => !string.IsNullOrWhiteSpace(t.Url))
                     .Select(t => t.Url.Trim())
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-                var urlList = urls.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                var rawLines = urls.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
                 var validUrls = new List<string>();
                 var now = DateTime.UtcNow;
 
-                foreach (var url in urlList)
-                {
-                    var trimmed = url.Trim();
-                    if (!string.IsNullOrWhiteSpace(trimmed) && !existingUrls.Contains(trimmed))
-                    {
-                        existingUrls.Add(trimmed);
-                        validUrls.Add(trimmed);
+                var currentTier = existingTrackers.Count > 0 ? existingTrackers.Max(t => t.Tier) + 1 : 0;
+                var hasTrackersInCurrentTier = false;
 
-                        this.trackerEntryRepository.Insert(new TrackerEntry
+                foreach (var rawLine in rawLines)
+                {
+                    var trimmed = rawLine.Trim();
+                    if (string.IsNullOrWhiteSpace(trimmed))
+                    {
+                        if (hasTrackersInCurrentTier)
                         {
-                            TorrentId = torrent.Id,
-                            Url = trimmed,
-                            Tier = 0,
-                            Enabled = true,
-                            Status = 0,
-                            Seeders = 0,
-                            Leechers = 0,
-                            Downloaded = 0,
-                            TotalAnnounces = 0,
-                            SuccessfulAnnounces = 0,
-                            AnnounceInterval = 1800,
-                            LastAnnounce = null,
-                            NextAnnounce = now.AddSeconds(1800),
-                        });
+                            currentTier++;
+                            hasTrackersInCurrentTier = false;
+                        }
+                    }
+                    else
+                    {
+                        if (!existingUrls.Contains(trimmed))
+                        {
+                            existingUrls.Add(trimmed);
+                            validUrls.Add(trimmed);
+
+                            this.trackerEntryRepository.Insert(new TrackerEntry
+                            {
+                                TorrentId = torrent.Id,
+                                Url = trimmed,
+                                Tier = currentTier,
+                                Enabled = true,
+                                Status = 0,
+                                Seeders = 0,
+                                Leechers = 0,
+                                Downloaded = 0,
+                                TotalAnnounces = 0,
+                                SuccessfulAnnounces = 0,
+                                AnnounceInterval = 1800,
+                                LastAnnounce = null,
+                                NextAnnounce = now.AddSeconds(1800),
+                            });
+                        }
+
+                        hasTrackersInCurrentTier = true;
                     }
                 }
 
