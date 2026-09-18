@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
@@ -781,6 +782,15 @@ public class TorznabClientTest
         doc.Root.Should().NotBeNull();
         doc.Root!.Attribute("attr")?.Value.Should().Be("value & more & <tag> ");
         doc.Root!.Value.Should().Be("Text & Content ©");
+    }
+
+    [Test]
+    public void SafeParseXml_WhenXmlContainsDtd_ThrowsXmlException()
+    {
+        var rawXml = "<!DOCTYPE foo [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><root>&xxe;</root>";
+        var act = () => TorznabClient.SafeParseXml(rawXml);
+
+        act.Should().Throw<XmlException>();
     }
 
     [Test]

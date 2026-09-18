@@ -14,6 +14,7 @@ using System.Web;
 using System.Xml;
 using System.Xml.Linq;
 using NLog;
+using NzbDrone.Common.Serializer;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http.Transport;
 using NzbDrone.Core.Torrents;
@@ -971,12 +972,12 @@ public class TorznabClient : ITorznabClient
         var sanitized = SanitizeXml(rawXml);
         try
         {
-            return XDocument.Parse(sanitized);
+            return SafeXmlParser.Parse(sanitized);
         }
         catch (XmlException)
         {
             var escaped = Regex.Replace(sanitized, @"&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)", "&amp;");
-            return XDocument.Parse(escaped);
+            return SafeXmlParser.Parse(escaped);
         }
     }
 
