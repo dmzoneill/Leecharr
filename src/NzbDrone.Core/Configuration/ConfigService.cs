@@ -173,6 +173,8 @@ public interface IConfigService
 
     string ProxyPassword { get; }
 
+    bool ProxyBypassLocalNetworks { get; }
+
     // BitTorrent Core
     bool EnableDht { get; }
 
@@ -900,6 +902,8 @@ public class ConfigService : IConfigService
     public string ProxyUsername => this.GetValue("ProxyUsername", string.Empty);
 
     public string ProxyPassword => this.GetValue("ProxyPassword", string.Empty);
+
+    public bool ProxyBypassLocalNetworks => this.GetValueBoolean("ProxyBypassLocalNetworks", false);
 
     // BitTorrent Core
     public bool EnableDht => this.GetValueBoolean("EnableDht", true);
