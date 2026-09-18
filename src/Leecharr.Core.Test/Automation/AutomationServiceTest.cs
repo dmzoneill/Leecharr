@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Common.Disk;
 using NzbDrone.Core.Automation;
 using NzbDrone.Core.BitTorrent;
+using NzbDrone.Core.Extraction;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Tags;
@@ -273,5 +276,140 @@ public class AutomationServiceTest
 
         var act = () => service.ExecuteScript(script, torrent);
         act.Should().NotThrow();
+    }
+
+    [Test]
+    public async Task ExtractArchiveWithServiceAsync_ExtractsAndDeletesArchivesAndSiblings_WhenDeleteArchiveIsTrue()
+    {
+        var torrent = new Torrent
+        {
+            Id = 100,
+            Name = "MultipartTorrent",
+            SavePath = "/downloads/MultipartTorrent",
+        };
+
+        var archiveExtractorService = Substitute.For<IArchiveExtractorService>();
+        archiveExtractorService.IsArchiveFile(Arg.Any<string>()).Returns(call =>
+        {
+            var p = (string)call[0];
+            return p.EndsWith(".rar", StringComparison.OrdinalIgnoreCase);
+        });
+        archiveExtractorService.ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(true));
+
+        var files = new[]
+        {
+            "/downloads/MultipartTorrent/movie.part1.rar",
+            "/downloads/MultipartTorrent/movie.part2.rar",
+            "/downloads/MultipartTorrent/movie.nfo",
+        };
+
+        _diskProvider.FolderExists("/downloads/MultipartTorrent").Returns(true);
+        _diskProvider.GetFiles("/downloads/MultipartTorrent", true).Returns(files);
+        _diskProvider.FileExists(Arg.Any<string>()).Returns(call => files.Contains((string)call[0]));
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            diskProvider: _diskProvider,
+            archiveExtractorService: archiveExtractorService);
+
+        var result = await service.ExtractArchiveWithServiceAsync(torrent, "/extracted", true);
+
+        result.Should().BeTrue();
+        await archiveExtractorService.Received(1).ExtractArchiveAsync("/downloads/MultipartTorrent/movie.part1.rar", "/extracted");
+        await archiveExtractorService.DidNotReceive().ExtractArchiveAsync("/downloads/MultipartTorrent/movie.part2.rar", Arg.Any<string>());
+
+        _diskProvider.Received(1).DeleteFile("/downloads/MultipartTorrent/movie.part1.rar");
+        _diskProvider.Received(1).DeleteFile("/downloads/MultipartTorrent/movie.part2.rar");
+        _diskProvider.DidNotReceive().DeleteFile("/downloads/MultipartTorrent/movie.nfo");
+    }
+
+    [Test]
+    public async Task ExtractArchiveWithServiceAsync_DoesNotDeleteArchives_WhenExtractionFails()
+    {
+        var torrent = new Torrent
+        {
+            Id = 101,
+            Name = "FailedTorrent",
+            SavePath = "/downloads/FailedTorrent",
+        };
+
+        var archiveExtractorService = Substitute.For<IArchiveExtractorService>();
+        archiveExtractorService.IsArchiveFile(Arg.Any<string>()).Returns(call =>
+        {
+            var p = (string)call[0];
+            return p.EndsWith(".rar", StringComparison.OrdinalIgnoreCase);
+        });
+        archiveExtractorService.ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(false));
+
+        var files = new[]
+        {
+            "/downloads/FailedTorrent/corrupted.part1.rar",
+            "/downloads/FailedTorrent/corrupted.part2.rar",
+        };
+
+        _diskProvider.FolderExists("/downloads/FailedTorrent").Returns(true);
+        _diskProvider.GetFiles("/downloads/FailedTorrent", true).Returns(files);
+        _diskProvider.FileExists(Arg.Any<string>()).Returns(call => files.Contains((string)call[0]));
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            diskProvider: _diskProvider,
+            archiveExtractorService: archiveExtractorService);
+
+        var result = await service.ExtractArchiveWithServiceAsync(torrent, "/extracted", true);
+
+        result.Should().BeFalse();
+        _diskProvider.DidNotReceive().DeleteFile(Arg.Any<string>());
+    }
+
+    [Test]
+    public async Task ExtractArchiveWithServiceAsync_DoesNotDeleteArchives_WhenDeleteArchiveIsFalse()
+    {
+        var torrent = new Torrent
+        {
+            Id = 102,
+            Name = "KeepArchiveTorrent",
+            SavePath = "/downloads/KeepArchiveTorrent",
+        };
+
+        var archiveExtractorService = Substitute.For<IArchiveExtractorService>();
+        archiveExtractorService.IsArchiveFile(Arg.Any<string>()).Returns(call =>
+        {
+            var p = (string)call[0];
+            return p.EndsWith(".rar", StringComparison.OrdinalIgnoreCase);
+        });
+        archiveExtractorService.ExtractArchiveAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(true));
+
+        var files = new[]
+        {
+            "/downloads/KeepArchiveTorrent/movie.part1.rar",
+            "/downloads/KeepArchiveTorrent/movie.part2.rar",
+        };
+
+        _diskProvider.FolderExists("/downloads/KeepArchiveTorrent").Returns(true);
+        _diskProvider.GetFiles("/downloads/KeepArchiveTorrent", true).Returns(files);
+        _diskProvider.FileExists(Arg.Any<string>()).Returns(call => files.Contains((string)call[0]));
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            diskProvider: _diskProvider,
+            archiveExtractorService: archiveExtractorService);
+
+        var result = await service.ExtractArchiveWithServiceAsync(torrent, "/extracted", false);
+
+        result.Should().BeTrue();
+        _diskProvider.DidNotReceive().DeleteFile(Arg.Any<string>());
     }
 }

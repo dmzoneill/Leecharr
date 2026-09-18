@@ -24,7 +24,7 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
 
     private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".rar", ".cbr", ".r00", ".r01", ".r02", ".r03", ".part01.rar", ".part1.rar", ".001",
+        ".rar", ".cbr", ".r00", ".part01.rar", ".part1.rar", ".001",
     };
 
     public string ProviderId => "Unrar";
@@ -104,6 +104,11 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
     public bool CanExtract(string filePath)
     {
         if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return false;
+        }
+
+        if (ArchiveExtractorEventHandler.IsSecondaryVolume(filePath))
         {
             return false;
         }
@@ -210,10 +215,10 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
                     throw;
                 }
 
-                // UnRAR exit codes: 0 = Success, 1 = Non-fatal error / Warning (processed with warnings)
-                if (process.ExitCode == 0 || process.ExitCode == 1)
+                // UnRAR exit codes: 0 = Success. Non-zero exit codes indicate failure or corruption.
+                if (process.ExitCode == 0)
                 {
-                    this.logger.Info("UnRAR successfully extracted archive '{0}' (Exit code {1}).", archivePath, process.ExitCode);
+                    this.logger.Info("UnRAR successfully extracted archive '{0}'.", archivePath);
                     return true;
                 }
 
