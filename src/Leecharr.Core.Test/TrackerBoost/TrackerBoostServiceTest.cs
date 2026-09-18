@@ -16,6 +16,8 @@ using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.DownloadClients;
 using NzbDrone.Core.Indexers;
+using NzbDrone.Core.Network.Binding;
+using NzbDrone.Core.Network.Vpn;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.TrackerBoost;
 using NzbDrone.Core.Trackers;
@@ -910,5 +912,296 @@ public class TrackerBoostServiceTest
         result.Seeders.Should().Be(0);
         result.Leechers.Should().Be(0);
         result.Downloaded.Should().Be(0);
+    }
+
+    [Test]
+    public async Task ResolveHostAddressesAsync_WhenVpnKillSwitchFailClosedActive_AbortsAndReturnsEmpty()
+    {
+        var mockVpn = Substitute.For<IVpnKillSwitchService>();
+        mockVpn.IsFailClosedActive.Returns(true);
+
+        var addresses = await TrackerBoostService.ResolveHostAddressesAsync("tracker.opentrackr.org", mockVpn);
+
+        addresses.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task ProbeUdpTrackerAsync_WhenVpnKillSwitchFailClosedActive_AbortsImmediately()
+    {
+        var mockVpn = Substitute.For<IVpnKillSwitchService>();
+        mockVpn.IsFailClosedActive.Returns(true);
+
+        var vpnService = new TrackerBoostService(
+            this.trackerRepository,
+            this.torrentService,
+            this.trackerEntryRepository,
+            this.indexerRepository,
+            this.configService,
+            this.downloadEngine,
+            this.downloadClientRepository,
+            vpnKillSwitchService: mockVpn);
+
+        var result = await vpnService.ProbeUdpTrackerAsync(new[] { IPAddress.Loopback }, 1337);
+
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task ProbeUdpTrackerAsync_HostOverload_WhenVpnKillSwitchFailClosedActive_AbortsImmediately()
+    {
+        var mockVpn = Substitute.For<IVpnKillSwitchService>();
+        mockVpn.IsFailClosedActive.Returns(true);
+
+        var vpnService = new TrackerBoostService(
+            this.trackerRepository,
+            this.torrentService,
+            this.trackerEntryRepository,
+            this.indexerRepository,
+            this.configService,
+            this.downloadEngine,
+            this.downloadClientRepository,
+            vpnKillSwitchService: mockVpn);
+
+        var result = await vpnService.ProbeUdpTrackerAsync("tracker.opentrackr.org", 1337);
+
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task ScrapeUdpTrackerAsync_WhenVpnKillSwitchFailClosedActive_AbortsImmediately()
+    {
+        var mockVpn = Substitute.For<IVpnKillSwitchService>();
+        mockVpn.IsFailClosedActive.Returns(true);
+
+        var vpnService = new TrackerBoostService(
+            this.trackerRepository,
+            this.torrentService,
+            this.trackerEntryRepository,
+            this.indexerRepository,
+            this.configService,
+            this.downloadEngine,
+            this.downloadClientRepository,
+            vpnKillSwitchService: mockVpn);
+
+        var result = await vpnService.ScrapeUdpTrackerAsync("127.0.0.1", 1337, "0123456789abcdef0123456789abcdef01234567");
+
+        result.Success.Should().BeFalse();
+        result.Seeders.Should().Be(0);
+        result.Leechers.Should().Be(0);
+        result.Downloaded.Should().Be(0);
+    }
+
+    [Test]
+    public async Task ProbeTrackerHealthAsync_WhenVpnKillSwitchFailClosedActive_AbortsAndReturnsZero()
+    {
+        var mockVpn = Substitute.For<IVpnKillSwitchService>();
+        mockVpn.IsFailClosedActive.Returns(true);
+
+        var vpnService = new TrackerBoostService(
+            this.trackerRepository,
+            this.torrentService,
+            this.trackerEntryRepository,
+            this.indexerRepository,
+            this.configService,
+            this.downloadEngine,
+            this.downloadClientRepository,
+            vpnKillSwitchService: mockVpn);
+
+        var tested = await vpnService.ProbeTrackerHealthAsync();
+
+        tested.Should().Be(0);
+    }
+
+    [Test]
+    public async Task RunOptimizationCycleAsync_WhenVpnKillSwitchFailClosedActive_AbortsImmediately()
+    {
+        var mockVpn = Substitute.For<IVpnKillSwitchService>();
+        mockVpn.IsFailClosedActive.Returns(true);
+
+        var vpnService = new TrackerBoostService(
+            this.trackerRepository,
+            this.torrentService,
+            this.trackerEntryRepository,
+            this.indexerRepository,
+            this.configService,
+            this.downloadEngine,
+            this.downloadClientRepository,
+            vpnKillSwitchService: mockVpn);
+
+        await vpnService.RunOptimizationCycleAsync();
+
+        var logs = vpnService.GetLogs();
+        logs.Should().Contain(l => l.Message.Contains("VPN kill switch active"));
+    }
+
+    [Test]
+    public async Task HarvestFromCuratedListsAsync_WhenVpnKillSwitchFailClosedActive_AbortsImmediately()
+    {
+        var mockVpn = Substitute.For<IVpnKillSwitchService>();
+        mockVpn.IsFailClosedActive.Returns(true);
+
+        var vpnService = new TrackerBoostService(
+            this.trackerRepository,
+            this.torrentService,
+            this.trackerEntryRepository,
+            this.indexerRepository,
+            this.configService,
+            this.downloadEngine,
+            this.downloadClientRepository,
+            vpnKillSwitchService: mockVpn);
+
+        var count = await vpnService.HarvestFromCuratedListsAsync();
+
+        count.Should().Be(0);
+    }
+
+    [Test]
+    public async Task HarvestFromProwlarrAsync_WhenVpnKillSwitchFailClosedActive_AbortsImmediately()
+    {
+        var mockVpn = Substitute.For<IVpnKillSwitchService>();
+        mockVpn.IsFailClosedActive.Returns(true);
+
+        var vpnService = new TrackerBoostService(
+            this.trackerRepository,
+            this.torrentService,
+            this.trackerEntryRepository,
+            this.indexerRepository,
+            this.configService,
+            this.downloadEngine,
+            this.downloadClientRepository,
+            vpnKillSwitchService: mockVpn);
+
+        var count = await vpnService.HarvestFromProwlarrAsync();
+
+        count.Should().Be(0);
+    }
+
+    [Test]
+    public async Task InspectHashTrackersAsync_WhenVpnKillSwitchFailClosedActive_MarksTrackersWithKillSwitchActive()
+    {
+        var mockVpn = Substitute.For<IVpnKillSwitchService>();
+        mockVpn.IsFailClosedActive.Returns(true);
+
+        var vpnService = new TrackerBoostService(
+            this.trackerRepository,
+            this.torrentService,
+            this.trackerEntryRepository,
+            this.indexerRepository,
+            this.configService,
+            this.downloadEngine,
+            this.downloadClientRepository,
+            vpnKillSwitchService: mockVpn);
+
+        var result = await vpnService.InspectHashTrackersAsync("0123456789abcdef0123456789abcdef01234567", "Test Torrent");
+
+        result.Detections.Should().AllSatisfy(d => d.DetectionStatus.Should().Contain("VPN Kill Switch Active"));
+    }
+
+    [Test]
+    public void BindUdpSocket_WhenNetworkBindingServiceProvided_BindsSocketToInterface()
+    {
+        var mockBinding = Substitute.For<INetworkBindingService>();
+        this.configService.NetworkInterfaceBinding.Returns("tun0");
+
+        var boundService = new TrackerBoostService(
+            this.trackerRepository,
+            this.torrentService,
+            this.trackerEntryRepository,
+            this.indexerRepository,
+            this.configService,
+            this.downloadEngine,
+            this.downloadClientRepository,
+            networkBindingService: mockBinding);
+
+        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+        boundService.BindUdpSocket(socket);
+
+        mockBinding.Received(1).BindSocket(socket, "tun0", 0);
+    }
+
+    [Test]
+    public void BindUdpSocket_WhenFailClosedActive_ThrowsSocketException()
+    {
+        var mockVpn = Substitute.For<IVpnKillSwitchService>();
+        mockVpn.IsFailClosedActive.Returns(true);
+
+        var vpnService = new TrackerBoostService(
+            this.trackerRepository,
+            this.torrentService,
+            this.trackerEntryRepository,
+            this.indexerRepository,
+            this.configService,
+            this.downloadEngine,
+            this.downloadClientRepository,
+            vpnKillSwitchService: mockVpn);
+
+        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+        var act = () => vpnService.BindUdpSocket(socket);
+
+        act.Should().Throw<SocketException>()
+            .Where(e => e.SocketErrorCode == SocketError.NetworkUnreachable);
+    }
+
+    [Test]
+    public async Task ProbeUdpTrackerAsync_WhenNetworkBindingConfigured_CallsBindSocket()
+    {
+        var mockBinding = Substitute.For<INetworkBindingService>();
+        this.configService.NetworkInterfaceBinding.Returns("tun0");
+
+        var boundService = new TrackerBoostService(
+            this.trackerRepository,
+            this.torrentService,
+            this.trackerEntryRepository,
+            this.indexerRepository,
+            this.configService,
+            this.downloadEngine,
+            this.downloadClientRepository,
+            networkBindingService: mockBinding);
+
+        await boundService.ProbeUdpTrackerAsync(new[] { IPAddress.Loopback }, 1337, initialTimeoutMs: 10, maxRetries: 0);
+
+        mockBinding.Received().BindSocket(Arg.Any<Socket>(), "tun0", 0);
+    }
+
+    [Test]
+    public void GetBoundInterfaceName_PrioritizesNetworkInterfaceBindingOverBindInterfaceAndVpn()
+    {
+        var mockVpn = Substitute.For<IVpnKillSwitchService>();
+        mockVpn.VpnInterfaceName.Returns("vpn0");
+        this.configService.BindInterface.Returns("eth0");
+        this.configService.NetworkInterfaceBinding.Returns("wg0");
+
+        var boundService = new TrackerBoostService(
+            this.trackerRepository,
+            this.torrentService,
+            this.trackerEntryRepository,
+            this.indexerRepository,
+            this.configService,
+            this.downloadEngine,
+            this.downloadClientRepository,
+            vpnKillSwitchService: mockVpn);
+
+        boundService.GetBoundInterfaceName().Should().Be("wg0");
+    }
+
+    [Test]
+    public void GetBoundInterfaceName_FallsBackToVpnInterfaceName_WhenConfigEmpty()
+    {
+        var mockVpn = Substitute.For<IVpnKillSwitchService>();
+        mockVpn.VpnInterfaceName.Returns("vpn0");
+        this.configService.BindInterface.Returns(string.Empty);
+        this.configService.NetworkInterfaceBinding.Returns(string.Empty);
+
+        var boundService = new TrackerBoostService(
+            this.trackerRepository,
+            this.torrentService,
+            this.trackerEntryRepository,
+            this.indexerRepository,
+            this.configService,
+            this.downloadEngine,
+            this.downloadClientRepository,
+            vpnKillSwitchService: mockVpn);
+
+        boundService.GetBoundInterfaceName().Should().Be("vpn0");
     }
 }
