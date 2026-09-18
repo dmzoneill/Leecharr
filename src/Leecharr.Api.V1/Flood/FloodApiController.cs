@@ -375,6 +375,27 @@ public class FloodApiController : ControllerBase, IActionFilter
             var peers = downloadTask?.GetPeers() ?? (IReadOnlyList<PeerInfo>)Array.Empty<PeerInfo>();
             var seedsConnected = peers.Count(p => p.Progress >= 1.0 || (p.Flags != null && p.Flags.Contains("S", StringComparison.OrdinalIgnoreCase)));
             var leechersConnected = peers.Count - seedsConnected;
+
+            var tagsList = new List<string>();
+            if (!string.IsNullOrWhiteSpace(t.Category))
+            {
+                tagsList.Add(t.Category.Trim());
+            }
+
+            if (!string.IsNullOrWhiteSpace(t.Label))
+            {
+                var labelParts = t.Label.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                foreach (var part in labelParts)
+                {
+                    if (!string.IsNullOrWhiteSpace(part))
+                    {
+                        tagsList.Add(part.Trim());
+                    }
+                }
+            }
+
+            var tags = tagsList.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+
             dict[hash] = new
             {
                 hash = t.InfoHash,
@@ -387,9 +408,7 @@ public class FloodApiController : ControllerBase, IActionFilter
                 ratio = t.Ratio,
                 eta = t.Eta > 0 ? t.Eta : (t.Progress >= 1.0 ? 0 : (t.DownloadSpeed > 0 ? (Math.Max(0, t.TotalSize - t.Downloaded) / t.DownloadSpeed) : 8640000)),
                 status = new[] { MapToFloodStatus(t) },
-                tags = string.IsNullOrWhiteSpace(t.Category)
-                    ? (string.IsNullOrWhiteSpace(t.Label) ? Array.Empty<string>() : new[] { t.Label })
-                    : new[] { t.Category },
+                tags = tags,
                 directory = t.SavePath ?? string.Empty,
                 isPrivate = t.IsPrivate,
                 isInitialSeeding = t.InitialSeeding,
@@ -572,8 +591,45 @@ public class FloodApiController : ControllerBase, IActionFilter
     [Route("api/torrents/tags")]
     public IActionResult GetTags()
     {
-        var cats = this.categoryService.GetAll().Select(c => c.Name).ToList();
-        return this.Ok(cats);
+        var tagSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var cats = this.categoryService.GetAll();
+        if (cats != null)
+        {
+            foreach (var c in cats)
+            {
+                if (!string.IsNullOrWhiteSpace(c?.Name))
+                {
+                    tagSet.Add(c.Name.Trim());
+                }
+            }
+        }
+
+        var torrents = this.torrentService.GetAll();
+        if (torrents != null)
+        {
+            foreach (var t in torrents)
+            {
+                if (!string.IsNullOrWhiteSpace(t.Category))
+                {
+                    tagSet.Add(t.Category.Trim());
+                }
+
+                if (!string.IsNullOrWhiteSpace(t.Label))
+                {
+                    var parts = t.Label.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    foreach (var part in parts)
+                    {
+                        if (!string.IsNullOrWhiteSpace(part))
+                        {
+                            tagSet.Add(part.Trim());
+                        }
+                    }
+                }
+            }
+        }
+
+        return this.Ok(tagSet.ToList());
     }
 
     [HttpPost]
@@ -584,14 +640,47 @@ public class FloodApiController : ControllerBase, IActionFilter
     {
         if (request?.Hashes != null)
         {
-            var newCategory = request.Tags?.FirstOrDefault() ?? string.Empty;
+            var categories = this.categoryService.GetAll() ?? new List<Category>();
+            var tagsList = request.Tags ?? new List<string>();
+
+            string matchedCategory = null;
+            var remainingTags = new List<string>();
+
+            foreach (var tag in tagsList)
+            {
+                if (string.IsNullOrWhiteSpace(tag))
+                {
+                    continue;
+                }
+
+                var trimmedTag = tag.Trim();
+                if (matchedCategory == null)
+                {
+                    var matched = categories.FirstOrDefault(c => string.Equals(c.Name, trimmedTag, StringComparison.OrdinalIgnoreCase));
+                    if (matched != null)
+                    {
+                        matchedCategory = matched.Name;
+                        continue;
+                    }
+                }
+
+                remainingTags.Add(trimmedTag);
+            }
+
+            var labelString = string.Join(",", remainingTags);
+
             foreach (var hash in request.Hashes)
             {
                 var t = this.torrentService.GetByInfoHash(hash);
                 if (t != null)
                 {
-                    t.Category = newCategory;
-                    t.Label = string.Join(",", request.Tags ?? new List<string>());
+                    if (matchedCategory != null)
+                    {
+                        await this.torrentService.SetCategoryAsync(t.Id, matchedCategory);
+                        t.Category = matchedCategory;
+                    }
+
+                    t.Label = labelString;
                     await this.torrentService.UpdateAsync(t);
                 }
             }
