@@ -1,8 +1,12 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -661,5 +665,250 @@ public class TrackerBoostServiceTest
         // IP address lookup does not pollute DNS cache or fail
         var addresses2 = await TrackerBoostService.ResolveHostAddressesAsync("127.0.0.1");
         addresses2.Should().ContainSingle();
+    }
+
+    [Test]
+    public async Task ProbeUdpTrackerAsync_WhenFirstPacketDropped_RetransmitsWithBackoffAndSucceeds()
+    {
+        using var server = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var port = ((IPEndPoint)server.Client.LocalEndPoint!).Port;
+
+        var serverTask = Task.Run(async () =>
+        {
+            var req1 = await server.ReceiveAsync();
+            var req2 = await server.ReceiveAsync();
+            var txId2 = BinaryPrimitives.ReadInt32BigEndian(req2.Buffer.AsSpan(12, 4));
+
+            var resp = new byte[16];
+            BinaryPrimitives.WriteInt32BigEndian(resp.AsSpan(0, 4), 0);
+            BinaryPrimitives.WriteInt32BigEndian(resp.AsSpan(4, 4), txId2);
+            BinaryPrimitives.WriteInt64BigEndian(resp.AsSpan(8, 8), 0x12345678L);
+            await server.SendAsync(resp, resp.Length, req2.RemoteEndPoint);
+        });
+
+        var result = await this.service.ProbeUdpTrackerAsync(
+            new[] { IPAddress.Loopback },
+            port,
+            initialTimeoutMs: 50,
+            maxRetries: 2);
+
+        await serverTask;
+        result.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task ProbeUdpTrackerAsync_WhenTrackerReturnsAction3Error_FailsFastWithoutRetrying()
+    {
+        using var server = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var port = ((IPEndPoint)server.Client.LocalEndPoint!).Port;
+
+        var serverTask = Task.Run(async () =>
+        {
+            var req = await server.ReceiveAsync();
+            var txId = BinaryPrimitives.ReadInt32BigEndian(req.Buffer.AsSpan(12, 4));
+
+            var errorBytes = Encoding.UTF8.GetBytes("Too many connections");
+            var resp = new byte[8 + errorBytes.Length];
+            BinaryPrimitives.WriteInt32BigEndian(resp.AsSpan(0, 4), 3);
+            BinaryPrimitives.WriteInt32BigEndian(resp.AsSpan(4, 4), txId);
+            Array.Copy(errorBytes, 0, resp, 8, errorBytes.Length);
+
+            await server.SendAsync(resp, resp.Length, req.RemoteEndPoint);
+        });
+
+        var result = await this.service.ProbeUdpTrackerAsync(
+            new[] { IPAddress.Loopback },
+            port,
+            initialTimeoutMs: 50,
+            maxRetries: 2);
+
+        await serverTask;
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task ProbeUdpTrackerAsync_WhenAllRetriesTimeOut_ReturnsFalse()
+    {
+        using var server = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var port = ((IPEndPoint)server.Client.LocalEndPoint!).Port;
+
+        var result = await this.service.ProbeUdpTrackerAsync(
+            new[] { IPAddress.Loopback },
+            port,
+            initialTimeoutMs: 20,
+            maxRetries: 1);
+
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task ProbeUdpTrackerAsync_WhenAddressEmpty_ReturnsFalseImmediately()
+    {
+        var result = await this.service.ProbeUdpTrackerAsync(
+            Array.Empty<IPAddress>(),
+            1337);
+
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task ScrapeUdpTrackerAsync_WhenConnectPacketDropped_RetransmitsAndSucceeds()
+    {
+        using var server = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var port = ((IPEndPoint)server.Client.LocalEndPoint!).Port;
+        var hexHash = "0123456789abcdef0123456789abcdef01234567";
+
+        var serverTask = Task.Run(async () =>
+        {
+            var req1 = await server.ReceiveAsync();
+            var req2 = await server.ReceiveAsync();
+            var connectTxId = BinaryPrimitives.ReadInt32BigEndian(req2.Buffer.AsSpan(12, 4));
+            var connectResp = new byte[16];
+            BinaryPrimitives.WriteInt32BigEndian(connectResp.AsSpan(0, 4), 0);
+            BinaryPrimitives.WriteInt32BigEndian(connectResp.AsSpan(4, 4), connectTxId);
+            BinaryPrimitives.WriteInt64BigEndian(connectResp.AsSpan(8, 8), 0x9988776655L);
+            await server.SendAsync(connectResp, connectResp.Length, req2.RemoteEndPoint);
+
+            var scrapeReq = await server.ReceiveAsync();
+            var scrapeTxId = BinaryPrimitives.ReadInt32BigEndian(scrapeReq.Buffer.AsSpan(12, 4));
+            var scrapeResp = new byte[20];
+            BinaryPrimitives.WriteInt32BigEndian(scrapeResp.AsSpan(0, 4), 2);
+            BinaryPrimitives.WriteInt32BigEndian(scrapeResp.AsSpan(4, 4), scrapeTxId);
+            BinaryPrimitives.WriteInt32BigEndian(scrapeResp.AsSpan(8, 4), 42);
+            BinaryPrimitives.WriteInt32BigEndian(scrapeResp.AsSpan(12, 4), 100);
+            BinaryPrimitives.WriteInt32BigEndian(scrapeResp.AsSpan(16, 4), 15);
+            await server.SendAsync(scrapeResp, scrapeResp.Length, scrapeReq.RemoteEndPoint);
+        });
+
+        var result = await this.service.ScrapeUdpTrackerAsync(
+            "127.0.0.1",
+            port,
+            hexHash,
+            initialTimeoutMs: 50,
+            maxRetries: 2);
+
+        await serverTask;
+        result.Success.Should().BeTrue();
+        result.Seeders.Should().Be(42);
+        result.Leechers.Should().Be(15);
+        result.Downloaded.Should().Be(100);
+    }
+
+    [Test]
+    public async Task ScrapeUdpTrackerAsync_WhenScrapePacketDropped_RetransmitsAndSucceeds()
+    {
+        using var server = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var port = ((IPEndPoint)server.Client.LocalEndPoint!).Port;
+        var hexHash = "0123456789abcdef0123456789abcdef01234567";
+
+        var serverTask = Task.Run(async () =>
+        {
+            var req1 = await server.ReceiveAsync();
+            var connectTxId = BinaryPrimitives.ReadInt32BigEndian(req1.Buffer.AsSpan(12, 4));
+            var connectResp = new byte[16];
+            BinaryPrimitives.WriteInt32BigEndian(connectResp.AsSpan(0, 4), 0);
+            BinaryPrimitives.WriteInt32BigEndian(connectResp.AsSpan(4, 4), connectTxId);
+            BinaryPrimitives.WriteInt64BigEndian(connectResp.AsSpan(8, 8), 0x9988776655L);
+            await server.SendAsync(connectResp, connectResp.Length, req1.RemoteEndPoint);
+
+            var scrapeReq1 = await server.ReceiveAsync();
+            var scrapeReq2 = await server.ReceiveAsync();
+            var scrapeTxId = BinaryPrimitives.ReadInt32BigEndian(scrapeReq2.Buffer.AsSpan(12, 4));
+            var scrapeResp = new byte[20];
+            BinaryPrimitives.WriteInt32BigEndian(scrapeResp.AsSpan(0, 4), 2);
+            BinaryPrimitives.WriteInt32BigEndian(scrapeResp.AsSpan(4, 4), scrapeTxId);
+            BinaryPrimitives.WriteInt32BigEndian(scrapeResp.AsSpan(8, 4), 77);
+            BinaryPrimitives.WriteInt32BigEndian(scrapeResp.AsSpan(12, 4), 50);
+            BinaryPrimitives.WriteInt32BigEndian(scrapeResp.AsSpan(16, 4), 3);
+            await server.SendAsync(scrapeResp, scrapeResp.Length, scrapeReq2.RemoteEndPoint);
+        });
+
+        var result = await this.service.ScrapeUdpTrackerAsync(
+            "127.0.0.1",
+            port,
+            hexHash,
+            initialTimeoutMs: 50,
+            maxRetries: 2);
+
+        await serverTask;
+        result.Success.Should().BeTrue();
+        result.Seeders.Should().Be(77);
+        result.Leechers.Should().Be(3);
+        result.Downloaded.Should().Be(50);
+    }
+
+    [Test]
+    public async Task ScrapeUdpTrackerAsync_WhenConnectReturnsAction3Error_FailsFast()
+    {
+        using var server = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var port = ((IPEndPoint)server.Client.LocalEndPoint!).Port;
+        var hexHash = "0123456789abcdef0123456789abcdef01234567";
+
+        var serverTask = Task.Run(async () =>
+        {
+            var req = await server.ReceiveAsync();
+            var connectTxId = BinaryPrimitives.ReadInt32BigEndian(req.Buffer.AsSpan(12, 4));
+
+            var errorBytes = Encoding.UTF8.GetBytes("Tracker connection unauthorized");
+            var errorResp = new byte[8 + errorBytes.Length];
+            BinaryPrimitives.WriteInt32BigEndian(errorResp.AsSpan(0, 4), 3);
+            BinaryPrimitives.WriteInt32BigEndian(errorResp.AsSpan(4, 4), connectTxId);
+            Array.Copy(errorBytes, 0, errorResp, 8, errorBytes.Length);
+            await server.SendAsync(errorResp, errorResp.Length, req.RemoteEndPoint);
+        });
+
+        var result = await this.service.ScrapeUdpTrackerAsync(
+            "127.0.0.1",
+            port,
+            hexHash,
+            initialTimeoutMs: 50,
+            maxRetries: 2);
+
+        await serverTask;
+        result.Success.Should().BeFalse();
+        result.Seeders.Should().Be(0);
+        result.Leechers.Should().Be(0);
+        result.Downloaded.Should().Be(0);
+    }
+
+    [Test]
+    public async Task ScrapeUdpTrackerAsync_WhenScrapeReturnsAction3Error_FailsFast()
+    {
+        using var server = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var port = ((IPEndPoint)server.Client.LocalEndPoint!).Port;
+        var hexHash = "0123456789abcdef0123456789abcdef01234567";
+
+        var serverTask = Task.Run(async () =>
+        {
+            var connectReq = await server.ReceiveAsync();
+            var connectTxId = BinaryPrimitives.ReadInt32BigEndian(connectReq.Buffer.AsSpan(12, 4));
+            var connectResp = new byte[16];
+            BinaryPrimitives.WriteInt32BigEndian(connectResp.AsSpan(0, 4), 0);
+            BinaryPrimitives.WriteInt32BigEndian(connectResp.AsSpan(4, 4), connectTxId);
+            BinaryPrimitives.WriteInt64BigEndian(connectResp.AsSpan(8, 8), 0x5544332211L);
+            await server.SendAsync(connectResp, connectResp.Length, connectReq.RemoteEndPoint);
+
+            var scrapeReq = await server.ReceiveAsync();
+            var scrapeTxId = BinaryPrimitives.ReadInt32BigEndian(scrapeReq.Buffer.AsSpan(12, 4));
+            var errorBytes = Encoding.UTF8.GetBytes("InfoHash not tracked");
+            var errorResp = new byte[8 + errorBytes.Length];
+            BinaryPrimitives.WriteInt32BigEndian(errorResp.AsSpan(0, 4), 3);
+            BinaryPrimitives.WriteInt32BigEndian(errorResp.AsSpan(4, 4), scrapeTxId);
+            Array.Copy(errorBytes, 0, errorResp, 8, errorBytes.Length);
+            await server.SendAsync(errorResp, errorResp.Length, scrapeReq.RemoteEndPoint);
+        });
+
+        var result = await this.service.ScrapeUdpTrackerAsync(
+            "127.0.0.1",
+            port,
+            hexHash,
+            initialTimeoutMs: 50,
+            maxRetries: 2);
+
+        await serverTask;
+        result.Success.Should().BeFalse();
+        result.Seeders.Should().Be(0);
+        result.Leechers.Should().Be(0);
+        result.Downloaded.Should().Be(0);
     }
 }

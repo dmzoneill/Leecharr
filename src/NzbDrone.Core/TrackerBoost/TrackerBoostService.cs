@@ -1626,7 +1626,141 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         return this.trackerRepository.Insert(tracker);
     }
 
-    private async Task<bool> ProbeUdpTrackerAsync(IPAddress[] addresses, int port)
+    internal sealed class UdpResponseResult
+    {
+        public bool Success { get; set; }
+
+        public bool IsTrackerError { get; set; }
+
+        public bool IsUnreachable { get; set; }
+
+        public string ErrorMessage { get; set; }
+
+        public byte[] Buffer { get; set; }
+    }
+
+    private static bool IsNetworkUnreachable(SocketError error)
+    {
+        return error is SocketError.NetworkUnreachable
+            or SocketError.HostUnreachable
+            or SocketError.NetworkDown
+            or SocketError.ConnectionRefused
+            or SocketError.HostDown
+            or SocketError.AddressNotAvailable;
+    }
+
+    internal async Task<UdpResponseResult> SendAndReceiveUdpWithRetryAsync(
+        UdpClient client,
+        IPEndPoint endpoint,
+        byte[] packet,
+        int transactionId,
+        int expectedAction,
+        int initialTimeoutMs = 1000,
+        int maxRetries = 2,
+        int maxTimeoutMs = 4000,
+        CancellationToken cancellationToken = default)
+    {
+        for (var attempt = 0; attempt <= maxRetries; attempt++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                await client.SendAsync(packet, packet.Length, endpoint).ConfigureAwait(false);
+            }
+            catch (SocketException ex) when (IsNetworkUnreachable(ex.SocketErrorCode))
+            {
+                this.logger.Debug(ex, "UDP tracker at {0}:{1} is unreachable ({2})", endpoint.Address, endpoint.Port, ex.SocketErrorCode);
+                return new UdpResponseResult { IsUnreachable = true };
+            }
+            catch (SocketException ex)
+            {
+                this.logger.Debug(ex, "UDP socket send error to {0}:{1} ({2})", endpoint.Address, endpoint.Port, ex.SocketErrorCode);
+                return new UdpResponseResult();
+            }
+
+            var backoffMultiplier = 1 << Math.Min(attempt, 10);
+            var attemptTimeoutMs = Math.Min(maxTimeoutMs, initialTimeoutMs * backoffMultiplier);
+            using var attemptCts = new CancellationTokenSource(attemptTimeoutMs);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(attemptCts.Token, cancellationToken);
+
+            while (!linkedCts.IsCancellationRequested)
+            {
+                try
+                {
+                    var receiveResult = await client.ReceiveAsync(linkedCts.Token).ConfigureAwait(false);
+                    if (receiveResult.Buffer.Length < 8)
+                    {
+                        continue;
+                    }
+
+                    var action = BinaryPrimitives.ReadInt32BigEndian(receiveResult.Buffer.AsSpan(0, 4));
+                    var respTxId = BinaryPrimitives.ReadInt32BigEndian(receiveResult.Buffer.AsSpan(4, 4));
+                    if (respTxId != transactionId)
+                    {
+                        continue;
+                    }
+
+                    // Handle BEP 15 Action 3: Error response
+                    if (action == 3)
+                    {
+                        var errorMessage = receiveResult.Buffer.Length > 8
+                            ? Encoding.UTF8.GetString(receiveResult.Buffer, 8, receiveResult.Buffer.Length - 8).TrimEnd('\0').Trim()
+                            : string.Empty;
+
+                        this.logger.Warn("UDP tracker at {0}:{1} returned BEP 15 error for transaction {2}: {3}", endpoint.Address, endpoint.Port, transactionId, errorMessage);
+                        return new UdpResponseResult
+                        {
+                            Success = false,
+                            IsTrackerError = true,
+                            ErrorMessage = errorMessage,
+                            Buffer = receiveResult.Buffer,
+                        };
+                    }
+
+                    // Expected action response
+                    if (action == expectedAction)
+                    {
+                        return new UdpResponseResult
+                        {
+                            Success = true,
+                            Buffer = receiveResult.Buffer,
+                        };
+                    }
+                }
+                catch (OperationCanceledException) when (attemptCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+                {
+                    // Attempt timeout expired; break inner receive loop to proceed to next backoff retry
+                    this.logger.Debug("UDP tracker request to {0}:{1} timed out (attempt {2} after {3}ms)", endpoint.Address, endpoint.Port, attempt + 1, attemptTimeoutMs);
+                    break;
+                }
+                catch (SocketException ex) when (ex.SocketErrorCode == SocketError.TimedOut)
+                {
+                    this.logger.Debug("UDP tracker socket timed out for {0}:{1} (attempt {2})", endpoint.Address, endpoint.Port, attempt + 1);
+                    break;
+                }
+                catch (SocketException ex) when (IsNetworkUnreachable(ex.SocketErrorCode))
+                {
+                    this.logger.Debug(ex, "UDP tracker at {0}:{1} is unreachable ({2})", endpoint.Address, endpoint.Port, ex.SocketErrorCode);
+                    return new UdpResponseResult { IsUnreachable = true };
+                }
+                catch (SocketException ex)
+                {
+                    this.logger.Debug(ex, "UDP socket receive error from {0}:{1} ({2})", endpoint.Address, endpoint.Port, ex.SocketErrorCode);
+                    return new UdpResponseResult();
+                }
+            }
+        }
+
+        return new UdpResponseResult();
+    }
+
+    internal async Task<bool> ProbeUdpTrackerAsync(
+        IPAddress[] addresses,
+        int port,
+        int initialTimeoutMs = 1000,
+        int maxRetries = 2,
+        CancellationToken cancellationToken = default)
     {
         if (addresses == null || addresses.Length == 0)
         {
@@ -1637,8 +1771,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         {
             var targetAddress = addresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork) ?? addresses[0];
             using var client = new UdpClient(targetAddress.AddressFamily);
-            client.Client.ReceiveTimeout = 2000;
-            client.Client.SendTimeout = 2000;
+            var endpoint = new IPEndPoint(targetAddress, port);
 
             var transactionId = Random.Shared.Next();
             var packet = new byte[16];
@@ -1646,38 +1779,58 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             BinaryPrimitives.WriteInt32BigEndian(packet.AsSpan(8, 4), 0);
             BinaryPrimitives.WriteInt32BigEndian(packet.AsSpan(12, 4), transactionId);
 
-            var endpoint = new IPEndPoint(targetAddress, port);
-            await client.SendAsync(packet, packet.Length, endpoint);
+            var result = await this.SendAndReceiveUdpWithRetryAsync(
+                client,
+                endpoint,
+                packet,
+                transactionId,
+                expectedAction: 0,
+                initialTimeoutMs: initialTimeoutMs,
+                maxRetries: maxRetries,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
 
-            var receiveTask = client.ReceiveAsync();
-            var completedTask = await Task.WhenAny(receiveTask, Task.Delay(2500));
-
-            if (completedTask == receiveTask)
+            if (result is { Success: true, Buffer.Length: >= 16 })
             {
-                var result = await receiveTask;
-                if (result.Buffer.Length >= 16)
+                var action = BinaryPrimitives.ReadInt32BigEndian(result.Buffer.AsSpan(0, 4));
+                var respTxId = BinaryPrimitives.ReadInt32BigEndian(result.Buffer.AsSpan(4, 4));
+                if (action == 0 && respTxId == transactionId)
                 {
-                    var action = BinaryPrimitives.ReadInt32BigEndian(result.Buffer.AsSpan(0, 4));
-                    var respTxId = BinaryPrimitives.ReadInt32BigEndian(result.Buffer.AsSpan(4, 4));
-                    if (action == 0 && respTxId == transactionId)
-                    {
-                        return true;
-                    }
+                    return true;
                 }
             }
 
             return false;
         }
-        catch
+        catch (OperationCanceledException)
         {
+            return false;
+        }
+        catch (SocketException ex) when (IsNetworkUnreachable(ex.SocketErrorCode))
+        {
+            this.logger.Debug(ex, "UDP tracker probe unreachable: {0}", ex.SocketErrorCode);
+            return false;
+        }
+        catch (SocketException ex)
+        {
+            this.logger.Debug(ex, "UDP tracker probe socket error: {0}", ex.SocketErrorCode);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "UDP tracker probe unexpected error");
             return false;
         }
     }
 
-    private async Task<bool> ProbeUdpTrackerAsync(string host, int port)
+    internal async Task<bool> ProbeUdpTrackerAsync(
+        string host,
+        int port,
+        int initialTimeoutMs = 1000,
+        int maxRetries = 2,
+        CancellationToken cancellationToken = default)
     {
-        var addresses = await ResolveHostAddressesAsync(host).ConfigureAwait(false);
-        return await this.ProbeUdpTrackerAsync(addresses, port).ConfigureAwait(false);
+        var addresses = await ResolveHostAddressesAsync(host, cancellationToken).ConfigureAwait(false);
+        return await this.ProbeUdpTrackerAsync(addresses, port, initialTimeoutMs, maxRetries, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<bool> ProbeHttpTrackerAsync(string url)
@@ -1872,8 +2025,8 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
 
         try
         {
-            // Strict timeout per scrape request (3.5 seconds max) to prevent hanging
-            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(3500));
+            // Strict timeout per scrape request (5 seconds max) to prevent hanging while allowing BEP 15 UDP retransmissions
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(5000));
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken);
 
             (bool Success, int Seeders, int Leechers, int Downloaded) result;
@@ -1912,11 +2065,13 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
         }
     }
 
-    private async Task<(bool Success, int Seeders, int Leechers, int Downloaded)> ScrapeUdpTrackerAsync(
+    internal async Task<(bool Success, int Seeders, int Leechers, int Downloaded)> ScrapeUdpTrackerAsync(
         string host,
         int port,
         string hexHash,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default,
+        int initialTimeoutMs = 1000,
+        int maxRetries = 2)
     {
         try
         {
@@ -1936,24 +2091,22 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             BinaryPrimitives.WriteInt32BigEndian(connectPacket.AsSpan(8, 4), 0);
             BinaryPrimitives.WriteInt32BigEndian(connectPacket.AsSpan(12, 4), connectTxId);
 
-            await client.SendAsync(connectPacket, connectPacket.Length, endpoint).ConfigureAwait(false);
+            var connectResult = await this.SendAndReceiveUdpWithRetryAsync(
+                client,
+                endpoint,
+                connectPacket,
+                connectTxId,
+                expectedAction: 0,
+                initialTimeoutMs: initialTimeoutMs,
+                maxRetries: maxRetries,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
 
-            long connectionId = 0;
-            while (!cancellationToken.IsCancellationRequested)
+            if (connectResult == null || !connectResult.Success || connectResult.Buffer == null || connectResult.Buffer.Length < 16)
             {
-                var connectResult = await client.ReceiveAsync(cancellationToken).ConfigureAwait(false);
-                if (connectResult.Buffer.Length >= 16)
-                {
-                    var action = BinaryPrimitives.ReadInt32BigEndian(connectResult.Buffer.AsSpan(0, 4));
-                    var respTxId = BinaryPrimitives.ReadInt32BigEndian(connectResult.Buffer.AsSpan(4, 4));
-                    if (action == 0 && respTxId == connectTxId)
-                    {
-                        connectionId = BinaryPrimitives.ReadInt64BigEndian(connectResult.Buffer.AsSpan(8, 8));
-                        break;
-                    }
-                }
+                return (false, 0, 0, 0);
             }
 
+            var connectionId = BinaryPrimitives.ReadInt64BigEndian(connectResult.Buffer.AsSpan(8, 8));
             if (connectionId == 0)
             {
                 return (false, 0, 0, 0);
@@ -1967,34 +2120,44 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             BinaryPrimitives.WriteInt32BigEndian(scrapePacket.AsSpan(12, 4), scrapeTxId);
             Array.Copy(hashBytes, 0, scrapePacket, 16, 20);
 
-            await client.SendAsync(scrapePacket, scrapePacket.Length, endpoint).ConfigureAwait(false);
+            var scrapeResult = await this.SendAndReceiveUdpWithRetryAsync(
+                client,
+                endpoint,
+                scrapePacket,
+                scrapeTxId,
+                expectedAction: 2,
+                initialTimeoutMs: initialTimeoutMs,
+                maxRetries: maxRetries,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
 
-            while (!cancellationToken.IsCancellationRequested)
+            if (scrapeResult == null || !scrapeResult.Success || scrapeResult.Buffer == null || scrapeResult.Buffer.Length < 20)
             {
-                var scrapeResult = await client.ReceiveAsync(cancellationToken).ConfigureAwait(false);
-                if (scrapeResult.Buffer.Length >= 20)
-                {
-                    var scrapeRespAction = BinaryPrimitives.ReadInt32BigEndian(scrapeResult.Buffer.AsSpan(0, 4));
-                    var scrapeRespTxId = BinaryPrimitives.ReadInt32BigEndian(scrapeResult.Buffer.AsSpan(4, 4));
-                    if (scrapeRespAction == 2 && scrapeRespTxId == scrapeTxId)
-                    {
-                        var seeders = BinaryPrimitives.ReadInt32BigEndian(scrapeResult.Buffer.AsSpan(8, 4));
-                        var completed = BinaryPrimitives.ReadInt32BigEndian(scrapeResult.Buffer.AsSpan(12, 4));
-                        var leechers = BinaryPrimitives.ReadInt32BigEndian(scrapeResult.Buffer.AsSpan(16, 4));
-
-                        return (true, Math.Max(0, seeders), Math.Max(0, leechers), Math.Max(0, completed));
-                    }
-                }
+                return (false, 0, 0, 0);
             }
 
-            return (false, 0, 0, 0);
+            var seeders = BinaryPrimitives.ReadInt32BigEndian(scrapeResult.Buffer.AsSpan(8, 4));
+            var completed = BinaryPrimitives.ReadInt32BigEndian(scrapeResult.Buffer.AsSpan(12, 4));
+            var leechers = BinaryPrimitives.ReadInt32BigEndian(scrapeResult.Buffer.AsSpan(16, 4));
+
+            return (true, Math.Max(0, seeders), Math.Max(0, leechers), Math.Max(0, completed));
         }
         catch (OperationCanceledException)
         {
             return (false, 0, 0, 0);
         }
-        catch
+        catch (SocketException ex) when (IsNetworkUnreachable(ex.SocketErrorCode))
         {
+            this.logger.Debug(ex, "UDP scrape host {0}:{1} unreachable ({2})", host, port, ex.SocketErrorCode);
+            return (false, 0, 0, 0);
+        }
+        catch (SocketException ex)
+        {
+            this.logger.Debug(ex, "UDP scrape socket error for {0}:{1} ({2})", host, port, ex.SocketErrorCode);
+            return (false, 0, 0, 0);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "UDP scrape unexpected error for {0}:{1}", host, port);
             return (false, 0, 0, 0);
         }
     }
