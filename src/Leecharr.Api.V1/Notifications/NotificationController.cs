@@ -246,7 +246,7 @@ public class NotificationController : Controller
         {
             try
             {
-                NotificationEventHandler.SendEmailNotification(notif.Settings, "Test", null, null, payload);
+                await NotificationEventHandler.SendEmailNotificationAsync(notif.Settings, "Test", null, null, payload);
                 return this.Ok(new NotificationTestResult
                 {
                     Success = true,
