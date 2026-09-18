@@ -131,14 +131,12 @@ public static class NotificationPayloadBuilder
 
         if (string.Equals(implementation, "Apprise", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(candidateUrl))
         {
-            var clean = candidateUrl.TrimEnd('/');
-            return clean.EndsWith("/notify", StringComparison.OrdinalIgnoreCase) ? clean : $"{clean}/notify";
+            return AppendEndpointPath(candidateUrl, "notify");
         }
 
         if (string.Equals(implementation, "Gotify", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(candidateUrl))
         {
-            var clean = candidateUrl.TrimEnd('/');
-            return clean.EndsWith("/message", StringComparison.OrdinalIgnoreCase) ? clean : $"{clean}/message";
+            return AppendEndpointPath(candidateUrl, "message");
         }
 
         return candidateUrl;
@@ -438,5 +436,28 @@ public static class NotificationPayloadBuilder
         {
             return null;
         }
+    }
+
+    private static string AppendEndpointPath(string candidateUrl, string endpoint)
+    {
+        if (Uri.TryCreate(candidateUrl, UriKind.Absolute, out var uri))
+        {
+            var builder = new UriBuilder(uri);
+            var path = (builder.Path ?? string.Empty).TrimEnd('/');
+
+            if (!path.EndsWith($"/{endpoint}", StringComparison.OrdinalIgnoreCase))
+            {
+                builder.Path = string.IsNullOrEmpty(path) ? $"/{endpoint}" : $"{path}/{endpoint}";
+            }
+            else
+            {
+                builder.Path = path;
+            }
+
+            return builder.Uri.AbsoluteUri;
+        }
+
+        var clean = candidateUrl.TrimEnd('/');
+        return clean.EndsWith($"/{endpoint}", StringComparison.OrdinalIgnoreCase) ? clean : $"{clean}/{endpoint}";
     }
 }
