@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -1408,5 +1409,95 @@ public class TorrentServiceTest
         this.downloadEngine.Received(1).PauseTorrentAsync(51);
         this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentStatusChangedEvent>(e =>
             e.Torrent.Id == 51 && e.OldStatus == TorrentStatus.Downloading && e.NewStatus == TorrentStatus.Paused));
+    }
+
+    [Test]
+    public async Task AddFromParsedTorrentAsync_WhenConcurrentAdditionsOccur_SerializesQueuePositionAllocationAndInsertion()
+    {
+        var currentPosition = 0;
+        var inCriticalSection = 0;
+        var maxConcurrentInCriticalSection = 0;
+
+        this.torrentRepository.GetNextQueuePosition().Returns(_ =>
+        {
+            var concurrent = Interlocked.Increment(ref inCriticalSection);
+            int initialMax;
+            do
+            {
+                initialMax = maxConcurrentInCriticalSection;
+                if (concurrent <= initialMax)
+                {
+                    break;
+                }
+            }
+            while (Interlocked.CompareExchange(ref maxConcurrentInCriticalSection, concurrent, initialMax) != initialMax);
+
+            return Interlocked.Increment(ref currentPosition);
+        });
+
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(callInfo =>
+        {
+            var t = callInfo.Arg<Torrent>();
+            Interlocked.Decrement(ref inCriticalSection);
+            return t;
+        });
+
+        var tasks = Enumerable.Range(1, 20).Select(i =>
+        {
+            var parsed = new ParsedTorrent
+            {
+                Name = $"Torrent {i}",
+                InfoHash = $"{i:D40}",
+            };
+            return this.service.AddFromParsedTorrentAsync(parsed);
+        }).ToArray();
+
+        var results = await Task.WhenAll(tasks);
+
+        maxConcurrentInCriticalSection.Should().Be(1);
+        results.Select(t => t.QueuePosition).OrderBy(p => p).Should().Equal(Enumerable.Range(1, 20));
+    }
+
+    [Test]
+    public async Task AddFromMagnetAsync_WhenConcurrentAdditionsOccur_SerializesQueuePositionAllocationAndInsertion()
+    {
+        var currentPosition = 0;
+        var inCriticalSection = 0;
+        var maxConcurrentInCriticalSection = 0;
+
+        this.torrentRepository.GetNextQueuePosition().Returns(_ =>
+        {
+            var concurrent = Interlocked.Increment(ref inCriticalSection);
+            int initialMax;
+            do
+            {
+                initialMax = maxConcurrentInCriticalSection;
+                if (concurrent <= initialMax)
+                {
+                    break;
+                }
+            }
+            while (Interlocked.CompareExchange(ref maxConcurrentInCriticalSection, concurrent, initialMax) != initialMax);
+
+            return Interlocked.Increment(ref currentPosition);
+        });
+
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(callInfo =>
+        {
+            var t = callInfo.Arg<Torrent>();
+            Interlocked.Decrement(ref inCriticalSection);
+            return t;
+        });
+
+        var tasks = Enumerable.Range(1, 20).Select(i =>
+        {
+            var magnet = $"magnet:?xt=urn:btih:{i:D40}&dn=Torrent{i}";
+            return this.service.AddFromMagnetAsync(magnet);
+        }).ToArray();
+
+        var results = await Task.WhenAll(tasks);
+
+        maxConcurrentInCriticalSection.Should().Be(1);
+        results.Select(t => t.QueuePosition).OrderBy(p => p).Should().Equal(Enumerable.Range(1, 20));
     }
 }

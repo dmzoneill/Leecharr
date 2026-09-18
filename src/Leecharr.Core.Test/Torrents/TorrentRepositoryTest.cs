@@ -3,6 +3,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using FluentAssertions;
 using FluentMigrator.Runner;
 using Microsoft.Data.Sqlite;
@@ -166,5 +167,50 @@ public class TorrentRepositoryTest
         var seedingTorrents = this.repository.GetByStatus(TorrentStatus.Seeding).ToList();
         seedingTorrents.Should().HaveCount(1);
         seedingTorrents[0].Name.Should().Be("Torrent 2");
+    }
+
+    [Test]
+    public async Task Insert_WhenMultipleConcurrentInsertsWithoutQueuePosition_AssignsSequentialUniqueQueuePositions()
+    {
+        var tasks = Enumerable.Range(1, 20).Select(i => Task.Run(() =>
+        {
+            var torrent = new Torrent
+            {
+                Name = $"Concurrent Torrent {i}",
+                InfoHash = $"{i:D40}",
+                Category = "default",
+                Status = TorrentStatus.Downloading,
+                QueuePosition = 0,
+                DateAdded = DateTime.UtcNow,
+            };
+            return this.repository.Insert(torrent);
+        })).ToArray();
+
+        var insertedTorrents = await Task.WhenAll(tasks);
+
+        var queuePositions = insertedTorrents.Select(t => t.QueuePosition).OrderBy(p => p).ToList();
+        queuePositions.Should().HaveCount(20);
+        queuePositions.Distinct().Should().HaveCount(20);
+        queuePositions.Should().Equal(Enumerable.Range(1, 20));
+    }
+
+    [Test]
+    public void UpsertMany_WhenBatchInsertingWithoutQueuePosition_AssignsSequentialUniqueQueuePositions()
+    {
+        var toInsert = Enumerable.Range(1, 10).Select(i => new Torrent
+        {
+            Name = $"Batch Torrent {i}",
+            InfoHash = $"ba{i:D38}",
+            Category = "default",
+            Status = TorrentStatus.Downloading,
+            QueuePosition = 0,
+            DateAdded = DateTime.UtcNow,
+        }).ToList();
+
+        this.repository.UpsertMany(toInsert, null);
+
+        var all = this.repository.All().OrderBy(t => t.QueuePosition).ToList();
+        all.Should().HaveCount(10);
+        all.Select(t => t.QueuePosition).Should().Equal(Enumerable.Range(1, 10));
     }
 }
