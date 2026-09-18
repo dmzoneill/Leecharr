@@ -803,6 +803,98 @@ public class ProwlarrSyncServiceTest
             i.ProwlarrIndexerId == 7));
     }
 
+    [Test]
+    public async Task SyncAllAsync_PreservesReverseProxySubpaths_FromArrRepository()
+    {
+        var requestedUrls = new List<string>();
+        var json = @"[
+          {
+            ""id"": 10,
+            ""name"": ""Proxy Tracker"",
+            ""implementation"": ""Torznab"",
+            ""enable"": true,
+            ""priority"": 25,
+            ""protocol"": ""torrent""
+          }
+        ]";
+
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            requestedUrls.Add(req.RequestUri!.ToString());
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var arrRepo = Substitute.For<IArrConnectionRepository>();
+        var arr = new ArrConnectionDefinition
+        {
+            Id = 1,
+            ArrType = "Prowlarr",
+            Url = "https://media.example.com/prowlarr/",
+            ApiKey = "proxy-key",
+            Enable = true,
+        };
+        arrRepo.GetEnabled().Returns(new List<ArrConnectionDefinition> { arr });
+        this.repository.All().Returns(new List<IndexerDefinition>());
+
+        var service = new ProwlarrSyncService(this.repository, httpClient, arrRepository: arrRepo);
+        var synced = await service.SyncAllAsync();
+
+        synced.Should().Be(1);
+        requestedUrls.Should().Contain("https://media.example.com/prowlarr/api/v1/indexer");
+        requestedUrls.Should().NotContain("https://media.example.com/api/v1/indexer");
+
+        this.repository.Received(1).Insert(Arg.Is<IndexerDefinition>(i =>
+            i.Url == "https://media.example.com/prowlarr/10/api" &&
+            i.Name == "Proxy Tracker"));
+    }
+
+    [Test]
+    public async Task SyncAllAsync_PreservesReverseProxySubpaths_FromExistingIndexerTorznabUrl()
+    {
+        var requestedUrls = new List<string>();
+        var json = @"[
+          {
+            ""id"": 10,
+            ""name"": ""Proxy Tracker"",
+            ""implementation"": ""Torznab"",
+            ""enable"": true,
+            ""priority"": 25,
+            ""protocol"": ""torrent""
+          }
+        ]";
+
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            requestedUrls.Add(req.RequestUri!.ToString());
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var existingIndexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "Existing Prowlarr",
+            Implementation = "Torznab",
+            Url = "https://media.example.com/prowlarr/10/api",
+            ApiKey = "proxy-key",
+        };
+        this.repository.All().Returns(new List<IndexerDefinition> { existingIndexer });
+
+        var service = new ProwlarrSyncService(this.repository, httpClient);
+        var synced = await service.SyncAllAsync();
+
+        synced.Should().Be(1);
+        requestedUrls.Should().Contain("https://media.example.com/prowlarr/api/v1/indexer");
+        requestedUrls.Should().NotContain("https://media.example.com/api/v1/indexer");
+    }
+
     private class MockHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, HttpResponseMessage> handler;
