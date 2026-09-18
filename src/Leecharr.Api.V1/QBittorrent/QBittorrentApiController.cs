@@ -2607,11 +2607,22 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         [FromForm(Name = "limit")] int? formLimit = null,
         [FromForm(Name = "offset")] int? formOffset = null)
     {
-        var searchId = formId ?? id ?? 0;
+        var targetId = formId ?? id;
+        if (!targetId.HasValue)
+        {
+            return this.NotFound();
+        }
+
+        var searchId = targetId.Value;
         var searchLimit = formLimit ?? limit;
         var searchOffset = formOffset ?? offset;
 
         var results = this.qbittorrentSearchService.GetResults(searchId, searchLimit, searchOffset);
+        if (results == null)
+        {
+            return this.NotFound();
+        }
+
         return this.Ok(results);
     }
 
