@@ -4,19 +4,23 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Network;
+using NzbDrone.Core.Network.Vpn;
 
 namespace NzbDrone.Core.Http.Transport;
 
-public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportManager, IHandle<ConfigSavedEvent>, IDisposable
+public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportManager, IHandle<ConfigSavedEvent>, IHandle<VpnKillSwitchTriggeredEvent>, IHandle<VpnInterfaceRestoredEvent>, IDisposable
 {
     private readonly IEnumerable<IHttpTransportProvider> availableProviders;
     private readonly IConfigService configService;
     private readonly IEventAggregator eventAggregator;
+    private readonly IVpnKillSwitchService vpnKillSwitchService;
     private readonly Logger logger;
     private readonly SemaphoreSlim switchLock = new(1, 1);
     private IHttpTransportProvider activeProvider;
@@ -29,11 +33,13 @@ public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportMan
     public DynamicHttpTransportProxy(
         IEnumerable<IHttpTransportProvider> availableProviders,
         IConfigService configService,
-        IEventAggregator eventAggregator)
+        IEventAggregator eventAggregator,
+        IVpnKillSwitchService vpnKillSwitchService = null)
     {
         this.availableProviders = availableProviders ?? Enumerable.Empty<IHttpTransportProvider>();
         this.configService = configService;
         this.eventAggregator = eventAggregator;
+        this.vpnKillSwitchService = vpnKillSwitchService;
         this.logger = LogManager.GetCurrentClassLogger();
 
         var desiredProviderId = this.configService?.ActiveHttpTransportProvider;
@@ -180,6 +186,11 @@ public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportMan
             throw new ArgumentNullException(nameof(request));
         }
 
+        if (this.vpnKillSwitchService?.IsFailClosedActive == true)
+        {
+            throw new SocketException((int)SocketError.NetworkUnreachable);
+        }
+
         var currentProvider = Volatile.Read(ref this.activeProvider);
         if (currentProvider is FlareSolverrTransportProvider ||
             string.Equals(currentProvider.ProviderId, "FlareSolverr", StringComparison.OrdinalIgnoreCase))
@@ -303,6 +314,16 @@ public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportMan
                 }
             });
         }
+    }
+
+    public void Handle(VpnKillSwitchTriggeredEvent message)
+    {
+        this.logger.Warn("VPN kill switch triggered on interface '{0}'. Outbound HTTP transport requests will fail closed.", message?.InterfaceName);
+    }
+
+    public void Handle(VpnInterfaceRestoredEvent message)
+    {
+        this.logger.Info("VPN interface '{0}' restored. Outbound HTTP transport resumed.", message?.InterfaceName);
     }
 
     public void Dispose()
