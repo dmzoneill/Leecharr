@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.15.3](https://github.com/dmzoneill/Leecharr/releases/tag/v1.15.3) - 2026-09-18
+
+### 🐛 Bug Fixes
+- fix(deluge): preserve add_torrent options and return structured error on failure (fixes #841)
+- fix(extraction): reject unrar non-zero exits, clean up partial extraction files, and dispatch automation extractions (fixes #840)
+
 ## [v1.15.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.15.2) - 2026-09-18
 
 ### ✨ Features
