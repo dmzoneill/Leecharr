@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -25,6 +26,7 @@ public class AppLifetime : IHostedService, IDisposable
     private readonly IAppLifetimeServices services;
     private readonly TimeSpan backgroundLoopInterval;
     private readonly Logger logger;
+    private readonly ConcurrentDictionary<int, bool> superSeedingTorrents = new();
     private CancellationTokenSource cts;
     private Task backgroundLoopTask;
     private Task rssLoopTask;
@@ -428,26 +430,56 @@ public class AppLifetime : IHostedService, IDisposable
 
                                         if (string.Equals(shareAction, "RemoveWithData", StringComparison.OrdinalIgnoreCase))
                                         {
-                                            this.services.EventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
-                                            this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Removing torrent and deleting data files.", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
-                                            await this.services.TorrentService.DeleteAsync(torrent.Id, deleteFiles: true);
+                                            if (!torrent.IsImported)
+                                            {
+                                                this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m), but Servarr import is pending. Pausing seeding and deferring removal until Servarr import completes.", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
+                                                await this.services.TorrentService.PauseAsync(torrent.Id);
+                                            }
+                                            else
+                                            {
+                                                this.services.EventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
+                                                this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Removing torrent and deleting data files.", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
+                                                await this.services.TorrentService.DeleteAsync(torrent.Id, deleteFiles: true);
+                                            }
                                         }
                                         else if (string.Equals(shareAction, "Remove", StringComparison.OrdinalIgnoreCase))
                                         {
-                                            this.services.EventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
-                                            this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Removing torrent (preserving data).", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
-                                            await this.services.TorrentService.DeleteAsync(torrent.Id, deleteFiles: false);
+                                            if (!torrent.IsImported)
+                                            {
+                                                this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m), but Servarr import is pending. Pausing seeding and deferring removal until Servarr import completes.", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
+                                                await this.services.TorrentService.PauseAsync(torrent.Id);
+                                            }
+                                            else
+                                            {
+                                                this.services.EventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
+                                                this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Removing torrent (preserving data).", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
+                                                await this.services.TorrentService.DeleteAsync(torrent.Id, deleteFiles: false);
+                                            }
                                         }
                                         else if (string.Equals(shareAction, "SuperSeeding", StringComparison.OrdinalIgnoreCase))
                                         {
-                                            if (torrent.InitialSeeding)
+                                            var matchingTask = tasks?.FirstOrDefault(t => t.TorrentId == torrent.Id);
+                                            var isSuperSeeding = matchingTask?.IsSuperSeeding ?? torrent.InitialSeeding;
+
+                                            if (isSuperSeeding)
                                             {
+                                                this.superSeedingTorrents.TryAdd(torrent.Id, true);
                                                 continue;
                                             }
 
-                                            this.services.EventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
-                                            this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Enabling super seeding mode.", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
-                                            await this.services.TorrentService.SetSuperSeedingAsync(torrent.Id, true);
+                                            if (this.superSeedingTorrents.TryRemove(torrent.Id, out _))
+                                            {
+                                                this.services.EventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
+                                                this.logger.Info("Torrent {0} reached seed goal and completed super seeding mode. Pausing seeding.", torrent.Name);
+                                                await this.services.TorrentService.PauseAsync(torrent.Id);
+                                            }
+                                            else
+                                            {
+                                                this.services.EventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
+                                                this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Enabling super seeding mode.", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
+                                                this.superSeedingTorrents.TryAdd(torrent.Id, true);
+                                                await this.services.TorrentService.SetSuperSeedingAsync(torrent.Id, true);
+                                            }
                                         }
                                         else
                                         {
