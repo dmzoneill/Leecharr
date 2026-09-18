@@ -494,6 +494,8 @@ public class MediaInspectionServiceTest
     [TestCase("sample.avi", "AVI")]
     [TestCase("sample.flac", "FLAC")]
     [TestCase("sample.mp3", "MP3")]
+    [TestCase("sample.iso", "ISO")]
+    [TestCase("sample.img", "ISO")]
     public void InspectByFileName_SupportedExtensions_ReturnsContainerFormat(string fileName, string expectedContainer)
     {
         var info = TagLibInspectorProvider.InspectByFileName(fileName);
@@ -503,7 +505,7 @@ public class MediaInspectionServiceTest
 
     [TestCase("sample.txt")]
     [TestCase("sample.exe")]
-    [TestCase("sample.iso")]
+    [TestCase("sample.pdf")]
     [TestCase("")]
     [TestCase(null)]
     public void InspectByFileName_UnsupportedExtensionsOrNull_ReturnsNull(string fileName)

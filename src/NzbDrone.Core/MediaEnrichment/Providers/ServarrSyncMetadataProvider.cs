@@ -906,7 +906,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         var text = Regex.Replace(raw, @"(\b(?:[A-Za-z]\.){1,}[A-Za-z]\.)(?=\d{4}\b)", "$1 ");
 
         // Protect internal abbreviation dots by replacing with placeholder
-        text = Regex.Replace(text, @"\b(?:[A-Za-z]\.){1,}[A-Za-z]\.?", m => m.Value.Replace('.', '\uE000'));
+        text = Regex.Replace(text, @"\b[A-Za-z](?:\.[A-Za-z])+\.?\b", m => m.Value.Replace('.', '\uE000'));
 
         var clean = Regex.Replace(text, @"[._]", " ");
         clean = clean.Replace('\uE000', '.');
