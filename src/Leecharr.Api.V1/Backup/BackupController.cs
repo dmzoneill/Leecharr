@@ -660,7 +660,8 @@ public class BackupController : Controller
         }
     }
 
-    public string ResolveBackupPhysicalPath(string fileNameOrPath)
+    [NonAction]
+    private string ResolveBackupPhysicalPath(string fileNameOrPath)
     {
         if (string.IsNullOrWhiteSpace(fileNameOrPath))
         {
