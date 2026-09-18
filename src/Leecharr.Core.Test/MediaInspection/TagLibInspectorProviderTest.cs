@@ -703,6 +703,144 @@ public class TagLibInspectorProviderTest
     }
 
     [Test]
+    public void Inspect_IsoStreamWithCd001Descriptor_ReturnsIsoContainer()
+    {
+        var isoData = CreateIsoHeader("CD001", 32768, 0x01);
+        using var ms = new MemoryStream(isoData);
+
+        var result = this.provider.Inspect(ms, "movie.unknown");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("ISO");
+    }
+
+    [Test]
+    public void Inspect_UdfStreamWithBea01Descriptor_ReturnsIsoContainer()
+    {
+        var udfData = CreateIsoHeader("BEA01", 32768, 0x00);
+        using var ms = new MemoryStream(udfData);
+
+        var result = this.provider.Inspect(ms, "movie.unknown");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("ISO");
+    }
+
+    [Test]
+    public void Inspect_UdfStreamWithNsr02Descriptor_ReturnsIsoContainer()
+    {
+        var udfData = CreateIsoHeader("NSR02", 32768, 0x00);
+        using var ms = new MemoryStream(udfData);
+
+        var result = this.provider.Inspect(ms, "disc.unknown");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("ISO");
+    }
+
+    [Test]
+    public void Inspect_UdfStreamWithNsr03Descriptor_ReturnsIsoContainer()
+    {
+        var udfData = CreateIsoHeader("NSR03", 32768, 0x00);
+        using var ms = new MemoryStream(udfData);
+
+        var result = this.provider.Inspect(ms, "disc.unknown");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("ISO");
+    }
+
+    [Test]
+    public void InspectByFileName_WithIsoExtension_ReturnsIsoContainer()
+    {
+        var result = TagLibInspectorProvider.InspectByFileName("My.Movie.2023.1080p.iso");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("ISO");
+        result.Resolution.Should().Be("1080p");
+    }
+
+    [Test]
+    public void InspectByFileName_WithImgExtension_ReturnsIsoContainer()
+    {
+        var result = TagLibInspectorProvider.InspectByFileName("disc_backup.img");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("ISO");
+    }
+
+    [Test]
+    public void Inspect_Matroska_ExtractsSubtitleLanguagesFromEbmlTracks()
+    {
+        var subTracks = new (string, string, string, string)[]
+        {
+            ("S_TEXT/UTF8", "eng", null, null),
+            ("S_TEXT/UTF8", "fre", null, null),
+            ("S_HDMV/PGS", "eng", null, "Full Commentary"),
+        };
+
+        var ebmlData = CreateMatroskaHeaderWithSubtitles("V_MPEGH/ISO/HEVC", 1920, 1080, subTracks);
+        using var ms = new MemoryStream(ebmlData);
+
+        var result = this.provider.Inspect(ms, "movie.mkv");
+
+        result.Should().NotBeNull();
+        result.SubtitleTracks.Should().HaveCount(3);
+        result.SubtitleTracks.Should().ContainInOrder("eng", "fre", "eng (Full Commentary)");
+    }
+
+    [Test]
+    public void Inspect_Matroska_SubtitleWithLanguageIetf_ExtractsIetfLanguage()
+    {
+        var subTracks = new (string, string, string, string)[]
+        {
+            ("S_TEXT/UTF8", "und", "en-US", null),
+        };
+
+        var ebmlData = CreateMatroskaHeaderWithSubtitles("V_MPEGH/ISO/HEVC", 1920, 1080, subTracks);
+        using var ms = new MemoryStream(ebmlData);
+
+        var result = this.provider.Inspect(ms, "movie.mkv");
+
+        result.Should().NotBeNull();
+        result.SubtitleTracks.Should().ContainSingle().Which.Should().Be("en-US");
+    }
+
+    [Test]
+    public void Inspect_Matroska_MultiAudioStreams_PreservesPrimaryAudioChannels()
+    {
+        var audioTracks = new (string, int)[]
+        {
+            ("A_TRUEHD", 8),
+            ("A_AC3", 2),
+        };
+
+        var ebmlData = CreateMultiTrackMatroskaHeader("matroska", "V_MPEGH/ISO/HEVC", 1920, 1080, audioTracks, null);
+        using var ms = new MemoryStream(ebmlData);
+
+        var result = this.provider.Inspect(ms, "movie.mkv");
+
+        result.Should().NotBeNull();
+        result.AudioCodec.Should().Be("Dolby TrueHD");
+        result.AudioChannels.Should().Be("7.1");
+    }
+
+    [Test]
+    public void ReadEbmlUInt_LengthGreaterThan8_ClampsTo8BytesAndAvoidsBitShiftOverflow()
+    {
+        var allOnes = new byte[16];
+        Array.Fill(allOnes, (byte)0xFF);
+
+        var result = TagLibInspectorProvider.ReadEbmlUInt(allOnes, 0, 16);
+
+        result.Should().Be(ulong.MaxValue);
+
+        var sequential = new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A };
+        var seqResult = TagLibInspectorProvider.ReadEbmlUInt(sequential, 0, 10);
+        seqResult.Should().Be(0x0102030405060708UL);
+    }
+
+    [Test]
     public void Inspect_Mp4WithMultipleAudioAndSubtitleTracks_PreservesPrimaryAudioAndPopulatesSubtitleTracks()
     {
         var ftyp = CreateMp4Box("ftyp", Encoding.ASCII.GetBytes("isom\0\0\x02\0isommp41"));
@@ -1972,6 +2110,12 @@ public class TagLibInspectorProviderTest
             stream.WriteByte((byte)(id >> 8));
             stream.WriteByte((byte)(id & 0xFF));
         }
+        else if (id <= 0xFFFFFF)
+        {
+            stream.WriteByte((byte)(id >> 16));
+            stream.WriteByte((byte)((id >> 8) & 0xFF));
+            stream.WriteByte((byte)(id & 0xFF));
+        }
         else
         {
             stream.WriteByte((byte)(id >> 24));
@@ -2445,6 +2589,82 @@ public class TagLibInspectorProviderTest
         ms.Write(BitConverter.GetBytes((uint)(riffPayload.Length + 4)));
         ms.Write(Encoding.ASCII.GetBytes("AVI "));
         ms.Write(riffPayload);
+
+        return ms.ToArray();
+    }
+
+    private static byte[] CreateIsoHeader(string identifier, int offset = 32768, byte descriptorType = 0x01)
+    {
+        var data = new byte[offset + 2048];
+        data[offset] = descriptorType;
+        var idBytes = Encoding.ASCII.GetBytes(identifier);
+        Array.Copy(idBytes, 0, data, offset + 1, idBytes.Length);
+        return data;
+    }
+
+    private static byte[] CreateMatroskaHeaderWithSubtitles(
+        string videoCodecId,
+        int width,
+        int height,
+        (string, string, string, string)[] subTracks)
+    {
+        using var ms = new MemoryStream();
+
+        using (var ebmlMs = new MemoryStream())
+        {
+            WriteEbmlString(ebmlMs, 0x4282, "matroska");
+            var ebmlPayload = ebmlMs.ToArray();
+
+            WriteId(ms, 0x1A45DFA3);
+            WriteSize(ms, ebmlPayload.Length);
+            ms.Write(ebmlPayload);
+        }
+
+        WriteId(ms, 0x18538067);
+        WriteSize(ms, -1);
+
+        WriteId(ms, 0x1654AE6B);
+        WriteSize(ms, -1);
+
+        // Video
+        WriteId(ms, 0xAE);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0x83, 1);
+        WriteEbmlString(ms, 0x86, videoCodecId);
+        WriteId(ms, 0xE0);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0xB0, (ulong)width);
+        WriteEbmlUInt(ms, 0xBA, (ulong)height);
+
+        // Subtitles
+        if (subTracks != null)
+        {
+            foreach (var (codecId, language, languageIetf, name) in subTracks)
+            {
+                WriteId(ms, 0xAE);
+                WriteSize(ms, -1);
+                WriteEbmlUInt(ms, 0x83, 17);
+                if (!string.IsNullOrEmpty(codecId))
+                {
+                    WriteEbmlString(ms, 0x86, codecId);
+                }
+
+                if (!string.IsNullOrEmpty(language))
+                {
+                    WriteEbmlString(ms, 0x22B59C, language);
+                }
+
+                if (!string.IsNullOrEmpty(languageIetf))
+                {
+                    WriteEbmlString(ms, 0x22B59D, languageIetf);
+                }
+
+                if (!string.IsNullOrEmpty(name))
+                {
+                    WriteEbmlString(ms, 0x536E, name);
+                }
+            }
+        }
 
         return ms.ToArray();
     }
