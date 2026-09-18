@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Indexers;
@@ -898,5 +899,41 @@ public class IndexerControllerTest
         var result = await this.controller.DownloadRelease(request);
 
         result.Result.Should().BeOfType<OkObjectResult>();
+    }
+
+    [Test]
+    public async Task DownloadRelease_WhenDownloadUrlEndsWithNzb_ReturnsBadRequest()
+    {
+        var request = new DownloadReleaseRequest
+        {
+            Title = "Usenet Release",
+            DownloadUrl = "http://indexer.local/api?t=get&id=123.nzb",
+        };
+
+        var result = await this.controller.DownloadRelease(request);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+        var badRequest = (BadRequestObjectResult)result.Result!;
+        badRequest.Value.Should().Be("Usenet/NZB releases are not supported. Leecharr is a BitTorrent engine.");
+    }
+
+    [Test]
+    public async Task DownloadRelease_WhenPayloadIsXmlNzb_ReturnsBadRequest()
+    {
+        var request = new DownloadReleaseRequest
+        {
+            Title = "Usenet XML Release",
+            DownloadUrl = "http://indexer.local/download/123",
+        };
+
+        var xmlBytes = Encoding.UTF8.GetBytes("<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n<nzb xmlns=\"...\">");
+        this.safeHttpClientService.DownloadBytesAsync("http://indexer.local/download/123")
+            .Returns(Task.FromResult(xmlBytes));
+
+        var result = await this.controller.DownloadRelease(request);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+        var badRequest = (BadRequestObjectResult)result.Result!;
+        badRequest.Value!.ToString().Should().Contain("XML/NZB");
     }
 }
