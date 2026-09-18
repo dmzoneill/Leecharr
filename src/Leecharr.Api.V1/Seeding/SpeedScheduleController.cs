@@ -75,9 +75,14 @@ public class SpeedScheduleController : RestControllerWithSignalR<SpeedScheduleRe
             return this.BadRequest("Schedule name is required.");
         }
 
-        if (resource.MaxDownloadSpeed < 0 || resource.MaxUploadSpeed < 0)
+        if (resource.MaxDownloadSpeed < -1 || resource.MaxUploadSpeed < -1)
         {
-            return this.BadRequest("Speed limits must be non-negative.");
+            return this.BadRequest("Speed limits must be -1 (paused) or non-negative (0 for unlimited, >0 for throttled).");
+        }
+
+        if (resource.Days < 1 || resource.Days > 127)
+        {
+            return this.BadRequest("Days bitmask must be between 1 and 127 (at least one valid day must be selected).");
         }
 
         if (!TimeOnly.TryParse(resource.StartTime, CultureInfo.InvariantCulture, out _) ||
@@ -106,9 +111,14 @@ public class SpeedScheduleController : RestControllerWithSignalR<SpeedScheduleRe
             return this.BadRequest("Schedule name is required.");
         }
 
-        if (resource.MaxDownloadSpeed < 0 || resource.MaxUploadSpeed < 0)
+        if (resource.MaxDownloadSpeed < -1 || resource.MaxUploadSpeed < -1)
         {
-            return this.BadRequest("Speed limits must be non-negative.");
+            return this.BadRequest("Speed limits must be -1 (paused) or non-negative (0 for unlimited, >0 for throttled).");
+        }
+
+        if (resource.Days < 1 || resource.Days > 127)
+        {
+            return this.BadRequest("Days bitmask must be between 1 and 127 (at least one valid day must be selected).");
         }
 
         if (!TimeOnly.TryParse(resource.StartTime, CultureInfo.InvariantCulture, out _) ||

@@ -352,4 +352,153 @@ public class SpeedScheduleControllerTest
         var action = () => this.controller.Handle(null!);
         action.Should().NotThrow();
     }
+
+    [Test]
+    public async Task Create_WithMinusOneSpeedLimits_SucceedsAndAppliesLimits()
+    {
+        var inputResource = new SpeedScheduleResource
+        {
+            Name = "Paused Schedule",
+            Days = 127,
+            StartTime = "02:00:00",
+            EndTime = "07:00:00",
+            MaxDownloadSpeed = -1,
+            MaxUploadSpeed = -1,
+            IsEnabled = true,
+            Priority = 1,
+        };
+
+        this.repository.Insert(Arg.Any<SpeedSchedule>()).Returns(callInfo =>
+        {
+            var m = callInfo.Arg<SpeedSchedule>();
+            m.Id = 11;
+            return m;
+        });
+
+        var actionResult = await this.controller.Create(inputResource);
+        var okResult = actionResult.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var created = okResult.Value.Should().BeOfType<SpeedScheduleResource>().Subject;
+
+        created.Id.Should().Be(11);
+        created.MaxDownloadSpeed.Should().Be(-1);
+        created.MaxUploadSpeed.Should().Be(-1);
+        await this.schedulerService.Received(1).ApplyCurrentLimitsAsync();
+    }
+
+    [Test]
+    public async Task Update_WithMinusOneSpeedLimits_SucceedsAndAppliesLimits()
+    {
+        var existing = new SpeedSchedule
+        {
+            Id = 4,
+            Name = "Existing Schedule",
+            Days = 127,
+            StartTime = "00:00:00",
+            EndTime = "12:00:00",
+        };
+
+        this.repository.Get(4).Returns(existing);
+
+        var updateResource = new SpeedScheduleResource
+        {
+            Name = "Paused Update",
+            Days = 62,
+            StartTime = "08:00:00",
+            EndTime = "18:00:00",
+            MaxDownloadSpeed = -1,
+            MaxUploadSpeed = -1,
+            IsEnabled = true,
+            Priority = 2,
+        };
+
+        var actionResult = await this.controller.Update(4, updateResource);
+        var okResult = actionResult.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var updated = okResult.Value.Should().BeOfType<SpeedScheduleResource>().Subject;
+
+        updated.Id.Should().Be(4);
+        updated.MaxDownloadSpeed.Should().Be(-1);
+        updated.MaxUploadSpeed.Should().Be(-1);
+        this.repository.Received(1).Update(Arg.Is<SpeedSchedule>(s => s.Id == 4 && s.MaxDownloadSpeed == -1 && s.MaxUploadSpeed == -1));
+        await this.schedulerService.Received(1).ApplyCurrentLimitsAsync();
+    }
+
+    [TestCase(0)]
+    [TestCase(128)]
+    [TestCase(-1)]
+    public async Task Create_WithDaysOutOfRange_ReturnsBadRequest(int days)
+    {
+        var resource = new SpeedScheduleResource
+        {
+            Name = "Invalid Days",
+            Days = days,
+            StartTime = "00:00:00",
+            EndTime = "12:00:00",
+            MaxDownloadSpeed = 1000,
+            MaxUploadSpeed = 500,
+        };
+
+        var actionResult = await this.controller.Create(resource);
+        var badResult = actionResult.Result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        badResult.Value.Should().Be("Days bitmask must be between 1 and 127 (at least one valid day must be selected).");
+    }
+
+    [TestCase(0)]
+    [TestCase(128)]
+    [TestCase(-1)]
+    public async Task Update_WithDaysOutOfRange_ReturnsBadRequest(int days)
+    {
+        var resource = new SpeedScheduleResource
+        {
+            Name = "Invalid Days",
+            Days = days,
+            StartTime = "00:00:00",
+            EndTime = "12:00:00",
+            MaxDownloadSpeed = 1000,
+            MaxUploadSpeed = 500,
+        };
+
+        var actionResult = await this.controller.Update(1, resource);
+        var badResult = actionResult.Result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        badResult.Value.Should().Be("Days bitmask must be between 1 and 127 (at least one valid day must be selected).");
+    }
+
+    [TestCase(-2, 1000)]
+    [TestCase(1000, -2)]
+    [TestCase(-10, -10)]
+    public async Task Create_WithSpeedLimitLessThanMinusOne_ReturnsBadRequest(int downloadSpeed, int uploadSpeed)
+    {
+        var resource = new SpeedScheduleResource
+        {
+            Name = "Invalid Speed",
+            Days = 127,
+            StartTime = "00:00:00",
+            EndTime = "12:00:00",
+            MaxDownloadSpeed = downloadSpeed,
+            MaxUploadSpeed = uploadSpeed,
+        };
+
+        var actionResult = await this.controller.Create(resource);
+        var badResult = actionResult.Result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        badResult.Value.Should().Be("Speed limits must be -1 (paused) or non-negative (0 for unlimited, >0 for throttled).");
+    }
+
+    [TestCase(-2, 1000)]
+    [TestCase(1000, -2)]
+    [TestCase(-10, -10)]
+    public async Task Update_WithSpeedLimitLessThanMinusOne_ReturnsBadRequest(int downloadSpeed, int uploadSpeed)
+    {
+        var resource = new SpeedScheduleResource
+        {
+            Name = "Invalid Speed",
+            Days = 127,
+            StartTime = "00:00:00",
+            EndTime = "12:00:00",
+            MaxDownloadSpeed = downloadSpeed,
+            MaxUploadSpeed = uploadSpeed,
+        };
+
+        var actionResult = await this.controller.Update(1, resource);
+        var badResult = actionResult.Result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        badResult.Value.Should().Be("Speed limits must be -1 (paused) or non-negative (0 for unlimited, >0 for throttled).");
+    }
 }
