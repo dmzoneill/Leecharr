@@ -1702,6 +1702,36 @@ public class TorznabClientTest
     }
 
     [Test]
+    public async Task SearchAsync_WhenCancellationRequested_ThrowsOperationCanceledException()
+    {
+        var handler = new TestHttpMessageHandler(req => new HttpResponseMessage(HttpStatusCode.OK));
+        var clientWithHandler = new TorznabClient(new HttpClient(handler));
+        var indexer = new IndexerDefinition { Name = "CanceledIndexer", Url = "http://indexer.local/api" };
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => clientWithHandler.SearchAsync(indexer, "test", cancellationToken: cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Test]
+    public async Task FetchRssAsync_WhenCancellationRequested_ThrowsOperationCanceledException()
+    {
+        var handler = new TestHttpMessageHandler(req => new HttpResponseMessage(HttpStatusCode.OK));
+        var clientWithHandler = new TorznabClient(new HttpClient(handler));
+        var indexer = new IndexerDefinition { Name = "CanceledIndexer", Url = "http://indexer.local/api" };
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => clientWithHandler.FetchRssAsync(indexer, cancellationToken: cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Test]
     public void ParseTorznabFeedXml_WhenEnclosureLengthIsZero_FallsBackToSizeElement()
     {
         var xml = @"<rss version=""2.0"">
@@ -1772,6 +1802,7 @@ public class TorznabClientTest
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(this.handler(request));
         }
     }
