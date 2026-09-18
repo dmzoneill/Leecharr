@@ -475,27 +475,12 @@ public class DelugeJsonRpcController : ControllerBase
 
     private IActionResult HandleLabelGetTorrents(JsonElement paramsElem, object id)
     {
-        {
-            var targetLabel = GetFirstStringParam(paramsElem);
-            var allLabelTorrents = this.torrentService.GetAll();
-            IEnumerable<Torrent> matching;
-            if (targetLabel == null || string.Equals(targetLabel, "All", StringComparison.OrdinalIgnoreCase))
-            {
-                matching = allLabelTorrents;
-            }
-            else if (string.IsNullOrEmpty(targetLabel) || string.Equals(targetLabel, "no_label", StringComparison.OrdinalIgnoreCase) || string.Equals(targetLabel, "None", StringComparison.OrdinalIgnoreCase))
-            {
-                matching = allLabelTorrents.Where(t => string.IsNullOrWhiteSpace(t.Category) && string.IsNullOrWhiteSpace(t.Label));
-            }
-            else
-            {
-                matching = allLabelTorrents.Where(t => string.Equals(t.Category, targetLabel, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(t.Label, targetLabel, StringComparison.OrdinalIgnoreCase));
-            }
+        var targetLabel = GetFirstStringParam(paramsElem);
+        var allLabelTorrents = this.torrentService.GetAll();
+        var matching = allLabelTorrents.Where(t => MatchesLabel(t, targetLabel));
 
-            var torrentHashes = matching.Select(t => t.InfoHash.ToLowerInvariant()).ToArray();
-            return this.DelugeResult(new { result = torrentHashes, error = (object)null, id });
-        }
+        var torrentHashes = matching.Select(t => t.InfoHash.ToLowerInvariant()).ToArray();
+        return this.DelugeResult(new { result = torrentHashes, error = (object)null, id });
     }
 
     private IActionResult HandleLabelAdd(JsonElement paramsElem, object id)
@@ -1997,12 +1982,16 @@ public class DelugeJsonRpcController : ControllerBase
             new object[] { "Error", allTorrents.Count(t => t.Status == TorrentStatus.Error) },
         };
 
-        var trackerHosts = allTorrents
+        var trackerHosts = new List<object[]>
+        {
+            new object[] { "All", allTorrents.Count },
+        };
+
+        trackerHosts.AddRange(allTorrents
             .Select(GetTrackerHost)
             .Where(h => !string.IsNullOrWhiteSpace(h))
             .GroupBy(h => h, StringComparer.OrdinalIgnoreCase)
-            .Select(g => new object[] { g.Key, g.Count() })
-            .ToList();
+            .Select(g => new object[] { g.Key, g.Count() }));
 
         var unlabelledCount = allTorrents.Count(t => string.IsNullOrWhiteSpace(t.Category) && string.IsNullOrWhiteSpace(t.Label));
         var labels = new List<object[]>
@@ -2011,12 +2000,50 @@ public class DelugeJsonRpcController : ControllerBase
             new object[] { "None", unlabelledCount },
         };
 
-        var categories = this.categoryService.GetAll();
-        foreach (var c in categories)
+        var labelNames = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            var count = allTorrents.Count(t => string.Equals(t.Category, c.Name, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(t.Label, c.Name, StringComparison.OrdinalIgnoreCase));
-            labels.Add(new object[] { c.Name, count });
+            "All",
+            "None",
+            "no_label",
+        };
+
+        var categories = this.categoryService.GetAll();
+        if (categories != null)
+        {
+            foreach (var c in categories)
+            {
+                if (!string.IsNullOrWhiteSpace(c?.Name) && seen.Add(c.Name.Trim()))
+                {
+                    labelNames.Add(c.Name.Trim());
+                }
+            }
+        }
+
+        foreach (var t in allTorrents)
+        {
+            if (!string.IsNullOrWhiteSpace(t.Category) && seen.Add(t.Category.Trim()))
+            {
+                labelNames.Add(t.Category.Trim());
+            }
+
+            if (!string.IsNullOrWhiteSpace(t.Label))
+            {
+                var parts = t.Label.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                foreach (var part in parts)
+                {
+                    if (seen.Add(part))
+                    {
+                        labelNames.Add(part);
+                    }
+                }
+            }
+        }
+
+        foreach (var labelName in labelNames)
+        {
+            var count = allTorrents.Count(t => MatchesLabel(t, labelName));
+            labels.Add(new object[] { labelName, count });
         }
 
         var owners = new List<object[]>
@@ -2218,18 +2245,29 @@ public class DelugeJsonRpcController : ControllerBase
 
     private static bool MatchesLabel(Torrent t, string label)
     {
-        if (label == null || string.Equals(label, "All", StringComparison.OrdinalIgnoreCase))
+        if (label == null || string.Equals(label.Trim(), "All", StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
 
-        if (string.IsNullOrEmpty(label) || string.Equals(label, "None", StringComparison.OrdinalIgnoreCase) || string.Equals(label, "no_label", StringComparison.OrdinalIgnoreCase))
+        var trimmed = label.Trim();
+        if (string.IsNullOrEmpty(trimmed) || string.Equals(trimmed, "None", StringComparison.OrdinalIgnoreCase) || string.Equals(trimmed, "no_label", StringComparison.OrdinalIgnoreCase))
         {
             return string.IsNullOrWhiteSpace(t.Category) && string.IsNullOrWhiteSpace(t.Label);
         }
 
-        return string.Equals(t.Category, label, StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(t.Label, label, StringComparison.OrdinalIgnoreCase);
+        if (string.Equals(t.Category, trimmed, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(t.Label))
+        {
+            var parts = t.Label.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return parts.Any(p => string.Equals(p, trimmed, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return false;
     }
 
     private static bool MatchesState(Torrent t, string state)
