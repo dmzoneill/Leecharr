@@ -363,6 +363,8 @@ public class TransmissionRpcControllerTest
         context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
         this.controller.ControllerContext = new ControllerContext { HttpContext = context };
 
+        this.diskProvider.FolderExists("/downloads/target").Returns(true);
+
         var args = new System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>();
         using var idsDoc = System.Text.Json.JsonDocument.Parse("[42]");
         using var locDoc = System.Text.Json.JsonDocument.Parse("\"/downloads/target\"");
@@ -382,13 +384,15 @@ public class TransmissionRpcControllerTest
     }
 
     [Test]
-    public async Task HandleRpc_TorrentSetLocation_WithoutMoveSpecified_DefaultsToMoveTrue()
+    public async Task HandleRpc_TorrentSetLocation_WithoutMoveSpecified_DefaultsToMoveFalse()
     {
         var context = new DefaultHttpContext();
         var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
         context.Request.Headers["Authorization"] = $"Basic {credentials}";
         context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
         this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.diskProvider.FolderExists("/downloads/target").Returns(true);
 
         var args = new System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>();
         using var idsDoc = System.Text.Json.JsonDocument.Parse("[42]");
@@ -403,7 +407,120 @@ public class TransmissionRpcControllerTest
         });
 
         result.Should().BeOfType<OkObjectResult>();
-        await this.torrentService.Received(1).SetLocationAsync(42, "/downloads/target", true);
+        await this.torrentService.Received(1).SetLocationAsync(42, "/downloads/target", false);
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentSetLocation_WithMissingLocation_ReturnsNoLocationGiven()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var args = new System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>();
+        using var idsDoc = System.Text.Json.JsonDocument.Parse("[42]");
+        args["ids"] = idsDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set-location",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var rpcResponse = (TransmissionRpcResponse)((OkObjectResult)result).Value!;
+        rpcResponse.Result.Should().Be("no location given");
+        await this.torrentService.DidNotReceive().SetLocationAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentSetLocation_WithEmptyLocation_ReturnsNoLocationGiven()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var args = new System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>();
+        using var idsDoc = System.Text.Json.JsonDocument.Parse("[42]");
+        using var locDoc = System.Text.Json.JsonDocument.Parse("\"   \"");
+        args["ids"] = idsDoc.RootElement.Clone();
+        args["location"] = locDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set-location",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var rpcResponse = (TransmissionRpcResponse)((OkObjectResult)result).Value!;
+        rpcResponse.Result.Should().Be("no location given");
+        await this.torrentService.DidNotReceive().SetLocationAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentSetLocation_WithNonExistentDirectoryAndMoveFalse_ReturnsDirectoryDoesNotExist()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.diskProvider.FolderExists("/nonexistent/directory").Returns(false);
+
+        var args = new System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>();
+        using var idsDoc = System.Text.Json.JsonDocument.Parse("[42]");
+        using var locDoc = System.Text.Json.JsonDocument.Parse("\"/nonexistent/directory\"");
+        using var moveDoc = System.Text.Json.JsonDocument.Parse("false");
+        args["ids"] = idsDoc.RootElement.Clone();
+        args["location"] = locDoc.RootElement.Clone();
+        args["move"] = moveDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set-location",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var rpcResponse = (TransmissionRpcResponse)((OkObjectResult)result).Value!;
+        rpcResponse.Result.Should().Be("directory does not exist: /nonexistent/directory");
+        await this.torrentService.DidNotReceive().SetLocationAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentSetLocation_WithRelativePath_ResolvesAgainstDownloadDir()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.DownloadDir.Returns("/downloads");
+
+        var args = new System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>();
+        using var idsDoc = System.Text.Json.JsonDocument.Parse("[42]");
+        using var locDoc = System.Text.Json.JsonDocument.Parse("\"relative/subfolder\"");
+        using var moveDoc = System.Text.Json.JsonDocument.Parse("true");
+        args["ids"] = idsDoc.RootElement.Clone();
+        args["location"] = locDoc.RootElement.Clone();
+        args["move"] = moveDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set-location",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var expectedPath = Path.GetFullPath(Path.Combine("/downloads", "relative/subfolder"));
+        await this.torrentService.Received(1).SetLocationAsync(42, expectedPath, true);
     }
 
     [Test]
