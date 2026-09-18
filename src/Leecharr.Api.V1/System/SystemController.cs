@@ -2,6 +2,7 @@
 
 using System;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using Dapper;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -114,12 +115,44 @@ public class SystemController : ControllerBase
             IsLinux = OsInfo.IsLinux,
             IsWindows = OsInfo.IsWindows,
             IsOsx = OsInfo.IsOsx,
-            AppDataFolder = this.appFolderInfo?.AppDataFolder,
-            StartupPath = this.appFolderInfo?.StartUpFolder,
+            AppDataFolder = SanitizeHostPath(this.appFolderInfo?.AppDataFolder),
+            StartupPath = SanitizeHostPath(this.appFolderInfo?.StartUpFolder),
             StartTime = AppStartTime,
             DatabaseType = dbType,
             DatabaseVersion = dbType,
             DatabaseMigration = migration,
         });
+    }
+
+    public static string SanitizeHostPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return path;
+        }
+
+        try
+        {
+            var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            if (!string.IsNullOrWhiteSpace(userProfile) && path.StartsWith(userProfile, StringComparison.OrdinalIgnoreCase))
+            {
+                var remainder = path.Substring(userProfile.Length);
+                return remainder.StartsWith('/') || remainder.StartsWith('\\') ? "~" + remainder : "~/" + remainder;
+            }
+        }
+        catch
+        {
+            // Ignore environment query exceptions
+        }
+
+        var homeRegex = new Regex(@"^(/home/[^/\\]+|/Users/[^/\\]+|[a-zA-Z]:\\Users\\[^/\\]+)", RegexOptions.IgnoreCase);
+        var match = homeRegex.Match(path);
+        if (match.Success)
+        {
+            var remainder = path.Substring(match.Length);
+            return remainder.StartsWith('/') || remainder.StartsWith('\\') ? "~" + remainder : "~/" + remainder;
+        }
+
+        return path;
     }
 }
