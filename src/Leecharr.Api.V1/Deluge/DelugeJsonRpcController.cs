@@ -21,6 +21,7 @@ using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
+using NzbDrone.Core.Trackers;
 
 namespace Leecharr.Api.V1.Deluge;
 
@@ -46,6 +47,7 @@ public class DelugeJsonRpcController : ControllerBase
     private readonly IDiskProvider diskProvider;
     private readonly IStoragePathService storagePathService;
     private readonly IDownloadEngine downloadEngine;
+    private readonly ITrackerEntryRepository trackerEntryRepository;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public DelugeJsonRpcController(
@@ -58,7 +60,8 @@ public class DelugeJsonRpcController : ControllerBase
         ISafeHttpClientService safeHttpClientService = null,
         IDiskProvider diskProvider = null,
         IStoragePathService storagePathService = null,
-        IDownloadEngine downloadEngine = null)
+        IDownloadEngine downloadEngine = null,
+        ITrackerEntryRepository trackerEntryRepository = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -70,6 +73,7 @@ public class DelugeJsonRpcController : ControllerBase
         this.diskProvider = diskProvider;
         this.storagePathService = storagePathService;
         this.downloadEngine = downloadEngine;
+        this.trackerEntryRepository = trackerEntryRepository;
     }
 
     private bool IsDelugeAuthenticated()
@@ -894,12 +898,17 @@ public class DelugeJsonRpcController : ControllerBase
                     cfgUpdates["EnableDht"] = SafeGetBoolean(dhtProp);
                 }
 
-                if (cfgElem.TryGetProperty("upnp", out var upnpProp))
+                var hasUpnp = cfgElem.TryGetProperty("upnp", out var upnpProp);
+                var hasNatpmp = cfgElem.TryGetProperty("natpmp", out var natpmpProp);
+                if (hasUpnp && hasNatpmp)
+                {
+                    cfgUpdates["UpnpEnabled"] = SafeGetBoolean(upnpProp) || SafeGetBoolean(natpmpProp);
+                }
+                else if (hasUpnp)
                 {
                     cfgUpdates["UpnpEnabled"] = SafeGetBoolean(upnpProp);
                 }
-
-                if (cfgElem.TryGetProperty("natpmp", out var natpmpProp))
+                else if (hasNatpmp)
                 {
                     cfgUpdates["UpnpEnabled"] = SafeGetBoolean(natpmpProp);
                 }
@@ -926,7 +935,7 @@ public class DelugeJsonRpcController : ControllerBase
 
                 if (cfgElem.TryGetProperty("seed_time_limit", out var stlProp) && stlProp.ValueKind == JsonValueKind.Number && stlProp.TryGetInt32(out var stlVal))
                 {
-                    cfgUpdates["IdleSeedingLimitMinutes"] = stlVal / 60;
+                    cfgUpdates["IdleSeedingLimitMinutes"] = stlVal <= 0 ? 0 : stlVal / 60;
                 }
 
                 if (cfgElem.TryGetProperty("dont_count_slow_torrents", out var dcstProp))
@@ -1979,7 +1988,7 @@ public class DelugeJsonRpcController : ControllerBase
             { "total_peers", t.Seeders + t.Leechers },
             { "seeds_peers_ratio", t.Leechers > 0 ? (double)t.Seeders / t.Leechers : (t.Seeders > 0 ? -1.0 : 0.0) },
             { "tracker", t.TrackerUrl ?? string.Empty },
-            { "tracker_host", GetTrackerHost(t) },
+            { "tracker_host", this.GetTrackerHost(t) },
             { "trackers", !string.IsNullOrWhiteSpace(t.TrackerUrl) ? new List<Dictionary<string, object>> { new() { { "url", t.TrackerUrl }, { "tier", 0 } } } : new List<Dictionary<string, object>>() },
             { "tracker_status", !string.IsNullOrWhiteSpace(t.ErrorMessage) ? t.ErrorMessage : (!string.IsNullOrWhiteSpace(t.TrackerUrl) ? $"{t.TrackerUrl}: Announce OK" : "Announce OK") },
             { "next_announce", 1800 },
@@ -2081,7 +2090,7 @@ public class DelugeJsonRpcController : ControllerBase
         };
 
         trackerHosts.AddRange(allTorrents
-            .Select(GetTrackerHost)
+            .Select(this.GetTrackerHost)
             .Where(h => !string.IsNullOrWhiteSpace(h))
             .GroupBy(h => h, StringComparer.OrdinalIgnoreCase)
             .Select(g => new object[] { g.Key, g.Count() }));
@@ -2229,7 +2238,7 @@ public class DelugeJsonRpcController : ControllerBase
         return set;
     }
 
-    private static List<Torrent> FilterTorrents(IEnumerable<Torrent> torrents, JsonElement? filterObj)
+    private List<Torrent> FilterTorrents(IEnumerable<Torrent> torrents, JsonElement? filterObj)
     {
         if (!filterObj.HasValue || filterObj.Value.ValueKind != JsonValueKind.Object)
         {
@@ -2273,8 +2282,9 @@ public class DelugeJsonRpcController : ControllerBase
             if (!trackerList.Any(th => string.Equals(th, "All", StringComparison.OrdinalIgnoreCase)))
             {
                 result = result.Where(t => trackerList.Any(th =>
-                    string.Equals(GetTrackerHost(t), th, StringComparison.OrdinalIgnoreCase) ||
-                    (!string.IsNullOrWhiteSpace(t.TrackerUrl) && t.TrackerUrl.Contains(th, StringComparison.OrdinalIgnoreCase))));
+                    string.Equals(this.GetTrackerHost(t), th, StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrWhiteSpace(t.TrackerUrl) && t.TrackerUrl.Contains(th, StringComparison.OrdinalIgnoreCase)) ||
+                    (this.trackerEntryRepository != null && this.trackerEntryRepository.GetByTorrentId(t.Id).Any(te => !string.IsNullOrWhiteSpace(te.Url) && te.Url.Contains(th, StringComparison.OrdinalIgnoreCase)))));
             }
         }
 
@@ -2413,18 +2423,29 @@ public class DelugeJsonRpcController : ControllerBase
         return string.Equals(t.Status.ToString(), state, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string GetTrackerHost(Torrent t)
+    private string GetTrackerHost(Torrent t)
     {
-        if (string.IsNullOrWhiteSpace(t?.TrackerUrl))
+        var trackerUrl = t?.TrackerUrl;
+        if (string.IsNullOrWhiteSpace(trackerUrl) && t != null && this.trackerEntryRepository != null)
+        {
+            trackerUrl = this.trackerEntryRepository.GetByTorrentId(t.Id)?.FirstOrDefault()?.Url;
+        }
+
+        if (string.IsNullOrWhiteSpace(trackerUrl))
         {
             return string.Empty;
         }
 
         try
         {
-            if (Uri.TryCreate(t.TrackerUrl, UriKind.Absolute, out var uri))
+            if (Uri.TryCreate(trackerUrl, UriKind.Absolute, out var uri))
             {
                 return uri.Host;
+            }
+
+            if (Uri.TryCreate("http://" + trackerUrl, UriKind.Absolute, out var uriWithScheme))
+            {
+                return uriWithScheme.Host;
             }
         }
         catch
@@ -2522,7 +2543,7 @@ public class DelugeJsonRpcController : ControllerBase
             { "enc_level", 2 },
             { "stop_seed_at_ratio", isStopAtRatio },
             { "stop_seed_ratio", stopRatio },
-            { "seed_time_limit", this.configService.IdleSeedingLimitMinutes > 0 ? this.configService.IdleSeedingLimitMinutes * 60 : 180 },
+            { "seed_time_limit", this.configService.IdleSeedingLimitMinutes > 0 ? this.configService.IdleSeedingLimitMinutes * 60 : 0 },
             { "remove_at_ratio", isRemoveAtRatio },
             { "queue_complete", true },
             { "dont_count_slow_torrents", this.configService.IgnoreSlowTorrents },
