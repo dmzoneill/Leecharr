@@ -12,6 +12,7 @@ namespace NzbDrone.Core.MediaInspection;
 
 public class TagLibInspectorProvider : IMediaInspectorProvider
 {
+    private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public string ProviderId => "TagLib";
@@ -196,7 +197,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         // 1. Check MKV / WebM (EBML: 0x1A 0x45 0xDF 0xA3)
         if (header[0] == 0x1A && header[1] == 0x45 && header[2] == 0xDF && header[3] == 0xA3)
         {
-            return InspectMatroska(header, fileName);
+            return InspectMatroska(stream, header, fileName);
         }
 
         // 2. Check MP4 / MOV / M4V ('ftyp', 'moov', 'mdat', 'free', 'skip', 'wide' at offset 4)
@@ -254,9 +255,16 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         public bool IsCurrentAudioTrackAccepted;
         public int CurrentTrackChannels;
         public bool HasHdr10Plus;
+        public long SegmentDataStart;
+        public long TracksSeekPosition;
     }
 
     private static MediaContainerInfo InspectMatroska(byte[] header, string fileName)
+    {
+        return InspectMatroska(null, header, fileName);
+    }
+
+    private static MediaContainerInfo InspectMatroska(Stream stream, byte[] header, string fileName)
     {
         var info = new MediaContainerInfo
         {
@@ -268,10 +276,47 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             TimecodeScale = 1000000UL,
         };
 
-        int offset = 0;
-        ParseEbmlContainer(header, ref offset, header.Length, info, ref context);
+        try
+        {
+            int offset = 0;
+            ParseEbmlContainer(header, ref offset, header.Length, info, ref context);
 
-        FinalizeMatroskaInfo(header, info, ref context, fileName);
+            if (stream != null && stream.CanSeek && context.TracksSeekPosition > 0 && string.IsNullOrEmpty(info.VideoCodec))
+            {
+                long tracksOffset = context.SegmentDataStart + context.TracksSeekPosition;
+                if (tracksOffset > 0 && tracksOffset < stream.Length)
+                {
+                    var originalPos = stream.Position;
+                    try
+                    {
+                        stream.Seek(tracksOffset, SeekOrigin.Begin);
+                        var tracksBuffer = new byte[65536];
+                        int read = stream.Read(tracksBuffer, 0, tracksBuffer.Length);
+                        if (read > 0)
+                        {
+                            int tOffset = 0;
+                            ParseEbmlContainer(tracksBuffer, ref tOffset, read, info, ref context);
+                        }
+                    }
+                    catch
+                    {
+                        // Fallback / ignore seek error
+                    }
+                    finally
+                    {
+                        stream.Seek(originalPos, SeekOrigin.Begin);
+                    }
+                }
+            }
+
+            FinalizeMatroskaInfo(header, info, ref context, fileName);
+        }
+        catch (Exception ex)
+        {
+            StaticLogger.Debug(ex, "Failed to parse EBML container for {0}; falling back to filename inspection", fileName);
+            return InspectByFileName(fileName);
+        }
+
         return info;
     }
 
@@ -294,6 +339,21 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
             switch (id)
             {
+                case 0x1A45DFA3: // EBML Header
+                case 0x1549A966: // Info
+                case 0x1654AE6B: // Tracks
+                    // Descend into container without advancing past its children
+                    break;
+
+                case 0x18538067: // Segment
+                    context.SegmentDataStart = offset;
+                    break;
+
+                case 0x114D9B74: // SeekHead
+                    ParseEbmlSeekHead(header, offset, elemSize, ref context);
+                    offset += elemSize;
+                    break;
+
                 case 0x4282: // DocType
                     ParseEbmlDocType(header, offset, elemSize, info);
                     offset += elemSize;
@@ -354,12 +414,12 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                     offset += elemSize;
                     break;
 
+                case 0x1F43B675: // Cluster
+                case 0x1C53BB6B: // Cues
+                case 0x1941A469: // Attachments
+                case 0x1254C367: // Tags
+                case 0x1043A770: // Chapters
                 default:
-                    if (IsEbmlMasterElement(id))
-                    {
-                        continue;
-                    }
-
                     offset += elemSize;
                     break;
             }
@@ -437,11 +497,6 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                     break;
 
                 default:
-                    if (IsEbmlMasterElement(id))
-                    {
-                        continue;
-                    }
-
                     offset += elemSize;
                     break;
             }
@@ -491,11 +546,6 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                     break;
 
                 default:
-                    if (IsEbmlMasterElement(id))
-                    {
-                        continue;
-                    }
-
                     offset += elemSize;
                     break;
             }
@@ -534,11 +584,6 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                     break;
 
                 default:
-                    if (IsEbmlMasterElement(id))
-                    {
-                        continue;
-                    }
-
                     break;
             }
 
@@ -577,11 +622,6 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                     break;
 
                 default:
-                    if (IsEbmlMasterElement(id))
-                    {
-                        continue;
-                    }
-
                     break;
             }
 
@@ -910,23 +950,75 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         }
     }
 
-    private static bool IsEbmlMasterElement(uint id)
+    private static void ParseEbmlSeekHead(byte[] data, int offset, int length, ref EbmlParserContext context)
     {
-        return id == 0x1A45DFA3
-            || id == 0x18538067
-            || id == 0x114D9B74
-            || id == 0x1549A966
-            || id == 0x1654AE6B
-            || id == 0xAE
-            || id == 0xE0
-            || id == 0xE1
-            || id == 0x55B0
-            || id == 0x55BB
-            || id == 0x1F43B675
-            || id == 0x1254C367
-            || id == 0x1043A770
-            || id == 0x1C53BB6B
-            || id == 0x1941A469;
+        int seekHeadEnd = Math.Min(offset + length, data.Length);
+        while (offset < seekHeadEnd)
+        {
+            if (!ReadElementId(data, ref offset, out var id, out _))
+            {
+                break;
+            }
+
+            if (!ReadElementSize(data, ref offset, out var size, out _))
+            {
+                break;
+            }
+
+            int elemSize = size < 0 ? seekHeadEnd - offset : (int)Math.Min((long)offset + size, seekHeadEnd) - offset;
+
+            if (id == 0x4DBB)
+            {
+                ParseEbmlSeekEntry(data, offset, elemSize, ref context);
+            }
+
+            offset += elemSize;
+        }
+    }
+
+    private static void ParseEbmlSeekEntry(byte[] data, int offset, int length, ref EbmlParserContext context)
+    {
+        int seekEnd = Math.Min(offset + length, data.Length);
+        uint seekId = 0;
+        ulong seekPos = 0;
+
+        while (offset < seekEnd)
+        {
+            if (!ReadElementId(data, ref offset, out var id, out _))
+            {
+                break;
+            }
+
+            if (!ReadElementSize(data, ref offset, out var size, out _))
+            {
+                break;
+            }
+
+            int elemSize = size < 0 ? seekEnd - offset : (int)Math.Min((long)offset + size, seekEnd) - offset;
+
+            if (id == 0x53AB)
+            {
+                if (elemSize > 0 && offset + elemSize <= data.Length)
+                {
+                    seekId = 0;
+                    for (int i = 0; i < elemSize && i < 4; i++)
+                    {
+                        seekId = (seekId << 8) | data[offset + i];
+                    }
+                }
+            }
+            else if (id == 0x53AC)
+            {
+                seekPos = ReadEbmlUInt(data, offset, elemSize);
+            }
+
+            offset += elemSize;
+        }
+
+        if (seekId == 0x1654AE6B)
+        {
+            context.TracksSeekPosition = (long)seekPos;
+        }
     }
 
     private static bool ReadElementId(byte[] data, ref int offset, out uint id, out int idLen)
@@ -3113,6 +3205,8 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                                 return true;
                             }
                         }
+
+                        i = nalEnd - 1;
                     }
                     else
                     {
@@ -3138,6 +3232,8 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                                     return true;
                                 }
                             }
+
+                            i = nalEnd - 1;
                         }
                     }
                 }
