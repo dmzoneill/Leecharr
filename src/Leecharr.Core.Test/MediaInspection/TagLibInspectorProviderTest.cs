@@ -926,6 +926,103 @@ public class TagLibInspectorProviderTest
     }
 
     [Test]
+    public void ApplyFilenameHints_PromotesEAc3ToDolbyAtmos_WhenFilenameContainsAtmosOrJoc()
+    {
+        var info1 = new MediaContainerInfo
+        {
+            AudioCodec = "E-AC3 / Dolby Digital Plus",
+        };
+        TagLibInspectorProvider.ApplyFilenameHints(info1, "Movie.Title.2024.1080p.WEB-DL.DDP5.1.Atmos.H.264.mkv");
+        info1.AudioCodec.Should().Be("Dolby Atmos");
+
+        var info2 = new MediaContainerInfo
+        {
+            AudioCodec = "DD+",
+        };
+        TagLibInspectorProvider.ApplyFilenameHints(info2, "Show.S01E01.1080p.NF.WEB-DL.DD+5.1.JOC.x264.mkv");
+        info2.AudioCodec.Should().Be("Dolby Atmos");
+
+        var info3 = new MediaContainerInfo
+        {
+            AudioCodec = "E-AC3",
+        };
+        TagLibInspectorProvider.ApplyFilenameHints(info3, "Show.S01E01.1080p.NF.WEB-DL.EAC3.x264.mkv");
+        info3.AudioCodec.Should().Be("E-AC3");
+    }
+
+    [Test]
+    public void Inspect_Matroska_PromotesEAc3ToDolbyAtmos_WhenTrackNameMentionsAtmosOrJoc()
+    {
+        var ebmlDataAtmos = CreateMatroskaHeaderWithTrackName("matroska", "V_MPEGH/ISO/HEVC", 3840, 2160, "A_EAC3", 6, "English (Dolby Atmos)");
+        using var msAtmos = new MemoryStream(ebmlDataAtmos);
+        var resultAtmos = this.provider.Inspect(msAtmos, "movie.mkv");
+
+        resultAtmos.Should().NotBeNull();
+        resultAtmos.AudioCodec.Should().Be("Dolby Atmos");
+
+        var ebmlDataJoc = CreateMatroskaHeaderWithTrackName("matroska", "V_MPEGH/ISO/HEVC", 3840, 2160, "A_EAC3", 6, "English E-AC3 JOC");
+        using var msJoc = new MemoryStream(ebmlDataJoc);
+        var resultJoc = this.provider.Inspect(msJoc, "movie.mkv");
+
+        resultJoc.Should().NotBeNull();
+        resultJoc.AudioCodec.Should().Be("Dolby Atmos");
+    }
+
+    [Test]
+    public void InspectFile_AudioFile_ExtractsTagsAndArtwork()
+    {
+        var mp3Bytes = CreateMp3Data(44100, 2, frameCount: 20);
+        var tempFile = Path.Combine(Path.GetTempPath(), $"leecharr_test_{Guid.NewGuid():N}.mp3");
+
+        try
+        {
+            File.WriteAllBytes(tempFile, mp3Bytes);
+
+            using (var tagFile = TagLib.File.Create(tempFile))
+            {
+                tagFile.Tag.Title = "Master of Puppets";
+                tagFile.Tag.Performers = new[] { "Metallica" };
+                tagFile.Tag.Album = "Master of Puppets";
+                tagFile.Tag.Track = 2;
+                tagFile.Tag.TrackCount = 8;
+                tagFile.Tag.Disc = 1;
+                tagFile.Tag.DiscCount = 1;
+
+                var pictureData = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46 };
+                var pic = new TagLib.Picture(new TagLib.ByteVector(pictureData))
+                {
+                    Type = TagLib.PictureType.FrontCover,
+                    MimeType = "image/jpeg",
+                    Description = "Cover",
+                };
+                tagFile.Tag.Pictures = new TagLib.IPicture[] { pic };
+                tagFile.Save();
+            }
+
+            var result = this.provider.InspectFile(tempFile);
+
+            result.Should().NotBeNull();
+            result.Title.Should().Be("Master of Puppets");
+            result.Artist.Should().Be("Metallica");
+            result.Album.Should().Be("Master of Puppets");
+            result.Track.Should().Be(2);
+            result.TrackCount.Should().Be(8);
+            result.Disc.Should().Be(1);
+            result.DiscCount.Should().Be(1);
+            result.HasEmbeddedPicture.Should().BeTrue();
+            result.PictureData.Should().NotBeNullOrEmpty();
+            result.Pictures.Should().HaveCount(1);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    [Test]
     public void Inspect_FlacStream_ExtractsStreamInfoAndCalculatesDuration()
     {
         // 44.1kHz, stereo (2ch), 16-bit, 882,000 samples = 20.0 seconds
@@ -1644,6 +1741,51 @@ public class TagLibInspectorProviderTest
         WriteEbmlString(ms, 0x86, audioCodecId);
 
         // Audio Settings (0xE1)
+        WriteId(ms, 0xE1);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0x9F, (ulong)channels);
+
+        return ms.ToArray();
+    }
+
+    private static byte[] CreateMatroskaHeaderWithTrackName(string docType, string videoCodecId, int width, int height, string audioCodecId, int channels, string trackName)
+    {
+        using var ms = new MemoryStream();
+
+        using (var ebmlMs = new MemoryStream())
+        {
+            WriteEbmlString(ebmlMs, 0x4282, docType);
+            var ebmlPayload = ebmlMs.ToArray();
+
+            WriteId(ms, 0x1A45DFA3);
+            WriteSize(ms, ebmlPayload.Length);
+            ms.Write(ebmlPayload);
+        }
+
+        WriteId(ms, 0x18538067);
+        WriteSize(ms, -1);
+
+        WriteId(ms, 0x1654AE6B);
+        WriteSize(ms, -1);
+
+        WriteId(ms, 0xAE);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0x83, 1);
+        WriteEbmlString(ms, 0x86, videoCodecId);
+        WriteId(ms, 0xE0);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0xB0, (ulong)width);
+        WriteEbmlUInt(ms, 0xBA, (ulong)height);
+
+        WriteId(ms, 0xAE);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0x83, 2);
+        WriteEbmlString(ms, 0x86, audioCodecId);
+        if (!string.IsNullOrEmpty(trackName))
+        {
+            WriteEbmlString(ms, 0x536E, trackName);
+        }
+
         WriteId(ms, 0xE1);
         WriteSize(ms, -1);
         WriteEbmlUInt(ms, 0x9F, (ulong)channels);
