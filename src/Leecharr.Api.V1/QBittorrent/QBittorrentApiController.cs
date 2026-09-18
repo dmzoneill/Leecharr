@@ -520,7 +520,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 ["content_path"] = resolvedContentPath,
                 ["added_on"] = new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds(),
                 ["completion_on"] = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : -1,
-                ["amount_left"] = (long)(t.TotalSize * (1.0 - t.Progress)),
+                ["amount_left"] = t.Progress >= 1.0 ? 0L : (long)Math.Max(0, (1.0 - t.Progress) * t.TotalSize),
                 ["downloaded"] = t.Downloaded,
                 ["uploaded"] = t.Uploaded,
                 ["max_ratio"] = t.TargetRatio,
@@ -873,7 +873,12 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             return this.BadRequest();
         }
 
-        var success = await this.torrentService.RenameFileAsync(torrent.Id, targetOldPath, newPath);
+        var normalizedOldPath = targetOldPath.Replace('\\', '/');
+        var parentDir = Path.GetDirectoryName(normalizedOldPath)?.Replace('\\', '/');
+        var effectiveNewPath = !string.IsNullOrEmpty(parentDir) && parentDir != "." && !newPath.Contains('/') && !newPath.Contains('\\')
+            ? $"{parentDir}/{newPath}"
+            : newPath;
+        var success = await this.torrentService.RenameFileAsync(torrent.Id, targetOldPath, effectiveNewPath);
         return success ? this.Content("Ok.", "text/plain") : this.StatusCode(StatusCodes.Status409Conflict, "Failed to rename file.");
     }
 
@@ -2818,7 +2823,9 @@ public record QBitTorrentSnapshot
 
         var addedOn = new DateTimeOffset(torrent.DateAdded).ToUnixTimeSeconds();
         var completionOn = torrent.DateCompleted.HasValue ? new DateTimeOffset(torrent.DateCompleted.Value).ToUnixTimeSeconds() : 0L;
-        var amountLeft = Math.Max(0, torrent.TotalSize - torrent.Downloaded);
+        var amountLeft = torrent.Progress >= 1.0
+            ? 0L
+            : (long)Math.Max(0, (1.0 - torrent.Progress) * torrent.TotalSize);
 
         return new QBitTorrentSnapshot
         {
