@@ -1621,6 +1621,76 @@ public class TorznabClientTest
         query.Should().Contain("2040");
     }
 
+    [Test]
+    public void ParseTorznabFeedXml_WhenXmlContainsErrorElement_ThrowsTorznabException()
+    {
+        var xml = @"<error code=""100"" description=""Incorrect user credentials"" />";
+        var indexer = new IndexerDefinition { Name = "TrackerAuthFail" };
+
+        var act = () => this.client.ParseTorznabFeedXml(xml, indexer);
+
+        act.Should().Throw<TorznabException>()
+            .Where(ex => ex.Code == 100 && ex.Description == "Incorrect user credentials");
+    }
+
+    [Test]
+    public async Task SearchAsync_WhenHttpErrorStatusCode_ThrowsHttpRequestException()
+    {
+        var handler = new TestHttpMessageHandler(req => new HttpResponseMessage(HttpStatusCode.Unauthorized));
+        var clientWithHandler = new TorznabClient(new HttpClient(handler));
+        var indexer = new IndexerDefinition { Name = "AuthFailedIndexer", Url = "http://indexer.local/api" };
+
+        var act = () => clientWithHandler.SearchAsync(indexer, "test");
+
+        await act.Should().ThrowAsync<HttpRequestException>()
+            .Where(ex => ex.StatusCode == HttpStatusCode.Unauthorized);
+    }
+
+    [Test]
+    public async Task SearchAsync_WhenXmlErrorPayload_ThrowsTorznabException()
+    {
+        var handler = new TestHttpMessageHandler(req => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(@"<error code=""101"" description=""Account suspended"" />"),
+        });
+        var clientWithHandler = new TorznabClient(new HttpClient(handler));
+        var indexer = new IndexerDefinition { Name = "SuspendedIndexer", Url = "http://indexer.local/api" };
+
+        var act = () => clientWithHandler.SearchAsync(indexer, "test");
+
+        await act.Should().ThrowAsync<TorznabException>()
+            .Where(ex => ex.Code == 101 && ex.Description == "Account suspended");
+    }
+
+    [Test]
+    public async Task FetchRssAsync_WhenHttpErrorStatusCode_ThrowsHttpRequestException()
+    {
+        var handler = new TestHttpMessageHandler(req => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+        var clientWithHandler = new TorznabClient(new HttpClient(handler));
+        var indexer = new IndexerDefinition { Name = "UnavailableIndexer", Url = "http://indexer.local/api" };
+
+        var act = () => clientWithHandler.FetchRssAsync(indexer);
+
+        await act.Should().ThrowAsync<HttpRequestException>()
+            .Where(ex => ex.StatusCode == HttpStatusCode.ServiceUnavailable);
+    }
+
+    [Test]
+    public async Task FetchRssAsync_WhenXmlErrorPayload_ThrowsTorznabException()
+    {
+        var handler = new TestHttpMessageHandler(req => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(@"<error code=""100"" description=""Invalid API Key"" />"),
+        });
+        var clientWithHandler = new TorznabClient(new HttpClient(handler));
+        var indexer = new IndexerDefinition { Name = "BadKeyIndexer", Url = "http://indexer.local/api" };
+
+        var act = () => clientWithHandler.FetchRssAsync(indexer);
+
+        await act.Should().ThrowAsync<TorznabException>()
+            .Where(ex => ex.Code == 100 && ex.Description == "Invalid API Key");
+    }
+
     #endregion
 
     private class TestHttpMessageHandler : HttpMessageHandler
