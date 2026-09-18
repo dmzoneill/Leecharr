@@ -28,6 +28,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
     private readonly IConfigService configService;
 
     private readonly ConcurrentDictionary<IPAddress, uint> gatewayEpochs = new();
+    private readonly ConcurrentDictionary<IPAddress, DateTime> gatewayLastContact = new();
     private int isRunning = 1;
     private int isDisposed;
     private int isForceRenewalRunning;
@@ -49,6 +50,15 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             null,
             TimeSpan.FromSeconds(30),
             TimeSpan.FromSeconds(30));
+
+        try
+        {
+            NetworkChange.NetworkAddressChanged += this.OnNetworkAddressChanged;
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Failed to register NetworkAddressChanged listener.");
+        }
     }
 
     public IReadOnlyCollection<ActivePortMapping> ActiveMappings => this.activeMappings.Values.ToList();
@@ -543,6 +553,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                     ExternalPort = result.ExternalPort,
                     LifetimeSeconds = result.LifetimeSeconds,
                     GatewayAddress = targetGateway,
+                    LocalIpAddress = this.GetLocalIpAddressForGateway(targetGateway),
                     LastEpoch = targetGateway != null && this.gatewayEpochs.TryGetValue(targetGateway, out var gwEpoch) ? gwEpoch : 0,
                     CreatedUtc = DateTime.UtcNow,
                     NextRenewalUtc = DateTime.UtcNow.AddSeconds(renewalDelaySeconds),
@@ -550,6 +561,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
                 this.activeMappings[(internalPort, protocol)] = active;
                 this.lastKnownGateway = targetGateway;
+                this.gatewayLastContact[targetGateway] = DateTime.UtcNow;
             }
             else
             {
@@ -702,6 +714,14 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
         try
         {
+            NetworkChange.NetworkAddressChanged -= this.OnNetworkAddressChanged;
+        }
+        catch
+        {
+        }
+
+        try
+        {
             this.renewalTimer?.Dispose();
         }
         catch (ObjectDisposedException)
@@ -735,6 +755,14 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
         try
         {
+            NetworkChange.NetworkAddressChanged -= this.OnNetworkAddressChanged;
+        }
+        catch
+        {
+        }
+
+        try
+        {
             this.renewalTimer?.Dispose();
         }
         catch (ObjectDisposedException)
@@ -759,7 +787,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         }
     }
 
-    private async Task CheckAndRenewMappingsAsync()
+    internal async Task CheckAndRenewMappingsAsync()
     {
         if (this.isDisposed != 0 || this.isRunning == 0 || this.activeMappings.IsEmpty)
         {
@@ -797,6 +825,35 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 this.lastKnownGateway = currentGateway;
             }
 
+            // Periodic gateway epoch verification (RFC 6886 §3.2.1 / §3.3.4):
+            // Check gateway epoch (opcode 0) if more than 60 seconds have elapsed without contact.
+            var gatewaysToCheck = this.activeMappings.Values
+                .Select(m => m.GatewayAddress ?? currentGateway)
+                .Where(g => g != null && g.AddressFamily == AddressFamily.InterNetwork)
+                .Distinct()
+                .ToList();
+
+            foreach (var gw in gatewaysToCheck)
+            {
+                if (this.isDisposed != 0 || this.isRunning == 0)
+                {
+                    break;
+                }
+
+                if (!this.gatewayLastContact.TryGetValue(gw, out var lastContact) ||
+                    (now - lastContact).TotalSeconds >= 60)
+                {
+                    try
+                    {
+                        await this.GetExternalIpAddressAsync(gw, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Debug(ex, "Periodic NAT-PMP epoch verification check failed for gateway {0}", gw);
+                    }
+                }
+            }
+
             foreach (var kvp in this.activeMappings)
             {
                 if (this.isDisposed != 0 || this.isRunning == 0)
@@ -805,9 +862,39 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 }
 
                 var mapping = kvp.Value;
-                var targetGateway = gatewayChanged ? currentGateway : (mapping.GatewayAddress ?? currentGateway);
-                if (now >= mapping.NextRenewalUtc || gatewayChanged)
+                var targetGateway = (gatewayChanged && mapping.GatewayAddress != null && mapping.GatewayAddress.Equals(this.lastKnownGateway)) ? currentGateway : (mapping.GatewayAddress ?? currentGateway);
+                var currentLocalIp = this.GetLocalIpAddressForGateway(targetGateway);
+                var localIpChanged = currentLocalIp != null &&
+                                     mapping.LocalIpAddress != null &&
+                                     !currentLocalIp.Equals(mapping.LocalIpAddress);
+
+                if (now >= mapping.NextRenewalUtc || gatewayChanged || localIpChanged)
                 {
+                    if (localIpChanged)
+                    {
+                        this.logger.Info(
+                            "Local IP address changed from {0} to {1} for NAT-PMP mapping {2} {3}. Deleting obsolete mapping and re-mapping.",
+                            mapping.LocalIpAddress,
+                            currentLocalIp,
+                            mapping.Protocol,
+                            mapping.InternalPort);
+
+                        try
+                        {
+                            await this.SendMappingRequestAsync(
+                                mapping.InternalPort,
+                                mapping.Protocol,
+                                suggestedExternalPort: 0,
+                                lifetimeSeconds: 0,
+                                targetGateway,
+                                CancellationToken.None).ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            this.logger.Debug(ex, "Failed to send unmap request during local IP change for {0}", mapping.InternalPort);
+                        }
+                    }
+
                     await this.RenewMappingInternalAsync(mapping, targetGateway, CancellationToken.None).ConfigureAwait(false);
                 }
             }
@@ -857,6 +944,8 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             mapping.ExternalPort = result.ExternalPort;
             mapping.LifetimeSeconds = result.LifetimeSeconds;
             mapping.GatewayAddress = result.GatewayAddress;
+            mapping.LocalIpAddress = this.GetLocalIpAddressForGateway(targetGateway);
+            this.gatewayLastContact[targetGateway] = DateTime.UtcNow;
             if (result.GatewayAddress != null && this.gatewayEpochs.TryGetValue(result.GatewayAddress, out var ep))
             {
                 mapping.LastEpoch = ep;
@@ -1060,6 +1149,8 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             return;
         }
 
+        this.gatewayLastContact[gateway] = DateTime.UtcNow;
+
         var rebootDetected = false;
         uint prevEpoch = 0;
 
@@ -1124,5 +1215,71 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 Interlocked.Exchange(ref this.rebootRenewalScheduled, 0);
             }
         });
+    }
+
+    internal void OnNetworkAddressChanged(object sender, EventArgs e)
+    {
+        if (this.isDisposed != 0 || this.isRunning == 0 || this.activeMappings.IsEmpty)
+        {
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await this.CheckAndRenewMappingsAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Error handling NetworkAddressChanged in NatPmpPortMapperService");
+            }
+        });
+    }
+
+    internal IPAddress GetLocalIpAddressForGateway(IPAddress gateway)
+    {
+        if (gateway == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+            socket.Connect(gateway, this.gatewayPort);
+            if (socket.LocalEndPoint is IPEndPoint ep && ep.Address != null && !ep.Address.Equals(IPAddress.Any))
+            {
+                return ep.Address;
+            }
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            var candidates = GetSystemNetworkCandidates();
+            var iface = this.GetEffectiveBoundInterface();
+            if (!string.IsNullOrWhiteSpace(iface))
+            {
+                var match = candidates.FirstOrDefault(c => string.Equals(c.Name, iface, StringComparison.OrdinalIgnoreCase));
+                if (match != null && match.UnicastAddresses.Count > 0)
+                {
+                    return match.UnicastAddresses[0].Address;
+                }
+            }
+
+            var gwMatch = candidates.FirstOrDefault(c => c.GatewayAddresses.Any(g => g.Equals(gateway)));
+            if (gwMatch != null && gwMatch.UnicastAddresses.Count > 0)
+            {
+                return gwMatch.UnicastAddresses[0].Address;
+            }
+        }
+        catch
+        {
+        }
+
+        return null;
     }
 }

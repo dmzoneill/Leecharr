@@ -19,6 +19,7 @@ using MonoTorrent;
 using MonoTorrent.BEncoding;
 using MonoTorrent.Client;
 using MonoTorrent.PieceWriter;
+using MonoTorrent.PortForwarding;
 using NLog;
 using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
@@ -582,6 +583,35 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.lastAppliedProxyUsername = this.configService.ProxyUsername ?? string.Empty;
         this.lastAppliedProxyPassword = this.configService.ProxyPassword ?? string.Empty;
 
+        if (this.configService.UpnpEnabled && this.engine != null)
+        {
+            try
+            {
+                var portForwarderProp = typeof(ClientEngine).GetProperty("PortForwarder", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (portForwarderProp?.GetValue(this.engine) is IPortForwarder forwarder)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await forwarder.RegisterMappingAsync(new Mapping(Protocol.Tcp, port)).ConfigureAwait(false);
+                            await forwarder.RegisterMappingAsync(new Mapping(Protocol.Udp, port)).ConfigureAwait(false);
+                            await forwarder.StartAsync(CancellationToken.None).ConfigureAwait(false);
+                            this.logger.Info("UPnP/NAT-PMP port forwarder started for listening port {0}", port);
+                        }
+                        catch (Exception ex)
+                        {
+                            this.logger.Debug(ex, "Failed to start UPnP port forwarder for port {0}", port);
+                        }
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Failed to initialize UPnP port forwarder");
+            }
+        }
+
         this.logger.Info("MonoTorrent engine started successfully on {0}:{1}.", listenIp, port);
 
         await this.DrainPendingTorrentsAsync().ConfigureAwait(false);
@@ -665,6 +695,19 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 {
                     this.logger.Warn(ex, "Error stopping torrent manager for {0}", task.InfoHash);
                 }
+            }
+
+            try
+            {
+                var portForwarderProp = typeof(ClientEngine).GetProperty("PortForwarder", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (portForwarderProp?.GetValue(this.engine) is IPortForwarder forwarder)
+                {
+                    await forwarder.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Error stopping port forwarder");
             }
 
             await this.engine.StopAllAsync();
