@@ -1135,4 +1135,199 @@ public class IndexerControllerTest
         createdTorrent.TargetSeedTimeMinutes.Should().Be(60);
         torrentRepo.Received(1).Update(createdTorrent);
     }
+
+    [Test]
+    public async Task SearchGet_MultiIndexer_DeduplicatesByIdenticalInfoHash_AndMergesMetrics()
+    {
+        var idx1 = new IndexerDefinition { Id = 1, Name = "Tracker1", Enable = true, EnableSearch = true, Url = "http://t1" };
+        var idx2 = new IndexerDefinition { Id = 2, Name = "Tracker2", Enable = true, EnableSearch = true, Url = "http://t2" };
+        this.indexerRepository.GetSearchEnabled().Returns(new List<IndexerDefinition> { idx1, idx2 });
+
+        this.torznabClient.SearchAsync(
+            idx1,
+            Arg.Any<TorznabSearchCriteria>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new()
+                {
+                    Title = "Linux.Distro.2024.1080p",
+                    Size = 5000000,
+                    Seeders = 10,
+                    Leechers = 2,
+                    DownloadVolumeFactor = 1.0,
+                    DownloadUrl = "http://t1/download/1",
+                    MagnetUrl = null,
+                    Comments = "https://tracker1.org/comments/1",
+                    InfoHash = "482e9495c37890123456789abcdef0123456789a",
+                    PublishDate = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                },
+            }));
+
+        this.torznabClient.SearchAsync(
+            idx2,
+            Arg.Any<TorznabSearchCriteria>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new()
+                {
+                    Title = "Linux Distro 2024",
+                    Size = 5000000,
+                    Seeders = 35,
+                    Leechers = 12,
+                    DownloadVolumeFactor = 0.0,
+                    DownloadUrl = null,
+                    MagnetUrl = "magnet:?xt=urn:btih:482e9495c37890123456789abcdef0123456789a&dn=Linux",
+                    Comments = null,
+                    InfoHash = null,
+                    PublishDate = new DateTime(2024, 1, 2, 0, 0, 0, DateTimeKind.Utc),
+                },
+            }));
+
+        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest { Query = "linux" });
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult.Result!;
+        var envelope = (IndexerSearchEnvelope)okResult.Value!;
+
+        envelope.Results.Should().HaveCount(1);
+        var merged = envelope.Results[0];
+        merged.Seeders.Should().Be(35);
+        merged.Leechers.Should().Be(12);
+        merged.DownloadVolumeFactor.Should().Be(0.0);
+        merged.IsFreeleech.Should().BeTrue();
+        merged.DownloadUrl.Should().Be("http://t1/download/1");
+        merged.MagnetUrl.Should().Be("magnet:?xt=urn:btih:482e9495c37890123456789abcdef0123456789a&dn=Linux");
+        merged.Comments.Should().Be("https://tracker1.org/comments/1");
+        merged.InfoHash.Should().Be("482e9495c37890123456789abcdef0123456789a");
+    }
+
+    [Test]
+    public async Task SearchGet_MultiIndexer_DeduplicatesByTitleAndSize_WhenOneLacksInfoHash()
+    {
+        var idx1 = new IndexerDefinition { Id = 1, Name = "Tracker1", Enable = true, EnableSearch = true, Url = "http://t1" };
+        var idx2 = new IndexerDefinition { Id = 2, Name = "Tracker2", Enable = true, EnableSearch = true, Url = "http://t2" };
+        this.indexerRepository.GetSearchEnabled().Returns(new List<IndexerDefinition> { idx1, idx2 });
+
+        this.torznabClient.SearchAsync(
+            idx1,
+            Arg.Any<TorznabSearchCriteria>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new()
+                {
+                    Title = "FreeBSD.14.0.RELEASE.x86_64",
+                    Size = 4000000000,
+                    Seeders = 50,
+                    InfoHash = "a1b2c3d4e5f60123456789abcdef0123456789ab",
+                },
+            }));
+
+        this.torznabClient.SearchAsync(
+            idx2,
+            Arg.Any<TorznabSearchCriteria>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new()
+                {
+                    Title = "freebsd.14.0.release.x86_64",
+                    Size = 4000000000,
+                    Seeders = 10,
+                    InfoHash = null,
+                    MagnetUrl = null,
+                },
+            }));
+
+        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest { Query = "freebsd" });
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult.Result!;
+        var envelope = (IndexerSearchEnvelope)okResult.Value!;
+
+        envelope.Results.Should().HaveCount(1);
+        envelope.Results[0].Seeders.Should().Be(50);
+        envelope.Results[0].InfoHash.Should().Be("a1b2c3d4e5f60123456789abcdef0123456789ab");
+    }
+
+    [Test]
+    public async Task SearchGet_PreservesCommentsAndPublishDateFromTorznabResult()
+    {
+        var indexer = new IndexerDefinition { Id = 1, Name = "Tracker1", Enable = true, EnableSearch = true, Url = "http://t1" };
+        this.indexerRepository.Get(1).Returns(indexer);
+
+        var pubDate = new DateTime(2024, 6, 15, 10, 30, 0, DateTimeKind.Utc);
+        this.torznabClient.SearchAsync(
+            indexer,
+            Arg.Any<TorznabSearchCriteria>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new()
+                {
+                    Title = "Some Release",
+                    Seeders = 10,
+                    Comments = "https://tracker1.org/details.php?id=12345",
+                    PublishDate = pubDate,
+                },
+            }));
+
+        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest { Query = "test", IndexerId = 1 });
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult.Result!;
+        var envelope = (IndexerSearchEnvelope)okResult.Value!;
+
+        envelope.Results.Should().HaveCount(1);
+        envelope.Results[0].Comments.Should().Be("https://tracker1.org/details.php?id=12345");
+        envelope.Results[0].PublishDate.Should().Be(pubDate);
+    }
+
+    [Test]
+    public async Task SearchGet_EnforcesDeterministicSorting_WhenSeedersTied()
+    {
+        var idx = new IndexerDefinition { Id = 1, Name = "Tracker1", Enable = true, EnableSearch = true, Url = "http://t1" };
+        this.indexerRepository.Get(1).Returns(idx);
+
+        var dateOld = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var dateNew = new DateTime(2024, 1, 2, 0, 0, 0, DateTimeKind.Utc);
+
+        this.torznabClient.SearchAsync(
+            idx,
+            Arg.Any<TorznabSearchCriteria>(),
+            Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new List<TorznabSearchResult>
+            {
+                new() { Title = "B Release", Seeders = 100, DownloadVolumeFactor = 1.0, PublishDate = dateOld },
+                new() { Title = "A Release Freeleech", Seeders = 100, DownloadVolumeFactor = 0.0, PublishDate = dateOld },
+                new() { Title = "C Release Newer", Seeders = 100, DownloadVolumeFactor = 1.0, PublishDate = dateNew },
+                new() { Title = "A Release Not Freeleech", Seeders = 100, DownloadVolumeFactor = 1.0, PublishDate = dateOld },
+            }));
+
+        var actionResult = await this.controller.SearchGet(new IndexerSearchRequest { Query = "tied", IndexerId = 1 });
+        actionResult.Result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult.Result!;
+        var envelope = (IndexerSearchEnvelope)okResult.Value!;
+
+        envelope.Results.Select(r => r.Title).Should().ContainInOrder(
+            "A Release Freeleech",
+            "C Release Newer",
+            "A Release Not Freeleech",
+            "B Release");
+    }
+
+    [Test]
+    public void DeduplicateReleases_WhenNeitherHasInfoHash_DeduplicatesByTitleAndSize()
+    {
+        var releases = new List<ReleaseInfoResource>
+        {
+            new() { Title = "Ubuntu-24.04-desktop-amd64.iso", Size = 5000000000, Seeders = 10, DownloadVolumeFactor = 1.0 },
+            new() { Title = " ubuntu-24.04-desktop-amd64.iso ", Size = 5000000000, Seeders = 30, DownloadVolumeFactor = 0.0 },
+        };
+
+        var result = IndexerController.DeduplicateReleases(releases);
+
+        result.Should().HaveCount(1);
+        result[0].Seeders.Should().Be(30);
+        result[0].IsFreeleech.Should().BeTrue();
+    }
 }

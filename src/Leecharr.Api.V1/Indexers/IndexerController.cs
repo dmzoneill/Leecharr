@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Api.V1.Torrents;
@@ -22,6 +23,8 @@ namespace Leecharr.Api.V1.Indexers;
 [Route("api/v1/indexer")]
 public class IndexerController : Controller
 {
+    private static readonly Regex MagnetBtihRegex = new(@"urn:btih:([a-fA-F0-9]{40}|[a-zA-Z2-7]{32})", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     private readonly IIndexerRepository indexerRepository;
     private readonly ITorznabClient torznabClient;
     private readonly IProwlarrSyncService prowlarrSyncService;
@@ -446,7 +449,7 @@ public class IndexerController : Controller
                         Title = r.Title,
                         Guid = r.Guid,
                         Link = r.DownloadUrl ?? r.MagnetUrl,
-                        Comments = string.Empty,
+                        Comments = r.Comments ?? string.Empty,
                         PublishDate = r.PublishDate,
                         Category = r.Category,
                         Size = r.Size,
@@ -503,18 +506,26 @@ public class IndexerController : Controller
             this.Response.Headers["X-Leecharr-Indexer-Errors"] = string.Join("; ", searchErrors);
         }
 
-        var filteredResults = allResults.ToList();
+        var deduplicatedResults = DeduplicateReleases(allResults);
+
+        var filteredResults = deduplicatedResults;
         if (request.FreeleechOnly)
         {
             filteredResults = filteredResults.Where(r => r.IsFreeleech).ToList();
         }
 
-        var sortedResults = filteredResults.OrderByDescending(r => r.Seeders).ToList();
+        var sortedResults = filteredResults
+            .OrderByDescending(r => r.Seeders)
+            .ThenByDescending(r => r.IsFreeleech)
+            .ThenByDescending(r => r.PublishDate)
+            .ThenBy(r => r.Title, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
         var paginatedResults = isMulti && fetchOffset == 0
             ? sortedResults.Skip(effectiveOffset).Take(effectiveLimit).ToList()
             : sortedResults.Take(effectiveLimit).ToList();
 
-        var maxResponseTotal = allResults.Select(r => r.ResponseTotal).Where(t => t.HasValue).Max() ?? 0;
+        var maxResponseTotal = deduplicatedResults.Select(r => r.ResponseTotal).Where(t => t.HasValue).Max() ?? 0;
         var totalCount = maxResponseTotal > 0 ? Math.Max(filteredResults.Count, maxResponseTotal) : filteredResults.Count;
         var currentPage = effectiveLimit > 0 ? (effectiveOffset / effectiveLimit) + 1 : 1;
 
@@ -1025,6 +1036,133 @@ public class IndexerController : Controller
             ProwlarrIndexerId = resource.ProwlarrIndexerId,
             IsProwlarrManaged = resource.IsProwlarrManaged,
         };
+    }
+
+    internal static List<ReleaseInfoResource> DeduplicateReleases(IEnumerable<ReleaseInfoResource> releases)
+    {
+        if (releases == null)
+        {
+            return new List<ReleaseInfoResource>();
+        }
+
+        var releasesList = releases.ToList();
+        if (releasesList.Count <= 1)
+        {
+            return releasesList;
+        }
+
+        var titleSizeToHash = new Dictionary<(string, long), string>();
+        foreach (var r in releasesList)
+        {
+            var hash = NormalizeInfoHash(r.InfoHash, r.MagnetUrl);
+            if (!string.IsNullOrEmpty(hash) && !string.IsNullOrWhiteSpace(r.Title))
+            {
+                var key = (r.Title.Trim().ToLowerInvariant(), r.Size);
+                titleSizeToHash.TryAdd(key, hash);
+            }
+        }
+
+        var groups = releasesList.GroupBy(r =>
+        {
+            var hash = NormalizeInfoHash(r.InfoHash, r.MagnetUrl);
+            if (string.IsNullOrEmpty(hash) && !string.IsNullOrWhiteSpace(r.Title))
+            {
+                titleSizeToHash.TryGetValue((r.Title.Trim().ToLowerInvariant(), r.Size), out hash);
+            }
+
+            if (!string.IsNullOrEmpty(hash))
+            {
+                return "hash:" + hash;
+            }
+
+            if (!string.IsNullOrWhiteSpace(r.Title))
+            {
+                return $"title:{r.Title.Trim().ToLowerInvariant()}_{r.Size}";
+            }
+
+            return "guid:" + (r.Guid ?? Guid.NewGuid().ToString());
+        });
+
+        var deduplicated = new List<ReleaseInfoResource>();
+        foreach (var group in groups)
+        {
+            var primary = group
+                .OrderByDescending(r => r.Seeders)
+                .ThenByDescending(r => r.IsFreeleech)
+                .ThenByDescending(r => !string.IsNullOrEmpty(r.DownloadUrl))
+                .ThenByDescending(r => r.PublishDate)
+                .First();
+
+            primary.Seeders = group.Max(r => r.Seeders);
+            primary.Leechers = group.Max(r => r.Leechers);
+            primary.DownloadVolumeFactor = group.Min(r => r.DownloadVolumeFactor);
+
+            if (string.IsNullOrWhiteSpace(primary.DownloadUrl))
+            {
+                primary.DownloadUrl = group.FirstOrDefault(r => !string.IsNullOrWhiteSpace(r.DownloadUrl))?.DownloadUrl;
+            }
+
+            if (string.IsNullOrWhiteSpace(primary.MagnetUrl))
+            {
+                primary.MagnetUrl = group.FirstOrDefault(r => !string.IsNullOrWhiteSpace(r.MagnetUrl))?.MagnetUrl;
+            }
+
+            if (string.IsNullOrWhiteSpace(primary.Link))
+            {
+                primary.Link = group.FirstOrDefault(r => !string.IsNullOrWhiteSpace(r.Link))?.Link
+                    ?? primary.DownloadUrl
+                    ?? primary.MagnetUrl;
+            }
+
+            if (string.IsNullOrWhiteSpace(primary.Comments))
+            {
+                primary.Comments = group.FirstOrDefault(r => !string.IsNullOrWhiteSpace(r.Comments))?.Comments ?? string.Empty;
+            }
+
+            if (string.IsNullOrWhiteSpace(primary.InfoHash))
+            {
+                var resolvedHash = group.Select(r => NormalizeInfoHash(r.InfoHash, r.MagnetUrl)).FirstOrDefault(h => !string.IsNullOrWhiteSpace(h));
+                if (string.IsNullOrWhiteSpace(resolvedHash) && !string.IsNullOrWhiteSpace(primary.Title))
+                {
+                    titleSizeToHash.TryGetValue((primary.Title.Trim().ToLowerInvariant(), primary.Size), out resolvedHash);
+                }
+
+                if (!string.IsNullOrWhiteSpace(resolvedHash))
+                {
+                    primary.InfoHash = resolvedHash;
+                }
+            }
+
+            deduplicated.Add(primary);
+        }
+
+        return deduplicated;
+    }
+
+    internal static string NormalizeInfoHash(string infoHash, string magnetUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(infoHash))
+        {
+            var trimmed = infoHash.Trim();
+            var match = MagnetBtihRegex.Match(trimmed);
+            if (match.Success)
+            {
+                return match.Groups[1].Value.ToLowerInvariant();
+            }
+
+            return trimmed.ToLowerInvariant();
+        }
+
+        if (!string.IsNullOrWhiteSpace(magnetUrl))
+        {
+            var match = MagnetBtihRegex.Match(magnetUrl);
+            if (match.Success)
+            {
+                return match.Groups[1].Value.ToLowerInvariant();
+            }
+        }
+
+        return null;
     }
 
     private static int? ParseCategoryId(string category)
