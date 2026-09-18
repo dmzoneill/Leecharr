@@ -29,6 +29,7 @@ public class DelugeJsonRpcControllerTest
     private IConfigService configService = null!;
     private IConfigFileProvider configFileProvider = null!;
     private IDiskProvider diskProvider = null!;
+    private IDownloadEngine downloadEngine = null!;
     private DelugeJsonRpcController controller = null!;
 
     [SetUp]
@@ -41,6 +42,7 @@ public class DelugeJsonRpcControllerTest
         this.configService = Substitute.For<IConfigService>();
         this.configFileProvider = Substitute.For<IConfigFileProvider>();
         this.diskProvider = Substitute.For<IDiskProvider>();
+        this.downloadEngine = Substitute.For<IDownloadEngine>();
 
         this.configFileProvider.AuthenticationEnabled.Returns(true);
         this.configFileProvider.ApiKey.Returns("deluge_secret_key");
@@ -52,7 +54,8 @@ public class DelugeJsonRpcControllerTest
             this.categoryService,
             this.configService,
             this.configFileProvider,
-            diskProvider: this.diskProvider);
+            diskProvider: this.diskProvider,
+            downloadEngine: this.downloadEngine);
     }
 
     [Test]
@@ -360,6 +363,27 @@ public class DelugeJsonRpcControllerTest
     }
 
     [Test]
+    public async Task HandleRpc_CoreGetConfigValues_WithFlatKeyList_ReturnsRequestedKeys()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.DownloadDir.Returns("/custom/downloads");
+        this.configService.MaxDownloadSpeedKbps.Returns(1234);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_config_values\",\"params\":[\"download_location\",\"max_download_speed\",\"move_completed\"],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"download_location\":\"/custom/downloads\"");
+        json.Should().Contain("\"max_download_speed\":1234");
+        json.Should().Contain("\"move_completed\":false");
+    }
+
+    [Test]
     public async Task HandleRpc_UnhandledMethod_ReturnsJsonRpcError()
     {
         var context = new DefaultHttpContext();
@@ -594,6 +618,66 @@ public class DelugeJsonRpcControllerTest
             (int)d["MaxUploadSpeedKbps"] == 250 &&
             (string)d["DownloadDir"] == "/mnt/torrents" &&
             (int)d["MaxGlobalConnections"] == 150));
+        await this.downloadEngine.Received(1).SetRateLimitsAsync(500, 250);
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreSetConfig_WithMoveCompletedAndMoveCompletedPath_DoesNotCorruptDownloadDir()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.set_config\",\"params\":[{\"download_location\":\"/downloads/active\",\"move_completed\":true,\"move_completed_path\":\"/downloads/completed\"}],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":true");
+
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            (string)d["DownloadDir"] == "/downloads/active" &&
+            (string)d["MoveCompletedPath"] == "/downloads/completed" &&
+            (bool)d["MoveCompleted"] == true));
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreSetConfig_WithOnlyMoveCompletedPath_DoesNotSetDownloadDir()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.set_config\",\"params\":[{\"move_completed_path\":\"/downloads/completed\",\"move_completed\":true}],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        json.Should().Contain("\"result\":true");
+
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            !d.ContainsKey("DownloadDir") &&
+            (string)d["MoveCompletedPath"] == "/downloads/completed" &&
+            (bool)d["MoveCompleted"] == true));
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreSetConfig_WithPartialRateLimit_UsesConfigValueForOtherRate()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.MaxDownloadSpeedKbps.Returns(500);
+        this.configService.MaxUploadSpeedKbps.Returns(100);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.set_config\",\"params\":[{\"max_download_speed\": 2000.0}],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        await this.downloadEngine.Received(1).SetRateLimitsAsync(2000, 100);
     }
 
     [Test]
