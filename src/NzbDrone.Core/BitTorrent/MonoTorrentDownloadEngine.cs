@@ -555,7 +555,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         factories = factories.WithPeerConnectionListenerCreator(endPoint => new FilteringPeerConnectionListener(
             baseFactories.CreatePeerConnectionListener(endPoint),
             this.blocklistService,
-            () => Interlocked.Increment(ref this.blockedPeersCount)));
+            () => Interlocked.Increment(ref this.blockedPeersCount),
+            isHalted: () => this.isHaltedByKillSwitch));
 
         this.engine = new ClientEngine(engineSettings, factories);
         var overrideField = typeof(DiskManager).GetField("GetHashAsyncOverride", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
@@ -3231,6 +3232,23 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 }
             }
 
+            if (this.engine != null)
+            {
+                try
+                {
+                    var settingsBuilder = new EngineSettingsBuilder(this.engine.Settings)
+                    {
+                        DhtEndPoint = null,
+                    };
+                    await this.engine.UpdateSettingsAsync(settingsBuilder.ToSettings()).ConfigureAwait(false);
+                    this.logger.Info("Disabled DHT endpoint following VPN kill switch halt");
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Debug(ex, "Error disabling DHT endpoint during VPN kill switch halt");
+                }
+            }
+
             this.logger.Warn("VPN kill switch halt completed. {0} active torrents paused, dirty write cache flushed, and peer connections aborted.", this.interruptedTorrentIds.Count);
         }
         finally
@@ -3358,7 +3376,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var newSettingsBuilder = new EngineSettingsBuilder(this.engine.Settings)
         {
             ListenEndPoints = listenEndPoints,
-            DhtEndPoint = this.configService.EnableDht ? new IPEndPoint(listenIp, port) : null,
+            DhtEndPoint = (!isProxyActive && this.configService.EnableDht) ? new IPEndPoint(listenIp, port) : null,
             DiskCacheBytes = this.CalculateDynamicDiskCacheBytes(this.engine.TotalDownloadRate),
             DiskCachePolicy = this.GetConfiguredCachePolicy(),
             FastResumeMode = this.GetConfiguredFastResumeMode(),
@@ -5378,6 +5396,7 @@ public class FilteringPeerConnectionListener : MonoTorrent.Connections.Peer.IPee
     private readonly Action onPeerBlocked;
     private readonly int maxHalfOpenConnections;
     private readonly TimeSpan handshakeTimeout;
+    private readonly Func<bool> isHalted;
     private int halfOpenCount;
 
     public FilteringPeerConnectionListener(
@@ -5385,13 +5404,15 @@ public class FilteringPeerConnectionListener : MonoTorrent.Connections.Peer.IPee
         IBlocklistService blocklistService = null,
         Action onPeerBlocked = null,
         int maxHalfOpenConnections = 50,
-        TimeSpan? handshakeTimeout = null)
+        TimeSpan? handshakeTimeout = null,
+        Func<bool> isHalted = null)
     {
         this.inner = inner ?? throw new ArgumentNullException(nameof(inner));
         this.blocklistService = blocklistService;
         this.onPeerBlocked = onPeerBlocked;
         this.maxHalfOpenConnections = maxHalfOpenConnections > 0 ? maxHalfOpenConnections : 50;
         this.handshakeTimeout = handshakeTimeout ?? TimeSpan.FromSeconds(15);
+        this.isHalted = isHalted;
         this.inner.ConnectionReceived += this.OnInnerConnectionReceived;
     }
 
@@ -5417,6 +5438,19 @@ public class FilteringPeerConnectionListener : MonoTorrent.Connections.Peer.IPee
 
     private void OnInnerConnectionReceived(object sender, MonoTorrent.Connections.Peer.PeerConnectionEventArgs e)
     {
+        if (this.isHalted?.Invoke() == true)
+        {
+            try
+            {
+                (e.Connection as IDisposable)?.Dispose();
+            }
+            catch
+            {
+            }
+
+            return;
+        }
+
         try
         {
             var ip = e.Connection?.Uri?.Host ?? e.Connection?.EndPoint?.Address?.ToString();
