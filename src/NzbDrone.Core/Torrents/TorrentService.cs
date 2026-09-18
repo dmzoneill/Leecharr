@@ -126,8 +126,19 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             this.SyncWithEngine(torrent);
             if (torrent.QueuePosition <= 0)
             {
-                torrent.QueuePosition = this.torrentRepository.GetNextQueuePosition();
-                this.torrentRepository.Update(torrent);
+                QueueLock.Wait();
+                try
+                {
+                    if (torrent.QueuePosition <= 0)
+                    {
+                        torrent.QueuePosition = this.torrentRepository.GetNextQueuePosition();
+                        this.torrentRepository.Update(torrent);
+                    }
+                }
+                finally
+                {
+                    QueueLock.Release();
+                }
             }
         }
 
@@ -197,7 +208,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             Status = startPaused ? TorrentStatus.Paused : TorrentStatus.Downloading,
             Category = effectiveCategory,
             SavePath = effectiveSavePath,
-            QueuePosition = this.torrentRepository.GetNextQueuePosition(),
+            QueuePosition = 0,
             DateAdded = DateTime.UtcNow,
             TagIds = new List<int>(),
         };
@@ -219,7 +230,17 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             }
         }
 
-        var inserted = this.torrentRepository.Insert(torrent) ?? torrent;
+        Torrent inserted;
+        await QueueLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            torrent.QueuePosition = this.torrentRepository.GetNextQueuePosition();
+            inserted = this.torrentRepository.Insert(torrent) ?? torrent;
+        }
+        finally
+        {
+            QueueLock.Release();
+        }
 
         // Insert torrent files
         if (parsed.Files != null)
@@ -411,7 +432,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             Status = startPaused ? TorrentStatus.Paused : TorrentStatus.Downloading,
             Category = effectiveCategory,
             SavePath = effectiveSavePath,
-            QueuePosition = this.torrentRepository.GetNextQueuePosition(),
+            QueuePosition = 0,
             DateAdded = DateTime.UtcNow,
             TagIds = new List<int>(),
         };
@@ -433,7 +454,17 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             }
         }
 
-        var inserted = this.torrentRepository.Insert(torrent) ?? torrent;
+        Torrent inserted;
+        await QueueLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            torrent.QueuePosition = this.torrentRepository.GetNextQueuePosition();
+            inserted = this.torrentRepository.Insert(torrent) ?? torrent;
+        }
+        finally
+        {
+            QueueLock.Release();
+        }
 
         var defaultAnnounceInterval = this.configService?.AnnounceIntervalSeconds > 0
             ? this.configService.AnnounceIntervalSeconds
