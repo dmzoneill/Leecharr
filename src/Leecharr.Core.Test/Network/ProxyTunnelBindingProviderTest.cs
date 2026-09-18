@@ -11,6 +11,7 @@ using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Network.Binding;
+using NzbDrone.Core.Network.Blocklist;
 
 namespace Leecharr.Core.Test.Network;
 
@@ -496,5 +497,148 @@ public class ProxyTunnelBindingProviderTest
     {
         var result = ProxyTunnelBindingProvider.FormatHostForAuthority(input);
         result.Should().Be(expected);
+    }
+
+    [Test]
+    public async Task ConnectTunnelAsync_WhenProxyConfiguredAndTargetIsPrivate_AndForceProxyIsTrue_ThrowsSocketExceptionAccessDenied()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.ProxyType.Returns("socks5");
+        config.ProxyHost.Returns("10.0.0.1");
+        config.ProxyPort.Returns(1080);
+        config.ForceProxy.Returns(true);
+
+        var provider = new ProxyTunnelBindingProvider(config);
+        var act = async () => await provider.ConnectTunnelAsync("192.168.1.100", 6881);
+
+        var ex = await act.Should().ThrowAsync<SocketException>();
+        ex.Which.SocketErrorCode.Should().Be(SocketError.AccessDenied);
+    }
+
+    [Test]
+    public async Task ConnectTunnelAsync_WhenProxyConfiguredAndTargetIsLoopback_AndBypassLocalNetworksIsFalse_ThrowsSocketExceptionAccessDenied()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.ProxyType.Returns("socks5");
+        config.ProxyHost.Returns("10.0.0.1");
+        config.ProxyPort.Returns(1080);
+        config.ForceProxy.Returns(false);
+        config.ProxyBypassLocalNetworks.Returns(false);
+
+        var provider = new ProxyTunnelBindingProvider(config);
+        var act = async () => await provider.ConnectTunnelAsync("127.0.0.1", 6881);
+
+        var ex = await act.Should().ThrowAsync<SocketException>();
+        ex.Which.SocketErrorCode.Should().Be(SocketError.AccessDenied);
+    }
+
+    [Test]
+    public async Task ConnectTunnelAsync_WhenProxyConfiguredAndTargetIsPrivate_AndBypassLocalNetworksIsTrue_ConnectsDirectly()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+
+        var serverTask = Task.Run(async () =>
+        {
+            using var client = await listener.AcceptTcpClientAsync();
+            using var stream = client.GetStream();
+            var buf = new byte[4];
+            await stream.ReadExactlyAsync(buf, 0, 4);
+            await stream.WriteAsync(Encoding.ASCII.GetBytes("PONG"));
+        });
+
+        try
+        {
+            var config = Substitute.For<IConfigService>();
+            config.ProxyType.Returns("socks5");
+            config.ProxyHost.Returns("10.0.0.1");
+            config.ProxyPort.Returns(1080);
+            config.ForceProxy.Returns(false);
+            config.ProxyBypassLocalNetworks.Returns(true);
+
+            var provider = new ProxyTunnelBindingProvider(config);
+            using var socket = await provider.ConnectTunnelAsync("127.0.0.1", port);
+            socket.Connected.Should().BeTrue();
+
+            using var stream = new NetworkStream(socket, ownsSocket: false);
+            await stream.WriteAsync(Encoding.ASCII.GetBytes("PING"));
+            var reply = new byte[4];
+            await stream.ReadExactlyAsync(reply, 0, 4);
+            Encoding.ASCII.GetString(reply).Should().Be("PONG");
+        }
+        finally
+        {
+            listener.Stop();
+            await serverTask;
+        }
+    }
+
+    [TestCase("169.254.169.254")]
+    [TestCase("169.254.1.1")]
+    [TestCase("instance-data")]
+    [TestCase("metadata.google.internal")]
+    public async Task ConnectTunnelAsync_WhenTargetIsCloudMetadata_AlwaysThrowsSocketExceptionAccessDenied(string metadataHost)
+    {
+        var config = Substitute.For<IConfigService>();
+        config.ProxyType.Returns("none");
+        config.ProxyBypassLocalNetworks.Returns(true);
+
+        var provider = new ProxyTunnelBindingProvider(config);
+        var act = async () => await provider.ConnectTunnelAsync(metadataHost, 80);
+
+        var ex = await act.Should().ThrowAsync<SocketException>();
+        ex.Which.SocketErrorCode.Should().Be(SocketError.AccessDenied);
+    }
+
+    [Test]
+    public async Task ConnectTunnelAsync_WhenDirectConnectionPermitted_BindsSocketViaNetworkBindingService()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+
+        var serverTask = Task.Run(async () =>
+        {
+            using var client = await listener.AcceptTcpClientAsync();
+        });
+
+        try
+        {
+            var config = Substitute.For<IConfigService>();
+            config.ProxyType.Returns("none");
+            config.BindInterface.Returns("eth0");
+
+            var bindingService = Substitute.For<INetworkBindingService>();
+            var otherProvider = Substitute.For<INetworkBindingProvider>();
+            otherProvider.ProviderId.Returns("ManagedSocket");
+            bindingService.ActiveProvider.Returns(otherProvider);
+
+            var provider = new ProxyTunnelBindingProvider(config, bindingService);
+            using var socket = await provider.ConnectTunnelAsync("127.0.0.1", port);
+
+            bindingService.Received(1).BindSocket(Arg.Any<Socket>(), "eth0", 0);
+        }
+        finally
+        {
+            listener.Stop();
+            await serverTask;
+        }
+    }
+
+    [Test]
+    public async Task ConnectTunnelAsync_WhenIpIsBlocklisted_ThrowsSocketExceptionAccessDenied()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.ProxyType.Returns("none");
+
+        var blocklistService = Substitute.For<IBlocklistService>();
+        blocklistService.IsIpBlocked("198.51.100.1").Returns(true);
+
+        var provider = new ProxyTunnelBindingProvider(config, blocklistService: blocklistService);
+        var act = async () => await provider.ConnectTunnelAsync("198.51.100.1", 6881);
+
+        var ex = await act.Should().ThrowAsync<SocketException>();
+        ex.Which.SocketErrorCode.Should().Be(SocketError.AccessDenied);
     }
 }

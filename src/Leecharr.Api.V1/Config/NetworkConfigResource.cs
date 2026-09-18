@@ -44,6 +44,8 @@ public class NetworkConfigResource : RestResource
     public string ProxyUsername { get; set; }
 
     public string ProxyPassword { get; set; }
+
+    public bool ProxyBypassLocalNetworks { get; set; }
 }
 
 public static class NetworkConfigResourceMapper
@@ -71,6 +73,7 @@ public static class NetworkConfigResourceMapper
             ProxyAuthEnabled = model.ProxyAuthEnabled,
             ProxyUsername = model.ProxyUsername,
             ProxyPassword = string.IsNullOrEmpty(model.ProxyPassword) ? string.Empty : "********",
+            ProxyBypassLocalNetworks = model.ProxyBypassLocalNetworks,
         };
     }
 }

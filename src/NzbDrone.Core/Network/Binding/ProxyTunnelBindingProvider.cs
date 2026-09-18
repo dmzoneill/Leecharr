@@ -10,12 +10,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Network.Blocklist;
 
 namespace NzbDrone.Core.Network.Binding;
 
 public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
 {
     private readonly IConfigService configService;
+    private readonly INetworkBindingService networkBindingService;
+    private readonly IBlocklistService blocklistService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public string ProviderId => "ProxyTunnel";
@@ -38,9 +41,14 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         SupportsAnonymousRouting = true,
     };
 
-    public ProxyTunnelBindingProvider(IConfigService configService = null)
+    public ProxyTunnelBindingProvider(
+        IConfigService configService = null,
+        INetworkBindingService networkBindingService = null,
+        IBlocklistService blocklistService = null)
     {
         this.configService = configService;
+        this.networkBindingService = networkBindingService;
+        this.blocklistService = blocklistService;
     }
 
     public Task<NetworkBindingHealthCheckResult> ProbeHealthAsync()
@@ -88,35 +96,91 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
 
     public async Task<Socket> ConnectTunnelAsync(string targetHost, int targetPort, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(targetHost))
+        {
+            throw new ArgumentException("Target host must not be empty.", nameof(targetHost));
+        }
+
+        if (this.blocklistService != null && this.blocklistService.IsIpBlocked(targetHost))
+        {
+            this.logger.Warn("Blocked connection to blocklisted host/IP {0}:{1}.", targetHost, targetPort);
+            throw new SocketException((int)SocketError.AccessDenied);
+        }
+
+        var isMetadata = IsLinkLocalOrMetadata(targetHost);
         var proxyType = this.configService?.ProxyType?.ToLowerInvariant() ?? "none";
         var proxyHost = this.configService?.ProxyHost;
         var proxyPort = this.configService?.ProxyPort ?? (proxyType is "socks5" or "socks4" or "socks4a" ? 1080 : 8080);
+        var isProxyConfigured = !string.Equals(proxyType, "none", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(proxyHost);
+        var forceProxy = this.configService?.ForceProxy ?? false;
+        var bypassLocal = this.configService?.ProxyBypassLocalNetworks ?? false;
+        var isPrivateOrLoopback = IsPrivateOrLoopback(targetHost);
 
-        if (IsPrivateOrLoopback(targetHost) || string.Equals(proxyType, "none", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(proxyHost))
+        if (isProxyConfigured)
         {
-            // Direct connection
-            var directSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
-            await directSocket.ConnectAsync(targetHost, targetPort, cancellationToken);
-            return directSocket;
+            if (isPrivateOrLoopback)
+            {
+                if (forceProxy)
+                {
+                    this.logger.Warn("Blocked direct connection to private/loopback host {0}:{1} while ForceProxy is active.", targetHost, targetPort);
+                    throw new SocketException((int)SocketError.AccessDenied);
+                }
+
+                if (!bypassLocal)
+                {
+                    this.logger.Warn("Blocked connection to private/loopback host {0}:{1} because local proxy bypass is disabled.", targetHost, targetPort);
+                    throw new SocketException((int)SocketError.AccessDenied);
+                }
+
+                if (isMetadata)
+                {
+                    this.logger.Warn("Blocked direct connection to link-local / cloud metadata address {0}:{1}.", targetHost, targetPort);
+                    throw new SocketException((int)SocketError.AccessDenied);
+                }
+
+                return await this.CreateAndConnectDirectSocketAsync(targetHost, targetPort, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        else
+        {
+            if (forceProxy)
+            {
+                this.logger.Warn("Blocked connection to host {0}:{1} because ForceProxy is enabled but no proxy is configured.", targetHost, targetPort);
+                throw new SocketException((int)SocketError.AccessDenied);
+            }
+
+            if (isMetadata)
+            {
+                this.logger.Warn("Blocked direct connection to link-local / cloud metadata address {0}:{1}.", targetHost, targetPort);
+                throw new SocketException((int)SocketError.AccessDenied);
+            }
+
+            return await this.CreateAndConnectDirectSocketAsync(targetHost, targetPort, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (isMetadata)
+        {
+            this.logger.Warn("Blocked connection to link-local / cloud metadata address {0}:{1}.", targetHost, targetPort);
+            throw new SocketException((int)SocketError.AccessDenied);
         }
 
         var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
 
         try
         {
-            await socket.ConnectAsync(proxyHost, proxyPort, cancellationToken);
+            await socket.ConnectAsync(proxyHost, proxyPort, cancellationToken).ConfigureAwait(false);
 
             if (proxyType == "socks5")
             {
-                await this.PerformSocks5HandshakeAsync(socket, targetHost, targetPort, cancellationToken);
+                await this.PerformSocks5HandshakeAsync(socket, targetHost, targetPort, cancellationToken).ConfigureAwait(false);
             }
             else if (proxyType is "socks4" or "socks4a")
             {
-                await this.PerformSocks4HandshakeAsync(socket, targetHost, targetPort, cancellationToken);
+                await this.PerformSocks4HandshakeAsync(socket, targetHost, targetPort, cancellationToken).ConfigureAwait(false);
             }
             else if (proxyType == "http")
             {
-                await this.PerformHttpConnectHandshakeAsync(socket, targetHost, targetPort, cancellationToken);
+                await this.PerformHttpConnectHandshakeAsync(socket, targetHost, targetPort, cancellationToken).ConfigureAwait(false);
             }
             else
             {
@@ -130,6 +194,61 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
             socket.Dispose();
             this.logger.Warn(ex, "Failed to establish proxy tunnel via {0}:{1} to {2}:{3}", proxyHost, proxyPort, targetHost, targetPort);
             throw;
+        }
+    }
+
+    private async Task<Socket> CreateAndConnectDirectSocketAsync(string targetHost, int targetPort, CancellationToken cancellationToken)
+    {
+        var addressFamily = AddressFamily.InterNetwork;
+        if (IPAddress.TryParse(targetHost, out var ip) && ip.AddressFamily == AddressFamily.InterNetworkV6)
+        {
+            addressFamily = AddressFamily.InterNetworkV6;
+        }
+
+        var socket = new Socket(addressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+        try
+        {
+            this.BindDirectSocket(socket);
+            await socket.ConnectAsync(targetHost, targetPort, cancellationToken).ConfigureAwait(false);
+            return socket;
+        }
+        catch
+        {
+            socket.Dispose();
+            throw;
+        }
+    }
+
+    private void BindDirectSocket(Socket socket)
+    {
+        var iface = this.configService?.NetworkInterfaceBinding;
+        if (string.IsNullOrWhiteSpace(iface))
+        {
+            iface = this.configService?.BindInterface;
+        }
+
+        if (string.IsNullOrWhiteSpace(iface))
+        {
+            return;
+        }
+
+        if (this.networkBindingService != null && !(this.networkBindingService.ActiveProvider is IProxyTunnelBindingProvider))
+        {
+            this.networkBindingService.BindSocket(socket, iface);
+            return;
+        }
+
+        var ip = ManagedSocketBindingProvider.GetInterfaceIp(iface, socket.AddressFamily);
+        if (ip != null)
+        {
+            socket.Bind(new IPEndPoint(ip, 0));
+            this.logger.Debug("Bound direct socket to interface '{0}' ({1})", iface, ip);
+        }
+        else if (this.configService?.EnableVpnKillSwitch ?? false)
+        {
+            this.logger.Error("Kill-switch activated: interface '{0}' has no valid IP for address family {1}", iface, socket.AddressFamily);
+            throw new SocketException((int)SocketError.AccessDenied);
         }
     }
 
@@ -376,11 +495,54 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
         return targetHost;
     }
 
+    internal static bool IsLinkLocalOrMetadata(string host)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return false;
+        }
+
+        var cleanHost = host.Trim('[', ']');
+        if (string.Equals(cleanHost, "instance-data", StringComparison.OrdinalIgnoreCase) ||
+            cleanHost.EndsWith(".metadata.google.internal", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(cleanHost, "metadata.google.internal", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (IPAddress.TryParse(cleanHost, out var ip))
+        {
+            if (ip.IsIPv4MappedToIPv6)
+            {
+                ip = ip.MapToIPv4();
+            }
+
+            if (ip.AddressFamily == AddressFamily.InterNetwork)
+            {
+                var bytes = ip.GetAddressBytes();
+                return bytes[0] == 169 && bytes[1] == 254;
+            }
+
+            if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                return ip.IsIPv6LinkLocal;
+            }
+        }
+
+        return false;
+    }
+
     internal static bool IsPrivateOrLoopback(string host)
     {
         if (string.IsNullOrWhiteSpace(host))
         {
             return false;
+        }
+
+        var cleanHost = host.Trim('[', ']');
+        if (IsLinkLocalOrMetadata(cleanHost))
+        {
+            return true;
         }
 
         if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) ||
