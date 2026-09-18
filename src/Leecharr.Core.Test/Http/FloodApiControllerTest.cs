@@ -488,4 +488,116 @@ public class FloodApiControllerTest
         var completeStopped = new Torrent { Status = TorrentStatus.Stopped, Progress = 1.0 };
         FloodApiController.MapToFloodStatus(completeStopped).Should().Be("complete");
     }
+
+    [Test]
+    public async Task SetTags_WhenTagMatchesCategory_CallsSetCategoryAsyncAndStoresRemainingLabels()
+    {
+        var torrent = new Torrent
+        {
+            Id = 10,
+            Name = "Tagged Torrent",
+            InfoHash = "1111111111111111111111111111111111111111",
+            Category = "old-cat",
+            Label = string.Empty,
+        };
+        this.torrentService.GetByInfoHash(torrent.InfoHash).Returns(torrent);
+        this.categoryService.GetAll().Returns(new List<Category>
+        {
+            new() { Id = 1, Name = "movies" },
+            new() { Id = 2, Name = "tv" },
+        });
+
+        var request = new FloodActionRequest
+        {
+            Hashes = new List<string> { torrent.InfoHash },
+            Tags = new List<string> { "favorite", "movies", "hd" },
+        };
+
+        var result = await this.controller.SetTags(request);
+        result.Should().BeOfType<OkObjectResult>();
+
+        await this.torrentService.Received(1).SetCategoryAsync(10, "movies");
+        await this.torrentService.Received(1).UpdateAsync(Arg.Is<Torrent>(t =>
+            t.Id == 10 &&
+            t.Category == "movies" &&
+            t.Label == "favorite,hd"));
+    }
+
+    [Test]
+    public async Task SetTags_WhenNoTagMatchesCategory_PreservesCategoryAndUpdatesLabels()
+    {
+        var torrent = new Torrent
+        {
+            Id = 11,
+            Name = "Arbitrary Tagged Torrent",
+            InfoHash = "2222222222222222222222222222222222222222",
+            Category = "existing-cat",
+            Label = "oldlabel",
+        };
+        this.torrentService.GetByInfoHash(torrent.InfoHash).Returns(torrent);
+        this.categoryService.GetAll().Returns(new List<Category>
+        {
+            new() { Id = 1, Name = "movies" },
+        });
+
+        var request = new FloodActionRequest
+        {
+            Hashes = new List<string> { torrent.InfoHash },
+            Tags = new List<string> { "tag1", "tag2" },
+        };
+
+        var result = await this.controller.SetTags(request);
+        result.Should().BeOfType<OkObjectResult>();
+
+        await this.torrentService.DidNotReceive().SetCategoryAsync(Arg.Any<int>(), Arg.Any<string>());
+        await this.torrentService.Received(1).UpdateAsync(Arg.Is<Torrent>(t =>
+            t.Id == 11 &&
+            t.Category == "existing-cat" &&
+            t.Label == "tag1,tag2"));
+    }
+
+    [Test]
+    public void GetTorrents_CombinesCategoryAndSplitsLabelsIntoDeduplicatedTags()
+    {
+        var torrent = new Torrent
+        {
+            Id = 12,
+            Name = "Tags Torrent",
+            InfoHash = "3333333333333333333333333333333333333333",
+            Category = "movies",
+            Label = "action, 1080p; movies, favorite",
+            Status = TorrentStatus.Downloading,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var result = this.controller.GetTorrents();
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var item = doc.RootElement.GetProperty("torrents").GetProperty("3333333333333333333333333333333333333333");
+        var tags = item.GetProperty("tags").EnumerateArray().Select(e => e.GetString()).ToList();
+
+        tags.Should().Equal("movies", "action", "1080p", "favorite");
+    }
+
+    [Test]
+    public void GetTags_ReturnsDistinctUnionOfCategoriesAndTorrentLabels()
+    {
+        this.categoryService.GetAll().Returns(new List<Category>
+        {
+            new() { Id = 1, Name = "movies" },
+            new() { Id = 2, Name = "tv" },
+        });
+
+        var t1 = new Torrent { Id = 1, InfoHash = "hash1", Category = "movies", Label = "action, 4k" };
+        var t2 = new Torrent { Id = 2, InfoHash = "hash2", Category = "anime", Label = "subbed; tv" };
+        this.torrentService.GetAll().Returns(new List<Torrent> { t1, t2 });
+
+        var result = this.controller.GetTags();
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var tags = okResult.Value.Should().BeAssignableTo<IEnumerable<string>>().Subject.ToList();
+
+        tags.Should().Contain(new[] { "movies", "tv", "anime", "action", "4k", "subbed" });
+        tags.Distinct(StringComparer.OrdinalIgnoreCase).Count().Should().Be(tags.Count);
+    }
 }
