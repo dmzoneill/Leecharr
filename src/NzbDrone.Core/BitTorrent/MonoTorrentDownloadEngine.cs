@@ -1203,8 +1203,17 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
         else
         {
-            await manager.StartAsync();
-            this.logger.Info("Added and started torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
+            if (this.configService?.AutoStart == false)
+            {
+                await manager.PauseAsync();
+                torrent.Status = TorrentStatus.Paused;
+                this.logger.Info("Added torrent in paused state due to AutoStart=false: {0} ({1})", torrent.Name, torrent.InfoHash);
+            }
+            else
+            {
+                await manager.StartAsync();
+                this.logger.Info("Added and started torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
+            }
         }
 
         return downloadTask;

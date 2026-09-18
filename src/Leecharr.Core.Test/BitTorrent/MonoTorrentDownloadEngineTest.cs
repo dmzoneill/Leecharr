@@ -66,6 +66,7 @@ public class MonoTorrentDownloadEngineTest
         this.configService.EnablePex.Returns(true);
         this.configService.EnableBep27PrivateTorrents.Returns(true);
         this.configService.EnableIncompleteDir.Returns(true);
+        this.configService.AutoStart.Returns(true);
 
         this.storagePathService = Substitute.For<IStoragePathService>();
         this.storagePathService.GetIncompleteDirectory().Returns(this.testIncompleteDir);
@@ -689,6 +690,29 @@ public class MonoTorrentDownloadEngineTest
 
         task.Should().NotBeNull();
         task.Manager.State.Should().Be(TorrentState.Stopped);
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenAutoStartIsFalse_PausesManagerAndSetsStatusToPaused()
+    {
+        this.configService.AutoStart.Returns(false);
+
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("autostart_false.iso");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 939,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "autostart_false.iso",
+            Status = TorrentStatus.Downloading,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.Should().NotBeNull();
+        torrent.Status.Should().Be(TorrentStatus.Paused);
+        task.Manager.State.Should().BeOneOf(TorrentState.Paused, TorrentState.Stopping, TorrentState.Stopped);
     }
 
     [Test]

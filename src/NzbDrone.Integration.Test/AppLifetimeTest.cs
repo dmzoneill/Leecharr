@@ -263,6 +263,53 @@ public class AppLifetimeTest
     }
 
     [Test]
+    public async Task StartAsync_WhenAutoStartDisabled_StillRestoresTorrentsIntoDownloadEngine()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "leecharr_lifetime_test_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var torrentsDir = Path.Combine(tempDir, "Torrents");
+            Directory.CreateDirectory(torrentsDir);
+            var hash = "11223344556677889900aabbccddeeff00112233";
+            var torrentFile = Path.Combine(torrentsDir, $"{hash}.torrent");
+            var expectedBytes = new byte[] { 1, 2, 3 };
+            await File.WriteAllBytesAsync(torrentFile, expectedBytes);
+
+            var appFolderInfo = Substitute.For<IAppFolderInfo>();
+            appFolderInfo.AppDataFolder.Returns(tempDir);
+
+            this.configService.AutoStart.Returns(false);
+            this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
+
+            var torrent = new Torrent
+            {
+                Id = 939,
+                Name = "Startup Restore When AutoStart Disabled",
+                InfoHash = hash,
+                Status = TorrentStatus.Downloading,
+            };
+            this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+
+            using var lifetime = new AppLifetime(
+                this.CreateServices(appFolderInfo: appFolderInfo));
+
+            await lifetime.StartAsync(CancellationToken.None);
+            await lifetime.StopAsync(CancellationToken.None);
+
+            await this.downloadEngine.Received(1).AddTorrentAsync(
+                Arg.Is<Torrent>(t => t.Id == 939),
+                Arg.Is<byte[]>(b => b.Length == 3));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Test]
     public async Task SpeedPulse_WhenDownloading_BroadcastsCorrectEtaUsingTotalBytes()
     {
         var broadcaster = Substitute.For<IBroadcastSignalRMessage>();
