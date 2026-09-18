@@ -756,4 +756,248 @@ public class RTorrentControllerTest
         torrent.Priority.Should().Be(2);
         await this.torrentService.Received(1).UpdateAsync(torrent);
     }
+
+    [Test]
+    public async Task HandleXmlRpc_Custom2ThroughCustom5_GetReturnsEmptyStringWhenUnset_AndReturnsStoredValueWhenSet()
+    {
+        var torrent = new Torrent
+        {
+            Id = 40,
+            InfoHash = "hash40",
+            Category = "movies",
+        };
+        this.torrentService.GetByInfoHash("hash40").Returns(torrent);
+
+        // 1. Initially unset custom2 returns empty string
+        var getXml = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.custom2</methodName>
+              <params>
+                <param><value><string>hash40</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(getXml);
+        var getRes = (ContentResult)await this.controller.HandleXmlRpc();
+        getRes.Content.Should().Contain("<string></string>");
+
+        // 2. Set custom2 through custom5
+        var setXml2 = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.set_custom2</methodName>
+              <params>
+                <param><value><string>hash40</string></value></param>
+                <param><value><string>val-custom2</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(setXml2);
+        var setRes2 = (ContentResult)await this.controller.HandleXmlRpc();
+        setRes2.Content.Should().Contain("<string>val-custom2</string>");
+
+        var setXml3 = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.custom3.set</methodName>
+              <params>
+                <param><value><string>hash40</string></value></param>
+                <param><value><string>val-custom3</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(setXml3);
+        var setRes3 = (ContentResult)await this.controller.HandleXmlRpc();
+        setRes3.Content.Should().Contain("<string>val-custom3</string>");
+
+        var setXml4 = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.set_custom4</methodName>
+              <params>
+                <param><value><string>hash40</string></value></param>
+                <param><value><string>val-custom4</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(setXml4);
+        var setRes4 = (ContentResult)await this.controller.HandleXmlRpc();
+        setRes4.Content.Should().Contain("<string>val-custom4</string>");
+
+        var setXml5 = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.custom5.set</methodName>
+              <params>
+                <param><value><string>hash40</string></value></param>
+                <param><value><string>val-custom5</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(setXml5);
+        var setRes5 = (ContentResult)await this.controller.HandleXmlRpc();
+        setRes5.Content.Should().Contain("<string>val-custom5</string>");
+
+        // 3. Get custom2 through custom5
+        var verifyXml = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.get_custom2</methodName>
+              <params>
+                <param><value><string>hash40</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(verifyXml);
+        var verifyRes = (ContentResult)await this.controller.HandleXmlRpc();
+        verifyRes.Content.Should().Contain("<string>val-custom2</string>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_Multicall_FiltersTorrentsByView()
+    {
+        var tStarted = new Torrent { Id = 1, InfoHash = "1111", Status = TorrentStatus.Downloading, Progress = 0.5 };
+        var tSeeding = new Torrent { Id = 2, InfoHash = "2222", Status = TorrentStatus.Seeding, Progress = 1.0 };
+        var tStopped = new Torrent { Id = 3, InfoHash = "3333", Status = TorrentStatus.Stopped, Progress = 0.2 };
+        var tPaused = new Torrent { Id = 4, InfoHash = "4444", Status = TorrentStatus.Paused, Progress = 1.0 };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { tStarted, tSeeding, tStopped, tPaused });
+
+        // Started view (downloading or seeding)
+        var xmlStarted = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.multicall2</methodName>
+              <params>
+                <param><value><string></string></value></param>
+                <param><value><string>started</string></value></param>
+                <param><value><string>d.hash=</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xmlStarted);
+        var resStarted = (ContentResult)await this.controller.HandleXmlRpc();
+        resStarted.Content.Should().Contain("1111");
+        resStarted.Content.Should().Contain("2222");
+        resStarted.Content.Should().NotContain("3333");
+        resStarted.Content.Should().NotContain("4444");
+
+        // Stopped view (stopped or paused)
+        var xmlStopped = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.multicall</methodName>
+              <params>
+                <param><value><string>stopped</string></value></param>
+                <param><value><string>d.hash=</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xmlStopped);
+        var resStopped = (ContentResult)await this.controller.HandleXmlRpc();
+        resStopped.Content.Should().Contain("3333");
+        resStopped.Content.Should().Contain("4444");
+        resStopped.Content.Should().NotContain("1111");
+        resStopped.Content.Should().NotContain("2222");
+
+        // Complete view
+        var xmlComplete = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.multicall</methodName>
+              <params>
+                <param><value><string>complete</string></value></param>
+                <param><value><string>d.hash=</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xmlComplete);
+        var resComplete = (ContentResult)await this.controller.HandleXmlRpc();
+        resComplete.Content.Should().Contain("2222");
+        resComplete.Content.Should().Contain("4444");
+        resComplete.Content.Should().NotContain("1111");
+        resComplete.Content.Should().NotContain("3333");
+
+        // Incomplete view
+        var xmlIncomplete = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.multicall</methodName>
+              <params>
+                <param><value><string>incomplete</string></value></param>
+                <param><value><string>d.hash=</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xmlIncomplete);
+        var resIncomplete = (ContentResult)await this.controller.HandleXmlRpc();
+        resIncomplete.Content.Should().Contain("1111");
+        resIncomplete.Content.Should().Contain("3333");
+        resIncomplete.Content.Should().NotContain("2222");
+        resIncomplete.Content.Should().NotContain("4444");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_ViewsHas_ChecksMembershipStandaloneAndInMulticall()
+    {
+        var torrent = new Torrent
+        {
+            Id = 50,
+            InfoHash = "hash50",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+        };
+        this.torrentService.GetByInfoHash("hash50").Returns(torrent);
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        // Standalone started
+        var xml1 = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.views.has</methodName>
+              <params>
+                <param><value><string>hash50</string></value></param>
+                <param><value><string>started</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml1);
+        var res1 = (ContentResult)await this.controller.HandleXmlRpc();
+        res1.Content.Should().Contain("<i4>1</i4>");
+
+        // Standalone complete
+        var xml2 = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.views.has</methodName>
+              <params>
+                <param><value><string>hash50</string></value></param>
+                <param><value><string>complete</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml2);
+        var res2 = (ContentResult)await this.controller.HandleXmlRpc();
+        res2.Content.Should().Contain("<i4>0</i4>");
+
+        // Multicall with d.views.has=started
+        var xml3 = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.multicall</methodName>
+              <params>
+                <param><value><string>main</string></value></param>
+                <param><value><string>d.views.has=started</string></value></param>
+                <param><value><string>d.views.has=complete</string></value></param>
+                <param><value><string>d.custom2</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml3);
+        var res3 = (ContentResult)await this.controller.HandleXmlRpc();
+        res3.Content.Should().Contain("<i4>1</i4>");
+        res3.Content.Should().Contain("<i4>0</i4>");
+        res3.Content.Should().Contain("<string></string>");
+    }
 }
