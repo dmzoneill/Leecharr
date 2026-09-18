@@ -8,6 +8,10 @@ public interface IEpisodicParser
 {
     (int? SeasonNumber, int? EpisodeNumber, string EpisodeTitle) ExtractEpisodicInfo(string name);
 
+    (int? SeasonNumber, int? EpisodeNumber, string EpisodeTitle, List<int> EpisodeNumbers, string FormattedRange) ExtractDetailedEpisodicInfo(string name);
+
+    List<int> ExtractEpisodeNumbers(string name);
+
     (string ContainerFormat, string Resolution, string VideoCodec, string HdrFormat, string AudioCodec, string AudioChannels, string AudioLanguage, List<string> SubtitleLanguages) ExtractStreamSpecs(string mediaInfoJson);
 
     string EscapeMarkdown(string text);

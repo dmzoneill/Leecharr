@@ -100,7 +100,8 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
                 // 2. Fallback to /lookup or /search term query
                 if (!string.IsNullOrWhiteSpace(cleanTitle))
                 {
-                    var result = await this.LookupFromArrAsync(conn, cleanTitle);
+                    var releaseYear = ExtractYear(title);
+                    var result = await this.LookupFromArrAsync(conn, cleanTitle, releaseYear);
                     if (result != null)
                     {
                         return result;
@@ -380,7 +381,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         var meta = new MediaMetadata
         {
             Title = series.TryGetProperty("title", out var t) && t.ValueKind == JsonValueKind.String ? t.GetString() : string.Empty,
-            Year = series.TryGetProperty("year", out var y) && y.ValueKind == JsonValueKind.Number && y.TryGetInt32(out var yr) ? yr : 0,
+            Year = series.TryGetProperty("year", out var y) && y.ValueKind == JsonValueKind.Number && y.TryGetInt32(out var itemYr) ? itemYr : 0,
             Overview = series.TryGetProperty("overview", out var ov) && ov.ValueKind == JsonValueKind.String ? ov.GetString() : string.Empty,
             MediaType = "TV",
         };
@@ -430,7 +431,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         var meta = new MediaMetadata
         {
             Title = movie.TryGetProperty("title", out var t) && t.ValueKind == JsonValueKind.String ? t.GetString() : string.Empty,
-            Year = movie.TryGetProperty("year", out var y) && y.ValueKind == JsonValueKind.Number && y.TryGetInt32(out var yr) ? yr : 0,
+            Year = movie.TryGetProperty("year", out var y) && y.ValueKind == JsonValueKind.Number && y.TryGetInt32(out var itemYr) ? itemYr : 0,
             Overview = movie.TryGetProperty("overview", out var ov) && ov.ValueKind == JsonValueKind.String ? ov.GetString() : string.Empty,
             MediaType = "Movie",
         };
@@ -609,7 +610,7 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         return meta;
     }
 
-    private async Task<MediaMetadata> LookupFromArrAsync(ArrConnectionDefinition conn, string title)
+    private async Task<MediaMetadata> LookupFromArrAsync(ArrConnectionDefinition conn, string title, int year = 0)
     {
         if (string.IsNullOrWhiteSpace(conn.Url))
         {
@@ -643,19 +644,76 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
             return null;
         }
 
-        var first = doc.RootElement[0];
+        var chosen = doc.RootElement[0];
+        var bestScore = -1;
+
+        foreach (var item in doc.RootElement.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            var itemTitle = item.TryGetProperty("title", out var tProp) && tProp.ValueKind == JsonValueKind.String
+                ? tProp.GetString()
+                : string.Empty;
+
+            var itemYear = item.TryGetProperty("year", out var yProp) && yProp.ValueKind == JsonValueKind.Number
+                ? yProp.GetInt32()
+                : 0;
+
+            var score = 0;
+
+            if (!string.IsNullOrWhiteSpace(itemTitle) && !string.IsNullOrWhiteSpace(title))
+            {
+                if (string.Equals(itemTitle, title, StringComparison.OrdinalIgnoreCase))
+                {
+                    score += 100;
+                }
+                else if (string.Equals(CleanTitle(itemTitle), CleanTitle(title), StringComparison.OrdinalIgnoreCase))
+                {
+                    score += 80;
+                }
+                else if (itemTitle.Contains(title, StringComparison.OrdinalIgnoreCase) || title.Contains(itemTitle, StringComparison.OrdinalIgnoreCase))
+                {
+                    score += 40;
+                }
+            }
+
+            if (year > 0 && itemYear > 0)
+            {
+                if (itemYear == year)
+                {
+                    score += 50;
+                }
+                else if (Math.Abs(itemYear - year) <= 1)
+                {
+                    score += 25;
+                }
+                else
+                {
+                    score -= 20;
+                }
+            }
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                chosen = item;
+            }
+        }
 
         if (isMusic)
         {
-            first.TryGetProperty("artist", out var artist);
-            first.TryGetProperty("album", out var album);
+            chosen.TryGetProperty("artist", out var artist);
+            chosen.TryGetProperty("album", out var album);
 
             if (artist.ValueKind == JsonValueKind.Object || album.ValueKind == JsonValueKind.Object)
             {
                 return this.ParseLidarrMetadata(conn, artist, album);
             }
 
-            var lidarrMeta = this.ParseLidarrMetadata(conn, first, default);
+            var lidarrMeta = this.ParseLidarrMetadata(conn, chosen, default);
             if (string.IsNullOrWhiteSpace(lidarrMeta.Title))
             {
                 lidarrMeta.Title = title;
@@ -666,18 +724,18 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
 
         var meta = new MediaMetadata
         {
-            Title = first.TryGetProperty("title", out var t) && t.ValueKind == JsonValueKind.String ? t.GetString() : title,
-            Year = first.TryGetProperty("year", out var y) && y.ValueKind == JsonValueKind.Number && y.TryGetInt32(out var yr) ? yr : 0,
-            Overview = first.TryGetProperty("overview", out var ov) && ov.ValueKind == JsonValueKind.String ? ov.GetString() : string.Empty,
+            Title = chosen.TryGetProperty("title", out var t) && t.ValueKind == JsonValueKind.String ? t.GetString() : title,
+            Year = chosen.TryGetProperty("year", out var y) && y.ValueKind == JsonValueKind.Number ? y.GetInt32() : 0,
+            Overview = chosen.TryGetProperty("overview", out var ov) && ov.ValueKind == JsonValueKind.String ? ov.GetString() : string.Empty,
             MediaType = isMovie ? "Movie" : "TV",
         };
 
-        if (first.TryGetProperty("id", out var idElem) && idElem.ValueKind == JsonValueKind.Number && idElem.TryGetInt32(out var idVal) && idVal > 0)
+        if (chosen.TryGetProperty("id", out var idElem) && idElem.ValueKind == JsonValueKind.Number && idElem.TryGetInt32(out var idVal) && idVal > 0)
         {
             meta.ArrMediaId = idVal;
         }
 
-        if (first.TryGetProperty("ratings", out var ratings) &&
+        if (chosen.TryGetProperty("ratings", out var ratings) &&
             ratings.ValueKind == JsonValueKind.Object &&
             ratings.TryGetProperty("value", out var rVal) &&
             rVal.ValueKind == JsonValueKind.Number &&
@@ -686,32 +744,32 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
             meta.Rating = r;
         }
 
-        if (first.TryGetProperty("imdbId", out var imdb) && imdb.ValueKind == JsonValueKind.String)
+        if (chosen.TryGetProperty("imdbId", out var imdb) && imdb.ValueKind == JsonValueKind.String)
         {
             meta.ImdbId = imdb.GetString();
         }
 
-        if (first.TryGetProperty("tmdbId", out var tmdb) && tmdb.ValueKind == JsonValueKind.Number && tmdb.TryGetInt32(out var tmdbInt))
+        if (chosen.TryGetProperty("tmdbId", out var tmdb) && tmdb.ValueKind == JsonValueKind.Number && tmdb.TryGetInt32(out var tmdbInt))
         {
             meta.TmdbId = tmdbInt.ToString();
         }
 
-        if (first.TryGetProperty("tvdbId", out var tvdb) && tvdb.ValueKind == JsonValueKind.Number && tvdb.TryGetInt32(out var tvdbInt))
+        if (chosen.TryGetProperty("tvdbId", out var tvdb) && tvdb.ValueKind == JsonValueKind.Number && tvdb.TryGetInt32(out var tvdbInt))
         {
             meta.TvdbId = tvdbInt.ToString();
         }
 
-        if (first.TryGetProperty("genres", out var g) && g.ValueKind == JsonValueKind.Array)
+        if (chosen.TryGetProperty("genres", out var g) && g.ValueKind == JsonValueKind.Array)
         {
             meta.Genres = string.Join(", ", g.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.String).Select(x => x.GetString()));
         }
 
-        if (first.TryGetProperty("images", out var images) && images.ValueKind == JsonValueKind.Array)
+        if (chosen.TryGetProperty("images", out var images) && images.ValueKind == JsonValueKind.Array)
         {
             this.PopulateImages(conn, baseUrl, images, meta);
         }
 
-        meta.Cast = ExtractCast(first);
+        meta.Cast = ExtractCast(chosen);
 
         return meta;
     }
@@ -820,6 +878,22 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         }
     }
 
+    private static readonly HashSet<string> KnownYearTitles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Blade Runner 2049",
+        "Wonder Woman 1984",
+        "Death Race 2000",
+        "Blues Brothers 2000",
+        "Dracula 2000",
+        "Godzilla 2000",
+        "Class of 1999",
+        "Airport 1975",
+        "Airport 1977",
+        "Cyberpunk 2077",
+        "Metropolis 2000",
+        "Space 1999",
+    };
+
     internal static string CleanTitle(string raw)
     {
         if (string.IsNullOrWhiteSpace(raw))
@@ -827,7 +901,15 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
             return string.Empty;
         }
 
-        var clean = Regex.Replace(raw, @"[._]", " ");
+        // Handle abbreviations with dots (e.g. S.W.A.T., Agents of S.H.I.E.L.D., A.I.)
+        // First insert space if abbreviation ending with dot is immediately followed by a 4-digit year: S.W.A.T.2003 -> S.W.A.T. 2003
+        var text = Regex.Replace(raw, @"(\b(?:[A-Za-z]\.){1,}[A-Za-z]\.)(?=\d{4}\b)", "$1 ");
+
+        // Protect internal abbreviation dots by replacing with placeholder
+        text = Regex.Replace(text, @"\b(?:[A-Za-z]\.){1,}[A-Za-z]\.?", m => m.Value.Replace('.', '\uE000'));
+
+        var clean = Regex.Replace(text, @"[._]", " ");
+        clean = clean.Replace('\uE000', '.');
 
         // Strip TV season/episode markers (e.g. S01E01, S01E01-E04, S01E01E02, 1x05, Season 1, Episode 01, E05)
         clean = Regex.Replace(clean, @"(?i)(?<!^)\s*\b(S\d{1,2}(?:[-._]?(?:E|EP)\d{1,3}(?:(?:[-_~]|e|E|\.E)\d{1,3})*)?|\d{1,2}x\d{1,3}|Season\s*\d+|Episode\s*\d+|E\d{2,3})\b.*$", string.Empty);
@@ -845,10 +927,22 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
         }
         else
         {
-            clean = Regex.Replace(clean, @"(?<!^)\s*\b(19\d\d|20\d\d)\b.*$", string.Empty);
+            if (!KnownYearTitles.Any(k => string.Equals(k, clean.Trim(), StringComparison.OrdinalIgnoreCase)))
+            {
+                clean = Regex.Replace(clean, @"(?<!^)\s*\b(19\d\d|20\d\d)\b.*$", string.Empty);
+            }
         }
 
-        clean = clean.Trim('-', ' ', '.');
+        clean = Regex.Replace(clean, @"\s+", " ").Trim();
+        if (clean.EndsWith('.') && !Regex.IsMatch(clean, @"\b[A-Za-z]\.$"))
+        {
+            clean = clean.TrimEnd('.').Trim('-', ' ');
+        }
+        else
+        {
+            clean = clean.Trim('-', ' ');
+        }
+
         return string.IsNullOrWhiteSpace(clean) ? raw.Trim() : clean.Trim();
     }
 
@@ -859,16 +953,75 @@ public class ServarrSyncMetadataProvider : IMediaMetadataProvider
             return 0;
         }
 
+        var parenMatch = Regex.Match(rawTitle, @"\((19\d\d|20\d\d)\)");
+        if (parenMatch.Success && int.TryParse(parenMatch.Groups[1].Value, out var py))
+        {
+            return py;
+        }
+
+        var yearMatches = Regex.Matches(rawTitle, @"\b(19\d\d|20\d\d)\b");
+        if (yearMatches.Count > 1)
+        {
+            for (var i = yearMatches.Count - 1; i >= 0; i--)
+            {
+                if (int.TryParse(yearMatches[i].Value, out var y) && y >= 1900 && y <= DateTime.UtcNow.Year + 2)
+                {
+                    var prefix = rawTitle.Substring(0, yearMatches[i].Index + yearMatches[i].Length);
+                    var cleanedPrefix = Regex.Replace(prefix, @"[._]", " ").Trim();
+                    if (KnownYearTitles.Any(k => cleanedPrefix.EndsWith(k, StringComparison.OrdinalIgnoreCase)) && i > 0)
+                    {
+                        continue;
+                    }
+
+                    return y;
+                }
+            }
+        }
+        else if (yearMatches.Count == 1)
+        {
+            var single = yearMatches[0];
+            var prefix = rawTitle.Substring(0, single.Index + single.Length);
+            var cleanedPrefix = Regex.Replace(prefix, @"[._]", " ").Trim();
+            if (KnownYearTitles.Any(k => cleanedPrefix.EndsWith(k, StringComparison.OrdinalIgnoreCase)))
+            {
+                return 0;
+            }
+
+            if (int.TryParse(single.Value, out var sy) && sy >= 1900 && sy <= DateTime.UtcNow.Year + 2)
+            {
+                return sy;
+            }
+        }
+
         var taggedMatch = Regex.Match(
             rawTitle,
             @"\b(19\d\d|20\d\d)\b(?=[.\s_]*(?:1080p|720p|2160p|4k|uhd|hdr|remux|bluray|web|dvd|x264|x265|hevc|h264|h265|\(|$))",
             RegexOptions.IgnoreCase | RegexOptions.RightToLeft);
         if (taggedMatch.Success && int.TryParse(taggedMatch.Value, out var ty) && ty >= 1900 && ty <= DateTime.UtcNow.Year + 2)
         {
+            var prefix = rawTitle.Substring(0, taggedMatch.Index + taggedMatch.Length);
+            var cleanedPrefix = Regex.Replace(prefix, @"[._]", " ").Trim();
+            if (KnownYearTitles.Any(k => cleanedPrefix.EndsWith(k, StringComparison.OrdinalIgnoreCase)))
+            {
+                return 0;
+            }
+
             return ty;
         }
 
         var rightmostMatch = Regex.Match(rawTitle, @"\b(19\d\d|20\d\d)\b", RegexOptions.RightToLeft);
-        return rightmostMatch.Success && int.TryParse(rightmostMatch.Value, out var y) ? y : 0;
+        if (rightmostMatch.Success && int.TryParse(rightmostMatch.Value, out var rmy))
+        {
+            var prefix = rawTitle.Substring(0, rightmostMatch.Index + rightmostMatch.Length);
+            var cleanedPrefix = Regex.Replace(prefix, @"[._]", " ").Trim();
+            if (KnownYearTitles.Any(k => cleanedPrefix.EndsWith(k, StringComparison.OrdinalIgnoreCase)))
+            {
+                return 0;
+            }
+
+            return rmy;
+        }
+
+        return 0;
     }
 }

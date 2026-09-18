@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -10,12 +11,31 @@ namespace NzbDrone.Core.Notifications;
 
 public class EpisodicParser : IEpisodicParser
 {
-    private static readonly Regex SeasonEpisodeRegex = new(@"\bS(\d{1,2})E(\d{1,3})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex SeasonEpisodeAltRegex = new(@"\b(\d{1,2})x(\d{1,3})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex SeasonEpisodeRangeRegex = new(
+        @"(?i)\bS(?<season>\d{1,2})E(?<epStart>\d{1,3})(?:-(?:E|EP)?(?<epEnd>\d{1,3})|(?<extraEps>(?:[-._,]?[eE]\d{1,3})+))?\b",
+        RegexOptions.Compiled);
+
+    private static readonly Regex SeasonEpisodeAltRangeRegex = new(
+        @"(?i)\b(?<season>\d{1,2})x(?<epStart>\d{1,3})(?:-(?:(?:\d{1,2}x)?(?<epEnd>\d{1,3}))|(?<extraEps>(?:x\d{1,3})+))?\b",
+        RegexOptions.Compiled);
+
+    private static readonly Regex SpecialEpisodeRegex = new(
+        @"(?i)\b(?:SP|Special)[.\s_-]*(?<ep>\d{1,3})\b",
+        RegexOptions.Compiled);
 
     public (int? SeasonNumber, int? EpisodeNumber, string EpisodeTitle) ExtractEpisodicInfo(string name)
     {
         return ExtractEpisodicInfoStatic(name);
+    }
+
+    public (int? SeasonNumber, int? EpisodeNumber, string EpisodeTitle, List<int> EpisodeNumbers, string FormattedRange) ExtractDetailedEpisodicInfo(string name)
+    {
+        return ExtractDetailedEpisodicInfoStatic(name);
+    }
+
+    public List<int> ExtractEpisodeNumbers(string name)
+    {
+        return ExtractEpisodeNumbersStatic(name);
     }
 
     public (string ContainerFormat, string Resolution, string VideoCodec, string HdrFormat, string AudioCodec, string AudioChannels, string AudioLanguage, List<string> SubtitleLanguages) ExtractStreamSpecs(string mediaInfoJson)
@@ -35,28 +55,135 @@ public class EpisodicParser : IEpisodicParser
 
     public static (int? SeasonNumber, int? EpisodeNumber, string EpisodeTitle) ExtractEpisodicInfoStatic(string name)
     {
+        var detailed = ExtractDetailedEpisodicInfoStatic(name);
+        return (detailed.SeasonNumber, detailed.EpisodeNumber, detailed.EpisodeTitle);
+    }
+
+    public static List<int> ExtractEpisodeNumbersStatic(string name)
+    {
+        return ExtractDetailedEpisodicInfoStatic(name).EpisodeNumbers;
+    }
+
+    public static (int? SeasonNumber, int? EpisodeNumber, string EpisodeTitle, List<int> EpisodeNumbers, string FormattedRange) ExtractDetailedEpisodicInfoStatic(string name)
+    {
         if (string.IsNullOrWhiteSpace(name))
         {
-            return (null, null, null);
+            return (null, null, null, new List<int>(), null);
         }
 
-        var match = SeasonEpisodeRegex.Match(name);
+        var match = SeasonEpisodeRangeRegex.Match(name);
         if (match.Success &&
-            int.TryParse(match.Groups[1].Value, out var s) &&
-            int.TryParse(match.Groups[2].Value, out var e))
+            int.TryParse(match.Groups["season"].Value, out var s) &&
+            int.TryParse(match.Groups["epStart"].Value, out var epStart))
         {
-            return (s, e, null);
+            var eps = new List<int> { epStart };
+            var epEndGroup = match.Groups["epEnd"];
+            var extraEpsGroup = match.Groups["extraEps"];
+
+            if (epEndGroup.Success && int.TryParse(epEndGroup.Value, out var epEnd))
+            {
+                if (epEnd >= epStart && epEnd - epStart <= 50)
+                {
+                    eps = Enumerable.Range(epStart, epEnd - epStart + 1).ToList();
+                }
+                else
+                {
+                    eps.Add(epEnd);
+                }
+            }
+            else if (extraEpsGroup.Success)
+            {
+                var extraMatches = Regex.Matches(extraEpsGroup.Value, @"\d{1,3}");
+                foreach (Match m in extraMatches)
+                {
+                    if (int.TryParse(m.Value, out var eNum))
+                    {
+                        eps.Add(eNum);
+                    }
+                }
+            }
+
+            eps = eps.Distinct().OrderBy(x => x).ToList();
+            var formatted = FormatEpisodeRange(s, eps);
+            return (s, eps[0], null, eps, formatted);
         }
 
-        var matchAlt = SeasonEpisodeAltRegex.Match(name);
+        var matchAlt = SeasonEpisodeAltRangeRegex.Match(name);
         if (matchAlt.Success &&
-            int.TryParse(matchAlt.Groups[1].Value, out var sAlt) &&
-            int.TryParse(matchAlt.Groups[2].Value, out var eAlt))
+            int.TryParse(matchAlt.Groups["season"].Value, out var sAlt) &&
+            int.TryParse(matchAlt.Groups["epStart"].Value, out var epStartAlt))
         {
-            return (sAlt, eAlt, null);
+            var eps = new List<int> { epStartAlt };
+            var epEndGroup = matchAlt.Groups["epEnd"];
+            var extraEpsGroup = matchAlt.Groups["extraEps"];
+
+            if (epEndGroup.Success && int.TryParse(epEndGroup.Value, out var epEndAlt))
+            {
+                if (epEndAlt >= epStartAlt && epEndAlt - epStartAlt <= 50)
+                {
+                    eps = Enumerable.Range(epStartAlt, epEndAlt - epStartAlt + 1).ToList();
+                }
+                else
+                {
+                    eps.Add(epEndAlt);
+                }
+            }
+            else if (extraEpsGroup.Success)
+            {
+                var extraMatches = Regex.Matches(extraEpsGroup.Value, @"\d{1,3}");
+                foreach (Match m in extraMatches)
+                {
+                    if (int.TryParse(m.Value, out var eNum))
+                    {
+                        eps.Add(eNum);
+                    }
+                }
+            }
+
+            eps = eps.Distinct().OrderBy(x => x).ToList();
+            var formatted = FormatEpisodeRange(sAlt, eps);
+            return (sAlt, eps[0], null, eps, formatted);
         }
 
-        return (null, null, null);
+        var matchSp = SpecialEpisodeRegex.Match(name);
+        if (matchSp.Success && int.TryParse(matchSp.Groups["ep"].Value, out var epSp))
+        {
+            var eps = new List<int> { epSp };
+            var formatted = FormatEpisodeRange(0, eps);
+            return (0, epSp, null, eps, formatted);
+        }
+
+        return (null, null, null, new List<int>(), null);
+    }
+
+    private static string FormatEpisodeRange(int season, List<int> episodes)
+    {
+        if (episodes == null || episodes.Count == 0)
+        {
+            return null;
+        }
+
+        if (episodes.Count == 1)
+        {
+            return $"S{season:D2}E{episodes[0]:D2}";
+        }
+
+        var isContiguous = true;
+        for (var i = 1; i < episodes.Count; i++)
+        {
+            if (episodes[i] != episodes[i - 1] + 1)
+            {
+                isContiguous = false;
+                break;
+            }
+        }
+
+        if (isContiguous)
+        {
+            return $"S{season:D2}E{episodes.First():D2}-E{episodes.Last():D2}";
+        }
+
+        return $"S{season:D2}" + string.Join(string.Empty, episodes.Select(e => $"E{e:D2}"));
     }
 
     public static (string ContainerFormat, string Resolution, string VideoCodec, string HdrFormat, string AudioCodec, string AudioChannels, string AudioLanguage, List<string> SubtitleLanguages) ExtractStreamSpecsStatic(string mediaInfoJson)

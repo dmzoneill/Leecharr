@@ -247,6 +247,12 @@ public class ServarrSyncMetadataProviderTest
     [TestCase("Severance.S02E01.1080p.WEB-DL", "Severance")]
     [TestCase("The.Matrix.1999.2160p.UHD.HDR", "The Matrix")]
     [TestCase("Dune.Part.Two.2024.x265", "Dune Part Two")]
+    [TestCase("Blade.Runner.2049.2017.1080p.BluRay", "Blade Runner 2049")]
+    [TestCase("Blade.Runner.2049.1080p", "Blade Runner 2049")]
+    [TestCase("Wonder.Woman.1984.1080p.WEBRip", "Wonder Woman 1984")]
+    [TestCase("Death.Race.2000.1080p", "Death Race 2000")]
+    [TestCase("S.W.A.T.2003.1080p", "S.W.A.T.")]
+    [TestCase("Agents.of.S.H.I.E.L.D..S01E01", "Agents of S.H.I.E.L.D.")]
     public void CleanTitle_CleansReleaseTagsAndYears(string raw, string expected)
     {
         ServarrSyncMetadataProvider.CleanTitle(raw).Should().Be(expected);
@@ -456,6 +462,59 @@ public class ServarrSyncMetadataProviderTest
         result.ArrMediaId.Should().Be(15);
         result.Year.Should().Be(1973);
         result.PosterUrl.Should().Be("http://127.0.0.1:8686/MediaCover/88/cover.jpg?apikey=lidarr-key");
+    }
+
+    [Test]
+    public async Task FetchMetadataAsync_WhenRadarrReturnsSequelAndOriginal_PicksCorrectMatch()
+    {
+        var lookupJson = @"[
+            {
+                ""title"": ""Blade Runner"",
+                ""year"": 1982,
+                ""overview"": ""A blade runner must pursue four replicants"",
+                ""tmdbId"": 78
+            },
+            {
+                ""title"": ""Blade Runner 2049"",
+                ""year"": 2017,
+                ""overview"": ""Young Blade Runner K unearths a long-buried secret"",
+                ""tmdbId"": 335984
+            }
+        ]";
+
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            if (req.RequestUri!.AbsolutePath.Contains("/api/v3/movie/lookup"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(lookupJson, Encoding.UTF8, "application/json"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var provider = new ServarrSyncMetadataProvider(this.arrRepository, httpClient);
+
+        var conn = new ArrConnectionDefinition
+        {
+            Id = 1,
+            Name = "Radarr",
+            ArrType = "Radarr",
+            Url = "http://127.0.0.1:7878",
+            ApiKey = "radarr-key",
+            Enable = true,
+        };
+        this.arrRepository.GetEnabled().Returns(new List<ArrConnectionDefinition> { conn });
+
+        var result = await provider.FetchMetadataAsync("Blade.Runner.2049.2017.1080p", "movies", 2017);
+
+        result.Should().NotBeNull();
+        result!.Title.Should().Be("Blade Runner 2049");
+        result.Year.Should().Be(2017);
+        result.TmdbId.Should().Be("335984");
     }
 
     private class MockHttpMessageHandler : HttpMessageHandler
