@@ -84,6 +84,11 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
             return false;
         }
 
+        if (ArchiveExtractorEventHandler.IsSecondaryVolume(filePath))
+        {
+            return false;
+        }
+
         var ext = Path.GetExtension(filePath);
         if (!string.IsNullOrEmpty(ext) && SupportedExtensions.Contains(ext))
         {
@@ -135,6 +140,7 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
 
             foreach (var candidatePassword in passwordsToTry)
             {
+                var createdFiles = new List<string>();
                 try
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -186,6 +192,8 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
                             this.diskProvider.EnsureFolder(entryDir);
                         }
 
+                        createdFiles.Add(targetFilePath);
+
                         using (var entryStream = entry.OpenEntryStream())
                         using (var fileStream = new FileStream(
                             targetFilePath,
@@ -216,11 +224,13 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
                 }
                 catch (OperationCanceledException)
                 {
+                    this.RollbackCreatedFiles(createdFiles);
                     this.logger.Warn("Extraction of '{0}' was canceled.", archivePath);
                     throw;
                 }
                 catch (Exception ex)
                 {
+                    this.RollbackCreatedFiles(createdFiles);
                     lastException = ex;
                     if (passwordsToTry.Count > 1)
                     {
@@ -238,6 +248,29 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
         }
 
         return await ExtractActionAsync();
+    }
+
+    private void RollbackCreatedFiles(List<string> files)
+    {
+        if (files == null || files.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var file in files)
+        {
+            try
+            {
+                if (this.diskProvider.FileExists(file))
+                {
+                    this.diskProvider.DeleteFile(file);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to clean up partial extracted file: {0}", file);
+            }
+        }
     }
 
     private static List<string> BuildPasswordCandidateList(string password, IReadOnlyList<string> passwordCandidates)

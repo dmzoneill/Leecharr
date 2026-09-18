@@ -11,6 +11,7 @@ using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Datastore.Events;
+using NzbDrone.Core.Extraction;
 using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Network.Blocklist;
@@ -41,6 +42,7 @@ public class AutomationService : IAutomationService
     private readonly ITrackerBoostService? _trackerBoostService;
     private readonly IExtractorService? _extractorService;
     private readonly IDiskProvider? _diskProvider;
+    private readonly IArchiveExtractorService? _archiveExtractorService;
     private readonly Logger _logger;
     private readonly JintScriptRunner _jintRunner;
     private readonly YamlScriptRunner _yamlRunner;
@@ -59,7 +61,8 @@ public class AutomationService : IAutomationService
         IBlocklistService? blocklistService = null,
         ITrackerBoostService? trackerBoostService = null,
         IExtractorService? extractorService = null,
-        IDiskProvider? diskProvider = null)
+        IDiskProvider? diskProvider = null,
+        IArchiveExtractorService? archiveExtractorService = null)
     {
         _scriptRepository = scriptRepository;
         _torrentRepository = torrentRepository;
@@ -74,6 +77,7 @@ public class AutomationService : IAutomationService
         _trackerBoostService = trackerBoostService;
         _extractorService = extractorService;
         _diskProvider = diskProvider;
+        _archiveExtractorService = archiveExtractorService;
         _logger = LogManager.GetCurrentClassLogger();
         _jintRunner = new JintScriptRunner(commandQueue, configFileProvider);
         _yamlRunner = new YamlScriptRunner(commandQueue);
@@ -611,27 +615,44 @@ public class AutomationService : IAutomationService
         }
 
         // 3. Extract Archive
-        if (result.ShouldExtractArchive && _extractorService != null)
+        if (result.ShouldExtractArchive)
         {
-            try
+            if (_archiveExtractorService != null)
             {
-                var task = _extractorService.ExtractAsync(torrent, result.ExtractDestination, result.DeleteArchiveOnExtract);
-                if (task != null)
+                Task.Run(async () =>
                 {
-                    task.ContinueWith(
-                        t =>
-                        {
-                            if (t.IsFaulted && t.Exception != null)
-                            {
-                                _logger.Error(t.Exception.GetBaseException(), "Failed to extract archive for torrent {0}", torrent.Name);
-                            }
-                        },
-                        TaskContinuationOptions.OnlyOnFaulted);
-                }
+                    try
+                    {
+                        await ExtractArchiveWithServiceAsync(torrent, result.ExtractDestination, result.DeleteArchiveOnExtract).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error(ex, "Failed to extract archive for torrent {0}", torrent.Name);
+                    }
+                });
             }
-            catch (Exception ex)
+            else if (_extractorService != null)
             {
-                _logger.Error(ex, "Failed to extract archive for torrent {0}", torrent.Name);
+                try
+                {
+                    var task = _extractorService.ExtractAsync(torrent, result.ExtractDestination, result.DeleteArchiveOnExtract);
+                    if (task != null)
+                    {
+                        task.ContinueWith(
+                            t =>
+                            {
+                                if (t.IsFaulted && t.Exception != null)
+                                {
+                                    _logger.Error(t.Exception.GetBaseException(), "Failed to extract archive for torrent {0}", torrent.Name);
+                                }
+                            },
+                            TaskContinuationOptions.OnlyOnFaulted);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(ex, "Failed to extract archive for torrent {0}", torrent.Name);
+                }
             }
         }
 
@@ -740,5 +761,133 @@ public class AutomationService : IAutomationService
 
         return string.Equals(fileName, trimmed, StringComparison.OrdinalIgnoreCase) ||
                fileName.EndsWith("." + trimmed.TrimStart('.'), StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal async Task<bool> ExtractArchiveWithServiceAsync(Torrent torrent, string? destination, bool deleteArchive)
+    {
+        if (_archiveExtractorService == null || string.IsNullOrWhiteSpace(torrent.SavePath))
+        {
+            return false;
+        }
+
+        var rootPath = torrent.SavePath;
+        var destDir = !string.IsNullOrWhiteSpace(destination) ? destination : rootPath;
+
+        var allFiles = new List<string>();
+        if (_diskProvider != null)
+        {
+            if (_diskProvider.FolderExists(rootPath))
+            {
+                allFiles.AddRange(_diskProvider.GetFiles(rootPath, recursive: true));
+            }
+            else if (_diskProvider.FileExists(rootPath))
+            {
+                allFiles.Add(rootPath);
+                if (string.IsNullOrWhiteSpace(destination))
+                {
+                    destDir = Path.GetDirectoryName(Path.GetFullPath(rootPath)) ?? rootPath;
+                }
+            }
+            else
+            {
+                return false;
+            }
+        }
+        else
+        {
+            if (Directory.Exists(rootPath))
+            {
+                allFiles.AddRange(Directory.GetFiles(rootPath, "*", SearchOption.AllDirectories));
+            }
+            else if (File.Exists(rootPath))
+            {
+                allFiles.Add(rootPath);
+                if (string.IsNullOrWhiteSpace(destination))
+                {
+                    destDir = Path.GetDirectoryName(Path.GetFullPath(rootPath)) ?? rootPath;
+                }
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        var primaryArchives = allFiles
+            .Where(f => _archiveExtractorService.IsArchiveFile(f) && !ArchiveExtractorEventHandler.IsSecondaryVolume(f))
+            .ToList();
+
+        if (primaryArchives.Count == 0)
+        {
+            return false;
+        }
+
+        var allSuccess = true;
+        foreach (var archive in primaryArchives)
+        {
+            var targetDest = !string.IsNullOrWhiteSpace(destination) ? destination : (Path.GetDirectoryName(archive) ?? destDir);
+            var success = await _archiveExtractorService.ExtractArchiveAsync(archive, targetDest).ConfigureAwait(false);
+            if (!success)
+            {
+                allSuccess = false;
+                continue;
+            }
+
+            if (deleteArchive)
+            {
+                DeleteArchiveAndSiblings(archive, allFiles);
+            }
+        }
+
+        return allSuccess;
+    }
+
+    private void DeleteArchiveAndSiblings(string archivePath, IEnumerable<string> allFiles)
+    {
+        var archiveDir = Path.GetDirectoryName(Path.GetFullPath(archivePath));
+        var basePrefix = ArchiveExtractorEventHandler.GetArchiveBasePrefix(archivePath);
+
+        var archivesToDelete = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { archivePath };
+
+        foreach (var file in allFiles)
+        {
+            var fileDir = Path.GetDirectoryName(Path.GetFullPath(file));
+            if (!string.Equals(fileDir, archiveDir, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var fileName = Path.GetFileName(file);
+            if (!string.IsNullOrEmpty(basePrefix) && fileName.StartsWith(basePrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                if ((_archiveExtractorService != null && _archiveExtractorService.IsArchiveFile(file)) ||
+                    ArchiveExtractorEventHandler.IsSecondaryVolume(file))
+                {
+                    archivesToDelete.Add(file);
+                }
+            }
+        }
+
+        foreach (var file in archivesToDelete)
+        {
+            try
+            {
+                if (_diskProvider != null)
+                {
+                    if (_diskProvider.FileExists(file))
+                    {
+                        _diskProvider.DeleteFile(file);
+                    }
+                }
+                else if (File.Exists(file))
+                {
+                    File.Delete(file);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn(ex, "Failed to delete extracted archive volume: {0}", file);
+            }
+        }
     }
 }
