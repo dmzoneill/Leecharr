@@ -3638,5 +3638,72 @@ public class MonoTorrentDownloadEngineTest
         await this.engine.StopAsync();
     }
 
+    [Test]
+    public void FilteringPeerConnectionListener_WhenKillSwitchActive_DisposesConnectionAndDropsEvent()
+    {
+        var innerListener = Substitute.For<MonoTorrent.Connections.Peer.IPeerConnectionListener>();
+        var isHalted = true;
+        var filteringListener = new FilteringPeerConnectionListener(
+            innerListener,
+            isHalted: () => isHalted);
+
+        var eventRaised = false;
+        filteringListener.ConnectionReceived += (_, _) => eventRaised = true;
+
+        var mockConn = Substitute.For<MonoTorrent.Connections.Peer.IPeerConnection, IDisposable>();
+        mockConn.IsIncoming.Returns(true);
+        mockConn.Uri.Returns(new Uri("ipv4://203.0.113.5:12345"));
+        var args = new MonoTorrent.Connections.Peer.PeerConnectionEventArgs(mockConn, null);
+
+        // Raise incoming connection while kill switch is active
+        innerListener.ConnectionReceived += Raise.Event<EventHandler<MonoTorrent.Connections.Peer.PeerConnectionEventArgs>>(innerListener, args);
+
+        eventRaised.Should().BeFalse();
+        ((IDisposable)mockConn).Received(1).Dispose();
+    }
+
+    [Test]
+    public async Task HaltAllTorrentsForKillSwitchAsync_DisablesDhtEndPoint()
+    {
+        this.configService.EnableDht.Returns(true);
+        this.configService.ProxyType.Returns((string)null!);
+        this.configService.ProxyHost.Returns((string)null!);
+
+        await this.engine.StartAsync();
+
+        var engineProp = typeof(MonoTorrentDownloadEngine).GetField("engine", BindingFlags.NonPublic | BindingFlags.Instance);
+        var monoEngine = engineProp!.GetValue(this.engine) as ClientEngine;
+        monoEngine.Should().NotBeNull();
+        monoEngine!.Settings.DhtEndPoint.Should().NotBeNull();
+
+        await this.engine.HaltAllTorrentsForKillSwitchAsync();
+
+        monoEngine.Settings.DhtEndPoint.Should().BeNull();
+
+        await this.engine.StopAsync();
+    }
+
+    [Test]
+    public async Task UpdateEngineListenEndpointsAsync_WhenProxyActive_DoesNotEnableDhtEndPoint()
+    {
+        this.configService.EnableDht.Returns(true);
+        this.configService.ProxyType.Returns("socks5");
+        this.configService.ProxyHost.Returns("127.0.0.1");
+        this.configService.ProxyPort.Returns(1080);
+
+        await this.engine.StartAsync();
+
+        var engineProp = typeof(MonoTorrentDownloadEngine).GetField("engine", BindingFlags.NonPublic | BindingFlags.Instance);
+        var monoEngine = engineProp!.GetValue(this.engine) as ClientEngine;
+        monoEngine.Should().NotBeNull();
+        monoEngine!.Settings.DhtEndPoint.Should().BeNull();
+
+        await this.engine.UpdateEngineListenEndpointsAsync();
+
+        monoEngine.Settings.DhtEndPoint.Should().BeNull();
+
+        await this.engine.StopAsync();
+    }
+
     #endregion
 }
