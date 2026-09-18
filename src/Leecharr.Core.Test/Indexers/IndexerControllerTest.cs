@@ -965,4 +965,101 @@ public class IndexerControllerTest
         mockStatusService.Received(1).RecordFailure(42, 100, Arg.Is<string>(msg => msg.Contains("Invalid API Key")), Arg.Any<Exception>());
         mockStatusService.DidNotReceive().RecordSuccess(42);
     }
+
+    [Test]
+    public async Task TestDirect_WhenUrlValidationFails_ReturnsFailureMessageAndDoesNotSendRequest()
+    {
+        var resource = new IndexerResource
+        {
+            Name = "MetadataIndexer",
+            Url = "http://169.254.169.254/latest/meta-data",
+        };
+
+        this.safeHttpClientService.When(x => x.ValidateUrl(resource.Url))
+            .Do(x => throw new System.Security.SecurityException("SSRF blocked: IP address prohibited."));
+
+        var result = await this.controller.TestDirect(resource);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result.Result!;
+        var testResult = (IndexerTestResult)okResult.Value!;
+        testResult.Success.Should().BeFalse();
+        testResult.Message.Should().Contain("URL validation failed");
+        testResult.Message.Should().Contain("SSRF blocked");
+        this.safeHttpClientService.Received(1).ValidateUrl(resource.Url);
+        await this.torznabClient.DidNotReceiveWithAnyArgs().TestConnectionAsync(default!);
+    }
+
+    [TestCase("ftp://example.com/api")]
+    [TestCase("javascript:alert(1)")]
+    [TestCase("file:///etc/passwd")]
+    [TestCase("invalid-uri")]
+    public void Create_WhenUrlInvalidOrNonHttp_ReturnsBadRequest(string url)
+    {
+        var resource = new IndexerResource
+        {
+            Name = "BadUrlIndexer",
+            Url = url,
+        };
+
+        var result = this.controller.Create(resource);
+
+        var badRequest = result.Result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        badRequest.Value.Should().Be("Indexer URL must be a valid absolute HTTP or HTTPS URL.");
+        this.indexerRepository.DidNotReceive().Insert(Arg.Any<IndexerDefinition>());
+    }
+
+    [TestCase("http://example.com/torznab")]
+    [TestCase("https://indexer.local/api")]
+    public void Create_WhenUrlValidHttpOrHttps_Succeeds(string url)
+    {
+        var resource = new IndexerResource
+        {
+            Name = "GoodUrlIndexer",
+            Url = url,
+        };
+
+        this.indexerRepository.Insert(Arg.Any<IndexerDefinition>()).Returns(ci => ci.Arg<IndexerDefinition>());
+
+        var result = this.controller.Create(resource);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        this.indexerRepository.Received(1).Insert(Arg.Is<IndexerDefinition>(idx => idx.Url == url));
+    }
+
+    [TestCase("ftp://example.com/api")]
+    [TestCase("file:///etc/passwd")]
+    [TestCase("not-a-url")]
+    public void Update_WhenUrlInvalidOrNonHttp_ReturnsBadRequest(string url)
+    {
+        var resource = new IndexerResource
+        {
+            Name = "UpdateIndexer",
+            Url = url,
+        };
+
+        var result = this.controller.Update(1, resource);
+
+        var badRequest = result.Result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        badRequest.Value.Should().Be("Indexer URL must be a valid absolute HTTP or HTTPS URL.");
+        this.indexerRepository.DidNotReceive().Update(Arg.Any<IndexerDefinition>());
+    }
+
+    [TestCase("http://example.com/torznab")]
+    [TestCase("https://indexer.local/api")]
+    public void Update_WhenUrlValidHttpOrHttps_Succeeds(string url)
+    {
+        var resource = new IndexerResource
+        {
+            Name = "UpdateIndexer",
+            Url = url,
+        };
+
+        this.indexerRepository.Get(1).Returns(new IndexerDefinition { Id = 1, Name = "Old", Url = "http://old" });
+
+        var result = this.controller.Update(1, resource);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        this.indexerRepository.Received(1).Update(Arg.Is<IndexerDefinition>(idx => idx.Id == 1 && idx.Url == url));
+    }
 }

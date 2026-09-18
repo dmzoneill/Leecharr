@@ -92,6 +92,12 @@ public class IndexerController : Controller
             return this.BadRequest("Indexer URL is required.");
         }
 
+        if (!Uri.TryCreate(resource.Url, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            return this.BadRequest("Indexer URL must be a valid absolute HTTP or HTTPS URL.");
+        }
+
         resource.Name = resource.Name.Trim();
         resource.Url = resource.Url.Trim();
         var model = ToModel(resource);
@@ -115,6 +121,12 @@ public class IndexerController : Controller
         if (string.IsNullOrWhiteSpace(resource.Url))
         {
             return this.BadRequest("Indexer URL is required.");
+        }
+
+        if (!Uri.TryCreate(resource.Url, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            return this.BadRequest("Indexer URL must be a valid absolute HTTP or HTTPS URL.");
         }
 
         var existing = this.indexerRepository.Get(id);
@@ -658,6 +670,24 @@ public class IndexerController : Controller
             {
                 Success = false,
                 Message = "Indexer URL is required.",
+            });
+        }
+
+        try
+        {
+            this.safeHttpClientService.ValidateUrl(indexer.Url);
+        }
+        catch (Exception ex)
+        {
+            if (indexer.Id > 0)
+            {
+                this.indexerStatusService?.RecordFailure(indexer.Id, errorMessage: ex.Message, ex: ex);
+            }
+
+            return this.Ok(new IndexerTestResult
+            {
+                Success = false,
+                Message = $"URL validation failed: {ex.Message}",
             });
         }
 
