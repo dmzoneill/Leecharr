@@ -641,7 +641,7 @@ public class NotificationEventHandlerTest
         NotificationEventHandler.ResolveCustomHeaders(null).Should().BeNull();
     }
 
-    [TestCase("Movie.Name.(2024).1080p", @"Movie.Name.\(2024\).1080p")]
+    [TestCase("Movie.Name.(2024).1080p", @"Movie.Name.(2024).1080p")]
     [TestCase("Test_Name*With[Brackets]And`Code`", @"Test\_Name\*With\[Brackets\]And\`Code\`")]
     [TestCase(@"Spoiler|Bar and >Quote and ~Strikethrough~ and \Path", @"Spoiler\|Bar and \>Quote and \~Strikethrough\~ and \\Path")]
     [TestCase(null, "")]
@@ -683,8 +683,8 @@ public class NotificationEventHandlerTest
             "https://api.telegram.org/botbot-token-abc/sendMessage",
             Arg.Is<object>(payload =>
                 payload != null &&
-                ((Dictionary<string, object>)payload)["text"].ToString()!.Contains(@"Movie.Title.\(2024\).\[1080p\].x264-GROUP") &&
-                ((Dictionary<string, object>)payload)["text"].ToString()!.Contains(@"Movies \(HD\)") &&
+                ((Dictionary<string, object>)payload)["text"].ToString()!.Contains(@"Movie.Title.(2024).\[1080p\].x264-GROUP") &&
+                ((Dictionary<string, object>)payload)["text"].ToString()!.Contains(@"Movies (HD)") &&
                 ((Dictionary<string, object>)payload)["parse_mode"].ToString() == "Markdown"));
     }
 
