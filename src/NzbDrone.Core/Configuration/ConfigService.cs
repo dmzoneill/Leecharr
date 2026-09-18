@@ -122,6 +122,8 @@ public interface IConfigService
 
     int ListeningPort { get; }
 
+    int ListenPort => this.ListeningPort;
+
     bool UpnpEnabled { get; }
 
     int MaxGlobalConnections { get; }
@@ -851,6 +853,8 @@ public class ConfigService : IConfigService
     public bool EnableVpnKillSwitch => this.GetValueBoolean("EnableVpnKillSwitch", false);
 
     public int ListeningPort => this.GetValueInt("ListeningPort", 51413);
+
+    public int ListenPort => this.ListeningPort;
 
     public bool UpnpEnabled => this.GetValueBoolean("UpnpEnabled", true);
 
