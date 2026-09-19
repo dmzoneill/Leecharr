@@ -11,6 +11,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.DownloadClients;
+using NzbDrone.Core.Http;
 
 namespace Leecharr.Api.V1.DownloadClients;
 
@@ -18,7 +19,7 @@ public static class DownloadClientRemoteQuery
 {
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-    public static async Task<List<DownloadClientRemoteItem>> QueryRemoteClientItemsAsync(DownloadClientDefinition client, HttpClient httpClient = null)
+    public static async Task<List<DownloadClientRemoteItem>> QueryRemoteClientItemsAsync(DownloadClientDefinition client, HttpClient httpClient = null, ISafeHttpClientService safeHttpClientService = null)
     {
         var items = new List<DownloadClientRemoteItem>();
         if (client == null)
@@ -30,13 +31,34 @@ public static class DownloadClientRemoteQuery
         var scheme = client.UseSsl ? "https" : "http";
         var baseUrl = $"{scheme}://{client.Host}:{port}";
 
+        if (safeHttpClientService != null)
+        {
+            try
+            {
+                safeHttpClientService.ValidateUrl(baseUrl);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "SSRF blocked query for {0}", baseUrl);
+                return items;
+            }
+        }
+        else if (client.Host != null && client.Host.Trim().StartsWith("169.254.", StringComparison.Ordinal))
+        {
+            Logger.Warn("SSRF blocked query for {0}", baseUrl);
+            return items;
+        }
+
+        var password = DownloadClientPasswordHelper.Unprotect(client.Password);
+
         HttpClient localHttp = null;
         if (httpClient == null)
         {
-            var handler = new HttpClientHandler
+            var handler = new SocketsHttpHandler
             {
                 CookieContainer = new CookieContainer(),
                 UseCookies = true,
+                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
             };
             localHttp = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(8) };
         }
@@ -47,12 +69,12 @@ public static class DownloadClientRemoteQuery
         {
             if (string.Equals(client.ClientType, "qBittorrent", StringComparison.OrdinalIgnoreCase))
             {
-                if (!string.IsNullOrWhiteSpace(client.Username) || !string.IsNullOrWhiteSpace(client.Password))
+                if (!string.IsNullOrWhiteSpace(client.Username) || !string.IsNullOrWhiteSpace(password))
                 {
                     var loginContent = new FormUrlEncodedContent(new Dictionary<string, string>
                     {
                         { "username", client.Username ?? string.Empty },
-                        { "password", client.Password ?? string.Empty },
+                        { "password", password ?? string.Empty },
                     });
 
                     var loginResp = await http.PostAsync($"{baseUrl}/api/v2/auth/login", loginContent);
@@ -117,9 +139,9 @@ public static class DownloadClientRemoteQuery
                         "application/json"),
                 };
 
-                if (!string.IsNullOrWhiteSpace(client.Username) || !string.IsNullOrWhiteSpace(client.Password))
+                if (!string.IsNullOrWhiteSpace(client.Username) || !string.IsNullOrWhiteSpace(password))
                 {
-                    var creds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{client.Username}:{client.Password}"));
+                    var creds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{client.Username}:{password}"));
                     req.Headers.Authorization = new AuthenticationHeaderValue("Basic", creds);
                 }
 
@@ -135,9 +157,9 @@ public static class DownloadClientRemoteQuery
                             "application/json"),
                     };
 
-                    if (!string.IsNullOrWhiteSpace(client.Username) || !string.IsNullOrWhiteSpace(client.Password))
+                    if (!string.IsNullOrWhiteSpace(client.Username) || !string.IsNullOrWhiteSpace(password))
                     {
-                        var creds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{client.Username}:{client.Password}"));
+                        var creds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{client.Username}:{password}"));
                         req2.Headers.Authorization = new AuthenticationHeaderValue("Basic", creds);
                     }
 
@@ -181,13 +203,13 @@ public static class DownloadClientRemoteQuery
             }
             else if (string.Equals(client.ClientType, "Deluge", StringComparison.OrdinalIgnoreCase))
             {
-                if (!string.IsNullOrWhiteSpace(client.Password))
+                if (!string.IsNullOrWhiteSpace(password))
                 {
                     var loginContent = new StringContent(
                         JsonSerializer.Serialize(new
                         {
                             method = "auth.login",
-                            @params = new object[] { client.Password },
+                            @params = new object[] { password },
                             id = 1,
                         }),
                         Encoding.UTF8,
