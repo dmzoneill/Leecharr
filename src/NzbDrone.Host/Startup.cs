@@ -84,7 +84,9 @@ public class Startup
         services.AddSingleton<NzbDrone.Core.Authentication.IUserSessionCache>(sp => sp.GetRequiredService<Leecharr.Http.Authentication.ICookieSessionManager>());
         services.AddScoped<Leecharr.Http.Authentication.CookieSessionAuthenticationEvents>();
         services.AddSingleton<NzbDrone.Core.Authentication.ISessionCleanupTask, NzbDrone.Core.Authentication.SessionCleanupTask>();
-        services.AddHostedService<NzbDrone.Core.Jobs.Scheduler>();
+        services.AddSingleton<NzbDrone.Core.Jobs.Scheduler>();
+        services.AddHostedService(sp => sp.GetRequiredService<NzbDrone.Core.Jobs.Scheduler>());
+        services.AddSingleton<NzbDrone.Core.Messaging.Events.IHandle<NzbDrone.Core.Messaging.Commands.CommandExecutedEvent>>(sp => sp.GetRequiredService<NzbDrone.Core.Jobs.Scheduler>());
 
         var configFileProvider = this.container.Resolve<IConfigFileProvider>();
         if (configFileProvider.EnableSsl && configFileProvider.RedirectHttpToHttps)
