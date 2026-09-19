@@ -444,7 +444,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
 
     public void Handle(TorrentStatusChangedEvent message)
     {
-        if (message == null || message.IsQueueManagerInternal)
+        if (message == null || message.IsQueueManagerInternal || message.OldStatus == message.NewStatus)
         {
             return;
         }
@@ -466,19 +466,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
             }
         }
 
-        // Trigger queue evaluation when an active torrent vacates a slot (paused, stopped, error, stalled, completed)
-        // or when a torrent enters Queued, Downloading, or Seeding state (e.g. manual resume or checking finished).
-        if (message.NewStatus == TorrentStatus.Paused ||
-            message.NewStatus == TorrentStatus.Stopped ||
-            message.NewStatus == TorrentStatus.Completed ||
-            message.NewStatus == TorrentStatus.Error ||
-            message.NewStatus == TorrentStatus.Stalled ||
-            message.NewStatus == TorrentStatus.Downloading ||
-            message.NewStatus == TorrentStatus.Queued ||
-            message.NewStatus == TorrentStatus.Seeding)
-        {
-            _ = Task.Run(this.ProcessQueueAsync);
-        }
+        _ = Task.Run(this.ProcessQueueAsync);
     }
 
     public void Handle(TorrentAddedEvent message)
