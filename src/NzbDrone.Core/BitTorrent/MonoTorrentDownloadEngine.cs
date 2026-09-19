@@ -1258,6 +1258,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         else if (isLowDiskSpace)
         {
             await manager.PauseAsync();
+            downloadTask.WasAutoPausedByDiskSpace = true;
             downloadTask.SetStorageFull($"StorageFull: Free disk space dropped below threshold ({availableSpace.Value / (1024 * 1024)} MB available, {thresholdMb} MB required).", this.eventAggregator);
             torrent.Status = TorrentStatus.Paused;
             torrent.ErrorMessage = downloadTask.ErrorMessage;
@@ -1495,6 +1496,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
         {
+            task.WasAutoPausedByDiskSpace = false;
             await task.Manager.PauseAsync();
             this.logger.Info("Paused torrent id {0}", torrentId);
         }
@@ -1559,6 +1561,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     {
         foreach (var task in this.tasks.Values)
         {
+            task.WasAutoPausedByDiskSpace = false;
             if (task.Manager != null && task.Manager.State is not (TorrentState.Stopped or TorrentState.Paused))
             {
                 try
@@ -5197,6 +5200,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
     private bool isTrackerStalled;
     private bool isStorageFull;
+    private bool wasAutoPausedByDiskSpace;
     private string errorMessage;
     private IList<PeerId> cachedMonoPeers;
     private DateTime lastPeersUpdate = DateTime.MinValue;
@@ -5517,6 +5521,12 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
     public bool IsOutOfDiskSpace => this.isStorageFull;
 
+    public bool WasAutoPausedByDiskSpace
+    {
+        get => this.wasAutoPausedByDiskSpace;
+        internal set => this.wasAutoPausedByDiskSpace = value;
+    }
+
     public string ErrorMessage => this.errorMessage;
 
     public bool IsPrivate => this.Manager?.Torrent?.IsPrivate == true ||
@@ -5749,6 +5759,23 @@ public class MonoTorrentDownloadTask : IDownloadTask
             this.errorMessage = null;
         }
 
+        if (this.wasAutoPausedByDiskSpace && this.Manager != null)
+        {
+            this.wasAutoPausedByDiskSpace = false;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await this.Manager.StartAsync().ConfigureAwait(false);
+                    this.logger.Info("Automatically resumed torrent {0} after disk space restored", this.TorrentId);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to resume torrent {0} after disk space restored", this.TorrentId);
+                }
+            });
+        }
+
         if (wasFull)
         {
             eventAggregator?.PublishEvent(new HealthIssueEvent(this.TorrentId, "DiskSpace", "Disk space restored.", isResolved: true));
@@ -5783,7 +5810,18 @@ public class MonoTorrentDownloadTask : IDownloadTask
                 {
                     if (this.Manager.State != TorrentState.Paused && this.Manager.State != TorrentState.Stopping && this.Manager.State != TorrentState.Stopped)
                     {
-                        this.Manager.PauseAsync();
+                        this.wasAutoPausedByDiskSpace = true;
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await this.Manager.PauseAsync().ConfigureAwait(false);
+                            }
+                            catch (Exception ex)
+                            {
+                                this.logger.Debug(ex, "Failed to pause manager during low-disk condition for torrent {0}", this.TorrentId);
+                            }
+                        });
                     }
                 }
                 catch (Exception ex)
@@ -5795,7 +5833,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
                 return true;
             }
         }
-        else if (this.isStorageFull)
+        else if (this.isStorageFull || this.wasAutoPausedByDiskSpace)
         {
             this.ClearStorageFull(eventAggregator);
         }

@@ -3656,6 +3656,171 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task CheckDiskSpace_WhenFreeSpaceRestored_AutomaticallyResumesPausedTorrent()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("lowdisk_autoresume.iso", isPrivate: false);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 505,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "lowdisk_autoresume.iso",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(100_000_000L);
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.IsStorageFull.Should().BeTrue();
+        task.WasAutoPausedByDiskSpace.Should().BeTrue();
+        task.Status.Should().Be(TorrentStatus.Paused);
+
+        // Disk space recovers above 500 MB threshold
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(10_000_000_000L);
+        var isLowDisk = task.CheckDiskSpace(this.diskProvider, 500L * 1024L * 1024L, this.eventAggregator);
+
+        isLowDisk.Should().BeFalse();
+        task.IsStorageFull.Should().BeFalse();
+        task.WasAutoPausedByDiskSpace.Should().BeFalse();
+
+        // Wait for auto-resume Task.Run to execute StartAsync
+        var timeout = DateTime.UtcNow.AddSeconds(5);
+        while (task.Manager.State == TorrentState.Paused && DateTime.UtcNow < timeout)
+        {
+            await Task.Delay(20);
+        }
+
+        task.Manager.State.Should().NotBe(TorrentState.Paused);
+    }
+
+    [Test]
+    public async Task CheckDiskSpace_WhenUserManuallyPauses_DoesNotAutoResumeWhenSpaceRestored()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("manual_pause_disk.iso", isPrivate: false);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 506,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "manual_pause_disk.iso",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(10_000_000_000L);
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        // User manually pauses
+        await this.engine.PauseTorrentAsync(torrent.Id);
+        task.WasAutoPausedByDiskSpace.Should().BeFalse();
+        task.Manager.State.Should().BeOneOf(TorrentState.Paused, TorrentState.Stopping, TorrentState.Stopped);
+
+        // Low disk space check occurs while user has it paused
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(100_000_000L);
+        task.CheckDiskSpace(this.diskProvider, 500L * 1024L * 1024L, this.eventAggregator);
+        task.WasAutoPausedByDiskSpace.Should().BeFalse();
+
+        // Space recovers
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(10_000_000_000L);
+        task.CheckDiskSpace(this.diskProvider, 500L * 1024L * 1024L, this.eventAggregator);
+
+        await Task.Delay(100);
+        task.WasAutoPausedByDiskSpace.Should().BeFalse();
+        task.Manager.State.Should().BeOneOf(TorrentState.Paused, TorrentState.Stopped);
+    }
+
+    [Test]
+    public async Task CheckDiskSpace_WhenAutoPausedTorrentManuallyPausedByUser_ClearsAutoResumeFlag()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("autopause_override.iso", isPrivate: false);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 507,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "autopause_override.iso",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(100_000_000L);
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.WasAutoPausedByDiskSpace.Should().BeTrue();
+
+        // User explicitly pauses the torrent
+        await this.engine.PauseTorrentAsync(torrent.Id);
+        task.WasAutoPausedByDiskSpace.Should().BeFalse();
+
+        // Disk space is restored
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(10_000_000_000L);
+        task.CheckDiskSpace(this.diskProvider, 500L * 1024L * 1024L, this.eventAggregator);
+
+        await Task.Delay(100);
+        task.Manager.State.Should().BeOneOf(TorrentState.Paused, TorrentState.Stopped);
+    }
+
+    [Test]
+    public async Task CheckDiskSpace_WhenRunningTorrentRunsOutOfDiskSpace_PausesAndThenResumesOnRecovery()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("running_lowdisk.iso", isPrivate: false);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 508,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "running_lowdisk.iso",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(10_000_000_000L);
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        var timeout = DateTime.UtcNow.AddSeconds(5);
+        while (task.Manager.State != TorrentState.Downloading && DateTime.UtcNow < timeout)
+        {
+            await Task.Delay(20);
+        }
+
+        task.Manager.State.Should().Be(TorrentState.Downloading);
+
+        // Disk space drops below threshold
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(100_000_000L);
+        var isLowDisk = task.CheckDiskSpace(this.diskProvider, 500L * 1024L * 1024L, this.eventAggregator);
+
+        isLowDisk.Should().BeTrue();
+        task.IsStorageFull.Should().BeTrue();
+        task.WasAutoPausedByDiskSpace.Should().BeTrue();
+
+        // Wait for PauseAsync to take effect
+        timeout = DateTime.UtcNow.AddSeconds(5);
+        while (task.Manager.State == TorrentState.Downloading && DateTime.UtcNow < timeout)
+        {
+            await Task.Delay(20);
+        }
+
+        task.Manager.State.Should().BeOneOf(TorrentState.Paused, TorrentState.Stopping, TorrentState.Stopped);
+
+        // Disk space recovers
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(10_000_000_000L);
+        task.CheckDiskSpace(this.diskProvider, 500L * 1024L * 1024L, this.eventAggregator);
+
+        task.IsStorageFull.Should().BeFalse();
+        task.WasAutoPausedByDiskSpace.Should().BeFalse();
+
+        // Wait for auto-resume
+        timeout = DateTime.UtcNow.AddSeconds(5);
+        while (task.Manager.State == TorrentState.Paused && DateTime.UtcNow < timeout)
+        {
+            await Task.Delay(20);
+        }
+
+        task.Manager.State.Should().NotBe(TorrentState.Paused);
+    }
+
+    [Test]
     public async Task ResumeTorrentAsync_WhenFreeSpaceBelowThreshold_PreventsResumeAndSetsStorageFull()
     {
         var torrentBytes = CreateSampleSingleFileTorrentBytes("resume_lowdisk.iso", isPrivate: false);
