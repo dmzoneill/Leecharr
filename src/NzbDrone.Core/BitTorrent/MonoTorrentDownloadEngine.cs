@@ -5758,24 +5758,10 @@ public class MonoTorrentDownloadTask : IDownloadTask
                     flags += p.AmChoking ? "u" : "U";
                 }
 
-                if (p.AmInterested)
+                var isIncoming = IsPeerIncoming(p);
+                if (isIncoming)
                 {
                     flags += "I";
-                }
-
-                if (p.IsInterested && p.AmChoking)
-                {
-                    flags += "C";
-                }
-
-                if (p.IsInterested)
-                {
-                    flags += "i";
-                }
-
-                if (p.AmInterested && p.IsChoking)
-                {
-                    flags += "c";
                 }
 
                 var isEncrypted = p.EncryptionType != MonoTorrent.Connections.EncryptionType.PlainText;
@@ -5807,7 +5793,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
                     IsInterested = p.IsInterested,
                     ClientIsChoked = p.AmChoking,
                     ClientIsInterested = p.AmInterested,
-                    IsIncoming = flags.Contains("?"),
+                    IsIncoming = isIncoming,
                     IsUtp = isUtp,
                 });
             }
@@ -5817,6 +5803,84 @@ public class MonoTorrentDownloadTask : IDownloadTask
         catch
         {
             return Array.Empty<PeerInfo>();
+        }
+    }
+
+    private static readonly PropertyInfo PeerConnectionProp = typeof(PeerId).GetProperty("Connection", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+    private static readonly PropertyInfo PeerConnectionDirectionProp = typeof(PeerId).GetProperty("ConnectionDirection", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+    private static bool IsPeerIncoming(PeerId peer)
+    {
+        if (peer == null)
+        {
+            return false;
+        }
+
+        try
+        {
+            var dir = PeerConnectionDirectionProp?.GetValue(peer);
+            if (dir != null && string.Equals(dir.ToString(), "Incoming", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var conn = PeerConnectionProp?.GetValue(peer);
+            if (conn != null)
+            {
+                var isIncomingProp = conn.GetType().GetProperty("IsIncoming", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (isIncomingProp?.GetValue(conn) is bool isIncoming)
+                {
+                    return isIncoming;
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return false;
+    }
+
+    public async Task<bool> DisconnectPeerAsync(string ip)
+    {
+        if (string.IsNullOrWhiteSpace(ip) || this.Manager == null)
+        {
+            return false;
+        }
+
+        try
+        {
+            var peers = await this.Manager.GetPeersAsync().ConfigureAwait(false);
+            var matched = false;
+            foreach (var peer in peers)
+            {
+                if (string.Equals(peer.Uri?.Host, ip, StringComparison.OrdinalIgnoreCase))
+                {
+                    matched = true;
+                    try
+                    {
+                        (peer as IDisposable)?.Dispose();
+                        var connProp = peer?.GetType().GetProperty("Connection", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                        (connProp?.GetValue(peer) as IDisposable)?.Dispose();
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+
+            lock (this.peerLock)
+            {
+                this.cachedMonoPeers = null;
+                this.lastPeersUpdate = DateTime.MinValue;
+            }
+
+            return matched;
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Error disconnecting peer {0} in torrent {1}", ip, this.TorrentId);
+            return false;
         }
     }
 

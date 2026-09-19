@@ -3597,6 +3597,10 @@ public class MonoTorrentDownloadEngineTest
             SetPeerField(peer1, "Encryptor", encObj);
         }
 
+        var mockConn1 = Substitute.For<MonoTorrent.Connections.Peer.IPeerConnection>();
+        mockConn1.IsIncoming.Returns(true);
+        SetPeerField(peer1, "Connection", mockConn1);
+
         var peer2 = (MonoTorrent.Client.PeerId)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(peerIdType);
         var peerInfo2 = new MonoTorrent.PeerInfo(new Uri("utp://192.168.1.101:6881"));
         var peer2Peer = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(peerType);
@@ -3625,26 +3629,54 @@ public class MonoTorrentDownloadEngineTest
         var peers = task.GetPeers();
         peers.Should().HaveCount(3);
 
-        // peer1: AmInterested & !IsChoking => 'D', 'I'
-        //        IsInterested & !AmChoking => 'U', 'i'
+        // peer1: AmInterested & !IsChoking => 'D'
+        //        IsInterested & !AmChoking => 'U'
+        //        Incoming => 'I'
         //        Encryptor => 'E'
-        //        Total => "DUIiE"
-        peers[0].Flags.Should().Be("DUIiE");
+        //        Total => "DUIE"
+        peers[0].Flags.Should().Be("DUIE");
         peers[0].IsUtp.Should().BeFalse();
         peers[0].IsEncrypted.Should().BeTrue();
+        peers[0].IsIncoming.Should().BeTrue();
 
-        // peer2: AmInterested & IsChoking => 'd', 'I', 'c'
-        //        IsInterested & AmChoking => 'u', 'C', 'i'
+        // peer2: AmInterested & IsChoking => 'd'
+        //        IsInterested & AmChoking => 'u'
         //        utp scheme => 'P'
-        //        Total => "duICicP"
-        peers[1].Flags.Should().Be("duICicP");
+        //        Total => "duP"
+        peers[1].Flags.Should().Be("duP");
         peers[1].IsUtp.Should().BeTrue();
         peers[1].IsEncrypted.Should().BeFalse();
+        peers[1].IsIncoming.Should().BeFalse();
 
-        // peer3: !AmInterested && !IsInterested => no D/d, no U/u, no I, no C, no i, no c
+        // peer3: !AmInterested && !IsInterested => no D/d, no U/u, no I
         peers[2].Flags.Should().BeEmpty();
         peers[2].IsUtp.Should().BeFalse();
         peers[2].IsEncrypted.Should().BeFalse();
+        peers[2].IsIncoming.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task DisconnectPeerAsync_WhenCalled_HandlesAppropriately()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("disconnect_peer.iso");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 510,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "disconnect_peer.iso",
+            Status = TorrentStatus.Downloading,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.Should().NotBeNull();
+
+        var emptyRes = await task.DisconnectPeerAsync(string.Empty);
+        emptyRes.Should().BeFalse();
+
+        var nonExistentRes = await task.DisconnectPeerAsync("1.2.3.4");
+        nonExistentRes.Should().BeFalse();
     }
 
     private static void SetPeerField(object obj, string name, object value)
