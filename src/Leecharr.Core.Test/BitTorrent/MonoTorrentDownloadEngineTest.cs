@@ -3732,6 +3732,162 @@ public class MonoTorrentDownloadEngineTest
         await this.engine.StopAsync();
     }
 
+    [Test]
+    public async Task StartAsync_WhenLpdEnabledAndNoVpnOrProxy_EnablesLpd()
+    {
+        this.configService.EnableLpd.Returns(true);
+        this.configService.ProxyType.Returns((string)null!);
+        this.configService.ProxyHost.Returns((string)null!);
+        this.configService.BindInterface.Returns((string)null!);
+        this.configService.NetworkInterfaceBinding.Returns((string)null!);
+        this.configService.EnableVpnKillSwitch.Returns(false);
+
+        await this.engine.StartAsync();
+
+        var engineProp = typeof(MonoTorrentDownloadEngine).GetField("engine", BindingFlags.NonPublic | BindingFlags.Instance);
+        var monoEngine = engineProp!.GetValue(this.engine) as ClientEngine;
+        monoEngine.Should().NotBeNull();
+        monoEngine!.Settings.AllowLocalPeerDiscovery.Should().BeTrue();
+
+        await this.engine.StopAsync();
+    }
+
+    [Test]
+    public async Task StartAsync_WhenBindInterfaceSpecified_DisablesLpdToPreventLanMulticastLeaks()
+    {
+        this.configService.EnableLpd.Returns(true);
+        this.configService.ProxyType.Returns((string)null!);
+        this.configService.ProxyHost.Returns((string)null!);
+        this.configService.BindInterface.Returns("tun0");
+        this.configService.NetworkInterfaceBinding.Returns((string)null!);
+        this.configService.EnableVpnKillSwitch.Returns(false);
+
+        await this.engine.StartAsync();
+
+        var engineProp = typeof(MonoTorrentDownloadEngine).GetField("engine", BindingFlags.NonPublic | BindingFlags.Instance);
+        var monoEngine = engineProp!.GetValue(this.engine) as ClientEngine;
+        monoEngine.Should().NotBeNull();
+        monoEngine!.Settings.AllowLocalPeerDiscovery.Should().BeFalse();
+
+        await this.engine.StopAsync();
+    }
+
+    [Test]
+    public async Task StartAsync_WhenNetworkInterfaceBindingSpecified_DisablesLpdToPreventLanMulticastLeaks()
+    {
+        this.configService.EnableLpd.Returns(true);
+        this.configService.ProxyType.Returns((string)null!);
+        this.configService.ProxyHost.Returns((string)null!);
+        this.configService.BindInterface.Returns((string)null!);
+        this.configService.NetworkInterfaceBinding.Returns("wg0");
+        this.configService.EnableVpnKillSwitch.Returns(false);
+
+        await this.engine.StartAsync();
+
+        var engineProp = typeof(MonoTorrentDownloadEngine).GetField("engine", BindingFlags.NonPublic | BindingFlags.Instance);
+        var monoEngine = engineProp!.GetValue(this.engine) as ClientEngine;
+        monoEngine.Should().NotBeNull();
+        monoEngine!.Settings.AllowLocalPeerDiscovery.Should().BeFalse();
+
+        await this.engine.StopAsync();
+    }
+
+    [Test]
+    public async Task StartAsync_WhenVpnKillSwitchEnabledWithInterface_DisablesLpdToPreventLanMulticastLeaks()
+    {
+        var mockVpnService = Substitute.For<IVpnKillSwitchService>();
+        mockVpnService.IsKillSwitchEnabled.Returns(true);
+        mockVpnService.GetVpnInterfaceIpAddress(Arg.Any<AddressFamily>()).Returns(IPAddress.Loopback);
+
+        using var vpnEngine = new MonoTorrentDownloadEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator,
+            vpnKillSwitchService: mockVpnService);
+
+        this.configService.EnableLpd.Returns(true);
+        this.configService.ProxyType.Returns((string)null!);
+        this.configService.ProxyHost.Returns((string)null!);
+        this.configService.BindInterface.Returns("tun0");
+        this.configService.EnableVpnKillSwitch.Returns(true);
+
+        await vpnEngine.StartAsync();
+
+        var engineProp = typeof(MonoTorrentDownloadEngine).GetField("engine", BindingFlags.NonPublic | BindingFlags.Instance);
+        var monoEngine = engineProp!.GetValue(vpnEngine) as ClientEngine;
+        monoEngine.Should().NotBeNull();
+        monoEngine!.Settings.AllowLocalPeerDiscovery.Should().BeFalse();
+
+        await vpnEngine.StopAsync();
+    }
+
+    [Test]
+    public async Task StartAsync_WhenVpnKillSwitchEnabledWithoutInterface_HaltsInFailClosedState()
+    {
+        this.configService.EnableLpd.Returns(true);
+        this.configService.ProxyType.Returns((string)null!);
+        this.configService.ProxyHost.Returns((string)null!);
+        this.configService.BindInterface.Returns((string)null!);
+        this.configService.NetworkInterfaceBinding.Returns((string)null!);
+        this.configService.EnableVpnKillSwitch.Returns(true);
+
+        await this.engine.StartAsync();
+
+        this.engine.IsHaltedByKillSwitch.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task HaltAllTorrentsForKillSwitchAsync_DisablesLpd()
+    {
+        this.configService.EnableLpd.Returns(true);
+        this.configService.ProxyType.Returns((string)null!);
+        this.configService.ProxyHost.Returns((string)null!);
+        this.configService.BindInterface.Returns((string)null!);
+        this.configService.NetworkInterfaceBinding.Returns((string)null!);
+        this.configService.EnableVpnKillSwitch.Returns(false);
+
+        await this.engine.StartAsync();
+
+        var engineProp = typeof(MonoTorrentDownloadEngine).GetField("engine", BindingFlags.NonPublic | BindingFlags.Instance);
+        var monoEngine = engineProp!.GetValue(this.engine) as ClientEngine;
+        monoEngine.Should().NotBeNull();
+        monoEngine!.Settings.AllowLocalPeerDiscovery.Should().BeTrue();
+
+        await this.engine.HaltAllTorrentsForKillSwitchAsync();
+
+        monoEngine.Settings.AllowLocalPeerDiscovery.Should().BeFalse();
+
+        await this.engine.StopAsync();
+    }
+
+    [Test]
+    public async Task UpdateEngineListenEndpointsAsync_WhenVpnKillSwitchOrInterfaceBindingActive_SuppressesLpd()
+    {
+        this.configService.EnableLpd.Returns(true);
+        this.configService.ProxyType.Returns((string)null!);
+        this.configService.ProxyHost.Returns((string)null!);
+        this.configService.BindInterface.Returns((string)null!);
+        this.configService.NetworkInterfaceBinding.Returns((string)null!);
+        this.configService.EnableVpnKillSwitch.Returns(false);
+
+        await this.engine.StartAsync();
+
+        var engineProp = typeof(MonoTorrentDownloadEngine).GetField("engine", BindingFlags.NonPublic | BindingFlags.Instance);
+        var monoEngine = engineProp!.GetValue(this.engine) as ClientEngine;
+        monoEngine.Should().NotBeNull();
+        monoEngine!.Settings.AllowLocalPeerDiscovery.Should().BeTrue();
+
+        // Simulate activating VPN kill switch and refreshing listen endpoints
+        this.configService.EnableVpnKillSwitch.Returns(true);
+        await this.engine.UpdateEngineListenEndpointsAsync();
+
+        monoEngine.Settings.AllowLocalPeerDiscovery.Should().BeFalse();
+
+        await this.engine.StopAsync();
+    }
+
     #endregion
     private static byte[] CreateSampleTorrentWithTiers(
         string name,
