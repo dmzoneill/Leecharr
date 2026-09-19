@@ -576,6 +576,15 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 this.logger.Warn(ex, "Failed to apply rate limits to download engine for torrent {0}", torrent.Id);
             }
 
+            try
+            {
+                await this.downloadEngine.SetTorrentCategoryAsync(torrent.Id, torrent.Category);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to apply category to download engine for torrent {0}", torrent.Id);
+            }
+
             if (existing == null || existing.SequentialDownload != torrent.SequentialDownload)
             {
                 try
@@ -1754,6 +1763,15 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             {
                 this.logger.Warn(ex, "Failed to apply category rate limits to download engine for torrent {0}", torrent.Id);
             }
+
+            try
+            {
+                await this.downloadEngine.SetTorrentCategoryAsync(torrent.Id, torrent.Category);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to apply category to download engine for torrent {0}", torrent.Id);
+            }
         }
 
         this.torrentRepository.Update(torrent);
@@ -1902,6 +1920,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 try
                 {
                     await this.downloadEngine.SetTorrentRateLimitsAsync(torrent.Id, effectiveDl, effectiveUl);
+                    await this.downloadEngine.SetTorrentCategoryAsync(torrent.Id, torrent.Category);
                     this.logger.Info(
                         "Propagated category limit updates for category '{0}' to torrent {1} ({2}) - DL: {3} KB/s, UL: {4} KB/s",
                         category.Name,
@@ -1957,6 +1976,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 try
                 {
                     await this.downloadEngine.SetTorrentRateLimitsAsync(torrent.Id, effectiveDl, effectiveUl);
+                    await this.downloadEngine.SetTorrentCategoryAsync(torrent.Id, torrent.Category);
                     this.logger.Info(
                         "Propagated category deletion for category '{0}' to torrent {1} ({2}) - DL: {3} KB/s, UL: {4} KB/s",
                         message.CategoryName,
