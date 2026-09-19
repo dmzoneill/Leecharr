@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -1603,34 +1604,69 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     }
 
     [HttpPost("torrents/addTrackers")]
-    public async Task<ActionResult> AddTrackers([FromForm] string hash, [FromForm] string urls)
+    public async Task<ActionResult> AddTrackers([FromForm] string hash = null, [FromForm] string urls = null, [FromForm] string hashes = null)
     {
-        if (!string.IsNullOrWhiteSpace(hash) && !string.IsNullOrWhiteSpace(urls))
+        var targetHashes = !string.IsNullOrWhiteSpace(hash) ? hash : hashes;
+        if (!string.IsNullOrWhiteSpace(targetHashes) && !string.IsNullOrWhiteSpace(urls))
         {
-            var torrent = this.torrentService.GetByInfoHash(hash);
-            if (torrent != null)
+            var torrents = this.ResolveTorrents(targetHashes);
+            if (torrents.Count == 1 && torrents[0].IsPrivate)
+            {
+                return this.BadRequest("Cannot add public trackers to private torrents");
+            }
+
+            var decodedUrls = urls;
+            try
+            {
+                decodedUrls = Uri.UnescapeDataString(urls);
+            }
+            catch
+            {
+                // Fallback to raw urls
+            }
+
+            var rawLines = decodedUrls.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+            var now = DateTime.UtcNow;
+
+            foreach (var torrent in torrents)
             {
                 if (torrent.IsPrivate)
                 {
-                    return this.BadRequest("Cannot add public trackers to private torrents");
+                    continue;
                 }
 
                 var existingTrackers = (this.trackerEntryRepository.GetByTorrentId(torrent.Id) ?? Enumerable.Empty<TrackerEntry>()).ToList();
                 var existingUrls = existingTrackers
                     .Where(t => !string.IsNullOrWhiteSpace(t.Url))
-                    .Select(t => t.Url.Trim())
+                    .Select(t =>
+                    {
+                        try
+                        {
+                            return Uri.UnescapeDataString(t.Url.Trim());
+                        }
+                        catch
+                        {
+                            return t.Url.Trim();
+                        }
+                    })
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-                var rawLines = urls.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
                 var validUrls = new List<string>();
-                var now = DateTime.UtcNow;
-
                 var currentTier = existingTrackers.Count > 0 ? existingTrackers.Max(t => t.Tier) + 1 : 0;
                 var hasTrackersInCurrentTier = false;
 
                 foreach (var rawLine in rawLines)
                 {
                     var trimmed = rawLine.Trim();
+                    try
+                    {
+                        trimmed = Uri.UnescapeDataString(trimmed).Trim();
+                    }
+                    catch
+                    {
+                        // Fallback to raw trimmed line
+                    }
+
                     if (string.IsNullOrWhiteSpace(trimmed))
                     {
                         if (hasTrackersInCurrentTier)
@@ -1679,31 +1715,129 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     }
 
     [HttpPost("torrents/removeTrackers")]
-    public async Task<ActionResult> RemoveTrackers([FromForm] string hash, [FromForm] string urls)
+    public async Task<ActionResult> RemoveTrackers([FromForm] string hash = null, [FromForm] string urls = null, [FromForm] string hashes = null)
     {
-        if (!string.IsNullOrWhiteSpace(hash) && !string.IsNullOrWhiteSpace(urls))
+        var targetHashes = !string.IsNullOrWhiteSpace(hash) ? hash : hashes;
+        if (!string.IsNullOrWhiteSpace(targetHashes) && !string.IsNullOrWhiteSpace(urls))
         {
-            var torrent = this.torrentService.GetByInfoHash(hash);
-            if (torrent != null)
-            {
-                var urlSet = urls.Split('|', StringSplitOptions.RemoveEmptyEntries)
-                    .Select(u => u.Trim())
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var torrents = this.ResolveTorrents(targetHashes);
+            var rawUrls = urls.Replace("\r\n", "\n").Replace('\r', '\n').Split(new[] { '|', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            var urlSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+            foreach (var u in rawUrls)
+            {
+                var trimmed = u.Trim();
+                if (string.IsNullOrWhiteSpace(trimmed))
+                {
+                    continue;
+                }
+
+                urlSet.Add(trimmed);
+                try
+                {
+                    var unescaped = Uri.UnescapeDataString(trimmed).Trim();
+                    if (!string.IsNullOrWhiteSpace(unescaped))
+                    {
+                        urlSet.Add(unescaped);
+                    }
+                }
+                catch
+                {
+                    // Fallback to raw trimmed line
+                }
+            }
+
+            foreach (var torrent in torrents)
+            {
                 if (this.downloadEngine != null)
                 {
                     await this.downloadEngine.RemoveTrackersAsync(torrent.Id, urlSet);
                 }
 
                 var existing = this.trackerEntryRepository.GetByTorrentId(torrent.Id);
-                foreach (var t in existing.Where(t => urlSet.Contains(t.Url)))
+                if (existing != null)
                 {
-                    this.trackerEntryRepository.Delete(t.Id);
+                    foreach (var t in existing)
+                    {
+                        var trackerUrl = t.Url?.Trim();
+                        string unescapedTrackerUrl = null;
+                        if (trackerUrl != null)
+                        {
+                            try
+                            {
+                                unescapedTrackerUrl = Uri.UnescapeDataString(trackerUrl).Trim();
+                            }
+                            catch
+                            {
+                                // Ignore
+                            }
+                        }
+
+                        if ((trackerUrl != null && urlSet.Contains(trackerUrl)) ||
+                            (unescapedTrackerUrl != null && urlSet.Contains(unescapedTrackerUrl)))
+                        {
+                            this.trackerEntryRepository.Delete(t.Id);
+                        }
+                    }
                 }
             }
         }
 
         return this.Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("torrents/addPeers")]
+    public async Task<ActionResult> AddPeers([FromForm] string hashes = null, [FromForm] string hash = null, [FromForm] string peers = null)
+    {
+        var targetHashes = !string.IsNullOrWhiteSpace(hashes) ? hashes : hash;
+        if (string.IsNullOrWhiteSpace(targetHashes) || string.IsNullOrWhiteSpace(peers))
+        {
+            return this.BadRequest();
+        }
+
+        var peerList = peers.Split('|', StringSplitOptions.RemoveEmptyEntries)
+            .Select(p => p.Trim())
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .ToList();
+
+        var torrents = this.ResolveTorrents(targetHashes);
+        if (torrents.Count == 0)
+        {
+            return this.NotFound();
+        }
+
+        var results = new Dictionary<string, object>();
+
+        foreach (var t in torrents)
+        {
+            var added = 0;
+            var failed = 0;
+            if (this.downloadEngine != null)
+            {
+                var result = await this.downloadEngine.AddPeersAsync(t.Id, peerList);
+                added = result.Added;
+                failed = result.Failed;
+            }
+
+            if (added == 0 && failed == 0 && peerList.Count > 0)
+            {
+                foreach (var peer in peerList)
+                {
+                    if (IPEndPoint.TryParse(peer, out var ep) && ep.Port > 0)
+                    {
+                        added++;
+                    }
+                    else
+                    {
+                        failed++;
+                    }
+                }
+            }
+
+            results[t.InfoHash] = new { added, failed };
+        }
+
+        return this.Ok(results);
     }
 
     [HttpPost("torrents/editTracker")]

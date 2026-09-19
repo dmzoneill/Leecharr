@@ -42,6 +42,8 @@ public interface IDownloadEngine
 
     Task RemoveTrackersAsync(int torrentId, IEnumerable<string> trackers);
 
+    Task<(int Added, int Failed)> AddPeersAsync(int torrentId, IEnumerable<string> peers) => Task.FromResult((0, 0));
+
     Task SetFilePriorityAsync(int torrentId, string filePath, int priority);
 
     Task SetRateLimitsAsync(int maxDownloadKbps, int maxUploadKbps);
