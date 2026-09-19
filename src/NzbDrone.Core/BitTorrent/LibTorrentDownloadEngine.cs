@@ -39,6 +39,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
     private readonly HashSet<int> torrentsHaltedByKillSwitch = new();
 
     private readonly HttpClient httpClient;
+    private readonly bool ownsHttpClient;
     private CancellationTokenSource syncCts;
     private Task syncLoopTask;
 
@@ -81,7 +82,8 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         IStoragePathService storagePathService,
         ICategoryService categoryService,
         IDiskProvider diskProvider,
-        IEventAggregator eventAggregator)
+        IEventAggregator eventAggregator,
+        HttpClient httpClient = null)
     {
         this.configService = configService;
         this.storagePathService = storagePathService;
@@ -90,16 +92,25 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         this.eventAggregator = eventAggregator;
         this.logger = LogManager.GetCurrentClassLogger();
 
-        var handler = new SocketsHttpHandler
+        if (httpClient != null)
         {
-            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
-            ConnectTimeout = TimeSpan.FromSeconds(5),
-        };
+            this.httpClient = httpClient;
+            this.ownsHttpClient = false;
+        }
+        else
+        {
+            var handler = new SocketsHttpHandler
+            {
+                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+                ConnectTimeout = TimeSpan.FromSeconds(5),
+            };
 
-        this.httpClient = new HttpClient(handler)
-        {
-            Timeout = TimeSpan.FromSeconds(10),
-        };
+            this.httpClient = new HttpClient(handler)
+            {
+                Timeout = TimeSpan.FromSeconds(10),
+            };
+            this.ownsHttpClient = true;
+        }
     }
 
     public async Task<EngineHealthCheckResult> ProbeHealthAsync()
@@ -542,7 +553,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         }
     }
 
-    public async Task MoveTorrentFilesAsync(int torrentId, string newSavePath)
+    public async Task MoveTorrentFilesAsync(int torrentId, string newSavePath, bool moveFiles = true)
     {
         if (this.tasks.TryGetValue(torrentId, out var task))
         {
@@ -552,11 +563,13 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                 {
                     ["info_hash"] = task.InfoHash,
                     ["save_path"] = newSavePath,
+                    ["flags"] = moveFiles ? 1 : 0,
                 });
             }
             catch (Exception ex)
             {
-                this.logger.Warn(ex, "Error moving storage in libtorrent for {0}", torrentId);
+                this.logger.Error(ex, "Error moving storage in libtorrent for {0}", torrentId);
+                throw;
             }
         }
     }
@@ -593,7 +606,10 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         {
             this.disposed = true;
             this.StopAsync().GetAwaiter().GetResult();
-            this.httpClient.Dispose();
+            if (this.ownsHttpClient)
+            {
+                this.httpClient.Dispose();
+            }
         }
     }
 
