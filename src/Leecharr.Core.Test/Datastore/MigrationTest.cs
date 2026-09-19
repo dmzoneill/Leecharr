@@ -408,4 +408,42 @@ public class MigrationTest
 
         duplicateInsert.Should().Throw<SqliteException>();
     }
+
+    [Test]
+    public void Migration033_CreatesQueryPerformanceCompositeIndexes()
+    {
+        var connectionString = $"Data Source={this.tempDbPath};";
+
+        var serviceProvider = new ServiceCollection()
+            .AddFluentMigratorCore()
+            .ConfigureRunner(rb => rb
+                .AddSQLite()
+                .WithGlobalConnectionString(connectionString)
+                .ScanIn(typeof(InitialSetup).Assembly).For.Migrations())
+            .AddLogging(lb => lb.AddFluentMigratorConsole())
+            .BuildServiceProvider(false);
+
+        using (var scope = serviceProvider.CreateScope())
+        {
+            var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+            runner.MigrateUp();
+        }
+
+        using var connection = new SqliteConnection(connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT count(*) FROM sqlite_master 
+            WHERE type='index' AND name IN (
+                'IX_Torrents_QueuePosition',
+                'IX_Torrents_Status_Category',
+                'IX_TorrentFiles_TorrentId_Id',
+                'IX_DownloadHistory_Status_DateAdded',
+                'IX_DownloadHistory_InfoHash_Id'
+            );";
+
+        var count = Convert.ToInt32(command.ExecuteScalar());
+        count.Should().Be(5);
+    }
 }
