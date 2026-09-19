@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Common.Disk;
+using NzbDrone.Core.Bandwidth;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.DiskSpace;
@@ -75,6 +76,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
     private readonly IBlocklistUpdateService blocklistUpdateService;
     private readonly IBlocklistService blocklistService;
     private readonly IStoragePathService storagePathService;
+    private readonly ISpeedSchedulerService speedSchedulerService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public static void RecordRemovedId(int id)
@@ -145,7 +147,8 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
         ITrackerEntryRepository trackerEntryRepository = null,
         IBlocklistUpdateService blocklistUpdateService = null,
         IBlocklistService blocklistService = null,
-        IStoragePathService storagePathService = null)
+        IStoragePathService storagePathService = null,
+        ISpeedSchedulerService speedSchedulerService = null)
     {
         this.torrentService = torrentService;
         this.torrentFileService = torrentFileService;
@@ -160,6 +163,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
         this.blocklistUpdateService = blocklistUpdateService;
         this.blocklistService = blocklistService;
         this.storagePathService = storagePathService;
+        this.speedSchedulerService = speedSchedulerService;
     }
 
     [HttpGet]
@@ -235,7 +239,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
             return method switch
             {
                 "session-get" => this.HandleSessionGet(tag),
-                "session-set" => this.HandleSessionSet(request, tag),
+                "session-set" => await this.HandleSessionSetAsync(request, tag),
                 "session-stats" => this.HandleSessionStats(tag),
                 "session-close" => this.HandleSessionClose(tag),
                 "torrent-get" => this.HandleTorrentGet(request, tag),
@@ -278,11 +282,11 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
                             { "download-dir", this.configService.DownloadDir ?? "/downloads" },
                             { "incomplete-dir", this.configService.IncompleteDownloadDir ?? "/downloads/incomplete" },
                             { "incomplete-dir-enabled", !string.IsNullOrWhiteSpace(this.configService.IncompleteDownloadDir) },
-                            { "speed-limit-down", this.configService.MaxDownloadSpeedKbps },
-                            { "speed-limit-up", this.configService.MaxUploadSpeedKbps },
+                            { "speed-limit-down", this.configService.MaxDownloadSpeedKbps > 0 ? this.configService.MaxDownloadSpeedKbps : (this.configService.GetValueInt("SavedMaxDownloadSpeedKbps", 0) > 0 ? this.configService.GetValueInt("SavedMaxDownloadSpeedKbps", 0) : 0) },
+                            { "speed-limit-up", this.configService.MaxUploadSpeedKbps > 0 ? this.configService.MaxUploadSpeedKbps : (this.configService.GetValueInt("SavedMaxUploadSpeedKbps", 0) > 0 ? this.configService.GetValueInt("SavedMaxUploadSpeedKbps", 0) : 0) },
                             { "speed-limit-down-enabled", this.configService.MaxDownloadSpeedKbps > 0 },
                             { "speed-limit-up-enabled", this.configService.MaxUploadSpeedKbps > 0 },
-                            { "seedRatioLimit", this.configService.GlobalSeedRatioLimit },
+                            { "seedRatioLimit", this.configService.GlobalSeedRatioLimit > 0 ? this.configService.GlobalSeedRatioLimit : (this.configService.GetValueDouble("SavedGlobalSeedRatioLimit", 0.0) > 0.0 ? this.configService.GetValueDouble("SavedGlobalSeedRatioLimit", 0.0) : 0.0) },
                             { "seedRatioLimited", this.configService.GlobalSeedRatioLimit > 0 },
                             { "alt-speed-enabled", this.configService.AlternativeSpeedEnabled },
                             { "alt-speed-down", this.configService.AltDownloadSpeedKbps },
@@ -302,7 +306,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
         });
     }
 
-    private IActionResult HandleSessionSet(TransmissionRpcRequest request, object tag)
+    private async Task<IActionResult> HandleSessionSetAsync(TransmissionRpcRequest request, object tag)
     {
         if (request.Arguments != null)
         {
@@ -320,39 +324,132 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
 
             if (request.Arguments.TryGetValue("speed-limit-down", out var dlLimit) && dlLimit.ValueKind == JsonValueKind.Number)
             {
-                updates["MaxDownloadSpeedKbps"] = dlLimit.GetInt32();
+                var val = dlLimit.GetInt32();
+                updates["MaxDownloadSpeedKbps"] = val;
+                if (val > 0)
+                {
+                    updates["SavedMaxDownloadSpeedKbps"] = val;
+                }
             }
 
             if (request.Arguments.TryGetValue("speed-limit-down-enabled", out var dlLimitEnabled))
             {
-                if (!SafeGetBoolean(dlLimitEnabled))
+                if (SafeGetBoolean(dlLimitEnabled))
                 {
+                    if (!updates.ContainsKey("MaxDownloadSpeedKbps") || (int)updates["MaxDownloadSpeedKbps"] <= 0)
+                    {
+                        var restored = this.configService.GetValueInt("SavedMaxDownloadSpeedKbps", 0);
+                        if (restored <= 0)
+                        {
+                            restored = this.configService.MaxDownloadSpeedKbps;
+                        }
+
+                        if (restored <= 0)
+                        {
+                            restored = 1000;
+                        }
+
+                        updates["MaxDownloadSpeedKbps"] = restored;
+                    }
+                }
+                else
+                {
+                    var current = updates.ContainsKey("MaxDownloadSpeedKbps")
+                        ? (int)updates["MaxDownloadSpeedKbps"]
+                        : this.configService.MaxDownloadSpeedKbps;
+                    if (current > 0)
+                    {
+                        updates["SavedMaxDownloadSpeedKbps"] = current;
+                    }
+
                     updates["MaxDownloadSpeedKbps"] = 0;
                 }
             }
 
             if (request.Arguments.TryGetValue("speed-limit-up", out var upLimit) && upLimit.ValueKind == JsonValueKind.Number)
             {
-                updates["MaxUploadSpeedKbps"] = upLimit.GetInt32();
+                var val = upLimit.GetInt32();
+                updates["MaxUploadSpeedKbps"] = val;
+                if (val > 0)
+                {
+                    updates["SavedMaxUploadSpeedKbps"] = val;
+                }
             }
 
             if (request.Arguments.TryGetValue("speed-limit-up-enabled", out var upLimitEnabled))
             {
-                if (!SafeGetBoolean(upLimitEnabled))
+                if (SafeGetBoolean(upLimitEnabled))
                 {
+                    if (!updates.ContainsKey("MaxUploadSpeedKbps") || (int)updates["MaxUploadSpeedKbps"] <= 0)
+                    {
+                        var restored = this.configService.GetValueInt("SavedMaxUploadSpeedKbps", 0);
+                        if (restored <= 0)
+                        {
+                            restored = this.configService.MaxUploadSpeedKbps;
+                        }
+
+                        if (restored <= 0)
+                        {
+                            restored = 1000;
+                        }
+
+                        updates["MaxUploadSpeedKbps"] = restored;
+                    }
+                }
+                else
+                {
+                    var current = updates.ContainsKey("MaxUploadSpeedKbps")
+                        ? (int)updates["MaxUploadSpeedKbps"]
+                        : this.configService.MaxUploadSpeedKbps;
+                    if (current > 0)
+                    {
+                        updates["SavedMaxUploadSpeedKbps"] = current;
+                    }
+
                     updates["MaxUploadSpeedKbps"] = 0;
                 }
             }
 
             if (request.Arguments.TryGetValue("seedRatioLimit", out var seedRatioLimit) && seedRatioLimit.ValueKind == JsonValueKind.Number)
             {
-                updates["GlobalSeedRatioLimit"] = seedRatioLimit.GetDouble();
+                var val = seedRatioLimit.GetDouble();
+                updates["GlobalSeedRatioLimit"] = val;
+                if (val > 0)
+                {
+                    updates["SavedGlobalSeedRatioLimit"] = val;
+                }
             }
 
             if (request.Arguments.TryGetValue("seedRatioLimited", out var seedRatioLimited))
             {
-                if (!SafeGetBoolean(seedRatioLimited))
+                if (SafeGetBoolean(seedRatioLimited))
                 {
+                    if (!updates.ContainsKey("GlobalSeedRatioLimit") || (double)updates["GlobalSeedRatioLimit"] <= 0.0)
+                    {
+                        var restored = this.configService.GetValueDouble("SavedGlobalSeedRatioLimit", 0.0);
+                        if (restored <= 0.0)
+                        {
+                            restored = this.configService.GlobalSeedRatioLimit;
+                        }
+
+                        if (restored <= 0.0)
+                        {
+                            restored = 1.0;
+                        }
+
+                        updates["GlobalSeedRatioLimit"] = restored;
+                    }
+                }
+                else
+                {
+                    var current = updates.ContainsKey("GlobalSeedRatioLimit")
+                        ? (double)updates["GlobalSeedRatioLimit"]
+                        : this.configService.GlobalSeedRatioLimit;
+                    if (current > 0.0)
+                    {
+                        updates["SavedGlobalSeedRatioLimit"] = current;
+                    }
+
                     updates["GlobalSeedRatioLimit"] = 0.0;
                 }
             }
@@ -405,6 +502,34 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
             if (updates.Count > 0)
             {
                 this.configService.SaveConfigDictionary(updates);
+            }
+
+            if (updates.ContainsKey("MaxDownloadSpeedKbps") ||
+                updates.ContainsKey("MaxUploadSpeedKbps") ||
+                updates.ContainsKey("AlternativeSpeedEnabled") ||
+                updates.ContainsKey("AltDownloadSpeedKbps") ||
+                updates.ContainsKey("AltUploadSpeedKbps"))
+            {
+                if (this.speedSchedulerService != null)
+                {
+                    await this.speedSchedulerService.ApplyCurrentLimitsAsync().ConfigureAwait(false);
+                }
+                else if (this.downloadEngine != null)
+                {
+                    var isAlt = updates.ContainsKey("AlternativeSpeedEnabled")
+                        ? (bool)updates["AlternativeSpeedEnabled"]
+                        : this.configService.AlternativeSpeedEnabled;
+
+                    var dl = isAlt
+                        ? (updates.ContainsKey("AltDownloadSpeedKbps") ? (int)updates["AltDownloadSpeedKbps"] : this.configService.AltDownloadSpeedKbps)
+                        : (updates.ContainsKey("MaxDownloadSpeedKbps") ? (int)updates["MaxDownloadSpeedKbps"] : this.configService.MaxDownloadSpeedKbps);
+
+                    var ul = isAlt
+                        ? (updates.ContainsKey("AltUploadSpeedKbps") ? (int)updates["AltUploadSpeedKbps"] : this.configService.AltUploadSpeedKbps)
+                        : (updates.ContainsKey("MaxUploadSpeedKbps") ? (int)updates["MaxUploadSpeedKbps"] : this.configService.MaxUploadSpeedKbps);
+
+                    await this.downloadEngine.SetRateLimitsAsync(dl, ul).ConfigureAwait(false);
+                }
             }
         }
 
@@ -546,12 +671,58 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
                     }
                 }
 
-                if (request.Arguments.TryGetValue("seedRatioLimit", out var ratioVal))
+                if (request.Arguments.TryGetValue("seedRatioMode", out var ratioModeVal) && ratioModeVal.ValueKind == JsonValueKind.Number)
+                {
+                    var mode = ratioModeVal.GetInt32();
+                    if (mode == 0)
+                    {
+                        t.TargetRatio = 0;
+                    }
+                    else if (mode == 1)
+                    {
+                        if (request.Arguments.TryGetValue("seedRatioLimit", out var rVal) && rVal.ValueKind == JsonValueKind.Number)
+                        {
+                            t.TargetRatio = rVal.GetDouble();
+                        }
+                        else if (t.TargetRatio <= 0)
+                        {
+                            t.TargetRatio = this.configService.GlobalSeedRatioLimit > 0 ? this.configService.GlobalSeedRatioLimit : 1.0;
+                        }
+                    }
+                    else if (mode == 2)
+                    {
+                        t.TargetRatio = -1;
+                    }
+                }
+                else if (request.Arguments.TryGetValue("seedRatioLimit", out var ratioVal) && ratioVal.ValueKind == JsonValueKind.Number)
                 {
                     t.TargetRatio = ratioVal.GetDouble();
                 }
 
-                if (request.Arguments.TryGetValue("seedIdleLimit", out var idleVal) && idleVal.ValueKind == JsonValueKind.Number)
+                if (request.Arguments.TryGetValue("seedIdleMode", out var idleModeVal) && idleModeVal.ValueKind == JsonValueKind.Number)
+                {
+                    var mode = idleModeVal.GetInt32();
+                    if (mode == 0)
+                    {
+                        t.TargetSeedTimeMinutes = 0;
+                    }
+                    else if (mode == 1)
+                    {
+                        if (request.Arguments.TryGetValue("seedIdleLimit", out var iVal) && iVal.ValueKind == JsonValueKind.Number)
+                        {
+                            t.TargetSeedTimeMinutes = iVal.GetInt32();
+                        }
+                        else if (t.TargetSeedTimeMinutes <= 0)
+                        {
+                            t.TargetSeedTimeMinutes = 120;
+                        }
+                    }
+                    else if (mode == 2)
+                    {
+                        t.TargetSeedTimeMinutes = -1;
+                    }
+                }
+                else if (request.Arguments.TryGetValue("seedIdleLimit", out var idleVal) && idleVal.ValueKind == JsonValueKind.Number)
                 {
                     t.TargetSeedTimeMinutes = idleVal.GetInt32();
                 }
@@ -1654,9 +1825,9 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
             { "queuePosition", t.QueuePosition },
             { "recheckProgress", t.Status == TorrentStatus.Checking ? t.Progress : 0.0 },
             { "seedRatioLimit", t.TargetRatio },
-            { "seedRatioMode", t.TargetRatio > 0 ? 1 : 0 },
+            { "seedRatioMode", t.TargetRatio < 0 ? 2 : (t.TargetRatio > 0 ? 1 : 0) },
             { "seedIdleLimit", t.TargetSeedTimeMinutes },
-            { "seedIdleMode", t.TargetSeedTimeMinutes > 0 ? 1 : 0 },
+            { "seedIdleMode", t.TargetSeedTimeMinutes < 0 ? 2 : (t.TargetSeedTimeMinutes > 0 ? 1 : 0) },
             { "downloadLimit", t.DownloadLimit },
             { "uploadLimit", t.UploadLimit },
             { "downloadLimited", t.DownloadLimit > 0 },
