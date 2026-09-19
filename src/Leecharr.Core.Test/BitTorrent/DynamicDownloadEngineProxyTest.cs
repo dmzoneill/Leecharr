@@ -149,6 +149,9 @@ public class DynamicDownloadEngineProxyTest
     [Test]
     public async Task SwitchEngineAsync_SwitchesActiveEngineAndMigratesTorrents()
     {
+        await this.proxy.StartAsync();
+        this.monoTorrentEngine.ClearReceivedCalls();
+
         var result = await this.proxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
 
         result.Success.Should().BeTrue();
@@ -273,6 +276,9 @@ public class DynamicDownloadEngineProxyTest
     [Test]
     public async Task SwitchEngineAsync_WhenTargetStartFails_RollsBackAndRestartsPreviousEngine()
     {
+        await this.proxy.StartAsync();
+        this.monoTorrentEngine.ClearReceivedCalls();
+
         this.libTorrentEngine.StartAsync().ThrowsAsync(new InvalidOperationException("Failed to bind port"));
 
         var result = await this.proxy.SwitchEngineAsync("LibTorrent");
@@ -294,6 +300,9 @@ public class DynamicDownloadEngineProxyTest
     [Test]
     public async Task SwitchEngineAsync_WhenRollbackOccurs_RehydratesTorrentsIntoRestartedPreviousEngineWithSettings()
     {
+        await this.proxy.StartAsync();
+        this.monoTorrentEngine.ClearReceivedCalls();
+
         this.libTorrentEngine.StartAsync().ThrowsAsync(new InvalidOperationException("Target initialization failed"));
 
         var torrent = new Torrent
@@ -352,6 +361,7 @@ public class DynamicDownloadEngineProxyTest
                 this.torrentRepository,
                 this.eventAggregator,
                 appFolderInfo: appFolderInfo);
+            await testProxy.StartAsync();
 
             var result = await testProxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
 
@@ -409,6 +419,7 @@ public class DynamicDownloadEngineProxyTest
             this.torrentRepository,
             this.eventAggregator,
             trackerEntryRepository: trackerRepo);
+        await testProxy.StartAsync();
 
         var result = await testProxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
 
@@ -439,6 +450,7 @@ public class DynamicDownloadEngineProxyTest
             this.configService,
             this.torrentRepository,
             this.eventAggregator);
+        await testProxy.StartAsync();
 
         var result = await testProxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
 
@@ -464,6 +476,7 @@ public class DynamicDownloadEngineProxyTest
             this.configService,
             this.torrentRepository,
             this.eventAggregator);
+        await testProxy.StartAsync();
 
         var result = await testProxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
 
@@ -502,6 +515,7 @@ public class DynamicDownloadEngineProxyTest
             this.torrentRepository,
             this.eventAggregator,
             torrentFileRepository: fileRepo);
+        await testProxy.StartAsync();
 
         var result = await testProxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
 
@@ -532,6 +546,9 @@ public class DynamicDownloadEngineProxyTest
     [Test]
     public async Task SwitchEngineAsync_IncomingOperationsDuringMigration_DirectToTargetEngine()
     {
+        await this.proxy.StartAsync();
+        this.monoTorrentEngine.ClearReceivedCalls();
+
         var targetEngineStartTcs = new TaskCompletionSource();
         this.libTorrentEngine.StartAsync().Returns(async _ =>
         {
@@ -597,6 +614,7 @@ public class DynamicDownloadEngineProxyTest
             this.configService,
             this.torrentRepository,
             this.eventAggregator);
+        await testProxy.StartAsync();
 
         var result = await testProxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
 
@@ -628,6 +646,7 @@ public class DynamicDownloadEngineProxyTest
             this.configService,
             this.torrentRepository,
             this.eventAggregator);
+        await testProxy.StartAsync();
 
         var result = await testProxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
 
@@ -659,10 +678,90 @@ public class DynamicDownloadEngineProxyTest
             this.configService,
             this.torrentRepository,
             this.eventAggregator);
+        await testProxy.StartAsync();
 
         var result = await testProxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
 
         result.Success.Should().BeTrue();
         await this.libTorrentEngine.DidNotReceive().SetSequentialDownloadAsync(Arg.Any<int>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task SwitchEngineAsync_WhenProxyNotRunning_DoesNotStartTargetEngineOrRehydrateTorrents()
+    {
+        this.proxy.IsRunning.Should().BeFalse();
+
+        var result = await this.proxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
+
+        result.Success.Should().BeTrue();
+        result.PreviousEngine.Should().Be("MonoTorrent");
+        result.ActiveEngine.Should().Be("LibTorrent");
+        result.TorrentsMigrated.Should().Be(0);
+
+        this.proxy.ActiveEngineId.Should().Be("LibTorrent");
+        this.proxy.ActiveEngine.Should().BeSameAs(this.libTorrentEngine);
+
+        await this.monoTorrentEngine.DidNotReceive().StopAsync();
+        await this.libTorrentEngine.DidNotReceive().StartAsync();
+        await this.libTorrentEngine.DidNotReceive().AddTorrentAsync(Arg.Any<Torrent>(), Arg.Any<byte[]>(), Arg.Any<string>());
+    }
+
+    [Test]
+    public async Task SwitchEngineAsync_WhenRollbackOccursWhileProxyStopped_DoesNotResurrectPreviousEngine()
+    {
+        this.proxy.IsRunning.Should().BeFalse();
+        this.configService.When(x => x.SaveConfigDictionary(Arg.Any<Dictionary<string, object>>())).Do(_ => throw new InvalidOperationException("Config write failure"));
+
+        var result = await this.proxy.SwitchEngineAsync("LibTorrent");
+
+        result.Success.Should().BeFalse();
+        result.ActiveEngine.Should().Be("MonoTorrent");
+        this.proxy.ActiveEngineId.Should().Be("MonoTorrent");
+
+        await this.monoTorrentEngine.DidNotReceive().StopAsync();
+        await this.monoTorrentEngine.DidNotReceive().StartAsync();
+    }
+
+    [Test]
+    public async Task StartAsync_And_StopAsync_AcquiresSwitchLock_AndTracksRunningState()
+    {
+        this.proxy.IsRunning.Should().BeFalse();
+
+        await this.proxy.StartAsync();
+        this.proxy.IsRunning.Should().BeTrue();
+        await this.monoTorrentEngine.Received(1).StartAsync();
+
+        await this.proxy.StopAsync();
+        this.proxy.IsRunning.Should().BeFalse();
+        await this.monoTorrentEngine.Received(1).StopAsync();
+    }
+
+    [Test]
+    public async Task StopAsync_WhenSwitchInProgress_WaitsForSwitchToComplete()
+    {
+        await this.proxy.StartAsync();
+        this.monoTorrentEngine.ClearReceivedCalls();
+
+        var startDelayTcs = new TaskCompletionSource();
+        this.libTorrentEngine.StartAsync().Returns(async _ =>
+        {
+            await startDelayTcs.Task;
+        });
+
+        var switchTask = this.proxy.SwitchEngineAsync("LibTorrent");
+        var stopTask = this.proxy.StopAsync();
+
+        startDelayTcs.SetResult();
+
+        var result = await switchTask;
+        await stopTask;
+
+        result.Success.Should().BeTrue();
+        this.proxy.IsRunning.Should().BeFalse();
+        this.proxy.ActiveEngineId.Should().Be("LibTorrent");
+
+        await this.libTorrentEngine.Received(1).StartAsync();
+        await this.libTorrentEngine.Received(1).StopAsync();
+        await this.monoTorrentEngine.DidNotReceive().StartAsync();
     }
 }

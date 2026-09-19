@@ -30,9 +30,12 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
     private ITorrentEngine activeEngine;
     private ITorrentEngine migratingTargetEngine;
     private TaskCompletionSource migrationTcs;
+    private bool isRunning;
     private bool disposed;
 
     public string ProtocolName => this.GetActiveOrMigratingEngine()?.ProtocolName ?? "BitTorrent";
+
+    public bool IsRunning => Volatile.Read(ref this.isRunning);
 
     public ITorrentEngine ActiveEngine => Volatile.Read(ref this.activeEngine);
 
@@ -190,26 +193,32 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
             Volatile.Write(ref this.migratingTargetEngine, targetEngine);
 
             // 1. Drain and stop previous engine
-            this.logger.Info("Stopping active engine: {0}...", previousEngine.EngineId);
-            try
+            if (this.isRunning)
             {
-                await previousEngine.StopAsync();
-            }
-            catch (Exception ex)
-            {
-                this.logger.Warn(ex, "Error while stopping previous engine {0}", previousEngine.EngineId);
+                this.logger.Info("Stopping active engine: {0}...", previousEngine.EngineId);
+                try
+                {
+                    await previousEngine.StopAsync();
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Error while stopping previous engine {0}", previousEngine.EngineId);
+                }
             }
 
             // 2. Start target engine
-            this.logger.Info("Starting target engine: {0}...", targetEngine.EngineId);
-            await targetEngine.StartAsync();
+            if (this.isRunning)
+            {
+                this.logger.Info("Starting target engine: {0}...", targetEngine.EngineId);
+                await targetEngine.StartAsync();
+            }
 
             // Hot-swap active pointer to target engine and release migration queue
             Volatile.Write(ref this.activeEngine, targetEngine);
             this.migrationTcs.TrySetResult();
 
             // 3. Migrate active torrents if requested
-            if (preserveTransfers)
+            if (preserveTransfers && this.isRunning)
             {
                 rehydrated = await this.RehydrateTorrentsIntoEngineAsync(targetEngine);
             }
@@ -252,14 +261,17 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
 
             if (previousEngine != null)
             {
-                try
+                if (this.isRunning)
                 {
-                    await previousEngine.StartAsync();
-                    await this.RehydrateTorrentsIntoEngineAsync(previousEngine);
-                }
-                catch (Exception rollbackEx)
-                {
-                    this.logger.Error(rollbackEx, "Failed to rollback and restart previous engine {0}", previousEngine.EngineId);
+                    try
+                    {
+                        await previousEngine.StartAsync();
+                        await this.RehydrateTorrentsIntoEngineAsync(previousEngine);
+                    }
+                    catch (Exception rollbackEx)
+                    {
+                        this.logger.Error(rollbackEx, "Failed to rollback and restart previous engine {0}", previousEngine.EngineId);
+                    }
                 }
 
                 Volatile.Write(ref this.activeEngine, previousEngine);
@@ -292,19 +304,47 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
 
     public async Task StartAsync()
     {
-        var engine = await this.GetReadyEngineAsync();
-        if (engine != null)
+        if (this.disposed)
         {
-            await engine.StartAsync();
+            throw new ObjectDisposedException(nameof(DynamicDownloadEngineProxy));
+        }
+
+        await this.switchLock.WaitAsync();
+        try
+        {
+            this.isRunning = true;
+            var engine = Volatile.Read(ref this.activeEngine);
+            if (engine != null)
+            {
+                await engine.StartAsync();
+            }
+        }
+        finally
+        {
+            this.switchLock.Release();
         }
     }
 
     public async Task StopAsync()
     {
-        var engine = await this.GetReadyEngineAsync();
-        if (engine != null)
+        if (this.disposed)
         {
-            await engine.StopAsync();
+            return;
+        }
+
+        await this.switchLock.WaitAsync();
+        try
+        {
+            this.isRunning = false;
+            var engine = Volatile.Read(ref this.activeEngine);
+            if (engine != null)
+            {
+                await engine.StopAsync();
+            }
+        }
+        finally
+        {
+            this.switchLock.Release();
         }
     }
 
