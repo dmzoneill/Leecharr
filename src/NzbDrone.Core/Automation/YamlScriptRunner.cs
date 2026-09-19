@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -676,8 +677,13 @@ public class YamlScriptRunner : IScriptRunner
                             {
                                 if (File.Exists(src))
                                 {
-                                    Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
-                                    systemContext.runCommand("ln", new { dest, src });
+                                    var destDir = Path.GetDirectoryName(dest);
+                                    if (!string.IsNullOrEmpty(destDir))
+                                    {
+                                        Directory.CreateDirectory(destDir);
+                                    }
+
+                                    CreateHardLink(dest, src);
                                     logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] createHardlink: {src} -> {dest}");
                                 }
                             }
@@ -746,8 +752,31 @@ public class YamlScriptRunner : IScriptRunner
                             var recursive = sfpDict.TryGetValue("recursive", out var rVal) && (rVal is true || rVal?.ToString()?.Equals("true", StringComparison.OrdinalIgnoreCase) == true);
                             try
                             {
-                                // Just a dummy log for windows, normally requires Mono.Posix or chmod
-                                systemContext.runCommand("chmod", new { path, permissions = perm, recursive });
+                                if (!OperatingSystem.IsWindows() && !string.IsNullOrWhiteSpace(perm) && (File.Exists(path) || Directory.Exists(path)))
+                                {
+                                    var mode = ParseUnixFileMode(perm);
+                                    if (File.Exists(path))
+                                    {
+                                        File.SetUnixFileMode(path, mode);
+                                    }
+                                    else if (Directory.Exists(path))
+                                    {
+                                        new DirectoryInfo(path).UnixFileMode = mode;
+                                        if (recursive)
+                                        {
+                                            foreach (var file in Directory.GetFiles(path, "*", SearchOption.AllDirectories))
+                                            {
+                                                File.SetUnixFileMode(file, mode);
+                                            }
+
+                                            foreach (var dir in Directory.GetDirectories(path, "*", SearchOption.AllDirectories))
+                                            {
+                                                new DirectoryInfo(dir).UnixFileMode = mode;
+                                            }
+                                        }
+                                    }
+                                }
+
                                 logBuilder.AppendLine($"[{DateTime.UtcNow:HH:mm:ss}] [ACTION] setFilePermissions: {perm} on {path} (recursive: {recursive})");
                             }
                             catch (Exception ex)
@@ -876,6 +905,91 @@ public class YamlScriptRunner : IScriptRunner
         }
 
         return result;
+    }
+
+    [DllImport("Kernel32.dll", EntryPoint = "CreateHardLinkW", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool CreateHardLinkWindows(string lpFileName, string lpExistingFileName, IntPtr lpSecurityAttributes);
+
+    [DllImport("libc", EntryPoint = "link", SetLastError = true)]
+    private static extern int LinkUnix(string oldpath, string newpath);
+
+    private static void CreateHardLink(string dest, string src)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            if (!CreateHardLinkWindows(dest, src, IntPtr.Zero))
+            {
+                var err = Marshal.GetLastPInvokeError();
+                throw new IOException($"Failed to create hardlink '{src}' -> '{dest}' (win32 error: {err})");
+            }
+        }
+        else
+        {
+            if (LinkUnix(src, dest) != 0)
+            {
+                var err = Marshal.GetLastPInvokeError();
+                throw new IOException($"Failed to create hardlink '{src}' -> '{dest}' (errno: {err})");
+            }
+        }
+    }
+
+    private static UnixFileMode ParseUnixFileMode(string perm)
+    {
+        var trimmed = perm.Trim();
+        if (trimmed.Length == 9 && (trimmed.Contains('r') || trimmed.Contains('w') || trimmed.Contains('x') || trimmed.Contains('-')))
+        {
+            var mode = UnixFileMode.None;
+            if (trimmed[0] == 'r')
+            {
+                mode |= UnixFileMode.UserRead;
+            }
+
+            if (trimmed[1] == 'w')
+            {
+                mode |= UnixFileMode.UserWrite;
+            }
+
+            if (trimmed[2] == 'x')
+            {
+                mode |= UnixFileMode.UserExecute;
+            }
+
+            if (trimmed[3] == 'r')
+            {
+                mode |= UnixFileMode.GroupRead;
+            }
+
+            if (trimmed[4] == 'w')
+            {
+                mode |= UnixFileMode.GroupWrite;
+            }
+
+            if (trimmed[5] == 'x')
+            {
+                mode |= UnixFileMode.GroupExecute;
+            }
+
+            if (trimmed[6] == 'r')
+            {
+                mode |= UnixFileMode.OtherRead;
+            }
+
+            if (trimmed[7] == 'w')
+            {
+                mode |= UnixFileMode.OtherWrite;
+            }
+
+            if (trimmed[8] == 'x')
+            {
+                mode |= UnixFileMode.OtherExecute;
+            }
+
+            return mode;
+        }
+
+        var octal = Convert.ToInt32(trimmed, 8);
+        return (UnixFileMode)octal;
     }
 
     private static string SubstituteVariables(string template, Dictionary<string, object?> context)
