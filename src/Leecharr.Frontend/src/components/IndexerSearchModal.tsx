@@ -16,6 +16,7 @@ import {
 import { useToast } from "../context/ToastContext";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useTranslation } from "../i18n";
+import { trackIndexerSearch, trackReleaseGrab } from "../utils/analytics";
 
 interface IndexerSearchModalProps {
   onClose: () => void;
@@ -106,12 +107,15 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
     if (aiParams.minSeeders > 0) {
       setMinSeedersFilter(aiParams.minSeeders);
     }
-    setActiveSearchTerm(cleanSearch.trim());
+    const term = cleanSearch.trim();
+    trackIndexerSearch(term);
+    setActiveSearchTerm(term);
   };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
+      trackIndexerSearch(query.trim());
       setActiveSearchTerm(query.trim());
     }
   };
@@ -131,6 +135,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
       },
       {
         onSuccess: () => {
+          trackReleaseGrab(result.title, result.indexerName || result.indexer || "");
           setDownloadingKey(null);
           showToast(
             t("modals.addedToQueue", 'Added "{title}" to download queue', {

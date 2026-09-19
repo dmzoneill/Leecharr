@@ -91,6 +91,12 @@ import "./App.css";
 import { LanguageSelector } from "./components/LanguageSelector";
 import { useTranslation } from "./i18n";
 import { getErrorMessage } from "./utils/errorUtils";
+import {
+  trackPageView,
+  trackTorrentAction,
+  trackThemeChange,
+  trackModalOpen,
+} from "./utils/analytics";
 
 function getSystemSubItems(t: (key: string) => string) {
   return [
@@ -165,6 +171,31 @@ export function App() {
   });
   const [showProfileMenu, setShowProfileMenu] = useState<boolean>(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const pagePath = location.pathname + location.search;
+    trackPageView(pagePath);
+  }, [location.pathname, location.search]);
+
+  const openAddModal = useCallback(() => {
+    trackModalOpen("add_torrent");
+    setShowAddModal(true);
+  }, []);
+
+  const openSearchModal = useCallback(() => {
+    trackModalOpen("indexer_search");
+    setShowSearchModal(true);
+  }, []);
+
+  const openCommandPalette = useCallback(() => {
+    trackModalOpen("command_palette");
+    setShowCommandPalette(true);
+  }, []);
+
+  const openShortcutsModal = useCallback(() => {
+    trackModalOpen("keyboard_shortcuts");
+    setShowShortcutsModal(true);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -266,6 +297,12 @@ export function App() {
 
   const { showToast } = useToast();
   const { theme, toggleTheme } = useTheme();
+
+  const handleToggleTheme = useCallback(() => {
+    const nextTheme = theme === "light" ? "dark" : "light";
+    trackThemeChange(nextTheme);
+    toggleTheme();
+  }, [theme, toggleTheme]);
   const { confirmIfDirty } = useSettingsDirty();
   const [showTopApiKey, setShowTopApiKey] = useState(false);
   const [unmaskedTopApiKey, setUnmaskedTopApiKey] = useState<string | null>(
@@ -348,7 +385,10 @@ export function App() {
       // Command Palette hotkey: Ctrl+K / Cmd+K (allowed anywhere, even in inputs)
       if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
         e.preventDefault();
-        setShowCommandPalette((prev) => !prev);
+        setShowCommandPalette((prev) => {
+          if (!prev) trackModalOpen("command_palette");
+          return !prev;
+        });
         return;
       }
 
@@ -393,7 +433,7 @@ export function App() {
       // Shortcuts Modal hotkey: '?' or Shift+'/'
       if (e.key === "?" || (e.shiftKey && e.key === "/")) {
         e.preventDefault();
-        setShowShortcutsModal(true);
+        openShortcutsModal();
         return;
       }
 
@@ -640,6 +680,7 @@ export function App() {
   }, [queryClient, refreshServerData]);
 
   const handlePause = async (id: number) => {
+    trackTorrentAction("pause", id);
     try {
       const res = await api.pauseTorrent(id);
       if (res && res.id) {
@@ -669,6 +710,7 @@ export function App() {
   };
 
   const handleResume = async (id: number) => {
+    trackTorrentAction("resume", id);
     try {
       const res = await api.resumeTorrent(id);
       if (res && res.id) {
@@ -703,6 +745,7 @@ export function App() {
     const deleteFiles =
       typeof payload === "number" ? false : Boolean(payload.deleteFiles);
 
+    trackTorrentAction("delete", id, deleteFiles);
     try {
       await api.deleteTorrent(id, deleteFiles);
       useTorrentStore.getState().removeTorrent(id);
@@ -1103,7 +1146,7 @@ export function App() {
             </button>
             <div
               className="topbar-search"
-              onClick={() => setShowCommandPalette(true)}
+              onClick={openCommandPalette}
               style={{ cursor: "pointer" }}
               title={t(
                 "topbar.searchPlaceholder",
@@ -1194,7 +1237,7 @@ export function App() {
             <button
               type="button"
               className="topbar-btn"
-              onClick={toggleTheme}
+              onClick={handleToggleTheme}
               title={
                 theme === "light"
                   ? t("nav.themeDark", "Switch to Dark Mode")
@@ -1324,7 +1367,7 @@ export function App() {
                     <button
                       type="button"
                       className="topbar-dropdown-item"
-                      onClick={() => setShowCommandPalette(true)}
+                      onClick={openCommandPalette}
                     >
                       🔍 {t("nav.commandPalette", "Command Palette (Ctrl+K)")}
                     </button>
@@ -1418,8 +1461,8 @@ export function App() {
                       onPause={handlePause}
                       onResume={handleResume}
                       onDelete={handleDelete}
-                      onOpenAddModal={() => setShowAddModal(true)}
-                      onOpenSearchModal={() => setShowSearchModal(true)}
+                      onOpenAddModal={openAddModal}
+                      onOpenSearchModal={openSearchModal}
                       onNavigateTab={(nav, subNav) => {
                         if (nav === "settings")
                           guardedNavigate(`/settings/${subNav || "general"}`);
@@ -1739,9 +1782,9 @@ export function App() {
         <CommandPalette
           isOpen={showCommandPalette}
           onClose={() => setShowCommandPalette(false)}
-          onOpenAddTorrent={() => setShowAddModal(true)}
-          onOpenIndexerSearch={() => setShowSearchModal(true)}
-          onOpenShortcuts={() => setShowShortcutsModal(true)}
+          onOpenAddTorrent={openAddModal}
+          onOpenIndexerSearch={openSearchModal}
+          onOpenShortcuts={openShortcutsModal}
           onOpenGettingStarted={() => setShowGettingStartedModal(true)}
         />
       </ErrorBoundary>
