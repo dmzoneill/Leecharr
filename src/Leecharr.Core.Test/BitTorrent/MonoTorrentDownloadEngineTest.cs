@@ -2552,6 +2552,133 @@ public class MonoTorrentDownloadEngineTest
         this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentDownloadCompletedEvent>(e =>
             e.Torrent.Id == 104 &&
             e.Torrent.Status == TorrentStatus.Seeding));
+
+        task.Manager.SavePath.Should().Be(this.testIncompleteDir);
+        task.SavePath.Should().Be(this.testIncompleteDir);
+        task.WorkingPath.Should().Be(this.testIncompleteDir);
+        task.IsFilesMovedToCompleted.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task OnTorrentCompletedAsync_WhenDestinationDiskFull_AbortsMoveAndPreservesIncompleteState()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("disk_full_test.bin");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 150,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "disk_full_test.bin",
+            Status = TorrentStatus.Downloading,
+            Category = "movies",
+        };
+
+        var targetDest = "/downloads/completed/movies";
+        this.storagePathService.GetCompletedDirectory("movies").Returns(targetDest);
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        var torrentSize = task.Manager.Torrent.Size;
+
+        // Mock available space to be less than torrent total size
+        this.diskProvider.GetAvailableSpace(targetDest).Returns(torrentSize - 1);
+
+        await this.engine.OnTorrentCompletedAsync(150, torrent.InfoHash, task.Manager);
+
+        string dummy;
+        this.storagePathService.DidNotReceive().MoveToCompleted(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), out dummy);
+        task.Manager.SavePath.Should().Be(this.testIncompleteDir);
+        task.SavePath.Should().Be(this.testIncompleteDir);
+        task.WorkingPath.Should().Be(this.testIncompleteDir);
+        task.IsFilesMovedToCompleted.Should().BeFalse();
+
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentDownloadCompletedEvent>(e =>
+            e.Torrent.Id == 150 &&
+            e.Torrent.SavePath == this.testIncompleteDir &&
+            e.Torrent.Status == TorrentStatus.Seeding));
+    }
+
+    [Test]
+    public async Task OnTorrentCompletedAsync_WhenDestinationReadOnly_PreservesIncompleteStateAndResetsMovedFlag()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("readonly_test.bin");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 151,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "readonly_test.bin",
+            Status = TorrentStatus.Downloading,
+            Category = "movies",
+        };
+
+        var targetDest = "/downloads/completed/movies";
+        this.storagePathService.GetCompletedDirectory("movies").Returns(targetDest);
+        this.diskProvider.GetAvailableSpace(targetDest).Returns(100L * 1024 * 1024 * 1024);
+
+        string dummy;
+        this.storagePathService
+            .MoveToCompleted(Arg.Any<string>(), "movies", Arg.Any<string>(), out dummy)
+            .Throws(new IOException("Read-only file system"));
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        var act = async () =>
+        {
+            await this.engine.OnTorrentCompletedAsync(151, torrent.InfoHash, task.Manager);
+        };
+
+        await act.Should().NotThrowAsync();
+
+        task.Manager.SavePath.Should().Be(this.testIncompleteDir);
+        task.SavePath.Should().Be(this.testIncompleteDir);
+        task.WorkingPath.Should().Be(this.testIncompleteDir);
+        task.IsFilesMovedToCompleted.Should().BeFalse();
+
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentDownloadCompletedEvent>(e =>
+            e.Torrent.Id == 151 &&
+            e.Torrent.SavePath == this.testIncompleteDir &&
+            e.Torrent.Status == TorrentStatus.Seeding));
+    }
+
+    [Test]
+    public async Task OnTorrentCompletedAsync_WhenMoveToCompletedReturnsFalse_PreservesIncompleteStateAndResetsMovedFlag()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("move_returns_false_test.bin");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 152,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "move_returns_false_test.bin",
+            Status = TorrentStatus.Downloading,
+            Category = "movies",
+        };
+
+        var targetDest = "/downloads/completed/movies";
+        this.storagePathService.GetCompletedDirectory("movies").Returns(targetDest);
+        this.diskProvider.GetAvailableSpace(targetDest).Returns(100L * 1024 * 1024 * 1024);
+
+        string dummy;
+        this.storagePathService
+            .MoveToCompleted(Arg.Any<string>(), "movies", Arg.Any<string>(), out dummy)
+            .Returns(false);
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        await this.engine.OnTorrentCompletedAsync(152, torrent.InfoHash, task.Manager);
+
+        task.Manager.SavePath.Should().Be(this.testIncompleteDir);
+        task.SavePath.Should().Be(this.testIncompleteDir);
+        task.WorkingPath.Should().Be(this.testIncompleteDir);
+        task.IsFilesMovedToCompleted.Should().BeFalse();
+
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentDownloadCompletedEvent>(e =>
+            e.Torrent.Id == 152 &&
+            e.Torrent.SavePath == this.testIncompleteDir &&
+            e.Torrent.Status == TorrentStatus.Seeding));
     }
 
     [Test]
