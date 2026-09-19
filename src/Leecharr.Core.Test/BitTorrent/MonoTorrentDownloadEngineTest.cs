@@ -16,6 +16,7 @@ using FluentAssertions;
 using MonoTorrent;
 using MonoTorrent.BEncoding;
 using MonoTorrent.Client;
+using MonoTorrent.PiecePicking;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using NUnit.Framework;
@@ -6287,14 +6288,92 @@ public class MonoTorrentDownloadEngineTest
         };
 
         await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
-        var task = this.engine.GetTask(794);
+        var task = (MonoTorrentDownloadTask)this.engine.GetTask(794)!;
         task.Should().NotBeNull();
-        task!.SequentialDownload.Should().BeFalse();
+        task.SequentialDownload.Should().BeFalse();
 
         await this.engine.SetSequentialDownloadAsync(794, true);
         task.SequentialDownload.Should().BeTrue();
         task.Picker.Should().NotBeNull();
         task.Picker.SequentialMode.Should().BeTrue();
+
+        var requesterProp = task.Manager!.PieceManager.GetType().GetProperty("Requester", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        var requester = requesterProp?.GetValue(task.Manager.PieceManager);
+        requester.Should().BeOfType<StreamingPieceRequester>();
+
+        await this.engine.SetSequentialDownloadAsync(794, false);
+        task.SequentialDownload.Should().BeFalse();
+        task.Picker.SequentialMode.Should().BeFalse();
+        requester = requesterProp?.GetValue(task.Manager.PieceManager);
+        requester.Should().BeOfType<StandardPieceRequester>();
+    }
+
+    [Test]
+    public async Task SetFirstLastPiecePriorityAsync_WhenToggledSingleFile_UpdatesTaskPickerAndManagerFiles()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("firstlast_single.iso");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+        var torrent = new CoreTorrent
+        {
+            Id = 795,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "firstlast_single.iso",
+            Status = TorrentStatus.Downloading,
+            FirstLastPiecePriority = false,
+        };
+
+        await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        var task = (MonoTorrentDownloadTask)this.engine.GetTask(795)!;
+        task.Should().NotBeNull();
+        task.FirstLastPiecePriority.Should().BeFalse();
+
+        await this.engine.SetFirstLastPiecePriorityAsync(795, true);
+        task.FirstLastPiecePriority.Should().BeTrue();
+        task.Picker.Should().NotBeNull();
+        task.Picker.GetPiecePriority(0).Should().Be(3);
+        task.Manager.Should().NotBeNull();
+        task.Manager!.Files.Should().NotBeEmpty();
+        task.Manager.Files.First().Priority.Should().Be(MonoTorrent.Priority.Highest);
+
+        await this.engine.SetFirstLastPiecePriorityAsync(795, false);
+        task.FirstLastPiecePriority.Should().BeFalse();
+        task.Picker.GetPiecePriority(0).Should().Be(1);
+        task.Manager.Files.First().Priority.Should().Be(MonoTorrent.Priority.Normal);
+    }
+
+    [Test]
+    public async Task SetFirstLastPiecePriorityAsync_WhenToggledMultiFile_UpdatesTaskPickerAndManagerFiles()
+    {
+        var torrentBytes = CreateSampleMultiFileTorrentBytes("firstlast_multi");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+        var torrent = new CoreTorrent
+        {
+            Id = 796,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "firstlast_multi",
+            Status = TorrentStatus.Downloading,
+            FirstLastPiecePriority = false,
+        };
+
+        await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        var task = (MonoTorrentDownloadTask)this.engine.GetTask(796)!;
+        task.Should().NotBeNull();
+        task.FirstLastPiecePriority.Should().BeFalse();
+
+        await this.engine.SetFirstLastPiecePriorityAsync(796, true);
+        task.FirstLastPiecePriority.Should().BeTrue();
+        task.Picker.Should().NotBeNull();
+        task.Picker.GetPiecePriority(0).Should().Be(3);
+        task.Manager.Should().NotBeNull();
+        task.Manager!.Files.Count.Should().BeGreaterThan(1);
+        task.Manager.Files.First().Priority.Should().Be(MonoTorrent.Priority.Highest);
+        task.Manager.Files.Last().Priority.Should().Be(MonoTorrent.Priority.Highest);
+
+        await this.engine.SetFirstLastPiecePriorityAsync(796, false);
+        task.FirstLastPiecePriority.Should().BeFalse();
+        task.Picker.GetPiecePriority(0).Should().Be(1);
+        task.Manager.Files.First().Priority.Should().Be(MonoTorrent.Priority.Normal);
+        task.Manager.Files.Last().Priority.Should().Be(MonoTorrent.Priority.Normal);
     }
 
     [Test]
