@@ -104,6 +104,76 @@ public class CommandQueueManagerTest
     }
 
     [Test]
+    public void Push_WhenMatchingCommandAlreadyQueued_ReturnsExistingModelWithoutInserting()
+    {
+        var command = new SampleTestCommand { Payload = "test" };
+        var existing = new CommandModel
+        {
+            Id = 42,
+            Name = "SampleTestCommand",
+            Status = CommandStatus.Queued,
+        };
+
+        this.repository.FindExisting("SampleTestCommand", Arg.Any<string>()).Returns(existing);
+
+        var result = this.commandQueueManager.Push(command, CommandTrigger.Manual);
+
+        result.Should().BeSameAs(existing);
+        this.repository.DidNotReceive().Insert(Arg.Any<CommandModel>());
+    }
+
+    [Test]
+    public void Push_WhenMatchingCommandAlreadyRunning_ReturnsExistingModelWithoutInserting()
+    {
+        var command = new SampleTestCommand { Payload = "test" };
+        var existing = new CommandModel
+        {
+            Id = 43,
+            Name = "SampleTestCommand",
+            Status = CommandStatus.Running,
+        };
+
+        this.repository.FindExisting("SampleTestCommand", Arg.Any<string>()).Returns(existing);
+
+        var result = this.commandQueueManager.Push(command, CommandTrigger.Scheduled);
+
+        result.Should().BeSameAs(existing);
+        this.repository.DidNotReceive().Insert(Arg.Any<CommandModel>());
+    }
+
+    [Test]
+    public void Push_WhenNoExistingMatchingCommand_InsertsAndReturnsNewModel()
+    {
+        var command = new SampleTestCommand { Payload = "distinct-payload" };
+        this.repository.FindExisting("SampleTestCommand", Arg.Any<string>()).Returns((CommandModel)null!);
+
+        var result = this.commandQueueManager.Push(command, CommandTrigger.Manual);
+
+        result.Should().NotBeNull();
+        result.Name.Should().Be("SampleTestCommand");
+        result.Status.Should().Be(CommandStatus.Queued);
+        this.repository.Received(1).Insert(Arg.Is<CommandModel>(m => m.Name == "SampleTestCommand" && m.Status == CommandStatus.Queued));
+    }
+
+    [Test]
+    public void PushRaw_WhenMatchingCommandAlreadyPending_ReturnsExistingModelWithoutInserting()
+    {
+        var existing = new CommandModel
+        {
+            Id = 44,
+            Name = "RssSync",
+            Status = CommandStatus.Queued,
+        };
+
+        this.repository.FindExisting("RssSync", "{}").Returns(existing);
+
+        var result = this.commandQueueManager.PushRaw("RssSync", "{}", CommandTrigger.Manual);
+
+        result.Should().BeSameAs(existing);
+        this.repository.DidNotReceive().Insert(Arg.Any<CommandModel>());
+    }
+
+    [Test]
     public void GetStarted_QueriesRepositoryForRunningStatus()
     {
         var running = new List<CommandModel>

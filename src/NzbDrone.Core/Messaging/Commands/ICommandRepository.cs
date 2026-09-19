@@ -13,4 +13,6 @@ public interface ICommandRepository : IBasicRepository<CommandModel>
     IEnumerable<CommandModel> GetRecent(int limit = 50);
 
     void DeleteOldTerminalCommands(DateTime cutoff);
+
+    CommandModel FindExisting(string name, string body);
 }
