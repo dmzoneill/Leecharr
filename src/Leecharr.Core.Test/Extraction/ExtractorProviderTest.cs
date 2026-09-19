@@ -249,6 +249,98 @@ public class ExtractorProviderTest
         }
     }
 
+    [Test]
+    public async Task SevenZipExtractorProvider_ExtractAsync_WhenProcessFails_RollsBackPartialFiles()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var tempDir = Path.Combine(Path.GetTempPath(), "7z_rollback_test_" + Guid.NewGuid().ToString("N"));
+        var outputDir = Path.Combine(tempDir, "output");
+        Directory.CreateDirectory(outputDir);
+
+        var existingFile = Path.Combine(outputDir, "pre_existing.txt");
+        await File.WriteAllTextAsync(existingFile, "keep me");
+
+        var archiveFile = Path.Combine(tempDir, "archive.7z");
+        await File.WriteAllTextAsync(archiveFile, "fake archive");
+
+        var scriptPath = Path.Combine(tempDir, "mock_7z.sh");
+        var script = $"#!/bin/sh\necho partial > \"{outputDir}/corrupt.mkv\"\nexit 1\n";
+        await File.WriteAllTextAsync(scriptPath, script);
+        File.SetUnixFileMode(scriptPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+        var prev7z = Environment.GetEnvironmentVariable("SEVENZIP_PATH");
+        try
+        {
+            Environment.SetEnvironmentVariable("SEVENZIP_PATH", scriptPath);
+            var diskProvider = new DiskProvider();
+            var provider = new SevenZipExtractorProvider(diskProvider);
+
+            var success = await provider.ExtractAsync(archiveFile, outputDir);
+            success.Should().BeFalse();
+
+            File.Exists(Path.Combine(outputDir, "corrupt.mkv")).Should().BeFalse("partial file should be cleaned up on non-zero exit code");
+            File.Exists(existingFile).Should().BeTrue("pre-existing files should be preserved");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("SEVENZIP_PATH", prev7z);
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task UnrarExtractorProvider_ExtractAsync_WhenProcessFails_RollsBackPartialFiles()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var tempDir = Path.Combine(Path.GetTempPath(), "unrar_rollback_test_" + Guid.NewGuid().ToString("N"));
+        var outputDir = Path.Combine(tempDir, "output");
+        Directory.CreateDirectory(outputDir);
+
+        var existingFile = Path.Combine(outputDir, "pre_existing.txt");
+        await File.WriteAllTextAsync(existingFile, "keep me");
+
+        var archiveFile = Path.Combine(tempDir, "archive.rar");
+        await File.WriteAllTextAsync(archiveFile, "fake archive");
+
+        var scriptPath = Path.Combine(tempDir, "mock_unrar.sh");
+        var script = $"#!/bin/sh\necho partial > \"{outputDir}/corrupt.mkv\"\nexit 1\n";
+        await File.WriteAllTextAsync(scriptPath, script);
+        File.SetUnixFileMode(scriptPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+        var prevUnrar = Environment.GetEnvironmentVariable("UNRAR_PATH");
+        try
+        {
+            Environment.SetEnvironmentVariable("UNRAR_PATH", scriptPath);
+            var diskProvider = new DiskProvider();
+            var provider = new UnrarExtractorProvider(diskProvider);
+
+            var success = await provider.ExtractAsync(archiveFile, outputDir);
+            success.Should().BeFalse();
+
+            File.Exists(Path.Combine(outputDir, "corrupt.mkv")).Should().BeFalse("partial file should be cleaned up on non-zero exit code");
+            File.Exists(existingFile).Should().BeTrue("pre-existing files should be preserved");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("UNRAR_PATH", prevUnrar);
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
     #endregion
 
 }

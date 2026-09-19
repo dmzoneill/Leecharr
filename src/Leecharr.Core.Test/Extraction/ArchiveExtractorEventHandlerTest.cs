@@ -529,4 +529,41 @@ public class ArchiveExtractorEventHandlerTest
         finished.Should().BeTrue();
         maxObservedConcurrency.Should().Be(1);
     }
+
+    [Test]
+    public async Task HandleAsync_WhenDiskSpaceBecomesInsufficientAfterAcquiringSemaphore_ReleasesSemaphoreAndPublishesFailedEvent()
+    {
+        this.configService.AutoExtractArchives.Returns(true);
+        var torrent = new Torrent { Id = 201, Name = "Torrent.RaceCondition", SavePath = "/downloads/Torrent.RaceCondition" };
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 1, TorrentId = 201, Path = "archive.zip", Size = 100_000_000L },
+        };
+
+        this.torrentFileService.GetFiles(201).Returns(files);
+        this.extractorService.IsArchiveFile("archive.zip").Returns(true);
+        this.diskProvider.FileExists("/downloads/Torrent.RaceCondition/archive.zip").Returns(true);
+
+        var callCount = 0;
+        this.diskProvider.GetAvailableSpace("/downloads/Torrent.RaceCondition").Returns(_ =>
+        {
+            callCount++;
+            return callCount == 1 ? 200_000_000L : 50_000_000L;
+        });
+
+        await this.handler.HandleAsync(new TorrentDownloadCompletedEvent(torrent));
+
+        await this.extractorService.DidNotReceive().ExtractArchiveAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<IReadOnlyList<string>>(),
+            Arg.Any<CancellationToken>());
+
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<ArchiveExtractionFailedEvent>(e =>
+            e.Torrent.Id == 201 &&
+            e.ErrorMessage.Contains("after acquiring semaphore")));
+
+        this.handler.ConcurrencySemaphore.CurrentCount.Should().Be(this.handler.ConcurrencyLimit);
+    }
 }

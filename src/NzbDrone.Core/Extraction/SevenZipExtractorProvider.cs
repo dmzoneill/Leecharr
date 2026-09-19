@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
@@ -164,6 +165,8 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
             normalizedDest = targetDir;
         }
 
+        var existingFiles = this.GetAllFiles(normalizedDest);
+        var existingDirectories = this.GetAllDirectories(normalizedDest);
         var passwordsToTry = BuildPasswordCandidateList(password, passwordCandidates);
 
         foreach (var candidatePassword in passwordsToTry)
@@ -205,6 +208,7 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
                     {
                     }
 
+                    this.RollbackExtractedFiles(normalizedDest, existingFiles, existingDirectories);
                     this.logger.Warn("7-Zip extraction of '{0}' was canceled.", archivePath);
                     throw;
                 }
@@ -214,6 +218,8 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
                     this.logger.Info("7-Zip successfully extracted archive '{0}'.", archivePath);
                     return true;
                 }
+
+                this.RollbackExtractedFiles(normalizedDest, existingFiles, existingDirectories);
 
                 var stderr = await stderrTask;
                 if (passwordsToTry.Count > 1)
@@ -227,10 +233,12 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
             }
             catch (OperationCanceledException)
             {
+                this.RollbackExtractedFiles(normalizedDest, existingFiles, existingDirectories);
                 throw;
             }
             catch (Exception ex)
             {
+                this.RollbackExtractedFiles(normalizedDest, existingFiles, existingDirectories);
                 this.logger.Error(ex, "7-Zip failed to extract archive: {0}", archivePath);
                 return false;
             }
@@ -255,6 +263,112 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
         }
 
         return false;
+    }
+
+    private HashSet<string> GetAllFiles(string path)
+    {
+        if (this.diskProvider == null || !this.diskProvider.FolderExists(path))
+        {
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        try
+        {
+            return new HashSet<string>(this.diskProvider.GetFiles(path, recursive: true), StringComparer.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private HashSet<string> GetAllDirectories(string path)
+    {
+        var dirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (this.diskProvider == null || !this.diskProvider.FolderExists(path))
+        {
+            return dirs;
+        }
+
+        void Recurse(string current)
+        {
+            try
+            {
+                foreach (var dir in this.diskProvider.GetDirectories(current))
+                {
+                    if (dirs.Add(dir))
+                    {
+                        Recurse(dir);
+                    }
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        Recurse(path);
+        return dirs;
+    }
+
+    private void RollbackExtractedFiles(string targetDir, HashSet<string> existingFiles, HashSet<string> existingDirectories)
+    {
+        if (this.diskProvider == null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (!this.diskProvider.FolderExists(targetDir))
+            {
+                return;
+            }
+
+            var currentFiles = this.diskProvider.GetFiles(targetDir, recursive: true);
+            foreach (var file in currentFiles)
+            {
+                if (!existingFiles.Contains(file))
+                {
+                    try
+                    {
+                        if (this.diskProvider.FileExists(file))
+                        {
+                            this.diskProvider.DeleteFile(file);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Warn(ex, "Failed to clean up partial extracted file '{0}'", file);
+                    }
+                }
+            }
+
+            var currentDirectories = this.GetAllDirectories(targetDir)
+                .OrderByDescending(d => d.Length);
+
+            foreach (var dir in currentDirectories)
+            {
+                if (!existingDirectories.Contains(dir))
+                {
+                    try
+                    {
+                        if (this.diskProvider.FolderExists(dir) && this.diskProvider.FolderEmpty(dir))
+                        {
+                            this.diskProvider.DeleteFolder(dir, recursive: true);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Warn(ex, "Failed to clean up newly created directory '{0}'", dir);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to rollback extracted files in: {0}", targetDir);
+        }
     }
 
     internal static ProcessStartInfo BuildProcessStartInfo(string binary, string archivePath, string destinationPath, string candidatePassword = null)
