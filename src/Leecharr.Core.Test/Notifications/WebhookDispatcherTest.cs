@@ -563,4 +563,97 @@ public class WebhookDispatcherTest
 
         retryAfter.Should().Be(TimeSpan.FromSeconds(45));
     }
+
+    [TestCase("3600", 60)]
+    [TestCase("86400", 60)]
+    [TestCase("5", 5)]
+    [TestCase("45", 45)]
+    public void ExtractRetryAfter_WithVariousRetryAfterHeaderValues_CapsAtMaxRetryAfter(string headerVal, int expectedSeconds)
+    {
+        using var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+        response.Headers.TryAddWithoutValidation("Retry-After", headerVal);
+
+        var retryAfter = WebhookDispatcher.ExtractRetryAfter(response);
+
+        retryAfter.Should().Be(TimeSpan.FromSeconds(expectedSeconds));
+    }
+
+    [TestCase("7200", 60)]
+    [TestCase("10", 10)]
+    public void ExtractRetryAfter_WithVariousXRetryAfterHeaderValues_CapsAtMaxRetryAfter(string headerVal, int expectedSeconds)
+    {
+        using var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+        response.Headers.TryAddWithoutValidation("X-Retry-After", headerVal);
+
+        var retryAfter = WebhookDispatcher.ExtractRetryAfter(response);
+
+        retryAfter.Should().Be(TimeSpan.FromSeconds(expectedSeconds));
+    }
+
+    [Test]
+    public void ExtractRetryAfter_WithRetryAfterDateExceedingMax_CapsAtMaxRetryAfter()
+    {
+        using var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+        var futureDate = DateTimeOffset.UtcNow.AddHours(2);
+        response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(futureDate);
+
+        var retryAfter = WebhookDispatcher.ExtractRetryAfter(response);
+
+        retryAfter.Should().Be(WebhookDispatcher.MaxRetryAfter);
+    }
+
+    [TestCase("{\"retry_after\": 5}", 5)]
+    [TestCase("{\"retry_after\": 3600}", 60)]
+    [TestCase("{\"parameters\": {\"retry_after\": 10}}", 10)]
+    [TestCase("{\"parameters\": {\"retry_after\": 86400}}", 60)]
+    public void ExtractRetryAfter_WithJsonBodyRetryAfter_ParsesAndCapsAtMaxRetryAfter(string jsonBody, int expectedSeconds)
+    {
+        using var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests)
+        {
+            Content = new StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json"),
+        };
+
+        var retryAfter = WebhookDispatcher.ExtractRetryAfter(response);
+
+        retryAfter.Should().Be(TimeSpan.FromSeconds(expectedSeconds));
+    }
+
+    [Test]
+    public async Task CreateRetryPolicy_When429ResponseHasLargeRetryAfter_CapsSleepDuration()
+    {
+        var attempts = 0;
+        var sleepDurations = new List<TimeSpan>();
+
+        var policy = WebhookDispatcher.CreateRetryPolicy(
+            retryCount: 2,
+            onRetry: (outcome, timespan, attempt, context) =>
+            {
+                sleepDurations.Add(timespan);
+            });
+
+        using var response429 = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+        response429.Headers.TryAddWithoutValidation("Retry-After", "86400");
+
+        try
+        {
+            await policy.ExecuteAsync(
+                ct =>
+                {
+                    attempts++;
+                    if (attempts == 1)
+                    {
+                        return Task.FromResult(response429);
+                    }
+
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+                },
+                CancellationToken.None);
+        }
+        catch
+        {
+        }
+
+        sleepDurations.Should().NotBeEmpty();
+        sleepDurations[0].Should().Be(WebhookDispatcher.MaxRetryAfter);
+    }
 }
