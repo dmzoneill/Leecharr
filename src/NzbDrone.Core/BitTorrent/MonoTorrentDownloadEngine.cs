@@ -2700,6 +2700,17 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         return Task.CompletedTask;
     }
 
+    public Task SetTorrentCategoryAsync(int torrentId, string category)
+    {
+        if (this.tasks.TryGetValue(torrentId, out var task))
+        {
+            task.Category = category ?? string.Empty;
+            this.logger.Info("Updated category for torrent {0}: '{1}'", torrentId, task.Category);
+        }
+
+        return Task.CompletedTask;
+    }
+
     public IDownloadTask GetTask(int torrentId)
     {
         this.tasks.TryGetValue(torrentId, out var task);
