@@ -511,7 +511,7 @@ public class TransmissionRpcController : ControllerBase
 
     private async Task<IActionResult> HandleTorrentSetAsync(TransmissionRpcRequest request, object tag)
     {
-        var setIds = this.ExtractIds(request.Arguments);
+        var setIds = this.ExtractIds(request.Arguments, applyAllIfEmpty: true);
         foreach (var id in setIds)
         {
             var t = this.torrentService.Get(id);
@@ -529,6 +529,11 @@ public class TransmissionRpcController : ControllerBase
                     {
                         t.Category = lbls[0];
                         t.Label = string.Join(",", lbls);
+                    }
+                    else
+                    {
+                        t.Category = string.Empty;
+                        t.Label = string.Empty;
                     }
                 }
 
@@ -1554,9 +1559,21 @@ public class TransmissionRpcController : ControllerBase
         var leftUntilDone = Math.Max(0, fileMapping.SizeWhenDone - (long)(fileMapping.SizeWhenDone * t.Progress));
         var desiredAvailable = t.Progress >= 1.0 ? 0L : Math.Max(0L, fileMapping.SizeWhenDone - haveValid);
 
-        var labels = string.IsNullOrWhiteSpace(t.Category)
-            ? (string.IsNullOrWhiteSpace(t.Label) ? Array.Empty<string>() : new[] { t.Label })
-            : new[] { t.Category };
+        var labelList = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(t.Category))
+        {
+            labelList.Add(t.Category.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(t.Label))
+        {
+            foreach (var l in t.Label.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                labelList.Add(l);
+            }
+        }
+
+        var labels = labelList.ToArray();
 
         var secondsDownloading = (long)(DateTime.UtcNow - t.DateAdded).TotalSeconds;
         var secondsSeeding = t.SeedingTimeSeconds;
