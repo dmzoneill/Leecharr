@@ -1566,4 +1566,34 @@ public class TorrentControllerTest
         statusResult.StatusCode.Should().Be(StatusCodes.Status413PayloadTooLarge);
         await formFile.DidNotReceiveWithAnyArgs().CopyToAsync(Arg.Any<Stream>());
     }
+
+    [Test]
+    public async Task Update_WithSequentialAndFirstLastPiecePriority_PropagatesToEngine()
+    {
+        var existing = new Torrent
+        {
+            Id = 20,
+            Name = "Update Engine Torrent",
+            SequentialDownload = false,
+            FirstLastPiecePriority = false,
+        };
+
+        this.torrentService.Get(20).Returns(existing);
+        this.torrentService.UpdateAsync(existing).Returns(Task.FromResult(existing));
+
+        var resource = new TorrentResource
+        {
+            Id = 20,
+            SequentialDownload = true,
+            FirstLastPiecePriority = true,
+        };
+
+        var response = await this.controller.Update(20, resource);
+        response.Result.Should().BeOfType<OkObjectResult>();
+
+        existing.SequentialDownload.Should().BeTrue();
+        existing.FirstLastPiecePriority.Should().BeTrue();
+        await this.downloadEngine.Received(1).SetSequentialDownloadAsync(20, true);
+        await this.downloadEngine.Received(1).SetFirstLastPiecePriorityAsync(20, true);
+    }
 }

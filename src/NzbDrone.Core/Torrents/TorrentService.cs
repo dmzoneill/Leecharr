@@ -161,12 +161,24 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         return torrent;
     }
 
-    public async Task<Torrent> AddFromParsedTorrentAsync(
+    public Task<Torrent> AddFromParsedTorrentAsync(
         ParsedTorrent parsed,
         string category = null,
         string savePath = null,
         bool startPaused = false,
         byte[] rawBytes = null)
+    {
+        return this.AddFromParsedTorrentAsync(parsed, category, savePath, startPaused, rawBytes, null, null);
+    }
+
+    public async Task<Torrent> AddFromParsedTorrentAsync(
+        ParsedTorrent parsed,
+        string category,
+        string savePath,
+        bool startPaused,
+        byte[] rawBytes,
+        bool? sequentialDownload,
+        bool? firstLastPiecePriority)
     {
         if (parsed == null)
         {
@@ -212,6 +224,8 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             QueuePosition = 0,
             DateAdded = DateTime.UtcNow,
             TagIds = new List<int>(),
+            SequentialDownload = sequentialDownload ?? string.Equals(this.configService?.PiecePickerStrategy, "Sequential", StringComparison.OrdinalIgnoreCase),
+            FirstLastPiecePriority = firstLastPiecePriority ?? false,
         };
 
         Torrent inserted;
@@ -346,6 +360,16 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 await this.downloadEngine.PauseTorrentAsync(inserted.Id);
             }
 
+            if (this.downloadEngine != null && inserted.SequentialDownload)
+            {
+                await this.downloadEngine.SetSequentialDownloadAsync(inserted.Id, true).ConfigureAwait(false);
+            }
+
+            if (this.downloadEngine != null && inserted.FirstLastPiecePriority)
+            {
+                await this.downloadEngine.SetFirstLastPiecePriorityAsync(inserted.Id, true).ConfigureAwait(false);
+            }
+
             var effectiveDl = this.GetEffectiveDownloadLimit(inserted);
             var effectiveUl = this.GetEffectiveUploadLimit(inserted);
             if (this.downloadEngine != null && (effectiveDl > 0 || effectiveUl > 0))
@@ -379,11 +403,22 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         return inserted;
     }
 
-    public async Task<Torrent> AddFromMagnetAsync(
+    public Task<Torrent> AddFromMagnetAsync(
         string magnetUri,
         string category = null,
         string savePath = null,
         bool startPaused = false)
+    {
+        return this.AddFromMagnetAsync(magnetUri, category, savePath, startPaused, null, null);
+    }
+
+    public async Task<Torrent> AddFromMagnetAsync(
+        string magnetUri,
+        string category,
+        string savePath,
+        bool startPaused,
+        bool? sequentialDownload,
+        bool? firstLastPiecePriority)
     {
         var parsedMagnet = MagnetLinkParser.Parse(magnetUri);
         var existing = this.GetByInfoHash(parsedMagnet?.InfoHash) ?? (!string.IsNullOrWhiteSpace(parsedMagnet?.V2InfoHash) ? this.GetByInfoHash(parsedMagnet.V2InfoHash) : null);
@@ -421,6 +456,8 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             QueuePosition = 0,
             DateAdded = DateTime.UtcNow,
             TagIds = new List<int>(),
+            SequentialDownload = sequentialDownload ?? string.Equals(this.configService?.PiecePickerStrategy, "Sequential", StringComparison.OrdinalIgnoreCase),
+            FirstLastPiecePriority = firstLastPiecePriority ?? false,
         };
 
         Torrent inserted;
@@ -474,6 +511,16 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 await this.downloadEngine.PauseTorrentAsync(inserted.Id);
             }
 
+            if (this.downloadEngine != null && inserted.SequentialDownload)
+            {
+                await this.downloadEngine.SetSequentialDownloadAsync(inserted.Id, true).ConfigureAwait(false);
+            }
+
+            if (this.downloadEngine != null && inserted.FirstLastPiecePriority)
+            {
+                await this.downloadEngine.SetFirstLastPiecePriorityAsync(inserted.Id, true).ConfigureAwait(false);
+            }
+
             var effectiveDl = this.GetEffectiveDownloadLimit(inserted);
             var effectiveUl = this.GetEffectiveUploadLimit(inserted);
             if (this.downloadEngine != null && (effectiveDl > 0 || effectiveUl > 0))
@@ -514,6 +561,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             throw new ArgumentNullException(nameof(torrent));
         }
 
+        var existing = this.torrentRepository.Get(torrent.Id);
         var effectiveDl = this.GetEffectiveDownloadLimit(torrent);
         var effectiveUl = this.GetEffectiveUploadLimit(torrent);
 
@@ -527,11 +575,67 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             {
                 this.logger.Warn(ex, "Failed to apply rate limits to download engine for torrent {0}", torrent.Id);
             }
+
+            if (existing == null || existing.SequentialDownload != torrent.SequentialDownload)
+            {
+                try
+                {
+                    await this.downloadEngine.SetSequentialDownloadAsync(torrent.Id, torrent.SequentialDownload).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to apply sequential download to download engine for torrent {0}", torrent.Id);
+                }
+            }
+
+            if (existing == null || existing.FirstLastPiecePriority != torrent.FirstLastPiecePriority)
+            {
+                try
+                {
+                    await this.downloadEngine.SetFirstLastPiecePriorityAsync(torrent.Id, torrent.FirstLastPiecePriority).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to apply first/last piece priority to download engine for torrent {0}", torrent.Id);
+                }
+            }
         }
 
         var updated = this.torrentRepository.Update(torrent);
         this.eventAggregator.PublishEvent(new TorrentUpdatedEvent { Torrent = updated });
         return await Task.FromResult(updated);
+    }
+
+    public async Task SetSequentialDownloadAsync(int id, bool enabled)
+    {
+        var torrent = this.torrentRepository.Get(id);
+        if (torrent != null)
+        {
+            torrent.SequentialDownload = enabled;
+            this.torrentRepository.Update(torrent);
+            this.eventAggregator.PublishEvent(new TorrentUpdatedEvent { Torrent = torrent });
+        }
+
+        if (this.downloadEngine != null)
+        {
+            await this.downloadEngine.SetSequentialDownloadAsync(id, enabled).ConfigureAwait(false);
+        }
+    }
+
+    public async Task SetFirstLastPiecePriorityAsync(int id, bool enabled)
+    {
+        var torrent = this.torrentRepository.Get(id);
+        if (torrent != null)
+        {
+            torrent.FirstLastPiecePriority = enabled;
+            this.torrentRepository.Update(torrent);
+            this.eventAggregator.PublishEvent(new TorrentUpdatedEvent { Torrent = torrent });
+        }
+
+        if (this.downloadEngine != null)
+        {
+            await this.downloadEngine.SetFirstLastPiecePriorityAsync(id, enabled).ConfigureAwait(false);
+        }
     }
 
     public async Task DeleteAsync(int id, bool deleteFiles = false)
