@@ -586,7 +586,7 @@ export function App() {
         }
         if (
           msg.name === "torrentDeleted" ||
-          (msg.name === "torrent" && (msg.action as unknown) === "Deleted")
+          (msg.name === "torrent" && (msg.action === "Deleted" || msg.action === 3))
         ) {
           const body = msg.body as unknown;
           if (Array.isArray(body)) {
