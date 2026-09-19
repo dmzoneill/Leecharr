@@ -189,6 +189,11 @@ public class DynamicAuthSchemeManager : IDynamicAuthSchemeManager
             },
         };
 
+        if (!string.IsNullOrWhiteSpace(provider.MetadataUrl))
+        {
+            options.MetadataAddress = provider.MetadataUrl;
+        }
+
         options.Scope.Clear();
         var scopes = (provider.Scopes ?? "openid profile email").Split(' ', StringSplitOptions.RemoveEmptyEntries);
         foreach (var scope in scopes)
