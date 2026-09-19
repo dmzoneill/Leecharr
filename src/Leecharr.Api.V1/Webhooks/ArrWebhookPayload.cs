@@ -78,6 +78,9 @@ public class ArrWebhookPayload
 
     [JsonPropertyName("deletedFiles")]
     public List<ArrWebhookDeletedFile> DeletedFiles { get; set; } = new();
+
+    [JsonPropertyName("data")]
+    public Dictionary<string, object> Data { get; set; } = new();
 }
 
 public class ArrWebhookRelease
