@@ -1609,6 +1609,196 @@ public class Aria2RpcControllerTest
         contentResult.Content.Should().Contain("Invalid XML-RPC request");
     }
 
+    [Test]
+    public async Task HandleRpc_SystemMulticall_JsonRpc_WithTokenInSubcallParams_AuthenticatesAndReturnsResults()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("secret-token-123");
+
+        this.SetJsonRequestBody("""
+            {
+              "jsonrpc": "2.0",
+              "id": 201,
+              "method": "system.multicall",
+              "params": [
+                [
+                  { "methodName": "aria2.getVersion", "params": ["token:secret-token-123"] },
+                  { "methodName": "aria2.getSessionInfo", "params": ["token:secret-token-123"] }
+                ]
+              ]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var resElem = doc.RootElement.GetProperty("result");
+        resElem.ValueKind.Should().Be(JsonValueKind.Array);
+        resElem.GetArrayLength().Should().Be(2);
+
+        var firstCallRes = resElem[0];
+        firstCallRes.ValueKind.Should().Be(JsonValueKind.Array);
+        firstCallRes.GetArrayLength().Should().Be(1);
+        firstCallRes[0].GetProperty("version").GetString().Should().Be("1.36.0");
+
+        var secondCallRes = resElem[1];
+        secondCallRes.ValueKind.Should().Be(JsonValueKind.Array);
+        secondCallRes.GetArrayLength().Should().Be(1);
+        secondCallRes[0].GetProperty("sessionId").GetString().Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Test]
+    public async Task HandleRpc_SystemMulticall_JsonRpc_WhenSubcallThrows_IsolatesErrorAndContinuesBatch()
+    {
+        this.SetJsonRequestBody("""
+            {
+              "jsonrpc": "2.0",
+              "id": 202,
+              "method": "system.multicall",
+              "params": [
+                [
+                  { "methodName": "aria2.nonExistentMethod", "params": [] },
+                  { "methodName": "aria2.getVersion", "params": [] }
+                ]
+              ]
+            }
+            """);
+
+        var result = await this.controller.HandleRpc();
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var resElem = doc.RootElement.GetProperty("result");
+        resElem.ValueKind.Should().Be(JsonValueKind.Array);
+        resElem.GetArrayLength().Should().Be(2);
+
+        var firstCallRes = resElem[0];
+        firstCallRes.ValueKind.Should().Be(JsonValueKind.Array);
+        firstCallRes.GetArrayLength().Should().Be(1);
+        firstCallRes[0].GetProperty("code").GetInt32().Should().Be(1);
+        firstCallRes[0].GetProperty("message").GetString().Should().Contain("aria2.nonExistentMethod");
+
+        var secondCallRes = resElem[1];
+        secondCallRes.ValueKind.Should().Be(JsonValueKind.Array);
+        secondCallRes.GetArrayLength().Should().Be(1);
+        secondCallRes[0].GetProperty("version").GetString().Should().Be("1.36.0");
+    }
+
+    [Test]
+    public async Task HandleRpc_SystemMulticall_XmlRpc_WhenSubcallThrows_IsolatesErrorAndContinuesBatch()
+    {
+        var rawXml = """
+            <methodCall>
+              <methodName>system.multicall</methodName>
+              <params>
+                <param>
+                  <value>
+                    <array>
+                      <data>
+                        <value>
+                          <struct>
+                            <member>
+                              <name>methodName</name>
+                              <value><string>aria2.addTorrent</string></value>
+                            </member>
+                            <member>
+                              <name>params</name>
+                              <value><array><data><value><string>invalid-not-base64!!!</string></value></data></array></value>
+                            </member>
+                          </struct>
+                        </value>
+                        <value>
+                          <struct>
+                            <member>
+                              <name>methodName</name>
+                              <value><string>aria2.getVersion</string></value>
+                            </member>
+                            <member>
+                              <name>params</name>
+                              <value><array><data></data></array></value>
+                            </member>
+                          </struct>
+                        </value>
+                      </data>
+                    </array>
+                  </value>
+                </param>
+              </params>
+            </methodCall>
+            """;
+        this.SetXmlRequestBody(rawXml);
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)actionResult;
+        var doc = XDocument.Parse(contentResult.Content);
+
+        var results = doc.Root?.Element("params")?.Element("param")?.Element("value")
+            ?.Element("array")?.Element("data")?.Elements("value").ToList();
+
+        results.Should().NotBeNull();
+        results!.Count.Should().Be(2);
+
+        var faultStruct = results[0].Element("struct");
+        faultStruct.Should().NotBeNull();
+        faultStruct!.Elements("member").First(m => m.Element("name")?.Value == "faultCode")
+            .Element("value")?.Element("int")?.Value.Should().Be("1");
+
+        var successArray = results[1].Element("array")?.Element("data")?.Element("value")?.Element("struct");
+        successArray.Should().NotBeNull();
+        successArray!.Elements("member").First(m => m.Element("name")?.Value == "version")
+            .Element("value")?.Element("string")?.Value.Should().Be("1.36.0");
+    }
+
+    [Test]
+    public async Task HandleRpc_SystemMulticall_XmlRpc_WithTokenInSubcallParams_AuthenticatesAndReturnsResults()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("secret-token-123");
+
+        var rawXml = """
+            <methodCall>
+              <methodName>system.multicall</methodName>
+              <params>
+                <param>
+                  <value>
+                    <array>
+                      <data>
+                        <value>
+                          <struct>
+                            <member>
+                              <name>methodName</name>
+                              <value><string>aria2.getVersion</string></value>
+                            </member>
+                            <member>
+                              <name>params</name>
+                              <value>
+                                <array>
+                                  <data>
+                                    <value><string>token:secret-token-123</string></value>
+                                  </data>
+                                </array>
+                              </value>
+                            </member>
+                          </struct>
+                        </value>
+                      </data>
+                    </array>
+                  </value>
+                </param>
+              </params>
+            </methodCall>
+            """;
+        this.SetXmlRequestBody(rawXml);
+
+        var actionResult = await this.controller.HandleRpc();
+        actionResult.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)actionResult;
+        contentResult.Content.Should().NotContain("fault");
+        contentResult.Content.Should().Contain("1.36.0");
+    }
+
     private static string GetStructMember(XElement structElem, string memberName)
     {
         var member = structElem.Elements("member").FirstOrDefault(m => m.Element("name")?.Value == memberName);

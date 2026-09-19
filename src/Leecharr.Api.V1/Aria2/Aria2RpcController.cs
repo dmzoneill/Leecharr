@@ -327,13 +327,47 @@ public class Aria2RpcController : ControllerBase
 
     private static string ExtractSecretFromParams(JsonElement paramsElem)
     {
-        if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() > 0 &&
-            paramsElem[0].ValueKind == JsonValueKind.String)
+        if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() > 0)
         {
-            var firstStr = paramsElem[0].GetString();
-            if (firstStr != null && firstStr.StartsWith("token:", StringComparison.OrdinalIgnoreCase))
+            if (paramsElem[0].ValueKind == JsonValueKind.String)
             {
-                return firstStr["token:".Length..];
+                var firstStr = paramsElem[0].GetString();
+                if (firstStr != null && firstStr.StartsWith("token:", StringComparison.OrdinalIgnoreCase))
+                {
+                    return firstStr["token:".Length..];
+                }
+            }
+            else if (paramsElem[0].ValueKind == JsonValueKind.Array)
+            {
+                foreach (var call in paramsElem[0].EnumerateArray())
+                {
+                    if (call.ValueKind == JsonValueKind.Object &&
+                        call.TryGetProperty("params", out var subParams) &&
+                        subParams.ValueKind == JsonValueKind.Array &&
+                        subParams.GetArrayLength() > 0 &&
+                        subParams[0].ValueKind == JsonValueKind.String)
+                    {
+                        var subFirstStr = subParams[0].GetString();
+                        if (subFirstStr != null && subFirstStr.StartsWith("token:", StringComparison.OrdinalIgnoreCase))
+                        {
+                            return subFirstStr["token:".Length..];
+                        }
+                    }
+                }
+            }
+            else if (paramsElem[0].ValueKind == JsonValueKind.Object)
+            {
+                if (paramsElem[0].TryGetProperty("params", out var subParams) &&
+                    subParams.ValueKind == JsonValueKind.Array &&
+                    subParams.GetArrayLength() > 0 &&
+                    subParams[0].ValueKind == JsonValueKind.String)
+                {
+                    var subFirstStr = subParams[0].GetString();
+                    if (subFirstStr != null && subFirstStr.StartsWith("token:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return subFirstStr["token:".Length..];
+                    }
+                }
             }
         }
 
@@ -718,8 +752,15 @@ public class Aria2RpcController : ControllerBase
                 {
                     if (call.TryGetProperty("methodName", out var mn) && call.TryGetProperty("params", out var p))
                     {
-                        var subRes = await this.ExecuteMethodAsync(mn.GetString() ?? string.Empty, p);
-                        results.Add(new object[] { subRes });
+                        try
+                        {
+                            var subRes = await this.ExecuteMethodAsync(mn.GetString() ?? string.Empty, p);
+                            results.Add(new object[] { subRes });
+                        }
+                        catch (Exception ex)
+                        {
+                            results.Add(new object[] { new { code = 1, message = ex.Message } });
+                        }
                     }
                 }
             }
@@ -1024,15 +1065,34 @@ public class Aria2RpcController : ControllerBase
 
                             subDoc.Root?.Add(syntheticParams);
 
-                            var subResult = await this.ExecuteXmlRpcMethodAsync(subMethod, subDoc);
-                            multicallDataElem.Add(
-                                new XElement(
-                                    "value",
+                            try
+                            {
+                                var subResult = await this.ExecuteXmlRpcMethodAsync(subMethod, subDoc);
+                                multicallDataElem.Add(
                                     new XElement(
-                                        "array",
+                                        "value",
                                         new XElement(
-                                            "data",
-                                            new XElement("value", subResult)))));
+                                            "array",
+                                            new XElement(
+                                                "data",
+                                                new XElement("value", subResult)))));
+                            }
+                            catch (Exception ex)
+                            {
+                                multicallDataElem.Add(
+                                    new XElement(
+                                        "value",
+                                        new XElement(
+                                            "struct",
+                                            new XElement(
+                                                "member",
+                                                new XElement("name", "faultCode"),
+                                                new XElement("value", new XElement("int", 1))),
+                                            new XElement(
+                                                "member",
+                                                new XElement("name", "faultString"),
+                                                new XElement("value", new XElement("string", ex.Message))))));
+                            }
                         }
                     }
                 }
@@ -1513,6 +1573,31 @@ public class Aria2RpcController : ControllerBase
             if (!string.IsNullOrWhiteSpace(strVal) && strVal.StartsWith("token:", StringComparison.OrdinalIgnoreCase))
             {
                 return strVal["token:".Length..];
+            }
+
+            var callsData = val?.Element("array")?.Element("data");
+            if (callsData != null)
+            {
+                foreach (var callVal in callsData.Elements("value"))
+                {
+                    var callStruct = callVal.Element("struct");
+                    if (callStruct != null)
+                    {
+                        foreach (var member in callStruct.Elements("member"))
+                        {
+                            if (string.Equals(member.Element("name")?.Value, "params", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var subData = member.Element("value")?.Element("array")?.Element("data");
+                                var firstSubVal = subData?.Elements("value").FirstOrDefault();
+                                var subStr = firstSubVal?.Element("string")?.Value ?? firstSubVal?.Value;
+                                if (!string.IsNullOrWhiteSpace(subStr) && subStr.StartsWith("token:", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    return subStr["token:".Length..];
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
