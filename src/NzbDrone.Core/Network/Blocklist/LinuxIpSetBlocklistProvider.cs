@@ -152,8 +152,9 @@ public class LinuxIpSetBlocklistProvider : IBlocklistProvider
         {
             try
             {
-                _ = this.ExecuteIpSetCommandAsync("flush leecharr_blocklist_v4");
-                _ = this.ExecuteIpSetCommandAsync("flush leecharr_blocklist_v6");
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                this.ExecuteIpSetCommandAsync("flush leecharr_blocklist_v4", cancellationToken: cts.Token).GetAwaiter().GetResult();
+                this.ExecuteIpSetCommandAsync("flush leecharr_blocklist_v6", cancellationToken: cts.Token).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
@@ -162,7 +163,7 @@ public class LinuxIpSetBlocklistProvider : IBlocklistProvider
         }
     }
 
-    protected virtual Task<(int ExitCode, string StdOut, string StdErr)> ExecuteIpSetCommandAsync(
+    protected virtual async Task<(int ExitCode, string StdOut, string StdErr)> ExecuteIpSetCommandAsync(
         string arguments,
         string stdIn = null,
         CancellationToken cancellationToken = default)
@@ -170,7 +171,7 @@ public class LinuxIpSetBlocklistProvider : IBlocklistProvider
         var binaryPath = this.GetIpSetBinaryPath();
         if (string.IsNullOrEmpty(binaryPath))
         {
-            return Task.FromResult((-1, string.Empty, "ipset binary not found"));
+            return (-1, string.Empty, "ipset binary not found");
         }
 
         var startInfo = new ProcessStartInfo
@@ -184,29 +185,52 @@ public class LinuxIpSetBlocklistProvider : IBlocklistProvider
             CreateNoWindow = true,
         };
 
+        using var process = new Process { StartInfo = startInfo };
         try
         {
-            using var process = new Process { StartInfo = startInfo };
             process.Start();
+
+            var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
 
             if (stdIn != null)
             {
-                using (var writer = process.StandardInput)
+                try
                 {
-                    writer.Write(stdIn);
-                    writer.Flush();
+                    await using (var writer = process.StandardInput)
+                    {
+                        await writer.WriteAsync(stdIn.AsMemory(), cancellationToken).ConfigureAwait(false);
+                        await writer.FlushAsync().ConfigureAwait(false);
+                    }
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    this.logger.Debug(ex, "Exception writing stdin to ipset process");
                 }
             }
 
-            var stdout = process.StandardOutput.ReadToEnd();
-            var stderr = process.StandardError.ReadToEnd();
-            process.WaitForExit();
+            await Task.WhenAll(stdoutTask, stderrTask, process.WaitForExitAsync(cancellationToken)).ConfigureAwait(false);
+            return (process.ExitCode, await stdoutTask.ConfigureAwait(false), await stderrTask.ConfigureAwait(false));
+        }
+        catch (OperationCanceledException)
+        {
+            try
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+            }
+            catch
+            {
+                // Suppress process kill errors
+            }
 
-            return Task.FromResult((process.ExitCode, stdout, stderr));
+            throw;
         }
         catch (Exception ex)
         {
-            return Task.FromResult((-1, string.Empty, ex.Message));
+            return (-1, string.Empty, ex.Message);
         }
     }
 
@@ -370,7 +394,7 @@ public class LinuxIpSetBlocklistProvider : IBlocklistProvider
         return !string.IsNullOrEmpty(this.GetIpSetBinaryPath());
     }
 
-    private string GetIpSetBinaryPath()
+    protected virtual string GetIpSetBinaryPath()
     {
         var paths = new[]
         {
