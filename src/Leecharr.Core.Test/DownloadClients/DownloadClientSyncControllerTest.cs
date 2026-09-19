@@ -166,6 +166,54 @@ public class DownloadClientSyncControllerTest
         result.TotalCount.Should().Be(0);
     }
 
+    [Test]
+    public async Task Sync_ConcurrentCalls_AreSynchronizedAndDoNotDuplicateImport()
+    {
+        var json = "[{\"hash\":\"5555555555555555555555555555555555555555\",\"name\":\"ConcurrencyTest\",\"size\":1000,\"progress\":1.0,\"state\":\"seeding\",\"save_path\":\"/downloads\",\"category\":\"cat\"}]";
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json"),
+        });
+        using var httpClient = new HttpClient(handler);
+
+        var controller = new DownloadClientSyncController(this.clientRepository, this.torrentService, httpClient);
+
+        var clientDef = new DownloadClientDefinition
+        {
+            Id = 1,
+            Name = "qBit",
+            ClientType = "qBittorrent",
+            Host = "127.0.0.1",
+            Port = 8080,
+            Enable = true,
+        };
+        this.clientRepository.GetEnabled().Returns(new List<DownloadClientDefinition> { clientDef });
+
+        var callCount = 0;
+        this.torrentService.GetByInfoHash("5555555555555555555555555555555555555555")
+            .Returns(_ =>
+            {
+                if (callCount > 0)
+                {
+                    return new Torrent { Id = 1, InfoHash = "5555555555555555555555555555555555555555" };
+                }
+
+                callCount++;
+                return null!;
+            });
+
+        var task1 = controller.Sync();
+        var task2 = controller.Sync();
+
+        await Task.WhenAll(task1, task2);
+
+        await this.torrentService.Received(1).AddFromMagnetAsync(
+            "magnet:?xt=urn:btih:5555555555555555555555555555555555555555",
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            false);
+    }
+
     private class MockHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, HttpResponseMessage> handler;

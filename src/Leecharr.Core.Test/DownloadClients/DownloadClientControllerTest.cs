@@ -497,6 +497,76 @@ public class DownloadClientControllerTest
         requests[0].Headers.Authorization!.Scheme.Should().Be("Basic");
     }
 
+    [Test]
+    public void Create_ProtectsPasswordAtRest()
+    {
+        DownloadClientDefinition captured = null!;
+        this.repository.Insert(Arg.Do<DownloadClientDefinition>(d => captured = d))
+            .Returns(callInfo => callInfo.Arg<DownloadClientDefinition>());
+
+        var controller = new DownloadClientController(this.repository, this.torrentService);
+        var resource = new DownloadClientResource
+        {
+            Name = "SecureClient",
+            ClientType = "qBittorrent",
+            Host = "192.168.1.50",
+            Port = 8080,
+            Username = "admin",
+            Password = "PlainTextSecretPassword123",
+            Enabled = true,
+        };
+
+        var result = controller.Create(resource);
+
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        var returned = okResult!.Value as DownloadClientResource;
+        returned!.Password.Should().Be("********");
+
+        captured.Should().NotBeNull();
+        captured.Password.Should().StartWith("enc:");
+        captured.Password.Should().NotContain("PlainTextSecretPassword123");
+    }
+
+    [Test]
+    public async Task TestDirect_WhenHostIsCloudMetadataEndpoint_BlocksWithSsrfMessage()
+    {
+        var controller = new DownloadClientController(this.repository, this.torrentService);
+        var resource = new DownloadClientResource
+        {
+            Name = "SsrfAttacker",
+            ClientType = "qBittorrent",
+            Host = "169.254.169.254",
+            Port = 80,
+        };
+
+        var result = await controller.TestDirect(resource);
+
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as DownloadClientTestResult;
+        testResult.Should().NotBeNull();
+        testResult!.Success.Should().BeFalse();
+        testResult.Message.Should().Contain("SSRF blocked");
+    }
+
+    [Test]
+    public void Create_WhenHostIsCloudMetadataEndpoint_ReturnsBadRequest()
+    {
+        var controller = new DownloadClientController(this.repository, this.torrentService);
+        var resource = new DownloadClientResource
+        {
+            Name = "SsrfAttacker",
+            ClientType = "qBittorrent",
+            Host = "169.254.169.254",
+            Port = 80,
+        };
+
+        var result = controller.Create(resource);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
     private class MockHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, HttpResponseMessage> handler;
