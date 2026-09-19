@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Sockets;
+using System.Security;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -14,9 +15,11 @@ using System.Threading.Tasks;
 using Leecharr.Api.V1.ArrIntegration;
 using Leecharr.Api.V1.Torrents;
 using Leecharr.Http;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.DownloadClients;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.DownloadClients;
@@ -28,13 +31,25 @@ public class DownloadClientController : Controller
     private readonly IDownloadClientRepository repository;
     private readonly ITorrentService torrentService;
     private readonly HttpClient httpClient;
+    private readonly IHttpClientFactory httpClientFactory;
+    private readonly ISafeHttpClientService safeHttpClientService;
+    private readonly IDataProtector protector;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
-    public DownloadClientController(IDownloadClientRepository repository, ITorrentService torrentService, HttpClient httpClient = null)
+    public DownloadClientController(
+        IDownloadClientRepository repository,
+        ITorrentService torrentService,
+        HttpClient httpClient = null,
+        IHttpClientFactory httpClientFactory = null,
+        ISafeHttpClientService safeHttpClientService = null,
+        IDataProtectionProvider dataProtectionProvider = null)
     {
         this.repository = repository;
         this.torrentService = torrentService;
         this.httpClient = httpClient;
+        this.httpClientFactory = httpClientFactory;
+        this.safeHttpClientService = safeHttpClientService;
+        this.protector = dataProtectionProvider?.CreateProtector("DownloadClient.Password");
     }
 
     [HttpGet]
@@ -74,7 +89,16 @@ public class DownloadClientController : Controller
             return this.BadRequest("Invalid port number.");
         }
 
-        var model = ToModel(resource);
+        try
+        {
+            this.ValidateSsrf(resource.Host, resource.Port > 0 ? resource.Port : 8080);
+        }
+        catch (SecurityException ex)
+        {
+            return this.BadRequest($"SSRF blocked: {ex.Message}");
+        }
+
+        var model = this.ToModel(resource);
         var created = this.repository.Insert(model);
         return this.Ok(ToResource(created));
     }
@@ -103,11 +127,24 @@ public class DownloadClientController : Controller
             return this.NotFound();
         }
 
-        var model = ToModel(resource);
+        try
+        {
+            this.ValidateSsrf(resource.Host, resource.Port > 0 ? resource.Port : 8080);
+        }
+        catch (SecurityException ex)
+        {
+            return this.BadRequest($"SSRF blocked: {ex.Message}");
+        }
+
+        var model = this.ToModel(resource);
         model.Id = id;
-        if (string.IsNullOrEmpty(model.Password) || model.Password.Contains('*'))
+        if (string.IsNullOrEmpty(resource.Password) || resource.Password.Contains('*'))
         {
             model.Password = existing.Password;
+        }
+        else
+        {
+            model.Password = DownloadClientPasswordHelper.Protect(resource.Password, this.protector);
         }
 
         this.repository.Update(model);
@@ -130,7 +167,8 @@ public class DownloadClientController : Controller
             return this.NotFound();
         }
 
-        return await this.TestDirectInternal(ToResource(definition), definition.Password);
+        var unencryptedPassword = DownloadClientPasswordHelper.Unprotect(definition.Password, this.protector);
+        return await this.TestDirectInternal(ToResource(definition), unencryptedPassword);
     }
 
     [HttpPost("test")]
@@ -147,7 +185,7 @@ public class DownloadClientController : Controller
             var existing = this.repository.Get(resource.Id);
             if (existing != null)
             {
-                password = existing.Password;
+                password = DownloadClientPasswordHelper.Unprotect(existing.Password, this.protector);
             }
         }
 
@@ -163,7 +201,7 @@ public class DownloadClientController : Controller
             return this.NotFound();
         }
 
-        var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, this.httpClient);
+        var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, this.GetHttpClient(), this.safeHttpClientService);
         return this.Ok(items);
     }
 
@@ -182,7 +220,7 @@ public class DownloadClientController : Controller
             return this.Ok(TorrentResourceMapper.ToResource(existing));
         }
 
-        var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, this.httpClient);
+        var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, this.GetHttpClient(), this.safeHttpClientService);
         var remoteItem = items.FirstOrDefault(i => string.Equals(i.InfoHash, hash, StringComparison.OrdinalIgnoreCase));
         var savePath = !string.IsNullOrWhiteSpace(remoteItem?.SavePath) ? remoteItem.SavePath : null;
         var category = !string.IsNullOrWhiteSpace(remoteItem?.Category) ? remoteItem.Category : client.Category;
@@ -202,48 +240,59 @@ public class DownloadClientController : Controller
             return this.NotFound();
         }
 
-        var count = 0;
-        var hashes = request?.EffectiveHashes?.ToList();
-        if (hashes != null && hashes.Count > 0)
+        var hashes = request?.EffectiveHashes?.ToList() ?? new List<string>();
+        if (hashes.Count == 0)
         {
-            var remoteItems = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, this.httpClient);
-            var remoteItemMap = remoteItems
-                .Where(i => !string.IsNullOrEmpty(i.InfoHash))
-                .GroupBy(i => i.InfoHash, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            return this.BadRequest("No torrent hashes specified for import.");
+        }
 
-            foreach (var hash in hashes)
+        var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, this.GetHttpClient(), this.safeHttpClientService);
+        var itemMap = items.Where(i => !string.IsNullOrWhiteSpace(i.InfoHash))
+            .ToDictionary(i => i.InfoHash, StringComparer.OrdinalIgnoreCase);
+
+        var importedCount = 0;
+        var skippedCount = 0;
+
+        foreach (var hash in hashes)
+        {
+            if (string.IsNullOrWhiteSpace(hash))
             {
-                try
-                {
-                    var existing = this.torrentService.GetByInfoHash(hash);
-                    if (existing == null)
-                    {
-                        remoteItemMap.TryGetValue(hash, out var remoteItem);
-                        var savePath = !string.IsNullOrWhiteSpace(request?.SavePath)
-                            ? request.SavePath
-                            : (!string.IsNullOrWhiteSpace(remoteItem?.SavePath) ? remoteItem.SavePath : null);
-                        var category = !string.IsNullOrWhiteSpace(request?.Category)
-                            ? request.Category
-                            : (!string.IsNullOrWhiteSpace(remoteItem?.Category) ? remoteItem.Category : client.Category);
+                continue;
+            }
 
-                        var magnetUri = $"magnet:?xt=urn:btih:{hash}";
-                        await this.torrentService.AddFromMagnetAsync(magnetUri, category, savePath, request?.StartPaused ?? false);
-                        count++;
-                    }
-                }
-                catch
-                {
-                }
+            var existing = this.torrentService.GetByInfoHash(hash);
+            if (existing != null)
+            {
+                skippedCount++;
+                continue;
+            }
+
+            itemMap.TryGetValue(hash, out var remoteItem);
+            var savePath = !string.IsNullOrWhiteSpace(remoteItem?.SavePath) ? remoteItem.SavePath : null;
+            var category = !string.IsNullOrWhiteSpace(remoteItem?.Category) ? remoteItem.Category : client.Category;
+            var magnetUri = $"magnet:?xt=urn:btih:{hash}";
+
+            try
+            {
+                await this.torrentService.AddFromMagnetAsync(magnetUri, category, savePath, false);
+                importedCount++;
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to import torrent {0} from {1}", hash, client.Name);
+                skippedCount++;
             }
         }
 
         return this.Ok(new SyncResultResource
         {
             Success = true,
-            SyncedCount = count,
-            Added = count,
-            Message = $"Import completed ({count} torrent(s) imported).",
+            SyncedCount = importedCount,
+            TotalCount = hashes.Count,
+            Added = importedCount,
+            Skipped = skippedCount,
+            Failed = 0,
+            Message = $"Imported {importedCount} torrent(s) from {client.Name}.",
         });
     }
 
@@ -264,7 +313,7 @@ public class DownloadClientController : Controller
         };
     }
 
-    private static DownloadClientDefinition ToModel(DownloadClientResource resource)
+    private DownloadClientDefinition ToModel(DownloadClientResource resource)
     {
         return new DownloadClientDefinition
         {
@@ -275,10 +324,76 @@ public class DownloadClientController : Controller
             Port = resource.Port > 0 ? resource.Port : 8080,
             UseSsl = resource.UseSsl,
             Username = resource.Username,
-            Password = resource.Password,
+            Password = DownloadClientPasswordHelper.Protect(resource.Password, this.protector),
             Category = resource.Category,
             Enable = resource.Enabled,
         };
+    }
+
+    private HttpClient GetHttpClient()
+    {
+        if (this.httpClient != null)
+        {
+            return this.httpClient;
+        }
+
+        if (this.httpClientFactory != null)
+        {
+            return this.httpClientFactory.CreateClient();
+        }
+
+        return null;
+    }
+
+    private void ValidateSsrf(string host, int port)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            throw new ArgumentException("Host is required.", nameof(host));
+        }
+
+        var scheme = "http";
+        var baseUrl = $"{scheme}://{host}:{port}";
+
+        if (this.safeHttpClientService != null)
+        {
+            this.safeHttpClientService.ValidateUrl(baseUrl);
+            return;
+        }
+
+        // Fallback SSRF check when ISafeHttpClientService is not injected:
+        // Always block cloud metadata and link-local addresses
+        var trimmed = host.Trim();
+        if (IPAddress.TryParse(trimmed, out var ip))
+        {
+            if (ip.ToString().StartsWith("169.254.", StringComparison.Ordinal))
+            {
+                throw new SecurityException($"SSRF blocked: IP address '{ip}' is prohibited.");
+            }
+        }
+        else
+        {
+            if (string.Equals(trimmed, "instance-data", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, "metadata.google.internal", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new SecurityException($"SSRF blocked: Host '{trimmed}' is prohibited.");
+            }
+
+            try
+            {
+                var addresses = Dns.GetHostAddresses(trimmed);
+                foreach (var addr in addresses)
+                {
+                    if (addr.ToString().StartsWith("169.254.", StringComparison.Ordinal))
+                    {
+                        throw new SecurityException($"SSRF blocked: Host '{trimmed}' resolves to prohibited IP address '{addr}'.");
+                    }
+                }
+            }
+            catch (SocketException)
+            {
+            }
+        }
     }
 
     private async Task<ActionResult<DownloadClientTestResult>> TestDirectInternal(DownloadClientResource resource, string passwordOverride = null)
@@ -293,18 +408,33 @@ public class DownloadClientController : Controller
         var baseUrl = $"{scheme}://{resource.Host}:{port}";
         var password = passwordOverride ?? resource.Password;
 
-        HttpClient localHttp = null;
-        if (this.httpClient == null)
+        try
         {
-            var handler = new HttpClientHandler
+            this.ValidateSsrf(resource.Host, port);
+        }
+        catch (SecurityException ex)
+        {
+            this.logger.Warn(ex, "SSRF validation failed for {0}:{1}", resource.Host, port);
+            return this.Ok(new DownloadClientTestResult
+            {
+                Success = false,
+                Message = $"Failed to connect to {resource.Host}:{port} - {ex.Message}",
+            });
+        }
+
+        HttpClient localHttp = null;
+        var http = this.GetHttpClient();
+        if (http == null)
+        {
+            var handler = new SocketsHttpHandler
             {
                 CookieContainer = new CookieContainer(),
                 UseCookies = true,
+                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
             };
             localHttp = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
+            http = localHttp;
         }
-
-        var http = this.httpClient ?? localHttp;
 
         try
         {
