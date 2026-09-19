@@ -415,6 +415,12 @@ public class CategoryService : ICategoryService
             return;
         }
 
+        if (cat.IsDefault)
+        {
+            this.logger.Warn("Cannot delete default category id: {0} ({1})", id, cat.Name);
+            return;
+        }
+
         this.logger.Info("Deleting category id: {0} ({1})", id, cat.Name);
 
         if (!string.IsNullOrWhiteSpace(cat.Name))
@@ -432,6 +438,7 @@ public class CategoryService : ICategoryService
             }
         }
 
+        var defaultCategoryName = this.repository.GetDefault()?.Name ?? string.Empty;
         var affectedTorrentIds = new List<int>();
         if (this.torrentRepository != null && !string.IsNullOrWhiteSpace(cat.Name))
         {
@@ -441,7 +448,7 @@ public class CategoryService : ICategoryService
                 foreach (var torrent in torrents)
                 {
                     affectedTorrentIds.Add(torrent.Id);
-                    torrent.Category = string.Empty;
+                    torrent.Category = defaultCategoryName;
                     this.torrentRepository.Update(torrent);
                 }
             }

@@ -109,6 +109,39 @@ public class CategoryServiceTest
     }
 
     [Test]
+    public void Delete_WhenCategoryIsDefault_PreventsDeletion()
+    {
+        var category = new Category { Id = 5, Name = "default-cat", IsDefault = true };
+        this.repository.Get(5).Returns(category);
+
+        this.service.Delete(5);
+
+        this.repository.DidNotReceive().Delete(Arg.Any<int>());
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<CategoryDeletedEvent>());
+    }
+
+    [Test]
+    public void Delete_WhenDefaultCategoryExists_ReassignsAffectedTorrentsToDefaultCategory()
+    {
+        var category = new Category { Id = 5, Name = "movies", IsDefault = false };
+        this.repository.Get(5).Returns(category);
+        this.repository.GetDefault().Returns(new Category { Id = 1, Name = "general", IsDefault = true });
+
+        var torrent1 = new Torrent { Id = 1, Name = "Movie1", Category = "movies" };
+        var torrent2 = new Torrent { Id = 2, Name = "Movie2", Category = "movies" };
+        this.torrentRepository.GetByCategory("movies").Returns(new List<Torrent> { torrent1, torrent2 });
+
+        this.service.Delete(5);
+
+        torrent1.Category.Should().Be("general");
+        torrent2.Category.Should().Be("general");
+        this.torrentRepository.Received(1).Update(torrent1);
+        this.torrentRepository.Received(1).Update(torrent2);
+        this.repository.Received(1).Delete(5);
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<CategoryDeletedEvent>(e => e.CategoryId == 5 && e.CategoryName == "movies"));
+    }
+
+    [Test]
     public void Delete_ClearsCategoryOnAffectedTorrentsPublishesEventAndDeletes()
     {
         var category = new Category { Id = 5, Name = "movies" };

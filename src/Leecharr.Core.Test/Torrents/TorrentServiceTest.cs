@@ -1205,6 +1205,7 @@ public class TorrentServiceTest
         this.service.GetEffectiveTargetSeedTimeMinutes(torrent).Should().Be(120);
 
         await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(10, 15000, 4000);
+        await this.downloadEngine.Received(1).SetTorrentCategoryAsync(10, "tv");
         this.torrentRepository.Received(1).Update(torrent);
     }
 
@@ -1454,6 +1455,7 @@ public class TorrentServiceTest
         result.TargetSeedTimeMinutes.Should().Be(0);
         this.service.GetEffectiveTargetRatio(result).Should().Be(2.0);
         this.service.GetEffectiveTargetSeedTimeMinutes(result).Should().Be(100);
+        await this.downloadEngine.Received(1).SetTorrentCategoryAsync(88, "books");
     }
 
     [Test]
