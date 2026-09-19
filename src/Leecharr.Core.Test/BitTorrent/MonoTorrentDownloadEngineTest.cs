@@ -650,6 +650,98 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task Handle_ConfigSavedEvent_AppliesDynamicConnectionLimitsAndSpeedLimitsAndNetworkOptions()
+    {
+        this.configService.MaxGlobalConnections.Returns(100);
+        this.configService.MaxDownloadSpeedKbps.Returns(500);
+        this.configService.MaxUploadSpeedKbps.Returns(250);
+        this.configService.EncryptionMode.Returns("preferencrypted");
+        this.configService.EnableDht.Returns(false);
+        this.configService.TransportConnectionTimeoutSeconds.Returns(15);
+        this.configService.WebSeedDelaySeconds.Returns(10);
+        this.configService.UpnpEnabled.Returns(false);
+        this.configService.ExtensionLtDontHave.Returns(false);
+
+        await this.engine.StartAsync();
+
+        var engineProp = typeof(MonoTorrentDownloadEngine).GetField("engine", BindingFlags.NonPublic | BindingFlags.Instance);
+        var monoEngine = engineProp!.GetValue(this.engine) as ClientEngine;
+        monoEngine.Should().NotBeNull();
+        monoEngine!.Settings.MaximumConnections.Should().Be(100);
+        monoEngine.Settings.MaximumDownloadRate.Should().Be(500 * 1024);
+        monoEngine.Settings.MaximumUploadRate.Should().Be(250 * 1024);
+        monoEngine.Settings.DhtEndPoint.Should().BeNull();
+        monoEngine.Settings.AllowPortForwarding.Should().BeFalse();
+        monoEngine.Settings.AllowHaveSuppression.Should().BeFalse();
+
+        // Update settings in config
+        this.configService.MaxGlobalConnections.Returns(1000);
+        this.configService.MaxDownloadSpeedKbps.Returns(5000);
+        this.configService.MaxUploadSpeedKbps.Returns(2000);
+        this.configService.EncryptionMode.Returns("forceencrypted");
+        this.configService.EnableDht.Returns(true);
+        this.configService.TransportConnectionTimeoutSeconds.Returns(45);
+        this.configService.WebSeedDelaySeconds.Returns(60);
+        this.configService.UpnpEnabled.Returns(true);
+        this.configService.ExtensionLtDontHave.Returns(true);
+
+        this.engine.Handle(new ConfigSavedEvent());
+
+        // Wait for background Task.Run in Handle to complete
+        for (var i = 0; i < 50 && monoEngine.Settings.MaximumConnections != 1000; i++)
+        {
+            await Task.Delay(20);
+        }
+
+        monoEngine.Settings.MaximumConnections.Should().Be(1000);
+        monoEngine.Settings.MaximumDownloadRate.Should().Be(5000 * 1024);
+        monoEngine.Settings.MaximumUploadRate.Should().Be(2000 * 1024);
+        monoEngine.Settings.AllowedEncryption.Should().Contain(MonoTorrent.Connections.EncryptionType.RC4Full);
+        monoEngine.Settings.AllowedEncryption.Should().NotContain(MonoTorrent.Connections.EncryptionType.PlainText);
+        monoEngine.Settings.DhtEndPoint.Should().NotBeNull();
+        monoEngine.Settings.ConnectionTimeout.Should().Be(TimeSpan.FromSeconds(45));
+        monoEngine.Settings.WebSeedDelay.Should().Be(TimeSpan.FromSeconds(60));
+        monoEngine.Settings.AllowPortForwarding.Should().BeTrue();
+        monoEngine.Settings.AllowHaveSuppression.Should().BeTrue();
+
+        await this.engine.StopAsync();
+    }
+
+    [Test]
+    public async Task Handle_ConfigFileSavedEvent_AppliesDynamicConnectionLimitsAndSpeedLimits()
+    {
+        this.configService.MaxGlobalConnections.Returns(150);
+        this.configService.MaxDownloadSpeedKbps.Returns(300);
+        this.configService.MaxUploadSpeedKbps.Returns(150);
+
+        await this.engine.StartAsync();
+
+        var engineProp = typeof(MonoTorrentDownloadEngine).GetField("engine", BindingFlags.NonPublic | BindingFlags.Instance);
+        var monoEngine = engineProp!.GetValue(this.engine) as ClientEngine;
+        monoEngine.Should().NotBeNull();
+        monoEngine!.Settings.MaximumConnections.Should().Be(150);
+
+        // Update settings in config
+        this.configService.MaxGlobalConnections.Returns(800);
+        this.configService.MaxDownloadSpeedKbps.Returns(4000);
+        this.configService.MaxUploadSpeedKbps.Returns(1500);
+
+        this.engine.Handle(new ConfigFileSavedEvent());
+
+        // Wait for background Task.Run in Handle to complete
+        for (var i = 0; i < 50 && monoEngine.Settings.MaximumConnections != 800; i++)
+        {
+            await Task.Delay(20);
+        }
+
+        monoEngine.Settings.MaximumConnections.Should().Be(800);
+        monoEngine.Settings.MaximumDownloadRate.Should().Be(4000 * 1024);
+        monoEngine.Settings.MaximumUploadRate.Should().Be(1500 * 1024);
+
+        await this.engine.StopAsync();
+    }
+
+    [Test]
     public async Task StartAsync_WithInvalidOrLeakedPrefix_FallsBackToDefaultPreset()
     {
         this.configService.PeerIdPrefix.Returns("-MO3002-");
