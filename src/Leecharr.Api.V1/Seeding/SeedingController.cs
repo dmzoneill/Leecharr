@@ -1,11 +1,11 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Torrents;
 
@@ -61,6 +61,7 @@ public class TorrentSpeedSnapshotResource
 }
 
 [V1ApiController("seeding")]
+[Authorize(Policy = "RequireOperator")]
 public class SeedingController : Controller
 {
     private static readonly ConcurrentQueue<SpeedSnapshotResource> GlobalHistory = new();

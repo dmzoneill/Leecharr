@@ -1,5 +1,4 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
@@ -14,6 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Http;
 using Leecharr.Http.REST;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.BitTorrent;
@@ -146,6 +146,7 @@ public class AddTorrentJsonRequest
 
 [V1ApiController("torrents")]
 [Route("api/v1/torrent")]
+[Authorize(Policy = "RequireOperator")]
 public class TorrentController : RestControllerWithSignalR<TorrentResource, Torrent>
 {
     private readonly ITorrentService torrentService;
