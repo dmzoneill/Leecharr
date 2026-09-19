@@ -11,6 +11,7 @@ using NUnit.Framework;
 using NzbDrone.Core.ArrIntegration;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.MediaEnrichment;
+using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Core.Test.ArrIntegration;
@@ -22,6 +23,7 @@ public class ArrWebhookControllerTest
     private ITorrentMediaMetadataRepository mediaMetadataRepository = null!;
     private IArrConnectionRepository arrConnectionRepository = null!;
     private IProwlarrSyncService prowlarrSyncService = null!;
+    private IEventAggregator eventAggregator = null!;
     private ArrWebhookController controller = null!;
 
     [SetUp]
@@ -31,12 +33,14 @@ public class ArrWebhookControllerTest
         this.mediaMetadataRepository = Substitute.For<ITorrentMediaMetadataRepository>();
         this.arrConnectionRepository = Substitute.For<IArrConnectionRepository>();
         this.prowlarrSyncService = Substitute.For<IProwlarrSyncService>();
+        this.eventAggregator = Substitute.For<IEventAggregator>();
         this.controller = new ArrWebhookController(
             this.torrentRepository,
             this.mediaMetadataRepository,
             this.arrConnectionRepository,
             null,
-            this.prowlarrSyncService);
+            this.prowlarrSyncService,
+            this.eventAggregator);
     }
 
     [Test]
@@ -900,5 +904,204 @@ public class ArrWebhookControllerTest
         var res = okResult!.Value as ArrWebhookResult;
         res.Should().NotBeNull();
         res!.Success.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task HandleSonarr_WhenExistingMetadataPresent_UpdatesExistingMetadataAndPublishesEvent()
+    {
+        var hash = "0123456789abcdef0123456789abcdef01234567";
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "Severance.S02E01.1080p.WEB-DL.mkv",
+            InfoHash = hash,
+            SavePath = "/downloads/Severance.S02E01.1080p.WEB-DL.mkv",
+        };
+
+        var existing = new TorrentMediaMetadata
+        {
+            TorrentId = 1,
+            ArrType = "Sonarr",
+            Title = "Old Initial Title",
+        };
+
+        this.torrentRepository.GetByInfoHash(hash).Returns(torrent);
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+        this.mediaMetadataRepository.GetByTorrentId(1).Returns(existing);
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "EpisodeImport",
+            InstanceName = "Sonarr",
+            DownloadClientId = hash,
+            Series = new ArrWebhookSeries
+            {
+                Id = 42,
+                Title = "Severance",
+                Year = 2022,
+                TvdbId = 371980,
+                ImdbId = "tt11280740",
+            },
+        };
+
+        var result = await this.controller.HandleSonarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        this.mediaMetadataRepository.Received(1).Update(Arg.Is<TorrentMediaMetadata>(m =>
+            m.TorrentId == 1 &&
+            m.ArrType == "Sonarr" &&
+            m.ArrMediaId == 42 &&
+            m.Title == "Severance" &&
+            m.Year == 2022 &&
+            m.TvdbId == "371980" &&
+            m.ImdbId == "tt11280740"));
+        this.mediaMetadataRepository.DidNotReceive().Insert(Arg.Any<TorrentMediaMetadata>());
+
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<MediaEnrichedEvent>(e =>
+            e.TorrentId == 1 &&
+            e.Metadata.Title == "Severance"));
+    }
+
+    [Test]
+    public async Task HandleLidarr_WhenAlbumPresent_PrefersAlbumTitleOverArtistName()
+    {
+        var hash = "1111222233334444555566667777888899990000";
+        var torrent = new Torrent
+        {
+            Id = 2,
+            Name = "Daft Punk - Discovery",
+            InfoHash = hash,
+            SavePath = "/music/Daft Punk - Discovery",
+        };
+
+        this.torrentRepository.GetByInfoHash(hash).Returns(torrent);
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+        this.mediaMetadataRepository.GetByTorrentId(2).Returns((TorrentMediaMetadata)null);
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "TrackImport",
+            InstanceName = "Lidarr",
+            DownloadClientId = hash,
+            Artist = new ArrWebhookArtist
+            {
+                Id = 10,
+                Name = "Daft Punk",
+                MbId = "mbid-123",
+            },
+            Album = new ArrWebhookAlbum
+            {
+                Id = 20,
+                Title = "Discovery",
+                ReleaseDate = "2001-03-12",
+            },
+        };
+
+        var result = await this.controller.HandleLidarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        this.mediaMetadataRepository.Received(1).Insert(Arg.Is<TorrentMediaMetadata>(m =>
+            m.TorrentId == 2 &&
+            m.ArrType == "Lidarr" &&
+            m.ArrMediaId == 10 &&
+            m.Title == "Discovery" &&
+            m.AlbumTitle == "Discovery" &&
+            m.ArtistName == "Daft Punk" &&
+            m.MusicBrainzId == "mbid-123" &&
+            m.Year == 2001));
+
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<MediaEnrichedEvent>(e =>
+            e.TorrentId == 2 &&
+            e.Metadata.Title == "Discovery"));
+    }
+
+    [Test]
+    public async Task HandleReadarr_WhenBookPresent_PrefersBookTitleOverAuthorName()
+    {
+        var hash = "2222333344445555666677778888999900001111";
+        var torrent = new Torrent
+        {
+            Id = 3,
+            Name = "Andy Weir - Project Hail Mary",
+            InfoHash = hash,
+            SavePath = "/books/Andy Weir - Project Hail Mary",
+        };
+
+        this.torrentRepository.GetByInfoHash(hash).Returns(torrent);
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+        this.mediaMetadataRepository.GetByTorrentId(3).Returns((TorrentMediaMetadata)null);
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "BookImport",
+            InstanceName = "Readarr",
+            DownloadClientId = hash,
+            Author = new ArrWebhookAuthor
+            {
+                Id = 11,
+                Name = "Andy Weir",
+            },
+            Book = new ArrWebhookBook
+            {
+                Id = 21,
+                Title = "Project Hail Mary",
+                ReleaseDate = "2021-05-04",
+            },
+        };
+
+        var result = await this.controller.HandleReadarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        this.mediaMetadataRepository.Received(1).Insert(Arg.Is<TorrentMediaMetadata>(m =>
+            m.TorrentId == 3 &&
+            m.ArrType == "Readarr" &&
+            m.ArrMediaId == 11 &&
+            m.Title == "Project Hail Mary" &&
+            m.ArtistName == "Andy Weir" &&
+            m.Year == 2021));
+
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<MediaEnrichedEvent>(e =>
+            e.TorrentId == 3 &&
+            e.Metadata.Title == "Project Hail Mary"));
+    }
+
+    [Test]
+    public async Task FindMatchingTorrent_WhenMatchingByTrackFileOrBookFilePath_MatchesCorrectTorrent()
+    {
+        var torrentMusic = new Torrent
+        {
+            Id = 10,
+            Name = "Daft Punk - Discovery",
+            InfoHash = "aaaabbbbccccddddeeeeffff0000111122223333",
+            SavePath = "/music/Daft Punk - Discovery",
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { torrentMusic });
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "TrackImport",
+            InstanceName = "Lidarr",
+            TrackFile = new ArrWebhookTrackFile
+            {
+                Path = "/music/Daft Punk - Discovery/01 One More Time.flac",
+            },
+            Album = new ArrWebhookAlbum
+            {
+                Id = 55,
+                Title = "Discovery",
+            },
+        };
+
+        var result = await this.controller.HandleLidarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var res = okResult!.Value as ArrWebhookResult;
+        res.Should().NotBeNull();
+        res!.TorrentId.Should().Be(10);
     }
 }
