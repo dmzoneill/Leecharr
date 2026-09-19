@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -893,6 +894,79 @@ public class ProwlarrSyncServiceTest
         synced.Should().Be(1);
         requestedUrls.Should().Contain("https://media.example.com/prowlarr/api/v1/indexer");
         requestedUrls.Should().NotContain("https://media.example.com/api/v1/indexer");
+    }
+
+    [Test]
+    public void Constructor_DefaultHttpClient_DoesNotBypassCertificateValidation()
+    {
+        var service = new ProwlarrSyncService(this.repository);
+        var clientField = typeof(ProwlarrSyncService).GetField("httpClient", BindingFlags.NonPublic | BindingFlags.Instance);
+        var client = clientField!.GetValue(service) as HttpClient;
+        client.Should().NotBeNull();
+
+        var handlerField = typeof(HttpMessageInvoker).GetField("_handler", BindingFlags.NonPublic | BindingFlags.Instance);
+        var handler = handlerField?.GetValue(client) as SocketsHttpHandler;
+        handler.Should().NotBeNull();
+        handler!.SslOptions.RemoteCertificateValidationCallback.Should().BeNull();
+    }
+
+    [Test]
+    public async Task SyncFromProwlarrAsync_DisposesHttpResponseMessage()
+    {
+        var response = new DisposableHttpResponseMessage(HttpStatusCode.OK, new StringContent("[]"));
+        var handler = new MockHttpMessageHandler(_ => response);
+        using var httpClient = new HttpClient(handler);
+        var service = new ProwlarrSyncService(this.repository, httpClient);
+
+        await service.SyncFromProwlarrAsync("http://localhost:9696", "apikey");
+
+        response.IsDisposed.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task SyncFromProwlarrAsync_WhenErrorStatusCode_DisposesHttpResponseMessage()
+    {
+        var response = new DisposableHttpResponseMessage(HttpStatusCode.InternalServerError, new StringContent("error"));
+        var handler = new MockHttpMessageHandler(_ => response);
+        using var httpClient = new HttpClient(handler);
+        var service = new ProwlarrSyncService(this.repository, httpClient);
+
+        var act = async () => await service.SyncFromProwlarrAsync("http://localhost:9696", "apikey");
+
+        await act.Should().ThrowAsync<HttpRequestException>();
+        response.IsDisposed.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_ExecutesSyncAllAsync()
+    {
+        this.repository.All().Returns(new List<IndexerDefinition>());
+        var service = new ProwlarrSyncService(this.repository);
+
+        await service.ExecuteAsync(new ProwlarrSyncCommand());
+
+        this.repository.Received().All();
+    }
+
+    private sealed class DisposableHttpResponseMessage : HttpResponseMessage
+    {
+        public DisposableHttpResponseMessage(HttpStatusCode statusCode, HttpContent content)
+            : base(statusCode)
+        {
+            this.Content = content;
+        }
+
+        public bool IsDisposed { get; private set; }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                this.IsDisposed = true;
+            }
+
+            base.Dispose(disposing);
+        }
     }
 
     private class MockHttpMessageHandler : HttpMessageHandler
