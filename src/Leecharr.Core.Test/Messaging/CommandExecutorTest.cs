@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -24,6 +25,23 @@ public class SampleTestCommandHandler : IExecute<SampleTestCommand>
     public void Execute(SampleTestCommand message)
     {
         this.Executed = true;
+    }
+}
+
+public class SampleDisposableCommandHandler : IExecute<SampleTestCommand>, IDisposable
+{
+    public bool Executed { get; private set; }
+
+    public bool Disposed { get; private set; }
+
+    public void Execute(SampleTestCommand message)
+    {
+        this.Executed = true;
+    }
+
+    public void Dispose()
+    {
+        this.Disposed = true;
     }
 }
 
@@ -118,6 +136,27 @@ public class CommandExecutorTest
     }
 
     [Test]
+    public void Execute_DisposesHandlerWhenHandlerImplementsIDisposable()
+    {
+        var commandModel = new CommandModel
+        {
+            Id = 20,
+            Name = "SampleTest",
+            Status = CommandStatus.Queued,
+            Body = "{}",
+        };
+
+        var handler = new SampleDisposableCommandHandler();
+        this.serviceFactory.Build(typeof(IExecute<SampleTestCommand>)).Returns(handler);
+
+        this.executor.Execute(commandModel);
+
+        handler.Executed.Should().BeTrue();
+        handler.Disposed.Should().BeTrue();
+        commandModel.Status.Should().Be(CommandStatus.Completed);
+    }
+
+    [Test]
     public async Task ExecuteAsync_ExecutesAsyncHandlerAndPropagatesCancellationToken()
     {
         var commandModel = new CommandModel
@@ -140,7 +179,7 @@ public class CommandExecutorTest
     }
 
     [Test]
-    public async Task ExecuteAsync_SetsFailedStatusWhenCancelled()
+    public async Task ExecuteAsync_SetsCancelledStatusWhenCancelled()
     {
         var commandModel = new CommandModel
         {
@@ -158,8 +197,37 @@ public class CommandExecutorTest
 
         await this.executor.ExecuteAsync(commandModel, cts.Token);
 
-        commandModel.Status.Should().Be(CommandStatus.Failed);
+        commandModel.Status.Should().Be(CommandStatus.Cancelled);
         commandModel.Message.Should().Be("Command execution cancelled.");
+    }
+
+    [Test]
+    public async Task ExecuteAsync_WhenRepositoryUpdateThrowsInFinally_CatchesAndDoesNotThrow()
+    {
+        var commandModel = new CommandModel
+        {
+            Id = 30,
+            Name = "SampleTest",
+            Status = CommandStatus.Queued,
+            Body = "{}",
+        };
+
+        var handler = new SampleTestCommandHandler();
+        this.serviceFactory.Build(typeof(IExecute<SampleTestCommand>)).Returns(handler);
+
+        var calls = 0;
+        this.repository.When(r => r.Update(Arg.Any<CommandModel>()))
+            .Do(_ =>
+            {
+                calls++;
+                if (calls > 1)
+                {
+                    throw new InvalidOperationException("Simulated transient SQLite lock error");
+                }
+            });
+
+        var act = () => this.executor.ExecuteAsync(commandModel);
+        await act.Should().NotThrowAsync();
     }
 
     [Test]
@@ -193,6 +261,61 @@ public class CommandExecutorTest
         await worker.StopAsync(System.Threading.CancellationToken.None);
 
         await commandExecutor.Received(1).ExecuteAsync(commandModel, Arg.Any<System.Threading.CancellationToken>());
+    }
+
+    [Test]
+    public async Task CommandWorker_ExecutesCommandsConcurrently_UpToMaxConcurrency()
+    {
+        var runningCount = 0;
+        var maxObservedConcurrency = 0;
+        var syncLock = new object();
+
+        var commands = new List<CommandModel>
+        {
+            new() { Id = 1, Name = "Slow1", Status = CommandStatus.Queued, Body = "{}" },
+            new() { Id = 2, Name = "Slow2", Status = CommandStatus.Queued, Body = "{}" },
+            new() { Id = 3, Name = "Fast3", Status = CommandStatus.Queued, Body = "{}" },
+        };
+
+        var queue = Substitute.For<IManageCommandQueue>();
+        queue.GetQueued().Returns(_ =>
+        {
+            var result = commands.ToArray();
+            commands.Clear();
+            return result;
+        });
+
+        var commandExecutor = Substitute.For<ICommandExecutor>();
+        commandExecutor.ExecuteAsync(Arg.Any<CommandModel>(), Arg.Any<CancellationToken>())
+            .Returns(async callInfo =>
+            {
+                lock (syncLock)
+                {
+                    runningCount++;
+                    if (runningCount > maxObservedConcurrency)
+                    {
+                        maxObservedConcurrency = runningCount;
+                    }
+                }
+
+                await Task.Delay(150, callInfo.Arg<CancellationToken>());
+
+                lock (syncLock)
+                {
+                    runningCount--;
+                }
+            });
+
+        var worker = new CommandWorker(queue, commandExecutor, maxConcurrency: 3);
+
+        using var cts = new CancellationTokenSource();
+        var workerTask = worker.StartAsync(cts.Token);
+
+        await Task.Delay(200);
+        cts.Cancel();
+        await worker.StopAsync(CancellationToken.None);
+
+        maxObservedConcurrency.Should().Be(3);
     }
 
     [Test]
