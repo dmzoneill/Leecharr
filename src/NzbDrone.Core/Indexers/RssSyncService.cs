@@ -330,7 +330,7 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                                                 var fallbackMagnet = !string.IsNullOrWhiteSpace(release.MagnetUrl)
                                                     ? release.MagnetUrl
                                                     : (!string.IsNullOrWhiteSpace(release.InfoHash)
-                                                        ? $"magnet:?xt=urn:btih:{release.InfoHash.Trim()}&dn={Uri.EscapeDataString(release.Title ?? release.InfoHash.Trim())}"
+                                                        ? MagnetLinkParser.BuildMagnetUri(release.InfoHash.Trim(), release.Title ?? release.InfoHash.Trim())
                                                         : null);
 
                                                 if (!string.IsNullOrWhiteSpace(fallbackMagnet))

@@ -226,7 +226,7 @@ public class DownloadClientController : Controller
         var category = !string.IsNullOrWhiteSpace(remoteItem?.Category) ? remoteItem.Category : client.Category;
 
         // Add magnet by hash to engine
-        var magnetUri = $"magnet:?xt=urn:btih:{hash}";
+        var magnetUri = MagnetLinkParser.BuildMagnetUri(hash);
         var added = await this.torrentService.AddFromMagnetAsync(magnetUri, category, savePath, false);
         return this.Ok(TorrentResourceMapper.ToResource(added));
     }
@@ -270,7 +270,7 @@ public class DownloadClientController : Controller
             itemMap.TryGetValue(hash, out var remoteItem);
             var savePath = !string.IsNullOrWhiteSpace(remoteItem?.SavePath) ? remoteItem.SavePath : null;
             var category = !string.IsNullOrWhiteSpace(remoteItem?.Category) ? remoteItem.Category : client.Category;
-            var magnetUri = $"magnet:?xt=urn:btih:{hash}";
+            var magnetUri = MagnetLinkParser.BuildMagnetUri(hash);
 
             try
             {
