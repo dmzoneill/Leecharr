@@ -36,6 +36,7 @@ using NzbDrone.Core.Peers;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
 using CoreTorrent = NzbDrone.Core.Torrents.Torrent;
+using CoreTorrentFile = NzbDrone.Core.Torrents.TorrentFile;
 using MtTorrent = MonoTorrent.Torrent;
 
 namespace NzbDrone.Core.BitTorrent;
@@ -66,6 +67,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     private readonly ConcurrentDictionary<int, MonoTorrentDownloadTask> tasks = new();
     private readonly ConcurrentDictionary<string, int> infoHashToId = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<int, bool> metadataPersistedTorrentIds = new();
     private readonly ConcurrentBag<int> interruptedTorrentIds = new();
     private readonly ConcurrentDictionary<int, byte> schedulerPausedTorrentIds = new();
     private readonly object pendingTorrentsLock = new();
@@ -1277,6 +1279,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
         }
 
+        if (parsedTorrent != null)
+        {
+            this.metadataPersistedTorrentIds.TryAdd(torrent.Id, true);
+        }
+
         if (!isLowDiskSpace && parsedTorrent != null)
         {
             await this.PreallocateFilesAsync(manager, workingPath, parsedTorrent).ConfigureAwait(false);
@@ -1375,6 +1382,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         if (this.tasks.TryRemove(torrentId, out var task))
         {
+            this.metadataPersistedTorrentIds.TryRemove(torrentId, out _);
             this.infoHashToId.TryRemove(task.InfoHash, out _);
             if (task.Manager?.InfoHashes?.V1 != null)
             {
@@ -2829,6 +2837,113 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         }.ToSettings();
                         await manager.UpdateSettingsAsync(strictSettings).ConfigureAwait(false);
                         this.logger.Info("[State Machine] Enforced BEP 27 restrictions for private torrent #{0} ('{1}') (DHT/PEX disabled)", torrentId, torrentName);
+                    }
+                }
+
+                if (manager.Torrent != null && this.metadataPersistedTorrentIds.TryAdd(torrentId, true))
+                {
+                    try
+                    {
+                        var pieceLength = Math.Max(1, manager.Torrent.PieceLength);
+                        long currentByteOffset = 0;
+                        var torrentFiles = new List<CoreTorrentFile>();
+                        if (manager.Torrent.Files != null)
+                        {
+                            foreach (var file in manager.Torrent.Files)
+                            {
+                                var startPiece = (int)(currentByteOffset / pieceLength);
+                                var endByte = currentByteOffset + file.Length - 1;
+                                var endPiece = file.Length > 0 ? (int)(endByte / pieceLength) : startPiece;
+                                var pieceCount = file.Length > 0 ? (endPiece - startPiece + 1) : 0;
+                                torrentFiles.Add(new CoreTorrentFile
+                                {
+                                    TorrentId = torrentId,
+                                    Path = file.Path,
+                                    Size = file.Length,
+                                    PieceOffset = startPiece,
+                                    PieceCount = pieceCount,
+                                    Priority = 1,
+                                    Progress = 0.0,
+                                });
+                                currentByteOffset += file.Length;
+                            }
+                        }
+
+                        byte[] rawBytes = null;
+                        try
+                        {
+                            if (!string.IsNullOrWhiteSpace(manager.MetadataPath) && File.Exists(manager.MetadataPath))
+                            {
+                                rawBytes = File.ReadAllBytes(manager.MetadataPath);
+                            }
+
+                            if (rawBytes == null)
+                            {
+                                var infoMetadataProp = typeof(MtTorrent).GetProperty("InfoMetadata", BindingFlags.NonPublic | BindingFlags.Instance);
+                                if (infoMetadataProp?.GetValue(manager.Torrent) is ReadOnlyMemory<byte> mem && !mem.IsEmpty)
+                                {
+                                    var bDict = new BEncodedDictionary
+                                    {
+                                        [(BEncodedString)"info"] = BEncodedValue.Decode(mem.Span),
+                                    };
+                                    if (manager.Torrent.AnnounceUrls != null && manager.Torrent.AnnounceUrls.Count > 0)
+                                    {
+                                        var tierList = new BEncodedList();
+                                        foreach (var tier in manager.Torrent.AnnounceUrls)
+                                        {
+                                            var list = new BEncodedList();
+                                            foreach (var url in tier)
+                                            {
+                                                list.Add((BEncodedString)url);
+                                            }
+
+                                            tierList.Add(list);
+                                        }
+
+                                        bDict[(BEncodedString)"announce-list"] = tierList;
+                                        if (manager.Torrent.AnnounceUrls[0].Count > 0)
+                                        {
+                                            bDict[(BEncodedString)"announce"] = (BEncodedString)manager.Torrent.AnnounceUrls[0][0];
+                                        }
+                                    }
+
+                                    rawBytes = bDict.Encode();
+                                }
+                            }
+
+                            if (rawBytes != null)
+                            {
+                                var appData = this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder)
+                                    ? this.appFolderInfo.AppDataFolder
+                                    : Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                                var torrentsDir = Path.Combine(appData, "Torrents");
+                                Directory.CreateDirectory(torrentsDir);
+                                var filePath = Path.Combine(torrentsDir, $"{infoHash.ToLowerInvariant()}.torrent");
+                                File.WriteAllBytes(filePath, rawBytes);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            this.logger.Warn(ex, "Failed to save resolved .torrent file for {0}", infoHash);
+                        }
+
+                        this.eventAggregator.PublishEvent(new TorrentMetadataReceivedEvent
+                        {
+                            TorrentId = torrentId,
+                            InfoHash = infoHash.ToLowerInvariant(),
+                            TotalSize = manager.Torrent.Size,
+                            PieceCount = manager.Torrent.PieceCount,
+                            PieceLength = manager.Torrent.PieceLength,
+                            Name = manager.Torrent.Name,
+                            Files = torrentFiles,
+                            TorrentBytes = rawBytes,
+                        });
+
+                        this.logger.Info("Resolved and persisted magnet metadata for torrent {0} ({1}): {2} files, {3} bytes", torrentId, infoHash, torrentFiles.Count, manager.Torrent.Size);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Error(ex, "Failed to process received metadata for torrent {0} ({1})", torrentId, infoHash);
                     }
                 }
 
