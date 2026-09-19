@@ -590,17 +590,30 @@ public class TrackerBoostServiceTest
     [Test]
     public void CalculateDynamicTier_AssignsTiersCorrectlyBasedOnHealthAndLatency()
     {
-        // Tier 0: Fast responsive Alive tracker (< 300ms)
-        TrackerBoostService.CalculateDynamicTier(TrackerHealthStatus.Alive, 50).Should().Be(0);
-        TrackerBoostService.CalculateDynamicTier(TrackerHealthStatus.Alive, 299).Should().Be(0);
+        // Tier 1: Fast responsive Alive tracker (< 300ms) - Tier 0 reserved for canonical torrent trackers
+        TrackerBoostService.CalculateDynamicTier(TrackerHealthStatus.Alive, 50).Should().Be(1);
+        TrackerBoostService.CalculateDynamicTier(TrackerHealthStatus.Alive, 299).Should().Be(1);
 
-        // Tier 1: Alive (>= 300ms) or Slow (< 1000ms)
-        TrackerBoostService.CalculateDynamicTier(TrackerHealthStatus.Alive, 350).Should().Be(1);
-        TrackerBoostService.CalculateDynamicTier(TrackerHealthStatus.Slow, 500).Should().Be(1);
+        // Tier 2: Alive (>= 300ms) or Slow (< 1000ms)
+        TrackerBoostService.CalculateDynamicTier(TrackerHealthStatus.Alive, 350).Should().Be(2);
+        TrackerBoostService.CalculateDynamicTier(TrackerHealthStatus.Slow, 500).Should().Be(2);
 
-        // Tier 2: Offline, Untested, or excessive latency
-        TrackerBoostService.CalculateDynamicTier(TrackerHealthStatus.Offline, 50).Should().Be(2);
-        TrackerBoostService.CalculateDynamicTier(TrackerHealthStatus.Untested, 0).Should().Be(2);
+        // Tier 3: Offline, Untested, or excessive latency
+        TrackerBoostService.CalculateDynamicTier(TrackerHealthStatus.Offline, 50).Should().Be(3);
+        TrackerBoostService.CalculateDynamicTier(TrackerHealthStatus.Untested, 0).Should().Be(3);
+    }
+
+    [Test]
+    public void CalculateDynamicTier_NeverReturnsTierZero()
+    {
+        // BEP 12 reserves Tier 0 for canonical torrent trackers; injected trackers must never be assigned Tier 0
+        foreach (TrackerHealthStatus status in Enum.GetValues(typeof(TrackerHealthStatus)))
+        {
+            for (var latency = 0; latency <= 2000; latency += 50)
+            {
+                TrackerBoostService.CalculateDynamicTier(status, latency).Should().BeGreaterThanOrEqualTo(1);
+            }
+        }
     }
 
     [Test]
@@ -649,10 +662,10 @@ public class TrackerBoostServiceTest
         var slowEntry = this.storedEntries.FirstOrDefault(e => e.Url == slowTracker.Url);
 
         fastEntry.Should().NotBeNull();
-        fastEntry!.Tier.Should().Be(0); // Fast alive tracker -> Tier 0
+        fastEntry!.Tier.Should().Be(1); // Fast alive tracker -> Tier 1
 
         slowEntry.Should().NotBeNull();
-        slowEntry!.Tier.Should().Be(1); // Slow tracker -> Tier 1
+        slowEntry!.Tier.Should().Be(2); // Slow tracker -> Tier 2
     }
 
     [Test]
