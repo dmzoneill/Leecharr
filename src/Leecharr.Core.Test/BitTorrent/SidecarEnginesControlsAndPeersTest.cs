@@ -1,6 +1,11 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
+using System.Net;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -147,5 +152,65 @@ public class SidecarEnginesControlsAndPeersTest
 
         var actSetPriority = async () => await engine.SetFilePriorityAsync(20, "video.mp4", 0);
         await actSetPriority.Should().NotThrowAsync();
+    }
+
+    [Test]
+    public async Task LibTorrentDownloadEngine_MoveTorrentFilesAsync_SendsMoveStorageRpc_WithFlagsAndRethrowsOnError()
+    {
+        var tcs = new TaskCompletionSource<string>();
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            if (body.Contains("move_storage"))
+            {
+                tcs.TrySetResult(body);
+                return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"result\":\"success\",\"arguments\":{}}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = new LibTorrentDownloadEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator,
+            httpClient);
+
+        var torrent = new Torrent { Id = 55, InfoHash = "aabbccddeeff00112233445566778899aabbccdd", Name = "Test LibTorrent" };
+        await engine.AddTorrentAsync(torrent);
+
+        var act = async () => await engine.MoveTorrentFilesAsync(55, "/dest/dir", moveFiles: true);
+        await act.Should().ThrowAsync<HttpRequestException>();
+
+        var completed = await Task.WhenAny(tcs.Task, Task.Delay(2000));
+        completed.Should().Be(tcs.Task);
+
+        var payload = await tcs.Task;
+        using var doc = JsonDocument.Parse(payload);
+        doc.RootElement.GetProperty("method").GetString().Should().Be("move_storage");
+        var args = doc.RootElement.GetProperty("params");
+        args.GetProperty("save_path").GetString().Should().Be("/dest/dir");
+        args.GetProperty("flags").GetInt32().Should().Be(1);
+    }
+
+    private class MockHttpMessageHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, HttpResponseMessage> handler;
+
+        public MockHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> handler)
+        {
+            this.handler = handler;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(this.handler(request));
+        }
     }
 }

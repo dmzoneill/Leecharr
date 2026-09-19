@@ -838,7 +838,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         }
     }
 
-    public async Task MoveTorrentFilesAsync(int torrentId, string newSavePath)
+    public async Task MoveTorrentFilesAsync(int torrentId, string newSavePath, bool moveFiles = true)
     {
         if (this.tasks.TryGetValue(torrentId, out var task))
         {
@@ -851,13 +851,14 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                     {
                         ["ids"] = rpcIds,
                         ["location"] = newSavePath,
-                        ["move"] = true,
+                        ["move"] = moveFiles,
                     });
                 }
             }
             catch (Exception ex)
             {
-                this.logger.Warn(ex, "Error moving files for torrent {0}", torrentId);
+                this.logger.Error(ex, "Error moving files for torrent {0}", torrentId);
+                throw;
             }
         }
     }

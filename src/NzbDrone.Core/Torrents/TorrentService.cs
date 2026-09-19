@@ -1653,12 +1653,48 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             catch (Exception ex)
             {
                 this.logger.Error(ex, "Failed to move files in download engine for torrent {0} to '{1}'", torrent.Id, newSavePath);
+                if (moveFiles && !string.IsNullOrWhiteSpace(oldSavePath))
+                {
+                    try
+                    {
+                        this.logger.Info("Attempting to rollback torrent {0} files back to '{1}'", torrent.Id, oldSavePath);
+                        await this.downloadEngine.MoveTorrentFilesAsync(id, oldSavePath, moveFiles: true);
+                    }
+                    catch (Exception rollbackEx)
+                    {
+                        this.logger.Error(rollbackEx, "Failed to rollback torrent {0} files to '{1}' after move failure", torrent.Id, oldSavePath);
+                    }
+                }
+
                 throw;
             }
         }
 
         torrent.SavePath = newSavePath;
-        this.torrentRepository.Update(torrent);
+        try
+        {
+            this.torrentRepository.Update(torrent);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error(ex, "Failed to update repository for torrent {0} after moving files to '{1}'", torrent.Id, newSavePath);
+            torrent.SavePath = oldSavePath;
+            if (this.downloadEngine != null && !string.IsNullOrWhiteSpace(oldSavePath))
+            {
+                try
+                {
+                    this.logger.Info("Attempting to rollback torrent {0} files back to '{1}' after database update failure", torrent.Id, oldSavePath);
+                    await this.downloadEngine.MoveTorrentFilesAsync(id, oldSavePath, moveFiles);
+                }
+                catch (Exception rollbackEx)
+                {
+                    this.logger.Error(rollbackEx, "Failed to rollback torrent {0} files to '{1}' after database update failure", torrent.Id, oldSavePath);
+                }
+            }
+
+            throw;
+        }
+
         this.eventAggregator.PublishEvent(new TorrentUpdatedEvent { Torrent = torrent });
         this.logger.Info("Updated save path for torrent {0} ({1}) to '{2}' (moved={3})", torrent.Id, torrent.Name, newSavePath, moveFiles);
     }

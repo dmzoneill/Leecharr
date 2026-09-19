@@ -21,6 +21,7 @@ using NzbDrone.Core.Network;
 using NzbDrone.Core.Network.Binding;
 using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Network.Vpn;
+using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Core.Test.BitTorrent;
 
@@ -333,6 +334,70 @@ public class EmbeddedTransmissionEngineTest
 
         args.GetProperty("bind-address-ipv4").GetString().Should().Be("10.10.0.8");
         args.GetProperty("bind-address-ipv4").GetString().Should().NotBe("0.0.0.0");
+    }
+
+    [Test]
+    public async Task MoveTorrentFilesAsync_SendsTorrentSetLocationRpc_WithMoveFilesParameter()
+    {
+        var tcs = new TaskCompletionSource<string>();
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            if (body.Contains("torrent-set-location"))
+            {
+                tcs.TrySetResult(body);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"result\":\"success\",\"arguments\":{}}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        var torrent = new Torrent { Id = 42, InfoHash = "0123456789abcdef0123456789abcdef01234567", Name = "Test" };
+        await engine.AddTorrentAsync(torrent);
+
+        await engine.MoveTorrentFilesAsync(42, "/new/save/path", moveFiles: false);
+
+        var completed = await Task.WhenAny(tcs.Task, Task.Delay(2000));
+        completed.Should().Be(tcs.Task);
+
+        var payload = await tcs.Task;
+        using var doc = JsonDocument.Parse(payload);
+        doc.RootElement.GetProperty("method").GetString().Should().Be("torrent-set-location");
+        var args = doc.RootElement.GetProperty("arguments");
+        args.GetProperty("location").GetString().Should().Be("/new/save/path");
+        args.GetProperty("move").GetBoolean().Should().BeFalse();
+    }
+
+    [Test]
+    public async Task MoveTorrentFilesAsync_WhenRpcFails_RethrowsException()
+    {
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            var body = req.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            if (body.Contains("torrent-set-location"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"result\":\"success\",\"arguments\":{}}"),
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+        using var engine = this.CreateEngine(httpClient);
+
+        var torrent = new Torrent { Id = 42, InfoHash = "0123456789abcdef0123456789abcdef01234567", Name = "Test" };
+        await engine.AddTorrentAsync(torrent);
+
+        var act = async () => await engine.MoveTorrentFilesAsync(42, "/new/save/path", moveFiles: true);
+        await act.Should().ThrowAsync<HttpRequestException>();
     }
 
     private EmbeddedTransmissionEngine CreateEngine(HttpClient client = null)
