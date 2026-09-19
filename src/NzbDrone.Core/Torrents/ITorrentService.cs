@@ -15,7 +15,15 @@ public interface ITorrentService
 
     Task<Torrent> AddFromParsedTorrentAsync(ParsedTorrent parsed, string category = null, string savePath = null, bool startPaused = false, byte[] rawBytes = null);
 
+    Task<Torrent> AddFromParsedTorrentAsync(ParsedTorrent parsed, string category, string savePath, bool startPaused, byte[] rawBytes, bool? sequentialDownload, bool? firstLastPiecePriority);
+
     Task<Torrent> AddFromMagnetAsync(string magnetUri, string category = null, string savePath = null, bool startPaused = false);
+
+    Task<Torrent> AddFromMagnetAsync(string magnetUri, string category, string savePath, bool startPaused, bool? sequentialDownload, bool? firstLastPiecePriority);
+
+    Task SetSequentialDownloadAsync(int id, bool enabled);
+
+    Task SetFirstLastPiecePriorityAsync(int id, bool enabled);
 
     Task<Torrent> UpdateAsync(Torrent torrent);
 

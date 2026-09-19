@@ -6065,4 +6065,54 @@ public class MonoTorrentDownloadEngineTest
         this.engine.RejectRequest(643, picked[0].PieceIndex, picked[0].BlockOffset, picked[0].BlockLength, "peerA");
         task.Picker.InFlightBlockCount.Should().Be(0);
     }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenFirstLastPiecePriorityTrue_SetsPriorityOnTaskAndPicker()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("first_last.iso");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+        var torrent = new CoreTorrent
+        {
+            Id = 793,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "first_last.iso",
+            Status = TorrentStatus.Downloading,
+            FirstLastPiecePriority = true,
+            SequentialDownload = true,
+        };
+
+        await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        var task = this.engine.GetTask(793);
+        task.Should().NotBeNull();
+        task!.FirstLastPiecePriority.Should().BeTrue();
+        task.SequentialDownload.Should().BeTrue();
+        task.Picker.Should().NotBeNull();
+        task.Picker.SequentialMode.Should().BeTrue();
+        task.Picker.GetPiecePriority(0).Should().Be(3);
+    }
+
+    [Test]
+    public async Task SetSequentialDownloadAsync_WhenToggled_UpdatesTaskAndPicker()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("seq_toggle.iso");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+        var torrent = new CoreTorrent
+        {
+            Id = 794,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "seq_toggle.iso",
+            Status = TorrentStatus.Downloading,
+            SequentialDownload = false,
+        };
+
+        await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        var task = this.engine.GetTask(794);
+        task.Should().NotBeNull();
+        task!.SequentialDownload.Should().BeFalse();
+
+        await this.engine.SetSequentialDownloadAsync(794, true);
+        task.SequentialDownload.Should().BeTrue();
+        task.Picker.Should().NotBeNull();
+        task.Picker.SequentialMode.Should().BeTrue();
+    }
 }

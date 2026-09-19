@@ -1231,6 +1231,13 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             eventAggregator: this.eventAggregator);
         downloadTask.SavePath = completedDir;
         downloadTask.IsFilesMovedToCompleted = isCompleteOrSeeding;
+        downloadTask.SequentialDownload = torrent.SequentialDownload;
+        downloadTask.FirstLastPiecePriority = torrent.FirstLastPiecePriority;
+        if (downloadTask.Picker != null)
+        {
+            downloadTask.Picker.SequentialMode = torrent.SequentialDownload;
+        }
+
         this.tasks[torrent.Id] = downloadTask;
         if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
         {
@@ -1251,6 +1258,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         manager.PieceHashed += this.OnPieceHashed;
 
         await this.ApplyStoredFilePrioritiesAsync(downloadTask).ConfigureAwait(false);
+
+        if (torrent.FirstLastPiecePriority)
+        {
+            await this.SetFirstLastPiecePriorityAsync(torrent.Id, true).ConfigureAwait(false);
+        }
 
         if (manager.Complete || (manager.Bitfield != null && manager.Bitfield.Length > 0 && manager.Bitfield.AllTrue) || isCompleteOrSeeding)
         {
@@ -2647,6 +2659,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         if (this.tasks.TryGetValue(torrentId, out var task))
         {
             task.SequentialDownload = enabled;
+            if (task.Picker != null)
+            {
+                task.Picker.SequentialMode = enabled;
+            }
+
             this.logger.Info("Updated sequential download for torrent {0}: {1}", torrentId, enabled);
         }
 
@@ -5447,6 +5464,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
             {
                 var t = manager.Torrent;
                 this.Picker = new PiecePicker(t.PieceCount, t.PieceLength, t.Size, configService: configService);
+                this.Picker.SequentialMode = this.SequentialDownload;
                 if (manager.Bitfield != null)
                 {
                     for (var i = 0; i < Math.Min(manager.Bitfield.Length, t.PieceCount); i++)
