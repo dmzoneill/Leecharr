@@ -1445,6 +1445,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             torrent.ErrorMessage = task.ErrorMessage;
             torrent.Progress = task.Progress;
 
+            var initialSeedingConcluded = torrent.InitialSeeding && !task.IsSuperSeeding && task.Status == TorrentStatus.Seeding;
             var initialSeedingChanged = torrent.InitialSeeding != task.IsSuperSeeding;
             if (initialSeedingChanged)
             {
@@ -1548,6 +1549,12 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                     OldStatus = oldStatus,
                     NewStatus = torrent.Status,
                 });
+            }
+            else if (initialSeedingConcluded)
+            {
+                this.torrentRepository.Update(torrent);
+                this.eventAggregator.PublishEvent(new TorrentUpdatedEvent { Torrent = torrent });
+                this.logger.Info("Initial seeding (super seeding) concluded for torrent {0} ({1}); synchronized to normal seeding.", torrent.Id, torrent.Name);
             }
             else if (initialSeedingChanged || dateCompletedSet || statsChanged)
             {

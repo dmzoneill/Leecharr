@@ -1967,6 +1967,62 @@ public class TorrentServiceTest
         result.Should().NotBeNull();
         result.InitialSeeding.Should().BeFalse();
         this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t => t.Id == 501 && !t.InitialSeeding));
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentUpdatedEvent>(e => e.Torrent.Id == 501 && !e.Torrent.InitialSeeding));
+    }
+
+    [Test]
+    public void SyncWithEngine_WhenSuperSeedingConcludedOnActiveSeeder_UpdatesInitialSeedingPersistsAndPublishesTorrentUpdatedEvent()
+    {
+        var torrent = new Torrent
+        {
+            Id = 502,
+            Name = "SuperSeeding Concluded Torrent",
+            Status = TorrentStatus.Seeding,
+            InitialSeeding = true,
+            QueuePosition = 2,
+            DateCompleted = DateTime.UtcNow,
+        };
+
+        var task = Substitute.For<IDownloadTask>();
+        task.Status.Returns(TorrentStatus.Seeding);
+        task.IsSuperSeeding.Returns(false);
+
+        this.torrentRepository.Get(502).Returns(torrent);
+        this.downloadEngine.GetTask(502).Returns(task);
+
+        var result = this.service.Get(502);
+
+        result.Should().NotBeNull();
+        result.InitialSeeding.Should().BeFalse();
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t => t.Id == 502 && !t.InitialSeeding));
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentUpdatedEvent>(e => e.Torrent.Id == 502 && !e.Torrent.InitialSeeding));
+    }
+
+    [Test]
+    public void SyncWithEngine_WhenSuperSeedingDoesNotConclude_DoesNotPublishTorrentUpdatedEvent()
+    {
+        var torrent = new Torrent
+        {
+            Id = 503,
+            Name = "Normal Seeding Torrent",
+            Status = TorrentStatus.Seeding,
+            InitialSeeding = false,
+            QueuePosition = 3,
+            DateCompleted = DateTime.UtcNow,
+        };
+
+        var task = Substitute.For<IDownloadTask>();
+        task.Status.Returns(TorrentStatus.Seeding);
+        task.IsSuperSeeding.Returns(false);
+
+        this.torrentRepository.Get(503).Returns(torrent);
+        this.downloadEngine.GetTask(503).Returns(task);
+
+        var result = this.service.Get(503);
+
+        result.Should().NotBeNull();
+        result.InitialSeeding.Should().BeFalse();
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentUpdatedEvent>());
     }
 
     [TestCase("/etc")]
