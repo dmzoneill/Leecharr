@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.16.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.16.0) - 2026-09-19
+
+### ✨ Features
+- feat(ui): add queue reordering buttons to bulk toolbar and context menu
+- feat(ui): make right-click context menu selection-aware with batch indicators and actions
+- feat(bittorrent): add embedded libtorrent-rasterbar daemon supervisor for automatic hot-swap lifecycle
+
+### 🐛 Bug Fixes
+- fix(ui): ensure '#' column displays sequential row index and add dedicated 'Queue #' column
+
+### 🔧 Maintenance & Improvements
+- ci: remove unsupported workflow inputs from main.yml
+- test(network): fix mock gateway epoch sequencing during NAT-PMP reboot test
+- style(bittorrent): format libtorrent_daemon.py with ruff and remove unused imports
+- test(integration): add physical backend verification for torrent engine hot-swap and transfer migration
+
 ## [v1.15.7](https://github.com/dmzoneill/Leecharr/releases/tag/v1.15.7) - 2026-09-19
 
 ### 🔧 Maintenance & Improvements
