@@ -397,17 +397,131 @@ public class MonoTorrentDownloadEngineTest
         conn.Disposed.Should().BeTrue();
     }
 
+    [Test]
+    public void FilteringPeerConnectionListener_WhenMaxConnectionsPerIpExceeded_RejectsAndDisposesIncomingConnection()
+    {
+        var innerListener = Substitute.For<MonoTorrent.Connections.Peer.IPeerConnectionListener>();
+        var filteringListener = new FilteringPeerConnectionListener(
+            innerListener,
+            maxConnectionsPerIp: 2,
+            maxHalfOpenConnections: 10);
+
+        var receivedCount = 0;
+        filteringListener.ConnectionReceived += (_, _) => receivedCount++;
+
+        var conn1 = new FakePeerConnection("192.168.1.50", 1001);
+        var conn2 = new FakePeerConnection("192.168.1.50", 1002);
+        var conn3 = new FakePeerConnection("192.168.1.50", 1003);
+        var connOther = new FakePeerConnection("192.168.1.51", 1001);
+
+        innerListener.ConnectionReceived += Raise.Event<EventHandler<MonoTorrent.Connections.Peer.PeerConnectionEventArgs>>(
+            innerListener,
+            new MonoTorrent.Connections.Peer.PeerConnectionEventArgs(conn1, null));
+        innerListener.ConnectionReceived += Raise.Event<EventHandler<MonoTorrent.Connections.Peer.PeerConnectionEventArgs>>(
+            innerListener,
+            new MonoTorrent.Connections.Peer.PeerConnectionEventArgs(conn2, null));
+
+        receivedCount.Should().Be(2);
+        filteringListener.GetActiveConnections("192.168.1.50").Should().Be(2);
+        conn1.Disposed.Should().BeFalse();
+        conn2.Disposed.Should().BeFalse();
+
+        // 3rd connection from same IP exceeds limit of 2 -> dropped and disposed
+        innerListener.ConnectionReceived += Raise.Event<EventHandler<MonoTorrent.Connections.Peer.PeerConnectionEventArgs>>(
+            innerListener,
+            new MonoTorrent.Connections.Peer.PeerConnectionEventArgs(conn3, null));
+
+        receivedCount.Should().Be(2);
+        filteringListener.GetActiveConnections("192.168.1.50").Should().Be(2);
+        conn3.Disposed.Should().BeTrue();
+
+        // Connection from different IP is accepted
+        innerListener.ConnectionReceived += Raise.Event<EventHandler<MonoTorrent.Connections.Peer.PeerConnectionEventArgs>>(
+            innerListener,
+            new MonoTorrent.Connections.Peer.PeerConnectionEventArgs(connOther, null));
+
+        receivedCount.Should().Be(3);
+        filteringListener.GetActiveConnections("192.168.1.51").Should().Be(1);
+        connOther.Disposed.Should().BeFalse();
+    }
+
+    [Test]
+    public void FilteringPeerConnectionListener_WhenPeerDisconnects_DecrementsActiveConnectionCount()
+    {
+        var innerListener = Substitute.For<MonoTorrent.Connections.Peer.IPeerConnectionListener>();
+        var filteringListener = new FilteringPeerConnectionListener(
+            innerListener,
+            maxConnectionsPerIp: 1,
+            maxHalfOpenConnections: 10);
+
+        MonoTorrent.Connections.Peer.IPeerConnection wrappedConn = null!;
+        filteringListener.ConnectionReceived += (_, e) => wrappedConn = e.Connection;
+
+        var conn1 = new FakePeerConnection("192.168.1.60", 2001);
+        innerListener.ConnectionReceived += Raise.Event<EventHandler<MonoTorrent.Connections.Peer.PeerConnectionEventArgs>>(
+            innerListener,
+            new MonoTorrent.Connections.Peer.PeerConnectionEventArgs(conn1, null));
+
+        filteringListener.GetActiveConnections("192.168.1.60").Should().Be(1);
+
+        // Disconnect first connection
+        wrappedConn.Dispose();
+
+        filteringListener.GetActiveConnections("192.168.1.60").Should().Be(0);
+
+        // New connection from same IP is now permitted
+        var conn2 = new FakePeerConnection("192.168.1.60", 2002);
+        innerListener.ConnectionReceived += Raise.Event<EventHandler<MonoTorrent.Connections.Peer.PeerConnectionEventArgs>>(
+            innerListener,
+            new MonoTorrent.Connections.Peer.PeerConnectionEventArgs(conn2, null));
+
+        filteringListener.GetActiveConnections("192.168.1.60").Should().Be(1);
+        conn2.Disposed.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task FilteringPeerConnectionListener_WhenHandshakeTimesOut_DecrementsIpConnectionCount()
+    {
+        var innerListener = Substitute.For<MonoTorrent.Connections.Peer.IPeerConnectionListener>();
+        var filteringListener = new FilteringPeerConnectionListener(
+            innerListener,
+            maxConnectionsPerIp: 1,
+            maxHalfOpenConnections: 10,
+            handshakeTimeout: TimeSpan.FromMilliseconds(50));
+
+        filteringListener.ConnectionReceived += (_, _) => { };
+
+        var conn = new FakePeerConnection("192.168.1.70", 3001);
+        innerListener.ConnectionReceived += Raise.Event<EventHandler<MonoTorrent.Connections.Peer.PeerConnectionEventArgs>>(
+            innerListener,
+            new MonoTorrent.Connections.Peer.PeerConnectionEventArgs(conn, null));
+
+        filteringListener.GetActiveConnections("192.168.1.70").Should().Be(1);
+        conn.Disposed.Should().BeFalse();
+
+        await Task.Delay(150);
+
+        conn.Disposed.Should().BeTrue();
+        filteringListener.GetActiveConnections("192.168.1.70").Should().Be(0);
+    }
+
     private sealed class FakePeerConnection : MonoTorrent.Connections.Peer.IPeerConnection, IDisposable
     {
+        public FakePeerConnection(string ip = "127.0.0.1", int port = 12345)
+        {
+            this.EndPoint = new IPEndPoint(IPAddress.Parse(ip), port);
+            this.Uri = new Uri($"ipv4://{ip}:{port}");
+        }
+
         public bool Disposed { get; private set; }
 
         public bool CanReconnect => false;
 
         public bool IsIncoming => true;
 
-        public IPEndPoint EndPoint { get; set; } = new IPEndPoint(IPAddress.Loopback, 12345);
+        public IPEndPoint EndPoint { get; set; }
 
-        public Uri Uri => new Uri("ipv4://127.0.0.1:12345");
+        public Uri Uri { get; set; }
 
         public ReadOnlyMemory<byte> AddressBytes => new byte[4];
 
