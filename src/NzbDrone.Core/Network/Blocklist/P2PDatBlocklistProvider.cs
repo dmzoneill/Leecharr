@@ -267,7 +267,7 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
             var rightCandidate = line[(hyphenIdx + 1)..].Trim();
 
             if (!TryExtractStartIp(leftCandidate, out var startIp, out var name) ||
-                !TryExtractEndIp(rightCandidate, out var endIp))
+                !TryExtractEndIp(rightCandidate, startIp, out var endIp))
             {
                 return false;
             }
@@ -408,7 +408,7 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
         return false;
     }
 
-    private static bool TryExtractEndIp(string candidate, out IPAddress endIp)
+    private static bool TryExtractEndIp(string candidate, IPAddress startIp, out IPAddress endIp)
     {
         endIp = null;
 
@@ -425,9 +425,34 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
             if (int.TryParse(levelStr, out _) && !levelStr.Contains('.') && !candidate[..lastColon].EndsWith(':'))
             {
                 var withoutLevel = candidate[..lastColon].Trim();
-                if (TryParseStrictIp(withoutLevel, out endIp))
+                if (TryParseStrictIp(withoutLevel, out var parsedWithoutLevel))
                 {
-                    return true;
+                    if (parsedWithoutLevel.AddressFamily == AddressFamily.InterNetwork)
+                    {
+                        endIp = parsedWithoutLevel;
+                        return true;
+                    }
+
+                    if (parsedWithoutLevel.AddressFamily == AddressFamily.InterNetworkV6)
+                    {
+                        if (candidate.StartsWith('['))
+                        {
+                            endIp = parsedWithoutLevel;
+                            return true;
+                        }
+
+                        if (TryParseStrictIp(candidate, out var parsedCandidate))
+                        {
+                            if (startIp != null && startIp.AddressFamily == AddressFamily.InterNetworkV6 && CompareIpv6(startIp, parsedWithoutLevel) > 0)
+                            {
+                                endIp = parsedCandidate;
+                                return true;
+                            }
+                        }
+
+                        endIp = parsedWithoutLevel;
+                        return true;
+                    }
                 }
             }
         }
@@ -452,6 +477,11 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
             return false;
         }
 
+        if (TryExtractIpOrCidrCore(candidate, out ip, out prefixLength, out name))
+        {
+            return true;
+        }
+
         var lastColon = candidate.LastIndexOf(':');
         if (lastColon >= 0 && lastColon < candidate.Length - 1)
         {
@@ -461,12 +491,34 @@ public class P2PDatBlocklistProvider : IBlocklistProvider
                 var withoutLevel = candidate[..lastColon].Trim();
                 if (TryExtractIpOrCidrCore(withoutLevel, out ip, out prefixLength, out name))
                 {
+                    if (ip.AddressFamily == AddressFamily.InterNetworkV6 && prefixLength == 0 && !candidate.StartsWith('['))
+                    {
+                        ip = null;
+                        prefixLength = 0;
+                        name = string.Empty;
+                        return false;
+                    }
+
                     return true;
                 }
             }
         }
 
-        return TryExtractIpOrCidrCore(candidate, out ip, out prefixLength, out name);
+        return false;
+    }
+
+    private static int CompareIpv6(IPAddress ip1, IPAddress ip2)
+    {
+        Span<byte> b1 = stackalloc byte[16];
+        Span<byte> b2 = stackalloc byte[16];
+        if (ip1.TryWriteBytes(b1, out _) && ip2.TryWriteBytes(b2, out _))
+        {
+            var u1 = BinaryPrimitives.ReadUInt128BigEndian(b1);
+            var u2 = BinaryPrimitives.ReadUInt128BigEndian(b2);
+            return u1.CompareTo(u2);
+        }
+
+        return 0;
     }
 
     private static bool TryExtractIpOrCidrCore(string candidate, out IPAddress ip, out int prefixLength, out string name)
