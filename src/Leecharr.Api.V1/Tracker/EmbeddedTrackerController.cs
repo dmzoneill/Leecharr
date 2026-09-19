@@ -45,7 +45,7 @@ public class EmbeddedTrackerController : ControllerBase
         }
 
         var trustedCidrs = this.GetTrustedProxies();
-        if (remoteIp != null && this.trustedNetworkService.IsTrustedProxy(remoteIp, trustedCidrs))
+        if (remoteIp != null && (IPAddress.IsLoopback(remoteIp) || this.trustedNetworkService.IsTrustedProxy(remoteIp, trustedCidrs)))
         {
             IPAddress candidateIp = null;
             if (this.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor) && !string.IsNullOrWhiteSpace(forwardedFor))
