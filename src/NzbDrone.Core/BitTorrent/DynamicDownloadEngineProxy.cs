@@ -432,6 +432,12 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
         await engine.RemoveTrackersAsync(torrentId, trackers);
     }
 
+    public async Task<(int Added, int Failed)> AddPeersAsync(int torrentId, IEnumerable<string> peers)
+    {
+        var engine = await this.GetReadyEngineAsync();
+        return engine != null ? await engine.AddPeersAsync(torrentId, peers) : (0, peers?.Count() ?? 0);
+    }
+
     public async Task SetFilePriorityAsync(int torrentId, string filePath, int priority)
     {
         var engine = await this.GetReadyEngineAsync();
