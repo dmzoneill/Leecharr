@@ -1211,4 +1211,56 @@ public class TorrentControllerTest
         await this.torrentService.Received(1).UpdateAsync(torrent);
         await this.downloadEngine.DidNotReceive().SetTorrentRateLimitsAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>());
     }
+
+    [Test]
+    public async Task Update_WhenInitialSeedingEnabledOnIncompleteTorrent_ReturnsBadRequest()
+    {
+        var existing = new Torrent
+        {
+            Id = 60,
+            Name = "Incomplete",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.75,
+            InitialSeeding = false,
+        };
+        this.torrentService.Get(60).Returns(existing);
+
+        var resource = new TorrentResource
+        {
+            Id = 60,
+            InitialSeeding = true,
+        };
+
+        var response = await this.controller.Update(60, resource);
+
+        var badRequest = response.Result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        badRequest.Value.Should().Be("Super seeding can only be enabled for 100% completed seeding torrents.");
+        await this.torrentService.DidNotReceive().UpdateAsync(Arg.Any<Torrent>());
+    }
+
+    [Test]
+    public async Task Update_WhenInitialSeedingEnabledOnCompletedSeedingTorrent_Succeeds()
+    {
+        var existing = new Torrent
+        {
+            Id = 61,
+            Name = "Completed",
+            Status = TorrentStatus.Seeding,
+            Progress = 1.0,
+            InitialSeeding = false,
+        };
+        this.torrentService.Get(61).Returns(existing);
+        this.torrentService.UpdateAsync(existing).Returns(Task.FromResult(existing));
+
+        var resource = new TorrentResource
+        {
+            Id = 61,
+            InitialSeeding = true,
+        };
+
+        var response = await this.controller.Update(61, resource);
+
+        response.Result.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.Received(1).SetSuperSeedingAsync(61, true);
+    }
 }

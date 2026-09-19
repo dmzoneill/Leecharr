@@ -301,7 +301,8 @@ public class DynamicDownloadEngineProxyTest
             Id = 42,
             Name = "Rollback Torrent",
             InfoHash = "1234567890123456789012345678901234567890",
-            Status = TorrentStatus.Downloading,
+            Status = TorrentStatus.Seeding,
+            Progress = 1.0,
             DownloadLimit = 3000,
             UploadLimit = 1500,
             InitialSeeding = true,
@@ -384,7 +385,8 @@ public class DynamicDownloadEngineProxyTest
             Id = 42,
             Name = "Special ISO",
             InfoHash = "1111222233334444555566667777888899990000",
-            Status = TorrentStatus.Downloading,
+            Status = TorrentStatus.Seeding,
+            Progress = 1.0,
             DownloadLimit = 5000,
             UploadLimit = 2000,
             InitialSeeding = true,
@@ -415,6 +417,33 @@ public class DynamicDownloadEngineProxyTest
         await this.libTorrentEngine.Received(1).SetSuperSeedingAsync(42, true);
         await this.libTorrentEngine.Received(1).SetTorrentPrivateStatusAsync(42, true);
         await this.libTorrentEngine.Received(1).AddTrackersAsync(42, Arg.Is<List<string>>(list => list.Contains("http://tracker2.com/announce")));
+    }
+
+    [Test]
+    public async Task SwitchEngineAsync_WhenPreservingTransfers_DoesNotReapplySuperSeedingOnIncompleteTorrents()
+    {
+        var incompleteTorrent = new Torrent
+        {
+            Id = 99,
+            Name = "Incomplete ISO",
+            InfoHash = "9999222233334444555566667777888899990000",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            InitialSeeding = true,
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { incompleteTorrent });
+
+        using var testProxy = new DynamicDownloadEngineProxy(
+            new List<ITorrentEngine> { this.monoTorrentEngine, this.libTorrentEngine },
+            this.configService,
+            this.torrentRepository,
+            this.eventAggregator);
+
+        var result = await testProxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
+
+        result.Success.Should().BeTrue();
+        await this.libTorrentEngine.DidNotReceive().SetSuperSeedingAsync(99, true);
     }
 
     [Test]

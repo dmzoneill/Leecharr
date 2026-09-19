@@ -924,6 +924,11 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             return this.NotFound();
         }
 
+        if (resource.InitialSeeding == true && (existing.Progress < 1.0 || existing.Status != TorrentStatus.Seeding))
+        {
+            return this.BadRequest("Super seeding can only be enabled for 100% completed seeding torrents.");
+        }
+
         if (resource.Category != null)
         {
             existing.Category = resource.Category;

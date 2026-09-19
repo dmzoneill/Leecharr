@@ -605,7 +605,7 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
                     await engine.SetTorrentRateLimitsAsync(torrent.Id, torrent.DownloadLimit, torrent.UploadLimit);
                 }
 
-                if (torrent.InitialSeeding)
+                if (torrent.InitialSeeding && torrent.Progress >= 1.0 && torrent.Status == TorrentStatus.Seeding)
                 {
                     await engine.SetSuperSeedingAsync(torrent.Id, true);
                 }
