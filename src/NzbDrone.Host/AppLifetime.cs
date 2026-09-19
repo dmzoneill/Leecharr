@@ -267,19 +267,23 @@ public class AppLifetime : IHostedService, IDisposable
 
         try
         {
-            if (this.services.Database != null)
+            if (this.services.Database?.DatabaseType == DatabaseType.SQLite)
             {
                 using var conn = this.services.Database.OpenConnection();
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
                 cmd.ExecuteNonQuery();
-            }
 
-            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+                Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            }
+            else if (this.services.Database?.DatabaseType == DatabaseType.PostgreSQL)
+            {
+                Npgsql.NpgsqlConnection.ClearAllPools();
+            }
         }
         catch (Exception ex)
         {
-            this.logger.Warn(ex, "Error performing SQLite WAL checkpoint and pool clear on shutdown");
+            this.logger.Warn(ex, "Error performing database cleanup and pool clear on shutdown");
         }
     }
 

@@ -536,6 +536,43 @@ public class AppLifetimeTest
     }
 
     [Test]
+    public async Task StopAsync_WhenDatabaseIsSqlite_ExecutesTruncateWalCheckpoint()
+    {
+        var mockDb = Substitute.For<IDatabase>();
+        mockDb.DatabaseType.Returns(DatabaseType.SQLite);
+        var mockConn = Substitute.For<IDbConnection>();
+        var mockCmd = Substitute.For<IDbCommand>();
+        mockDb.OpenConnection().Returns(mockConn);
+        mockConn.CreateCommand().Returns(mockCmd);
+
+        using var lifetime = new AppLifetime(this.CreateServices(database: mockDb));
+
+        await lifetime.StopAsync(CancellationToken.None);
+
+        mockDb.Received(1).OpenConnection();
+        mockCmd.Received().CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
+        mockCmd.Received(1).ExecuteNonQuery();
+    }
+
+    [Test]
+    public async Task StopAsync_WhenDatabaseIsPostgreSql_DoesNotExecutePragmaWalCheckpoint()
+    {
+        var mockDb = Substitute.For<IDatabase>();
+        mockDb.DatabaseType.Returns(DatabaseType.PostgreSQL);
+        var mockConn = Substitute.For<IDbConnection>();
+        var mockCmd = Substitute.For<IDbCommand>();
+        mockDb.OpenConnection().Returns(mockConn);
+        mockConn.CreateCommand().Returns(mockCmd);
+
+        using var lifetime = new AppLifetime(this.CreateServices(database: mockDb));
+
+        await lifetime.StopAsync(CancellationToken.None);
+
+        mockDb.DidNotReceive().OpenConnection();
+        mockCmd.DidNotReceive().ExecuteNonQuery();
+    }
+
+    [Test]
     public async Task BackgroundLoop_SeedGoalReached_WhenRemoveWithDataAndNotImported_PausesInsteadOfDeleting()
     {
         this.configService.WatchFolderScanIntervalSeconds.Returns(1000);
