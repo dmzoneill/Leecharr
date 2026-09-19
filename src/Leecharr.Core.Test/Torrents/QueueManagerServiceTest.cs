@@ -643,4 +643,76 @@ public class QueueManagerServiceTest
 
         await this.downloadEngine.Received(1).PauseTorrentAsync(2);
     }
+
+    [Test]
+    public async Task Handle_TorrentStatusChangedEvent_WhenStalledTorrentRecoversToDownloading_TriggersQueueEvaluation()
+    {
+        this.configService.MaxActiveDownloads.Returns(1);
+
+        var t1 = new Torrent { Id = 1, Name = "PromotedTorrent", Status = TorrentStatus.Downloading, Progress = 0.5, Priority = 1, QueuePosition = 1 };
+        var t2 = new Torrent { Id = 2, Name = "RecoveredStalled", Status = TorrentStatus.Downloading, Progress = 0.2, Priority = 2, QueuePosition = 2 };
+
+        var torrents = new List<Torrent> { t1, t2 };
+        this.torrentRepository.All().Returns(torrents);
+
+        this.queueManager.Handle(new TorrentStatusChangedEvent
+        {
+            Torrent = t2,
+            OldStatus = TorrentStatus.Stalled,
+            NewStatus = TorrentStatus.Downloading,
+            IsQueueManagerInternal = false,
+        });
+
+        await Task.Delay(250);
+
+        t2.Status.Should().Be(TorrentStatus.Downloading);
+        t1.Status.Should().Be(TorrentStatus.Queued);
+
+        await this.downloadEngine.Received(1).PauseTorrentAsync(1);
+    }
+
+    [Test]
+    public async Task Handle_TorrentStatusChangedEvent_WhenTorrentTransitionsToQueued_TriggersQueueEvaluation()
+    {
+        this.configService.MaxActiveDownloads.Returns(2);
+
+        var t1 = new Torrent { Id = 1, Name = "ActiveDownload", Status = TorrentStatus.Downloading, Progress = 0.1, QueuePosition = 1 };
+        var t2 = new Torrent { Id = 2, Name = "RequeuedFromPaused", Status = TorrentStatus.Queued, Progress = 0.0, QueuePosition = 2 };
+
+        var torrents = new List<Torrent> { t1, t2 };
+        this.torrentRepository.All().Returns(torrents);
+
+        this.queueManager.Handle(new TorrentStatusChangedEvent
+        {
+            Torrent = t2,
+            OldStatus = TorrentStatus.Paused,
+            NewStatus = TorrentStatus.Queued,
+            IsQueueManagerInternal = false,
+        });
+
+        await Task.Delay(250);
+
+        t1.Status.Should().Be(TorrentStatus.Downloading);
+        t2.Status.Should().Be(TorrentStatus.Downloading);
+
+        await this.downloadEngine.Received(1).ResumeTorrentAsync(2);
+    }
+
+    [Test]
+    public async Task Handle_TorrentStatusChangedEvent_WhenStatusUnchanged_DoesNotTriggerQueueEvaluation()
+    {
+        var t1 = new Torrent { Id = 1, Name = "ActiveDownload", Status = TorrentStatus.Downloading, Progress = 0.1, QueuePosition = 1 };
+
+        this.queueManager.Handle(new TorrentStatusChangedEvent
+        {
+            Torrent = t1,
+            OldStatus = TorrentStatus.Downloading,
+            NewStatus = TorrentStatus.Downloading,
+            IsQueueManagerInternal = false,
+        });
+
+        await Task.Delay(100);
+
+        this.torrentRepository.DidNotReceive().All();
+    }
 }
