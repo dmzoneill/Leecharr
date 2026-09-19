@@ -644,7 +644,7 @@ public class MonoTorrentDownloadEngineTest
         this.engine.Capabilities.SupportsLpd.Should().BeTrue();
         this.engine.Capabilities.SupportsSequentialDownload.Should().BeTrue();
         this.engine.Capabilities.SupportsFastResume.Should().BeTrue();
-        this.engine.Capabilities.SupportsCustomPiecePickers.Should().BeTrue();
+        this.engine.Capabilities.SupportsCustomPiecePickers.Should().BeFalse();
         this.engine.Capabilities.SupportsDynamicRateLimits.Should().BeTrue();
         this.engine.Capabilities.SupportsSparseAllocation.Should().BeTrue();
     }
@@ -2467,7 +2467,7 @@ public class MonoTorrentDownloadEngineTest
     {
         this.engine.Capabilities.SupportsV2Torrents.Should().BeTrue();
         this.engine.Capabilities.SupportsSequentialDownload.Should().BeTrue();
-        this.engine.Capabilities.SupportsCustomPiecePickers.Should().BeTrue();
+        this.engine.Capabilities.SupportsCustomPiecePickers.Should().BeFalse();
         this.engine.Capabilities.SupportsDht.Should().BeTrue();
         this.engine.Capabilities.SupportsPex.Should().BeTrue();
         this.engine.Capabilities.SupportsUtp.Should().BeTrue();

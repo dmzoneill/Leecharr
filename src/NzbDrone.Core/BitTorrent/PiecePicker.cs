@@ -154,7 +154,8 @@ public class PiecePicker
             var result = new HashSet<int>();
             for (var i = 0; i < this.pieceCount; i++)
             {
-                if (this.pieces[i].ReceivedBlocks > 0 && !this.pieces[i].IsComplete)
+                var piece = this.pieces[i];
+                if (piece != null && piece.ReceivedBlocks > 0 && !piece.IsComplete)
                 {
                     result.Add(i);
                 }
@@ -165,7 +166,10 @@ public class PiecePicker
                 var colonIndex = key.IndexOf(':');
                 if (colonIndex > 0 && int.TryParse(key.AsSpan(0, colonIndex), out var pieceIdx))
                 {
-                    result.Add(pieceIdx);
+                    if (pieceIdx >= 0 && pieceIdx < this.pieceCount && this.pieces[pieceIdx] != null && !this.pieces[pieceIdx].IsComplete)
+                    {
+                        result.Add(pieceIdx);
+                    }
                 }
             }
 
@@ -179,7 +183,38 @@ public class PiecePicker
         {
             lock (this.syncLock)
             {
-                return this.inFlightBlocks.Count;
+                var count = 0;
+                var staleKeys = new List<string>();
+
+                foreach (var (key, _) in this.inFlightBlocks)
+                {
+                    var colonIndex = key.IndexOf(':');
+                    if (colonIndex > 0 &&
+                        int.TryParse(key.AsSpan(0, colonIndex), out var pieceIdx) &&
+                        int.TryParse(key.AsSpan(colonIndex + 1), out var blockIdx))
+                    {
+                        if (pieceIdx >= 0 && pieceIdx < this.pieceCount)
+                        {
+                            var piece = this.pieces[pieceIdx];
+                            if (piece != null && !piece.IsComplete && !piece.IsVerified &&
+                                blockIdx >= 0 && blockIdx < piece.TotalBlocks &&
+                                piece.BlockBitfield != null && !piece.BlockBitfield[blockIdx])
+                            {
+                                count++;
+                                continue;
+                            }
+                        }
+                    }
+
+                    staleKeys.Add(key);
+                }
+
+                foreach (var staleKey in staleKeys)
+                {
+                    this.inFlightBlocks.Remove(staleKey);
+                }
+
+                return count;
             }
         }
     }
@@ -242,7 +277,7 @@ public class PiecePicker
     {
         lock (this.syncLock)
         {
-            if (pieceIndex >= 0 && pieceIndex < this.pieceCount)
+            if (pieceIndex >= 0 && pieceIndex < this.pieceCount && this.pieces[pieceIndex] != null)
             {
                 this.pieces[pieceIndex].Priority = priority;
             }
@@ -253,7 +288,7 @@ public class PiecePicker
     {
         lock (this.syncLock)
         {
-            if (pieceIndex >= 0 && pieceIndex < this.pieceCount)
+            if (pieceIndex >= 0 && pieceIndex < this.pieceCount && this.pieces[pieceIndex] != null)
             {
                 return this.pieces[pieceIndex].Priority;
             }
@@ -272,22 +307,22 @@ public class PiecePicker
 
         lock (this.syncLock)
         {
-            var activePieces = this.pieces.Where(p => p.Priority > 0 && !p.IsComplete).ToList();
-            var remainingBlocks = activePieces.Sum(p => p.TotalBlocks - p.ReceivedBlocks);
+            var activePieces = this.pieces.Where(p => p != null && p.Priority > 0 && !p.IsComplete).ToList();
+            var remainingBlocks = activePieces.Sum(p => Math.Max(0, p.TotalBlocks - p.ReceivedBlocks));
             if (remainingBlocks <= 0)
             {
                 return false;
             }
 
-            var totalActivePieces = this.pieces.Count(p => p.Priority > 0);
+            var totalActivePieces = this.pieces.Count(p => p != null && p.Priority > 0);
             if (totalActivePieces == 0)
             {
                 return false;
             }
 
-            var totalBlocks = this.pieces.Where(p => p.Priority > 0).Sum(p => p.TotalBlocks);
+            var totalBlocks = this.pieces.Where(p => p != null && p.Priority > 0).Sum(p => p.TotalBlocks);
             var remainingPieces = activePieces.Count;
-            var totalActiveBytes = this.pieces.Where(p => p.Priority > 0).Sum(p => (long)p.Length);
+            var totalActiveBytes = this.pieces.Where(p => p != null && p.Priority > 0).Sum(p => (long)p.Length);
             var remainingBytes = activePieces.Sum(p => (long)(p.TotalBlocks - p.ReceivedBlocks) * DefaultBlockSize > p.Length ? p.Length : (long)(p.TotalBlocks - p.ReceivedBlocks) * DefaultBlockSize);
 
             // Endgame mode triggers when:
@@ -325,15 +360,20 @@ public class PiecePicker
 
             foreach (var pieceIndex in candidateIndices)
             {
+                if (pieceIndex < 0 || pieceIndex >= this.pieceCount)
+                {
+                    continue;
+                }
+
                 var piece = this.pieces[pieceIndex];
-                if (piece.IsComplete || piece.Priority == 0)
+                if (piece == null || piece.IsComplete || piece.Priority == 0)
                 {
                     continue;
                 }
 
                 for (var blockIdx = 0; blockIdx < piece.TotalBlocks; blockIdx++)
                 {
-                    if (piece.BlockBitfield[blockIdx])
+                    if (piece.BlockBitfield == null || blockIdx >= piece.BlockBitfield.Length || piece.BlockBitfield[blockIdx])
                     {
                         continue;
                     }
@@ -341,7 +381,7 @@ public class PiecePicker
                     var blockKey = $"{pieceIndex}:{blockIdx}";
                     var now = DateTime.UtcNow;
 
-                    if (this.inFlightBlocks.TryGetValue(blockKey, out var existingInfo))
+                    if (this.inFlightBlocks.TryGetValue(blockKey, out var existingInfo) && existingInfo != null)
                     {
                         if (!isEndgame)
                         {
@@ -357,7 +397,7 @@ public class PiecePicker
                         else
                         {
                             // In endgame mode: avoid sending duplicate in-flight requests to the exact same peer
-                            if (!string.IsNullOrEmpty(peerId) && existingInfo.PeerRequests.ContainsKey(peerId))
+                            if (!string.IsNullOrWhiteSpace(peerId) && existingInfo.PeerRequests.ContainsKey(peerId))
                             {
                                 continue;
                             }
@@ -365,15 +405,24 @@ public class PiecePicker
                     }
 
                     var offset = blockIdx * DefaultBlockSize;
-                    var length = Math.Min(DefaultBlockSize, piece.Length - offset);
+                    if (offset >= piece.Length)
+                    {
+                        continue;
+                    }
 
-                    if (!this.inFlightBlocks.TryGetValue(blockKey, out var info))
+                    var length = Math.Min(DefaultBlockSize, piece.Length - offset);
+                    if (length <= 0)
+                    {
+                        continue;
+                    }
+
+                    if (!this.inFlightBlocks.TryGetValue(blockKey, out var info) || info == null)
                     {
                         info = new BlockInFlightInfo { FirstRequestedAt = now };
                         this.inFlightBlocks[blockKey] = info;
                     }
 
-                    if (!string.IsNullOrEmpty(peerId))
+                    if (!string.IsNullOrWhiteSpace(peerId))
                     {
                         info.PeerRequests[peerId] = now;
                     }
@@ -418,7 +467,7 @@ public class PiecePicker
         int headPieces;
         int tailPieces;
 
-        if (this.totalSize > 2L * 1024 * 1024)
+        if (this.totalSize > 2L * 1024 * 1024 && this.pieceLength > 0)
         {
             // Dynamic byte-size calculation: prioritize 2MB to 8MB head and 1MB to 4MB tail
             var targetHeadBytes = Math.Min(8L * 1024 * 1024, Math.Max(2L * 1024 * 1024, (long)(this.totalSize * 0.05)));
@@ -441,7 +490,7 @@ public class PiecePicker
 
         headPieces = Math.Max(1, Math.Min(headPieces, this.pieceCount - 2));
         tailPieces = Math.Max(1, Math.Min(tailPieces, this.pieceCount - headPieces));
-        var tailStart = Math.Max(headPieces, this.pieceCount - tailPieces);
+        var tailStart = Math.Clamp(Math.Max(headPieces, this.pieceCount - tailPieces), 0, this.pieceCount);
 
         return (headPieces, tailStart);
     }
@@ -449,11 +498,16 @@ public class PiecePicker
     private List<int> GetCandidatePieceIndices(bool[] peerBitfield, bool sequentialMode)
     {
         var validPieces = new List<int>();
+        if (peerBitfield == null)
+        {
+            return validPieces;
+        }
+
         var limit = Math.Min(this.pieceCount, peerBitfield.Length);
 
         for (var i = 0; i < limit; i++)
         {
-            if (peerBitfield[i] && !this.pieces[i].IsComplete && this.pieces[i].Priority > 0)
+            if (peerBitfield[i] && this.pieces[i] != null && !this.pieces[i].IsComplete && this.pieces[i].Priority > 0)
             {
                 validPieces.Add(i);
             }
@@ -503,53 +557,66 @@ public class PiecePicker
     {
         cancelledPeers = new List<string>();
         var isPieceComplete = false;
+        var cleanBlockOffset = blockOffset;
+        var cleanLength = length;
 
         lock (this.syncLock)
         {
-            if (pieceIndex < 0 || pieceIndex >= this.pieceCount)
+            if (pieceIndex < 0 || pieceIndex >= this.pieceCount || blockOffset < 0)
             {
                 return false;
             }
 
-            if (blockOffset < 0 || blockOffset % DefaultBlockSize != 0)
+            if (blockOffset % DefaultBlockSize != 0)
             {
                 return false;
             }
 
             var piece = this.pieces[pieceIndex];
+            if (piece == null || blockOffset >= piece.Length)
+            {
+                return false;
+            }
+
             var blockIdx = blockOffset / DefaultBlockSize;
-
-            if (blockIdx >= piece.TotalBlocks)
+            if (blockIdx < 0 || blockIdx >= piece.TotalBlocks)
             {
                 return false;
             }
 
-            var expectedLength = Math.Min(DefaultBlockSize, piece.Length - blockOffset);
-            if (length != expectedLength)
+            cleanBlockOffset = blockIdx * DefaultBlockSize;
+            var expectedLength = Math.Min(DefaultBlockSize, piece.Length - cleanBlockOffset);
+            if (length <= 0 || length != expectedLength)
             {
                 return false;
             }
+
+            cleanLength = expectedLength;
 
             var blockKey = $"{pieceIndex}:{blockIdx}";
-            if (this.inFlightBlocks.TryGetValue(blockKey, out var info))
+            if (this.inFlightBlocks.TryGetValue(blockKey, out var info) && info != null)
             {
-                foreach (var peer in info.PeerRequests.Keys)
+                if (info.PeerRequests != null)
                 {
-                    if (!string.IsNullOrEmpty(peer) && !string.Equals(peer, receivedFromPeerId, StringComparison.OrdinalIgnoreCase))
+                    foreach (var peer in info.PeerRequests.Keys)
                     {
-                        cancelledPeers.Add(peer);
+                        if (!string.IsNullOrWhiteSpace(peer) &&
+                            !string.Equals(peer, receivedFromPeerId, StringComparison.OrdinalIgnoreCase))
+                        {
+                            cancelledPeers.Add(peer);
+                        }
                     }
                 }
 
                 this.inFlightBlocks.Remove(blockKey);
             }
 
-            if (!piece.BlockBitfield[blockIdx])
+            if (piece.BlockBitfield != null && blockIdx < piece.BlockBitfield.Length && !piece.BlockBitfield[blockIdx])
             {
                 piece.BlockBitfield[blockIdx] = true;
                 piece.ReceivedBlocks++;
 
-                if (!string.IsNullOrEmpty(receivedFromPeerId))
+                if (!string.IsNullOrWhiteSpace(receivedFromPeerId))
                 {
                     piece.ContributingPeers.Add(receivedFromPeerId);
                 }
@@ -560,16 +627,26 @@ public class PiecePicker
                     isPieceComplete = true;
                 }
             }
+            else if (piece.ReceivedBlocks >= piece.TotalBlocks)
+            {
+                isPieceComplete = piece.IsComplete;
+            }
         }
 
-        if (cancelledPeers.Count > 0)
+        var cleanCancelledPeers = cancelledPeers
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        cancelledPeers = cleanCancelledPeers;
+
+        if (cleanCancelledPeers.Count > 0)
         {
             this.BlockCancelled?.Invoke(new BlockCancelledEventArgs
             {
                 PieceIndex = pieceIndex,
-                BlockOffset = blockOffset,
-                BlockLength = length,
-                CancelledPeerIds = new List<string>(cancelledPeers),
+                BlockOffset = cleanBlockOffset,
+                BlockLength = cleanLength,
+                CancelledPeerIds = new List<string>(cleanCancelledPeers),
             });
         }
 
@@ -580,12 +657,28 @@ public class PiecePicker
     {
         lock (this.syncLock)
         {
+            if (pieceIndex < 0 || pieceIndex >= this.pieceCount || blockOffset < 0)
+            {
+                return new List<string>();
+            }
+
+            var piece = this.pieces[pieceIndex];
+            if (piece == null || blockOffset >= piece.Length)
+            {
+                return new List<string>();
+            }
+
             var blockIdx = blockOffset / DefaultBlockSize;
+            if (blockIdx < 0 || blockIdx >= piece.TotalBlocks)
+            {
+                return new List<string>();
+            }
+
             var blockKey = $"{pieceIndex}:{blockIdx}";
-            if (this.inFlightBlocks.TryGetValue(blockKey, out var info))
+            if (this.inFlightBlocks.TryGetValue(blockKey, out var info) && info?.PeerRequests != null)
             {
                 return info.PeerRequests.Keys
-                    .Where(p => !string.IsNullOrEmpty(p) && !string.Equals(p, excludingPeerId, StringComparison.OrdinalIgnoreCase))
+                    .Where(p => !string.IsNullOrWhiteSpace(p) && !string.Equals(p, excludingPeerId, StringComparison.OrdinalIgnoreCase))
                     .ToList();
             }
 
@@ -599,9 +692,18 @@ public class PiecePicker
         {
             if (pieceIndex >= 0 && pieceIndex < this.pieceCount)
             {
-                this.pieces[pieceIndex].IsVerified = true;
-                this.pieces[pieceIndex].IsComplete = true;
-                this.pieces[pieceIndex].ContributingPeers.Clear();
+                var piece = this.pieces[pieceIndex];
+                if (piece != null)
+                {
+                    piece.IsVerified = true;
+                    piece.IsComplete = true;
+                    piece.ContributingPeers.Clear();
+
+                    for (var i = 0; i < piece.TotalBlocks; i++)
+                    {
+                        this.inFlightBlocks.Remove($"{pieceIndex}:{i}");
+                    }
+                }
             }
         }
     }
@@ -610,7 +712,7 @@ public class PiecePicker
     {
         lock (this.syncLock)
         {
-            if (pieceIndex >= 0 && pieceIndex < this.pieceCount)
+            if (pieceIndex >= 0 && pieceIndex < this.pieceCount && this.pieces[pieceIndex] != null)
             {
                 return new List<string>(this.pieces[pieceIndex].ContributingPeers);
             }
@@ -626,27 +728,52 @@ public class PiecePicker
             if (pieceIndex >= 0 && pieceIndex < this.pieceCount)
             {
                 var piece = this.pieces[pieceIndex];
-                var contributors = new List<string>(piece.ContributingPeers);
-                piece.IsComplete = false;
-                piece.IsVerified = false;
-                piece.ReceivedBlocks = 0;
-                piece.ContributingPeers.Clear();
-                Array.Clear(piece.BlockBitfield, 0, piece.BlockBitfield.Length);
-
-                for (var i = 0; i < piece.TotalBlocks; i++)
+                if (piece != null)
                 {
-                    this.inFlightBlocks.Remove($"{pieceIndex}:{i}");
-                }
+                    var contributors = new List<string>(piece.ContributingPeers);
+                    piece.IsComplete = false;
+                    piece.IsVerified = false;
+                    piece.ReceivedBlocks = 0;
+                    piece.ContributingPeers.Clear();
+                    if (piece.BlockBitfield != null)
+                    {
+                        Array.Clear(piece.BlockBitfield, 0, piece.BlockBitfield.Length);
+                    }
 
-                return contributors;
+                    for (var i = 0; i < piece.TotalBlocks; i++)
+                    {
+                        this.inFlightBlocks.Remove($"{pieceIndex}:{i}");
+                    }
+
+                    return contributors;
+                }
             }
 
             return new List<string>();
         }
     }
 
+    public void CancelRequest(int pieceIndex, int blockOffset, string peerId = null)
+    {
+        this.CancelBlock(pieceIndex, blockOffset, DefaultBlockSize, peerId);
+    }
+
+    public void CancelRequest(int pieceIndex, int blockOffset, int length, string peerId = null)
+    {
+        this.CancelBlock(pieceIndex, blockOffset, length, peerId);
+    }
+
     public void CancelBlock(int pieceIndex, int blockOffset, string peerId = null)
     {
+        this.CancelBlock(pieceIndex, blockOffset, DefaultBlockSize, peerId);
+    }
+
+    public void CancelBlock(int pieceIndex, int blockOffset, int length, string peerId = null)
+    {
+        var cancelledPeers = new List<string>();
+        var cleanBlockOffset = blockOffset;
+        var cleanLength = length;
+
         lock (this.syncLock)
         {
             if (pieceIndex < 0 || pieceIndex >= this.pieceCount || blockOffset < 0)
@@ -654,27 +781,71 @@ public class PiecePicker
                 return;
             }
 
-            var blockIdx = blockOffset / DefaultBlockSize;
-            var blockKey = $"{pieceIndex}:{blockIdx}";
-            if (this.inFlightBlocks.TryGetValue(blockKey, out var info))
+            var piece = this.pieces[pieceIndex];
+            if (piece == null || blockOffset >= piece.Length)
             {
-                if (!string.IsNullOrEmpty(peerId))
+                return;
+            }
+
+            var blockIdx = blockOffset / DefaultBlockSize;
+            if (blockIdx < 0 || blockIdx >= piece.TotalBlocks)
+            {
+                return;
+            }
+
+            cleanBlockOffset = blockIdx * DefaultBlockSize;
+            cleanLength = Math.Min(length > 0 ? length : DefaultBlockSize, piece.Length - cleanBlockOffset);
+
+            var blockKey = $"{pieceIndex}:{blockIdx}";
+            if (this.inFlightBlocks.TryGetValue(blockKey, out var info) && info != null)
+            {
+                if (!string.IsNullOrWhiteSpace(peerId))
                 {
-                    info.PeerRequests.Remove(peerId);
-                    if (info.PeerRequests.Count == 0)
+                    if (info.PeerRequests.Remove(peerId))
+                    {
+                        cancelledPeers.Add(peerId);
+                    }
+
+                    if (info.PeerRequests.Count == 0 || !this.IsEndgameMode())
                     {
                         this.inFlightBlocks.Remove(blockKey);
                     }
                 }
                 else
                 {
+                    if (info.PeerRequests != null)
+                    {
+                        cancelledPeers.AddRange(info.PeerRequests.Keys);
+                    }
+
                     this.inFlightBlocks.Remove(blockKey);
                 }
             }
         }
+
+        var cleanCancelledPeers = cancelledPeers
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (cleanCancelledPeers.Count > 0)
+        {
+            this.BlockCancelled?.Invoke(new BlockCancelledEventArgs
+            {
+                PieceIndex = pieceIndex,
+                BlockOffset = cleanBlockOffset,
+                BlockLength = cleanLength,
+                CancelledPeerIds = cleanCancelledPeers,
+            });
+        }
     }
 
     public void RejectRequest(int pieceIndex, int blockOffset, string peerId = null)
+    {
+        this.RejectRequest(pieceIndex, blockOffset, DefaultBlockSize, peerId);
+    }
+
+    public void RejectRequest(int pieceIndex, int blockOffset, int length, string peerId = null)
     {
         lock (this.syncLock)
         {
@@ -683,11 +854,22 @@ public class PiecePicker
                 return;
             }
 
-            var blockIdx = blockOffset / DefaultBlockSize;
-            var blockKey = $"{pieceIndex}:{blockIdx}";
-            if (this.inFlightBlocks.TryGetValue(blockKey, out var info))
+            var piece = this.pieces[pieceIndex];
+            if (piece == null || blockOffset >= piece.Length)
             {
-                if (!string.IsNullOrEmpty(peerId))
+                return;
+            }
+
+            var blockIdx = blockOffset / DefaultBlockSize;
+            if (blockIdx < 0 || blockIdx >= piece.TotalBlocks)
+            {
+                return;
+            }
+
+            var blockKey = $"{pieceIndex}:{blockIdx}";
+            if (this.inFlightBlocks.TryGetValue(blockKey, out var info) && info != null)
+            {
+                if (!string.IsNullOrWhiteSpace(peerId))
                 {
                     info.PeerRequests.Remove(peerId);
                     if (info.PeerRequests.Count == 0 || !this.IsEndgameMode())
@@ -703,11 +885,6 @@ public class PiecePicker
         }
     }
 
-    public void RejectRequest(int pieceIndex, int blockOffset, int length, string peerId = null)
-    {
-        this.RejectRequest(pieceIndex, blockOffset, peerId);
-    }
-
     public int PruneTimedOutRequests(TimeSpan? timeout = null)
     {
         lock (this.syncLock)
@@ -715,7 +892,7 @@ public class PiecePicker
             var effectiveTimeout = timeout ?? this.RequestTimeout;
             var cutoff = DateTime.UtcNow - effectiveTimeout;
             var expired = this.inFlightBlocks
-                .Where(kvp => kvp.Value.FirstRequestedAt <= cutoff)
+                .Where(kvp => kvp.Value == null || kvp.Value.FirstRequestedAt <= cutoff)
                 .Select(kvp => kvp.Key)
                 .ToList();
 
@@ -735,7 +912,7 @@ public class PiecePicker
             var result = new bool[this.pieceCount];
             for (var i = 0; i < this.pieceCount; i++)
             {
-                result[i] = this.pieces[i].IsVerified;
+                result[i] = this.pieces[i]?.IsVerified ?? false;
             }
 
             return result;
@@ -751,13 +928,13 @@ public class PiecePicker
                 return 0.0;
             }
 
-            var activeCount = this.pieces.Count(p => p.Priority > 0);
+            var activeCount = this.pieces.Count(p => p != null && p.Priority > 0);
             if (activeCount == 0)
             {
                 return 0.0;
             }
 
-            var verifiedCount = this.pieces.Count(p => p.Priority > 0 && p.IsVerified);
+            var verifiedCount = this.pieces.Count(p => p != null && p.Priority > 0 && p.IsVerified);
             return (double)verifiedCount / activeCount;
         }
     }
