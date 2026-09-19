@@ -141,6 +141,13 @@ public class IndexerController : Controller
             return this.NotFound();
         }
 
+        TorznabClient.InvalidateCapabilities(existing.Url, existing.ApiKey);
+        if (!string.Equals(existing.Url, resource.Url, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(existing.ApiKey, resource.ApiKey, StringComparison.OrdinalIgnoreCase))
+        {
+            TorznabClient.InvalidateCapabilities(resource.Url, resource.ApiKey);
+        }
+
         resource.Name = resource.Name.Trim();
         resource.Url = resource.Url.Trim();
         var model = ToModel(resource);
@@ -152,6 +159,12 @@ public class IndexerController : Controller
     [HttpDelete("{id:int}")]
     public ActionResult Delete(int id)
     {
+        var existing = this.indexerRepository.Get(id);
+        if (existing != null)
+        {
+            TorznabClient.InvalidateCapabilities(existing.Url, existing.ApiKey);
+        }
+
         this.indexerRepository.Delete(id);
         this.indexerStatusService?.Reset(id);
         return this.Ok();
