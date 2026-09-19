@@ -11,6 +11,7 @@ using NLog;
 using NzbDrone.Common;
 using NzbDrone.Common.Serializer;
 using NzbDrone.Core.Datastore;
+using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.Messaging.Commands;
 
@@ -20,12 +21,17 @@ public class CommandExecutor : ICommandExecutor
 
     private readonly IServiceFactory serviceFactory;
     private readonly IBasicRepository<CommandModel> repository;
+    private readonly IEventAggregator eventAggregator;
     private readonly Logger logger;
 
-    public CommandExecutor(IServiceFactory serviceFactory, IBasicRepository<CommandModel> repository)
+    public CommandExecutor(
+        IServiceFactory serviceFactory,
+        IBasicRepository<CommandModel> repository,
+        IEventAggregator eventAggregator = null)
     {
         this.serviceFactory = serviceFactory;
         this.repository = repository;
+        this.eventAggregator = eventAggregator;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -176,6 +182,15 @@ public class CommandExecutor : ICommandExecutor
 
             command.EndedAt = DateTime.UtcNow;
             this.SafeUpdate(command);
+
+            try
+            {
+                this.eventAggregator?.PublishEvent(new CommandExecutedEvent(command));
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error publishing CommandExecutedEvent for {0}", command.Name);
+            }
         }
     }
 
