@@ -6,6 +6,8 @@ using Leecharr.Api.V1.Tags;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Core.Automation;
+using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Notifications;
 using NzbDrone.Core.Tags;
 using NzbDrone.Core.Torrents;
@@ -18,6 +20,8 @@ public class TagControllerTest
     private ITagRepository tagRepository = null!;
     private ITorrentRepository torrentRepository = null!;
     private INotificationRepository notificationRepository = null!;
+    private IIndexerRepository indexerRepository = null!;
+    private IAutomationScriptRepository automationScriptRepository = null!;
     private TagController controller = null!;
 
     [SetUp]
@@ -26,11 +30,15 @@ public class TagControllerTest
         this.tagRepository = Substitute.For<ITagRepository>();
         this.torrentRepository = Substitute.For<ITorrentRepository>();
         this.notificationRepository = Substitute.For<INotificationRepository>();
+        this.indexerRepository = Substitute.For<IIndexerRepository>();
+        this.automationScriptRepository = Substitute.For<IAutomationScriptRepository>();
 
         this.controller = new TagController(
             this.tagRepository,
             this.torrentRepository,
-            this.notificationRepository);
+            this.notificationRepository,
+            this.indexerRepository,
+            this.automationScriptRepository);
     }
 
     [Test]
@@ -353,5 +361,80 @@ public class TagControllerTest
         resource!.Id.Should().Be(5);
         resource.Label.Should().Be("CURRENT");
         this.tagRepository.Received(1).Update(Arg.Is<Tag>(t => t.Id == 5 && t.Label == "CURRENT"));
+    }
+
+    [Test]
+    public void Delete_WhenTorrentHasLabel_RemovesTagFromLabelAndUpdatesTorrent()
+    {
+        var tag = new Tag { Id = 42, Label = "Sonarr" };
+        this.tagRepository.Get(42).Returns(tag);
+
+        var torrentWithLabel = new Torrent
+        {
+            Id = 1,
+            Name = "Torrent 1",
+            TagIds = new List<int> { 42, 99 },
+            Label = "Sonarr, Radarr",
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { torrentWithLabel });
+
+        var result = this.controller.Delete(42);
+
+        result.Should().BeOfType<OkResult>();
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t =>
+            t.Id == 1 &&
+            !t.TagIds.Contains(42) &&
+            t.Label == "Radarr"));
+    }
+
+    [Test]
+    public void Delete_WhenIndexerContainsTag_RemovesTagAndUpdatesIndexer()
+    {
+        var indexerWithTag = new IndexerDefinition
+        {
+            Id = 10,
+            Name = "Prowlarr",
+            Tags = new List<int> { 42, 99 },
+        };
+        var indexerWithoutTag = new IndexerDefinition
+        {
+            Id = 11,
+            Name = "Other",
+            Tags = new List<int> { 1, 2 },
+        };
+
+        this.indexerRepository.All().Returns(new List<IndexerDefinition> { indexerWithTag, indexerWithoutTag });
+
+        var result = this.controller.Delete(42);
+
+        result.Should().BeOfType<OkResult>();
+        this.indexerRepository.Received(1).Update(Arg.Is<IndexerDefinition>(i => i.Id == 10 && !i.Tags.Contains(42) && i.Tags.Count == 1));
+        this.indexerRepository.DidNotReceive().Update(Arg.Is<IndexerDefinition>(i => i.Id == 11));
+    }
+
+    [Test]
+    public void Delete_WhenAutomationScriptContainsTag_RemovesTagAndUpdatesScript()
+    {
+        var scriptWithTag = new AutomationScript
+        {
+            Id = 5,
+            Name = "Auto Pause",
+            TargetTagIds = new List<int> { 42, 100 },
+        };
+        var scriptWithoutTag = new AutomationScript
+        {
+            Id = 6,
+            Name = "Auto Resume",
+            TargetTagIds = new List<int> { 10, 20 },
+        };
+
+        this.automationScriptRepository.All().Returns(new List<AutomationScript> { scriptWithTag, scriptWithoutTag });
+
+        var result = this.controller.Delete(42);
+
+        result.Should().BeOfType<OkResult>();
+        this.automationScriptRepository.Received(1).Update(Arg.Is<AutomationScript>(s => s.Id == 5 && !s.TargetTagIds.Contains(42) && s.TargetTagIds.Count == 1));
+        this.automationScriptRepository.DidNotReceive().Update(Arg.Is<AutomationScript>(s => s.Id == 6));
     }
 }
