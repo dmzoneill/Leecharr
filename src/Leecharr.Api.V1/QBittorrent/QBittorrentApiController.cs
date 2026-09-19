@@ -2303,9 +2303,38 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             sessionState.LastAccessed = DateTime.UtcNow;
 
             var torrents = this.torrentService.GetAll().ToList();
-            var categories = this.categoryService.GetAll().ToDictionary(
+            var categoriesList = this.categoryService.GetAll().ToList();
+            var categories = categoriesList.ToDictionary(
                 c => c.Name,
                 c => (object)new { name = c.Name, savePath = c.SavePath ?? string.Empty });
+
+            var allTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (this.tagRepository != null)
+            {
+                foreach (var tag in this.tagRepository.All())
+                {
+                    if (!string.IsNullOrWhiteSpace(tag.Label))
+                    {
+                        allTags.Add(tag.Label.Trim());
+                    }
+                }
+            }
+
+            foreach (var t in torrents)
+            {
+                if (!string.IsNullOrWhiteSpace(t.Label))
+                {
+                    var split = t.Label.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var s in split)
+                    {
+                        var trimmed = s.Trim();
+                        if (!string.IsNullOrWhiteSpace(trimmed))
+                        {
+                            allTags.Add(trimmed);
+                        }
+                    }
+                }
+            }
 
             var dlLimit = (this.configService.AlternativeSpeedEnabled ? this.configService.AltDownloadSpeedKbps : this.configService.MaxDownloadSpeedKbps) * 1024;
             var upLimit = (this.configService.AlternativeSpeedEnabled ? this.configService.AltUploadSpeedKbps : this.configService.MaxUploadSpeedKbps) * 1024;
@@ -2346,6 +2375,20 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 sessionState.CurrentRid = rid <= 0 ? 1 : rid + 1;
                 sessionState.CachedTorrents.Clear();
                 sessionState.RemovedTorrents.Clear();
+                sessionState.CachedCategories.Clear();
+                sessionState.RemovedCategories.Clear();
+                sessionState.CachedTags.Clear();
+                sessionState.RemovedTags.Clear();
+
+                foreach (var c in categoriesList)
+                {
+                    sessionState.CachedCategories[c.Name] = (c.SavePath ?? string.Empty, sessionState.CurrentRid);
+                }
+
+                foreach (var tag in allTags)
+                {
+                    sessionState.CachedTags[tag] = sessionState.CurrentRid;
+                }
 
                 var torrentDict = new Dictionary<string, object>();
                 foreach (var t in torrentList)
@@ -2391,6 +2434,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     ["full_update"] = true,
                     ["torrents"] = torrentDict,
                     ["categories"] = categories,
+                    ["categories_removed"] = new List<string>(),
+                    ["tags"] = allTags.OrderBy(t => t).ToList(),
+                    ["tags_removed"] = new List<string>(),
                     ["server_state"] = serverState,
                 };
 
@@ -2463,6 +2509,65 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 .Select(r => r.Hash)
                 .ToList();
 
+            var currentCatNames = new HashSet<string>(categoriesList.Select(c => c.Name), StringComparer.OrdinalIgnoreCase);
+            var removedCatsNow = sessionState.CachedCategories.Keys.Where(name => !currentCatNames.Contains(name)).ToList();
+            foreach (var name in removedCatsNow)
+            {
+                sessionState.CachedCategories.Remove(name);
+                sessionState.RemovedCategories.Add((name, nextRid));
+            }
+
+            if (sessionState.RemovedCategories.Count > 500)
+            {
+                sessionState.RemovedCategories.RemoveRange(0, sessionState.RemovedCategories.Count - 500);
+            }
+
+            var categoriesRemoved = sessionState.RemovedCategories
+                .Where(r => r.RemovedAtRid > rid)
+                .Select(r => r.Name)
+                .ToList();
+
+            foreach (var c in categoriesList)
+            {
+                var savePath = c.SavePath ?? string.Empty;
+                var isNewOrChanged = !sessionState.CachedCategories.TryGetValue(c.Name, out var existingCat) || existingCat.SavePath != savePath;
+                if (isNewOrChanged)
+                {
+                    sessionState.CachedCategories[c.Name] = (savePath, nextRid);
+                }
+            }
+
+            var removedTagsNow = sessionState.CachedTags.Keys.Where(tag => !allTags.Contains(tag)).ToList();
+            foreach (var tag in removedTagsNow)
+            {
+                sessionState.CachedTags.Remove(tag);
+                sessionState.RemovedTags.Add((tag, nextRid));
+            }
+
+            if (sessionState.RemovedTags.Count > 500)
+            {
+                sessionState.RemovedTags.RemoveRange(0, sessionState.RemovedTags.Count - 500);
+            }
+
+            var tagsRemoved = sessionState.RemovedTags
+                .Where(r => r.RemovedAtRid > rid)
+                .Select(r => r.Tag)
+                .ToList();
+
+            foreach (var tag in allTags)
+            {
+                if (!sessionState.CachedTags.ContainsKey(tag))
+                {
+                    sessionState.CachedTags[tag] = nextRid;
+                }
+            }
+
+            var tagsAdded = sessionState.CachedTags
+                .Where(kvp => kvp.Value > rid)
+                .Select(kvp => kvp.Key)
+                .OrderBy(t => t)
+                .ToList();
+
             sessionState.CurrentRid = nextRid;
 
             var deltaResult = new Dictionary<string, object>
@@ -2472,6 +2577,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 ["torrents"] = updatedTorrents,
                 ["torrents_removed"] = torrentsRemoved,
                 ["categories"] = categories,
+                ["categories_removed"] = categoriesRemoved,
+                ["tags"] = tagsAdded,
+                ["tags_removed"] = tagsRemoved,
                 ["server_state"] = serverState,
             };
 
@@ -3542,6 +3650,14 @@ public class QBitSessionSyncState
     public Dictionary<string, (QBitTorrentSnapshot Snapshot, int ChangedAtRid)> CachedTorrents { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     public List<(string Hash, int RemovedAtRid)> RemovedTorrents { get; } = new();
+
+    public Dictionary<string, (string SavePath, int ChangedAtRid)> CachedCategories { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public List<(string Name, int RemovedAtRid)> RemovedCategories { get; } = new();
+
+    public Dictionary<string, int> CachedTags { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public List<(string Tag, int RemovedAtRid)> RemovedTags { get; } = new();
 
     public Dictionary<string, QBitTorrentPeersSyncState> PeerSyncStates { get; } = new(StringComparer.OrdinalIgnoreCase);
 
