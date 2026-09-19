@@ -1846,6 +1846,113 @@ public class MonoTorrentDownloadEngineTest
         task2.IsQueuedForRecheck.Should().BeFalse();
     }
 
+    [Test]
+    public async Task ForceRecheckAsync_WhenCompletedTorrentFailsHashCheck_ResetsFilesMovedToCompletedLatch()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("repair_completed.iso");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+        var torrent = new CoreTorrent
+        {
+            Id = 510,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "repair_completed.iso",
+            Status = TorrentStatus.Seeding,
+        };
+
+        await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        var task = (MonoTorrentDownloadTask)this.engine.GetTask(510)!;
+        task.Should().NotBeNull();
+
+        // Simulate that files were previously moved to completed directory upon completion
+        task.IsFilesMovedToCompleted = true;
+
+        // Trigger force recheck - hash check runs and finds missing pieces
+        await this.engine.ForceRecheckAsync(510);
+
+        // Latch should be reset to allow re-downloading missing pieces to repair torrent
+        task.IsFilesMovedToCompleted.Should().BeFalse();
+        task.IsExplicitRecheck.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task ForceRecheckAsync_WhenNotExplicitRecheck_DoesNotResetFilesMovedToCompletedLatch()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("repair_nonexplicit.iso");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+        var torrent = new CoreTorrent
+        {
+            Id = 511,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "repair_nonexplicit.iso",
+            Status = TorrentStatus.Seeding,
+        };
+
+        await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        var task = (MonoTorrentDownloadTask)this.engine.GetTask(511)!;
+        task.Should().NotBeNull();
+
+        task.IsFilesMovedToCompleted = true;
+        task.IsExplicitRecheck = false;
+
+        // Simulate routine/background hashing completion (e.g. startup recheck, not explicit force recheck)
+        var args = (TorrentStateChangedEventArgs)Activator.CreateInstance(
+            typeof(TorrentStateChangedEventArgs),
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+            null,
+            new object[] { task.Manager!, TorrentState.Hashing, TorrentState.Downloading },
+            null)!;
+
+        await this.engine.HandleTorrentStateChangedAsync(args);
+
+        // Files moved latch should remain true because this was not an explicit user-initiated recheck
+        task.IsFilesMovedToCompleted.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task ForceRecheckAsync_WhenQueued_SetsExplicitRecheckAndQueuedForRecheck()
+    {
+        var torrentBytes1 = CreateSampleSingleFileTorrentBytes("explicit_queue1.iso");
+        var parsed1 = MonoTorrent.Torrent.Load(torrentBytes1);
+        var torrent1 = new CoreTorrent
+        {
+            Id = 512,
+            InfoHash = parsed1.InfoHashes.V1OrV2.ToHex(),
+            Name = "explicit_queue1.iso",
+            Status = TorrentStatus.Paused,
+        };
+
+        var torrentBytes2 = CreateSampleSingleFileTorrentBytes("explicit_queue2.iso");
+        var parsed2 = MonoTorrent.Torrent.Load(torrentBytes2);
+        var torrent2 = new CoreTorrent
+        {
+            Id = 513,
+            InfoHash = parsed2.InfoHashes.V1OrV2.ToHex(),
+            Name = "explicit_queue2.iso",
+            Status = TorrentStatus.Paused,
+        };
+
+        await this.engine.AddTorrentAsync(torrent1, torrentFileBytes: torrentBytes1);
+        await this.engine.AddTorrentAsync(torrent2, torrentFileBytes: torrentBytes2);
+
+        var task1 = (MonoTorrentDownloadTask)this.engine.GetTask(512)!;
+        var task2 = (MonoTorrentDownloadTask)this.engine.GetTask(513)!;
+
+        var modeField = task1.Manager!.GetType().GetField("mode", BindingFlags.Instance | BindingFlags.NonPublic);
+        var hashingModeType = typeof(TorrentManager).Assembly.GetType("MonoTorrent.Client.Modes.HashingMode");
+        var hashingMode = Activator.CreateInstance(
+            hashingModeType!,
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+            null,
+            new object[] { task1.Manager!, task1.Manager!.Engine.DiskManager },
+            null);
+        modeField!.SetValue(task1.Manager, hashingMode);
+
+        await this.engine.ForceRecheckAsync(513);
+
+        task2.IsQueuedForRecheck.Should().BeTrue();
+        task2.IsExplicitRecheck.Should().BeTrue();
+    }
+
     #endregion
 
     #region Rate Limiting & File Priority Tests

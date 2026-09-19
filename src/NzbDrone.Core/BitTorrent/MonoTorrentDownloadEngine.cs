@@ -1645,6 +1645,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             if (isAnotherHashing)
             {
                 task.IsQueuedForRecheck = true;
+                task.IsExplicitRecheck = true;
                 this.eventAggregator?.PublishEvent(new TorrentStatusChangedEvent
                 {
                     Torrent = new CoreTorrent
