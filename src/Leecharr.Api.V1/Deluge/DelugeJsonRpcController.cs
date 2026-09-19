@@ -250,7 +250,7 @@ public class DelugeJsonRpcController : ControllerBase
         {
             "core.get_version" => this.HandleGetVersion(id),
             "core.get_enabled_plugins" or "core.get_available_plugins" => this.HandleGetPlugins(id),
-            "core.enable_plugin" or "core.disable_plugin" => this.HandleTogglePlugin(id),
+            "core.enable_plugin" or "core.disable_plugin" or "core.rescan_plugins" => this.HandleTogglePlugin(id),
             "core.get_config" => this.HandleCoreGetConfig(id),
             "core.get_config_values" => this.HandleCoreGetConfigValues(args, id),
             "core.get_config_value" => this.HandleCoreGetConfigValue(args, id),
@@ -308,6 +308,7 @@ public class DelugeJsonRpcController : ControllerBase
             "web.add_torrents" => await this.HandleWebAddTorrentsAsync(args, id),
             "web.disconnect" => this.HandleWebDisconnect(id),
             "web.get_filter_tree" => this.HandleGetFilterTree(id),
+            "web.get_events" => this.HandleWebGetEvents(id),
             _ => this.HandleUnknownMethod(method, id),
         };
     }
@@ -743,10 +744,12 @@ public class DelugeJsonRpcController : ControllerBase
                             "core.queue_bottom",
                             "core.get_filter_tree",
                             "web.get_filter_tree",
+                            "web.get_events",
                             "core.get_enabled_plugins",
                             "core.get_available_plugins",
                             "core.enable_plugin",
                             "core.disable_plugin",
+                            "core.rescan_plugins",
                             "label.get_labels",
                             "label.get_torrents",
                             "label.set_torrent",
@@ -940,6 +943,11 @@ public class DelugeJsonRpcController : ControllerBase
     private IActionResult HandleGetPlugins(object id)
     {
         return this.DelugeResult(new { result = new[] { "Label", "Extractor", "Execute", "AutoAdd", "Blocklist", "Scheduler", "Stats" }, error = (object)null, id });
+    }
+
+    private IActionResult HandleWebGetEvents(object id)
+    {
+        return this.DelugeResult(new { result = Array.Empty<object>(), error = (object)null, id });
     }
 
     private IActionResult HandleTogglePlugin(object id)
