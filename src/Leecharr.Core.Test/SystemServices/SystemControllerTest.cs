@@ -2,9 +2,11 @@
 
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.System;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Common.EnvironmentInfo;
@@ -122,5 +124,91 @@ public class SystemControllerTest
         status.Should().NotBeNull();
         status!.AppDataFolder.Should().Be("~/.config/Leecharr");
         status.StartupPath.Should().Be("~/bin/Leecharr");
+    }
+
+    [Test]
+    public async Task Restart_OnSystemRestartController_SetsRestartPendingAndStopsApplication()
+    {
+        var runtimeInfo = Substitute.For<IRuntimeInfo>();
+        var lifetime = Substitute.For<IHostApplicationLifetime>();
+        var controller = new SystemRestartController(runtimeInfo, lifetime);
+
+        var result = controller.Restart();
+
+        var okResult = result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        runtimeInfo.RestartPending.Should().BeTrue();
+
+        await Task.Delay(600);
+        lifetime.Received(1).StopApplication();
+    }
+
+    [Test]
+    public async Task Shutdown_OnSystemShutdownController_SetsRestartPendingFalseAndStopsApplication()
+    {
+        var runtimeInfo = Substitute.For<IRuntimeInfo>();
+        runtimeInfo.RestartPending = true;
+        var lifetime = Substitute.For<IHostApplicationLifetime>();
+        var controller = new SystemShutdownController(runtimeInfo, lifetime);
+
+        var result = controller.Shutdown();
+
+        var okResult = result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        runtimeInfo.RestartPending.Should().BeFalse();
+
+        await Task.Delay(600);
+        lifetime.Received(1).StopApplication();
+    }
+
+    [Test]
+    public async Task Restart_OnSystemController_SetsRestartPendingAndStopsApplication()
+    {
+        var runtimeInfo = Substitute.For<IRuntimeInfo>();
+        var lifetime = Substitute.For<IHostApplicationLifetime>();
+        var controller = new SystemController(this.appFolderInfo, runtimeInfo: runtimeInfo, hostApplicationLifetime: lifetime);
+
+        var result = controller.Restart();
+
+        var okResult = result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        runtimeInfo.RestartPending.Should().BeTrue();
+
+        await Task.Delay(600);
+        lifetime.Received(1).StopApplication();
+    }
+
+    [Test]
+    public async Task Shutdown_OnSystemController_SetsRestartPendingFalseAndStopsApplication()
+    {
+        var runtimeInfo = Substitute.For<IRuntimeInfo>();
+        runtimeInfo.RestartPending = true;
+        var lifetime = Substitute.For<IHostApplicationLifetime>();
+        var controller = new SystemController(this.appFolderInfo, runtimeInfo: runtimeInfo, hostApplicationLifetime: lifetime);
+
+        var result = controller.Shutdown();
+
+        var okResult = result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        runtimeInfo.RestartPending.Should().BeFalse();
+
+        await Task.Delay(600);
+        lifetime.Received(1).StopApplication();
+    }
+
+    [Test]
+    public void RuntimeInfo_RestartPending_SynchronizesAcrossInstances()
+    {
+        var runtime1 = new RuntimeInfo();
+        var runtime2 = new RuntimeInfo();
+
+        runtime1.RestartPending = false;
+        runtime2.RestartPending.Should().BeFalse();
+
+        runtime1.RestartPending = true;
+        runtime2.RestartPending.Should().BeTrue();
+
+        runtime2.RestartPending = false;
+        runtime1.RestartPending.Should().BeFalse();
     }
 }
