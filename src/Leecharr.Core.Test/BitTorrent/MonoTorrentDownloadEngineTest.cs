@@ -5846,4 +5846,67 @@ public class MonoTorrentDownloadEngineTest
             e.Reason == "Hash check failed" &&
             e.InfoHash == "engine-info-hash"));
     }
+
+    [Test]
+    public async Task PauseForSchedulerAsync_RecordsActiveTorrentsInSchedulerPausedTorrentIds()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("sched_active.iso");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 501,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "sched_active.iso",
+            Status = TorrentStatus.Downloading,
+        };
+
+        await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        await this.engine.PauseForSchedulerAsync();
+
+        this.engine.SchedulerPausedTorrentIds.Should().Contain(501);
+        var task = this.engine.GetTask(501);
+        task.Should().NotBeNull();
+        task!.Status.Should().BeOneOf(TorrentStatus.Paused, TorrentStatus.Stopped);
+    }
+
+    [Test]
+    public async Task ResumeFromSchedulerAsync_OnlyResumesSchedulerPausedTorrents()
+    {
+        var torrentBytes1 = CreateSampleSingleFileTorrentBytes("sched_res1.iso");
+        var parsed1 = MonoTorrent.Torrent.Load(torrentBytes1);
+        var torrent1 = new CoreTorrent
+        {
+            Id = 502,
+            InfoHash = parsed1.InfoHashes.V1OrV2.ToHex(),
+            Name = "sched_res1.iso",
+            Status = TorrentStatus.Downloading,
+        };
+
+        var torrentBytes2 = CreateSampleSingleFileTorrentBytes("sched_res2.iso");
+        var parsed2 = MonoTorrent.Torrent.Load(torrentBytes2);
+        var torrent2 = new CoreTorrent
+        {
+            Id = 503,
+            InfoHash = parsed2.InfoHashes.V1OrV2.ToHex(),
+            Name = "sched_res2.iso",
+            Status = TorrentStatus.Downloading,
+        };
+
+        await this.engine.AddTorrentAsync(torrent1, torrentFileBytes: torrentBytes1);
+        await this.engine.AddTorrentAsync(torrent2, torrentFileBytes: torrentBytes2);
+
+        // Pause for scheduler
+        await this.engine.PauseForSchedulerAsync();
+        this.engine.SchedulerPausedTorrentIds.Should().Contain(502);
+        this.engine.SchedulerPausedTorrentIds.Should().Contain(503);
+
+        // User pauses torrent 503 during scheduler pause
+        await this.engine.PauseTorrentAsync(503);
+        this.engine.SchedulerPausedTorrentIds.Should().NotContain(503);
+
+        // Resume from scheduler
+        await this.engine.ResumeFromSchedulerAsync();
+        this.engine.SchedulerPausedTorrentIds.Should().BeEmpty();
+    }
 }

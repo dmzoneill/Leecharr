@@ -9,6 +9,8 @@ using NUnit.Framework;
 using NzbDrone.Core.Bandwidth;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Torrents;
+using CoreTorrent = NzbDrone.Core.Torrents.Torrent;
 
 namespace Leecharr.Core.Test.Bandwidth;
 
@@ -611,9 +613,15 @@ public class SpeedSchedulerServiceTest
     }
 
     [Test]
-    public async Task ApplyCurrentLimitsAsync_WhenPauseScheduleElapses_ResumesAllTorrentsAndAppliesNormalLimits()
+    public async Task ApplyCurrentLimitsAsync_WhenPauseScheduleElapses_ResumesSchedulerPausedTorrentsAndAppliesNormalLimits()
     {
         var downloadEngine = Substitute.For<IDownloadEngine>();
+        var activeTask = Substitute.For<IDownloadTask>();
+        activeTask.TorrentId.Returns(42);
+        activeTask.Status.Returns(TorrentStatus.Downloading);
+        downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { activeTask });
+        downloadEngine.GetTask(42).Returns(activeTask);
+
         var schedulerService = new SpeedSchedulerService(this.repository, this.configService, downloadEngine);
 
         var pauseSchedules = new List<SpeedSchedule>
@@ -634,13 +642,189 @@ public class SpeedSchedulerServiceTest
         this.repository.GetEnabled().Returns(pauseSchedules);
         await schedulerService.ApplyCurrentLimitsAsync();
         await downloadEngine.Received(1).PauseAllAsync();
+        schedulerService.SchedulerPausedTorrentIds.Should().Contain(42);
 
         // Window elapses -> no active schedule
         this.repository.GetEnabled().Returns(new List<SpeedSchedule>());
         await schedulerService.ApplyCurrentLimitsAsync();
 
-        await downloadEngine.Received(1).ResumeAllTorrentsAsync();
+        await downloadEngine.Received(1).ResumeTorrentAsync(42);
+        await downloadEngine.DidNotReceive().ResumeAllTorrentsAsync();
         await downloadEngine.Received(1).SetRateLimitsAsync(50000, 20000);
+        schedulerService.SchedulerPausedTorrentIds.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task ApplyCurrentLimitsAsync_WhenPauseScheduleElapses_DoesNotResumeUserPausedTorrents()
+    {
+        var downloadEngine = Substitute.For<IDownloadEngine>();
+        var torrentRepo = Substitute.For<ITorrentRepository>();
+
+        var task1 = Substitute.For<IDownloadTask>();
+        task1.TorrentId.Returns(1);
+        task1.Status.Returns(TorrentStatus.Downloading);
+
+        var task2 = Substitute.For<IDownloadTask>();
+        task2.TorrentId.Returns(2);
+        task2.Status.Returns(TorrentStatus.Paused);
+
+        downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { task1, task2 });
+        downloadEngine.GetTask(1).Returns(task1);
+        downloadEngine.GetTask(2).Returns(task2);
+
+        var dbTorrent1 = new CoreTorrent { Id = 1, Status = TorrentStatus.Downloading };
+        var dbTorrent2 = new CoreTorrent { Id = 2, Status = TorrentStatus.Paused };
+        torrentRepo.All().Returns(new List<CoreTorrent> { dbTorrent1, dbTorrent2 });
+        torrentRepo.Get(1).Returns(dbTorrent1);
+        torrentRepo.Get(2).Returns(dbTorrent2);
+
+        var schedulerService = new SpeedSchedulerService(
+            this.repository,
+            this.configService,
+            downloadEngine,
+            torrentRepository: torrentRepo);
+
+        var pauseSchedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Pause Schedule",
+                Days = 127,
+                StartTime = "00:00:00",
+                EndTime = "23:59:59",
+                MaxDownloadSpeed = -1,
+                MaxUploadSpeed = -1,
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+
+        this.repository.GetEnabled().Returns(pauseSchedules);
+        await schedulerService.ApplyCurrentLimitsAsync();
+
+        // Torrent 1 was active, torrent 2 was paused
+        schedulerService.SchedulerPausedTorrentIds.Should().Contain(1);
+        schedulerService.SchedulerPausedTorrentIds.Should().NotContain(2);
+
+        // While scheduler pause is active, user pauses torrent 1
+        dbTorrent1.Status = TorrentStatus.Paused;
+
+        // Schedule elapses
+        this.repository.GetEnabled().Returns(new List<SpeedSchedule>());
+        await schedulerService.ApplyCurrentLimitsAsync();
+
+        // Neither torrent should be resumed
+        await downloadEngine.DidNotReceive().ResumeTorrentAsync(1);
+        await downloadEngine.DidNotReceive().ResumeTorrentAsync(2);
+        await downloadEngine.DidNotReceive().ResumeAllTorrentsAsync();
+    }
+
+    [Test]
+    public async Task ApplyCurrentLimitsAsync_WhenPauseScheduleElapses_DoesNotResumeStoppedOrCompletedTorrents()
+    {
+        var downloadEngine = Substitute.For<IDownloadEngine>();
+        var torrentRepo = Substitute.For<ITorrentRepository>();
+
+        var task1 = Substitute.For<IDownloadTask>();
+        task1.TorrentId.Returns(10);
+        task1.Status.Returns(TorrentStatus.Downloading);
+
+        var task2 = Substitute.For<IDownloadTask>();
+        task2.TorrentId.Returns(20);
+        task2.Status.Returns(TorrentStatus.Completed);
+
+        downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { task1, task2 });
+        downloadEngine.GetTask(10).Returns(task1);
+        downloadEngine.GetTask(20).Returns(task2);
+
+        var dbTorrent1 = new CoreTorrent { Id = 10, Status = TorrentStatus.Downloading };
+        var dbTorrent2 = new CoreTorrent { Id = 20, Status = TorrentStatus.Completed };
+        torrentRepo.All().Returns(new List<CoreTorrent> { dbTorrent1, dbTorrent2 });
+        torrentRepo.Get(10).Returns(dbTorrent1);
+        torrentRepo.Get(20).Returns(dbTorrent2);
+
+        var schedulerService = new SpeedSchedulerService(
+            this.repository,
+            this.configService,
+            downloadEngine,
+            torrentRepository: torrentRepo);
+
+        var pauseSchedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Pause Schedule",
+                Days = 127,
+                StartTime = "00:00:00",
+                EndTime = "23:59:59",
+                MaxDownloadSpeed = -1,
+                MaxUploadSpeed = -1,
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+
+        this.repository.GetEnabled().Returns(pauseSchedules);
+        await schedulerService.ApplyCurrentLimitsAsync();
+
+        // Torrent 10 tracked, 20 skipped
+        schedulerService.SchedulerPausedTorrentIds.Should().Contain(10);
+        schedulerService.SchedulerPausedTorrentIds.Should().NotContain(20);
+
+        // In the interim, seed goals completed for torrent 10
+        dbTorrent1.Status = TorrentStatus.Completed;
+
+        // Schedule elapses
+        this.repository.GetEnabled().Returns(new List<SpeedSchedule>());
+        await schedulerService.ApplyCurrentLimitsAsync();
+
+        await downloadEngine.DidNotReceive().ResumeTorrentAsync(10);
+        await downloadEngine.DidNotReceive().ResumeTorrentAsync(20);
+        await downloadEngine.DidNotReceive().ResumeAllTorrentsAsync();
+    }
+
+    [Test]
+    public async Task ApplyCurrentLimitsAsync_WhenPauseScheduleElapses_InvokesQueueManagerProcessQueueAsync()
+    {
+        var downloadEngine = Substitute.For<IDownloadEngine>();
+        var queueManagerService = Substitute.For<IQueueManagerService>();
+
+        var task = Substitute.For<IDownloadTask>();
+        task.TorrentId.Returns(100);
+        task.Status.Returns(TorrentStatus.Downloading);
+        downloadEngine.GetAllTasks().Returns(new List<IDownloadTask> { task });
+        downloadEngine.GetTask(100).Returns(task);
+
+        var schedulerService = new SpeedSchedulerService(
+            this.repository,
+            this.configService,
+            downloadEngine,
+            queueManagerService: queueManagerService);
+
+        var pauseSchedules = new List<SpeedSchedule>
+        {
+            new()
+            {
+                Name = "Pause Schedule",
+                Days = 127,
+                StartTime = "00:00:00",
+                EndTime = "23:59:59",
+                MaxDownloadSpeed = -1,
+                MaxUploadSpeed = -1,
+                IsEnabled = true,
+                Priority = 10,
+            },
+        };
+
+        this.repository.GetEnabled().Returns(pauseSchedules);
+        await schedulerService.ApplyCurrentLimitsAsync();
+
+        // Window elapses
+        this.repository.GetEnabled().Returns(new List<SpeedSchedule>());
+        await schedulerService.ApplyCurrentLimitsAsync();
+
+        await downloadEngine.Received(1).ResumeTorrentAsync(100);
+        await queueManagerService.Received(1).ProcessQueueAsync();
     }
 
     [Test]
