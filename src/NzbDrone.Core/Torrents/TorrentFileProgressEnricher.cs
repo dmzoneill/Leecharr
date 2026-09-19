@@ -134,10 +134,6 @@ public static class TorrentFileProgressEnricher
                 completedPieces++;
                 var pieceStart = (long)i * pieceLength;
                 var pieceEnd = pieceStart + pieceLength;
-                if (torrent.TotalSize > 0 && pieceEnd > torrent.TotalSize)
-                {
-                    pieceEnd = torrent.TotalSize;
-                }
 
                 var intersectionStart = Math.Max(fileStart, pieceStart);
                 var intersectionEnd = Math.Min(fileEnd, pieceEnd);

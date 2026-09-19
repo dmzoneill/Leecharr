@@ -339,4 +339,50 @@ public class TorrentFileProgressEnricherTest
         file.Progress.Should().Be(1.0);
         file.BytesCompleted.Should().Be(512);
     }
+
+    [Test]
+    public void Enrich_WhenFileAfterPaddingExceedsTorrentTotalSize_Calculates100PercentWhenAllPiecesDownloaded()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Status = TorrentStatus.Downloading,
+            Progress = 0.8,
+            PieceLength = 16384,
+            PieceCount = 2,
+            TotalSize = 15000, // TotalSize excludes 6384 padding bytes
+        };
+
+        var task = Substitute.For<IDownloadTask>();
+        task.PieceBitfield.Returns(new[] { true, true });
+        task.PieceLength.Returns(16384);
+
+        var file1 = new TorrentFile
+        {
+            Id = 1,
+            Path = "file1.bin",
+            Size = 10000,
+            ByteOffset = 0,
+            PieceOffset = 0,
+            PieceCount = 1,
+        };
+
+        var file2 = new TorrentFile
+        {
+            Id = 2,
+            Path = "file2.bin",
+            Size = 5000,
+            ByteOffset = 16384, // Starts after piece 0 + padding
+            PieceOffset = 1,
+            PieceCount = 1,
+        };
+
+        TorrentFileProgressEnricher.Enrich(torrent, new List<TorrentFile> { file1, file2 }, task);
+
+        file1.Progress.Should().Be(1.0);
+        file1.BytesCompleted.Should().Be(10000);
+
+        file2.Progress.Should().Be(1.0);
+        file2.BytesCompleted.Should().Be(5000);
+    }
 }
