@@ -325,6 +325,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         public int CurrentTrackChannels;
         public string CurrentTrackName;
         public bool HasHdr10Plus;
+        public bool HasDolbyVision;
         public long SegmentDataStart;
         public long TracksSeekPosition;
     }
@@ -453,6 +454,11 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
                 case 0x55B0: // Colour
                     ParseEbmlColourElement(header, ref offset, childLimit, info);
+                    break;
+
+                case 0x41E4: // BlockAdditionMapping
+                    ParseEbmlBlockAdditionMapping(header, offset, elemSize, ref context);
+                    offset += elemSize;
                     break;
 
                 case 0x86: // CodecID
@@ -591,6 +597,11 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                     offset += elemSize;
                     break;
 
+                case 0x41E4: // BlockAdditionMapping
+                    ParseEbmlBlockAdditionMapping(header, offset, elemSize, ref context);
+                    offset += elemSize;
+                    break;
+
                 case 0xE0: // VideoSettings
                     ParseEbmlVideoTrack(header, ref offset, childLimit, info, ref context);
                     break;
@@ -644,6 +655,11 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             if (string.IsNullOrEmpty(info.VideoCodec) && !string.IsNullOrEmpty(trackCodecId))
             {
                 ApplyVideoCodecId(info, trackCodecId);
+            }
+
+            if (!string.IsNullOrEmpty(trackName) && Regex.IsMatch(trackName, @"\b(DV|DOVI)\b|\bDOLBY\s*VISION\b", RegexOptions.IgnoreCase))
+            {
+                context.HasDolbyVision = true;
             }
         }
     }
@@ -826,6 +842,11 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         {
             context.HasHdr10Plus = true;
         }
+
+        if (ScanBufferForDolbyVision(data, offset, length))
+        {
+            context.HasDolbyVision = true;
+        }
     }
 
     private static void ParseEbmlVideoDimension(byte[] header, int offset, int elemSize, uint id, MediaContainerInfo info)
@@ -897,11 +918,11 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             var tc = ReadEbmlUInt(header, offset, elemSize);
             if (tc == 16)
             {
-                info.HdrFormat = info.HdrFormat == "Dolby Vision" ? "Dolby Vision / HDR10" : "HDR10";
+                info.HdrFormat = (info.HdrFormat == "Dolby Vision" || info.HdrFormat?.StartsWith("Dolby Vision") == true) ? "Dolby Vision / HDR10" : "HDR10";
             }
             else if (tc == 18)
             {
-                info.HdrFormat = info.HdrFormat == "Dolby Vision" ? "Dolby Vision / HLG" : "HLG";
+                info.HdrFormat = (info.HdrFormat == "Dolby Vision" || info.HdrFormat?.StartsWith("Dolby Vision") == true) ? "Dolby Vision / HLG" : "HLG";
             }
         }
 
@@ -911,7 +932,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             var primaries = ReadEbmlUInt(header, offset, elemSize);
             if (primaries == 9)
             {
-                if (info.HdrFormat == "Dolby Vision")
+                if (info.HdrFormat == "Dolby Vision" || info.HdrFormat?.StartsWith("Dolby Vision") == true)
                 {
                     info.HdrFormat = "Dolby Vision / HDR10";
                 }
@@ -983,6 +1004,107 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         ApplyFilenameHints(info, fileName);
     }
 
+    private static void ParseEbmlBlockAdditionMapping(byte[] header, int offset, int mappingSize, ref EbmlParserContext context)
+    {
+        if (ScanBufferForDolbyVision(header, offset, mappingSize))
+        {
+            context.HasDolbyVision = true;
+            return;
+        }
+
+        int curr = offset;
+        int end = offset + mappingSize;
+
+        while (curr < end)
+        {
+            if (!ReadElementId(header, ref curr, out var id, out _))
+            {
+                break;
+            }
+
+            if (!ReadElementSize(header, ref curr, out var size, out _))
+            {
+                break;
+            }
+
+            int elemSize = size < 0 ? end - curr : (int)Math.Min((long)curr + size, end) - curr;
+
+            switch (id)
+            {
+                case 0x41E7: // BlockAddIDType (4 = Dolby Vision)
+                    var addIdType = ReadEbmlUInt(header, curr, elemSize);
+                    if (addIdType == 4)
+                    {
+                        context.HasDolbyVision = true;
+                    }
+
+                    break;
+
+                case 0x41E8: // BlockAddIDName
+                    var name = ReadEbmlString(header, curr, elemSize);
+                    if (name != null && name.Contains("Dolby Vision", StringComparison.OrdinalIgnoreCase))
+                    {
+                        context.HasDolbyVision = true;
+                    }
+
+                    break;
+
+                case 0x41ED: // BlockAddIDExtraData
+                    if (ScanBufferForDolbyVision(header, curr, elemSize))
+                    {
+                        context.HasDolbyVision = true;
+                    }
+
+                    break;
+
+                default:
+                    break;
+            }
+
+            curr += elemSize;
+        }
+    }
+
+    private static bool ScanBufferForDolbyVision(byte[] data, int offset, int length)
+    {
+        if (data == null || length < 2 || offset < 0 || offset + length > data.Length)
+        {
+            return false;
+        }
+
+        ReadOnlySpan<byte> span = data.AsSpan(offset, length);
+
+        // 1. Check for Dolby Vision box FourCC: dvcC, dvvC, dvwC
+        if (span.IndexOf("dvcC"u8) >= 0 || span.IndexOf("dvvC"u8) >= 0 || span.IndexOf("dvwC"u8) >= 0)
+        {
+            return true;
+        }
+
+        // 2. Check for raw or start-coded HEVC Dolby Vision RPU NAL unit (type 62 = 0x7C 0x01)
+        if (span[0] == 0x7C && span[1] == 0x01)
+        {
+            return true;
+        }
+
+        for (int i = 0; i + 4 < span.Length; i++)
+        {
+            if (span[i] == 0x00 && span[i + 1] == 0x00)
+            {
+                if (span[i + 2] == 0x01 && span[i + 3] == 0x7C && span[i + 4] == 0x01)
+                {
+                    return true;
+                }
+
+                if (i + 5 < span.Length && span[i + 2] == 0x00 && span[i + 3] == 0x01 && span[i + 4] == 0x7C && span[i + 5] == 0x01)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     private static void FinalizeHdrFormat(byte[] header, MediaContainerInfo info, ref EbmlParserContext context)
     {
         if (!context.HasHdr10Plus && ScanBufferForHdr10PlusSei(header, 0, header.Length))
@@ -990,7 +1112,31 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             context.HasHdr10Plus = true;
         }
 
-        if (context.HasHdr10Plus)
+        if (!context.HasDolbyVision && ScanBufferForDolbyVision(header, 0, header.Length))
+        {
+            context.HasDolbyVision = true;
+        }
+
+        if (context.HasDolbyVision)
+        {
+            if (context.HasHdr10Plus || info.HdrFormat == "HDR10+")
+            {
+                info.HdrFormat = "Dolby Vision / HDR10+";
+            }
+            else if (info.HdrFormat == "HDR10")
+            {
+                info.HdrFormat = "Dolby Vision / HDR10";
+            }
+            else if (info.HdrFormat == "HLG")
+            {
+                info.HdrFormat = "Dolby Vision / HLG";
+            }
+            else if (string.IsNullOrEmpty(info.HdrFormat) || info.HdrFormat == "SDR")
+            {
+                info.HdrFormat = "Dolby Vision";
+            }
+        }
+        else if (context.HasHdr10Plus)
         {
             if (info.HdrFormat == "Dolby Vision" || info.HdrFormat == "Dolby Vision / HDR10")
             {
@@ -3436,31 +3582,49 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             }
         }
 
-        // HDR (only if missing or SDR; support hybrid / dual-layer HDR profiles without discarding base format)
-        if (string.IsNullOrEmpty(info.HdrFormat) || info.HdrFormat == "SDR")
-        {
-            bool hasDv = Regex.IsMatch(normalized, @"\b(DV|DOVI)\b|\bDOLBY\s*VISION\b");
-            bool hasHdr10Plus = Regex.IsMatch(upper, @"\bHDR10\+") || Regex.IsMatch(normalized, @"\bHDR10\s*PLUS\b");
-            bool hasHdr10 = Regex.IsMatch(normalized, @"\bHDR10\b") || (!hasHdr10Plus && Regex.IsMatch(normalized, @"\bHDR\b"));
-            bool hasHlg = Regex.IsMatch(normalized, @"\bHLG\b");
+        // HDR (support hybrid / dual-layer HDR profiles without discarding base format)
+        bool hasDv = Regex.IsMatch(normalized, @"\b(DV|DOVI)\b|\bDOLBY\s*VISION\b");
+        bool hasHdr10Plus = Regex.IsMatch(upper, @"\bHDR10\+") || Regex.IsMatch(normalized, @"\bHDR10\s*PLUS\b");
+        bool hasHdr10 = Regex.IsMatch(normalized, @"\bHDR10\b") || (!hasHdr10Plus && Regex.IsMatch(normalized, @"\bHDR\b"));
+        bool hasHlg = Regex.IsMatch(normalized, @"\bHLG\b");
 
-            if (hasDv && hasHdr10Plus)
+        if (hasDv)
+        {
+            if (info.HdrFormat == "HDR10+" || hasHdr10Plus)
             {
                 info.HdrFormat = "Dolby Vision / HDR10+";
             }
-            else if (hasDv && hasHdr10)
+            else if (info.HdrFormat == "HDR10" || hasHdr10)
             {
                 info.HdrFormat = "Dolby Vision / HDR10";
             }
-            else if (hasDv && hasHlg)
+            else if (info.HdrFormat == "HLG" || hasHlg)
             {
                 info.HdrFormat = "Dolby Vision / HLG";
             }
-            else if (hasDv)
+            else if (string.IsNullOrEmpty(info.HdrFormat) || info.HdrFormat == "SDR")
             {
                 info.HdrFormat = "Dolby Vision";
             }
-            else if (hasHdr10Plus)
+        }
+        else if (info.HdrFormat == "Dolby Vision")
+        {
+            if (hasHdr10Plus)
+            {
+                info.HdrFormat = "Dolby Vision / HDR10+";
+            }
+            else if (hasHdr10)
+            {
+                info.HdrFormat = "Dolby Vision / HDR10";
+            }
+            else if (hasHlg)
+            {
+                info.HdrFormat = "Dolby Vision / HLG";
+            }
+        }
+        else if (string.IsNullOrEmpty(info.HdrFormat) || info.HdrFormat == "SDR")
+        {
+            if (hasHdr10Plus)
             {
                 info.HdrFormat = "HDR10+";
             }

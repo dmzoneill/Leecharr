@@ -1063,7 +1063,7 @@ public class TagLibInspectorProviderTest
         info.VideoCodec.Should().Be("HEVC (H.265)");
         info.AudioCodec.Should().Be("AAC");
         info.AudioChannels.Should().Be("2.0");
-        info.HdrFormat.Should().Be("HDR10");
+        info.HdrFormat.Should().Be("Dolby Vision / HDR10");
     }
 
     [Test]
@@ -2815,7 +2815,209 @@ public class TagLibInspectorProviderTest
         }
     }
 
-    private sealed class UnseekableStream : Stream
+        private static byte[] CreateMatroskaHeaderWithBlockAdditionMapping(
+        string docType,
+        string videoCodecId,
+        int width,
+        int height,
+        ulong? transferChar,
+        ulong? primaries,
+        ulong addIdType,
+        string addIdName,
+        byte[] extraData)
+    {
+        using var ms = new MemoryStream();
+
+        // 1. EBML Header (0x1A45DFA3)
+        using (var ebmlMs = new MemoryStream())
+        {
+            WriteEbmlString(ebmlMs, 0x4282, docType);
+            var ebmlPayload = ebmlMs.ToArray();
+
+            WriteId(ms, 0x1A45DFA3);
+            WriteSize(ms, ebmlPayload.Length);
+            ms.Write(ebmlPayload);
+        }
+
+        // 2. Segment (0x18538067)
+        WriteId(ms, 0x18538067);
+        WriteSize(ms, -1);
+
+        // 3. Tracks (0x1654AE6B)
+        WriteId(ms, 0x1654AE6B);
+        WriteSize(ms, -1);
+
+        // 4. Video TrackEntry (0xAE)
+        WriteId(ms, 0xAE);
+        WriteSize(ms, -1);
+
+        WriteEbmlUInt(ms, 0x83, 1);
+        WriteEbmlString(ms, 0x86, videoCodecId);
+
+        // BlockAdditionMapping (0x41E4)
+        using (var bamMs = new MemoryStream())
+        {
+            WriteEbmlUInt(bamMs, 0x41E7, addIdType);
+            if (!string.IsNullOrEmpty(addIdName))
+            {
+                WriteEbmlString(bamMs, 0x41E8, addIdName);
+            }
+
+            if (extraData != null && extraData.Length > 0)
+            {
+                WriteId(bamMs, 0x41ED);
+                WriteSize(bamMs, extraData.Length);
+                bamMs.Write(extraData, 0, extraData.Length);
+            }
+
+            var bamPayload = bamMs.ToArray();
+            WriteId(ms, 0x41E4);
+            WriteSize(ms, bamPayload.Length);
+            ms.Write(bamPayload, 0, bamPayload.Length);
+        }
+
+        // Video Settings (0xE0)
+        WriteId(ms, 0xE0);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0xB0, (ulong)width);
+        WriteEbmlUInt(ms, 0xBA, (ulong)height);
+
+        if (transferChar.HasValue || primaries.HasValue)
+        {
+            using var colourMs = new MemoryStream();
+            if (transferChar.HasValue)
+            {
+                WriteEbmlUInt(colourMs, 0x55B7, transferChar.Value);
+            }
+
+            if (primaries.HasValue)
+            {
+                WriteEbmlUInt(colourMs, 0x55B8, primaries.Value);
+            }
+
+            var colourPayload = colourMs.ToArray();
+            WriteId(ms, 0x55B0);
+            WriteSize(ms, colourPayload.Length);
+            ms.Write(colourPayload, 0, colourPayload.Length);
+        }
+
+        return ms.ToArray();
+    }
+
+    [Test]
+    public void Inspect_MatroskaWithBlockAdditionMappingDolbyVisionType4_IdentifiesDolbyVision()
+    {
+        var ebmlData = CreateMatroskaHeaderWithBlockAdditionMapping(
+            "matroska",
+            "V_MPEGH/ISO/HEVC",
+            3840,
+            2160,
+            transferChar: null,
+            primaries: null,
+            addIdType: 4,
+            addIdName: "Dolby Vision configuration",
+            extraData: null);
+
+        using var ms = new MemoryStream(ebmlData);
+        var result = this.provider.Inspect(ms, "movie.mkv");
+
+        result.Should().NotBeNull();
+        result.HdrFormat.Should().Be("Dolby Vision");
+    }
+
+    [Test]
+    public void Inspect_MatroskaWithBlockAdditionMappingAndHdr10Colour_PromotesToDolbyVisionHdr10()
+    {
+        var ebmlData = CreateMatroskaHeaderWithBlockAdditionMapping(
+            "matroska",
+            "V_MPEGH/ISO/HEVC",
+            3840,
+            2160,
+            transferChar: 16,
+            primaries: 9,
+            addIdType: 4,
+            addIdName: "Dolby Vision",
+            extraData: Encoding.ASCII.GetBytes("dvcC_profile8_data"));
+
+        using var ms = new MemoryStream(ebmlData);
+        var result = this.provider.Inspect(ms, "movie.mkv");
+
+        result.Should().NotBeNull();
+        result.HdrFormat.Should().Be("Dolby Vision / HDR10");
+    }
+
+    [Test]
+    public void Inspect_MatroskaWithCodecPrivateDvcC_IdentifiesDolbyVision()
+    {
+        var codecPrivate = Encoding.ASCII.GetBytes("binary_header_dvcC_dolby_vision_box");
+        var ebmlData = CreateMatroskaHeaderWithCodecPrivate("matroska", "V_MPEGH/ISO/HEVC", 3840, 2160, codecPrivate);
+
+        using var ms = new MemoryStream(ebmlData);
+        var result = this.provider.Inspect(ms, "movie.mkv");
+
+        result.Should().NotBeNull();
+        result.HdrFormat.Should().Be("Dolby Vision");
+    }
+
+    [Test]
+    public void Inspect_MatroskaWithCodecPrivateDolbyVisionRpu_IdentifiesDolbyVision()
+    {
+        var codecPrivate = new byte[] { 0x00, 0x00, 0x01, 0x7C, 0x01, 0x12, 0x34 };
+        var ebmlData = CreateMatroskaHeaderWithCodecPrivate("matroska", "V_MPEGH/ISO/HEVC", 3840, 2160, codecPrivate);
+
+        using var ms = new MemoryStream(ebmlData);
+        var result = this.provider.Inspect(ms, "movie.mkv");
+
+        result.Should().NotBeNull();
+        result.HdrFormat.Should().Be("Dolby Vision");
+    }
+
+    [Test]
+    public void ApplyFilenameHints_WhenHdr10AlreadySetAndFilenameHasDv_PromotesToDolbyVisionHdr10()
+    {
+        var info = new MediaContainerInfo { HdrFormat = "HDR10" };
+        TagLibInspectorProvider.ApplyFilenameHints(info, "Movie.2023.2160p.UHD.BluRay.DV.HDR10.x265.mkv");
+
+        info.HdrFormat.Should().Be("Dolby Vision / HDR10");
+    }
+
+    [Test]
+    public void ApplyFilenameHints_WhenHdr10PlusAlreadySetAndFilenameHasDovi_PromotesToDolbyVisionHdr10Plus()
+    {
+        var info = new MediaContainerInfo { HdrFormat = "HDR10+" };
+        TagLibInspectorProvider.ApplyFilenameHints(info, "Movie.2023.2160p.UHD.BluRay.DOVI.HDR10+.x265.mkv");
+
+        info.HdrFormat.Should().Be("Dolby Vision / HDR10+");
+    }
+
+    [Test]
+    public void ApplyFilenameHints_WhenHlgAlreadySetAndFilenameHasDolbyVision_PromotesToDolbyVisionHlg()
+    {
+        var info = new MediaContainerInfo { HdrFormat = "HLG" };
+        TagLibInspectorProvider.ApplyFilenameHints(info, "Movie.2023.2160p.UHD.BluRay.Dolby.Vision.HLG.mkv");
+
+        info.HdrFormat.Should().Be("Dolby Vision / HLG");
+    }
+
+    [Test]
+    public void ApplyFilenameHints_WhenSdrOrEmptyAndFilenameHasDv_SetsDolbyVision()
+    {
+        var info = new MediaContainerInfo();
+        TagLibInspectorProvider.ApplyFilenameHints(info, "Movie.2023.2160p.DV.mkv");
+
+        info.HdrFormat.Should().Be("Dolby Vision");
+    }
+
+    [Test]
+    public void ApplyFilenameHints_WhenDolbyVisionAlreadySetAndFilenameHasHdr10_PromotesToDolbyVisionHdr10()
+    {
+        var info = new MediaContainerInfo { HdrFormat = "Dolby Vision" };
+        TagLibInspectorProvider.ApplyFilenameHints(info, "Movie.2023.2160p.HDR10.mkv");
+
+        info.HdrFormat.Should().Be("Dolby Vision / HDR10");
+    }
+
+private sealed class UnseekableStream : Stream
     {
         private readonly byte[] data;
         private int position;
