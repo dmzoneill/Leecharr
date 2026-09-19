@@ -331,11 +331,15 @@ public class SamlSecurityTest
     public async Task SamlCallback_WhenAssertionReplayed_RejectsSecondAttemptWithUnauthorized()
     {
         const string assertionId = "_assertion_replay_test_999";
+        const string requestId = "_req_replay_test_999";
+        AuthController.RegisterPendingSamlRequest(requestId);
+
         var (b64Saml, certB64) = CreateSignedSamlResponse(
             assertionId,
             "carol@example.com",
             "User",
-            injectDuplicateAssertion: false);
+            injectDuplicateAssertion: false,
+            inResponseTo: requestId);
 
         this.identityProviderService.GetByProviderId("saml1").Returns(new IdentityProviderDefinition
         {
@@ -356,11 +360,177 @@ public class SamlSecurityTest
         var firstResult = await this.controller.SamlCallback("saml1", b64Saml, "/settings");
         firstResult.Should().BeOfType<RedirectResult>();
 
+        // Re-register the InResponseTo so we specifically verify the assertion replay check
+        // (simulating an attacker re-injecting a previously seen assertion into a newly initiated login flow)
+        AuthController.RegisterPendingSamlRequest(requestId);
+
         // Second submission of the exact same assertion must fail as a replay
         var secondResult = await this.controller.SamlCallback("saml1", b64Saml, "/settings");
         secondResult.Should().BeOfType<UnauthorizedObjectResult>();
         var unauthorizedResult = (UnauthorizedObjectResult)secondResult;
         unauthorizedResult.Value.ToString().Should().Contain("replay detected");
+    }
+
+    [Test]
+    public async Task SamlCallback_WhenInResponseToMissing_RejectsWithUnauthorized()
+    {
+        const string assertionId = "_assertion_missing_in_resp";
+        var (b64Saml, certB64) = CreateSignedSamlResponse(
+            assertionId,
+            "bob@example.com",
+            "User",
+            injectDuplicateAssertion: false,
+            inResponseTo: string.Empty);
+
+        this.identityProviderService.GetByProviderId("saml1").Returns(new IdentityProviderDefinition
+        {
+            ProviderId = "saml1",
+            ProviderType = IdentityProviderType.Saml,
+            IssuerUrl = "https://idp.example.com",
+            Certificate = certB64,
+            IsEnabled = true,
+        });
+
+        var result = await this.controller.SamlCallback("saml1", b64Saml, "/settings");
+
+        result.Should().BeOfType<UnauthorizedObjectResult>();
+        var unauthorizedResult = (UnauthorizedObjectResult)result;
+        unauthorizedResult.Value.ToString().Should().Be("SAML response is missing required InResponseTo attribute (unsolicited responses rejected).");
+    }
+
+    [Test]
+    public async Task SamlCallback_WhenFallbackJitUserProvisioningWithUnrecognizedRoles_DefaultsToReadOnly()
+    {
+        const string assertionId = "_assertion_fallback_jit_unrecognized";
+        var (b64Saml, certB64) = CreateSignedSamlResponse(
+            assertionId,
+            "newuser@example.com",
+            "Engineering_Team",
+            injectDuplicateAssertion: false);
+
+        this.identityProviderService.GetByProviderId("saml1").Returns(new IdentityProviderDefinition
+        {
+            ProviderId = "saml1",
+            ProviderType = IdentityProviderType.Saml,
+            IssuerUrl = "https://idp.example.com",
+            Certificate = certB64,
+            IsEnabled = true,
+        });
+
+        this.userService.GetByUsername(Arg.Any<string>()).Returns((User)null);
+        this.userService.HasAnyUsers().Returns(true);
+
+        List<string> assignedRoles = null;
+        this.userService.CreateUser(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Do<List<string>>(r => assignedRoles = r))
+            .Returns(callInfo => new User
+            {
+                Id = 200,
+                Username = callInfo.ArgAt<string>(0),
+                Email = callInfo.ArgAt<string>(2),
+                DisplayName = callInfo.ArgAt<string>(3),
+                Roles = System.Text.Json.JsonSerializer.Serialize(callInfo.ArgAt<List<string>>(4)),
+            });
+
+        var result = await this.controller.SamlCallback("saml1", b64Saml, "/torrents");
+
+        result.Should().BeOfType<RedirectResult>();
+        assignedRoles.Should().NotBeNull();
+        assignedRoles.Should().ContainSingle().Which.Should().Be("ReadOnly");
+    }
+
+    [Test]
+    public async Task SamlCallback_WhenFallbackJitUserProvisioningWithRecognizedRole_AssignsRecognizedRole()
+    {
+        const string assertionId = "_assertion_fallback_jit_operator";
+        var (b64Saml, certB64) = CreateSignedSamlResponse(
+            assertionId,
+            "operator_user@example.com",
+            "Operator",
+            injectDuplicateAssertion: false);
+
+        this.identityProviderService.GetByProviderId("saml1").Returns(new IdentityProviderDefinition
+        {
+            ProviderId = "saml1",
+            ProviderType = IdentityProviderType.Saml,
+            IssuerUrl = "https://idp.example.com",
+            Certificate = certB64,
+            IsEnabled = true,
+        });
+
+        this.userService.GetByUsername(Arg.Any<string>()).Returns((User)null);
+        this.userService.HasAnyUsers().Returns(true);
+
+        List<string> assignedRoles = null;
+        this.userService.CreateUser(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Do<List<string>>(r => assignedRoles = r))
+            .Returns(callInfo => new User
+            {
+                Id = 201,
+                Username = callInfo.ArgAt<string>(0),
+                Email = callInfo.ArgAt<string>(2),
+                DisplayName = callInfo.ArgAt<string>(3),
+                Roles = System.Text.Json.JsonSerializer.Serialize(callInfo.ArgAt<List<string>>(4)),
+            });
+
+        var result = await this.controller.SamlCallback("saml1", b64Saml, "/torrents");
+
+        result.Should().BeOfType<RedirectResult>();
+        assignedRoles.Should().NotBeNull();
+        assignedRoles.Should().ContainSingle().Which.Should().Be("Operator");
+    }
+
+    [Test]
+    public async Task SamlCallback_WhenFallbackJitUserProvisioningFirstUser_AssignsAdminRole()
+    {
+        const string assertionId = "_assertion_fallback_jit_firstuser";
+        var (b64Saml, certB64) = CreateSignedSamlResponse(
+            assertionId,
+            "firstuser@example.com",
+            "Engineering",
+            injectDuplicateAssertion: false);
+
+        this.identityProviderService.GetByProviderId("saml1").Returns(new IdentityProviderDefinition
+        {
+            ProviderId = "saml1",
+            ProviderType = IdentityProviderType.Saml,
+            IssuerUrl = "https://idp.example.com",
+            Certificate = certB64,
+            IsEnabled = true,
+        });
+
+        this.userService.GetByUsername(Arg.Any<string>()).Returns((User)null);
+        this.userService.HasAnyUsers().Returns(false);
+
+        List<string> assignedRoles = null;
+        this.userService.CreateUser(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Do<List<string>>(r => assignedRoles = r))
+            .Returns(callInfo => new User
+            {
+                Id = 202,
+                Username = callInfo.ArgAt<string>(0),
+                Email = callInfo.ArgAt<string>(2),
+                DisplayName = callInfo.ArgAt<string>(3),
+                Roles = System.Text.Json.JsonSerializer.Serialize(callInfo.ArgAt<List<string>>(4)),
+            });
+
+        var result = await this.controller.SamlCallback("saml1", b64Saml, "/torrents");
+
+        result.Should().BeOfType<RedirectResult>();
+        assignedRoles.Should().NotBeNull();
+        assignedRoles.Should().ContainSingle().Which.Should().Be("Admin");
     }
 
     #endregion
@@ -370,8 +540,15 @@ public class SamlSecurityTest
         string nameId,
         string role,
         bool injectDuplicateAssertion = false,
-        string inResponseTo = null)
+        string inResponseTo = null,
+        IReadOnlyList<string> groups = null)
     {
+        if (inResponseTo == null)
+        {
+            inResponseTo = $"_req_{Guid.NewGuid():N}";
+            AuthController.RegisterPendingSamlRequest(inResponseTo);
+        }
+
         using var rsa = RSA.Create(2048);
         var certReq = new CertificateRequest("CN=SamlTestIdP", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         using var cert = certReq.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
@@ -381,6 +558,17 @@ public class SamlSecurityTest
         var notBefore = DateTime.UtcNow.AddMinutes(-5).ToString("yyyy-MM-ddTHH:mm:ssZ");
         var notOnOrAfter = DateTime.UtcNow.AddMinutes(10).ToString("yyyy-MM-ddTHH:mm:ssZ");
         var inResponseToAttr = string.IsNullOrWhiteSpace(inResponseTo) ? string.Empty : $@" InResponseTo=""{inResponseTo}""";
+
+        var extraGroupsXml = new StringBuilder();
+        if (groups != null)
+        {
+            foreach (var g in groups)
+            {
+                extraGroupsXml.AppendLine($@"      <saml:Attribute Name=""group"">
+        <saml:AttributeValue>{g}</saml:AttributeValue>
+      </saml:Attribute>");
+            }
+        }
 
         var xml = $@"<samlp:Response xmlns:samlp=""urn:oasis:names:tc:SAML:2.0:protocol""
                                    xmlns:saml=""urn:oasis:names:tc:SAML:2.0:assertion""
@@ -402,7 +590,7 @@ public class SamlSecurityTest
       <saml:Attribute Name=""role"">
         <saml:AttributeValue>{role}</saml:AttributeValue>
       </saml:Attribute>
-    </saml:AttributeStatement>
+{extraGroupsXml}    </saml:AttributeStatement>
   </saml:Assertion>
 </samlp:Response>";
 

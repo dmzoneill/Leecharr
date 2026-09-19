@@ -45,6 +45,7 @@ public class AuthController : ControllerBase
     private readonly IUserSessionRepository userSessionRepository;
     private readonly IJitUserProvisioningService jitUserProvisioningService;
     private readonly ITrustedNetworkService trustedNetworkService;
+    private readonly IClaimsRoleMappingService claimsRoleMappingService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public AuthController(
@@ -54,7 +55,8 @@ public class AuthController : ControllerBase
         IConfigService configService,
         IUserSessionRepository userSessionRepository = null,
         IJitUserProvisioningService jitUserProvisioningService = null,
-        ITrustedNetworkService trustedNetworkService = null)
+        ITrustedNetworkService trustedNetworkService = null,
+        IClaimsRoleMappingService claimsRoleMappingService = null)
     {
         this.userService = userService;
         this.identityProviderService = identityProviderService;
@@ -63,6 +65,7 @@ public class AuthController : ControllerBase
         this.userSessionRepository = userSessionRepository;
         this.jitUserProvisioningService = jitUserProvisioningService;
         this.trustedNetworkService = trustedNetworkService;
+        this.claimsRoleMappingService = claimsRoleMappingService;
     }
 
     [HttpGet("providers")]
@@ -333,8 +336,17 @@ public class AuthController : ControllerBase
             var xmlDoc = new XmlDocument { PreserveWhitespace = true, XmlResolver = null };
             xmlDoc.LoadXml(rawXml);
 
-            // 0. Validate InResponseTo if present to prevent Login CSRF
+            // 0. Validate InResponseTo to prevent unsolicited SAML responses and Login CSRF
             var inResponseTo = xmlDoc.DocumentElement?.GetAttribute("InResponseTo");
+            if (string.IsNullOrWhiteSpace(inResponseTo))
+            {
+                var responseElem = FindChildElementByLocalName(xmlDoc.DocumentElement, "Response");
+                if (responseElem != null)
+                {
+                    inResponseTo = responseElem.GetAttribute("InResponseTo");
+                }
+            }
+
             if (string.IsNullOrWhiteSpace(inResponseTo))
             {
                 var subjectConfirmationNodes = xmlDoc.GetElementsByTagName("SubjectConfirmationData");
@@ -344,12 +356,14 @@ public class AuthController : ControllerBase
                 }
             }
 
-            if (!string.IsNullOrWhiteSpace(inResponseTo))
+            if (string.IsNullOrWhiteSpace(inResponseTo))
             {
-                if (!ValidateAndConsumePendingSamlRequest(inResponseTo))
-                {
-                    return this.Unauthorized("Invalid or expired SAML InResponseTo value (Login CSRF detected)");
-                }
+                return this.Unauthorized("SAML response is missing required InResponseTo attribute (unsolicited responses rejected).");
+            }
+
+            if (!ValidateAndConsumePendingSamlRequest(inResponseTo))
+            {
+                return this.Unauthorized("Invalid or expired SAML InResponseTo value (Login CSRF detected)");
             }
 
             // 1. Resolve Identity Provider
@@ -598,7 +612,7 @@ public class AuthController : ControllerBase
                 if (user == null)
                 {
                     var isFirstUser = !this.userService.HasAnyUsers();
-                    var roles = rawGroups.Count > 0 ? rawGroups : (isFirstUser ? new List<string> { "Admin" } : new List<string> { "User" });
+                    var roles = this.SanitizeRoles(provider, rawGroups, isFirstUser);
                     user = this.userService.CreateUser(username, Guid.NewGuid().ToString("N"), email, displayName ?? username, roles);
                 }
             }
@@ -973,5 +987,45 @@ public class AuthController : ControllerBase
     private string GetClientIpAddress()
     {
         return ClientIpResolver.ResolveClientIp(this.HttpContext, this.trustedNetworkService, this.configService);
+    }
+
+    private List<string> SanitizeRoles(IdentityProviderDefinition provider, IReadOnlyList<string> rawGroups, bool isFirstUser)
+    {
+        if (isFirstUser)
+        {
+            return new List<string> { nameof(UserRole.Admin) };
+        }
+
+        var mapper = this.claimsRoleMappingService ?? new ClaimsRoleMappingService(this.logger);
+        var resolved = mapper.ResolveRoles(provider, rawGroups, isFirstUser);
+        if (resolved != null && resolved.Count > 0)
+        {
+            var sanitized = resolved
+                .Where(r => Enum.TryParse<UserRole>(r, true, out _))
+                .Select(r => Enum.Parse<UserRole>(r, true).ToString())
+                .Distinct()
+                .ToList();
+
+            if (sanitized.Count > 0)
+            {
+                return sanitized;
+            }
+        }
+
+        if (rawGroups != null && rawGroups.Count > 0)
+        {
+            var sanitized = rawGroups
+                .Where(g => !string.IsNullOrWhiteSpace(g) && Enum.TryParse<UserRole>(g, true, out _))
+                .Select(g => Enum.Parse<UserRole>(g, true).ToString())
+                .Distinct()
+                .ToList();
+
+            if (sanitized.Count > 0)
+            {
+                return sanitized;
+            }
+        }
+
+        return new List<string> { nameof(UserRole.ReadOnly) };
     }
 }

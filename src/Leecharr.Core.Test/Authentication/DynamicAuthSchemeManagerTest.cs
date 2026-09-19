@@ -119,4 +119,26 @@ public class DynamicAuthSchemeManagerTest
             s.UserId == 42 &&
             s.SessionToken == sessionToken));
     }
+
+    [Test]
+    public async Task RegisterOrUpdateOidcProviderAsync_WhenMetadataUrlConfigured_SetsMetadataAddressOnOptions()
+    {
+        var provider = new IdentityProviderDefinition
+        {
+            ProviderId = "test-oidc-meta",
+            Name = "Test OIDC Metadata",
+            ProviderType = IdentityProviderType.Oidc,
+            IssuerUrl = "https://auth.example.com",
+            ClientId = "test-client-id",
+            MetadataUrl = "https://auth.example.com/.well-known/openid-configuration",
+        };
+
+        OpenIdConnectOptions capturedOptions = null!;
+        this.oidcOptionsCache.TryAdd(Arg.Any<string>(), Arg.Do<OpenIdConnectOptions>(opt => capturedOptions = opt)).Returns(true);
+
+        await this.manager.RegisterOrUpdateOidcProviderAsync(provider);
+
+        capturedOptions.Should().NotBeNull();
+        capturedOptions.MetadataAddress.Should().Be("https://auth.example.com/.well-known/openid-configuration");
+    }
 }
