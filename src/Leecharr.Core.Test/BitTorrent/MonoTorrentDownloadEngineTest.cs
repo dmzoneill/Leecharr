@@ -2644,6 +2644,8 @@ public class MonoTorrentDownloadEngineTest
             var task = this.engine.GetTask(106) as MonoTorrentDownloadTask;
             task.Should().NotBeNull();
             task!.Manager.SavePath.Should().Be(newDir);
+            task.WorkingPath.Should().Be(newDir);
+            task.SavePath.Should().Be(newDir);
         }
         finally
         {
@@ -2666,6 +2668,93 @@ public class MonoTorrentDownloadEngineTest
     {
         var act = () => this.engine.MoveTorrentFilesAsync(99999, "/some/path");
         await act.Should().NotThrowAsync();
+    }
+
+    [Test]
+    public async Task MoveTorrentFilesAsync_WhenStorageFull_ClearsStorageFullOnAmpleSpace()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("move_storage_full.bin");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 107,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "move_storage_full.bin",
+            Status = TorrentStatus.Stopped,
+            SavePath = this.testDownloadDir,
+        };
+
+        await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        var task = this.engine.GetTask(107) as MonoTorrentDownloadTask;
+        task.Should().NotBeNull();
+
+        task!.SetStorageFull("StorageFull: test low disk space", this.eventAggregator);
+        task.IsStorageFull.Should().BeTrue();
+
+        var newDir = Path.Combine(Path.GetTempPath(), "leecharr_move_ample_" + Guid.NewGuid().ToString("N"));
+        this.diskProvider.GetAvailableSpace(newDir).Returns(50L * 1024 * 1024 * 1024);
+
+        try
+        {
+            await this.engine.MoveTorrentFilesAsync(107, newDir);
+
+            task.WorkingPath.Should().Be(newDir);
+            task.SavePath.Should().Be(newDir);
+            task.Manager.SavePath.Should().Be(newDir);
+            task.IsStorageFull.Should().BeFalse();
+            this.eventAggregator.Received().PublishEvent(Arg.Is<HealthIssueEvent>(e => e.TorrentId == 107 && e.Source == "DiskSpace" && e.IsResolved));
+        }
+        finally
+        {
+            if (Directory.Exists(newDir))
+            {
+                Directory.Delete(newDir, true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task MoveTorrentFilesAsync_WhenStorageFull_LeavesStorageFullIfNewLocationAlsoDepleted()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("move_storage_depleted.bin");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 108,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "move_storage_depleted.bin",
+            Status = TorrentStatus.Stopped,
+            SavePath = this.testDownloadDir,
+        };
+
+        await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        var task = this.engine.GetTask(108) as MonoTorrentDownloadTask;
+        task.Should().NotBeNull();
+
+        task!.SetStorageFull("StorageFull: test low disk space", this.eventAggregator);
+        task.IsStorageFull.Should().BeTrue();
+
+        var newDir = Path.Combine(Path.GetTempPath(), "leecharr_move_depleted_" + Guid.NewGuid().ToString("N"));
+        this.diskProvider.GetAvailableSpace(newDir).Returns(100L * 1024 * 1024);
+
+        try
+        {
+            await this.engine.MoveTorrentFilesAsync(108, newDir);
+
+            task.WorkingPath.Should().Be(newDir);
+            task.SavePath.Should().Be(newDir);
+            task.Manager.SavePath.Should().Be(newDir);
+            task.IsStorageFull.Should().BeTrue();
+        }
+        finally
+        {
+            if (Directory.Exists(newDir))
+            {
+                Directory.Delete(newDir, true);
+            }
+        }
     }
 
     #endregion
