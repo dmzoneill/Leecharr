@@ -13,6 +13,7 @@ using NLog;
 using NzbDrone.Core.ArrIntegration;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.MediaEnrichment;
+using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.Webhooks;
@@ -25,6 +26,7 @@ public class ArrWebhookController : Controller
     private readonly IArrConnectionRepository arrConnectionRepository;
     private readonly ITorrentService torrentService;
     private readonly IProwlarrSyncService prowlarrSyncService;
+    private readonly IEventAggregator eventAggregator;
     private readonly Logger logger;
 
     public ArrWebhookController(
@@ -32,13 +34,15 @@ public class ArrWebhookController : Controller
         ITorrentMediaMetadataRepository mediaMetadataRepository = null,
         IArrConnectionRepository arrConnectionRepository = null,
         ITorrentService torrentService = null,
-        IProwlarrSyncService prowlarrSyncService = null)
+        IProwlarrSyncService prowlarrSyncService = null,
+        IEventAggregator eventAggregator = null)
     {
         this.torrentRepository = torrentRepository;
         this.mediaMetadataRepository = mediaMetadataRepository;
         this.arrConnectionRepository = arrConnectionRepository;
         this.torrentService = torrentService;
         this.prowlarrSyncService = prowlarrSyncService;
+        this.eventAggregator = eventAggregator;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -477,6 +481,16 @@ public class ArrWebhookController : Controller
             candidateTitles.Add(payload.MovieFile.SceneName);
         }
 
+        if (!string.IsNullOrWhiteSpace(payload.Album?.Title))
+        {
+            candidateTitles.Add(payload.Album.Title);
+        }
+
+        if (!string.IsNullOrWhiteSpace(payload.Book?.Title))
+        {
+            candidateTitles.Add(payload.Book.Title);
+        }
+
         foreach (var title in candidateTitles)
         {
             var match = allTorrents.FirstOrDefault(t => IsTitleMatch(t.Name, title));
@@ -500,6 +514,38 @@ public class ArrWebhookController : Controller
         if (!string.IsNullOrWhiteSpace(payload.MovieFile?.Path))
         {
             candidatePaths.Add(payload.MovieFile.Path);
+        }
+
+        if (!string.IsNullOrWhiteSpace(payload.TrackFile?.Path))
+        {
+            candidatePaths.Add(payload.TrackFile.Path);
+        }
+
+        if (payload.TrackFiles != null)
+        {
+            foreach (var tf in payload.TrackFiles)
+            {
+                if (!string.IsNullOrWhiteSpace(tf?.Path))
+                {
+                    candidatePaths.Add(tf.Path);
+                }
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(payload.BookFile?.Path))
+        {
+            candidatePaths.Add(payload.BookFile.Path);
+        }
+
+        if (payload.BookFiles != null)
+        {
+            foreach (var bf in payload.BookFiles)
+            {
+                if (!string.IsNullOrWhiteSpace(bf?.Path))
+                {
+                    candidatePaths.Add(bf.Path);
+                }
+            }
         }
 
         if (payload.RenamedFiles != null)
@@ -738,6 +784,16 @@ public class ArrWebhookController : Controller
             return payload.MovieFile.Path;
         }
 
+        if (!string.IsNullOrWhiteSpace(payload.TrackFile?.Path))
+        {
+            return payload.TrackFile.Path;
+        }
+
+        if (!string.IsNullOrWhiteSpace(payload.BookFile?.Path))
+        {
+            return payload.BookFile.Path;
+        }
+
         if (payload.RenamedFiles != null && payload.RenamedFiles.Count > 0)
         {
             var firstRenamed = payload.RenamedFiles.FirstOrDefault(f => !string.IsNullOrWhiteSpace(f.Path));
@@ -808,53 +864,166 @@ public class ArrWebhookController : Controller
         try
         {
             var existingMeta = this.mediaMetadataRepository.GetByTorrentId(torrent.Id);
-            if (existingMeta == null)
+            var isNew = existingMeta == null;
+            var meta = existingMeta ?? new TorrentMediaMetadata
             {
-                var resolvedType = !string.IsNullOrWhiteSpace(arrType) && !string.Equals(arrType, "arr", StringComparison.OrdinalIgnoreCase)
-                    ? arrType
-                    : (payload.InstanceName ?? "Arr");
+                TorrentId = torrent.Id,
+            };
 
-                var meta = new TorrentMediaMetadata
-                {
-                    TorrentId = torrent.Id,
-                    ArrType = resolvedType,
-                };
+            var resolvedType = !string.IsNullOrWhiteSpace(arrType) && !string.Equals(arrType, "arr", StringComparison.OrdinalIgnoreCase)
+                ? arrType
+                : (payload.InstanceName ?? "Arr");
 
-                if (payload.Series != null)
+            if (string.IsNullOrWhiteSpace(meta.ArrType))
+            {
+                meta.ArrType = resolvedType;
+            }
+
+            if (payload.Series != null)
+            {
+                meta.ArrType = "Sonarr";
+                if (payload.Series.Id > 0)
                 {
-                    meta.ArrType = "Sonarr";
                     meta.ArrMediaId = payload.Series.Id;
+                }
+
+                if (!string.IsNullOrWhiteSpace(payload.Series.Title))
+                {
                     meta.Title = payload.Series.Title;
+                }
+
+                if (payload.Series.Year > 0)
+                {
                     meta.Year = payload.Series.Year;
-                    meta.TvdbId = payload.Series.TvdbId > 0 ? payload.Series.TvdbId.ToString() : null;
+                }
+
+                if (payload.Series.TvdbId > 0)
+                {
+                    meta.TvdbId = payload.Series.TvdbId.ToString();
+                }
+
+                if (!string.IsNullOrWhiteSpace(payload.Series.ImdbId))
+                {
                     meta.ImdbId = payload.Series.ImdbId;
                 }
-                else if (payload.Movie != null)
+            }
+            else if (payload.Movie != null)
+            {
+                meta.ArrType = "Radarr";
+                if (payload.Movie.Id > 0)
                 {
-                    meta.ArrType = "Radarr";
                     meta.ArrMediaId = payload.Movie.Id;
+                }
+
+                if (!string.IsNullOrWhiteSpace(payload.Movie.Title))
+                {
                     meta.Title = payload.Movie.Title;
+                }
+
+                if (payload.Movie.Year > 0)
+                {
                     meta.Year = payload.Movie.Year;
-                    meta.TmdbId = payload.Movie.TmdbId > 0 ? payload.Movie.TmdbId.ToString() : null;
+                }
+
+                if (payload.Movie.TmdbId > 0)
+                {
+                    meta.TmdbId = payload.Movie.TmdbId.ToString();
+                }
+
+                if (!string.IsNullOrWhiteSpace(payload.Movie.ImdbId))
+                {
                     meta.ImdbId = payload.Movie.ImdbId;
                 }
-                else if (payload.Artist != null)
+            }
+            else if (payload.Artist != null || payload.Album != null)
+            {
+                meta.ArrType = "Lidarr";
+                if (payload.Artist != null && payload.Artist.Id > 0)
                 {
-                    meta.ArrType = "Lidarr";
                     meta.ArrMediaId = payload.Artist.Id;
+                }
+                else if (payload.Album != null && payload.Album.Id > 0 && meta.ArrMediaId == 0)
+                {
+                    meta.ArrMediaId = payload.Album.Id;
+                }
+
+                if (!string.IsNullOrWhiteSpace(payload.Artist?.Name))
+                {
+                    meta.ArtistName = payload.Artist.Name;
+                }
+
+                if (!string.IsNullOrWhiteSpace(payload.Artist?.MbId))
+                {
+                    meta.MusicBrainzId = payload.Artist.MbId;
+                }
+
+                if (!string.IsNullOrWhiteSpace(payload.Album?.Title))
+                {
+                    meta.AlbumTitle = payload.Album.Title;
+                    meta.Title = payload.Album.Title;
+                }
+                else if (!string.IsNullOrWhiteSpace(payload.Artist?.Name) && string.IsNullOrWhiteSpace(meta.Title))
+                {
                     meta.Title = payload.Artist.Name;
                 }
-                else if (payload.Author != null)
+
+                if (!string.IsNullOrWhiteSpace(payload.Album?.ReleaseDate) &&
+                    DateTime.TryParse(payload.Album.ReleaseDate, out var releaseDate) &&
+                    releaseDate.Year > 0)
                 {
-                    meta.ArrType = "Readarr";
+                    meta.Year = releaseDate.Year;
+                }
+            }
+            else if (payload.Author != null || payload.Book != null)
+            {
+                meta.ArrType = "Readarr";
+                if (payload.Author != null && payload.Author.Id > 0)
+                {
                     meta.ArrMediaId = payload.Author.Id;
+                }
+                else if (payload.Book != null && payload.Book.Id > 0 && meta.ArrMediaId == 0)
+                {
+                    meta.ArrMediaId = payload.Book.Id;
+                }
+
+                if (!string.IsNullOrWhiteSpace(payload.Author?.Name))
+                {
+                    meta.ArtistName = payload.Author.Name;
+                }
+
+                if (!string.IsNullOrWhiteSpace(payload.Book?.Title))
+                {
+                    meta.Title = payload.Book.Title;
+                }
+                else if (!string.IsNullOrWhiteSpace(payload.Author?.Name) && string.IsNullOrWhiteSpace(meta.Title))
+                {
                     meta.Title = payload.Author.Name;
                 }
 
-                if (!string.IsNullOrWhiteSpace(meta.Title))
+                if (!string.IsNullOrWhiteSpace(payload.Book?.ReleaseDate) &&
+                    DateTime.TryParse(payload.Book.ReleaseDate, out var releaseDate) &&
+                    releaseDate.Year > 0)
+                {
+                    meta.Year = releaseDate.Year;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(meta.Title))
+            {
+                if (isNew)
                 {
                     this.mediaMetadataRepository.Insert(meta);
                 }
+                else
+                {
+                    this.mediaMetadataRepository.Update(meta);
+                }
+
+                this.eventAggregator?.PublishEvent(new MediaEnrichedEvent
+                {
+                    TorrentId = torrent.Id,
+                    Metadata = meta,
+                });
             }
         }
         catch (Exception ex)
