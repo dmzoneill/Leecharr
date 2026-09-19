@@ -282,4 +282,78 @@ public class MagnetLinkParserTest
         parsed.WebSeeds.Should().HaveCount(1);
         parsed.WebSeeds.Should().ContainSingle().Which.Should().Be("http://seed.local/file.iso");
     }
+
+    [Test]
+    public void BuildMagnetUri_WhenV1InfoHash_FormatsUrnBtih()
+    {
+        var uri = MagnetLinkParser.BuildMagnetUri("0123456789ABCDEF0123456789ABCDEF01234567");
+        uri.Should().Be("magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567");
+    }
+
+    [Test]
+    public void BuildMagnetUri_WhenV2InfoHash64Hex_FormatsUrnBtmhWith1220Prefix()
+    {
+        var v2Hex = "d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c";
+        var uri = MagnetLinkParser.BuildMagnetUri(v2Hex);
+        uri.Should().Be($"magnet:?xt=urn:btmh:1220{v2Hex}");
+    }
+
+    [Test]
+    public void BuildMagnetUri_WhenV2InfoHash68HexWith1220Prefix_FormatsUrnBtmhDirectly()
+    {
+        var v2WithPrefix = "1220D8FADD013A563DE212309D361D4810186076B63B6AD3D6293502E645E381278C";
+        var uri = MagnetLinkParser.BuildMagnetUri(v2WithPrefix);
+        uri.Should().Be($"magnet:?xt=urn:btmh:{v2WithPrefix.ToLowerInvariant()}");
+    }
+
+    [Test]
+    public void BuildMagnetUri_WhenHybridWithBothHashes_FormatsBothUrnBtihAndUrnBtmh()
+    {
+        var v1Hex = "0123456789abcdef0123456789abcdef01234567";
+        var v2Hex = "d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c";
+
+        var uri = MagnetLinkParser.BuildMagnetUri(v1Hex, v2InfoHash: v2Hex);
+        uri.Should().Be($"magnet:?xt=urn:btih:{v1Hex}&xt=urn:btmh:1220{v2Hex}");
+    }
+
+    [Test]
+    public void BuildMagnetUri_WithNameAndTrackers_EscapesAndFormatsDnAndTr()
+    {
+        var v1Hex = "0123456789abcdef0123456789abcdef01234567";
+        var trackers = new[]
+        {
+            "http://tracker1.local/announce",
+            "udp://tracker2.local:1337",
+            "http://tracker1.local/announce",
+            string.Empty,
+            "   ",
+        };
+
+        var uri = MagnetLinkParser.BuildMagnetUri(v1Hex, "Ubuntu Linux 24.04", trackers);
+        uri.Should().Be($"magnet:?xt=urn:btih:{v1Hex}&dn=Ubuntu%20Linux%2024.04&tr=http%3A%2F%2Ftracker1.local%2Fannounce&tr=udp%3A%2F%2Ftracker2.local%3A1337");
+    }
+
+    [Test]
+    public void BuildMagnetUri_RoundTripsThroughParse_ForV2AndHybrid()
+    {
+        var v1Hex = "0123456789abcdef0123456789abcdef01234567";
+        var v2Hex = "d8fadd013a563de212309d361d4810186076b63b6ad3d6293502e645e381278c";
+        var trackers = new[] { "http://tracker.local/announce" };
+
+        var v2OnlyUri = MagnetLinkParser.BuildMagnetUri(v2Hex, "V2Torrent", trackers);
+        var parsedV2 = MagnetLinkParser.Parse(v2OnlyUri);
+        parsedV2.InfoHash.Should().Be(v2Hex);
+        parsedV2.V2InfoHash.Should().Be(v2Hex);
+        parsedV2.V1InfoHash.Should().BeNull();
+        parsedV2.DisplayName.Should().Be("V2Torrent");
+        parsedV2.Trackers.Should().ContainSingle().Which.Should().Be("http://tracker.local/announce");
+
+        var hybridUri = MagnetLinkParser.BuildMagnetUri(v1Hex, "HybridTorrent", trackers, v2Hex);
+        var parsedHybrid = MagnetLinkParser.Parse(hybridUri);
+        parsedHybrid.InfoHash.Should().Be(v1Hex);
+        parsedHybrid.V1InfoHash.Should().Be(v1Hex);
+        parsedHybrid.V2InfoHash.Should().Be(v2Hex);
+        parsedHybrid.DisplayName.Should().Be("HybridTorrent");
+        parsedHybrid.Trackers.Should().ContainSingle().Which.Should().Be("http://tracker.local/announce");
+    }
 }
