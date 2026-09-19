@@ -170,13 +170,32 @@ public class FileBrowserService : IFileBrowserService
 
     public void CreateDirectory(string path)
     {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            throw new ArgumentException("Path cannot be empty.", nameof(path));
+        }
+
         var target = this.ResolvePath(path);
+        if (this.IsRootPath(target) || this.IsRootOrSystemDirectory(target))
+        {
+            throw new InvalidOperationException($"Cannot create directory in root or system directory '{target}'.");
+        }
+
         this.diskProvider.CreateFolder(target);
     }
 
     public void Rename(string path, string newName)
     {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            throw new ArgumentException("Path cannot be empty.", nameof(path));
+        }
+
         var current = this.ResolvePath(path);
+        if (this.IsRootPath(current) || this.IsRootOrSystemDirectory(current))
+        {
+            throw new InvalidOperationException($"Cannot rename root or system directory or file '{current}'.");
+        }
 
         if (string.IsNullOrWhiteSpace(newName) ||
             string.Equals(newName, ".", StringComparison.Ordinal) ||
@@ -192,6 +211,11 @@ public class FileBrowserService : IFileBrowserService
         if (string.Equals(current, dest, StringComparison.OrdinalIgnoreCase))
         {
             return;
+        }
+
+        if (this.IsRootPath(dest) || this.IsRootOrSystemDirectory(dest))
+        {
+            throw new InvalidOperationException($"Cannot rename to root or system directory or file '{dest}'.");
         }
 
         if (this.diskProvider.FileExists(dest) || this.diskProvider.FolderExists(dest))
@@ -211,8 +235,28 @@ public class FileBrowserService : IFileBrowserService
 
     public void Copy(string sourcePath, string destinationDirectory)
     {
+        if (string.IsNullOrWhiteSpace(sourcePath))
+        {
+            throw new ArgumentException("Source path cannot be empty.", nameof(sourcePath));
+        }
+
+        if (string.IsNullOrWhiteSpace(destinationDirectory))
+        {
+            throw new ArgumentException("Destination directory cannot be empty.", nameof(destinationDirectory));
+        }
+
         var source = this.ResolvePath(sourcePath);
         var destDir = this.ResolvePath(destinationDirectory);
+
+        if (this.IsRootPath(source) || this.IsRootOrSystemDirectory(source))
+        {
+            throw new InvalidOperationException($"Cannot copy root or system path '{source}'.");
+        }
+
+        if (this.IsRootPath(destDir) || this.IsRootOrSystemDirectory(destDir))
+        {
+            throw new InvalidOperationException($"Cannot copy to root or system directory '{destDir}'.");
+        }
 
         var name = Path.GetFileName(source);
         var target = Path.Combine(destDir, name);
@@ -249,8 +293,28 @@ public class FileBrowserService : IFileBrowserService
 
     public void Move(string sourcePath, string destinationDirectory)
     {
+        if (string.IsNullOrWhiteSpace(sourcePath))
+        {
+            throw new ArgumentException("Source path cannot be empty.", nameof(sourcePath));
+        }
+
+        if (string.IsNullOrWhiteSpace(destinationDirectory))
+        {
+            throw new ArgumentException("Destination directory cannot be empty.", nameof(destinationDirectory));
+        }
+
         var source = this.ResolvePath(sourcePath);
         var destDir = this.ResolvePath(destinationDirectory);
+
+        if (this.IsRootPath(source) || this.IsRootOrSystemDirectory(source))
+        {
+            throw new InvalidOperationException($"Cannot move root or system path '{source}'.");
+        }
+
+        if (this.IsRootPath(destDir) || this.IsRootOrSystemDirectory(destDir))
+        {
+            throw new InvalidOperationException($"Cannot move to root or system directory '{destDir}'.");
+        }
 
         var name = Path.GetFileName(source);
         var target = Path.Combine(destDir, name);
@@ -455,48 +519,95 @@ public class FileBrowserService : IFileBrowserService
             return true;
         }
 
-        var systemDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        static bool MatchesOrIsDescendant(string testPath, string targetDir)
         {
-            "/bin", "/sbin", "/etc", "/usr", "/var", "/lib", "/lib64", "/boot",
-            "/dev", "/proc", "/sys", "/root", "/home", "/opt", "/srv",
-        };
+            if (string.IsNullOrWhiteSpace(targetDir))
+            {
+                return false;
+            }
 
-        if (systemDirs.Contains(normalized))
-        {
-            return true;
+            var clean = Path.TrimEndingDirectorySeparator(targetDir);
+            if (testPath.Equals(clean, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return testPath.StartsWith(clean + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+                   testPath.StartsWith(clean + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
         }
 
-        // Protect AppDataFolder
+        // Protect AppDataFolder and its contents
         if (this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.AppDataFolder))
         {
             var appData = Path.TrimEndingDirectorySeparator(Path.GetFullPath(this.appFolderInfo.AppDataFolder));
-            if (normalized.Equals(appData, StringComparison.OrdinalIgnoreCase))
+            if (MatchesOrIsDescendant(normalized, appData))
             {
                 return true;
             }
         }
 
-        // Protect StartUpFolder
+        // Protect StartUpFolder and its contents
         if (this.appFolderInfo != null && !string.IsNullOrWhiteSpace(this.appFolderInfo.StartUpFolder))
         {
             var startUp = Path.TrimEndingDirectorySeparator(Path.GetFullPath(this.appFolderInfo.StartUpFolder));
-            if (normalized.Equals(startUp, StringComparison.OrdinalIgnoreCase))
+            if (MatchesOrIsDescendant(normalized, startUp))
             {
                 return true;
             }
         }
 
-        var baseDir = Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory);
-        if (normalized.Equals(baseDir, StringComparison.OrdinalIgnoreCase))
+        // Protect AppContext.BaseDirectory and its contents
+        if (!string.IsNullOrWhiteSpace(AppContext.BaseDirectory))
         {
-            return true;
+            var baseDir = Path.TrimEndingDirectorySeparator(Path.GetFullPath(AppContext.BaseDirectory));
+            if (MatchesOrIsDescendant(normalized, baseDir))
+            {
+                return true;
+            }
         }
 
-        // Protect configured DownloadDir root directory
+        // Check configured DownloadDir
+        string downloadDir = null;
         if (this.configService != null && !string.IsNullOrWhiteSpace(this.configService.DownloadDir))
         {
-            var downloadDir = Path.TrimEndingDirectorySeparator(Path.GetFullPath(this.configService.DownloadDir));
+            try
+            {
+                downloadDir = Path.TrimEndingDirectorySeparator(Path.GetFullPath(this.configService.DownloadDir));
+            }
+            catch
+            {
+                downloadDir = Path.TrimEndingDirectorySeparator(this.configService.DownloadDir);
+            }
+
+            // Protect the DownloadDir root folder itself from deletion
             if (normalized.Equals(downloadDir, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        var systemDirs = new[]
+        {
+            "/bin", "/sbin", "/etc", "/usr", "/var", "/lib", "/lib64", "/boot",
+            "/dev", "/proc", "/sys", "/root", "/opt", "/srv",
+        };
+
+        foreach (var sysDir in systemDirs)
+        {
+            if (MatchesOrIsDescendant(normalized, sysDir))
+            {
+                return true;
+            }
+        }
+
+        // For /home: protect /home and its descendants unless strictly inside configured DownloadDir
+        if (MatchesOrIsDescendant(normalized, "/home"))
+        {
+            var isInsideDownloadDir = downloadDir != null &&
+                (normalized.StartsWith(downloadDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+                 normalized.StartsWith(downloadDir + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
+
+            if (!isInsideDownloadDir)
             {
                 return true;
             }
@@ -505,27 +616,45 @@ public class FileBrowserService : IFileBrowserService
         if (OperatingSystem.IsWindows())
         {
             var windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
-            if (!string.IsNullOrEmpty(windowsDir) && normalized.Equals(Path.TrimEndingDirectorySeparator(windowsDir), StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrEmpty(windowsDir) && MatchesOrIsDescendant(normalized, windowsDir))
             {
                 return true;
             }
 
             var systemDir = Environment.GetFolderPath(Environment.SpecialFolder.System);
-            if (!string.IsNullOrEmpty(systemDir) && normalized.Equals(Path.TrimEndingDirectorySeparator(systemDir), StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrEmpty(systemDir) && MatchesOrIsDescendant(normalized, systemDir))
             {
                 return true;
             }
 
             var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-            if (!string.IsNullOrEmpty(programFiles) && normalized.Equals(Path.TrimEndingDirectorySeparator(programFiles), StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrEmpty(programFiles) && MatchesOrIsDescendant(normalized, programFiles))
             {
                 return true;
             }
 
             var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-            if (!string.IsNullOrEmpty(programFilesX86) && normalized.Equals(Path.TrimEndingDirectorySeparator(programFilesX86), StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrEmpty(programFilesX86) && MatchesOrIsDescendant(normalized, programFilesX86))
             {
                 return true;
+            }
+
+            var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            if (!string.IsNullOrEmpty(userProfile))
+            {
+                if (normalized.Equals(Path.TrimEndingDirectorySeparator(userProfile), StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                var isInsideDownloadDir = downloadDir != null &&
+                    (normalized.StartsWith(downloadDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+                     normalized.StartsWith(downloadDir + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
+
+                if (!isInsideDownloadDir && MatchesOrIsDescendant(normalized, userProfile))
+                {
+                    return true;
+                }
             }
         }
 

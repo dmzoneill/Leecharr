@@ -405,4 +405,90 @@ public class FileBrowserServiceTest
         Action act = () => this.service.ResolvePath("/downloads/\0bad");
         act.Should().Throw<ArgumentException>().WithMessage("*invalid*");
     }
+
+    [TestCase("/etc/shadow")]
+    [TestCase("/root/.ssh/id_rsa")]
+    [TestCase("/bin/bash")]
+    [TestCase("/var/log/syslog")]
+    public void IsRootOrSystemDirectory_WhenPathIsDescendantOfSystemDirectory_ReturnsTrue(string path)
+    {
+        this.service.IsRootOrSystemDirectory(path).Should().BeTrue();
+    }
+
+    [TestCase("/etc/shadow")]
+    [TestCase("/root/.ssh/id_rsa")]
+    public void Delete_WhenPathIsDescendantOfSystemDirectory_ThrowsInvalidOperationException(string path)
+    {
+        Action act = () => this.service.Delete(path);
+        act.Should().Throw<InvalidOperationException>().WithMessage("*root or system directory*");
+    }
+
+    [Test]
+    public void IsRootOrSystemDirectory_WhenPathIsDescendantOfAppDataFolder_ReturnsTrue()
+    {
+        var appFolderInfo = Substitute.For<NzbDrone.Common.EnvironmentInfo.IAppFolderInfo>();
+        appFolderInfo.AppDataFolder.Returns("/config/leecharr");
+        var svc = new FileBrowserService(this.diskProvider, this.configService, appFolderInfo);
+
+        svc.IsRootOrSystemDirectory("/config/leecharr/leecharr.db").Should().BeTrue();
+        svc.IsRootOrSystemDirectory("/config/leecharr/config.xml").Should().BeTrue();
+
+        Action act = () => svc.Delete("/config/leecharr/leecharr.db");
+        act.Should().Throw<InvalidOperationException>().WithMessage("*root or system directory*");
+    }
+
+    [Test]
+    public void IsRootOrSystemDirectory_WhenPathIsDescendantOfStartUpFolder_ReturnsTrue()
+    {
+        var appFolderInfo = Substitute.For<NzbDrone.Common.EnvironmentInfo.IAppFolderInfo>();
+        appFolderInfo.StartUpFolder.Returns("/app/bin");
+        var svc = new FileBrowserService(this.diskProvider, this.configService, appFolderInfo);
+
+        svc.IsRootOrSystemDirectory("/app/bin/Leecharr.dll").Should().BeTrue();
+    }
+
+    [Test]
+    public void IsRootOrSystemDirectory_WhenPathIsDescendantOfAppContextBaseDirectory_ReturnsTrue()
+    {
+        var descendant = System.IO.Path.Combine(AppContext.BaseDirectory, "some_assembly.dll");
+        this.service.IsRootOrSystemDirectory(descendant).Should().BeTrue();
+    }
+
+    [Test]
+    public void IsRootOrSystemDirectory_WhenPathIsInHome_ProtectsUnlessInsideDownloadDir()
+    {
+        this.configService.DownloadDir.Returns("/home/user/downloads");
+        var svc = new FileBrowserService(this.diskProvider, this.configService);
+
+        svc.IsRootOrSystemDirectory("/home/user/.bashrc").Should().BeTrue();
+        svc.IsRootOrSystemDirectory("/home/user/downloads/movie.mkv").Should().BeFalse();
+    }
+
+    [Test]
+    public void CreateDirectory_WhenPathIsSystemDirectory_ThrowsInvalidOperationException()
+    {
+        Action act = () => this.service.CreateDirectory("/etc/subfolder");
+        act.Should().Throw<InvalidOperationException>().WithMessage("*root or system directory*");
+    }
+
+    [Test]
+    public void Rename_WhenSourceIsSystemPath_ThrowsInvalidOperationException()
+    {
+        Action act = () => this.service.Rename("/etc/shadow", "shadow_bak");
+        act.Should().Throw<InvalidOperationException>().WithMessage("*root or system directory*");
+    }
+
+    [Test]
+    public void Copy_WhenDestinationIsSystemDirectory_ThrowsInvalidOperationException()
+    {
+        Action act = () => this.service.Copy("/downloads/movie.mkv", "/etc");
+        act.Should().Throw<InvalidOperationException>().WithMessage("*root or system directory*");
+    }
+
+    [Test]
+    public void Move_WhenDestinationIsSystemDirectory_ThrowsInvalidOperationException()
+    {
+        Action act = () => this.service.Move("/downloads/movie.mkv", "/etc");
+        act.Should().Throw<InvalidOperationException>().WithMessage("*root or system directory*");
+    }
 }

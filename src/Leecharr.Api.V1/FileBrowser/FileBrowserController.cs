@@ -73,6 +73,12 @@ public class FileBrowserController : Controller
 
         try
         {
+            var target = this.fileBrowserService.ResolvePath(request.Path);
+            if (this.fileBrowserService.IsRootPath(target) || this.fileBrowserService.IsRootOrSystemDirectory(target))
+            {
+                return this.BadRequest(new { Message = $"Cannot create directory in root or system path '{target}'." });
+            }
+
             this.fileBrowserService.CreateDirectory(request.Path);
             return this.Ok(new { Success = true, Path = request.Path });
         }
@@ -92,6 +98,19 @@ public class FileBrowserController : Controller
 
         try
         {
+            var target = this.fileBrowserService.ResolvePath(request.Path);
+            if (this.fileBrowserService.IsRootPath(target) || this.fileBrowserService.IsRootOrSystemDirectory(target))
+            {
+                return this.BadRequest(new { Message = $"Cannot rename root or system path '{target}'." });
+            }
+
+            var parent = Path.GetDirectoryName(target);
+            var dest = !string.IsNullOrEmpty(parent) ? Path.Combine(parent, request.NewName.Trim()) : null;
+            if (dest != null && (this.fileBrowserService.IsRootPath(dest) || this.fileBrowserService.IsRootOrSystemDirectory(dest)))
+            {
+                return this.BadRequest(new { Message = $"Cannot rename to root or system path '{dest}'." });
+            }
+
             this.fileBrowserService.Rename(request.Path, request.NewName.Trim());
             return this.Ok(new { Success = true });
         }
@@ -111,6 +130,12 @@ public class FileBrowserController : Controller
 
         try
         {
+            var target = this.fileBrowserService.ResolvePath(path);
+            if (this.fileBrowserService.IsRootPath(target) || this.fileBrowserService.IsRootOrSystemDirectory(target))
+            {
+                return this.BadRequest(new { Message = $"Cannot delete root or system path '{target}'." });
+            }
+
             this.fileBrowserService.Delete(path);
             return this.Ok(new { Success = true });
         }
@@ -135,6 +160,18 @@ public class FileBrowserController : Controller
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(path))
+                {
+                    continue;
+                }
+
+                var target = this.fileBrowserService.ResolvePath(path);
+                if (this.fileBrowserService.IsRootPath(target) || this.fileBrowserService.IsRootOrSystemDirectory(target))
+                {
+                    failed.Add($"{path}: Cannot delete root or system path '{target}'.");
+                    continue;
+                }
+
                 this.fileBrowserService.Delete(path);
                 deleted++;
             }
@@ -160,7 +197,21 @@ public class FileBrowserController : Controller
             return this.BadRequest(new { Message = "A path is required." });
         }
 
-        var fullPath = this.fileBrowserService.ResolvePath(path);
+        string fullPath;
+        try
+        {
+            fullPath = this.fileBrowserService.ResolvePath(path);
+        }
+        catch (Exception ex)
+        {
+            return this.BadRequest(new { Message = ex.Message });
+        }
+
+        if (this.fileBrowserService.IsRootPath(fullPath) || this.fileBrowserService.IsRootOrSystemDirectory(fullPath))
+        {
+            return this.BadRequest(new { Message = $"Access to root or system path '{fullPath}' is denied." });
+        }
+
         if (!global::System.IO.File.Exists(fullPath))
         {
             return this.NotFound(new { Message = "File not found." });
@@ -201,9 +252,23 @@ public class FileBrowserController : Controller
             return this.BadRequest(new { Message = "A path is required." });
         }
 
+        string fullPath;
+        try
+        {
+            fullPath = this.fileBrowserService.ResolvePath(path);
+        }
+        catch (Exception ex)
+        {
+            return this.BadRequest(new { Message = ex.Message });
+        }
+
+        if (this.fileBrowserService.IsRootPath(fullPath) || this.fileBrowserService.IsRootOrSystemDirectory(fullPath))
+        {
+            return this.BadRequest(new { Message = $"Access to root or system path '{fullPath}' is denied." });
+        }
+
         var clampedMaxBytes = Math.Clamp(maxBytes <= 0 ? 262144 : maxBytes, 1, 10 * 1024 * 1024);
 
-        var fullPath = this.fileBrowserService.ResolvePath(path);
         if (!global::System.IO.File.Exists(fullPath))
         {
             return this.NotFound(new { Message = "File not found." });
@@ -296,6 +361,21 @@ public class FileBrowserController : Controller
             return this.BadRequest(new { Message = "Sources and Destination are required." });
         }
 
+        string destDir;
+        try
+        {
+            destDir = this.fileBrowserService.ResolvePath(request.Destination);
+        }
+        catch (Exception ex)
+        {
+            return this.BadRequest(new { Message = ex.Message });
+        }
+
+        if (this.fileBrowserService.IsRootPath(destDir) || this.fileBrowserService.IsRootOrSystemDirectory(destDir))
+        {
+            return this.BadRequest(new { Message = $"Destination cannot be root or system path '{destDir}'." });
+        }
+
         var isMove = string.Equals(request.Operation, "move", StringComparison.OrdinalIgnoreCase);
         var successCount = 0;
         var failed = new List<string>();
@@ -304,6 +384,18 @@ public class FileBrowserController : Controller
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(src))
+                {
+                    continue;
+                }
+
+                var srcResolved = this.fileBrowserService.ResolvePath(src);
+                if (this.fileBrowserService.IsRootPath(srcResolved) || this.fileBrowserService.IsRootOrSystemDirectory(srcResolved))
+                {
+                    failed.Add($"{src}: Cannot transfer root or system path '{srcResolved}'.");
+                    continue;
+                }
+
                 if (isMove)
                 {
                     this.fileBrowserService.Move(src, request.Destination);
@@ -333,7 +425,21 @@ public class FileBrowserController : Controller
     [RequestSizeLimit(1073741824)] // 1 GB
     public async Task<ActionResult> Upload([FromQuery] string path = null)
     {
-        var targetDir = this.fileBrowserService.ResolvePath(path);
+        string targetDir;
+        try
+        {
+            targetDir = this.fileBrowserService.ResolvePath(path);
+        }
+        catch (Exception ex)
+        {
+            return this.BadRequest(new { Message = ex.Message });
+        }
+
+        if (this.fileBrowserService.IsRootPath(targetDir) || this.fileBrowserService.IsRootOrSystemDirectory(targetDir))
+        {
+            return this.BadRequest(new { Message = $"Cannot upload to root or system path '{targetDir}'." });
+        }
+
         if (!global::System.IO.Directory.Exists(targetDir))
         {
             global::System.IO.Directory.CreateDirectory(targetDir);
@@ -357,6 +463,11 @@ public class FileBrowserController : Controller
                 }
 
                 var targetFile = Path.Combine(targetDir, cleanFileName);
+                if (this.fileBrowserService.IsRootOrSystemDirectory(targetFile))
+                {
+                    continue;
+                }
+
                 using var stream = new FileStream(targetFile, FileMode.Create, FileAccess.Write, FileShare.None);
                 await file.CopyToAsync(stream);
                 uploaded.Add(targetFile);
