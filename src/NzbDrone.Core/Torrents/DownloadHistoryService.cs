@@ -671,12 +671,13 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         if (parsed?.Files != null && this.fileRepository != null)
         {
             var pieceLength = Math.Max(1, parsed.PieceLength);
-            long currentByteOffset = 0;
+            long runningByteOffset = 0;
             var torrentFiles = new List<TorrentFile>();
             foreach (var file in parsed.Files)
             {
-                var startPiece = (int)(currentByteOffset / pieceLength);
-                var endByte = currentByteOffset + file.Size - 1;
+                var effectiveByteOffset = file.ByteOffset > 0 ? file.ByteOffset : runningByteOffset;
+                var startPiece = (int)(effectiveByteOffset / pieceLength);
+                var endByte = effectiveByteOffset + file.Size - 1;
                 var endPiece = file.Size > 0 ? (int)(endByte / pieceLength) : startPiece;
                 var pieceCount = file.Size > 0 ? (endPiece - startPiece + 1) : 0;
 
@@ -687,11 +688,12 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                     Size = file.Size,
                     PieceOffset = startPiece,
                     PieceCount = pieceCount,
+                    ByteOffset = effectiveByteOffset,
                     Priority = 3,
                     Progress = isCompleted ? 1.0 : 0.0,
                 };
                 torrentFiles.Add(torrentFile);
-                currentByteOffset += file.Size;
+                runningByteOffset = effectiveByteOffset + file.Size;
             }
 
             if (torrentFiles.Count > 0)

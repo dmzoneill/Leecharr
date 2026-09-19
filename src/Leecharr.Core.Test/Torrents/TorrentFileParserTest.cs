@@ -760,4 +760,58 @@ public class TorrentFileParserTest
         parsed.Name.Should().Be(expectedSanitized);
         parsed.Files[0].Path.Should().Be(expectedSanitized);
     }
+
+    [Test]
+    public void Parse_WhenPaddingFilesPresent_CalculatesAccurateByteOffsetsForSubsequentFiles()
+    {
+        var pieceLength = 16384;
+        var pieces = new byte[40];
+
+        var file1 = new BEncodedDictionary
+        {
+            { "length", new BEncodedNumber(10000) },
+            { "path", new BEncodedList { new BEncodedString("file1.bin") } },
+        };
+
+        var padFile = new BEncodedDictionary
+        {
+            { "length", new BEncodedNumber(6384) },
+            { "path", new BEncodedList { new BEncodedString("_____padding_file_0") } },
+        };
+
+        var file2 = new BEncodedDictionary
+        {
+            { "length", new BEncodedNumber(5000) },
+            { "path", new BEncodedList { new BEncodedString("file2.bin") } },
+        };
+
+        var filesList = new BEncodedList { file1, padFile, file2 };
+
+        var infoDict = new BEncodedDictionary
+        {
+            { "name", new BEncodedString("PaddingOffsetTorrent") },
+            { "piece length", new BEncodedNumber(pieceLength) },
+            { "pieces", new BEncodedString(pieces) },
+            { "files", filesList },
+        };
+
+        var rootDict = new BEncodedDictionary
+        {
+            { "announce", new BEncodedString("http://tracker.example.com/announce") },
+            { "info", infoDict },
+        };
+
+        var parsed = this.parser.Parse(rootDict.Encode());
+
+        parsed.Files.Should().HaveCount(2);
+        parsed.Files[0].Path.Should().Be("file1.bin");
+        parsed.Files[0].Size.Should().Be(10000);
+        parsed.Files[0].ByteOffset.Should().Be(0);
+
+        parsed.Files[1].Path.Should().Be("file2.bin");
+        parsed.Files[1].Size.Should().Be(5000);
+        parsed.Files[1].ByteOffset.Should().Be(16384);
+
+        parsed.TotalSize.Should().Be(15000);
+    }
 }
