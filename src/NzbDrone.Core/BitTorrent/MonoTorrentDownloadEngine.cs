@@ -886,593 +886,593 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 }
 
                 lock (this.pendingTorrentsLock)
-            {
-                if (!this.pendingTorrents.Any(p => p.Torrent?.Id == torrent.Id))
                 {
-                    this.pendingTorrents.Add((torrent, torrentFileBytes, magnetUri));
+                    if (!this.pendingTorrents.Any(p => p.Torrent?.Id == torrent.Id))
+                    {
+                        this.pendingTorrents.Add((torrent, torrentFileBytes, magnetUri));
+                    }
+                }
+
+                this.logger.Info("VPN kill switch active; torrent '{0}' queued until engine is available.", torrent.Name);
+                return null;
+            }
+
+            MtTorrent parsedTorrent = null;
+            if (torrentFileBytes != null && torrentFileBytes.Length > 0)
+            {
+                try
+                {
+                    parsedTorrent = MtTorrent.Load(torrentFileBytes);
+                    if (parsedTorrent.IsPrivate && !torrent.IsPrivate)
+                    {
+                        torrent.IsPrivate = true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to pre-inspect torrent file bytes for BEP 27 flag on {0}", torrent.Name);
                 }
             }
 
-            this.logger.Info("VPN kill switch active; torrent '{0}' queued until engine is available.", torrent.Name);
-            return null;
-        }
+            var useIncompleteDir = this.configService.EnableIncompleteDir;
+            var baseSavePath = torrent.SavePath;
+            if (!string.IsNullOrWhiteSpace(baseSavePath) && !string.IsNullOrWhiteSpace(torrent.Name))
+            {
+                var trimmed = baseSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var dirOrFileName = Path.GetFileName(trimmed);
+                if (Path.HasExtension(trimmed) ||
+                    string.Equals(dirOrFileName, torrent.Name, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(Path.GetFileNameWithoutExtension(dirOrFileName), torrent.Name, StringComparison.OrdinalIgnoreCase))
+                {
+                    baseSavePath = Path.GetDirectoryName(trimmed);
+                }
+            }
 
-        MtTorrent parsedTorrent = null;
-        if (torrentFileBytes != null && torrentFileBytes.Length > 0)
-        {
+            var completedDir = !string.IsNullOrWhiteSpace(baseSavePath)
+                ? baseSavePath
+                : this.storagePathService.GetCompletedDirectory(torrent.Category);
+
+            if (string.IsNullOrWhiteSpace(torrent.SavePath))
+            {
+                torrent.SavePath = completedDir;
+            }
+
+            var infoHashHex = torrent.InfoHash
+                ?? parsedTorrent?.InfoHashes.V1OrV2?.ToHex()
+                ?? parsedTorrent?.InfoHashes.V1?.ToHex()
+                ?? parsedTorrent?.InfoHashes.V2?.ToHex();
+
+            if (!string.IsNullOrWhiteSpace(infoHashHex) &&
+                this.infoHashToId.TryGetValue(infoHashHex, out var existingId) &&
+                this.tasks.TryGetValue(existingId, out var existingByHash))
+            {
+                if (existingId != torrent.Id)
+                {
+                    this.tasks.TryRemove(existingId, out _);
+                    this.tasks[torrent.Id] = existingByHash;
+                    this.infoHashToId[infoHashHex] = torrent.Id;
+                }
+
+                return existingByHash;
+            }
+
+            var cacheDir = this.GetCacheDirectory();
+            var savedFastResume = !string.IsNullOrWhiteSpace(infoHashHex)
+                ? await this.TryLoadSavedFastResumeAsync(infoHashHex, cacheDir).ConfigureAwait(false)
+                : null;
+
+            var incompleteDir = this.storagePathService.GetIncompleteDirectory();
+            var hasCompletedFiles = false;
+            var hasIncompleteFiles = false;
+
+            if (parsedTorrent?.Files != null && parsedTorrent.Files.Count > 0)
+            {
+                var completedCount = 0;
+                var incompleteCount = 0;
+                foreach (var file in parsedTorrent.Files)
+                {
+                    var targetCompletedPath = Path.Combine(completedDir, file.Path);
+                    var altCompletedPath = Path.Combine(completedDir, Path.GetFileName(file.Path));
+                    if ((this.diskProvider.FileExists(targetCompletedPath) && this.GetFileSizeSafely(targetCompletedPath) > 0) ||
+                        (this.diskProvider.FileExists(altCompletedPath) && this.GetFileSizeSafely(altCompletedPath) > 0))
+                    {
+                        completedCount++;
+                    }
+
+                    var targetIncompletePath = Path.Combine(incompleteDir, file.Path);
+                    var altIncompletePath = Path.Combine(incompleteDir, Path.GetFileName(file.Path));
+                    if ((this.diskProvider.FileExists(targetIncompletePath) && this.GetFileSizeSafely(targetIncompletePath) > 0) ||
+                        (this.diskProvider.FileExists(altIncompletePath) && this.GetFileSizeSafely(altIncompletePath) > 0) ||
+                        this.diskProvider.FileExists(targetIncompletePath + ".!mt") ||
+                        this.diskProvider.FileExists(targetIncompletePath + ".incomplete") ||
+                        this.diskProvider.FileExists(altIncompletePath + ".!mt") ||
+                        this.diskProvider.FileExists(altIncompletePath + ".incomplete"))
+                    {
+                        incompleteCount++;
+                    }
+                }
+
+                if (completedCount == parsedTorrent.Files.Count && completedCount > 0)
+                {
+                    hasCompletedFiles = true;
+                }
+                else if (incompleteCount > 0)
+                {
+                    hasIncompleteFiles = true;
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(torrent.Name))
+            {
+                var completedTarget = Path.Combine(completedDir, torrent.Name);
+                if (this.diskProvider.FolderExists(completedTarget) || this.diskProvider.FileExists(completedTarget))
+                {
+                    hasCompletedFiles = true;
+                }
+            }
+
+            var isDbCompleteOrSeeding = torrent.Status == TorrentStatus.Seeding ||
+                                        (torrent.Progress >= 1.0 && !string.IsNullOrWhiteSpace(torrent.SavePath)) ||
+                                        torrent.DateCompleted.HasValue;
+
+            var isCompleteOrSeeding = ((torrent.Status == TorrentStatus.Seeding || torrent.Progress >= 1.0) && hasCompletedFiles) ||
+                                      (torrent.DateCompleted.HasValue && hasCompletedFiles) ||
+                                      (savedFastResume?.Bitfield != null && savedFastResume.Bitfield.AllTrue && hasCompletedFiles);
+
+            var workingPath = (isCompleteOrSeeding || isDbCompleteOrSeeding || !useIncompleteDir || (!hasIncompleteFiles && hasCompletedFiles && torrent.DateCompleted.HasValue))
+                ? completedDir
+                : incompleteDir;
+
             try
             {
-                parsedTorrent = MtTorrent.Load(torrentFileBytes);
-                if (parsedTorrent.IsPrivate && !torrent.IsPrivate)
-                {
-                    torrent.IsPrivate = true;
-                }
+                Directory.CreateDirectory(workingPath);
             }
-            catch (Exception ex)
+            catch
             {
-                this.logger.Warn(ex, "Failed to pre-inspect torrent file bytes for BEP 27 flag on {0}", torrent.Name);
-            }
-        }
-
-        var useIncompleteDir = this.configService.EnableIncompleteDir;
-        var baseSavePath = torrent.SavePath;
-        if (!string.IsNullOrWhiteSpace(baseSavePath) && !string.IsNullOrWhiteSpace(torrent.Name))
-        {
-            var trimmed = baseSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var dirOrFileName = Path.GetFileName(trimmed);
-            if (Path.HasExtension(trimmed) ||
-                string.Equals(dirOrFileName, torrent.Name, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(Path.GetFileNameWithoutExtension(dirOrFileName), torrent.Name, StringComparison.OrdinalIgnoreCase))
-            {
-                baseSavePath = Path.GetDirectoryName(trimmed);
-            }
-        }
-
-        var completedDir = !string.IsNullOrWhiteSpace(baseSavePath)
-            ? baseSavePath
-            : this.storagePathService.GetCompletedDirectory(torrent.Category);
-
-        if (string.IsNullOrWhiteSpace(torrent.SavePath))
-        {
-            torrent.SavePath = completedDir;
-        }
-
-        var infoHashHex = torrent.InfoHash
-            ?? parsedTorrent?.InfoHashes.V1OrV2?.ToHex()
-            ?? parsedTorrent?.InfoHashes.V1?.ToHex()
-            ?? parsedTorrent?.InfoHashes.V2?.ToHex();
-
-        if (!string.IsNullOrWhiteSpace(infoHashHex) &&
-            this.infoHashToId.TryGetValue(infoHashHex, out var existingId) &&
-            this.tasks.TryGetValue(existingId, out var existingByHash))
-        {
-            if (existingId != torrent.Id)
-            {
-                this.tasks.TryRemove(existingId, out _);
-                this.tasks[torrent.Id] = existingByHash;
-                this.infoHashToId[infoHashHex] = torrent.Id;
             }
 
-            return existingByHash;
-        }
+            var isProxyConfigured = this.configService.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
+                !string.IsNullOrWhiteSpace(this.configService.ProxyHost);
+            var isProxyActive = isProxyConfigured || this.configService.ForceProxy || (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider);
 
-        var cacheDir = this.GetCacheDirectory();
-        var savedFastResume = !string.IsNullOrWhiteSpace(infoHashHex)
-            ? await this.TryLoadSavedFastResumeAsync(infoHashHex, cacheDir).ConfigureAwait(false)
-            : null;
-
-        var incompleteDir = this.storagePathService.GetIncompleteDirectory();
-        var hasCompletedFiles = false;
-        var hasIncompleteFiles = false;
-
-        if (parsedTorrent?.Files != null && parsedTorrent.Files.Count > 0)
-        {
-            var completedCount = 0;
-            var incompleteCount = 0;
-            foreach (var file in parsedTorrent.Files)
+            var torrentSettingsBuilder = new TorrentSettingsBuilder
             {
-                var targetCompletedPath = Path.Combine(completedDir, file.Path);
-                var altCompletedPath = Path.Combine(completedDir, Path.GetFileName(file.Path));
-                if ((this.diskProvider.FileExists(targetCompletedPath) && this.GetFileSizeSafely(targetCompletedPath) > 0) ||
-                    (this.diskProvider.FileExists(altCompletedPath) && this.GetFileSizeSafely(altCompletedPath) > 0))
-                {
-                    completedCount++;
-                }
+                MaximumConnections = this.configService.MaxPerTorrentConnections > 0 ? this.configService.MaxPerTorrentConnections : 50,
+                UploadSlots = this.configService.MaxUploadSlots > 0 ? this.configService.MaxUploadSlots : 4,
+                MaximumDownloadRate = torrent.DownloadLimit > 0
+                    ? (int)Math.Min((long)torrent.DownloadLimit * 1024, int.MaxValue)
+                    : 0,
+                MaximumUploadRate = torrent.UploadLimit > 0
+                    ? (int)Math.Min((long)torrent.UploadLimit * 1024, int.MaxValue)
+                    : 0,
+                AllowInitialSeeding = torrent.InitialSeeding,
+            };
 
-                var targetIncompletePath = Path.Combine(incompleteDir, file.Path);
-                var altIncompletePath = Path.Combine(incompleteDir, Path.GetFileName(file.Path));
-                if ((this.diskProvider.FileExists(targetIncompletePath) && this.GetFileSizeSafely(targetIncompletePath) > 0) ||
-                    (this.diskProvider.FileExists(altIncompletePath) && this.GetFileSizeSafely(altIncompletePath) > 0) ||
-                    this.diskProvider.FileExists(targetIncompletePath + ".!mt") ||
-                    this.diskProvider.FileExists(targetIncompletePath + ".incomplete") ||
-                    this.diskProvider.FileExists(altIncompletePath + ".!mt") ||
-                    this.diskProvider.FileExists(altIncompletePath + ".incomplete"))
-                {
-                    incompleteCount++;
-                }
+            if (torrent.IsPrivate)
+            {
+                torrentSettingsBuilder.AllowDht = false;
+                torrentSettingsBuilder.AllowPeerExchange = false;
+                this.logger.Info("BEP 27 strictly enforced for private torrent {0}: DHT and PEX disabled", torrent.Name);
             }
-
-            if (completedCount == parsedTorrent.Files.Count && completedCount > 0)
+            else if (isProxyActive)
             {
-                hasCompletedFiles = true;
-            }
-            else if (incompleteCount > 0)
-            {
-                hasIncompleteFiles = true;
-            }
-        }
-        else if (!string.IsNullOrWhiteSpace(torrent.Name))
-        {
-            var completedTarget = Path.Combine(completedDir, torrent.Name);
-            if (this.diskProvider.FolderExists(completedTarget) || this.diskProvider.FileExists(completedTarget))
-            {
-                hasCompletedFiles = true;
-            }
-        }
-
-        var isDbCompleteOrSeeding = torrent.Status == TorrentStatus.Seeding ||
-                                    (torrent.Progress >= 1.0 && !string.IsNullOrWhiteSpace(torrent.SavePath)) ||
-                                    torrent.DateCompleted.HasValue;
-
-        var isCompleteOrSeeding = ((torrent.Status == TorrentStatus.Seeding || torrent.Progress >= 1.0) && hasCompletedFiles) ||
-                                  (torrent.DateCompleted.HasValue && hasCompletedFiles) ||
-                                  (savedFastResume?.Bitfield != null && savedFastResume.Bitfield.AllTrue && hasCompletedFiles);
-
-        var workingPath = (isCompleteOrSeeding || isDbCompleteOrSeeding || !useIncompleteDir || (!hasIncompleteFiles && hasCompletedFiles && torrent.DateCompleted.HasValue))
-            ? completedDir
-            : incompleteDir;
-
-        try
-        {
-            Directory.CreateDirectory(workingPath);
-        }
-        catch
-        {
-        }
-
-        var isProxyConfigured = this.configService.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
-            !string.IsNullOrWhiteSpace(this.configService.ProxyHost);
-        var isProxyActive = isProxyConfigured || this.configService.ForceProxy || (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider);
-
-        var torrentSettingsBuilder = new TorrentSettingsBuilder
-        {
-            MaximumConnections = this.configService.MaxPerTorrentConnections > 0 ? this.configService.MaxPerTorrentConnections : 50,
-            UploadSlots = this.configService.MaxUploadSlots > 0 ? this.configService.MaxUploadSlots : 4,
-            MaximumDownloadRate = torrent.DownloadLimit > 0
-                ? (int)Math.Min((long)torrent.DownloadLimit * 1024, int.MaxValue)
-                : 0,
-            MaximumUploadRate = torrent.UploadLimit > 0
-                ? (int)Math.Min((long)torrent.UploadLimit * 1024, int.MaxValue)
-                : 0,
-            AllowInitialSeeding = torrent.InitialSeeding,
-        };
-
-        if (torrent.IsPrivate)
-        {
-            torrentSettingsBuilder.AllowDht = false;
-            torrentSettingsBuilder.AllowPeerExchange = false;
-            this.logger.Info("BEP 27 strictly enforced for private torrent {0}: DHT and PEX disabled", torrent.Name);
-        }
-        else if (isProxyActive)
-        {
-            torrentSettingsBuilder.AllowDht = false;
-            torrentSettingsBuilder.AllowPeerExchange = this.configService.EnablePex;
-            this.logger.Info("Proxy leak prevention active for torrent {0}: DHT disabled", torrent.Name);
-        }
-        else
-        {
-            torrentSettingsBuilder.AllowDht = this.configService.EnableDht;
-            torrentSettingsBuilder.AllowPeerExchange = this.configService.EnablePex;
-        }
-
-        TorrentManager manager = null;
-        var torrentSettings = torrentSettingsBuilder.ToSettings();
-
-        if (this.engine != null && !string.IsNullOrWhiteSpace(infoHashHex))
-        {
-            manager = this.engine.Torrents.FirstOrDefault(m =>
-                m.InfoHashes != null && (
-                    string.Equals(m.InfoHashes.V1OrV2?.ToHex(), infoHashHex, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(m.InfoHashes.V1?.ToHex(), infoHashHex, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(m.InfoHashes.V2?.ToHex(), infoHashHex, StringComparison.OrdinalIgnoreCase)));
-        }
-
-        if (manager == null)
-        {
-            var isSequential = torrent.SequentialDownload || string.Equals(this.configService.PiecePickerStrategy, "Sequential", StringComparison.OrdinalIgnoreCase);
-            try
-            {
-                if (isSequential)
-                {
-                    if (torrentFileBytes != null && torrentFileBytes.Length > 0)
-                    {
-                        parsedTorrent ??= MtTorrent.Load(torrentFileBytes);
-                        manager = await this.engine.AddStreamingAsync(parsedTorrent, workingPath, torrentSettings);
-                    }
-                    else if (!string.IsNullOrWhiteSpace(magnetUri))
-                    {
-                        var magnetLink = MagnetLink.Parse(magnetUri);
-                        try
-                        {
-                            var parsedMagnet = MagnetLinkParser.Parse(magnetUri);
-                            if (parsedMagnet.WebSeeds != null && parsedMagnet.WebSeeds.Count > 0)
-                            {
-                                foreach (var ws in parsedMagnet.WebSeeds)
-                                {
-                                    if (!magnetLink.Webseeds.Contains(ws))
-                                    {
-                                        magnetLink.Webseeds.Add(ws);
-                                    }
-                                }
-                            }
-                        }
-                        catch
-                        {
-                        }
-
-                        manager = await this.engine.AddStreamingAsync(magnetLink, workingPath, torrentSettings);
-                    }
-                    else if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
-                    {
-                        var trackers = !string.IsNullOrWhiteSpace(torrent.TrackerUrl) ? new[] { torrent.TrackerUrl } : null;
-                        var magnetString = MagnetLinkParser.BuildMagnetUri(torrent.InfoHash, trackers: trackers);
-                        var magnetLink = MagnetLink.Parse(magnetString);
-                        manager = await this.engine.AddStreamingAsync(magnetLink, workingPath, torrentSettings);
-                    }
-                }
-                else
-                {
-                    if (torrentFileBytes != null && torrentFileBytes.Length > 0)
-                    {
-                        parsedTorrent ??= MtTorrent.Load(torrentFileBytes);
-                        manager = await this.engine.AddAsync(parsedTorrent, workingPath, torrentSettings);
-                    }
-                    else if (!string.IsNullOrWhiteSpace(magnetUri))
-                    {
-                        var magnetLink = MagnetLink.Parse(magnetUri);
-                        try
-                        {
-                            var parsedMagnet = MagnetLinkParser.Parse(magnetUri);
-                            if (parsedMagnet.WebSeeds != null && parsedMagnet.WebSeeds.Count > 0)
-                            {
-                                foreach (var ws in parsedMagnet.WebSeeds)
-                                {
-                                    if (!magnetLink.Webseeds.Contains(ws))
-                                    {
-                                        magnetLink.Webseeds.Add(ws);
-                                    }
-                                }
-                            }
-                        }
-                        catch
-                        {
-                        }
-
-                        manager = await this.engine.AddAsync(magnetLink, workingPath, torrentSettings);
-                    }
-                    else if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
-                    {
-                        var trackers = !string.IsNullOrWhiteSpace(torrent.TrackerUrl) ? new[] { torrent.TrackerUrl } : null;
-                        var magnetString = MagnetLinkParser.BuildMagnetUri(torrent.InfoHash, trackers: trackers);
-                        var magnetLink = MagnetLink.Parse(magnetString);
-                        manager = await this.engine.AddAsync(magnetLink, workingPath, torrentSettings);
-                    }
-                }
-            }
-            catch (TorrentException ex) when (ex.Message.Contains("already been registered", StringComparison.OrdinalIgnoreCase))
-            {
-                if (this.engine != null && !string.IsNullOrWhiteSpace(infoHashHex))
-                {
-                    manager = this.engine.Torrents.FirstOrDefault(m =>
-                        m.InfoHashes != null && (
-                            string.Equals(m.InfoHashes.V1OrV2?.ToHex(), infoHashHex, StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(m.InfoHashes.V1?.ToHex(), infoHashHex, StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(m.InfoHashes.V2?.ToHex(), infoHashHex, StringComparison.OrdinalIgnoreCase)));
-                }
-
-                if (manager == null)
-                {
-                    throw;
-                }
-            }
-        }
-
-        if (manager == null)
-        {
-            throw new InvalidOperationException("Failed to create TorrentManager for torrent.");
-        }
-
-        if (cts.Token.IsCancellationRequested)
-        {
-            await this.CleanupCancelledManagerAsync(manager, torrent.Id).ConfigureAwait(false);
-            return null;
-        }
-
-        var loadedFastResume = false;
-        if (savedFastResume != null && (!manager.HashChecked || manager.Progress < 100.0))
-        {
-            if (savedFastResume.Bitfield != null && savedFastResume.Bitfield.AllTrue && !hasCompletedFiles)
-            {
-                this.logger.Warn("Saved FastResume for {0} ({1}) indicates 100% completion but completed files are missing on disk; ignoring invalid FastResume.", torrent.Name, infoHashHex);
+                torrentSettingsBuilder.AllowDht = false;
+                torrentSettingsBuilder.AllowPeerExchange = this.configService.EnablePex;
+                this.logger.Info("Proxy leak prevention active for torrent {0}: DHT disabled", torrent.Name);
             }
             else
             {
+                torrentSettingsBuilder.AllowDht = this.configService.EnableDht;
+                torrentSettingsBuilder.AllowPeerExchange = this.configService.EnablePex;
+            }
+
+            TorrentManager manager = null;
+            var torrentSettings = torrentSettingsBuilder.ToSettings();
+
+            if (this.engine != null && !string.IsNullOrWhiteSpace(infoHashHex))
+            {
+                manager = this.engine.Torrents.FirstOrDefault(m =>
+                    m.InfoHashes != null && (
+                        string.Equals(m.InfoHashes.V1OrV2?.ToHex(), infoHashHex, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(m.InfoHashes.V1?.ToHex(), infoHashHex, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(m.InfoHashes.V2?.ToHex(), infoHashHex, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            if (manager == null)
+            {
+                var isSequential = torrent.SequentialDownload || string.Equals(this.configService.PiecePickerStrategy, "Sequential", StringComparison.OrdinalIgnoreCase);
                 try
                 {
-                    await manager.LoadFastResumeAsync(savedFastResume).ConfigureAwait(false);
-                    loadedFastResume = true;
-                    this.logger.Info("Loaded saved FastResume checkpoint for {0} ({1}) - Progress: {2:F1}%, Complete: {3}", torrent.Name, infoHashHex, manager.Progress, manager.Complete);
+                    if (isSequential)
+                    {
+                        if (torrentFileBytes != null && torrentFileBytes.Length > 0)
+                        {
+                            parsedTorrent ??= MtTorrent.Load(torrentFileBytes);
+                            manager = await this.engine.AddStreamingAsync(parsedTorrent, workingPath, torrentSettings);
+                        }
+                        else if (!string.IsNullOrWhiteSpace(magnetUri))
+                        {
+                            var magnetLink = MagnetLink.Parse(magnetUri);
+                            try
+                            {
+                                var parsedMagnet = MagnetLinkParser.Parse(magnetUri);
+                                if (parsedMagnet.WebSeeds != null && parsedMagnet.WebSeeds.Count > 0)
+                                {
+                                    foreach (var ws in parsedMagnet.WebSeeds)
+                                    {
+                                        if (!magnetLink.Webseeds.Contains(ws))
+                                        {
+                                            magnetLink.Webseeds.Add(ws);
+                                        }
+                                    }
+                                }
+                            }
+                            catch
+                            {
+                            }
+
+                            manager = await this.engine.AddStreamingAsync(magnetLink, workingPath, torrentSettings);
+                        }
+                        else if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
+                        {
+                            var trackers = !string.IsNullOrWhiteSpace(torrent.TrackerUrl) ? new[] { torrent.TrackerUrl } : null;
+                            var magnetString = MagnetLinkParser.BuildMagnetUri(torrent.InfoHash, trackers: trackers);
+                            var magnetLink = MagnetLink.Parse(magnetString);
+                            manager = await this.engine.AddStreamingAsync(magnetLink, workingPath, torrentSettings);
+                        }
+                    }
+                    else
+                    {
+                        if (torrentFileBytes != null && torrentFileBytes.Length > 0)
+                        {
+                            parsedTorrent ??= MtTorrent.Load(torrentFileBytes);
+                            manager = await this.engine.AddAsync(parsedTorrent, workingPath, torrentSettings);
+                        }
+                        else if (!string.IsNullOrWhiteSpace(magnetUri))
+                        {
+                            var magnetLink = MagnetLink.Parse(magnetUri);
+                            try
+                            {
+                                var parsedMagnet = MagnetLinkParser.Parse(magnetUri);
+                                if (parsedMagnet.WebSeeds != null && parsedMagnet.WebSeeds.Count > 0)
+                                {
+                                    foreach (var ws in parsedMagnet.WebSeeds)
+                                    {
+                                        if (!magnetLink.Webseeds.Contains(ws))
+                                        {
+                                            magnetLink.Webseeds.Add(ws);
+                                        }
+                                    }
+                                }
+                            }
+                            catch
+                            {
+                            }
+
+                            manager = await this.engine.AddAsync(magnetLink, workingPath, torrentSettings);
+                        }
+                        else if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
+                        {
+                            var trackers = !string.IsNullOrWhiteSpace(torrent.TrackerUrl) ? new[] { torrent.TrackerUrl } : null;
+                            var magnetString = MagnetLinkParser.BuildMagnetUri(torrent.InfoHash, trackers: trackers);
+                            var magnetLink = MagnetLink.Parse(magnetString);
+                            manager = await this.engine.AddAsync(magnetLink, workingPath, torrentSettings);
+                        }
+                    }
+                }
+                catch (TorrentException ex) when (ex.Message.Contains("already been registered", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (this.engine != null && !string.IsNullOrWhiteSpace(infoHashHex))
+                    {
+                        manager = this.engine.Torrents.FirstOrDefault(m =>
+                            m.InfoHashes != null && (
+                                string.Equals(m.InfoHashes.V1OrV2?.ToHex(), infoHashHex, StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(m.InfoHashes.V1?.ToHex(), infoHashHex, StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(m.InfoHashes.V2?.ToHex(), infoHashHex, StringComparison.OrdinalIgnoreCase)));
+                    }
+
+                    if (manager == null)
+                    {
+                        throw;
+                    }
+                }
+            }
+
+            if (manager == null)
+            {
+                throw new InvalidOperationException("Failed to create TorrentManager for torrent.");
+            }
+
+            if (cts.Token.IsCancellationRequested)
+            {
+                await this.CleanupCancelledManagerAsync(manager, torrent.Id).ConfigureAwait(false);
+                return null;
+            }
+
+            var loadedFastResume = false;
+            if (savedFastResume != null && (!manager.HashChecked || manager.Progress < 100.0))
+            {
+                if (savedFastResume.Bitfield != null && savedFastResume.Bitfield.AllTrue && !hasCompletedFiles)
+                {
+                    this.logger.Warn("Saved FastResume for {0} ({1}) indicates 100% completion but completed files are missing on disk; ignoring invalid FastResume.", torrent.Name, infoHashHex);
+                }
+                else
+                {
+                    try
+                    {
+                        await manager.LoadFastResumeAsync(savedFastResume).ConfigureAwait(false);
+                        loadedFastResume = true;
+                        this.logger.Info("Loaded saved FastResume checkpoint for {0} ({1}) - Progress: {2:F1}%, Complete: {3}", torrent.Name, infoHashHex, manager.Progress, manager.Complete);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Warn(ex, "Failed to load saved FastResume for {0} ({1})", torrent.Name, infoHashHex);
+                    }
+                }
+            }
+
+            if (!loadedFastResume && isCompleteOrSeeding && manager.InfoHashes != null)
+            {
+                var pieceCount = parsedTorrent?.PieceCount ?? manager.Torrent?.PieceCount ?? 0;
+                if (pieceCount > 0)
+                {
+                    try
+                    {
+                        var isFullTorrent = manager.Files == null || !manager.Files.Any(f => f.Priority == MonoTorrent.Priority.DoNotDownload);
+                        var resumeBitfield = isFullTorrent
+                            ? new ReadOnlyBitField(new BitField(pieceCount).SetAll(true))
+                            : manager.Bitfield ?? new ReadOnlyBitField(pieceCount);
+                        var unhashed = new ReadOnlyBitField(pieceCount);
+                        var synthesizedFastResume = new FastResume(manager.InfoHashes, resumeBitfield, unhashed);
+                        await manager.LoadFastResumeAsync(synthesizedFastResume).ConfigureAwait(false);
+                        await this.SaveFastResumeAtomicAsync(manager, this.GetCacheDirectory()).ConfigureAwait(false);
+                        this.logger.Info("Synthesized and loaded 100% FastResume checkpoint for completed torrent {0} ({1})", torrent.Name, infoHashHex);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Warn(ex, "Failed to load synthesized FastResume for {0} ({1})", torrent.Name, infoHashHex);
+                    }
+                }
+            }
+            else if (!loadedFastResume && isDbCompleteOrSeeding && !hasCompletedFiles)
+            {
+                this.logger.Warn("Torrent {0} ({1}) is marked as complete/seeding in database, but completed files are missing on disk. Triggering hash check instead of synthesizing FastResume.", torrent.Name, infoHashHex);
+                try
+                {
+                    await manager.HashCheckAsync(autoStart: true).ConfigureAwait(false);
+                    torrent.Status = TorrentStatus.Checking;
                 }
                 catch (Exception ex)
                 {
-                    this.logger.Warn(ex, "Failed to load saved FastResume for {0} ({1})", torrent.Name, infoHashHex);
+                    this.logger.Warn(ex, "Failed to trigger data integrity hash check for {0} ({1})", torrent.Name, infoHashHex);
                 }
             }
-        }
 
-        if (!loadedFastResume && isCompleteOrSeeding && manager.InfoHashes != null)
-        {
-            var pieceCount = parsedTorrent?.PieceCount ?? manager.Torrent?.PieceCount ?? 0;
-            if (pieceCount > 0)
+            if (isProxyActive && manager.TrackerManager?.Tiers != null)
             {
-                try
+                var udpTrackers = manager.TrackerManager.Tiers
+                    .SelectMany(t => t.Trackers)
+                    .Where(t => t.Uri != null && string.Equals(t.Uri.Scheme, "udp", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                foreach (var udpTracker in udpTrackers)
                 {
-                    var isFullTorrent = manager.Files == null || !manager.Files.Any(f => f.Priority == MonoTorrent.Priority.DoNotDownload);
-                    var resumeBitfield = isFullTorrent
-                        ? new ReadOnlyBitField(new BitField(pieceCount).SetAll(true))
-                        : manager.Bitfield ?? new ReadOnlyBitField(pieceCount);
-                    var unhashed = new ReadOnlyBitField(pieceCount);
-                    var synthesizedFastResume = new FastResume(manager.InfoHashes, resumeBitfield, unhashed);
-                    await manager.LoadFastResumeAsync(synthesizedFastResume).ConfigureAwait(false);
-                    await this.SaveFastResumeAtomicAsync(manager, this.GetCacheDirectory()).ConfigureAwait(false);
-                    this.logger.Info("Synthesized and loaded 100% FastResume checkpoint for completed torrent {0} ({1})", torrent.Name, infoHashHex);
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Warn(ex, "Failed to load synthesized FastResume for {0} ({1})", torrent.Name, infoHashHex);
+                    try
+                    {
+                        await manager.TrackerManager.RemoveTrackerAsync(udpTracker).ConfigureAwait(false);
+                        this.logger.Info("Removed UDP tracker '{0}' from torrent '{1}' to prevent SOCKS5 proxy IP leak", udpTracker.Uri, torrent.Name);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Debug(ex, "Could not remove UDP tracker {0}", udpTracker.Uri);
+                    }
                 }
             }
-        }
-        else if (!loadedFastResume && isDbCompleteOrSeeding && !hasCompletedFiles)
-        {
-            this.logger.Warn("Torrent {0} ({1}) is marked as complete/seeding in database, but completed files are missing on disk. Triggering hash check instead of synthesizing FastResume.", torrent.Name, infoHashHex);
-            try
+
+            if (cts.Token.IsCancellationRequested)
             {
-                await manager.HashCheckAsync(autoStart: true).ConfigureAwait(false);
-                torrent.Status = TorrentStatus.Checking;
+                await this.CleanupCancelledManagerAsync(manager, torrent.Id).ConfigureAwait(false);
+                return null;
             }
-            catch (Exception ex)
+
+            var thresholdMb = this.configService?.LowDiskSpaceThresholdMb > 0 ? this.configService.LowDiskSpaceThresholdMb : 500;
+            var thresholdBytes = thresholdMb * 1024L * 1024L;
+            var availableSpace = this.diskProvider.GetAvailableSpace(workingPath);
+            var isLowDiskSpace = availableSpace.HasValue && availableSpace.Value < thresholdBytes;
+
+            var downloadTask = new MonoTorrentDownloadTask(
+                torrent.Id,
+                torrent.InfoHash,
+                manager,
+                torrent.Category,
+                parsedTorrent,
+                this.blocklistService,
+                () => Interlocked.Increment(ref this.blockedPeersCount),
+                this.configService,
+                torrent.IsPrivate,
+                workingPath,
+                t => _ = this.ApplyStoredFilePrioritiesAsync(t),
+                peerConnectionHistoryService: this.peerConnectionHistoryService,
+                eventAggregator: this.eventAggregator);
+            downloadTask.SavePath = completedDir;
+            downloadTask.IsFilesMovedToCompleted = isCompleteOrSeeding;
+            downloadTask.SequentialDownload = torrent.SequentialDownload;
+            downloadTask.FirstLastPiecePriority = torrent.FirstLastPiecePriority;
+            downloadTask.IsSuperSeeding = torrent.InitialSeeding;
+            if (downloadTask.Picker != null)
             {
-                this.logger.Warn(ex, "Failed to trigger data integrity hash check for {0} ({1})", torrent.Name, infoHashHex);
+                downloadTask.Picker.SequentialMode = torrent.SequentialDownload;
             }
-        }
 
-        if (isProxyActive && manager.TrackerManager?.Tiers != null)
-        {
-            var udpTrackers = manager.TrackerManager.Tiers
-                .SelectMany(t => t.Trackers)
-                .Where(t => t.Uri != null && string.Equals(t.Uri.Scheme, "udp", StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            foreach (var udpTracker in udpTrackers)
+            if (cts.Token.IsCancellationRequested)
             {
-                try
-                {
-                    await manager.TrackerManager.RemoveTrackerAsync(udpTracker).ConfigureAwait(false);
-                    this.logger.Info("Removed UDP tracker '{0}' from torrent '{1}' to prevent SOCKS5 proxy IP leak", udpTracker.Uri, torrent.Name);
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Debug(ex, "Could not remove UDP tracker {0}", udpTracker.Uri);
-                }
+                await this.CleanupCancelledManagerAsync(manager, torrent.Id).ConfigureAwait(false);
+                return null;
             }
-        }
 
-        if (cts.Token.IsCancellationRequested)
-        {
-            await this.CleanupCancelledManagerAsync(manager, torrent.Id).ConfigureAwait(false);
-            return null;
-        }
-
-        var thresholdMb = this.configService?.LowDiskSpaceThresholdMb > 0 ? this.configService.LowDiskSpaceThresholdMb : 500;
-        var thresholdBytes = thresholdMb * 1024L * 1024L;
-        var availableSpace = this.diskProvider.GetAvailableSpace(workingPath);
-        var isLowDiskSpace = availableSpace.HasValue && availableSpace.Value < thresholdBytes;
-
-        var downloadTask = new MonoTorrentDownloadTask(
-            torrent.Id,
-            torrent.InfoHash,
-            manager,
-            torrent.Category,
-            parsedTorrent,
-            this.blocklistService,
-            () => Interlocked.Increment(ref this.blockedPeersCount),
-            this.configService,
-            torrent.IsPrivate,
-            workingPath,
-            t => _ = this.ApplyStoredFilePrioritiesAsync(t),
-            peerConnectionHistoryService: this.peerConnectionHistoryService,
-            eventAggregator: this.eventAggregator);
-        downloadTask.SavePath = completedDir;
-        downloadTask.IsFilesMovedToCompleted = isCompleteOrSeeding;
-        downloadTask.SequentialDownload = torrent.SequentialDownload;
-        downloadTask.FirstLastPiecePriority = torrent.FirstLastPiecePriority;
-        downloadTask.IsSuperSeeding = torrent.InitialSeeding;
-        if (downloadTask.Picker != null)
-        {
-            downloadTask.Picker.SequentialMode = torrent.SequentialDownload;
-        }
-
-        if (cts.Token.IsCancellationRequested)
-        {
-            await this.CleanupCancelledManagerAsync(manager, torrent.Id).ConfigureAwait(false);
-            return null;
-        }
-
-        this.tasks[torrent.Id] = downloadTask;
-        if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
-        {
-            this.infoHashToId[torrent.InfoHash] = torrent.Id;
-        }
-
-        if (manager.InfoHashes?.V1 != null)
-        {
-            this.infoHashToId[manager.InfoHashes.V1.ToHex()] = torrent.Id;
-        }
-
-        if (manager.InfoHashes?.V2 != null)
-        {
-            this.infoHashToId[manager.InfoHashes.V2.ToHex()] = torrent.Id;
-        }
-
-        manager.TorrentStateChanged += this.OnTorrentStateChanged;
-        manager.PieceHashed += this.OnPieceHashed;
-
-        if (cts.Token.IsCancellationRequested)
-        {
-            this.tasks.TryRemove(torrent.Id, out _);
+            this.tasks[torrent.Id] = downloadTask;
             if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
             {
-                this.infoHashToId.TryRemove(torrent.InfoHash, out _);
+                this.infoHashToId[torrent.InfoHash] = torrent.Id;
             }
 
             if (manager.InfoHashes?.V1 != null)
             {
-                this.infoHashToId.TryRemove(manager.InfoHashes.V1.ToHex(), out _);
+                this.infoHashToId[manager.InfoHashes.V1.ToHex()] = torrent.Id;
             }
 
             if (manager.InfoHashes?.V2 != null)
             {
-                this.infoHashToId.TryRemove(manager.InfoHashes.V2.ToHex(), out _);
+                this.infoHashToId[manager.InfoHashes.V2.ToHex()] = torrent.Id;
             }
 
-            await this.CleanupCancelledManagerAsync(manager, torrent.Id).ConfigureAwait(false);
-            return null;
-        }
+            manager.TorrentStateChanged += this.OnTorrentStateChanged;
+            manager.PieceHashed += this.OnPieceHashed;
 
-        await this.ApplyStoredFilePrioritiesAsync(downloadTask).ConfigureAwait(false);
-
-        if (torrent.FirstLastPiecePriority)
-        {
-            await this.SetFirstLastPiecePriorityAsync(torrent.Id, true).ConfigureAwait(false);
-        }
-
-        if (manager.Complete || (manager.Bitfield != null && manager.Bitfield.Length > 0 && manager.Bitfield.AllTrue) || isCompleteOrSeeding)
-        {
-            downloadTask.IsFilesMovedToCompleted = true;
-            if (torrent.Status == TorrentStatus.Downloading || (torrent.Status == TorrentStatus.Stopped && this.configService?.AutoStart == true))
+            if (cts.Token.IsCancellationRequested)
             {
-                torrent.Status = TorrentStatus.Seeding;
-                torrent.Progress = 1.0;
-            }
-            else
-            {
-                torrent.Progress = 1.0;
-            }
-        }
-
-        if (parsedTorrent != null)
-        {
-            this.metadataPersistedTorrentIds.TryAdd(torrent.Id, true);
-        }
-
-        if (!isLowDiskSpace && parsedTorrent != null)
-        {
-            await this.PreallocateFilesAsync(manager, workingPath, parsedTorrent).ConfigureAwait(false);
-        }
-
-        if (this.isHaltedByKillSwitch)
-        {
-            await manager.PauseAsync();
-            torrent.Status = TorrentStatus.Paused;
-            this.logger.Warn("VPN Kill Switch active (fail-closed). Added torrent {0} in paused state.", torrent.Name);
-        }
-        else if (isLowDiskSpace)
-        {
-            await manager.PauseAsync();
-            downloadTask.WasAutoPausedByDiskSpace = true;
-            downloadTask.SetStorageFull($"StorageFull: Free disk space dropped below threshold ({availableSpace.Value / (1024 * 1024)} MB available, {thresholdMb} MB required).", this.eventAggregator);
-            torrent.Status = TorrentStatus.Paused;
-            torrent.ErrorMessage = downloadTask.ErrorMessage;
-            this.logger.Warn("Insufficient free disk space on '{0}' for torrent '{1}' ({2} MB available, {3} MB threshold). Added torrent in paused state.", workingPath, torrent.Name, availableSpace.Value / (1024 * 1024), thresholdMb);
-        }
-        else if (torrent.Status == TorrentStatus.Paused)
-        {
-            await manager.PauseAsync();
-            this.logger.Info("Added paused torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
-        }
-        else if (torrent.Status == TorrentStatus.Stopped)
-        {
-            if (this.configService.AutoStart && (isCompleteOrSeeding || manager.Complete || (manager.Bitfield != null && manager.Bitfield.AllTrue)))
-            {
-                if (cts.Token.IsCancellationRequested)
+                this.tasks.TryRemove(torrent.Id, out _);
+                if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
                 {
-                    this.tasks.TryRemove(torrent.Id, out _);
-                    await this.CleanupCancelledManagerAsync(manager, torrent.Id).ConfigureAwait(false);
-                    return null;
+                    this.infoHashToId.TryRemove(torrent.InfoHash, out _);
                 }
 
-                await manager.StartAsync();
-                torrent.Status = TorrentStatus.Seeding;
-                this.logger.Info("AutoStarted complete/seeding torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
-                try
+                if (manager.InfoHashes?.V1 != null)
                 {
-                    if (manager.TrackerManager != null)
-                    {
-                        _ = this.AnnounceTrackersAsync(manager, torrent.Id, isResumeOrStartup: true);
-                    }
+                    this.infoHashToId.TryRemove(manager.InfoHashes.V1.ToHex(), out _);
                 }
-                catch (Exception ex)
+
+                if (manager.InfoHashes?.V2 != null)
                 {
-                    this.logger.Debug(ex, "Failed to announce tracker on startup for torrent {0}", torrent.Id);
+                    this.infoHashToId.TryRemove(manager.InfoHashes.V2.ToHex(), out _);
                 }
+
+                await this.CleanupCancelledManagerAsync(manager, torrent.Id).ConfigureAwait(false);
+                return null;
             }
-            else
+
+            await this.ApplyStoredFilePrioritiesAsync(downloadTask).ConfigureAwait(false);
+
+            if (torrent.FirstLastPiecePriority)
             {
-                this.logger.Info("Added stopped torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
+                await this.SetFirstLastPiecePriorityAsync(torrent.Id, true).ConfigureAwait(false);
             }
-        }
-        else if (torrent.Status is TorrentStatus.Queued or TorrentStatus.Error or TorrentStatus.Stalled)
-        {
-            await manager.PauseAsync();
-            this.logger.Info("Added inactive ({0}) torrent: {1} ({2})", torrent.Status, torrent.Name, torrent.InfoHash);
-        }
-        else if (torrent.Status == TorrentStatus.Checking || manager.State == TorrentState.Hashing)
-        {
-            this.logger.Info("Added torrent in checking state: {0} ({1})", torrent.Name, torrent.InfoHash);
-        }
-        else
-        {
-            if (this.configService?.AutoStart == false)
+
+            if (manager.Complete || (manager.Bitfield != null && manager.Bitfield.Length > 0 && manager.Bitfield.AllTrue) || isCompleteOrSeeding)
+            {
+                downloadTask.IsFilesMovedToCompleted = true;
+                if (torrent.Status == TorrentStatus.Downloading || (torrent.Status == TorrentStatus.Stopped && this.configService?.AutoStart == true))
+                {
+                    torrent.Status = TorrentStatus.Seeding;
+                    torrent.Progress = 1.0;
+                }
+                else
+                {
+                    torrent.Progress = 1.0;
+                }
+            }
+
+            if (parsedTorrent != null)
+            {
+                this.metadataPersistedTorrentIds.TryAdd(torrent.Id, true);
+            }
+
+            if (!isLowDiskSpace && parsedTorrent != null)
+            {
+                await this.PreallocateFilesAsync(manager, workingPath, parsedTorrent).ConfigureAwait(false);
+            }
+
+            if (this.isHaltedByKillSwitch)
             {
                 await manager.PauseAsync();
                 torrent.Status = TorrentStatus.Paused;
-                this.logger.Info("Added torrent in paused state due to AutoStart=false: {0} ({1})", torrent.Name, torrent.InfoHash);
+                this.logger.Warn("VPN Kill Switch active (fail-closed). Added torrent {0} in paused state.", torrent.Name);
+            }
+            else if (isLowDiskSpace)
+            {
+                await manager.PauseAsync();
+                downloadTask.WasAutoPausedByDiskSpace = true;
+                downloadTask.SetStorageFull($"StorageFull: Free disk space dropped below threshold ({availableSpace.Value / (1024 * 1024)} MB available, {thresholdMb} MB required).", this.eventAggregator);
+                torrent.Status = TorrentStatus.Paused;
+                torrent.ErrorMessage = downloadTask.ErrorMessage;
+                this.logger.Warn("Insufficient free disk space on '{0}' for torrent '{1}' ({2} MB available, {3} MB threshold). Added torrent in paused state.", workingPath, torrent.Name, availableSpace.Value / (1024 * 1024), thresholdMb);
+            }
+            else if (torrent.Status == TorrentStatus.Paused)
+            {
+                await manager.PauseAsync();
+                this.logger.Info("Added paused torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
+            }
+            else if (torrent.Status == TorrentStatus.Stopped)
+            {
+                if (this.configService.AutoStart && (isCompleteOrSeeding || manager.Complete || (manager.Bitfield != null && manager.Bitfield.AllTrue)))
+                {
+                    if (cts.Token.IsCancellationRequested)
+                    {
+                        this.tasks.TryRemove(torrent.Id, out _);
+                        await this.CleanupCancelledManagerAsync(manager, torrent.Id).ConfigureAwait(false);
+                        return null;
+                    }
+
+                    await manager.StartAsync();
+                    torrent.Status = TorrentStatus.Seeding;
+                    this.logger.Info("AutoStarted complete/seeding torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
+                    try
+                    {
+                        if (manager.TrackerManager != null)
+                        {
+                            _ = this.AnnounceTrackersAsync(manager, torrent.Id, isResumeOrStartup: true);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Debug(ex, "Failed to announce tracker on startup for torrent {0}", torrent.Id);
+                    }
+                }
+                else
+                {
+                    this.logger.Info("Added stopped torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
+                }
+            }
+            else if (torrent.Status is TorrentStatus.Queued or TorrentStatus.Error or TorrentStatus.Stalled)
+            {
+                await manager.PauseAsync();
+                this.logger.Info("Added inactive ({0}) torrent: {1} ({2})", torrent.Status, torrent.Name, torrent.InfoHash);
+            }
+            else if (torrent.Status == TorrentStatus.Checking || manager.State == TorrentState.Hashing)
+            {
+                this.logger.Info("Added torrent in checking state: {0} ({1})", torrent.Name, torrent.InfoHash);
             }
             else
             {
-                if (cts.Token.IsCancellationRequested)
+                if (this.configService?.AutoStart == false)
                 {
-                    this.tasks.TryRemove(torrent.Id, out _);
-                    await this.CleanupCancelledManagerAsync(manager, torrent.Id).ConfigureAwait(false);
-                    return null;
+                    await manager.PauseAsync();
+                    torrent.Status = TorrentStatus.Paused;
+                    this.logger.Info("Added torrent in paused state due to AutoStart=false: {0} ({1})", torrent.Name, torrent.InfoHash);
                 }
-
-                await manager.StartAsync();
-                this.logger.Info("Added and started torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
-                try
+                else
                 {
-                    if (manager.TrackerManager != null)
+                    if (cts.Token.IsCancellationRequested)
                     {
-                        _ = this.AnnounceTrackersAsync(manager, torrent.Id, isResumeOrStartup: true);
+                        this.tasks.TryRemove(torrent.Id, out _);
+                        await this.CleanupCancelledManagerAsync(manager, torrent.Id).ConfigureAwait(false);
+                        return null;
+                    }
+
+                    await manager.StartAsync();
+                    this.logger.Info("Added and started torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
+                    try
+                    {
+                        if (manager.TrackerManager != null)
+                        {
+                            _ = this.AnnounceTrackersAsync(manager, torrent.Id, isResumeOrStartup: true);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Debug(ex, "Failed to announce tracker on startup for torrent {0}", torrent.Id);
                     }
                 }
-                catch (Exception ex)
-                {
-                    this.logger.Debug(ex, "Failed to announce tracker on startup for torrent {0}", torrent.Id);
-                }
             }
-        }
 
             return downloadTask;
         }
