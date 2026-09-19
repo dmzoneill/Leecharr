@@ -100,6 +100,11 @@ public class ArrConnectionController : Controller
 
         var model = ToModel(resource);
         model.Id = id;
+        if (model.ApiKey == "********" || (model.ApiKey != null && model.ApiKey.Contains('*')) || string.IsNullOrWhiteSpace(model.ApiKey))
+        {
+            model.ApiKey = existing.ApiKey;
+        }
+
         this.repository.Update(model);
         return this.Ok(ToResource(model));
     }
@@ -129,6 +134,15 @@ public class ArrConnectionController : Controller
         if (resource == null)
         {
             return this.BadRequest();
+        }
+
+        if (resource.Id > 0 && (resource.ApiKey == "********" || (resource.ApiKey != null && resource.ApiKey.Contains('*')) || string.IsNullOrWhiteSpace(resource.ApiKey)))
+        {
+            var existing = this.repository.Get(resource.Id);
+            if (existing != null)
+            {
+                resource.ApiKey = existing.ApiKey;
+            }
         }
 
         return await this.TestDirectInternal(resource);
@@ -189,7 +203,7 @@ public class ArrConnectionController : Controller
             ArrType = model.ArrType,
             Url = model.Url,
             ExternalUrl = ResolveExternalUrl(model.ExternalUrl, model.ArrType, model.Name),
-            ApiKey = model.ApiKey,
+            ApiKey = string.IsNullOrEmpty(model.ApiKey) ? string.Empty : "********",
             Enabled = model.Enable,
             SyncCategories = model.SyncCategories,
             RefreshIntervalMinutes = model.SyncIntervalMinutes,

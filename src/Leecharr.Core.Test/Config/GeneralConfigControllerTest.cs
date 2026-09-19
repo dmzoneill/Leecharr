@@ -107,4 +107,27 @@ public class GeneralConfigControllerTest
         savedDict.Should().NotBeNull();
         savedDict["AuthenticationRequired"].Should().Be(AuthenticationRequiredType.DisabledForLocalhost);
     }
+
+    [Test]
+    public void GetApiKey_WhenUserIsNotAdmin_ReturnsForbid()
+    {
+        var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        var claims = new[]
+        {
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "testuser"),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "User"),
+        };
+        var identity = new System.Security.Claims.ClaimsIdentity(claims, "TestAuth");
+        httpContext.User = new System.Security.Claims.ClaimsPrincipal(identity);
+
+        this.controller.ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
+        {
+            HttpContext = httpContext,
+        };
+
+        this.configFileProvider.ApiKey.Returns("secret_key_123");
+
+        var actionResult = this.controller.GetApiKey();
+        actionResult.Result.Should().BeOfType<Microsoft.AspNetCore.Mvc.ForbidResult>();
+    }
 }
