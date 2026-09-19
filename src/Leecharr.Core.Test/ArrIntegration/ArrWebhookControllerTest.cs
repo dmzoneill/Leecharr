@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.ArrIntegration;
+using NzbDrone.Core.Indexers;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Torrents;
 
@@ -20,6 +21,7 @@ public class ArrWebhookControllerTest
     private ITorrentRepository torrentRepository = null!;
     private ITorrentMediaMetadataRepository mediaMetadataRepository = null!;
     private IArrConnectionRepository arrConnectionRepository = null!;
+    private IProwlarrSyncService prowlarrSyncService = null!;
     private ArrWebhookController controller = null!;
 
     [SetUp]
@@ -28,10 +30,13 @@ public class ArrWebhookControllerTest
         this.torrentRepository = Substitute.For<ITorrentRepository>();
         this.mediaMetadataRepository = Substitute.For<ITorrentMediaMetadataRepository>();
         this.arrConnectionRepository = Substitute.For<IArrConnectionRepository>();
+        this.prowlarrSyncService = Substitute.For<IProwlarrSyncService>();
         this.controller = new ArrWebhookController(
             this.torrentRepository,
             this.mediaMetadataRepository,
-            this.arrConnectionRepository);
+            this.arrConnectionRepository,
+            null,
+            this.prowlarrSyncService);
     }
 
     [Test]
@@ -776,5 +781,124 @@ public class ArrWebhookControllerTest
         res!.Success.Should().BeTrue();
         res.TorrentId.Should().Be(6);
         res.InfoHash.Should().Be(hash);
+    }
+
+    [Test]
+    public async Task HandleProwlarr_TriggersSyncAllAsync_AndReturnsOk()
+    {
+        this.prowlarrSyncService.SyncAllAsync().Returns(Task.FromResult(5));
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "IndexerSync",
+            InstanceName = "Prowlarr",
+        };
+
+        var result = await this.controller.HandleProwlarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var res = okResult!.Value as ArrWebhookResult;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
+        res.Updated.Should().BeTrue();
+        res.Message.Should().Contain("5 indexers synced");
+
+        await this.prowlarrSyncService.Received(1).SyncAllAsync();
+        this.torrentRepository.DidNotReceiveWithAnyArgs().All();
+    }
+
+    [Test]
+    public async Task HandleGeneric_WithProwlarr_TriggersSyncAllAsync()
+    {
+        this.prowlarrSyncService.SyncAllAsync().Returns(Task.FromResult(2));
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "CustomEvent",
+            InstanceName = "Prowlarr",
+        };
+
+        var result = await this.controller.HandleGeneric("prowlarr", payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var res = okResult!.Value as ArrWebhookResult;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
+        res.Updated.Should().BeTrue();
+
+        await this.prowlarrSyncService.Received(1).SyncAllAsync();
+    }
+
+    [TestCase("IndexerSync")]
+    [TestCase("IndexerUpdated")]
+    [TestCase("IndexerDeleted")]
+    [TestCase("IndexerAdded")]
+    [TestCase("Sync")]
+    [TestCase("SyncAll")]
+    [TestCase("IndexerStatusChanged")]
+    public async Task HandleArr_WithProwlarrIndexerEvents_TriggersSyncAllAsync(string eventType)
+    {
+        this.prowlarrSyncService.SyncAllAsync().Returns(Task.FromResult(1));
+        var payload = new ArrWebhookPayload
+        {
+            EventType = eventType,
+        };
+
+        var result = await this.controller.HandleArr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var res = okResult!.Value as ArrWebhookResult;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
+        res.Updated.Should().BeTrue();
+
+        await this.prowlarrSyncService.Received(1).SyncAllAsync();
+    }
+
+    [Test]
+    public async Task HandleProwlarr_WhenTestEvent_ReturnsTestResultWithoutTriggeringSync()
+    {
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "Test",
+            InstanceName = "Prowlarr",
+        };
+
+        var result = await this.controller.HandleProwlarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var res = okResult!.Value as ArrWebhookResult;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
+        res.Message.Should().Be("Webhook test received successfully.");
+
+        await this.prowlarrSyncService.DidNotReceive().SyncAllAsync();
+    }
+
+    [Test]
+    public async Task HandleProwlarr_WhenProwlarrSyncServiceNull_ReturnsOkWithoutCrashing()
+    {
+        var ctrl = new ArrWebhookController(
+            this.torrentRepository,
+            this.mediaMetadataRepository,
+            this.arrConnectionRepository,
+            null,
+            null);
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "IndexerSync",
+            InstanceName = "Prowlarr",
+        };
+
+        var result = await ctrl.HandleProwlarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var res = okResult!.Value as ArrWebhookResult;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
     }
 }
