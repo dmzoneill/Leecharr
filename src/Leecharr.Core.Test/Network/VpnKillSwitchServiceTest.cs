@@ -251,7 +251,7 @@ public class VpnKillSwitchServiceTest
     }
 
     [Test]
-    public void MonoTorrentDownloadEngine_WhenVpnRestores_ClearsHaltedState()
+    public async Task MonoTorrentDownloadEngine_WhenVpnRestores_ClearsHaltedState()
     {
         var storagePathService = Substitute.For<IStoragePathService>();
         var categoryService = Substitute.For<ICategoryService>();
@@ -260,6 +260,8 @@ public class VpnKillSwitchServiceTest
 
         this.configService.EnableVpnKillSwitch.Returns(true);
         this.configService.BindInterface.Returns("tun0");
+        mockVpnService.GetVpnInterfaceIpAddress(Arg.Any<AddressFamily>()).Returns(IPAddress.Loopback);
+        mockVpnService.GetVpnInterfaceIpAddress().Returns(IPAddress.Loopback);
 
         using var engine = new MonoTorrentDownloadEngine(
             this.configService,
@@ -275,6 +277,7 @@ public class VpnKillSwitchServiceTest
 
         // Then trigger restoration
         engine.Handle(new VpnInterfaceRestoredEvent("tun0"));
+        await engine.WaitForVpnTransitionsAsync();
         engine.IsHaltedByKillSwitch.Should().BeFalse();
     }
 
