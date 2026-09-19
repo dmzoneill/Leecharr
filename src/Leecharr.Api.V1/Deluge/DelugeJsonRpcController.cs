@@ -946,11 +946,11 @@ public class DelugeJsonRpcController : ControllerBase
 
                 if (cfgElem.TryGetProperty("enc_in_policy", out var encInProp) && encInProp.ValueKind == JsonValueKind.Number && encInProp.TryGetInt32(out var encVal))
                 {
-                    cfgUpdates["EncryptionMode"] = encVal == 0 ? "Forced" : (encVal == 2 ? "Disabled" : "Enabled");
+                    cfgUpdates["EncryptionMode"] = encVal == 0 ? "forceEncrypted" : (encVal == 2 ? "disabled" : "preferEncrypted");
                 }
                 else if (cfgElem.TryGetProperty("enc_out_policy", out var encOutProp) && encOutProp.ValueKind == JsonValueKind.Number && encOutProp.TryGetInt32(out var encOutVal))
                 {
-                    cfgUpdates["EncryptionMode"] = encOutVal == 0 ? "Forced" : (encOutVal == 2 ? "Disabled" : "Enabled");
+                    cfgUpdates["EncryptionMode"] = encOutVal == 0 ? "forceEncrypted" : (encOutVal == 2 ? "disabled" : "preferEncrypted");
                 }
 
                 if (cfgUpdates.Count > 0)
@@ -2762,14 +2762,18 @@ public class DelugeJsonRpcController : ControllerBase
         var encPolicy = 1; // 1 = Enabled
         if (!string.IsNullOrWhiteSpace(this.configService.EncryptionMode))
         {
-            if (this.configService.EncryptionMode.Equals("Forced", StringComparison.OrdinalIgnoreCase) ||
-                this.configService.EncryptionMode.Equals("RequireEncrypted", StringComparison.OrdinalIgnoreCase) ||
-                this.configService.EncryptionMode.Equals("ForcedEncryption", StringComparison.OrdinalIgnoreCase))
+            var encMode = this.configService.EncryptionMode.Trim();
+            if (encMode.Equals("Forced", StringComparison.OrdinalIgnoreCase) ||
+                encMode.Equals("ForceEncrypted", StringComparison.OrdinalIgnoreCase) ||
+                encMode.Equals("RequireEncrypted", StringComparison.OrdinalIgnoreCase) ||
+                encMode.Equals("ForcedEncryption", StringComparison.OrdinalIgnoreCase) ||
+                encMode.Equals("Required", StringComparison.OrdinalIgnoreCase))
             {
                 encPolicy = 0; // Forced
             }
-            else if (this.configService.EncryptionMode.Equals("Disabled", StringComparison.OrdinalIgnoreCase) ||
-                     this.configService.EncryptionMode.Equals("Plaintext", StringComparison.OrdinalIgnoreCase))
+            else if (encMode.Equals("Disabled", StringComparison.OrdinalIgnoreCase) ||
+                     encMode.Equals("Plaintext", StringComparison.OrdinalIgnoreCase) ||
+                     encMode.Equals("None", StringComparison.OrdinalIgnoreCase))
             {
                 encPolicy = 2; // Disabled
             }
