@@ -251,4 +251,107 @@ public class TagControllerTest
         this.notificationRepository.DidNotReceive().Update(Arg.Is<NotificationDefinition>(n => n.Id == 101));
         this.notificationRepository.DidNotReceive().Update(Arg.Is<NotificationDefinition>(n => n.Id == 102));
     }
+
+    [Test]
+    public void Create_WhenLabelContainsComma_ReturnsBadRequest()
+    {
+        var result = this.controller.Create(new TagResource { Label = "tag1,tag2" });
+        var badRequestResult = result.Result as BadRequestObjectResult;
+
+        badRequestResult.Should().NotBeNull();
+        badRequestResult!.Value.Should().Be("Tag label cannot be empty, contain commas or null characters, or exceed 100 characters.");
+        this.tagRepository.DidNotReceive().Insert(Arg.Any<Tag>());
+    }
+
+    [Test]
+    public void Create_WhenLabelContainsNullChar_ReturnsBadRequest()
+    {
+        var result = this.controller.Create(new TagResource { Label = "tag\0bad" });
+        var badRequestResult = result.Result as BadRequestObjectResult;
+
+        badRequestResult.Should().NotBeNull();
+        badRequestResult!.Value.Should().Be("Tag label cannot be empty, contain commas or null characters, or exceed 100 characters.");
+        this.tagRepository.DidNotReceive().Insert(Arg.Any<Tag>());
+    }
+
+    [Test]
+    public void Create_WhenLabelExceeds100Characters_ReturnsBadRequest()
+    {
+        var longLabel = new string('a', 101);
+        var result = this.controller.Create(new TagResource { Label = longLabel });
+        var badRequestResult = result.Result as BadRequestObjectResult;
+
+        badRequestResult.Should().NotBeNull();
+        badRequestResult!.Value.Should().Be("Tag label cannot be empty, contain commas or null characters, or exceed 100 characters.");
+        this.tagRepository.DidNotReceive().Insert(Arg.Any<Tag>());
+    }
+
+    [Test]
+    public void Update_WhenLabelContainsComma_ReturnsBadRequest()
+    {
+        var result = this.controller.Update(new TagResource { Id = 5, Label = "tag1,tag2" });
+        var badRequestResult = result.Result as BadRequestObjectResult;
+
+        badRequestResult.Should().NotBeNull();
+        badRequestResult!.Value.Should().Be("Tag label cannot be empty, contain commas or null characters, or exceed 100 characters.");
+        this.tagRepository.DidNotReceive().Update(Arg.Any<Tag>());
+    }
+
+    [Test]
+    public void Update_WhenLabelContainsNullChar_ReturnsBadRequest()
+    {
+        var result = this.controller.Update(new TagResource { Id = 5, Label = "tag\0bad" });
+        var badRequestResult = result.Result as BadRequestObjectResult;
+
+        badRequestResult.Should().NotBeNull();
+        badRequestResult!.Value.Should().Be("Tag label cannot be empty, contain commas or null characters, or exceed 100 characters.");
+        this.tagRepository.DidNotReceive().Update(Arg.Any<Tag>());
+    }
+
+    [Test]
+    public void Update_WhenLabelExceeds100Characters_ReturnsBadRequest()
+    {
+        var longLabel = new string('a', 101);
+        var result = this.controller.Update(new TagResource { Id = 5, Label = longLabel });
+        var badRequestResult = result.Result as BadRequestObjectResult;
+
+        badRequestResult.Should().NotBeNull();
+        badRequestResult!.Value.Should().Be("Tag label cannot be empty, contain commas or null characters, or exceed 100 characters.");
+        this.tagRepository.DidNotReceive().Update(Arg.Any<Tag>());
+    }
+
+    [Test]
+    public void Update_WhenLabelConflictsWithAnotherExistingTag_ReturnsBadRequest()
+    {
+        var current = new Tag { Id = 5, Label = "current" };
+        var duplicate = new Tag { Id = 10, Label = "existing-other" };
+
+        this.tagRepository.Get(5).Returns(current);
+        this.tagRepository.GetByLabel("existing-other").Returns(duplicate);
+
+        var result = this.controller.Update(new TagResource { Id = 5, Label = "existing-other" });
+        var badRequestResult = result.Result as BadRequestObjectResult;
+
+        badRequestResult.Should().NotBeNull();
+        badRequestResult!.Value.Should().Be("A tag with label 'existing-other' already exists.");
+        this.tagRepository.DidNotReceive().Update(Arg.Any<Tag>());
+    }
+
+    [Test]
+    public void Update_WhenLabelMatchesSameTag_AllowsUpdate()
+    {
+        var current = new Tag { Id = 5, Label = "current" };
+        this.tagRepository.Get(5).Returns(current);
+        this.tagRepository.GetByLabel("CURRENT").Returns(current);
+
+        var result = this.controller.Update(new TagResource { Id = 5, Label = "CURRENT" });
+        var okResult = result.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var resource = okResult!.Value as TagResource;
+        resource.Should().NotBeNull();
+        resource!.Id.Should().Be(5);
+        resource.Label.Should().Be("CURRENT");
+        this.tagRepository.Received(1).Update(Arg.Is<Tag>(t => t.Id == 5 && t.Label == "CURRENT"));
+    }
 }
