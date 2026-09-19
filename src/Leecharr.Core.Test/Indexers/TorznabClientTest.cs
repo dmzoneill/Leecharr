@@ -140,6 +140,46 @@ public class TorznabClientTest
     }
 
     [Test]
+    public void ParseTorznabFeedXml_WhenItemContainsBothDefaultDownloadVolumeFactorAndFreeleechFlag_PrioritizesFreeleech()
+    {
+        var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
+  <channel>
+    <item>
+      <title>Freeleech.Release.With.Explicit.Factor</title>
+      <torznab:attr name=""seeders"" value=""10""/>
+      <torznab:attr name=""downloadvolumefactor"" value=""1""/>
+      <torznab:attr name=""freeleech"" value=""1""/>
+    </item>
+    <item>
+      <title>Freeleech.Tag.Release</title>
+      <freeleech>1</freeleech>
+      <torznab:attr name=""seeders"" value=""10""/>
+      <torznab:attr name=""downloadvolumefactor"" value=""1""/>
+    </item>
+    <item>
+      <title>Standard.Release</title>
+      <torznab:attr name=""seeders"" value=""10""/>
+      <torznab:attr name=""downloadvolumefactor"" value=""1""/>
+    </item>
+  </channel>
+</rss>";
+
+        var indexer = new IndexerDefinition { Name = "TrackerTest", FreeleechOnly = true, MinSeeders = 1 };
+        var results = this.client.ParseTorznabFeedXml(xml, indexer);
+
+        results.Should().HaveCount(2);
+
+        results[0].Title.Should().Be("Freeleech.Release.With.Explicit.Factor");
+        results[0].DownloadVolumeFactor.Should().Be(0.0);
+        results[0].IsFreeleech.Should().BeTrue();
+
+        results[1].Title.Should().Be("Freeleech.Tag.Release");
+        results[1].DownloadVolumeFactor.Should().Be(0.0);
+        results[1].IsFreeleech.Should().BeTrue();
+    }
+
+    [Test]
     public void ParseTorznabFeedXml_WhenMinSeedersConfigured_FiltersOutReleasesBelowThreshold()
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
@@ -1681,7 +1721,7 @@ public class TorznabClientTest
     }
 
     [Test]
-    public void ParseTorznabFeedXml_ExplicitDownloadVolumeFactor_TakesPrecedenceOverFreeleechFlag()
+    public void ParseTorznabFeedXml_FreeleechFlag_TakesPrecedenceOverExplicitDownloadVolumeFactor()
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
@@ -1696,7 +1736,7 @@ public class TorznabClientTest
     <item>
       <title>Precedence Test 2</title>
       <torznab:attr name=""seeders"" value=""10""/>
-      <torznab:attr name=""downloadvolumefactor"" value=""0.75""/>
+      <torznab:attr name=""downloadvolumefactor"" value=""1""/>
       <torznab:attr name=""freeleech"" value=""1""/>
     </item>
   </channel>
@@ -1705,11 +1745,11 @@ public class TorznabClientTest
         var results = this.client.ParseTorznabFeedXml(xml);
 
         results.Should().HaveCount(2);
-        results[0].DownloadVolumeFactor.Should().Be(0.5);
-        results[0].IsFreeleech.Should().BeFalse();
+        results[0].DownloadVolumeFactor.Should().Be(0.0);
+        results[0].IsFreeleech.Should().BeTrue();
 
-        results[1].DownloadVolumeFactor.Should().Be(0.75);
-        results[1].IsFreeleech.Should().BeFalse();
+        results[1].DownloadVolumeFactor.Should().Be(0.0);
+        results[1].IsFreeleech.Should().BeTrue();
     }
 
     [Test]

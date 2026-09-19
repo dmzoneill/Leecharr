@@ -750,13 +750,13 @@ public class TorznabClient : ITorznabClient
                     }
                 }
 
-                if (explicitDownloadVolumeFactor.HasValue)
-                {
-                    downloadVolumeFactor = explicitDownloadVolumeFactor.Value;
-                }
-                else if (hasFreeleechFlag)
+                if (hasFreeleechFlag)
                 {
                     downloadVolumeFactor = 0.0;
+                }
+                else if (explicitDownloadVolumeFactor.HasValue)
+                {
+                    downloadVolumeFactor = explicitDownloadVolumeFactor.Value;
                 }
 
                 int seeders;
