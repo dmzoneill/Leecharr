@@ -1615,7 +1615,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     NewStatus = TorrentStatus.QueuedForChecking,
                 });
                 this.logger.Info("Queued force recheck for torrent id {0} (another hash check is currently active)", torrentId);
+                return;
             }
+
+            task.IsQueuedForRecheck = false;
+            task.IsExplicitRecheck = true;
 
             if (manager.State is not (TorrentState.Stopped or TorrentState.Paused))
             {
@@ -2550,7 +2554,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 {
                     if (this.tasks.TryGetValue(torrentId, out var activeTask))
                     {
-                        var wasExplicitRecheck = activeTask.IsQueuedForRecheck;
+                        var wasExplicitRecheck = activeTask.IsExplicitRecheck;
+                        activeTask.IsExplicitRecheck = false;
                         activeTask.IsQueuedForRecheck = false;
                         var allVerified = manager.Complete || (manager.Bitfield != null && manager.Bitfield.Length > 0 && manager.Bitfield.AllTrue);
                         if (!allVerified && activeTask.IsFilesMovedToCompleted && wasExplicitRecheck)
@@ -2564,6 +2569,23 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     this.logger.Info("[State Machine] Torrent #{0} ('{1}') finished data integrity hash check ({2:F1}% verified). Next state: {3}", torrentId, torrentName, manager.Progress, e.NewState);
                     this.torrentLogService?.Log(torrentId, "Info", "Storage", $"Data integrity check finished ({manager.Progress:F1}% verified). Next state: {e.NewState}");
                     GC.Collect(2, GCCollectionMode.Forced, false);
+
+                    var nextQueued = this.tasks.Values.FirstOrDefault(t => t.IsQueuedForRecheck && t.Manager != null);
+                    if (nextQueued != null)
+                    {
+                        this.logger.Info("[State Machine] Triggering next queued hash check for torrent id {0} ('{1}')", nextQueued.TorrentId, nextQueued.Manager?.Torrent?.Name ?? nextQueued.InfoHash);
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await this.ForceRecheckAsync(nextQueued.TorrentId).ConfigureAwait(false);
+                            }
+                            catch (Exception ex)
+                            {
+                                this.logger.Error(ex, "Failed to start next queued hash check for torrent id {0}", nextQueued.TorrentId);
+                            }
+                        });
+                    }
                 }
 
                 if (e.NewState == TorrentState.Error)
@@ -4900,6 +4922,14 @@ public class MonoTorrentDownloadTask : IDownloadTask
     {
         get => this.isQueuedForRecheck;
         set => this.isQueuedForRecheck = value;
+    }
+
+    private volatile bool isExplicitRecheck;
+
+    public bool IsExplicitRecheck
+    {
+        get => this.isExplicitRecheck;
+        set => this.isExplicitRecheck = value;
     }
 
     public bool IsStalled => this.isTrackerStalled;
