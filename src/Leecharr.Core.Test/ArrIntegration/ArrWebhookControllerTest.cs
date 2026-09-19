@@ -523,4 +523,258 @@ public class ArrWebhookControllerTest
 
         await service.Received(1).SetCategoryAsync(20, "tv-sonarr");
     }
+
+    [Test]
+    public async Task HandleArr_WhenCommonSavePathShared_DoesNotMatchFirstDatabaseTorrent()
+    {
+        var ancientIso = new Torrent
+        {
+            Id = 1,
+            Name = "Ubuntu-22.04-desktop-amd64.iso",
+            InfoHash = "1111111111111111111111111111111111111111",
+            SavePath = "/downloads",
+            IsImported = false,
+        };
+
+        var targetShow = new Torrent
+        {
+            Id = 2,
+            Name = "Dark.Matter.S01E01.1080p.WEB-DL",
+            InfoHash = "2222222222222222222222222222222222222222",
+            SavePath = "/downloads",
+            IsImported = false,
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { ancientIso, targetShow });
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "Import",
+            InstanceName = "Sonarr",
+            SourcePath = "/downloads/Dark.Matter.S01E01.1080p.WEB-DL/video.mkv",
+            EpisodeFile = new ArrWebhookEpisodeFile
+            {
+                Path = "/media/tv/Dark Matter/Season 01/Dark Matter - S01E01.mkv",
+            },
+        };
+
+        var result = await this.controller.HandleSonarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var res = okResult!.Value as ArrWebhookResult;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
+        res.TorrentId.Should().Be(2);
+        res.InfoHash.Should().Be("2222222222222222222222222222222222222222");
+
+        this.torrentRepository.DidNotReceive().Update(Arg.Is<Torrent>(t => t.Id == 1));
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t => t.Id == 2 && t.IsImported == true));
+    }
+
+    [Test]
+    public async Task HandleSonarr_WhenSeasonPackImported_MatchesSeasonPackTorrent()
+    {
+        var seasonPack = new Torrent
+        {
+            Id = 3,
+            Name = "Breaking.Bad.S01.1080p.BluRay",
+            InfoHash = "3333333333333333333333333333333333333333",
+            SavePath = "/downloads",
+            IsImported = false,
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { seasonPack });
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "EpisodeImport",
+            InstanceName = "Sonarr",
+            SourcePath = "/downloads/Breaking.Bad.S01.1080p.BluRay/Breaking.Bad.S01E01.mkv",
+            EpisodeFile = new ArrWebhookEpisodeFile
+            {
+                Path = "/media/tv/Breaking Bad/Season 01/Breaking Bad - S01E01.mkv",
+            },
+        };
+
+        var result = await this.controller.HandleSonarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var res = okResult!.Value as ArrWebhookResult;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
+        res.TorrentId.Should().Be(3);
+
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t => t.Id == 3 && t.IsImported == true));
+    }
+
+    [Test]
+    public async Task HandleArr_WhenShortTorrentNameInDatabase_DoesNotFalseMatchLongerReleaseTitle()
+    {
+        var shortNamed = new Torrent
+        {
+            Id = 1,
+            Name = "Up",
+            InfoHash = "4444444444444444444444444444444444444444",
+            SavePath = "/movies",
+            IsImported = false,
+        };
+
+        var commonTagNamed = new Torrent
+        {
+            Id = 2,
+            Name = "1080p",
+            InfoHash = "5555555555555555555555555555555555555555",
+            SavePath = "/movies",
+            IsImported = false,
+        };
+
+        var targetMovie = new Torrent
+        {
+            Id = 3,
+            Name = "Up.In.The.Air.2009.1080p",
+            InfoHash = "6666666666666666666666666666666666666666",
+            SavePath = "/movies",
+            IsImported = false,
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { shortNamed, commonTagNamed, targetMovie });
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "Grab",
+            Release = new ArrWebhookRelease
+            {
+                ReleaseTitle = "Up.In.The.Air.2009.1080p",
+            },
+        };
+
+        var result = await this.controller.HandleRadarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var res = okResult!.Value as ArrWebhookResult;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
+        res.TorrentId.Should().Be(3);
+    }
+
+    [Test]
+    public async Task HandleSonarr_WhenEpisodeFileDeleteEvent_ResetsImportStateAndImportPath()
+    {
+        var torrent = new Torrent
+        {
+            Id = 4,
+            Name = "Severance.S02E01.1080p",
+            InfoHash = "7777777777777777777777777777777777777777",
+            SavePath = "/downloads",
+            IsImported = true,
+            ImportPath = "/media/tv/Severance/Season 02/Severance - S02E01.mkv",
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "EpisodeFileDelete",
+            InstanceName = "Sonarr",
+            EpisodeFile = new ArrWebhookEpisodeFile
+            {
+                Path = "/media/tv/Severance/Season 02/Severance - S02E01.mkv",
+            },
+        };
+
+        var result = await this.controller.HandleSonarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var res = okResult!.Value as ArrWebhookResult;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
+        res.Updated.Should().BeTrue();
+        res.TorrentId.Should().Be(4);
+
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t =>
+            t.Id == 4 &&
+            t.IsImported == false &&
+            t.ImportPath == null));
+
+        this.mediaMetadataRepository.DidNotReceive().Insert(Arg.Any<TorrentMediaMetadata>());
+    }
+
+    [Test]
+    public async Task HandleRadarr_WhenMovieFileDeleteEvent_ResetsImportStateAndImportPath()
+    {
+        var torrent = new Torrent
+        {
+            Id = 5,
+            Name = "Inception.2010.1080p",
+            InfoHash = "8888888888888888888888888888888888888888",
+            SavePath = "/movies",
+            IsImported = true,
+            ImportPath = "/media/movies/Inception (2010)/Inception (2010).mkv",
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "MovieFileDelete",
+            InstanceName = "Radarr",
+            MovieFile = new ArrWebhookMovieFile
+            {
+                Path = "/media/movies/Inception (2010)/Inception (2010).mkv",
+            },
+        };
+
+        var result = await this.controller.HandleRadarr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var res = okResult!.Value as ArrWebhookResult;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
+        res.Updated.Should().BeTrue();
+        res.TorrentId.Should().Be(5);
+
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t =>
+            t.Id == 5 &&
+            t.IsImported == false &&
+            t.ImportPath == null));
+    }
+
+    [Test]
+    public async Task HandleArr_WhenInfoHashInPayloadData_MatchesTorrent()
+    {
+        var hash = "9999999999999999999999999999999999999999";
+        var torrent = new Torrent
+        {
+            Id = 6,
+            Name = "Manual.Grab.Torrent",
+            InfoHash = hash,
+            IsImported = false,
+        };
+
+        this.torrentRepository.GetByInfoHash(hash).Returns(torrent);
+
+        var payload = new ArrWebhookPayload
+        {
+            EventType = "Grab",
+            Data = new Dictionary<string, object>
+            {
+                { "infoHash", hash },
+            },
+        };
+
+        var result = await this.controller.HandleArr(payload);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var res = okResult!.Value as ArrWebhookResult;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
+        res.TorrentId.Should().Be(6);
+        res.InfoHash.Should().Be(hash);
+    }
 }
