@@ -7,4 +7,6 @@ public interface IUserSessionCache
     void InvalidateCache(string token);
 
     void ClearCache();
+
+    void PruneExpired();
 }

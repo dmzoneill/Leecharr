@@ -3,9 +3,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DryIoc;
+using Leecharr.Http.Authentication;
 using NLog;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Common.Composition;
 using NzbDrone.Core.Authentication;
 
 namespace Leecharr.Core.Test.Authentication;
@@ -187,6 +190,22 @@ public class UserServiceTest
 
         sessionRepo.Received(1).DeleteByUserId(user.Id);
         sessionCache.Received(1).ClearCache();
+    }
+
+    [Test]
+    public void UserService_WithSingletonSessionCache_CanBeResolvedFromDryIocContainer()
+    {
+        var container = new Container(rules => rules.WithNzbDroneRules());
+        container.RegisterInstance<IUserRepository>(this.userRepository);
+        container.RegisterInstance<Logger>(this.logger);
+        container.RegisterInstance<IUserSessionRepository>(Substitute.For<IUserSessionRepository>());
+        container.RegisterInstance<IUserExternalLoginRepository>(Substitute.For<IUserExternalLoginRepository>());
+        container.RegisterSingletonWithInterfaces<CookieSessionManager>();
+        container.RegisterSingletonWithInterfaces<UserService>();
+
+        var userService = container.Resolve<IUserService>() as UserService;
+
+        Assert.That(userService, Is.Not.Null);
     }
 
     private class InMemoryUserRepository : IUserRepository

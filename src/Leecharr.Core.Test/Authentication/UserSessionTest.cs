@@ -218,6 +218,32 @@ public class UserSessionTest
     }
 
     [Test]
+    public async Task PruneExpiredSessionsAsync_WhenUserSessionCacheProvided_PrunesExpiredCache()
+    {
+        var cache = Substitute.For<IUserSessionCache>();
+        this.sessionRepository.PruneExpiredSessionsAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(2));
+
+        using var cleanupTask = new SessionCleanupTask(this.sessionRepository, cache);
+
+        await cleanupTask.PruneExpiredSessionsAsync();
+
+        cache.Received(1).PruneExpired();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_WhenUserSessionCacheProvided_PrunesExpiredCache()
+    {
+        var cache = Substitute.For<IUserSessionCache>();
+        this.sessionRepository.PruneExpiredSessionsAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(2));
+
+        using var cleanupTask = new SessionCleanupTask(this.sessionRepository, cache);
+
+        await cleanupTask.ExecuteAsync();
+
+        cache.Received(1).PruneExpired();
+    }
+
+    [Test]
     public void UserSession_ExpiresAt_AliasesExpiryPropertyCorrectly()
     {
         var session = new UserSession();
