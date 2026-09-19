@@ -226,6 +226,7 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
                         else
                         {
                             this.logger.Warn("Auto-extraction failed for archive {0} in torrent {1}", fullPath, message.Torrent.Name);
+                            this.CleanUpPartialExtraction(destDir);
                             this.eventAggregator.PublishEvent(new ArchiveExtractionFailedEvent
                             {
                                 Torrent = message.Torrent,
@@ -241,6 +242,11 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
         catch (Exception ex)
         {
             this.logger.Error(ex, "Failed to auto-extract archives for torrent {0}", message.Torrent.Name);
+            if (!string.IsNullOrWhiteSpace(message.Torrent?.SavePath))
+            {
+                this.CleanUpPartialExtraction(message.Torrent.SavePath);
+            }
+
             this.eventAggregator.PublishEvent(new ArchiveExtractionFailedEvent
             {
                 Torrent = message.Torrent,
@@ -248,6 +254,35 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
                 DestinationDirectory = message.Torrent.SavePath,
                 ErrorMessage = $"Failed to auto-extract archives for torrent {message.Torrent.Name}: {ex.Message}",
             });
+        }
+    }
+
+    private void CleanUpPartialExtraction(string destDir)
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(destDir) && this.diskProvider.FolderExists(destDir))
+            {
+                var tmpFiles = this.diskProvider.GetFiles(destDir, recursive: true)
+                    .Where(f => f.EndsWith(".leecharr.tmp", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                foreach (var tmpFile in tmpFiles)
+                {
+                    try
+                    {
+                        this.diskProvider.DeleteFile(tmpFile);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Warn(ex, "Failed to delete temporary extraction file: {0}", tmpFile);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to clean up temporary extraction files in: {0}", destDir);
         }
     }
 
