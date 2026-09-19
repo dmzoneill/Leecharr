@@ -741,6 +741,7 @@ public class NatPmpPortMapperServiceTest
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         var totalRequestsReceived = 0;
 
+        var returnedEpoch = 100000u;
         var serverTask = Task.Run(async () =>
         {
             try
@@ -758,8 +759,8 @@ public class NatPmpPortMapperServiceTest
                     resp[0] = 0x00;
                     resp[1] = (byte)(0x80 + opcode);
                     BinaryPrimitives.WriteUInt16BigEndian(resp.AsSpan(2, 2), 0);
-                    // Return new low epoch (rebooted state)
-                    BinaryPrimitives.WriteUInt32BigEndian(resp.AsSpan(4, 4), 10);
+                    // Return current epoch
+                    BinaryPrimitives.WriteUInt32BigEndian(resp.AsSpan(4, 4), Volatile.Read(ref returnedEpoch));
                     BinaryPrimitives.WriteUInt16BigEndian(resp.AsSpan(8, 2), internalPort);
                     BinaryPrimitives.WriteUInt16BigEndian(resp.AsSpan(10, 2), internalPort);
                     BinaryPrimitives.WriteUInt32BigEndian(resp.AsSpan(12, 4), 3600);
@@ -785,8 +786,9 @@ public class NatPmpPortMapperServiceTest
 
         service.ActiveMappings.Should().HaveCount(2);
 
-        // Reset high epoch to simulate router rebooting afterwards
+        // Reset high epoch and switch mock server to return low epoch (5) simulating router reboot
         service.TrackEpoch(IPAddress.Loopback, 100000);
+        Volatile.Write(ref returnedEpoch, 5u);
 
         // Simulate 5 concurrent responses observing the decreased epoch (e.g. epoch 5 < 100000)
         var tasks = Enumerable.Range(0, 5)
