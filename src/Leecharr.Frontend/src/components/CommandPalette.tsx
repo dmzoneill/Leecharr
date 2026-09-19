@@ -77,13 +77,7 @@ export function CommandPalette({
       showToast("No active torrents to pause", "info");
       return;
     }
-    for (const tor of active) {
-      try {
-        await api.pauseTorrent(tor.id);
-      } catch {
-        /* continue */
-      }
-    }
+    await Promise.allSettled(active.map((tor) => api.pauseTorrent(tor.id)));
     showToast(`Paused ${active.length} torrent(s)`, "info");
   }, [torrents, showToast]);
 
@@ -95,13 +89,7 @@ export function CommandPalette({
       showToast("No paused torrents to resume", "info");
       return;
     }
-    for (const tor of paused) {
-      try {
-        await api.resumeTorrent(tor.id);
-      } catch {
-        /* continue */
-      }
-    }
+    await Promise.allSettled(paused.map((tor) => api.resumeTorrent(tor.id)));
     showToast(`Resumed ${paused.length} torrent(s)`, "success");
   }, [torrents, showToast]);
 
