@@ -3411,4 +3411,120 @@ public class QBittorrentApiControllerTest
         await this.downloadEngine.Received(1).RemoveTrackersAsync(41, Arg.Any<HashSet<string>>());
         await this.downloadEngine.Received(1).RemoveTrackersAsync(42, Arg.Any<HashSet<string>>());
     }
+
+    [Test]
+    public void GetTorrentsInfo_WithSortingAndReversal_SortsResultsCorrectly()
+    {
+        var t1 = new Torrent { Id = 1, InfoHash = "h1", Name = "Alpha", TotalSize = 300, Progress = 0.3, DownloadSpeed = 100, UploadSpeed = 10, DateAdded = DateTime.UtcNow.AddMinutes(-30) };
+        var t2 = new Torrent { Id = 2, InfoHash = "h2", Name = "Gamma", TotalSize = 100, Progress = 0.9, DownloadSpeed = 300, UploadSpeed = 30, DateAdded = DateTime.UtcNow.AddMinutes(-10) };
+        var t3 = new Torrent { Id = 3, InfoHash = "h3", Name = "Beta", TotalSize = 200, Progress = 0.5, DownloadSpeed = 200, UploadSpeed = 20, DateAdded = DateTime.UtcNow.AddMinutes(-20) };
+        this.torrentService.GetAll().Returns(new List<Torrent> { t1, t2, t3 });
+
+        var resName = this.controller.GetTorrentsInfo(sort: "name");
+        var listName = resName.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        listName.Select(d => d["name"].ToString()).Should().ContainInOrder("Alpha", "Beta", "Gamma");
+
+        var resNameDesc = this.controller.GetTorrentsInfo(sort: "name", reverse: true);
+        var listNameDesc = resNameDesc.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        listNameDesc.Select(d => d["name"].ToString()).Should().ContainInOrder("Gamma", "Beta", "Alpha");
+
+        var resSize = this.controller.GetTorrentsInfo(sort: "size");
+        var listSize = resSize.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        listSize.Select(d => (long)d["size"]).Should().ContainInOrder(100L, 200L, 300L);
+
+        var resSpeed = this.controller.GetTorrentsInfo(sort: "dlspeed", reverse: true);
+        var listSpeed = resSpeed.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        listSpeed.Select(d => (long)d["dlspeed"]).Should().ContainInOrder(300L, 200L, 100L);
+    }
+
+    [Test]
+    public void GetTorrentsInfo_WithPagination_HonorsLimitAndPositiveOrNegativeOffset()
+    {
+        var torrents = Enumerable.Range(1, 10).Select(i => new Torrent
+        {
+            Id = i,
+            InfoHash = $"h{i}",
+            Name = $"T{i:D2}",
+        }).ToList();
+        this.torrentService.GetAll().Returns(torrents);
+
+        var res1 = this.controller.GetTorrentsInfo(offset: 2, limit: 3);
+        var list1 = res1.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        list1.Select(d => d["name"].ToString()).Should().Equal("T03", "T04", "T05");
+
+        var res2 = this.controller.GetTorrentsInfo(offset: -3);
+        var list2 = res2.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        list2.Select(d => d["name"].ToString()).Should().Equal("T08", "T09", "T10");
+    }
+
+    [Test]
+    public void GetTorrentsInfo_WithFilterSeedingVsCompletedAndQueued_DifferentiatesAccurately()
+    {
+        var activeSeeding = new Torrent { Id = 1, InfoHash = "h1", Status = TorrentStatus.Seeding, Progress = 1.0, UploadSpeed = 100 };
+        var pausedCompleted = new Torrent { Id = 2, InfoHash = "h2", Status = TorrentStatus.Paused, Progress = 1.0, UploadSpeed = 0 };
+        var queuedSeeding = new Torrent { Id = 3, InfoHash = "h3", Status = TorrentStatus.Queued, Progress = 1.0 };
+        var queuedDownloading = new Torrent { Id = 4, InfoHash = "h4", Status = TorrentStatus.Queued, Progress = 0.2 };
+        var queuedChecking = new Torrent { Id = 5, InfoHash = "h5", Status = TorrentStatus.QueuedForChecking, Progress = 0.5 };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { activeSeeding, pausedCompleted, queuedSeeding, queuedDownloading, queuedChecking });
+
+        var resSeeding = this.controller.GetTorrentsInfo(filter: "seeding");
+        var listSeeding = resSeeding.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        listSeeding.Select(d => d["hash"].ToString()).Should().BeEquivalentTo(new[] { "h1", "h3" });
+
+        var resCompleted = this.controller.GetTorrentsInfo(filter: "completed");
+        var listCompleted = resCompleted.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        listCompleted.Select(d => d["hash"].ToString()).Should().BeEquivalentTo(new[] { "h1", "h2", "h3" });
+
+        var resQueued = this.controller.GetTorrentsInfo(filter: "queued");
+        var listQueued = resQueued.Result.Should().BeOfType<OkObjectResult>().Subject
+            .Value.Should().BeAssignableTo<List<Dictionary<string, object>>>().Subject;
+        listQueued.Select(d => d["hash"].ToString()).Should().BeEquivalentTo(new[] { "h3", "h4", "h5" });
+    }
+
+    [Test]
+    public async Task AddTorrents_WithRenameAndTransferLimits_AppliesCorrectly()
+    {
+        var addedTorrent = new Torrent { Id = 10, InfoHash = "hash10", Name = "Original Name" };
+        this.torrentService.AddFromMagnetAsync("magnet:?xt=urn:btih:hash10", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(addedTorrent);
+
+        var request = new QBitAddTorrentsRequest
+        {
+            Urls = "magnet:?xt=urn:btih:hash10",
+            Rename = "Custom Renamed Torrent",
+            UpLimit = 204800,
+            DlLimit = 1048576,
+        };
+
+        var result = await this.controller.AddTorrents(request);
+
+        result.Should().BeOfType<ContentResult>();
+        addedTorrent.Name.Should().Be("Custom Renamed Torrent");
+        addedTorrent.UploadLimit.Should().Be(200);
+        addedTorrent.DownloadLimit.Should().Be(1024);
+        await this.torrentService.Received(1).UpdateAsync(addedTorrent);
+    }
+
+    [Test]
+    public void CreateCategory_WhenCategoryAlreadyExists_UpdatesExistingSavePathWithoutDuplicateInsert()
+    {
+        var existing = new Category { Id = 12, Name = "movies", SavePath = "/downloads/old" };
+        this.categoryService.GetByName("movies").Returns(existing);
+
+        var result = this.controller.CreateCategory("movies", "/downloads/new");
+
+        result.Should().BeOfType<ContentResult>();
+        this.categoryService.DidNotReceive().Add(Arg.Any<Category>());
+        existing.SavePath.Should().Be("/downloads/new");
+        this.categoryService.Received(1).Update(existing);
+    }
 }
