@@ -13,6 +13,7 @@ using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.BitTorrent.Creation;
+using NzbDrone.Core.Configuration;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Network;
 using NzbDrone.Core.Network.Blocklist;
@@ -38,6 +39,7 @@ public class TorrentControllerTest
     private ITorrentCreationService torrentCreationService = null!;
     private ITorrentLogService torrentLogService = null!;
     private IBlocklistService blocklistService = null!;
+    private IConfigService configService = null!;
     private TorrentController controller = null!;
 
     [SetUp]
@@ -54,6 +56,7 @@ public class TorrentControllerTest
         this.torrentCreationService = Substitute.For<ITorrentCreationService>();
         this.torrentLogService = Substitute.For<ITorrentLogService>();
         this.blocklistService = Substitute.For<IBlocklistService>();
+        this.configService = Substitute.For<IConfigService>();
 
         this.controller = new TorrentController(
             this.torrentService,
@@ -66,6 +69,7 @@ public class TorrentControllerTest
             downloadEngine: this.downloadEngine,
             torrentCreationService: this.torrentCreationService,
             torrentLogService: this.torrentLogService,
+            configService: this.configService,
             blocklistService: this.blocklistService);
     }
 
@@ -1513,5 +1517,53 @@ public class TorrentControllerTest
         existing.Label.Should().Be("Movies, 4K");
         existing.TagIds.Should().BeEquivalentTo(new[] { 5, 8 });
         await this.torrentService.Received(1).UpdateAsync(existing);
+    }
+
+    [Test]
+    public async Task AddTorrentForm_WhenFileExceedsMaxTorrentFileSizeBytes_Returns413PayloadTooLarge()
+    {
+        this.configService.MaxTorrentFileSizeBytes.Returns(1024L);
+
+        var formFile = Substitute.For<IFormFile>();
+        formFile.Length.Returns(2048L);
+        formFile.FileName.Returns("large.torrent");
+
+        var result = await this.controller.AddTorrentForm(file: formFile);
+
+        var statusResult = result.Result.Should().BeOfType<ObjectResult>().Subject;
+        statusResult.StatusCode.Should().Be(StatusCodes.Status413PayloadTooLarge);
+        await formFile.DidNotReceiveWithAnyArgs().CopyToAsync(Arg.Any<Stream>());
+    }
+
+    [Test]
+    public async Task Upload_WhenFileExceedsMaxTorrentFileSizeBytes_Returns413PayloadTooLarge()
+    {
+        this.configService.MaxTorrentFileSizeBytes.Returns(1024L);
+
+        var formFile = Substitute.For<IFormFile>();
+        formFile.Length.Returns(2048L);
+        formFile.FileName.Returns("large.torrent");
+
+        var result = await this.controller.Upload(files: new List<IFormFile> { formFile });
+
+        var statusResult = result.Should().BeOfType<ObjectResult>().Subject;
+        statusResult.StatusCode.Should().Be(StatusCodes.Status413PayloadTooLarge);
+        await formFile.DidNotReceiveWithAnyArgs().CopyToAsync(Arg.Any<Stream>());
+    }
+
+    [Test]
+    public async Task PreviewUpload_WhenFileExceedsMaxTorrentFileSizeBytes_Returns413PayloadTooLarge()
+    {
+        this.configService.MaxTorrentFileSizeBytes.Returns(1024L);
+
+        var formFile = Substitute.For<IFormFile>();
+        formFile.Length.Returns(2048L);
+        formFile.FileName.Returns("large.torrent");
+
+        var result = await this.controller.PreviewUpload(files: new List<IFormFile> { formFile });
+
+        var statusResult = result.Result.Should().BeOfType<ObjectResult>().Subject;
+        statusResult.StatusCode.Should().Be(StatusCodes.Status413PayloadTooLarge);
+        await formFile.DidNotReceiveWithAnyArgs().CopyToAsync(Arg.Any<Stream>());
     }
 }
