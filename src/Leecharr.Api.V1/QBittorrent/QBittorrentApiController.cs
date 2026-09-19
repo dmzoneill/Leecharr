@@ -2551,14 +2551,51 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     }
 
     [HttpPost("torrents/setLocation")]
-    [HttpPost("torrents/setSavePath")]
-    public async Task<ActionResult> SetLocation([FromForm] string hashes, [FromForm] string location)
+    public async Task<ActionResult> SetLocation([FromForm] string hashes = null, [FromForm] string location = null)
     {
         if (!string.IsNullOrWhiteSpace(hashes) && !string.IsNullOrWhiteSpace(location))
         {
             foreach (var t in this.ResolveTorrents(hashes))
             {
                 await this.torrentService.SetLocationAsync(t.Id, location, moveFiles: true);
+            }
+        }
+
+        return this.Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("torrents/setSavePath")]
+    public async Task<ActionResult> SetSavePath(
+        [FromForm] string hashes = null,
+        [FromForm] string id = null,
+        [FromForm] string path = null,
+        [FromForm] string location = null)
+    {
+        var targetHashes = !string.IsNullOrWhiteSpace(hashes) ? hashes : id;
+        var targetPath = !string.IsNullOrWhiteSpace(path) ? path : location;
+        if (!string.IsNullOrWhiteSpace(targetHashes) && !string.IsNullOrWhiteSpace(targetPath))
+        {
+            foreach (var t in this.ResolveTorrents(targetHashes))
+            {
+                await this.torrentService.SetLocationAsync(t.Id, targetPath, moveFiles: true);
+            }
+        }
+
+        return this.Content("Ok.", "text/plain");
+    }
+
+    [HttpPost("torrents/setDownloadPath")]
+    public async Task<ActionResult> SetDownloadPath(
+        [FromForm] string hashes = null,
+        [FromForm] string id = null,
+        [FromForm] string path = null)
+    {
+        var targetHashes = !string.IsNullOrWhiteSpace(hashes) ? hashes : id;
+        if (!string.IsNullOrWhiteSpace(targetHashes) && !string.IsNullOrWhiteSpace(path))
+        {
+            foreach (var t in this.ResolveTorrents(targetHashes))
+            {
+                await this.torrentService.SetLocationAsync(t.Id, path, moveFiles: false);
             }
         }
 
@@ -2844,6 +2881,20 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             if (torrent != null)
             {
                 result.Add(torrent);
+            }
+            else if (int.TryParse(hash.Trim(), out var id))
+            {
+                try
+                {
+                    torrent = this.torrentService.Get(id);
+                    if (torrent != null)
+                    {
+                        result.Add(torrent);
+                    }
+                }
+                catch
+                {
+                }
             }
         }
 
