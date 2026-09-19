@@ -7,6 +7,7 @@ using FluentAssertions;
 using FluentMigrator.Runner;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Datastore;
@@ -172,7 +173,7 @@ public class BasicRepositoryTest
 
         cmd.CommandText = "PRAGMA busy_timeout;";
         var busyTimeout = Convert.ToInt32(cmd.ExecuteScalar());
-        busyTimeout.Should().Be(5000);
+        busyTimeout.Should().Be(30000);
 
         cmd.CommandText = "PRAGMA cache_size;";
         var cacheSize = Convert.ToInt32(cmd.ExecuteScalar());
@@ -410,6 +411,52 @@ public class BasicRepositoryTest
 
         act.Should().Throw<SqliteException>().Where(ex => ex.SqliteErrorCode == 1);
         attempts.Should().Be(1);
+    }
+
+    [Test]
+    public void ExecuteWithRetry_RetriesOnSqliteLocked_AndSucceeds()
+    {
+        var connectionString = $"Data Source={this.dbPath};";
+        var database = new Database(() => new SqliteConnection(connectionString), DatabaseType.SQLite);
+        var repo = new TestableRepository(database);
+
+        var attempts = 0;
+        var result = repo.TestExecuteWithRetry(conn =>
+        {
+            attempts++;
+            if (attempts < 2)
+            {
+                throw new SqliteException("database table is locked", 6);
+            }
+
+            return 99;
+        });
+
+        attempts.Should().Be(2);
+        result.Should().Be(99);
+    }
+
+    [Test]
+    public void ExecuteWithRetry_RetriesOnPostgresTransientLock_AndSucceeds()
+    {
+        var connectionString = $"Data Source={this.dbPath};";
+        var database = new Database(() => new SqliteConnection(connectionString), DatabaseType.SQLite);
+        var repo = new TestableRepository(database);
+
+        var attempts = 0;
+        var result = repo.TestExecuteWithRetry(conn =>
+        {
+            attempts++;
+            if (attempts < 2)
+            {
+                throw new PostgresException("deadlock detected", "ERROR", "ERROR", "40P01");
+            }
+
+            return "pg_success";
+        });
+
+        attempts.Should().Be(2);
+        result.Should().Be("pg_success");
     }
 
     private class TestableRepository : BasicRepository<Torrent>

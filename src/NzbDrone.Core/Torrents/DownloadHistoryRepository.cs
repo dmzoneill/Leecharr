@@ -97,7 +97,7 @@ public class DownloadHistoryRepository : BasicRepository<DownloadHistory>, IDown
 
         if (offset > 0)
         {
-            if (limit <= 0)
+            if (limit <= 0 && this.database.DatabaseType != DatabaseType.PostgreSQL)
             {
                 sql.Append(" LIMIT -1");
             }
