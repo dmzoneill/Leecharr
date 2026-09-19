@@ -69,6 +69,12 @@ export interface Torrent {
   shareLimitAction?: string;
   dateCompleted?: string | null;
   bitfield?: string | null;
+  errorMessage?: string | null;
+  tagIds?: number[];
+  isImported?: boolean;
+  importedAt?: string | null;
+  importedByArr?: string | null;
+  importPath?: string | null;
 }
 
 export interface TrackerMetric {
