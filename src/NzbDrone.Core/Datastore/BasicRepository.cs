@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
 using Microsoft.Data.Sqlite;
+using Npgsql;
 using NzbDrone.Core.Datastore.Events;
 using NzbDrone.Core.Messaging.Events;
 using Polly;
@@ -71,13 +72,17 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
     where TModel : ModelBase, new()
 {
     private static readonly RetryPolicy RetryPolicy = Policy
-        .Handle<SqliteException>(ex => ex.SqliteErrorCode == 5)
+        .Handle<SqliteException>(ex => ex.SqliteErrorCode is 5 or 6)
+        .Or<PostgresException>(ex => ex.SqlState is "40001" or "40P01" or "55P03")
+        .Or<NpgsqlException>(ex => ex.IsTransient)
         .WaitAndRetry(
             3,
             retryAttempt => TimeSpan.FromMilliseconds(50 * Math.Pow(2, retryAttempt - 1)));
 
     private static readonly AsyncRetryPolicy AsyncRetryPolicy = Policy
-        .Handle<SqliteException>(ex => ex.SqliteErrorCode == 5)
+        .Handle<SqliteException>(ex => ex.SqliteErrorCode is 5 or 6)
+        .Or<PostgresException>(ex => ex.SqlState is "40001" or "40P01" or "55P03")
+        .Or<NpgsqlException>(ex => ex.IsTransient)
         .WaitAndRetryAsync(
             3,
             retryAttempt => TimeSpan.FromMilliseconds(50 * Math.Pow(2, retryAttempt - 1)));

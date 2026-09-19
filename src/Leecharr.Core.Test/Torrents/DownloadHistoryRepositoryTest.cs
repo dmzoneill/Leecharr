@@ -8,6 +8,7 @@ using FluentAssertions;
 using FluentMigrator.Runner;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
+using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Datastore.Migration;
@@ -219,5 +220,49 @@ public class DownloadHistoryRepositoryTest
         this.repository.DeleteAll();
 
         this.repository.GetHistory().Should().BeEmpty();
+    }
+
+    [Test]
+    public void GetHistory_OnPostgreSql_WithOffsetAndNoLimit_DoesNotEmitLimitMinusOne()
+    {
+        var database = Substitute.For<IDatabase>();
+        database.DatabaseType.Returns(DatabaseType.PostgreSQL);
+
+        var connection = Substitute.For<System.Data.IDbConnection>();
+        database.OpenConnection().Returns(connection);
+
+        var command = Substitute.For<System.Data.IDbCommand>();
+        var dataReader = Substitute.For<System.Data.IDataReader>();
+        connection.CreateCommand().Returns(command);
+        command.ExecuteReader(Arg.Any<System.Data.CommandBehavior>()).Returns(dataReader);
+        dataReader.Read().Returns(false);
+
+        var pgRepo = new DownloadHistoryRepository(database);
+        pgRepo.GetHistory(limit: 0, offset: 15);
+
+        command.CommandText.Should().NotContain("LIMIT -1");
+        command.CommandText.Should().Contain("OFFSET @Offset");
+    }
+
+    [Test]
+    public void GetHistory_OnSqlite_WithOffsetAndNoLimit_EmitsLimitMinusOne()
+    {
+        var database = Substitute.For<IDatabase>();
+        database.DatabaseType.Returns(DatabaseType.SQLite);
+
+        var connection = Substitute.For<System.Data.IDbConnection>();
+        database.OpenConnection().Returns(connection);
+
+        var command = Substitute.For<System.Data.IDbCommand>();
+        var dataReader = Substitute.For<System.Data.IDataReader>();
+        connection.CreateCommand().Returns(command);
+        command.ExecuteReader(Arg.Any<System.Data.CommandBehavior>()).Returns(dataReader);
+        dataReader.Read().Returns(false);
+
+        var sqliteRepo = new DownloadHistoryRepository(database);
+        sqliteRepo.GetHistory(limit: 0, offset: 15);
+
+        command.CommandText.Should().Contain("LIMIT -1");
+        command.CommandText.Should().Contain("OFFSET @Offset");
     }
 }
