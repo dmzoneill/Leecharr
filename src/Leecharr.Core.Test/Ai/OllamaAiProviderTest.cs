@@ -310,6 +310,52 @@ public class OllamaAiProviderTest
         assessment.RiskScore.Should().Be(0.8);
     }
 
+    [Test]
+    public async Task Prompts_EncapsulateUntrustedInputsInXmlTags()
+    {
+        var capturedPrompts = new System.Collections.Generic.List<string>();
+        var handler = new MockHttpMessageHandler(async (req, ct) =>
+        {
+            if (req.Content != null)
+            {
+                var body = await req.Content.ReadAsStringAsync(ct);
+                using var doc = System.Text.Json.JsonDocument.Parse(body);
+                if (doc.RootElement.TryGetProperty("prompt", out var promptProp))
+                {
+                    capturedPrompts.Add(promptProp.GetString() ?? string.Empty);
+                }
+            }
+
+            var responseJson = @"{
+                ""model"": ""llama3.2"",
+                ""response"": ""{}"",
+                ""done"": true
+            }";
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseJson),
+            };
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new OllamaAiProvider(this.configService, client);
+
+        await provider.ParseReleaseAsync("Dangerous.Release.Name");
+        capturedPrompts.Should().ContainSingle();
+        capturedPrompts[0].Should().Contain("<release_name>Dangerous.Release.Name</release_name>");
+
+        capturedPrompts.Clear();
+        await provider.ProcessNaturalLanguageSearchAsync("find dune 2024");
+        capturedPrompts.Should().ContainSingle();
+        capturedPrompts[0].Should().Contain("<query>find dune 2024</query>");
+
+        capturedPrompts.Clear();
+        await provider.AnalyzeMalwareRiskAsync("MalwareTorrent", Array.Empty<NzbDrone.Core.Torrents.TorrentFile>());
+        capturedPrompts.Should().ContainSingle();
+        capturedPrompts[0].Should().Contain("<torrent_name>MalwareTorrent</torrent_name>");
+        capturedPrompts[0].Should().Contain("<torrent_files>none</torrent_files>");
+    }
+
     private class MockHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handler;
