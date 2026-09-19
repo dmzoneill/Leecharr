@@ -213,15 +213,15 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
                 await targetEngine.StartAsync();
             }
 
-            // Hot-swap active pointer to target engine and release migration queue
-            Volatile.Write(ref this.activeEngine, targetEngine);
-            this.migrationTcs.TrySetResult();
-
             // 3. Migrate active torrents if requested
             if (preserveTransfers && this.isRunning)
             {
                 rehydrated = await this.RehydrateTorrentsIntoEngineAsync(targetEngine);
             }
+
+            // Hot-swap active pointer to target engine and release migration queue
+            Volatile.Write(ref this.activeEngine, targetEngine);
+            this.migrationTcs.TrySetResult();
 
             // 4. Persist setting to configuration
             this.configService.SaveConfigDictionary(new Dictionary<string, object>
@@ -245,6 +245,7 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
         }
         catch (Exception ex)
         {
+            Volatile.Write(ref this.migratingTargetEngine, null);
             this.logger.Error(ex, "Fatal error during engine hot-swap to {0}. Attempting rollback to {1}...", targetEngineId, previousEngine?.EngineId);
 
             if (targetEngine != null)
@@ -714,6 +715,12 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
 
     private ITorrentEngine GetActiveOrMigratingEngine()
     {
+        var tcs = Volatile.Read(ref this.migrationTcs);
+        if (tcs != null && !tcs.Task.IsCompleted)
+        {
+            return Volatile.Read(ref this.activeEngine);
+        }
+
         return Volatile.Read(ref this.migratingTargetEngine) ?? Volatile.Read(ref this.activeEngine);
     }
 
