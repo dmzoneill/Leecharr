@@ -141,6 +141,7 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
             foreach (var candidatePassword in passwordsToTry)
             {
                 var createdFiles = new List<string>();
+                var createdDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 try
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -189,14 +190,27 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
                         var entryDir = Path.GetDirectoryName(targetFilePath);
                         if (!string.IsNullOrEmpty(entryDir))
                         {
+                            var current = entryDir;
+                            while (!string.IsNullOrEmpty(current) &&
+                                   !string.Equals(Path.GetFullPath(current), Path.GetFullPath(targetDir), StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (!this.diskProvider.FolderExists(current))
+                                {
+                                    createdDirectories.Add(current);
+                                }
+
+                                current = Path.GetDirectoryName(current);
+                            }
+
                             this.diskProvider.EnsureFolder(entryDir);
                         }
 
-                        createdFiles.Add(targetFilePath);
+                        var tempFilePath = targetFilePath + ".leecharr.tmp";
+                        createdFiles.Add(tempFilePath);
 
                         using (var entryStream = entry.OpenEntryStream())
                         using (var fileStream = new FileStream(
-                            targetFilePath,
+                            tempFilePath,
                             FileMode.Create,
                             FileAccess.Write,
                             FileShare.None,
@@ -205,6 +219,14 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
                         {
                             await entryStream.CopyToAsync(fileStream, this.bufferSize, cancellationToken);
                         }
+
+                        if (this.diskProvider.FileExists(targetFilePath))
+                        {
+                            this.diskProvider.DeleteFile(targetFilePath);
+                        }
+
+                        this.diskProvider.MoveFile(tempFilePath, targetFilePath, overwrite: true);
+                        createdFiles.Add(targetFilePath);
 
                         if (entry.LastModifiedTime.HasValue)
                         {
@@ -224,13 +246,13 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
                 }
                 catch (OperationCanceledException)
                 {
-                    this.RollbackCreatedFiles(createdFiles);
+                    this.RollbackCreatedFiles(createdFiles, createdDirectories, targetDir);
                     this.logger.Warn("Extraction of '{0}' was canceled.", archivePath);
                     throw;
                 }
                 catch (Exception ex)
                 {
-                    this.RollbackCreatedFiles(createdFiles);
+                    this.RollbackCreatedFiles(createdFiles, createdDirectories, targetDir);
                     lastException = ex;
                     if (passwordsToTry.Count > 1)
                     {
@@ -250,25 +272,48 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
         return await ExtractActionAsync();
     }
 
-    private void RollbackCreatedFiles(List<string> files)
+    private void RollbackCreatedFiles(List<string> files, IEnumerable<string> directories = null, string targetDir = null)
     {
-        if (files == null || files.Count == 0)
+        if (files != null && files.Count > 0)
         {
-            return;
-        }
-
-        foreach (var file in files)
-        {
-            try
+            foreach (var file in files)
             {
-                if (this.diskProvider.FileExists(file))
+                try
                 {
-                    this.diskProvider.DeleteFile(file);
+                    if (this.diskProvider.FileExists(file))
+                    {
+                        this.diskProvider.DeleteFile(file);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to clean up partial extracted file: {0}", file);
                 }
             }
-            catch (Exception ex)
+        }
+
+        if (directories != null && !string.IsNullOrWhiteSpace(targetDir))
+        {
+            var canonicalTarget = Path.GetFullPath(targetDir);
+            foreach (var dir in directories.OrderByDescending(d => d.Length))
             {
-                this.logger.Warn(ex, "Failed to clean up partial extracted file: {0}", file);
+                try
+                {
+                    var canonicalDir = Path.GetFullPath(dir);
+                    if (!string.Equals(canonicalDir, canonicalTarget, StringComparison.OrdinalIgnoreCase) &&
+                        this.diskProvider.FolderExists(canonicalDir))
+                    {
+                        if (!this.diskProvider.GetFiles(canonicalDir, recursive: true).Any() &&
+                            !this.diskProvider.GetDirectories(canonicalDir).Any())
+                        {
+                            this.diskProvider.DeleteFolder(canonicalDir, recursive: false);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to clean up empty directory created during extraction: {0}", dir);
+                }
             }
         }
     }
