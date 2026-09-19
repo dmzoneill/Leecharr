@@ -283,4 +283,115 @@ public class FileNameBuilderTest
         mockSanitizer.Received(1).SanitizeFileName(Arg.Any<string>(), Arg.Any<ColonReplacementFormat>(), Arg.Any<string>());
         mockTruncator.Received(1).TruncateFileName("custom_sanitized_name.mkv");
     }
+
+    [TestCase("../../{Series Title} - S{season:00}E{episode:00}")]
+    [TestCase("/etc/cron.d/{Series Title} - S{season:00}E{episode:00}")]
+    [TestCase("C:\\Windows\\System32\\{Series Title} - S{season:00}E{episode:00}")]
+    public void BuildFileName_WhenTemplateContainsTraversalOrRootPrefix_NeutralizesCorrectly(string pattern)
+    {
+        var context = new EpisodeNamingContext
+        {
+            SeriesTitle = "Breaking Bad",
+            SeasonNumber = 1,
+            EpisodeNumbers = new List<int> { 1 },
+            Extension = "mkv",
+        };
+
+        var result = this.builder.BuildFileName(context, pattern);
+
+        result.Should().NotStartWith("/");
+        result.Should().NotStartWith("\\");
+        result.Should().NotStartWith("..");
+        result.Should().NotContain(":");
+        result.Should().NotContain("/");
+        result.Should().NotContain("\\");
+        result.Should().EndWith(".mkv");
+    }
+
+    [TestCase("../../{Series Title}", "Breaking Bad")]
+    [TestCase("/etc/cron.d/{Series Title}", "etc-cron.d-Breaking Bad")]
+    public void BuildSeriesDirectory_WhenTemplateContainsTraversalOrRootPrefix_NeutralizesCorrectly(string pattern, string expected)
+    {
+        var context = new EpisodeNamingContext
+        {
+            SeriesTitle = "Breaking Bad",
+            SeasonNumber = 1,
+        };
+
+        var result = this.builder.BuildSeriesDirectory(context, pattern);
+
+        result.Should().NotStartWith("/");
+        result.Should().NotStartWith("\\");
+        result.Should().NotStartWith("..");
+        result.Should().Be(expected);
+    }
+
+    [Test]
+    public void BuildFileName_WhenReplaceIllegalCharactersIsFalse_EnforcesBaselineFilesystemSafety()
+    {
+        var context = new EpisodeNamingContext
+        {
+            SeriesTitle = "CON",
+            SeasonNumber = 1,
+            EpisodeNumbers = new List<int> { 1 },
+            EpisodeTitles = new List<string> { "Part 1: The Beginning" },
+            Extension = "mkv",
+        };
+
+        var config = new NamingConfig
+        {
+            StandardEpisodeFormat = "{Series Title} - S{season:00}E{episode:00} - {Episode Title}",
+            ReplaceIllegalCharacters = false,
+        };
+
+        var result = this.builder.BuildFileName(context, namingConfig: config);
+
+        result.Should().NotContain(":");
+        result.Should().NotContain("..");
+        result.Should().Be("CON - S01E01 - Part 1- The Beginning.mkv");
+    }
+
+    [Test]
+    public void BuildFileName_WhenReservedDosNameAndReplaceIllegalCharactersFalse_PrefixesUnderscore()
+    {
+        var context = new EpisodeNamingContext
+        {
+            SeriesTitle = "CON",
+            SeasonNumber = 1,
+            Extension = "mkv",
+        };
+
+        var config = new NamingConfig
+        {
+            StandardEpisodeFormat = "{Series Title}",
+            ReplaceIllegalCharacters = false,
+        };
+
+        var result = this.builder.BuildFileName(context, namingConfig: config);
+
+        result.Should().Be("_CON.mkv");
+    }
+
+    [TestCase("AUX", "_AUX")]
+    [TestCase("PRN", "_PRN")]
+    [TestCase("NUL", "_NUL")]
+    [TestCase("COM1", "_COM1")]
+    public void BuildSeriesDirectory_WhenReservedDosNameAndReplaceIllegalCharactersFalse_PrefixesUnderscore(string seriesTitle, string expected)
+    {
+        var context = new EpisodeNamingContext
+        {
+            SeriesTitle = seriesTitle,
+            SeasonNumber = 1,
+        };
+
+        var config = new NamingConfig
+        {
+            SeriesFolderFormat = "{Series Title}",
+            ReplaceIllegalCharacters = false,
+        };
+
+        var result = this.builder.BuildSeriesDirectory(context, namingConfig: config);
+
+        result.Should().Be(expected);
+    }
 }

@@ -327,7 +327,7 @@ public class FileNameSanitizer : IFileNameSanitizer
             {
                 sb.Append('-');
             }
-            else if (c is '*' or '?' or '"' or '<' or '>' or '|')
+            else if (c is '*' or '?' or '"' or '<' or '>' or '|' or ':')
             {
                 continue;
             }
