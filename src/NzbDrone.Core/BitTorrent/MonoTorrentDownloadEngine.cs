@@ -294,36 +294,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
         }
 
-        var allowedEncryption = this.configService.EncryptionMode?.ToLowerInvariant() switch
-        {
-            "forceencrypted" => new List<MonoTorrent.Connections.EncryptionType>
-            {
-                MonoTorrent.Connections.EncryptionType.RC4Full,
-                MonoTorrent.Connections.EncryptionType.RC4Header,
-            },
-            "preferencrypted" => new List<MonoTorrent.Connections.EncryptionType>
-            {
-                MonoTorrent.Connections.EncryptionType.RC4Full,
-                MonoTorrent.Connections.EncryptionType.RC4Header,
-                MonoTorrent.Connections.EncryptionType.PlainText,
-            },
-            "allowplaintext" => new List<MonoTorrent.Connections.EncryptionType>
-            {
-                MonoTorrent.Connections.EncryptionType.PlainText,
-                MonoTorrent.Connections.EncryptionType.RC4Full,
-                MonoTorrent.Connections.EncryptionType.RC4Header,
-            },
-            "disabled" => new List<MonoTorrent.Connections.EncryptionType>
-            {
-                MonoTorrent.Connections.EncryptionType.PlainText,
-            },
-            _ => new List<MonoTorrent.Connections.EncryptionType>
-            {
-                MonoTorrent.Connections.EncryptionType.RC4Full,
-                MonoTorrent.Connections.EncryptionType.RC4Header,
-                MonoTorrent.Connections.EncryptionType.PlainText
-            },
-        };
+        var allowedEncryption = GetAllowedEncryption(this.configService.EncryptionMode);
 
         var listenIp = IPAddress.Any;
         IPAddress listenIpv6 = IPAddress.IPv6Any;
@@ -4959,6 +4930,40 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             return 0;
         }
+    }
+
+    internal static List<MonoTorrent.Connections.EncryptionType> GetAllowedEncryption(string encryptionMode)
+    {
+        return encryptionMode?.Trim().ToLowerInvariant() switch
+        {
+            "forceencrypted" or "forced" or "requireencrypted" or "forcedencryption" or "required" => new List<MonoTorrent.Connections.EncryptionType>
+            {
+                MonoTorrent.Connections.EncryptionType.RC4Full,
+                MonoTorrent.Connections.EncryptionType.RC4Header,
+            },
+            "preferencrypted" or "enabled" or "preferred" => new List<MonoTorrent.Connections.EncryptionType>
+            {
+                MonoTorrent.Connections.EncryptionType.RC4Full,
+                MonoTorrent.Connections.EncryptionType.RC4Header,
+                MonoTorrent.Connections.EncryptionType.PlainText,
+            },
+            "allowplaintext" => new List<MonoTorrent.Connections.EncryptionType>
+            {
+                MonoTorrent.Connections.EncryptionType.PlainText,
+                MonoTorrent.Connections.EncryptionType.RC4Full,
+                MonoTorrent.Connections.EncryptionType.RC4Header,
+            },
+            "disabled" or "plaintext" or "none" => new List<MonoTorrent.Connections.EncryptionType>
+            {
+                MonoTorrent.Connections.EncryptionType.PlainText,
+            },
+            _ => new List<MonoTorrent.Connections.EncryptionType>
+            {
+                MonoTorrent.Connections.EncryptionType.RC4Full,
+                MonoTorrent.Connections.EncryptionType.RC4Header,
+                MonoTorrent.Connections.EncryptionType.PlainText,
+            },
+        };
     }
 }
 
