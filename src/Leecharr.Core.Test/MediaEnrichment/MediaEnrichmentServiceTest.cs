@@ -14,6 +14,7 @@ using NUnit.Framework;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.ArrIntegration;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Extraction;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.MediaEnrichment.Providers;
@@ -234,6 +235,75 @@ public class MediaEnrichmentServiceTest
         this.inspector.Received(1).Inspect(Arg.Any<Stream>(), torrent.Name);
     }
 
+    [Test]
+    public async Task Handle_TorrentDownloadCompletedEvent_InspectsPrimaryMediaFile()
+    {
+        var mediaFile = Path.Combine(this.tempDirectory, "video.mkv");
+        await File.WriteAllBytesAsync(mediaFile, new byte[32]);
+
+        var fileRepo = Substitute.For<ITorrentFileRepository>();
+        var files = new List<TorrentFile>
+        {
+            new() { Id = 1, TorrentId = 5, Path = "sample.txt", Size = 100 },
+            new() { Id = 2, TorrentId = 5, Path = "video.mkv", Size = 50000 },
+        };
+        fileRepo.GetByTorrentId(5).Returns(files);
+
+        var customService = new MediaEnrichmentService(
+            this.repository,
+            this.inspector,
+            this.configService,
+            this.appFolderInfo,
+            this.eventAggregator,
+            torrentFileRepository: fileRepo);
+
+        var torrent = new Torrent
+        {
+            Id = 5,
+            Name = "Test.Movie",
+            SavePath = this.tempDirectory,
+        };
+
+        var containerInfo = new MediaContainerInfo { Resolution = "4K UHD (2160p)" };
+        this.inspector.InspectFile(mediaFile).Returns(containerInfo);
+
+        customService.Handle(new TorrentDownloadCompletedEvent(torrent));
+
+        // Allow async task to run
+        await Task.Delay(200);
+
+        this.inspector.Received(1).InspectFile(mediaFile);
+    }
+
+    [Test]
+    public async Task Handle_ArchiveExtractionCompletedEvent_InspectsExtractedMediaFile()
+    {
+        var extractDir = Path.Combine(this.tempDirectory, "extracted");
+        Directory.CreateDirectory(extractDir);
+        var mediaFile = Path.Combine(extractDir, "extracted_movie.mkv");
+        await File.WriteAllBytesAsync(mediaFile, new byte[64]);
+
+        var torrent = new Torrent
+        {
+            Id = 6,
+            Name = "Archived.Release",
+            SavePath = this.tempDirectory,
+        };
+
+        var containerInfo = new MediaContainerInfo { Resolution = "1080p Full HD" };
+        this.inspector.InspectFile(mediaFile).Returns(containerInfo);
+
+        this.service.Handle(new ArchiveExtractionCompletedEvent
+        {
+            Torrent = torrent,
+            DestinationDirectory = extractDir,
+        });
+
+        // Allow async task to run
+        await Task.Delay(200);
+
+        this.inspector.Received(1).InspectFile(mediaFile);
+    }
     #endregion
 
     #region Poster, Fanart, and Metadata Caching and Cleanup
