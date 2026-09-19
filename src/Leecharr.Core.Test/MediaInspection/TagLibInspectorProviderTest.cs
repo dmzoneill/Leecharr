@@ -1924,6 +1924,77 @@ public class TagLibInspectorProviderTest
         result.AudioChannels.Should().Be("5.1");
     }
 
+    [Test]
+    public void Inspect_Mp4WithColrBox_Hlg_IdentifiedAsHlg()
+    {
+        var mp4Data = CreateMp4WithColr(primaries: 9, transferCharacteristics: 18);
+        using var ms = new MemoryStream(mp4Data);
+
+        var result = this.provider.Inspect(ms, "video.mp4");
+
+        result.Should().NotBeNull();
+        result.HdrFormat.Should().Be("HLG");
+    }
+
+    [Test]
+    public void Inspect_Mp4WithColrBox_Hdr10_IdentifiedAsHdr10()
+    {
+        var mp4Data = CreateMp4WithColr(primaries: 9, transferCharacteristics: 16);
+        using var ms = new MemoryStream(mp4Data);
+
+        var result = this.provider.Inspect(ms, "video.mp4");
+
+        result.Should().NotBeNull();
+        result.HdrFormat.Should().Be("HDR10");
+    }
+
+    [Test]
+    public void Inspect_Mp4WithColrBox_Bt2020Sdr_NotPromotedToHdr10()
+    {
+        var mp4Data709 = CreateMp4WithColr(primaries: 9, transferCharacteristics: 1);
+        using (var ms = new MemoryStream(mp4Data709))
+        {
+            var result = this.provider.Inspect(ms, "sdr_bt709.mp4");
+            result.Should().NotBeNull();
+            result.HdrFormat.Should().BeNull();
+        }
+
+        var mp4Data2020 = CreateMp4WithColr(primaries: 9, transferCharacteristics: 14);
+        using (var ms = new MemoryStream(mp4Data2020))
+        {
+            var result = this.provider.Inspect(ms, "sdr_bt2020.mp4");
+            result.Should().NotBeNull();
+            result.HdrFormat.Should().BeNull();
+        }
+    }
+
+    [Test]
+    public void Inspect_Mp4WithColrBox_Bt2020UnspecifiedTransfer_FallsBackToHdr10()
+    {
+        var mp4Data = CreateMp4WithColr(primaries: 9, transferCharacteristics: 0);
+        using var ms = new MemoryStream(mp4Data);
+
+        var result = this.provider.Inspect(ms, "video.mp4");
+
+        result.Should().NotBeNull();
+        result.HdrFormat.Should().Be("HDR10");
+    }
+
+    private static byte[] CreateMp4WithColr(ushort primaries, ushort transferCharacteristics)
+    {
+        var colrBox = CreateColrBox(primaries, transferCharacteristics, matrixCoefficients: 9);
+        var visualSampleEntry = CreateVisualSampleEntryWithExtraBox("hvc1", 3840, 2160, colrBox);
+        var stsdBox = CreateStsdBox(visualSampleEntry);
+        var trackBox = CreateTrackBox(stsdBox);
+        var moovBox = CreateMoovBox(trackBox);
+        var ftypBox = CreateMp4Box("ftyp", Encoding.ASCII.GetBytes("mp42\0\0\0\0mp42isom"));
+
+        using var ms = new MemoryStream();
+        ms.Write(ftypBox, 0, ftypBox.Length);
+        ms.Write(moovBox, 0, moovBox.Length);
+        return ms.ToArray();
+    }
+
     private static byte[] CreateMultiTrackMatroskaHeader(
         string docType,
         string videoCodecId,
