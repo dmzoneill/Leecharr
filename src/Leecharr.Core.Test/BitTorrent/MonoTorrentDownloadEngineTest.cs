@@ -3534,6 +3534,36 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task StopAsync_StopsManagersAndSavesFastResumeCheckpoints()
+    {
+        await this.engine.StartAsync();
+
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("shutdown_test.iso", isPrivate: false);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 602,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "shutdown_test.iso",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(50_000_000_000L);
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        task.Manager.Should().NotBeNull();
+
+        await this.engine.StopAsync();
+
+        task.Manager.State.Should().Be(TorrentState.Stopped);
+
+        var cacheDir = (typeof(MonoTorrentDownloadEngine).GetMethod("GetCacheDirectory", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .Invoke(this.engine, null) as string)!;
+        var fastResumeFile = Path.Combine(cacheDir, "FastResume", $"{torrent.InfoHash}.fastresume");
+        File.Exists(fastResumeFile).Should().BeTrue();
+    }
+
+    [Test]
     public void AutoRecheckOnCompletion_DefaultSetting_IsTrue()
     {
         this.configService.AutoRecheckOnCompletion.Returns(true);
