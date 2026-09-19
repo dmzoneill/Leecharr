@@ -51,6 +51,11 @@ public class ForwardAuthHandler : AuthenticationHandler<ForwardAuthOptions>
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         var trustedCidrs = this.configService.GetValue("ForwardAuthTrustedProxies", string.Empty);
+        if (string.IsNullOrWhiteSpace(trustedCidrs))
+        {
+            return Task.FromResult(AuthenticateResult.NoResult());
+        }
+
         var remoteIp = this.Request.HttpContext.Connection.RemoteIpAddress;
 
         if (!this.trustedNetworkService.IsTrustedProxy(remoteIp, trustedCidrs))

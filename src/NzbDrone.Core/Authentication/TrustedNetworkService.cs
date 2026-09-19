@@ -99,7 +99,7 @@ public class TrustedNetworkService : ITrustedNetworkService
 
     public bool IsTrustedProxy(IPAddress remoteIp, string configuredCidrs)
     {
-        if (remoteIp == null)
+        if (remoteIp == null || string.IsNullOrWhiteSpace(configuredCidrs))
         {
             return false;
         }
@@ -109,21 +109,16 @@ public class TrustedNetworkService : ITrustedNetworkService
             remoteIp = remoteIp.MapToIPv4();
         }
 
-        // Loopback is always trusted
-        if (IPAddress.IsLoopback(remoteIp))
-        {
-            return true;
-        }
-
-        if (string.IsNullOrWhiteSpace(configuredCidrs))
-        {
-            return false;
-        }
-
         var cidrList = configuredCidrs.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
         foreach (var cidr in cidrList)
         {
-            if (IPNetworkMatch(remoteIp, cidr.Trim()))
+            var trimmed = cidr.Trim();
+            if (string.Equals(trimmed, "localhost", StringComparison.OrdinalIgnoreCase) && IPAddress.IsLoopback(remoteIp))
+            {
+                return true;
+            }
+
+            if (IPNetworkMatch(remoteIp, trimmed))
             {
                 return true;
             }
