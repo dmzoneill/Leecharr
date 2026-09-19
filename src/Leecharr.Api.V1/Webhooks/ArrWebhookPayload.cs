@@ -67,6 +67,12 @@ public class ArrWebhookPayload
     [JsonPropertyName("movieFile")]
     public ArrWebhookMovieFile MovieFile { get; set; }
 
+    [JsonPropertyName("trackFile")]
+    public ArrWebhookTrackFile TrackFile { get; set; }
+
+    [JsonPropertyName("bookFile")]
+    public ArrWebhookBookFile BookFile { get; set; }
+
     [JsonPropertyName("trackFiles")]
     public List<ArrWebhookTrackFile> TrackFiles { get; set; } = new();
 
