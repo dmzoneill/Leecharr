@@ -6115,4 +6115,27 @@ public class MonoTorrentDownloadEngineTest
         task.Picker.Should().NotBeNull();
         task.Picker.SequentialMode.Should().BeTrue();
     }
+
+    [Test]
+    public async Task SetTorrentCategoryAsync_WhenInvoked_UpdatesTaskCategory()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("category_test.iso");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+        var torrent = new CoreTorrent
+        {
+            Id = 826,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "category_test.iso",
+            Status = TorrentStatus.Downloading,
+            Category = "initial-cat",
+        };
+
+        await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        var task = this.engine.GetTask(826);
+        task.Should().NotBeNull();
+        task!.Category.Should().Be("initial-cat");
+
+        await this.engine.SetTorrentCategoryAsync(826, "updated-cat");
+        task.Category.Should().Be("updated-cat");
+    }
 }
