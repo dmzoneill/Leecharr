@@ -774,4 +774,144 @@ public class QueueManagerServiceTest
         await this.downloadEngine.Received(1).ResumeTorrentAsync(2);
         await this.downloadEngine.DidNotReceive().PauseTorrentAsync(1);
     }
+
+    [Test]
+    public async Task ProcessQueueAsync_WhenDeadMagnetExceedsMetadataTimeout_DoesNotBlockQueuedTorrentsWithMetadata()
+    {
+        this.configService.MaxActiveDownloads.Returns(1);
+        this.configService.MagnetMetadataTimeoutSeconds.Returns(180);
+
+        var pastTime = DateTime.UtcNow.AddSeconds(-200);
+
+        var deadMagnet = new Torrent
+        {
+            Id = 1,
+            Name = "DeadMagnet",
+            Status = TorrentStatus.Downloading,
+            TotalSize = 0,
+            PieceCount = 0,
+            Progress = 0.0,
+            QueuePosition = 1,
+            DateAdded = pastTime,
+            DownloadSpeed = 0,
+        };
+
+        var queuedWithMetadata = new Torrent
+        {
+            Id = 2,
+            Name = "HealthyQueuedTorrent",
+            Status = TorrentStatus.Queued,
+            TotalSize = 1024 * 1024 * 100,
+            PieceCount = 100,
+            Progress = 0.0,
+            QueuePosition = 2,
+            DateAdded = DateTime.UtcNow,
+            DownloadSpeed = 0,
+        };
+
+        var torrents = new List<Torrent> { deadMagnet, queuedWithMetadata };
+        this.torrentRepository.All().Returns(torrents);
+
+        await this.queueManager.ProcessQueueAsync();
+
+        deadMagnet.Status.Should().Be(TorrentStatus.Queued);
+        queuedWithMetadata.Status.Should().Be(TorrentStatus.Downloading);
+
+        await this.downloadEngine.Received(1).PauseTorrentAsync(1);
+        await this.downloadEngine.Received(1).ResumeTorrentAsync(2);
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t => t.Id == 1 && t.Status == TorrentStatus.Queued));
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t => t.Id == 2 && t.Status == TorrentStatus.Downloading));
+    }
+
+    [Test]
+    public async Task ProcessQueueAsync_WhenMagnetWithinMetadataTimeout_RemainsDownloadingAndBlocksQueuedTorrent()
+    {
+        this.configService.MaxActiveDownloads.Returns(1);
+        this.configService.MagnetMetadataTimeoutSeconds.Returns(180);
+
+        var recentTime = DateTime.UtcNow.AddSeconds(-30);
+
+        var magnet = new Torrent
+        {
+            Id = 1,
+            Name = "FreshMagnet",
+            Status = TorrentStatus.Downloading,
+            TotalSize = 0,
+            PieceCount = 0,
+            Progress = 0.0,
+            QueuePosition = 1,
+            DateAdded = recentTime,
+            DownloadSpeed = 0,
+        };
+
+        var queuedWithMetadata = new Torrent
+        {
+            Id = 2,
+            Name = "QueuedTorrent",
+            Status = TorrentStatus.Queued,
+            TotalSize = 1024 * 1024 * 100,
+            PieceCount = 100,
+            Progress = 0.0,
+            QueuePosition = 2,
+            DateAdded = DateTime.UtcNow,
+            DownloadSpeed = 0,
+        };
+
+        var torrents = new List<Torrent> { magnet, queuedWithMetadata };
+        this.torrentRepository.All().Returns(torrents);
+
+        await this.queueManager.ProcessQueueAsync();
+
+        magnet.Status.Should().Be(TorrentStatus.Downloading);
+        queuedWithMetadata.Status.Should().Be(TorrentStatus.Queued);
+
+        await this.downloadEngine.DidNotReceive().PauseTorrentAsync(1);
+        await this.downloadEngine.DidNotReceive().ResumeTorrentAsync(2);
+    }
+
+    [Test]
+    public async Task ProcessQueueAsync_WhenQueuedDeadMagnetExceedsMetadataTimeout_DoesNotPromoteToDownloading()
+    {
+        this.configService.MaxActiveDownloads.Returns(2);
+        this.configService.MagnetMetadataTimeoutSeconds.Returns(180);
+
+        var pastTime = DateTime.UtcNow.AddSeconds(-200);
+
+        var deadMagnet = new Torrent
+        {
+            Id = 1,
+            Name = "DeadQueuedMagnet",
+            Status = TorrentStatus.Queued,
+            TotalSize = 0,
+            PieceCount = 0,
+            Progress = 0.0,
+            QueuePosition = 1,
+            DateAdded = pastTime,
+            DownloadSpeed = 0,
+        };
+
+        var queuedWithMetadata = new Torrent
+        {
+            Id = 2,
+            Name = "HealthyQueuedTorrent",
+            Status = TorrentStatus.Queued,
+            TotalSize = 1024 * 1024 * 100,
+            PieceCount = 100,
+            Progress = 0.0,
+            QueuePosition = 2,
+            DateAdded = DateTime.UtcNow,
+            DownloadSpeed = 0,
+        };
+
+        var torrents = new List<Torrent> { deadMagnet, queuedWithMetadata };
+        this.torrentRepository.All().Returns(torrents);
+
+        await this.queueManager.ProcessQueueAsync();
+
+        deadMagnet.Status.Should().Be(TorrentStatus.Queued);
+        queuedWithMetadata.Status.Should().Be(TorrentStatus.Downloading);
+
+        await this.downloadEngine.DidNotReceive().ResumeTorrentAsync(1);
+        await this.downloadEngine.Received(1).ResumeTorrentAsync(2);
+    }
 }
