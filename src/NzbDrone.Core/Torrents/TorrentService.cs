@@ -1609,6 +1609,11 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         var torrent = this.torrentRepository.Get(id);
         if (torrent != null)
         {
+            if (enabled && (torrent.Progress < 1.0 || torrent.Status != TorrentStatus.Seeding))
+            {
+                throw new InvalidOperationException("Super seeding can only be enabled for 100% completed seeding torrents.");
+            }
+
             torrent.InitialSeeding = enabled;
             this.torrentRepository.Update(torrent);
             await this.downloadEngine.SetSuperSeedingAsync(id, enabled);

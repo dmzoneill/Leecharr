@@ -600,8 +600,8 @@ public class QBittorrentApiControllerTest
     [Test]
     public async Task SetSuperSeeding_WithHashesAll_SetsSuperSeedingOnAllTorrents()
     {
-        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
-        var torrent2 = new Torrent { Id = 2, InfoHash = "hash2", Name = "T2" };
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", Progress = 1.0, Status = TorrentStatus.Seeding };
+        var torrent2 = new Torrent { Id = 2, InfoHash = "hash2", Name = "T2", Progress = 1.0, Status = TorrentStatus.Seeding };
         this.torrentService.GetAll().Returns(new List<Torrent> { torrent1, torrent2 });
 
         var result = await this.controller.SetSuperSeeding("all", true);
@@ -609,6 +609,19 @@ public class QBittorrentApiControllerTest
         result.Should().BeOfType<ContentResult>();
         await this.torrentService.Received(1).SetSuperSeedingAsync(1, true);
         await this.torrentService.Received(1).SetSuperSeedingAsync(2, true);
+    }
+
+    [Test]
+    public async Task SetSuperSeeding_WhenIncompleteOrNotSeeding_ReturnsBadRequest()
+    {
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", Progress = 0.5, Status = TorrentStatus.Downloading };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent1);
+
+        var result = await this.controller.SetSuperSeeding("hash1", true);
+
+        var badRequest = result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        badRequest.Value.Should().Be("Super seeding can only be enabled for 100% completed seeding torrents.");
+        await this.torrentService.DidNotReceive().SetSuperSeedingAsync(Arg.Any<int>(), Arg.Any<bool>());
     }
 
     [Test]

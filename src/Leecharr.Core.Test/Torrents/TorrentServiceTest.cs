@@ -181,9 +181,9 @@ public class TorrentServiceTest
     }
 
     [Test]
-    public async Task SetSuperSeedingAsync_UpdatesTorrentAndEngine()
+    public async Task SetSuperSeedingAsync_WhenCompletedAndSeeding_UpdatesTorrentAndEngine()
     {
-        var torrent = new Torrent { Id = 42, Name = "test", InitialSeeding = false };
+        var torrent = new Torrent { Id = 42, Name = "test", InitialSeeding = false, Progress = 1.0, Status = TorrentStatus.Seeding };
         this.torrentRepository.Get(42).Returns(torrent);
 
         await this.service.SetSuperSeedingAsync(42, true);
@@ -191,6 +191,37 @@ public class TorrentServiceTest
         torrent.InitialSeeding.Should().BeTrue();
         this.torrentRepository.Received(1).Update(torrent);
         await this.downloadEngine.Received(1).SetSuperSeedingAsync(42, true);
+    }
+
+    [Test]
+    public async Task SetSuperSeedingAsync_WhenIncompleteOrNotSeeding_ThrowsInvalidOperationException()
+    {
+        var incompleteTorrent = new Torrent { Id = 43, Name = "incomplete", InitialSeeding = false, Progress = 0.5, Status = TorrentStatus.Downloading };
+        this.torrentRepository.Get(43).Returns(incompleteTorrent);
+
+        var act1 = () => this.service.SetSuperSeedingAsync(43, true);
+        await act1.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Super seeding can only be enabled for 100% completed seeding torrents.");
+
+        var erroredTorrent = new Torrent { Id = 44, Name = "errored", InitialSeeding = false, Progress = 1.0, Status = TorrentStatus.Error };
+        this.torrentRepository.Get(44).Returns(erroredTorrent);
+
+        var act2 = () => this.service.SetSuperSeedingAsync(44, true);
+        await act2.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Super seeding can only be enabled for 100% completed seeding torrents.");
+    }
+
+    [Test]
+    public async Task SetSuperSeedingAsync_WhenDisabling_AllowsOnAnyTorrent()
+    {
+        var torrent = new Torrent { Id = 45, Name = "incomplete", InitialSeeding = true, Progress = 0.5, Status = TorrentStatus.Downloading };
+        this.torrentRepository.Get(45).Returns(torrent);
+
+        await this.service.SetSuperSeedingAsync(45, false);
+
+        torrent.InitialSeeding.Should().BeFalse();
+        this.torrentRepository.Received(1).Update(torrent);
+        await this.downloadEngine.Received(1).SetSuperSeedingAsync(45, false);
     }
 
     [Test]
