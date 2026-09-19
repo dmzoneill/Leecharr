@@ -65,7 +65,9 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
             throw new ArgumentNullException(nameof(socket));
         }
 
-        if (string.IsNullOrWhiteSpace(interfaceName))
+        if (string.IsNullOrWhiteSpace(interfaceName) ||
+            string.Equals(interfaceName, "Any", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(interfaceName, "all", StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
@@ -85,7 +87,9 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
 
     public bool IsInterfaceUp(string interfaceName)
     {
-        if (string.IsNullOrWhiteSpace(interfaceName))
+        if (string.IsNullOrWhiteSpace(interfaceName) ||
+            string.Equals(interfaceName, "Any", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(interfaceName, "all", StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
