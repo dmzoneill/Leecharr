@@ -2604,13 +2604,18 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 {
                     ushort primaries = (ushort)((data[childOffset + 12] << 8) | data[childOffset + 13]);
                     ushort transferChar = (ushort)((data[childOffset + 14] << 8) | data[childOffset + 15]);
-                    if (transferChar == 16 || primaries == 9)
+                    if (transferChar == 16)
                     {
                         hasHdr10 = true;
                     }
                     else if (transferChar == 18)
                     {
                         hasHlg = true;
+                    }
+                    else if (primaries == 9 && !hasHdr10 && !hasHlg && transferChar == 0)
+                    {
+                        // Fallback only if transfer characteristic is unspecified/unknown
+                        hasHdr10 = true;
                     }
                 }
             }
