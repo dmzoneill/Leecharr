@@ -13,6 +13,8 @@ public class TorrentResource : RestResource
 
     public string InfoHash { get; set; }
 
+    public string V2InfoHash { get; set; }
+
     public long TotalSize { get; set; }
 
     public int PieceCount { get; set; }
