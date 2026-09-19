@@ -2375,6 +2375,20 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             Directory.CreateDirectory(newSavePath);
             await task.Manager.MoveFilesAsync(newSavePath, moveFiles).ConfigureAwait(false);
 
+            task.WorkingPath = newSavePath;
+            task.SavePath = newSavePath;
+
+            if (task.IsStorageFull)
+            {
+                var thresholdMb = this.configService?.LowDiskSpaceThresholdMb > 0 ? this.configService.LowDiskSpaceThresholdMb : 500;
+                var thresholdBytes = thresholdMb * 1024L * 1024L;
+                var availableSpace = this.diskProvider.GetAvailableSpace(newSavePath);
+                if (!availableSpace.HasValue || availableSpace.Value >= thresholdBytes)
+                {
+                    task.ClearStorageFull(this.eventAggregator);
+                }
+            }
+
             if (existingPriorities != null)
             {
                 foreach (var (file, priority) in existingPriorities)
@@ -2397,6 +2411,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 {
                     this.logger.Info("Attempting to rollback moved files for torrent {0} back to '{1}'", torrentId, oldSavePath);
                     await task.Manager.MoveFilesAsync(oldSavePath, true).ConfigureAwait(false);
+                    task.WorkingPath = oldSavePath;
+                    task.SavePath = oldSavePath;
 
                     if (existingPriorities != null)
                     {
