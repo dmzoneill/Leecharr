@@ -508,39 +508,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             this.logger.Info("Configured MonoTorrent tracker proxy via {0}", wp.Address);
         }
 
-        factories = factories.WithHttpClientCreator(af =>
-        {
-            var handler = new SocketsHttpHandler
-            {
-                AutomaticDecompression = DecompressionMethods.All,
-                PooledConnectionLifetime = TimeSpan.FromMinutes(15),
-                PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
-            };
-            var proxy = this.GetConfiguredWebProxy();
-            if (proxy != null)
-            {
-                handler.Proxy = proxy;
-                handler.UseProxy = true;
-            }
-
-            var client = new HttpClient(handler);
-            var currentUserAgent = this.configService.AnonymousMode ? string.Empty : this.configService.BitTorrentUserAgent;
-            if (string.IsNullOrWhiteSpace(currentUserAgent) && !this.configService.AnonymousMode)
-            {
-                currentUserAgent = ClientEmulationPresets.DefaultUserAgent;
-            }
-
-            client.DefaultRequestHeaders.Remove("User-Agent");
-            if (!string.IsNullOrEmpty(currentUserAgent))
-            {
-                client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", currentUserAgent);
-            }
-
-            client.DefaultRequestHeaders.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate");
-            client.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "*/*");
-
-            return client;
-        });
+        factories = factories.WithHttpClientCreator(af => this.CreateHttpClient(af));
 
         var baseFactories = factories;
         factories = factories.WithSocketConnectorCreator(() => new BoundSocketConnector(
@@ -3799,6 +3767,67 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private bool IsLocalPeerDiscoveryAllowed()
     {
         return !this.configService.AnonymousMode && !this.IsProxyActive() && !this.IsSpecificInterfaceBound() && !this.IsVpnKillSwitchActive() && this.configService.EnableLpd;
+    }
+
+    internal HttpClient CreateHttpClient(AddressFamily addressFamily = AddressFamily.InterNetwork)
+    {
+        var handler = new SocketsHttpHandler
+        {
+            AutomaticDecompression = DecompressionMethods.All,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(15),
+            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
+        };
+        var proxy = this.GetConfiguredWebProxy();
+        if (proxy != null)
+        {
+            handler.Proxy = proxy;
+            handler.UseProxy = true;
+        }
+        else
+        {
+            handler.ConnectCallback = async (context, cancellationToken) =>
+            {
+                if (this.isHaltedByKillSwitch || (this.vpnKillSwitchService != null && this.vpnKillSwitchService.IsFailClosedActive))
+                {
+                    throw new SocketException((int)SocketError.NetworkUnreachable);
+                }
+
+                var connector = new BoundSocketConnector(
+                    () => this.GetBoundLocalIp(AddressFamily.InterNetwork),
+                    () => this.GetBoundLocalIp(AddressFamily.InterNetworkV6),
+                    this.networkBindingService,
+                    () => !string.IsNullOrWhiteSpace(this.configService.NetworkInterfaceBinding)
+                        ? this.configService.NetworkInterfaceBinding
+                        : this.configService.BindInterface,
+                    this.blocklistService,
+                    () => Interlocked.Increment(ref this.blockedPeersCount),
+                    this.configService);
+
+                var host = context.DnsEndPoint.Host;
+                var hostStr = host.Contains(':') && !host.StartsWith('[') ? $"[{host}]" : host;
+                var uri = new Uri($"http://{hostStr}:{context.DnsEndPoint.Port}");
+                var socket = await connector.ConnectAsync(uri, cancellationToken).ConfigureAwait(false);
+                return new NetworkStream(socket, ownsSocket: true);
+            };
+        }
+
+        var client = new HttpClient(handler);
+        var currentUserAgent = this.configService.AnonymousMode ? string.Empty : this.configService.BitTorrentUserAgent;
+        if (string.IsNullOrWhiteSpace(currentUserAgent) && !this.configService.AnonymousMode)
+        {
+            currentUserAgent = ClientEmulationPresets.DefaultUserAgent;
+        }
+
+        client.DefaultRequestHeaders.Remove("User-Agent");
+        if (!string.IsNullOrEmpty(currentUserAgent))
+        {
+            client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", currentUserAgent);
+        }
+
+        client.DefaultRequestHeaders.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate");
+        client.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "*/*");
+
+        return client;
     }
 
     private IPAddress GetBoundLocalIp(AddressFamily family)
