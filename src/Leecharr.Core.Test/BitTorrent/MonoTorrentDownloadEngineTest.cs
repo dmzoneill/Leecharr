@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Security.Cryptography;
@@ -24,6 +25,8 @@ using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Network;
+using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Network.PortMapping;
 using NzbDrone.Core.Network.Vpn;
 using NzbDrone.Core.Torrents;
@@ -4805,5 +4808,118 @@ public class MonoTorrentDownloadEngineTest
             result.Should().Contain(MonoTorrent.Connections.EncryptionType.RC4Header);
             result.Should().NotContain(MonoTorrent.Connections.EncryptionType.PlainText);
         }
+    }
+
+    [Test]
+    public void CreateHttpClient_WhenProxyNotConfigured_SetsConnectCallback()
+    {
+        var client = this.engine.CreateHttpClient();
+        var handlerField = typeof(HttpMessageInvoker).GetField("_handler", BindingFlags.NonPublic | BindingFlags.Instance);
+        var handler = handlerField!.GetValue(client) as SocketsHttpHandler;
+
+        handler.Should().NotBeNull();
+        handler!.ConnectCallback.Should().NotBeNull();
+    }
+
+    [Test]
+    public void CreateHttpClient_WhenProxyConfigured_UsesProxyAndDoesNotSetConnectCallback()
+    {
+        var mockConfig = Substitute.For<IConfigService>();
+        mockConfig.ProxyType.Returns("http");
+        mockConfig.ProxyHost.Returns("127.0.0.1");
+        mockConfig.ProxyPort.Returns(8080);
+
+        using var testEngine = new MonoTorrentDownloadEngine(
+            mockConfig,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator,
+            appFolderInfo: this.appFolderInfo,
+            torrentLogService: this.torrentLogService);
+
+        var client = testEngine.CreateHttpClient();
+        var handlerField = typeof(HttpMessageInvoker).GetField("_handler", BindingFlags.NonPublic | BindingFlags.Instance);
+        var handler = handlerField!.GetValue(client) as SocketsHttpHandler;
+
+        handler.Should().NotBeNull();
+        handler!.Proxy.Should().NotBeNull();
+        handler.UseProxy.Should().BeTrue();
+        handler.ConnectCallback.Should().BeNull();
+    }
+
+    [Test]
+    public async Task CreateHttpClient_WhenKillSwitchTriggered_ConnectCallbackThrowsNetworkUnreachable()
+    {
+        var mockVpn = Substitute.For<IVpnKillSwitchService>();
+        mockVpn.IsFailClosedActive.Returns(true);
+
+        using var testEngine = new MonoTorrentDownloadEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator,
+            vpnKillSwitchService: mockVpn,
+            appFolderInfo: this.appFolderInfo,
+            torrentLogService: this.torrentLogService);
+
+        var client = testEngine.CreateHttpClient();
+        var act = async () => await client.GetAsync("http://tracker.example.com/announce");
+
+        var ex = await act.Should().ThrowAsync<HttpRequestException>();
+        var socketEx = ex.Which.InnerException as SocketException;
+        socketEx.Should().NotBeNull();
+        socketEx!.SocketErrorCode.Should().Be(SocketError.NetworkUnreachable);
+    }
+
+    [Test]
+    public async Task CreateHttpClient_WhenEngineHaltedByKillSwitch_ConnectCallbackThrowsNetworkUnreachable()
+    {
+        using var testEngine = new MonoTorrentDownloadEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator,
+            appFolderInfo: this.appFolderInfo,
+            torrentLogService: this.torrentLogService);
+
+        testEngine.Handle(new VpnKillSwitchTriggeredEvent("tun0"));
+
+        testEngine.IsHaltedByKillSwitch.Should().BeTrue();
+
+        var client = testEngine.CreateHttpClient();
+        var act = async () => await client.GetAsync("http://tracker.example.com/announce");
+
+        var ex = await act.Should().ThrowAsync<HttpRequestException>();
+        var socketEx = ex.Which.InnerException as SocketException;
+        socketEx.Should().NotBeNull();
+        socketEx!.SocketErrorCode.Should().Be(SocketError.NetworkUnreachable);
+    }
+
+    [Test]
+    public async Task CreateHttpClient_WhenTrackerIpBlocked_ConnectCallbackThrowsAccessDenied()
+    {
+        var mockBlocklist = Substitute.For<IBlocklistService>();
+        mockBlocklist.IsIpBlocked("192.0.2.1").Returns(true);
+
+        using var testEngine = new MonoTorrentDownloadEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator,
+            blocklistService: mockBlocklist,
+            appFolderInfo: this.appFolderInfo,
+            torrentLogService: this.torrentLogService);
+
+        var client = testEngine.CreateHttpClient();
+        var act = async () => await client.GetAsync("http://192.0.2.1:80/announce");
+
+        var ex = await act.Should().ThrowAsync<HttpRequestException>();
+        var socketEx = ex.Which.InnerException as SocketException;
+        socketEx.Should().NotBeNull();
+        socketEx!.SocketErrorCode.Should().Be(SocketError.AccessDenied);
     }
 }
