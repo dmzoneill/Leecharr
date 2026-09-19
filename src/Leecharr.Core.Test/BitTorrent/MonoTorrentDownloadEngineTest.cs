@@ -3171,8 +3171,8 @@ public class MonoTorrentDownloadEngineTest
     [Test]
     public void CalculateDynamicDiskCacheBytes_HighDownloadThroughput_ScalesUpTo1GB()
     {
-        // 500 MB/s download throughput
-        var cacheBytes = this.engine.CalculateDynamicDiskCacheBytes(500L * 1024L * 1024L);
+        // 500 MB/s download throughput with sufficient RAM (8 GB) scales to 1 GB
+        var cacheBytes = this.engine.CalculateDynamicDiskCacheBytes(500L * 1024L * 1024L, effectiveMemoryOverride: 8L * 1024L * 1024L * 1024L);
         cacheBytes.Should().Be(1024 * 1024 * 1024);
     }
 
@@ -3183,6 +3183,117 @@ public class MonoTorrentDownloadEngineTest
         var cacheBytes = this.engine.CalculateDynamicDiskCacheBytes();
         cacheBytes.Should().BeGreaterThanOrEqualTo(512 * 1024 * 1024);
         cacheBytes.Should().BeLessThanOrEqualTo(1024 * 1024 * 1024);
+    }
+
+    [Test]
+    public void CalculateDynamicDiskCacheBytes_WhenCgroupLimitEnforcesLowMemory_CapsCacheAt25PercentOfContainerMemory()
+    {
+        // 512 MB container memory limit; 25% safety ceiling is 128 MB
+        var containerMemory = 512L * 1024L * 1024L;
+        var throughput = 200L * 1024L * 1024L;
+
+        var cacheBytes = this.engine.CalculateDynamicDiskCacheBytes(throughput, effectiveMemoryOverride: containerMemory);
+
+        cacheBytes.Should().Be(128 * 1024 * 1024);
+    }
+
+    [Test]
+    public void CalculateDynamicDiskCacheBytes_WhenSevereLowMemoryContainer_ClampsDownTo32MB()
+    {
+        // 128 MB container memory limit; 25% is 32 MB
+        var containerMemory = 128L * 1024L * 1024L;
+        var throughput = 100L * 1024L * 1024L;
+
+        var cacheBytes = this.engine.CalculateDynamicDiskCacheBytes(throughput, effectiveMemoryOverride: containerMemory);
+
+        cacheBytes.Should().Be(32 * 1024 * 1024);
+    }
+
+    [Test]
+    public void CalculateDynamicDiskCacheBytes_WhenExplicitSmallCacheConfigured_AllowsMinimumClampDownToConfiguredValue()
+    {
+        this.configService.DiskWriteCacheSizeMb.Returns(32);
+        this.configService.DiskCacheBytes.Returns(32L * 1024L * 1024L);
+
+        var cacheBytes = this.engine.CalculateDynamicDiskCacheBytes();
+
+        cacheBytes.Should().Be(32 * 1024 * 1024);
+    }
+
+    [Test]
+    public void CalculateDynamicDiskCacheBytes_When64MbConfigured_Allows64MbAllocation()
+    {
+        this.configService.DiskWriteCacheSizeMb.Returns(64);
+        this.configService.DiskCacheBytes.Returns(64L * 1024L * 1024L);
+
+        var cacheBytes = this.engine.CalculateDynamicDiskCacheBytes();
+
+        cacheBytes.Should().Be(64 * 1024 * 1024);
+    }
+
+    [Test]
+    public async Task GetEffectiveMemoryBytes_WhenCgroupV2FileExists_ReadsMemoryLimitAccurately()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), "cgroup_v2_test_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var expectedBytes = 2147483648L; // 2 GB
+            await File.WriteAllTextAsync(tempFile, expectedBytes.ToString() + "\n");
+
+            var effectiveMemory = this.engine.GetEffectiveMemoryBytes(cgroupV2Path: tempFile, cgroupV1Path: "/nonexistent/cgroup1");
+
+            effectiveMemory.Should().Be(expectedBytes);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    [Test]
+    public async Task GetEffectiveMemoryBytes_WhenCgroupV2IsMax_FallsBackToHostMemory()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), "cgroup_v2_max_test_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, "max\n");
+
+            var effectiveMemory = this.engine.GetEffectiveMemoryBytes(cgroupV2Path: tempFile, cgroupV1Path: "/nonexistent/cgroup1");
+
+            effectiveMemory.Should().BeGreaterThan(0);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    [Test]
+    public async Task GetEffectiveMemoryBytes_WhenCgroupV1FileExists_ReadsMemoryLimitAccurately()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), "cgroup_v1_test_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var expectedBytes = 1073741824L; // 1 GB
+            await File.WriteAllTextAsync(tempFile, expectedBytes.ToString() + "\n");
+
+            var effectiveMemory = this.engine.GetEffectiveMemoryBytes(cgroupV2Path: "/nonexistent/cgroup2", cgroupV1Path: tempFile);
+
+            effectiveMemory.Should().Be(expectedBytes);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
     }
 
     [Test]

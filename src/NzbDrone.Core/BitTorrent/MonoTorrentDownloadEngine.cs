@@ -4482,12 +4482,41 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
-    public int CalculateDynamicDiskCacheBytes(long currentDownloadThroughputBytesPerSec = 0)
+    public long GetEffectiveMemoryBytes(string cgroupV2Path = "/sys/fs/cgroup/memory.max", string cgroupV1Path = "/sys/fs/cgroup/memory/memory.limit_in_bytes")
     {
-        var configuredMb = this.configService?.DiskWriteCacheSizeMb ?? 128;
-        var configuredBytes = this.configService?.DiskCacheBytes ?? (128 * 1024 * 1024);
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            try
+            {
+                if (File.Exists(cgroupV2Path))
+                {
+                    var text = File.ReadAllText(cgroupV2Path).Trim();
+                    if (!string.Equals(text, "max", StringComparison.OrdinalIgnoreCase) &&
+                        long.TryParse(text, out var cgroupV2Limit) &&
+                        cgroupV2Limit > 0 &&
+                        cgroupV2Limit < 0x7FFFFFFFFFFFF000L)
+                    {
+                        return cgroupV2Limit;
+                    }
+                }
 
-        long baseRamCache;
+                if (File.Exists(cgroupV1Path))
+                {
+                    var text = File.ReadAllText(cgroupV1Path).Trim();
+                    if (long.TryParse(text, out var cgroupV1Limit) &&
+                        cgroupV1Limit > 0 &&
+                        cgroupV1Limit < 0x7FFFFFFFFFFFF000L)
+                    {
+                        return cgroupV1Limit;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Failed to read cgroup memory limit");
+            }
+        }
+
         long totalSystemRam = 0;
         try
         {
@@ -4502,15 +4531,26 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             totalSystemRam = 8L * 1024L * 1024L * 1024L;
         }
 
-        if (totalSystemRam >= 32L * 1024L * 1024L * 1024L)
+        return totalSystemRam;
+    }
+
+    public int CalculateDynamicDiskCacheBytes(long currentDownloadThroughputBytesPerSec = 0, long? effectiveMemoryOverride = null)
+    {
+        var configuredMb = this.configService?.DiskWriteCacheSizeMb ?? 128;
+        var configuredBytes = this.configService?.DiskCacheBytes ?? (128 * 1024 * 1024);
+
+        var effectiveMemory = effectiveMemoryOverride ?? this.GetEffectiveMemoryBytes();
+
+        long baseRamCache;
+        if (effectiveMemory >= 32L * 1024L * 1024L * 1024L)
         {
             baseRamCache = 512L * 1024L * 1024L;
         }
-        else if (totalSystemRam >= 16L * 1024L * 1024L * 1024L)
+        else if (effectiveMemory >= 16L * 1024L * 1024L * 1024L)
         {
             baseRamCache = 256L * 1024L * 1024L;
         }
-        else if (totalSystemRam >= 8L * 1024L * 1024L * 1024L)
+        else if (effectiveMemory >= 8L * 1024L * 1024L * 1024L)
         {
             baseRamCache = 192L * 1024L * 1024L;
         }
@@ -4525,16 +4565,32 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         var dynamicCache = baseRamCache + throughputBufferBytes;
 
-        if (configuredMb > 128)
+        if (configuredMb > 0 && configuredMb < 128)
         {
-            dynamicCache = Math.Max(dynamicCache, configuredMb * 1024L * 1024L);
+            dynamicCache = ((long)configuredMb * 1024L * 1024L) + throughputBufferBytes;
+        }
+        else if (configuredBytes > 0 && configuredBytes < 128 * 1024 * 1024)
+        {
+            dynamicCache = (long)configuredBytes + throughputBufferBytes;
+        }
+        else if (configuredMb > 128)
+        {
+            dynamicCache = Math.Max(dynamicCache, (long)configuredMb * 1024L * 1024L);
         }
         else if (configuredBytes > 128 * 1024 * 1024)
         {
             dynamicCache = Math.Max(dynamicCache, (long)configuredBytes);
         }
 
-        var clampedBytes = (int)Math.Clamp(dynamicCache, 128L * 1024L * 1024L, 1024L * 1024L * 1024L);
+        var maxAllowedCache = Math.Max(32L * 1024L * 1024L, (long)(effectiveMemory * 0.25));
+        var minAllowedCache = Math.Min(32L * 1024L * 1024L, (long)configuredBytes);
+        var upperLimit = Math.Min(1024L * 1024L * 1024L, maxAllowedCache);
+        if (minAllowedCache > upperLimit)
+        {
+            minAllowedCache = upperLimit;
+        }
+
+        var clampedBytes = (int)Math.Clamp(dynamicCache, minAllowedCache, upperLimit);
         return clampedBytes;
     }
 
