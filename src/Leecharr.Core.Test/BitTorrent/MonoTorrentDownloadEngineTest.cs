@@ -3499,6 +3499,41 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task PreallocateFilesAsync_WhenPreallocationFails_AbortsSyntheticFastResume()
+    {
+        await this.engine.StartAsync();
+
+        var engineProp = typeof(MonoTorrentDownloadEngine).GetField("engine", BindingFlags.NonPublic | BindingFlags.Instance);
+        var monoEngine = (ClientEngine)engineProp!.GetValue(this.engine)!;
+        monoEngine.Should().NotBeNull();
+
+        var tempWorkingDir = Path.Combine(this.testIncompleteDir, "work_fail_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempWorkingDir);
+
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("prealloc_fail.bin", 32768);
+        var loadedTorrent = MonoTorrent.Torrent.Load(torrentBytes);
+
+        this.configService.PreallocationMode.Returns("Sparse");
+        this.configService.AppendIncompleteExtension.Returns(false);
+
+        // Target an unwriteable / invalid path (file blocking directory creation)
+        var blockedPath = Path.Combine(tempWorkingDir, "blocked_dir");
+        await File.WriteAllTextAsync(blockedPath, "I am a file, not a directory");
+        var invalidWorkingDir = Path.Combine(blockedPath, "nested");
+
+        var torrentSettings = new TorrentSettingsBuilder().ToSettings();
+        var manager = await monoEngine.AddAsync(loadedTorrent, invalidWorkingDir, torrentSettings);
+        manager.HashChecked.Should().BeFalse();
+
+        await this.engine.PreallocateFilesAsync(manager, invalidWorkingDir, loadedTorrent);
+
+        // Preallocation failure must NOT initialize FastResume / HashChecked
+        manager.HashChecked.Should().BeFalse();
+
+        await this.engine.StopAsync();
+    }
+
+    [Test]
     public void AutoRecheckOnCompletion_DefaultSetting_IsTrue()
     {
         this.configService.AutoRecheckOnCompletion.Returns(true);

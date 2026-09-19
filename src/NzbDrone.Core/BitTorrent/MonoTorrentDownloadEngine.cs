@@ -4214,9 +4214,50 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 }
             }
 
+            var allAllocated = true;
+            var newlyCreatedFiles = new List<string>();
+
             foreach (var (fullPath, expectedLength) in filesToPreallocate)
             {
-                await this.PreallocateSingleFileAsync(fullPath, expectedLength, isFull).ConfigureAwait(false);
+                var fileExistedBefore = File.Exists(fullPath);
+                var allocated = await this.PreallocateSingleFileAsync(fullPath, expectedLength, isFull).ConfigureAwait(false);
+                if (!allocated)
+                {
+                    allAllocated = false;
+                    this.logger.Error("Preallocation failed for file '{0}' (expected length {1} bytes) in torrent {2}", fullPath, expectedLength, manager?.InfoHashes?.V1OrV2?.ToHex() ?? workingPath);
+                    if (!fileExistedBefore && File.Exists(fullPath))
+                    {
+                        newlyCreatedFiles.Add(fullPath);
+                    }
+
+                    break;
+                }
+                else if (!fileExistedBefore)
+                {
+                    newlyCreatedFiles.Add(fullPath);
+                }
+            }
+
+            if (!allAllocated)
+            {
+                this.logger.Warn("Aborting synthetic FastResume initialization for torrent {0} due to preallocation failure; standard hash check will be enforced.", manager?.InfoHashes?.V1OrV2?.ToHex() ?? workingPath);
+                foreach (var file in newlyCreatedFiles)
+                {
+                    try
+                    {
+                        if (File.Exists(file))
+                        {
+                            File.Delete(file);
+                            this.logger.Debug("Cleaned up incomplete preallocated file '{0}'", file);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Debug(ex, "Failed to clean up incomplete file '{0}' after failed preallocation", file);
+                    }
+                }
+
+                return;
             }
 
             if (!hasExistingFiles && manager != null && !manager.HashChecked && manager.InfoHashes != null && (manager.Bitfield == null || manager.Bitfield.TrueCount == 0))
@@ -4242,7 +4283,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
-    private async Task PreallocateSingleFileAsync(string fullPath, long expectedLength, bool isFull)
+    private async Task<bool> PreallocateSingleFileAsync(string fullPath, long expectedLength, bool isFull)
     {
         try
         {
@@ -4257,7 +4298,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 var fileInfo = new FileInfo(fullPath);
                 if (fileInfo.Length >= expectedLength)
                 {
-                    return;
+                    return true;
                 }
             }
 
@@ -4272,7 +4313,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             await using var fs = new FileStream(fullPath, options);
             if (fs.Length >= expectedLength)
             {
-                return;
+                return true;
             }
 
             if (isFull)
@@ -4317,15 +4358,27 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         await fs.FlushAsync().ConfigureAwait(false);
                     }).ConfigureAwait(false);
                 }
+
+                return true;
             }
             else
             {
-                fs.SetLength(expectedLength);
+                try
+                {
+                    fs.SetLength(expectedLength);
+                    return true;
+                }
+                catch (Exception ex) when (ex is NotSupportedException or IOException or PlatformNotSupportedException)
+                {
+                    this.logger.Warn(ex, "Sparse preallocation unsupported or failed for '{0}' (expected {1} bytes). Falling back to on-demand streaming allocation.", fullPath, expectedLength);
+                    return false;
+                }
             }
         }
         catch (Exception ex)
         {
             this.logger.Warn(ex, "Failed to preallocate file '{0}' (size {1} bytes)", fullPath, expectedLength);
+            return false;
         }
     }
 
