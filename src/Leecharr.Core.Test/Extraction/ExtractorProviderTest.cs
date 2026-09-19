@@ -207,6 +207,133 @@ public class ExtractorProviderTest
     }
 
     [Test]
+    public async Task SharpCompressExtractorProvider_WhenExtractionFails_CleansUpCreatedSubdirectoriesAndTempFiles()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "sharpcompress_subdir_test_" + Guid.NewGuid().ToString("N"));
+        var outputDir = Path.Combine(tempDir, "output");
+        Directory.CreateDirectory(outputDir);
+        var zipPath = Path.Combine(tempDir, "corrupted.zip");
+
+        try
+        {
+            using (var zipStream = new FileStream(zipPath, FileMode.Create))
+            using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create))
+            {
+                var entry = archive.CreateEntry("subfolder/nested/payload.txt");
+                using var entryStream = entry.Open();
+                using var writer = new StreamWriter(entryStream);
+                await writer.WriteAsync(new string('a', 50000));
+            }
+
+            var bytes = await File.ReadAllBytesAsync(zipPath);
+            var truncatedBytes = bytes.Take(bytes.Length - 50).ToArray();
+            await File.WriteAllBytesAsync(zipPath, truncatedBytes);
+
+            var diskProvider = new DiskProvider();
+            var provider = new SharpCompressExtractorProvider(diskProvider);
+
+            var success = await provider.ExtractAsync(zipPath, outputDir);
+            success.Should().BeFalse();
+
+            var expectedDir = Path.Combine(outputDir, "subfolder");
+            Directory.Exists(expectedDir).Should().BeFalse("created subdirectories should be cleaned up on failure");
+
+            var tmpFile = Path.Combine(outputDir, "subfolder", "nested", "payload.txt.leecharr.tmp");
+            File.Exists(tmpFile).Should().BeFalse("temporary file should be cleaned up on failure");
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task SharpCompressExtractorProvider_WhenExtractionCancelled_RollsBackFilesAndDirectories()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "sharpcompress_cancel_test_" + Guid.NewGuid().ToString("N"));
+        var outputDir = Path.Combine(tempDir, "output");
+        Directory.CreateDirectory(outputDir);
+        var zipPath = Path.Combine(tempDir, "archive.zip");
+
+        try
+        {
+            using (var zipStream = new FileStream(zipPath, FileMode.Create))
+            using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create))
+            {
+                var entry = archive.CreateEntry("subfolder/payload.txt");
+                using var entryStream = entry.Open();
+                using var writer = new StreamWriter(entryStream);
+                await writer.WriteAsync(new string('b', 1000));
+            }
+
+            var diskProvider = new DiskProvider();
+            var provider = new SharpCompressExtractorProvider(diskProvider);
+
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            var act = async () => await provider.ExtractAsync(zipPath, outputDir, cancellationToken: cts.Token);
+            await act.Should().ThrowAsync<OperationCanceledException>();
+
+            var expectedDir = Path.Combine(outputDir, "subfolder");
+            Directory.Exists(expectedDir).Should().BeFalse("created subdirectories should be rolled back on cancellation");
+
+            var expectedFile = Path.Combine(outputDir, "subfolder", "payload.txt");
+            File.Exists(expectedFile).Should().BeFalse();
+            File.Exists(expectedFile + ".leecharr.tmp").Should().BeFalse();
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task SharpCompressExtractorProvider_ExtractAsync_WritesToTempAndAtomicallyRenamesOnSuccess()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "sharpcompress_success_test_" + Guid.NewGuid().ToString("N"));
+        var outputDir = Path.Combine(tempDir, "output");
+        Directory.CreateDirectory(outputDir);
+        var zipPath = Path.Combine(tempDir, "valid.zip");
+
+        try
+        {
+            using (var zipStream = new FileStream(zipPath, FileMode.Create))
+            using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create))
+            {
+                var entry = archive.CreateEntry("content.txt");
+                using var entryStream = entry.Open();
+                using var writer = new StreamWriter(entryStream);
+                await writer.WriteAsync("Valid archive payload");
+            }
+
+            var diskProvider = new DiskProvider();
+            var provider = new SharpCompressExtractorProvider(diskProvider);
+
+            var success = await provider.ExtractAsync(zipPath, outputDir);
+            success.Should().BeTrue();
+
+            var finalFile = Path.Combine(outputDir, "content.txt");
+            File.Exists(finalFile).Should().BeTrue();
+            File.Exists(finalFile + ".leecharr.tmp").Should().BeFalse();
+            (await File.ReadAllTextAsync(finalFile)).Should().Be("Valid archive payload");
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Test]
     public async Task SharpCompressExtractorProvider_RollsBackCreatedFiles_WhenExtractionFails()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "sharpcompress_test_" + Guid.NewGuid().ToString("N"));
