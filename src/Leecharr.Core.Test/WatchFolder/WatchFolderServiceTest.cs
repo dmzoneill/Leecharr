@@ -161,7 +161,7 @@ public class WatchFolderServiceTest
         var torrentFile = Path.Combine(this.tempDirectory, "test.torrent");
         await File.WriteAllBytesAsync(torrentFile, new byte[] { 1, 2, 3 });
 
-        this.diskProvider.GetFiles(this.tempDirectory, false).Returns(new[] { torrentFile });
+        this.diskProvider.GetFiles(this.tempDirectory, true).Returns(new[] { torrentFile });
 
         var parsedTorrent = new ParsedTorrent
         {
@@ -191,7 +191,7 @@ public class WatchFolderServiceTest
         var torrentFile = Path.Combine(this.tempDirectory, "show.torrent");
         await File.WriteAllBytesAsync(torrentFile, new byte[] { 1, 2, 3 });
 
-        this.diskProvider.GetFiles(this.tempDirectory, false).Returns(new[] { torrentFile });
+        this.diskProvider.GetFiles(this.tempDirectory, true).Returns(new[] { torrentFile });
 
         var parsedTorrent = new ParsedTorrent
         {
@@ -231,7 +231,7 @@ public class WatchFolderServiceTest
 
         await File.WriteAllBytesAsync(validFile, new byte[] { 1, 2, 3 });
 
-        this.diskProvider.GetFiles(this.tempDirectory, false).Returns(new[] { lockedFile, validFile });
+        this.diskProvider.GetFiles(this.tempDirectory, true).Returns(new[] { lockedFile, validFile });
 
         var parsedTorrent = new ParsedTorrent
         {
@@ -382,7 +382,7 @@ public class WatchFolderServiceTest
         var corruptFile = Path.Combine(this.tempDirectory, "corrupt.torrent");
         await File.WriteAllBytesAsync(corruptFile, new byte[] { 0x64, 0x30, 0x65 });
 
-        this.diskProvider.GetFiles(this.tempDirectory, false).Returns(new[] { corruptFile });
+        this.diskProvider.GetFiles(this.tempDirectory, true).Returns(new[] { corruptFile });
         this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(_ => throw new InvalidTorrentFileException("Corrupt Bencode"));
 
         // Scan 1 - attempt 1: should not quarantine
@@ -791,4 +791,105 @@ public class WatchFolderServiceTest
             startPaused: Arg.Any<bool>(),
             rawBytes: Arg.Any<byte[]>());
     }
+
+    #region Subdirectory Support and Auto-Mapping
+
+    [Test]
+    public async Task ScanWatchFolderAsync_WhenFileInSubfolderMatchingCategory_AssignsSubfolderCategory()
+    {
+        var subfolder = Path.Combine(this.tempDirectory, "tv");
+        Directory.CreateDirectory(subfolder);
+        var torrentFile = Path.Combine(subfolder, "release.torrent");
+        await File.WriteAllBytesAsync(torrentFile, new byte[] { 1, 2, 3 });
+
+        this.diskProvider.GetFiles(this.tempDirectory, true).Returns(new[] { torrentFile });
+
+        var parsedTorrent = new ParsedTorrent
+        {
+            Name = "Random.Generic.Title.2024",
+            InfoHash = "1111222233334444555566667777888899990000",
+            TotalSize = 100000,
+        };
+
+        this.categoryService.GetAll().Returns(new[] { new Category { Id = 1, Name = "tv" } });
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsedTorrent);
+
+        await this.service.ScanWatchFolderAsync();
+
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(
+            parsedTorrent,
+            category: "tv",
+            startPaused: false,
+            rawBytes: Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task ScanWatchFolderAsync_WhenFileInLoadedOrFailedDirectory_SkipsFile()
+    {
+        var loadedFile = Path.Combine(this.tempDirectory, "loaded", "old.torrent");
+        var failedFile = Path.Combine(this.tempDirectory, "failed", "bad.torrent");
+        var subLoadedFile = Path.Combine(this.tempDirectory, "tv", "loaded", "subold.torrent");
+
+        this.diskProvider.GetFiles(this.tempDirectory, true).Returns(new[] { loadedFile, failedFile, subLoadedFile });
+
+        await this.service.ScanWatchFolderAsync();
+
+        await this.torrentService.DidNotReceive().AddFromParsedTorrentAsync(
+            Arg.Any<ParsedTorrent>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<bool>(),
+            Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task ScanWatchFolderAsync_WhenAutoDeleteDisabledAndFileInSubfolder_MovesToRootLoadedDirectory()
+    {
+        var subfolder = Path.Combine(this.tempDirectory, "movies");
+        Directory.CreateDirectory(subfolder);
+        var torrentFile = Path.Combine(subfolder, "movie.torrent");
+        await File.WriteAllBytesAsync(torrentFile, new byte[] { 1, 2, 3 });
+
+        this.diskProvider.GetFiles(this.tempDirectory, true).Returns(new[] { torrentFile });
+
+        var parsedTorrent = new ParsedTorrent
+        {
+            Name = "Movie.2024",
+            InfoHash = "abcdefabcdefabcdefabcdefabcdefabcdefabcd",
+            TotalSize = 2000000,
+        };
+
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsedTorrent);
+        this.configService.WatchFolderDeleteAddedTorrents.Returns(false);
+
+        await this.service.ScanWatchFolderAsync();
+
+        var rootLoadedDir = Path.Combine(this.tempDirectory, "loaded");
+        this.diskProvider.Received(1).EnsureFolder(rootLoadedDir);
+        this.diskProvider.Received(1).MoveFile(
+            torrentFile,
+            Path.Combine(rootLoadedDir, "movie.torrent"),
+            true);
+    }
+
+    [Test]
+    public async Task ProcessFileAsync_WhenFileInSubfolderFailsThreeTimes_QuarantinesToRootFailedDirectory()
+    {
+        var subfolder = Path.Combine(this.tempDirectory, "anime");
+        Directory.CreateDirectory(subfolder);
+        var corruptFile = Path.Combine(subfolder, "corrupt.torrent");
+        await File.WriteAllBytesAsync(corruptFile, new byte[] { 0x64, 0x30, 0x65 });
+
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(_ => throw new InvalidTorrentFileException("Corrupt Bencode"));
+
+        await this.service.ProcessFileAsync(corruptFile);
+        await this.service.ProcessFileAsync(corruptFile);
+        await this.service.ProcessFileAsync(corruptFile);
+
+        var rootFailedDir = Path.Combine(this.tempDirectory, "failed");
+        this.diskProvider.Received(1).EnsureFolder(rootFailedDir);
+        this.diskProvider.Received(1).MoveFile(corruptFile, Path.Combine(rootFailedDir, "corrupt.torrent"), true);
+    }
+
+    #endregion
 }
