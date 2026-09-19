@@ -110,7 +110,7 @@ public class ProwlarrSyncServiceTest
         {
             Id = 100,
             Name = "Old Tracker Name",
-            Url = "http://old-url",
+            Url = "http://prowlarr.local:9696/old-endpoint",
             ApiKey = "old-key",
             Priority = 7,
             ProwlarrIndexerId = 5,
@@ -158,7 +158,7 @@ public class ProwlarrSyncServiceTest
         {
             Id = 100,
             Name = "Existing Tracker",
-            Url = "http://old-url",
+            Url = "http://prowlarr.local:9696/5/api",
             ApiKey = "old-key",
             Priority = 3,
             FreeleechOnly = true,
@@ -213,7 +213,7 @@ public class ProwlarrSyncServiceTest
         {
             Id = 100,
             Name = "Existing Tracker",
-            Url = "http://old-url",
+            Url = "http://prowlarr.local:9696/5/api",
             ApiKey = "old-key",
             Priority = 3,
             FreeleechOnly = true,
@@ -267,6 +267,7 @@ public class ProwlarrSyncServiceTest
         {
             Id = 10,
             Name = "Active Prowlarr Tracker",
+            Url = "http://prowlarr.local:9696/1/api",
             ProwlarrIndexerId = 1,
             IsProwlarrManaged = true,
         };
@@ -274,6 +275,7 @@ public class ProwlarrSyncServiceTest
         {
             Id = 20,
             Name = "Deleted Prowlarr Tracker",
+            Url = "http://prowlarr.local:9696/99/api",
             ProwlarrIndexerId = 99,
             IsProwlarrManaged = true,
         };
@@ -281,6 +283,7 @@ public class ProwlarrSyncServiceTest
         {
             Id = 30,
             Name = "Manual Custom Indexer",
+            Url = "http://manual-indexer.local/api",
             ProwlarrIndexerId = null,
             IsProwlarrManaged = false,
         };
@@ -935,6 +938,148 @@ public class ProwlarrSyncServiceTest
 
         await act.Should().ThrowAsync<HttpRequestException>();
         response.IsDisposed.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task SyncFromProwlarrAsync_MultiInstance_DoesNotPruneIndexersFromOtherProwlarrInstanceWhenNoSupportedIndexers()
+    {
+        var existingA = new IndexerDefinition
+        {
+            Id = 10,
+            Name = "Instance A Tracker",
+            Url = "http://prowlarr-a:9696/1/api",
+            ApiKey = "key-a",
+            ProwlarrIndexerId = 1,
+            IsProwlarrManaged = true,
+            ConfigContract = "ProwlarrSettings",
+        };
+
+        this.repository.All().Returns(new List<IndexerDefinition> { existingA });
+
+        // Instance B returns only usenet indexers (0 supported torrent indexers)
+        var json = @"[
+          {
+            ""id"": 1,
+            ""name"": ""Usenet Only"",
+            ""implementation"": ""Newznab"",
+            ""enable"": true,
+            ""protocol"": ""usenet""
+          }
+        ]";
+
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json),
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var service = new ProwlarrSyncService(this.repository, httpClient);
+
+        var count = await service.SyncFromProwlarrAsync("http://prowlarr-b:9696", "key-b");
+
+        count.Should().Be(0);
+        this.repository.DidNotReceive().Delete(10);
+    }
+
+    [Test]
+    public async Task SyncFromProwlarrAsync_MultiInstance_DoesNotPruneIndexersFromOtherProwlarrInstanceDuringNormalSync()
+    {
+        var existingA = new IndexerDefinition
+        {
+            Id = 10,
+            Name = "Instance A Tracker",
+            Url = "http://prowlarr-a:9696/1/api",
+            ApiKey = "key-a",
+            ProwlarrIndexerId = 1,
+            IsProwlarrManaged = true,
+            ConfigContract = "ProwlarrSettings",
+        };
+
+        var existingB = new IndexerDefinition
+        {
+            Id = 20,
+            Name = "Instance B Tracker 1",
+            Url = "http://prowlarr-b:9696/1/api",
+            ApiKey = "key-b",
+            ProwlarrIndexerId = 1,
+            IsProwlarrManaged = true,
+            ConfigContract = "ProwlarrSettings",
+        };
+
+        this.repository.All().Returns(new List<IndexerDefinition> { existingA, existingB });
+
+        // Instance B returns only indexer 2 (indexer 1 on Instance B was deleted)
+        var json = @"[
+          {
+            ""id"": 2,
+            ""name"": ""Instance B Tracker 2"",
+            ""implementation"": ""Torznab"",
+            ""enable"": true,
+            ""protocol"": ""torrent""
+          }
+        ]";
+
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json),
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var service = new ProwlarrSyncService(this.repository, httpClient);
+
+        await service.SyncFromProwlarrAsync("http://prowlarr-b:9696", "key-b");
+
+        // Existing B indexer 1 should be pruned, but existing A indexer should NOT be touched
+        this.repository.Received(1).Delete(20);
+        this.repository.DidNotReceive().Delete(10);
+    }
+
+    [Test]
+    public async Task SyncFromProwlarrAsync_MultiInstance_DoesNotCollideOrOverwriteIndexersWithSameProwlarrIndexerIdFromDifferentHost()
+    {
+        var existingA = new IndexerDefinition
+        {
+            Id = 10,
+            Name = "Instance A Tracker",
+            Url = "http://prowlarr-a:9696/1/api",
+            ApiKey = "key-a",
+            ProwlarrIndexerId = 1,
+            IsProwlarrManaged = true,
+            ConfigContract = "ProwlarrSettings",
+        };
+
+        this.repository.All().Returns(new List<IndexerDefinition> { existingA });
+
+        // Instance B also has an indexer with local ID = 1
+        var json = @"[
+          {
+            ""id"": 1,
+            ""name"": ""Instance B Tracker"",
+            ""implementation"": ""Torznab"",
+            ""enable"": true,
+            ""protocol"": ""torrent""
+          }
+        ]";
+
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json),
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var service = new ProwlarrSyncService(this.repository, httpClient);
+
+        await service.SyncFromProwlarrAsync("http://prowlarr-b:9696", "key-b");
+
+        // Instance A should NOT be updated with Instance B details
+        this.repository.DidNotReceive().Update(Arg.Is<IndexerDefinition>(i => i.Id == 10));
+
+        // Instance B should be inserted as a new indexer
+        this.repository.Received(1).Insert(Arg.Is<IndexerDefinition>(i =>
+            i.Name == "Instance B Tracker" &&
+            i.Url == "http://prowlarr-b:9696/1/api" &&
+            i.ApiKey == "key-b" &&
+            i.ProwlarrIndexerId == 1));
     }
 
     [Test]
