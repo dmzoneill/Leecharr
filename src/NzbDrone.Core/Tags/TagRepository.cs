@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Linq;
 using NzbDrone.Core.Datastore;
 
@@ -24,6 +25,6 @@ public class TagRepository : BasicRepository<Tag>, ITagRepository
             return null;
         }
 
-        return this.All().FirstOrDefault(t => t.Label == label);
+        return this.All().FirstOrDefault(t => string.Equals(t.Label, label, StringComparison.OrdinalIgnoreCase));
     }
 }

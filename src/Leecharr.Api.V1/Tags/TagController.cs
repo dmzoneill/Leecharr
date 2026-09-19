@@ -70,7 +70,13 @@ public class TagController : Controller
             return this.BadRequest();
         }
 
-        var existing = this.tagRepository.GetByLabel(resource.Label.Trim());
+        var trimmedLabel = resource.Label.Trim();
+        if (trimmedLabel.Contains(',') || trimmedLabel.Contains('\0') || trimmedLabel.Length > 100)
+        {
+            return this.BadRequest("Tag label cannot be empty, contain commas or null characters, or exceed 100 characters.");
+        }
+
+        var existing = this.tagRepository.GetByLabel(trimmedLabel);
         if (existing != null)
         {
             return this.Ok(new TagResource
@@ -82,7 +88,7 @@ public class TagController : Controller
 
         var model = new Tag
         {
-            Label = resource.Label.Trim(),
+            Label = trimmedLabel,
         };
 
         var inserted = this.tagRepository.Insert(model);
@@ -108,13 +114,25 @@ public class TagController : Controller
             return this.BadRequest();
         }
 
+        var trimmedLabel = resource.Label.Trim();
+        if (trimmedLabel.Contains(',') || trimmedLabel.Contains('\0') || trimmedLabel.Length > 100)
+        {
+            return this.BadRequest("Tag label cannot be empty, contain commas or null characters, or exceed 100 characters.");
+        }
+
         var existing = this.tagRepository.Get(targetId);
         if (existing == null)
         {
             return this.NotFound();
         }
 
-        existing.Label = resource.Label.Trim();
+        var duplicate = this.tagRepository.GetByLabel(trimmedLabel);
+        if (duplicate != null && duplicate.Id != targetId)
+        {
+            return this.BadRequest($"A tag with label '{trimmedLabel}' already exists.");
+        }
+
+        existing.Label = trimmedLabel;
         this.tagRepository.Update(existing);
 
         return this.Ok(new TagResource
