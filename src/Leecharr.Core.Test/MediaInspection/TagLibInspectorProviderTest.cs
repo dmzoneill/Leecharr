@@ -2740,6 +2740,81 @@ public class TagLibInspectorProviderTest
         return ms.ToArray();
     }
 
+    [Test]
+    public void InspectFile_WhenFileIsActivelyOpenWithWriteAccess_InspectsWithoutSharingViolation()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"leecharr_test_{Guid.NewGuid():N}.mkv");
+        var ebmlData = CreateMatroskaHeader("matroska", "V_MPEGH/ISO/HEVC", 3840, 2160, "A_EAC3", 6);
+        File.WriteAllBytes(tempFile, ebmlData);
+
+        try
+        {
+            // Simulate an active download / disk write handle holding open write access
+            using var activeWriter = new FileStream(tempFile, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
+
+            // InspectFile should succeed using non-exclusive sharing rather than throwing IOException
+            var result = this.provider.InspectFile(tempFile);
+
+            result.Should().NotBeNull();
+            result.ContainerFormat.Should().Be("Matroska (MKV)");
+            result.VideoCodec.Should().Be("HEVC (H.265)");
+            result.Width.Should().Be(3840);
+            result.Height.Should().Be(2160);
+            result.AudioCodec.Should().Be("E-AC3 / Dolby Digital Plus");
+            result.AudioChannels.Should().Be("5.1");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                try
+                {
+                    File.Delete(tempFile);
+                }
+                catch
+                {
+                }
+            }
+        }
+    }
+
+    [Test]
+    public void InspectFile_WhenFileIsActivelyOpenWithReadWriteAccess_InspectsWithoutSharingViolation()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"leecharr_test_{Guid.NewGuid():N}.mkv");
+        var ebmlData = CreateMatroskaHeader("matroska", "V_MPEGH/ISO/HEVC", 1920, 1080, "A_TRUEHD", 8);
+        File.WriteAllBytes(tempFile, ebmlData);
+
+        try
+        {
+            // Simulate active seeding / disk reading & writing
+            using var activeHandle = new FileStream(tempFile, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete);
+
+            var result = this.provider.InspectFile(tempFile);
+
+            result.Should().NotBeNull();
+            result.ContainerFormat.Should().Be("Matroska (MKV)");
+            result.VideoCodec.Should().Be("HEVC (H.265)");
+            result.Width.Should().Be(1920);
+            result.Height.Should().Be(1080);
+            result.AudioCodec.Should().Be("Dolby TrueHD");
+            result.AudioChannels.Should().Be("7.1");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                try
+                {
+                    File.Delete(tempFile);
+                }
+                catch
+                {
+                }
+            }
+        }
+    }
+
     private sealed class UnseekableStream : Stream
     {
         private readonly byte[] data;
