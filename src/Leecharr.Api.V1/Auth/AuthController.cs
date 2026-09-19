@@ -46,6 +46,7 @@ public class AuthController : ControllerBase
     private readonly IJitUserProvisioningService jitUserProvisioningService;
     private readonly ITrustedNetworkService trustedNetworkService;
     private readonly IClaimsRoleMappingService claimsRoleMappingService;
+    private readonly IUserSessionCache userSessionCache;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public AuthController(
@@ -56,7 +57,8 @@ public class AuthController : ControllerBase
         IUserSessionRepository userSessionRepository = null,
         IJitUserProvisioningService jitUserProvisioningService = null,
         ITrustedNetworkService trustedNetworkService = null,
-        IClaimsRoleMappingService claimsRoleMappingService = null)
+        IClaimsRoleMappingService claimsRoleMappingService = null,
+        IUserSessionCache userSessionCache = null)
     {
         this.userService = userService;
         this.identityProviderService = identityProviderService;
@@ -66,6 +68,7 @@ public class AuthController : ControllerBase
         this.jitUserProvisioningService = jitUserProvisioningService;
         this.trustedNetworkService = trustedNetworkService;
         this.claimsRoleMappingService = claimsRoleMappingService;
+        this.userSessionCache = userSessionCache;
     }
 
     [HttpGet("providers")]
@@ -214,19 +217,31 @@ public class AuthController : ControllerBase
                            this.User.FindFirst("TicketId")?.Value ??
                            this.User.FindFirst("SessionToken")?.Value;
 
-        if (!string.IsNullOrEmpty(sessionToken) && this.userSessionRepository != null)
+        if (!string.IsNullOrEmpty(sessionToken))
         {
+            if (this.userSessionRepository != null)
+            {
+                try
+                {
+                    var session = this.userSessionRepository.FindBySessionToken(sessionToken);
+                    if (session != null)
+                    {
+                        this.userSessionRepository.Delete(session.Id);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to remove session record upon logout.");
+                }
+            }
+
             try
             {
-                var session = this.userSessionRepository.FindBySessionToken(sessionToken);
-                if (session != null)
-                {
-                    this.userSessionRepository.Delete(session.Id);
-                }
+                this.userSessionCache?.InvalidateCache(sessionToken);
             }
             catch (Exception ex)
             {
-                this.logger.Warn(ex, "Failed to remove session record upon logout.");
+                this.logger.Warn(ex, "Failed to invalidate session cache upon logout.");
             }
         }
 
