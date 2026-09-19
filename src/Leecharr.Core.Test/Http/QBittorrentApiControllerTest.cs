@@ -3676,4 +3676,47 @@ public class QBittorrentApiControllerTest
 
         newTorrent.TargetSeedTimeMinutes.Should().Be(120);
     }
+
+    [Test]
+    public async Task EditTracker_WithUrlParameterAlias_UpdatesTrackerCorrectly()
+    {
+        var torrent = new Torrent { Id = 1, InfoHash = "hash1" };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent);
+
+        var tracker = new TrackerEntry { Id = 10, TorrentId = 1, Url = "http://tracker1.org/announce" };
+        this.trackerEntryRepository.GetByTorrentId(1).Returns(new List<TrackerEntry> { tracker });
+
+        var downloadEngine = Substitute.For<NzbDrone.Core.BitTorrent.IDownloadEngine>();
+        var ctrl = new QBittorrentApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.trackerEntryRepository,
+            downloadEngine: downloadEngine,
+            configFileProvider: this.configFileProvider);
+
+        var result = await ctrl.EditTracker("hash1", url: "http://tracker1.org/announce", newUrl: "http://tracker2.org/announce");
+
+        result.Should().BeOfType<ContentResult>();
+        tracker.Url.Should().Be("http://tracker2.org/announce");
+        this.trackerEntryRepository.Received(1).Update(tracker);
+        await downloadEngine.Received(1).RemoveTrackersAsync(1, Arg.Is<HashSet<string>>(s => s.Contains("http://tracker1.org/announce")));
+        await downloadEngine.Received(1).AddTrackersAsync(1, Arg.Is<List<string>>(l => l.Contains("http://tracker2.org/announce")));
+    }
+
+    [Test]
+    public async Task EditTracker_WhenTrackerNotFound_Returns409Conflict()
+    {
+        var torrent = new Torrent { Id = 1, InfoHash = "hash1", TrackerUrl = "http://tracker1.org/announce" };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent);
+        this.trackerEntryRepository.GetByTorrentId(1).Returns(new List<TrackerEntry>());
+
+        var result = await this.controller.EditTracker("hash1", origUrl: "http://nonexistent-tracker.org/announce", newUrl: "http://tracker2.org/announce");
+
+        var objResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objResult.StatusCode.Should().Be(StatusCodes.Status409Conflict);
+        objResult.Value.Should().Be("Tracker not found.");
+    }
 }

@@ -1989,10 +1989,18 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
     [HttpPost("torrents/editTracker")]
     public async Task<ActionResult> EditTracker(
         [FromForm] string hash,
-        [FromForm] string origUrl,
-        [FromForm] string newUrl)
+        [FromForm] string url = null,
+        [FromForm] string origUrl = null,
+        [FromForm] string newUrl = null)
     {
-        if (string.IsNullOrWhiteSpace(hash) || string.IsNullOrWhiteSpace(origUrl) || string.IsNullOrWhiteSpace(newUrl))
+        if (string.IsNullOrWhiteSpace(newUrl) && !string.IsNullOrWhiteSpace(url) && !string.IsNullOrWhiteSpace(origUrl))
+        {
+            newUrl = origUrl;
+            origUrl = null;
+        }
+
+        var effectiveOrigUrl = !string.IsNullOrWhiteSpace(origUrl) ? origUrl : url;
+        if (string.IsNullOrWhiteSpace(hash) || string.IsNullOrWhiteSpace(effectiveOrigUrl) || string.IsNullOrWhiteSpace(newUrl))
         {
             return this.BadRequest();
         }
@@ -2003,15 +2011,28 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             return this.NotFound();
         }
 
-        var trimmedOrig = origUrl.Trim();
+        var trimmedOrig = effectiveOrigUrl.Trim();
         var trimmedNew = newUrl.Trim();
 
-        var existing = this.trackerEntryRepository.GetByTorrentId(torrent.Id);
+        var existing = this.trackerEntryRepository?.GetByTorrentId(torrent.Id) ?? new List<TrackerEntry>();
         var match = existing.FirstOrDefault(t => string.Equals(t.Url, trimmedOrig, StringComparison.OrdinalIgnoreCase));
+        var matchesTorrentTracker = string.Equals(torrent.TrackerUrl, trimmedOrig, StringComparison.OrdinalIgnoreCase);
+
+        if (match == null && !matchesTorrentTracker)
+        {
+            return this.StatusCode(StatusCodes.Status409Conflict, "Tracker not found.");
+        }
+
         if (match != null)
         {
             match.Url = trimmedNew;
-            this.trackerEntryRepository.Update(match);
+            this.trackerEntryRepository?.Update(match);
+        }
+
+        if (matchesTorrentTracker)
+        {
+            torrent.TrackerUrl = trimmedNew;
+            await this.torrentService.UpdateAsync(torrent);
         }
 
         if (this.downloadEngine != null)
