@@ -37,6 +37,7 @@ import { useTranslation } from "../i18n";
 
 export type ColumnKey =
   | "#"
+  | "queuePosition"
   | "name"
   | "status"
   | "totalSize"
@@ -77,6 +78,7 @@ export interface ColumnDef {
 
 export const ALL_COLUMNS: ColumnDef[] = [
   { key: "#", label: "#", sortable: true },
+  { key: "queuePosition", label: "Queue #", sortable: true },
   { key: "name", label: "Name", sortable: true },
   { key: "category", label: "Category", sortable: true },
   { key: "status", label: "Status", sortable: true },
@@ -114,6 +116,8 @@ export const getColumnLabel = (
   switch (key) {
     case "#":
       return "#";
+    case "queuePosition":
+      return t("torrents.table.queuePosition", { defaultValue: "Queue #" });
     case "name":
       return t("torrents.table.name");
     case "category":
@@ -757,9 +761,19 @@ export const TorrentCell: React.FC<TorrentCellProps> = React.memo(
               fontSize: "0.75rem",
             }}
           >
-            {t.queuePosition && t.queuePosition > 0
-              ? t.queuePosition
-              : rowIndex + 1}
+            {rowIndex + 1}
+          </span>
+        );
+
+      case "queuePosition":
+        return (
+          <span
+            style={{
+              color: "var(--text-muted, #7e8092)",
+              fontSize: "0.75rem",
+            }}
+          >
+            {t.queuePosition && t.queuePosition > 0 ? t.queuePosition : "-"}
           </span>
         );
 
@@ -1511,7 +1525,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
       let valA: any = (mergedA as any)[sortKey];
       let valB: any = (mergedB as any)[sortKey];
 
-      if (sortKey === "#") {
+      if (sortKey === "#" || sortKey === "queuePosition") {
         valA =
           mergedA.queuePosition && mergedA.queuePosition > 0
             ? mergedA.queuePosition
@@ -1646,7 +1660,10 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
         onSelect?.(torrent);
       } else {
         lastClickedIndexRef.current = index;
-        if (selectedIds.size > 0 && (!selectedIds.has(torrent.id) || selectedIds.size > 1)) {
+        if (
+          selectedIds.size > 0 &&
+          (!selectedIds.has(torrent.id) || selectedIds.size > 1)
+        ) {
           if (onSelectAll) {
             onSelectAll([torrent.id]);
           } else {
