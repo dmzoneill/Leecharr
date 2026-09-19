@@ -3676,6 +3676,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     public void OnVpnRestored(string interfaceName)
     {
         this.logger.Info("VPN interface '{0}' restored. Resuming MonoTorrent activity.", interfaceName);
+        this.isHaltedByKillSwitch = false;
         this.natPmpPortMapperService?.Resume();
 
         lock (this.vpnTransitionLock)
@@ -3797,6 +3798,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         await this.engineStateLock.WaitAsync().ConfigureAwait(false);
         try
         {
+            this.isHaltedByKillSwitch = false;
+
             if (this.engine == null)
             {
                 await this.StartEngineAsyncCore().ConfigureAwait(false);
