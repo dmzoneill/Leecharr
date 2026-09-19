@@ -3750,6 +3750,48 @@ public class MonoTorrentDownloadEngineTest
         proxy.Credentials.Should().BeNull();
     }
 
+    [TestCase("::1", "socks5://[::1]:1080/")]
+    [TestCase("fd00::1", "socks5://[fd00::1]:1080/")]
+    [TestCase("[::1]", "socks5://[::1]:1080/")]
+    public void GetConfiguredWebProxy_WhenIpv6Host_FormatsSafelyWithoutUriFormatException(string ipv6Host, string expectedUri)
+    {
+        this.configService.ProxyType.Returns("socks5");
+        this.configService.ProxyHost.Returns(ipv6Host);
+        this.configService.ProxyPort.Returns(1080);
+
+        var proxy = this.engine.GetConfiguredWebProxy() as WebProxy;
+        proxy.Should().NotBeNull();
+        proxy!.Address.ToString().Should().Be(expectedUri);
+    }
+
+    [Test]
+    public async Task StartAsync_WhenAnonymousModeEnabled_SuppressesListenEndpointsDhtLpdAndPortForwarding()
+    {
+        this.configService.AnonymousMode.Returns(true);
+        this.configService.UpnpEnabled.Returns(true);
+        this.configService.EnableDht.Returns(true);
+        this.configService.EnableLpd.Returns(true);
+        this.configService.ListeningPort.Returns(51413);
+
+        await this.engine.StartAsync();
+
+        var engineProp = typeof(MonoTorrentDownloadEngine).GetField("engine", BindingFlags.NonPublic | BindingFlags.Instance);
+        var monoEngine = engineProp!.GetValue(this.engine) as ClientEngine;
+        monoEngine.Should().NotBeNull();
+
+        monoEngine!.Settings.ListenEndPoints.Should().BeEmpty();
+        monoEngine.Settings.AllowPortForwarding.Should().BeFalse();
+        monoEngine.Settings.AllowLocalPeerDiscovery.Should().BeFalse();
+        monoEngine.Settings.DhtEndPoint.Should().BeNull();
+
+        // Verify peer ID is randomized (length 20, no client emulation prefix)
+        monoEngine.PeerId.Text.Length.Should().Be(20);
+        monoEngine.PeerId.Text.Should().NotStartWith("-qB");
+        monoEngine.PeerId.Text.Should().NotStartWith("-MO");
+
+        await this.engine.StopAsync();
+    }
+
     [Test]
     public async Task ApplyConfigChangesAsync_WhenInterfaceBindingOrProxyChanges_UpdatesLastAppliedSettings()
     {
