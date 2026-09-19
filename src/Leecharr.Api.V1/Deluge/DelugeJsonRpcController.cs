@@ -2308,9 +2308,9 @@ public class DelugeJsonRpcController : ControllerBase
         {
             TorrentStatus.Downloading => "Downloading",
             TorrentStatus.Seeding => "Seeding",
-            TorrentStatus.Paused => "Paused",
+            TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Completed => "Paused",
             TorrentStatus.Queued => "Queued",
-            TorrentStatus.Checking => "Checking",
+            TorrentStatus.Checking or TorrentStatus.QueuedForChecking => "Checking",
             TorrentStatus.Error => "Error",
             _ => "Paused",
         };
@@ -2518,7 +2518,7 @@ public class DelugeJsonRpcController : ControllerBase
             { "max_upload_slots", -1 },
             { "is_finished", t.Status == TorrentStatus.Seeding || t.Progress >= 1.0 },
             { "is_seed", t.Status == TorrentStatus.Seeding || t.Progress >= 1.0 },
-            { "paused", t.Status == TorrentStatus.Paused },
+            { "paused", t.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Completed },
             { "time_added", new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds() },
             { "hash", t.InfoHash },
             { "all_time_download", t.Downloaded },
@@ -2577,8 +2577,8 @@ public class DelugeJsonRpcController : ControllerBase
             new object[] { "Active", allTorrents.Count(t => t.DownloadSpeed > 0 || t.UploadSpeed > 0) },
             new object[] { "Downloading", allTorrents.Count(t => t.Status == TorrentStatus.Downloading) },
             new object[] { "Seeding", allTorrents.Count(t => t.Status == TorrentStatus.Seeding) },
-            new object[] { "Paused", allTorrents.Count(t => t.Status == TorrentStatus.Paused) },
-            new object[] { "Checking", allTorrents.Count(t => t.Status == TorrentStatus.Checking) },
+            new object[] { "Paused", allTorrents.Count(t => t.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Completed) },
+            new object[] { "Checking", allTorrents.Count(t => t.Status is TorrentStatus.Checking or TorrentStatus.QueuedForChecking) },
             new object[] { "Queued", allTorrents.Count(t => t.Status == TorrentStatus.Queued) },
             new object[] { "Error", allTorrents.Count(t => t.Status == TorrentStatus.Error) },
         };
@@ -2901,12 +2901,12 @@ public class DelugeJsonRpcController : ControllerBase
 
         if (string.Equals(state, "Paused", StringComparison.OrdinalIgnoreCase))
         {
-            return t.Status == TorrentStatus.Paused;
+            return t.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Completed;
         }
 
         if (string.Equals(state, "Checking", StringComparison.OrdinalIgnoreCase))
         {
-            return t.Status == TorrentStatus.Checking;
+            return t.Status is TorrentStatus.Checking or TorrentStatus.QueuedForChecking;
         }
 
         if (string.Equals(state, "Queued", StringComparison.OrdinalIgnoreCase))
