@@ -1151,8 +1151,8 @@ public class TorrentServiceTest
         this.torrentRepository.Get(1).Returns(torrentInherited);
         this.torrentRepository.Get(2).Returns(torrentOverride);
 
-        this.speedSchedulerService.ResolveEffectiveDownloadLimit(0, 0).Returns(50000);
-        this.speedSchedulerService.ResolveEffectiveUploadLimit(0, 0).Returns(20000);
+        this.speedSchedulerService.ResolveEffectiveDownloadLimit(0, 0).Returns(0);
+        this.speedSchedulerService.ResolveEffectiveUploadLimit(0, 0).Returns(0);
         this.speedSchedulerService.ResolveEffectiveDownloadLimit(8000, 0).Returns(8000);
         this.speedSchedulerService.ResolveEffectiveUploadLimit(3000, 0).Returns(3000);
 
@@ -1163,7 +1163,7 @@ public class TorrentServiceTest
             AffectedTorrentIds = new List<int> { 1, 2 },
         });
 
-        await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(1, 50000, 20000);
+        await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(1, 0, 0);
         await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(2, 8000, 3000);
     }
 

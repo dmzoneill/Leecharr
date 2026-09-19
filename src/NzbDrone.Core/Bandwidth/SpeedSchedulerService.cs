@@ -253,7 +253,6 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
 
     public int ResolveEffectiveDownloadLimit(int torrentLimit, int categoryLimit, DateTime? currentTime = null)
     {
-        // 4-level hierarchy: Torrent Override > Category Limit > Schedule Limit > Global Limit
         if (torrentLimit > 0)
         {
             return torrentLimit;
@@ -264,13 +263,7 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
             return categoryLimit;
         }
 
-        var schedule = this.GetCurrentLimits(currentTime);
-        if (schedule.HasActiveSchedule)
-        {
-            return schedule.MaxDownloadSpeedKbps;
-        }
-
-        return this.configService.MaxDownloadSpeedKbps;
+        return 0;
     }
 
     public int ResolveEffectiveUploadLimit(int torrentLimit, int categoryLimit, DateTime? currentTime = null)
@@ -285,13 +278,7 @@ public class SpeedSchedulerService : ISpeedSchedulerService, IHandle<ConfigSaved
             return categoryLimit;
         }
 
-        var schedule = this.GetCurrentLimits(currentTime);
-        if (schedule.HasActiveSchedule)
-        {
-            return schedule.MaxUploadSpeedKbps;
-        }
-
-        return this.configService.MaxUploadSpeedKbps;
+        return 0;
     }
 
     public void Dispose()
