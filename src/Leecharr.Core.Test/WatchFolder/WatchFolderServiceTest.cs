@@ -372,6 +372,40 @@ public class WatchFolderServiceTest
         result.Should().BeTrue();
     }
 
+    [Test]
+    public async Task IsFileStabilizedAsync_WhenFileInitiallyLocked_StabilizesWhenLockReleasedWithinDebounce()
+    {
+        var lockedFile = Path.Combine(this.tempDirectory, "initially_locked.torrent");
+        await File.WriteAllBytesAsync(lockedFile, new byte[] { 10, 20, 30 });
+
+        var lockStream = File.Open(lockedFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(40);
+            lockStream.Dispose();
+        });
+
+        var result = await this.service.IsFileStabilizedAsync(lockedFile, TimeSpan.FromMilliseconds(150));
+        result.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task IsFileStabilizedAsync_WhenFileInitiallyEmpty_StabilizesWhenWrittenWithinDebounce()
+    {
+        var emptyFile = Path.Combine(this.tempDirectory, "initially_empty.torrent");
+        await File.WriteAllBytesAsync(emptyFile, Array.Empty<byte>());
+
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(40);
+            await File.WriteAllBytesAsync(emptyFile, new byte[] { 1, 2, 3, 4, 5 });
+        });
+
+        var result = await this.service.IsFileStabilizedAsync(emptyFile, TimeSpan.FromMilliseconds(150));
+        result.Should().BeTrue();
+    }
+
     #endregion
 
     #region Quarantine Tests
