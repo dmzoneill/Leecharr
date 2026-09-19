@@ -107,24 +107,30 @@ public class BackupService : IBackupService, IExecute<BackupCommand>, IExecuteAs
                 var dbPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db");
                 if (global::System.IO.File.Exists(dbPath))
                 {
+                    var tempSnapshotPath = Path.Combine(Path.GetTempPath(), $"leecharr_backup_{Guid.NewGuid():N}.db");
                     try
                     {
-                        using (var conn = new SqliteConnection($"Data Source={dbPath}"))
+                        using (var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly"))
                         {
                             conn.Open();
                             using var cmd = conn.CreateCommand();
-                            cmd.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
+                            cmd.CommandText = $"VACUUM INTO '{tempSnapshotPath.Replace("'", "''")}';";
                             cmd.ExecuteNonQuery();
                         }
 
-                        SqliteConnection.ClearAllPools();
+                        tempDumpFile = tempSnapshotPath;
+                        includesDb = true;
                     }
                     catch (Exception ex)
                     {
-                        this.logger.Warn(ex, "Failed to execute SQLite WAL checkpoint on {0}", dbPath);
+                        this.logger.Warn(ex, "Failed to create atomic SQLite snapshot via VACUUM INTO on {0}", dbPath);
+                        tempDumpFile = null;
+                        includesDb = true;
                     }
-
-                    includesDb = true;
+                    finally
+                    {
+                        SqliteConnection.ClearAllPools();
+                    }
                 }
             }
 
@@ -139,17 +145,24 @@ public class BackupService : IBackupService, IExecute<BackupCommand>, IExecuteAs
                 }
                 else
                 {
-                    var dbPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db");
-                    var walPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db-wal");
-
-                    if (global::System.IO.File.Exists(dbPath))
+                    if (tempDumpFile != null && global::System.IO.File.Exists(tempDumpFile))
                     {
-                        zip.CreateEntryFromFile(dbPath, "leecharr.db");
+                        zip.CreateEntryFromFile(tempDumpFile, "leecharr.db");
                     }
-
-                    if (global::System.IO.File.Exists(walPath))
+                    else
                     {
-                        zip.CreateEntryFromFile(walPath, "leecharr.db-wal");
+                        var dbPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db");
+                        var walPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db-wal");
+
+                        if (global::System.IO.File.Exists(dbPath))
+                        {
+                            zip.CreateEntryFromFile(dbPath, "leecharr.db");
+                        }
+
+                        if (global::System.IO.File.Exists(walPath))
+                        {
+                            zip.CreateEntryFromFile(walPath, "leecharr.db-wal");
+                        }
                     }
                 }
 

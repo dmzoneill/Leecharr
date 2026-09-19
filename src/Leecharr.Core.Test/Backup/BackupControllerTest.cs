@@ -155,7 +155,7 @@ public class BackupControllerTest
         var result = await this.controller.Restore(new RestoreBackupRequest { BackupId = 1 });
         result.Should().BeOfType<OkObjectResult>();
 
-        var restoredDb = Path.Combine(this.testTempDir, "leecharr.db");
+        var restoredDb = Path.Combine(this.testTempDir, "leecharr.db.restore");
         var restoredConfig = Path.Combine(this.testTempDir, "config.xml");
 
         File.Exists(restoredDb).Should().BeTrue();
@@ -183,7 +183,7 @@ public class BackupControllerTest
         var result = await this.controller.Restore(new RestoreBackupRequest { FileName = fileName });
         result.Should().BeOfType<OkObjectResult>();
 
-        var restoredDb = Path.Combine(this.testTempDir, "leecharr.db");
+        var restoredDb = Path.Combine(this.testTempDir, "leecharr.db.restore");
         using (var conn = new SqliteConnection($"Data Source={restoredDb}"))
         {
             conn.Open();
@@ -205,7 +205,7 @@ public class BackupControllerTest
         var result = await this.controller.Restore(new RestoreBackupRequest { Path = zipPath });
         result.Should().BeOfType<OkObjectResult>();
 
-        var restoredDb = Path.Combine(this.testTempDir, "leecharr.db");
+        var restoredDb = Path.Combine(this.testTempDir, "leecharr.db.restore");
         using (var conn = new SqliteConnection($"Data Source={restoredDb}"))
         {
             conn.Open();
@@ -510,10 +510,11 @@ public class BackupControllerTest
         var result = await this.controller.Restore(new RestoreBackupRequest { BackupId = 1 });
         result.Should().BeOfType<OkObjectResult>();
 
-        File.Exists(walPath).Should().BeFalse("Stale WAL file must be deleted before extracting restored DB");
-        File.Exists(shmPath).Should().BeFalse("Stale SHM file must be deleted before extracting restored DB");
+        File.Exists(walPath).Should().BeTrue("Live WAL file must not be deleted during active process execution");
+        File.Exists(shmPath).Should().BeTrue("Live SHM file must not be deleted during active process execution");
 
-        var restoredDb = Path.Combine(this.testTempDir, "leecharr.db");
+        var restoredDb = Path.Combine(this.testTempDir, "leecharr.db.restore");
+        File.Exists(restoredDb).Should().BeTrue();
         using (var conn = new SqliteConnection($"Data Source={restoredDb}"))
         {
             conn.Open();
@@ -556,12 +557,15 @@ public class BackupControllerTest
         var restoreResult = await this.controller.Restore(new RestoreBackupRequest { BackupId = 1 });
         restoreResult.Should().BeOfType<OkObjectResult>();
 
-        // 4. Verify stale WAL and SHM were deleted
-        File.Exists(walPath).Should().BeFalse("Stale WAL should be purged on restore");
-        File.Exists(shmPath).Should().BeFalse("Stale SHM should be purged on restore");
+        // 4. Verify live WAL and SHM are preserved at runtime and restore is staged to leecharr.db.restore
+        File.Exists(walPath).Should().BeTrue("Live WAL should not be purged during runtime restore");
+        File.Exists(shmPath).Should().BeTrue("Live SHM should not be purged during runtime restore");
 
-        // 5. Verify restored database opens cleanly and passes integrity check
-        using (var conn = new SqliteConnection($"Data Source={dbPath}"))
+        var restoreDbPath = Path.Combine(this.testTempDir, "leecharr.db.restore");
+        File.Exists(restoreDbPath).Should().BeTrue("Restore should stage to leecharr.db.restore");
+
+        // 5. Verify staged restore database opens cleanly and passes integrity check
+        using (var conn = new SqliteConnection($"Data Source={restoreDbPath}"))
         {
             conn.Open();
             using var cmd = conn.CreateCommand();
@@ -613,7 +617,7 @@ public class BackupControllerTest
         var result = await this.controller.Restore(new RestoreBackupRequest { Path = zipPath });
         result.Should().BeOfType<OkObjectResult>();
 
-        var restoredDb = Path.Combine(this.testTempDir, "leecharr.db");
+        var restoredDb = Path.Combine(this.testTempDir, "leecharr.db.restore");
         using (var conn = new SqliteConnection($"Data Source={restoredDb}"))
         {
             conn.Open();
