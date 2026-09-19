@@ -2172,4 +2172,134 @@ public class TorrentServiceTest
         insertedTorrent.InfoHash.Should().Be(v1Hash);
         insertedTorrent.V2InfoHash.Should().Be(v2Hash);
     }
+
+    [Test]
+    public void Get_WhenTorrentIsSeedingAndRatioReached_DoesNotPublishRatioReachedOrSeedGoalReachedEvents()
+    {
+        var torrent = new Torrent
+        {
+            Id = 401,
+            Name = "Seeding ISO",
+            Status = TorrentStatus.Seeding,
+            Progress = 1.0,
+            Downloaded = 1_000_000,
+            Uploaded = 2_000_000,
+            TargetRatio = 1.5,
+            DateCompleted = DateTime.UtcNow.AddHours(-1),
+        };
+
+        var task = Substitute.For<IDownloadTask>();
+        task.Status.Returns(TorrentStatus.Seeding);
+        task.Progress.Returns(1.0);
+        task.DownloadedBytes.Returns(1_000_000);
+        task.UploadedBytes.Returns(2_000_000);
+        task.DownloadSpeed.Returns(0);
+        task.UploadSpeed.Returns(1000);
+
+        this.torrentRepository.Get(401).Returns(torrent);
+        this.downloadEngine.GetTask(401).Returns(task);
+
+        var result = this.service.Get(401);
+
+        result.Should().NotBeNull();
+        result.Ratio.Should().Be(2.0);
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentRatioReachedEvent>());
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentSeedGoalReachedEvent>());
+    }
+
+    [Test]
+    public void GetAll_WhenTorrentIsSeedingAndRatioReached_DoesNotPublishRatioReachedOrSeedGoalReachedEvents()
+    {
+        var torrent = new Torrent
+        {
+            Id = 402,
+            Name = "Seeding ISO 2",
+            Status = TorrentStatus.Seeding,
+            Progress = 1.0,
+            Downloaded = 1_000_000,
+            Uploaded = 3_000_000,
+            TargetRatio = 2.0,
+            QueuePosition = 1,
+            DateCompleted = DateTime.UtcNow.AddHours(-1),
+        };
+
+        var task = Substitute.For<IDownloadTask>();
+        task.Status.Returns(TorrentStatus.Seeding);
+        task.Progress.Returns(1.0);
+        task.DownloadedBytes.Returns(1_000_000);
+        task.UploadedBytes.Returns(3_000_000);
+        task.DownloadSpeed.Returns(0);
+        task.UploadSpeed.Returns(1000);
+
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+        this.downloadEngine.GetTask(402).Returns(task);
+
+        var results = this.service.GetAll().ToList();
+
+        results.Should().HaveCount(1);
+        results[0].Ratio.Should().Be(3.0);
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentRatioReachedEvent>());
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentSeedGoalReachedEvent>());
+    }
+
+    [Test]
+    public void Get_WhenTorrentIsStalled_DoesNotPublishTorrentStalledEvent()
+    {
+        var torrent = new Torrent
+        {
+            Id = 403,
+            Name = "Stalled ISO",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            Downloaded = 500_000,
+            TotalSize = 1_000_000,
+            DateAdded = DateTime.UtcNow.AddMinutes(-30),
+        };
+
+        var task = Substitute.For<IDownloadTask>();
+        task.Status.Returns(TorrentStatus.Downloading);
+        task.Progress.Returns(0.5);
+        task.DownloadedBytes.Returns(500_000);
+        task.DownloadSpeed.Returns(0);
+        task.UploadSpeed.Returns(0);
+
+        this.torrentRepository.Get(403).Returns(torrent);
+        this.downloadEngine.GetTask(403).Returns(task);
+
+        var result = this.service.Get(403);
+
+        result.Should().NotBeNull();
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentStalledEvent>());
+    }
+
+    [Test]
+    public void GetAll_WhenTorrentIsStalled_DoesNotPublishTorrentStalledEvent()
+    {
+        var torrent = new Torrent
+        {
+            Id = 404,
+            Name = "Stalled ISO 2",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.3,
+            Downloaded = 300_000,
+            TotalSize = 1_000_000,
+            QueuePosition = 1,
+            DateAdded = DateTime.UtcNow.AddMinutes(-30),
+        };
+
+        var task = Substitute.For<IDownloadTask>();
+        task.Status.Returns(TorrentStatus.Downloading);
+        task.Progress.Returns(0.3);
+        task.DownloadedBytes.Returns(300_000);
+        task.DownloadSpeed.Returns(0);
+        task.UploadSpeed.Returns(0);
+
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+        this.downloadEngine.GetTask(404).Returns(task);
+
+        var results = this.service.GetAll().ToList();
+
+        results.Should().HaveCount(1);
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentStalledEvent>());
+    }
 }
