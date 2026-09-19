@@ -1068,14 +1068,14 @@ public class QBittorrentApiControllerTest
         torrent1.UploadLimit.Should().Be(512);
         torrent2.UploadLimit.Should().Be(512);
 
-        await this.controller.SetShareLimits("all", ratioLimit: 2.0, seedingTimeLimit: 7200, maxRatioAction: 1);
+        await this.controller.SetShareLimits("all", ratioLimit: 2.0, seedingTimeLimit: 120, maxRatioAction: 1);
         torrent1.TargetRatio.Should().Be(2.0);
         torrent1.TargetSeedTimeMinutes.Should().Be(120);
         torrent1.ShareLimitAction.Should().Be("Remove");
     }
 
     [Test]
-    public void GetTorrentList_ReturnsSeedingTimeLimitInSeconds()
+    public void GetTorrentList_ReturnsSeedingTimeLimitInMinutes()
     {
         var torrent = new Torrent
         {
@@ -1091,8 +1091,8 @@ public class QBittorrentApiControllerTest
         var list = okResult.Value.Should().BeAssignableTo<IEnumerable<Dictionary<string, object>>>().Subject.ToList();
 
         list.Should().HaveCount(1);
-        list[0]["seeding_time_limit"].Should().Be(3600);
-        list[0]["max_seeding_time"].Should().Be(3600);
+        list[0]["seeding_time_limit"].Should().Be(60);
+        list[0]["max_seeding_time"].Should().Be(60);
     }
 
     [Test]
@@ -3643,5 +3643,37 @@ public class QBittorrentApiControllerTest
         this.controller.ControllerContext = new ControllerContext { HttpContext = session1Context };
         var resSession1Next = ((OkObjectResult)this.controller.GetMainData(2).Result!).Value as Dictionary<string, object>;
         resSession1Next!["rid"].Should().Be(3);
+    }
+
+    [Test]
+    public async Task SetShareLimits_And_GetTorrentsInfo_OperateSeedingTimeLimitNativelyInMinutes()
+    {
+        var torrent = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", TargetSeedTimeMinutes = 0 };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent);
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var setRes = await this.controller.SetShareLimits("hash1", seedingTimeLimit: 120);
+        setRes.Should().BeOfType<ContentResult>();
+        torrent.TargetSeedTimeMinutes.Should().Be(120);
+
+        var infoRes = this.controller.GetTorrentsInfo();
+        var okResult = infoRes.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var list = okResult.Value.Should().BeAssignableTo<IEnumerable<Dictionary<string, object>>>().Subject.ToList();
+
+        list.Should().HaveCount(1);
+        list[0]["seeding_time_limit"].Should().Be(120);
+        list[0]["max_seeding_time"].Should().Be(120);
+
+        var newTorrent = new Torrent { Id = 2, InfoHash = "hash2", Name = "T2" };
+        this.torrentService.AddFromMagnetAsync("magnet:?xt=urn:btih:hash2", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(newTorrent);
+
+        await this.controller.AddTorrents(new QBitAddTorrentsRequest
+        {
+            Urls = "magnet:?xt=urn:btih:hash2",
+            SeedingTimeLimit = 120,
+        });
+
+        newTorrent.TargetSeedTimeMinutes.Should().Be(120);
     }
 }
