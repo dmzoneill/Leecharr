@@ -1128,4 +1128,37 @@ public class PiecePickerTest
     }
 
     #endregion
+
+    [Test]
+    public void MarkBlockReceived_TracksContributingPeers_AndReturnsThemOnCorrupt()
+    {
+        // 2 pieces, pieceLength 32768 (2 blocks per piece)
+        var picker = new PiecePicker(2, 32768, 65536);
+
+        picker.MarkBlockReceived(0, 0, 16384, "peer-1", out _);
+        picker.MarkBlockReceived(0, 16384, 16384, "peer-2", out _);
+
+        var contributors = picker.GetContributingPeers(0);
+        contributors.Should().BeEquivalentTo(new[] { "peer-1", "peer-2" });
+
+        var corruptContributors = picker.MarkPieceCorrupt(0);
+        corruptContributors.Should().BeEquivalentTo(new[] { "peer-1", "peer-2" });
+
+        picker.GetContributingPeers(0).Should().BeEmpty();
+    }
+
+    [Test]
+    public void MarkPieceVerified_ClearsContributingPeers()
+    {
+        var picker = new PiecePicker(2, 32768, 65536);
+
+        picker.MarkBlockReceived(0, 0, 16384, "peer-alpha", out _);
+        picker.MarkBlockReceived(0, 16384, 16384, "peer-alpha", out _);
+
+        picker.GetContributingPeers(0).Should().ContainSingle().Which.Should().Be("peer-alpha");
+
+        picker.MarkPieceVerified(0);
+
+        picker.GetContributingPeers(0).Should().BeEmpty();
+    }
 }

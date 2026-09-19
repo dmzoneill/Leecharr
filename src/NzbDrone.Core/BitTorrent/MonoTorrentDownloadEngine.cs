@@ -3519,15 +3519,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     var peers = await task.Manager.GetPeersAsync().ConfigureAwait(false);
                     foreach (var peer in peers)
                     {
-                        try
-                        {
-                            (peer as IDisposable)?.Dispose();
-                            var connProp = peer?.GetType().GetProperty("Connection", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                            (connProp?.GetValue(peer) as IDisposable)?.Dispose();
-                        }
-                        catch
-                        {
-                        }
+                        MonoTorrentDownloadTask.TeardownPeerConnection(peer);
                     }
                 }
                 catch (Exception ex)
@@ -3609,15 +3601,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         var peers = await task.Manager.GetPeersAsync().ConfigureAwait(false);
                         foreach (var peer in peers)
                         {
-                            try
-                            {
-                                (peer as IDisposable)?.Dispose();
-                                var connProp = peer?.GetType().GetProperty("Connection", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                                (connProp?.GetValue(peer) as IDisposable)?.Dispose();
-                            }
-                            catch
-                            {
-                            }
+                            MonoTorrentDownloadTask.TeardownPeerConnection(peer);
                         }
 
                         if (this.engine?.DiskManager != null)
@@ -5197,6 +5181,48 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             },
         };
     }
+
+    public void BanPeer(string peerIp, string reason = "Hash check failed", string infoHash = "")
+    {
+        if (string.IsNullOrWhiteSpace(peerIp))
+        {
+            return;
+        }
+
+        if (peerIp.Contains(':') && !peerIp.Contains("::"))
+        {
+            peerIp = peerIp.Split(':')[0];
+        }
+
+        if (this.blocklistService != null)
+        {
+            try
+            {
+                _ = this.blocklistService.AddRulesAsync(new[] { peerIp });
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Failed to add banned peer {0} to blocklist", peerIp);
+            }
+        }
+
+        if (!string.IsNullOrEmpty(infoHash) && this.infoHashToId.TryGetValue(infoHash, out var torrentId) && this.tasks.TryGetValue(torrentId, out var task))
+        {
+            try
+            {
+                _ = task.DisconnectPeerAsync(peerIp);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Failed to disconnect banned peer {0}", peerIp);
+            }
+        }
+
+        var bannedEvent = new PeerBannedEvent(peerIp, reason, infoHash);
+        this.eventAggregator?.PublishEvent(bannedEvent);
+
+        this.logger.Warn("Peer {0} banned: {1}", peerIp, reason);
+    }
 }
 
 public class MonoTorrentDownloadTask : IDownloadTask
@@ -5425,13 +5451,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
                     this.eventAggregator?.PublishEvent(blockedEvent);
                 }
 
-                try
-                {
-                    (e.Peer as IDisposable)?.Dispose();
-                }
-                catch
-                {
-                }
+                TeardownPeerConnection(e.Peer);
 
                 return;
             }
@@ -5513,6 +5533,30 @@ public class MonoTorrentDownloadTask : IDownloadTask
         }
     }
 
+    internal static void TeardownPeerConnection(object peer)
+    {
+        if (peer == null)
+        {
+            return;
+        }
+
+        try
+        {
+            (peer as IDisposable)?.Dispose();
+            peer.GetType().GetMethod("Dispose", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)?.Invoke(peer, null);
+            var connProp = peer.GetType().GetProperty("Connection", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            (connProp?.GetValue(peer) as IDisposable)?.Dispose();
+        }
+        catch
+        {
+        }
+    }
+
+    private readonly ConcurrentDictionary<string, int> peerHashFails = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, byte> bannedPeers = new(StringComparer.OrdinalIgnoreCase);
+
+    public const int DefaultMaxHashFailsBeforeBan = 3;
+
     private void OnPieceHashed(object sender, PieceHashedEventArgs e)
     {
         try
@@ -5527,7 +5571,8 @@ public class MonoTorrentDownloadTask : IDownloadTask
                 }
                 else
                 {
-                    this.Picker.MarkPieceCorrupt(e.PieceIndex);
+                    var contributors = this.Picker.MarkPieceCorrupt(e.PieceIndex);
+                    this.HandleCorruptPiece(contributors);
                 }
             }
         }
@@ -5535,6 +5580,106 @@ public class MonoTorrentDownloadTask : IDownloadTask
         {
             this.logger.Error(ex, "Error in task OnPieceHashed for torrent {0}", this.TorrentId);
         }
+    }
+
+    public void HandleCorruptPiece(IEnumerable<string> contributors)
+    {
+        if (contributors == null)
+        {
+            return;
+        }
+
+        var threshold = this.configService?.GetValueInt("MaxHashFailsBeforeBan", DefaultMaxHashFailsBeforeBan) ?? DefaultMaxHashFailsBeforeBan;
+        if (threshold <= 0)
+        {
+            threshold = DefaultMaxHashFailsBeforeBan;
+        }
+
+        foreach (var contributor in contributors)
+        {
+            if (string.IsNullOrWhiteSpace(contributor))
+            {
+                continue;
+            }
+
+            var failCount = this.peerHashFails.AddOrUpdate(contributor, 1, (_, count) => count + 1);
+            if (failCount >= threshold && this.bannedPeers.TryAdd(contributor, 0))
+            {
+                this.BanPeer(contributor);
+            }
+        }
+    }
+
+    public void BanPeer(string peerIdentifier)
+    {
+        if (string.IsNullOrWhiteSpace(peerIdentifier))
+        {
+            return;
+        }
+
+        var peerIp = peerIdentifier;
+        if (peerIdentifier.Contains(':') && !peerIdentifier.Contains("::"))
+        {
+            peerIp = peerIdentifier.Split(':')[0];
+        }
+
+        if (this.blocklistService != null)
+        {
+            try
+            {
+                _ = this.blocklistService.AddRulesAsync(new[] { peerIp });
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Failed to add banned peer {0} to blocklist", peerIp);
+            }
+        }
+
+        try
+        {
+            _ = this.DisconnectPeerAsync(peerIp);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Failed to disconnect banned peer {0}", peerIp);
+        }
+
+        this.onPeerBlocked?.Invoke();
+
+        var bannedEvent = new PeerBannedEvent(peerIp, "Hash check failed", this.InfoHash ?? string.Empty);
+        this.eventAggregator?.PublishEvent(bannedEvent);
+
+        this.logger.Warn("Peer {0} banned for torrent {1}: repeated hash failures", peerIp, this.TorrentId);
+    }
+
+    public int GetPeerHashFailCount(string peerIdentifier)
+    {
+        if (string.IsNullOrWhiteSpace(peerIdentifier))
+        {
+            return 0;
+        }
+
+        return this.peerHashFails.TryGetValue(peerIdentifier, out var count) ? count : 0;
+    }
+
+    public bool IsPeerBanned(string peerIdentifier)
+    {
+        if (string.IsNullOrWhiteSpace(peerIdentifier))
+        {
+            return false;
+        }
+
+        return this.bannedPeers.ContainsKey(peerIdentifier);
+    }
+
+    public bool RecordBlockReceived(int pieceIndex, int blockOffset, int length, string receivedFromPeerId = null)
+    {
+        if (this.Picker == null)
+        {
+            return false;
+        }
+
+        return this.Picker.MarkBlockReceived(pieceIndex, blockOffset, length, receivedFromPeerId, out _);
     }
 
     private volatile bool isQueuedForRecheck;
@@ -6221,15 +6366,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
                 if (string.Equals(peer.Uri?.Host, ip, StringComparison.OrdinalIgnoreCase))
                 {
                     matched = true;
-                    try
-                    {
-                        (peer as IDisposable)?.Dispose();
-                        var connProp = peer?.GetType().GetProperty("Connection", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                        (connProp?.GetValue(peer) as IDisposable)?.Dispose();
-                    }
-                    catch
-                    {
-                    }
+                    TeardownPeerConnection(peer);
                 }
             }
 

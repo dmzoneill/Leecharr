@@ -8,6 +8,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -29,6 +30,7 @@ using NzbDrone.Core.Network;
 using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Network.PortMapping;
 using NzbDrone.Core.Network.Vpn;
+using NzbDrone.Core.Peers;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
 using CoreTorrent = NzbDrone.Core.Torrents.Torrent;
@@ -5609,5 +5611,188 @@ public class MonoTorrentDownloadEngineTest
         var socketEx = ex.Which.InnerException as SocketException;
         socketEx.Should().NotBeNull();
         socketEx!.SocketErrorCode.Should().Be(SocketError.AccessDenied);
+    }
+
+    private static PeerId CreateMockPeerId(string ip, int port, IDisposable connection)
+    {
+        var peerInfo = new MonoTorrent.PeerInfo(new Uri($"ipv4://{ip}:{port}"));
+        var peerType = typeof(PeerId).Assembly.GetType("MonoTorrent.Client.Peer")!;
+        var mtPeer = RuntimeHelpers.GetUninitializedObject(peerType);
+        peerType.GetField("<Info>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)
+            ?.SetValue(mtPeer, peerInfo);
+        var peer = (PeerId)RuntimeHelpers.GetUninitializedObject(typeof(PeerId));
+        typeof(PeerId).GetField("<Peer>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(peer, mtPeer);
+        typeof(PeerId).GetField("<Connection>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(peer, connection);
+        return peer;
+    }
+
+    [Test]
+    public void MonoTorrentDownloadTask_OnPeerConnected_WhenPeerBlocklisted_ClosesConnectionAndDisposesUnderlyingConnection()
+    {
+        var mockBlocklist = Substitute.For<IBlocklistService>();
+        mockBlocklist.IsIpBlocked("203.0.113.10").Returns(true);
+
+        var mockEventAggregator = Substitute.For<IEventAggregator>();
+        var task = new MonoTorrentDownloadTask(
+            1,
+            "test-infohash",
+            null,
+            blocklistService: mockBlocklist,
+            eventAggregator: mockEventAggregator);
+
+        var mockConn = Substitute.For<MonoTorrent.Connections.Peer.IPeerConnection, IDisposable>();
+        var peer = CreateMockPeerId("203.0.113.10", 5000, mockConn);
+
+        var args = (PeerConnectedEventArgs)RuntimeHelpers.GetUninitializedObject(typeof(PeerConnectedEventArgs));
+        typeof(PeerConnectedEventArgs).GetField("<Peer>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)
+            ?.SetValue(args, peer);
+
+        var onPeerConnectedMethod = typeof(MonoTorrentDownloadTask).GetMethod("OnPeerConnected", BindingFlags.NonPublic | BindingFlags.Instance);
+        onPeerConnectedMethod.Should().NotBeNull();
+        onPeerConnectedMethod!.Invoke(task, new object[] { null!, args });
+
+        ((IDisposable)mockConn).Received(1).Dispose();
+        mockEventAggregator.Received(1).PublishEvent(Arg.Is<PeerConnectionEvent>(e =>
+            e.RemoteIp == "203.0.113.10" &&
+            e.EventType == "Blocked"));
+    }
+
+    [Test]
+    public void MonoTorrentDownloadTask_OnPeerConnected_WhenPeerAllowed_DoesNotDisposeConnection()
+    {
+        var mockBlocklist = Substitute.For<IBlocklistService>();
+        mockBlocklist.IsIpBlocked("203.0.113.11").Returns(false);
+
+        var mockEventAggregator = Substitute.For<IEventAggregator>();
+        var task = new MonoTorrentDownloadTask(
+            2,
+            "test-infohash-allowed",
+            null,
+            blocklistService: mockBlocklist,
+            eventAggregator: mockEventAggregator);
+
+        var mockConn = Substitute.For<MonoTorrent.Connections.Peer.IPeerConnection, IDisposable>();
+        var peer = CreateMockPeerId("203.0.113.11", 5000, mockConn);
+
+        var args = (PeerConnectedEventArgs)RuntimeHelpers.GetUninitializedObject(typeof(PeerConnectedEventArgs));
+        typeof(PeerConnectedEventArgs).GetField("<Peer>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)
+            ?.SetValue(args, peer);
+
+        var onPeerConnectedMethod = typeof(MonoTorrentDownloadTask).GetMethod("OnPeerConnected", BindingFlags.NonPublic | BindingFlags.Instance);
+        onPeerConnectedMethod.Should().NotBeNull();
+        onPeerConnectedMethod!.Invoke(task, new object[] { null!, args });
+
+        ((IDisposable)mockConn).DidNotReceive().Dispose();
+        mockEventAggregator.Received(1).PublishEvent(Arg.Is<PeerConnectionEvent>(e =>
+            e.RemoteIp == "203.0.113.11" &&
+            e.EventType == "Connected"));
+    }
+
+    [Test]
+    public void MonoTorrentDownloadTask_OnPieceHashed_WhenHashFailsThresholdTimes_BansPeerAndPublishesPeerBannedEvent()
+    {
+        var mockBlocklist = Substitute.For<IBlocklistService>();
+        var mockEventAggregator = Substitute.For<IEventAggregator>();
+        var picker = new PiecePicker(5, 16384, 16384 * 5);
+
+        var task = new MonoTorrentDownloadTask(
+            10,
+            "hash-ban-test",
+            null,
+            blocklistService: mockBlocklist,
+            picker: picker,
+            eventAggregator: mockEventAggregator);
+
+        var onPieceHashedMethod = typeof(MonoTorrentDownloadTask).GetMethod("OnPieceHashed", BindingFlags.NonPublic | BindingFlags.Instance);
+        onPieceHashedMethod.Should().NotBeNull();
+
+        // Piece 0 fails hash check (fail count 1)
+        task.RecordBlockReceived(0, 0, 16384, "198.51.100.1");
+        var args0 = (PieceHashedEventArgs)RuntimeHelpers.GetUninitializedObject(typeof(PieceHashedEventArgs));
+        typeof(PieceHashedEventArgs).GetField("<PieceIndex>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(args0, 0);
+        typeof(PieceHashedEventArgs).GetField("<HashPassed>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(args0, false);
+        onPieceHashedMethod!.Invoke(task, new object[] { null!, args0 });
+
+        task.GetPeerHashFailCount("198.51.100.1").Should().Be(1);
+        task.IsPeerBanned("198.51.100.1").Should().BeFalse();
+        mockEventAggregator.DidNotReceive().PublishEvent(Arg.Any<PeerBannedEvent>());
+
+        // Piece 1 fails hash check (fail count 2)
+        task.RecordBlockReceived(1, 0, 16384, "198.51.100.1");
+        var args1 = (PieceHashedEventArgs)RuntimeHelpers.GetUninitializedObject(typeof(PieceHashedEventArgs));
+        typeof(PieceHashedEventArgs).GetField("<PieceIndex>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(args1, 1);
+        typeof(PieceHashedEventArgs).GetField("<HashPassed>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(args1, false);
+        onPieceHashedMethod.Invoke(task, new object[] { null!, args1 });
+
+        task.GetPeerHashFailCount("198.51.100.1").Should().Be(2);
+        task.IsPeerBanned("198.51.100.1").Should().BeFalse();
+        mockEventAggregator.DidNotReceive().PublishEvent(Arg.Any<PeerBannedEvent>());
+
+        // Piece 2 fails hash check (fail count 3 -> threshold reached!)
+        task.RecordBlockReceived(2, 0, 16384, "198.51.100.1");
+        var args2 = (PieceHashedEventArgs)RuntimeHelpers.GetUninitializedObject(typeof(PieceHashedEventArgs));
+        typeof(PieceHashedEventArgs).GetField("<PieceIndex>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(args2, 2);
+        typeof(PieceHashedEventArgs).GetField("<HashPassed>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(args2, false);
+        onPieceHashedMethod.Invoke(task, new object[] { null!, args2 });
+
+        task.GetPeerHashFailCount("198.51.100.1").Should().Be(3);
+        task.IsPeerBanned("198.51.100.1").Should().BeTrue();
+        mockBlocklist.Received().AddRulesAsync(Arg.Is<IEnumerable<string>>(rules => rules.Contains("198.51.100.1")));
+        mockEventAggregator.Received(1).PublishEvent(Arg.Is<PeerBannedEvent>(e =>
+            e.PeerIp == "198.51.100.1" &&
+            e.Reason == "Hash check failed" &&
+            e.InfoHash == "hash-ban-test"));
+    }
+
+    [Test]
+    public void MonoTorrentDownloadTask_OnPieceHashed_WhenHashPasses_ClearsContributorsAndDoesNotBan()
+    {
+        var mockBlocklist = Substitute.For<IBlocklistService>();
+        var mockEventAggregator = Substitute.For<IEventAggregator>();
+        var picker = new PiecePicker(5, 16384, 16384 * 5);
+
+        var task = new MonoTorrentDownloadTask(
+            11,
+            "hash-pass-test",
+            null,
+            blocklistService: mockBlocklist,
+            picker: picker,
+            eventAggregator: mockEventAggregator);
+
+        var onPieceHashedMethod = typeof(MonoTorrentDownloadTask).GetMethod("OnPieceHashed", BindingFlags.NonPublic | BindingFlags.Instance);
+        onPieceHashedMethod.Should().NotBeNull();
+
+        task.RecordBlockReceived(0, 0, 16384, "198.51.100.2");
+        var args = (PieceHashedEventArgs)RuntimeHelpers.GetUninitializedObject(typeof(PieceHashedEventArgs));
+        typeof(PieceHashedEventArgs).GetField("<PieceIndex>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(args, 0);
+        typeof(PieceHashedEventArgs).GetField("<HashPassed>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(args, true);
+        onPieceHashedMethod!.Invoke(task, new object[] { null!, args });
+
+        task.GetPeerHashFailCount("198.51.100.2").Should().Be(0);
+        task.IsPeerBanned("198.51.100.2").Should().BeFalse();
+        mockEventAggregator.DidNotReceive().PublishEvent(Arg.Any<PeerBannedEvent>());
+    }
+
+    [Test]
+    public void MonoTorrentDownloadEngine_BanPeer_PublishesPeerBannedEventAndAddsToBlocklist()
+    {
+        var mockBlocklist = Substitute.For<IBlocklistService>();
+        using var testEngine = new MonoTorrentDownloadEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator,
+            blocklistService: mockBlocklist,
+            appFolderInfo: this.appFolderInfo,
+            torrentLogService: this.torrentLogService);
+
+        testEngine.BanPeer("198.51.100.55", "Hash check failed", "engine-info-hash");
+
+        mockBlocklist.Received().AddRulesAsync(Arg.Is<IEnumerable<string>>(r => r.Contains("198.51.100.55")));
+        this.eventAggregator.Received(1).PublishEvent(Arg.Is<PeerBannedEvent>(e =>
+            e.PeerIp == "198.51.100.55" &&
+            e.Reason == "Hash check failed" &&
+            e.InfoHash == "engine-info-hash"));
     }
 }
