@@ -2,6 +2,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -197,6 +199,8 @@ public class WebhookDispatcher : IWebhookDispatcher
         return false;
     }
 
+    internal static readonly TimeSpan MaxRetryAfter = TimeSpan.FromMinutes(1);
+
     internal static AsyncRetryPolicy<HttpResponseMessage> CreateRetryPolicy(
         int retryCount = 3,
         Func<int, TimeSpan> sleepDurationProvider = null,
@@ -216,7 +220,7 @@ public class WebhookDispatcher : IWebhookDispatcher
                         var retryAfter = ExtractRetryAfter(outcome.Result);
                         if (retryAfter.HasValue && retryAfter.Value > TimeSpan.Zero)
                         {
-                            return retryAfter.Value;
+                            return retryAfter.Value > MaxRetryAfter ? MaxRetryAfter : retryAfter.Value;
                         }
                     }
 
@@ -254,7 +258,7 @@ public class WebhookDispatcher : IWebhookDispatcher
             {
                 if (response.Headers.RetryAfter.Delta.HasValue)
                 {
-                    return response.Headers.RetryAfter.Delta.Value;
+                    return CapRetryAfter(response.Headers.RetryAfter.Delta.Value);
                 }
 
                 if (response.Headers.RetryAfter.Date.HasValue)
@@ -262,7 +266,7 @@ public class WebhookDispatcher : IWebhookDispatcher
                     var delta = response.Headers.RetryAfter.Date.Value - DateTimeOffset.UtcNow;
                     if (delta > TimeSpan.Zero)
                     {
-                        return delta;
+                        return CapRetryAfter(delta);
                     }
                 }
             }
@@ -272,17 +276,17 @@ public class WebhookDispatcher : IWebhookDispatcher
                 var val = retryValues.FirstOrDefault();
                 if (!string.IsNullOrWhiteSpace(val))
                 {
-                    if (double.TryParse(val, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var seconds))
+                    if (double.TryParse(val, NumberStyles.Any, CultureInfo.InvariantCulture, out var seconds))
                     {
-                        return TimeSpan.FromSeconds(seconds);
+                        return CapRetryAfter(TimeSpan.FromSeconds(seconds));
                     }
 
-                    if (DateTimeOffset.TryParse(val, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var date))
+                    if (DateTimeOffset.TryParse(val, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
                     {
                         var delta = date - DateTimeOffset.UtcNow;
                         if (delta > TimeSpan.Zero)
                         {
-                            return delta;
+                            return CapRetryAfter(delta);
                         }
                     }
                 }
@@ -292,9 +296,74 @@ public class WebhookDispatcher : IWebhookDispatcher
             {
                 var val = xRetryValues.FirstOrDefault();
                 if (!string.IsNullOrWhiteSpace(val) &&
-                    double.TryParse(val, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var seconds))
+                    double.TryParse(val, NumberStyles.Any, CultureInfo.InvariantCulture, out var seconds))
                 {
-                    return TimeSpan.FromSeconds(seconds);
+                    return CapRetryAfter(TimeSpan.FromSeconds(seconds));
+                }
+            }
+
+            if (response.Content != null)
+            {
+                Stream stream = null;
+                try
+                {
+                    var s = response.Content.ReadAsStream();
+                    if (s is MemoryStream)
+                    {
+                        stream = s;
+                    }
+                }
+                catch
+                {
+                }
+
+                if (stream is MemoryStream memStream && memStream.Length > 0 && memStream.Length <= 16384)
+                {
+                    var currentPos = memStream.Position;
+                    try
+                    {
+                        memStream.Position = 0;
+                        using var reader = new StreamReader(memStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
+                        var rawBody = reader.ReadToEnd();
+                        memStream.Position = currentPos;
+
+                        if (!string.IsNullOrWhiteSpace(rawBody) && rawBody.TrimStart().StartsWith('{'))
+                        {
+                            using var doc = JsonDocument.Parse(rawBody);
+                            var root = doc.RootElement;
+
+                            if (root.TryGetProperty("parameters", out var paramsElem) &&
+                                paramsElem.ValueKind == JsonValueKind.Object &&
+                                paramsElem.TryGetProperty("retry_after", out var tgRetry))
+                            {
+                                if (tgRetry.TryGetDouble(out var s))
+                                {
+                                    return CapRetryAfter(TimeSpan.FromSeconds(s));
+                                }
+                            }
+
+                            var retryProps = new[] { "retry_after", "retryAfter", "retry_after_seconds", "retryAfterSeconds" };
+                            foreach (var prop in retryProps)
+                            {
+                                if (root.TryGetProperty(prop, out var elem))
+                                {
+                                    if (elem.ValueKind == JsonValueKind.Number && elem.TryGetDouble(out var s))
+                                    {
+                                        return CapRetryAfter(TimeSpan.FromSeconds(s));
+                                    }
+
+                                    if (elem.ValueKind == JsonValueKind.String && double.TryParse(elem.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var sParsed))
+                                    {
+                                        return CapRetryAfter(TimeSpan.FromSeconds(sParsed));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        memStream.Position = currentPos;
+                    }
                 }
             }
         }
@@ -303,6 +372,16 @@ public class WebhookDispatcher : IWebhookDispatcher
         }
 
         return null;
+    }
+
+    private static TimeSpan? CapRetryAfter(TimeSpan delay)
+    {
+        if (delay <= TimeSpan.Zero)
+        {
+            return null;
+        }
+
+        return delay > MaxRetryAfter ? MaxRetryAfter : delay;
     }
 
     public async Task<bool> DispatchAsync(string targetUrl, object payload, string customHeadersJson = null, CancellationToken cancellationToken = default)
