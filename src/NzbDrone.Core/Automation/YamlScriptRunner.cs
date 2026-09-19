@@ -161,7 +161,7 @@ public class YamlScriptRunner : IScriptRunner
             variableContext["system.vpnActive"] = true;
             variableContext["system.isPortForwarded"] = true;
 
-            var httpClient = new ScriptHttpContext();
+            using var httpClient = new ScriptHttpContext();
 
             // Run steps sequentially
             foreach (var step in parsedYaml.Steps)
