@@ -1,11 +1,11 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Notifications;
 
@@ -13,6 +13,7 @@ namespace Leecharr.Api.V1.Notifications;
 
 [V1ApiController("notifications")]
 [Route("api/v1/notification")]
+[Authorize(Policy = "RequireAdmin")]
 public class NotificationController : Controller
 {
     private readonly INotificationRepository notificationRepository;

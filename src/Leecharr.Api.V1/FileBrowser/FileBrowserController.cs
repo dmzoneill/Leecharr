@@ -5,6 +5,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.FileBrowser;
 
@@ -48,6 +49,7 @@ public class FileBrowserTransferRequest
 }
 
 [V1ApiController("files")]
+[Authorize(Policy = "RequireAdmin")]
 public class FileBrowserController : Controller
 {
     private readonly IFileBrowserService fileBrowserService;

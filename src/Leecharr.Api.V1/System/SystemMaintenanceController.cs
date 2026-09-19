@@ -1,9 +1,9 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.Threading.Tasks;
 using Dapper;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.Datastore;
@@ -11,6 +11,7 @@ using NzbDrone.Core.Datastore;
 namespace Leecharr.Api.V1.System;
 
 [V1ApiController("system/maintenance")]
+[Authorize(Policy = "RequireAdmin")]
 public class SystemMaintenanceController : ControllerBase
 {
     private readonly IDatabase database;

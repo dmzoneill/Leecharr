@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Leecharr.Http;
 using Leecharr.Http.REST;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Categories;
 using NzbDrone.SignalR;
@@ -13,6 +14,7 @@ namespace Leecharr.Api.V1.Categories;
 
 [V1ApiController("categories")]
 [Route("api/v1/category")]
+[Authorize(Policy = "RequireOperator")]
 public class CategoryController : RestControllerWithSignalR<CategoryResource, Category>
 {
     private readonly ICategoryService categoryService;
