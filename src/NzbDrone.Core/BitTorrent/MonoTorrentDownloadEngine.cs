@@ -520,7 +520,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 : this.configService.BindInterface,
             this.blocklistService,
             () => Interlocked.Increment(ref this.blockedPeersCount),
-            this.configService));
+            this.configService,
+            () => this.isHaltedByKillSwitch || (this.vpnKillSwitchService != null && this.vpnKillSwitchService.IsFailClosedActive)));
 
         lock (this.activePeerListeners)
         {
@@ -3791,7 +3792,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         : this.configService.BindInterface,
                     this.blocklistService,
                     () => Interlocked.Increment(ref this.blockedPeersCount),
-                    this.configService);
+                    this.configService,
+                    () => this.isHaltedByKillSwitch || (this.vpnKillSwitchService != null && this.vpnKillSwitchService.IsFailClosedActive));
 
                 var host = context.DnsEndPoint.Host;
                 var hostStr = host.Contains(':') && !host.StartsWith('[') ? $"[{host}]" : host;
@@ -6525,6 +6527,7 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
     private readonly IBlocklistService blocklistService;
     private readonly Action onPeerBlocked;
     private readonly IConfigService configService;
+    private readonly Func<bool> isKillSwitchActive;
 
     public BoundSocketConnector(
         IPAddress localIpv4,
@@ -6533,8 +6536,9 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
         Func<string> getInterfaceName = null,
         IBlocklistService blocklistService = null,
         Action onPeerBlocked = null,
-        IConfigService configService = null)
-        : this(() => localIpv4, () => localIpv6, networkBindingService, getInterfaceName, blocklistService, onPeerBlocked, configService)
+        IConfigService configService = null,
+        Func<bool> isKillSwitchActive = null)
+        : this(() => localIpv4, () => localIpv6, networkBindingService, getInterfaceName, blocklistService, onPeerBlocked, configService, isKillSwitchActive)
     {
     }
 
@@ -6545,7 +6549,8 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
         Func<string> getInterfaceName = null,
         IBlocklistService blocklistService = null,
         Action onPeerBlocked = null,
-        IConfigService configService = null)
+        IConfigService configService = null,
+        Func<bool> isKillSwitchActive = null)
     {
         this.getLocalIpv4 = getLocalIpv4 ?? (() => IPAddress.Any);
         this.getLocalIpv6 = getLocalIpv6 ?? (() => IPAddress.IPv6Any);
@@ -6554,6 +6559,7 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
         this.blocklistService = blocklistService;
         this.onPeerBlocked = onPeerBlocked;
         this.configService = configService;
+        this.isKillSwitchActive = isKillSwitchActive;
     }
 
     public Socket CreateDatagramSocket(AddressFamily addressFamily = AddressFamily.InterNetwork, int localPort = 0)
@@ -6654,6 +6660,11 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
     {
         ArgumentNullException.ThrowIfNull(uri);
 
+        if (this.isKillSwitchActive != null && this.isKillSwitchActive())
+        {
+            throw new SocketException((int)SocketError.NetworkUnreachable);
+        }
+
         if (this.blocklistService != null && !string.IsNullOrWhiteSpace(uri.Host) && this.blocklistService.IsIpBlocked(uri.Host))
         {
             this.onPeerBlocked?.Invoke();
@@ -6686,6 +6697,14 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
             return await fallbackProxy.ConnectTunnelAsync(uri.Host, uri.Port, token).ConfigureAwait(false);
         }
 
+        var ifaceName = this.getInterfaceName?.Invoke();
+        var hasSpecificInterface = !string.IsNullOrWhiteSpace(ifaceName) &&
+            !string.Equals(ifaceName, "Any", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(ifaceName, "all", StringComparison.OrdinalIgnoreCase);
+
+        var localV4 = this.getLocalIpv4();
+        var localV6 = this.getLocalIpv6();
+
         IPAddress[] addresses;
         if (IPAddress.TryParse(uri.Host, out var parsedIp))
         {
@@ -6693,6 +6712,26 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
         }
         else
         {
+            if (this.isKillSwitchActive != null && this.isKillSwitchActive())
+            {
+                throw new SocketException((int)SocketError.NetworkUnreachable);
+            }
+
+            if (hasSpecificInterface && this.networkBindingService != null && !this.networkBindingService.IsInterfaceUp(ifaceName))
+            {
+                throw new SocketException((int)SocketError.NetworkUnreachable);
+            }
+
+            if (hasSpecificInterface && localV4 == null && localV6 == null)
+            {
+                throw new SocketException((int)SocketError.NetworkUnreachable);
+            }
+
+            if (localV4 == null && localV6 == null)
+            {
+                throw new SocketException((int)SocketError.NetworkUnreachable);
+            }
+
             addresses = await Dns.GetHostAddressesAsync(uri.Host, token).ConfigureAwait(false);
         }
 
@@ -6701,10 +6740,6 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
             this.onPeerBlocked?.Invoke();
             throw new SocketException((int)SocketError.AccessDenied);
         }
-
-        var localV4 = this.getLocalIpv4();
-        var localV6 = this.getLocalIpv6();
-        var ifaceName = this.getInterfaceName?.Invoke();
 
         Exception lastException = null;
         var socketType = isDatagram ? SocketType.Dgram : SocketType.Stream;

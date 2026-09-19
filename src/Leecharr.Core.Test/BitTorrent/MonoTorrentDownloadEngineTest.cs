@@ -2990,6 +2990,64 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task BoundSocketConnector_ConnectAsync_WhenInterfaceDown_ThrowsNetworkUnreachableBeforeDns()
+    {
+        var mockBindingService = Substitute.For<NzbDrone.Core.Network.Binding.INetworkBindingService>();
+        mockBindingService.IsInterfaceUp("tun0").Returns(false);
+
+        var connector = new BoundSocketConnector(
+            () => IPAddress.Parse("10.0.0.2"),
+            () => null,
+            networkBindingService: mockBindingService,
+            getInterfaceName: () => "tun0");
+
+        var act = async () => await connector.ConnectAsync(new Uri("http://tracker.unreachable-domain-should-not-resolve.invalid:1234"), CancellationToken.None);
+
+        await act.Should().ThrowAsync<System.Net.Sockets.SocketException>()
+            .Where(e => e.SocketErrorCode == System.Net.Sockets.SocketError.NetworkUnreachable);
+
+        mockBindingService.Received(1).IsInterfaceUp("tun0");
+    }
+
+    [Test]
+    public async Task BoundSocketConnector_ConnectAsync_WhenKillSwitchActive_ThrowsNetworkUnreachableBeforeDns()
+    {
+        var mockBindingService = Substitute.For<NzbDrone.Core.Network.Binding.INetworkBindingService>();
+
+        var connector = new BoundSocketConnector(
+            () => IPAddress.Parse("10.0.0.2"),
+            () => null,
+            networkBindingService: mockBindingService,
+            getInterfaceName: () => "tun0",
+            isKillSwitchActive: () => true);
+
+        var act = async () => await connector.ConnectAsync(new Uri("http://tracker.unreachable-domain-should-not-resolve.invalid:1234"), CancellationToken.None);
+
+        await act.Should().ThrowAsync<System.Net.Sockets.SocketException>()
+            .Where(e => e.SocketErrorCode == System.Net.Sockets.SocketError.NetworkUnreachable);
+
+        mockBindingService.DidNotReceive().IsInterfaceUp(Arg.Any<string>());
+    }
+
+    [Test]
+    public async Task BoundSocketConnector_ConnectAsync_WhenBoundInterfaceHasNoValidLocalIps_ThrowsNetworkUnreachableBeforeDns()
+    {
+        var mockBindingService = Substitute.For<NzbDrone.Core.Network.Binding.INetworkBindingService>();
+        mockBindingService.IsInterfaceUp("tun0").Returns(true);
+
+        var connector = new BoundSocketConnector(
+            () => null,
+            () => null,
+            networkBindingService: mockBindingService,
+            getInterfaceName: () => "tun0");
+
+        var act = async () => await connector.ConnectAsync(new Uri("http://tracker.unreachable-domain-should-not-resolve.invalid:1234"), CancellationToken.None);
+
+        await act.Should().ThrowAsync<System.Net.Sockets.SocketException>()
+            .Where(e => e.SocketErrorCode == System.Net.Sockets.SocketError.NetworkUnreachable);
+    }
+
+    [Test]
     public async Task BoundSocketConnector_WhenProxyTunnelActive_DelegatesToConnectTunnelAsync()
     {
         var mockProxyProvider = Substitute.For<NzbDrone.Core.Network.Binding.IProxyTunnelBindingProvider>();
