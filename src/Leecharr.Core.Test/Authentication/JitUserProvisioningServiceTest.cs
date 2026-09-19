@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NLog;
+using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Authentication;
 
@@ -252,6 +253,136 @@ public class JitUserProvisioningServiceTest
 
         Assert.That(result.Id, Is.EqualTo(88));
         Assert.That(result.AvatarUrl, Is.EqualTo("https://example.com/valid.png"));
+    }
+
+    [Test]
+    public void ProvisionOrUpdateUser_ExistingExternalUser_WhenRolesChange_RevokesSessionsAndClearsCache()
+    {
+        var sessionRepo = Substitute.For<IUserSessionRepository>();
+        var sessionCache = Substitute.For<IUserSessionCache>();
+
+        var service = new JitUserProvisioningService(
+            this.userRepository,
+            this.idpRepository,
+            this.roleMapper,
+            this.logger,
+            sessionRepo,
+            sessionCache);
+
+        var existingUser = new User
+        {
+            Id = 100,
+            Username = "roleuser",
+            ExternalProviderId = "keycloak",
+            ExternalSubjectId = "kc-sub-100",
+            Roles = "[\"User\"]",
+        };
+        this.userRepository.Insert(existingUser);
+
+        sessionRepo.FindByUserId(100).Returns(new List<UserSession>
+        {
+            new UserSession { SessionToken = "active-token-100" },
+        });
+
+        var profile = new ExternalUserProfile(
+            "keycloak",
+            "kc-sub-100",
+            "roleuser",
+            "roleuser@example.com",
+            "Role User",
+            new List<string> { "leecharr-admins" });
+
+        var result = service.ProvisionOrUpdateUser(profile);
+
+        Assert.That(result.Roles, Does.Contain("Admin"));
+        sessionRepo.Received(1).DeleteByUserId(100);
+        sessionCache.Received(1).InvalidateCache("active-token-100");
+        sessionCache.Received(1).ClearCache();
+    }
+
+    [Test]
+    public void ProvisionOrUpdateUser_ExistingExternalUser_WhenRolesDoNotChange_DoesNotRevokeSessions()
+    {
+        var sessionRepo = Substitute.For<IUserSessionRepository>();
+        var sessionCache = Substitute.For<IUserSessionCache>();
+
+        var service = new JitUserProvisioningService(
+            this.userRepository,
+            this.idpRepository,
+            this.roleMapper,
+            this.logger,
+            sessionRepo,
+            sessionCache);
+
+        var existingUser = new User
+        {
+            Id = 101,
+            Username = "roleuser2",
+            ExternalProviderId = "keycloak",
+            ExternalSubjectId = "kc-sub-101",
+            Roles = "[\"User\"]",
+        };
+        this.userRepository.Insert(existingUser);
+
+        var profile = new ExternalUserProfile(
+            "keycloak",
+            "kc-sub-101",
+            "roleuser2",
+            "roleuser2@example.com",
+            "Role User 2",
+            new List<string> { "regular-users" });
+
+        var result = service.ProvisionOrUpdateUser(profile);
+
+        Assert.That(result.Roles, Does.Contain("User"));
+        sessionRepo.DidNotReceive().DeleteByUserId(Arg.Any<int>());
+        sessionCache.DidNotReceive().ClearCache();
+    }
+
+    [Test]
+    public void ProvisionOrUpdateUser_MatchedUser_WhenRolesChange_RevokesSessionsAndClearsCache()
+    {
+        var sessionRepo = Substitute.For<IUserSessionRepository>();
+        var sessionCache = Substitute.For<IUserSessionCache>();
+
+        var service = new JitUserProvisioningService(
+            this.userRepository,
+            this.idpRepository,
+            this.roleMapper,
+            this.logger,
+            sessionRepo,
+            sessionCache);
+
+        var matchedUser = new User
+        {
+            Id = 200,
+            Username = "matcheduser",
+            Email = "matched@example.com",
+            ExternalProviderId = "authentik",
+            ExternalSubjectId = null,
+            Roles = "[\"User\"]",
+        };
+        this.userRepository.Insert(matchedUser);
+
+        sessionRepo.FindByUserId(200).Returns(new List<UserSession>
+        {
+            new UserSession { SessionToken = "matched-token-200" },
+        });
+
+        var profile = new ExternalUserProfile(
+            "authentik",
+            "sub-auth-200",
+            "matcheduser",
+            "matched@example.com",
+            "Matched User",
+            new List<string> { "leecharr-admins" });
+
+        var result = service.ProvisionOrUpdateUser(profile);
+
+        Assert.That(result.Roles, Does.Contain("Admin"));
+        sessionRepo.Received(1).DeleteByUserId(200);
+        sessionCache.Received(1).InvalidateCache("matched-token-200");
+        sessionCache.Received(1).ClearCache();
     }
 
     private class StubClaimsRoleMappingService : IClaimsRoleMappingService

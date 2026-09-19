@@ -19,35 +19,43 @@ public interface ICookieSessionManager : IUserSessionCache
     Task ValidatePrincipal(CookieValidatePrincipalContext context);
 
     bool ValidateSession(ClaimsPrincipal principal);
+
+    void Remove(string token);
 }
 
 public class CookieSessionManager : ICookieSessionManager
 {
+    public const int DefaultMaxCacheCapacity = 5000;
+
     private static readonly ConcurrentDictionary<string, (UserSession Session, DateTime CachedAt)> SharedCache = new();
     private readonly ConcurrentDictionary<string, (UserSession Session, DateTime CachedAt)> sessionCache;
     private readonly IUserSessionRepository userSessionRepository;
     private readonly IUserRepository userRepository;
     private readonly TimeSpan cacheTtl;
+    private readonly int maxCacheCapacity;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public CookieSessionManager(
         IUserSessionRepository userSessionRepository = null,
         TimeSpan? cacheTtl = null,
         ConcurrentDictionary<string, (UserSession Session, DateTime CachedAt)> cache = null,
-        IUserRepository userRepository = null)
+        IUserRepository userRepository = null,
+        int maxCacheCapacity = DefaultMaxCacheCapacity)
     {
         this.userSessionRepository = userSessionRepository;
         this.userRepository = userRepository;
         this.cacheTtl = cacheTtl ?? TimeSpan.FromMinutes(1);
         this.sessionCache = cache ?? SharedCache;
+        this.maxCacheCapacity = maxCacheCapacity > 0 ? maxCacheCapacity : DefaultMaxCacheCapacity;
     }
 
     public CookieSessionManager(
         IUserSessionRepository userSessionRepository,
         IUserRepository userRepository,
         TimeSpan? cacheTtl = null,
-        ConcurrentDictionary<string, (UserSession Session, DateTime CachedAt)> cache = null)
-        : this(userSessionRepository, cacheTtl, cache, userRepository)
+        ConcurrentDictionary<string, (UserSession Session, DateTime CachedAt)> cache = null,
+        int maxCacheCapacity = DefaultMaxCacheCapacity)
+        : this(userSessionRepository, cacheTtl, cache, userRepository, maxCacheCapacity)
     {
     }
 
@@ -101,7 +109,7 @@ public class CookieSessionManager : ICookieSessionManager
             session = repository.FindBySessionToken(token);
             if (session != null)
             {
-                this.sessionCache[token] = (session, now);
+                this.SetCache(token, session, now);
             }
         }
 
@@ -183,14 +191,14 @@ public class CookieSessionManager : ICookieSessionManager
             context.ShouldRenew = true;
 
             await repository.UpdateExpiryAndActivityAsync(token, newExpiry, now);
-            this.sessionCache[token] = (session, now);
+            this.SetCache(token, session, now);
         }
         else if (now - session.LastActivity > TimeSpan.FromMinutes(5))
         {
             // Throttled Activity: If DateTime.UtcNow - session.LastActivity > TimeSpan.FromMinutes(5)
             session.LastActivity = now;
             await repository.UpdateLastActivityAsync(token, now);
-            this.sessionCache[token] = (session, now);
+            this.SetCache(token, session, now);
         }
     }
 
@@ -255,7 +263,7 @@ public class CookieSessionManager : ICookieSessionManager
         var session = this.userSessionRepository.FindBySessionToken(token);
         if (session != null)
         {
-            this.sessionCache[token] = (session, now);
+            this.SetCache(token, session, now);
         }
 
         if (session == null || session.IsRevoked || session.Expiry < now || session.AbsoluteExpiry < now)
@@ -303,9 +311,57 @@ public class CookieSessionManager : ICookieSessionManager
         }
     }
 
+    public void Remove(string token)
+    {
+        this.InvalidateCache(token);
+    }
+
     public void ClearCache()
     {
         this.sessionCache.Clear();
+    }
+
+    public void PruneExpired()
+    {
+        var now = DateTime.UtcNow;
+        foreach (var kvp in this.sessionCache)
+        {
+            var isTtlExpired = now - kvp.Value.CachedAt >= this.cacheTtl;
+            var isSessionExpired = kvp.Value.Session != null &&
+                                   (kvp.Value.Session.IsRevoked ||
+                                    kvp.Value.Session.Expiry < now ||
+                                    kvp.Value.Session.AbsoluteExpiry < now);
+
+            if (isTtlExpired || isSessionExpired)
+            {
+                this.sessionCache.TryRemove(kvp.Key, out _);
+            }
+        }
+    }
+
+    private void SetCache(string token, UserSession session, DateTime now)
+    {
+        if (!this.sessionCache.ContainsKey(token) && this.sessionCache.Count >= this.maxCacheCapacity)
+        {
+            this.PruneExpired();
+
+            if (this.sessionCache.Count >= this.maxCacheCapacity)
+            {
+                var excess = (this.sessionCache.Count - this.maxCacheCapacity) + 1;
+                var oldestKeys = this.sessionCache
+                    .OrderBy(kvp => kvp.Value.CachedAt)
+                    .Take(excess)
+                    .Select(kvp => kvp.Key)
+                    .ToList();
+
+                foreach (var key in oldestKeys)
+                {
+                    this.sessionCache.TryRemove(key, out _);
+                }
+            }
+        }
+
+        this.sessionCache[token] = (session, now);
     }
 
     private async Task SignOutSafelyAsync(CookieValidatePrincipalContext context)
