@@ -101,13 +101,7 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
         }
         else
         {
-            var handler = new SocketsHttpHandler
-            {
-                SslOptions = new System.Net.Security.SslClientAuthenticationOptions
-                {
-                    RemoteCertificateValidationCallback = (sender, cert, chain, sslPolicyErrors) => true,
-                },
-            };
+            var handler = new SocketsHttpHandler();
             this.httpClient = new HttpClient(handler, disposeHandler: true) { Timeout = TimeSpan.FromSeconds(15) };
         }
 
@@ -124,9 +118,9 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
     {
     }
 
-    public Task ExecuteAsync(ProwlarrSyncCommand message, CancellationToken cancellationToken = default)
+    public async Task ExecuteAsync(ProwlarrSyncCommand message, CancellationToken cancellationToken = default)
     {
-        return this.SyncAllAsync();
+        await this.SyncAllAsync();
     }
 
     public void Execute(ProwlarrSyncCommand message)
@@ -259,7 +253,7 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
             var doSyncCategories = shouldSyncCategories ?? true;
             var requestUrl = $"{baseUri}/api/v1/indexer";
 
-            var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+            using var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
             request.Headers.Add("X-Api-Key", apiKey);
 
             HttpResponseMessage response;
@@ -273,14 +267,19 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
                 throw;
             }
 
-            if (!response.IsSuccessStatusCode)
+            string json;
+            using (response)
             {
-                var msg = $"Prowlarr returned HTTP {(int)response.StatusCode} ({response.ReasonPhrase})";
-                this.logger.Warn("Failed to query Prowlarr indexers: {0}", msg);
-                throw new HttpRequestException(msg, null, response.StatusCode);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var msg = $"Prowlarr returned HTTP {(int)response.StatusCode} ({response.ReasonPhrase})";
+                    this.logger.Warn("Failed to query Prowlarr indexers: {0}", msg);
+                    throw new HttpRequestException(msg, null, response.StatusCode);
+                }
+
+                json = await response.Content.ReadAsStringAsync();
             }
 
-            var json = await response.Content.ReadAsStringAsync();
             var indexers = JsonSerializer.Deserialize<List<ProwlarrIndexerDto>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
             if (indexers == null || indexers.Count == 0)
