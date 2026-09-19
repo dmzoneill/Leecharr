@@ -220,6 +220,8 @@ public interface IConfigService
 
     int QueueStalledMinutes { get; }
 
+    int MagnetMetadataTimeoutSeconds { get; }
+
     int IdleSeedingLimitMinutes { get; }
 
     // Network & Sockets Extended
@@ -975,6 +977,8 @@ public class ConfigService : IConfigService
     public bool QueueStalledEnabled => this.GetValueBoolean("QueueStalledEnabled", true);
 
     public int QueueStalledMinutes => this.GetValueInt("QueueStalledMinutes", 30);
+
+    public int MagnetMetadataTimeoutSeconds => this.GetValueInt("MagnetMetadataTimeoutSeconds", 180);
 
     public int IdleSeedingLimitMinutes => this.GetValueInt("IdleSeedingLimitMinutes", 0);
 
