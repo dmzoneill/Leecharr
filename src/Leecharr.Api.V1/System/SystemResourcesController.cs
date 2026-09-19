@@ -1,6 +1,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.BitTorrent;
@@ -19,9 +21,10 @@ public class SystemResourcesController : ControllerBase
     }
 
     [HttpGet]
-    public ActionResult<SystemResourceTelemetrySnapshot> GetFullSnapshot()
+    public async Task<ActionResult<SystemResourceTelemetrySnapshot>> GetFullSnapshot(CancellationToken cancellationToken = default)
     {
-        return this.Ok(this.resourceService.GetFullTelemetrySnapshot());
+        var snapshot = await this.resourceService.GetFullTelemetrySnapshotAsync(cancellationToken);
+        return this.Ok(snapshot);
     }
 
     [HttpGet("host")]
@@ -37,9 +40,10 @@ public class SystemResourcesController : ControllerBase
     }
 
     [HttpGet("subsystems")]
-    public ActionResult<List<SubsystemTelemetryReport>> GetSubsystemsTelemetry()
+    public async Task<ActionResult<List<SubsystemTelemetryReport>>> GetSubsystemsTelemetry(CancellationToken cancellationToken = default)
     {
-        return this.Ok(this.resourceService.GetSubsystemTelemetry());
+        var subsystems = await this.resourceService.GetSubsystemTelemetryAsync(null, cancellationToken);
+        return this.Ok(subsystems);
     }
 
     [HttpGet("torrents")]

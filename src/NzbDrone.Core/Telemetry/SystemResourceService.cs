@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Ai;
@@ -26,7 +27,24 @@ public class SystemResourceService : ISystemResourceService
     private static readonly Process CurrentProcess = Process.GetCurrentProcess();
     private static readonly object CpuLock = new();
     private static readonly object DriveLock = new();
+    private static readonly object SubsystemLock = new();
     private static readonly TimeSpan DriveCacheDuration = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan SubsystemCacheDuration = TimeSpan.FromSeconds(20);
+    private static readonly Dictionary<string, (SubsystemTelemetryReport Report, DateTime CachedAt)> SubsystemTelemetryCache = new(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly string[] KnownSubsystems =
+    [
+        "bittorrent",
+        "extractor",
+        "mediainspector",
+        "geoip",
+        "blocklist",
+        "networkbinding",
+        "mediametadata",
+        "httptransport",
+        "ai",
+    ];
+
     private static long lastSampleTimestamp = Stopwatch.GetTimestamp();
     private static TimeSpan lastTotalProcessorTime = CurrentProcess.TotalProcessorTime;
     private static double cachedCpuPercent;
@@ -121,6 +139,19 @@ public class SystemResourceService : ISystemResourceService
             lastDriveSampleTime = DateTime.MinValue;
             cachedDriveMetrics = new List<DiskMountPointMetrics>();
         }
+    }
+
+    public static void ResetSubsystemMetricsCache()
+    {
+        lock (SubsystemLock)
+        {
+            SubsystemTelemetryCache.Clear();
+        }
+    }
+
+    public static void ClearSubsystemCache()
+    {
+        ResetSubsystemMetricsCache();
     }
 
     public HostProcessResourceMetrics GetHostMetrics()
@@ -249,18 +280,151 @@ public class SystemResourceService : ISystemResourceService
         }
     }
 
+    public async Task<List<SubsystemTelemetryReport>> GetSubsystemTelemetryAsync(string subsystemId = null, CancellationToken cancellationToken = default)
+    {
+        var targetId = NormalizeSubsystemId(subsystemId);
+        var now = DateTime.UtcNow;
+
+        if (!string.IsNullOrWhiteSpace(targetId))
+        {
+            if (!KnownSubsystems.Contains(targetId, StringComparer.OrdinalIgnoreCase))
+            {
+                return new List<SubsystemTelemetryReport>();
+            }
+
+            lock (SubsystemLock)
+            {
+                if (SubsystemTelemetryCache.TryGetValue(targetId, out var cached) &&
+                    (now - cached.CachedAt) < SubsystemCacheDuration &&
+                    (now - cached.CachedAt) >= TimeSpan.Zero)
+                {
+                    return new List<SubsystemTelemetryReport> { cached.Report };
+                }
+            }
+
+            var report = await this.ProbeSingleSubsystemAsync(targetId, cancellationToken);
+            lock (SubsystemLock)
+            {
+                SubsystemTelemetryCache[targetId] = (report, DateTime.UtcNow);
+            }
+
+            return new List<SubsystemTelemetryReport> { report };
+        }
+
+        var toProbe = new List<string>();
+        var results = new Dictionary<string, SubsystemTelemetryReport>(StringComparer.OrdinalIgnoreCase);
+
+        lock (SubsystemLock)
+        {
+            foreach (var id in KnownSubsystems)
+            {
+                if (SubsystemTelemetryCache.TryGetValue(id, out var cached) &&
+                    (now - cached.CachedAt) < SubsystemCacheDuration &&
+                    (now - cached.CachedAt) >= TimeSpan.Zero)
+                {
+                    results[id] = cached.Report;
+                }
+                else
+                {
+                    toProbe.Add(id);
+                }
+            }
+        }
+
+        if (toProbe.Count > 0)
+        {
+            var tasks = toProbe.Select(id => this.ProbeSingleSubsystemAsync(id, cancellationToken)).ToList();
+            var probedReports = await Task.WhenAll(tasks);
+
+            lock (SubsystemLock)
+            {
+                for (var i = 0; i < toProbe.Count; i++)
+                {
+                    var id = toProbe[i];
+                    var report = probedReports[i];
+                    SubsystemTelemetryCache[id] = (report, DateTime.UtcNow);
+                    results[id] = report;
+                }
+            }
+        }
+
+        return KnownSubsystems
+            .Where(id => results.ContainsKey(id))
+            .Select(id => results[id])
+            .ToList();
+    }
+
     public List<SubsystemTelemetryReport> GetSubsystemTelemetry()
     {
-        var reports = new List<SubsystemTelemetryReport>();
+        return this.GetSubsystemTelemetryAsync().GetAwaiter().GetResult();
+    }
 
-        // 1. BitTorrent Engine Subsystem
+    public async Task<SystemResourceTelemetrySnapshot> GetFullTelemetrySnapshotAsync(CancellationToken cancellationToken = default)
+    {
+        return new SystemResourceTelemetrySnapshot
+        {
+            Host = this.GetHostMetrics(),
+            TorrentEngine = this.GetTorrentEngineMetrics(),
+            PerTorrent = this.GetPerTorrentMetrics().ToList(),
+            Subsystems = await this.GetSubsystemTelemetryAsync(null, cancellationToken),
+            Timestamp = DateTime.UtcNow,
+        };
+    }
+
+    public SystemResourceTelemetrySnapshot GetFullTelemetrySnapshot()
+    {
+        return this.GetFullTelemetrySnapshotAsync().GetAwaiter().GetResult();
+    }
+
+    private static string NormalizeSubsystemId(string subsystemId)
+    {
+        if (string.IsNullOrWhiteSpace(subsystemId))
+        {
+            return null;
+        }
+
+        var normalized = subsystemId.Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            "bittorrent" or "torrentengine" => "bittorrent",
+            "extractor" or "archiveextractor" => "extractor",
+            "mediainspector" or "inspector" => "mediainspector",
+            "geoip" => "geoip",
+            "blocklist" => "blocklist",
+            "networkbinding" or "binding" => "networkbinding",
+            "mediametadata" or "metadata" => "mediametadata",
+            "httptransport" or "transport" => "httptransport",
+            "ai" or "intelligence" => "ai",
+            _ => normalized,
+        };
+    }
+
+    private async Task<SubsystemTelemetryReport> ProbeSingleSubsystemAsync(string subsystemId, CancellationToken cancellationToken)
+    {
+        return subsystemId switch
+        {
+            "bittorrent" => this.GetBitTorrentTelemetry(),
+            "extractor" => await this.GetExtractorTelemetryAsync(cancellationToken),
+            "mediainspector" => await this.GetMediaInspectorTelemetryAsync(cancellationToken),
+            "geoip" => await this.GetGeoIpTelemetryAsync(cancellationToken),
+            "blocklist" => await this.GetBlocklistTelemetryAsync(cancellationToken),
+            "networkbinding" => await this.GetNetworkBindingTelemetryAsync(cancellationToken),
+            "mediametadata" => await this.GetMediaMetadataTelemetryAsync(cancellationToken),
+            "httptransport" => await this.GetHttpTransportTelemetryAsync(cancellationToken),
+            "ai" => await this.GetAiTelemetryAsync(cancellationToken),
+            _ => throw new ArgumentOutOfRangeException(nameof(subsystemId), $"Unknown subsystem ID '{subsystemId}'"),
+        };
+    }
+
+    private SubsystemTelemetryReport GetBitTorrentTelemetry()
+    {
         var engineMetrics = this.GetTorrentEngineMetrics();
-        var engine = this.torrentEngineManager.ActiveEngine;
-        reports.Add(new SubsystemTelemetryReport
+        var engine = this.torrentEngineManager?.ActiveEngine;
+        return new SubsystemTelemetryReport
         {
             SubsystemId = "bittorrent",
             SubsystemName = "BitTorrent Engine",
-            ActiveProvider = this.torrentEngineManager.ActiveEngineId,
+            ActiveProvider = this.torrentEngineManager?.ActiveEngineId ?? "Unknown",
             Status = engineMetrics.IsRunning ? "Healthy" : (engine?.IsAvailable == true ? "Healthy" : "Stopped"),
             ResourceLoad = engineMetrics.ActiveTorrents > 20 ? "High" : (engineMetrics.ActiveTorrents > 0 ? "Nominal" : "Low"),
             Metrics = new Dictionary<string, object>
@@ -276,15 +440,22 @@ public class SystemResourceService : ISystemResourceService
                 ["protocolOverheadPercentage"] = engineMetrics.ProtocolOverheadPercentage,
                 ["encryptedConnections"] = engineMetrics.EncryptedConnectionsCount,
             },
-        });
+        };
+    }
 
-        // 2. Archive Extractor Subsystem
-        var extractor = this.extractorManager.ActiveProvider;
-        bool extractorHealthy;
+    private async Task<SubsystemTelemetryReport> GetExtractorTelemetryAsync(CancellationToken cancellationToken)
+    {
+        var extractor = this.extractorManager?.ActiveProvider;
+        var extractorHealthy = false;
         try
         {
-            var probe = extractor != null ? extractor.ProbeHealthAsync().GetAwaiter().GetResult() : null;
-            extractorHealthy = probe?.IsHealthy ?? (extractor?.IsAvailable ?? false);
+            if (extractor != null)
+            {
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cts.CancelAfter(TimeSpan.FromSeconds(5));
+                var probe = await extractor.ProbeHealthAsync().WaitAsync(cts.Token);
+                extractorHealthy = probe?.IsHealthy ?? extractor.IsAvailable;
+            }
         }
         catch
         {
@@ -292,11 +463,11 @@ public class SystemResourceService : ISystemResourceService
         }
 
         var extractorCaps = extractor?.Capabilities;
-        reports.Add(new SubsystemTelemetryReport
+        return new SubsystemTelemetryReport
         {
             SubsystemId = "extractor",
             SubsystemName = "Archive Extractor Pipeline",
-            ActiveProvider = this.extractorManager.ActiveProviderId,
+            ActiveProvider = this.extractorManager?.ActiveProviderId ?? "Unknown",
             Status = extractorHealthy ? "Healthy" : "Degraded",
             ResourceLoad = "Nominal",
             Metrics = new Dictionary<string, object>
@@ -309,15 +480,22 @@ public class SystemResourceService : ISystemResourceService
                 ["isAvailable"] = extractor?.IsAvailable ?? false,
                 ["mode"] = "NonBlockingWorker",
             },
-        });
+        };
+    }
 
-        // 3. Media Container Inspector Subsystem
-        var inspector = this.mediaInspectorManager.ActiveProvider;
-        bool inspectorHealthy;
+    private async Task<SubsystemTelemetryReport> GetMediaInspectorTelemetryAsync(CancellationToken cancellationToken)
+    {
+        var inspector = this.mediaInspectorManager?.ActiveProvider;
+        var inspectorHealthy = false;
         try
         {
-            var probe = inspector != null ? inspector.ProbeHealthAsync().GetAwaiter().GetResult() : null;
-            inspectorHealthy = probe?.IsHealthy ?? (inspector?.IsAvailable ?? false);
+            if (inspector != null)
+            {
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cts.CancelAfter(TimeSpan.FromSeconds(5));
+                var probe = await inspector.ProbeHealthAsync().WaitAsync(cts.Token);
+                inspectorHealthy = probe?.IsHealthy ?? inspector.IsAvailable;
+            }
         }
         catch
         {
@@ -325,11 +503,11 @@ public class SystemResourceService : ISystemResourceService
         }
 
         var inspectorCaps = inspector?.Capabilities;
-        reports.Add(new SubsystemTelemetryReport
+        return new SubsystemTelemetryReport
         {
             SubsystemId = "mediainspector",
             SubsystemName = "Media Container & Stream Inspector",
-            ActiveProvider = this.mediaInspectorManager.ActiveProviderId,
+            ActiveProvider = this.mediaInspectorManager?.ActiveProviderId ?? "Unknown",
             Status = inspectorHealthy ? "Healthy" : "Degraded",
             ResourceLoad = "Nominal",
             Metrics = new Dictionary<string, object>
@@ -341,15 +519,22 @@ public class SystemResourceService : ISystemResourceService
                 ["supportsSubtitleTracks"] = inspectorCaps?.SupportsSubtitleTracks ?? false,
                 ["isAvailable"] = inspector?.IsAvailable ?? false,
             },
-        });
+        };
+    }
 
-        // 4. Swarm GeoIP Geolocation Subsystem
-        var geoIp = this.geoIpManager.ActiveProvider;
-        bool geoIpHealthy;
+    private async Task<SubsystemTelemetryReport> GetGeoIpTelemetryAsync(CancellationToken cancellationToken)
+    {
+        var geoIp = this.geoIpManager?.ActiveProvider;
+        var geoIpHealthy = false;
         try
         {
-            var probe = geoIp != null ? geoIp.ProbeHealthAsync().GetAwaiter().GetResult() : null;
-            geoIpHealthy = probe?.IsHealthy ?? (geoIp?.IsAvailable ?? false);
+            if (geoIp != null)
+            {
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cts.CancelAfter(TimeSpan.FromSeconds(5));
+                var probe = await geoIp.ProbeHealthAsync().WaitAsync(cts.Token);
+                geoIpHealthy = probe?.IsHealthy ?? geoIp.IsAvailable;
+            }
         }
         catch
         {
@@ -357,11 +542,11 @@ public class SystemResourceService : ISystemResourceService
         }
 
         var geoCaps = geoIp?.Capabilities ?? GeoIpCapabilities.None;
-        reports.Add(new SubsystemTelemetryReport
+        return new SubsystemTelemetryReport
         {
             SubsystemId = "geoip",
             SubsystemName = "Swarm GeoIP Geolocation",
-            ActiveProvider = this.geoIpManager.ActiveProviderId,
+            ActiveProvider = this.geoIpManager?.ActiveProviderId ?? "Unknown",
             Status = geoIpHealthy ? "Healthy" : "Degraded",
             ResourceLoad = "Nominal",
             Metrics = new Dictionary<string, object>
@@ -372,15 +557,22 @@ public class SystemResourceService : ISystemResourceService
                 ["supportsCity"] = geoCaps.HasFlag(GeoIpCapabilities.City),
                 ["supportsAsn"] = geoCaps.HasFlag(GeoIpCapabilities.Asn),
             },
-        });
+        };
+    }
 
-        // 5. Swarm IP Blocklist Subsystem
-        var blocklist = this.blocklistManager.ActiveProvider;
-        bool blocklistHealthy;
+    private async Task<SubsystemTelemetryReport> GetBlocklistTelemetryAsync(CancellationToken cancellationToken)
+    {
+        var blocklist = this.blocklistManager?.ActiveProvider;
+        var blocklistHealthy = false;
         try
         {
-            var probe = blocklist != null ? blocklist.ProbeHealthAsync().GetAwaiter().GetResult() : null;
-            blocklistHealthy = probe?.IsHealthy ?? (blocklist?.IsAvailable ?? false);
+            if (blocklist != null)
+            {
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cts.CancelAfter(TimeSpan.FromSeconds(5));
+                var probe = await blocklist.ProbeHealthAsync().WaitAsync(cts.Token);
+                blocklistHealthy = probe?.IsHealthy ?? blocklist.IsAvailable;
+            }
         }
         catch
         {
@@ -389,11 +581,11 @@ public class SystemResourceService : ISystemResourceService
 
         var blockCaps = blocklist?.Capabilities ?? BlocklistCapabilities.None;
         var totalRules = blocklist?.RuleCount ?? 0;
-        reports.Add(new SubsystemTelemetryReport
+        return new SubsystemTelemetryReport
         {
             SubsystemId = "blocklist",
             SubsystemName = "Swarm IP Blocklist & Filter",
-            ActiveProvider = this.blocklistManager.ActiveProviderId,
+            ActiveProvider = this.blocklistManager?.ActiveProviderId ?? "Unknown",
             Status = blocklistHealthy ? "Healthy" : "Degraded",
             ResourceLoad = totalRules > 100000 ? "High" : "Nominal",
             Metrics = new Dictionary<string, object>
@@ -405,30 +597,37 @@ public class SystemResourceService : ISystemResourceService
                 ["supportsCidr"] = blockCaps.HasFlag(BlocklistCapabilities.Cidr),
                 ["lookupMode"] = "RadixTreeBinarySearch",
             },
-        });
+        };
+    }
 
-        // 6. Network Interface Binding Subsystem
-        var netBinding = this.networkBindingManager.ActiveProvider;
-        bool netBindingHealthy;
+    private async Task<SubsystemTelemetryReport> GetNetworkBindingTelemetryAsync(CancellationToken cancellationToken)
+    {
+        var netBinding = this.networkBindingManager?.ActiveProvider;
+        var netBindingHealthy = false;
         try
         {
-            var probe = netBinding != null ? netBinding.ProbeHealthAsync().GetAwaiter().GetResult() : null;
-            netBindingHealthy = probe?.IsHealthy ?? (netBinding?.IsAvailable ?? false);
+            if (netBinding != null)
+            {
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cts.CancelAfter(TimeSpan.FromSeconds(5));
+                var probe = await netBinding.ProbeHealthAsync().WaitAsync(cts.Token);
+                netBindingHealthy = probe?.IsHealthy ?? netBinding.IsAvailable;
+            }
         }
         catch
         {
             netBindingHealthy = netBinding?.IsAvailable ?? false;
         }
 
-        var boundIface = !string.IsNullOrWhiteSpace(this.configService.NetworkInterfaceBinding)
+        var boundIface = !string.IsNullOrWhiteSpace(this.configService?.NetworkInterfaceBinding)
             ? this.configService.NetworkInterfaceBinding
-            : (this.configService.BindInterface ?? "All Interfaces");
+            : (this.configService?.BindInterface ?? "All Interfaces");
         var netCaps = netBinding?.Capabilities;
-        reports.Add(new SubsystemTelemetryReport
+        return new SubsystemTelemetryReport
         {
             SubsystemId = "networkbinding",
             SubsystemName = "Network Interface Binding & Kill Switch",
-            ActiveProvider = this.networkBindingManager.ActiveProviderId,
+            ActiveProvider = this.networkBindingManager?.ActiveProviderId ?? "Unknown",
             Status = netBindingHealthy ? "Healthy" : "Degraded",
             ResourceLoad = "Nominal",
             Metrics = new Dictionary<string, object>
@@ -439,15 +638,22 @@ public class SystemResourceService : ISystemResourceService
                 ["supportsKernelLock"] = netCaps?.SupportsSoBindToDevice ?? false,
                 ["supportsVpnKillSwitch"] = netCaps?.SupportsVpnKillSwitch ?? false,
             },
-        });
+        };
+    }
 
-        // 7. Media Enrichment Metadata Subsystem
-        var mediaMeta = this.mediaMetadataManager.ActiveProvider;
-        bool mediaMetaHealthy;
+    private async Task<SubsystemTelemetryReport> GetMediaMetadataTelemetryAsync(CancellationToken cancellationToken)
+    {
+        var mediaMeta = this.mediaMetadataManager?.ActiveProvider;
+        var mediaMetaHealthy = false;
         try
         {
-            var probe = mediaMeta != null ? mediaMeta.ProbeHealthAsync().GetAwaiter().GetResult() : null;
-            mediaMetaHealthy = probe?.IsHealthy ?? (mediaMeta?.IsAvailable ?? false);
+            if (mediaMeta != null)
+            {
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cts.CancelAfter(TimeSpan.FromSeconds(5));
+                var probe = await mediaMeta.ProbeHealthAsync().WaitAsync(cts.Token);
+                mediaMetaHealthy = probe?.IsHealthy ?? mediaMeta.IsAvailable;
+            }
         }
         catch
         {
@@ -455,15 +661,15 @@ public class SystemResourceService : ISystemResourceService
         }
 
         var mediaMetaCaps = mediaMeta?.Capabilities;
-        var mediaCacheDir = !string.IsNullOrWhiteSpace(this.configService.MediaCachePath)
+        var mediaCacheDir = !string.IsNullOrWhiteSpace(this.configService?.MediaCachePath)
             ? this.configService.MediaCachePath
             : (this.appFolderInfo != null ? Path.Combine(this.appFolderInfo.AppDataFolder, "MediaCache") : "/config/MediaCache");
 
-        reports.Add(new SubsystemTelemetryReport
+        return new SubsystemTelemetryReport
         {
             SubsystemId = "mediametadata",
             SubsystemName = "Media Enrichment & Servarr Metadata",
-            ActiveProvider = this.mediaMetadataManager.ActiveProviderId,
+            ActiveProvider = this.mediaMetadataManager?.ActiveProviderId ?? "Unknown",
             Status = mediaMetaHealthy ? "Healthy" : "Degraded",
             ResourceLoad = "Nominal",
             Metrics = new Dictionary<string, object>
@@ -474,15 +680,22 @@ public class SystemResourceService : ISystemResourceService
                 ["supportsTvSeries"] = mediaMetaCaps?.SupportsTvSeries ?? false,
                 ["autoCleanupOnDelete"] = true,
             },
-        });
+        };
+    }
 
-        // 8. HTTP Transport & Proxy Subsystem
-        var httpTransport = this.httpTransportManager.ActiveProvider;
-        bool httpHealthy;
+    private async Task<SubsystemTelemetryReport> GetHttpTransportTelemetryAsync(CancellationToken cancellationToken)
+    {
+        var httpTransport = this.httpTransportManager?.ActiveProvider;
+        var httpHealthy = false;
         try
         {
-            var probe = httpTransport != null ? httpTransport.ProbeHealthAsync().GetAwaiter().GetResult() : null;
-            httpHealthy = probe?.IsHealthy ?? (httpTransport?.IsAvailable ?? false);
+            if (httpTransport != null)
+            {
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cts.CancelAfter(TimeSpan.FromSeconds(5));
+                var probe = await httpTransport.ProbeHealthAsync().WaitAsync(cts.Token);
+                httpHealthy = probe?.IsHealthy ?? httpTransport.IsAvailable;
+            }
         }
         catch
         {
@@ -490,11 +703,11 @@ public class SystemResourceService : ISystemResourceService
         }
 
         var httpCaps = httpTransport?.Capabilities;
-        reports.Add(new SubsystemTelemetryReport
+        return new SubsystemTelemetryReport
         {
             SubsystemId = "httptransport",
             SubsystemName = "HTTP Transport & Anti-Bot Engine",
-            ActiveProvider = this.httpTransportManager.ActiveProviderId,
+            ActiveProvider = this.httpTransportManager?.ActiveProviderId ?? "Unknown",
             Status = httpHealthy ? "Healthy" : "Degraded",
             ResourceLoad = "Nominal",
             Metrics = new Dictionary<string, object>
@@ -504,15 +717,22 @@ public class SystemResourceService : ISystemResourceService
                 ["tlsFingerprintEmulation"] = httpCaps?.SupportsBrowserFingerprintEmulation ?? false,
                 ["supportsFlareSolverr"] = httpCaps?.SupportsFlareSolverr ?? false,
             },
-        });
+        };
+    }
 
-        // 9. AI Intelligence Subsystem
-        var ai = this.aiManager.ActiveProvider;
-        bool aiHealthy;
+    private async Task<SubsystemTelemetryReport> GetAiTelemetryAsync(CancellationToken cancellationToken)
+    {
+        var ai = this.aiManager?.ActiveProvider;
+        var aiHealthy = false;
         try
         {
-            var probe = ai != null ? ai.ProbeHealthAsync().GetAwaiter().GetResult() : null;
-            aiHealthy = probe?.IsHealthy ?? (ai?.IsAvailable ?? false);
+            if (ai != null)
+            {
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cts.CancelAfter(TimeSpan.FromSeconds(5));
+                var probe = await ai.ProbeHealthAsync().WaitAsync(cts.Token);
+                aiHealthy = probe?.IsHealthy ?? ai.IsAvailable;
+            }
         }
         catch
         {
@@ -520,11 +740,11 @@ public class SystemResourceService : ISystemResourceService
         }
 
         var aiCaps = ai?.Capabilities ?? AiCapabilities.None;
-        reports.Add(new SubsystemTelemetryReport
+        return new SubsystemTelemetryReport
         {
             SubsystemId = "ai",
             SubsystemName = "Artificial Intelligence & Swarm Copilot",
-            ActiveProvider = this.aiManager.ActiveProviderId,
+            ActiveProvider = this.aiManager?.ActiveProviderId ?? "Unknown",
             Status = aiHealthy ? "Healthy" : "Degraded",
             ResourceLoad = "Nominal",
             Metrics = new Dictionary<string, object>
@@ -534,20 +754,6 @@ public class SystemResourceService : ISystemResourceService
                 ["heuristicOptimization"] = aiCaps.HasFlag(AiCapabilities.SupportsSwarmOptimization),
                 ["naturalLanguageSearch"] = aiCaps.HasFlag(AiCapabilities.SupportsNaturalLanguageSearch),
             },
-        });
-
-        return reports;
-    }
-
-    public SystemResourceTelemetrySnapshot GetFullTelemetrySnapshot()
-    {
-        return new SystemResourceTelemetrySnapshot
-        {
-            Host = this.GetHostMetrics(),
-            TorrentEngine = this.GetTorrentEngineMetrics(),
-            PerTorrent = this.GetPerTorrentMetrics().ToList(),
-            Subsystems = this.GetSubsystemTelemetry(),
-            Timestamp = DateTime.UtcNow,
         };
     }
 

@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -82,17 +83,18 @@ public class SubsystemsController : Controller
     }
 
     [HttpGet("metrics")]
-    public ActionResult<List<SubsystemTelemetryReport>> GetSubsystemsMetrics()
+    public async Task<ActionResult<List<SubsystemTelemetryReport>>> GetSubsystemsMetrics(CancellationToken cancellationToken = default)
     {
-        return this.Ok(this.resourceService.GetSubsystemTelemetry());
+        var reports = await this.resourceService.GetSubsystemTelemetryAsync(null, cancellationToken);
+        return this.Ok(reports);
     }
 
     [HttpGet("{subsystemId}/metrics")]
-    public ActionResult<SubsystemTelemetryReport> GetSubsystemMetrics(string subsystemId)
+    public async Task<ActionResult<SubsystemTelemetryReport>> GetSubsystemMetrics(string subsystemId, CancellationToken cancellationToken = default)
     {
         var normalized = NormalizeSubsystemId(subsystemId);
-        var telemetry = this.resourceService.GetSubsystemTelemetry()
-            .FirstOrDefault(t => string.Equals(t.SubsystemId, normalized, StringComparison.OrdinalIgnoreCase));
+        var reports = await this.resourceService.GetSubsystemTelemetryAsync(normalized, cancellationToken);
+        var telemetry = reports.FirstOrDefault(t => string.Equals(t.SubsystemId, normalized, StringComparison.OrdinalIgnoreCase));
 
         if (telemetry == null)
         {

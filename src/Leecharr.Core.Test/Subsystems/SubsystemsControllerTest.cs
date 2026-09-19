@@ -52,12 +52,26 @@ public class SubsystemsControllerTest
         this.resourceService = Substitute.For<ISystemResourceService>();
         this.signalRBroadcaster = Substitute.For<IBroadcastSignalRMessage>();
 
-        this.resourceService.GetSubsystemTelemetry().Returns(new List<SubsystemTelemetryReport>
+        var mockReports = new List<SubsystemTelemetryReport>
         {
             new() { SubsystemId = "bittorrent", SubsystemName = "BitTorrent Engine", Status = "Healthy" },
             new() { SubsystemId = "mediainspector", SubsystemName = "Media Container & Stream Inspector", Status = "Healthy" },
             new() { SubsystemId = "networkbinding", SubsystemName = "Network Interface Binding", Status = "Healthy" },
-        });
+        };
+
+        this.resourceService.GetSubsystemTelemetry().Returns(mockReports);
+        this.resourceService.GetSubsystemTelemetryAsync(Arg.Any<string>(), Arg.Any<System.Threading.CancellationToken>())
+            .Returns(info =>
+            {
+                var id = info.Arg<string>();
+                if (string.IsNullOrWhiteSpace(id))
+                {
+                    return Task.FromResult(new List<SubsystemTelemetryReport>(mockReports));
+                }
+
+                var filtered = mockReports.FindAll(r => string.Equals(r.SubsystemId, id, System.StringComparison.OrdinalIgnoreCase));
+                return Task.FromResult(filtered);
+            });
 
         this.controller = new SubsystemsController(
             this.torrentEngineManager,
@@ -75,9 +89,21 @@ public class SubsystemsControllerTest
     }
 
     [Test]
-    public void GetSubsystemMetrics_WithExactId_ReturnsReport()
+    public async Task GetSubsystemsMetrics_ReturnsReports()
     {
-        var actionResult = this.controller.GetSubsystemMetrics("bittorrent");
+        var actionResult = await this.controller.GetSubsystemsMetrics();
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var reports = okResult!.Value as List<SubsystemTelemetryReport>;
+        reports.Should().NotBeNull();
+        reports.Should().HaveCount(3);
+    }
+
+    [Test]
+    public async Task GetSubsystemMetrics_WithExactId_ReturnsReport()
+    {
+        var actionResult = await this.controller.GetSubsystemMetrics("bittorrent");
         var okResult = actionResult.Result as OkObjectResult;
 
         okResult.Should().NotBeNull();
@@ -87,9 +113,9 @@ public class SubsystemsControllerTest
     }
 
     [Test]
-    public void GetSubsystemMetrics_WithAlias_ReturnsReport()
+    public async Task GetSubsystemMetrics_WithAlias_ReturnsReport()
     {
-        var actionResult = this.controller.GetSubsystemMetrics("torrentengine");
+        var actionResult = await this.controller.GetSubsystemMetrics("torrentengine");
         var okResult = actionResult.Result as OkObjectResult;
 
         okResult.Should().NotBeNull();
@@ -99,9 +125,9 @@ public class SubsystemsControllerTest
     }
 
     [Test]
-    public void GetSubsystemMetrics_CaseInsensitive_ReturnsReport()
+    public async Task GetSubsystemMetrics_CaseInsensitive_ReturnsReport()
     {
-        var actionResult = this.controller.GetSubsystemMetrics("BitTorrent");
+        var actionResult = await this.controller.GetSubsystemMetrics("BitTorrent");
         var okResult = actionResult.Result as OkObjectResult;
 
         okResult.Should().NotBeNull();
@@ -109,7 +135,7 @@ public class SubsystemsControllerTest
         report.Should().NotBeNull();
         report!.SubsystemId.Should().Be("bittorrent");
 
-        var aliasResult = this.controller.GetSubsystemMetrics("INSPECTOR");
+        var aliasResult = await this.controller.GetSubsystemMetrics("INSPECTOR");
         var aliasOkResult = aliasResult.Result as OkObjectResult;
         aliasOkResult.Should().NotBeNull();
         var aliasReport = aliasOkResult!.Value as SubsystemTelemetryReport;
@@ -118,9 +144,9 @@ public class SubsystemsControllerTest
     }
 
     [Test]
-    public void GetSubsystemMetrics_WithUnknownSubsystem_ReturnsNotFound()
+    public async Task GetSubsystemMetrics_WithUnknownSubsystem_ReturnsNotFound()
     {
-        var actionResult = this.controller.GetSubsystemMetrics("unknown_subsystem");
+        var actionResult = await this.controller.GetSubsystemMetrics("unknown_subsystem");
         actionResult.Result.Should().BeOfType<NotFoundObjectResult>();
     }
 

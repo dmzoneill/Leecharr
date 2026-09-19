@@ -41,6 +41,7 @@ public class SystemResourceServiceTest
     public void SetUp()
     {
         SystemResourceService.ResetDriveMetricsCache();
+        SystemResourceService.ResetSubsystemMetricsCache();
         SystemResourceService.DriveMetricsProvider = SystemResourceService.QuerySystemDrives;
         this.activeEngine = Substitute.For<ITorrentEngine>();
         this.activeEngine.EngineId.Returns("MonoTorrent");
@@ -253,6 +254,7 @@ public class SystemResourceServiceTest
     public void TearDown()
     {
         SystemResourceService.ResetDriveMetricsCache();
+        SystemResourceService.ResetSubsystemMetricsCache();
     }
 
     [Test]
@@ -355,5 +357,94 @@ public class SystemResourceServiceTest
 
         first.CpuProcessPercent.Should().BeInRange(0.0, 100.0);
         second.CpuProcessPercent.Should().BeInRange(0.0, 100.0);
+    }
+
+    [Test]
+    public async Task GetSubsystemTelemetryAsync_ReturnsAllNineSubsystems()
+    {
+        var reports = await this.service.GetSubsystemTelemetryAsync();
+
+        reports.Should().NotBeNull();
+        reports.Should().HaveCount(9);
+        reports.ConvertAll(r => r.SubsystemId).Should().Contain(new[]
+        {
+            "bittorrent", "extractor", "mediainspector", "geoip",
+            "blocklist", "networkbinding", "mediametadata", "httptransport", "ai",
+        });
+    }
+
+    [Test]
+    public async Task GetSubsystemTelemetryAsync_WithSingleSubsystemId_ProbesOnlyRequestedSubsystem()
+    {
+        var extractorProvider = Substitute.For<IArchiveExtractorProvider>();
+        extractorProvider.IsAvailable.Returns(true);
+        extractorProvider.ProbeHealthAsync(Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new ExtractorHealthCheckResult { IsHealthy = true }));
+        this.extractorManager.ActiveProvider.Returns(extractorProvider);
+
+        var mediaInspectorProvider = Substitute.For<IMediaInspectorProvider>();
+        this.mediaInspectorManager.ActiveProvider.Returns(mediaInspectorProvider);
+
+        var reports = await this.service.GetSubsystemTelemetryAsync("extractor");
+
+        reports.Should().NotBeNull();
+        reports.Should().HaveCount(1);
+        reports[0].SubsystemId.Should().Be("extractor");
+        reports[0].Status.Should().Be("Healthy");
+
+        await extractorProvider.Received(1).ProbeHealthAsync(Arg.Any<System.Threading.CancellationToken>());
+        await mediaInspectorProvider.DidNotReceive().ProbeHealthAsync(Arg.Any<System.Threading.CancellationToken>());
+    }
+
+    [Test]
+    public async Task GetSubsystemTelemetryAsync_CachesSubsystemReports_WithinTtl()
+    {
+        var extractorProvider = Substitute.For<IArchiveExtractorProvider>();
+        extractorProvider.IsAvailable.Returns(true);
+        extractorProvider.ProbeHealthAsync(Arg.Any<System.Threading.CancellationToken>())
+            .Returns(Task.FromResult(new ExtractorHealthCheckResult { IsHealthy = true }));
+        this.extractorManager.ActiveProvider.Returns(extractorProvider);
+
+        var first = await this.service.GetSubsystemTelemetryAsync("extractor");
+        var second = await this.service.GetSubsystemTelemetryAsync("extractor");
+
+        first.Should().HaveCount(1);
+        second.Should().HaveCount(1);
+        await extractorProvider.Received(1).ProbeHealthAsync(Arg.Any<System.Threading.CancellationToken>());
+    }
+
+    [Test]
+    public async Task GetSubsystemTelemetryAsync_WhenProbeTimesOut_FallsBackGracefullyWithoutCrashing()
+    {
+        var extractorProvider = Substitute.For<IArchiveExtractorProvider>();
+        extractorProvider.IsAvailable.Returns(true);
+        extractorProvider.ProbeHealthAsync(Arg.Any<System.Threading.CancellationToken>())
+            .Returns(async _ =>
+            {
+                await Task.Delay(10000);
+                return new ExtractorHealthCheckResult { IsHealthy = true };
+            });
+        this.extractorManager.ActiveProvider.Returns(extractorProvider);
+
+        using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+        var reports = await this.service.GetSubsystemTelemetryAsync("extractor", cts.Token);
+
+        reports.Should().NotBeNull();
+        reports.Should().HaveCount(1);
+        reports[0].SubsystemId.Should().Be("extractor");
+        reports[0].Status.Should().Be("Healthy");
+    }
+
+    [Test]
+    public async Task GetFullTelemetrySnapshotAsync_ReturnsUnifiedSnapshot()
+    {
+        var snapshot = await this.service.GetFullTelemetrySnapshotAsync();
+
+        snapshot.Should().NotBeNull();
+        snapshot.Host.Should().NotBeNull();
+        snapshot.TorrentEngine.Should().NotBeNull();
+        snapshot.PerTorrent.Should().NotBeNull();
+        snapshot.Subsystems.Should().HaveCount(9);
+        snapshot.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
     }
 }
