@@ -2,10 +2,12 @@ import React, { useState, useEffect } from "react";
 import * as signalR from "@microsoft/signalr";
 import { apiClient, getUrlBase } from "./client";
 
+export type ModelAction = "Unknown" | "Created" | "Updated" | "Deleted" | "Sync";
+
 export type MessageHandler = (message: {
   name: string;
   body: unknown;
-  action?: number;
+  action?: ModelAction | number;
 }) => void;
 
 export type ReconnectingHandler = (error?: Error) => void;
