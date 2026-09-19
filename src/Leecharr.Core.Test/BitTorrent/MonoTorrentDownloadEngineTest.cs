@@ -942,6 +942,60 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task AddTorrentAsync_WhenRemoveCalledWhileInFlight_CancelsAndDoesNotRegisterTask()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("inflight.iso");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 834,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "inflight.iso",
+            Category = "os",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(callInfo =>
+        {
+            this.engine.RemoveTorrentAsync(834, deleteFiles: false).GetAwaiter().GetResult();
+            return 10L * 1024 * 1024 * 1024;
+        });
+
+        var task = await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.Should().BeNull();
+        this.engine.GetTask(834).Should().BeNull();
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenConcurrentAdditionsOccur_ReturnsSameTaskWithoutDuplicateCreation()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("duplicate.iso");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 835,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "duplicate.iso",
+            Category = "os",
+            Status = TorrentStatus.Downloading,
+        };
+
+        var add1 = this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        var add2 = this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        var results = await Task.WhenAll(add1, add2);
+
+        results[0].Should().NotBeNull();
+        results[1].Should().NotBeNull();
+        results[0].TorrentId.Should().Be(835);
+        results[1].TorrentId.Should().Be(835);
+        this.engine.GetTask(835).Should().NotBeNull();
+    }
+
+    [Test]
     public async Task AddTorrentAsync_WithPausedStatus_PausesManager()
     {
         var torrentBytes = CreateSampleSingleFileTorrentBytes("paused.iso");

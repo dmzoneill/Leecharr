@@ -2125,86 +2125,94 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         }
 
         var torrent = this.torrentRepository.Get(message.Torrent.Id);
-        if (torrent != null)
+        if (torrent == null)
         {
-            var category = !string.IsNullOrWhiteSpace(torrent.Category)
-                ? this.categoryService?.GetByName(torrent.Category)
-                : this.categoryService?.GetByName(string.Empty);
+            return;
+        }
 
-            var oldStatus = torrent.Status;
-            torrent.Progress = 1.0;
-            torrent.DateCompleted = DateTime.UtcNow;
+        var category = !string.IsNullOrWhiteSpace(torrent.Category)
+            ? this.categoryService?.GetByName(torrent.Category)
+            : this.categoryService?.GetByName(string.Empty);
 
-            var completedDir = this.storagePathService?.GetCompletedDirectory(torrent.Category);
-            if (string.IsNullOrWhiteSpace(completedDir))
+        var oldStatus = torrent.Status;
+        torrent.Progress = 1.0;
+        torrent.DateCompleted = DateTime.UtcNow;
+
+        var completedDir = this.storagePathService?.GetCompletedDirectory(torrent.Category);
+        if (string.IsNullOrWhiteSpace(completedDir))
+        {
+            completedDir = this.configService?.DownloadDir;
+        }
+
+        if (string.IsNullOrWhiteSpace(completedDir))
+        {
+            completedDir = "/downloads";
+        }
+
+        var targetSavePath = message.Torrent.SavePath;
+        if (!string.IsNullOrWhiteSpace(targetSavePath) && this.storagePathService != null)
+        {
+            var norm = this.storagePathService.NormalizeCompletedSavePath(targetSavePath, torrent.Category);
+            if (!string.IsNullOrWhiteSpace(norm))
             {
-                completedDir = this.configService?.DownloadDir;
+                targetSavePath = norm;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(targetSavePath) ||
+            string.Equals(targetSavePath.TrimEnd('/', '\\'), "/downloads/incomplete", StringComparison.OrdinalIgnoreCase))
+        {
+            targetSavePath = completedDir;
+        }
+
+        torrent.SavePath = targetSavePath;
+
+        if (this.torrentRepository.Get(torrent.Id) == null)
+        {
+            this.logger.Debug("Torrent {0} was removed before download completion could be saved; ignoring update.", torrent.Id);
+            return;
+        }
+
+        if (category?.AutoStop == true)
+        {
+            torrent.Status = TorrentStatus.Paused;
+            torrent.DownloadSpeed = 0;
+            torrent.UploadSpeed = 0;
+            torrent.Eta = 0;
+            torrent.Seeders = 0;
+            torrent.Leechers = 0;
+            this.torrentRepository.Update(torrent);
+
+            try
+            {
+                _ = this.downloadEngine?.PauseTorrentAsync(torrent.Id);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error pausing torrent for AutoStop category on download completion: {0}", torrent.Id);
             }
 
-            if (string.IsNullOrWhiteSpace(completedDir))
+            this.logger.Info("Torrent {0} ({1}) auto-stopped upon download completion per category '{2}' setting.", torrent.Id, torrent.Name, category.Name);
+
+            this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
             {
-                completedDir = "/downloads";
-            }
-
-            var targetSavePath = message.Torrent.SavePath;
-            if (!string.IsNullOrWhiteSpace(targetSavePath) && this.storagePathService != null)
+                Torrent = torrent,
+                OldStatus = oldStatus,
+                NewStatus = TorrentStatus.Paused,
+            });
+        }
+        else
+        {
+            torrent.Status = TorrentStatus.Seeding;
+            torrent.DownloadSpeed = 0;
+            torrent.Eta = 0;
+            this.torrentRepository.Update(torrent);
+            this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
             {
-                var norm = this.storagePathService.NormalizeCompletedSavePath(targetSavePath, torrent.Category);
-                if (!string.IsNullOrWhiteSpace(norm))
-                {
-                    targetSavePath = norm;
-                }
-            }
-
-            if (string.IsNullOrWhiteSpace(targetSavePath) ||
-                string.Equals(targetSavePath.TrimEnd('/', '\\'), "/downloads/incomplete", StringComparison.OrdinalIgnoreCase))
-            {
-                targetSavePath = completedDir;
-            }
-
-            torrent.SavePath = targetSavePath;
-
-            if (category?.AutoStop == true)
-            {
-                torrent.Status = TorrentStatus.Paused;
-                torrent.DownloadSpeed = 0;
-                torrent.UploadSpeed = 0;
-                torrent.Eta = 0;
-                torrent.Seeders = 0;
-                torrent.Leechers = 0;
-                this.torrentRepository.Update(torrent);
-
-                try
-                {
-                    _ = this.downloadEngine?.PauseTorrentAsync(torrent.Id);
-                }
-                catch (Exception ex)
-                {
-                    this.logger.Warn(ex, "Error pausing torrent for AutoStop category on download completion: {0}", torrent.Id);
-                }
-
-                this.logger.Info("Torrent {0} ({1}) auto-stopped upon download completion per category '{2}' setting.", torrent.Id, torrent.Name, category.Name);
-
-                this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
-                {
-                    Torrent = torrent,
-                    OldStatus = oldStatus,
-                    NewStatus = TorrentStatus.Paused,
-                });
-            }
-            else
-            {
-                torrent.Status = TorrentStatus.Seeding;
-                torrent.DownloadSpeed = 0;
-                torrent.Eta = 0;
-                this.torrentRepository.Update(torrent);
-                this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
-                {
-                    Torrent = torrent,
-                    OldStatus = oldStatus,
-                    NewStatus = TorrentStatus.Seeding,
-                });
-            }
+                Torrent = torrent,
+                OldStatus = oldStatus,
+                NewStatus = TorrentStatus.Seeding,
+            });
         }
     }
 

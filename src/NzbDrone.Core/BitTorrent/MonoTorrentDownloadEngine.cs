@@ -70,6 +70,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private readonly ConcurrentDictionary<int, bool> metadataPersistedTorrentIds = new();
     private readonly ConcurrentBag<int> interruptedTorrentIds = new();
     private readonly ConcurrentDictionary<int, byte> schedulerPausedTorrentIds = new();
+    private readonly ConcurrentDictionary<int, CancellationTokenSource> inFlightAdds = new();
+    private readonly ConcurrentDictionary<int, bool> inFlightDeleteOnCancel = new();
     private readonly object pendingTorrentsLock = new();
     private readonly List<(CoreTorrent Torrent, byte[] TorrentFileBytes, string MagnetUri)> pendingTorrents = new();
     private readonly List<FilteringPeerConnectionListener> activePeerListeners = new();
@@ -686,6 +688,17 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.logger.Info("Stopping MonoTorrent download engine...");
         this.isEngineStopping = true;
 
+        foreach (var inFlight in this.inFlightAdds.Values)
+        {
+            try
+            {
+                inFlight.Cancel();
+            }
+            catch
+            {
+            }
+        }
+
         try
         {
             foreach (var task in this.tasks.Values)
@@ -831,9 +844,48 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             return existingTask;
         }
 
-        if (!await this.EnsureEngineReadyAsync())
+        var cts = new CancellationTokenSource();
+        if (!this.inFlightAdds.TryAdd(torrent.Id, cts))
         {
-            lock (this.pendingTorrentsLock)
+            cts.Dispose();
+            this.logger.Info("Torrent {0} is already being added concurrently; waiting for in-flight operation.", torrent.Id);
+            for (var i = 0; i < 100; i++)
+            {
+                await Task.Delay(50).ConfigureAwait(false);
+                if (this.tasks.TryGetValue(torrent.Id, out var createdTask))
+                {
+                    return createdTask;
+                }
+
+                if (!this.inFlightAdds.ContainsKey(torrent.Id))
+                {
+                    break;
+                }
+            }
+
+            if (this.tasks.TryGetValue(torrent.Id, out var task))
+            {
+                return task;
+            }
+
+            return null;
+        }
+
+        try
+        {
+            if (cts.Token.IsCancellationRequested)
+            {
+                return null;
+            }
+
+            if (!await this.EnsureEngineReadyAsync())
+            {
+                if (cts.Token.IsCancellationRequested)
+                {
+                    return null;
+                }
+
+                lock (this.pendingTorrentsLock)
             {
                 if (!this.pendingTorrents.Any(p => p.Torrent?.Id == torrent.Id))
                 {
@@ -1130,6 +1182,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             throw new InvalidOperationException("Failed to create TorrentManager for torrent.");
         }
 
+        if (cts.Token.IsCancellationRequested)
+        {
+            await this.CleanupCancelledManagerAsync(manager, torrent.Id).ConfigureAwait(false);
+            return null;
+        }
+
         var loadedFastResume = false;
         if (savedFastResume != null && (!manager.HashChecked || manager.Progress < 100.0))
         {
@@ -1210,6 +1268,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
         }
 
+        if (cts.Token.IsCancellationRequested)
+        {
+            await this.CleanupCancelledManagerAsync(manager, torrent.Id).ConfigureAwait(false);
+            return null;
+        }
+
         var thresholdMb = this.configService?.LowDiskSpaceThresholdMb > 0 ? this.configService.LowDiskSpaceThresholdMb : 500;
         var thresholdBytes = thresholdMb * 1024L * 1024L;
         var availableSpace = this.diskProvider.GetAvailableSpace(workingPath);
@@ -1239,6 +1303,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             downloadTask.Picker.SequentialMode = torrent.SequentialDownload;
         }
 
+        if (cts.Token.IsCancellationRequested)
+        {
+            await this.CleanupCancelledManagerAsync(manager, torrent.Id).ConfigureAwait(false);
+            return null;
+        }
+
         this.tasks[torrent.Id] = downloadTask;
         if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
         {
@@ -1257,6 +1327,28 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         manager.TorrentStateChanged += this.OnTorrentStateChanged;
         manager.PieceHashed += this.OnPieceHashed;
+
+        if (cts.Token.IsCancellationRequested)
+        {
+            this.tasks.TryRemove(torrent.Id, out _);
+            if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
+            {
+                this.infoHashToId.TryRemove(torrent.InfoHash, out _);
+            }
+
+            if (manager.InfoHashes?.V1 != null)
+            {
+                this.infoHashToId.TryRemove(manager.InfoHashes.V1.ToHex(), out _);
+            }
+
+            if (manager.InfoHashes?.V2 != null)
+            {
+                this.infoHashToId.TryRemove(manager.InfoHashes.V2.ToHex(), out _);
+            }
+
+            await this.CleanupCancelledManagerAsync(manager, torrent.Id).ConfigureAwait(false);
+            return null;
+        }
 
         await this.ApplyStoredFilePrioritiesAsync(downloadTask).ConfigureAwait(false);
 
@@ -1313,6 +1405,13 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             if (this.configService.AutoStart && (isCompleteOrSeeding || manager.Complete || (manager.Bitfield != null && manager.Bitfield.AllTrue)))
             {
+                if (cts.Token.IsCancellationRequested)
+                {
+                    this.tasks.TryRemove(torrent.Id, out _);
+                    await this.CleanupCancelledManagerAsync(manager, torrent.Id).ConfigureAwait(false);
+                    return null;
+                }
+
                 await manager.StartAsync();
                 torrent.Status = TorrentStatus.Seeding;
                 this.logger.Info("AutoStarted complete/seeding torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
@@ -1352,6 +1451,13 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
             else
             {
+                if (cts.Token.IsCancellationRequested)
+                {
+                    this.tasks.TryRemove(torrent.Id, out _);
+                    await this.CleanupCancelledManagerAsync(manager, torrent.Id).ConfigureAwait(false);
+                    return null;
+                }
+
                 await manager.StartAsync();
                 this.logger.Info("Added and started torrent: {0} ({1})", torrent.Name, torrent.InfoHash);
                 try
@@ -1368,11 +1474,98 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
         }
 
-        return downloadTask;
+            return downloadTask;
+        }
+        finally
+        {
+            if (this.inFlightAdds.TryRemove(torrent.Id, out var removedCts))
+            {
+                try
+                {
+                    removedCts.Dispose();
+                }
+                catch
+                {
+                }
+            }
+
+            this.inFlightDeleteOnCancel.TryRemove(torrent.Id, out _);
+        }
+    }
+
+    private async Task CleanupCancelledManagerAsync(TorrentManager manager, int torrentId)
+    {
+        if (manager == null)
+        {
+            return;
+        }
+
+        try
+        {
+            manager.TorrentStateChanged -= this.OnTorrentStateChanged;
+            manager.PieceHashed -= this.OnPieceHashed;
+
+            await manager.StopAsync().ConfigureAwait(false);
+            if (this.engine != null)
+            {
+                await this.engine.RemoveAsync(manager).ConfigureAwait(false);
+            }
+
+            if (this.inFlightDeleteOnCancel.TryRemove(torrentId, out var deleteFiles) && deleteFiles)
+            {
+                if (manager.Files != null)
+                {
+                    foreach (var file in manager.Files)
+                    {
+                        try
+                        {
+                            await this.DeleteFileWithRetryAsync(file.FullPath).ConfigureAwait(false);
+                            if (!string.IsNullOrWhiteSpace(manager.SavePath) && !string.IsNullOrWhiteSpace(file.Path))
+                            {
+                                var altPath = Path.Combine(manager.SavePath, file.Path);
+                                if (!string.Equals(altPath, file.FullPath, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    await this.DeleteFileWithRetryAsync(altPath).ConfigureAwait(false);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            this.logger.Warn(ex, "Failed to delete file {0} for cancelled torrent {1}", file.Path, torrentId);
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Error cleaning up cancelled manager for torrent {0}", torrentId);
+        }
     }
 
     public async Task RemoveTorrentAsync(int torrentId, bool deleteFiles)
     {
+        if (this.inFlightAdds.TryGetValue(torrentId, out var inFlightCts))
+        {
+            if (deleteFiles)
+            {
+                this.inFlightDeleteOnCancel[torrentId] = true;
+            }
+
+            try
+            {
+                inFlightCts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+
+            for (var i = 0; i < 50 && this.inFlightAdds.ContainsKey(torrentId); i++)
+            {
+                await Task.Delay(20).ConfigureAwait(false);
+            }
+        }
+
         this.schedulerPausedTorrentIds.TryRemove(torrentId, out _);
 
         lock (this.pendingTorrentsLock)
