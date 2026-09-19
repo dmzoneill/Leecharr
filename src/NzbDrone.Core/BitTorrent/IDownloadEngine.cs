@@ -121,6 +121,18 @@ public interface IDownloadTask
 
     PiecePicker Picker => null;
 
+    bool SequentialDownload
+    {
+        get => false;
+        set { }
+    }
+
+    bool FirstLastPiecePriority
+    {
+        get => false;
+        set { }
+    }
+
     IEnumerable<int> PartialPieces => this.Picker?.PartialPieces;
 
     bool IsSuperSeeding => false;
