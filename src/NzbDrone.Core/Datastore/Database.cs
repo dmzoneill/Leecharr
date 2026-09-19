@@ -10,7 +10,7 @@ public class Database : IDatabase
     private readonly Func<IDbConnection> connectionFactory;
     private readonly int busyTimeout;
 
-    public Database(Func<IDbConnection> connectionFactory, DatabaseType databaseType, int busyTimeout = 5000)
+    public Database(Func<IDbConnection> connectionFactory, DatabaseType databaseType, int busyTimeout = 30000)
     {
         this.connectionFactory = connectionFactory;
         this.DatabaseType = databaseType;
