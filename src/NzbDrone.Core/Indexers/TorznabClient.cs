@@ -467,7 +467,10 @@ public class TorznabClient : ITorznabClient
 
             if (indexer.Categories != null && indexer.Categories.Count > 0)
             {
-                queryParams += $"&cat={string.Join(",", indexer.Categories)}";
+                var expanded = indexer.Categories
+                    .SelectMany(c => CategoryHierarchy.TryGetValue(c, out var subs) ? subs : new List<int> { c })
+                    .Distinct();
+                queryParams += $"&cat={string.Join(",", expanded)}";
             }
 
             MergeQueryParams(uriBuilder, queryParams);
