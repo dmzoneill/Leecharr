@@ -4148,6 +4148,14 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
+    public Task WaitForVpnTransitionsAsync()
+    {
+        lock (this.vpnTransitionLock)
+        {
+            return this.vpnTransitionQueue;
+        }
+    }
+
     public async Task HaltAllTorrentsForKillSwitchAsync()
     {
         await this.engineStateLock.WaitAsync().ConfigureAwait(false);
