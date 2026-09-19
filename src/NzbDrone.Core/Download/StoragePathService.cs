@@ -263,24 +263,49 @@ public class StoragePathService : IStoragePathService
 
         try
         {
+            if (string.Equals(Path.GetFullPath(actualSource), Path.GetFullPath(finalDestination), StringComparison.OrdinalIgnoreCase))
+            {
+                this.StripIncompleteExtensions(finalDestination);
+                return true;
+            }
+        }
+        catch
+        {
+        }
+
+        try
+        {
             this.FlushBuffersToDisk(actualSource);
-            this.logger.Info("Moving completed torrent from '{0}' to '{1}'", actualSource, finalDestination);
 
             if (this.diskProvider.FileExists(actualSource))
             {
+                if (this.diskProvider.FileExists(finalDestination) || this.diskProvider.FolderExists(finalDestination))
+                {
+                    finalDestination = this.ResolveNonCollidingFilePath(finalDestination);
+                }
+
+                this.logger.Info("Moving completed torrent from '{0}' to '{1}'", actualSource, finalDestination);
+
                 try
                 {
-                    this.diskProvider.MoveFile(actualSource, finalDestination, overwrite: true);
+                    this.diskProvider.MoveFile(actualSource, finalDestination, overwrite: false);
                 }
                 catch (IOException ioEx)
                 {
                     this.logger.Info(ioEx, "MoveFile failed from '{0}' to '{1}'. Falling back to copy and delete.", actualSource, finalDestination);
-                    this.diskProvider.CopyFile(actualSource, finalDestination, overwrite: true);
+                    this.SafeCopyFileWithStaging(actualSource, finalDestination);
                     this.diskProvider.DeleteFile(actualSource);
                 }
             }
             else if (this.diskProvider.FolderExists(actualSource))
             {
+                if (this.diskProvider.FolderExists(finalDestination) || this.diskProvider.FileExists(finalDestination))
+                {
+                    finalDestination = this.ResolveNonCollidingFolderPath(finalDestination);
+                }
+
+                this.logger.Info("Moving completed torrent from '{0}' to '{1}'", actualSource, finalDestination);
+
                 this.MoveFolderWithFallback(actualSource, finalDestination);
             }
 
@@ -395,6 +420,12 @@ public class StoragePathService : IStoragePathService
 
     private void MoveFolderWithFallback(string source, string destination)
     {
+        if (!string.Equals(source, destination, StringComparison.OrdinalIgnoreCase) &&
+            (this.diskProvider.FolderExists(destination) || this.diskProvider.FileExists(destination)))
+        {
+            destination = this.ResolveNonCollidingFolderPath(destination);
+        }
+
         try
         {
             this.diskProvider.MoveFolder(source, destination);
@@ -429,8 +460,94 @@ public class StoragePathService : IStoragePathService
             {
                 var fileName = Path.GetFileName(file);
                 var destFile = Path.Combine(destination, fileName);
-                this.diskProvider.CopyFile(file, destFile, overwrite: true);
+                if (this.diskProvider.FileExists(destFile) || this.diskProvider.FolderExists(destFile))
+                {
+                    destFile = this.ResolveNonCollidingFilePath(destFile);
+                }
+
+                this.SafeCopyFileWithStaging(file, destFile);
             }
+        }
+    }
+
+    private void SafeCopyFileWithStaging(string source, string destination)
+    {
+        var tempFile = destination + ".leecharr.tmp";
+        try
+        {
+            if (this.diskProvider.FileExists(tempFile))
+            {
+                this.diskProvider.DeleteFile(tempFile);
+            }
+
+            this.diskProvider.CopyFile(source, tempFile, overwrite: true);
+            this.FlushSingleFileBufferToDisk(tempFile);
+            this.diskProvider.MoveFile(tempFile, destination, overwrite: false);
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to copy file from '{0}' to temporary staging file '{1}' or move to '{2}'", source, tempFile, destination);
+            try
+            {
+                if (this.diskProvider.FileExists(tempFile))
+                {
+                    this.diskProvider.DeleteFile(tempFile);
+                }
+            }
+            catch (Exception cleanupEx)
+            {
+                this.logger.Debug(cleanupEx, "Failed to clean up temporary staging file '{0}' after copy failure", tempFile);
+            }
+
+            throw;
+        }
+    }
+
+    private string ResolveNonCollidingFilePath(string destinationPath)
+    {
+        if (!this.diskProvider.FileExists(destinationPath) && !this.diskProvider.FolderExists(destinationPath))
+        {
+            return destinationPath;
+        }
+
+        var directory = Path.GetDirectoryName(destinationPath) ?? string.Empty;
+        var fileNameWithoutExt = Path.GetFileNameWithoutExtension(destinationPath);
+        var extension = Path.GetExtension(destinationPath);
+
+        var counter = 1;
+        while (true)
+        {
+            var candidate = Path.Combine(directory, $"{fileNameWithoutExt}_{counter}{extension}");
+            if (!this.diskProvider.FileExists(candidate) && !this.diskProvider.FolderExists(candidate))
+            {
+                return candidate;
+            }
+
+            counter++;
+        }
+    }
+
+    private string ResolveNonCollidingFolderPath(string destinationPath)
+    {
+        var trimmed = destinationPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (!this.diskProvider.FolderExists(trimmed) && !this.diskProvider.FileExists(trimmed))
+        {
+            return trimmed;
+        }
+
+        var parent = Path.GetDirectoryName(trimmed) ?? string.Empty;
+        var folderName = Path.GetFileName(trimmed);
+
+        var counter = 1;
+        while (true)
+        {
+            var candidate = Path.Combine(parent, $"{folderName}_{counter}");
+            if (!this.diskProvider.FolderExists(candidate) && !this.diskProvider.FileExists(candidate))
+            {
+                return candidate;
+            }
+
+            counter++;
         }
     }
 
@@ -490,63 +607,114 @@ public class StoragePathService : IStoragePathService
 
         try
         {
-            if (this.diskProvider.FolderExists(path))
-            {
-                try
-                {
-                    var dirMode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
-                                  UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.GroupExecute |
-                                  UnixFileMode.OtherRead | UnixFileMode.OtherWrite | UnixFileMode.OtherExecute;
-                    File.SetUnixFileMode(path, dirMode);
-                }
-                catch
-                {
-                }
-
-                var dirs = this.diskProvider.GetDirectories(path);
-                if (dirs != null)
-                {
-                    foreach (var d in dirs)
-                    {
-                        this.EnsureAccessiblePermissions(d);
-                    }
-                }
-
-                var files = this.diskProvider.GetFiles(path, false);
-                if (files != null)
-                {
-                    foreach (var f in files)
-                    {
-                        try
-                        {
-                            var fileMode = UnixFileMode.UserRead | UnixFileMode.UserWrite |
-                                           UnixFileMode.GroupRead | UnixFileMode.GroupWrite |
-                                           UnixFileMode.OtherRead | UnixFileMode.OtherWrite;
-                            File.SetUnixFileMode(f, fileMode);
-                        }
-                        catch
-                        {
-                        }
-                    }
-                }
-            }
-            else if (this.diskProvider.FileExists(path))
-            {
-                try
-                {
-                    var fileMode = UnixFileMode.UserRead | UnixFileMode.UserWrite |
-                                   UnixFileMode.GroupRead | UnixFileMode.GroupWrite |
-                                   UnixFileMode.OtherRead | UnixFileMode.OtherWrite;
-                    File.SetUnixFileMode(path, fileMode);
-                }
-                catch
-                {
-                }
-            }
+            var (dirMode, fileMode) = this.GetConfiguredUnixModes();
+            this.ApplyUnixPermissions(path, dirMode, fileMode);
         }
-        catch
+        catch (Exception ex)
         {
+            this.logger.Debug(ex, "Failed to apply permissions for '{0}'", path);
         }
+    }
+
+    private void ApplyUnixPermissions(string path, UnixFileMode dirMode, UnixFileMode fileMode)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        if (this.diskProvider.FolderExists(path))
+        {
+            try
+            {
+                File.SetUnixFileMode(path, dirMode);
+            }
+            catch
+            {
+            }
+
+            var dirs = this.diskProvider.GetDirectories(path);
+            if (dirs != null)
+            {
+                foreach (var d in dirs)
+                {
+                    this.ApplyUnixPermissions(d, dirMode, fileMode);
+                }
+            }
+
+            var files = this.diskProvider.GetFiles(path, false);
+            if (files != null)
+            {
+                foreach (var f in files)
+                {
+                    try
+                    {
+                        File.SetUnixFileMode(f, fileMode);
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+        }
+        else if (this.diskProvider.FileExists(path))
+        {
+            try
+            {
+                File.SetUnixFileMode(path, fileMode);
+            }
+            catch
+            {
+            }
+        }
+    }
+
+    private (UnixFileMode DirMode, UnixFileMode FileMode) GetConfiguredUnixModes()
+    {
+        const int defaultUmask = 18; // octal 022
+        var umask = defaultUmask;
+
+        var configuredUmask = this.configService?.Umask;
+        if (!string.IsNullOrWhiteSpace(configuredUmask))
+        {
+            try
+            {
+                umask = Convert.ToInt32(configuredUmask.Trim(), 8);
+            }
+            catch
+            {
+                umask = defaultUmask;
+            }
+        }
+
+        var dirModeInt = 511 & ~umask; // 0777 & ~umask
+        var fileModeInt = 438 & ~umask; // 0666 & ~umask
+
+        var configuredFolderChmod = this.configService?.GetValue("FolderChmod", string.Empty);
+        if (!string.IsNullOrWhiteSpace(configuredFolderChmod))
+        {
+            try
+            {
+                dirModeInt = Convert.ToInt32(configuredFolderChmod.Trim(), 8);
+            }
+            catch
+            {
+            }
+        }
+
+        var configuredFileChmod = this.configService?.GetValue("FileChmod", string.Empty);
+        if (!string.IsNullOrWhiteSpace(configuredFileChmod))
+        {
+            try
+            {
+                fileModeInt = Convert.ToInt32(configuredFileChmod.Trim(), 8);
+            }
+            catch
+            {
+            }
+        }
+
+        return ((UnixFileMode)dirModeInt, (UnixFileMode)fileModeInt);
     }
 
     public string NormalizeCompletedSavePath(string rawSavePath, string category = null)
