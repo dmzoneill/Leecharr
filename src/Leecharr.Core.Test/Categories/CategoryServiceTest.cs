@@ -558,17 +558,18 @@ public class CategoryServiceTest
     }
 
     [Test]
-    public void Add_WhenCreateFolderThrowsException_ThrowsInvalidOperationException()
+    public void Add_WhenCreateFolderThrowsException_LogsWarningAndAllowsSavePath()
     {
         var diskProvider = Substitute.For<NzbDrone.Common.Disk.IDiskProvider>();
         diskProvider.FolderExists("/downloads/test").Returns(false);
         diskProvider.When(d => d.CreateFolder("/downloads/test")).Do(_ => throw new UnauthorizedAccessException("Permission denied"));
+        this.repository.Insert(Arg.Any<Category>()).Returns(ci => ci.Arg<Category>());
 
         var serviceWithDisk = new CategoryService(this.repository, this.eventAggregator, this.torrentRepository, diskProvider);
         var category = new Category { Name = "test", SavePath = "/downloads/test" };
 
-        Action act = () => serviceWithDisk.Add(category);
-        act.Should().Throw<InvalidOperationException>().WithMessage("*Could not create save directory*");
+        var inserted = serviceWithDisk.Add(category);
+        inserted.SavePath.Should().Be(Path.GetFullPath("/downloads/test"));
     }
 
     [Test]
