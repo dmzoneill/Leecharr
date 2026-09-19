@@ -27,6 +27,7 @@ using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Network.PortMapping;
 using NzbDrone.Core.Network.Vpn;
 using NzbDrone.Core.Torrents;
+using NzbDrone.Core.Trackers;
 using CoreTorrent = NzbDrone.Core.Torrents.Torrent;
 
 namespace Leecharr.Core.Test.BitTorrent;
@@ -3510,6 +3511,61 @@ public class MonoTorrentDownloadEngineTest
             var udpTrackers = tiers.SelectMany(t => t.Trackers).Where(t => t.Uri != null && t.Uri.Scheme.Equals("udp", StringComparison.OrdinalIgnoreCase)).ToList();
             udpTrackers.Should().BeEmpty();
         }
+    }
+
+    [Test]
+    public async Task AddTrackersAsync_OrdersTrackersByDatabaseTier_AndAvoidsDuplicates()
+    {
+        var mockTrackerRepo = Substitute.For<ITrackerEntryRepository>();
+        mockTrackerRepo.GetByTorrentId(1234).Returns(new List<TrackerEntry>
+        {
+            new TrackerEntry { TorrentId = 1234, Url = "http://tracker-tier2.org/announce", Tier = 2 },
+            new TrackerEntry { TorrentId = 1234, Url = "http://tracker-tier1.org/announce", Tier = 1 },
+        });
+
+        using var testEngine = new MonoTorrentDownloadEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator,
+            appFolderInfo: this.appFolderInfo,
+            torrentLogService: this.torrentLogService,
+            trackerEntryRepository: mockTrackerRepo);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 1234,
+            InfoHash = "1111222233334444555566667777888899990000",
+            Name = "TierOrderTestTorrent",
+            Status = TorrentStatus.Downloading,
+            TrackerUrl = "http://canonical-tracker.org/announce",
+        };
+
+        await testEngine.AddTorrentAsync(torrent, magnetUri: "magnet:?xt=urn:btih:1111222233334444555566667777888899990000&tr=http%3A%2F%2Fcanonical-tracker.org%2Fannounce");
+
+        // Pass Tier 2 before Tier 1, plus duplicate canonical tracker
+        await testEngine.AddTrackersAsync(1234, new[]
+        {
+            "http://tracker-tier2.org/announce",
+            "http://canonical-tracker.org/announce",
+            "http://tracker-tier1.org/announce",
+        });
+
+        var task = testEngine.GetTask(1234) as MonoTorrentDownloadTask;
+        task.Should().NotBeNull();
+        var tiers = task!.Manager!.TrackerManager!.Tiers;
+        tiers.Should().NotBeNull();
+
+        var trackerUris = tiers!.SelectMany(t => t.Trackers).Select(t => t.Uri.ToString()).ToList();
+        trackerUris.Should().Contain("http://canonical-tracker.org/announce");
+        trackerUris.Count(u => u == "http://canonical-tracker.org/announce").Should().Be(1);
+
+        var tier1Index = trackerUris.IndexOf("http://tracker-tier1.org/announce");
+        var tier2Index = trackerUris.IndexOf("http://tracker-tier2.org/announce");
+        tier1Index.Should().BeGreaterThan(-1);
+        tier2Index.Should().BeGreaterThan(-1);
+        tier1Index.Should().BeLessThan(tier2Index);
     }
 
     [Test]

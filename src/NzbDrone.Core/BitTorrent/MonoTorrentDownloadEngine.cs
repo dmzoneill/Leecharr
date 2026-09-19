@@ -33,6 +33,7 @@ using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Network.PortMapping;
 using NzbDrone.Core.Network.Vpn;
 using NzbDrone.Core.Torrents;
+using NzbDrone.Core.Trackers;
 using CoreTorrent = NzbDrone.Core.Torrents.Torrent;
 using MtTorrent = MonoTorrent.Torrent;
 
@@ -58,6 +59,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private readonly IAppFolderInfo appFolderInfo;
     private readonly ITorrentLogService torrentLogService;
     private readonly ITorrentFileRepository torrentFileRepository;
+    private readonly ITrackerEntryRepository trackerEntryRepository;
     private readonly Logger logger;
 
     private readonly ConcurrentDictionary<int, MonoTorrentDownloadTask> tasks = new();
@@ -211,7 +213,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         INetworkBindingService networkBindingService = null,
         IAppFolderInfo appFolderInfo = null,
         ITorrentLogService torrentLogService = null,
-        ITorrentFileRepository torrentFileRepository = null)
+        ITorrentFileRepository torrentFileRepository = null,
+        ITrackerEntryRepository trackerEntryRepository = null)
     {
         this.configService = configService;
         this.storagePathService = storagePathService;
@@ -225,6 +228,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.appFolderInfo = appFolderInfo;
         this.torrentLogService = torrentLogService;
         this.torrentFileRepository = torrentFileRepository;
+        this.trackerEntryRepository = trackerEntryRepository;
         this.logger = LogManager.GetCurrentClassLogger();
 
         this.trackerHealthTimer = new Timer(_ => this.CheckTrackerHealth(), null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(5));
@@ -1984,11 +1988,40 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     !string.IsNullOrWhiteSpace(this.configService.ProxyHost);
                 var isProxyActive = isProxyConfigured || this.configService.ForceProxy || (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider);
 
-                var addedAny = false;
-                foreach (var tr in trackers)
+                var trackerList = trackers.Where(tr => !string.IsNullOrWhiteSpace(tr)).Select(tr => tr.Trim()).ToList();
+                if (trackerList.Count == 0)
                 {
-                    if (!string.IsNullOrWhiteSpace(tr) && Uri.TryCreate(tr.Trim(), UriKind.Absolute, out var uri))
+                    return;
+                }
+
+                if (this.trackerEntryRepository != null)
+                {
+                    var dbTiers = this.trackerEntryRepository.GetByTorrentId(torrentId)
+                        .Where(e => !string.IsNullOrWhiteSpace(e.Url))
+                        .ToDictionary(e => e.Url.Trim(), e => e.Tier, StringComparer.OrdinalIgnoreCase);
+
+                    trackerList = trackerList
+                        .OrderBy(t => dbTiers.TryGetValue(t, out var tier) ? tier : 1)
+                        .ToList();
+                }
+
+                var existingUris = task.Manager.TrackerManager.Tiers?
+                    .SelectMany(t => t.Trackers)
+                    .Where(t => t?.Uri != null)
+                    .Select(t => t.Uri)
+                    .ToHashSet() ?? new HashSet<Uri>();
+
+                var newlyAddedTrackers = new List<MonoTorrent.Trackers.ITracker>();
+
+                foreach (var tr in trackerList)
+                {
+                    if (Uri.TryCreate(tr, UriKind.Absolute, out var uri))
                     {
+                        if (existingUris.Contains(uri))
+                        {
+                            continue;
+                        }
+
                         if (isProxyActive && string.Equals(uri.Scheme, "udp", StringComparison.OrdinalIgnoreCase))
                         {
                             this.logger.Warn("Skipping UDP tracker '{0}' on torrent {1}: proxy is active and unproxied UDP announces are blocked to prevent IP leaks", tr, torrentId);
@@ -1998,7 +2031,16 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         try
                         {
                             await task.Manager.TrackerManager.AddTrackerAsync(uri);
-                            addedAny = true;
+                            existingUris.Add(uri);
+
+                            var addedTracker = task.Manager.TrackerManager.Tiers?
+                                .SelectMany(t => t.Trackers)
+                                .FirstOrDefault(t => t?.Uri == uri);
+
+                            if (addedTracker != null)
+                            {
+                                newlyAddedTrackers.Add(addedTracker);
+                            }
                         }
                         catch (Exception ex)
                         {
@@ -2007,15 +2049,20 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     }
                 }
 
-                if (addedAny)
+                if (newlyAddedTrackers.Count > 0)
                 {
-                    try
+                    // Rate-limit batch announces to prevent unthrottled announce storm across all trackers
+                    var toAnnounce = newlyAddedTrackers.Where(t => t.Status != MonoTorrent.Trackers.TrackerState.Connecting).Take(10).ToList();
+                    foreach (var tracker in toAnnounce)
                     {
-                        await this.AnnounceTrackersAsync(task.Manager, torrentId, isResumeOrStartup: false).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        this.logger.Debug(ex, "Failed to re-announce after adding trackers to torrent {0}", torrentId);
+                        try
+                        {
+                            await task.Manager.TrackerManager.AnnounceAsync(tracker, CancellationToken.None).ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            this.logger.Debug(ex, "Failed to announce newly added tracker {0} for torrent {1}", tracker.Uri, torrentId);
+                        }
                     }
                 }
             }
