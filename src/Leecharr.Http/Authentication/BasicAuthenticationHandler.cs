@@ -84,7 +84,7 @@ public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticat
             var configuredApiKey = this.configFileProvider.ApiKey;
 
             // Allow auth if authentication is disabled or password/username matches API key
-            if (!this.configFileProvider.AuthenticationEnabled ||
+            if (this.IsAuthenticationBypassed() ||
                 (!string.IsNullOrWhiteSpace(configuredApiKey) && (RpcAuthenticationHelper.FixedTimeEquals(password, configuredApiKey) || RpcAuthenticationHelper.FixedTimeEquals(username, configuredApiKey))))
             {
                 this.rateLimiter.Reset(clientIp);
@@ -165,5 +165,22 @@ public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticat
     private string GetClientIpAddress()
     {
         return ClientIpResolver.ResolveClientIp(this.Context, this.trustedNetworkService, this.configService);
+    }
+
+    private bool IsAuthenticationBypassed()
+    {
+        if (!this.configFileProvider.AuthenticationEnabled)
+        {
+            return true;
+        }
+
+        var remoteIp = this.Context.Connection.RemoteIpAddress;
+        if (remoteIp == null)
+        {
+            return false;
+        }
+
+        var trusted = this.trustedNetworkService ?? new TrustedNetworkService();
+        return trusted.IsAuthenticationBypassed(this.configFileProvider.AuthenticationRequired, remoteIp);
     }
 }

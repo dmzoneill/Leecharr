@@ -4,6 +4,7 @@ using System;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Http;
+using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Configuration;
 
 namespace Leecharr.Http.Security;
@@ -31,10 +32,24 @@ public static class RpcAuthenticationHelper
 
         configFileProvider ??= context.RequestServices?.GetService(typeof(IConfigFileProvider)) as IConfigFileProvider;
 
-        // 0. When authentication is disabled, automatically grant access
-        if (configFileProvider != null && !configFileProvider.AuthenticationEnabled)
+        // 0. When authentication is disabled or bypassed by network rule, automatically grant access
+        if (configFileProvider != null)
         {
-            return true;
+            if (!configFileProvider.AuthenticationEnabled)
+            {
+                return true;
+            }
+
+            var remoteIp = context.Connection.RemoteIpAddress;
+            if (remoteIp != null)
+            {
+                var trusted = (context.RequestServices?.GetService(typeof(ITrustedNetworkService)) as ITrustedNetworkService)
+                    ?? new TrustedNetworkService();
+                if (trusted.IsAuthenticationBypassed(configFileProvider.AuthenticationRequired, remoteIp))
+                {
+                    return true;
+                }
+            }
         }
 
         // 1. User principal already authenticated by ASP.NET Core (e.g. SmartAuth, Cookies, Identity)
