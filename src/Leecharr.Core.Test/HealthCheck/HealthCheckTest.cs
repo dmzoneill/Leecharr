@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,7 +18,9 @@ using NzbDrone.Core.Http.Transport;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.MediaEnrichment.Providers;
 using NzbDrone.Core.MediaInspection;
+using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Network.Binding;
+using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Core.Test.HealthCheck;
 
@@ -302,5 +305,120 @@ public class HealthCheckTest
         Assert.That(results[0].Source, Is.EqualTo("Check1"));
         Assert.That(results[1].Source, Is.EqualTo("Check2"));
         Assert.That(results[1].Type, Is.EqualTo(HealthCheckResultType.Warning));
+    }
+
+    [Test]
+    public async Task DiskSpaceHealthCheck_WhenCriticallyLow_PublishesHealthIssueEvent()
+    {
+        var diskService = Substitute.For<IDiskSpaceService>();
+        diskService.GetDiskSpace().Returns(new List<DiskSpaceInfo>
+        {
+            new DiskSpaceInfo { Path = "/downloads", FreeSpace = 500L * 1024 * 1024, TotalSpace = 100L * 1024 * 1024 * 1024 },
+        });
+
+        var eventAggregator = Substitute.For<IEventAggregator>();
+        var check = new DiskSpaceHealthCheck(diskService, eventAggregator: eventAggregator);
+        var result = await check.CheckAsync();
+
+        result.Type.Should().Be(HealthCheckResultType.Error);
+        eventAggregator.Received(1).PublishEvent(Arg.Is<HealthIssueEvent>(e =>
+            e.Source == "DiskSpace" && !e.IsResolved && e.Message.Contains("/downloads")));
+    }
+
+    [Test]
+    public async Task DiskSpaceHealthCheck_WhenHung_TimesOutGracefully()
+    {
+        var diskService = Substitute.For<IDiskSpaceService>();
+        diskService.GetDiskSpace().Returns(x =>
+        {
+            Thread.Sleep(500);
+            return new List<DiskSpaceInfo>();
+        });
+
+        var check = new DiskSpaceHealthCheck(diskService, null, null, TimeSpan.FromMilliseconds(50));
+        var result = await check.CheckAsync();
+
+        result.Type.Should().Be(HealthCheckResultType.Error);
+        result.Message.Should().Contain("timed out");
+    }
+
+    [Test]
+    public async Task HealthCheckService_WhenCheckTimesOut_ReturnsErrorWithoutBlockingOtherChecks()
+    {
+        var slowCheck = Substitute.For<IHealthCheck>();
+        slowCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(async _ =>
+        {
+            await Task.Delay(500);
+            return HealthCheckResult.Ok("SlowCheck");
+        });
+
+        var fastCheck = Substitute.For<IHealthCheck>();
+        fastCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(HealthCheckResult.Ok("FastCheck")));
+
+        using var service = new HealthCheckService(
+            new[] { slowCheck, fastCheck },
+            null,
+            TimeSpan.FromMilliseconds(50),
+            Timeout.InfiniteTimeSpan);
+
+        var results = await service.PerformChecksAsync();
+
+        results.Should().HaveCount(2);
+        var fastResult = results.Find(r => r.Source == "FastCheck");
+        var slowResult = results.Find(r => r.Source == slowCheck.GetType().Name);
+
+        fastResult.Should().NotBeNull();
+        fastResult.Type.Should().Be(HealthCheckResultType.Ok);
+
+        slowResult.Should().NotBeNull();
+        slowResult.Type.Should().Be(HealthCheckResultType.Error);
+        slowResult.Message.Should().Contain("timed out");
+    }
+
+    [Test]
+    public async Task HealthCheckService_WhenCheckDegradesAndRecovers_PublishesHealthIssueEvents()
+    {
+        var eventAggregator = Substitute.For<IEventAggregator>();
+        var mockCheck = Substitute.For<IHealthCheck>();
+
+        using var service = new HealthCheckService(
+            new[] { mockCheck },
+            eventAggregator,
+            TimeSpan.FromSeconds(5),
+            Timeout.InfiniteTimeSpan);
+
+        // Run 1: Ok -> no event
+        mockCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(HealthCheckResult.Ok("TestCheck")));
+        await service.PerformChecksAsync();
+        eventAggregator.DidNotReceive().PublishEvent(Arg.Any<HealthIssueEvent>());
+
+        // Run 2: Warning -> degraded event published
+        mockCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(HealthCheckResult.Warning("TestCheck", "Degraded warning")));
+        await service.PerformChecksAsync();
+        eventAggregator.Received(1).PublishEvent(Arg.Is<HealthIssueEvent>(e =>
+            e.Source == "TestCheck" && !e.IsResolved && e.Message == "Degraded warning"));
+
+        // Run 3: Ok -> recovered event published
+        mockCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(HealthCheckResult.Ok("TestCheck")));
+        await service.PerformChecksAsync();
+        eventAggregator.Received(1).PublishEvent(Arg.Is<HealthIssueEvent>(e =>
+            e.Source == "TestCheck" && e.IsResolved));
+    }
+
+    [Test]
+    public async Task HealthCheckService_PeriodicTimer_TriggersChecks()
+    {
+        var mockCheck = Substitute.For<IHealthCheck>();
+        mockCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(HealthCheckResult.Ok("PeriodicCheck")));
+
+        using var service = new HealthCheckService(
+            new[] { mockCheck },
+            null,
+            TimeSpan.FromSeconds(2),
+            TimeSpan.FromMilliseconds(50));
+
+        await Task.Delay(180);
+
+        await mockCheck.Received().CheckAsync(Arg.Any<CancellationToken>());
     }
 }
