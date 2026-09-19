@@ -3156,4 +3156,198 @@ public class DelugeJsonRpcControllerTest
         json.Should().Contain("\"Paused\",3");
         json.Should().Contain("\"Checking\",2");
     }
+
+    [Test]
+    public async Task HandleRpc_CoreSetTorrentGranular_MaxSpeed_UpdatesLimitsAndEngine()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 55,
+            InfoHash = "1122334455667788990011223344556677889900",
+            DownloadLimit = 0,
+            UploadLimit = 0,
+        };
+        this.torrentService.GetByInfoHash(torrent.InfoHash).Returns(torrent);
+
+        using var docDl = JsonDocument.Parse($"{{\"method\":\"core.set_torrent_max_download_speed\",\"params\":[\"{torrent.InfoHash}\", 500.0],\"id\":301}}");
+        var resDl = await this.controller.HandleRpc(docDl.RootElement);
+        resDl.Should().BeOfType<JsonResult>();
+        torrent.DownloadLimit.Should().Be(500);
+        await this.torrentService.Received().UpdateAsync(torrent);
+        await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(55, 500, 0);
+
+        using var docUl = JsonDocument.Parse($"{{\"method\":\"core.set_torrent_max_upload_speed\",\"params\":[\"{torrent.InfoHash}\", 250.0],\"id\":302}}");
+        var resUl = await this.controller.HandleRpc(docUl.RootElement);
+        resUl.Should().BeOfType<JsonResult>();
+        torrent.UploadLimit.Should().Be(250);
+        await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(55, 500, 250);
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreSetTorrentGranular_StopRatioAndStopAtRatio_UpdatesTargetRatio()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 56,
+            InfoHash = "2233445566778899001122334455667788990011",
+            TargetRatio = 0,
+        };
+        this.torrentService.GetByInfoHash(torrent.InfoHash).Returns(torrent);
+
+        using var docStopAt = JsonDocument.Parse($"{{\"method\":\"core.set_torrent_stop_at_ratio\",\"params\":[\"{torrent.InfoHash}\", true],\"id\":303}}");
+        var resStopAt = await this.controller.HandleRpc(docStopAt.RootElement);
+        resStopAt.Should().BeOfType<JsonResult>();
+        torrent.TargetRatio.Should().Be(1.0);
+
+        using var docRatio = JsonDocument.Parse($"{{\"method\":\"core.set_torrent_stop_ratio\",\"params\":[\"{torrent.InfoHash}\", 3.5],\"id\":304}}");
+        var resRatio = await this.controller.HandleRpc(docRatio.RootElement);
+        resRatio.Should().BeOfType<JsonResult>();
+        torrent.TargetRatio.Should().Be(3.5);
+
+        using var docDisable = JsonDocument.Parse($"{{\"method\":\"core.set_torrent_stop_at_ratio\",\"params\":[\"{torrent.InfoHash}\", false],\"id\":305}}");
+        var resDisable = await this.controller.HandleRpc(docDisable.RootElement);
+        resDisable.Should().BeOfType<JsonResult>();
+        torrent.TargetRatio.Should().Be(0);
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreSetTorrentGranular_RemoveAtRatio_UpdatesShareLimitAction()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 57,
+            InfoHash = "3344556677889900112233445566778899001122",
+            ShareLimitAction = "Pause",
+        };
+        this.torrentService.GetByInfoHash(torrent.InfoHash).Returns(torrent);
+
+        using var docRemove = JsonDocument.Parse($"{{\"method\":\"core.set_torrent_remove_at_ratio\",\"params\":[\"{torrent.InfoHash}\", true],\"id\":306}}");
+        var resRemove = await this.controller.HandleRpc(docRemove.RootElement);
+        resRemove.Should().BeOfType<JsonResult>();
+        torrent.ShareLimitAction.Should().Be("Remove");
+
+        using var docPause = JsonDocument.Parse($"{{\"method\":\"core.set_torrent_remove_at_ratio\",\"params\":[\"{torrent.InfoHash}\", false],\"id\":307}}");
+        var resPause = await this.controller.HandleRpc(docPause.RootElement);
+        resPause.Should().BeOfType<JsonResult>();
+        torrent.ShareLimitAction.Should().Be("Pause");
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreSetTorrentGranular_PrioritizeFirstLast_UpdatesPriorityAndEngine()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 58,
+            InfoHash = "4455667788990011223344556677889900112233",
+            FirstLastPiecePriority = false,
+        };
+        this.torrentService.GetByInfoHash(torrent.InfoHash).Returns(torrent);
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        this.torrentService.GetDownloadTask(58).Returns(mockTask);
+
+        using var docPrio = JsonDocument.Parse($"{{\"method\":\"core.set_torrent_prioritize_first_last\",\"params\":[\"{torrent.InfoHash}\", true],\"id\":308}}");
+        var resPrio = await this.controller.HandleRpc(docPrio.RootElement);
+        resPrio.Should().BeOfType<JsonResult>();
+        torrent.FirstLastPiecePriority.Should().BeTrue();
+        mockTask.FirstLastPiecePriority.Should().BeTrue();
+        await this.downloadEngine.Received(1).SetFirstLastPiecePriorityAsync(58, true);
+    }
+
+    [TestCase("core.set_torrent_max_connections", 100)]
+    [TestCase("core.set_torrent_max_upload_slots", 10)]
+    [TestCase("core.set_torrent_auto_managed", true)]
+    [TestCase("core.set_torrent_move_completed", true)]
+    [TestCase("core.set_torrent_move_completed_path", "/downloads/completed")]
+    public async Task HandleRpc_CoreSetTorrentGranular_StandardDelugeMutators_ReturnSuccess(string method, object value)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 59,
+            InfoHash = "5566778899001122334455667788990011223344",
+            SavePath = "/downloads",
+        };
+        this.torrentService.GetByInfoHash(torrent.InfoHash).Returns(torrent);
+
+        var valJson = JsonSerializer.Serialize(value);
+        using var doc = JsonDocument.Parse($"{{\"method\":\"{method}\",\"params\":[\"{torrent.InfoHash}\", {valJson}],\"id\":309}}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var json = JsonSerializer.Serialize(((JsonResult)result).Value);
+        json.Should().Contain("\"result\":true");
+        await this.torrentService.DidNotReceive().SetLocationAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreSetTorrentOptions_WithSuperSeedingAndRemoveAtRatio_UpdatesProperties()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 60,
+            InfoHash = "6677889900112233445566778899001122334455",
+            InitialSeeding = false,
+            ShareLimitAction = "Pause",
+        };
+        this.torrentService.GetByInfoHash(torrent.InfoHash).Returns(torrent);
+
+        var optsJson = "{\"super_seeding\": true, \"remove_at_ratio\": true, \"move_completed\": true}";
+        using var doc = JsonDocument.Parse($"{{\"method\":\"core.set_torrent_options\",\"params\":[[\"{torrent.InfoHash}\"], {optsJson}],\"id\":310}}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        torrent.InitialSeeding.Should().BeTrue();
+        torrent.ShareLimitAction.Should().Be("Remove");
+        await this.torrentService.Received(1).SetSuperSeedingAsync(60, true);
+        await this.torrentService.Received().UpdateAsync(torrent);
+    }
+
+    [Test]
+    public async Task HandleRpc_SystemListMethods_ReturnsGranularSetTorrentMethods()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("{\"method\":\"system.listMethods\",\"params\":[],\"id\":311}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var json = JsonSerializer.Serialize(((JsonResult)result).Value);
+        json.Should().Contain("core.set_torrent_max_connections");
+        json.Should().Contain("core.set_torrent_max_upload_slots");
+        json.Should().Contain("core.set_torrent_max_download_speed");
+        json.Should().Contain("core.set_torrent_max_upload_speed");
+        json.Should().Contain("core.set_torrent_auto_managed");
+        json.Should().Contain("core.set_torrent_stop_at_ratio");
+        json.Should().Contain("core.set_torrent_stop_ratio");
+        json.Should().Contain("core.set_torrent_remove_at_ratio");
+        json.Should().Contain("core.set_torrent_move_completed");
+        json.Should().Contain("core.set_torrent_move_completed_path");
+        json.Should().Contain("core.set_torrent_prioritize_first_last");
+    }
 }
