@@ -329,6 +329,18 @@ public class FloodApiController : ControllerBase, IActionFilter
     }
 
     [HttpGet]
+    [Route("api/client/connection-test")]
+    [Route("client/connection-test")]
+    public IActionResult GetClientConnectionTest()
+    {
+        return this.Ok(new
+        {
+            isConnected = true,
+            version = "0.9.8",
+        });
+    }
+
+    [HttpGet]
     [Route("api/torrents")]
     public IActionResult GetTorrents()
     {
@@ -348,7 +360,7 @@ public class FloodApiController : ControllerBase, IActionFilter
         {
             var dict = this.BuildTorrentDictionary();
             var json = JsonSerializer.Serialize(dict);
-            await this.Response.WriteAsync($"event: TORRENT_LIST_DIFF\ndata: {json}\n\n", CancellationToken.None);
+            await this.Response.WriteAsync($"event: TORRENT_LIST_FULL_UPDATE\ndata: {json}\n\n", CancellationToken.None);
             await this.Response.Body.FlushAsync(CancellationToken.None);
 
             while (!cancellationToken.IsCancellationRequested)
@@ -458,7 +470,17 @@ public class FloodApiController : ControllerBase, IActionFilter
         if (request?.Urls != null)
         {
             var category = request.Tags?.FirstOrDefault();
-            var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
+            var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? 0;
+            if (maxTorrentBytes <= 0)
+            {
+                maxTorrentBytes = this.configFileProvider?.MaxTorrentFileSizeBytes ?? 0;
+            }
+
+            if (maxTorrentBytes <= 0)
+            {
+                maxTorrentBytes = 250L * 1024 * 1024;
+            }
+
             foreach (var url in request.Urls)
             {
                 if (url.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase))
@@ -481,6 +503,17 @@ public class FloodApiController : ControllerBase, IActionFilter
     [Route("api/torrents/add-files")]
     public async Task<IActionResult> AddFiles()
     {
+        var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? 0;
+        if (maxTorrentBytes <= 0)
+        {
+            maxTorrentBytes = this.configFileProvider?.MaxTorrentFileSizeBytes ?? 0;
+        }
+
+        if (maxTorrentBytes <= 0)
+        {
+            maxTorrentBytes = 250L * 1024 * 1024;
+        }
+
         if (this.Request.HasFormContentType && this.Request.Form.Files.Count > 0)
         {
             var destination = this.Request.Form["destination"].ToString();
@@ -490,8 +523,18 @@ public class FloodApiController : ControllerBase, IActionFilter
 
             foreach (var file in this.Request.Form.Files)
             {
+                if (file.Length > maxTorrentBytes)
+                {
+                    return this.BadRequest(new { message = $"Torrent file '{file.FileName}' exceeds maximum allowed size of {maxTorrentBytes} bytes." });
+                }
+
                 using var ms = new MemoryStream();
                 await file.CopyToAsync(ms);
+                if (ms.Length > maxTorrentBytes)
+                {
+                    return this.BadRequest(new { message = $"Torrent file '{file.FileName}' exceeds maximum allowed size of {maxTorrentBytes} bytes." });
+                }
+
                 var bytes = ms.ToArray();
                 var parsed = this.torrentFileParser.Parse(bytes);
                 await this.torrentService.AddFromParsedTorrentAsync(parsed, category, destination, !start, bytes);
@@ -522,7 +565,17 @@ public class FloodApiController : ControllerBase, IActionFilter
                 {
                     if (!string.IsNullOrWhiteSpace(b64))
                     {
+                        if ((long)b64.Length * 3 / 4 > maxTorrentBytes + 4)
+                        {
+                            return this.BadRequest(new { message = $"Torrent file exceeds maximum allowed size of {maxTorrentBytes} bytes." });
+                        }
+
                         var bytes = Convert.FromBase64String(b64);
+                        if (bytes.LongLength > maxTorrentBytes)
+                        {
+                            return this.BadRequest(new { message = $"Torrent file exceeds maximum allowed size of {maxTorrentBytes} bytes." });
+                        }
+
                         var parsed = this.torrentFileParser.Parse(bytes);
                         await this.torrentService.AddFromParsedTorrentAsync(parsed, category, jsonRequest.Destination, !jsonRequest.Start, bytes);
                     }
