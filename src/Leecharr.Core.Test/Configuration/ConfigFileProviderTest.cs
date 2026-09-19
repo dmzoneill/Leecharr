@@ -8,6 +8,7 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Common.EnvironmentInfo;
+using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Configuration;
 
 namespace Leecharr.Core.Test.Configuration;
@@ -218,5 +219,28 @@ public class ConfigFileProviderTest
         {
             Environment.SetEnvironmentVariable("LEECHARR__MAX_TORRENT_FILE_SIZE_BYTES", null);
         }
+    }
+
+    [Test]
+    public void AuthenticationRequired_WhenAuthenticationEnabledFalse_DefaultsToDisabledForLocalAddresses()
+    {
+        var provider = new ConfigFileProvider(this.appFolderInfo);
+        provider.AuthenticationEnabled.Should().BeFalse();
+        provider.AuthenticationRequired.Should().Be(AuthenticationRequiredType.DisabledForLocalAddresses);
+    }
+
+    [Test]
+    public void AuthenticationRequired_CanBeSavedAndReloaded()
+    {
+        var provider = new ConfigFileProvider(this.appFolderInfo);
+        provider.SaveConfigDictionary(new Dictionary<string, object>
+        {
+            ["AuthenticationEnabled"] = true,
+            ["AuthenticationRequired"] = AuthenticationRequiredType.DisabledForLocalhost,
+        });
+
+        var reloadedProvider = new ConfigFileProvider(this.appFolderInfo);
+        reloadedProvider.AuthenticationEnabled.Should().BeTrue();
+        reloadedProvider.AuthenticationRequired.Should().Be(AuthenticationRequiredType.DisabledForLocalhost);
     }
 }

@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using Leecharr.Http.REST;
+using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Configuration;
 
 namespace Leecharr.Api.V1.Config;
@@ -32,6 +33,8 @@ public class GeneralConfigResource : RestResource
     public string UrlBase { get; set; }
 
     public bool AuthenticationEnabled { get; set; }
+
+    public AuthenticationRequiredType AuthenticationRequired { get; set; }
 
     public string ApiKey { get; set; }
 
@@ -88,6 +91,7 @@ public static class GeneralConfigResourceMapper
             BindAddress = fileProvider?.BindAddress,
             UrlBase = fileProvider?.UrlBase,
             AuthenticationEnabled = fileProvider?.AuthenticationEnabled ?? false,
+            AuthenticationRequired = fileProvider?.AuthenticationRequired ?? AuthenticationRequiredType.DisabledForLocalAddresses,
             TerminalAccessEnabled = fileProvider?.TerminalAccessEnabled ?? true,
             ApiKey = maskedApiKey,
             EnableSsl = fileProvider?.EnableSsl ?? false,
