@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Configuration;
 
 namespace Leecharr.Core.Test.Http;
@@ -420,5 +421,55 @@ public class BasicAuthenticationHandlerTest
 
         throttledResult.Succeeded.Should().BeFalse();
         throttledResult.Failure!.Message.Should().Contain("Too many failed authentication attempts");
+    }
+
+    [Test]
+    public async Task AuthenticateAsync_WhenAuthenticationRequiredIsDisabledForLocalhost_AndRemoteIpIsLoopback_ReturnsSuccessWithAnyCredentials()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.AuthenticationRequired.Returns(AuthenticationRequiredType.DisabledForLocalhost);
+        this.httpContext.Connection.RemoteIpAddress = System.Net.IPAddress.Loopback;
+
+        var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:whatever"));
+        this.httpContext.Request.Headers["Authorization"] = "Basic " + encoded;
+
+        var result = await this.handler.AuthenticateAsync();
+
+        result.Succeeded.Should().BeTrue();
+        result.Principal.Should().NotBeNull();
+        result.Principal!.Identity!.Name.Should().Be("admin");
+    }
+
+    [Test]
+    public async Task AuthenticateAsync_WhenAuthenticationRequiredIsDisabledForLocalAddresses_AndRemoteIpIsPrivateLan_ReturnsSuccessWithAnyCredentials()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.AuthenticationRequired.Returns(AuthenticationRequiredType.DisabledForLocalAddresses);
+        this.httpContext.Connection.RemoteIpAddress = System.Net.IPAddress.Parse("192.168.1.100");
+
+        var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:whatever"));
+        this.httpContext.Request.Headers["Authorization"] = "Basic " + encoded;
+
+        var result = await this.handler.AuthenticateAsync();
+
+        result.Succeeded.Should().BeTrue();
+        result.Principal.Should().NotBeNull();
+        result.Principal!.Identity!.Name.Should().Be("admin");
+    }
+
+    [Test]
+    public async Task AuthenticateAsync_WhenAuthenticationRequiredIsEnabled_AndRemoteIpIsLoopback_RejectsInvalidCredentials()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.AuthenticationRequired.Returns(AuthenticationRequiredType.Enabled);
+        this.configFileProvider.ApiKey.Returns("valid-key");
+        this.httpContext.Connection.RemoteIpAddress = System.Net.IPAddress.Loopback;
+
+        var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:wrong-key"));
+        this.httpContext.Request.Headers["Authorization"] = "Basic " + encoded;
+
+        var result = await this.handler.AuthenticateAsync();
+
+        result.Succeeded.Should().BeFalse();
     }
 }

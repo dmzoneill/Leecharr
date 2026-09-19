@@ -11,6 +11,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Common.EnvironmentInfo;
+using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Configuration;
 
 namespace NzbDrone.Core.Security;
@@ -458,6 +459,8 @@ public class CertificateManager : ICertificateManager
         public string ApiKey => string.Empty;
 
         public bool AuthenticationEnabled => false;
+
+        public AuthenticationRequiredType AuthenticationRequired => AuthenticationRequiredType.DisabledForLocalAddresses;
 
         public bool TerminalAccessEnabled => true;
 

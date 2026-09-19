@@ -8,6 +8,26 @@ namespace NzbDrone.Core.Authentication;
 
 public class TrustedNetworkService : ITrustedNetworkService
 {
+    public bool IsAuthenticationBypassed(AuthenticationRequiredType requiredType, IPAddress remoteIp)
+    {
+        if (remoteIp == null)
+        {
+            return false;
+        }
+
+        if (remoteIp.IsIPv4MappedToIPv6)
+        {
+            remoteIp = remoteIp.MapToIPv4();
+        }
+
+        return requiredType switch
+        {
+            AuthenticationRequiredType.DisabledForLocalhost => IPAddress.IsLoopback(remoteIp),
+            AuthenticationRequiredType.DisabledForLocalAddresses => this.IsLocalOrPrivateNetwork(remoteIp),
+            _ => false,
+        };
+    }
+
     public bool IsLocalOrPrivateNetwork(IPAddress remoteIp)
     {
         if (remoteIp == null)

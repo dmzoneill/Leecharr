@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Xml.Linq;
 using NzbDrone.Common.EnvironmentInfo;
+using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.Configuration;
@@ -58,6 +59,17 @@ public class ConfigFileProvider : IConfigFileProvider
     public string ApiKey => this.GetValue("ApiKey", string.Empty);
 
     public bool AuthenticationEnabled => this.GetValueBool("AuthenticationEnabled", false);
+
+    public AuthenticationRequiredType AuthenticationRequired
+    {
+        get
+        {
+            var defaultValue = this.AuthenticationEnabled
+                ? AuthenticationRequiredType.Enabled
+                : AuthenticationRequiredType.DisabledForLocalAddresses;
+            return this.GetValueEnum("AuthenticationRequired", defaultValue);
+        }
+    }
 
     public bool TerminalAccessEnabled => this.GetValueBool("TerminalAccessEnabled", true);
 
@@ -205,6 +217,13 @@ public class ConfigFileProvider : IConfigFileProvider
     {
         var value = this.GetValue(key, null);
         return value != null && bool.TryParse(value, out var result) ? result : defaultValue;
+    }
+
+    private T GetValueEnum<T>(string key, T defaultValue)
+        where T : struct, Enum
+    {
+        var value = this.GetValue(key, null);
+        return value != null && Enum.TryParse<T>(value, true, out var result) ? result : defaultValue;
     }
 
     private static string GenerateApiKey()

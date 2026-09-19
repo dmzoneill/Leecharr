@@ -53,7 +53,7 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        if (!this.configFileProvider.AuthenticationEnabled)
+        if (this.IsAuthenticationBypassed())
         {
             var claims = new[]
             {
@@ -135,5 +135,22 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
     private string GetClientIpAddress()
     {
         return ClientIpResolver.ResolveClientIp(this.Context, this.trustedNetworkService, this.configService);
+    }
+
+    private bool IsAuthenticationBypassed()
+    {
+        if (!this.configFileProvider.AuthenticationEnabled)
+        {
+            return true;
+        }
+
+        var remoteIp = this.Context.Connection.RemoteIpAddress;
+        if (remoteIp == null)
+        {
+            return false;
+        }
+
+        var trusted = this.trustedNetworkService ?? new TrustedNetworkService();
+        return trusted.IsAuthenticationBypassed(this.configFileProvider.AuthenticationRequired, remoteIp);
     }
 }

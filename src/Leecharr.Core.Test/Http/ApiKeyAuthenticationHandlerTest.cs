@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Configuration;
 
 namespace Leecharr.Core.Test.Http;
@@ -253,5 +254,57 @@ public class ApiKeyAuthenticationHandlerTest
 
         throttledResult.Succeeded.Should().BeFalse();
         throttledResult.Failure!.Message.Should().Contain("Too many failed authentication attempts");
+    }
+
+    [Test]
+    public async Task AuthenticateAsync_WhenAuthenticationRequiredIsDisabledForLocalhost_AndRemoteIpIsLoopback_ReturnsSuccessWithoutApiKey()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.AuthenticationRequired.Returns(AuthenticationRequiredType.DisabledForLocalhost);
+        this.httpContext.Connection.RemoteIpAddress = System.Net.IPAddress.Loopback;
+
+        var result = await this.handler.AuthenticateAsync();
+
+        result.Succeeded.Should().BeTrue();
+        result.Principal.Should().NotBeNull();
+        result.Principal!.Identity!.Name.Should().Be("Admin");
+    }
+
+    [Test]
+    public async Task AuthenticateAsync_WhenAuthenticationRequiredIsDisabledForLocalAddresses_AndRemoteIpIsPrivateLan_ReturnsSuccessWithoutApiKey()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.AuthenticationRequired.Returns(AuthenticationRequiredType.DisabledForLocalAddresses);
+        this.httpContext.Connection.RemoteIpAddress = System.Net.IPAddress.Parse("192.168.1.100");
+
+        var result = await this.handler.AuthenticateAsync();
+
+        result.Succeeded.Should().BeTrue();
+        result.Principal.Should().NotBeNull();
+        result.Principal!.Identity!.Name.Should().Be("Admin");
+    }
+
+    [Test]
+    public async Task AuthenticateAsync_WhenAuthenticationRequiredIsDisabledForLocalAddresses_AndRemoteIpIsPublic_FailsWithoutApiKey()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.AuthenticationRequired.Returns(AuthenticationRequiredType.DisabledForLocalAddresses);
+        this.httpContext.Connection.RemoteIpAddress = System.Net.IPAddress.Parse("8.8.8.8");
+
+        var result = await this.handler.AuthenticateAsync();
+
+        result.Succeeded.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task AuthenticateAsync_WhenAuthenticationRequiredIsEnabled_AndRemoteIpIsLoopback_FailsWithoutApiKey()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.AuthenticationRequired.Returns(AuthenticationRequiredType.Enabled);
+        this.httpContext.Connection.RemoteIpAddress = System.Net.IPAddress.Loopback;
+
+        var result = await this.handler.AuthenticateAsync();
+
+        result.Succeeded.Should().BeFalse();
     }
 }

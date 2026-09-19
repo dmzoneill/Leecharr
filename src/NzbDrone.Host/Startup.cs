@@ -107,10 +107,24 @@ public class Startup
                 var req = context.Request;
                 var configFileProvider = context.RequestServices.GetService<NzbDrone.Core.Configuration.IConfigFileProvider>();
 
-                // 0. When authentication is disabled, automatically grant local access
-                if (configFileProvider != null && !configFileProvider.AuthenticationEnabled)
+                // 0. When authentication is disabled or bypassed by network rule, automatically grant local access
+                if (configFileProvider != null)
                 {
-                    return ApiKeyAuthenticationOptions.DefaultScheme;
+                    if (!configFileProvider.AuthenticationEnabled)
+                    {
+                        return ApiKeyAuthenticationOptions.DefaultScheme;
+                    }
+
+                    var remoteIp = context.Connection.RemoteIpAddress;
+                    if (remoteIp != null)
+                    {
+                        var trustedNetwork = context.RequestServices.GetService<NzbDrone.Core.Authentication.ITrustedNetworkService>()
+                            ?? new NzbDrone.Core.Authentication.TrustedNetworkService();
+                        if (trustedNetwork.IsAuthenticationBypassed(configFileProvider.AuthenticationRequired, remoteIp))
+                        {
+                            return ApiKeyAuthenticationOptions.DefaultScheme;
+                        }
+                    }
                 }
 
                 // 1. API Key present in header, query parameter, or Bearer token

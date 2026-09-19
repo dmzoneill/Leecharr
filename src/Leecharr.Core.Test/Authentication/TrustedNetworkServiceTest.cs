@@ -71,4 +71,41 @@ public class TrustedNetworkServiceTest
 
         Assert.That(result, Is.EqualTo(expected));
     }
+
+    [TestCase("127.0.0.1", true)]
+    [TestCase("::1", true)]
+    [TestCase("192.168.1.50", false)]
+    [TestCase("8.8.8.8", false)]
+    public void IsAuthenticationBypassed_WhenDisabledForLocalhost_OnlyAllowsLoopback(string ipStr, bool expected)
+    {
+        var ip = IPAddress.Parse(ipStr);
+        var result = this.service.IsAuthenticationBypassed(AuthenticationRequiredType.DisabledForLocalhost, ip);
+
+        Assert.That(result, Is.EqualTo(expected));
+    }
+
+    [TestCase("127.0.0.1", true)]
+    [TestCase("::1", true)]
+    [TestCase("192.168.1.50", true)]
+    [TestCase("10.0.0.1", true)]
+    [TestCase("172.16.0.1", true)]
+    [TestCase("8.8.8.8", false)]
+    public void IsAuthenticationBypassed_WhenDisabledForLocalAddresses_AllowsPrivateAndLoopback(string ipStr, bool expected)
+    {
+        var ip = IPAddress.Parse(ipStr);
+        var result = this.service.IsAuthenticationBypassed(AuthenticationRequiredType.DisabledForLocalAddresses, ip);
+
+        Assert.That(result, Is.EqualTo(expected));
+    }
+
+    [TestCase("127.0.0.1")]
+    [TestCase("192.168.1.50")]
+    [TestCase("8.8.8.8")]
+    public void IsAuthenticationBypassed_WhenEnabled_NeverAllowsBypass(string ipStr)
+    {
+        var ip = IPAddress.Parse(ipStr);
+        var result = this.service.IsAuthenticationBypassed(AuthenticationRequiredType.Enabled, ip);
+
+        Assert.That(result, Is.False);
+    }
 }
