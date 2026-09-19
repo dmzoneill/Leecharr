@@ -155,7 +155,7 @@ public class StoragePathServiceTest
 
         success.Should().BeTrue();
         finalDestination.Should().Be(Path.Combine("/downloads/tv", "File.mkv"));
-        this.diskProvider.Received(1).MoveFile(source, Path.Combine("/downloads/tv", "File.mkv"), true);
+        this.diskProvider.Received(1).MoveFile(source, Path.Combine("/downloads/tv", "File.mkv"), false);
     }
 
     [Test]
@@ -195,7 +195,8 @@ public class StoragePathServiceTest
         success.Should().BeTrue();
         finalDestination.Should().Be(dest);
         this.diskProvider.Received(1).EnsureFolder(dest);
-        this.diskProvider.Received(1).CopyFile($"{source}/ep1.mkv", $"{dest}/ep1.mkv", true);
+        this.diskProvider.Received(1).CopyFile($"{source}/ep1.mkv", $"{dest}/ep1.mkv.leecharr.tmp", true);
+        this.diskProvider.Received(1).MoveFile($"{dest}/ep1.mkv.leecharr.tmp", $"{dest}/ep1.mkv", false);
         this.diskProvider.Received(1).DeleteFolder(source, true);
     }
 
@@ -209,14 +210,15 @@ public class StoragePathServiceTest
         this.diskProvider.FileExists(source).Returns(true);
         this.diskProvider.FolderExists(source).Returns(false);
 
-        this.diskProvider.When(x => x.MoveFile(source, dest, true))
+        this.diskProvider.When(x => x.MoveFile(source, dest, false))
             .Do(x => throw new IOException("Cross-device link"));
 
         var success = this.storagePathService.MoveToCompleted(source, "tv", "Movie.mkv", out var finalDestination);
 
         success.Should().BeTrue();
         finalDestination.Should().Be(dest);
-        this.diskProvider.Received(1).CopyFile(source, dest, true);
+        this.diskProvider.Received(1).CopyFile(source, dest + ".leecharr.tmp", true);
+        this.diskProvider.Received(1).MoveFile(dest + ".leecharr.tmp", dest, false);
         this.diskProvider.Received(1).DeleteFile(source);
     }
 
@@ -364,7 +366,7 @@ public class StoragePathServiceTest
 
         success.Should().BeTrue();
         finalDestination.Should().Be(dest);
-        this.diskProvider.Received(1).MoveFile(sourceWithExt, dest, true);
+        this.diskProvider.Received(1).MoveFile(sourceWithExt, dest, false);
     }
 
     [TestCase(null)]
@@ -437,7 +439,7 @@ public class StoragePathServiceTest
 
         success.Should().BeTrue();
         finalDestination.Should().Be(dest);
-        this.diskProvider.Received(1).MoveFile(source, dest, true);
+        this.diskProvider.Received(1).MoveFile(source, dest, false);
     }
 
     [Test]
@@ -461,7 +463,7 @@ public class StoragePathServiceTest
 
         success.Should().BeTrue();
         finalDestination.Should().Be(dest);
-        this.diskProvider.Received(1).MoveFile(sourceWithExt, dest, true);
+        this.diskProvider.Received(1).MoveFile(sourceWithExt, dest, false);
     }
 
     [Test]
@@ -515,7 +517,7 @@ public class StoragePathServiceTest
 
         success.Should().BeTrue();
         finalDestination.Should().Be(dest);
-        this.diskProvider.Received(1).MoveFile(source, dest, true);
+        this.diskProvider.Received(1).MoveFile(source, dest, false);
     }
 
     [Test]
@@ -553,5 +555,124 @@ public class StoragePathServiceTest
         var result = this.storagePathService.NormalizeCompletedSavePath("/downloads/tv", "tv");
 
         result.Should().Be("/downloads/tv");
+    }
+
+    [Test]
+    public void MoveToCompleted_WhenDestinationFileExists_GeneratesNonCollidingNameAndDoesNotOverwrite()
+    {
+        var source = "/downloads/incomplete/Movie.mkv";
+        var dest = "/downloads/tv/Movie.mkv";
+        var nonCollidingDest = "/downloads/tv/Movie_1.mkv";
+
+        this.categoryService.GetSavePathForCategory("tv").Returns("/downloads/tv");
+        this.diskProvider.FolderExists("/downloads/tv").Returns(true);
+        this.diskProvider.FileExists(source).Returns(true);
+        this.diskProvider.FolderExists(source).Returns(false);
+
+        this.diskProvider.FileExists(dest).Returns(true);
+        this.diskProvider.FileExists(nonCollidingDest).Returns(false);
+
+        var success = this.storagePathService.MoveToCompleted(source, "tv", "Movie.mkv", out var finalDestination);
+
+        success.Should().BeTrue();
+        finalDestination.Should().Be(nonCollidingDest);
+        this.diskProvider.Received(1).MoveFile(source, nonCollidingDest, false);
+        this.diskProvider.DidNotReceive().MoveFile(source, dest, Arg.Any<bool>());
+    }
+
+    [Test]
+    public void MoveToCompleted_WhenDestinationFolderExists_GeneratesNonCollidingNameAndDoesNotOverwrite()
+    {
+        var source = "/downloads/incomplete/Series.S01";
+        var dest = "/downloads/tv/Series.S01";
+        var nonCollidingDest = "/downloads/tv/Series.S01_1";
+
+        this.categoryService.GetSavePathForCategory("tv").Returns("/downloads/tv");
+        this.diskProvider.FolderExists("/downloads/tv").Returns(true);
+        this.diskProvider.FileExists(source).Returns(false);
+        this.diskProvider.FolderExists(source).Returns(true);
+
+        this.diskProvider.FolderExists(dest).Returns(true);
+        this.diskProvider.FolderExists(nonCollidingDest).Returns(false);
+
+        var success = this.storagePathService.MoveToCompleted(source, "tv", "Series.S01", out var finalDestination);
+
+        success.Should().BeTrue();
+        finalDestination.Should().Be(nonCollidingDest);
+        this.diskProvider.Received(1).MoveFolder(source, nonCollidingDest);
+        this.diskProvider.DidNotReceive().MoveFolder(source, dest);
+    }
+
+    [Test]
+    public void MoveToCompleted_WhenCrossDeviceCopyFails_CleansUpStagingFileAndReturnsFalse()
+    {
+        var source = "/downloads/incomplete/Movie.mkv";
+        var dest = "/downloads/tv/Movie.mkv";
+        var staging = dest + ".leecharr.tmp";
+
+        this.categoryService.GetSavePathForCategory("tv").Returns("/downloads/tv");
+        this.diskProvider.FolderExists("/downloads/tv").Returns(true);
+        this.diskProvider.FileExists(source).Returns(true);
+        this.diskProvider.FolderExists(source).Returns(false);
+
+        this.diskProvider.When(x => x.MoveFile(source, dest, false))
+            .Do(x => throw new IOException("Cross-device link"));
+
+        this.diskProvider.When(x => x.CopyFile(source, staging, true))
+            .Do(x =>
+            {
+                this.diskProvider.FileExists(staging).Returns(true);
+                throw new IOException("Disk full");
+            });
+
+        var success = this.storagePathService.MoveToCompleted(source, "tv", "Movie.mkv", out var finalDestination);
+
+        success.Should().BeFalse();
+        this.diskProvider.Received(1).DeleteFile(staging);
+        this.diskProvider.DidNotReceive().DeleteFile(source);
+    }
+
+    [Test]
+    public void EnsureAccessiblePermissions_WhenUnix_RespectsUmaskConfiguration()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var tempDir = Path.Combine(Path.GetTempPath(), "leecharr_perm_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var tempFile = Path.Combine(tempDir, "test.txt");
+        File.WriteAllText(tempFile, "hello");
+
+        try
+        {
+            var localDiskProvider = new DiskProvider();
+            this.configService.Umask.Returns("022");
+            var service = new StoragePathService(this.configService, this.categoryService, localDiskProvider);
+
+            service.EnsureAccessiblePermissions(tempDir);
+
+            var dirMode = File.GetUnixFileMode(tempDir);
+            var fileMode = File.GetUnixFileMode(tempFile);
+
+            // 0777 & ~022 = 0755
+            dirMode.Should().HaveFlag(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                                     UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+                                     UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+            dirMode.Should().NotHaveFlag(UnixFileMode.GroupWrite);
+            dirMode.Should().NotHaveFlag(UnixFileMode.OtherWrite);
+
+            // 0666 & ~022 = 0644
+            fileMode.Should().HaveFlag(UnixFileMode.UserRead | UnixFileMode.UserWrite |
+                                      UnixFileMode.GroupRead | UnixFileMode.OtherRead);
+            fileMode.Should().NotHaveFlag(UnixFileMode.GroupWrite);
+            fileMode.Should().NotHaveFlag(UnixFileMode.OtherWrite);
+            fileMode.Should().NotHaveFlag(UnixFileMode.UserExecute);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
     }
 }
