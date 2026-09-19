@@ -103,6 +103,30 @@ public class ArchiveExtractorService : IArchiveExtractorService
         await this.extractionSemaphore.WaitAsync(cancellationToken);
         try
         {
+            if (this.diskProvider != null)
+            {
+                var targetDir = destinationDirectory;
+                if (string.IsNullOrWhiteSpace(targetDir))
+                {
+                    targetDir = Path.GetDirectoryName(archiveFilePath) ?? Path.GetTempPath();
+                }
+
+                var estimatedSize = ArchiveTimeoutCalculator.EstimateTotalArchiveSize(archiveFilePath, this.diskProvider);
+                var requiredSpace = (long)(estimatedSize * 1.5);
+                var postWaitAvailable = this.diskProvider.GetAvailableSpace(targetDir);
+
+                if (postWaitAvailable.HasValue && postWaitAvailable.Value < requiredSpace)
+                {
+                    this.logger.Warn(
+                        "Insufficient free disk space on '{0}' after acquiring semaphore for extracting '{1}'. Required: {2} bytes (1.5x estimated size), Available: {3} bytes.",
+                        targetDir,
+                        archiveFilePath,
+                        requiredSpace,
+                        postWaitAvailable.Value);
+                    return false;
+                }
+            }
+
             return await this.provider.ExtractAsync(archiveFilePath, destinationDirectory, password, passwordCandidates, cancellationToken);
         }
         finally

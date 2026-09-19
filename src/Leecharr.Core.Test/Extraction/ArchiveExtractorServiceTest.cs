@@ -537,5 +537,35 @@ public class ArchiveExtractorServiceTest
             Arg.Any<CancellationToken>());
     }
 
+    [Test]
+    public async Task ArchiveExtractorService_ExtractArchiveAsync_WhenDiskSpaceBecomesInsufficientAfterAcquiringSemaphore_SkipsExtractionAndReturnsFalse()
+    {
+        var provider = Substitute.For<IArchiveExtractorProvider>();
+        var diskMock = Substitute.For<IDiskProvider>();
+
+        diskMock.FileExists("/downloads/movie.zip").Returns(true);
+        diskMock.GetFileSize("/downloads/movie.zip").Returns(100_000_000L);
+
+        // Pre-semaphore check returns 200 MB (sufficient), post-semaphore check returns 50 MB (insufficient)
+        var callCount = 0;
+        diskMock.GetAvailableSpace("/downloads/extracted").Returns(_ =>
+        {
+            callCount++;
+            return callCount == 1 ? 200_000_000L : 50_000_000L;
+        });
+
+        var serviceWithDisk = new ArchiveExtractorService(provider, diskMock);
+
+        var result = await serviceWithDisk.ExtractArchiveAsync("/downloads/movie.zip", "/downloads/extracted");
+
+        result.Should().BeFalse();
+        await provider.DidNotReceive().ExtractAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<IReadOnlyList<string>>(),
+            Arg.Any<CancellationToken>());
+    }
+
     #endregion
 }
