@@ -270,6 +270,18 @@ public class DelugeJsonRpcController : ControllerBase
             "core.move_storage" => await this.HandleCoreMoveStorageAsync(args, id),
             "core.set_torrent_options" => await this.HandleCoreSetTorrentOptionsAsync(args, id),
             "core.set_torrent_file_priorities" => await this.HandleCoreSetTorrentFilePrioritiesAsync(args, id),
+            "core.set_torrent_max_connections" or
+            "core.set_torrent_max_upload_slots" or
+            "core.set_torrent_max_download_speed" or
+            "core.set_torrent_max_upload_speed" or
+            "core.set_torrent_auto_managed" or
+            "core.set_torrent_stop_at_ratio" or
+            "core.set_torrent_stop_ratio" or
+            "core.set_torrent_remove_at_ratio" or
+            "core.set_torrent_move_completed" or
+            "core.set_torrent_move_completed_path" or
+            "core.set_torrent_prioritize_first_last" or
+            "core.set_torrent_super_seeding" => await this.HandleCoreSetTorrentPropertyAsync(method, args, id),
             "core.rename_files" => await this.HandleCoreRenameFilesAsync(args, id),
             "core.queue_top" or "core.queue_up" or "core.queue_down" or "core.queue_bottom" => await this.HandleCoreQueueAsync(method, args, id),
             "core.get_filter_tree" => this.HandleGetFilterTree(id),
@@ -711,6 +723,18 @@ public class DelugeJsonRpcController : ControllerBase
                             "core.force_reannounce",
                             "core.set_torrent_options",
                             "core.set_torrent_file_priorities",
+                            "core.set_torrent_max_connections",
+                            "core.set_torrent_max_upload_slots",
+                            "core.set_torrent_max_download_speed",
+                            "core.set_torrent_max_upload_speed",
+                            "core.set_torrent_auto_managed",
+                            "core.set_torrent_stop_at_ratio",
+                            "core.set_torrent_stop_ratio",
+                            "core.set_torrent_remove_at_ratio",
+                            "core.set_torrent_move_completed",
+                            "core.set_torrent_move_completed_path",
+                            "core.set_torrent_prioritize_first_last",
+                            "core.set_torrent_super_seeding",
                             "core.rename_files",
                             "core.move_storage",
                             "core.queue_top",
@@ -2004,6 +2028,26 @@ public class DelugeJsonRpcController : ControllerBase
                         hasOtherUpdates = true;
                     }
 
+                    if (opts.TryGetProperty("remove_at_ratio", out var rar) && rar.ValueKind != JsonValueKind.Null)
+                    {
+                        var removeAtRatio = SafeGetBoolean(rar);
+                        t.ShareLimitAction = removeAtRatio ? "Remove" : "Pause";
+                        hasOtherUpdates = true;
+                    }
+
+                    if (opts.TryGetProperty("super_seeding", out var ss) && ss.ValueKind != JsonValueKind.Null)
+                    {
+                        var enabled = SafeGetBoolean(ss);
+                        t.InitialSeeding = enabled;
+                        hasOtherUpdates = true;
+                        await this.torrentService.SetSuperSeedingAsync(t.Id, enabled);
+                    }
+
+                    if (opts.TryGetProperty("move_completed", out var mc) && mc.ValueKind != JsonValueKind.Null)
+                    {
+                        // Handled as standard Deluge option
+                    }
+
                     if (opts.TryGetProperty("sequential_download", out var seq) && seq.ValueKind != JsonValueKind.Null)
                     {
                         t.SequentialDownload = SafeGetBoolean(seq);
@@ -2083,6 +2127,172 @@ public class DelugeJsonRpcController : ControllerBase
                     {
                         await this.downloadEngine.SetTorrentRateLimitsAsync(t.Id, t.DownloadLimit, t.UploadLimit);
                     }
+                }
+            }
+        }
+
+        return this.DelugeResult(new { result = true, error = (object)null, id });
+    }
+
+    private async Task<IActionResult> HandleCoreSetTorrentPropertyAsync(string method, JsonElement paramsElem, object id)
+    {
+        if (paramsElem.ValueKind == JsonValueKind.Array && paramsElem.GetArrayLength() >= 2)
+        {
+            var optHashes = ExtractHashes(paramsElem[0]);
+            var valElem = paramsElem[1];
+
+            foreach (var hash in optHashes)
+            {
+                var t = this.torrentService.GetByInfoHash(hash) ??
+                    (int.TryParse(hash, out var tid) ? this.torrentService.Get(tid) : null);
+                if (t == null)
+                {
+                    continue;
+                }
+
+                var hasUpdates = false;
+
+                switch (method)
+                {
+                    case "core.set_torrent_max_connections":
+                    case "core.set_torrent_max_upload_slots":
+                    case "core.set_torrent_auto_managed":
+                    case "core.set_torrent_move_completed":
+                    case "core.set_torrent_move_completed_path":
+                        // Standard Deluge properties accepted and acknowledged
+                        break;
+
+                    case "core.set_torrent_max_download_speed":
+                        if (valElem.ValueKind == JsonValueKind.Number && valElem.TryGetDouble(out var dlVal))
+                        {
+                            t.DownloadLimit = dlVal > 0 ? (int)Math.Round(dlVal) : 0;
+                            hasUpdates = true;
+                        }
+                        else if (valElem.ValueKind == JsonValueKind.Null)
+                        {
+                            t.DownloadLimit = 0;
+                            hasUpdates = true;
+                        }
+
+                        if (this.downloadEngine != null)
+                        {
+                            await this.downloadEngine.SetTorrentRateLimitsAsync(t.Id, t.DownloadLimit, t.UploadLimit);
+                        }
+
+                        break;
+
+                    case "core.set_torrent_max_upload_speed":
+                        if (valElem.ValueKind == JsonValueKind.Number && valElem.TryGetDouble(out var ulVal))
+                        {
+                            t.UploadLimit = ulVal > 0 ? (int)Math.Round(ulVal) : 0;
+                            hasUpdates = true;
+                        }
+                        else if (valElem.ValueKind == JsonValueKind.Null)
+                        {
+                            t.UploadLimit = 0;
+                            hasUpdates = true;
+                        }
+
+                        if (this.downloadEngine != null)
+                        {
+                            await this.downloadEngine.SetTorrentRateLimitsAsync(t.Id, t.DownloadLimit, t.UploadLimit);
+                        }
+
+                        break;
+
+                    case "core.set_torrent_stop_at_ratio":
+                        if (valElem.ValueKind != JsonValueKind.Null)
+                        {
+                            var stopAt = SafeGetBoolean(valElem);
+                            if (!stopAt)
+                            {
+                                t.TargetRatio = 0;
+                            }
+                            else if (t.TargetRatio <= 0)
+                            {
+                                t.TargetRatio = 1.0;
+                            }
+
+                            hasUpdates = true;
+                        }
+
+                        break;
+
+                    case "core.set_torrent_stop_ratio":
+                        if (valElem.ValueKind == JsonValueKind.Number && valElem.TryGetDouble(out var ratioVal))
+                        {
+                            t.TargetRatio = Math.Max(0, ratioVal);
+                            hasUpdates = true;
+                        }
+
+                        break;
+
+                    case "core.set_torrent_remove_at_ratio":
+                        if (valElem.ValueKind != JsonValueKind.Null)
+                        {
+                            var removeAtRatio = SafeGetBoolean(valElem);
+                            t.ShareLimitAction = removeAtRatio ? "Remove" : "Pause";
+                            hasUpdates = true;
+                        }
+
+                        break;
+
+                    case "core.set_torrent_prioritize_first_last":
+                        if (valElem.ValueKind != JsonValueKind.Null)
+                        {
+                            t.FirstLastPiecePriority = SafeGetBoolean(valElem);
+                            hasUpdates = true;
+
+                            var task = this.torrentService?.GetDownloadTask(t.Id);
+                            if (task != null)
+                            {
+                                task.FirstLastPiecePriority = t.FirstLastPiecePriority;
+                            }
+
+                            if (task?.Picker != null)
+                            {
+                                var pieceCount = task.Picker.PieceCount;
+                                if (pieceCount > 0)
+                                {
+                                    var headCount = Math.Max(1, Math.Min(4, pieceCount / 10));
+                                    var tailCount = Math.Max(1, Math.Min(2, pieceCount / 20));
+                                    var priority = t.FirstLastPiecePriority ? 3 : 1;
+
+                                    for (var i = 0; i < headCount && i < pieceCount; i++)
+                                    {
+                                        task.Picker.SetPiecePriority(i, priority);
+                                    }
+
+                                    for (var i = Math.Max(0, pieceCount - tailCount); i < pieceCount; i++)
+                                    {
+                                        task.Picker.SetPiecePriority(i, priority);
+                                    }
+                                }
+                            }
+
+                            if (this.downloadEngine != null)
+                            {
+                                await this.downloadEngine.SetFirstLastPiecePriorityAsync(t.Id, t.FirstLastPiecePriority);
+                            }
+                        }
+
+                        break;
+
+                    case "core.set_torrent_super_seeding":
+                        if (valElem.ValueKind != JsonValueKind.Null)
+                        {
+                            var superSeed = SafeGetBoolean(valElem);
+                            t.InitialSeeding = superSeed;
+                            hasUpdates = true;
+                            await this.torrentService.SetSuperSeedingAsync(t.Id, superSeed);
+                        }
+
+                        break;
+                }
+
+                if (hasUpdates)
+                {
+                    await this.torrentService.UpdateAsync(t);
                 }
             }
         }
@@ -2528,8 +2738,9 @@ public class DelugeJsonRpcController : ControllerBase
             { "is_auto_managed", true },
             { "auto_managed", true },
             { "stop_at_ratio", t.TargetRatio > 0 },
-            { "remove_at_ratio", false },
+            { "remove_at_ratio", string.Equals(t.ShareLimitAction, "Remove", StringComparison.OrdinalIgnoreCase) || string.Equals(t.ShareLimitAction, "Delete", StringComparison.OrdinalIgnoreCase) },
             { "stop_ratio", t.TargetRatio },
+            { "super_seeding", t.InitialSeeding },
             { "max_download_speed", t.DownloadLimit <= 0 ? -1.0 : (double)t.DownloadLimit },
             { "max_upload_speed", t.UploadLimit <= 0 ? -1.0 : (double)t.UploadLimit },
             { "private", t.IsPrivate },
