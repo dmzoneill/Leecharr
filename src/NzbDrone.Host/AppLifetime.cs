@@ -461,6 +461,7 @@ public class AppLifetime : IHostedService, IDisposable
                                                 this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Removing torrent and deleting data files.", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
                                                 this.ratioReachedTorrents.TryRemove(torrent.Id, out _);
                                                 this.seedGoalReachedTorrents.TryRemove(torrent.Id, out _);
+                                                this.superSeedingTorrents.TryRemove(torrent.Id, out _);
                                                 await this.services.TorrentService.DeleteAsync(torrent.Id, deleteFiles: true);
                                             }
                                         }
@@ -476,6 +477,7 @@ public class AppLifetime : IHostedService, IDisposable
                                                 this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Removing torrent (preserving data).", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
                                                 this.ratioReachedTorrents.TryRemove(torrent.Id, out _);
                                                 this.seedGoalReachedTorrents.TryRemove(torrent.Id, out _);
+                                                this.superSeedingTorrents.TryRemove(torrent.Id, out _);
                                                 await this.services.TorrentService.DeleteAsync(torrent.Id, deleteFiles: false);
                                             }
                                         }

@@ -1231,6 +1231,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         downloadTask.IsFilesMovedToCompleted = isCompleteOrSeeding;
         downloadTask.SequentialDownload = torrent.SequentialDownload;
         downloadTask.FirstLastPiecePriority = torrent.FirstLastPiecePriority;
+        downloadTask.IsSuperSeeding = torrent.InitialSeeding;
         if (downloadTask.Picker != null)
         {
             downloadTask.Picker.SequentialMode = torrent.SequentialDownload;
@@ -2641,13 +2642,18 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     public async Task SetSuperSeedingAsync(int torrentId, bool enabled)
     {
-        if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
+        if (this.tasks.TryGetValue(torrentId, out var task))
         {
-            var settingsBuilder = new TorrentSettingsBuilder(task.Manager.Settings)
+            if (task.Manager != null)
             {
-                AllowInitialSeeding = enabled,
-            };
-            await task.Manager.UpdateSettingsAsync(settingsBuilder.ToSettings());
+                var settingsBuilder = new TorrentSettingsBuilder(task.Manager.Settings)
+                {
+                    AllowInitialSeeding = enabled,
+                };
+                await task.Manager.UpdateSettingsAsync(settingsBuilder.ToSettings());
+            }
+
+            task.IsSuperSeeding = enabled;
             this.logger.Info("Updated super seeding for torrent {0}: {1}", torrentId, enabled);
         }
     }
@@ -6269,7 +6275,48 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
     public int ConnectedLeechers => (this.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued) ? 0 : (this.Manager?.Peers?.Leechs ?? 0);
 
-    public bool IsSuperSeeding => this.Manager?.IsInitialSeeding ?? false;
+    private bool isSuperSeeding;
+
+    private bool wasInitialSeedingActive;
+
+    public bool IsSuperSeeding
+    {
+        get
+        {
+            if (this.Manager != null)
+            {
+                if (!this.Manager.Settings.AllowInitialSeeding)
+                {
+                    this.isSuperSeeding = false;
+                    this.wasInitialSeedingActive = false;
+                    return false;
+                }
+
+                if (this.Manager.IsInitialSeeding)
+                {
+                    this.wasInitialSeedingActive = true;
+                    return true;
+                }
+
+                if (this.wasInitialSeedingActive && !this.Manager.IsInitialSeeding)
+                {
+                    this.isSuperSeeding = false;
+                    return false;
+                }
+            }
+
+            return this.isSuperSeeding;
+        }
+
+        set
+        {
+            this.isSuperSeeding = value;
+            if (!value)
+            {
+                this.wasInitialSeedingActive = false;
+            }
+        }
+    }
 
     public int PieceLength => this.Manager?.Torrent?.PieceLength ?? this.Picker?.PieceLength ?? 0;
 

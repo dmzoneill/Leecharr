@@ -143,7 +143,11 @@ public interface IDownloadTask
 
     IEnumerable<int> PartialPieces => this.Picker?.PartialPieces;
 
-    bool IsSuperSeeding => false;
+    bool IsSuperSeeding
+    {
+        get => false;
+        set { }
+    }
 
     string ErrorMessage => null;
 
