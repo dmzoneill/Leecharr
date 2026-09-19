@@ -1956,6 +1956,37 @@ public class TorznabClientTest
     }
 
     [Test]
+    public async Task FetchRssAsync_ExpandsRootCategoriesToIncludeSubcategories()
+    {
+        Uri requestedUri = null;
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            requestedUri = req.RequestUri;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("<rss><channel><item><title>Item</title></item></channel></rss>"),
+            };
+        });
+
+        var clientWithHandler = new TorznabClient(new HttpClient(handler));
+        var indexer = new IndexerDefinition
+        {
+            Url = "http://indexer.local/api",
+            Categories = new List<int> { 2000, 5000 },
+        };
+
+        await clientWithHandler.FetchRssAsync(indexer);
+
+        requestedUri.Should().NotBeNull();
+        var query = requestedUri.Query;
+        query.Should().Contain("2000");
+        query.Should().Contain("2040");
+        query.Should().Contain("2045");
+        query.Should().Contain("5000");
+        query.Should().Contain("5040");
+    }
+
+    [Test]
     public void ParseTorznabFeedXml_WhenXmlContainsErrorElement_ThrowsTorznabException()
     {
         var xml = @"<error code=""100"" description=""Incorrect user credentials"" />";
