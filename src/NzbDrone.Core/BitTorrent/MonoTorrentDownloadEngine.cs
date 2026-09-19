@@ -963,12 +963,15 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
         }
 
-        var isCompleteOrSeeding = torrent.Status == TorrentStatus.Seeding ||
-                                  (torrent.Progress >= 1.0 && !string.IsNullOrWhiteSpace(torrent.SavePath)) ||
-                                  (torrent.DateCompleted.HasValue && hasCompletedFiles) ||
-                                  (savedFastResume?.Bitfield != null && savedFastResume.Bitfield.AllTrue);
+        var isDbCompleteOrSeeding = torrent.Status == TorrentStatus.Seeding ||
+                                    (torrent.Progress >= 1.0 && !string.IsNullOrWhiteSpace(torrent.SavePath)) ||
+                                    torrent.DateCompleted.HasValue;
 
-        var workingPath = (isCompleteOrSeeding || !useIncompleteDir || (!hasIncompleteFiles && hasCompletedFiles && torrent.DateCompleted.HasValue))
+        var isCompleteOrSeeding = ((torrent.Status == TorrentStatus.Seeding || torrent.Progress >= 1.0) && hasCompletedFiles) ||
+                                  (torrent.DateCompleted.HasValue && hasCompletedFiles) ||
+                                  (savedFastResume?.Bitfield != null && savedFastResume.Bitfield.AllTrue && hasCompletedFiles);
+
+        var workingPath = (isCompleteOrSeeding || isDbCompleteOrSeeding || !useIncompleteDir || (!hasIncompleteFiles && hasCompletedFiles && torrent.DateCompleted.HasValue))
             ? completedDir
             : incompleteDir;
 
@@ -1134,19 +1137,29 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             throw new InvalidOperationException("Failed to create TorrentManager for torrent.");
         }
 
+        var loadedFastResume = false;
         if (savedFastResume != null && (!manager.HashChecked || manager.Progress < 100.0))
         {
-            try
+            if (savedFastResume.Bitfield != null && savedFastResume.Bitfield.AllTrue && !hasCompletedFiles)
             {
-                await manager.LoadFastResumeAsync(savedFastResume).ConfigureAwait(false);
-                this.logger.Info("Loaded saved FastResume checkpoint for {0} ({1}) - Progress: {2:F1}%, Complete: {3}", torrent.Name, infoHashHex, manager.Progress, manager.Complete);
+                this.logger.Warn("Saved FastResume for {0} ({1}) indicates 100% completion but completed files are missing on disk; ignoring invalid FastResume.", torrent.Name, infoHashHex);
             }
-            catch (Exception ex)
+            else
             {
-                this.logger.Warn(ex, "Failed to load saved FastResume for {0} ({1})", torrent.Name, infoHashHex);
+                try
+                {
+                    await manager.LoadFastResumeAsync(savedFastResume).ConfigureAwait(false);
+                    loadedFastResume = true;
+                    this.logger.Info("Loaded saved FastResume checkpoint for {0} ({1}) - Progress: {2:F1}%, Complete: {3}", torrent.Name, infoHashHex, manager.Progress, manager.Complete);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to load saved FastResume for {0} ({1})", torrent.Name, infoHashHex);
+                }
             }
         }
-        else if (isCompleteOrSeeding && manager.InfoHashes != null)
+
+        if (!loadedFastResume && isCompleteOrSeeding && manager.InfoHashes != null)
         {
             var pieceCount = parsedTorrent?.PieceCount ?? manager.Torrent?.PieceCount ?? 0;
             if (pieceCount > 0)
@@ -1167,6 +1180,19 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 {
                     this.logger.Warn(ex, "Failed to load synthesized FastResume for {0} ({1})", torrent.Name, infoHashHex);
                 }
+            }
+        }
+        else if (!loadedFastResume && isDbCompleteOrSeeding && !hasCompletedFiles)
+        {
+            this.logger.Warn("Torrent {0} ({1}) is marked as complete/seeding in database, but completed files are missing on disk. Triggering hash check instead of synthesizing FastResume.", torrent.Name, infoHashHex);
+            try
+            {
+                await manager.HashCheckAsync(autoStart: true).ConfigureAwait(false);
+                torrent.Status = TorrentStatus.Checking;
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to trigger data integrity hash check for {0} ({1})", torrent.Name, infoHashHex);
             }
         }
 
@@ -1297,6 +1323,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             await manager.PauseAsync();
             this.logger.Info("Added inactive ({0}) torrent: {1} ({2})", torrent.Status, torrent.Name, torrent.InfoHash);
+        }
+        else if (torrent.Status == TorrentStatus.Checking || manager.State == TorrentState.Hashing)
+        {
+            this.logger.Info("Added torrent in checking state: {0} ({1})", torrent.Name, torrent.InfoHash);
         }
         else
         {
@@ -4693,72 +4723,95 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     if (bytes != null && bytes.Length > 0)
                     {
                         var dict = BEncodedValue.Decode<BEncodedDictionary>(bytes);
-                        if (dict != null &&
-                            dict.TryGetValue(new BEncodedString("bitfield"), out var bfVal) && bfVal is BEncodedString bfStr &&
-                            dict.TryGetValue(new BEncodedString("bitfield_length"), out var bflVal) && bflVal is BEncodedNumber bflNum)
+                        if (dict != null)
                         {
-                            var bitfieldLength = (int)bflNum.Number;
-                            var bitfieldBytes = bfStr.Span.ToArray();
-                            var bitfieldMutable = new BitField(bitfieldLength);
-                            for (var i = 0; i < bitfieldLength; i++)
+                            try
                             {
-                                var byteIndex = i / 8;
-                                if (byteIndex < bitfieldBytes.Length)
+                                var ctor = typeof(FastResume).GetConstructor(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public, null, new[] { typeof(BEncodedDictionary) }, null);
+                                if (ctor != null)
                                 {
-                                    var mask = (byte)(128 >> (i % 8));
-                                    if ((bitfieldBytes[byteIndex] & mask) != 0)
-                                    {
-                                        bitfieldMutable.Set(i, true);
-                                    }
+                                    var resume = (FastResume)ctor.Invoke(new object[] { dict });
+                                    this.logger.Debug("Found and decoded FastResume checkpoint from '{0}' for {1}", path, infoHashHex);
+                                    return resume;
                                 }
                             }
-
-                            var bitfield = new ReadOnlyBitField(bitfieldMutable);
-
-                            ReadOnlyBitField unhashed = null;
-                            if (dict.TryGetValue(new BEncodedString("unhashed_pieces"), out var unhashedVal) && unhashedVal is BEncodedString unhashedStr)
+                            catch (Exception ex)
                             {
-                                var unhashedBytes = unhashedStr.Span.ToArray();
-                                var unhashedMutable = new BitField(bitfieldLength);
+                                this.logger.Debug(ex, "Failed to decode FastResume dictionary using constructor at '{0}', attempting manual bitfield reconstruction", path);
+                            }
+
+                            if (FastResume.TryLoad(new MemoryStream(bytes), out var loadedResume))
+                            {
+                                this.logger.Debug("Found and decoded FastResume checkpoint from '{0}' for {1} via TryLoad", path, infoHashHex);
+                                return loadedResume;
+                            }
+
+                            if (dict.TryGetValue(new BEncodedString("bitfield"), out var bfVal) && bfVal is BEncodedString bfStr &&
+                                dict.TryGetValue(new BEncodedString("bitfield_length"), out var bflVal) && bflVal is BEncodedNumber bflNum)
+                            {
+                                var bitfieldLength = (int)bflNum.Number;
+                                var bitfieldBytes = bfStr.Span.ToArray();
+                                var bitfieldMutable = new BitField(bitfieldLength);
                                 for (var i = 0; i < bitfieldLength; i++)
                                 {
                                     var byteIndex = i / 8;
-                                    if (byteIndex < unhashedBytes.Length)
+                                    if (byteIndex < bitfieldBytes.Length)
                                     {
                                         var mask = (byte)(128 >> (i % 8));
-                                        if ((unhashedBytes[byteIndex] & mask) != 0)
+                                        if ((bitfieldBytes[byteIndex] & mask) != 0)
                                         {
-                                            unhashedMutable.Set(i, true);
+                                            bitfieldMutable.Set(i, true);
                                         }
                                     }
                                 }
 
-                                unhashed = new ReadOnlyBitField(unhashedMutable);
-                            }
-                            else
-                            {
-                                unhashed = new ReadOnlyBitField(bitfieldLength);
-                            }
+                                var bitfield = new ReadOnlyBitField(bitfieldMutable);
 
-                            InfoHashes infoHashes = null;
-                            if (dict.TryGetValue(new BEncodedString("infohash"), out var ihVal) && ihVal is BEncodedString ihStr)
-                            {
-                                var hashBytes = ihStr.Span.ToArray();
-                                if (hashBytes.Length == 20)
+                                ReadOnlyBitField unhashed = null;
+                                if (dict.TryGetValue(new BEncodedString("unhashed_pieces"), out var unhashedVal) && unhashedVal is BEncodedString unhashedStr)
                                 {
-                                    infoHashes = InfoHashes.FromV1(InfoHash.FromMemory(hashBytes));
+                                    var unhashedBytes = unhashedStr.Span.ToArray();
+                                    var unhashedMutable = new BitField(bitfieldLength);
+                                    for (var i = 0; i < bitfieldLength; i++)
+                                    {
+                                        var byteIndex = i / 8;
+                                        if (byteIndex < unhashedBytes.Length)
+                                        {
+                                            var mask = (byte)(128 >> (i % 8));
+                                            if ((unhashedBytes[byteIndex] & mask) != 0)
+                                            {
+                                                unhashedMutable.Set(i, true);
+                                            }
+                                        }
+                                    }
+
+                                    unhashed = new ReadOnlyBitField(unhashedMutable);
                                 }
-                                else if (hashBytes.Length == 32)
+                                else
                                 {
-                                    infoHashes = InfoHashes.FromV2(InfoHash.FromMemory(hashBytes));
+                                    unhashed = new ReadOnlyBitField(bitfieldLength);
                                 }
+
+                                InfoHashes infoHashes = null;
+                                if (dict.TryGetValue(new BEncodedString("infohash"), out var ihVal) && ihVal is BEncodedString ihStr)
+                                {
+                                    var hashBytes = ihStr.Span.ToArray();
+                                    if (hashBytes.Length == 20)
+                                    {
+                                        infoHashes = InfoHashes.FromV1(InfoHash.FromMemory(hashBytes));
+                                    }
+                                    else if (hashBytes.Length == 32)
+                                    {
+                                        infoHashes = InfoHashes.FromV2(InfoHash.FromMemory(hashBytes));
+                                    }
+                                }
+
+                                infoHashes ??= InfoHashes.FromV1(InfoHash.FromHex(infoHashHex));
+
+                                var resume = new FastResume(infoHashes, bitfield, unhashed);
+                                this.logger.Debug("Found and decoded FastResume checkpoint from '{0}' for {1} (manual fallback)", path, infoHashHex);
+                                return resume;
                             }
-
-                            infoHashes ??= InfoHashes.FromV1(InfoHash.FromHex(infoHashHex));
-
-                            var resume = new FastResume(infoHashes, bitfield, unhashed);
-                            this.logger.Debug("Found and decoded FastResume checkpoint from '{0}' for {1}", path, infoHashHex);
-                            return resume;
                         }
                     }
                 }
