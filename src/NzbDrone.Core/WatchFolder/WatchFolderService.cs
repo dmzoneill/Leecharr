@@ -192,6 +192,7 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
             this.StopWatcher();
             this.watcher = new FileSystemWatcher(folder, "*.torrent")
             {
+                IncludeSubdirectories = true,
                 EnableRaisingEvents = true,
                 NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size,
             };
@@ -365,6 +366,15 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
             return false;
         }
 
+        var watchRoot = !string.IsNullOrWhiteSpace(this.configService.WatchFolderPath)
+            ? this.configService.WatchFolderPath
+            : (folder ?? Path.GetDirectoryName(file));
+
+        if (this.IsExcludedWatchPath(file, watchRoot))
+        {
+            return false;
+        }
+
         var fullPath = Path.GetFullPath(file);
         if (!this.processingFiles.TryAdd(fullPath, 0))
         {
@@ -373,7 +383,7 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
 
         try
         {
-            folder ??= this.configService.WatchFolderPath;
+            folder ??= watchRoot;
 
             if (!await this.IsFileStabilizedAsync(file).ConfigureAwait(false))
             {
@@ -386,7 +396,7 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
                 var bytes = await File.ReadAllBytesAsync(file).ConfigureAwait(false);
                 var parsed = this.torrentFileParser.Parse(bytes);
 
-                var category = this.MatchCategoryFromReleaseName(parsed.Name);
+                var category = this.DetermineCategory(file, watchRoot, parsed.Name);
                 this.logger.Info("Watch folder adding: {0} with auto-matched category: {1}", parsed.Name, category);
 
                 await this.torrentService.AddFromParsedTorrentAsync(
@@ -405,7 +415,7 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
                     }
                     else
                     {
-                        var loadedDir = Path.Combine(folder, "loaded");
+                        var loadedDir = Path.Combine(watchRoot, "loaded");
                         this.diskProvider.EnsureFolder(loadedDir);
                         var dest = Path.Combine(loadedDir, Path.GetFileName(file));
                         this.diskProvider.MoveFile(file, dest, true);
@@ -425,7 +435,7 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
                 {
                     this.logger.Warn(ex, "Watch folder torrent '{0}' failed after {1} attempts. Quarantining file.", file, attempts);
                     this.failedAttempts.TryRemove(fullPath, out _);
-                    this.QuarantineFile(folder, file);
+                    this.QuarantineFile(watchRoot, file);
                 }
                 else
                 {
@@ -456,10 +466,15 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
 
         this.logger.Debug("Scanning watch folder: {0}", folder);
 
-        var torrentFiles = this.diskProvider.GetFiles(folder, false);
+        var torrentFiles = this.diskProvider.GetFiles(folder, true);
         foreach (var file in torrentFiles)
         {
             if (!file.EndsWith(".torrent", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (this.IsExcludedWatchPath(file, folder))
             {
                 continue;
             }
@@ -525,6 +540,78 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
         {
             this.logger.Error(ex, "Failed to quarantine corrupt watch folder file: {0}", file);
         }
+    }
+
+    private bool IsExcludedWatchPath(string filePath, string watchRoot)
+    {
+        if (string.IsNullOrWhiteSpace(filePath) || string.IsNullOrWhiteSpace(watchRoot))
+        {
+            return false;
+        }
+
+        try
+        {
+            var fullFile = Path.GetFullPath(filePath);
+            var fullRoot = Path.GetFullPath(watchRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            if (!fullFile.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            var relativePath = Path.GetRelativePath(fullRoot, fullFile);
+            var dir = Path.GetDirectoryName(relativePath);
+            if (string.IsNullOrEmpty(dir))
+            {
+                return false;
+            }
+
+            var segments = dir.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
+            return segments.Any(s => string.Equals(s, "loaded", StringComparison.OrdinalIgnoreCase) ||
+                                     string.Equals(s, "failed", StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception ex)
+        {
+            this.logger.Debug(ex, "Error checking if path '{0}' is excluded", filePath);
+            return false;
+        }
+    }
+
+    private string DetermineCategory(string file, string watchRoot, string releaseName)
+    {
+        if (!string.IsNullOrWhiteSpace(watchRoot))
+        {
+            try
+            {
+                var fullFile = Path.GetFullPath(file);
+                var fullRoot = Path.GetFullPath(watchRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                if (fullFile.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase))
+                {
+                    var relativePath = Path.GetRelativePath(fullRoot, fullFile);
+                    var parts = relativePath.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
+
+                    if (parts.Length > 1)
+                    {
+                        var subfolderName = parts[0];
+                        if (this.categoryService != null)
+                        {
+                            var categories = this.categoryService.GetAll();
+                            var match = categories?.FirstOrDefault(c => string.Equals(c.Name, subfolderName, StringComparison.OrdinalIgnoreCase));
+                            if (match != null)
+                            {
+                                return match.Name;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Error determining category from subfolder for '{0}'", file);
+            }
+        }
+
+        return this.MatchCategoryFromReleaseName(releaseName);
     }
 
     private string ResolveConfiguredCategory(string detectedCategory)
