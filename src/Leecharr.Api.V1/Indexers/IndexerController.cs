@@ -141,6 +141,11 @@ public class IndexerController : Controller
             return this.NotFound();
         }
 
+        if (resource.ApiKey == "********" || (resource.ApiKey != null && resource.ApiKey.Contains('*')) || string.IsNullOrWhiteSpace(resource.ApiKey))
+        {
+            resource.ApiKey = existing.ApiKey;
+        }
+
         TorznabClient.InvalidateCapabilities(existing.Url, existing.ApiKey);
         if (!string.Equals(existing.Url, resource.Url, StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(existing.ApiKey, resource.ApiKey, StringComparison.OrdinalIgnoreCase))
@@ -152,6 +157,11 @@ public class IndexerController : Controller
         resource.Url = resource.Url.Trim();
         var model = ToModel(resource);
         model.Id = id;
+        if (model.ApiKey == "********" || (model.ApiKey != null && model.ApiKey.Contains('*')) || string.IsNullOrWhiteSpace(model.ApiKey))
+        {
+            model.ApiKey = existing.ApiKey;
+        }
+
         this.indexerRepository.Update(model);
         return this.Ok(ToResource(model));
     }
@@ -191,6 +201,15 @@ public class IndexerController : Controller
         }
 
         var model = ToModel(resource);
+        if (resource.Id > 0 && (resource.ApiKey == "********" || (resource.ApiKey != null && resource.ApiKey.Contains('*')) || string.IsNullOrWhiteSpace(resource.ApiKey)))
+        {
+            var existing = this.indexerRepository.Get(resource.Id);
+            if (existing != null)
+            {
+                model.ApiKey = existing.ApiKey;
+            }
+        }
+
         return await this.TestDirectInternal(model);
     }
 
@@ -956,7 +975,7 @@ public class IndexerController : Controller
             Enable = model.Enable,
             Priority = model.Priority,
             Url = model.Url,
-            ApiKey = model.ApiKey,
+            ApiKey = string.IsNullOrEmpty(model.ApiKey) ? string.Empty : "********",
             Categories = model.Categories ?? new List<int>(),
             EnableRss = model.EnableRss,
             EnableSearch = model.EnableSearch,
