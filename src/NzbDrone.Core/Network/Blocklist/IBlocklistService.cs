@@ -11,6 +11,8 @@ public interface IBlocklistService
 
     Task<int> LoadRulesAsync(IEnumerable<string> rules);
 
+    Task<int> AddRulesAsync(IEnumerable<string> rules) => Task.FromResult(0);
+
     void ClearRules();
 
     int TotalRulesLoaded { get; }

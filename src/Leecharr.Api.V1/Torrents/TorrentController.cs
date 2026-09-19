@@ -22,6 +22,7 @@ using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.MediaEnrichment;
+using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Network.GeoIp;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
@@ -32,6 +33,12 @@ namespace Leecharr.Api.V1.Torrents;
 public record TorrentUploadFailure(string FileName, string Reason);
 
 public record TorrentUploadResult(List<TorrentResource> Added, List<TorrentUploadFailure> Failed);
+
+public class BanPeerRequest
+{
+    [Required]
+    public string Ip { get; set; }
+}
 
 public class MoveQueueRequest
 {
@@ -148,6 +155,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     private readonly ITorrentLogService torrentLogService;
     private readonly IConfigService configService;
     private readonly ICategoryService categoryService;
+    private readonly IBlocklistService blocklistService;
 
     public TorrentController(
         ITorrentService torrentService,
@@ -162,7 +170,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         ITorrentCreationService torrentCreationService = null,
         ITorrentLogService torrentLogService = null,
         IConfigService configService = null,
-        ICategoryService categoryService = null)
+        ICategoryService categoryService = null,
+        IBlocklistService blocklistService = null)
         : base(signalRBroadcaster)
     {
         this.torrentService = torrentService;
@@ -177,6 +186,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         this.torrentLogService = torrentLogService;
         this.configService = configService;
         this.categoryService = categoryService;
+        this.blocklistService = blocklistService;
     }
 
     [HttpGet]
@@ -394,6 +404,10 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                 Downloaded = p.Downloaded,
                 Progress = p.Progress,
                 Flags = p.Flags,
+                IsEncrypted = p.IsEncrypted,
+                IsUtp = p.IsUtp,
+                IsIncoming = p.IsIncoming,
+                Protocol = p.IsUtp ? "uTP" : "TCP",
                 CountryCode = geo?.CountryCode ?? string.Empty,
                 CountryName = geo?.CountryName ?? string.Empty,
                 City = geo?.City ?? string.Empty,
@@ -402,6 +416,50 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
         var resources = (await Task.WhenAll(peerTasks)).ToList();
         return this.Ok(resources);
+    }
+
+    [HttpPost("{id:int}/peers/ban")]
+    public async Task<IActionResult> BanPeer(int id, [FromBody] BanPeerRequest request)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.Ip))
+        {
+            return this.BadRequest("IP address is required.");
+        }
+
+        return await this.BanPeerInternalAsync(id, request.Ip.Trim());
+    }
+
+    [HttpDelete("{id:int}/peers/{ip}")]
+    public async Task<IActionResult> DisconnectPeer(int id, string ip)
+    {
+        if (string.IsNullOrWhiteSpace(ip))
+        {
+            return this.BadRequest("IP address is required.");
+        }
+
+        return await this.BanPeerInternalAsync(id, ip.Trim());
+    }
+
+    private async Task<IActionResult> BanPeerInternalAsync(int id, string ip)
+    {
+        var torrent = this.torrentService.Get(id);
+        if (torrent == null)
+        {
+            return this.NotFound();
+        }
+
+        if (this.blocklistService != null)
+        {
+            await this.blocklistService.AddRulesAsync(new[] { ip });
+        }
+
+        var task = this.torrentService.GetDownloadTask(id);
+        if (task != null)
+        {
+            await task.DisconnectPeerAsync(ip);
+        }
+
+        return this.Ok(new { success = true, ip = ip, message = $"Peer {ip} banned and disconnected." });
     }
 
     [HttpGet("{id:int}/trackers")]
