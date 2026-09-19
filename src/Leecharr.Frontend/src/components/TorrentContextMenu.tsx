@@ -291,6 +291,88 @@ export function TorrentContextMenu({
               </div>
             )}
 
+            {/* Quick Queue Move Bar */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gap: "3px",
+                padding: "4px 6px",
+                background: "rgba(255, 255, 255, 0.03)",
+                borderBottom:
+                  "1px solid var(--border, rgba(255, 255, 255, 0.1))",
+              }}
+            >
+              <button
+                type="button"
+                className="context-menu-item"
+                style={{
+                  justifyContent: "center",
+                  padding: "4px 2px",
+                  borderRadius: "4px",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                }}
+                onClick={() => handleMoveQueueAll("top")}
+                title={t("torrents.contextMenu.top", {
+                  defaultValue: "Move to Top",
+                })}
+              >
+                ⤒ {t("torrents.contextMenu.top", { defaultValue: "Top" })}
+              </button>
+              <button
+                type="button"
+                className="context-menu-item"
+                style={{
+                  justifyContent: "center",
+                  padding: "4px 2px",
+                  borderRadius: "4px",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                }}
+                onClick={() => handleMoveQueueAll("up")}
+                title={t("torrents.contextMenu.up", {
+                  defaultValue: "Move Up",
+                })}
+              >
+                ▲ {t("torrents.contextMenu.up", { defaultValue: "Up" })}
+              </button>
+              <button
+                type="button"
+                className="context-menu-item"
+                style={{
+                  justifyContent: "center",
+                  padding: "4px 2px",
+                  borderRadius: "4px",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                }}
+                onClick={() => handleMoveQueueAll("down")}
+                title={t("torrents.contextMenu.down", {
+                  defaultValue: "Move Down",
+                })}
+              >
+                ▼ {t("torrents.contextMenu.down", { defaultValue: "Down" })}
+              </button>
+              <button
+                type="button"
+                className="context-menu-item"
+                style={{
+                  justifyContent: "center",
+                  padding: "4px 2px",
+                  borderRadius: "4px",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                }}
+                onClick={() => handleMoveQueueAll("bottom")}
+                title={t("torrents.contextMenu.bottom", {
+                  defaultValue: "Move to Bottom",
+                })}
+              >
+                ⤓ {t("torrents.contextMenu.bottom", { defaultValue: "Bottom" })}
+              </button>
+            </div>
+
             {/* Arr Direct Jump Link (Single selection only) */}
             {!isMulti && arrLink && (
               <button

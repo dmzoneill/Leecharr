@@ -78,6 +78,7 @@ interface TorrentToolbarProps {
   onBulkStop: () => void;
   onBulkDelete: () => void;
   onBulkClear: () => void;
+  onBulkMoveQueue?: (position: "top" | "up" | "down" | "bottom") => void;
   showQuickSettings?: boolean;
   onToggleQuickSettings?: () => void;
   isFilterCollapsed?: boolean;
@@ -103,6 +104,7 @@ export function TorrentToolbar({
   onBulkStop,
   onBulkDelete,
   onBulkClear,
+  onBulkMoveQueue,
   showQuickSettings = false,
   onToggleQuickSettings,
   isFilterCollapsed = false,
@@ -179,6 +181,70 @@ export function TorrentToolbar({
             >
               {t("common.delete")}
             </button>
+            {onBulkMoveQueue && (
+              <div
+                className="btn-group"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "2px",
+                  marginLeft: "4px",
+                  borderLeft:
+                    "1px solid var(--border, rgba(255, 255, 255, 0.15))",
+                  paddingLeft: "6px",
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => onBulkMoveQueue("top")}
+                  disabled={bulkPending}
+                  title={t("torrents.contextMenu.top", {
+                    defaultValue: "Move to Top",
+                  })}
+                  style={{ padding: "0.25rem 0.5rem", fontSize: "0.8rem" }}
+                >
+                  ⤒ {t("torrents.contextMenu.top", { defaultValue: "Top" })}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => onBulkMoveQueue("up")}
+                  disabled={bulkPending}
+                  title={t("torrents.contextMenu.up", {
+                    defaultValue: "Move Up",
+                  })}
+                  style={{ padding: "0.25rem 0.5rem", fontSize: "0.8rem" }}
+                >
+                  ▲ {t("torrents.contextMenu.up", { defaultValue: "Up" })}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => onBulkMoveQueue("down")}
+                  disabled={bulkPending}
+                  title={t("torrents.contextMenu.down", {
+                    defaultValue: "Move Down",
+                  })}
+                  style={{ padding: "0.25rem 0.5rem", fontSize: "0.8rem" }}
+                >
+                  ▼ {t("torrents.contextMenu.down", { defaultValue: "Down" })}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => onBulkMoveQueue("bottom")}
+                  disabled={bulkPending}
+                  title={t("torrents.contextMenu.bottom", {
+                    defaultValue: "Move to Bottom",
+                  })}
+                  style={{ padding: "0.25rem 0.5rem", fontSize: "0.8rem" }}
+                >
+                  ⤓{" "}
+                  {t("torrents.contextMenu.bottom", { defaultValue: "Bottom" })}
+                </button>
+              </div>
+            )}
             <button
               type="button"
               className="btn btn-outline"
@@ -257,7 +323,8 @@ export function TorrentToolbar({
           onClick={onStartAll}
           title={t("torrents.toolbar.resumeAll")}
         >
-          <PlayIcon size={13} /> {t("torrents.toolbar.resumeAll") || t("torrents.actions.resume")}
+          <PlayIcon size={13} />{" "}
+          {t("torrents.toolbar.resumeAll") || t("torrents.actions.resume")}
         </button>
         <button
           type="button"
@@ -265,7 +332,8 @@ export function TorrentToolbar({
           onClick={onStopAll}
           title={t("torrents.toolbar.pauseAll")}
         >
-          <StopIcon size={13} /> {t("torrents.toolbar.pauseAll") || t("torrents.actions.pause")}
+          <StopIcon size={13} />{" "}
+          {t("torrents.toolbar.pauseAll") || t("torrents.actions.pause")}
         </button>
         <input
           type="text"

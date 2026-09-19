@@ -39,6 +39,12 @@ public class TorrentEngineHotSwapIntegrationTest : IntegrationTestBase
         monoEngine.Should().NotBeNull();
         libTorrentEngine.Should().NotBeNull();
 
+        if (!libTorrentEngine.IsAvailable)
+        {
+            Assert.Ignore("LibTorrent backend engine is not available on this host environment.");
+            return;
+        }
+
         // 2. Add a test torrent via REST API
         using var form = new MultipartFormDataContent();
         form.Add(new StringContent("magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234599&dn=HotSwapVerificationTorrent"), "magnetUrl");
@@ -130,6 +136,13 @@ public class TorrentEngineHotSwapIntegrationTest : IntegrationTestBase
     {
         var engineManager = GlobalSetup.Factory.Services.GetRequiredService<ITorrentEngineManager>();
         engineManager.Should().NotBeNull();
+
+        var libTorrentEngine = engineManager.GetEngine("LibTorrent");
+        if (libTorrentEngine == null || !libTorrentEngine.IsAvailable)
+        {
+            Assert.Ignore("LibTorrent backend engine is not available on this host environment.");
+            return;
+        }
 
         // 1. Switch to LibTorrent using /api/v1/subsystems/bittorrent/switch
         var switchReq = new { providerId = "LibTorrent" };

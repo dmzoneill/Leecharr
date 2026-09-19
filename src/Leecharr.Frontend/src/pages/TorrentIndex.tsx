@@ -11,6 +11,7 @@ import { ViewMode } from "./torrentindex/types";
 import { extractTrackerDomain } from "../utils/formatters";
 import { useTorrentStore } from "../stores/useTorrentStore";
 import { useTranslation } from "../i18n";
+import { useMoveTorrentQueue } from "../api/hooks";
 
 interface TorrentIndexProps {
   torrents: Torrent[];
@@ -297,6 +298,35 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     setDeleteModalState({ isOpen: false });
   };
 
+  const moveTorrentQueue = useMoveTorrentQueue();
+
+  const handleBulkMoveQueue = async (
+    position: "top" | "up" | "down" | "bottom",
+  ) => {
+    const activeIds = new Set(torrents.map((t) => t.id));
+    const validSelectedIds = Array.from(selectedIds).filter((id) =>
+      activeIds.has(id),
+    );
+    if (validSelectedIds.length === 0) return;
+
+    const orderedIds = torrents
+      .filter((t) => validSelectedIds.includes(t.id))
+      .map((t) => t.id);
+
+    if (position === "down" || position === "bottom") {
+      orderedIds.reverse();
+    }
+
+    setBulkPending(true);
+    try {
+      for (const id of orderedIds) {
+        await moveTorrentQueue.mutateAsync({ id, position });
+      }
+    } finally {
+      setBulkPending(false);
+    }
+  };
+
   const currentSelectedTorrent = useMemo(() => {
     if (!selectedTorrentId) return null;
     return torrents.find((t) => t.id === selectedTorrentId) || null;
@@ -321,6 +351,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
         onBulkStop={handleBulkStop}
         onBulkDelete={handleBulkDelete}
         onBulkClear={clearSelection}
+        onBulkMoveQueue={handleBulkMoveQueue}
         showQuickSettings={showQuickSettings}
         onToggleQuickSettings={handleToggleQuickSettings}
         isFilterCollapsed={isFilterCollapsed}
