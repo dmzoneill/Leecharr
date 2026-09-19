@@ -43,6 +43,7 @@ public class AutomationService : IAutomationService
     private readonly IExtractorService? _extractorService;
     private readonly IDiskProvider? _diskProvider;
     private readonly IArchiveExtractorService? _archiveExtractorService;
+    private readonly ITorrentService? _torrentService;
     private readonly Logger _logger;
     private readonly JintScriptRunner _jintRunner;
     private readonly YamlScriptRunner _yamlRunner;
@@ -62,7 +63,8 @@ public class AutomationService : IAutomationService
         ITrackerBoostService? trackerBoostService = null,
         IExtractorService? extractorService = null,
         IDiskProvider? diskProvider = null,
-        IArchiveExtractorService? archiveExtractorService = null)
+        IArchiveExtractorService? archiveExtractorService = null,
+        ITorrentService? torrentService = null)
     {
         _scriptRepository = scriptRepository;
         _torrentRepository = torrentRepository;
@@ -78,6 +80,7 @@ public class AutomationService : IAutomationService
         _extractorService = extractorService;
         _diskProvider = diskProvider;
         _archiveExtractorService = archiveExtractorService;
+        _torrentService = torrentService;
         _logger = LogManager.GetCurrentClassLogger();
         _jintRunner = new JintScriptRunner(commandQueue, configFileProvider);
         _yamlRunner = new YamlScriptRunner(commandQueue);
@@ -314,6 +317,11 @@ public class AutomationService : IAutomationService
 
     private void ApplyTorrentMutations(Torrent torrent, AutomationExecutionResult result)
     {
+        ApplyTorrentMutationsAsync(torrent, result).GetAwaiter().GetResult();
+    }
+
+    private async Task ApplyTorrentMutationsAsync(Torrent torrent, AutomationExecutionResult result)
+    {
         ExecuteAutomationActions(torrent, result);
 
         var changed = false;
@@ -420,38 +428,64 @@ public class AutomationService : IAutomationService
         if (result.ShouldRemove)
         {
             _logger.Info("Automation script requested removal of torrent '{0}' (deleteData={1})", torrent.Name, result.DeleteDataOnRemove);
-            _torrentRepository.Delete(torrent.Id);
-            _eventAggregator.PublishEvent(new TorrentDeletedEvent { Torrent = torrent, DeleteFiles = result.DeleteDataOnRemove });
-            _eventAggregator.PublishEvent(new ModelEvent<Torrent>(torrent, ModelAction.Deleted));
+            if (_torrentService != null)
+            {
+                await _torrentService.DeleteAsync(torrent.Id, result.DeleteDataOnRemove).ConfigureAwait(false);
+            }
+            else
+            {
+                _torrentRepository.Delete(torrent.Id);
+                _eventAggregator.PublishEvent(new TorrentDeletedEvent { Torrent = torrent, DeleteFiles = result.DeleteDataOnRemove });
+                _eventAggregator.PublishEvent(new ModelEvent<Torrent>(torrent, ModelAction.Deleted));
+            }
+
             return;
         }
 
         var oldStatus = torrent.Status;
         if (result.ShouldPause && torrent.Status != TorrentStatus.Paused)
         {
-            torrent.Status = TorrentStatus.Paused;
-            changed = true;
-            _eventAggregator.PublishEvent(new TorrentPausedEvent(torrent));
-            _eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+            if (_torrentService != null)
             {
-                Torrent = torrent,
-                OldStatus = oldStatus,
-                NewStatus = TorrentStatus.Paused,
-            });
+                await _torrentService.PauseAsync(torrent.Id).ConfigureAwait(false);
+                torrent.Status = TorrentStatus.Paused;
+            }
+            else
+            {
+                torrent.Status = TorrentStatus.Paused;
+                changed = true;
+                _eventAggregator.PublishEvent(new TorrentPausedEvent(torrent));
+                _eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+                {
+                    Torrent = torrent,
+                    OldStatus = oldStatus,
+                    NewStatus = TorrentStatus.Paused,
+                });
+            }
         }
         else if (result.ShouldResume && torrent.Status == TorrentStatus.Paused)
         {
-            torrent.Status = (torrent.Progress >= 1.0f || torrent.Progress >= 0.999f || torrent.DateCompleted != null)
-                ? TorrentStatus.Seeding
-                : TorrentStatus.Downloading;
-            changed = true;
-            _eventAggregator.PublishEvent(new TorrentStartedEvent(torrent));
-            _eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+            if (_torrentService != null)
             {
-                Torrent = torrent,
-                OldStatus = oldStatus,
-                NewStatus = torrent.Status,
-            });
+                await _torrentService.ResumeAsync(torrent.Id).ConfigureAwait(false);
+                torrent.Status = (torrent.Progress >= 1.0f || torrent.Progress >= 0.999f || torrent.DateCompleted != null)
+                    ? TorrentStatus.Seeding
+                    : TorrentStatus.Downloading;
+            }
+            else
+            {
+                torrent.Status = (torrent.Progress >= 1.0f || torrent.Progress >= 0.999f || torrent.DateCompleted != null)
+                    ? TorrentStatus.Seeding
+                    : TorrentStatus.Downloading;
+                changed = true;
+                _eventAggregator.PublishEvent(new TorrentStartedEvent(torrent));
+                _eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+                {
+                    Torrent = torrent,
+                    OldStatus = oldStatus,
+                    NewStatus = torrent.Status,
+                });
+            }
         }
 
         if (changed)

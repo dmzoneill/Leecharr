@@ -9,6 +9,8 @@ using NUnit.Framework;
 using NzbDrone.Common.Disk;
 using NzbDrone.Core.Automation;
 using NzbDrone.Core.BitTorrent;
+using NzbDrone.Core.Datastore;
+using NzbDrone.Core.Datastore.Events;
 using NzbDrone.Core.Extraction;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Network.Blocklist;
@@ -30,6 +32,7 @@ public class AutomationServiceTest
     private ITrackerBoostService _trackerBoostService;
     private IExtractorService _extractorService;
     private IDiskProvider _diskProvider;
+    private ITorrentService _torrentService;
 
     [SetUp]
     public void SetUp()
@@ -43,6 +46,7 @@ public class AutomationServiceTest
         _trackerBoostService = Substitute.For<ITrackerBoostService>();
         _extractorService = Substitute.For<IExtractorService>();
         _diskProvider = Substitute.For<IDiskProvider>();
+        _torrentService = Substitute.For<ITorrentService>();
     }
 
     [Test]
@@ -411,5 +415,250 @@ public class AutomationServiceTest
 
         result.Should().BeTrue();
         _diskProvider.DidNotReceive().DeleteFile(Arg.Any<string>());
+    }
+
+    [Test]
+    public void ShouldDelegateToTorrentServiceDeleteAsync_WhenScriptRequestsRemoveWithDeleteData()
+    {
+        var torrent = new Torrent
+        {
+            Id = 50,
+            Name = "RemoveWithDataTorrent",
+            Status = TorrentStatus.Downloading,
+        };
+
+        var script = new AutomationScript
+        {
+            Id = 10,
+            Name = "RemoveScript",
+            IsEnabled = true,
+            Language = AutomationLanguage.JavaScript,
+            Code = "torrent.remove(true);",
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            torrentService: _torrentService);
+
+        var result = service.ExecuteScript(script, torrent);
+
+        result.Success.Should().BeTrue();
+        result.ShouldRemove.Should().BeTrue();
+        result.DeleteDataOnRemove.Should().BeTrue();
+        _torrentService.Received(1).DeleteAsync(50, true);
+        _torrentRepository.DidNotReceive().Delete(Arg.Any<int>());
+    }
+
+    [Test]
+    public void ShouldDelegateToTorrentServiceDeleteAsync_WhenScriptRequestsRemoveWithoutDeletingData()
+    {
+        var torrent = new Torrent
+        {
+            Id = 51,
+            Name = "RemoveKeepDataTorrent",
+            Status = TorrentStatus.Downloading,
+        };
+
+        var script = new AutomationScript
+        {
+            Id = 11,
+            Name = "RemoveKeepDataScript",
+            IsEnabled = true,
+            Language = AutomationLanguage.JavaScript,
+            Code = "torrent.remove(false);",
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            torrentService: _torrentService);
+
+        var result = service.ExecuteScript(script, torrent);
+
+        result.Success.Should().BeTrue();
+        result.ShouldRemove.Should().BeTrue();
+        result.DeleteDataOnRemove.Should().BeFalse();
+        _torrentService.Received(1).DeleteAsync(51, false);
+        _torrentRepository.DidNotReceive().Delete(Arg.Any<int>());
+    }
+
+    [Test]
+    public void ShouldDelegateToTorrentServicePauseAsync_WhenScriptRequestsPause()
+    {
+        var torrent = new Torrent
+        {
+            Id = 52,
+            Name = "PauseTorrent",
+            Status = TorrentStatus.Downloading,
+        };
+
+        var script = new AutomationScript
+        {
+            Id = 12,
+            Name = "PauseScript",
+            IsEnabled = true,
+            Language = AutomationLanguage.JavaScript,
+            Code = "torrent.pause();",
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            torrentService: _torrentService);
+
+        var result = service.ExecuteScript(script, torrent);
+
+        result.Success.Should().BeTrue();
+        result.ShouldPause.Should().BeTrue();
+        torrent.Status.Should().Be(TorrentStatus.Paused);
+        _torrentService.Received(1).PauseAsync(52);
+    }
+
+    [Test]
+    public void ShouldDelegateToTorrentServiceResumeAsync_WhenScriptRequestsResume()
+    {
+        var torrent = new Torrent
+        {
+            Id = 53,
+            Name = "ResumeTorrent",
+            Status = TorrentStatus.Paused,
+            Progress = 0.5f,
+        };
+
+        var script = new AutomationScript
+        {
+            Id = 13,
+            Name = "ResumeScript",
+            IsEnabled = true,
+            Language = AutomationLanguage.JavaScript,
+            Code = "torrent.resume();",
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            torrentService: _torrentService);
+
+        var result = service.ExecuteScript(script, torrent);
+
+        result.Success.Should().BeTrue();
+        result.ShouldResume.Should().BeTrue();
+        torrent.Status.Should().Be(TorrentStatus.Downloading);
+        _torrentService.Received(1).ResumeAsync(53);
+    }
+
+    [Test]
+    public void ShouldFallbackToTorrentRepository_WhenTorrentServiceIsNull_OnRemove()
+    {
+        var torrent = new Torrent
+        {
+            Id = 54,
+            Name = "FallbackRemoveTorrent",
+            Status = TorrentStatus.Downloading,
+        };
+
+        var script = new AutomationScript
+        {
+            Id = 14,
+            Name = "FallbackRemoveScript",
+            IsEnabled = true,
+            Language = AutomationLanguage.JavaScript,
+            Code = "torrent.remove(true);",
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            torrentService: null);
+
+        var result = service.ExecuteScript(script, torrent);
+
+        result.Success.Should().BeTrue();
+        result.ShouldRemove.Should().BeTrue();
+        _torrentRepository.Received(1).Delete(54);
+        _eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentDeletedEvent>(e => e.Torrent == torrent && e.DeleteFiles));
+        _eventAggregator.Received(1).PublishEvent(Arg.Is<ModelEvent<Torrent>>(e => e.Model == torrent && e.Action == ModelAction.Deleted));
+    }
+
+    [Test]
+    public void ShouldFallbackToTorrentRepository_WhenTorrentServiceIsNull_OnPause()
+    {
+        var torrent = new Torrent
+        {
+            Id = 55,
+            Name = "FallbackPauseTorrent",
+            Status = TorrentStatus.Downloading,
+        };
+
+        var script = new AutomationScript
+        {
+            Id = 15,
+            Name = "FallbackPauseScript",
+            IsEnabled = true,
+            Language = AutomationLanguage.JavaScript,
+            Code = "torrent.pause();",
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            torrentService: null);
+
+        var result = service.ExecuteScript(script, torrent);
+
+        result.Success.Should().BeTrue();
+        result.ShouldPause.Should().BeTrue();
+        torrent.Status.Should().Be(TorrentStatus.Paused);
+        _torrentRepository.Received(1).Update(torrent);
+        _eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentPausedEvent>(e => e.Torrent == torrent));
+    }
+
+    [Test]
+    public void ShouldFallbackToTorrentRepository_WhenTorrentServiceIsNull_OnResume()
+    {
+        var torrent = new Torrent
+        {
+            Id = 56,
+            Name = "FallbackResumeTorrent",
+            Status = TorrentStatus.Paused,
+            Progress = 0.5f,
+        };
+
+        var script = new AutomationScript
+        {
+            Id = 16,
+            Name = "FallbackResumeScript",
+            IsEnabled = true,
+            Language = AutomationLanguage.JavaScript,
+            Code = "torrent.resume();",
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            torrentService: null);
+
+        var result = service.ExecuteScript(script, torrent);
+
+        result.Success.Should().BeTrue();
+        result.ShouldResume.Should().BeTrue();
+        torrent.Status.Should().Be(TorrentStatus.Downloading);
+        _torrentRepository.Received(1).Update(torrent);
+        _eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentStartedEvent>(e => e.Torrent == torrent));
     }
 }
