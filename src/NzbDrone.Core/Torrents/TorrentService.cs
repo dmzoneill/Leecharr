@@ -24,6 +24,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 {
     private static readonly SemaphoreSlim QueueLock = new(1, 1);
     private readonly ConcurrentDictionary<int, long> lastSeenSessionUploaded = new();
+    private readonly ConcurrentDictionary<int, long> sessionUploadBaselines = new();
     private readonly Dictionary<int, RefCountedSemaphore> deletionLocks = new();
     private readonly object deletionLocksSync = new();
     private readonly ITorrentRepository torrentRepository;
@@ -699,6 +700,8 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             this.trackerEntryRepository?.DeleteByTorrentId(id);
             this.mediaEnrichmentService.DeleteMetadata(id);
             this.mediaEnrichmentService.CleanupTorrentCache(id);
+            this.sessionUploadBaselines.TryRemove(id, out _);
+            this.lastSeenSessionUploaded.TryRemove(id, out _);
             this.torrentRepository.Delete(id);
         }
         finally
@@ -1433,6 +1436,11 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         if (task != null)
         {
             var oldStatus = torrent.Status;
+            var oldDownloaded = torrent.Downloaded;
+            var oldUploaded = torrent.Uploaded;
+            var oldRatio = torrent.Ratio;
+            var oldProgress = torrent.Progress;
+
             torrent.Status = task.Status;
             torrent.ErrorMessage = task.ErrorMessage;
             torrent.Progress = task.Progress;
@@ -1460,27 +1468,29 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             }
 
             var currentSessionUploaded = task.UploadedBytes;
-            if (currentSessionUploaded > 0)
+            if (currentSessionUploaded >= 0)
             {
-                this.lastSeenSessionUploaded.AddOrUpdate(
-                    torrent.Id,
-                    currentSessionUploaded,
-                    (id, last) =>
-                    {
-                        if (currentSessionUploaded > last)
-                        {
-                            var delta = currentSessionUploaded - last;
-                            torrent.Uploaded += delta;
-                            return currentSessionUploaded;
-                        }
-
-                        return last;
-                    });
-
-                if (torrent.Uploaded < currentSessionUploaded)
+                if (this.lastSeenSessionUploaded.TryGetValue(torrent.Id, out var lastSeen) && currentSessionUploaded < lastSeen)
                 {
-                    torrent.Uploaded = currentSessionUploaded;
+                    // Active engine session was reset or restarted
+                    this.sessionUploadBaselines[torrent.Id] = torrent.Uploaded;
                 }
+                else if (!this.sessionUploadBaselines.ContainsKey(torrent.Id))
+                {
+                    // If the task already reports total lifetime upload matching the torrent model,
+                    // the task uploaded count is already cumulative (e.g. Transmission/LibTorrent engines).
+                    // Otherwise, the task reports session bytes since startup (e.g. MonoTorrent), so baseline is the DB cumulative upload.
+                    var baseline = currentSessionUploaded == torrent.Uploaded && currentSessionUploaded > 0
+                        ? 0
+                        : torrent.Uploaded;
+
+                    this.sessionUploadBaselines.TryAdd(torrent.Id, baseline);
+                }
+
+                this.lastSeenSessionUploaded[torrent.Id] = currentSessionUploaded;
+
+                var sessionBaseline = this.sessionUploadBaselines.TryGetValue(torrent.Id, out var b) ? b : torrent.Uploaded;
+                torrent.Uploaded = Math.Max(torrent.Uploaded, sessionBaseline + currentSessionUploaded);
             }
 
             var isInactive = torrent.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued;
@@ -1504,7 +1514,22 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 torrent.Eta = remainingBytes / torrent.DownloadSpeed;
             }
 
-            if (oldStatus != torrent.Status)
+            var dateCompletedSet = false;
+            // Record completion timestamp when torrent reaches Seeding
+            if (torrent.Status == TorrentStatus.Seeding && !torrent.DateCompleted.HasValue)
+            {
+                torrent.DateCompleted = DateTime.UtcNow;
+                dateCompletedSet = true;
+            }
+
+            var statusChanged = oldStatus != torrent.Status;
+            var progressChanged = Math.Abs(torrent.Progress - oldProgress) > 0.0001;
+            var statsChanged = torrent.Uploaded != oldUploaded ||
+                               torrent.Downloaded != oldDownloaded ||
+                               Math.Abs(torrent.Ratio - oldRatio) > 0.0001 ||
+                               progressChanged;
+
+            if (statusChanged)
             {
                 this.logger.Info(
                     "[State Machine] Torrent #{0} ('{1}') status updated in engine sync: {2} -> {3} (Progress: {4:P1}, DownSpeed: {5}/s, UpSpeed: {6}/s)",
@@ -1524,25 +1549,24 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                     NewStatus = torrent.Status,
                 });
             }
-            else if (initialSeedingChanged)
+            else if (initialSeedingChanged || dateCompletedSet || statsChanged)
             {
-                this.torrentRepository.Update(torrent);
-            }
-
-            // Record completion timestamp when torrent reaches Seeding
-            if (torrent.Status == TorrentStatus.Seeding && !torrent.DateCompleted.HasValue)
-            {
-                torrent.DateCompleted = DateTime.UtcNow;
                 this.torrentRepository.Update(torrent);
             }
         }
-        else if (torrent.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued)
+        else
         {
-            torrent.DownloadSpeed = 0;
-            torrent.UploadSpeed = 0;
-            torrent.Eta = 0;
-            torrent.Seeders = 0;
-            torrent.Leechers = 0;
+            this.sessionUploadBaselines.TryRemove(torrent.Id, out _);
+            this.lastSeenSessionUploaded.TryRemove(torrent.Id, out _);
+
+            if (torrent.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued)
+            {
+                torrent.DownloadSpeed = 0;
+                torrent.UploadSpeed = 0;
+                torrent.Eta = 0;
+                torrent.Seeders = 0;
+                torrent.Leechers = 0;
+            }
         }
 
         if (string.IsNullOrWhiteSpace(torrent.TrackerUrl) && this.trackerEntryRepository != null)
