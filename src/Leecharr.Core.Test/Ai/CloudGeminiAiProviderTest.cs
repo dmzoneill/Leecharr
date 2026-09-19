@@ -188,15 +188,21 @@ public class CloudGeminiAiProviderTest
     }
 
     [Test]
-    public async Task ProbeHealthAsync_EscapesModelAndApiKeyInUri()
+    public async Task ProbeHealthAsync_TransmitsApiKeyInHeaderAndEscapesModelInUri()
     {
         this.configService.GetValue("GeminiApiKey", Arg.Any<string>()).Returns("key+123/456=&");
         this.configService.GetValue("GeminiModel", Arg.Any<string>()).Returns("tunedModels/release-parser+v1");
 
         string requestedUrl = null;
+        string headerKey = null;
         var handler = new MockHttpMessageHandler((req, ct) =>
         {
             requestedUrl = req.RequestUri?.ToString();
+            if (req.Headers.TryGetValues("x-goog-api-key", out var values))
+            {
+                headerKey = string.Join(",", values);
+            }
+
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
         });
 
@@ -206,19 +212,27 @@ public class CloudGeminiAiProviderTest
         var health = await provider.ProbeHealthAsync();
         health.IsHealthy.Should().BeTrue();
         requestedUrl.Should().NotBeNull();
-        requestedUrl.Should().Contain("models/tunedModels%2Frelease-parser%2Bv1?key=key%2B123%2F456%3D%26");
+        requestedUrl.Should().Contain("models/tunedModels%2Frelease-parser%2Bv1");
+        requestedUrl.Should().NotContain("?key=");
+        headerKey.Should().Be("key+123/456=&");
     }
 
     [Test]
-    public async Task GenerateChatResponseAsync_EscapesModelAndApiKeyInUri()
+    public async Task GenerateChatResponseAsync_TransmitsApiKeyInHeaderAndEscapesModelInUri()
     {
         this.configService.GetValue("GeminiApiKey", Arg.Any<string>()).Returns("key+123/456=&");
         this.configService.GetValue("GeminiModel", Arg.Any<string>()).Returns("tunedModels/release-parser+v1");
 
         string requestedUrl = null;
+        string headerKey = null;
         var handler = new MockHttpMessageHandler((req, ct) =>
         {
             requestedUrl = req.RequestUri?.ToString();
+            if (req.Headers.TryGetValues("x-goog-api-key", out var values))
+            {
+                headerKey = string.Join(",", values);
+            }
+
             var responseJson = @"{
                 ""candidates"": [
                     {
@@ -244,7 +258,67 @@ public class CloudGeminiAiProviderTest
         var response = await provider.GenerateChatResponseAsync("test");
         response.Should().Be("Hello!");
         requestedUrl.Should().NotBeNull();
-        requestedUrl.Should().Contain("models/tunedModels%2Frelease-parser%2Bv1:generateContent?key=key%2B123%2F456%3D%26");
+        requestedUrl.Should().Contain("models/tunedModels%2Frelease-parser%2Bv1:generateContent");
+        requestedUrl.Should().NotContain("?key=");
+        headerKey.Should().Be("key+123/456=&");
+    }
+
+    [Test]
+    public async Task Prompts_EncapsulateUntrustedInputsInXmlTags()
+    {
+        var capturedPrompts = new System.Collections.Generic.List<string>();
+        var handler = new MockHttpMessageHandler(async (req, ct) =>
+        {
+            if (req.Content != null)
+            {
+                var body = await req.Content.ReadAsStringAsync(ct);
+                using var doc = System.Text.Json.JsonDocument.Parse(body);
+                if (doc.RootElement.TryGetProperty("contents", out var contents) &&
+                    contents.GetArrayLength() > 0 &&
+                    contents[0].TryGetProperty("parts", out var parts) &&
+                    parts.GetArrayLength() > 0 &&
+                    parts[0].TryGetProperty("text", out var text))
+                {
+                    capturedPrompts.Add(text.GetString() ?? string.Empty);
+                }
+            }
+
+            var responseJson = @"{
+                ""candidates"": [
+                    {
+                        ""content"": {
+                            ""parts"": [
+                                {
+                                    ""text"": ""{}""
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }";
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseJson),
+            };
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new CloudGeminiAiProvider(this.configService, client);
+
+        await provider.ParseReleaseAsync("Dangerous.Release.Name");
+        capturedPrompts.Should().ContainSingle();
+        capturedPrompts[0].Should().Contain("<release_name>Dangerous.Release.Name</release_name>");
+
+        capturedPrompts.Clear();
+        await provider.ProcessNaturalLanguageSearchAsync("find dune 2024");
+        capturedPrompts.Should().ContainSingle();
+        capturedPrompts[0].Should().Contain("<query>find dune 2024</query>");
+
+        capturedPrompts.Clear();
+        await provider.AnalyzeMalwareRiskAsync("MalwareTorrent", Array.Empty<NzbDrone.Core.Torrents.TorrentFile>());
+        capturedPrompts.Should().ContainSingle();
+        capturedPrompts[0].Should().Contain("<torrent_name>MalwareTorrent</torrent_name>");
+        capturedPrompts[0].Should().Contain("<torrent_files>none</torrent_files>");
     }
 
     [Test]
