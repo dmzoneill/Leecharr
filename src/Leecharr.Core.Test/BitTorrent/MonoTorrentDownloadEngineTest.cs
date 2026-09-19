@@ -3514,6 +3514,57 @@ public class MonoTorrentDownloadEngineTest
         }
     }
 
+    [TestCase("Any")]
+    [TestCase("any")]
+    [TestCase("all")]
+    [TestCase("ALL")]
+    public async Task BoundSocketConnector_WhenInterfaceIsAnyOrAll_DoesNotCallNetworkBindingServiceAndConnectsSuccessfully(string iface)
+    {
+        var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+
+        try
+        {
+            var mockBindingService = Substitute.For<NzbDrone.Core.Network.Binding.INetworkBindingService>();
+            var connector = new BoundSocketConnector(
+                () => IPAddress.Loopback,
+                () => IPAddress.IPv6Loopback,
+                mockBindingService,
+                () => iface);
+
+            using var socket = await connector.ConnectAsync(new Uri($"http://127.0.0.1:{port}"), CancellationToken.None);
+
+            socket.Should().NotBeNull();
+            socket.Connected.Should().BeTrue();
+            mockBindingService.DidNotReceive().BindSocket(Arg.Any<System.Net.Sockets.Socket>(), Arg.Any<string>(), Arg.Any<int>());
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
+    [TestCase("Any")]
+    [TestCase("any")]
+    [TestCase("all")]
+    [TestCase("ALL")]
+    public void BoundSocketConnector_CreateDatagramSocket_WhenInterfaceIsAnyOrAll_DoesNotCallNetworkBindingService(string iface)
+    {
+        var mockBindingService = Substitute.For<NzbDrone.Core.Network.Binding.INetworkBindingService>();
+        var connector = new BoundSocketConnector(
+            () => IPAddress.Loopback,
+            () => IPAddress.IPv6Loopback,
+            mockBindingService,
+            () => iface);
+
+        using var socket = connector.CreateDatagramSocket(AddressFamily.InterNetwork, 0);
+
+        socket.Should().NotBeNull();
+        socket.IsBound.Should().BeTrue();
+        mockBindingService.DidNotReceive().BindSocket(Arg.Any<System.Net.Sockets.Socket>(), Arg.Any<string>(), Arg.Any<int>());
+    }
+
     [Test]
     public void BoundSocketConnector_CreateDatagramSocket_CreatesAndBindsUdpSocket()
     {

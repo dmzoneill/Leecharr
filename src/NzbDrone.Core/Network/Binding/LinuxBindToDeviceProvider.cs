@@ -100,7 +100,9 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
             throw new ArgumentNullException(nameof(socket));
         }
 
-        if (string.IsNullOrWhiteSpace(interfaceName))
+        if (string.IsNullOrWhiteSpace(interfaceName) ||
+            string.Equals(interfaceName, "Any", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(interfaceName, "all", StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
@@ -130,7 +132,9 @@ public class LinuxBindToDeviceProvider : INetworkBindingProvider
 
     public bool IsInterfaceUp(string interfaceName)
     {
-        if (string.IsNullOrWhiteSpace(interfaceName))
+        if (string.IsNullOrWhiteSpace(interfaceName) ||
+            string.Equals(interfaceName, "Any", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(interfaceName, "all", StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
