@@ -715,4 +715,63 @@ public class QueueManagerServiceTest
 
         this.torrentRepository.DidNotReceive().All();
     }
+
+    [Test]
+    public async Task ProcessQueueAsync_WhenTorrentHasForceStart_PromotesDownloadingEvenWhenMaxDownloadsReached()
+    {
+        this.configService.MaxActiveDownloads.Returns(1);
+
+        var t1 = new Torrent { Id = 1, Name = "RegularDownloading", Status = TorrentStatus.Downloading, Progress = 0.5, QueuePosition = 1 };
+        var t2 = new Torrent { Id = 2, Name = "ForceStartQueued", Status = TorrentStatus.Queued, Progress = 0.1, QueuePosition = 2, ForceStart = true };
+
+        var torrents = new List<Torrent> { t1, t2 };
+        this.torrentRepository.All().Returns(torrents);
+
+        await this.queueManager.ProcessQueueAsync();
+
+        t1.Status.Should().Be(TorrentStatus.Downloading);
+        t2.Status.Should().Be(TorrentStatus.Downloading);
+
+        await this.downloadEngine.Received(1).ResumeTorrentAsync(2);
+        await this.downloadEngine.DidNotReceive().PauseTorrentAsync(1);
+    }
+
+    [Test]
+    public async Task ProcessQueueAsync_WhenDownloadingTorrentHasForceStart_NeverDemotesToQueued()
+    {
+        this.configService.MaxActiveDownloads.Returns(1);
+
+        var t1 = new Torrent { Id = 1, Name = "Normal1", Status = TorrentStatus.Downloading, Progress = 0.5, Priority = 10, QueuePosition = 1 };
+        var t2 = new Torrent { Id = 2, Name = "ForceStartDownloading", Status = TorrentStatus.Downloading, Progress = 0.1, Priority = 1, QueuePosition = 2, ForceStart = true };
+
+        var torrents = new List<Torrent> { t1, t2 };
+        this.torrentRepository.All().Returns(torrents);
+
+        await this.queueManager.ProcessQueueAsync();
+
+        t1.Status.Should().Be(TorrentStatus.Downloading);
+        t2.Status.Should().Be(TorrentStatus.Downloading);
+
+        await this.downloadEngine.DidNotReceive().PauseTorrentAsync(2);
+    }
+
+    [Test]
+    public async Task ProcessQueueAsync_WhenTorrentHasForceStart_PromotesSeedingEvenWhenMaxUploadsReached()
+    {
+        this.configService.MaxActiveUploads.Returns(1);
+
+        var t1 = new Torrent { Id = 1, Name = "RegularSeeding", Status = TorrentStatus.Seeding, Progress = 1.0, QueuePosition = 1 };
+        var t2 = new Torrent { Id = 2, Name = "ForceStartSeedingQueued", Status = TorrentStatus.Queued, Progress = 1.0, QueuePosition = 2, ForceStart = true };
+
+        var torrents = new List<Torrent> { t1, t2 };
+        this.torrentRepository.All().Returns(torrents);
+
+        await this.queueManager.ProcessQueueAsync();
+
+        t1.Status.Should().Be(TorrentStatus.Seeding);
+        t2.Status.Should().Be(TorrentStatus.Seeding);
+
+        await this.downloadEngine.Received(1).ResumeTorrentAsync(2);
+        await this.downloadEngine.DidNotReceive().PauseTorrentAsync(1);
+    }
 }
