@@ -3725,18 +3725,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             listenEndPoints = new Dictionary<string, IPEndPoint>();
         }
 
-        var newSettingsBuilder = new EngineSettingsBuilder(this.engine.Settings)
-        {
-            ListenEndPoints = listenEndPoints,
-            DhtEndPoint = (!this.configService.AnonymousMode && !isProxyActive && this.configService.EnableDht) ? new IPEndPoint(listenIp, port) : null,
-            DiskCacheBytes = this.CalculateDynamicDiskCacheBytes(this.engine.TotalDownloadRate),
-            DiskCachePolicy = this.GetConfiguredCachePolicy(),
-            FastResumeMode = this.GetConfiguredFastResumeMode(),
-            AllowLocalPeerDiscovery = this.IsLocalPeerDiscoveryAllowed(),
-            AllowPortForwarding = !this.configService.AnonymousMode && this.configService.UpnpEnabled,
-        };
-
-        await this.engine.UpdateSettingsAsync(newSettingsBuilder.ToSettings()).ConfigureAwait(false);
+        var newSettings = this.BuildEngineSettings(listenEndPoints);
+        await this.engine.UpdateSettingsAsync(newSettings).ConfigureAwait(false);
         this.logger.Info("Updated MonoTorrent engine listening endpoints to {0}:{1}", listenIp, port);
     }
 
@@ -3968,6 +3958,75 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
+    internal EngineSettings BuildEngineSettings(Dictionary<string, IPEndPoint> listenEndPoints = null)
+    {
+        var builder = this.engine != null
+            ? new EngineSettingsBuilder(this.engine.Settings)
+            : new EngineSettingsBuilder();
+
+        this.PopulateDynamicEngineSettings(builder, listenEndPoints);
+        return builder.ToSettings();
+    }
+
+    private void PopulateDynamicEngineSettings(EngineSettingsBuilder builder, Dictionary<string, IPEndPoint> listenEndPoints = null)
+    {
+        var isAnonymous = this.configService.AnonymousMode;
+        var isProxyActive = this.IsProxyActive();
+
+        var port = this.configService.ListeningPort > 0 ? this.configService.ListeningPort : 51413;
+        var listenIp = IPAddress.Any;
+        if (listenEndPoints != null && listenEndPoints.TryGetValue("ipv4", out var customIpv4Ep))
+        {
+            listenIp = customIpv4Ep.Address;
+            port = customIpv4Ep.Port;
+        }
+        else if (builder.ListenEndPoints != null && builder.ListenEndPoints.TryGetValue("ipv4", out var existingIpv4Ep))
+        {
+            listenIp = existingIpv4Ep.Address;
+            port = existingIpv4Ep.Port;
+        }
+        else if (builder.DhtEndPoint != null)
+        {
+            listenIp = builder.DhtEndPoint.Address;
+            port = builder.DhtEndPoint.Port;
+        }
+
+        if (string.IsNullOrWhiteSpace(builder.CacheDirectory))
+        {
+            builder.CacheDirectory = this.GetCacheDirectory();
+            builder.AutoSaveLoadFastResume = true;
+            builder.AutoSaveLoadDhtCache = true;
+        }
+
+        if (isAnonymous)
+        {
+            builder.ListenEndPoints = new Dictionary<string, IPEndPoint>();
+        }
+        else if (listenEndPoints != null)
+        {
+            builder.ListenEndPoints = listenEndPoints;
+        }
+
+        builder.AllowPortForwarding = !isAnonymous && this.configService.UpnpEnabled;
+        builder.AllowLocalPeerDiscovery = this.IsLocalPeerDiscoveryAllowed();
+        builder.AllowHaveSuppression = this.configService.ExtensionLtDontHave;
+        builder.AllowedEncryption = GetAllowedEncryption(this.configService.EncryptionMode);
+        builder.DhtEndPoint = (!isAnonymous && !isProxyActive && this.configService.EnableDht) ? new IPEndPoint(listenIp, port) : null;
+        builder.ConnectionTimeout = TimeSpan.FromSeconds(this.configService.TransportConnectionTimeoutSeconds > 0 ? this.configService.TransportConnectionTimeoutSeconds : 30);
+        builder.DiskCacheBytes = this.CalculateDynamicDiskCacheBytes(this.engine?.TotalDownloadRate ?? 0);
+        builder.DiskCachePolicy = this.GetConfiguredCachePolicy();
+        builder.FastResumeMode = this.GetConfiguredFastResumeMode();
+        builder.MaximumConnections = this.configService.MaxGlobalConnections > 0 ? this.configService.MaxGlobalConnections : 300;
+        builder.MaximumDownloadRate = this.configService.MaxDownloadSpeedKbps > 0
+            ? (int)Math.Min((long)this.configService.MaxDownloadSpeedKbps * 1024, int.MaxValue)
+            : 0;
+        builder.MaximumUploadRate = this.configService.MaxUploadSpeedKbps > 0
+            ? (int)Math.Min((long)this.configService.MaxUploadSpeedKbps * 1024, int.MaxValue)
+            : 0;
+        builder.WebSeedDelay = TimeSpan.FromSeconds(this.configService.WebSeedDelaySeconds > 0 ? this.configService.WebSeedDelaySeconds : 30);
+        builder.UsePartialFiles = this.configService.AppendIncompleteExtension;
+    }
+
     internal async Task ApplyConfigChangesAsync()
     {
         if (this.engine == null)
@@ -3977,18 +4036,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         try
         {
-            var updatedSettings = new EngineSettingsBuilder(this.engine.Settings)
-            {
-                DiskCacheBytes = this.CalculateDynamicDiskCacheBytes(this.engine.TotalDownloadRate),
-                DiskCachePolicy = this.GetConfiguredCachePolicy(),
-                FastResumeMode = this.GetConfiguredFastResumeMode(),
-                AllowLocalPeerDiscovery = this.IsLocalPeerDiscoveryAllowed(),
-            }.ToSettings();
+            var updatedSettings = this.BuildEngineSettings();
             await this.engine.UpdateSettingsAsync(updatedSettings).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            this.logger.Debug(ex, "Failed to update engine settings on config change");
+            this.logger.Warn(ex, "Failed to update engine settings on config change");
         }
 
         var currentIface = !string.IsNullOrWhiteSpace(this.configService.NetworkInterfaceBinding)
@@ -4045,7 +4098,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 }
                 catch (Exception ex)
                 {
-                    this.logger.Debug(ex, "Failed to apply config changes on config save");
+                    this.logger.Warn(ex, "Failed to apply config changes on config save");
                 }
             });
         }
@@ -4065,7 +4118,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 }
                 catch (Exception ex)
                 {
-                    this.logger.Debug(ex, "Failed to apply config changes on config file save");
+                    this.logger.Warn(ex, "Failed to apply config changes on config file save");
                 }
             });
         }
