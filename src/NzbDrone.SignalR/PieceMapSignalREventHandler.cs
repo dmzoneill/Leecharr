@@ -124,18 +124,38 @@ public class PieceMapSignalREventHandler : IHandle<PieceVerifiedEvent>, IDisposa
         {
             if (kvp.Value.Count > 0)
             {
-                var ranges = CompressToRanges(kvp.Value);
-                this.signalRBroadcaster.BroadcastMessage(new SignalRMessage
+                try
                 {
-                    Name = "pieceMapUpdated",
-                    Body = new
+                    var ranges = CompressToRanges(kvp.Value);
+                    this.signalRBroadcaster.BroadcastMessage(new SignalRMessage
                     {
-                        torrentId = kvp.Key,
-                        pieceIndex = kvp.Value.Last(),
-                        ranges = ranges,
-                        isVerified = true,
-                    },
-                });
+                        Name = "pieceMapUpdated",
+                        Body = new
+                        {
+                            torrentId = kvp.Key,
+                            pieceIndex = kvp.Value.Last(),
+                            ranges = ranges,
+                            isVerified = true,
+                        },
+                    });
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to broadcast pieceMapUpdated for torrent {0}", kvp.Key);
+                    lock (this.syncLock)
+                    {
+                        if (!this.pendingPieces.TryGetValue(kvp.Key, out var set))
+                        {
+                            set = new HashSet<int>();
+                            this.pendingPieces[kvp.Key] = set;
+                        }
+
+                        foreach (var piece in kvp.Value)
+                        {
+                            set.Add(piece);
+                        }
+                    }
+                }
             }
         }
     }
