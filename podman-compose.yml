@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Containerfile
+      target: test
       args:
         COVERAGE_TOOLS: "true"
     container_name: leecharr

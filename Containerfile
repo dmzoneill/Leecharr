@@ -41,11 +41,13 @@ RUN dotnet publish src/NzbDrone.Console/Leecharr.Console.csproj \
     --no-restore && \
     rm -rf /app/runtimes/win* /app/runtimes/osx* /app/runtimes/maccatalyst* /app/runtimes/browser-wasm /app/clidriver
 
-# Install coverage tools in build stage (has SDK)
+# Install coverage tools in build stage (has SDK) — only when requested
 RUN mkdir -p /root/.dotnet/tools && \
-    dotnet tool install --global dotnet-coverage
+    if [ "$COVERAGE_TOOLS" = "true" ]; then \
+      dotnet tool install --global dotnet-coverage; \
+    fi
 
-# Stage 3: Runtime
+# Stage 3: Base runtime
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 
 # Install all runtime utilities, engines, media inspectors, and tools
@@ -77,15 +79,11 @@ WORKDIR /app
 
 COPY --from=backend /app ./
 COPY --from=frontend /build/src/NzbDrone.Host/wwwroot/ ./wwwroot/
-COPY --from=backend /root/.dotnet/tools /opt/dotnet-tools
-RUN chmod -R 755 /opt/dotnet-tools
 COPY version ./
-COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+COPY --chmod=755 docker-entrypoint.sh /docker-entrypoint.sh
 
 ENV LEECHARR__APP_DATA=/config
 ENV DOTNET_gcServer=0
-ENV PATH="$PATH:/opt/dotnet-tools"
 
 EXPOSE 7889 7890
 
@@ -94,3 +92,11 @@ VOLUME ["/config", "/downloads"]
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 CMD curl -f http://localhost:7889/ping || exit 1
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
+
+# Stage 4: Test image with coverage tools
+FROM runtime AS test
+COPY --chmod=755 --from=backend /root/.dotnet/tools /opt/dotnet-tools
+ENV PATH="$PATH:/opt/dotnet-tools"
+
+# Stage 5: Final production release image (default target when building without --target)
+FROM runtime AS release
