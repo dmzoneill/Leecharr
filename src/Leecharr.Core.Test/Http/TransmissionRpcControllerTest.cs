@@ -2208,6 +2208,163 @@ public class TransmissionRpcControllerTest
     }
 
     [Test]
+    public async Task HandleRpc_TorrentSet_WithTrackerRemove_ZeroBasedIndex_RemovesCorrectTracker()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var testTorrent = new Torrent
+        {
+            Id = 1,
+            Name = "Test Torrent",
+        };
+        this.torrentService.Get(1).Returns(testTorrent);
+
+        var trackerA = new TrackerEntry { Id = 101, TorrentId = 1, Url = "http://t0.org/announce" };
+        var trackerB = new TrackerEntry { Id = 102, TorrentId = 1, Url = "http://t1.org/announce" };
+        this.trackerEntryRepository.GetByTorrentId(1).Returns(new List<TrackerEntry> { trackerA, trackerB });
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[1]");
+        using var trackerRemoveDoc = JsonDocument.Parse("[0]");
+        args["ids"] = idsDoc.RootElement.Clone();
+        args["trackerRemove"] = trackerRemoveDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        this.trackerEntryRepository.Received(1).Delete(101);
+        this.trackerEntryRepository.DidNotReceive().Delete(102);
+        await this.downloadEngine.Received(1).RemoveTrackersAsync(1, Arg.Is<IEnumerable<string>>(urls => urls.Contains("http://t0.org/announce")));
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentSet_WithTrackerRemove_UnscopedTrackerIdFromAnotherTorrent_DoesNotRemove()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var testTorrent = new Torrent
+        {
+            Id = 1,
+            Name = "Test Torrent",
+        };
+        this.torrentService.Get(1).Returns(testTorrent);
+
+        var trackerA = new TrackerEntry { Id = 101, TorrentId = 1, Url = "http://t0.org/announce" };
+        var foreignTracker = new TrackerEntry { Id = 999, TorrentId = 2, Url = "http://other.org/announce" };
+        this.trackerEntryRepository.GetByTorrentId(1).Returns(new List<TrackerEntry> { trackerA });
+        this.trackerEntryRepository.Get(999).Returns(foreignTracker);
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[1]");
+        using var trackerRemoveDoc = JsonDocument.Parse("[999]");
+        args["ids"] = idsDoc.RootElement.Clone();
+        args["trackerRemove"] = trackerRemoveDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        this.trackerEntryRepository.DidNotReceive().Delete(999);
+        await this.downloadEngine.DidNotReceive().RemoveTrackersAsync(1, Arg.Any<IEnumerable<string>>());
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentSet_WithTrackerReplace_ZeroBasedIndex_ReplacesCorrectTracker()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var testTorrent = new Torrent
+        {
+            Id = 1,
+            Name = "Test Torrent",
+        };
+        this.torrentService.Get(1).Returns(testTorrent);
+
+        var trackerA = new TrackerEntry { Id = 101, TorrentId = 1, Url = "http://old0.org/announce" };
+        var trackerB = new TrackerEntry { Id = 102, TorrentId = 1, Url = "http://old1.org/announce" };
+        this.trackerEntryRepository.GetByTorrentId(1).Returns(new List<TrackerEntry> { trackerA, trackerB });
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[1]");
+        using var trackerReplaceDoc = JsonDocument.Parse("[[0, \"http://new0.org/announce\"]]");
+        args["ids"] = idsDoc.RootElement.Clone();
+        args["trackerReplace"] = trackerReplaceDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        trackerA.Url.Should().Be("http://new0.org/announce");
+        trackerB.Url.Should().Be("http://old1.org/announce");
+        this.trackerEntryRepository.Received(1).Update(trackerA);
+        this.trackerEntryRepository.DidNotReceive().Update(trackerB);
+        await this.downloadEngine.Received(1).RemoveTrackersAsync(1, Arg.Is<IEnumerable<string>>(urls => urls.Contains("http://old0.org/announce")));
+        await this.downloadEngine.Received(1).AddTrackersAsync(1, Arg.Is<IEnumerable<string>>(urls => urls.Contains("http://new0.org/announce")));
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentSet_WithTrackerReplace_UnscopedTrackerIdFromAnotherTorrent_DoesNotReplace()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var testTorrent = new Torrent
+        {
+            Id = 1,
+            Name = "Test Torrent",
+        };
+        this.torrentService.Get(1).Returns(testTorrent);
+
+        var trackerA = new TrackerEntry { Id = 101, TorrentId = 1, Url = "http://old0.org/announce" };
+        var foreignTracker = new TrackerEntry { Id = 888, TorrentId = 2, Url = "http://foreign.org/announce" };
+        this.trackerEntryRepository.GetByTorrentId(1).Returns(new List<TrackerEntry> { trackerA });
+        this.trackerEntryRepository.Get(888).Returns(foreignTracker);
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[1]");
+        using var trackerReplaceDoc = JsonDocument.Parse("[[888, \"http://malicious.org/announce\"]]");
+        args["ids"] = idsDoc.RootElement.Clone();
+        args["trackerReplace"] = trackerReplaceDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        this.trackerEntryRepository.DidNotReceive().Update(foreignTracker);
+        foreignTracker.Url.Should().Be("http://foreign.org/announce");
+        await this.downloadEngine.DidNotReceive().RemoveTrackersAsync(1, Arg.Any<IEnumerable<string>>());
+        await this.downloadEngine.DidNotReceive().AddTrackersAsync(1, Arg.Any<IEnumerable<string>>());
+    }
+
+    [Test]
     public async Task HandleRpc_FreeSpace_ReturnsAvailableSpaceFromDiskProvider()
     {
         var context = new DefaultHttpContext();

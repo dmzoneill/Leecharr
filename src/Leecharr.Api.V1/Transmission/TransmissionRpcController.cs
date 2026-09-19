@@ -998,19 +998,29 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
                 if (request.Arguments.TryGetValue("trackerRemove", out var trackerRemoveVal) && trackerRemoveVal.ValueKind == JsonValueKind.Array)
                 {
                     var removedUrls = new List<string>();
+                    var dbTrackers = this.trackerEntryRepository?.GetByTorrentId(t.Id)?.ToList() ?? new List<TrackerEntry>();
+
                     foreach (var item in trackerRemoveVal.EnumerateArray())
                     {
                         if (item.ValueKind == JsonValueKind.Number)
                         {
                             var trkId = item.GetInt32();
-                            var tracker = this.trackerEntryRepository?.Get(trkId);
-                            if (tracker == null && this.trackerEntryRepository != null)
+                            TrackerEntry tracker = dbTrackers.FirstOrDefault(x => x.Id == trkId);
+                            if (tracker == null && trkId >= 0 && trkId < dbTrackers.Count)
                             {
-                                var dbTrackers = this.trackerEntryRepository.GetByTorrentId(t.Id)?.ToList();
-                                tracker = dbTrackers?.FirstOrDefault(x => x.Id == trkId);
+                                tracker = dbTrackers[trkId];
                             }
 
-                            if (tracker != null)
+                            if (tracker == null)
+                            {
+                                var candidate = this.trackerEntryRepository?.Get(trkId);
+                                if (candidate != null && candidate.TorrentId == t.Id)
+                                {
+                                    tracker = candidate;
+                                }
+                            }
+
+                            if (tracker != null && tracker.TorrentId == t.Id)
                             {
                                 if (!string.IsNullOrWhiteSpace(tracker.Url))
                                 {
@@ -1018,8 +1028,9 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
                                 }
 
                                 this.trackerEntryRepository?.Delete(tracker.Id);
+                                dbTrackers.Remove(tracker);
                             }
-                            else if (trkId == 1 && !string.IsNullOrWhiteSpace(t.TrackerUrl))
+                            else if ((trkId == 0 || trkId == 1) && !string.IsNullOrWhiteSpace(t.TrackerUrl) && dbTrackers.Count == 0)
                             {
                                 removedUrls.Add(t.TrackerUrl);
                                 t.TrackerUrl = string.Empty;
@@ -1052,6 +1063,8 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
                         }
                     }
 
+                    var dbTrackers = this.trackerEntryRepository?.GetByTorrentId(t.Id)?.ToList() ?? new List<TrackerEntry>();
+
                     foreach (var (trkId, newUrl) in pairs)
                     {
                         if (string.IsNullOrWhiteSpace(newUrl))
@@ -1059,14 +1072,22 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
                             continue;
                         }
 
-                        var tracker = this.trackerEntryRepository?.Get(trkId);
-                        if (tracker == null && this.trackerEntryRepository != null)
+                        TrackerEntry tracker = dbTrackers.FirstOrDefault(x => x.Id == trkId);
+                        if (tracker == null && trkId >= 0 && trkId < dbTrackers.Count)
                         {
-                            var dbTrackers = this.trackerEntryRepository.GetByTorrentId(t.Id)?.ToList();
-                            tracker = dbTrackers?.FirstOrDefault(x => x.Id == trkId);
+                            tracker = dbTrackers[trkId];
                         }
 
-                        if (tracker != null)
+                        if (tracker == null)
+                        {
+                            var candidate = this.trackerEntryRepository?.Get(trkId);
+                            if (candidate != null && candidate.TorrentId == t.Id)
+                            {
+                                tracker = candidate;
+                            }
+                        }
+
+                        if (tracker != null && tracker.TorrentId == t.Id)
                         {
                             var oldUrl = tracker.Url;
                             tracker.Url = newUrl;
@@ -1082,7 +1103,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
                                 await this.downloadEngine.AddTrackersAsync(t.Id, new[] { newUrl });
                             }
                         }
-                        else
+                        else if ((trkId == 0 || trkId == 1) && dbTrackers.Count == 0)
                         {
                             t.TrackerUrl = newUrl;
                         }
