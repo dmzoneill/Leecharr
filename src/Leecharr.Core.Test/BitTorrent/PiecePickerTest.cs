@@ -1161,4 +1161,189 @@ public class PiecePickerTest
 
         picker.GetContributingPeers(0).Should().BeEmpty();
     }
+
+    #region Issue 855 Hardening & Edge Cases Tests
+
+    [Test]
+    public void EndgameMode_BlockCancellation_NotifiesDuplicatePeersWithCleanOffsetAndPeerList()
+    {
+        var picker = new PiecePicker(2, 16384, 32768);
+        var fullBitfield = new[] { true, true };
+
+        // Peer A requests both blocks -> enters endgame mode
+        picker.PickBlocks(fullBitfield, 2, peerId: "peerA");
+        picker.IsEndgameMode().Should().BeTrue();
+
+        // Peer B and Peer C duplicate the block requests in endgame mode
+        picker.PickBlocks(fullBitfield, 2, peerId: "peerB");
+        picker.PickBlocks(fullBitfield, 2, peerId: "peerC");
+
+        BlockCancelledEventArgs capturedEvent = null;
+        picker.BlockCancelled += e => capturedEvent = e;
+
+        // Block 0 arrives from peerA
+        var pieceComplete = picker.MarkBlockReceived(0, 0, 16384, "peerA", out var cancelledPeers);
+
+        pieceComplete.Should().BeTrue();
+        cancelledPeers.Should().BeEquivalentTo(new[] { "peerB", "peerC" });
+
+        capturedEvent.Should().NotBeNull();
+        capturedEvent.PieceIndex.Should().Be(0);
+        capturedEvent.BlockOffset.Should().Be(0);
+        capturedEvent.BlockLength.Should().Be(16384);
+        capturedEvent.CancelledPeerIds.Should().BeEquivalentTo(new[] { "peerB", "peerC" });
+    }
+
+    [Test]
+    public void CancelRequest_OverloadsAndEdgeCases_HandleInvalidInputsGracefullyWithoutThrowing()
+    {
+        var picker = new PiecePicker(3, 16384, 49152);
+        var fullBitfield = new[] { true, true, true };
+
+        // Edge case calls on empty / unrequested picker should not throw
+        Action act1 = () => picker.CancelRequest(-1, 0);
+        Action act2 = () => picker.CancelRequest(99, 0);
+        Action act3 = () => picker.CancelRequest(0, -1);
+        Action act4 = () => picker.CancelRequest(0, 999999);
+        Action act5 = () => picker.CancelRequest(0, 0, -1, null);
+        Action act6 = () => picker.CancelRequest(0, 0, 16384, "nonExistentPeer");
+        Action act7 = () => picker.CancelBlock(-1, 0);
+        Action act8 = () => picker.CancelBlock(0, -100);
+        Action act9 = () => picker.CancelBlock(0, 0, -1, "peerX");
+
+        act1.Should().NotThrow();
+        act2.Should().NotThrow();
+        act3.Should().NotThrow();
+        act4.Should().NotThrow();
+        act5.Should().NotThrow();
+        act6.Should().NotThrow();
+        act7.Should().NotThrow();
+        act8.Should().NotThrow();
+        act9.Should().NotThrow();
+
+        // Request a block, then cancel with valid parameters
+        var requests = picker.PickBlocks(fullBitfield, 1, peerId: "peer1");
+        requests.Should().HaveCount(1);
+        picker.InFlightBlockCount.Should().Be(1);
+
+        BlockCancelledEventArgs cancelledEvent = null;
+        picker.BlockCancelled += e => cancelledEvent = e;
+
+        // Overload with length and peerId
+        picker.CancelRequest(requests[0].PieceIndex, requests[0].BlockOffset, requests[0].BlockLength, "peer1");
+        picker.InFlightBlockCount.Should().Be(0);
+
+        cancelledEvent.Should().NotBeNull();
+        cancelledEvent.PieceIndex.Should().Be(requests[0].PieceIndex);
+        cancelledEvent.BlockOffset.Should().Be(requests[0].BlockOffset);
+        cancelledEvent.BlockLength.Should().Be(requests[0].BlockLength);
+        cancelledEvent.CancelledPeerIds.Should().ContainSingle().Which.Should().Be("peer1");
+    }
+
+    [Test]
+    public void PickBlocks_And_MarkBlockReceived_HandleEdgeCasesGracefullyWithoutThrowing()
+    {
+        var picker = new PiecePicker(3, 16384, 49152);
+
+        // PickBlocks with edge cases
+        picker.PickBlocks(null!, 5).Should().BeEmpty();
+        picker.PickBlocks(new bool[0], 5).Should().BeEmpty();
+        picker.PickBlocks(new bool[2], 5).Should().BeEmpty(); // Shorter than piece count
+        picker.PickBlocks(new bool[16], 5).Should().BeEmpty(); // Spare bits set to false, but length > pieceCount
+        picker.PickBlocks(new[] { true, true, true }, 0).Should().BeEmpty();
+        picker.PickBlocks(new[] { true, true, true }, -10).Should().BeEmpty();
+
+        // MarkBlockReceived edge cases
+        picker.MarkBlockReceived(-1, 0, 16384).Should().BeFalse();
+        picker.MarkBlockReceived(5, 0, 16384).Should().BeFalse();
+        picker.MarkBlockReceived(0, -1, 16384).Should().BeFalse();
+        picker.MarkBlockReceived(0, 100, 16384).Should().BeFalse(); // Misaligned offset
+        picker.MarkBlockReceived(0, 0, -100).Should().BeFalse(); // Negative length
+        picker.MarkBlockReceived(0, 0, 0).Should().BeFalse(); // Zero length
+        picker.MarkBlockReceived(0, 0, 32768).Should().BeFalse(); // Incorrect block length
+        picker.MarkBlockReceived(0, 0, 16384, null, out var cancelled).Should().BeTrue();
+        cancelled.Should().BeEmpty();
+
+        // Duplicate block received returns complete state without re-incrementing
+        picker.MarkBlockReceived(0, 0, 16384, "peer2", out var dupCancelled).Should().BeTrue();
+        dupCancelled.Should().BeEmpty();
+    }
+
+    [Test]
+    public void InFlightBlockCount_RobustlyTracksActiveBlocks_AndPrunesVerifiedPieces()
+    {
+        // 5 pieces, 32KB each (2 blocks per piece)
+        var picker = new PiecePicker(5, 32768, 163840);
+        var fullBitfield = Enumerable.Repeat(true, 5).ToArray();
+
+        // Request 4 blocks across pieces
+        var requests = picker.PickBlocks(fullBitfield, 4, peerId: "peerA");
+        requests.Should().HaveCount(4);
+        picker.InFlightBlockCount.Should().Be(4);
+
+        // Mark piece 0 verified directly (e.g. from fast resume or hash check)
+        picker.MarkPieceVerified(requests[0].PieceIndex);
+
+        // InFlightBlockCount should prune verified piece blocks and reflect remaining in-flight blocks
+        var piece0BlocksInFlight = requests.Count(r => r.PieceIndex == requests[0].PieceIndex);
+        picker.InFlightBlockCount.Should().Be(4 - piece0BlocksInFlight);
+    }
+
+    [Test]
+    public void PickBlocks_SnubbedPeer_LimitsProbingToOneBlockRequest_InNormalAndEndgameModes()
+    {
+        // 50 pieces (normal mode)
+        var picker = new PiecePicker(50, 16384, 819200);
+        var fullBitfield = Enumerable.Repeat(true, 50).ToArray();
+
+        picker.IsEndgameMode().Should().BeFalse();
+
+        // Snubbed peer is limited to 1 probe block even when requesting 20
+        var snubbedNormal = picker.PickBlocks(fullBitfield, 20, peerId: "snubbed-1", isSnubbed: true);
+        snubbedNormal.Should().HaveCount(1);
+
+        // Active peer receives full requested amount
+        var activeNormal = picker.PickBlocks(fullBitfield, 5, peerId: "active-1", isSnubbed: false);
+        activeNormal.Should().HaveCount(5);
+
+        // Transition to endgame mode by completing 35 pieces (15 remaining <= 20)
+        for (var i = 0; i < 35; i++)
+        {
+            picker.MarkBlockReceived(i, 0, 16384);
+            picker.MarkPieceVerified(i);
+        }
+
+        picker.IsEndgameMode().Should().BeTrue();
+
+        // In endgame mode, snubbed peer is STILL limited to 1 probe block
+        var snubbedEndgame = picker.PickBlocks(fullBitfield, 15, peerId: "snubbed-2", isSnubbed: true);
+        snubbedEndgame.Should().HaveCount(1);
+    }
+
+    [Test]
+    public void PickBlocks_SequentialMode_PrioritizesHeadAndTailPieces_WithPiecePriorityWeights()
+    {
+        // 20 pieces, 16KB each
+        var picker = new PiecePicker(20, 16384, 327680);
+        var fullBitfield = Enumerable.Repeat(true, 20).ToArray();
+
+        // Set higher priority on piece 10 (interior) and piece 19 (tail)
+        picker.SetPiecePriority(10, 3); // Max priority
+        picker.SetPiecePriority(19, 3); // Max priority
+        // Normal priority on head pieces (0..3)
+        var requests = picker.PickBlocks(fullBitfield, 4, sequentialMode: true);
+        requests.Should().HaveCount(4);
+
+        // Priority 3 pieces should come first, with tail piece (19) and interior piece (10) prioritized by priority group
+        var firstPiece = requests[0].PieceIndex;
+        var secondPiece = requests[1].PieceIndex;
+        new[] { firstPiece, secondPiece }.Should().BeEquivalentTo(new[] { 10, 19 });
+
+        // Subsequent requests pick from normal priority group: head pieces (0, 1, 2...)
+        var thirdPiece = requests[2].PieceIndex;
+        var fourthPiece = requests[3].PieceIndex;
+        new[] { thirdPiece, fourthPiece }.All(p => p < 4).Should().BeTrue();
+    }
+
+    #endregion
 }
