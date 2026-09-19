@@ -525,6 +525,47 @@ public class TorrentServiceTest
     }
 
     [Test]
+    public async Task DeleteAsync_WhenDeleteFilesIsTrue_DeletesDiskFilesBeforeDeletingRepositoryRecords()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), "leecharr_atomic_delete_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+        var subDir = Path.Combine(tempRoot, "atomic_torrent");
+        Directory.CreateDirectory(subDir);
+        var payloadFile = Path.Combine(subDir, "payload.bin");
+        File.WriteAllText(payloadFile, "payload data");
+
+        try
+        {
+            var torrent = new Torrent
+            {
+                Id = 401,
+                Name = "atomic_torrent",
+                SavePath = tempRoot,
+                InfoHash = "1234567890123456789012345678901234567890",
+            };
+            this.torrentRepository.Get(401).Returns(torrent);
+
+            var fileDeletedBeforeRepoDelete = false;
+            this.torrentRepository.When(r => r.Delete(401)).Do(_ =>
+            {
+                fileDeletedBeforeRepoDelete = !File.Exists(payloadFile);
+            });
+
+            await this.service.DeleteAsync(401, deleteFiles: true);
+
+            fileDeletedBeforeRepoDelete.Should().BeTrue("disk payload must be cleaned up before repository deletion");
+            this.torrentRepository.Received(1).Delete(401);
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, true);
+            }
+        }
+    }
+
+    [Test]
     public async Task DeleteAsync_WhenDeletingIncompleteTorrent_PurgesIncompleteDirectoryChunks()
     {
         var tempRoot = Path.Combine(Path.GetTempPath(), "leecharr_incomplete_test_" + Guid.NewGuid().ToString("N"));
@@ -1850,6 +1891,37 @@ public class TorrentServiceTest
         this.downloadEngine.Received(1).PauseTorrentAsync(51);
         this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentStatusChangedEvent>(e =>
             e.Torrent.Id == 51 && e.OldStatus == TorrentStatus.Downloading && e.NewStatus == TorrentStatus.Paused));
+    }
+
+    [Test]
+    public void Handle_TorrentDownloadCompletedEvent_WhenTorrentDeletedConcurrentlyBeforeUpdate_DoesNotUpdateOrPublishStatusChanged()
+    {
+        var torrent = new Torrent
+        {
+            Id = 50,
+            Name = "DeletedTorrent",
+            Category = "linux",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.torrentRepository.Get(50).Returns(torrent, (Torrent)null);
+        this.categoryService.GetByName("linux").Returns(new Category { Id = 1, Name = "linux", AutoStop = false });
+
+        this.service.Handle(new TorrentDownloadCompletedEvent(new Torrent { Id = 50, SavePath = "/downloads/completed" }));
+
+        this.torrentRepository.DidNotReceive().Update(Arg.Any<Torrent>());
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentStatusChangedEvent>());
+    }
+
+    [Test]
+    public void Handle_TorrentDownloadCompletedEvent_WhenTorrentDoesNotExistInRepository_DoesNotUpdateOrPublishStatusChanged()
+    {
+        this.torrentRepository.Get(52).Returns((Torrent)null);
+
+        this.service.Handle(new TorrentDownloadCompletedEvent(new Torrent { Id = 52, SavePath = "/downloads/completed" }));
+
+        this.torrentRepository.DidNotReceive().Update(Arg.Any<Torrent>());
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentStatusChangedEvent>());
     }
 
     [Test]
