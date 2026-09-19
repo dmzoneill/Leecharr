@@ -48,10 +48,30 @@ public class ManagedSocketBindingProviderTest
             .WithMessage("*kill-switch active*");
     }
 
+    [TestCase("Any")]
+    [TestCase("any")]
+    [TestCase("all")]
+    [TestCase("ALL")]
+    public void BindSocket_WhenInterfaceIsAnyOrAll_DoesNotThrow(string iface)
+    {
+        using var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+        var act = () => this.provider.BindSocket(socket, iface);
+        act.Should().NotThrow();
+    }
+
     [Test]
     public void IsInterfaceUp_WhenInterfaceDoesNotExist_ReturnsFalse()
     {
         this.provider.IsInterfaceUp("nonexistent_tun_9999").Should().BeFalse();
+    }
+
+    [TestCase("Any")]
+    [TestCase("any")]
+    [TestCase("all")]
+    [TestCase("ALL")]
+    public void IsInterfaceUp_WhenInterfaceIsAnyOrAll_ReturnsTrue(string iface)
+    {
+        this.provider.IsInterfaceUp(iface).Should().BeTrue();
     }
 
     [Test]
