@@ -476,4 +476,79 @@ public class CategoryServiceTest
         torrentChild.Category.Should().BeEmpty();
         this.torrentRepository.Received(1).Update(torrentChild);
     }
+
+    [TestCase("downloads/movies")]
+    [TestCase("./downloads")]
+    [TestCase("../movies")]
+    public void Add_WhenSavePathIsNotRooted_ThrowsArgumentException(string relativePath)
+    {
+        var category = new Category { Name = "test", SavePath = relativePath };
+        Action act = () => this.service.Add(category);
+        act.Should().Throw<ArgumentException>().WithMessage("*rooted*");
+    }
+
+    [Test]
+    public void Add_WhenSavePathIsRootFilesystemDirectory_ThrowsArgumentException()
+    {
+        var category = new Category { Name = "test", SavePath = "/" };
+        Action act = () => this.service.Add(category);
+        act.Should().Throw<ArgumentException>().WithMessage("*root filesystem*");
+    }
+
+    [TestCase("/etc")]
+    [TestCase("/etc/subfolder")]
+    [TestCase("/root")]
+    [TestCase("/bin")]
+    [TestCase("/sbin")]
+    [TestCase("/usr")]
+    [TestCase("/boot")]
+    [TestCase("/sys")]
+    [TestCase("/proc")]
+    [TestCase("/dev")]
+    [TestCase("/downloads/../etc")]
+    public void Add_WhenSavePathIsSystemDirectory_ThrowsArgumentException(string forbiddenPath)
+    {
+        var category = new Category { Name = "test", SavePath = forbiddenPath };
+        Action act = () => this.service.Add(category);
+        act.Should().Throw<ArgumentException>().WithMessage("*system directory*");
+    }
+
+    [Test]
+    public void Add_WhenSavePathContainsTraversal_CanonicalizesSavePath()
+    {
+        var category = new Category { Name = "anime", SavePath = "/downloads/movies/../anime" };
+        this.repository.Insert(Arg.Any<Category>()).Returns(ci => ci.Arg<Category>());
+
+        var inserted = this.service.Add(category);
+
+        inserted.SavePath.Should().Be(Path.GetFullPath("/downloads/anime"));
+    }
+
+    [Test]
+    public void Add_WhenCreateFolderThrowsException_ThrowsInvalidOperationException()
+    {
+        var diskProvider = Substitute.For<NzbDrone.Common.Disk.IDiskProvider>();
+        diskProvider.FolderExists("/downloads/test").Returns(false);
+        diskProvider.When(d => d.CreateFolder("/downloads/test")).Do(_ => throw new UnauthorizedAccessException("Permission denied"));
+
+        var serviceWithDisk = new CategoryService(this.repository, this.eventAggregator, this.torrentRepository, diskProvider);
+        var category = new Category { Name = "test", SavePath = "/downloads/test" };
+
+        Action act = () => serviceWithDisk.Add(category);
+        act.Should().Throw<InvalidOperationException>().WithMessage("*Could not create save directory*");
+    }
+
+    [Test]
+    public void Add_WhenFolderCreatedButNotWritable_ThrowsInvalidOperationException()
+    {
+        var diskProvider = Substitute.For<NzbDrone.Common.Disk.IDiskProvider>();
+        diskProvider.FolderExists("/downloads/readonly").Returns(false, true);
+        diskProvider.FolderWritable("/downloads/readonly").Returns(false);
+
+        var serviceWithDisk = new CategoryService(this.repository, this.eventAggregator, this.torrentRepository, diskProvider);
+        var category = new Category { Name = "test", SavePath = "/downloads/readonly" };
+
+        Action act = () => serviceWithDisk.Add(category);
+        act.Should().Throw<InvalidOperationException>().WithMessage("*not writable*");
+    }
 }

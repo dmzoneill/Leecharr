@@ -43,6 +43,27 @@ public interface ICategoryService
 
 public class CategoryService : ICategoryService
 {
+    private static readonly string[] ForbiddenUnixSystemPrefixes =
+    [
+        "/etc",
+        "/root",
+        "/bin",
+        "/sbin",
+        "/usr",
+        "/boot",
+        "/sys",
+        "/proc",
+        "/dev"
+    ];
+
+    private static readonly string[] ForbiddenWindowsSystemPrefixes =
+    [
+        @"C:\Windows",
+        @"C:\Program Files",
+        @"C:\Program Files (x86)",
+        @"C:\ProgramData"
+    ];
+
     private readonly ICategoryRepository repository;
     private readonly IEventAggregator eventAggregator;
     private readonly ITorrentRepository torrentRepository;
@@ -127,7 +148,7 @@ public class CategoryService : ICategoryService
             category.SavePath = category.SavePath.Trim();
         }
 
-        this.ValidateSavePath(category.SavePath);
+        category.SavePath = this.ValidateSavePath(category.SavePath);
 
         var existing = this.repository.GetByName(category.Name);
         if (existing != null)
@@ -183,7 +204,7 @@ public class CategoryService : ICategoryService
             category.SavePath = category.SavePath.Trim();
         }
 
-        this.ValidateSavePath(category.SavePath);
+        category.SavePath = this.ValidateSavePath(category.SavePath);
 
         this.logger.Info("Updating category: {0}", category.Name);
         var existing = this.repository.Get(category.Id);
@@ -249,11 +270,11 @@ public class CategoryService : ICategoryService
         return updated;
     }
 
-    private void ValidateSavePath(string savePath)
+    private string ValidateSavePath(string savePath)
     {
         if (string.IsNullOrWhiteSpace(savePath))
         {
-            return;
+            return savePath?.Trim();
         }
 
         if (savePath.IndexOf('\0') >= 0)
@@ -267,35 +288,113 @@ public class CategoryService : ICategoryService
             throw new ArgumentException("Save path contains invalid characters.", nameof(savePath));
         }
 
+        if (!Path.IsPathRooted(savePath))
+        {
+            throw new ArgumentException("Save path must be an absolute rooted path.", nameof(savePath));
+        }
+
+        string fullPath;
+        try
+        {
+            fullPath = Path.GetFullPath(savePath);
+        }
+        catch (Exception ex)
+        {
+            throw new ArgumentException($"Invalid save path: {savePath}", nameof(savePath), ex);
+        }
+
+        var root = Path.GetPathRoot(fullPath);
+        if (string.IsNullOrEmpty(fullPath) ||
+            fullPath == "/" ||
+            fullPath == "\\" ||
+            string.Equals(
+                fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                root?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("Save path cannot be the root filesystem directory.", nameof(savePath));
+        }
+
+        if (IsForbiddenSystemDirectory(fullPath))
+        {
+            throw new ArgumentException($"Save path cannot be a system directory: {fullPath}", nameof(savePath));
+        }
+
         if (this.diskProvider != null)
         {
-            if (this.diskProvider.FolderExists(savePath))
+            if (this.diskProvider.FolderExists(fullPath))
             {
-                if (!this.diskProvider.FolderWritable(savePath))
+                if (!this.diskProvider.FolderWritable(fullPath))
                 {
-                    throw new InvalidOperationException($"Save path '{savePath}' is not writable.");
+                    throw new InvalidOperationException($"Save path '{fullPath}' is not writable.");
                 }
             }
             else
             {
                 try
                 {
-                    this.diskProvider.CreateFolder(savePath);
-                    if (this.diskProvider.FolderExists(savePath) && !this.diskProvider.FolderWritable(savePath))
-                    {
-                        throw new InvalidOperationException($"Save path '{savePath}' is not writable.");
-                    }
-                }
-                catch (InvalidOperationException)
-                {
-                    throw;
+                    this.diskProvider.CreateFolder(fullPath);
                 }
                 catch (Exception ex)
                 {
-                    this.logger.Warn("Could not create save directory '{0}': {1}", savePath, ex.Message);
+                    throw new InvalidOperationException($"Could not create save directory '{fullPath}': {ex.Message}", ex);
+                }
+
+                if (this.diskProvider.FolderExists(fullPath) && !this.diskProvider.FolderWritable(fullPath))
+                {
+                    throw new InvalidOperationException($"Save path '{fullPath}' is not writable.");
                 }
             }
         }
+
+        return fullPath;
+    }
+
+    private static bool IsForbiddenSystemDirectory(string fullPath)
+    {
+        var normalized = fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        foreach (var prefix in ForbiddenUnixSystemPrefixes)
+        {
+            if (string.Equals(normalized, prefix, StringComparison.OrdinalIgnoreCase) ||
+                normalized.StartsWith(prefix + "/", StringComparison.OrdinalIgnoreCase) ||
+                normalized.StartsWith(prefix + "\\", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        foreach (var prefix in ForbiddenWindowsSystemPrefixes)
+        {
+            var trimmedPrefix = prefix.TrimEnd('\\', '/');
+            if (string.Equals(normalized, trimmedPrefix, StringComparison.OrdinalIgnoreCase) ||
+                normalized.StartsWith(trimmedPrefix + "\\", StringComparison.OrdinalIgnoreCase) ||
+                normalized.StartsWith(trimmedPrefix + "/", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        if (OperatingSystem.IsWindows())
+        {
+            var winPath = Environment.GetFolderPath(Environment.SpecialFolder.Windows)?.TrimEnd('\\', '/');
+            if (!string.IsNullOrEmpty(winPath) &&
+                (string.Equals(normalized, winPath, StringComparison.OrdinalIgnoreCase) ||
+                 normalized.StartsWith(winPath + "\\", StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+
+            var progFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)?.TrimEnd('\\', '/');
+            if (!string.IsNullOrEmpty(progFiles) &&
+                (string.Equals(normalized, progFiles, StringComparison.OrdinalIgnoreCase) ||
+                 normalized.StartsWith(progFiles + "\\", StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void ClearExistingDefaults(int currentCategoryId)
