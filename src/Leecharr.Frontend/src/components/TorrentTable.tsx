@@ -1151,6 +1151,7 @@ interface ContextMenuState {
   x: number;
   y: number;
   torrent: Torrent | null;
+  selectedTorrents?: Torrent[];
 }
 
 export interface TorrentTableProps {
@@ -1420,17 +1421,28 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   const handleContextMenu = (e: React.MouseEvent, torrent: Torrent | null) => {
     e.preventDefault();
     e.stopPropagation();
+    let effectiveSelectedIds = selectedIds;
     if (torrent) {
       if (!selectedIds.has(torrent.id)) {
+        effectiveSelectedIds = new Set([torrent.id]);
         if (onSelectAll) {
           onSelectAll([torrent.id]);
         } else {
-          useTorrentStore.getState().setSelectedIds(new Set([torrent.id]));
+          useTorrentStore.getState().setSelectedIds(effectiveSelectedIds);
         }
         onSelect?.(torrent);
       }
     }
-    setContextMenu({ x: e.clientX, y: e.clientY, torrent });
+    const currentTorrents = propTorrents || [];
+    const selectedTorrents = currentTorrents.filter((t) =>
+      effectiveSelectedIds.has(t.id),
+    );
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      torrent,
+      selectedTorrents,
+    });
   };
 
   const handleSort = (key: ColumnKey) => {
@@ -2123,6 +2135,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
           x={contextMenu.x}
           y={contextMenu.y}
           torrent={contextMenu.torrent}
+          selectedTorrents={contextMenu.selectedTorrents}
           visibleColumns={visibleColumns}
           allColumns={ALL_COLUMNS}
           onClose={closeContextMenu}
@@ -2136,6 +2149,42 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
             onDelete ? onDelete(payload) : deleteTorrent.mutate(payload)
           }
           onMoveQueue={(payload) => moveTorrentQueue.mutate(payload)}
+          onBatchStart={(ids) =>
+            ids.forEach((id) =>
+              onResume ? onResume(id) : startSeeding.mutate(id),
+            )
+          }
+          onBatchStop={(ids) =>
+            ids.forEach((id) =>
+              onPause ? onPause(id) : stopSeeding.mutate(id),
+            )
+          }
+          onBatchAnnounce={(ids) =>
+            ids.forEach((id) => announceTorrent.mutate(id))
+          }
+          onBatchRecheck={(ids) =>
+            ids.forEach((id) => recheckTorrent.mutate(id))
+          }
+          onBatchDelete={(payload) => {
+            if (onDelete && payload.ids.length > 0) {
+              onDelete({
+                id: payload.ids[0],
+                deleteFiles: payload.deleteFiles,
+              });
+            } else {
+              payload.ids.forEach((id) =>
+                deleteTorrent.mutate({ id, deleteFiles: payload.deleteFiles }),
+              );
+            }
+          }}
+          onBatchUpdate={(torrents) =>
+            torrents.forEach((tor) => updateTorrent.mutate(tor))
+          }
+          onBatchMoveQueue={(payload) =>
+            payload.ids.forEach((id) =>
+              moveTorrentQueue.mutate({ id, position: payload.position }),
+            )
+          }
           onSearchIndexers={onSearchIndexers}
           onNavigateTab={onNavigateTab}
         />
