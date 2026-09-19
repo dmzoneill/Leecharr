@@ -306,6 +306,7 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
                 foreach (var indexerToPrune in prowlarrToDelete)
                 {
                     this.logger.Info("Pruning deleted Prowlarr indexer: {0} (ProwlarrIndexerId: {1})", indexerToPrune.Name, indexerToPrune.ProwlarrIndexerId);
+                    TorznabClient.InvalidateCapabilities(indexerToPrune.Url, indexerToPrune.ApiKey);
                     this.repository.Delete(indexerToPrune.Id);
                 }
 
@@ -373,6 +374,13 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
                 }
                 else
                 {
+                    TorznabClient.InvalidateCapabilities(existing.Url, existing.ApiKey);
+                    if (!string.Equals(existing.Url, feedUrl, StringComparison.OrdinalIgnoreCase) ||
+                        !string.Equals(existing.ApiKey, apiKey, StringComparison.OrdinalIgnoreCase))
+                    {
+                        TorznabClient.InvalidateCapabilities(feedUrl, apiKey);
+                    }
+
                     existing.Name = pIndexer.Name;
                     if (!string.IsNullOrWhiteSpace(pIndexer.Implementation))
                     {
@@ -418,6 +426,7 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
             foreach (var indexerToPrune in toPrune)
             {
                 this.logger.Info("Pruning deleted Prowlarr indexer: {0} (ProwlarrIndexerId: {1})", indexerToPrune.Name, indexerToPrune.ProwlarrIndexerId);
+                TorznabClient.InvalidateCapabilities(indexerToPrune.Url, indexerToPrune.ApiKey);
                 this.repository.Delete(indexerToPrune.Id);
             }
 
