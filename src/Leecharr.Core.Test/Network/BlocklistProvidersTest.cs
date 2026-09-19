@@ -66,6 +66,41 @@ public class BlocklistProvidersTest
     }
 
     [Test]
+    public async Task P2PDatBlocklistProvider_IPv6WithDecimalLastHextet_PreservesHextetAndParsesCorrectly()
+    {
+        var provider = new P2PDatBlocklistProvider();
+        var rules = new List<string>
+        {
+            "2001:db8:1::5:1-2001:db8:1::5:10",
+            "2001:db8::1:80",
+            "fe80::2:443",
+            "Tracker:2001:db8::1:100",
+        };
+
+        var count = await provider.LoadRulesAsync(rules);
+
+        count.Should().Be(4);
+
+        // Range 2001:db8:1::5:1 to 2001:db8:1::5:10 (was previously dropped due to :10 stripped creating inverted range)
+        provider.IsIpBlocked("2001:db8:1::5:1").Should().BeTrue();
+        provider.IsIpBlocked("2001:db8:1::5:5").Should().BeTrue();
+        provider.IsIpBlocked("2001:db8:1::5:10").Should().BeTrue();
+        provider.IsIpBlocked("2001:db8:1::5:11").Should().BeFalse();
+
+        // Single rule 2001:db8::1:80 (was previously stripped to 2001:db8::1)
+        provider.IsIpBlocked("2001:db8::1:80").Should().BeTrue();
+        provider.IsIpBlocked("2001:db8::1").Should().BeFalse();
+
+        // Single rule fe80::2:443 (was previously stripped to fe80::2)
+        provider.IsIpBlocked("fe80::2:443").Should().BeTrue();
+        provider.IsIpBlocked("fe80::2").Should().BeFalse();
+
+        // Named rule Tracker:2001:db8::1:100
+        provider.IsIpBlocked("2001:db8::1:100").Should().BeTrue();
+        provider.IsIpBlocked("2001:db8::1:99").Should().BeFalse();
+    }
+
+    [Test]
     public async Task RadixTreeBlocklistProvider_IPv4MappedIPv6Cidr_ParsesAndMatchesCorrectly()
     {
         var provider = new RadixTreeBlocklistProvider();
