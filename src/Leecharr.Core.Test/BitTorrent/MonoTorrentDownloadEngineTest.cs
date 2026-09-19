@@ -4690,4 +4690,32 @@ public class MonoTorrentDownloadEngineTest
         loaded!.Bitfield.AllTrue.Should().BeTrue();
         loaded.InfoHashes.V1OrV2.ToHex().Should().BeEquivalentTo(infoHashHex);
     }
+
+    [TestCase("forceencrypted", false)]
+    [TestCase("forced", false)]
+    [TestCase("requireencrypted", false)]
+    [TestCase("forcedencryption", false)]
+    [TestCase("required", false)]
+    [TestCase("preferencrypted", true)]
+    [TestCase("enabled", true)]
+    [TestCase("preferred", true)]
+    [TestCase("allowplaintext", true)]
+    [TestCase("disabled", true)]
+    [TestCase("plaintext", true)]
+    [TestCase("none", true)]
+    [TestCase("unknown", true)]
+    [TestCase(null, true)]
+    public void GetAllowedEncryption_ResolvesExpectedEncryptionTypes(string mode, bool allowsPlainText)
+    {
+        var result = MonoTorrentDownloadEngine.GetAllowedEncryption(mode);
+        result.Should().NotBeNull();
+        result.Contains(MonoTorrent.Connections.EncryptionType.PlainText).Should().Be(allowsPlainText);
+
+        if (!allowsPlainText)
+        {
+            result.Should().Contain(MonoTorrent.Connections.EncryptionType.RC4Full);
+            result.Should().Contain(MonoTorrent.Connections.EncryptionType.RC4Header);
+            result.Should().NotContain(MonoTorrent.Connections.EncryptionType.PlainText);
+        }
+    }
 }

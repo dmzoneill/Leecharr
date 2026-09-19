@@ -243,6 +243,26 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         var savePath = this.configService.DownloadDir ?? "/downloads";
         var tempPath = this.configService.IncompleteDownloadDir ?? "/downloads/incomplete";
 
+        var encMode = this.configService.EncryptionMode?.Trim();
+        var encryptionPref = 0;
+        if (!string.IsNullOrWhiteSpace(encMode))
+        {
+            if (encMode.Equals("Forced", StringComparison.OrdinalIgnoreCase) ||
+                encMode.Equals("ForceEncrypted", StringComparison.OrdinalIgnoreCase) ||
+                encMode.Equals("RequireEncrypted", StringComparison.OrdinalIgnoreCase) ||
+                encMode.Equals("ForcedEncryption", StringComparison.OrdinalIgnoreCase) ||
+                encMode.Equals("Required", StringComparison.OrdinalIgnoreCase))
+            {
+                encryptionPref = 1;
+            }
+            else if (encMode.Equals("Disabled", StringComparison.OrdinalIgnoreCase) ||
+                     encMode.Equals("Plaintext", StringComparison.OrdinalIgnoreCase) ||
+                     encMode.Equals("None", StringComparison.OrdinalIgnoreCase))
+            {
+                encryptionPref = 2;
+            }
+        }
+
         return this.Ok(new Dictionary<string, object>
         {
             ["save_path"] = savePath,
@@ -256,7 +276,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             ["dht"] = this.configService.EnableDht,
             ["pex"] = this.configService.EnablePex,
             ["lsd"] = this.configService.EnableLpd,
-            ["encryption"] = 1,
+            ["encryption"] = encryptionPref,
             ["anonymous_mode"] = false,
             ["queueing_enabled"] = true,
             ["max_active_downloads"] = this.configService.MaxActiveDownloads,
@@ -377,6 +397,16 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             if (root.TryGetProperty("lsd", out var lsd) && (lsd.ValueKind == JsonValueKind.True || lsd.ValueKind == JsonValueKind.False))
             {
                 dict["EnableLpd"] = lsd.GetBoolean();
+            }
+
+            if (root.TryGetProperty("encryption", out var enc) && enc.TryGetInt32(out var encVal))
+            {
+                dict["EncryptionMode"] = encVal switch
+                {
+                    1 => "forceEncrypted",
+                    2 => "disabled",
+                    _ => "preferEncrypted",
+                };
             }
 
             if (dict.Count > 0)

@@ -1250,7 +1250,7 @@ public class DelugeJsonRpcControllerTest
             (bool)d["PeerPortRandomOnStart"] == true &&
             (double)d["GlobalSeedRatioLimit"] == 3.0 &&
             (int)d["IdleSeedingLimitMinutes"] == 60 &&
-            (string)d["EncryptionMode"] == "Disabled" &&
+            string.Equals((string)d["EncryptionMode"], "disabled", StringComparison.OrdinalIgnoreCase) &&
             (int)d["MaxPerTorrentConnections"] == 40 &&
             (int)d["MaxUploadSlots"] == 12));
     }
@@ -2777,5 +2777,54 @@ public class DelugeJsonRpcControllerTest
         await this.downloadEngine.Received(1).SetSequentialDownloadAsync(60, true);
         await this.downloadEngine.Received(1).SetFirstLastPiecePriorityAsync(60, true);
         await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(60, 1000, 300);
+    }
+
+    [TestCase("Forced", 0)]
+    [TestCase("forceEncrypted", 0)]
+    [TestCase("RequireEncrypted", 0)]
+    [TestCase("ForcedEncryption", 0)]
+    [TestCase("Required", 0)]
+    [TestCase("Disabled", 2)]
+    [TestCase("Plaintext", 2)]
+    [TestCase("None", 2)]
+    [TestCase("preferEncrypted", 1)]
+    [TestCase("Enabled", 1)]
+    [TestCase("UnknownMode", 1)]
+    public async Task HandleRpc_CoreGetConfig_MapsEncryptionModeToExpectedPolicy(string mode, int expectedPolicy)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.configService.EncryptionMode.Returns(mode);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_config\",\"params\":[],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+
+        using var resultDoc = JsonDocument.Parse(json);
+        var config = resultDoc.RootElement.GetProperty("result");
+        config.GetProperty("enc_in_policy").GetInt32().Should().Be(expectedPolicy);
+        config.GetProperty("enc_out_policy").GetInt32().Should().Be(expectedPolicy);
+    }
+
+    [TestCase(0, "forceEncrypted")]
+    [TestCase(1, "preferEncrypted")]
+    [TestCase(2, "disabled")]
+    public async Task HandleRpc_CoreSetConfig_WithEncInPolicy_UpdatesConfigService(int encVal, string expectedMode)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse($"{{\"method\":\"core.set_config\",\"params\":[{{\"enc_in_policy\":{encVal}}}],\"id\":1}}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            (string)d["EncryptionMode"] == expectedMode));
     }
 }

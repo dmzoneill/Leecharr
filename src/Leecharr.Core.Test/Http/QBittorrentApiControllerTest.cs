@@ -2963,4 +2963,38 @@ public class QBittorrentApiControllerTest
         var sonarrRes3 = ((OkObjectResult)this.controller.GetMainData(2).Result!).Value as Dictionary<string, object>;
         sonarrRes3!["rid"].Should().Be(3);
     }
+
+    [TestCase("Forced", 1)]
+    [TestCase("forceEncrypted", 1)]
+    [TestCase("RequireEncrypted", 1)]
+    [TestCase("ForcedEncryption", 1)]
+    [TestCase("Required", 1)]
+    [TestCase("Disabled", 2)]
+    [TestCase("Plaintext", 2)]
+    [TestCase("None", 2)]
+    [TestCase("preferEncrypted", 0)]
+    [TestCase("Enabled", 0)]
+    [TestCase("Unknown", 0)]
+    public void GetPreferences_MapsEncryptionModeToExpectedPref(string mode, int expectedPref)
+    {
+        this.configService.EncryptionMode.Returns(mode);
+
+        var actionResult = this.controller.GetPreferences();
+        var okResult = actionResult.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var dict = okResult.Value.Should().BeAssignableTo<IReadOnlyDictionary<string, object>>().Subject;
+
+        dict["encryption"].Should().Be(expectedPref);
+    }
+
+    [TestCase(1, "forceEncrypted")]
+    [TestCase(2, "disabled")]
+    [TestCase(0, "preferEncrypted")]
+    public async Task SetPreferencesAsync_UpdatesEncryptionMode(int encVal, string expectedMode)
+    {
+        var actionResult = await this.controller.SetPreferencesAsync($"{{\"encryption\":{encVal}}}");
+        actionResult.Should().BeOfType<ContentResult>();
+
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            (string)d["EncryptionMode"] == expectedMode));
+    }
 }
