@@ -2970,7 +2970,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             : (!string.IsNullOrWhiteSpace(targetCompletedDir) ? targetCompletedDir : downloadDir);
         string finalDestination = null;
 
-        var sourcePath = manager.SavePath ?? this.storagePathService.GetIncompleteDirectory();
+        var currentIncompletePath = manager.SavePath ?? this.storagePathService.GetIncompleteDirectory();
+        var currentSavePath = existingTask?.SavePath ?? currentIncompletePath;
+        var currentWorkingPath = existingTask?.WorkingPath ?? currentIncompletePath;
+
+        var sourcePath = currentIncompletePath;
         if (manager.Files != null && manager.Files.Count > 0)
         {
             var isMulti = manager.Files.Count > 1 || (manager.Torrent != null && manager.Torrent.Files.Count > 1);
@@ -3000,11 +3004,83 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 ? !string.Equals(customSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), downloadDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)
                 : true);
 
-        if (!isCustomSavePath)
+        // Relocate files in MonoTorrent if moving from incomplete to completed directory
+        var currentManagerPath = manager.SavePath?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var targetSeedingPath = seedingSavePath?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var needsRelocation = !string.IsNullOrWhiteSpace(seedingSavePath) &&
+            !string.Equals(currentManagerPath, targetSeedingPath, StringComparison.OrdinalIgnoreCase);
+
+        var moveSucceeded = true;
+
+        if (needsRelocation)
+        {
+            var availableSpace = this.diskProvider.GetAvailableSpace(seedingSavePath);
+            var totalSize = manager.Torrent?.Size ?? existingTask?.TotalBytes ?? 0L;
+
+            if (availableSpace.HasValue && totalSize > 0 && availableSpace.Value < totalSize)
+            {
+                this.logger.Error(
+                    "Cannot relocate completed torrent #{0} ('{1}'): Insufficient disk space on target destination '{2}'. Required: {3} bytes, Available: {4} bytes.",
+                    torrentId,
+                    torrentName,
+                    seedingSavePath,
+                    totalSize,
+                    availableSpace.Value);
+                moveSucceeded = false;
+            }
+            else
+            {
+                if (!isCustomSavePath)
+                {
+                    try
+                    {
+                        moveSucceeded = this.storagePathService.MoveToCompleted(sourcePath, category, torrentName, out finalDestination);
+                        if (!moveSucceeded)
+                        {
+                            this.logger.Error(
+                                "File relocation failed for torrent #{0} ('{1}'): StoragePathService.MoveToCompleted returned false for destination '{2}'.",
+                                torrentId,
+                                torrentName,
+                                seedingSavePath);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        moveSucceeded = false;
+                        this.logger.Error(
+                            ex,
+                            "File relocation failed for torrent #{0} ('{1}'): StoragePathService.MoveToCompleted threw an exception for destination '{2}'.",
+                            torrentId,
+                            torrentName,
+                            seedingSavePath);
+                    }
+                }
+
+                if (moveSucceeded)
+                {
+                    try
+                    {
+                        Directory.CreateDirectory(seedingSavePath);
+                        await manager.MoveFilesAsync(seedingSavePath, true).ConfigureAwait(false);
+                        this.logger.Info("MonoTorrent moved completed files to '{0}' for torrent {1}", seedingSavePath, infoHash);
+                    }
+                    catch (Exception ex)
+                    {
+                        moveSucceeded = false;
+                        this.logger.Error(
+                            ex,
+                            "File relocation failed for torrent #{0} ('{1}'): MonoTorrent MoveFilesAsync to '{2}' threw an exception.",
+                            torrentId,
+                            torrentName,
+                            seedingSavePath);
+                    }
+                }
+            }
+        }
+        else if (!isCustomSavePath)
         {
             try
             {
-                // First notify StoragePathService for tracking and category hooks
                 this.storagePathService.MoveToCompleted(sourcePath, category, torrentName, out finalDestination);
             }
             catch (Exception ex)
@@ -3013,39 +3089,28 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
         }
 
-        // Relocate files in MonoTorrent if moving from incomplete to completed directory
-        var currentManagerPath = manager.SavePath?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var targetSeedingPath = seedingSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        if (!string.IsNullOrWhiteSpace(seedingSavePath) &&
-            !string.Equals(currentManagerPath, targetSeedingPath, StringComparison.OrdinalIgnoreCase))
+        if (moveSucceeded)
         {
-            try
+            finalDestination ??= seedingSavePath;
+            this.storagePathService.StripIncompleteExtensions(seedingSavePath);
+            this.storagePathService.EnsureAccessiblePermissions(seedingSavePath);
+
+            if (existingTask != null)
             {
-                Directory.CreateDirectory(seedingSavePath);
-                await manager.MoveFilesAsync(seedingSavePath, true).ConfigureAwait(false);
-                this.logger.Info("MonoTorrent moved completed files to '{0}' for torrent {1}", seedingSavePath, infoHash);
-            }
-            catch (Exception ex)
-            {
-                this.logger.Warn(ex, "MonoTorrent MoveFilesAsync to '{0}' for {1} failed; updating SavePath", seedingSavePath, infoHash);
-                try
-                {
-                    await manager.MoveFilesAsync(seedingSavePath, false).ConfigureAwait(false);
-                }
-                catch
-                {
-                }
+                existingTask.WorkingPath = seedingSavePath;
+                existingTask.SavePath = seedingSavePath;
             }
         }
-
-        finalDestination ??= seedingSavePath;
-        this.storagePathService.StripIncompleteExtensions(seedingSavePath);
-        this.storagePathService.EnsureAccessiblePermissions(seedingSavePath);
-
-        if (existingTask != null)
+        else
         {
-            existingTask.WorkingPath = seedingSavePath;
-            existingTask.SavePath = seedingSavePath;
+            finalDestination ??= currentIncompletePath;
+
+            if (existingTask != null)
+            {
+                existingTask.WorkingPath = currentIncompletePath;
+                existingTask.SavePath = currentIncompletePath;
+                existingTask.IsFilesMovedToCompleted = false;
+            }
         }
 
         try
@@ -3057,6 +3122,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             this.logger.Debug(ex, "Failed to save FastResume checkpoint on completion for {0}", infoHash);
         }
 
+        var completionSavePath = moveSucceeded ? seedingSavePath : currentIncompletePath;
+
         this.logger.Info("[State Machine] Torrent #{0} ('{1}') download completed (100% verified). Final destination: '{2}'. Publishing completion event.", torrentId, torrentName, finalDestination);
         this.eventAggregator.PublishEvent(new TorrentDownloadCompletedEvent(new CoreTorrent
         {
@@ -3065,7 +3132,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             Name = torrentName,
             Status = TorrentStatus.Seeding,
             Category = category,
-            SavePath = seedingSavePath,
+            SavePath = completionSavePath,
             Progress = 1.0,
             DateCompleted = DateTime.UtcNow,
         }));
@@ -3676,7 +3743,6 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     public void OnVpnRestored(string interfaceName)
     {
         this.logger.Info("VPN interface '{0}' restored. Resuming MonoTorrent activity.", interfaceName);
-        this.isHaltedByKillSwitch = false;
         this.natPmpPortMapperService?.Resume();
 
         lock (this.vpnTransitionLock)
