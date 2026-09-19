@@ -35,7 +35,7 @@ public class ArchiveExtractionFailedEvent : IEvent
     public string ErrorMessage { get; set; }
 }
 
-public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEvent>
+public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEvent>, IDisposable
 {
     private readonly IArchiveExtractorService extractorService;
     private readonly ITorrentFileService torrentFileService;
@@ -43,6 +43,7 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
     private readonly IEventAggregator eventAggregator;
     private readonly IConfigService configService;
     private readonly SemaphoreSlim extractionSemaphore;
+    private readonly CancellationTokenSource shutdownCts = new();
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public SemaphoreSlim ConcurrencySemaphore => this.extractionSemaphore;
@@ -71,10 +72,10 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
 
     public void Handle(TorrentDownloadCompletedEvent message)
     {
-        _ = this.HandleAsync(message);
+        _ = this.HandleAsync(message, this.shutdownCts.Token);
     }
 
-    public async Task HandleAsync(TorrentDownloadCompletedEvent message)
+    public async Task HandleAsync(TorrentDownloadCompletedEvent message, CancellationToken cancellationToken = default)
     {
         if (message?.Torrent == null)
         {
@@ -178,12 +179,33 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
                         }
 
                         this.logger.Info("Queuing auto-extraction for archive {0} for completed torrent {1}", fullPath, message.Torrent.Name);
-                        await this.extractionSemaphore.WaitAsync();
+                        await this.extractionSemaphore.WaitAsync(cancellationToken);
                         bool success;
                         try
                         {
+                            var postWaitAvailable = this.diskProvider.GetAvailableSpace(destDir);
+                            if (postWaitAvailable.HasValue && postWaitAvailable.Value < requiredSpace)
+                            {
+                                this.logger.Warn(
+                                    "Insufficient free disk space on '{0}' after acquiring semaphore for extracting '{1}'. Required: {2} bytes (1.5x estimated size), Available: {3} bytes.",
+                                    destDir,
+                                    fullPath,
+                                    requiredSpace,
+                                    postWaitAvailable.Value);
+
+                                this.eventAggregator.PublishEvent(new ArchiveExtractionFailedEvent
+                                {
+                                    Torrent = message.Torrent,
+                                    ArchivePath = fullPath,
+                                    DestinationDirectory = destDir,
+                                    ErrorMessage = $"Insufficient free disk space on '{destDir}' after acquiring semaphore. Required: {requiredSpace:N0} bytes, Available: {postWaitAvailable.Value:N0} bytes.",
+                                });
+
+                                continue;
+                            }
+
                             this.logger.Info("Auto-extracting archive {0} for completed torrent {1}", fullPath, message.Torrent.Name);
-                            success = await this.extractorService.ExtractArchiveAsync(fullPath, destDir, password, candidatePasswords);
+                            success = await this.extractorService.ExtractArchiveAsync(fullPath, destDir, password, candidatePasswords, cancellationToken);
                         }
                         finally
                         {
@@ -313,6 +335,13 @@ public class ArchiveExtractorEventHandler : IHandle<TorrentDownloadCompletedEven
         }
 
         return false;
+    }
+
+    public void Dispose()
+    {
+        this.shutdownCts.Cancel();
+        this.shutdownCts.Dispose();
+        this.extractionSemaphore.Dispose();
     }
 
     private void RecordExtractionReceipt(string destinationDirectory, string archiveFilePath)
