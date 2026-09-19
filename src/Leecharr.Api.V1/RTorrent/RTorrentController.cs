@@ -188,8 +188,10 @@ public class RTorrentController : ControllerBase
                 return new XElement("i8", this.torrentService.GetAll().Sum(t => t.UploadSpeed));
 
             case "d.multicall2":
+                return this.HandleMulticall(paramValues, isMulticall2: true);
+
             case "d.multicall":
-                return this.HandleMulticall(paramValues);
+                return this.HandleMulticall(paramValues, isMulticall2: false);
 
             case "f.multicall":
                 if (paramValues.Count > 0 && paramValues[0] is string fHash)
@@ -966,34 +968,74 @@ public class RTorrentController : ControllerBase
         }
     }
 
-    private XElement HandleMulticall(List<object> paramValues)
+    private XElement HandleMulticall(List<object> paramValues, bool isMulticall2 = false)
     {
         var torrents = this.torrentService.GetAll().ToList();
         var requestedFields = new List<string>();
-        string view = string.Empty;
+        var view = string.Empty;
 
-        var knownViews = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        if (paramValues.Count > 0 && paramValues[0] is string firstField &&
+            (firstField.StartsWith("d.", StringComparison.OrdinalIgnoreCase) ||
+             firstField.StartsWith("f.", StringComparison.OrdinalIgnoreCase) ||
+             firstField.StartsWith("t.", StringComparison.OrdinalIgnoreCase) ||
+             firstField.StartsWith("p.", StringComparison.OrdinalIgnoreCase)))
         {
-            "started", "active", "stopped", "complete", "completed", "incomplete", "seeding", "leeching", "main", "default", "all",
-        };
-
-        foreach (var item in paramValues)
-        {
-            if (item is string field && !string.IsNullOrWhiteSpace(field))
+            view = string.Empty;
+            foreach (var item in paramValues)
             {
-                var trimmed = field.Trim();
-                if (trimmed.StartsWith("d.", StringComparison.OrdinalIgnoreCase) ||
-                    trimmed.StartsWith("f.", StringComparison.OrdinalIgnoreCase) ||
-                    trimmed.StartsWith("t.", StringComparison.OrdinalIgnoreCase) ||
-                    trimmed.StartsWith("p.", StringComparison.OrdinalIgnoreCase))
+                ExtractFields(item, requestedFields);
+            }
+        }
+        else if (isMulticall2)
+        {
+            if (paramValues.Count > 1 && paramValues[1] is string v2)
+            {
+                view = v2.Trim();
+            }
+            else if (paramValues.Count > 0 && paramValues[0] is string v1 && !v1.StartsWith("d.", StringComparison.OrdinalIgnoreCase) && !v1.StartsWith("f.", StringComparison.OrdinalIgnoreCase))
+            {
+                view = v1.Trim();
+            }
+
+            foreach (var item in paramValues.Skip(2))
+            {
+                ExtractFields(item, requestedFields);
+            }
+        }
+        else
+        {
+            if (paramValues.Count > 1 && string.IsNullOrWhiteSpace(paramValues[0]?.ToString()) && paramValues[1] is string v1 && !v1.StartsWith("d.", StringComparison.OrdinalIgnoreCase))
+            {
+                view = v1.Trim();
+                foreach (var item in paramValues.Skip(2))
                 {
-                    requestedFields.Add(trimmed);
-                }
-                else if (string.IsNullOrEmpty(view) || knownViews.Contains(trimmed))
-                {
-                    view = trimmed;
+                    ExtractFields(item, requestedFields);
                 }
             }
+            else if (paramValues.Count > 0 && paramValues[0] is string v0 && !v0.StartsWith("d.", StringComparison.OrdinalIgnoreCase) && !v0.StartsWith("f.", StringComparison.OrdinalIgnoreCase))
+            {
+                view = v0.Trim();
+                foreach (var item in paramValues.Skip(1))
+                {
+                    ExtractFields(item, requestedFields);
+                }
+            }
+            else
+            {
+                foreach (var item in paramValues)
+                {
+                    ExtractFields(item, requestedFields);
+                }
+            }
+        }
+
+        if (view.StartsWith("d.", StringComparison.OrdinalIgnoreCase) ||
+            view.StartsWith("f.", StringComparison.OrdinalIgnoreCase) ||
+            view.StartsWith("t.", StringComparison.OrdinalIgnoreCase) ||
+            view.StartsWith("p.", StringComparison.OrdinalIgnoreCase))
+        {
+            ExtractFields(view, requestedFields);
+            view = string.Empty;
         }
 
         if (!string.IsNullOrEmpty(view))
@@ -1017,6 +1059,28 @@ public class RTorrentController : ControllerBase
         }
 
         return new XElement("array", arrayData);
+    }
+
+    private static void ExtractFields(object item, List<string> requestedFields)
+    {
+        if (item is string field && !string.IsNullOrWhiteSpace(field))
+        {
+            var trimmed = field.Trim();
+            if (trimmed.StartsWith("d.", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.StartsWith("f.", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.StartsWith("t.", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.StartsWith("p.", StringComparison.OrdinalIgnoreCase))
+            {
+                requestedFields.Add(trimmed);
+            }
+        }
+        else if (item is IEnumerable<object> list)
+        {
+            foreach (var subItem in list)
+            {
+                ExtractFields(subItem, requestedFields);
+            }
+        }
     }
 
     private XElement GetTorrentXmlFieldValue(Torrent torrent, string field)
@@ -1045,6 +1109,13 @@ public class RTorrentController : ControllerBase
 
             case "d.base_path":
             case "d.get_base_path":
+                var savePath = torrent.SavePath ?? (this.configService.DownloadDir ?? string.Empty);
+                return new XElement("string", Path.Combine(savePath, torrent.Name ?? string.Empty));
+
+            case "d.base_filename":
+            case "d.get_base_filename":
+                return new XElement("string", torrent.Name ?? string.Empty);
+
             case "d.directory":
             case "d.get_directory":
             case "d.directory_base":
@@ -1408,7 +1479,8 @@ public class RTorrentController : ControllerBase
                 return torrent.Status == TorrentStatus.Downloading || torrent.Status == TorrentStatus.Seeding;
 
             case "stopped":
-                return torrent.Status == TorrentStatus.Stopped || torrent.Status == TorrentStatus.Paused;
+            case "paused":
+                return torrent.Status == TorrentStatus.Paused || torrent.Status == TorrentStatus.Stopped;
 
             case "complete":
             case "completed":
@@ -1417,7 +1489,11 @@ public class RTorrentController : ControllerBase
 
             case "incomplete":
             case "leeching":
-                return torrent.Progress < 1.0;
+                return torrent.Progress < 1.0 && torrent.Status != TorrentStatus.Seeding;
+
+            case "hashing":
+            case "checking":
+                return torrent.Status == TorrentStatus.Checking;
 
             default:
                 return true;
