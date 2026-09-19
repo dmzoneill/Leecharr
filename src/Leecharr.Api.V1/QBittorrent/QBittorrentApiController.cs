@@ -916,6 +916,11 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
         foreach (var torrent in this.ResolveTorrents(hashes))
         {
+            if (value && (torrent.Progress < 1.0 || torrent.Status != TorrentStatus.Seeding))
+            {
+                return this.BadRequest("Super seeding can only be enabled for 100% completed seeding torrents.");
+            }
+
             await this.torrentService.SetSuperSeedingAsync(torrent.Id, value);
         }
 
