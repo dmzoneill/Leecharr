@@ -2815,16 +2815,16 @@ public class TagLibInspectorProviderTest
         }
     }
 
-        private static byte[] CreateMatroskaHeaderWithBlockAdditionMapping(
-        string docType,
-        string videoCodecId,
-        int width,
-        int height,
-        ulong? transferChar,
-        ulong? primaries,
-        ulong addIdType,
-        string addIdName,
-        byte[] extraData)
+    private static byte[] CreateMatroskaHeaderWithBlockAdditionMapping(
+    string docType,
+    string videoCodecId,
+    int width,
+    int height,
+    ulong? transferChar,
+    ulong? primaries,
+    ulong addIdType,
+    string addIdName,
+    byte[] extraData)
     {
         using var ms = new MemoryStream();
 
@@ -3017,7 +3017,7 @@ public class TagLibInspectorProviderTest
         info.HdrFormat.Should().Be("Dolby Vision / HDR10");
     }
 
-private sealed class UnseekableStream : Stream
+    private sealed class UnseekableStream : Stream
     {
         private readonly byte[] data;
         private int position;

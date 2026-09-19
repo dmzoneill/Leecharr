@@ -2171,38 +2171,38 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                     else
                     {
                         var scrape = await this.ScrapeTrackerForHashAsync(tracker, infoHash);
-                    if (scrape.Success)
-                    {
-                        detection.Seeders = Math.Max(detection.Seeders, scrape.Seeders);
-                        detection.Leechers = Math.Max(detection.Leechers, scrape.Leechers);
-                        detection.Downloaded = scrape.Downloaded;
-                        detection.IsVerified = scrape.Seeders > 0 || scrape.Leechers > 0 || scrape.Downloaded > 0;
-
-                        if (tracker.Status == TrackerHealthStatus.Untested)
+                        if (scrape.Success)
                         {
-                            tracker.Status = TrackerHealthStatus.Alive;
-                            tracker.LastSuccess = DateTime.UtcNow;
-                            tracker.LastScraped = DateTime.UtcNow;
-                            this.trackerRepository.Update(tracker);
-                        }
+                            detection.Seeders = Math.Max(detection.Seeders, scrape.Seeders);
+                            detection.Leechers = Math.Max(detection.Leechers, scrape.Leechers);
+                            detection.Downloaded = scrape.Downloaded;
+                            detection.IsVerified = scrape.Seeders > 0 || scrape.Leechers > 0 || scrape.Downloaded > 0;
 
-                        if (detection.IsVerified)
-                        {
-                            detection.IsDetected = true;
-                            detection.DetectionStatus = isAttached
-                                ? $"Attached & Active ({detection.Seeders} seeds, {detection.Leechers} leeches)"
-                                : $"Verified on Tracker ({detection.Seeders} seeds, {detection.Leechers} leeches)";
+                            if (tracker.Status == TrackerHealthStatus.Untested)
+                            {
+                                tracker.Status = TrackerHealthStatus.Alive;
+                                tracker.LastSuccess = DateTime.UtcNow;
+                                tracker.LastScraped = DateTime.UtcNow;
+                                this.trackerRepository.Update(tracker);
+                            }
+
+                            if (detection.IsVerified)
+                            {
+                                detection.IsDetected = true;
+                                detection.DetectionStatus = isAttached
+                                    ? $"Attached & Active ({detection.Seeders} seeds, {detection.Leechers} leeches)"
+                                    : $"Verified on Tracker ({detection.Seeders} seeds, {detection.Leechers} leeches)";
+                            }
+                            else
+                            {
+                                detection.IsDetected = false;
+                                detection.DetectionStatus = isAttached ? "Attached (0 Peers Scraped)" : "Not Registered (0 Peers)";
+                            }
                         }
                         else
                         {
-                            detection.IsDetected = false;
-                            detection.DetectionStatus = isAttached ? "Attached (0 Peers Scraped)" : "Not Registered (0 Peers)";
+                            detection.DetectionStatus = isAttached ? "Attached (Scrape Failed)" : (tracker.Status == TrackerHealthStatus.Offline ? "Offline" : "Unresponsive");
                         }
-                    }
-                    else
-                    {
-                        detection.DetectionStatus = isAttached ? "Attached (Scrape Failed)" : (tracker.Status == TrackerHealthStatus.Offline ? "Offline" : "Unresponsive");
-                    }
                     }
                 }
                 else
