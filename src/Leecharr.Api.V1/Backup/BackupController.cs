@@ -221,24 +221,30 @@ public class BackupController : Controller
                 var dbPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db");
                 if (global::System.IO.File.Exists(dbPath))
                 {
+                    var tempSnapshotPath = Path.Combine(Path.GetTempPath(), $"leecharr_backup_{Guid.NewGuid():N}.db");
                     try
                     {
-                        using (var conn = new SqliteConnection($"Data Source={dbPath}"))
+                        using (var conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly"))
                         {
                             conn.Open();
                             using var cmd = conn.CreateCommand();
-                            cmd.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
+                            cmd.CommandText = $"VACUUM INTO '{tempSnapshotPath.Replace("'", "''")}';";
                             cmd.ExecuteNonQuery();
                         }
 
-                        SqliteConnection.ClearAllPools();
+                        tempDumpFile = tempSnapshotPath;
+                        includesDb = true;
                     }
                     catch (Exception ex)
                     {
-                        this.logger.Warn(ex, "Failed to execute SQLite WAL checkpoint on {0}", dbPath);
+                        this.logger.Warn(ex, "Failed to create atomic SQLite snapshot via VACUUM INTO on {0}", dbPath);
+                        tempDumpFile = null;
+                        includesDb = true;
                     }
-
-                    includesDb = true;
+                    finally
+                    {
+                        SqliteConnection.ClearAllPools();
+                    }
                 }
             }
 
@@ -253,10 +259,24 @@ public class BackupController : Controller
                 }
                 else
                 {
-                    var dbPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db");
-                    if (global::System.IO.File.Exists(dbPath))
+                    if (tempDumpFile != null && global::System.IO.File.Exists(tempDumpFile))
                     {
-                        zip.CreateEntryFromFile(dbPath, "leecharr.db");
+                        zip.CreateEntryFromFile(tempDumpFile, "leecharr.db");
+                    }
+                    else
+                    {
+                        var dbPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db");
+                        var walPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db-wal");
+
+                        if (global::System.IO.File.Exists(dbPath))
+                        {
+                            zip.CreateEntryFromFile(dbPath, "leecharr.db");
+                        }
+
+                        if (global::System.IO.File.Exists(walPath))
+                        {
+                            zip.CreateEntryFromFile(walPath, "leecharr.db-wal");
+                        }
                     }
                 }
 
@@ -509,134 +529,22 @@ public class BackupController : Controller
                     }
                 }
 
-                // 2. Prepare pre-restore safety snapshot of active database and config for rollback
-                var backupDir = Path.Combine(Path.GetTempPath(), $"leecharr_prerestore_bak_{Guid.NewGuid():N}");
-                Directory.CreateDirectory(backupDir);
-
-                var liveDb = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db");
-                var liveWal = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db-wal");
-                var liveShm = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db-shm");
-                var liveConfig = Path.Combine(this.appFolderInfo.AppDataFolder, "config.xml");
-
-                var bakDb = Path.Combine(backupDir, "leecharr.db");
-                var bakWal = Path.Combine(backupDir, "leecharr.db-wal");
-                var bakShm = Path.Combine(backupDir, "leecharr.db-shm");
-                var bakConfig = Path.Combine(backupDir, "config.xml");
-
-                try
+                // 3. Stage the verified restored database for safe startup replacement
+                if (global::System.IO.File.Exists(stagedDb))
                 {
-                    // Clear active SQLite connection pools to release file locks before file replacement
-                    SqliteConnection.ClearAllPools();
-
-                    if (global::System.IO.File.Exists(liveDb))
-                    {
-                        global::System.IO.File.Copy(liveDb, bakDb, overwrite: true);
-                    }
-
-                    if (global::System.IO.File.Exists(liveWal))
-                    {
-                        global::System.IO.File.Copy(liveWal, bakWal, overwrite: true);
-                    }
-
-                    if (global::System.IO.File.Exists(liveShm))
-                    {
-                        global::System.IO.File.Copy(liveShm, bakShm, overwrite: true);
-                    }
-
-                    if (global::System.IO.File.Exists(liveConfig))
-                    {
-                        global::System.IO.File.Copy(liveConfig, bakConfig, overwrite: true);
-                    }
-
-                    // 3. Atomically replace active files
-                    // Delete existing stale WAL and SHM files so they do not conflict with restored database
-                    if (global::System.IO.File.Exists(liveWal))
-                    {
-                        global::System.IO.File.Delete(liveWal);
-                    }
-
-                    if (global::System.IO.File.Exists(liveShm))
-                    {
-                        global::System.IO.File.Delete(liveShm);
-                    }
-
-                    if (global::System.IO.File.Exists(stagedDb))
-                    {
-                        global::System.IO.File.Copy(stagedDb, liveDb, overwrite: true);
-                    }
-
-                    if (global::System.IO.File.Exists(stagedConfig))
-                    {
-                        global::System.IO.File.Copy(stagedConfig, liveConfig, overwrite: true);
-                    }
+                    var restoreDbPath = Path.Combine(this.appFolderInfo.AppDataFolder, "leecharr.db.restore");
+                    global::System.IO.File.Copy(stagedDb, restoreDbPath, overwrite: true);
                 }
-                catch (Exception copyEx)
+
+                // 4. Restore config.xml if present in backup archive
+                if (global::System.IO.File.Exists(stagedConfig))
                 {
-                    this.logger.Error(copyEx, "Error replacing database files during restore; rolling back active files.");
-                    try
-                    {
-                        SqliteConnection.ClearAllPools();
-                        if (global::System.IO.File.Exists(bakDb))
-                        {
-                            global::System.IO.File.Copy(bakDb, liveDb, overwrite: true);
-                        }
-                        else if (global::System.IO.File.Exists(liveDb))
-                        {
-                            global::System.IO.File.Delete(liveDb);
-                        }
-
-                        if (global::System.IO.File.Exists(bakWal))
-                        {
-                            global::System.IO.File.Copy(bakWal, liveWal, overwrite: true);
-                        }
-                        else if (global::System.IO.File.Exists(liveWal))
-                        {
-                            global::System.IO.File.Delete(liveWal);
-                        }
-
-                        if (global::System.IO.File.Exists(bakShm))
-                        {
-                            global::System.IO.File.Copy(bakShm, liveShm, overwrite: true);
-                        }
-                        else if (global::System.IO.File.Exists(liveShm))
-                        {
-                            global::System.IO.File.Delete(liveShm);
-                        }
-
-                        if (global::System.IO.File.Exists(bakConfig))
-                        {
-                            global::System.IO.File.Copy(bakConfig, liveConfig, overwrite: true);
-                        }
-                        else if (global::System.IO.File.Exists(liveConfig))
-                        {
-                            global::System.IO.File.Delete(liveConfig);
-                        }
-                    }
-                    catch (Exception rollbackEx)
-                    {
-                        this.logger.Fatal(rollbackEx, "Critical error during rollback of restored files.");
-                    }
-
-                    return this.StatusCode(500, new { success = false, message = "Failed to restore database files." });
-                }
-                finally
-                {
-                    SqliteConnection.ClearAllPools();
-                    try
-                    {
-                        if (Directory.Exists(backupDir))
-                        {
-                            Directory.Delete(backupDir, recursive: true);
-                        }
-                    }
-                    catch
-                    {
-                        // Ignore temp cleanup error
-                    }
+                    var liveConfig = Path.Combine(this.appFolderInfo.AppDataFolder, "config.xml");
+                    global::System.IO.File.Copy(stagedConfig, liveConfig, overwrite: true);
                 }
 
                 this.logger.Info("Restored backup archive from {0}", physicalPath);
-                return this.Ok(new { success = true, message = "Backup restored successfully. Please restart Leecharr." });
+                return this.Ok(new { success = true, message = "Backup restored successfully. Please restart Leecharr to apply database changes." });
             }
         }
         catch (Exception ex)
