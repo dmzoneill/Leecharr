@@ -89,7 +89,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         this.tagRepository = tagRepository;
         this.configFileProvider = configFileProvider;
         this.userService = userService;
-        this.torrentCreationService = torrentCreationService ?? new TorrentCreationService();
+        this.torrentCreationService = torrentCreationService ?? new TorrentCreationService(categoryService, configService, storagePathService);
         this.qbittorrentSearchService = qbittorrentSearchService ?? new QBittorrentSearchService();
         this.safeHttpClientService = safeHttpClientService ?? new SafeHttpClientService();
         this.downloadEngine = downloadEngine;

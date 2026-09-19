@@ -49,9 +49,15 @@ public class TorrentCreationService : ITorrentCreationService
     private readonly IStoragePathService storagePathService;
     private readonly List<string> staticAllowedDirectories;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TorrentCreationService"/> class.
+    /// Warning: When constructed without dependencies or allowed directories, path validation will reject requests
+    /// unless allowed storage directories or services are configured.
+    /// </summary>
     public TorrentCreationService()
         : this((IEnumerable<string>)null)
     {
+        this.logger.Warn("TorrentCreationService initialized with parameterless constructor. Path validation will reject requests unless allowed directories or services are provided.");
     }
 
     public TorrentCreationService(IEnumerable<string> allowedDirectories)
