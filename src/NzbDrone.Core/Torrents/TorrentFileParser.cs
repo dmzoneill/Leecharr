@@ -51,6 +51,8 @@ public class ParsedTorrentFile
     public string Path { get; set; }
 
     public long Size { get; set; }
+
+    public long ByteOffset { get; set; }
 }
 
 public interface ITorrentFileParser
@@ -224,10 +226,11 @@ public class TorrentFileParser : ITorrentFileParser
             }
 
             long rawTotalSize = 0;
+            long currentByteOffset = 0;
 
             if (info.ContainsKey("file tree") && info["file tree"] is BDictionary fileTree)
             {
-                TraverseFileTree(fileTree, new List<string>(), result.Files, 1, MaxBencodeDepth, ref rawTotalSize);
+                TraverseFileTree(fileTree, new List<string>(), result.Files, 1, MaxBencodeDepth, ref rawTotalSize, ref currentByteOffset);
             }
             else if (info.ContainsKey("files") && info["files"] is BList files)
             {
@@ -273,16 +276,20 @@ public class TorrentFileParser : ITorrentFileParser
                         throw new InvalidTorrentFileException($"Malformed torrent file: resolved file path cannot be an absolute path: '{relativeFilePath}'.");
                     }
 
-                    rawTotalSize += fileLengthNum.Value;
+                    var fileLength = fileLengthNum.Value;
+                    rawTotalSize += fileLength;
 
                     if (!IsPaddingFile(file, relativeFilePath))
                     {
                         result.Files.Add(new ParsedTorrentFile
                         {
                             Path = relativeFilePath,
-                            Size = fileLengthNum.Value,
+                            Size = fileLength,
+                            ByteOffset = currentByteOffset,
                         });
                     }
+
+                    currentByteOffset += fileLength;
                 }
             }
             else
@@ -305,6 +312,7 @@ public class TorrentFileParser : ITorrentFileParser
                     {
                         Path = sanitizedTorrentName,
                         Size = lengthNum.Value,
+                        ByteOffset = 0,
                     });
                 }
             }
@@ -491,7 +499,8 @@ public class TorrentFileParser : ITorrentFileParser
 
         if (relativeFilePath.StartsWith(".pad/", StringComparison.OrdinalIgnoreCase) ||
             relativeFilePath.Contains("/.pad/", StringComparison.OrdinalIgnoreCase) ||
-            relativeFilePath.Equals(".pad", StringComparison.OrdinalIgnoreCase))
+            relativeFilePath.Equals(".pad", StringComparison.OrdinalIgnoreCase) ||
+            relativeFilePath.Contains("_____padding_file_", StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
@@ -505,7 +514,8 @@ public class TorrentFileParser : ITorrentFileParser
         List<ParsedTorrentFile> files,
         int depth,
         int maxDepth,
-        ref long rawTotalSize)
+        ref long rawTotalSize,
+        ref long currentByteOffset)
     {
         if (depth > maxDepth)
         {
@@ -546,22 +556,26 @@ public class TorrentFileParser : ITorrentFileParser
                     throw new InvalidTorrentFileException($"Malformed torrent file: resolved file path cannot be an absolute path: '{relativeFilePath}'.");
                 }
 
-                rawTotalSize += fileLengthNum.Value;
+                var fileLength = fileLengthNum.Value;
+                rawTotalSize += fileLength;
 
                 if (!IsPaddingFile(fileMeta, relativeFilePath))
                 {
                     files.Add(new ParsedTorrentFile
                     {
                         Path = relativeFilePath,
-                        Size = fileLengthNum.Value,
+                        Size = fileLength,
+                        ByteOffset = currentByteOffset,
                     });
                 }
+
+                currentByteOffset += fileLength;
             }
             else
             {
                 ValidateAndSanitizePathPart(key);
                 var nextPath = new List<string>(currentPath) { key };
-                TraverseFileTree(childDict, nextPath, files, depth + 1, maxDepth, ref rawTotalSize);
+                TraverseFileTree(childDict, nextPath, files, depth + 1, maxDepth, ref rawTotalSize, ref currentByteOffset);
             }
         }
     }
