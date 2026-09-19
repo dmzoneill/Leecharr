@@ -1,13 +1,12 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using NzbDrone.Core.Datastore;
 
 namespace NzbDrone.Core.Torrents;
 
-public class TorrentEventLog
+public class TorrentEventLog : ModelBase
 {
-    public int Id { get; set; }
-
     public int TorrentId { get; set; }
 
     public string Level { get; set; } = "Info";

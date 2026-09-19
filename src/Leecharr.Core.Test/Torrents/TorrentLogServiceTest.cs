@@ -1,8 +1,10 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using FluentAssertions;
+using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Torrents;
@@ -118,5 +120,107 @@ public class TorrentLogServiceTest
         this.service.Handle(new TorrentDeletedEvent { Torrent = torrent, DeleteFiles = false });
 
         this.service.GetLogs(15).Should().BeEmpty();
+    }
+
+    [Test]
+    public void Log_PersistsToRepository_WhenRepositoryProvided()
+    {
+        var repo = Substitute.For<ITorrentEventLogRepository>();
+        var serviceWithRepo = new TorrentLogService(repo);
+
+        serviceWithRepo.Log(20, "WARN", "Disk", "Disk space low");
+
+        repo.Received(1).Insert(Arg.Is<TorrentEventLog>(e =>
+            e.TorrentId == 20 &&
+            e.Level == "WARN" &&
+            e.Source == "Disk" &&
+            e.Message == "Disk space low"));
+
+        var logs = serviceWithRepo.GetLogs(20);
+        logs.Should().HaveCount(1);
+        logs[0].Message.Should().Be("Disk space low");
+    }
+
+    [Test]
+    public void GetLogs_FallsBackToRepository_WhenMemoryCacheIsEmpty()
+    {
+        var repo = Substitute.For<ITorrentEventLogRepository>();
+        repo.GetLogsForTorrent(25, 10).Returns(new List<TorrentEventLog>
+        {
+            new()
+            {
+                Id = 101,
+                TorrentId = 25,
+                Level = "Info",
+                Source = "Engine",
+                Message = "Recovered from database",
+                Timestamp = DateTime.UtcNow,
+            },
+        });
+
+        var serviceWithRepo = new TorrentLogService(repo);
+
+        var logs = serviceWithRepo.GetLogs(25, 10);
+        logs.Should().HaveCount(1);
+        logs[0].Message.Should().Be("Recovered from database");
+        repo.Received(1).GetLogsForTorrent(25, 10);
+    }
+
+    [Test]
+    public void ClearLogs_PurgesBothMemoryAndRepository()
+    {
+        var repo = Substitute.For<ITorrentEventLogRepository>();
+        var serviceWithRepo = new TorrentLogService(repo);
+
+        serviceWithRepo.Log(30, "Info", "Engine", "To be cleared");
+        serviceWithRepo.ClearLogs(30);
+
+        repo.Received(1).DeleteForTorrent(30);
+        serviceWithRepo.GetLogs(30).Should().BeEmpty();
+    }
+
+    [Test]
+    public void ClearAll_PurgesBothMemoryAndRepository()
+    {
+        var repo = Substitute.For<ITorrentEventLogRepository>();
+        var serviceWithRepo = new TorrentLogService(repo);
+
+        serviceWithRepo.Log(35, "Info", "Engine", "To be cleared all");
+        serviceWithRepo.ClearAll();
+
+        repo.Received(1).DeleteAll();
+        serviceWithRepo.GetLogs(35).Should().BeEmpty();
+    }
+
+    [Test]
+    public void Handle_TorrentDeletedEvent_PurgesBothMemoryAndRepository()
+    {
+        var repo = Substitute.For<ITorrentEventLogRepository>();
+        var serviceWithRepo = new TorrentLogService(repo);
+
+        serviceWithRepo.Log(40, "Info", "Engine", "To be deleted");
+
+        var torrent = new Torrent { Id = 40, Name = "Deleted Torrent" };
+        serviceWithRepo.Handle(new TorrentDeletedEvent { Torrent = torrent });
+
+        repo.Received(1).DeleteForTorrent(40);
+        serviceWithRepo.GetLogs(40).Should().BeEmpty();
+    }
+
+    [Test]
+    public void Log_EvictsOldestTorrents_WhenCapacityExceeded()
+    {
+        this.service.ClearAll();
+
+        for (var i = 1; i <= 1060; i++)
+        {
+            this.service.Log(i, "Info", "Engine", $"Log for torrent {i}");
+        }
+
+        // Torrent 1 was the earliest added and should have been evicted by LRU pruning
+        this.service.GetLogs(1).Should().BeEmpty();
+
+        // The latest torrent should definitely be present
+        this.service.GetLogs(1060).Should().HaveCount(1);
     }
 }

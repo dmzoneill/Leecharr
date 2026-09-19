@@ -54,6 +54,7 @@ public static class TableRegistration
             TableMapping.Register<Tag>("Tags");
             TableMapping.Register<Torrent>("Torrents");
             TableMapping.Register<TorrentFile>("TorrentFiles");
+            TableMapping.Register<TorrentEventLog>("TorrentEventLogs");
             TableMapping.Register<Category>("Categories");
             TableMapping.Register<TorrentMediaMetadata>("TorrentMediaMetadata");
             TableMapping.Register<TrackerEntry>("TrackerEntries");
