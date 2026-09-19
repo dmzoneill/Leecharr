@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -29,6 +30,42 @@ public class UpdateCheckService : IUpdateCheckService
     {
         this.httpClient = httpClient ?? new HttpClient { Timeout = DefaultTimeout };
         this.logger = LogManager.GetCurrentClassLogger();
+    }
+
+    public static string GetPackagePlatformIdentifier()
+    {
+        return GetPackagePlatformIdentifier(OsInfo.IsWindows, OsInfo.IsOsx, RuntimeInformation.ProcessArchitecture);
+    }
+
+    public static string GetPackagePlatformIdentifier(bool isWindows, bool isOsx, Architecture architecture)
+    {
+        var os = isWindows ? "win" :
+                 isOsx ? "osx" : "linux";
+
+        var arch = architecture switch
+        {
+            Architecture.Arm64 => "arm64",
+            Architecture.Arm => "arm",
+            Architecture.X86 => "x86",
+            _ => "x64",
+        };
+
+        return $"{os}-{arch}";
+    }
+
+    public static string GetPackageExtension()
+    {
+        return GetPackageExtension(OsInfo.IsWindows);
+    }
+
+    public static string GetPackageExtension(bool isWindows)
+    {
+        return isWindows ? ".zip" : ".tar.gz";
+    }
+
+    public static string GetPackageFileName(string version)
+    {
+        return $"Leecharr.{version}.{GetPackagePlatformIdentifier()}{GetPackageExtension()}";
     }
 
     public async Task<List<UpdatePackage>> GetAvailableUpdatesAsync(CancellationToken cancellationToken = default)
@@ -110,21 +147,46 @@ public class UpdateCheckService : IUpdateCheckService
                 var htmlUrl = elem.TryGetProperty("html_url", out var urlProp) ? urlProp.GetString() : null;
                 var body = elem.TryGetProperty("body", out var bodyProp) ? bodyProp.GetString() : string.Empty;
 
-                string fileName = $"Leecharr.{cleanVersion}.linux-x64.tar.gz";
+                var platformIdentifier = GetPackagePlatformIdentifier();
+                var packageExtension = GetPackageExtension();
+                string fileName = GetPackageFileName(cleanVersion);
+
                 if (elem.TryGetProperty("assets", out var assetsProp) && assetsProp.ValueKind == JsonValueKind.Array)
                 {
+                    string matchedPlatformAsset = null;
+                    string matchedExtensionAsset = null;
+
                     foreach (var asset in assetsProp.EnumerateArray())
                     {
                         if (asset.TryGetProperty("name", out var nameProp))
                         {
                             var nameStr = nameProp.GetString();
-                            if (!string.IsNullOrWhiteSpace(nameStr) && nameStr.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
+                            if (string.IsNullOrWhiteSpace(nameStr))
                             {
-                                fileName = nameStr;
+                                continue;
+                            }
+
+                            if (nameStr.Contains(platformIdentifier, StringComparison.OrdinalIgnoreCase) &&
+                                nameStr.EndsWith(packageExtension, StringComparison.OrdinalIgnoreCase))
+                            {
+                                matchedPlatformAsset = nameStr;
                                 break;
+                            }
+
+                            if (nameStr.Contains(platformIdentifier, StringComparison.OrdinalIgnoreCase))
+                            {
+                                matchedPlatformAsset ??= nameStr;
+                            }
+                            else if (nameStr.EndsWith(packageExtension, StringComparison.OrdinalIgnoreCase) ||
+                                     nameStr.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase) ||
+                                     nameStr.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                            {
+                                matchedExtensionAsset ??= nameStr;
                             }
                         }
                     }
+
+                    fileName = matchedPlatformAsset ?? matchedExtensionAsset ?? fileName;
                 }
 
                 var isInstalled = string.Equals(cleanVersion, currentVer, StringComparison.OrdinalIgnoreCase) ||
@@ -162,7 +224,7 @@ public class UpdateCheckService : IUpdateCheckService
             {
                 Version = currentVersion,
                 ReleaseDate = DateTime.UtcNow,
-                FileName = $"Leecharr.{currentVersion}.linux-x64.tar.gz",
+                FileName = GetPackageFileName(currentVersion),
                 Url = "https://github.com/dmzoneill/Leecharr/releases",
                 Installed = true,
                 Latest = true,

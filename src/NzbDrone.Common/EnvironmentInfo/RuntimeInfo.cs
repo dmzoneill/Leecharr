@@ -11,7 +11,13 @@ public interface IRuntimeInfo
 
 public class RuntimeInfo : IRuntimeInfo
 {
+    private static bool restartPending;
+
     public bool IsWindowsService => false;
 
-    public bool RestartPending { get; set; }
+    public bool RestartPending
+    {
+        get => restartPending;
+        set => restartPending = value;
+    }
 }
