@@ -1036,6 +1036,126 @@ public class TorznabClientTest
     }
 
     [Test]
+    public async Task ResolveEffectiveLimit_WhenCachedCapabilitiesExpired_IgnoresExpiredMaxPageSize()
+    {
+        TorznabClient.ClearCapabilitiesCache();
+
+        var capsXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<caps>
+  <server version=""1.0"" title=""ExpiredTracker"" />
+  <limits default=""10"" max=""20"" />
+</caps>";
+
+        var handler = new TestHttpMessageHandler(req => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(capsXml),
+        });
+
+        var customClient = new TorznabClient(new HttpClient(handler));
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Name = "ExpiredTracker",
+            Url = "https://expired.indexer.local/api",
+            ApiKey = "key123",
+        };
+
+        var originalTtl = TorznabClient.CapabilitiesTtl;
+        try
+        {
+            TorznabClient.CapabilitiesTtl = TimeSpan.FromMilliseconds(-1000);
+            await customClient.FetchCapabilitiesAsync(indexer);
+
+            var effectiveLimit = customClient.ResolveEffectiveLimit(indexer, requestedLimit: 50);
+            effectiveLimit.Should().Be(50);
+        }
+        finally
+        {
+            TorznabClient.CapabilitiesTtl = originalTtl;
+            TorznabClient.ClearCapabilitiesCache();
+        }
+    }
+
+    [Test]
+    public async Task InvalidateCapabilities_WithoutApiKey_RemovesAllKeysWithUrlPrefix()
+    {
+        TorznabClient.ClearCapabilitiesCache();
+
+        var requestCount = 0;
+        var capsXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<caps>
+  <limits default=""25"" max=""100"" />
+</caps>";
+
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            Interlocked.Increment(ref requestCount);
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(capsXml),
+            };
+        });
+
+        var customClient = new TorznabClient(new HttpClient(handler));
+        var indexer1 = new IndexerDefinition { Id = 1, Url = "https://prefix.indexer.local/api", ApiKey = "key1" };
+        var indexer2 = new IndexerDefinition { Id = 2, Url = "https://prefix.indexer.local/api", ApiKey = "key2" };
+
+        await customClient.FetchCapabilitiesAsync(indexer1);
+        await customClient.FetchCapabilitiesAsync(indexer2);
+        requestCount.Should().Be(2);
+
+        TorznabClient.InvalidateCapabilities("https://prefix.indexer.local/api");
+
+        await customClient.FetchCapabilitiesAsync(indexer1);
+        await customClient.FetchCapabilitiesAsync(indexer2);
+        requestCount.Should().Be(4);
+    }
+
+    [Test]
+    public async Task FetchCapabilitiesAsync_WhenMultipleConcurrentRequests_DeduplicatesHttpRequests()
+    {
+        TorznabClient.ClearCapabilitiesCache();
+
+        var requestCount = 0;
+        var capsXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<caps>
+  <limits default=""30"" max=""100"" />
+</caps>";
+
+        var handler = new TestHttpMessageHandler(req =>
+        {
+            Interlocked.Increment(ref requestCount);
+            Thread.Sleep(50);
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(capsXml),
+            };
+        });
+
+        var customClient = new TorznabClient(new HttpClient(handler));
+        var indexer = new IndexerDefinition
+        {
+            Id = 1,
+            Url = "https://concurrent.indexer.local/api",
+            ApiKey = "key1",
+        };
+
+        var tasks = Enumerable.Range(0, 5)
+            .Select(_ => Task.Run(async () => await customClient.FetchCapabilitiesAsync(indexer)))
+            .ToList();
+
+        var results = await Task.WhenAll(tasks);
+
+        results.Should().HaveCount(5);
+        foreach (var r in results)
+        {
+            r.DefaultPageSize.Should().Be(30);
+        }
+
+        requestCount.Should().Be(1);
+    }
+
+    [Test]
     public void ParseCapabilitiesXml_WithArbitraryXmlNamespacesAndPascalCaseTags_ParsesCorrectly()
     {
         var xmlWithNamespaces = @"<?xml version=""1.0"" encoding=""UTF-8""?>

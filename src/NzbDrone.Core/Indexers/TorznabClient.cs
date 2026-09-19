@@ -9,6 +9,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using System.Xml;
@@ -119,6 +120,7 @@ public class TorznabClient : ITorznabClient
     };
 
     private static readonly ConcurrentDictionary<string, (TorznabCapabilities Caps, DateTime ExpiresAt)> CapabilitiesCache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> FetchLocks = new(StringComparer.OrdinalIgnoreCase);
 
     private readonly IConfigService configService;
     private readonly HttpClient httpClient;
@@ -129,12 +131,30 @@ public class TorznabClient : ITorznabClient
     public static void ClearCapabilitiesCache()
     {
         CapabilitiesCache.Clear();
+        FetchLocks.Clear();
     }
 
     public static void InvalidateCapabilities(string url, string apiKey = null)
     {
-        var key = GetCapabilitiesCacheKey(url, apiKey);
-        CapabilitiesCache.TryRemove(key, out _);
+        var cleanUrl = (url ?? string.Empty).Trim().TrimEnd('/');
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            var prefix = $"{cleanUrl}|";
+            foreach (var key in CapabilitiesCache.Keys)
+            {
+                if (key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    CapabilitiesCache.TryRemove(key, out _);
+                    FetchLocks.TryRemove(key, out _);
+                }
+            }
+        }
+        else
+        {
+            var key = GetCapabilitiesCacheKey(url, apiKey);
+            CapabilitiesCache.TryRemove(key, out _);
+            FetchLocks.TryRemove(key, out _);
+        }
     }
 
     public TorznabClient(
@@ -197,7 +217,9 @@ public class TorznabClient : ITorznabClient
         if (indexer != null && !string.IsNullOrWhiteSpace(indexer.Url))
         {
             var cacheKey = GetCapabilitiesCacheKey(indexer.Url, indexer.ApiKey);
-            if (CapabilitiesCache.TryGetValue(cacheKey, out var cached) && cached.Caps != null)
+            if (CapabilitiesCache.TryGetValue(cacheKey, out var cached) &&
+                cached.ExpiresAt > DateTime.UtcNow &&
+                cached.Caps != null)
             {
                 if (cached.Caps.MaxPageSize > 0 && effectiveLimit > cached.Caps.MaxPageSize)
                 {
@@ -1093,8 +1115,16 @@ public class TorznabClient : ITorznabClient
             return cached.Caps;
         }
 
+        var sem = FetchLocks.GetOrAdd(cacheKey, _ => new SemaphoreSlim(1, 1));
+        await sem.WaitAsync(cancellationToken);
         try
         {
+            if (CapabilitiesCache.TryGetValue(cacheKey, out var cachedAfterLock) && cachedAfterLock.ExpiresAt > DateTime.UtcNow && cachedAfterLock.Caps != null)
+            {
+                this.logger.Debug("Torznab capabilities cache hit (post-lock) for: {0}", indexer.Name ?? indexer.Url);
+                return cachedAfterLock.Caps;
+            }
+
             var uriBuilder = new UriBuilder(indexer.Url);
             var query = "t=caps";
             if (!string.IsNullOrWhiteSpace(indexer.ApiKey))
@@ -1127,6 +1157,10 @@ public class TorznabClient : ITorznabClient
         {
             this.logger.Error(ex, "Error fetching Torznab capabilities for: {0}", indexer.Name);
             return new TorznabCapabilities();
+        }
+        finally
+        {
+            sem.Release();
         }
     }
 
