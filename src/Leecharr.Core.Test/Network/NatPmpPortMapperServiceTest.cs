@@ -1257,4 +1257,98 @@ public class NatPmpPortMapperServiceTest
         var act = () => service.OnNetworkAddressChanged(null, EventArgs.Empty);
         act.Should().NotThrow();
     }
+
+    [Test]
+    public void SelectBestGateway_WhenBoundInterfaceDown_AndFailClosedTrue_ReturnsNull()
+    {
+        var candidates = new List<NatPmpNetworkInterfaceCandidate>
+        {
+            new(
+                Name: "eth0",
+                Description: "Intel Ethernet",
+                Id: "eth0",
+                InterfaceType: NetworkInterfaceType.Ethernet,
+                OperationalStatus: OperationalStatus.Up,
+                UnicastAddresses: new List<(IPAddress, IPAddress)> { (IPAddress.Parse("192.168.1.100"), IPAddress.Parse("255.255.255.0")) },
+                GatewayAddresses: new List<IPAddress> { IPAddress.Parse("192.168.1.1") }),
+            new(
+                Name: "tun0",
+                Description: "WireGuard Tunnel",
+                Id: "tun0",
+                InterfaceType: NetworkInterfaceType.Tunnel,
+                OperationalStatus: OperationalStatus.Down,
+                UnicastAddresses: new List<(IPAddress, IPAddress)> { (IPAddress.Parse("10.8.0.2"), IPAddress.Parse("255.255.255.0")) },
+                GatewayAddresses: new List<IPAddress> { IPAddress.Parse("10.8.0.1") }),
+        };
+
+        var selectedFailClosed = NatPmpPortMapperService.SelectBestGateway(candidates, boundInterface: "tun0", failClosed: true);
+        selectedFailClosed.Should().BeNull();
+
+        var selectedFailOpen = NatPmpPortMapperService.SelectBestGateway(candidates, boundInterface: "tun0", failClosed: false);
+        selectedFailOpen.Should().Be(IPAddress.Parse("192.168.1.1"));
+    }
+
+    [Test]
+    public void SelectBestGateway_WhenBoundInterfaceMissing_AndFailClosedTrue_ReturnsNull()
+    {
+        var candidates = new List<NatPmpNetworkInterfaceCandidate>
+        {
+            new(
+                Name: "eth0",
+                Description: "Intel Ethernet",
+                Id: "eth0",
+                InterfaceType: NetworkInterfaceType.Ethernet,
+                OperationalStatus: OperationalStatus.Up,
+                UnicastAddresses: new List<(IPAddress, IPAddress)> { (IPAddress.Parse("192.168.1.100"), IPAddress.Parse("255.255.255.0")) },
+                GatewayAddresses: new List<IPAddress> { IPAddress.Parse("192.168.1.1") }),
+        };
+
+        var selected = NatPmpPortMapperService.SelectBestGateway(candidates, boundInterface: "wg0", failClosed: true);
+        selected.Should().BeNull();
+    }
+
+    [Test]
+    public void Suspend_And_Resume_ControlsSuspendedState()
+    {
+        using var service = new NatPmpPortMapperService();
+        service.IsSuspended.Should().BeFalse();
+
+        service.Suspend();
+        service.IsSuspended.Should().BeTrue();
+
+        service.Resume();
+        service.IsSuspended.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task MapPortAsync_WhenSuspended_ReturnsFailureImmediately()
+    {
+        using var service = new NatPmpPortMapperService();
+        service.Suspend();
+
+        var result = await service.MapPortAsync(51413, NatPmpProtocol.Tcp, gateway: IPAddress.Loopback);
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("suspended");
+    }
+
+    [Test]
+    public async Task GetExternalIpAddressAsync_WhenSuspended_ReturnsNull()
+    {
+        using var service = new NatPmpPortMapperService();
+        service.Suspend();
+
+        var ip = await service.GetExternalIpAddressAsync(gateway: IPAddress.Loopback);
+        ip.Should().BeNull();
+    }
+
+    [Test]
+    public async Task CheckAndRenewMappingsAsync_WhenSuspended_SkipsRenewals()
+    {
+        using var service = new NatPmpPortMapperService();
+        service.Suspend();
+
+        var act = async () => await service.CheckAndRenewMappingsAsync();
+        await act.Should().NotThrowAsync();
+    }
 }
