@@ -1548,6 +1548,80 @@ public class MonoTorrentDownloadEngineTest
         task.Should().NotBeNull();
     }
 
+    [Test]
+    public async Task ForceRecheckAsync_WhenAnotherTorrentIsHashing_QueuesSecondTorrentSequentially()
+    {
+        var torrentBytes1 = CreateSampleSingleFileTorrentBytes("recheck1.iso");
+        var parsed1 = MonoTorrent.Torrent.Load(torrentBytes1);
+        var torrent1 = new CoreTorrent
+        {
+            Id = 501,
+            InfoHash = parsed1.InfoHashes.V1OrV2.ToHex(),
+            Name = "recheck1.iso",
+            Status = TorrentStatus.Paused,
+        };
+
+        var torrentBytes2 = CreateSampleSingleFileTorrentBytes("recheck2.iso");
+        var parsed2 = MonoTorrent.Torrent.Load(torrentBytes2);
+        var torrent2 = new CoreTorrent
+        {
+            Id = 502,
+            InfoHash = parsed2.InfoHashes.V1OrV2.ToHex(),
+            Name = "recheck2.iso",
+            Status = TorrentStatus.Paused,
+        };
+
+        await this.engine.AddTorrentAsync(torrent1, torrentFileBytes: torrentBytes1);
+        await this.engine.AddTorrentAsync(torrent2, torrentFileBytes: torrentBytes2);
+
+        var task1 = (MonoTorrentDownloadTask)this.engine.GetTask(501)!;
+        var task2 = (MonoTorrentDownloadTask)this.engine.GetTask(502)!;
+        task1.Should().NotBeNull();
+        task2.Should().NotBeNull();
+
+        var modeField = task1.Manager!.GetType().GetField("mode", BindingFlags.Instance | BindingFlags.NonPublic);
+        var originalMode = modeField!.GetValue(task1.Manager);
+        var hashingModeType = typeof(TorrentManager).Assembly.GetType("MonoTorrent.Client.Modes.HashingMode");
+        var hashingMode = Activator.CreateInstance(
+            hashingModeType!,
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+            null,
+            new object[] { task1.Manager!, task1.Manager!.Engine.DiskManager },
+            null);
+        modeField.SetValue(task1.Manager, hashingMode);
+
+        task1.Manager.State.Should().Be(TorrentState.Hashing);
+
+        // Attempt force recheck on task2 while task1 is actively hashing
+        await this.engine.ForceRecheckAsync(502);
+
+        // Task 2 should be queued for recheck and not immediately hashing
+        task2!.IsQueuedForRecheck.Should().BeTrue();
+        task2.Status.Should().Be(TorrentStatus.QueuedForChecking);
+        task2.Manager!.State.Should().NotBe(TorrentState.Hashing);
+        this.eventAggregator.Received().PublishEvent(Arg.Is<TorrentStatusChangedEvent>(e => e.Torrent.Id == 502 && e.NewStatus == TorrentStatus.QueuedForChecking));
+
+        // When task 1 completes hashing, trigger state changed
+        modeField.SetValue(task1.Manager, originalMode);
+        var args = (TorrentStateChangedEventArgs)Activator.CreateInstance(
+            typeof(TorrentStateChangedEventArgs),
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+            null,
+            new object[] { task1.Manager, TorrentState.Hashing, TorrentState.Downloading },
+            null)!;
+
+        await this.engine.HandleTorrentStateChangedAsync(args);
+
+        // Allow async Task.Run in HandleTorrentStateChangedAsync to execute ForceRecheckAsync for task2
+        var timeout = DateTime.UtcNow.AddSeconds(3);
+        while (task2.IsQueuedForRecheck && DateTime.UtcNow < timeout)
+        {
+            await Task.Delay(20);
+        }
+
+        task2.IsQueuedForRecheck.Should().BeFalse();
+    }
+
     #endregion
 
     #region Rate Limiting & File Priority Tests
