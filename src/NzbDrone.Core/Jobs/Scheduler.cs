@@ -11,6 +11,7 @@ using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Backup;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Messaging.Commands;
+using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Network;
 using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Network.GeoIp;
@@ -19,7 +20,7 @@ using NzbDrone.Core.WatchFolder;
 
 namespace NzbDrone.Core.Jobs;
 
-public class Scheduler : BackgroundService
+public class Scheduler : BackgroundService, IHandle<CommandExecutedEvent>
 {
     private readonly ITaskManager taskManager;
     private readonly IManageCommandQueue commandQueueManager;
@@ -30,6 +31,69 @@ public class Scheduler : BackgroundService
         this.taskManager = taskManager;
         this.commandQueueManager = commandQueueManager;
         this.logger = LogManager.GetCurrentClassLogger();
+    }
+
+    public static string NormalizeName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return string.Empty;
+        }
+
+        var normalized = name.Trim();
+        if (normalized.EndsWith("Command", StringComparison.OrdinalIgnoreCase))
+        {
+            normalized = normalized.Substring(0, normalized.Length - 7);
+        }
+        else if (normalized.EndsWith("Task", StringComparison.OrdinalIgnoreCase))
+        {
+            normalized = normalized.Substring(0, normalized.Length - 4);
+        }
+
+        return normalized;
+    }
+
+    public static bool IsCommandForTask(string commandName, string taskTypeName)
+    {
+        if (string.IsNullOrWhiteSpace(commandName) || string.IsNullOrWhiteSpace(taskTypeName))
+        {
+            return false;
+        }
+
+        var cmdNorm = NormalizeName(commandName);
+        var taskNorm = NormalizeName(taskTypeName);
+
+        return string.Equals(cmdNorm, taskNorm, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public void Handle(CommandExecutedEvent message)
+    {
+        if (message?.Command == null || this.taskManager == null)
+        {
+            return;
+        }
+
+        var tasks = this.taskManager.GetAll();
+        if (tasks == null)
+        {
+            return;
+        }
+
+        foreach (var task in tasks)
+        {
+            if (IsCommandForTask(message.Command.Name, task.TypeName))
+            {
+                task.LastExecution = message.Command.EndedAt ?? DateTime.UtcNow;
+                if (message.Command.StartedAt.HasValue)
+                {
+                    task.LastStartTime = message.Command.StartedAt.Value;
+                }
+
+                this.taskManager.Update(task);
+                this.logger.Debug("Updated task {0} completion from CommandExecutedEvent", task.TypeName);
+                break;
+            }
+        }
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -43,6 +107,8 @@ public class Scheduler : BackgroundService
                 var tasks = this.taskManager?.GetAll();
                 if (tasks != null)
                 {
+                    this.SyncCompletedTasks(tasks);
+
                     var now = DateTime.UtcNow;
                     foreach (var task in tasks)
                     {
@@ -51,6 +117,12 @@ public class Scheduler : BackgroundService
 
                         if (task.LastExecution == default || task.LastExecution == DateTime.MinValue || dueAt <= now)
                         {
+                            if (this.IsTaskRunningOrQueued(task))
+                            {
+                                this.logger.Debug("Scheduled task {0} is already queued or running, skipping duplicate dispatch", task.TypeName);
+                                continue;
+                            }
+
                             this.logger.Debug("Executing scheduled task: {0}", task.TypeName);
                             var startTime = DateTime.UtcNow;
                             task.LastStartTime = startTime;
@@ -63,12 +135,6 @@ public class Scheduler : BackgroundService
                             catch (Exception ex)
                             {
                                 this.logger.Error(ex, "Scheduled task dispatch failed: {0}", task.TypeName);
-                            }
-                            finally
-                            {
-                                task.LastStartTime = startTime;
-                                task.LastExecution = DateTime.UtcNow;
-                                this.taskManager.Update(task);
                             }
                         }
                     }
@@ -87,6 +153,61 @@ public class Scheduler : BackgroundService
             {
                 break;
             }
+        }
+    }
+
+    private bool IsTaskRunningOrQueued(ScheduledTask task)
+    {
+        if (this.commandQueueManager == null)
+        {
+            return false;
+        }
+
+        var queued = this.commandQueueManager.GetQueued() ?? Enumerable.Empty<CommandModel>();
+        var started = this.commandQueueManager.GetStarted() ?? Enumerable.Empty<CommandModel>();
+
+        return queued.Concat(started).Any(c => IsCommandForTask(c.Name, task.TypeName));
+    }
+
+    private void SyncCompletedTasks(IList<ScheduledTask> tasks)
+    {
+        if (this.commandQueueManager == null || tasks == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var recent = this.commandQueueManager.GetAll();
+            if (recent == null)
+            {
+                return;
+            }
+
+            foreach (var task in tasks)
+            {
+                var matching = recent
+                    .Where(c => (c.Status == CommandStatus.Completed || c.Status == CommandStatus.Failed || c.Status == CommandStatus.Cancelled)
+                                && c.EndedAt.HasValue
+                                && IsCommandForTask(c.Name, task.TypeName))
+                    .OrderByDescending(c => c.EndedAt.Value)
+                    .FirstOrDefault();
+
+                if (matching?.EndedAt != null && matching.EndedAt.Value > task.LastExecution)
+                {
+                    task.LastExecution = matching.EndedAt.Value;
+                    if (matching.StartedAt.HasValue)
+                    {
+                        task.LastStartTime = matching.StartedAt.Value;
+                    }
+
+                    this.taskManager.Update(task);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Error syncing completed commands for scheduled tasks");
         }
     }
 
