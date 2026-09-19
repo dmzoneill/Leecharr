@@ -2369,6 +2369,130 @@ public class DelugeJsonRpcControllerTest
     }
 
     [Test]
+    public async Task HandleRpc_CorePluginDispatchers_ReturnValidDelugeResponses()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "Test",
+            InfoHash = "aabbccddeeff00112233445566778899aabbccdd",
+            DownloadSpeed = 1024,
+            UploadSpeed = 512,
+            Downloaded = 10000,
+            Uploaded = 5000,
+            Seeders = 10,
+            Leechers = 5,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(100_000_000L);
+
+        // 1. Scheduler: get_config & set_config
+        using var schedGetDoc = JsonDocument.Parse("{\"method\":\"scheduler.get_config\",\"params\":[],\"id\":10}");
+        var schedGetRes = (JsonResult)await this.controller.HandleRpc(schedGetDoc.RootElement);
+        var schedGetJson = JsonSerializer.Serialize(schedGetRes.Value);
+        using var schedDoc = JsonDocument.Parse(schedGetJson);
+        var schedResult = schedDoc.RootElement.GetProperty("result");
+        schedResult.GetProperty("schedule").GetArrayLength().Should().Be(7);
+        schedResult.GetProperty("schedule")[0].GetArrayLength().Should().Be(24);
+
+        using var schedSetDoc = JsonDocument.Parse("{\"method\":\"scheduler.set_config\",\"params\":[{}],\"id\":11}");
+        var schedSetRes = (JsonResult)await this.controller.HandleRpc(schedSetDoc.RootElement);
+        var schedSetJson = JsonSerializer.Serialize(schedSetRes.Value);
+        using var schedSetDocRes = JsonDocument.Parse(schedSetJson);
+        schedSetDocRes.RootElement.GetProperty("result").GetBoolean().Should().BeTrue();
+
+        // 2. AutoAdd: get_watchdirs & set_options
+        using var autoGetDoc = JsonDocument.Parse("{\"method\":\"autoadd.get_watchdirs\",\"params\":[],\"id\":20}");
+        var autoGetRes = (JsonResult)await this.controller.HandleRpc(autoGetDoc.RootElement);
+        var autoGetJson = JsonSerializer.Serialize(autoGetRes.Value);
+        using var autoDoc = JsonDocument.Parse(autoGetJson);
+        autoDoc.RootElement.GetProperty("result").ValueKind.Should().Be(JsonValueKind.Array);
+
+        using var autoSetDoc = JsonDocument.Parse("{\"method\":\"autoadd.set_options\",\"params\":[1, {}],\"id\":21}");
+        var autoSetRes = (JsonResult)await this.controller.HandleRpc(autoSetDoc.RootElement);
+        var autoSetJson = JsonSerializer.Serialize(autoSetRes.Value);
+        using var autoSetDocRes = JsonDocument.Parse(autoSetJson);
+        autoSetDocRes.RootElement.GetProperty("result").GetBoolean().Should().BeTrue();
+
+        // 3. Blocklist: get_config & set_config & check
+        using var blockGetDoc = JsonDocument.Parse("{\"method\":\"blocklist.get_config\",\"params\":[],\"id\":30}");
+        var blockGetRes = (JsonResult)await this.controller.HandleRpc(blockGetDoc.RootElement);
+        var blockGetJson = JsonSerializer.Serialize(blockGetRes.Value);
+        using var blockDoc = JsonDocument.Parse(blockGetJson);
+        var blockResult = blockDoc.RootElement.GetProperty("result");
+        blockResult.GetProperty("list_type").GetString().Should().Be("PeerGuardian");
+
+        using var blockSetDoc = JsonDocument.Parse("{\"method\":\"blocklist.set_config\",\"params\":[{}],\"id\":31}");
+        var blockSetRes = (JsonResult)await this.controller.HandleRpc(blockSetDoc.RootElement);
+        var blockSetJson = JsonSerializer.Serialize(blockSetRes.Value);
+        using var blockSetDocRes = JsonDocument.Parse(blockSetJson);
+        blockSetDocRes.RootElement.GetProperty("result").GetBoolean().Should().BeTrue();
+
+        using var blockCheckDoc = JsonDocument.Parse("{\"method\":\"blocklist.check\",\"params\":[],\"id\":32}");
+        var blockCheckRes = (JsonResult)await this.controller.HandleRpc(blockCheckDoc.RootElement);
+        var blockCheckJson = JsonSerializer.Serialize(blockCheckRes.Value);
+        using var blockCheckDocRes = JsonDocument.Parse(blockCheckJson);
+        blockCheckDocRes.RootElement.GetProperty("result").GetProperty("status").GetString().Should().Be("Ready");
+
+        // 4. Extractor: get_config & set_config
+        using var extGetDoc = JsonDocument.Parse("{\"method\":\"extractor.get_config\",\"params\":[],\"id\":40}");
+        var extGetRes = (JsonResult)await this.controller.HandleRpc(extGetDoc.RootElement);
+        var extGetJson = JsonSerializer.Serialize(extGetRes.Value);
+        using var extDoc = JsonDocument.Parse(extGetJson);
+        var extResult = extDoc.RootElement.GetProperty("result");
+        extResult.GetProperty("extract_in_place").GetBoolean().Should().BeTrue();
+
+        using var extSetDoc = JsonDocument.Parse("{\"method\":\"extractor.set_config\",\"params\":[{}],\"id\":41}");
+        var extSetRes = (JsonResult)await this.controller.HandleRpc(extSetDoc.RootElement);
+        var extSetJson = JsonSerializer.Serialize(extSetRes.Value);
+        using var extSetDocRes = JsonDocument.Parse(extSetJson);
+        extSetDocRes.RootElement.GetProperty("result").GetBoolean().Should().BeTrue();
+
+        // 5. Execute: get_commands, add_command, remove_command
+        using var execGetDoc = JsonDocument.Parse("{\"method\":\"execute.get_commands\",\"params\":[],\"id\":50}");
+        var execGetRes = (JsonResult)await this.controller.HandleRpc(execGetDoc.RootElement);
+        var execGetJson = JsonSerializer.Serialize(execGetRes.Value);
+        using var execDoc = JsonDocument.Parse(execGetJson);
+        execDoc.RootElement.GetProperty("result").ValueKind.Should().Be(JsonValueKind.Array);
+
+        using var execAddDoc = JsonDocument.Parse("{\"method\":\"execute.add_command\",\"params\":[\"complete\", \"/bin/echo\"],\"id\":51}");
+        var execAddRes = (JsonResult)await this.controller.HandleRpc(execAddDoc.RootElement);
+        var execAddJson = JsonSerializer.Serialize(execAddRes.Value);
+        using var execAddDocRes = JsonDocument.Parse(execAddJson);
+        execAddDocRes.RootElement.GetProperty("result").GetBoolean().Should().BeTrue();
+
+        using var execRemDoc = JsonDocument.Parse("{\"method\":\"execute.remove_command\",\"params\":[\"cmd1\"],\"id\":52}");
+        var execRemRes = (JsonResult)await this.controller.HandleRpc(execRemDoc.RootElement);
+        var execRemJson = JsonSerializer.Serialize(execRemRes.Value);
+        using var execRemDocRes = JsonDocument.Parse(execRemJson);
+        execRemDocRes.RootElement.GetProperty("result").GetBoolean().Should().BeTrue();
+
+        // 6. Stats: get_stats (all) and get_stats (filtered)
+        using var statsAllDoc = JsonDocument.Parse("{\"method\":\"stats.get_stats\",\"params\":[],\"id\":60}");
+        var statsAllRes = (JsonResult)await this.controller.HandleRpc(statsAllDoc.RootElement);
+        var statsAllJson = JsonSerializer.Serialize(statsAllRes.Value);
+        using var statsAllDocRes = JsonDocument.Parse(statsAllJson);
+        var statsResult = statsAllDocRes.RootElement.GetProperty("result");
+        statsResult.GetProperty("download_rate").GetInt64().Should().Be(1024);
+        statsResult.GetProperty("upload_rate").GetInt64().Should().Be(512);
+        statsResult.GetProperty("num_connections").GetInt32().Should().Be(15);
+        statsResult.GetProperty("num_torrents").GetInt32().Should().Be(1);
+
+        using var statsFilteredDoc = JsonDocument.Parse("{\"method\":\"stats.get_stats\",\"params\":[[\"download_rate\", \"upload_rate\"]],\"id\":61}");
+        var statsFilteredRes = (JsonResult)await this.controller.HandleRpc(statsFilteredDoc.RootElement);
+        var statsFilteredJson = JsonSerializer.Serialize(statsFilteredRes.Value);
+        using var statsFilteredDocRes = JsonDocument.Parse(statsFilteredJson);
+        var statsFilteredResult = statsFilteredDocRes.RootElement.GetProperty("result");
+        statsFilteredResult.GetProperty("download_rate").GetInt64().Should().Be(1024);
+        statsFilteredResult.GetProperty("upload_rate").GetInt64().Should().Be(512);
+        statsFilteredResult.TryGetProperty("num_torrents", out _).Should().BeFalse();
+    }
+
+    [Test]
     public async Task HandleRpc_GetTorrentStatus_WhenPausedCompleted_ReturnsIsSeedTrue()
     {
         var context = new DefaultHttpContext();
