@@ -67,6 +67,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private readonly ConcurrentDictionary<int, MonoTorrentDownloadTask> tasks = new();
     private readonly ConcurrentDictionary<string, int> infoHashToId = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentBag<int> interruptedTorrentIds = new();
+    private readonly ConcurrentDictionary<int, byte> schedulerPausedTorrentIds = new();
     private readonly object pendingTorrentsLock = new();
     private readonly List<(CoreTorrent Torrent, byte[] TorrentFileBytes, string MagnetUri)> pendingTorrents = new();
     private readonly List<FilteringPeerConnectionListener> activePeerListeners = new();
@@ -123,6 +124,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     public long BlockedPeersCount => Interlocked.Read(ref this.blockedPeersCount);
 
     public int ActiveTorrentsCount => this.tasks.Count;
+
+    public IReadOnlyCollection<int> SchedulerPausedTorrentIds => this.schedulerPausedTorrentIds.Keys.ToList();
 
     public string ProtocolName => "BitTorrent";
 
@@ -1333,6 +1336,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     public async Task RemoveTorrentAsync(int torrentId, bool deleteFiles)
     {
+        this.schedulerPausedTorrentIds.TryRemove(torrentId, out _);
+
         lock (this.pendingTorrentsLock)
         {
             this.pendingTorrents.RemoveAll(p => p.Torrent?.Id == torrentId);
@@ -1496,6 +1501,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
         {
+            this.schedulerPausedTorrentIds.TryRemove(torrentId, out _);
             task.WasAutoPausedByDiskSpace = false;
             await task.Manager.PauseAsync();
             this.logger.Info("Paused torrent id {0}", torrentId);
@@ -1559,11 +1565,14 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     public async Task PauseAllTorrentsAsync()
     {
+        this.schedulerPausedTorrentIds.Clear();
+
         foreach (var task in this.tasks.Values)
         {
             task.WasAutoPausedByDiskSpace = false;
             if (task.Manager != null && task.Manager.State is not (TorrentState.Stopped or TorrentState.Paused))
             {
+                this.schedulerPausedTorrentIds.TryAdd(task.TorrentId, 0);
                 try
                 {
                     await task.Manager.PauseAsync();
@@ -1579,7 +1588,72 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     public Task PauseAllAsync() => this.PauseAllTorrentsAsync();
 
+    public Task PauseForSchedulerAsync() => this.PauseAllTorrentsAsync();
+
     public Task ResumeAllAsync() => this.ResumeAllTorrentsAsync();
+
+    public async Task ResumeFromSchedulerAsync()
+    {
+        if (this.isHaltedByKillSwitch)
+        {
+            this.logger.Warn("Cannot resume torrents from scheduler: VPN Kill Switch is active (fail-closed).");
+            return;
+        }
+
+        var thresholdMb = this.configService?.LowDiskSpaceThresholdMb > 0 ? this.configService.LowDiskSpaceThresholdMb : 500;
+        var thresholdBytes = thresholdMb * 1024L * 1024L;
+
+        var toResume = this.schedulerPausedTorrentIds.Keys.ToList();
+        this.schedulerPausedTorrentIds.Clear();
+
+        foreach (var torrentId in toResume)
+        {
+            if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
+            {
+                if (task.Status is TorrentStatus.Stopped or TorrentStatus.Completed)
+                {
+                    this.logger.Info("Skipping scheduler resume for torrent id {0}: torrent status is {1}", torrentId, task.Status);
+                    continue;
+                }
+
+                var targetPath = task.WorkingPath ?? task.SavePath ?? task.Manager.SavePath;
+                if (!string.IsNullOrWhiteSpace(targetPath) && task.Progress < 1.0)
+                {
+                    var availableSpace = this.diskProvider.GetAvailableSpace(targetPath);
+                    if (availableSpace.HasValue && availableSpace.Value < thresholdBytes)
+                    {
+                        task.SetStorageFull($"StorageFull: Free disk space dropped below threshold ({availableSpace.Value / (1024 * 1024)} MB available, {thresholdMb} MB required).", this.eventAggregator);
+                        this.logger.Warn("Skipping resume for torrent id {0}: Insufficient free disk space.", task.TorrentId);
+                        continue;
+                    }
+                }
+
+                try
+                {
+                    task.ClearStorageFull(this.eventAggregator);
+                    task.ClearTrackerStalled(this.eventAggregator);
+                    await task.Manager.StartAsync();
+                    try
+                    {
+                        if (task.Manager.TrackerManager != null)
+                        {
+                            _ = this.AnnounceTrackersAsync(task.Manager, task.TorrentId, isResumeOrStartup: true);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Debug(ex, "Failed to announce tracker on resume for torrent {0}", task.TorrentId);
+                    }
+
+                    this.logger.Info("Resumed torrent id {0} from speed scheduler", task.TorrentId);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to resume torrent id {0} from speed scheduler", task.TorrentId);
+                }
+            }
+        }
+    }
 
     public async Task ResumeAllTorrentsAsync()
     {
