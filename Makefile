@@ -1,7 +1,7 @@
 .PHONY: setup test-setup test integration build clean restore frontend \
        stack-init stack-build stack-up stack-down stack-configure stack-healthy stack-rebuild stack-clean \
        test-unit test-integration test-all publish coverage-report hooks lint format \
-       quality-report container-build
+       quality-report container-build container-build-test
 
 SOLUTION := src/Leecharr.sln
 UNIT_TEST := src/Leecharr.Core.Test/Leecharr.Core.Test.csproj
@@ -163,3 +163,6 @@ quality-report:
 
 container-build:
 	podman build -t leecharr:latest -f Containerfile . || docker build -t leecharr:latest -f Containerfile .
+
+container-build-test:
+	podman build --target test --build-arg COVERAGE_TOOLS=true -t leecharr:test -f Containerfile . || docker build --target test --build-arg COVERAGE_TOOLS=true -t leecharr:test -f Containerfile .
