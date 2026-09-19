@@ -29,7 +29,14 @@ export interface TorrentContextMenuProps {
 }
 
 function buildMagnetLink(t: Torrent): string {
-  let magnet = `magnet:?xt=urn:btih:${t.infoHash}&dn=${encodeURIComponent(t.name)}`;
+  const hash = t.infoHash?.trim() || "";
+  let xt = `urn:btih:${hash}`;
+  if (hash.length === 64) {
+    xt = `urn:btmh:1220${hash}`;
+  } else if (hash.length === 68 && hash.toLowerCase().startsWith("1220")) {
+    xt = `urn:btmh:${hash}`;
+  }
+  let magnet = `magnet:?xt=${xt}&dn=${encodeURIComponent(t.name)}`;
   if (t.trackerUrl) magnet += `&tr=${encodeURIComponent(t.trackerUrl)}`;
   return magnet;
 }

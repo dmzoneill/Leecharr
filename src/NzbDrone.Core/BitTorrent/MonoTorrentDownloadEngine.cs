@@ -1060,9 +1060,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     }
                     else if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
                     {
-                        var magnetString = !string.IsNullOrWhiteSpace(torrent.TrackerUrl)
-                            ? $"magnet:?xt=urn:btih:{torrent.InfoHash}&tr={Uri.EscapeDataString(torrent.TrackerUrl)}"
-                            : $"magnet:?xt=urn:btih:{torrent.InfoHash}";
+                        var trackers = !string.IsNullOrWhiteSpace(torrent.TrackerUrl) ? new[] { torrent.TrackerUrl } : null;
+                        var magnetString = MagnetLinkParser.BuildMagnetUri(torrent.InfoHash, trackers: trackers);
                         var magnetLink = MagnetLink.Parse(magnetString);
                         manager = await this.engine.AddStreamingAsync(magnetLink, workingPath, torrentSettings);
                     }
@@ -1099,9 +1098,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     }
                     else if (!string.IsNullOrWhiteSpace(torrent.InfoHash))
                     {
-                        var magnetString = !string.IsNullOrWhiteSpace(torrent.TrackerUrl)
-                            ? $"magnet:?xt=urn:btih:{torrent.InfoHash}&tr={Uri.EscapeDataString(torrent.TrackerUrl)}"
-                            : $"magnet:?xt=urn:btih:{torrent.InfoHash}";
+                        var trackers = !string.IsNullOrWhiteSpace(torrent.TrackerUrl) ? new[] { torrent.TrackerUrl } : null;
+                        var magnetString = MagnetLinkParser.BuildMagnetUri(torrent.InfoHash, trackers: trackers);
                         var magnetLink = MagnetLink.Parse(magnetString);
                         manager = await this.engine.AddAsync(magnetLink, workingPath, torrentSettings);
                     }

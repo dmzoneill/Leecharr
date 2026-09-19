@@ -2,6 +2,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using System.Web;
 
 namespace NzbDrone.Core.Torrents;
@@ -149,6 +151,52 @@ public static class MagnetLinkParser
         }
 
         return result;
+    }
+
+    public static string BuildMagnetUri(string infoHash, string name = null, IEnumerable<string> trackers = null, string v2InfoHash = null)
+    {
+        var sb = new StringBuilder("magnet:?");
+        var clean = infoHash?.Trim();
+        if (!string.IsNullOrEmpty(clean))
+        {
+            if (clean.Length == 64 && IsValidHex(clean))
+            {
+                sb.Append($"xt=urn:btmh:1220{clean.ToLowerInvariant()}");
+            }
+            else if (clean.Length == 68 && clean.StartsWith("1220", StringComparison.OrdinalIgnoreCase) && IsValidHex(clean))
+            {
+                sb.Append($"xt=urn:btmh:{clean.ToLowerInvariant()}");
+            }
+            else
+            {
+                sb.Append($"xt=urn:btih:{clean.ToLowerInvariant()}");
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(v2InfoHash))
+        {
+            var cleanV2 = v2InfoHash.Trim();
+            var v2Btmh = cleanV2.StartsWith("1220", StringComparison.OrdinalIgnoreCase) ? cleanV2 : $"1220{cleanV2}";
+            var prefix = sb.Length > 8 ? "&" : string.Empty;
+            sb.Append($"{prefix}xt=urn:btmh:{v2Btmh.ToLowerInvariant()}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            var prefix = sb.Length > 8 ? "&" : string.Empty;
+            sb.Append($"{prefix}dn={Uri.EscapeDataString(name)}");
+        }
+
+        if (trackers != null)
+        {
+            foreach (var tr in trackers.Where(t => !string.IsNullOrWhiteSpace(t)).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                var prefix = sb.Length > 8 ? "&" : string.Empty;
+                sb.Append($"{prefix}tr={Uri.EscapeDataString(tr)}");
+            }
+        }
+
+        return sb.ToString();
     }
 
     public static string NormalizeInfoHash(string infoHash)

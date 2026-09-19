@@ -2267,29 +2267,11 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
             trackerListStr = torrent.TrackerUrl;
         }
 
-        var magnetBuilder = new StringBuilder();
-        magnetBuilder.Append("magnet:?xt=urn:btih:").Append(torrent.InfoHash ?? string.Empty);
-        if (!string.IsNullOrWhiteSpace(torrent.Name))
-        {
-            magnetBuilder.Append("&dn=").Append(Uri.EscapeDataString(torrent.Name));
-        }
+        var trackers = dbTrackers.Count > 0
+            ? dbTrackers.Select(trk => trk.Url)
+            : (!string.IsNullOrWhiteSpace(torrent.TrackerUrl) ? new[] { torrent.TrackerUrl } : null);
 
-        if (dbTrackers.Count > 0)
-        {
-            foreach (var trk in dbTrackers)
-            {
-                if (!string.IsNullOrWhiteSpace(trk.Url))
-                {
-                    magnetBuilder.Append("&tr=").Append(Uri.EscapeDataString(trk.Url));
-                }
-            }
-        }
-        else if (!string.IsNullOrWhiteSpace(torrent.TrackerUrl))
-        {
-            magnetBuilder.Append("&tr=").Append(Uri.EscapeDataString(torrent.TrackerUrl));
-        }
-
-        var magnetLink = magnetBuilder.ToString();
+        var magnetLink = MagnetLinkParser.BuildMagnetUri(torrent.InfoHash, torrent.Name, trackers);
 
         return new TransmissionTrackerMapping(trackersList, trackerStatsList, trackerListStr, magnetLink);
     }

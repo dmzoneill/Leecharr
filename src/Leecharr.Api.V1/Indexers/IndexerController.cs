@@ -676,7 +676,7 @@ public class IndexerController : Controller
 
         if (torrent == null && !string.IsNullOrWhiteSpace(request.InfoHash))
         {
-            var fallbackMagnet = $"magnet:?xt=urn:btih:{request.InfoHash.Trim()}&dn={Uri.EscapeDataString(request.Title ?? request.InfoHash.Trim())}";
+            var fallbackMagnet = MagnetLinkParser.BuildMagnetUri(request.InfoHash.Trim(), request.Title ?? request.InfoHash.Trim());
             try
             {
                 torrent = await this.torrentService.AddFromMagnetAsync(fallbackMagnet, request.Category, request.SavePath, request.StartPaused);
@@ -1189,6 +1189,18 @@ public class IndexerController : Controller
 
         if (!string.IsNullOrWhiteSpace(magnetUrl))
         {
+            try
+            {
+                var parsed = MagnetLinkParser.Parse(magnetUrl);
+                if (!string.IsNullOrWhiteSpace(parsed.InfoHash))
+                {
+                    return parsed.InfoHash.ToLowerInvariant();
+                }
+            }
+            catch
+            {
+            }
+
             var match = MagnetBtihRegex.Match(magnetUrl);
             if (match.Success)
             {

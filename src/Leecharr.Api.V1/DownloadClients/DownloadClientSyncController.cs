@@ -81,7 +81,7 @@ public class DownloadClientSyncController : Controller
                             {
                                 var category = !string.IsNullOrWhiteSpace(item.Category) ? item.Category : client.Category;
                                 var savePath = !string.IsNullOrWhiteSpace(item.SavePath) ? item.SavePath : null;
-                                var magnetUri = $"magnet:?xt=urn:btih:{item.InfoHash}";
+                                var magnetUri = MagnetLinkParser.BuildMagnetUri(item.InfoHash);
 
                                 await this.torrentService.AddFromMagnetAsync(magnetUri, category, savePath, false);
                                 syncedCount++;

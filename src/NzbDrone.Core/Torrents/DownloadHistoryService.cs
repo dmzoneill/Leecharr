@@ -558,18 +558,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             {
                 if (!string.IsNullOrWhiteSpace(entry.InfoHash))
                 {
-                    var magnetBuilder = new StringBuilder($"magnet:?xt=urn:btih:{entry.InfoHash}");
-                    if (!string.IsNullOrWhiteSpace(entry.Title))
-                    {
-                        magnetBuilder.Append($"&dn={Uri.EscapeDataString(entry.Title)}");
-                    }
-
-                    foreach (var tr in allHistoryTrackers.Distinct(StringComparer.OrdinalIgnoreCase))
-                    {
-                        magnetBuilder.Append($"&tr={Uri.EscapeDataString(tr)}");
-                    }
-
-                    magnetUri = magnetBuilder.ToString();
+                    magnetUri = MagnetLinkParser.BuildMagnetUri(entry.InfoHash, entry.Title, allHistoryTrackers);
                 }
             }
         }

@@ -302,13 +302,10 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             {
                 addArgs["filename"] = magnetUri;
             }
-            else if (!string.IsNullOrWhiteSpace(torrent.TrackerUrl))
-            {
-                addArgs["filename"] = $"magnet:?xt=urn:btih:{torrent.InfoHash}&tr={Uri.EscapeDataString(torrent.TrackerUrl)}";
-            }
             else
             {
-                addArgs["filename"] = $"magnet:?xt=urn:btih:{torrent.InfoHash}";
+                var trackers = !string.IsNullOrWhiteSpace(torrent.TrackerUrl) ? new[] { torrent.TrackerUrl } : null;
+                addArgs["filename"] = MagnetLinkParser.BuildMagnetUri(torrent.InfoHash, trackers: trackers);
             }
 
             var response = await this.SendRpcRequestAsync("torrent-add", addArgs);

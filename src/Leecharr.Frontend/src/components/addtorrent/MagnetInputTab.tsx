@@ -13,8 +13,30 @@ export function parseMagnetPreview(uri: string): MagnetInfo | null {
   try {
     const rawParams = trimmed.substring(8);
     const params = new URLSearchParams(rawParams);
-    const xt = params.get("xt") || "";
-    const hash = xt.replace(/^urn:btih:/i, "").substring(0, 40);
+    const xts = params.getAll("xt");
+    let hash: string | undefined;
+
+    for (const xt of xts) {
+      if (/^urn:btmh:1220/i.test(xt)) {
+        hash = hash || xt.replace(/^urn:btmh:1220/i, "").substring(0, 64);
+      } else if (/^urn:btmh:/i.test(xt)) {
+        hash = hash || xt.replace(/^urn:btmh:/i, "").substring(0, 64);
+      } else if (/^urn:btih:/i.test(xt)) {
+        hash = xt.replace(/^urn:btih:/i, "").substring(0, 40);
+        break;
+      }
+    }
+
+    if (!hash && params.get("xt")) {
+      const xt = params.get("xt") || "";
+      if (/^urn:btmh:1220/i.test(xt)) {
+        hash = xt.replace(/^urn:btmh:1220/i, "").substring(0, 64);
+      } else if (/^urn:btmh:/i.test(xt)) {
+        hash = xt.replace(/^urn:btmh:/i, "").substring(0, 64);
+      } else if (/^urn:btih:/i.test(xt)) {
+        hash = xt.replace(/^urn:btih:/i, "").substring(0, 40);
+      }
+    }
     const name = params.get("dn") || undefined;
     const trackers = params.getAll("tr");
     return {

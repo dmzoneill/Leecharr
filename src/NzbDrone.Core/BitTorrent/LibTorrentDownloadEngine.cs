@@ -248,13 +248,10 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             {
                 addArgs["url"] = magnetUri;
             }
-            else if (!string.IsNullOrWhiteSpace(torrent.TrackerUrl))
-            {
-                addArgs["url"] = $"magnet:?xt=urn:btih:{torrent.InfoHash}&tr={Uri.EscapeDataString(torrent.TrackerUrl)}";
-            }
             else
             {
-                addArgs["url"] = $"magnet:?xt=urn:btih:{torrent.InfoHash}";
+                var trackers = !string.IsNullOrWhiteSpace(torrent.TrackerUrl) ? new[] { torrent.TrackerUrl } : null;
+                addArgs["url"] = MagnetLinkParser.BuildMagnetUri(torrent.InfoHash, trackers: trackers);
             }
 
             await this.SendRpcRequestAsync("add_torrent", addArgs);
