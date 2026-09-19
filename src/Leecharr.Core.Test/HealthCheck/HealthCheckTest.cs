@@ -8,6 +8,7 @@ using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.ArrIntegration;
 using NzbDrone.Core.BitTorrent;
+using NzbDrone.Core.Configuration;
 using NzbDrone.Core.DiskSpace;
 using NzbDrone.Core.Extraction;
 using NzbDrone.Core.HealthCheck;
@@ -231,6 +232,26 @@ public class HealthCheckTest
         result.Type.Should().Be(HealthCheckResultType.Error);
         result.Source.Should().Be("DiskSpace");
         result.Message.Should().Contain("Critically low disk space");
+    }
+
+    [Test]
+    public async Task DiskSpaceHealthCheck_ReturnsWarning_WhenDiskSpaceBetweenCriticalAndConfiguredWarning()
+    {
+        var diskService = Substitute.For<IDiskSpaceService>();
+        diskService.GetDiskSpace().Returns(new List<DiskSpaceInfo>
+        {
+            new DiskSpaceInfo { Path = "/downloads", FreeSpace = 350L * 1024 * 1024, TotalSpace = 100L * 1024 * 1024 * 1024 },
+        });
+
+        var configService = Substitute.For<IConfigService>();
+        configService.LowDiskSpaceThresholdMb.Returns(500);
+
+        var check = new DiskSpaceHealthCheck(diskService, configService);
+        var result = await check.CheckAsync();
+
+        result.Type.Should().Be(HealthCheckResultType.Warning);
+        result.Source.Should().Be("DiskSpace");
+        result.Message.Should().Contain("Low disk space");
     }
 
     [Test]
