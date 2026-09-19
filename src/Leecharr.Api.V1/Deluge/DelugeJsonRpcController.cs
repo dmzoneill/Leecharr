@@ -332,34 +332,249 @@ public class DelugeJsonRpcController : ControllerBase
     {
         var lowerMethod = method.ToLowerInvariant();
 
-        if (lowerMethod.EndsWith(".get_config") ||
-            lowerMethod.EndsWith(".get_options") ||
-            lowerMethod.EndsWith(".get_status") ||
-            lowerMethod.EndsWith(".get_info") ||
-            lowerMethod.EndsWith(".status") ||
-            lowerMethod.EndsWith(".get_stats"))
+        if (lowerMethod.StartsWith("scheduler."))
         {
-            return this.DelugeResult(new { result = new Dictionary<string, object>(), error = (object)null, id });
+            return this.HandleSchedulerRpc(lowerMethod, args, id);
         }
 
-        if (lowerMethod.EndsWith(".get_commands") ||
-            lowerMethod.EndsWith(".get_watchdirs"))
+        if (lowerMethod.StartsWith("autoadd."))
         {
-            return this.DelugeResult(new { result = Array.Empty<object>(), error = (object)null, id });
+            return this.HandleAutoAddRpc(lowerMethod, args, id);
         }
 
-        if (lowerMethod.EndsWith(".set_config") ||
-            lowerMethod.EndsWith(".set_options") ||
-            lowerMethod.EndsWith(".check") ||
-            lowerMethod.EndsWith(".import") ||
-            lowerMethod.EndsWith(".extract") ||
-            lowerMethod.EndsWith(".enable") ||
-            lowerMethod.EndsWith(".disable"))
+        if (lowerMethod.StartsWith("blocklist."))
         {
-            return this.DelugeResult(new { result = true, error = (object)null, id });
+            return this.HandleBlocklistRpc(lowerMethod, args, id);
+        }
+
+        if (lowerMethod.StartsWith("extractor."))
+        {
+            return this.HandleExtractorRpc(lowerMethod, args, id);
+        }
+
+        if (lowerMethod.StartsWith("execute."))
+        {
+            return this.HandleExecuteRpc(lowerMethod, args, id);
+        }
+
+        if (lowerMethod.StartsWith("stats."))
+        {
+            return this.HandleStatsRpc(lowerMethod, args, id);
         }
 
         return this.DelugeResult(new { result = new Dictionary<string, object>(), error = (object)null, id });
+    }
+
+    private IActionResult HandleSchedulerRpc(string method, JsonElement args, object id)
+    {
+        switch (method)
+        {
+            case "scheduler.get_config":
+                var scheduleMatrix = new List<List<int>>();
+                for (var day = 0; day < 7; day++)
+                {
+                    var dayRow = new List<int>();
+                    for (var hour = 0; hour < 24; hour++)
+                    {
+                        dayRow.Add(0);
+                    }
+
+                    scheduleMatrix.Add(dayRow);
+                }
+
+                var config = new Dictionary<string, object>
+                {
+                    ["enabled"] = false,
+                    ["low_down"] = -1.0,
+                    ["low_up"] = -1.0,
+                    ["low_active"] = -1,
+                    ["button_state"] = 0,
+                    ["schedule"] = scheduleMatrix,
+                };
+                return this.DelugeResult(new { result = config, error = (object)null, id });
+
+            case "scheduler.set_config":
+            case "scheduler.enable":
+            case "scheduler.disable":
+                return this.DelugeResult(new { result = true, error = (object)null, id });
+
+            default:
+                return this.DelugeResult(new { result = true, error = (object)null, id });
+        }
+    }
+
+    private IActionResult HandleAutoAddRpc(string method, JsonElement args, object id)
+    {
+        switch (method)
+        {
+            case "autoadd.get_watchdirs":
+                return this.DelugeResult(new { result = new List<object>(), error = (object)null, id });
+
+            case "autoadd.set_options":
+            case "autoadd.set_config":
+            case "autoadd.enable":
+            case "autoadd.disable":
+                return this.DelugeResult(new { result = true, error = (object)null, id });
+
+            default:
+                return this.DelugeResult(new { result = true, error = (object)null, id });
+        }
+    }
+
+    private IActionResult HandleBlocklistRpc(string method, JsonElement args, object id)
+    {
+        switch (method)
+        {
+            case "blocklist.get_config":
+                var blocklistConfig = new Dictionary<string, object>
+                {
+                    ["url"] = string.Empty,
+                    ["load_on_start"] = false,
+                    ["check_after_days"] = 4,
+                    ["timeout"] = 180,
+                    ["try_times"] = 3,
+                    ["list_type"] = "PeerGuardian",
+                    ["list_compression"] = string.Empty,
+                    ["last_update"] = 0,
+                    ["file_date"] = 0,
+                    ["file_size"] = 0,
+                    ["file_url"] = string.Empty,
+                };
+                return this.DelugeResult(new { result = blocklistConfig, error = (object)null, id });
+
+            case "blocklist.set_config":
+            case "blocklist.import":
+                return this.DelugeResult(new { result = true, error = (object)null, id });
+
+            case "blocklist.check":
+            case "blocklist.get_status":
+            case "blocklist.status":
+                var status = new Dictionary<string, object>
+                {
+                    ["status"] = "Ready",
+                    ["num_blocked"] = 0,
+                    ["file_size"] = 0,
+                    ["file_date"] = 0,
+                };
+                return this.DelugeResult(new { result = status, error = (object)null, id });
+
+            default:
+                return this.DelugeResult(new { result = true, error = (object)null, id });
+        }
+    }
+
+    private IActionResult HandleExtractorRpc(string method, JsonElement args, object id)
+    {
+        switch (method)
+        {
+            case "extractor.get_config":
+                var extractorConfig = new Dictionary<string, object>
+                {
+                    ["dest"] = this.configService?.DownloadDir ?? "/downloads",
+                    ["use_dest"] = false,
+                    ["extract_in_place"] = true,
+                };
+                return this.DelugeResult(new { result = extractorConfig, error = (object)null, id });
+
+            case "extractor.set_config":
+            case "extractor.extract":
+                return this.DelugeResult(new { result = true, error = (object)null, id });
+
+            default:
+                return this.DelugeResult(new { result = true, error = (object)null, id });
+        }
+    }
+
+    private IActionResult HandleExecuteRpc(string method, JsonElement args, object id)
+    {
+        switch (method)
+        {
+            case "execute.get_commands":
+                return this.DelugeResult(new { result = new List<object>(), error = (object)null, id });
+
+            case "execute.add_command":
+            case "execute.remove_command":
+            case "execute.set_config":
+                return this.DelugeResult(new { result = true, error = (object)null, id });
+
+            default:
+                return this.DelugeResult(new { result = true, error = (object)null, id });
+        }
+    }
+
+    private IActionResult HandleStatsRpc(string method, JsonElement args, object id)
+    {
+        var torrents = this.torrentService.GetAll().ToList();
+        var dlSpeed = torrents.Sum(t => t.DownloadSpeed);
+        var ulSpeed = torrents.Sum(t => t.UploadSpeed);
+        var totalDownloaded = torrents.Sum(t => t.Downloaded);
+        var totalUploaded = torrents.Sum(t => t.Uploaded);
+        var numTorrents = torrents.Count;
+        var numConnectedPeers = torrents.Sum(t => t.Seeders + t.Leechers);
+        var freeSpace = this.GetDriveFreeSpace(this.configService?.DownloadDir);
+        var maxDl = (this.configService?.MaxDownloadSpeedKbps ?? 0) * 1024L;
+        var maxUl = (this.configService?.MaxUploadSpeedKbps ?? 0) * 1024L;
+
+        var stats = new Dictionary<string, object>
+        {
+            ["download_rate"] = dlSpeed,
+            ["upload_rate"] = ulSpeed,
+            ["num_connections"] = numConnectedPeers,
+            ["dht_nodes"] = 0,
+            ["free_space"] = freeSpace,
+            ["total_download"] = totalDownloaded,
+            ["total_upload"] = totalUploaded,
+            ["num_torrents"] = numTorrents,
+            ["max_download"] = maxDl,
+            ["max_upload"] = maxUl,
+        };
+
+        if (args.ValueKind == JsonValueKind.Array && args.GetArrayLength() > 0)
+        {
+            var requestedKeys = new List<string>();
+            var firstElem = args[0];
+            if (firstElem.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var k in firstElem.EnumerateArray())
+                {
+                    if (k.ValueKind == JsonValueKind.String)
+                    {
+                        var keyStr = k.GetString();
+                        if (!string.IsNullOrEmpty(keyStr))
+                        {
+                            requestedKeys.Add(keyStr);
+                        }
+                    }
+                }
+            }
+            else if (firstElem.ValueKind == JsonValueKind.String)
+            {
+                foreach (var k in args.EnumerateArray())
+                {
+                    if (k.ValueKind == JsonValueKind.String)
+                    {
+                        var keyStr = k.GetString();
+                        if (!string.IsNullOrEmpty(keyStr))
+                        {
+                            requestedKeys.Add(keyStr);
+                        }
+                    }
+                }
+            }
+
+            if (requestedKeys.Count > 0)
+            {
+                var filteredStats = new Dictionary<string, object>();
+                foreach (var key in requestedKeys)
+                {
+                    filteredStats[key] = stats.TryGetValue(key, out var val) ? val : 0;
+                }
+
+                return this.DelugeResult(new { result = filteredStats, error = (object)null, id });
+            }
+        }
+
+        return this.DelugeResult(new { result = stats, error = (object)null, id });
     }
 
     private IActionResult HandleAuthLogin(JsonElement paramsElem, object id)
