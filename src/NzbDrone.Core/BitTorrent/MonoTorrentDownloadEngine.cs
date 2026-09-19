@@ -455,14 +455,17 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var cachePolicy = this.GetConfiguredCachePolicy();
         var fastResumeMode = this.GetConfiguredFastResumeMode();
 
-        var isProxyConfigured = this.configService.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
-            !string.IsNullOrWhiteSpace(this.configService.ProxyHost);
-        var isProxyActive = isProxyConfigured || this.configService.ForceProxy || (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider);
+        var isProxyActive = this.IsProxyActive();
+        var allowLpd = !isProxyActive && !hasSpecificInterface && !isKillSwitchEnabled && this.configService.EnableLpd;
+        if (this.configService.EnableLpd && !allowLpd && (hasSpecificInterface || isKillSwitchEnabled))
+        {
+            this.logger.Info("Local Peer Discovery (LPD) disabled to prevent multicast UDP infohash leaks over physical LAN adapters while bound to VPN interface or kill switch.");
+        }
 
         var engineSettingsBuilder = new EngineSettingsBuilder
         {
             AllowPortForwarding = this.configService.UpnpEnabled,
-            AllowLocalPeerDiscovery = !isProxyActive && this.configService.EnableLpd,
+            AllowLocalPeerDiscovery = allowLpd,
             AllowHaveSuppression = this.configService.ExtensionLtDontHave,
             AllowedEncryption = allowedEncryption,
             AutoSaveLoadFastResume = true,
@@ -3429,9 +3432,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     var settingsBuilder = new EngineSettingsBuilder(this.engine.Settings)
                     {
                         DhtEndPoint = null,
+                        AllowLocalPeerDiscovery = false,
                     };
                     await this.engine.UpdateSettingsAsync(settingsBuilder.ToSettings()).ConfigureAwait(false);
-                    this.logger.Info("Disabled DHT endpoint following VPN kill switch halt");
+                    this.logger.Info("Disabled DHT endpoint and LPD following VPN kill switch halt");
                 }
                 catch (Exception ex)
                 {
@@ -3559,9 +3563,14 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
         }
 
-        var isProxyConfigured = this.configService.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
-            !string.IsNullOrWhiteSpace(this.configService.ProxyHost);
-        var isProxyActive = isProxyConfigured || this.configService.ForceProxy || (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider);
+        var isKillSwitchEnabled = this.IsVpnKillSwitchActive();
+        var isProxyActive = this.IsProxyActive();
+        var allowLpd = !isProxyActive && !hasSpecificInterface && !isKillSwitchEnabled && this.configService.EnableLpd;
+
+        if (this.configService.EnableLpd && !allowLpd && (hasSpecificInterface || isKillSwitchEnabled))
+        {
+            this.logger.Info("Local Peer Discovery (LPD) disabled to prevent multicast UDP infohash leaks over physical LAN adapters while bound to VPN interface or kill switch.");
+        }
 
         var newSettingsBuilder = new EngineSettingsBuilder(this.engine.Settings)
         {
@@ -3570,11 +3579,40 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             DiskCacheBytes = this.CalculateDynamicDiskCacheBytes(this.engine.TotalDownloadRate),
             DiskCachePolicy = this.GetConfiguredCachePolicy(),
             FastResumeMode = this.GetConfiguredFastResumeMode(),
-            AllowLocalPeerDiscovery = !isProxyActive && this.configService.EnableLpd,
+            AllowLocalPeerDiscovery = allowLpd,
         };
 
         await this.engine.UpdateSettingsAsync(newSettingsBuilder.ToSettings()).ConfigureAwait(false);
         this.logger.Info("Updated MonoTorrent engine listening endpoints to {0}:{1}", listenIp, port);
+    }
+
+    private bool IsSpecificInterfaceBound()
+    {
+        var iface = !string.IsNullOrWhiteSpace(this.configService.NetworkInterfaceBinding)
+            ? this.configService.NetworkInterfaceBinding
+            : this.configService.BindInterface;
+
+        return !string.IsNullOrWhiteSpace(iface) &&
+            !string.Equals(iface, "Any", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool IsVpnKillSwitchActive()
+    {
+        return this.configService.EnableVpnKillSwitch ||
+            (this.vpnKillSwitchService?.IsKillSwitchEnabled ?? false);
+    }
+
+    private bool IsProxyActive()
+    {
+        var isProxyConfigured = this.configService.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
+            !string.IsNullOrWhiteSpace(this.configService.ProxyHost);
+        return isProxyConfigured || this.configService.ForceProxy || (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider);
+    }
+
+    private bool IsLocalPeerDiscoveryAllowed()
+    {
+        return !this.IsProxyActive() && !this.IsSpecificInterfaceBound() && !this.IsVpnKillSwitchActive() && this.configService.EnableLpd;
     }
 
     private IPAddress GetBoundLocalIp(AddressFamily family)
@@ -3729,6 +3767,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 DiskCacheBytes = this.CalculateDynamicDiskCacheBytes(this.engine.TotalDownloadRate),
                 DiskCachePolicy = this.GetConfiguredCachePolicy(),
                 FastResumeMode = this.GetConfiguredFastResumeMode(),
+                AllowLocalPeerDiscovery = this.IsLocalPeerDiscoveryAllowed(),
             }.ToSettings();
             await this.engine.UpdateSettingsAsync(updatedSettings).ConfigureAwait(false);
         }
