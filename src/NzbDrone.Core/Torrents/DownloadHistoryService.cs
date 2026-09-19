@@ -618,17 +618,18 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             }
         }
 
-        var isCompleted = string.Equals(entry.Status, "Completed", StringComparison.OrdinalIgnoreCase)
+        var isCompleted = filesExistOnDisk && (
+            string.Equals(entry.Status, "Completed", StringComparison.OrdinalIgnoreCase)
             || entry.DateCompleted.HasValue
             || (entry.TotalSize > 0 && entry.Downloaded >= entry.TotalSize)
-            || filesExistOnDisk;
+            || filesExistOnDisk);
 
         var name = parsed?.Name ?? entry.Title ?? "Unknown Release";
         var infoHash = (parsed?.InfoHash ?? entry.InfoHash ?? string.Empty).ToLowerInvariant();
         var totalSize = parsed?.TotalSize > 0 ? parsed.TotalSize : entry.TotalSize;
         var status = isCompleted ? TorrentStatus.Seeding : TorrentStatus.Downloading;
-        var progress = isCompleted ? 1.0 : (totalSize > 0 && entry.Downloaded > 0 ? Math.Min(1.0, (double)entry.Downloaded / totalSize) : 0.0);
-        var downloaded = isCompleted && entry.Downloaded <= 0 ? totalSize : entry.Downloaded;
+        var progress = isCompleted ? 1.0 : 0.0;
+        var downloaded = isCompleted ? (entry.Downloaded <= 0 ? totalSize : entry.Downloaded) : 0L;
         DateTime? dateCompleted = isCompleted ? (entry.DateCompleted ?? DateTime.UtcNow) : null;
         var isPrivate = (parsed != null && parsed.IsPrivate) || entry.IsPrivate;
 
@@ -813,6 +814,10 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             }
         }
 
+        var previousTorrentId = entry.TorrentId;
+        var previousStatus = entry.Status;
+        var previousDateRemoved = entry.DateRemoved;
+
         entry.TorrentId = added.Id;
         entry.Status = "Active";
         entry.DateRemoved = null;
@@ -845,7 +850,48 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         }
         catch (Exception ex)
         {
-            this.logger.Warn(ex, "Failed to start engine for re-added historical torrent {0}", added.Id);
+            this.logger.Warn(ex, "Failed to start engine for re-added historical torrent {0}. Rolling back database records.", added.Id);
+
+            try
+            {
+                this.trackerEntryRepository?.DeleteByTorrentId(added.Id);
+            }
+            catch (Exception trackerEx)
+            {
+                this.logger.Warn(trackerEx, "Failed to roll back tracker entries for torrent {0}", added.Id);
+            }
+
+            try
+            {
+                this.fileRepository?.DeleteByTorrentId(added.Id);
+            }
+            catch (Exception fileEx)
+            {
+                this.logger.Warn(fileEx, "Failed to roll back torrent files for torrent {0}", added.Id);
+            }
+
+            try
+            {
+                this.torrentRepository?.Delete(added.Id);
+            }
+            catch (Exception torrentEx)
+            {
+                this.logger.Warn(torrentEx, "Failed to roll back torrent {0}", added.Id);
+            }
+
+            entry.TorrentId = previousTorrentId;
+            entry.Status = previousStatus;
+            entry.DateRemoved = previousDateRemoved;
+            try
+            {
+                this.historyRepository.Update(entry);
+            }
+            catch (Exception histEx)
+            {
+                this.logger.Warn(histEx, "Failed to revert download history entry {0} during rollback", entry.Id);
+            }
+
+            throw;
         }
 
         this.eventAggregator.PublishEvent(new TorrentAddedEvent { Torrent = added });
