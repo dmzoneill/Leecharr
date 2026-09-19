@@ -104,6 +104,9 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
             var slowUpThresholdBytes = slowUpThreshold * 1024L;
             var queueStalledEnabled = this.configService.QueueStalledEnabled;
             var queueStalledMinutes = this.configService.QueueStalledMinutes;
+            var magnetMetadataTimeoutSeconds = this.configService.MagnetMetadataTimeoutSeconds > 0
+                ? this.configService.MagnetMetadataTimeoutSeconds
+                : 180;
             var idleSeedingLimitMinutes = this.configService.IdleSeedingLimitMinutes;
 
             var allTorrents = this.torrentRepository.All()
@@ -197,10 +200,32 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                      (DateTime.UtcNow - (torrent.LastActive ?? torrent.DateAdded)).TotalMinutes >= queueStalledMinutes)) &&
                                     torrent.Status == TorrentStatus.Downloading;
 
+                    var isResolvingMetadata = (torrent.TotalSize == 0 || torrent.PieceCount == 0) &&
+                                              torrent.Progress <= 0 &&
+                                              (task == null || (task.TotalSize == 0 && task.Progress <= 0));
+
+                    var isMagnetTimeout = false;
+                    if (isResolvingMetadata && downloadSpeed == 0)
+                    {
+                        var resolutionStartTime = torrent.LastActive ?? (torrent.DateAdded != default ? torrent.DateAdded : (state.MetadataStartedAt ??= DateTime.UtcNow));
+                        var elapsedResolution = DateTime.UtcNow - resolutionStartTime;
+
+                        if ((magnetMetadataTimeoutSeconds > 0 && elapsedResolution.TotalSeconds >= magnetMetadataTimeoutSeconds) ||
+                            (queueStalledEnabled && queueStalledMinutes > 0 && elapsedResolution.TotalMinutes >= queueStalledMinutes))
+                        {
+                            isMagnetTimeout = true;
+                        }
+                    }
+                    else if (!isResolvingMetadata)
+                    {
+                        state.MetadataStartedAt = null;
+                    }
+
                     var isIgnoredDownload = isSlow || isStalled || torrent.ForceStart;
                     var canRunDownload = torrent.ForceStart ||
-                                         ((maxDownloads <= 0 || activeDownloads < maxDownloads || isIgnoredDownload) &&
-                                          (maxTotal <= 0 || activeTotal < maxTotal || isIgnoredDownload));
+                                         (!isMagnetTimeout &&
+                                          ((maxDownloads <= 0 || activeDownloads < maxDownloads || isIgnoredDownload) &&
+                                           (maxTotal <= 0 || activeTotal < maxTotal || isIgnoredDownload)));
 
                     if (canRunDownload)
                     {
@@ -245,7 +270,8 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                         // Exceeded download concurrency limit
                         if (torrent.Status == TorrentStatus.Downloading && !torrent.ForceStart)
                         {
-                            var inCooldown = state.ActivatedAt.HasValue &&
+                            var inCooldown = !isMagnetTimeout &&
+                                             state.ActivatedAt.HasValue &&
                                              (DateTime.UtcNow - state.ActivatedAt.Value) < this.minimumActiveCooldown;
 
                             if (inCooldown)
@@ -498,5 +524,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
         public int SlowUploadTicks { get; set; }
 
         public DateTime? ActivatedAt { get; set; }
+
+        public DateTime? MetadataStartedAt { get; set; }
     }
 }
