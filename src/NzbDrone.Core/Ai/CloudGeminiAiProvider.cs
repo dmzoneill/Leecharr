@@ -16,7 +16,7 @@ using NzbDrone.Core.Trackers;
 
 namespace NzbDrone.Core.Ai;
 
-public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
+public class CloudGeminiAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDisposable
 {
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
@@ -35,6 +35,10 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
     public string Description => "Cloud Large Language Model provider powered by Google Gemini API for deep semantic release classification, diagnostics, and natural query parsing.";
 
     public bool IsAvailable => true;
+
+    public bool LastChatUsedFallback { get; private set; }
+
+    internal TimeSpan HttpClientTimeout => this.httpClient.Timeout;
 
     public AiCapabilities Capabilities =>
         AiCapabilities.SupportsNaturalLanguageSearch |
@@ -56,7 +60,7 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
     public CloudGeminiAiProvider(IConfigService configService, HttpClient httpClient, bool ownsHttpClient = false)
     {
         this.configService = configService;
-        this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        this.httpClient = httpClient ?? new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
         this.ownsHttpClient = ownsHttpClient || httpClient == null;
     }
 
@@ -467,9 +471,15 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
                             parts.GetArrayLength() > 0 &&
                             parts[0].TryGetProperty("text", out var textProp))
                         {
+                            this.LastChatUsedFallback = false;
                             return textProp.GetString() ?? string.Empty;
                         }
                     }
+                }
+                else
+                {
+                    var errorBody = await response.Content.ReadAsStringAsync();
+                    Logger.Warn("Gemini API call failed with status code {0} ({1}): {2}", (int)response.StatusCode, response.StatusCode, errorBody);
                 }
             }
             catch (Exception ex)
@@ -478,6 +488,7 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IDisposable
             }
         }
 
+        this.LastChatUsedFallback = true;
         return await this.fallbackProvider.GenerateChatResponseAsync(userMessage, systemContext);
     }
 
