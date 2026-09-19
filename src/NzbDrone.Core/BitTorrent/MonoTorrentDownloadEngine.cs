@@ -3524,7 +3524,6 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     public void OnVpnRestored(string interfaceName)
     {
         this.logger.Info("VPN interface '{0}' restored. Resuming MonoTorrent activity.", interfaceName);
-        this.isHaltedByKillSwitch = false;
         this.natPmpPortMapperService?.Resume();
 
         lock (this.vpnTransitionLock)
@@ -3636,18 +3635,20 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     public async Task ResumeTorrentsAfterVpnRestoredAsync()
     {
-        if (this.vpnKillSwitchService != null && this.configService.EnableVpnKillSwitch)
+        var isKillSwitchEnabled = this.configService.EnableVpnKillSwitch ||
+                                  (this.vpnKillSwitchService?.IsKillSwitchEnabled ?? false);
+
+        if (this.vpnKillSwitchService != null && isKillSwitchEnabled)
         {
             var vpnIp = this.vpnKillSwitchService.GetVpnInterfaceIpAddress(System.Net.Sockets.AddressFamily.InterNetwork) ??
                          this.vpnKillSwitchService.GetVpnInterfaceIpAddress(System.Net.Sockets.AddressFamily.InterNetworkV6);
             if (vpnIp == null)
             {
+                this.isHaltedByKillSwitch = true;
                 this.logger.Warn("Cannot resume torrents after VPN restoration: VPN Kill Switch is active (fail-closed).");
                 return;
             }
         }
-
-        this.isHaltedByKillSwitch = false;
 
         await this.engineStateLock.WaitAsync().ConfigureAwait(false);
         try
@@ -3655,12 +3656,25 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             if (this.engine == null)
             {
                 await this.StartEngineAsyncCore().ConfigureAwait(false);
+                if (this.isHaltedByKillSwitch || this.engine == null)
+                {
+                    this.logger.Warn("Aborting torrent resumption after VPN restoration: engine failed to start or is halted by kill switch.");
+                    return;
+                }
             }
             else
             {
                 await this.UpdateEngineListenEndpointsAsync().ConfigureAwait(false);
+                if (this.isHaltedByKillSwitch)
+                {
+                    this.logger.Warn("Aborting torrent resumption after VPN restoration: engine is halted by kill switch.");
+                    return;
+                }
+
                 await this.DrainPendingTorrentsAsync().ConfigureAwait(false);
             }
+
+            this.isHaltedByKillSwitch = false;
 
             var toResume = this.interruptedTorrentIds.Distinct().ToList();
             while (this.interruptedTorrentIds.TryTake(out _))
@@ -3705,6 +3719,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             !string.Equals(iface, "Any", StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
 
+        var isKillSwitchEnabled = this.IsVpnKillSwitchActive();
         var listenIp = IPAddress.Any;
         IPAddress resolvedIpv6 = null;
 
@@ -3718,6 +3733,16 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 listenIp = resolvedIp;
                 this.isHaltedByKillSwitch = false;
                 this.logger.Info("Re-resolved and updated MonoTorrent IPv4 listening socket to interface '{0}' ({1})", iface, listenIp);
+            }
+            else if (isKillSwitchEnabled)
+            {
+                this.isHaltedByKillSwitch = true;
+                this.logger.Error("VPN Kill Switch is active and interface '{0}' has no resolved IPv4 address. Strict fail-closed halt enforced: Engine will NOT bind to default network interfaces.", iface);
+                return;
+            }
+            else
+            {
+                this.logger.Warn("Failed to resolve IP for bound interface '{0}'. Defaulting to IPAddress.Any", iface);
             }
 
             resolvedIpv6 = this.vpnKillSwitchService?.GetVpnInterfaceIpAddress(AddressFamily.InterNetworkV6)
@@ -3746,7 +3771,6 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
         }
 
-        var isKillSwitchEnabled = this.IsVpnKillSwitchActive();
         var isProxyActive = this.IsProxyActive();
         var allowLpd = !isProxyActive && !hasSpecificInterface && !isKillSwitchEnabled && this.configService.EnableLpd;
 
