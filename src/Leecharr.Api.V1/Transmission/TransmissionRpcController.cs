@@ -97,6 +97,8 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
         }
     }
 
+    [NonAction]
+    [ApiExplorerSettings(IgnoreApi = true)]
     public void Handle(TorrentDeletedEvent message)
     {
         if (message?.Torrent != null)
