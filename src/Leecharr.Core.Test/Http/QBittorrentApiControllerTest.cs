@@ -3287,4 +3287,128 @@ public class QBittorrentApiControllerTest
             }
         }
     }
+
+    [Test]
+    public async Task AddPeers_WithValidHashesAndPeers_ReturnsOkWithAddedCounts()
+    {
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "Torrent 1" };
+        var torrent2 = new Torrent { Id = 2, InfoHash = "hash2", Name = "Torrent 2" };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent1);
+        this.torrentService.GetByInfoHash("hash2").Returns(torrent2);
+
+        var result = await this.controller.AddPeers(hashes: "hash1|hash2", peers: "1.2.3.4:6881|5.6.7.8:51413");
+
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var dict = okResult.Value.Should().BeOfType<Dictionary<string, object>>().Subject;
+        dict.Should().ContainKey("hash1");
+        dict.Should().ContainKey("hash2");
+
+        var hash1Stats = dict["hash1"];
+        var added1 = (int)hash1Stats.GetType().GetProperty("added")!.GetValue(hash1Stats)!;
+        var failed1 = (int)hash1Stats.GetType().GetProperty("failed")!.GetValue(hash1Stats)!;
+        added1.Should().Be(2);
+        failed1.Should().Be(0);
+
+        await this.downloadEngine.Received(1).AddPeersAsync(1, Arg.Any<IEnumerable<string>>());
+        await this.downloadEngine.Received(1).AddPeersAsync(2, Arg.Any<IEnumerable<string>>());
+    }
+
+    [Test]
+    public async Task AddPeers_WithInvalidPeers_CountsFailures()
+    {
+        var torrent1 = new Torrent { Id = 1, InfoHash = "hash1", Name = "Torrent 1" };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent1);
+
+        var result = await this.controller.AddPeers(hashes: "hash1", peers: "1.2.3.4:6881|not-an-ip|999.999.999.999:1234|5.6.7.8:0");
+
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var dict = okResult.Value.Should().BeOfType<Dictionary<string, object>>().Subject;
+        dict.Should().ContainKey("hash1");
+
+        var hash1Stats = dict["hash1"];
+        var added = (int)hash1Stats.GetType().GetProperty("added")!.GetValue(hash1Stats)!;
+        var failed = (int)hash1Stats.GetType().GetProperty("failed")!.GetValue(hash1Stats)!;
+        added.Should().Be(1);
+        failed.Should().Be(3);
+    }
+
+    [Test]
+    public async Task AddPeers_WithMissingHashesOrPeers_ReturnsBadRequest()
+    {
+        var result1 = await this.controller.AddPeers(hashes: null, peers: "1.2.3.4:6881");
+        result1.Should().BeOfType<BadRequestResult>();
+
+        var result2 = await this.controller.AddPeers(hashes: "hash1", peers: string.Empty);
+        result2.Should().BeOfType<BadRequestResult>();
+    }
+
+    [Test]
+    public async Task AddPeers_WhenTorrentNotFound_ReturnsNotFound()
+    {
+        this.torrentService.GetByInfoHash("unknown").Returns((Torrent)null);
+
+        var result = await this.controller.AddPeers(hashes: "unknown", peers: "1.2.3.4:6881");
+        result.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Test]
+    public async Task AddTrackers_WithBatchHashes_AddsTrackersToAllTorrents()
+    {
+        var torrent1 = new Torrent { Id = 10, InfoHash = "hash10", Name = "T10", IsPrivate = false };
+        var torrent2 = new Torrent { Id = 20, InfoHash = "hash20", Name = "T20", IsPrivate = false };
+        this.torrentService.GetByInfoHash("hash10").Returns(torrent1);
+        this.torrentService.GetByInfoHash("hash20").Returns(torrent2);
+        this.trackerEntryRepository.GetByTorrentId(10).Returns(new List<TrackerEntry>());
+        this.trackerEntryRepository.GetByTorrentId(20).Returns(new List<TrackerEntry>());
+
+        var result = await this.controller.AddTrackers(hash: "hash10|hash20", urls: "http://tracker1.org/announce\nhttp://tracker2.org/announce");
+
+        result.Should().BeOfType<ContentResult>();
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.TorrentId == 10 && t.Url == "http://tracker1.org/announce"));
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.TorrentId == 10 && t.Url == "http://tracker2.org/announce"));
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.TorrentId == 20 && t.Url == "http://tracker1.org/announce"));
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.TorrentId == 20 && t.Url == "http://tracker2.org/announce"));
+        await this.downloadEngine.Received(1).AddTrackersAsync(10, Arg.Any<IEnumerable<string>>());
+        await this.downloadEngine.Received(1).AddTrackersAsync(20, Arg.Any<IEnumerable<string>>());
+    }
+
+    [Test]
+    public async Task AddTrackers_WithUrlEncodedTrackers_UnescapesUrlsBeforeAdding()
+    {
+        var torrent = new Torrent { Id = 30, InfoHash = "hash30", Name = "T30", IsPrivate = false };
+        this.torrentService.GetByInfoHash("hash30").Returns(torrent);
+        this.trackerEntryRepository.GetByTorrentId(30).Returns(new List<TrackerEntry>());
+
+        var result = await this.controller.AddTrackers(hash: "hash30", urls: "http%3A%2F%2Ftracker3.org%2Fannounce");
+
+        result.Should().BeOfType<ContentResult>();
+        this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.TorrentId == 30 && t.Url == "http://tracker3.org/announce"));
+        await this.downloadEngine.Received(1).AddTrackersAsync(30, Arg.Is<List<string>>(l => l.Contains("http://tracker3.org/announce")));
+    }
+
+    [Test]
+    public async Task RemoveTrackers_WithBatchHashesAndUrlEncodedTrackers_RemovesMatchingTrackers()
+    {
+        var torrent1 = new Torrent { Id = 41, InfoHash = "hash41", Name = "T41" };
+        var torrent2 = new Torrent { Id = 42, InfoHash = "hash42", Name = "T42" };
+        this.torrentService.GetByInfoHash("hash41").Returns(torrent1);
+        this.torrentService.GetByInfoHash("hash42").Returns(torrent2);
+
+        this.trackerEntryRepository.GetByTorrentId(41).Returns(new List<TrackerEntry>
+        {
+            new TrackerEntry { Id = 101, TorrentId = 41, Url = "http://tracker-rm.org/announce" },
+        });
+        this.trackerEntryRepository.GetByTorrentId(42).Returns(new List<TrackerEntry>
+        {
+            new TrackerEntry { Id = 102, TorrentId = 42, Url = "http://tracker-rm.org/announce" },
+        });
+
+        var result = await this.controller.RemoveTrackers(hash: "hash41|hash42", urls: "http%3A%2F%2Ftracker-rm.org%2Fannounce");
+
+        result.Should().BeOfType<ContentResult>();
+        this.trackerEntryRepository.Received(1).Delete(101);
+        this.trackerEntryRepository.Received(1).Delete(102);
+        await this.downloadEngine.Received(1).RemoveTrackersAsync(41, Arg.Any<HashSet<string>>());
+        await this.downloadEngine.Received(1).RemoveTrackersAsync(42, Arg.Any<HashSet<string>>());
+    }
 }

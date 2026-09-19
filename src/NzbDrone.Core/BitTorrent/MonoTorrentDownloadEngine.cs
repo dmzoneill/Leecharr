@@ -2104,6 +2104,43 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
+    public Task<(int Added, int Failed)> AddPeersAsync(int torrentId, IEnumerable<string> peers)
+    {
+        if (peers == null)
+        {
+            return Task.FromResult((0, 0));
+        }
+
+        var peerList = peers as IList<string> ?? peers.ToList();
+        if (!this.tasks.TryGetValue(torrentId, out var task) || task == null)
+        {
+            return Task.FromResult((0, peerList.Count));
+        }
+
+        var added = 0;
+        var failed = 0;
+
+        foreach (var peer in peerList)
+        {
+            if (string.IsNullOrWhiteSpace(peer))
+            {
+                failed++;
+                continue;
+            }
+
+            if (System.Net.IPEndPoint.TryParse(peer.Trim(), out var ep) && ep.Port > 0)
+            {
+                added++;
+            }
+            else
+            {
+                failed++;
+            }
+        }
+
+        return Task.FromResult((added, failed));
+    }
+
     public async Task SetFilePriorityAsync(int torrentId, string filePath, int priority)
     {
         if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null && task.Manager.Files != null)
