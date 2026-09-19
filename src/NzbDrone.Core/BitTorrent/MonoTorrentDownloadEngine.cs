@@ -95,6 +95,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private int lastAppliedProxyPort;
     private string lastAppliedProxyUsername = string.Empty;
     private string lastAppliedProxyPassword = string.Empty;
+    private bool lastAppliedAnonymousMode;
 
     internal string LastAppliedInterfaceBinding => this.lastAppliedInterfaceBinding;
 
@@ -109,6 +110,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     internal string LastAppliedProxyUsername => this.lastAppliedProxyUsername;
 
     internal string LastAppliedProxyPassword => this.lastAppliedProxyPassword;
+
+    internal bool LastAppliedAnonymousMode => this.lastAppliedAnonymousMode;
 
     public bool IsHaltedByKillSwitch => this.isHaltedByKillSwitch;
 
@@ -240,6 +243,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.lastAppliedProxyPort = this.configService?.ProxyPort ?? 0;
         this.lastAppliedProxyUsername = this.configService?.ProxyUsername ?? string.Empty;
         this.lastAppliedProxyPassword = this.configService?.ProxyPassword ?? string.Empty;
+        this.lastAppliedAnonymousMode = this.configService?.AnonymousMode ?? false;
     }
 
     public async Task StartAsync()
@@ -435,7 +439,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
         }
 
-        if (this.configService.UpnpEnabled)
+        if (this.configService.UpnpEnabled && !this.configService.AnonymousMode)
         {
             _ = Task.Run(async () =>
             {
@@ -456,7 +460,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var fastResumeMode = this.GetConfiguredFastResumeMode();
 
         var isProxyActive = this.IsProxyActive();
-        var allowLpd = !isProxyActive && !hasSpecificInterface && !isKillSwitchEnabled && this.configService.EnableLpd;
+        var isAnonymous = this.configService.AnonymousMode;
+        var allowLpd = !isAnonymous && !isProxyActive && !hasSpecificInterface && !isKillSwitchEnabled && this.configService.EnableLpd;
         if (this.configService.EnableLpd && !allowLpd && (hasSpecificInterface || isKillSwitchEnabled))
         {
             this.logger.Info("Local Peer Discovery (LPD) disabled to prevent multicast UDP infohash leaks over physical LAN adapters while bound to VPN interface or kill switch.");
@@ -464,14 +469,14 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         var engineSettingsBuilder = new EngineSettingsBuilder
         {
-            AllowPortForwarding = this.configService.UpnpEnabled,
+            AllowPortForwarding = !isAnonymous && this.configService.UpnpEnabled,
             AllowLocalPeerDiscovery = allowLpd,
             AllowHaveSuppression = this.configService.ExtensionLtDontHave,
             AllowedEncryption = allowedEncryption,
             AutoSaveLoadFastResume = true,
             AutoSaveLoadDhtCache = true,
             UsePartialFiles = this.configService.AppendIncompleteExtension,
-            DhtEndPoint = (!isProxyActive && this.configService.EnableDht) ? new IPEndPoint(listenIp, port) : null,
+            DhtEndPoint = (!isAnonymous && !isProxyActive && this.configService.EnableDht) ? new IPEndPoint(listenIp, port) : null,
             CacheDirectory = cacheDir,
             ConnectionTimeout = TimeSpan.FromSeconds(this.configService.TransportConnectionTimeoutSeconds > 0 ? this.configService.TransportConnectionTimeoutSeconds : 30),
             DiskCacheBytes = dynamicCacheBytes,
@@ -485,8 +490,17 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 ? (int)Math.Min((long)this.configService.MaxUploadSpeedKbps * 1024, int.MaxValue)
                 : 0,
             WebSeedDelay = TimeSpan.FromSeconds(this.configService.WebSeedDelaySeconds > 0 ? this.configService.WebSeedDelaySeconds : 30),
-            ListenEndPoints = listenEndPoints,
+            ListenEndPoints = isAnonymous ? new Dictionary<string, IPEndPoint>() : listenEndPoints,
         };
+
+        if (this.configService.AnonymousMode)
+        {
+            this.logger.Info("Anonymous mode is enabled. Suppressing listen endpoints, DHT, LPD, port forwarding, and masking client identifiers.");
+            engineSettingsBuilder.AllowPortForwarding = false;
+            engineSettingsBuilder.AllowLocalPeerDiscovery = false;
+            engineSettingsBuilder.DhtEndPoint = null;
+            engineSettingsBuilder.ListenEndPoints = new Dictionary<string, IPEndPoint>();
+        }
 
         this.logger.Info(
             "Configured protocol extensions: FastExtension={0}, uTP={1}, TcpFallback={2}, HaveSuppression={3}, Timeout={4}s",
@@ -507,10 +521,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var engineSettings = engineSettingsBuilder.ToSettings();
         var factories = Factories.Default;
 
-        var userAgent = this.configService.BitTorrentUserAgent;
-        var peerIdPrefix = this.configService.PeerIdPrefix;
+        var userAgent = this.configService.AnonymousMode ? string.Empty : this.configService.BitTorrentUserAgent;
+        var peerIdPrefix = this.configService.AnonymousMode ? string.Empty : this.configService.PeerIdPrefix;
 
-        ConfigureGlobalMonoTorrentDefaults(peerIdPrefix, userAgent);
+        ConfigureGlobalMonoTorrentDefaults(peerIdPrefix, userAgent, this.configService.AnonymousMode);
 
         var webProxy = this.GetConfiguredWebProxy();
         if (webProxy is WebProxy wp)
@@ -534,14 +548,18 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
 
             var client = new HttpClient(handler);
-            var currentUserAgent = this.configService.BitTorrentUserAgent;
-            if (string.IsNullOrWhiteSpace(currentUserAgent))
+            var currentUserAgent = this.configService.AnonymousMode ? string.Empty : this.configService.BitTorrentUserAgent;
+            if (string.IsNullOrWhiteSpace(currentUserAgent) && !this.configService.AnonymousMode)
             {
                 currentUserAgent = ClientEmulationPresets.DefaultUserAgent;
             }
 
             client.DefaultRequestHeaders.Remove("User-Agent");
-            client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", currentUserAgent);
+            if (!string.IsNullOrEmpty(currentUserAgent))
+            {
+                client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", currentUserAgent);
+            }
+
             client.DefaultRequestHeaders.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate");
             client.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "*/*");
 
@@ -585,8 +603,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.lastAppliedProxyPort = this.configService.ProxyPort;
         this.lastAppliedProxyUsername = this.configService.ProxyUsername ?? string.Empty;
         this.lastAppliedProxyPassword = this.configService.ProxyPassword ?? string.Empty;
+        this.lastAppliedAnonymousMode = this.configService.AnonymousMode;
 
-        if (this.configService.UpnpEnabled && this.engine != null)
+        if (this.configService.UpnpEnabled && !this.configService.AnonymousMode && this.engine != null)
         {
             try
             {
@@ -646,7 +665,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             {
                 var proxyHost = this.configService.ProxyHost;
                 var proxyPort = this.configService.ProxyPort > 0 ? this.configService.ProxyPort : (proxyType == "socks5" ? 1080 : 8080);
-                var proxyUri = new Uri($"{proxyType}://{proxyHost}:{proxyPort}");
+                var formattedHost = proxyHost.Contains(':') && !proxyHost.StartsWith("[")
+                    ? $"[{proxyHost}]"
+                    : proxyHost;
+                var proxyUri = new Uri($"{proxyType}://{formattedHost}:{proxyPort}");
 
                 ICredentials credentials = null;
                 if (!string.IsNullOrWhiteSpace(this.configService.ProxyUsername))
@@ -3594,14 +3616,20 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             this.logger.Info("Local Peer Discovery (LPD) disabled to prevent multicast UDP infohash leaks over physical LAN adapters while bound to VPN interface or kill switch.");
         }
 
+        if (this.configService.AnonymousMode)
+        {
+            listenEndPoints = new Dictionary<string, IPEndPoint>();
+        }
+
         var newSettingsBuilder = new EngineSettingsBuilder(this.engine.Settings)
         {
             ListenEndPoints = listenEndPoints,
-            DhtEndPoint = (!isProxyActive && this.configService.EnableDht) ? new IPEndPoint(listenIp, port) : null,
+            DhtEndPoint = (!this.configService.AnonymousMode && !isProxyActive && this.configService.EnableDht) ? new IPEndPoint(listenIp, port) : null,
             DiskCacheBytes = this.CalculateDynamicDiskCacheBytes(this.engine.TotalDownloadRate),
             DiskCachePolicy = this.GetConfiguredCachePolicy(),
             FastResumeMode = this.GetConfiguredFastResumeMode(),
-            AllowLocalPeerDiscovery = allowLpd,
+            AllowLocalPeerDiscovery = this.IsLocalPeerDiscoveryAllowed(),
+            AllowPortForwarding = !this.configService.AnonymousMode && this.configService.UpnpEnabled,
         };
 
         await this.engine.UpdateSettingsAsync(newSettingsBuilder.ToSettings()).ConfigureAwait(false);
@@ -3634,7 +3662,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     private bool IsLocalPeerDiscoveryAllowed()
     {
-        return !this.IsProxyActive() && !this.IsSpecificInterfaceBound() && !this.IsVpnKillSwitchActive() && this.configService.EnableLpd;
+        return !this.configService.AnonymousMode && !this.IsProxyActive() && !this.IsSpecificInterfaceBound() && !this.IsVpnKillSwitchActive() && this.configService.EnableLpd;
     }
 
     private IPAddress GetBoundLocalIp(AddressFamily family)
@@ -3809,6 +3837,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var currentProxyUsername = this.configService.ProxyUsername ?? string.Empty;
         var currentProxyPassword = this.configService.ProxyPassword ?? string.Empty;
 
+        var currentAnonymousMode = this.configService.AnonymousMode;
+        var anonymousModeChanged = this.lastAppliedAnonymousMode != currentAnonymousMode;
+
         var interfaceOrPortChanged = !string.Equals(this.lastAppliedInterfaceBinding, currentIface, StringComparison.OrdinalIgnoreCase) ||
                                      this.lastAppliedListenPort != currentPort;
 
@@ -3818,9 +3849,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                            !string.Equals(this.lastAppliedProxyUsername, currentProxyUsername, StringComparison.Ordinal) ||
                            !string.Equals(this.lastAppliedProxyPassword, currentProxyPassword, StringComparison.Ordinal);
 
-        if (interfaceOrPortChanged || proxyChanged)
+        if (interfaceOrPortChanged || proxyChanged || anonymousModeChanged)
         {
-            this.logger.Info("Network interface, listen port, or proxy configuration changed. Updating listen endpoints and cycling peer sockets.");
+            this.logger.Info("Network interface, listen port, proxy, or anonymous mode configuration changed. Updating listen endpoints and cycling peer sockets.");
             await this.UpdateEngineListenEndpointsAsync().ConfigureAwait(false);
             await this.ResetPeerSocketsAsync().ConfigureAwait(false);
 
@@ -3831,6 +3862,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             this.lastAppliedProxyPort = currentProxyPort;
             this.lastAppliedProxyUsername = currentProxyUsername;
             this.lastAppliedProxyPassword = currentProxyPassword;
+            this.lastAppliedAnonymousMode = currentAnonymousMode;
         }
     }
 
@@ -3874,29 +3906,37 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
-    internal static void ConfigureGlobalMonoTorrentDefaults(string prefix, string userAgent = null)
+    internal static void ConfigureGlobalMonoTorrentDefaults(string prefix, string userAgent = null, bool anonymousMode = false)
     {
-        if (string.IsNullOrWhiteSpace(prefix))
+        if (anonymousMode)
         {
-            prefix = ClientEmulationPresets.DefaultPeerIdPrefix;
+            prefix = string.Empty;
+            userAgent = string.Empty;
         }
-
-        if (prefix.Contains("MO3002", StringComparison.OrdinalIgnoreCase) || prefix.StartsWith("-MO", StringComparison.OrdinalIgnoreCase))
+        else
         {
-            prefix = ClientEmulationPresets.DefaultPeerIdPrefix;
-        }
+            if (string.IsNullOrWhiteSpace(prefix))
+            {
+                prefix = ClientEmulationPresets.DefaultPeerIdPrefix;
+            }
 
-        if (string.IsNullOrWhiteSpace(userAgent) ||
-            userAgent.Contains("MO3002", StringComparison.OrdinalIgnoreCase) ||
-            userAgent.StartsWith("MonoTorrent", StringComparison.OrdinalIgnoreCase))
-        {
-            userAgent = ClientEmulationPresets.GetUserAgentForPrefix(prefix);
+            if (prefix.Contains("MO3002", StringComparison.OrdinalIgnoreCase) || prefix.StartsWith("-MO", StringComparison.OrdinalIgnoreCase))
+            {
+                prefix = ClientEmulationPresets.DefaultPeerIdPrefix;
+            }
+
+            if (string.IsNullOrWhiteSpace(userAgent) ||
+                userAgent.Contains("MO3002", StringComparison.OrdinalIgnoreCase) ||
+                userAgent.StartsWith("MonoTorrent", StringComparison.OrdinalIgnoreCase))
+            {
+                userAgent = ClientEmulationPresets.GetUserAgentForPrefix(prefix);
+            }
         }
 
         try
         {
-            var cleanVersion = ClientEmulationPresets.CleanClientVersion(prefix);
-            var cleanIdentifier = ClientEmulationPresets.CleanClientIdentifier(prefix);
+            var cleanVersion = anonymousMode ? string.Empty : ClientEmulationPresets.CleanClientVersion(prefix);
+            var cleanIdentifier = anonymousMode ? string.Empty : ClientEmulationPresets.CleanClientIdentifier(prefix);
 
             var knownMonoTorrentAssemblyNames = new[]
             {
@@ -4023,16 +4063,23 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
-    private static BEncodedString GeneratePeerId(string prefix)
+    private static BEncodedString GeneratePeerId(string prefix, bool anonymousMode = false)
     {
-        if (string.IsNullOrWhiteSpace(prefix))
+        if (anonymousMode)
         {
-            prefix = ClientEmulationPresets.DefaultPeerIdPrefix;
+            prefix = string.Empty;
         }
-
-        if (prefix.Contains("MO3002", StringComparison.OrdinalIgnoreCase) || prefix.StartsWith("-MO", StringComparison.OrdinalIgnoreCase))
+        else
         {
-            prefix = ClientEmulationPresets.DefaultPeerIdPrefix;
+            if (string.IsNullOrWhiteSpace(prefix))
+            {
+                prefix = ClientEmulationPresets.DefaultPeerIdPrefix;
+            }
+
+            if (prefix.Contains("MO3002", StringComparison.OrdinalIgnoreCase) || prefix.StartsWith("-MO", StringComparison.OrdinalIgnoreCase))
+            {
+                prefix = ClientEmulationPresets.DefaultPeerIdPrefix;
+            }
         }
 
         var lengthRemaining = 20 - prefix.Length;
@@ -4059,13 +4106,18 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     private void ApplyCustomPeerId(ClientEngine clientEngine, string prefix)
     {
-        if (string.IsNullOrWhiteSpace(prefix))
+        var isAnonymous = this.configService.AnonymousMode;
+        if (isAnonymous)
+        {
+            prefix = string.Empty;
+        }
+        else if (string.IsNullOrWhiteSpace(prefix))
         {
             prefix = this.configService.PeerIdPrefix;
         }
 
-        var userAgent = this.configService.BitTorrentUserAgent;
-        ConfigureGlobalMonoTorrentDefaults(prefix, userAgent);
+        var userAgent = isAnonymous ? string.Empty : this.configService.BitTorrentUserAgent;
+        ConfigureGlobalMonoTorrentDefaults(prefix, userAgent, isAnonymous);
 
         if (clientEngine == null)
         {
@@ -4074,7 +4126,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         try
         {
-            var customPeerId = GeneratePeerId(prefix);
+            var customPeerId = GeneratePeerId(prefix, isAnonymous);
 
             var peerIdField = typeof(ClientEngine).GetField("<PeerId>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance);
             if (peerIdField != null)
@@ -4093,7 +4145,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 localPeerIdField?.SetValue(connMgr, customPeerId);
             }
 
-            this.logger.Info("Configured MonoTorrent download client Peer ID: '{0}' (User-Agent: '{1}')", customPeerId.Text, this.configService.BitTorrentUserAgent);
+            this.logger.Info("Configured MonoTorrent download client Peer ID: '{0}' (User-Agent: '{1}')", customPeerId.Text, userAgent);
         }
         catch (Exception ex)
         {
