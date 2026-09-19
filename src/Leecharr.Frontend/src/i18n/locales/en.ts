@@ -370,8 +370,8 @@ const en: I18nTranslations = {
       turtleTitleInactive: "Toggle Turtle Mode (Alternative speed limits)",
       turtleOn: "Turtle: ON",
       turtleOff: "Turtle: OFF",
-      resumeAll: "Resume all torrents",
-      pauseAll: "Pause all torrents",
+      resumeAll: "Resume all",
+      pauseAll: "Pause all",
       filterPlaceholder: "Filter torrents...",
       tableView: "Table View",
       table: "Table",
@@ -3547,7 +3547,8 @@ const en: I18nTranslations = {
       "Failed to load copilotDrawer view. An unexpected error occurred.",
   },
   copilot: {
-    welcomeMessage: "Hi! I'm your Leecharr Copilot. How can I assist you with torrents, releases, or settings today?",
+    welcomeMessage:
+      "Hi! I'm your Leecharr Copilot. How can I assist you with torrents, releases, or settings today?",
     buttonTitle: "AI Copilot & Swarm Intelligence",
     title: "AI Copilot",
     compact: "Compact View",
@@ -3561,12 +3562,15 @@ const en: I18nTranslations = {
     piecePickers: "Piece Picker Strategies",
     vpnSecurity: "VPN & Network Safety",
     thinking: "Analyzing with {{provider}}...",
-    inputPlaceholder: "Ask Copilot anything about swarm health, speeds, or media...",
+    inputPlaceholder:
+      "Ask Copilot anything about swarm health, speeds, or media...",
     rawSceneRelease: "Raw Scene / P2P Release String",
-    rawScenePlaceholder: "Paste release title (e.g. Show.Name.S01E01.1080p.WEB-DL.DDP5.1.Atmos.H.264-FLUX)...",
+    rawScenePlaceholder:
+      "Paste release title (e.g. Show.Name.S01E01.1080p.WEB-DL.DDP5.1.Atmos.H.264-FLUX)...",
     deobfuscate: "Parse & Deobfuscate",
     fileListToInspect: "File List to Inspect",
-    fileListPlaceholder: "Paste file names or torrent file list to inspect for traps/malware...",
+    fileListPlaceholder:
+      "Paste file names or torrent file list to inspect for traps/malware...",
     scanTraps: "Scan for Malware & Traps",
     threatDetected: "Threats / Suspicious Files Detected",
     cleanSafe: "Clean & Safe — No Suspicious Files Found",
