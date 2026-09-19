@@ -144,6 +144,12 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                     continue;
                 }
 
+                // Exclude torrents with Priority < 0 (e.g. DoNotDownload) from being promoted
+                if (torrent.Priority < 0 && torrent.Status == TorrentStatus.Queued)
+                {
+                    continue;
+                }
+
                 var oldStatus = torrent.Status;
                 var previousLastActive = torrent.LastActive;
                 var shouldPersistLastActive = false;
@@ -461,14 +467,15 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
         }
 
         // Trigger queue evaluation when an active torrent vacates a slot (paused, stopped, error, stalled, completed)
-        // or when checking finishes and the torrent enters Queued state.
+        // or when a torrent enters Queued, Downloading, or Seeding state (e.g. manual resume or checking finished).
         if (message.NewStatus == TorrentStatus.Paused ||
             message.NewStatus == TorrentStatus.Stopped ||
             message.NewStatus == TorrentStatus.Completed ||
             message.NewStatus == TorrentStatus.Error ||
             message.NewStatus == TorrentStatus.Stalled ||
-            (message.OldStatus == TorrentStatus.Downloading && message.NewStatus == TorrentStatus.Seeding) ||
-            (message.OldStatus == TorrentStatus.Checking && message.NewStatus == TorrentStatus.Queued))
+            message.NewStatus == TorrentStatus.Downloading ||
+            message.NewStatus == TorrentStatus.Queued ||
+            message.NewStatus == TorrentStatus.Seeding)
         {
             _ = Task.Run(this.ProcessQueueAsync);
         }

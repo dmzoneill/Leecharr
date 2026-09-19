@@ -591,4 +591,56 @@ public class QueueManagerServiceTest
         (DateTime.UtcNow - torrent.LastActive!.Value).TotalSeconds.Should().BeLessThan(5);
         this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t => t.Id == 1 && t.LastActive.HasValue));
     }
+
+    [Test]
+    public async Task ProcessQueueAsync_WhenTorrentHasNegativePriority_DoesNotPromoteFromQueued()
+    {
+        this.configService.MaxActiveDownloads.Returns(1);
+
+        var torrents = new List<Torrent>
+        {
+            new Torrent { Id = 1, Name = "DoNotDownload", Status = TorrentStatus.Queued, Progress = 0.0, Priority = -1, QueuePosition = 1 },
+            new Torrent { Id = 2, Name = "NormalDownload", Status = TorrentStatus.Queued, Progress = 0.0, Priority = 0, QueuePosition = 2 },
+        };
+
+        this.torrentRepository.All().Returns(torrents);
+
+        await this.queueManager.ProcessQueueAsync();
+
+        torrents[0].Status.Should().Be(TorrentStatus.Queued);
+        torrents[1].Status.Should().Be(TorrentStatus.Downloading);
+
+        await this.downloadEngine.DidNotReceive().ResumeTorrentAsync(1);
+        await this.downloadEngine.Received(1).ResumeTorrentAsync(2);
+    }
+
+    [Test]
+    public async Task Handle_TorrentStatusChangedEvent_WhenPausedTorrentResumedToDownloading_TriggersQueueEvaluation()
+    {
+        this.configService.MaxActiveDownloads.Returns(2);
+
+        var t1 = new Torrent { Id = 1, Name = "HighPriority", Status = TorrentStatus.Downloading, Progress = 0.1, Priority = 2, QueuePosition = 1 };
+        var t2 = new Torrent { Id = 2, Name = "LowPriority", Status = TorrentStatus.Downloading, Progress = 0.1, Priority = 1, QueuePosition = 2 };
+        var t3 = new Torrent { Id = 3, Name = "HighestPriorityResumed", Status = TorrentStatus.Downloading, Progress = 0.1, Priority = 3, QueuePosition = 3 };
+
+        var torrents = new List<Torrent> { t1, t2, t3 };
+        this.torrentRepository.All().Returns(torrents);
+
+        this.queueManager.Handle(new TorrentStatusChangedEvent
+        {
+            Torrent = t3,
+            OldStatus = TorrentStatus.Paused,
+            NewStatus = TorrentStatus.Downloading,
+            IsQueueManagerInternal = false,
+        });
+
+        // Give background Task.Run time to complete
+        await Task.Delay(250);
+
+        t1.Status.Should().Be(TorrentStatus.Downloading);
+        t3.Status.Should().Be(TorrentStatus.Downloading);
+        t2.Status.Should().Be(TorrentStatus.Queued);
+
+        await this.downloadEngine.Received(1).PauseTorrentAsync(2);
+    }
 }
