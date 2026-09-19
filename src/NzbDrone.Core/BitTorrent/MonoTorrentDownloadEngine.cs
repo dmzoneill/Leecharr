@@ -698,28 +698,46 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
         try
         {
-            try
-            {
-                await this.SaveAllFastResumeCheckpointsAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                this.logger.Debug(ex, "Error saving FastResume checkpoints during engine stop");
-            }
-
             foreach (var task in this.tasks.Values)
             {
                 try
                 {
                     if (task.Manager != null && task.Manager.State != TorrentState.Stopped)
                     {
-                        await task.Manager.StopAsync();
+                        await task.Manager.StopAsync().ConfigureAwait(false);
                     }
                 }
                 catch (Exception ex)
                 {
                     this.logger.Warn(ex, "Error stopping torrent manager for {0}", task.InfoHash);
                 }
+            }
+
+            if (this.engine?.DiskManager != null)
+            {
+                try
+                {
+                    foreach (var task in this.tasks.Values)
+                    {
+                        if (task.Manager != null)
+                        {
+                            await this.engine.DiskManager.FlushAsync(task.Manager).ConfigureAwait(false);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Error flushing DiskManager write buffers during engine stop");
+                }
+            }
+
+            try
+            {
+                await this.SaveAllFastResumeCheckpointsAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error saving FastResume checkpoints during engine stop");
             }
 
             try
