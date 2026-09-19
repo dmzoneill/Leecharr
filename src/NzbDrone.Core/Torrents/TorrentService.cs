@@ -20,7 +20,7 @@ using NzbDrone.Core.Trackers;
 
 namespace NzbDrone.Core.Torrents;
 
-public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedEvent>, IHandle<CategoryUpdatedEvent>, IHandle<CategoryDeletedEvent>
+public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedEvent>, IHandle<CategoryUpdatedEvent>, IHandle<CategoryDeletedEvent>, IHandle<TorrentMetadataReceivedEvent>
 {
     private static readonly SemaphoreSlim QueueLock = new(1, 1);
     private readonly ConcurrentDictionary<int, long> lastSeenSessionUploaded = new();
@@ -2042,6 +2042,79 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         }
 
         _ = this.PropagateCategoryDeletedAsync(message);
+    }
+
+    public void Handle(TorrentMetadataReceivedEvent message)
+    {
+        if (message == null)
+        {
+            return;
+        }
+
+        var torrent = this.torrentRepository.Get(message.TorrentId)
+            ?? (!string.IsNullOrWhiteSpace(message.InfoHash) ? this.torrentRepository.GetByInfoHash(message.InfoHash) : null);
+
+        if (torrent == null)
+        {
+            return;
+        }
+
+        var updated = false;
+        if (!string.IsNullOrWhiteSpace(message.Name) && (string.Equals(torrent.Name, torrent.InfoHash, StringComparison.OrdinalIgnoreCase) || torrent.TotalSize == 0))
+        {
+            torrent.Name = message.Name;
+            updated = true;
+        }
+
+        if (message.TotalSize > 0 && torrent.TotalSize != message.TotalSize)
+        {
+            torrent.TotalSize = message.TotalSize;
+            updated = true;
+        }
+
+        if (message.PieceLength > 0 && torrent.PieceLength != message.PieceLength)
+        {
+            torrent.PieceLength = message.PieceLength;
+            updated = true;
+        }
+
+        if (message.PieceCount > 0 && torrent.PieceCount != message.PieceCount)
+        {
+            torrent.PieceCount = message.PieceCount;
+            updated = true;
+        }
+
+        if (updated)
+        {
+            this.torrentRepository.Update(torrent);
+            this.eventAggregator.PublishEvent(new TorrentUpdatedEvent { Torrent = torrent });
+        }
+
+        // Insert torrent files if none exist yet
+        if (message.Files != null && message.Files.Count > 0 && this.fileRepository != null)
+        {
+            var existingFiles = this.fileRepository.GetByTorrentId(torrent.Id);
+            if (existingFiles == null || !existingFiles.Any())
+            {
+                this.fileRepository.InsertMany(message.Files.ToList());
+            }
+        }
+
+        // Trigger media enrichment with resolved name if auto enrich is enabled
+        if (this.configService.AutoEnrichEnabled)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await this.mediaEnrichmentService.EnrichTorrentAsync(torrent);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Background media enrichment failed for resolved magnet {0}", torrent.Id);
+                }
+            });
+        }
     }
 
     public void Handle(TorrentDownloadCompletedEvent message)
