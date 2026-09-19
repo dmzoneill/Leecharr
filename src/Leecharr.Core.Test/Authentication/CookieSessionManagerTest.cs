@@ -509,6 +509,68 @@ public class CookieSessionManagerTest
         context.Principal.Should().BeNull();
     }
 
+    [Test]
+    public void PruneExpired_RemovesExpiredTtlAndRevokedSessions()
+    {
+        var cache = new ConcurrentDictionary<string, (UserSession Session, DateTime CachedAt)>();
+        var manager = new CookieSessionManager(this.sessionRepository, TimeSpan.FromSeconds(10), cache);
+
+        var now = DateTime.UtcNow;
+        var validSession = new UserSession { SessionToken = "valid", Expiry = now.AddHours(1), AbsoluteExpiry = now.AddDays(1) };
+        var expiredTtlSession = new UserSession { SessionToken = "expired-ttl", Expiry = now.AddHours(1), AbsoluteExpiry = now.AddDays(1) };
+        var expiredSession = new UserSession { SessionToken = "expired-expiry", Expiry = now.AddHours(-1), AbsoluteExpiry = now.AddDays(1) };
+        var revokedSession = new UserSession { SessionToken = "revoked", Expiry = now.AddHours(1), AbsoluteExpiry = now.AddDays(1), IsRevoked = true };
+
+        cache["valid"] = (validSession, now);
+        cache["expired-ttl"] = (expiredTtlSession, now.AddSeconds(-20));
+        cache["expired-expiry"] = (expiredSession, now);
+        cache["revoked"] = (revokedSession, now);
+
+        manager.PruneExpired();
+
+        cache.ContainsKey("valid").Should().BeTrue();
+        cache.ContainsKey("expired-ttl").Should().BeFalse();
+        cache.ContainsKey("expired-expiry").Should().BeFalse();
+        cache.ContainsKey("revoked").Should().BeFalse();
+    }
+
+    [Test]
+    public void Remove_RemovesTokenFromCache()
+    {
+        var cache = new ConcurrentDictionary<string, (UserSession Session, DateTime CachedAt)>();
+        var manager = new CookieSessionManager(this.sessionRepository, TimeSpan.FromMinutes(5), cache);
+
+        var now = DateTime.UtcNow;
+        var session = new UserSession { SessionToken = "to-remove", Expiry = now.AddHours(1), AbsoluteExpiry = now.AddDays(1) };
+        cache["to-remove"] = (session, now);
+
+        manager.Remove("to-remove");
+
+        cache.ContainsKey("to-remove").Should().BeFalse();
+    }
+
+    [Test]
+    public void CacheCapacity_WhenExceeded_PrunesExpiredAndEvictsOldest()
+    {
+        var cache = new ConcurrentDictionary<string, (UserSession Session, DateTime CachedAt)>();
+        var repo = Substitute.For<IUserSessionRepository>();
+        var manager = new CookieSessionManager(repo, TimeSpan.FromMinutes(5), cache, null, maxCacheCapacity: 3);
+
+        for (var i = 1; i <= 4; i++)
+        {
+            var token = $"token-{i}";
+            var session = new UserSession { SessionToken = token, Expiry = DateTime.UtcNow.AddHours(1), AbsoluteExpiry = DateTime.UtcNow.AddDays(1) };
+            repo.FindBySessionToken(token).Returns(session);
+
+            var principal = CreatePrincipal(new Claim("SessionId", token));
+            manager.ValidateSession(principal);
+        }
+
+        cache.Count.Should().BeLessThanOrEqualTo(3);
+        cache.ContainsKey("token-4").Should().BeTrue();
+        cache.ContainsKey("token-1").Should().BeFalse();
+    }
+
     private static ClaimsPrincipal CreatePrincipal(params Claim[] additionalClaims)
     {
         var claims = new List<Claim>

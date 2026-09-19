@@ -1,6 +1,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using NLog;
 
@@ -11,6 +13,8 @@ public class JitUserProvisioningService : IJitUserProvisioningService
     private readonly IUserRepository userRepository;
     private readonly IIdentityProviderRepository identityProviderRepository;
     private readonly IClaimsRoleMappingService roleMapper;
+    private readonly IUserSessionRepository userSessionRepository;
+    private readonly IUserSessionCache userSessionCache;
     private readonly Logger logger;
 
     public JitUserProvisioningService(
@@ -18,11 +22,24 @@ public class JitUserProvisioningService : IJitUserProvisioningService
         IIdentityProviderRepository identityProviderRepository,
         IClaimsRoleMappingService roleMapper,
         Logger logger)
+        : this(userRepository, identityProviderRepository, roleMapper, logger, null, null)
+    {
+    }
+
+    public JitUserProvisioningService(
+        IUserRepository userRepository,
+        IIdentityProviderRepository identityProviderRepository,
+        IClaimsRoleMappingService roleMapper,
+        Logger logger,
+        IUserSessionRepository userSessionRepository = null,
+        IUserSessionCache userSessionCache = null)
     {
         this.userRepository = userRepository;
         this.identityProviderRepository = identityProviderRepository;
         this.roleMapper = roleMapper;
         this.logger = logger;
+        this.userSessionRepository = userSessionRepository;
+        this.userSessionCache = userSessionCache;
     }
 
     public User ProvisionOrUpdateUser(ExternalUserProfile profile)
@@ -55,7 +72,14 @@ public class JitUserProvisioningService : IJitUserProvisioningService
             if (profile.RawGroups != null && profile.RawGroups.Count > 0)
             {
                 var roles = this.roleMapper.ResolveRoles(provider, profile.RawGroups, false);
-                existingUser.Roles = JsonSerializer.Serialize(roles);
+                var newRolesJson = JsonSerializer.Serialize(roles);
+                var rolesChanged = this.HaveRolesChanged(existingUser.Roles, roles, newRolesJson);
+                existingUser.Roles = newRolesJson;
+
+                if (rolesChanged)
+                {
+                    this.RevokeUserSessions(existingUser.Id);
+                }
             }
 
             existingUser.UpdatedAt = DateTime.UtcNow;
@@ -90,7 +114,14 @@ public class JitUserProvisioningService : IJitUserProvisioningService
             if (profile.RawGroups != null && profile.RawGroups.Count > 0)
             {
                 var roles = this.roleMapper.ResolveRoles(provider, profile.RawGroups, false);
-                matchedUser.Roles = JsonSerializer.Serialize(roles);
+                var newRolesJson = JsonSerializer.Serialize(roles);
+                var rolesChanged = this.HaveRolesChanged(matchedUser.Roles, roles, newRolesJson);
+                matchedUser.Roles = newRolesJson;
+
+                if (rolesChanged)
+                {
+                    this.RevokeUserSessions(matchedUser.Id);
+                }
             }
 
             matchedUser.UpdatedAt = DateTime.UtcNow;
@@ -160,5 +191,49 @@ public class JitUserProvisioningService : IJitUserProvisioningService
         }
 
         return $"{candidate}_{suffix}";
+    }
+
+    private bool HaveRolesChanged(string currentRolesJson, List<string> newRoles, string newRolesJson)
+    {
+        if (string.IsNullOrWhiteSpace(currentRolesJson))
+        {
+            return newRoles.Count > 0;
+        }
+
+        try
+        {
+            var oldRoles = JsonSerializer.Deserialize<List<string>>(currentRolesJson) ?? new List<string>();
+            var oldSet = new HashSet<string>(oldRoles, StringComparer.OrdinalIgnoreCase);
+            var newSet = new HashSet<string>(newRoles, StringComparer.OrdinalIgnoreCase);
+            return !oldSet.SetEquals(newSet);
+        }
+        catch
+        {
+            return !string.Equals(currentRolesJson, newRolesJson, StringComparison.Ordinal);
+        }
+    }
+
+    private void RevokeUserSessions(int userId)
+    {
+        if (userId > 0)
+        {
+            if (this.userSessionRepository != null && this.userSessionCache != null)
+            {
+                var sessions = this.userSessionRepository.FindByUserId(userId);
+                if (sessions != null)
+                {
+                    foreach (var s in sessions)
+                    {
+                        if (!string.IsNullOrWhiteSpace(s.SessionToken))
+                        {
+                            this.userSessionCache.InvalidateCache(s.SessionToken);
+                        }
+                    }
+                }
+            }
+
+            this.userSessionRepository?.DeleteByUserId(userId);
+            this.userSessionCache?.ClearCache();
+        }
     }
 }

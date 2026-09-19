@@ -26,13 +26,20 @@ public interface ISessionCleanupTask
 public class SessionCleanupTask : ISessionCleanupTask, IHandle<ApplicationStartedEvent>, IExecute<SessionCleanupCommand>, IExecuteAsync<SessionCleanupCommand>, IDisposable
 {
     private readonly IUserSessionRepository userSessionRepository;
+    private readonly IUserSessionCache userSessionCache;
     private readonly Logger logger;
     private readonly CancellationTokenSource cts = new();
     private Task loopTask;
 
     public SessionCleanupTask(IUserSessionRepository userSessionRepository)
+        : this(userSessionRepository, null)
+    {
+    }
+
+    public SessionCleanupTask(IUserSessionRepository userSessionRepository, IUserSessionCache userSessionCache = null)
     {
         this.userSessionRepository = userSessionRepository;
+        this.userSessionCache = userSessionCache;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -62,12 +69,14 @@ public class SessionCleanupTask : ISessionCleanupTask, IHandle<ApplicationStarte
 
     public async Task<int> PruneExpiredSessionsAsync(CancellationToken cancellationToken = default)
     {
-        if (this.userSessionRepository == null)
+        var deleted = 0;
+        if (this.userSessionRepository != null)
         {
-            return 0;
+            deleted = await this.userSessionRepository.PruneExpiredSessionsAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        return await this.userSessionRepository.PruneExpiredSessionsAsync(cancellationToken).ConfigureAwait(false);
+        this.userSessionCache?.PruneExpired();
+        return deleted;
     }
 
     public async Task ExecuteAsync(CancellationToken cancellationToken = default)
