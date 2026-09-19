@@ -940,8 +940,8 @@ public class TorrentServiceTest
         var result = this.service.Get(5);
 
         result.Downloaded.Should().Be(1000);
-        result.Uploaded.Should().Be(2000); // Preserves lifetime uploaded
-        result.Ratio.Should().Be(2.0); // 2000 / 1000
+        result.Uploaded.Should().Be(2500); // Preserves cumulative lifetime uploaded: 2000 baseline + 500 session
+        result.Ratio.Should().Be(2.5); // 2500 / 1000
     }
 
     [Test]
@@ -2418,5 +2418,241 @@ public class TorrentServiceTest
         torrent.FirstLastPiecePriority.Should().BeTrue();
         this.torrentRepository.Received(1).Update(torrent);
         await this.downloadEngine.Received(1).SetFirstLastPiecePriorityAsync(602, true);
+    }
+
+    [Test]
+    public void Get_MultipleQueries_PreservesCumulativeUploadAndRatioAcrossQueries()
+    {
+        var dbTorrent = new Torrent
+        {
+            Id = 801,
+            Name = "Cumulative Upload Torrent",
+            TotalSize = 1000,
+            Downloaded = 1000,
+            Uploaded = 0,
+            Progress = 1.0,
+            Status = TorrentStatus.Seeding,
+        };
+
+        this.torrentRepository.Get(801).Returns(_ => new Torrent
+        {
+            Id = dbTorrent.Id,
+            Name = dbTorrent.Name,
+            TotalSize = dbTorrent.TotalSize,
+            Downloaded = dbTorrent.Downloaded,
+            Uploaded = dbTorrent.Uploaded,
+            Progress = dbTorrent.Progress,
+            Status = dbTorrent.Status,
+        });
+        this.torrentRepository.Update(Arg.Any<Torrent>()).Returns(ci =>
+        {
+            var updated = ci.Arg<Torrent>();
+            dbTorrent.Uploaded = updated.Uploaded;
+            dbTorrent.Downloaded = updated.Downloaded;
+            dbTorrent.Ratio = updated.Ratio;
+            return updated;
+        });
+
+        var task = Substitute.For<IDownloadTask>();
+        task.Status.Returns(TorrentStatus.Seeding);
+        task.Progress.Returns(1.0);
+        task.DownloadedBytes.Returns(1000);
+        task.UploadedBytes.Returns(100);
+        this.downloadEngine.GetTask(801).Returns(task);
+
+        // Query 1: Initial sync with 100 session uploaded bytes
+        var result1 = this.service.Get(801);
+        result1.Uploaded.Should().Be(100);
+        result1.Ratio.Should().Be(0.1);
+        dbTorrent.Uploaded.Should().Be(100);
+
+        // Query 2: Subsequent query with same session uploaded bytes (should not drop or double)
+        var result2 = this.service.Get(801);
+        result2.Uploaded.Should().Be(100);
+        result2.Ratio.Should().Be(0.1);
+        dbTorrent.Uploaded.Should().Be(100);
+
+        // Query 3: Task reports 150 session bytes
+        task.UploadedBytes.Returns(150);
+        var result3 = this.service.Get(801);
+        result3.Uploaded.Should().Be(150);
+        result3.Ratio.Should().Be(0.15);
+        dbTorrent.Uploaded.Should().Be(150);
+
+        // Query 4: Subsequent query with 150 session bytes preserves state
+        var result4 = this.service.Get(801);
+        result4.Uploaded.Should().Be(150);
+        result4.Ratio.Should().Be(0.15);
+    }
+
+    [Test]
+    public void GetAll_MultipleQueries_PreservesCumulativeUploadAndRatioAcrossQueries()
+    {
+        var dbTorrent = new Torrent
+        {
+            Id = 802,
+            Name = "GetAll Cumulative Torrent",
+            TotalSize = 2000,
+            Downloaded = 2000,
+            Uploaded = 500,
+            Progress = 1.0,
+            Status = TorrentStatus.Seeding,
+            QueuePosition = 1,
+        };
+
+        this.torrentRepository.All().Returns(_ => new List<Torrent>
+        {
+            new()
+            {
+                Id = dbTorrent.Id,
+                Name = dbTorrent.Name,
+                TotalSize = dbTorrent.TotalSize,
+                Downloaded = dbTorrent.Downloaded,
+                Uploaded = dbTorrent.Uploaded,
+                Progress = dbTorrent.Progress,
+                Status = dbTorrent.Status,
+                QueuePosition = dbTorrent.QueuePosition,
+            },
+        });
+        this.torrentRepository.Update(Arg.Any<Torrent>()).Returns(ci =>
+        {
+            var updated = ci.Arg<Torrent>();
+            dbTorrent.Uploaded = updated.Uploaded;
+            dbTorrent.Downloaded = updated.Downloaded;
+            dbTorrent.Ratio = updated.Ratio;
+            return updated;
+        });
+
+        var task = Substitute.For<IDownloadTask>();
+        task.Status.Returns(TorrentStatus.Seeding);
+        task.Progress.Returns(1.0);
+        task.DownloadedBytes.Returns(2000);
+        task.UploadedBytes.Returns(250); // 250 session bytes on top of 500 DB baseline
+        this.downloadEngine.GetTask(802).Returns(task);
+
+        // Query 1
+        var results1 = this.service.GetAll().ToList();
+        results1.Should().HaveCount(1);
+        results1[0].Uploaded.Should().Be(750); // 500 DB baseline + 250 session
+        results1[0].Ratio.Should().Be(0.375);
+        dbTorrent.Uploaded.Should().Be(750);
+
+        // Query 2: Same session bytes, fresh model loaded from repository
+        var results2 = this.service.GetAll().ToList();
+        results2.Should().HaveCount(1);
+        results2[0].Uploaded.Should().Be(750);
+        results2[0].Ratio.Should().Be(0.375);
+
+        // Query 3: Task uploads more bytes
+        task.UploadedBytes.Returns(350);
+        var results3 = this.service.GetAll().ToList();
+        results3.Should().HaveCount(1);
+        results3[0].Uploaded.Should().Be(850); // 500 DB baseline + 350 session
+        results3[0].Ratio.Should().Be(0.425);
+    }
+
+    [Test]
+    public void Get_AppRestartSimulation_AccumulatesDbBaselineAndSessionBytesWithoutDropping()
+    {
+        var dbTorrent = new Torrent
+        {
+            Id = 803,
+            Name = "Restart Torrent",
+            TotalSize = 1000,
+            Downloaded = 1000,
+            Uploaded = 2000,
+            Progress = 1.0,
+            Status = TorrentStatus.Seeding,
+        };
+
+        this.torrentRepository.Get(803).Returns(_ => new Torrent
+        {
+            Id = dbTorrent.Id,
+            Name = dbTorrent.Name,
+            TotalSize = dbTorrent.TotalSize,
+            Downloaded = dbTorrent.Downloaded,
+            Uploaded = dbTorrent.Uploaded,
+            Progress = dbTorrent.Progress,
+            Status = dbTorrent.Status,
+        });
+        this.torrentRepository.Update(Arg.Any<Torrent>()).Returns(ci =>
+        {
+            var updated = ci.Arg<Torrent>();
+            dbTorrent.Uploaded = updated.Uploaded;
+            dbTorrent.Downloaded = updated.Downloaded;
+            dbTorrent.Ratio = updated.Ratio;
+            return updated;
+        });
+
+        var task = Substitute.For<IDownloadTask>();
+        task.Status.Returns(TorrentStatus.Seeding);
+        task.Progress.Returns(1.0);
+        task.DownloadedBytes.Returns(0); // 0 session downloaded
+        task.UploadedBytes.Returns(300); // 300 session uploaded after restart
+        this.downloadEngine.GetTask(803).Returns(task);
+
+        var result = this.service.Get(803);
+
+        result.Uploaded.Should().Be(2300); // 2000 DB baseline + 300 session bytes
+        result.Ratio.Should().Be(2.3);
+        dbTorrent.Uploaded.Should().Be(2300);
+
+        // Multiple subsequent queries preserve stats
+        var resultAfter = this.service.Get(803);
+        resultAfter.Uploaded.Should().Be(2300);
+        resultAfter.Ratio.Should().Be(2.3);
+    }
+
+    [Test]
+    public void Get_WhenEngineTaskRestartsMidSession_PreservesLifetimeUpload()
+    {
+        var dbTorrent = new Torrent
+        {
+            Id = 804,
+            Name = "Engine Task Restart Torrent",
+            TotalSize = 1000,
+            Downloaded = 1000,
+            Uploaded = 1000,
+            Progress = 1.0,
+            Status = TorrentStatus.Seeding,
+        };
+
+        this.torrentRepository.Get(804).Returns(_ => new Torrent
+        {
+            Id = dbTorrent.Id,
+            Name = dbTorrent.Name,
+            TotalSize = dbTorrent.TotalSize,
+            Downloaded = dbTorrent.Downloaded,
+            Uploaded = dbTorrent.Uploaded,
+            Progress = dbTorrent.Progress,
+            Status = dbTorrent.Status,
+        });
+        this.torrentRepository.Update(Arg.Any<Torrent>()).Returns(ci =>
+        {
+            var updated = ci.Arg<Torrent>();
+            dbTorrent.Uploaded = updated.Uploaded;
+            dbTorrent.Downloaded = updated.Downloaded;
+            dbTorrent.Ratio = updated.Ratio;
+            return updated;
+        });
+
+        var task = Substitute.For<IDownloadTask>();
+        task.Status.Returns(TorrentStatus.Seeding);
+        task.Progress.Returns(1.0);
+        task.DownloadedBytes.Returns(1000);
+        task.UploadedBytes.Returns(500);
+        this.downloadEngine.GetTask(804).Returns(task);
+
+        // Initial session: 1000 baseline + 500 session = 1500
+        var result1 = this.service.Get(804);
+        result1.Uploaded.Should().Be(1500);
+        dbTorrent.Uploaded.Should().Be(1500);
+
+        // Engine task is restarted: UploadedBytes resets to 20
+        task.UploadedBytes.Returns(20);
+        var result2 = this.service.Get(804);
+        result2.Uploaded.Should().Be(1520); // 1500 previous lifetime + 20 new session
+        result2.Ratio.Should().Be(1.52);
+        dbTorrent.Uploaded.Should().Be(1520);
     }
 }
