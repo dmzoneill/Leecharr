@@ -939,6 +939,135 @@ public class RTorrentControllerTest
     }
 
     [Test]
+    public async Task HandleXmlRpc_Multicall2_FiltersTorrentsByPausedAndCheckingViews()
+    {
+        var tChecking = new Torrent { Id = 1, InfoHash = "1111", Status = TorrentStatus.Checking, Progress = 0.5 };
+        var tPaused = new Torrent { Id = 2, InfoHash = "2222", Status = TorrentStatus.Paused, Progress = 1.0 };
+        var tDownloading = new Torrent { Id = 3, InfoHash = "3333", Status = TorrentStatus.Downloading, Progress = 0.2 };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { tChecking, tPaused, tDownloading });
+
+        // Checking view
+        var xmlChecking = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.multicall2</methodName>
+              <params>
+                <param><value><string></string></value></param>
+                <param><value><string>checking</string></value></param>
+                <param><value><string>d.hash=</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xmlChecking);
+        var resChecking = (ContentResult)await this.controller.HandleXmlRpc();
+        resChecking.Content.Should().Contain("1111");
+        resChecking.Content.Should().NotContain("2222");
+        resChecking.Content.Should().NotContain("3333");
+
+        // Paused view
+        var xmlPaused = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.multicall2</methodName>
+              <params>
+                <param><value><string></string></value></param>
+                <param><value><string>paused</string></value></param>
+                <param><value><string>d.hash=</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xmlPaused);
+        var resPaused = (ContentResult)await this.controller.HandleXmlRpc();
+        resPaused.Content.Should().Contain("2222");
+        resPaused.Content.Should().NotContain("1111");
+        resPaused.Content.Should().NotContain("3333");
+
+        // Unknown view returns all torrents
+        var xmlUnknown = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.multicall2</methodName>
+              <params>
+                <param><value><string></string></value></param>
+                <param><value><string>unknown_view</string></value></param>
+                <param><value><string>d.hash=</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xmlUnknown);
+        var resUnknown = (ContentResult)await this.controller.HandleXmlRpc();
+        resUnknown.Content.Should().Contain("1111");
+        resUnknown.Content.Should().Contain("2222");
+        resUnknown.Content.Should().Contain("3333");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_Multicall2_IncompleteView_ExcludesSeedingTorrentsEvenIfProgressUnderOne()
+    {
+        var tSeedingUnderOne = new Torrent { Id = 1, InfoHash = "1111", Status = TorrentStatus.Seeding, Progress = 0.999 };
+        var tDownloading = new Torrent { Id = 2, InfoHash = "2222", Status = TorrentStatus.Downloading, Progress = 0.5 };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { tSeedingUnderOne, tDownloading });
+
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.multicall2</methodName>
+              <params>
+                <param><value><string></string></value></param>
+                <param><value><string>incomplete</string></value></param>
+                <param><value><string>d.hash=</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+        var res = (ContentResult)await this.controller.HandleXmlRpc();
+        res.Content.Should().Contain("2222");
+        res.Content.Should().NotContain("1111");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_BasePathAndBaseFilename_ReturnsPayloadPathAndName()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            InfoHash = "aaaa1111bbbb2222cccc3333dddd4444eeee5555",
+            Name = "My.Cool.Show.S01E01.mkv",
+            SavePath = "/downloads/completed",
+            Status = TorrentStatus.Seeding,
+            Progress = 1.0,
+        };
+
+        this.torrentService.GetByInfoHash("aaaa1111bbbb2222cccc3333dddd4444eeee5555").Returns(torrent);
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+              <methodName>d.multicall2</methodName>
+              <params>
+                <param><value><string></string></value></param>
+                <param><value><string>main</string></value></param>
+                <param><value><string>d.base_path=</string></value></param>
+                <param><value><string>d.get_base_path=</string></value></param>
+                <param><value><string>d.base_filename=</string></value></param>
+                <param><value><string>d.get_base_filename=</string></value></param>
+                <param><value><string>d.directory=</string></value></param>
+              </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+        var res = (ContentResult)await this.controller.HandleXmlRpc();
+
+        var combinedPath = Path.Combine("/downloads/completed", "My.Cool.Show.S01E01.mkv");
+        res.Content.Should().Contain($"<string>{combinedPath}</string>");
+        res.Content.Should().Contain("<string>My.Cool.Show.S01E01.mkv</string>");
+        res.Content.Should().Contain("<string>/downloads/completed</string>");
+    }
+
+    [Test]
     public async Task HandleXmlRpc_ViewsHas_ChecksMembershipStandaloneAndInMulticall()
     {
         var torrent = new Torrent
