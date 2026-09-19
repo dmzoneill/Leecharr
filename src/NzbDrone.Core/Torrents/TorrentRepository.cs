@@ -3,7 +3,6 @@
 using System.Collections.Generic;
 using Dapper;
 using NzbDrone.Core.Datastore;
-
 using NzbDrone.Core.Datastore.Events;
 using NzbDrone.Core.Messaging.Events;
 
@@ -133,7 +132,7 @@ public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
         var normalized = infoHash.Trim().ToLowerInvariant();
         return this.ExecuteWithRetry(connection =>
             connection.QueryFirstOrDefault<Torrent>(
-                $"SELECT * FROM \"{this.table}\" WHERE \"InfoHash\" = @InfoHash",
+                $"SELECT * FROM \"{this.table}\" WHERE \"InfoHash\" = @InfoHash OR \"V2InfoHash\" = @InfoHash",
                 new { InfoHash = normalized }));
     }
 
@@ -147,7 +146,7 @@ public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
         var normalized = infoHash.Trim().ToLowerInvariant();
         return this.ExecuteWithRetry(connection =>
             connection.QueryFirstOrDefault<int>(
-                $"SELECT COUNT(1) FROM \"{this.table}\" WHERE \"InfoHash\" = @InfoHash",
+                $"SELECT COUNT(1) FROM \"{this.table}\" WHERE \"InfoHash\" = @InfoHash OR \"V2InfoHash\" = @InfoHash",
                 new { InfoHash = normalized }) > 0);
     }
 
@@ -186,6 +185,11 @@ public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
         if (model?.InfoHash != null)
         {
             model.InfoHash = model.InfoHash.Trim().ToLowerInvariant();
+        }
+
+        if (model?.V2InfoHash != null)
+        {
+            model.V2InfoHash = model.V2InfoHash.Trim().ToLowerInvariant();
         }
     }
 }
