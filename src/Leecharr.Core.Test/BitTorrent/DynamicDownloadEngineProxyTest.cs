@@ -764,4 +764,108 @@ public class DynamicDownloadEngineProxyTest
         await this.libTorrentEngine.Received(1).StopAsync();
         await this.monoTorrentEngine.DidNotReceive().StartAsync();
     }
+
+    [Test]
+    public async Task SwitchEngineAsync_DuringMigration_SynchronousQueriesRouteToPreviousEngineUntilRehydrationFinishes()
+    {
+        await this.proxy.StartAsync();
+
+        var monoTask = Substitute.For<IDownloadTask>();
+        monoTask.TorrentId.Returns(1);
+        this.monoTorrentEngine.GetTask(1).Returns(monoTask);
+        this.monoTorrentEngine.GetAllTasks().Returns(new[] { monoTask });
+
+        var libTask = Substitute.For<IDownloadTask>();
+        libTask.TorrentId.Returns(1);
+        this.libTorrentEngine.GetTask(1).Returns(libTask);
+        this.libTorrentEngine.GetAllTasks().Returns(new[] { libTask });
+
+        var rehydrationBlocker = new TaskCompletionSource();
+        this.libTorrentEngine.AddTorrentAsync(Arg.Any<Torrent>(), Arg.Any<byte[]>(), Arg.Any<string>()).Returns(async _ =>
+        {
+            await rehydrationBlocker.Task;
+            return libTask;
+        });
+
+        var switchTask = this.proxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
+
+        // During migration (while target engine is starting/rehydrating), synchronous queries should route to previous engine
+        this.proxy.GetTask(1).Should().BeSameAs(monoTask);
+        this.proxy.GetAllTasks().Should().ContainSingle().Which.Should().BeSameAs(monoTask);
+        this.proxy.ActiveEngineId.Should().Be("MonoTorrent");
+
+        // Allow rehydration to complete
+        rehydrationBlocker.SetResult();
+        var result = await switchTask;
+
+        result.Success.Should().BeTrue();
+        this.proxy.ActiveEngineId.Should().Be("LibTorrent");
+        this.proxy.GetTask(1).Should().BeSameAs(libTask);
+        this.proxy.GetAllTasks().Should().ContainSingle().Which.Should().BeSameAs(libTask);
+    }
+
+    [Test]
+    public async Task SwitchEngineAsync_DuringRollback_SynchronousQueriesRouteToPreviousEngineNotFaultedEngine()
+    {
+        await this.proxy.StartAsync();
+
+        var monoTask = Substitute.For<IDownloadTask>();
+        monoTask.TorrentId.Returns(1);
+        this.monoTorrentEngine.GetTask(1).Returns(monoTask);
+        this.monoTorrentEngine.GetAllTasks().Returns(new[] { monoTask });
+
+        this.libTorrentEngine.GetTask(1).Returns((IDownloadTask)null!);
+        this.libTorrentEngine.GetAllTasks().Returns(Enumerable.Empty<IDownloadTask>());
+
+        // Target engine fails during startup
+        this.libTorrentEngine.StartAsync().ThrowsAsync(new InvalidOperationException("Port binding failure"));
+
+        var rollbackBlocker = new TaskCompletionSource();
+        this.monoTorrentEngine.StartAsync().Returns(async _ =>
+        {
+            await rollbackBlocker.Task;
+        });
+
+        var switchTask = this.proxy.SwitchEngineAsync("LibTorrent");
+
+        // While rollback is in progress, synchronous queries should route to previous engine, never to faulted engine
+        this.proxy.GetTask(1).Should().BeSameAs(monoTask);
+        this.proxy.GetAllTasks().Should().ContainSingle().Which.Should().BeSameAs(monoTask);
+
+        rollbackBlocker.SetResult();
+        var result = await switchTask;
+
+        result.Success.Should().BeFalse();
+        this.proxy.ActiveEngineId.Should().Be("MonoTorrent");
+        this.proxy.GetTask(1).Should().BeSameAs(monoTask);
+    }
+
+    [Test]
+    public async Task SwitchEngineAsync_IncomingOperationsDuringMigration_WaitUntilRehydrationFinishes()
+    {
+        await this.proxy.StartAsync();
+        this.monoTorrentEngine.ClearReceivedCalls();
+
+        var rehydrationBlocker = new TaskCompletionSource();
+        this.libTorrentEngine.AddTorrentAsync(Arg.Any<Torrent>(), Arg.Any<byte[]>(), Arg.Any<string>()).Returns(async _ =>
+        {
+            await rehydrationBlocker.Task;
+            return Substitute.For<IDownloadTask>();
+        });
+
+        var switchTask = this.proxy.SwitchEngineAsync("LibTorrent", preserveTransfers: true);
+
+        // Queue an operation during migration
+        var pauseTask = this.proxy.PauseTorrentAsync(1);
+
+        // While rehydration is in progress, the operation should NOT be completed
+        pauseTask.IsCompleted.Should().BeFalse();
+
+        rehydrationBlocker.SetResult();
+
+        await switchTask;
+        await pauseTask;
+
+        await this.libTorrentEngine.Received(1).PauseTorrentAsync(1);
+    }
 }
