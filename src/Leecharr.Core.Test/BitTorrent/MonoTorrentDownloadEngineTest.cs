@@ -533,17 +533,28 @@ public class MonoTorrentDownloadEngineTest
 
         public int BytesToReturnOnReceive { get; set; }
 
+        public byte[] DataToReceive { get; set; }
+
+        public byte[] SentData { get; private set; }
+
         public ReusableTasks.ReusableTask ConnectAsync() => default;
 
         public async ReusableTasks.ReusableTask<int> ReceiveAsync(Memory<byte> buffer)
         {
             await Task.Yield();
+            if (this.DataToReceive != null)
+            {
+                this.DataToReceive.CopyTo(buffer);
+                return this.DataToReceive.Length;
+            }
+
             return this.BytesToReturnOnReceive;
         }
 
         public async ReusableTasks.ReusableTask<int> SendAsync(Memory<byte> buffer)
         {
             await Task.Yield();
+            this.SentData = buffer.ToArray();
             return buffer.Length;
         }
 
@@ -551,6 +562,68 @@ public class MonoTorrentDownloadEngineTest
         {
             this.Disposed = true;
         }
+    }
+
+    [Test]
+    public async Task HandshakeMonitoredPeerConnection_WhenFastExtensionDisabled_ClearsFastExtensionBitInHandshake()
+    {
+        var fakeConn = new FakePeerConnection();
+        var cfg = Substitute.For<IConfigService>();
+        cfg.ExtensionFastExtension.Returns(false);
+
+        var handshake = new byte[68];
+        handshake[0] = 19;
+        handshake[27] = 0x04;
+        fakeConn.DataToReceive = handshake;
+
+        using var monitored = new HandshakeMonitoredPeerConnection(
+            fakeConn,
+            TimeSpan.FromSeconds(5),
+            () => { },
+            configService: cfg);
+
+        var outbound = new byte[68];
+        outbound[0] = 19;
+        outbound[27] = 0x04;
+        await monitored.SendAsync(outbound);
+        (outbound[27] & 0x04).Should().Be(0);
+        (fakeConn.SentData![27] & 0x04).Should().Be(0);
+
+        var inbound = new byte[68];
+        var read = await monitored.ReceiveAsync(inbound);
+        read.Should().Be(68);
+        (inbound[27] & 0x04).Should().Be(0);
+    }
+
+    [Test]
+    public async Task HandshakeMonitoredPeerConnection_WhenFastExtensionEnabled_PreservesFastExtensionBitInHandshake()
+    {
+        var fakeConn = new FakePeerConnection();
+        var cfg = Substitute.For<IConfigService>();
+        cfg.ExtensionFastExtension.Returns(true);
+
+        var handshake = new byte[68];
+        handshake[0] = 19;
+        handshake[27] = 0x04;
+        fakeConn.DataToReceive = handshake;
+
+        using var monitored = new HandshakeMonitoredPeerConnection(
+            fakeConn,
+            TimeSpan.FromSeconds(5),
+            () => { },
+            configService: cfg);
+
+        var outbound = new byte[68];
+        outbound[0] = 19;
+        outbound[27] = 0x04;
+        await monitored.SendAsync(outbound);
+        (outbound[27] & 0x04).Should().Be(0x04);
+        (fakeConn.SentData![27] & 0x04).Should().Be(0x04);
+
+        var inbound = new byte[68];
+        var read = await monitored.ReceiveAsync(inbound);
+        read.Should().Be(68);
+        (inbound[27] & 0x04).Should().Be(0x04);
     }
 
     [Test]
@@ -3734,6 +3807,62 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public void BoundSocketConnector_CreateDatagramSocket_WhenUtpDisabled_ThrowsProtocolNotSupported()
+    {
+        var cfg = Substitute.For<IConfigService>();
+        cfg.UtpEnabled.Returns(false);
+
+        var connector = new BoundSocketConnector(
+            () => IPAddress.Loopback,
+            () => IPAddress.IPv6Loopback,
+            configService: cfg);
+
+        var act = () => connector.CreateDatagramSocket();
+        act.Should().Throw<SocketException>()
+            .Which.SocketErrorCode.Should().Be(SocketError.ProtocolNotSupported);
+    }
+
+    [Test]
+    public async Task BoundSocketConnector_ConnectAsync_WhenUtpDisabledAndTcpFallbackDisabled_ThrowsProtocolNotSupported()
+    {
+        var cfg = Substitute.For<IConfigService>();
+        cfg.UtpEnabled.Returns(false);
+        cfg.TcpFallback.Returns(false);
+
+        var connector = new BoundSocketConnector(
+            () => IPAddress.Loopback,
+            () => IPAddress.IPv6Loopback,
+            configService: cfg);
+
+        Func<Task> act = async () => await connector.ConnectAsync(new Uri("utp://127.0.0.1:12345"), CancellationToken.None);
+        (await act.Should().ThrowAsync<SocketException>())
+            .Which.SocketErrorCode.Should().Be(SocketError.ProtocolNotSupported);
+    }
+
+    [Test]
+    public async Task BoundSocketConnector_ConnectAsync_WhenUtpDisabledAndTcpFallbackEnabled_FallsBackToTcpStream()
+    {
+        using var tcpListener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
+        tcpListener.Start();
+        var port = ((IPEndPoint)tcpListener.LocalEndpoint).Port;
+
+        var cfg = Substitute.For<IConfigService>();
+        cfg.UtpEnabled.Returns(false);
+        cfg.TcpFallback.Returns(true);
+
+        var connector = new BoundSocketConnector(
+            () => IPAddress.Loopback,
+            () => IPAddress.IPv6Loopback,
+            configService: cfg);
+
+        using var socket = await connector.ConnectAsync(new Uri($"utp://127.0.0.1:{port}"), CancellationToken.None);
+        socket.Should().NotBeNull();
+        socket.SocketType.Should().Be(System.Net.Sockets.SocketType.Stream);
+        socket.ProtocolType.Should().Be(System.Net.Sockets.ProtocolType.Tcp);
+        socket.Connected.Should().BeTrue();
+    }
+
+    [Test]
     public async Task MonoTorrentDownloadEngine_StartsSuccessfully_WithBepConfigs()
     {
         this.configService.ExtensionFastExtension.Returns(true);
@@ -5908,5 +6037,32 @@ public class MonoTorrentDownloadEngineTest
         // Resume from scheduler
         await this.engine.ResumeFromSchedulerAsync();
         this.engine.SchedulerPausedTorrentIds.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task MonoTorrentDownloadEngine_RejectRequest_DelegatesToPiecePicker()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("reject.iso");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+        var torrent = new CoreTorrent
+        {
+            Id = 643,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "reject.iso",
+            Status = TorrentStatus.Downloading,
+        };
+
+        await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        var task = this.engine.GetTask(643);
+        task.Should().NotBeNull();
+        task!.Picker.Should().NotBeNull();
+
+        var bitfield = Enumerable.Repeat(true, task.Picker.PieceCount).ToArray();
+        var picked = task.Picker.PickBlocks(bitfield, 1, peerId: "peerA");
+        picked.Should().HaveCount(1);
+        task.Picker.InFlightBlockCount.Should().Be(1);
+
+        this.engine.RejectRequest(643, picked[0].PieceIndex, picked[0].BlockOffset, picked[0].BlockLength, "peerA");
+        task.Picker.InFlightBlockCount.Should().Be(0);
     }
 }
