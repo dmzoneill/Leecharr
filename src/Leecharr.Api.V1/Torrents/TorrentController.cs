@@ -796,6 +796,12 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
         if (file != null && file.Length > 0)
         {
+            var maxBytes = this.configService?.MaxTorrentFileSizeBytes > 0 ? this.configService.MaxTorrentFileSizeBytes : 250L * 1024 * 1024;
+            if (file.Length > maxBytes)
+            {
+                return this.StatusCode(StatusCodes.Status413PayloadTooLarge, $"Torrent file size exceeds maximum allowed size of {maxBytes} bytes.");
+            }
+
             using var ms = new MemoryStream();
             await file.CopyToAsync(ms);
             var bytes = ms.ToArray();
@@ -857,6 +863,13 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         if (formFiles.Count == 0)
         {
             return this.BadRequest("No torrent file provided");
+        }
+
+        var maxBytes = this.configService?.MaxTorrentFileSizeBytes > 0 ? this.configService.MaxTorrentFileSizeBytes : 250L * 1024 * 1024;
+        var oversizedFile = formFiles.FirstOrDefault(f => f != null && f.Length > maxBytes);
+        if (oversizedFile != null)
+        {
+            return this.StatusCode(StatusCodes.Status413PayloadTooLarge, $"File '{oversizedFile.FileName}' exceeds maximum allowed size of {maxBytes} bytes.");
         }
 
         var destination = !string.IsNullOrWhiteSpace(downloadPath) ? downloadPath : savePath;
@@ -1447,6 +1460,12 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         if (targetFile == null || targetFile.Length == 0)
         {
             return this.BadRequest("No torrent file provided");
+        }
+
+        var maxBytes = this.configService?.MaxTorrentFileSizeBytes > 0 ? this.configService.MaxTorrentFileSizeBytes : 250L * 1024 * 1024;
+        if (targetFile.Length > maxBytes)
+        {
+            return this.StatusCode(StatusCodes.Status413PayloadTooLarge, $"File '{targetFile.FileName}' exceeds maximum allowed size of {maxBytes} bytes.");
         }
 
         using var ms = new MemoryStream();
