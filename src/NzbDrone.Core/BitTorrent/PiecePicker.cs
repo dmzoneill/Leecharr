@@ -143,6 +143,8 @@ public class PiecePicker
 
     public bool EndGamePickerEnabled { get; set; } = true;
 
+    public bool SequentialMode { get; set; }
+
     public IReadOnlyCollection<int> PartialPieces => this.GetPartialPieces();
 
     public IReadOnlyCollection<int> GetPartialPieces()
@@ -462,7 +464,7 @@ public class PiecePicker
             return validPieces;
         }
 
-        if (sequentialMode)
+        if (sequentialMode || this.SequentialMode)
         {
             // Sequential with dynamic Head / Tail priority, respecting piece priority weights
             var (headThreshold, tailThreshold) = this.CalculateSequentialHeadTailThresholds();
