@@ -843,15 +843,15 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
     {
         if (status == TrackerHealthStatus.Alive && latencyMs > 0 && latencyMs < 300)
         {
-            return 0;
+            return 1;
         }
 
         if ((status == TrackerHealthStatus.Alive || status == TrackerHealthStatus.Slow) && latencyMs < 1000)
         {
-            return 1;
+            return 2;
         }
 
-        return 2;
+        return 3;
     }
 
     internal static async Task<IPAddress[]> ResolveHostAddressesAsync(string host, CancellationToken cancellationToken = default)
@@ -1060,6 +1060,13 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
             .Where(d => IsValidPublicTrackerUrl(d.TrackerUrl))
             .Where(d => !existingTrackers.Contains(d.TrackerUrl.Trim().ToLowerInvariant()))
             .Where(d => !onlyVerified || d.IsVerified)
+            .OrderBy(d =>
+            {
+                var tr = this.trackerRepository.Get(d.TrackerId);
+                return tr != null
+                    ? CalculateDynamicTier(tr.Status, tr.LatencyMs)
+                    : CalculateDynamicTier(d.HealthStatus, d.LatencyMs);
+            })
             .Take(maxToAdd)
             .ToList();
 
