@@ -647,7 +647,7 @@ public class PiecePicker
     {
         lock (this.syncLock)
         {
-            if (pieceIndex < 0 || pieceIndex >= this.pieceCount || blockOffset < 0 || blockOffset % DefaultBlockSize != 0)
+            if (pieceIndex < 0 || pieceIndex >= this.pieceCount || blockOffset < 0)
             {
                 return;
             }
@@ -674,12 +674,36 @@ public class PiecePicker
 
     public void RejectRequest(int pieceIndex, int blockOffset, string peerId = null)
     {
-        this.CancelBlock(pieceIndex, blockOffset, peerId);
+        lock (this.syncLock)
+        {
+            if (pieceIndex < 0 || pieceIndex >= this.pieceCount || blockOffset < 0)
+            {
+                return;
+            }
+
+            var blockIdx = blockOffset / DefaultBlockSize;
+            var blockKey = $"{pieceIndex}:{blockIdx}";
+            if (this.inFlightBlocks.TryGetValue(blockKey, out var info))
+            {
+                if (!string.IsNullOrEmpty(peerId))
+                {
+                    info.PeerRequests.Remove(peerId);
+                    if (info.PeerRequests.Count == 0 || !this.IsEndgameMode())
+                    {
+                        this.inFlightBlocks.Remove(blockKey);
+                    }
+                }
+                else
+                {
+                    this.inFlightBlocks.Remove(blockKey);
+                }
+            }
+        }
     }
 
     public void RejectRequest(int pieceIndex, int blockOffset, int length, string peerId = null)
     {
-        this.CancelBlock(pieceIndex, blockOffset, peerId);
+        this.RejectRequest(pieceIndex, blockOffset, peerId);
     }
 
     public int PruneTimedOutRequests(TimeSpan? timeout = null)
