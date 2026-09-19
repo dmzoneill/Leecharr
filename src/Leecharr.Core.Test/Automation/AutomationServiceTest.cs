@@ -661,4 +661,152 @@ public class AutomationServiceTest
         _torrentRepository.Received(1).Update(torrent);
         _eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentStartedEvent>(e => e.Torrent == torrent));
     }
+
+    [Test]
+    public void ShouldUpdateTargetRatio_WhenScriptSetsRatioLimit()
+    {
+        var torrent = new Torrent
+        {
+            Id = 101,
+            Name = "RatioTorrent",
+            TargetRatio = 1.0,
+        };
+
+        var script = new AutomationScript
+        {
+            Id = 101,
+            Name = "RatioScript",
+            IsEnabled = true,
+            Language = AutomationLanguage.JavaScript,
+            Code = "torrent.setRatioLimit(2.5);",
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            torrentService: null);
+
+        var result = service.ExecuteScript(script, torrent);
+
+        result.Success.Should().BeTrue();
+        torrent.TargetRatio.Should().Be(2.5);
+        _torrentRepository.Received(1).Update(torrent);
+        _eventAggregator.Received(1).PublishEvent(Arg.Is<ModelEvent<Torrent>>(e => e.Model == torrent && e.Action == ModelAction.Updated));
+    }
+
+    [Test]
+    public void ShouldUpdateTargetSeedTimeMinutes_WhenScriptSetsSeedingTimeLimit()
+    {
+        var torrent = new Torrent
+        {
+            Id = 102,
+            Name = "SeedTimeTorrent",
+            TargetSeedTimeMinutes = 60,
+        };
+
+        var script = new AutomationScript
+        {
+            Id = 102,
+            Name = "SeedTimeScript",
+            IsEnabled = true,
+            Language = AutomationLanguage.JavaScript,
+            Code = "torrent.setSeedingTimeLimit(180);",
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            torrentService: null);
+
+        var result = service.ExecuteScript(script, torrent);
+
+        result.Success.Should().BeTrue();
+        torrent.TargetSeedTimeMinutes.Should().Be(180);
+        _torrentRepository.Received(1).Update(torrent);
+        _eventAggregator.Received(1).PublishEvent(Arg.Is<ModelEvent<Torrent>>(e => e.Model == torrent && e.Action == ModelAction.Updated));
+    }
+
+    [Test]
+    public void ShouldUpdateShareLimitAction_WhenScriptSetsShareLimitAction()
+    {
+        var torrent = new Torrent
+        {
+            Id = 103,
+            Name = "ShareLimitTorrent",
+            ShareLimitAction = "Pause",
+        };
+
+        var script = new AutomationScript
+        {
+            Id = 103,
+            Name = "ShareLimitScript",
+            IsEnabled = true,
+            Language = AutomationLanguage.JavaScript,
+            Code = "torrent.setShareLimitAction('RemoveWithData');",
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            torrentService: null);
+
+        var result = service.ExecuteScript(script, torrent);
+
+        result.Success.Should().BeTrue();
+        torrent.ShareLimitAction.Should().Be("RemoveWithData");
+        _torrentRepository.Received(1).Update(torrent);
+        _eventAggregator.Received(1).PublishEvent(Arg.Is<ModelEvent<Torrent>>(e => e.Model == torrent && e.Action == ModelAction.Updated));
+    }
+
+    [Test]
+    public void ShouldUpdateRatioSeedTimeAndShareLimitAction_WhenYamlScriptSetsLimits()
+    {
+        var torrent = new Torrent
+        {
+            Id = 104,
+            Name = "YamlMutationsTorrent",
+            TargetRatio = 1.0,
+            TargetSeedTimeMinutes = 60,
+            ShareLimitAction = "Pause",
+        };
+
+        var yaml = @"name: 'Set Limits'
+steps:
+  - name: 'Update Limits'
+    actions:
+      - setRatioLimit: 3.0
+      - setSeedingTimeLimit: 1440
+      - setShareLimitAction: 'SuperSeeding'
+";
+
+        var script = new AutomationScript
+        {
+            Id = 104,
+            Name = "YamlLimitsScript",
+            IsEnabled = true,
+            Language = AutomationLanguage.Yaml,
+            Code = yaml,
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            torrentService: null);
+
+        var result = service.ExecuteScript(script, torrent);
+
+        result.Success.Should().BeTrue();
+        torrent.TargetRatio.Should().Be(3.0);
+        torrent.TargetSeedTimeMinutes.Should().Be(1440);
+        torrent.ShareLimitAction.Should().Be("SuperSeeding");
+        _torrentRepository.Received(1).Update(torrent);
+    }
 }
