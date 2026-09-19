@@ -1318,35 +1318,141 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
             }
         }
 
-        if (targetId > 0 && !string.IsNullOrWhiteSpace(oldPath) && !string.IsNullOrWhiteSpace(newName))
+        if (targetId <= 0)
         {
-            var parentDir = Path.GetDirectoryName(oldPath)?.Replace('\\', '/');
-            var newRelativePath = string.IsNullOrEmpty(parentDir) || parentDir == "."
-                ? newName
-                : $"{parentDir}/{newName}";
-
-            var files = this.torrentFileService?.GetFiles(targetId)?.ToList() ?? new List<TorrentFile>();
-            var isDirectFile = files.Any(f => f.Path != null && f.Path.Replace('\\', '/').TrimStart('/').Equals(oldPath, StringComparison.OrdinalIgnoreCase));
-
-            if (isDirectFile)
+            return this.Ok(new TransmissionRpcResponse
             {
-                await this.torrentService.RenameFileAsync(targetId, oldPath, newRelativePath);
+                Result = "torrent not found",
+                Arguments = new Dictionary<string, object>
+                {
+                    { "path", oldPath },
+                    { "name", newName },
+                    { "id", targetId },
+                },
+                Tag = tag,
+            });
+        }
+
+        var torrent = this.torrentService.Get(targetId);
+        if (torrent == null)
+        {
+            return this.Ok(new TransmissionRpcResponse
+            {
+                Result = "torrent not found",
+                Arguments = new Dictionary<string, object>
+                {
+                    { "path", oldPath },
+                    { "name", newName },
+                    { "id", targetId },
+                },
+                Tag = tag,
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(oldPath) || string.IsNullOrWhiteSpace(newName))
+        {
+            return this.Ok(new TransmissionRpcResponse
+            {
+                Result = "invalid arguments",
+                Arguments = new Dictionary<string, object>
+                {
+                    { "path", oldPath },
+                    { "name", newName },
+                    { "id", targetId },
+                },
+                Tag = tag,
+            });
+        }
+
+        var normalizedOldPath = oldPath.Trim('/');
+        var normalizedTorrentName = torrent.Name?.Replace('\\', '/')?.Trim('/');
+
+        var relativePath = normalizedOldPath;
+        if (!string.IsNullOrWhiteSpace(normalizedTorrentName) &&
+            normalizedOldPath.StartsWith(normalizedTorrentName + "/", StringComparison.OrdinalIgnoreCase))
+        {
+            relativePath = normalizedOldPath[(normalizedTorrentName.Length + 1)..];
+        }
+
+        var files = this.torrentFileService?.GetFiles(targetId)?.ToList() ?? new List<TorrentFile>();
+        var matchingFile = files.FirstOrDefault(f => f.Path != null &&
+            (f.Path.Replace('\\', '/').TrimStart('/').Equals(normalizedOldPath, StringComparison.OrdinalIgnoreCase) ||
+             f.Path.Replace('\\', '/').TrimStart('/').Equals(relativePath, StringComparison.OrdinalIgnoreCase)));
+
+        bool renameSuccess;
+        if (matchingFile != null)
+        {
+            var fileToRename = matchingFile.Path.Replace('\\', '/').TrimStart('/');
+            var parentDir = Path.GetDirectoryName(fileToRename)?.Replace('\\', '/');
+            var effectiveNewName = newName;
+            if (!string.IsNullOrWhiteSpace(normalizedTorrentName) &&
+                effectiveNewName.StartsWith(normalizedTorrentName + "/", StringComparison.OrdinalIgnoreCase))
+            {
+                effectiveNewName = effectiveNewName[(normalizedTorrentName.Length + 1)..];
             }
-            else
+
+            var newRelativePath = !string.IsNullOrEmpty(parentDir) && parentDir != "." && !effectiveNewName.Contains('/')
+                ? $"{parentDir}/{effectiveNewName}"
+                : effectiveNewName;
+
+            renameSuccess = await this.torrentService.RenameFileAsync(targetId, fileToRename, newRelativePath);
+            if (renameSuccess && !string.IsNullOrWhiteSpace(normalizedTorrentName) &&
+                (normalizedOldPath.Equals(normalizedTorrentName, StringComparison.OrdinalIgnoreCase) ||
+                 fileToRename.Equals(normalizedTorrentName, StringComparison.OrdinalIgnoreCase)))
             {
-                await this.torrentService.RenameFolderAsync(targetId, oldPath, newRelativePath);
+                torrent.Name = newName;
+                await this.torrentService.UpdateAsync(torrent);
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(normalizedTorrentName) &&
+                 normalizedOldPath.Equals(normalizedTorrentName, StringComparison.OrdinalIgnoreCase))
+        {
+            torrent.Name = newName;
+            await this.torrentService.UpdateAsync(torrent);
+            await this.torrentService.RenameFolderAsync(targetId, oldPath, newName);
+            renameSuccess = true;
+        }
+        else
+        {
+            var targetFolder = normalizedOldPath;
+            if (relativePath != normalizedOldPath &&
+                files.Any(f => f.Path != null && f.Path.Replace('\\', '/').TrimStart('/').StartsWith(relativePath + "/", StringComparison.OrdinalIgnoreCase)))
+            {
+                targetFolder = relativePath;
+            }
+
+            var parentDir = Path.GetDirectoryName(targetFolder)?.Replace('\\', '/');
+            var effectiveNewName = newName;
+            if (!string.IsNullOrWhiteSpace(normalizedTorrentName) &&
+                effectiveNewName.StartsWith(normalizedTorrentName + "/", StringComparison.OrdinalIgnoreCase))
+            {
+                effectiveNewName = effectiveNewName[(normalizedTorrentName.Length + 1)..];
+            }
+
+            var newRelativePath = !string.IsNullOrEmpty(parentDir) && parentDir != "." && !effectiveNewName.Contains('/')
+                ? $"{parentDir}/{effectiveNewName}"
+                : effectiveNewName;
+
+            renameSuccess = await this.torrentService.RenameFolderAsync(targetId, targetFolder, newRelativePath);
+            if (!renameSuccess && targetFolder != normalizedOldPath)
+            {
+                var altParent = Path.GetDirectoryName(normalizedOldPath)?.Replace('\\', '/');
+                var altNewRelativePath = !string.IsNullOrEmpty(altParent) && altParent != "." && !newName.Contains('/')
+                    ? $"{altParent}/{newName}"
+                    : newName;
+                renameSuccess = await this.torrentService.RenameFolderAsync(targetId, normalizedOldPath, altNewRelativePath);
             }
         }
 
         return this.Ok(new TransmissionRpcResponse
         {
-            Result = "success",
+            Result = renameSuccess ? "success" : "rename failed",
             Arguments = new Dictionary<string, object>
-                        {
-                            { "path", oldPath },
-                            { "name", newName },
-                            { "id", targetId },
-                        },
+            {
+                { "path", oldPath },
+                { "name", newName },
+                { "id", targetId },
+            },
             Tag = tag,
         });
     }

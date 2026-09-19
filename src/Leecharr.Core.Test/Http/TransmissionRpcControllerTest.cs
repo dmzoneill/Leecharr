@@ -1021,6 +1021,8 @@ public class TransmissionRpcControllerTest
         context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
         this.controller.ControllerContext = new ControllerContext { HttpContext = context };
 
+        this.torrentService.Get(42).Returns(new Torrent { Id = 42, Name = "Show" });
+        this.torrentService.RenameFileAsync(42, "Season 1/Episode 01.mkv", "Season 1/Episode 01 - Pilot.mkv").Returns(Task.FromResult(true));
         this.torrentFileService.GetFiles(42).Returns(new List<TorrentFile>
         {
             new TorrentFile { Path = "Season 1/Episode 01.mkv" },
@@ -1064,6 +1066,8 @@ public class TransmissionRpcControllerTest
         context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
         this.controller.ControllerContext = new ControllerContext { HttpContext = context };
 
+        this.torrentService.Get(42).Returns(new Torrent { Id = 42, Name = "movie.mkv" });
+        this.torrentService.RenameFileAsync(42, "movie.mkv", "new_movie.mkv").Returns(Task.FromResult(true));
         this.torrentFileService.GetFiles(42).Returns(new List<TorrentFile>
         {
             new TorrentFile { Path = "movie.mkv" },
@@ -1107,6 +1111,8 @@ public class TransmissionRpcControllerTest
         context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
         this.controller.ControllerContext = new ControllerContext { HttpContext = context };
 
+        this.torrentService.Get(42).Returns(new Torrent { Id = 42, Name = "Show" });
+        this.torrentService.RenameFolderAsync(42, "Season 1", "Season 01").Returns(Task.FromResult(true));
         this.torrentFileService.GetFiles(42).Returns(new List<TorrentFile>
         {
             new TorrentFile { Path = "Season 1/Episode 01.mkv" },
@@ -1150,6 +1156,8 @@ public class TransmissionRpcControllerTest
         context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
         this.controller.ControllerContext = new ControllerContext { HttpContext = context };
 
+        this.torrentService.Get(42).Returns(new Torrent { Id = 42, Name = "TorrentName" });
+        this.torrentService.RenameFolderAsync(42, "Show/Season 1", "Show/Season 01").Returns(Task.FromResult(true));
         this.torrentFileService.GetFiles(42).Returns(new List<TorrentFile>
         {
             new TorrentFile { Path = "Show/Season 1/Episode 01.mkv" },
@@ -1193,6 +1201,8 @@ public class TransmissionRpcControllerTest
         context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
         this.controller.ControllerContext = new ControllerContext { HttpContext = context };
 
+        this.torrentService.Get(42).Returns(new Torrent { Id = 42, Name = "Show" });
+        this.torrentService.RenameFileAsync(42, "Season 1/Episode 01.mkv", "Season 1/Episode 01 - Pilot.mkv").Returns(Task.FromResult(true));
         this.torrentFileService.GetFiles(42).Returns(new List<TorrentFile>
         {
             new TorrentFile { Path = @"Season 1\Episode 01.mkv" },
@@ -1225,6 +1235,238 @@ public class TransmissionRpcControllerTest
         responseArgs["id"].Should().Be(42);
 
         await this.torrentService.Received(1).RenameFileAsync(42, "Season 1/Episode 01.mkv", "Season 1/Episode 01 - Pilot.mkv");
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentRenamePath_PrefixedPathWithTorrentName_StripsPrefixAndCallsRenameFileAsync()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.torrentService.Get(42).Returns(new Torrent { Id = 42, Name = "Show.S01" });
+        this.torrentService.RenameFileAsync(42, "Season 1/Episode 01.mkv", "Season 1/Episode 01 - Pilot.mkv").Returns(Task.FromResult(true));
+        this.torrentFileService.GetFiles(42).Returns(new List<TorrentFile>
+        {
+            new TorrentFile { Path = "Season 1/Episode 01.mkv" },
+        });
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[42]");
+        args["ids"] = idsDoc.RootElement.Clone();
+        using var pathDoc = JsonDocument.Parse("\"Show.S01/Season 1/Episode 01.mkv\"");
+        args["path"] = pathDoc.RootElement.Clone();
+        using var nameDoc = JsonDocument.Parse("\"Episode 01 - Pilot.mkv\"");
+        args["name"] = nameDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-rename-path",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+
+        var responseArgs = response.Arguments as Dictionary<string, object>;
+        responseArgs.Should().NotBeNull();
+        responseArgs!["path"].Should().Be("Show.S01/Season 1/Episode 01.mkv");
+        responseArgs["name"].Should().Be("Episode 01 - Pilot.mkv");
+        responseArgs["id"].Should().Be(42);
+
+        await this.torrentService.Received(1).RenameFileAsync(42, "Season 1/Episode 01.mkv", "Season 1/Episode 01 - Pilot.mkv");
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentRenamePath_RootFolderRename_UpdatesTorrentNameAndCallsRenameFolderAsync()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent { Id = 42, Name = "Show.S01" };
+        this.torrentService.Get(42).Returns(torrent);
+        this.torrentFileService.GetFiles(42).Returns(new List<TorrentFile>
+        {
+            new TorrentFile { Path = "Season 1/Episode 01.mkv" },
+        });
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[42]");
+        args["ids"] = idsDoc.RootElement.Clone();
+        using var pathDoc = JsonDocument.Parse("\"Show.S01\"");
+        args["path"] = pathDoc.RootElement.Clone();
+        using var nameDoc = JsonDocument.Parse("\"Show.S01.Renamed\"");
+        args["name"] = nameDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-rename-path",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("success");
+
+        var responseArgs = response.Arguments as Dictionary<string, object>;
+        responseArgs.Should().NotBeNull();
+        responseArgs!["path"].Should().Be("Show.S01");
+        responseArgs["name"].Should().Be("Show.S01.Renamed");
+        responseArgs["id"].Should().Be(42);
+
+        torrent.Name.Should().Be("Show.S01.Renamed");
+        await this.torrentService.Received(1).UpdateAsync(Arg.Is<Torrent>(t => t.Id == 42 && t.Name == "Show.S01.Renamed"));
+        await this.torrentService.Received(1).RenameFolderAsync(42, "Show.S01", "Show.S01.Renamed");
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentRenamePath_TorrentNotFound_ReturnsTorrentNotFoundResult()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.torrentService.Get(99).Returns((Torrent)null);
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[99]");
+        args["ids"] = idsDoc.RootElement.Clone();
+        using var pathDoc = JsonDocument.Parse("\"movie.mkv\"");
+        args["path"] = pathDoc.RootElement.Clone();
+        using var nameDoc = JsonDocument.Parse("\"new_movie.mkv\"");
+        args["name"] = nameDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-rename-path",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("torrent not found");
+
+        await this.torrentService.DidNotReceive().RenameFileAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<string>());
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentRenamePath_RenameFileFails_ReturnsRenameFailedResult()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.torrentService.Get(42).Returns(new Torrent { Id = 42, Name = "Show" });
+        this.torrentService.RenameFileAsync(42, "Season 1/Episode 01.mkv", "Season 1/Episode 01 - Pilot.mkv").Returns(Task.FromResult(false));
+        this.torrentFileService.GetFiles(42).Returns(new List<TorrentFile>
+        {
+            new TorrentFile { Path = "Season 1/Episode 01.mkv" },
+        });
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[42]");
+        args["ids"] = idsDoc.RootElement.Clone();
+        using var pathDoc = JsonDocument.Parse("\"Season 1/Episode 01.mkv\"");
+        args["path"] = pathDoc.RootElement.Clone();
+        using var nameDoc = JsonDocument.Parse("\"Episode 01 - Pilot.mkv\"");
+        args["name"] = nameDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-rename-path",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("rename failed");
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentRenamePath_RenameFolderFails_ReturnsRenameFailedResult()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.torrentService.Get(42).Returns(new Torrent { Id = 42, Name = "Show" });
+        this.torrentService.RenameFolderAsync(42, "Season 1", "Season 01").Returns(Task.FromResult(false));
+        this.torrentFileService.GetFiles(42).Returns(new List<TorrentFile>
+        {
+            new TorrentFile { Path = "Season 1/Episode 01.mkv" },
+        });
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[42]");
+        args["ids"] = idsDoc.RootElement.Clone();
+        using var pathDoc = JsonDocument.Parse("\"Season 1\"");
+        args["path"] = pathDoc.RootElement.Clone();
+        using var nameDoc = JsonDocument.Parse("\"Season 01\"");
+        args["name"] = nameDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-rename-path",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("rename failed");
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentRenamePath_InvalidArguments_ReturnsInvalidArgumentsResult()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.torrentService.Get(42).Returns(new Torrent { Id = 42, Name = "Show" });
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[42]");
+        args["ids"] = idsDoc.RootElement.Clone();
+        using var pathDoc = JsonDocument.Parse("\"\"");
+        args["path"] = pathDoc.RootElement.Clone();
+        using var nameDoc = JsonDocument.Parse("\"Episode 01 - Pilot.mkv\"");
+        args["name"] = nameDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-rename-path",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        response.Should().NotBeNull();
+        response!.Result.Should().Be("invalid arguments");
     }
 
     [Test]
