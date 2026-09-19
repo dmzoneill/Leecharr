@@ -3,9 +3,11 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Dapper;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Datastore;
 
@@ -76,11 +78,53 @@ public class SystemController : ControllerBase
     internal static readonly DateTime AppStartTime = DateTime.UtcNow;
     private readonly IAppFolderInfo appFolderInfo;
     private readonly IDatabase database;
+    private readonly IRuntimeInfo runtimeInfo;
+    private readonly IHostApplicationLifetime hostApplicationLifetime;
 
-    public SystemController(IAppFolderInfo appFolderInfo, IDatabase database = null)
+    public SystemController(
+        IAppFolderInfo appFolderInfo,
+        IDatabase database = null,
+        IRuntimeInfo runtimeInfo = null,
+        IHostApplicationLifetime hostApplicationLifetime = null)
     {
         this.appFolderInfo = appFolderInfo;
         this.database = database;
+        this.runtimeInfo = runtimeInfo;
+        this.hostApplicationLifetime = hostApplicationLifetime;
+    }
+
+    [NonAction]
+    public ActionResult Restart()
+    {
+        if (this.runtimeInfo != null)
+        {
+            this.runtimeInfo.RestartPending = true;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(500);
+            this.hostApplicationLifetime?.StopApplication();
+        });
+
+        return this.Ok(new { message = "Restarting Leecharr..." });
+    }
+
+    [NonAction]
+    public ActionResult Shutdown()
+    {
+        if (this.runtimeInfo != null)
+        {
+            this.runtimeInfo.RestartPending = false;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(500);
+            this.hostApplicationLifetime?.StopApplication();
+        });
+
+        return this.Ok(new { message = "Shutting down Leecharr..." });
     }
 
     [HttpGet]

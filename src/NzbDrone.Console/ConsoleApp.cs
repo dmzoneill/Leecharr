@@ -39,8 +39,14 @@ public static class ConsoleApp
             var appFolderInfo = new AppFolderInfo(startupContext);
             NzbDroneLogger.Register(startupContext, appFolderInfo);
 
-            Logger.Info("Starting Leecharr Console - {0}", BuildInfo.Version);
-            Bootstrap.Start(startupContext);
+            var runtimeInfo = new RuntimeInfo();
+            do
+            {
+                runtimeInfo.RestartPending = false;
+                Logger.Info("Starting Leecharr Console - {0}", BuildInfo.Version);
+                Bootstrap.Start(startupContext);
+            }
+            while (runtimeInfo.RestartPending);
         }
         catch (Exception ex)
         {
