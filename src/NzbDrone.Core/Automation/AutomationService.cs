@@ -417,6 +417,27 @@ public class AutomationService : IAutomationService
             changed = true;
         }
 
+        // Ratio limit
+        if (result.NewRatioLimit.HasValue && Math.Abs(torrent.TargetRatio - result.NewRatioLimit.Value) > 0.001)
+        {
+            torrent.TargetRatio = result.NewRatioLimit.Value;
+            changed = true;
+        }
+
+        // Seeding time limit
+        if (result.NewSeedingTimeLimitMinutes.HasValue && torrent.TargetSeedTimeMinutes != result.NewSeedingTimeLimitMinutes.Value)
+        {
+            torrent.TargetSeedTimeMinutes = result.NewSeedingTimeLimitMinutes.Value;
+            changed = true;
+        }
+
+        // Share limit action
+        if (!string.IsNullOrWhiteSpace(result.ShareLimitAction) && !string.Equals(torrent.ShareLimitAction, result.ShareLimitAction, StringComparison.OrdinalIgnoreCase))
+        {
+            torrent.ShareLimitAction = result.ShareLimitAction;
+            changed = true;
+        }
+
         // Tracker add/remove
         if (result.TrackersToAdd.Count > 0 && string.IsNullOrWhiteSpace(torrent.TrackerUrl))
         {
