@@ -15,6 +15,7 @@ using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.BitTorrent.Creation;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Network;
+using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Network.GeoIp;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
@@ -35,6 +36,7 @@ public class TorrentControllerTest
     private IGeoIpService geoIpService = null!;
     private ITorrentCreationService torrentCreationService = null!;
     private ITorrentLogService torrentLogService = null!;
+    private IBlocklistService blocklistService = null!;
     private TorrentController controller = null!;
 
     [SetUp]
@@ -50,6 +52,7 @@ public class TorrentControllerTest
         this.geoIpService = Substitute.For<IGeoIpService>();
         this.torrentCreationService = Substitute.For<ITorrentCreationService>();
         this.torrentLogService = Substitute.For<ITorrentLogService>();
+        this.blocklistService = Substitute.For<IBlocklistService>();
 
         this.controller = new TorrentController(
             this.torrentService,
@@ -61,7 +64,8 @@ public class TorrentControllerTest
             geoIpService: this.geoIpService,
             downloadEngine: this.downloadEngine,
             torrentCreationService: this.torrentCreationService,
-            torrentLogService: this.torrentLogService);
+            torrentLogService: this.torrentLogService,
+            blocklistService: this.blocklistService);
     }
 
     [Test]
@@ -579,6 +583,9 @@ public class TorrentControllerTest
                 Downloaded = 20000,
                 Progress = 0.75,
                 Flags = "uE",
+                IsEncrypted = true,
+                IsUtp = false,
+                IsIncoming = true,
             },
             new()
             {
@@ -590,7 +597,10 @@ public class TorrentControllerTest
                 Uploaded = 0,
                 Downloaded = 5000,
                 Progress = 0.25,
-                Flags = "d",
+                Flags = "dP",
+                IsEncrypted = false,
+                IsUtp = true,
+                IsIncoming = false,
             },
         };
 
@@ -622,6 +632,10 @@ public class TorrentControllerTest
         resources[0].Downloaded.Should().Be(20000);
         resources[0].Progress.Should().Be(0.75);
         resources[0].Flags.Should().Be("uE");
+        resources[0].IsEncrypted.Should().BeTrue();
+        resources[0].IsUtp.Should().BeFalse();
+        resources[0].IsIncoming.Should().BeTrue();
+        resources[0].Protocol.Should().Be("TCP");
         resources[0].CountryCode.Should().Be("US");
         resources[0].CountryName.Should().Be("United States");
         resources[0].City.Should().Be("Mountain View");
@@ -631,9 +645,64 @@ public class TorrentControllerTest
         resources[1].Ip.Should().Be("192.168.1.100");
         resources[1].Port.Should().Be(6881);
         resources[1].Client.Should().Be("Transmission/3.00");
+        resources[1].IsEncrypted.Should().BeFalse();
+        resources[1].IsUtp.Should().BeTrue();
+        resources[1].IsIncoming.Should().BeFalse();
+        resources[1].Protocol.Should().Be("uTP");
         resources[1].CountryCode.Should().Be(string.Empty);
         resources[1].CountryName.Should().Be(string.Empty);
         resources[1].City.Should().Be(string.Empty);
+    }
+
+    [Test]
+    public async Task BanPeer_WhenTorrentNotFound_ReturnsNotFound()
+    {
+        this.torrentService.Get(99).Returns((Torrent)null!);
+
+        var result = await this.controller.BanPeer(99, new BanPeerRequest { Ip = "1.2.3.4" });
+        result.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Test]
+    public async Task BanPeer_WhenIpMissing_ReturnsBadRequest()
+    {
+        var result1 = await this.controller.BanPeer(1, null!);
+        result1.Should().BeOfType<BadRequestObjectResult>();
+
+        var result2 = await this.controller.BanPeer(1, new BanPeerRequest { Ip = "  " });
+        result2.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Test]
+    public async Task BanPeer_WhenValid_AddsToBlocklistAndDisconnects()
+    {
+        var torrent = new Torrent { Id = 1, Name = "Test Torrent" };
+        this.torrentService.Get(1).Returns(torrent);
+
+        var downloadTask = Substitute.For<IDownloadTask>();
+        this.torrentService.GetDownloadTask(1).Returns(downloadTask);
+
+        var result = await this.controller.BanPeer(1, new BanPeerRequest { Ip = "10.0.0.5" });
+        result.Should().BeOfType<OkObjectResult>();
+
+        await this.blocklistService.Received(1).AddRulesAsync(Arg.Is<IEnumerable<string>>(r => r.Contains("10.0.0.5")));
+        await downloadTask.Received(1).DisconnectPeerAsync("10.0.0.5");
+    }
+
+    [Test]
+    public async Task DisconnectPeer_WhenValid_AddsToBlocklistAndDisconnects()
+    {
+        var torrent = new Torrent { Id = 1, Name = "Test Torrent" };
+        this.torrentService.Get(1).Returns(torrent);
+
+        var downloadTask = Substitute.For<IDownloadTask>();
+        this.torrentService.GetDownloadTask(1).Returns(downloadTask);
+
+        var result = await this.controller.DisconnectPeer(1, "10.0.0.5");
+        result.Should().BeOfType<OkObjectResult>();
+
+        await this.blocklistService.Received(1).AddRulesAsync(Arg.Is<IEnumerable<string>>(r => r.Contains("10.0.0.5")));
+        await downloadTask.Received(1).DisconnectPeerAsync("10.0.0.5");
     }
 
     [Test]

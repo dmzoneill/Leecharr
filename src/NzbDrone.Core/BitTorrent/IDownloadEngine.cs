@@ -148,6 +148,8 @@ public interface IDownloadTask
     int PieceLength => 0;
 
     IReadOnlyList<string> WebSeeds => System.Array.Empty<string>();
+
+    System.Threading.Tasks.Task<bool> DisconnectPeerAsync(string ip) => System.Threading.Tasks.Task.FromResult(false);
 }
 
 public class PeerInfo

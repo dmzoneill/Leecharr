@@ -198,6 +198,32 @@ public class DynamicBlocklistProxy : IBlocklistService, IBlocklistManager, IHand
         }
     }
 
+    public async Task<int> AddRulesAsync(IEnumerable<string> rules)
+    {
+        if (rules == null)
+        {
+            return 0;
+        }
+
+        await this.switchLock.WaitAsync();
+        try
+        {
+            var ruleList = rules.ToList();
+            List<string> allRules;
+            lock (this.rulesLock)
+            {
+                this.loadedRawRules.AddRange(ruleList);
+                allRules = this.loadedRawRules.ToList();
+            }
+
+            return await Volatile.Read(ref this.activeProvider).LoadRulesAsync(allRules);
+        }
+        finally
+        {
+            this.switchLock.Release();
+        }
+    }
+
     public void ClearRules()
     {
         lock (this.rulesLock)
