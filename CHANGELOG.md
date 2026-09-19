@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.15.7](https://github.com/dmzoneill/Leecharr/releases/tag/v1.15.7) - 2026-09-19
+
+### 🔧 Maintenance & Improvements
+- perf(docker): optimize release container size and separate test stage with coverage tools
+
 ## [v1.15.6](https://github.com/dmzoneill/Leecharr/releases/tag/v1.15.6) - 2026-09-19
 
 ### ✨ Features
