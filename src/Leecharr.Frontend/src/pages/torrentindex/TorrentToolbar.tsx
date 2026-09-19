@@ -149,9 +149,6 @@ export function TorrentToolbar({
             <span>{t("common.filter")}</span>
           </button>
         )}
-        <h1 className="page-heading">
-          {t("nav.torrents")} ({count})
-        </h1>
         {selectedCount > 0 ? (
           <div className="bulk-actions">
             <span className="bulk-actions-count">
@@ -263,6 +260,24 @@ export function TorrentToolbar({
             >
               <PlusIcon size={13} /> {t("modals.addTorrent")}
             </button>
+            <button
+              type="button"
+              className="btn btn-success"
+              onClick={onStartAll}
+              title={t("torrents.toolbar.resumeAll")}
+            >
+              <PlayIcon size={13} />{" "}
+              {t("torrents.toolbar.resumeAll") || t("torrents.actions.resume")}
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={onStopAll}
+              title={t("torrents.toolbar.pauseAll")}
+            >
+              <StopIcon size={13} />{" "}
+              {t("torrents.toolbar.pauseAll") || t("torrents.actions.pause")}
+            </button>
             {onSearchIndexers && (
               <button
                 type="button"
@@ -317,24 +332,6 @@ export function TorrentToolbar({
             : t("torrents.toolbar.turtleOff")}
         </button>
         <DiskStorageBadge compact />
-        <button
-          type="button"
-          className="btn btn-success"
-          onClick={onStartAll}
-          title={t("torrents.toolbar.resumeAll")}
-        >
-          <PlayIcon size={13} />{" "}
-          {t("torrents.toolbar.resumeAll") || t("torrents.actions.resume")}
-        </button>
-        <button
-          type="button"
-          className="btn btn-danger"
-          onClick={onStopAll}
-          title={t("torrents.toolbar.pauseAll")}
-        >
-          <StopIcon size={13} />{" "}
-          {t("torrents.toolbar.pauseAll") || t("torrents.actions.pause")}
-        </button>
         <input
           type="text"
           className="search-input"

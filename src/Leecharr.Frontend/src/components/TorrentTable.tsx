@@ -1846,7 +1846,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
       <div
         style={{
           display: "flex",
-          justifyContent: "flex-end",
+          justifyContent: "space-between",
           alignItems: "center",
           padding: "0.4rem 0.75rem",
           gap: "0.5rem",
@@ -1855,6 +1855,26 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
           fontSize: "0.8rem",
         }}
       >
+        <div
+          style={{
+            fontWeight: 600,
+            fontSize: "0.85rem",
+            color: "var(--text-primary)",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+          }}
+        >
+          <span>
+            {t("nav.torrents")} ({propTorrents?.length ?? sortedTorrents.length}
+            )
+          </span>
+          {propTorrents && sortedTorrents.length !== propTorrents.length && (
+            <span style={{ fontSize: "0.8em", opacity: 0.75, fontWeight: 400 }}>
+              ({sortedTorrents.length} shown)
+            </span>
+          )}
+        </div>
         <button
           type="button"
           className="btn btn-small btn-outline"
