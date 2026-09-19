@@ -384,6 +384,15 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
         }
     }
 
+    public async Task PauseForSchedulerAsync()
+    {
+        var engine = await this.GetReadyEngineAsync();
+        if (engine != null)
+        {
+            await engine.PauseForSchedulerAsync();
+        }
+    }
+
     public async Task ResumeTorrentAsync(int torrentId)
     {
         var engine = await this.GetReadyEngineAsync();
@@ -405,6 +414,15 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
         if (engine != null)
         {
             await engine.ResumeAllAsync();
+        }
+    }
+
+    public async Task ResumeFromSchedulerAsync()
+    {
+        var engine = await this.GetReadyEngineAsync();
+        if (engine != null)
+        {
+            await engine.ResumeFromSchedulerAsync();
         }
     }
 
