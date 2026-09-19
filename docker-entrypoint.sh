@@ -33,7 +33,7 @@ if [ -n "$PUID" ] || [ -n "$PGID" ]; then
     fi
 fi
 
-if [ "${COVERAGE_ENABLED}" = "1" ]; then
+if [ "${COVERAGE_ENABLED}" = "1" ] && command -v dotnet-coverage >/dev/null 2>&1; then
     mkdir -p /coverage
     if [ -n "$PUID" ] && [ -n "$PGID" ] && [ "$(id -u)" = "0" ]; then
         chown -R "$PUID:$PGID" /coverage 2>/dev/null || true
