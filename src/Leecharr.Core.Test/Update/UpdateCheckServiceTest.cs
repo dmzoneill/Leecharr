@@ -4,11 +4,17 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Leecharr.Api.V1.Update;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
+using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Update;
 
 namespace Leecharr.Core.Test.Update;
@@ -156,5 +162,61 @@ public class UpdateCheckServiceTest
 
         firstCall.Should().BeEquivalentTo(secondCall);
         handler.CallCount.Should().Be(1);
+    }
+
+    [Test]
+    public void GetPackagePlatformIdentifier_DetectsPlatformCorrectly()
+    {
+        UpdateCheckService.GetPackagePlatformIdentifier(true, false, Architecture.X64).Should().Be("win-x64");
+        UpdateCheckService.GetPackagePlatformIdentifier(true, false, Architecture.Arm64).Should().Be("win-arm64");
+        UpdateCheckService.GetPackagePlatformIdentifier(false, true, Architecture.X64).Should().Be("osx-x64");
+        UpdateCheckService.GetPackagePlatformIdentifier(false, true, Architecture.Arm64).Should().Be("osx-arm64");
+        UpdateCheckService.GetPackagePlatformIdentifier(false, false, Architecture.X64).Should().Be("linux-x64");
+        UpdateCheckService.GetPackagePlatformIdentifier(false, false, Architecture.Arm64).Should().Be("linux-arm64");
+    }
+
+    [Test]
+    public void GetPackageExtension_ReturnsZipForWindowsAndTarGzForOthers()
+    {
+        UpdateCheckService.GetPackageExtension(true).Should().Be(".zip");
+        UpdateCheckService.GetPackageExtension(false).Should().Be(".tar.gz");
+    }
+
+    [Test]
+    public void GetPackageFileName_FormatsExpectedFileName()
+    {
+        var fileName = UpdateCheckService.GetPackageFileName("1.5.0");
+        fileName.Should().StartWith("Leecharr.1.5.0.");
+        fileName.Should().Match(s => s.EndsWith(".tar.gz") || s.EndsWith(".zip"));
+    }
+
+    [Test]
+    public async Task UpdateController_InstallUpdate_SignalsRestartAndStopsApplication()
+    {
+        var runtimeInfo = Substitute.For<IRuntimeInfo>();
+        var lifetime = Substitute.For<IHostApplicationLifetime>();
+        var updateCheckService = Substitute.For<IUpdateCheckService>();
+
+        updateCheckService.GetAvailableUpdatesAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new List<UpdatePackage>
+            {
+                new()
+                {
+                    Version = "1.5.0",
+                    Latest = true,
+                    FileName = "Leecharr.1.5.0.linux-x64.tar.gz",
+                },
+            }));
+
+        var controller = new UpdateController(updateCheckService, runtimeInfo, lifetime);
+
+        var result = await controller.InstallUpdate(new UpdateResource { Version = "1.5.0" });
+
+        var okResult = result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        runtimeInfo.RestartPending.Should().BeTrue();
+
+        await Task.Delay(600);
+        lifetime.Received(1).StopApplication();
     }
 }
