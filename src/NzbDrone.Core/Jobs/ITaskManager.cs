@@ -13,4 +13,6 @@ public interface ITaskManager
     ScheduledTask GetByTypeName(string typeName);
 
     void Update(ScheduledTask task);
+
+    void EnsureDefaultTasks();
 }
