@@ -53,6 +53,8 @@ public class PieceState
     public bool[] BlockBitfield { get; set; }
 
     public int Priority { get; set; } = 1; // 0 = skip, 1 = normal, 2 = high, 3 = max
+
+    public HashSet<string> ContributingPeers { get; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 public class PiecePicker
@@ -545,6 +547,11 @@ public class PiecePicker
                 piece.BlockBitfield[blockIdx] = true;
                 piece.ReceivedBlocks++;
 
+                if (!string.IsNullOrEmpty(receivedFromPeerId))
+                {
+                    piece.ContributingPeers.Add(receivedFromPeerId);
+                }
+
                 if (piece.ReceivedBlocks >= piece.TotalBlocks)
                 {
                     piece.IsComplete = true;
@@ -592,27 +599,47 @@ public class PiecePicker
             {
                 this.pieces[pieceIndex].IsVerified = true;
                 this.pieces[pieceIndex].IsComplete = true;
+                this.pieces[pieceIndex].ContributingPeers.Clear();
             }
         }
     }
 
-    public void MarkPieceCorrupt(int pieceIndex)
+    public IReadOnlyCollection<string> GetContributingPeers(int pieceIndex)
+    {
+        lock (this.syncLock)
+        {
+            if (pieceIndex >= 0 && pieceIndex < this.pieceCount)
+            {
+                return new List<string>(this.pieces[pieceIndex].ContributingPeers);
+            }
+
+            return Array.Empty<string>();
+        }
+    }
+
+    public List<string> MarkPieceCorrupt(int pieceIndex)
     {
         lock (this.syncLock)
         {
             if (pieceIndex >= 0 && pieceIndex < this.pieceCount)
             {
                 var piece = this.pieces[pieceIndex];
+                var contributors = new List<string>(piece.ContributingPeers);
                 piece.IsComplete = false;
                 piece.IsVerified = false;
                 piece.ReceivedBlocks = 0;
+                piece.ContributingPeers.Clear();
                 Array.Clear(piece.BlockBitfield, 0, piece.BlockBitfield.Length);
 
                 for (var i = 0; i < piece.TotalBlocks; i++)
                 {
                     this.inFlightBlocks.Remove($"{pieceIndex}:{i}");
                 }
+
+                return contributors;
             }
+
+            return new List<string>();
         }
     }
 
