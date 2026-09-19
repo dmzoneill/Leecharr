@@ -1837,4 +1837,98 @@ public class TorrentServiceTest
         insertedTorrent.Should().NotBeNull();
         insertedTorrent.SavePath.Should().Be("/downloads");
     }
+
+    [Test]
+    public async Task AddFromParsedTorrentAsync_WhenHybridTorrent_PopulatesV2InfoHashAndStoresInRepository()
+    {
+        var v1Hash = "1111111111111111111111111111111111111111";
+        var v2Hash = "2222222222222222222222222222222222222222222222222222222222222222";
+
+        var parsed = new ParsedTorrent
+        {
+            InfoHash = v1Hash,
+            V1InfoHash = v1Hash,
+            V2InfoHash = v2Hash,
+            Name = "Hybrid.Torrent",
+            PieceLength = 16384,
+            TotalSize = 32768,
+        };
+
+        this.torrentRepository.GetByInfoHash(v1Hash).Returns((Torrent)null!);
+        this.torrentRepository.GetByInfoHash(v2Hash).Returns((Torrent)null!);
+
+        Torrent insertedTorrent = null!;
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(callInfo =>
+        {
+            insertedTorrent = callInfo.Arg<Torrent>();
+            insertedTorrent.Id = 205;
+            return insertedTorrent;
+        });
+
+        var result = await this.service.AddFromParsedTorrentAsync(parsed, category: "movies", savePath: "/downloads");
+
+        result.Should().NotBeNull();
+        insertedTorrent.Should().NotBeNull();
+        insertedTorrent.InfoHash.Should().Be(v1Hash);
+        insertedTorrent.V2InfoHash.Should().Be(v2Hash);
+    }
+
+    [Test]
+    public async Task AddFromParsedTorrentAsync_WhenTorrentExistsByV2InfoHash_ReturnsExistingWithoutDuplicateInsert()
+    {
+        var v1Hash = "1111111111111111111111111111111111111111";
+        var v2Hash = "2222222222222222222222222222222222222222222222222222222222222222";
+
+        var existing = new Torrent
+        {
+            Id = 42,
+            Name = "Existing Hybrid",
+            InfoHash = v1Hash,
+            V2InfoHash = v2Hash,
+        };
+
+        var parsed = new ParsedTorrent
+        {
+            InfoHash = v1Hash,
+            V2InfoHash = v2Hash,
+            Name = "Duplicate Hybrid",
+            PieceLength = 16384,
+            TotalSize = 32768,
+        };
+
+        this.torrentRepository.GetByInfoHash(v1Hash).Returns((Torrent)null!);
+        this.torrentRepository.GetByInfoHash(v2Hash).Returns(existing);
+
+        var result = await this.service.AddFromParsedTorrentAsync(parsed, category: "movies", savePath: "/downloads");
+
+        result.Should().NotBeNull();
+        result.Id.Should().Be(42);
+        this.torrentRepository.DidNotReceive().Insert(Arg.Any<Torrent>());
+    }
+
+    [Test]
+    public async Task AddFromMagnetAsync_WhenHybridMagnet_PopulatesV2InfoHash()
+    {
+        var v1Hash = "1111111111111111111111111111111111111111";
+        var v2Hash = "2222222222222222222222222222222222222222222222222222222222222222";
+        var magnetUri = $"magnet:?xt=urn:btih:{v1Hash}&xt=urn:btmh:1220{v2Hash}&dn=HybridMagnet";
+
+        this.torrentRepository.GetByInfoHash(v1Hash).Returns((Torrent)null!);
+        this.torrentRepository.GetByInfoHash(v2Hash).Returns((Torrent)null!);
+
+        Torrent insertedTorrent = null!;
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(callInfo =>
+        {
+            insertedTorrent = callInfo.Arg<Torrent>();
+            insertedTorrent.Id = 206;
+            return insertedTorrent;
+        });
+
+        var result = await this.service.AddFromMagnetAsync(magnetUri, category: "movies", savePath: "/downloads");
+
+        result.Should().NotBeNull();
+        insertedTorrent.Should().NotBeNull();
+        insertedTorrent.InfoHash.Should().Be(v1Hash);
+        insertedTorrent.V2InfoHash.Should().Be(v2Hash);
+    }
 }

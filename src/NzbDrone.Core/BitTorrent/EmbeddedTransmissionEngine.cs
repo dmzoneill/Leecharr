@@ -281,6 +281,10 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         var task = new TransmissionDownloadTask(torrent.Id, torrent.InfoHash, torrent.Name, torrent.TotalSize, torrent.Category);
         this.tasks[torrent.Id] = task;
         this.infoHashToId[torrent.InfoHash] = torrent.Id;
+        if (!string.IsNullOrWhiteSpace(torrent.V2InfoHash))
+        {
+            this.infoHashToId[torrent.V2InfoHash] = torrent.Id;
+        }
 
         try
         {
@@ -335,6 +339,13 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
         if (this.tasks.TryRemove(torrentId, out var task))
         {
             this.infoHashToId.TryRemove(task.InfoHash, out _);
+            foreach (var kvp in this.infoHashToId)
+            {
+                if (kvp.Value == torrentId)
+                {
+                    this.infoHashToId.TryRemove(kvp.Key, out _);
+                }
+            }
 
             try
             {
