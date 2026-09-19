@@ -1,5 +1,4 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,6 +14,7 @@ using System.Threading.Tasks;
 using Leecharr.Api.V1.ArrIntegration;
 using Leecharr.Api.V1.Torrents;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
@@ -26,6 +26,7 @@ namespace Leecharr.Api.V1.DownloadClients;
 
 [V1ApiController("downloadclients")]
 [Route("api/v1/downloadclient")]
+[Authorize(Policy = "RequireOperator")]
 public class DownloadClientController : Controller
 {
     private readonly IDownloadClientRepository repository;

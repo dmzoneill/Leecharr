@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Leecharr.Http;
 using Leecharr.Http.REST;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Automation;
 using NzbDrone.Core.Indexers;
@@ -21,6 +22,7 @@ public class TagResource : RestResource
 
 [V1ApiController("tag")]
 [Route("api/v1/tags")]
+[Authorize(Policy = "RequireOperator")]
 public class TagController : Controller
 {
     private readonly ITagRepository tagRepository;

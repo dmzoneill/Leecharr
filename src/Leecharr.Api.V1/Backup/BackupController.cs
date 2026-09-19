@@ -1,5 +1,4 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -10,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Http;
 using Leecharr.Http.REST;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using NLog;
@@ -48,6 +48,7 @@ public class RestoreBackupRequest
 }
 
 [V1ApiController("backup")]
+[Authorize(Policy = "RequireAdmin")]
 public class BackupController : Controller
 {
     private readonly IAppFolderInfo appFolderInfo;

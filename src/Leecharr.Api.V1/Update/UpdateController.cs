@@ -1,11 +1,11 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.Hosting;
@@ -15,6 +15,7 @@ using NzbDrone.Core.Update;
 namespace Leecharr.Api.V1.Update;
 
 [V1ApiController("update")]
+[Authorize(Policy = "RequireAdmin")]
 public class UpdateController : Controller
 {
     private readonly IUpdateCheckService updateCheckService;
