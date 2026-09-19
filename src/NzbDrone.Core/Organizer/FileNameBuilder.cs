@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.Organizer;
 
@@ -71,6 +72,10 @@ public class FileNameBuilder : IFileNameBuilder
                 config.ColonReplacementFormat,
                 config.CustomColonReplacementFormat);
         }
+        else
+        {
+            fullFileName = ApplyBaselineSafetyForFile(fullFileName);
+        }
 
         return this.pathTruncator.TruncateFileName(fullFileName);
     }
@@ -102,6 +107,10 @@ public class FileNameBuilder : IFileNameBuilder
                 config.ColonReplacementFormat,
                 config.CustomColonReplacementFormat);
         }
+        else
+        {
+            fullFileName = ApplyBaselineSafetyForFile(fullFileName);
+        }
 
         return this.pathTruncator.TruncateFileName(fullFileName);
     }
@@ -124,6 +133,10 @@ public class FileNameBuilder : IFileNameBuilder
                 cleaned,
                 config.ColonReplacementFormat,
                 config.CustomColonReplacementFormat);
+        }
+        else
+        {
+            cleaned = ApplyBaselineSafetyForFolder(cleaned);
         }
 
         return this.pathTruncator.TruncateFolderName(cleaned);
@@ -153,6 +166,10 @@ public class FileNameBuilder : IFileNameBuilder
                 config.ColonReplacementFormat,
                 config.CustomColonReplacementFormat);
         }
+        else
+        {
+            cleaned = ApplyBaselineSafetyForFolder(cleaned);
+        }
 
         return this.pathTruncator.TruncateFolderName(cleaned);
     }
@@ -175,6 +192,10 @@ public class FileNameBuilder : IFileNameBuilder
                 cleaned,
                 config.ColonReplacementFormat,
                 config.CustomColonReplacementFormat);
+        }
+        else
+        {
+            cleaned = ApplyBaselineSafetyForFolder(cleaned);
         }
 
         return this.pathTruncator.TruncateFolderName(cleaned);
@@ -521,8 +542,17 @@ public class FileNameBuilder : IFileNameBuilder
             return string.Empty;
         }
 
+        // Remove drive prefixes (e.g. C:) and root slashes
+        var cleaned = Regex.Replace(built, @"^[a-zA-Z]:[/\\]*", string.Empty);
+        cleaned = cleaned.TrimStart('/', '\\');
+
+        // Neutralize traversal sequences and path separators in template
+        cleaned = Regex.Replace(cleaned, @"\.{2,}", string.Empty)
+            .Replace('/', '-')
+            .Replace('\\', '-');
+
         // Remove empty brackets and parentheses
-        var cleaned = EmptyBracketRegex.Replace(built, string.Empty);
+        cleaned = EmptyBracketRegex.Replace(cleaned, string.Empty);
         cleaned = EmptyBracketRegex.Replace(cleaned, string.Empty);
 
         // Collapse repeated dashes
@@ -533,6 +563,86 @@ public class FileNameBuilder : IFileNameBuilder
 
         // Trim leading and trailing separators and whitespace
         cleaned = cleaned.Trim(' ', '-', '.', '_');
+
+        return cleaned;
+    }
+
+    private static string ApplyBaselineSafetyForFile(string fullFileName)
+    {
+        if (string.IsNullOrWhiteSpace(fullFileName))
+        {
+            return "Unnamed";
+        }
+
+        // Strip drive prefix and root slashes
+        var cleaned = Regex.Replace(fullFileName, @"^[a-zA-Z]:[/\\]*", string.Empty);
+        cleaned = cleaned.TrimStart('/', '\\');
+
+        // Strip traversal sequences and directory separators
+        cleaned = Regex.Replace(cleaned, @"\.{2,}", string.Empty)
+            .Replace('/', '-')
+            .Replace('\\', '-');
+
+        // Replace colons with -
+        cleaned = cleaned.Replace(":", "-");
+
+        var lastDot = cleaned.LastIndexOf('.');
+        string baseName;
+        string extension;
+        if (lastDot > 0)
+        {
+            baseName = cleaned.Substring(0, lastDot);
+            extension = cleaned.Substring(lastDot);
+        }
+        else
+        {
+            baseName = cleaned;
+            extension = string.Empty;
+        }
+
+        baseName = baseName.Trim(' ', '.');
+        if (TorrentPathValidator.IsReservedDeviceName(baseName))
+        {
+            baseName = "_" + baseName;
+        }
+
+        if (string.IsNullOrWhiteSpace(baseName))
+        {
+            baseName = "_";
+        }
+
+        return baseName + extension;
+    }
+
+    private static string ApplyBaselineSafetyForFolder(string folderName)
+    {
+        if (string.IsNullOrWhiteSpace(folderName))
+        {
+            return "Unnamed";
+        }
+
+        // Strip drive prefix and root slashes
+        var cleaned = Regex.Replace(folderName, @"^[a-zA-Z]:[/\\]*", string.Empty);
+        cleaned = cleaned.TrimStart('/', '\\');
+
+        // Strip traversal sequences and directory separators
+        cleaned = Regex.Replace(cleaned, @"\.{2,}", string.Empty)
+            .Replace('/', '-')
+            .Replace('\\', '-');
+
+        // Replace colons with -
+        cleaned = cleaned.Replace(":", "-");
+
+        cleaned = cleaned.Trim(' ', '.');
+        if (TorrentPathValidator.IsReservedDeviceName(cleaned))
+        {
+            cleaned = "_" + cleaned;
+        }
+
+        if (string.IsNullOrWhiteSpace(cleaned))
+        {
+            cleaned = "_";
+        }
 
         return cleaned;
     }

@@ -113,4 +113,20 @@ public class FileNameSanitizerTest
         var result = this.sanitizer.IsValidPath(input);
         result.Should().Be(expected);
     }
+
+    [Test]
+    public void SanitizeFileName_WhenCustomColonProducesColon_StripsColonSoItNeverLeaks()
+    {
+        var result = this.sanitizer.SanitizeFileName("Movie: The Sequel.mkv", ColonReplacementFormat.Custom, ":");
+        result.Should().NotContain(":");
+        this.sanitizer.IsValidFileName(result).Should().BeTrue();
+    }
+
+    [Test]
+    public void SanitizeFolderName_WhenCustomColonProducesColon_StripsColonSoItNeverLeaks()
+    {
+        var result = this.sanitizer.SanitizeFolderName("Show: Season 1", ColonReplacementFormat.Custom, ":");
+        result.Should().NotContain(":");
+        this.sanitizer.IsValidFileName(result).Should().BeTrue();
+    }
 }
