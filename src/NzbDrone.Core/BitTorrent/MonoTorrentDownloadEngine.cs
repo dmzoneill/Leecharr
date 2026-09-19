@@ -3451,6 +3451,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     {
         this.logger.Error("VPN Kill Switch drop detected for interface '{0}'. Halting MonoTorrent engine and terminating active peer connections.", interfaceName);
         this.isHaltedByKillSwitch = true;
+        this.natPmpPortMapperService?.Suspend();
 
         lock (this.vpnTransitionLock)
         {
@@ -3474,6 +3475,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     {
         this.logger.Info("VPN interface '{0}' restored. Resuming MonoTorrent activity.", interfaceName);
         this.isHaltedByKillSwitch = false;
+        this.natPmpPortMapperService?.Resume();
 
         lock (this.vpnTransitionLock)
         {

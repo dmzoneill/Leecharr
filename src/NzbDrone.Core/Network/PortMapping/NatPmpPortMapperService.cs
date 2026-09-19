@@ -31,6 +31,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
     private readonly ConcurrentDictionary<IPAddress, DateTime> gatewayLastContact = new();
     private int isRunning = 1;
     private int isDisposed;
+    private int isSuspended;
     private int isForceRenewalRunning;
     private int rebootRenewalScheduled;
     private IPAddress lastKnownGateway;
@@ -63,7 +64,42 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
     public IReadOnlyCollection<ActivePortMapping> ActiveMappings => this.activeMappings.Values.ToList();
 
+    public bool IsSuspended => Volatile.Read(ref this.isSuspended) != 0;
+
     internal IReadOnlyDictionary<IPAddress, uint> GatewayEpochs => this.gatewayEpochs;
+
+    public void Suspend()
+    {
+        if (Interlocked.Exchange(ref this.isSuspended, 1) == 0)
+        {
+            this.logger.Info("Suspending NAT-PMP port mapper due to network/VPN drop.");
+            try
+            {
+                this.renewalTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        }
+    }
+
+    public void Resume()
+    {
+        if (Interlocked.Exchange(ref this.isSuspended, 0) == 1)
+        {
+            this.logger.Info("Resuming NAT-PMP port mapper after network/VPN restore.");
+            if (this.isDisposed == 0 && this.isRunning != 0)
+            {
+                try
+                {
+                    this.renewalTimer?.Change(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(30));
+                }
+                catch (ObjectDisposedException)
+                {
+                }
+            }
+        }
+    }
 
     private static readonly string[] VirtualInterfacePatterns =
     [
@@ -84,12 +120,12 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         "zerotier",
     ];
 
-    public static IPAddress DiscoverDefaultGateway(string boundInterface = null)
+    public static IPAddress DiscoverDefaultGateway(string boundInterface = null, bool failClosed = false)
     {
         try
         {
             var candidates = GetSystemNetworkCandidates();
-            return SelectBestGateway(candidates, boundInterface);
+            return SelectBestGateway(candidates, boundInterface, failClosed);
         }
         catch
         {
@@ -97,7 +133,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         }
     }
 
-    public static IPAddress SelectBestGateway(IEnumerable<NatPmpNetworkInterfaceCandidate> candidates, string boundInterface = null)
+    public static IPAddress SelectBestGateway(IEnumerable<NatPmpNetworkInterfaceCandidate> candidates, string boundInterface = null, bool failClosed = false)
     {
         if (candidates == null)
         {
@@ -106,21 +142,28 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
         var candidateList = candidates.ToList();
 
+        var hasSpecificBound = !string.IsNullOrWhiteSpace(boundInterface) &&
+                               !string.Equals(boundInterface, "any", StringComparison.OrdinalIgnoreCase) &&
+                               !string.Equals(boundInterface, "all", StringComparison.OrdinalIgnoreCase);
+
         // 1. If a specific bound interface is provided and active, prioritize its gateway
-        if (!string.IsNullOrWhiteSpace(boundInterface) &&
-            !string.Equals(boundInterface, "any", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(boundInterface, "all", StringComparison.OrdinalIgnoreCase))
+        if (hasSpecificBound)
         {
             var boundNic = candidateList.FirstOrDefault(n =>
                 string.Equals(n.Name, boundInterface, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(n.Id, boundInterface, StringComparison.OrdinalIgnoreCase));
 
-            if (boundNic != null && boundNic.GatewayAddresses.Count > 0)
+            if (boundNic != null && boundNic.OperationalStatus == OperationalStatus.Up && boundNic.GatewayAddresses.Count > 0)
             {
                 var matchedGw = boundNic.GatewayAddresses.FirstOrDefault(gw =>
                     boundNic.UnicastAddresses.Any(u => u.Mask != null && IsInSameSubnet(u.Address, gw, u.Mask)));
 
                 return matchedGw ?? boundNic.GatewayAddresses[0];
+            }
+
+            if (failClosed)
+            {
+                return null;
             }
         }
 
@@ -463,12 +506,52 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
     private IPAddress ResolveGateway(IPAddress explicitGateway = null)
     {
-        return explicitGateway ?? DiscoverDefaultGateway(this.GetEffectiveBoundInterface());
+        var failClosed = this.configService?.EnableVpnKillSwitch ?? false;
+        return explicitGateway ?? DiscoverDefaultGateway(this.GetEffectiveBoundInterface(), failClosed);
+    }
+
+    internal IPEndPoint GetLocalEndPointForBoundInterface()
+    {
+        var iface = this.GetEffectiveBoundInterface();
+        if (string.IsNullOrWhiteSpace(iface) ||
+            string.Equals(iface, "any", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        try
+        {
+            var candidates = GetSystemNetworkCandidates();
+            var match = candidates.FirstOrDefault(c =>
+                c.OperationalStatus == OperationalStatus.Up &&
+                (string.Equals(c.Name, iface, StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(c.Id, iface, StringComparison.OrdinalIgnoreCase)));
+
+            if (match != null && match.UnicastAddresses.Count > 0)
+            {
+                var unicast = match.UnicastAddresses.FirstOrDefault(u => IsValidIpv4UnicastAddress(u.Address));
+                if (unicast.Address != null)
+                {
+                    return new IPEndPoint(unicast.Address, 0);
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return null;
     }
 
     public async Task<IPAddress> GetExternalIpAddressAsync(IPAddress gateway = null, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(this.isDisposed != 0, this);
+
+        if (this.isSuspended != 0)
+        {
+            return null;
+        }
 
         var targetGateway = this.ResolveGateway(gateway);
         if (targetGateway == null || targetGateway.AddressFamily != AddressFamily.InterNetwork)
@@ -505,6 +588,16 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(this.isDisposed != 0, this);
+
+        if (this.isSuspended != 0)
+        {
+            return new NatPmpMappingResult
+            {
+                Success = false,
+                InternalPort = internalPort,
+                ErrorMessage = "NAT-PMP service is suspended.",
+            };
+        }
 
         var targetGateway = this.ResolveGateway(gateway);
         if (targetGateway == null || targetGateway.AddressFamily != AddressFamily.InterNetwork)
@@ -595,7 +688,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
     {
         ObjectDisposedException.ThrowIf(this.isDisposed != 0, this);
 
-        if (this.activeMappings.IsEmpty)
+        if (this.isSuspended != 0 || this.activeMappings.IsEmpty)
         {
             return;
         }
@@ -623,8 +716,32 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         {
             ObjectDisposedException.ThrowIf(this.isDisposed != 0, this);
 
+            if (this.isSuspended != 0)
+            {
+                return;
+            }
+
+            var iface = this.GetEffectiveBoundInterface();
+            var hasSpecificBound = !string.IsNullOrWhiteSpace(iface) &&
+                                   !string.Equals(iface, "any", StringComparison.OrdinalIgnoreCase) &&
+                                   !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
+            var failClosed = this.configService?.EnableVpnKillSwitch ?? false;
+            var localEp = this.GetLocalEndPointForBoundInterface();
+
+            if (hasSpecificBound && failClosed && localEp == null)
+            {
+                this.logger.Warn("NAT-PMP renewals skipped: bound interface '{0}' is unavailable and fail-closed kill switch is active.", iface);
+                return;
+            }
+
             var now = DateTime.UtcNow;
             var currentGateway = this.ResolveGateway();
+
+            if (hasSpecificBound && failClosed && currentGateway == null)
+            {
+                this.logger.Warn("NAT-PMP renewals skipped: bound interface '{0}' has no valid gateway and fail-closed kill switch is active.", iface);
+                return;
+            }
 
             foreach (var kvp in this.activeMappings)
             {
@@ -671,6 +788,12 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         }
         catch (ObjectDisposedException)
         {
+        }
+
+        if (this.isSuspended != 0)
+        {
+            this.activeMappings.Clear();
+            return;
         }
 
         var mappingsToRevoke = this.activeMappings.Values.ToList();
@@ -789,7 +912,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
     internal async Task CheckAndRenewMappingsAsync()
     {
-        if (this.isDisposed != 0 || this.isRunning == 0 || this.activeMappings.IsEmpty)
+        if (this.isDisposed != 0 || this.isRunning == 0 || this.isSuspended != 0 || this.activeMappings.IsEmpty)
         {
             return;
         }
@@ -808,13 +931,32 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
         try
         {
-            if (this.isDisposed != 0 || this.isRunning == 0)
+            if (this.isDisposed != 0 || this.isRunning == 0 || this.isSuspended != 0)
             {
+                return;
+            }
+
+            var iface = this.GetEffectiveBoundInterface();
+            var hasSpecificBound = !string.IsNullOrWhiteSpace(iface) &&
+                                   !string.Equals(iface, "any", StringComparison.OrdinalIgnoreCase) &&
+                                   !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
+            var failClosed = this.configService?.EnableVpnKillSwitch ?? false;
+            var localEp = this.GetLocalEndPointForBoundInterface();
+
+            if (hasSpecificBound && failClosed && localEp == null)
+            {
+                this.logger.Warn("NAT-PMP renewals skipped: bound interface '{0}' is unavailable and fail-closed kill switch is active.", iface);
                 return;
             }
 
             var now = DateTime.UtcNow;
             var currentGateway = this.ResolveGateway();
+
+            if (hasSpecificBound && failClosed && currentGateway == null)
+            {
+                this.logger.Warn("NAT-PMP renewals skipped: bound interface '{0}' has no valid gateway and fail-closed kill switch is active.", iface);
+                return;
+            }
 
             var gatewayChanged = currentGateway != null &&
                                  this.lastKnownGateway != null &&
@@ -1059,15 +1201,33 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         int maxAttempts = 3,
         CancellationToken cancellationToken = default)
     {
+        if (this.isSuspended != 0)
+        {
+            return null;
+        }
+
         if (targetGateway == null || targetGateway.AddressFamily != AddressFamily.InterNetwork)
         {
+            return null;
+        }
+
+        var iface = this.GetEffectiveBoundInterface();
+        var hasSpecificBound = !string.IsNullOrWhiteSpace(iface) &&
+                               !string.Equals(iface, "any", StringComparison.OrdinalIgnoreCase) &&
+                               !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
+        var failClosed = this.configService?.EnableVpnKillSwitch ?? false;
+        var localEp = this.GetLocalEndPointForBoundInterface();
+
+        if (hasSpecificBound && failClosed && localEp == null)
+        {
+            this.logger.Warn("NAT-PMP request aborted: bound interface '{0}' is unavailable and fail-closed kill switch is active.", iface);
             return null;
         }
 
         var delayMs = 250;
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            if (cancellationToken.IsCancellationRequested)
+            if (cancellationToken.IsCancellationRequested || this.isSuspended != 0)
             {
                 return null;
             }
@@ -1075,7 +1235,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             UdpClient udp = null;
             try
             {
-                udp = new UdpClient(AddressFamily.InterNetwork);
+                udp = localEp != null ? new UdpClient(localEp) : new UdpClient(AddressFamily.InterNetwork);
                 var endpoint = new IPEndPoint(targetGateway, this.gatewayPort);
 
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -1244,6 +1404,23 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             return null;
         }
 
+        var localEp = this.GetLocalEndPointForBoundInterface();
+        if (localEp != null)
+        {
+            return localEp.Address;
+        }
+
+        var iface = this.GetEffectiveBoundInterface();
+        var hasSpecificBound = !string.IsNullOrWhiteSpace(iface) &&
+                               !string.Equals(iface, "any", StringComparison.OrdinalIgnoreCase) &&
+                               !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
+        var failClosed = this.configService?.EnableVpnKillSwitch ?? false;
+
+        if (hasSpecificBound && failClosed)
+        {
+            return null;
+        }
+
         try
         {
             using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
@@ -1260,7 +1437,6 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         try
         {
             var candidates = GetSystemNetworkCandidates();
-            var iface = this.GetEffectiveBoundInterface();
             if (!string.IsNullOrWhiteSpace(iface))
             {
                 var match = candidates.FirstOrDefault(c => string.Equals(c.Name, iface, StringComparison.OrdinalIgnoreCase));

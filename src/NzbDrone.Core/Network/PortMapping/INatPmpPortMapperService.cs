@@ -73,4 +73,8 @@ public interface INatPmpPortMapperService : IDisposable
     Task RenewAllMappingsAsync(bool force = false, CancellationToken cancellationToken = default);
 
     Task StopAsync(CancellationToken cancellationToken = default);
+
+    void Suspend();
+
+    void Resume();
 }
