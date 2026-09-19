@@ -2499,6 +2499,102 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task OnTorrentCompletedAsync_WhenTorrentHasCustomSavePath_PreservesCustomSavePathAndDoesNotRelocateToCategoryOrDownloadDir()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("completed_custom_savepath.bin");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var customSavePath = Path.Combine(Path.GetTempPath(), "leecharr_custom_savepath_" + Guid.NewGuid().ToString("N"));
+        var categoryCompletedDir = Path.Combine(Path.GetTempPath(), "leecharr_cat_dir_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(customSavePath);
+        Directory.CreateDirectory(categoryCompletedDir);
+
+        this.storagePathService.GetCompletedDirectory("movies").Returns(categoryCompletedDir);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 120,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "completed_custom_savepath.bin",
+            Status = TorrentStatus.Stopped,
+            Category = "movies",
+            SavePath = customSavePath,
+        };
+
+        try
+        {
+            var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+            await this.engine.OnTorrentCompletedAsync(120, torrent.InfoHash, task.Manager);
+
+            string assertDest;
+            this.storagePathService.DidNotReceive().MoveToCompleted(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), out assertDest);
+            task.Manager.SavePath.Should().Be(customSavePath);
+            task.SavePath.Should().Be(customSavePath);
+            this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentDownloadCompletedEvent>(e =>
+                e.Torrent.Id == 120 &&
+                e.Torrent.Category == "movies" &&
+                e.Torrent.SavePath == customSavePath &&
+                e.Torrent.Status == TorrentStatus.Seeding));
+        }
+        finally
+        {
+            if (Directory.Exists(customSavePath))
+            {
+                Directory.Delete(customSavePath, true);
+            }
+
+            if (Directory.Exists(categoryCompletedDir))
+            {
+                Directory.Delete(categoryCompletedDir, true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task OnTorrentCompletedAsync_WhenTorrentRelocatedViaMoveTorrentFilesAsync_PreservesRelocatedSavePathUponCompletion()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("completed_relocated.bin");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var relocatedPath = Path.Combine(Path.GetTempPath(), "leecharr_relocated_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(relocatedPath);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 121,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "completed_relocated.bin",
+            Status = TorrentStatus.Stopped,
+            Category = "movies",
+        };
+
+        try
+        {
+            var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+            await this.engine.MoveTorrentFilesAsync(121, relocatedPath, moveFiles: false);
+
+            await this.engine.OnTorrentCompletedAsync(121, torrent.InfoHash, task.Manager);
+
+            string assertDest;
+            this.storagePathService.DidNotReceive().MoveToCompleted(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), out assertDest);
+            task.Manager.SavePath.Should().Be(relocatedPath);
+            task.SavePath.Should().Be(relocatedPath);
+            this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentDownloadCompletedEvent>(e =>
+                e.Torrent.Id == 121 &&
+                e.Torrent.SavePath == relocatedPath &&
+                e.Torrent.Status == TorrentStatus.Seeding));
+        }
+        finally
+        {
+            if (Directory.Exists(relocatedPath))
+            {
+                Directory.Delete(relocatedPath, true);
+            }
+        }
+    }
+
+    [Test]
     public async Task OnTorrentCompletedAsync_SingleFileTorrent_DoesNotPassIncompleteDirectoryAsSourcePath()
     {
         this.diskProvider.FolderExists(this.testIncompleteDir).Returns(true);

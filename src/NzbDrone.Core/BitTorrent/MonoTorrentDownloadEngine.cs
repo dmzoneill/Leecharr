@@ -2802,11 +2802,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
         }
 
+        var customSavePath = existingTask?.SavePath;
         var targetCompletedDir = this.storagePathService.GetCompletedDirectory(category);
         var downloadDir = this.configService?.DownloadDir ?? "/downloads";
-        var seedingSavePath = !string.IsNullOrWhiteSpace(targetCompletedDir)
-            ? targetCompletedDir
-            : downloadDir;
+        var seedingSavePath = !string.IsNullOrWhiteSpace(customSavePath)
+            ? customSavePath
+            : (!string.IsNullOrWhiteSpace(targetCompletedDir) ? targetCompletedDir : downloadDir);
         string finalDestination = null;
 
         var sourcePath = manager.SavePath ?? this.storagePathService.GetIncompleteDirectory();
@@ -2831,14 +2832,25 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
         }
 
-        try
+        var isCustomSavePath = !string.IsNullOrWhiteSpace(customSavePath) &&
+            (!string.IsNullOrWhiteSpace(targetCompletedDir)
+                ? !string.Equals(customSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), targetCompletedDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)
+                : true) &&
+            (!string.IsNullOrWhiteSpace(downloadDir)
+                ? !string.Equals(customSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), downloadDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)
+                : true);
+
+        if (!isCustomSavePath)
         {
-            // First notify StoragePathService for tracking and category hooks
-            this.storagePathService.MoveToCompleted(sourcePath, category, torrentName, out finalDestination);
-        }
-        catch (Exception ex)
-        {
-            this.logger.Debug(ex, "StoragePathService.MoveToCompleted notification completed with exception for {0}", infoHash);
+            try
+            {
+                // First notify StoragePathService for tracking and category hooks
+                this.storagePathService.MoveToCompleted(sourcePath, category, torrentName, out finalDestination);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "StoragePathService.MoveToCompleted notification completed with exception for {0}", infoHash);
+            }
         }
 
         // Relocate files in MonoTorrent if moving from incomplete to completed directory
