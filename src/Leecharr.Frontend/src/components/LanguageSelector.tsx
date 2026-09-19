@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useI18nStore, useTranslation, languages } from "../i18n";
+import { trackLanguageChange } from "../utils/analytics";
 
 export interface LanguageSelectorProps {
   align?: "left" | "right";
@@ -57,6 +58,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
   }, [isOpen]);
 
   const handleSelect = (langCode: string) => {
+    trackLanguageChange(langCode);
     setLanguage(langCode);
     setIsOpen(false);
     setSearch("");
