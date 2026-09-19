@@ -15,13 +15,7 @@ namespace Leecharr.Api.V1.ArrIntegration;
 [V1ApiController("arrsync")]
 public class ArrSyncController : Controller
 {
-    private static readonly HttpClient DefaultHttpClient = new(new SocketsHttpHandler
-    {
-        SslOptions = new global::System.Net.Security.SslClientAuthenticationOptions
-        {
-            RemoteCertificateValidationCallback = (sender, cert, chain, sslPolicyErrors) => true,
-        },
-    })
+    private static readonly HttpClient DefaultHttpClient = new(new SocketsHttpHandler())
     {
         Timeout = TimeSpan.FromSeconds(10),
     };
@@ -51,6 +45,12 @@ public class ArrSyncController : Controller
             {
                 if (!string.IsNullOrWhiteSpace(conn.Url))
                 {
+                    if (!ArrConnectionController.IsValidTargetUrl(conn.Url, out var ssrfError))
+                    {
+                        this.logger.Warn("Skipping Arr connection {0} ({1}): {2}", conn.Name, conn.Url, ssrfError);
+                        continue;
+                    }
+
                     var baseUrl = conn.Url.TrimEnd('/');
                     var endpoints = string.Equals(conn.ArrType, "Lidarr", StringComparison.OrdinalIgnoreCase) ||
                                     string.Equals(conn.ArrType, "Readarr", StringComparison.OrdinalIgnoreCase) ||
@@ -69,7 +69,7 @@ public class ArrSyncController : Controller
                             req.Headers.Add("X-Api-Key", conn.ApiKey);
                         }
 
-                        var response = await client.SendAsync(req);
+                        using var response = await client.SendAsync(req);
                         if (response.IsSuccessStatusCode)
                         {
                             connected = true;

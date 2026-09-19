@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
+using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -290,5 +291,141 @@ public class ArrConnectionControllerTest
         testRes.Should().NotBeNull();
         testRes!.Success.Should().BeFalse();
         testRes.Message.Should().Be("URL is required.");
+    }
+
+    [Test]
+    public void DefaultHttpClient_DoesNotBypassCertificateValidation()
+    {
+        var clientField = typeof(ArrConnectionController).GetField("DefaultHttpClient", BindingFlags.NonPublic | BindingFlags.Static);
+        var client = clientField!.GetValue(null) as HttpClient;
+        client.Should().NotBeNull();
+
+        var handlerField = typeof(HttpMessageInvoker).GetField("_handler", BindingFlags.NonPublic | BindingFlags.Instance);
+        var handler = handlerField?.GetValue(client) as SocketsHttpHandler;
+        handler.Should().NotBeNull();
+        handler!.SslOptions.RemoteCertificateValidationCallback.Should().BeNull();
+    }
+
+    [Test]
+    public async Task TestDirect_WhenSuccessful_DisposesHttpResponseMessage()
+    {
+        var response = new DisposableHttpResponseMessage(HttpStatusCode.OK);
+        var handler = new MockHttpMessageHandler(_ => response);
+        using var httpClient = new HttpClient(handler);
+        var testController = new ArrConnectionController(this.repository, httpClient);
+
+        var resource = new ArrConnectionResource { Url = "http://localhost:8989", ArrType = "Sonarr" };
+        var result = await testController.TestDirect(resource);
+
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        var testRes = okResult!.Value as ArrTestResult;
+        testRes!.Success.Should().BeTrue();
+        response.IsDisposed.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task TestDirect_WhenFails_DisposesHttpResponseMessage()
+    {
+        var response1 = new DisposableHttpResponseMessage(HttpStatusCode.NotFound);
+        var response2 = new DisposableHttpResponseMessage(HttpStatusCode.InternalServerError);
+        var callCount = 0;
+        var handler = new MockHttpMessageHandler(_ =>
+        {
+            callCount++;
+            return callCount == 1 ? response1 : response2;
+        });
+        using var httpClient = new HttpClient(handler);
+        var testController = new ArrConnectionController(this.repository, httpClient);
+
+        var resource = new ArrConnectionResource { Url = "http://localhost:8989", ArrType = "Sonarr" };
+        var result = await testController.TestDirect(resource);
+
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        var testRes = okResult!.Value as ArrTestResult;
+        testRes!.Success.Should().BeFalse();
+        response1.IsDisposed.Should().BeTrue();
+        response2.IsDisposed.Should().BeTrue();
+    }
+
+    [TestCase("http://169.254.169.254/latest/meta-data")]
+    [TestCase("http://169.254.1.1:8080")]
+    [TestCase("http://instance-data/latest")]
+    [TestCase("http://sub.instance-data:8080")]
+    [TestCase("http://metadata.google.internal/computeMetadata/v1")]
+    [TestCase("http://foo.metadata.google.internal:80")]
+    [TestCase("ftp://localhost:8989")]
+    [TestCase("file:///etc/passwd")]
+    [TestCase("not-a-valid-url")]
+    public async Task TestDirect_WithProhibitedSsrfUrls_ReturnsBadRequest(string url)
+    {
+        var resource = new ArrConnectionResource { Url = url, ArrType = "Sonarr" };
+        var result = await this.controller.TestDirect(resource);
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Test]
+    public void Create_WithProhibitedSsrfUrl_ReturnsBadRequest()
+    {
+        var resource = new ArrConnectionResource { Name = "BadSonarr", Url = "http://169.254.169.254", ArrType = "Sonarr" };
+        var result = this.controller.Create(resource);
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Test]
+    public void Update_WithProhibitedSsrfUrl_ReturnsBadRequest()
+    {
+        var existing = new ArrConnectionDefinition { Id = 1, Name = "Sonarr" };
+        this.repository.Get(1).Returns(existing);
+
+        var resource = new ArrConnectionResource { Name = "Sonarr", Url = "http://metadata.google.internal", ArrType = "Sonarr" };
+        var result = this.controller.Update(1, resource);
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Test]
+    public async Task Test_WhenConnectionHasSsrfUrl_ReturnsBadRequest()
+    {
+        var definition = new ArrConnectionDefinition { Id = 5, Name = "Sonarr", Url = "http://169.254.169.254" };
+        this.repository.Get(5).Returns(definition);
+
+        var result = await this.controller.Test(5);
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    private sealed class DisposableHttpResponseMessage : HttpResponseMessage
+    {
+        public DisposableHttpResponseMessage(HttpStatusCode statusCode)
+            : base(statusCode)
+        {
+        }
+
+        public bool IsDisposed { get; private set; }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                this.IsDisposed = true;
+            }
+
+            base.Dispose(disposing);
+        }
+    }
+
+    private class MockHttpMessageHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, HttpResponseMessage> handler;
+
+        public MockHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> handler)
+        {
+            this.handler = handler;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(this.handler(request));
+        }
     }
 }
