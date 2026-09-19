@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -191,6 +192,134 @@ public class ArrSyncControllerTest
         resource.Skipped.Should().Be(0);
         resource.Failed.Should().Be(1);
         resource.Message.Should().Be("Test message");
+    }
+
+    [Test]
+    public void DefaultHttpClient_DoesNotBypassCertificateValidation()
+    {
+        var clientField = typeof(ArrSyncController).GetField("DefaultHttpClient", BindingFlags.NonPublic | BindingFlags.Static);
+        var client = clientField!.GetValue(null) as HttpClient;
+        client.Should().NotBeNull();
+
+        var handlerField = typeof(HttpMessageInvoker).GetField("_handler", BindingFlags.NonPublic | BindingFlags.Instance);
+        var handler = handlerField?.GetValue(client) as SocketsHttpHandler;
+        handler.Should().NotBeNull();
+        handler!.SslOptions.RemoteCertificateValidationCallback.Should().BeNull();
+    }
+
+    [Test]
+    public async Task Sync_WhenSuccessful_DisposesHttpResponseMessage()
+    {
+        var response = new DisposableHttpResponseMessage(HttpStatusCode.OK);
+        var handler = new MockHttpMessageHandler(_ => response);
+        using var httpClient = new HttpClient(handler);
+        var syncController = new ArrSyncController(this.arrRepository, this.torrentService, httpClient);
+
+        var connections = new List<ArrConnectionDefinition>
+        {
+            new()
+            {
+                Id = 1,
+                Name = "Sonarr",
+                ArrType = "Sonarr",
+                Url = "http://127.0.0.1:8989",
+                ApiKey = "key",
+            },
+        };
+        this.arrRepository.GetEnabled().Returns(connections);
+
+        var actionResult = await syncController.Sync();
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        response.IsDisposed.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Sync_WhenFails_DisposesHttpResponseMessage()
+    {
+        var response1 = new DisposableHttpResponseMessage(HttpStatusCode.NotFound);
+        var response2 = new DisposableHttpResponseMessage(HttpStatusCode.InternalServerError);
+        var callCount = 0;
+        var handler = new MockHttpMessageHandler(_ =>
+        {
+            callCount++;
+            return callCount == 1 ? response1 : response2;
+        });
+        using var httpClient = new HttpClient(handler);
+        var syncController = new ArrSyncController(this.arrRepository, this.torrentService, httpClient);
+
+        var connections = new List<ArrConnectionDefinition>
+        {
+            new()
+            {
+                Id = 1,
+                Name = "Sonarr",
+                ArrType = "Sonarr",
+                Url = "http://127.0.0.1:8989",
+                ApiKey = "key",
+            },
+        };
+        this.arrRepository.GetEnabled().Returns(connections);
+
+        var actionResult = await syncController.Sync();
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        response1.IsDisposed.Should().BeTrue();
+        response2.IsDisposed.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Sync_WhenConnectionHasProhibitedSsrfUrl_SkipsConnection()
+    {
+        var requestsMade = 0;
+        var handler = new MockHttpMessageHandler(_ =>
+        {
+            requestsMade++;
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+        using var httpClient = new HttpClient(handler);
+        var syncController = new ArrSyncController(this.arrRepository, this.torrentService, httpClient);
+
+        var connections = new List<ArrConnectionDefinition>
+        {
+            new()
+            {
+                Id = 1,
+                Name = "MetadataConn",
+                ArrType = "Sonarr",
+                Url = "http://169.254.169.254",
+                ApiKey = "key",
+            },
+        };
+        this.arrRepository.GetEnabled().Returns(connections);
+
+        var actionResult = await syncController.Sync();
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        var result = okResult!.Value as SyncResultResource;
+        result!.SyncedCount.Should().Be(0);
+        result.FailedCount.Should().Be(1);
+        requestsMade.Should().Be(0);
+    }
+
+    private sealed class DisposableHttpResponseMessage : HttpResponseMessage
+    {
+        public DisposableHttpResponseMessage(HttpStatusCode statusCode)
+            : base(statusCode)
+        {
+        }
+
+        public bool IsDisposed { get; private set; }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                this.IsDisposed = true;
+            }
+
+            base.Dispose(disposing);
+        }
     }
 
     private class MockHttpMessageHandler : HttpMessageHandler

@@ -3,7 +3,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Leecharr.Http;
@@ -16,22 +18,18 @@ namespace Leecharr.Api.V1.ArrIntegration;
 [Route("api/v1/arrconnection")]
 public class ArrConnectionController : Controller
 {
-    private static readonly HttpClient HttpClient = new(new SocketsHttpHandler
-    {
-        SslOptions = new global::System.Net.Security.SslClientAuthenticationOptions
-        {
-            RemoteCertificateValidationCallback = (sender, cert, chain, sslPolicyErrors) => true,
-        },
-    })
+    private static readonly HttpClient DefaultHttpClient = new(new SocketsHttpHandler())
     {
         Timeout = TimeSpan.FromSeconds(10),
     };
 
     private readonly IArrConnectionRepository repository;
+    private readonly HttpClient httpClient;
 
-    public ArrConnectionController(IArrConnectionRepository repository)
+    public ArrConnectionController(IArrConnectionRepository repository, HttpClient httpClient = null)
     {
         this.repository = repository;
+        this.httpClient = httpClient;
     }
 
     [HttpGet]
@@ -66,6 +64,11 @@ public class ArrConnectionController : Controller
             return this.BadRequest("Connection name is required.");
         }
 
+        if (!string.IsNullOrWhiteSpace(resource.Url) && !IsValidTargetUrl(resource.Url, out var error))
+        {
+            return this.BadRequest(error);
+        }
+
         var model = ToModel(resource);
         var created = this.repository.Insert(model);
         return this.Ok(ToResource(created));
@@ -82,6 +85,11 @@ public class ArrConnectionController : Controller
         if (string.IsNullOrWhiteSpace(resource.Name))
         {
             return this.BadRequest("Connection name is required.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(resource.Url) && !IsValidTargetUrl(resource.Url, out var error))
+        {
+            return this.BadRequest(error);
         }
 
         var existing = this.repository.Get(id);
@@ -206,6 +214,121 @@ public class ArrConnectionController : Controller
         };
     }
 
+    public static bool IsValidTargetUrl(string targetUrl, out string errorMessage)
+    {
+        errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(targetUrl))
+        {
+            errorMessage = "URL cannot be empty.";
+            return false;
+        }
+
+        if (!Uri.TryCreate(targetUrl, UriKind.Absolute, out var uri))
+        {
+            errorMessage = $"Invalid URL format: '{targetUrl}'.";
+            return false;
+        }
+
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            errorMessage = $"Unsupported URL scheme '{uri.Scheme}'. Only HTTP and HTTPS schemes are allowed.";
+            return false;
+        }
+
+        var host = uri.Host;
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            errorMessage = "URL host cannot be empty.";
+            return false;
+        }
+
+        if (string.Equals(host, "instance-data", StringComparison.OrdinalIgnoreCase) ||
+            host.EndsWith(".instance-data", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(host, "metadata.google.internal", StringComparison.OrdinalIgnoreCase) ||
+            host.EndsWith(".metadata.google.internal", StringComparison.OrdinalIgnoreCase))
+        {
+            errorMessage = $"Access to metadata host '{host}' is prohibited.";
+            return false;
+        }
+
+        if (IPAddress.TryParse(host, out var ip))
+        {
+            if (IsBlockedIp(ip))
+            {
+                errorMessage = $"Access to prohibited IP address '{ip}' is blocked.";
+                return false;
+            }
+        }
+        else
+        {
+            try
+            {
+                var addresses = Dns.GetHostAddresses(host);
+                if (addresses != null && addresses.Length > 0)
+                {
+                    foreach (var addr in addresses)
+                    {
+                        if (IsBlockedIp(addr))
+                        {
+                            errorMessage = $"Host '{host}' resolves to prohibited IP address '{addr}'.";
+                            return false;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // DNS resolution failure (e.g. offline or mock host)
+            }
+        }
+
+        return true;
+    }
+
+    public static bool IsBlockedIp(IPAddress ip)
+    {
+        if (ip == null)
+        {
+            return true;
+        }
+
+        if (ip.Equals(IPAddress.Any) ||
+            ip.Equals(IPAddress.Broadcast) ||
+            ip.Equals(IPAddress.None) ||
+            ip.Equals(IPAddress.IPv6Any) ||
+            ip.Equals(IPAddress.IPv6None))
+        {
+            return true;
+        }
+
+        if (ip.IsIPv4MappedToIPv6)
+        {
+            ip = ip.MapToIPv4();
+        }
+
+        if (ip.AddressFamily == AddressFamily.InterNetwork)
+        {
+            var bytes = ip.GetAddressBytes();
+            if (bytes[0] == 0 ||
+                (bytes[0] == 255 && bytes[1] == 255 && bytes[2] == 255 && bytes[3] == 255) ||
+                (bytes[0] == 169 && bytes[1] == 254))
+            {
+                return true;
+            }
+        }
+        else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+        {
+            if (ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private async Task<ActionResult<ArrTestResult>> TestDirectInternal(ArrConnectionResource resource)
     {
         if (string.IsNullOrWhiteSpace(resource.Url))
@@ -213,6 +336,12 @@ public class ArrConnectionController : Controller
             return this.Ok(new ArrTestResult { Success = false, Message = "URL is required." });
         }
 
+        if (!IsValidTargetUrl(resource.Url, out var ssrfError))
+        {
+            return this.BadRequest(ssrfError);
+        }
+
+        var client = this.httpClient ?? DefaultHttpClient;
         var baseUrl = resource.Url.TrimEnd('/');
         var endpoints = new[] { "/api/v3/system/status", "/api/v1/system/status" };
         string lastError = null;
@@ -227,7 +356,7 @@ public class ArrConnectionController : Controller
                     req.Headers.Add("X-Api-Key", resource.ApiKey);
                 }
 
-                var resp = await HttpClient.SendAsync(req);
+                using var resp = await client.SendAsync(req);
                 if (resp.IsSuccessStatusCode)
                 {
                     var version = endpoint.Contains("v3") ? "v3" : "v1";
