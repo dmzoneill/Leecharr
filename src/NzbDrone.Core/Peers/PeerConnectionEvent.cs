@@ -1,10 +1,11 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.Peers;
 
-public class PeerConnectionEvent
+public class PeerConnectionEvent : IEvent
 {
     public long Id { get; set; }
 
