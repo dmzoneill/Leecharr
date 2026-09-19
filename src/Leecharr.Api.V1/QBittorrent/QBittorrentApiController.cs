@@ -434,7 +434,11 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         [FromQuery] string filter = null,
         [FromQuery] string category = null,
         [FromQuery] string tag = null,
-        [FromQuery] string hashes = null)
+        [FromQuery] string hashes = null,
+        [FromQuery] string sort = null,
+        [FromQuery] bool? reverse = null,
+        [FromQuery] int? limit = null,
+        [FromQuery] int? offset = null)
     {
         var torrents = this.torrentService.GetAll();
 
@@ -484,8 +488,13 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     torrents = torrents.Where(t => t.Status == TorrentStatus.Downloading);
                     break;
                 case "seeding":
+                    torrents = torrents.Where(t => t.Status == TorrentStatus.Seeding || (t.Status == TorrentStatus.Queued && t.Progress >= 1.0));
+                    break;
                 case "completed":
-                    torrents = torrents.Where(t => t.Status == TorrentStatus.Seeding || t.Progress >= 1.0);
+                    torrents = torrents.Where(t => t.Progress >= 1.0 || t.Status == TorrentStatus.Seeding || t.Status == TorrentStatus.Completed);
+                    break;
+                case "queued":
+                    torrents = torrents.Where(t => t.Status == TorrentStatus.Queued || t.Status == TorrentStatus.QueuedForChecking);
                     break;
                 case "paused":
                 case "stopped":
@@ -507,7 +516,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     torrents = torrents.Where(t => (t.Status == TorrentStatus.Stalled && t.Progress >= 1.0) || (t.Status == TorrentStatus.Seeding && t.UploadSpeed == 0));
                     break;
                 case "checking":
-                    torrents = torrents.Where(t => t.Status == TorrentStatus.Checking);
+                    torrents = torrents.Where(t => t.Status == TorrentStatus.Checking || t.Status == TorrentStatus.QueuedForChecking);
                     break;
                 case "errored":
                 case "error":
@@ -525,7 +534,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
         var result = torrentList.Select(t =>
         {
-            var state = MapToQBitState(t.Status, t.Progress);
+            var state = MapToQBitState(t.Status, t.Progress, t.DownloadSpeed, t.UploadSpeed);
             var (resolvedSavePath, resolvedContentPath) = this.ResolvePaths(t, filesByTorrent);
             return new Dictionary<string, object>
             {
@@ -566,6 +575,107 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 ["super_seeding"] = t.InitialSeeding,
             };
         }).ToList();
+
+        if (!string.IsNullOrWhiteSpace(sort))
+        {
+            var sortKey = sort.Trim().ToLowerInvariant();
+            var isReverse = reverse == true;
+
+            switch (sortKey)
+            {
+                case "name":
+                    result = isReverse
+                        ? result.OrderByDescending(d => d.GetValueOrDefault("name")?.ToString() ?? string.Empty, StringComparer.OrdinalIgnoreCase).ToList()
+                        : result.OrderBy(d => d.GetValueOrDefault("name")?.ToString() ?? string.Empty, StringComparer.OrdinalIgnoreCase).ToList();
+                    break;
+                case "size":
+                case "total_size":
+                    result = isReverse
+                        ? result.OrderByDescending(d => Convert.ToInt64(d.GetValueOrDefault("size") ?? 0L)).ToList()
+                        : result.OrderBy(d => Convert.ToInt64(d.GetValueOrDefault("size") ?? 0L)).ToList();
+                    break;
+                case "progress":
+                    result = isReverse
+                        ? result.OrderByDescending(d => Convert.ToDouble(d.GetValueOrDefault("progress") ?? 0.0)).ToList()
+                        : result.OrderBy(d => Convert.ToDouble(d.GetValueOrDefault("progress") ?? 0.0)).ToList();
+                    break;
+                case "dlspeed":
+                    result = isReverse
+                        ? result.OrderByDescending(d => Convert.ToInt64(d.GetValueOrDefault("dlspeed") ?? 0L)).ToList()
+                        : result.OrderBy(d => Convert.ToInt64(d.GetValueOrDefault("dlspeed") ?? 0L)).ToList();
+                    break;
+                case "upspeed":
+                    result = isReverse
+                        ? result.OrderByDescending(d => Convert.ToInt64(d.GetValueOrDefault("upspeed") ?? 0L)).ToList()
+                        : result.OrderBy(d => Convert.ToInt64(d.GetValueOrDefault("upspeed") ?? 0L)).ToList();
+                    break;
+                case "priority":
+                    result = isReverse
+                        ? result.OrderByDescending(d => Convert.ToInt32(d.GetValueOrDefault("priority") ?? 0)).ToList()
+                        : result.OrderBy(d => Convert.ToInt32(d.GetValueOrDefault("priority") ?? 0)).ToList();
+                    break;
+                case "num_seeds":
+                case "num_complete":
+                    result = isReverse
+                        ? result.OrderByDescending(d => Convert.ToInt32(d.GetValueOrDefault("num_seeds") ?? 0)).ToList()
+                        : result.OrderBy(d => Convert.ToInt32(d.GetValueOrDefault("num_seeds") ?? 0)).ToList();
+                    break;
+                case "num_leechs":
+                case "num_incomplete":
+                    result = isReverse
+                        ? result.OrderByDescending(d => Convert.ToInt32(d.GetValueOrDefault("num_leechs") ?? 0)).ToList()
+                        : result.OrderBy(d => Convert.ToInt32(d.GetValueOrDefault("num_leechs") ?? 0)).ToList();
+                    break;
+                case "ratio":
+                    result = isReverse
+                        ? result.OrderByDescending(d => Convert.ToDouble(d.GetValueOrDefault("ratio") ?? 0.0)).ToList()
+                        : result.OrderBy(d => Convert.ToDouble(d.GetValueOrDefault("ratio") ?? 0.0)).ToList();
+                    break;
+                case "eta":
+                    result = isReverse
+                        ? result.OrderByDescending(d => Convert.ToInt64(d.GetValueOrDefault("eta") ?? 0L)).ToList()
+                        : result.OrderBy(d => Convert.ToInt64(d.GetValueOrDefault("eta") ?? 0L)).ToList();
+                    break;
+                case "state":
+                    result = isReverse
+                        ? result.OrderByDescending(d => d.GetValueOrDefault("state")?.ToString() ?? string.Empty, StringComparer.OrdinalIgnoreCase).ToList()
+                        : result.OrderBy(d => d.GetValueOrDefault("state")?.ToString() ?? string.Empty, StringComparer.OrdinalIgnoreCase).ToList();
+                    break;
+                case "added_on":
+                    result = isReverse
+                        ? result.OrderByDescending(d => Convert.ToInt64(d.GetValueOrDefault("added_on") ?? 0L)).ToList()
+                        : result.OrderBy(d => Convert.ToInt64(d.GetValueOrDefault("added_on") ?? 0L)).ToList();
+                    break;
+                case "completion_on":
+                    result = isReverse
+                        ? result.OrderByDescending(d => Convert.ToInt64(d.GetValueOrDefault("completion_on") ?? 0L)).ToList()
+                        : result.OrderBy(d => Convert.ToInt64(d.GetValueOrDefault("completion_on") ?? 0L)).ToList();
+                    break;
+                default:
+                    result = isReverse
+                        ? result.OrderByDescending(d => d.GetValueOrDefault(sortKey)?.ToString() ?? string.Empty, StringComparer.OrdinalIgnoreCase).ToList()
+                        : result.OrderBy(d => d.GetValueOrDefault(sortKey)?.ToString() ?? string.Empty, StringComparer.OrdinalIgnoreCase).ToList();
+                    break;
+            }
+        }
+        else if (reverse == true)
+        {
+            result.Reverse();
+        }
+
+        if (offset.HasValue)
+        {
+            var skip = offset.Value >= 0
+                ? offset.Value
+                : Math.Max(0, result.Count + offset.Value);
+
+            result = result.Skip(skip).ToList();
+        }
+
+        if (limit.HasValue && limit.Value >= 0)
+        {
+            result = result.Take(limit.Value).ToList();
+        }
 
         return this.Ok(result);
     }
@@ -761,6 +871,30 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         }
 
         var needsUpdate = false;
+        if (!string.IsNullOrWhiteSpace(request.Rename))
+        {
+            added.Name = request.Rename.Trim();
+            needsUpdate = true;
+        }
+
+        if (request.EffectiveUpLimit.HasValue && request.EffectiveUpLimit.Value >= 0)
+        {
+            added.UploadLimit = (int)(request.EffectiveUpLimit.Value / 1024);
+            needsUpdate = true;
+        }
+
+        if (request.EffectiveDlLimit.HasValue && request.EffectiveDlLimit.Value >= 0)
+        {
+            added.DownloadLimit = (int)(request.EffectiveDlLimit.Value / 1024);
+            needsUpdate = true;
+        }
+
+        if (request.IsSkipChecking && (added.Status == TorrentStatus.Checking || added.Status == TorrentStatus.QueuedForChecking))
+        {
+            added.Status = request.IsPaused ? TorrentStatus.Paused : TorrentStatus.Downloading;
+            needsUpdate = true;
+        }
+
         if (!string.IsNullOrWhiteSpace(request.Tags))
         {
             added.Label = request.Tags;
@@ -1408,6 +1542,18 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         if (string.IsNullOrWhiteSpace(normalized))
         {
             return this.BadRequest();
+        }
+
+        var existing = this.categoryService.GetByName(normalized) ?? this.categoryService.GetByName(category);
+        if (existing != null)
+        {
+            if (savePath != null && !string.Equals(existing.SavePath, savePath, StringComparison.Ordinal))
+            {
+                existing.SavePath = savePath;
+                this.categoryService.Update(existing);
+            }
+
+            return this.Content("Ok.", "text/plain");
         }
 
         this.categoryService.Add(new Category
@@ -3140,15 +3286,15 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         return (trimmedSave, Path.Combine(trimmedSave, t.Name));
     }
 
-    internal static string MapToQBitState(TorrentStatus status, double progress)
+    internal static string MapToQBitState(TorrentStatus status, double progress, long downloadSpeed = 0, long uploadSpeed = 0)
     {
         return status switch
         {
             TorrentStatus.Queued => progress >= 1.0 ? "queuedUP" : "queuedDL",
             TorrentStatus.Checking => progress >= 1.0 ? "checkingUP" : "checkingDL",
             TorrentStatus.QueuedForChecking => progress >= 1.0 ? "checkingUP" : "checkingDL",
-            TorrentStatus.Downloading => "downloading",
-            TorrentStatus.Seeding => "uploading",
+            TorrentStatus.Downloading => downloadSpeed == 0 ? "stalledDL" : "downloading",
+            TorrentStatus.Seeding => uploadSpeed == 0 ? "stalledUP" : "uploading",
             TorrentStatus.Paused => progress >= 1.0 ? "pausedUP" : "pausedDL",
             TorrentStatus.Stopped => progress >= 1.0 ? "pausedUP" : "pausedDL",
             TorrentStatus.Completed => progress >= 1.0 ? "pausedUP" : "pausedDL",
@@ -3367,7 +3513,7 @@ public record QBitTorrentSnapshot
             Progress = torrent.Progress,
             DlSpeed = torrent.DownloadSpeed,
             UpSpeed = torrent.UploadSpeed,
-            State = QBittorrentApiController.MapToQBitState(torrent.Status, torrent.Progress),
+            State = QBittorrentApiController.MapToQBitState(torrent.Status, torrent.Progress, torrent.DownloadSpeed, torrent.UploadSpeed),
             Category = torrent.Category ?? string.Empty,
             Tags = torrent.Label ?? string.Empty,
             SavePath = savePath ?? string.Empty,
