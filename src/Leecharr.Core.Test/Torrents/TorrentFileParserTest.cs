@@ -165,13 +165,13 @@ public class TorrentFileParserTest
     }
 
     [Test]
-    public void Parse_WhenSingleFileTorrentNameContainsSlashes_SanitizesPathAndPreservesName()
+    public void Parse_WhenSingleFileTorrentNameContainsSlashes_SanitizesPathAndName()
     {
         var bytes = CreateTorrentBytes(info => info["name"] = new BEncodedString("AC/DC - Back in Black.mp3"));
 
         var parsed = this.parser.Parse(bytes);
 
-        parsed.Name.Should().Be("AC/DC - Back in Black.mp3");
+        parsed.Name.Should().Be("AC_DC - Back in Black.mp3");
         parsed.Files.Should().HaveCount(1);
         parsed.Files[0].Path.Should().Be("AC_DC - Back in Black.mp3");
     }
@@ -183,7 +183,7 @@ public class TorrentFileParserTest
 
         var parsed = this.parser.Parse(bytes);
 
-        parsed.Name.Should().Be("Show S01 [H.264/AAC]");
+        parsed.Name.Should().Be("Show S01 [H.264_AAC]");
         parsed.Files.Should().HaveCount(1);
         parsed.Files[0].Path.Should().Be("Episode 1.mkv");
     }
@@ -715,5 +715,49 @@ public class TorrentFileParserTest
 
         act.Should().Throw<InvalidTorrentFileException>()
             .WithMessage("*invalid path characters*");
+    }
+
+    [TestCase("movie:title.mp4", "movie_title.mp4")]
+    [TestCase("star*wars.iso", "star_wars.iso")]
+    [TestCase("what?now.mkv", "what_now.mkv")]
+    [TestCase("pipe|line.dat", "pipe_line.dat")]
+    [TestCase("<tag>.mp4", "_tag_.mp4")]
+    [TestCase("quote\"file.avi", "quote_file.avi")]
+    public void Parse_WhenSingleFileTorrentNameContainsUniversalInvalidChars_SanitizesNameAndPath(string inputName, string expectedSanitized)
+    {
+        var bytes = CreateTorrentBytes(info => info["name"] = new BEncodedString(inputName));
+
+        var parsed = this.parser.Parse(bytes);
+
+        parsed.Name.Should().Be(expectedSanitized);
+        parsed.Files[0].Path.Should().Be(expectedSanitized);
+    }
+
+    [TestCase("Show: The Complete Series", "Show_ The Complete Series")]
+    [TestCase("Star*Wars*Collection", "Star_Wars_Collection")]
+    [TestCase("Pipe|Directory", "Pipe_Directory")]
+    public void Parse_WhenMultiFileTorrentRootNameContainsUniversalInvalidChars_SanitizesRootName(string inputName, string expectedSanitized)
+    {
+        var bytes = CreateMultiFileTorrentBytes(inputName, (1024, new[] { "Episode 1.mkv" }));
+
+        var parsed = this.parser.Parse(bytes);
+
+        parsed.Name.Should().Be(expectedSanitized);
+    }
+
+    [TestCase("CON", "_CON")]
+    [TestCase("PRN", "_PRN")]
+    [TestCase("AUX", "_AUX")]
+    [TestCase("NUL", "_NUL")]
+    [TestCase("COM1", "_COM1")]
+    [TestCase("con.iso", "_con.iso")]
+    public void Parse_WhenTorrentNameIsReservedDeviceName_SanitizesWithUnderscorePrefix(string reservedName, string expectedSanitized)
+    {
+        var bytes = CreateTorrentBytes(info => info["name"] = new BEncodedString(reservedName));
+
+        var parsed = this.parser.Parse(bytes);
+
+        parsed.Name.Should().Be(expectedSanitized);
+        parsed.Files[0].Path.Should().Be(expectedSanitized);
     }
 }

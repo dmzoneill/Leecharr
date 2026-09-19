@@ -1991,57 +1991,214 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             return defaultDownloadDir;
         }
 
+        var normalizedPath = savePath.Replace('\\', '/').Trim();
+
         if (this.storagePathService != null)
         {
-            var normalized = this.storagePathService.NormalizeCompletedSavePath(savePath, category);
-            if (!string.IsNullOrWhiteSpace(normalized) && !string.Equals(normalized, savePath, StringComparison.OrdinalIgnoreCase))
+            var normalized = this.storagePathService.NormalizeCompletedSavePath(normalizedPath, category);
+            if (!string.IsNullOrWhiteSpace(normalized) && !string.Equals(normalized, normalizedPath, StringComparison.OrdinalIgnoreCase))
             {
-                savePath = normalized;
+                normalizedPath = normalized.Replace('\\', '/').Trim();
             }
         }
-        else if (string.Equals(savePath.TrimEnd('/', '\\'), "/downloads/incomplete", StringComparison.OrdinalIgnoreCase))
+        else if (string.Equals(normalizedPath.TrimEnd('/'), "/downloads/incomplete", StringComparison.OrdinalIgnoreCase))
         {
-            savePath = defaultDownloadDir;
+            normalizedPath = defaultDownloadDir.Replace('\\', '/').Trim();
         }
 
-        try
+        var allowedRoots = this.GetAllowedDownloadDirectories(category, defaultDownloadDir);
+
+        var isRooted = Path.IsPathRooted(normalizedPath) ||
+                       (normalizedPath.Length >= 2 && char.IsLetter(normalizedPath[0]) && normalizedPath[1] == ':');
+
+        if (isRooted)
         {
-            if (Directory.Exists(savePath))
+            if (this.IsPathAllowed(normalizedPath, allowedRoots))
             {
-                return savePath;
+                return normalizedPath;
             }
 
-            if (Path.IsPathRooted(savePath))
+            var relativeSegments = normalizedPath.TrimStart('/');
+            if (!string.IsNullOrWhiteSpace(category) && string.Equals(relativeSegments, category, StringComparison.OrdinalIgnoreCase))
             {
-                var root = Path.GetPathRoot(savePath);
-                if (!string.IsNullOrWhiteSpace(root) && Directory.Exists(root))
-                {
-                    var relativeSegments = savePath.Trim().TrimStart('/', '\\');
-                    if (relativeSegments.Contains('/') || relativeSegments.Contains('\\'))
-                    {
-                        return savePath;
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(category) && string.Equals(relativeSegments, category, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return defaultDownloadDir;
-                    }
-
-                    return Path.Combine(defaultDownloadDir, relativeSegments);
-                }
+                return defaultDownloadDir;
             }
-        }
-        catch
-        {
+
+            this.logger.Warn("Save path '{0}' is outside allowed media directories. Falling back to '{1}'", savePath, defaultDownloadDir);
+            return defaultDownloadDir;
         }
 
-        var cleanRel = savePath.Trim().TrimStart('/', '\\');
+        var cleanRel = normalizedPath.TrimStart('/');
         if (!string.IsNullOrWhiteSpace(category) && string.Equals(cleanRel, category, StringComparison.OrdinalIgnoreCase))
         {
             return defaultDownloadDir;
         }
 
-        return Path.Combine(defaultDownloadDir, cleanRel);
+        var combined = Path.Combine(defaultDownloadDir, cleanRel);
+        if (this.IsPathAllowed(combined, allowedRoots))
+        {
+            return combined;
+        }
+
+        this.logger.Warn("Relative save path '{0}' resolved outside allowed media directories. Falling back to '{1}'", savePath, defaultDownloadDir);
+        return defaultDownloadDir;
+    }
+
+    private List<string> GetAllowedDownloadDirectories(string category, string defaultDownloadDir)
+    {
+        var roots = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(defaultDownloadDir))
+        {
+            roots.Add(defaultDownloadDir);
+        }
+
+        if (this.storagePathService != null)
+        {
+            try
+            {
+                var completedCat = this.storagePathService.GetCompletedDirectory(category);
+                if (!string.IsNullOrWhiteSpace(completedCat))
+                {
+                    roots.Add(completedCat);
+                }
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                var completedDefault = this.storagePathService.GetCompletedDirectory(null);
+                if (!string.IsNullOrWhiteSpace(completedDefault))
+                {
+                    roots.Add(completedDefault);
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        if (this.categoryService != null)
+        {
+            try
+            {
+                var catSavePath = this.categoryService.GetSavePathForCategory(category);
+                if (!string.IsNullOrWhiteSpace(catSavePath))
+                {
+                    roots.Add(catSavePath);
+                }
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                var allCategories = this.categoryService.GetAll();
+                if (allCategories != null)
+                {
+                    foreach (var cat in allCategories)
+                    {
+                        if (cat != null && !string.IsNullOrWhiteSpace(cat.SavePath))
+                        {
+                            roots.Add(cat.SavePath);
+                        }
+
+                        if (this.storagePathService != null && cat != null && !string.IsNullOrWhiteSpace(cat.Name))
+                        {
+                            try
+                            {
+                                var dir = this.storagePathService.GetCompletedDirectory(cat.Name);
+                                if (!string.IsNullOrWhiteSpace(dir))
+                                {
+                                    roots.Add(dir);
+                                }
+                            }
+                            catch
+                            {
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        if (this.configService != null)
+        {
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(this.configService.DownloadDir))
+                {
+                    roots.Add(this.configService.DownloadDir);
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        return roots;
+    }
+
+    private bool IsPathAllowed(string candidatePath, IEnumerable<string> allowedRoots)
+    {
+        if (string.IsNullOrWhiteSpace(candidatePath))
+        {
+            return false;
+        }
+
+        string canonicalCandidate;
+        try
+        {
+            canonicalCandidate = TorrentPathValidator.ResolveCanonicalPath(candidatePath.Replace('\\', '/'));
+        }
+        catch
+        {
+            return false;
+        }
+
+        var comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
+        var trimmedCandidate = canonicalCandidate.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        foreach (var root in allowedRoots)
+        {
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                continue;
+            }
+
+            string canonicalRoot;
+            try
+            {
+                canonicalRoot = TorrentPathValidator.ResolveCanonicalPath(root);
+            }
+            catch
+            {
+                continue;
+            }
+
+            var trimmedRoot = canonicalRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            if (string.Equals(trimmedCandidate, trimmedRoot, comparison))
+            {
+                return true;
+            }
+
+            if (TorrentPathValidator.IsStrictSubPath(canonicalRoot, canonicalCandidate))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private sealed class RefCountedSemaphore
