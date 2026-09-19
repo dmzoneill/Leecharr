@@ -32,6 +32,7 @@ using NzbDrone.Core.Network.Binding;
 using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Network.PortMapping;
 using NzbDrone.Core.Network.Vpn;
+using NzbDrone.Core.Peers;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
 using CoreTorrent = NzbDrone.Core.Torrents.Torrent;
@@ -60,6 +61,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private readonly ITorrentLogService torrentLogService;
     private readonly ITorrentFileRepository torrentFileRepository;
     private readonly ITrackerEntryRepository trackerEntryRepository;
+    private readonly IPeerConnectionHistoryService peerConnectionHistoryService;
     private readonly Logger logger;
 
     private readonly ConcurrentDictionary<int, MonoTorrentDownloadTask> tasks = new();
@@ -214,7 +216,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         IAppFolderInfo appFolderInfo = null,
         ITorrentLogService torrentLogService = null,
         ITorrentFileRepository torrentFileRepository = null,
-        ITrackerEntryRepository trackerEntryRepository = null)
+        ITrackerEntryRepository trackerEntryRepository = null,
+        IPeerConnectionHistoryService peerConnectionHistoryService = null)
     {
         this.configService = configService;
         this.storagePathService = storagePathService;
@@ -229,6 +232,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         this.torrentLogService = torrentLogService;
         this.torrentFileRepository = torrentFileRepository;
         this.trackerEntryRepository = trackerEntryRepository;
+        this.peerConnectionHistoryService = peerConnectionHistoryService;
         this.logger = LogManager.GetCurrentClassLogger();
 
         this.trackerHealthTimer = new Timer(_ => this.CheckTrackerHealth(), null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(5));
@@ -1200,7 +1204,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             this.configService,
             torrent.IsPrivate,
             workingPath,
-            t => _ = this.ApplyStoredFilePrioritiesAsync(t));
+            t => _ = this.ApplyStoredFilePrioritiesAsync(t),
+            peerConnectionHistoryService: this.peerConnectionHistoryService,
+            eventAggregator: this.eventAggregator);
         downloadTask.SavePath = completedDir;
         downloadTask.IsFilesMovedToCompleted = isCompleteOrSeeding;
         this.tasks[torrent.Id] = downloadTask;
@@ -5131,6 +5137,8 @@ public class MonoTorrentDownloadTask : IDownloadTask
     private readonly bool initialIsPrivate;
     private readonly IConfigService configService;
     private readonly Action<MonoTorrentDownloadTask> onPickerCreated;
+    private readonly IPeerConnectionHistoryService peerConnectionHistoryService;
+    private readonly IEventAggregator eventAggregator;
     private readonly object peerLock = new();
     private readonly Dictionary<string, PeerActivityState> peerActivity = new(StringComparer.OrdinalIgnoreCase);
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
@@ -5189,7 +5197,9 @@ public class MonoTorrentDownloadTask : IDownloadTask
         bool isPrivate = false,
         string workingPath = null,
         Action<MonoTorrentDownloadTask> onPickerCreated = null,
-        PiecePicker picker = null)
+        PiecePicker picker = null,
+        IPeerConnectionHistoryService peerConnectionHistoryService = null,
+        IEventAggregator eventAggregator = null)
     {
         this.TorrentId = torrentId;
         this.InfoHash = infoHash;
@@ -5203,6 +5213,8 @@ public class MonoTorrentDownloadTask : IDownloadTask
         this.WorkingPath = workingPath;
         this.onPickerCreated = onPickerCreated;
         this.Picker = picker;
+        this.peerConnectionHistoryService = peerConnectionHistoryService;
+        this.eventAggregator = eventAggregator;
 
         if (manager != null)
         {
@@ -5280,9 +5292,45 @@ public class MonoTorrentDownloadTask : IDownloadTask
         try
         {
             var peerIp = e.Peer?.Uri?.Host;
+            var peerPort = e.Peer?.Uri?.Port ?? 0;
+            string clientStr = null;
+            try
+            {
+                clientStr = e.Peer?.ClientApp.Client.ToString();
+            }
+            catch
+            {
+            }
+
+            clientStr ??= string.Empty;
+            var isEncrypted = e.Peer != null && e.Peer.EncryptionType != MonoTorrent.Connections.EncryptionType.PlainText;
+            var torrentName = this.Manager?.Torrent?.Name ?? this.initialTorrent?.Name ?? string.Empty;
+
             if (!string.IsNullOrEmpty(peerIp) && this.blocklistService != null && this.blocklistService.IsIpBlocked(peerIp))
             {
                 this.onPeerBlocked?.Invoke();
+
+                var blockedEvent = new PeerConnectionEvent
+                {
+                    InfoHash = this.InfoHash,
+                    TorrentName = torrentName,
+                    RemoteIp = peerIp,
+                    RemotePort = peerPort,
+                    PeerId = clientStr,
+                    IsEncrypted = isEncrypted,
+                    EventType = "Blocked",
+                    Timestamp = DateTime.UtcNow,
+                };
+
+                if (this.peerConnectionHistoryService != null)
+                {
+                    this.peerConnectionHistoryService.RecordEvent(blockedEvent);
+                }
+                else
+                {
+                    this.eventAggregator?.PublishEvent(blockedEvent);
+                }
+
                 try
                 {
                     (e.Peer as IDisposable)?.Dispose();
@@ -5292,6 +5340,27 @@ public class MonoTorrentDownloadTask : IDownloadTask
                 }
 
                 return;
+            }
+
+            var connectedEvent = new PeerConnectionEvent
+            {
+                InfoHash = this.InfoHash,
+                TorrentName = torrentName,
+                RemoteIp = peerIp ?? string.Empty,
+                RemotePort = peerPort,
+                PeerId = clientStr,
+                IsEncrypted = isEncrypted,
+                EventType = "Connected",
+                Timestamp = DateTime.UtcNow,
+            };
+
+            if (this.peerConnectionHistoryService != null)
+            {
+                this.peerConnectionHistoryService.RecordEvent(connectedEvent);
+            }
+            else
+            {
+                this.eventAggregator?.PublishEvent(connectedEvent);
             }
 
             this.SynchronizePieceAvailability();
@@ -5306,6 +5375,42 @@ public class MonoTorrentDownloadTask : IDownloadTask
     {
         try
         {
+            var peerIp = e.Peer?.Uri?.Host;
+            var peerPort = e.Peer?.Uri?.Port ?? 0;
+            string clientStr = null;
+            try
+            {
+                clientStr = e.Peer?.ClientApp.Client.ToString();
+            }
+            catch
+            {
+            }
+
+            clientStr ??= string.Empty;
+            var isEncrypted = e.Peer != null && e.Peer.EncryptionType != MonoTorrent.Connections.EncryptionType.PlainText;
+            var torrentName = this.Manager?.Torrent?.Name ?? this.initialTorrent?.Name ?? string.Empty;
+
+            var disconnectedEvent = new PeerConnectionEvent
+            {
+                InfoHash = this.InfoHash,
+                TorrentName = torrentName,
+                RemoteIp = peerIp ?? string.Empty,
+                RemotePort = peerPort,
+                PeerId = clientStr,
+                IsEncrypted = isEncrypted,
+                EventType = "Disconnected",
+                Timestamp = DateTime.UtcNow,
+            };
+
+            if (this.peerConnectionHistoryService != null)
+            {
+                this.peerConnectionHistoryService.RecordEvent(disconnectedEvent);
+            }
+            else
+            {
+                this.eventAggregator?.PublishEvent(disconnectedEvent);
+            }
+
             this.SynchronizePieceAvailability();
         }
         catch (Exception ex)

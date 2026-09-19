@@ -5,11 +5,12 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Network.GeoIp;
 
 namespace NzbDrone.Core.Peers;
 
-public class PeerConnectionHistoryService : IPeerConnectionHistoryService
+public class PeerConnectionHistoryService : IPeerConnectionHistoryService, IHandle<PeerConnectionEvent>
 {
     private const int MaxRecords = 10000;
     private readonly ConcurrentQueue<PeerConnectionEvent> eventQueue = new();
@@ -118,6 +119,11 @@ public class PeerConnectionHistoryService : IPeerConnectionHistoryService
                 this.eventQueue.Enqueue(item);
             }
         }
+    }
+
+    public void Handle(PeerConnectionEvent message)
+    {
+        this.RecordEvent(message);
     }
 
     public void Clear()

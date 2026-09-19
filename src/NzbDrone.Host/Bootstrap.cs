@@ -25,6 +25,7 @@ using NzbDrone.Core.Network.Binding;
 using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Network.GeoIp;
 using NzbDrone.Core.Network.Vpn;
+using NzbDrone.Core.Peers;
 using NzbDrone.Core.Security;
 
 namespace NzbDrone.Host;
@@ -65,6 +66,7 @@ public static class Bootstrap
         container.RegisterSingletonWithInterfaces<DynamicMediaInspectorProxy>();
         container.RegisterSingletonWithInterfaces<DynamicAiProxy>();
         container.RegisterSingletonWithInterfaces<AppLifetimeServices>();
+        container.RegisterSingletonWithInterfaces<PeerConnectionHistoryService>();
 
         var builder = WebApplication.CreateBuilder();
         var configProvider = container.Resolve<IConfigFileProvider>();
