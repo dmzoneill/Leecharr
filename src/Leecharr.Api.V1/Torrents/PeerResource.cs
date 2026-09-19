@@ -24,6 +24,14 @@ public class PeerResource : RestResource
 
     public string Flags { get; set; }
 
+    public bool IsEncrypted { get; set; }
+
+    public bool IsUtp { get; set; }
+
+    public bool IsIncoming { get; set; }
+
+    public string Protocol { get; set; } = "TCP";
+
     public string CountryCode { get; set; }
 
     public string CountryName { get; set; }
