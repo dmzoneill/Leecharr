@@ -428,4 +428,82 @@ public class ArrConnectionControllerTest
             return Task.FromResult(this.handler(request));
         }
     }
+
+    [Test]
+    public void Get_ReturnsMaskedApiKey()
+    {
+        var model = new ArrConnectionDefinition
+        {
+            Id = 1,
+            Name = "Sonarr",
+            ApiKey = "secret_key",
+        };
+
+        this.repository.Get(1).Returns(model);
+
+        var result = this.controller.Get(1);
+        var okResult = result.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var resource = okResult!.Value as ArrConnectionResource;
+        resource.Should().NotBeNull();
+        resource!.ApiKey.Should().Be("********");
+    }
+
+    [Test]
+    public void GetAll_ReturnsMaskedApiKey()
+    {
+        var list = new List<ArrConnectionDefinition>
+        {
+            new()
+            {
+                Id = 1,
+                Name = "Sonarr",
+                ApiKey = "secret_key",
+            },
+        };
+
+        this.repository.All().Returns(list);
+
+        var result = this.controller.GetAll();
+        var okResult = result.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var resources = okResult!.Value as List<ArrConnectionResource>;
+        resources.Should().NotBeNull();
+        resources![0].ApiKey.Should().Be("********");
+    }
+
+    [Test]
+    public void Update_PreservesApiKey_WhenMaskedApiKeyProvided()
+    {
+        var existing = new ArrConnectionDefinition
+        {
+            Id = 1,
+            Name = "Sonarr",
+            ArrType = "Sonarr",
+            Url = "http://localhost:8989",
+            ApiKey = "secret_sonarr_api_key_12345",
+        };
+
+        this.repository.Get(1).Returns(existing);
+
+        var resource = new ArrConnectionResource
+        {
+            Id = 1,
+            Name = "Updated Sonarr",
+            ArrType = "Sonarr",
+            Url = "http://localhost:8989",
+            ApiKey = "********",
+        };
+
+        var result = this.controller.Update(1, resource);
+        var okResult = result.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        this.repository.Received(1).Update(Arg.Is<ArrConnectionDefinition>(c =>
+            c.Id == 1 &&
+            c.ApiKey == "secret_sonarr_api_key_12345" &&
+            c.Name == "Updated Sonarr"));
+    }
 }
