@@ -2997,4 +2997,89 @@ public class QBittorrentApiControllerTest
         this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
             (string)d["EncryptionMode"] == expectedMode));
     }
+
+    [Test]
+    public async Task CreateTorrent_WhenFallbackTorrentCreationServiceUsed_AllowsPathInsideConfiguredDownloadDir()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "leecharr_qbit_create_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var sourceFile = Path.Combine(tempDir, "video.mp4");
+            await File.WriteAllBytesAsync(sourceFile, new byte[2048]);
+            var outputFile = Path.Combine(tempDir, "video.torrent");
+
+            this.configService.DownloadDir.Returns(tempDir);
+
+            var ctrl = new QBittorrentApiController(
+                this.torrentService,
+                this.torrentFileService,
+                this.torrentFileParser,
+                this.categoryService,
+                this.configService,
+                this.trackerEntryRepository,
+                configFileProvider: this.configFileProvider,
+                safeHttpClientService: this.safeHttpClientService,
+                downloadEngine: this.downloadEngine,
+                diskProvider: this.diskProvider);
+
+            var result = await ctrl.CreateTorrent(sourceFile, output_path: outputFile);
+
+            result.Should().BeOfType<OkObjectResult>();
+            File.Exists(outputFile).Should().BeTrue();
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task CreateTorrent_WhenPathIsOutsideAllowedDirectories_Returns500WithAllowedDirectoriesError()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "leecharr_qbit_allowed_" + Guid.NewGuid().ToString("N"));
+        var outsideDir = Path.Combine(Path.GetTempPath(), "leecharr_qbit_outside_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        Directory.CreateDirectory(outsideDir);
+        try
+        {
+            var sourceFile = Path.Combine(outsideDir, "secret.mp4");
+            await File.WriteAllBytesAsync(sourceFile, new byte[2048]);
+
+            this.configService.DownloadDir.Returns(tempDir);
+
+            var ctrl = new QBittorrentApiController(
+                this.torrentService,
+                this.torrentFileService,
+                this.torrentFileParser,
+                this.categoryService,
+                this.configService,
+                this.trackerEntryRepository,
+                configFileProvider: this.configFileProvider,
+                safeHttpClientService: this.safeHttpClientService,
+                downloadEngine: this.downloadEngine,
+                diskProvider: this.diskProvider);
+
+            var result = await ctrl.CreateTorrent(sourceFile);
+
+            var statusResult = result.Should().BeOfType<ObjectResult>().Subject;
+            statusResult.StatusCode.Should().Be(500);
+            statusResult.Value.ToString().Should().Contain("allowed storage directories");
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+
+            if (Directory.Exists(outsideDir))
+            {
+                Directory.Delete(outsideDir, true);
+            }
+        }
+    }
 }
