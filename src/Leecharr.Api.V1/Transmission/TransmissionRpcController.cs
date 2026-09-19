@@ -21,6 +21,7 @@ using NzbDrone.Core.Configuration;
 using NzbDrone.Core.DiskSpace;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Http;
+using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
@@ -53,7 +54,7 @@ public class TransmissionRpcResponse
 
 [ApiController]
 [Route("transmission/rpc")]
-public class TransmissionRpcController : ControllerBase
+public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedEvent>
 {
     private const string SessionHeaderName = "X-Transmission-Session-Id";
     private static readonly ConcurrentDictionary<string, byte> ActiveSessions = new();
@@ -91,6 +92,14 @@ public class TransmissionRpcController : ControllerBase
         {
             RecentlyRemovedList.RemoveAll(x => (DateTime.UtcNow - x.RemovedAt).TotalMinutes > 10);
             return RecentlyRemovedList.Select(x => x.Id).Distinct().ToList();
+        }
+    }
+
+    public void Handle(TorrentDeletedEvent message)
+    {
+        if (message?.Torrent != null)
+        {
+            RecordRemovedId(message.Torrent.Id);
         }
     }
 
@@ -1689,6 +1698,11 @@ public class TransmissionRpcController : ControllerBase
                 }
             }
 
+            if (!filtered.ContainsKey("id"))
+            {
+                filtered["id"] = t.Id;
+            }
+
             return filtered;
         }
 
@@ -2037,6 +2051,12 @@ public class TransmissionRpcController : ControllerBase
             for (int i = 0; i < numBytes; i++)
             {
                 bytes[i] = 0xFF;
+            }
+
+            int remainder = pieceCount % 8;
+            if (remainder > 0)
+            {
+                bytes[numBytes - 1] = (byte)(0xFF << (8 - remainder));
             }
 
             return Convert.ToBase64String(bytes);

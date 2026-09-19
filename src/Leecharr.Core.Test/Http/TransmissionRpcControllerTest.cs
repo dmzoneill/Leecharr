@@ -2994,4 +2994,123 @@ public class TransmissionRpcControllerTest
         labels2.Should().NotBeNull();
         labels2.Should().BeEquivalentTo(new[] { "tag1", "tag2" });
     }
+
+    [Test]
+    public async Task Handle_TorrentDeletedEvent_RecordsRemovedIdForRecentlyActiveQuery()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.torrentService.GetAll().Returns(new List<Torrent>());
+
+        this.controller.Handle(new TorrentDeletedEvent
+        {
+            Torrent = new Torrent { Id = 777, Name = "DeletedTorrent" },
+        });
+
+        var args = new Dictionary<string, JsonElement>();
+        using var doc = JsonDocument.Parse("\"recently-active\"");
+        args["ids"] = doc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-get",
+            Arguments = args,
+        });
+
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var response = okResult.Value.Should().BeOfType<TransmissionRpcResponse>().Subject;
+        var argsDict = response.Arguments as Dictionary<string, object>;
+        argsDict.Should().NotBeNull();
+        var removed = argsDict!["removed"] as List<int>;
+        removed.Should().NotBeNull();
+        removed.Should().Contain(777);
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentGet_WhenFieldsOmitId_AlwaysIncludesIdInEachTorrent()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "TestTorrent",
+            Status = TorrentStatus.Downloading,
+            DownloadSpeed = 500,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var args = new Dictionary<string, JsonElement>();
+        using var doc = JsonDocument.Parse("[\"name\", \"status\"]");
+        args["fields"] = doc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-get",
+            Arguments = args,
+        });
+
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var response = okResult.Value.Should().BeOfType<TransmissionRpcResponse>().Subject;
+        var argsDict = response.Arguments as Dictionary<string, object>;
+        var torrentsList = argsDict!["torrents"] as List<Dictionary<string, object>>;
+        torrentsList.Should().HaveCount(1);
+        torrentsList![0].ContainsKey("id").Should().BeTrue();
+        torrentsList[0]["id"].Should().Be(42);
+        torrentsList[0].ContainsKey("name").Should().BeTrue();
+        torrentsList[0].ContainsKey("status").Should().BeTrue();
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentGet_CompletedTorrentWithNonByteAlignedPieces_MasksSpareBitsInBitfield()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 99,
+            Name = "CompletedNonAlignedTorrent",
+            Status = TorrentStatus.Seeding,
+            Progress = 1.0,
+            PieceCount = 9,
+            PieceLength = 16384,
+            TotalSize = 9 * 16384,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var args = new Dictionary<string, JsonElement>();
+        using var doc = JsonDocument.Parse("[\"id\", \"pieces\"]");
+        args["fields"] = doc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-get",
+            Arguments = args,
+        });
+
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var response = okResult.Value.Should().BeOfType<TransmissionRpcResponse>().Subject;
+        var argsDict = response.Arguments as Dictionary<string, object>;
+        var torrentsList = argsDict!["torrents"] as List<Dictionary<string, object>>;
+        torrentsList.Should().HaveCount(1);
+        var piecesBase64 = torrentsList![0]["pieces"] as string;
+        piecesBase64.Should().NotBeNullOrEmpty();
+
+        var bytes = Convert.FromBase64String(piecesBase64!);
+        bytes.Length.Should().Be(2);
+        bytes[0].Should().Be(0xFF);
+        bytes[1].Should().Be(0x80); // 9 % 8 == 1 piece in 2nd byte, spare bits 0-6 must be 0
+    }
 }
