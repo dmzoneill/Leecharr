@@ -27,6 +27,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
     private readonly ConcurrentDictionary<int, TorrentQueueState> torrentStates = new();
     private readonly int requiredSlowTicks;
     private readonly TimeSpan minimumActiveCooldown;
+    private int pendingRuns;
 
     public QueueManagerService(
         ITorrentRepository torrentRepository,
@@ -56,12 +57,35 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
 
     public async Task ProcessQueueAsync()
     {
-        if (!await this.queueLock.WaitAsync(0))
+        Interlocked.Increment(ref this.pendingRuns);
+        while (true)
         {
-            // Already processing queue
-            return;
-        }
+            if (!await this.queueLock.WaitAsync(0))
+            {
+                return;
+            }
 
+            try
+            {
+                while (Interlocked.Exchange(ref this.pendingRuns, 0) > 0)
+                {
+                    await this.ProcessQueueInternalAsync();
+                }
+            }
+            finally
+            {
+                this.queueLock.Release();
+            }
+
+            if (Volatile.Read(ref this.pendingRuns) == 0)
+            {
+                break;
+            }
+        }
+    }
+
+    private async Task ProcessQueueInternalAsync()
+    {
         var eventsToPublish = new List<TorrentStatusChangedEvent>();
 
         try
@@ -120,6 +144,10 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                     continue;
                 }
 
+                var oldStatus = torrent.Status;
+                var previousLastActive = torrent.LastActive;
+                var shouldPersistLastActive = false;
+
                 var state = this.torrentStates.GetOrAdd(torrent.Id, _ => new TorrentQueueState());
                 var task = this.downloadEngine?.GetTask(torrent.Id);
                 var isComplete = torrent.Status == TorrentStatus.Seeding ||
@@ -132,7 +160,12 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                     var downloadSpeed = task != null ? task.DownloadSpeed : torrent.DownloadSpeed;
                     if (downloadSpeed > 0)
                     {
-                        torrent.LastActive = DateTime.UtcNow;
+                        var now = DateTime.UtcNow;
+                        torrent.LastActive = now;
+                        if (!previousLastActive.HasValue || (now - previousLastActive.Value).TotalSeconds >= 30)
+                        {
+                            shouldPersistLastActive = true;
+                        }
                     }
 
                     var isCurrentlySlow = ignoreSlow &&
@@ -166,7 +199,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                     {
                         if (torrent.Status == TorrentStatus.Queued)
                         {
-                            var oldStatus = torrent.Status;
+                            oldStatus = torrent.Status;
                             try
                             {
                                 if (this.downloadEngine != null)
@@ -219,7 +252,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                             }
                             else
                             {
-                                var oldStatus = torrent.Status;
+                                oldStatus = torrent.Status;
                                 try
                                 {
                                     if (this.downloadEngine != null)
@@ -260,7 +293,12 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                     var uploadSpeed = task != null ? task.UploadSpeed : torrent.UploadSpeed;
                     if (uploadSpeed > 0)
                     {
-                        torrent.LastActive = DateTime.UtcNow;
+                        var now = DateTime.UtcNow;
+                        torrent.LastActive = now;
+                        if (!previousLastActive.HasValue || (now - previousLastActive.Value).TotalSeconds >= 30)
+                        {
+                            shouldPersistLastActive = true;
+                        }
                     }
 
                     var isCurrentlySlow = ignoreSlow &&
@@ -292,7 +330,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                     {
                         if (torrent.Status == TorrentStatus.Queued)
                         {
-                            var oldStatus = torrent.Status;
+                            oldStatus = torrent.Status;
                             try
                             {
                                 if (this.downloadEngine != null)
@@ -345,7 +383,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                             }
                             else
                             {
-                                var oldStatus = torrent.Status;
+                                oldStatus = torrent.Status;
                                 try
                                 {
                                     if (this.downloadEngine != null)
@@ -380,11 +418,16 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                         }
                     }
                 }
+
+                if (shouldPersistLastActive && torrent.Status == oldStatus)
+                {
+                    this.torrentRepository.Update(torrent);
+                }
             }
         }
-        finally
+        catch (Exception ex)
         {
-            this.queueLock.Release();
+            this.logger.Error(ex, "Failed to process queue");
         }
 
         foreach (var evt in eventsToPublish)

@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -443,5 +444,151 @@ public class QueueManagerServiceTest
 
         torrents[1].Status.Should().Be(TorrentStatus.Downloading);
         this.torrentRepository.DidNotReceive().Update(Arg.Is<Torrent>(t => t.Id == 2));
+    }
+
+    [Test]
+    public async Task ProcessQueueAsync_WhenConcurrentCallsArriveWhileProcessing_CoalescesAndReEvaluatesQueue()
+    {
+        var runCount = 0;
+        var firstRunStarted = new TaskCompletionSource<bool>();
+        var allowFirstRunToProceed = new TaskCompletionSource<bool>();
+
+        this.torrentRepository.All().Returns(_ =>
+        {
+            var currentRun = Interlocked.Increment(ref runCount);
+            if (currentRun == 1)
+            {
+                firstRunStarted.TrySetResult(true);
+                allowFirstRunToProceed.Task.GetAwaiter().GetResult();
+            }
+
+            return new List<Torrent>
+            {
+                new Torrent { Id = 1, Name = "T1", Status = TorrentStatus.Downloading, Progress = 0.5 },
+            };
+        });
+
+        // Launch first process run in background
+        var firstTask = Task.Run(async () => await this.queueManager.ProcessQueueAsync());
+
+        // Wait until first run is inside ProcessQueueInternalAsync
+        await firstRunStarted.Task;
+
+        // Trigger two concurrent invocations while the first is in progress
+        var secondTask = this.queueManager.ProcessQueueAsync();
+        var thirdTask = this.queueManager.ProcessQueueAsync();
+
+        await Task.WhenAll(secondTask, thirdTask);
+
+        // Allow first run to complete
+        allowFirstRunToProceed.SetResult(true);
+        await firstTask;
+
+        // Verify coalescing re-run occurred
+        runCount.Should().BeGreaterThanOrEqualTo(2);
+    }
+
+    [Test]
+    public async Task ProcessQueueAsync_WhenDownloadingWithActiveSpeedAndLastActiveNull_PersistsLastActive()
+    {
+        var task = Substitute.For<IDownloadTask>();
+        task.DownloadSpeed.Returns(500_000L);
+        this.downloadEngine.GetTask(1).Returns(task);
+
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "ActiveDownload",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            DownloadSpeed = 500_000,
+            LastActive = null,
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+
+        await this.queueManager.ProcessQueueAsync();
+
+        torrent.LastActive.Should().NotBeNull();
+        (DateTime.UtcNow - torrent.LastActive!.Value).TotalSeconds.Should().BeLessThan(5);
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t => t.Id == 1 && t.LastActive.HasValue));
+    }
+
+    [Test]
+    public async Task ProcessQueueAsync_WhenDownloadingWithActiveSpeedAndLastActiveOlderThan30Seconds_PersistsUpdatedLastActive()
+    {
+        var task = Substitute.For<IDownloadTask>();
+        task.DownloadSpeed.Returns(500_000L);
+        this.downloadEngine.GetTask(1).Returns(task);
+
+        var staleTimestamp = DateTime.UtcNow.AddMinutes(-5);
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "ActiveDownloadStale",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            DownloadSpeed = 500_000,
+            LastActive = staleTimestamp,
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+
+        await this.queueManager.ProcessQueueAsync();
+
+        torrent.LastActive.Should().NotBe(staleTimestamp);
+        (DateTime.UtcNow - torrent.LastActive!.Value).TotalSeconds.Should().BeLessThan(5);
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t => t.Id == 1 && t.LastActive != staleTimestamp));
+    }
+
+    [Test]
+    public async Task ProcessQueueAsync_WhenDownloadingWithActiveSpeedAndLastActiveFreshWithin30Seconds_ThrottlesUpdate()
+    {
+        var task = Substitute.For<IDownloadTask>();
+        task.DownloadSpeed.Returns(500_000L);
+        this.downloadEngine.GetTask(1).Returns(task);
+
+        var recentTimestamp = DateTime.UtcNow.AddSeconds(-10);
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "ActiveDownloadRecent",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.5,
+            DownloadSpeed = 500_000,
+            LastActive = recentTimestamp,
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+
+        await this.queueManager.ProcessQueueAsync();
+
+        this.torrentRepository.DidNotReceive().Update(Arg.Any<Torrent>());
+    }
+
+    [Test]
+    public async Task ProcessQueueAsync_WhenSeedingWithActiveUploadSpeedAndLastActiveNull_PersistsLastActive()
+    {
+        var task = Substitute.For<IDownloadTask>();
+        task.UploadSpeed.Returns(200_000L);
+        this.downloadEngine.GetTask(1).Returns(task);
+
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "ActiveSeeder",
+            Status = TorrentStatus.Seeding,
+            Progress = 1.0,
+            UploadSpeed = 200_000,
+            LastActive = null,
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { torrent });
+
+        await this.queueManager.ProcessQueueAsync();
+
+        torrent.LastActive.Should().NotBeNull();
+        (DateTime.UtcNow - torrent.LastActive!.Value).TotalSeconds.Should().BeLessThan(5);
+        this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t => t.Id == 1 && t.LastActive.HasValue));
     }
 }
