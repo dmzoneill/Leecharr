@@ -42,6 +42,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
     private readonly bool ownsHttpClient;
     private CancellationTokenSource syncCts;
     private Task syncLoopTask;
+    private Process daemonProcess;
 
     private bool isRunning;
     private bool disposed;
@@ -140,15 +141,23 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         {
             sw.Stop();
             var nativeLib = GetNativeLibraryPath();
-            if (!string.IsNullOrWhiteSpace(nativeLib))
+            var pythonBin = FindPythonBinary();
+            if (!string.IsNullOrWhiteSpace(nativeLib) || !string.IsNullOrWhiteSpace(pythonBin))
             {
-                checks.Add($"libtorrent shared library found: {nativeLib}");
-                warnings.Add($"libtorrent RPC daemon is not active on {rpcUrl}. In-process or sidecar fallback will be engaged on engine start.");
+                if (!string.IsNullOrWhiteSpace(nativeLib))
+                {
+                    checks.Add($"libtorrent shared library found: {nativeLib}");
+                }
+
+                if (!string.IsNullOrWhiteSpace(pythonBin))
+                {
+                    checks.Add($"Python interpreter found: {pythonBin}");
+                }
 
                 return new EngineHealthCheckResult
                 {
                     IsHealthy = true,
-                    StatusMessage = $"libtorrent native library detected ({Path.GetFileName(nativeLib)}). Ready.",
+                    StatusMessage = $"libtorrent engine ready (embedded sidecar will auto-spawn on engine start).",
                     DependencyChecks = checks,
                     Warnings = warnings,
                 };
@@ -175,12 +184,14 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         }
 
         this.logger.Info("Starting libtorrent engine session...");
+
+        await this.EnsureDaemonRunningAsync();
+
         this.isRunning = true;
         this.syncCts = new CancellationTokenSource();
         this.syncLoopTask = Task.Run(() => this.PollSessionLoopAsync(this.syncCts.Token));
 
         this.logger.Info("libtorrent engine started successfully.");
-        await Task.CompletedTask;
     }
 
     public async Task StopAsync()
@@ -209,6 +220,23 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
 
             this.syncCts.Dispose();
             this.syncCts = null;
+        }
+
+        if (this.daemonProcess != null && !this.daemonProcess.HasExited)
+        {
+            try
+            {
+                this.daemonProcess.Kill(entireProcessTree: true);
+                this.daemonProcess.Dispose();
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error terminating libtorrent daemon child process.");
+            }
+            finally
+            {
+                this.daemonProcess = null;
+            }
         }
 
         this.tasks.Clear();
@@ -603,6 +631,22 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         {
             this.disposed = true;
             this.StopAsync().GetAwaiter().GetResult();
+            if (this.daemonProcess != null && !this.daemonProcess.HasExited)
+            {
+                try
+                {
+                    this.daemonProcess.Kill(entireProcessTree: true);
+                    this.daemonProcess.Dispose();
+                }
+                catch
+                {
+                }
+                finally
+                {
+                    this.daemonProcess = null;
+                }
+            }
+
             if (this.ownsHttpClient)
             {
                 this.httpClient.Dispose();
@@ -801,6 +845,141 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                 {
                     return matches[0];
                 }
+            }
+        }
+
+        return null;
+    }
+
+    private async Task EnsureDaemonRunningAsync()
+    {
+        try
+        {
+            // Test if already answering
+            await this.SendRpcRequestAsync("session_status", new Dictionary<string, object>());
+            return;
+        }
+        catch
+        {
+            // Daemon not running yet, attempt to spawn embedded sidecar
+        }
+
+        try
+        {
+            var pythonBinary = FindPythonBinary();
+            if (string.IsNullOrWhiteSpace(pythonBinary))
+            {
+                this.logger.Warn("python3 not found; unable to automatically spawn libtorrent daemon sidecar.");
+                return;
+            }
+
+            var scriptPath = ResolveDaemonScriptPath();
+            if (string.IsNullOrWhiteSpace(scriptPath) || !File.Exists(scriptPath))
+            {
+                this.logger.Warn("libtorrent_daemon.py not found; unable to automatically spawn libtorrent daemon sidecar.");
+                return;
+            }
+
+            var rpcUrl = this.GetRpcUrl();
+            var port = 58846;
+            if (Uri.TryCreate(rpcUrl, UriKind.Absolute, out var uri) && uri.Port > 0)
+            {
+                port = uri.Port;
+            }
+
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = pythonBinary,
+                Arguments = $"\"{scriptPath}\" --port {port} --bind 127.0.0.1",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+            };
+
+            this.logger.Info("Starting embedded libtorrent daemon sidecar: {0} {1}", pythonBinary, startInfo.Arguments);
+            this.daemonProcess = Process.Start(startInfo);
+
+            for (var i = 0; i < 15; i++)
+            {
+                await Task.Delay(200);
+                if (this.daemonProcess == null || this.daemonProcess.HasExited)
+                {
+                    this.logger.Warn("Embedded libtorrent daemon exited prematurely (ExitCode: {0}).", this.daemonProcess?.ExitCode);
+                    break;
+                }
+
+                try
+                {
+                    await this.SendRpcRequestAsync("session_status", new Dictionary<string, object>());
+                    this.logger.Info("Embedded libtorrent daemon sidecar is now responding on {0}.", rpcUrl);
+                    return;
+                }
+                catch
+                {
+                    // Continue waiting
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to start libtorrent daemon child process automatically.");
+        }
+    }
+
+    private static string FindPythonBinary()
+    {
+        var candidates = new[] { "python3", "python", "/usr/bin/python3", "/usr/local/bin/python3" };
+        foreach (var c in candidates)
+        {
+            try
+            {
+                if (File.Exists(c))
+                {
+                    return c;
+                }
+
+                using var proc = Process.Start(new ProcessStartInfo
+                {
+                    FileName = c,
+                    Arguments = "--version",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                });
+                if (proc != null)
+                {
+                    proc.WaitForExit(500);
+                    if (proc.ExitCode == 0)
+                    {
+                        return c;
+                    }
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        return null;
+    }
+
+    private static string ResolveDaemonScriptPath()
+    {
+        var candidates = new[]
+        {
+            Path.Combine(AppContext.BaseDirectory, "libtorrent_daemon.py"),
+            Path.Combine(AppContext.BaseDirectory, "BitTorrent", "libtorrent_daemon.py"),
+            "/app/libtorrent_daemon.py",
+            Path.Combine(Path.GetTempPath(), "leecharr-libtorrent", "libtorrent_daemon.py"),
+        };
+
+        foreach (var path in candidates)
+        {
+            if (File.Exists(path))
+            {
+                return path;
             }
         }
 

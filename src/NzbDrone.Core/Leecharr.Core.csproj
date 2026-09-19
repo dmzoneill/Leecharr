@@ -31,6 +31,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="BitTorrent\libtorrent_daemon.py">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="Leecharr.Core.Test" />
   </ItemGroup>
 </Project>
