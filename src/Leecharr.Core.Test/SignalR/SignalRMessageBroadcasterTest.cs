@@ -184,4 +184,67 @@ public class SignalRMessageBroadcasterTest
         Action act = () => broadcaster.Dispose();
         act.Should().NotThrow();
     }
+
+    [Test]
+    public async Task BroadcastMessage_PieceMapUpdated_IsRoutedToGuaranteedChannel()
+    {
+        MessageHub.AddConnectionForTesting();
+        var tcs = new TaskCompletionSource();
+        this.clientProxy.SendCoreAsync(Arg.Any<string>(), Arg.Any<object[]>(), Arg.Any<CancellationToken>())
+            .Returns(_ => tcs.Task);
+
+        using var broadcaster = new SignalRMessageBroadcaster(this.hubContext, telemetryCapacity: 10);
+
+        // Block guaranteed worker with first message
+        broadcaster.BroadcastMessage(new SignalRMessage { Name = "FirstGuaranteed" });
+        await Task.Delay(50);
+
+        // Broadcast pieceMapUpdated
+        broadcaster.BroadcastMessage(new SignalRMessage { Name = "pieceMapUpdated" });
+
+        // Verify it was placed into GuaranteedChannel, NOT TelemetryChannel
+        broadcaster.TelemetryChannel.Reader.Count.Should().Be(0);
+        broadcaster.GuaranteedChannel.Reader.Count.Should().Be(1);
+
+        tcs.SetResult();
+    }
+
+    [Test]
+    public async Task ProcessChannelAsync_WhenSlowClientExceedsSendTimeout_TimesOutAndContinuesNextMessage()
+    {
+        MessageHub.AddConnectionForTesting();
+        var secondMessageSentTcs = new TaskCompletionSource<bool>();
+
+        this.clientProxy.SendCoreAsync(Arg.Any<string>(), Arg.Any<object[]>(), Arg.Any<CancellationToken>())
+            .Returns(async callInfo =>
+            {
+                var ct = callInfo.Arg<CancellationToken>();
+                var args = callInfo.Arg<object[]>();
+                var msg = args[0] as SignalRMessage;
+
+                if (msg?.Name == "slowMessage")
+                {
+                    // Simulate a hung / zero-window WebSocket connection that waits until token is cancelled
+                    var tcs = new TaskCompletionSource();
+                    using var reg = ct.Register(() => tcs.TrySetCanceled(ct));
+                    await tcs.Task;
+                }
+                else if (msg?.Name == "subsequentMessage")
+                {
+                    secondMessageSentTcs.TrySetResult(true);
+                }
+            });
+
+        using var broadcaster = new SignalRMessageBroadcaster(
+            this.hubContext,
+            telemetryCapacity: 10,
+            sendTimeout: TimeSpan.FromMilliseconds(100));
+
+        broadcaster.BroadcastMessage(new SignalRMessage { Name = "slowMessage" });
+        broadcaster.BroadcastMessage(new SignalRMessage { Name = "subsequentMessage" });
+
+        // The first message times out after 100ms, and the pump should unblock and process the second message
+        var completedTask = await Task.WhenAny(secondMessageSentTcs.Task, Task.Delay(2000));
+        completedTask.Should().Be(secondMessageSentTcs.Task, "The subsequent message should be processed after the slow client send times out.");
+    }
 }

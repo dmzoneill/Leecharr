@@ -189,4 +189,34 @@ public class PieceMapSignalREventHandlerTest
         ranges[1].Should().Equal(10, 11);
         ranges[2].Should().Equal(20, 20);
     }
+
+    [Test]
+    public void Flush_WhenBroadcastThrowsException_RequeuesPiecesForNextFlush()
+    {
+        var callCount = 0;
+        this.broadcaster.When(b => b.BroadcastMessage(Arg.Is<SignalRMessage>(m => m.Name == "pieceMapUpdated")))
+            .Do(_ =>
+            {
+                callCount++;
+                if (callCount == 1)
+                {
+                    throw new InvalidOperationException("Simulated transient broadcast error");
+                }
+            });
+
+        using var handler = new PieceMapSignalREventHandler(this.broadcaster);
+        handler.Handle(new PieceVerifiedEvent(1, 10));
+        handler.Handle(new PieceVerifiedEvent(1, 11));
+
+        // First flush throws inside try block, catching and requeueing pieces
+        handler.Flush();
+
+        callCount.Should().Be(1);
+
+        // Second flush successfully broadcasts the requeued pieces
+        handler.Flush();
+
+        callCount.Should().Be(2);
+        this.broadcaster.Received(2).BroadcastMessage(Arg.Is<SignalRMessage>(m => m.Name == "pieceMapUpdated"));
+    }
 }
