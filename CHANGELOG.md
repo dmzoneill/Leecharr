@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.15.4](https://github.com/dmzoneill/Leecharr/releases/tag/v1.15.4) - 2026-09-19
+
+### 🐛 Bug Fixes
+- fix(torrents): restrict super seeding to 100% completed seeding torrents (fixes #824)
+- fix(engine): stop managers and flush disk buffers before capturing fast resume checkpoints on shutdown (fixes #846)
+- fix(security): wire AnonymousMode to suppress listen endpoints, dht, lpd, and port forwarding, and handle ipv6 proxy uri (fixes #837)
+- fix(tags): case-insensitive tag lookup, duplicate update validation, and comma rejection (fixes #823)
+- fix(auth): bounded session cache, singleton DI registration, and session pruning on cleanup and role changes (fixes #836)
+- fix(storage): propagate preallocation failures and prevent synthetic fast resume on failed allocation (fixes #854)
+- fix(watchfolder): support subdirectories, category auto-mapping, root loaded/failed dirs, and exclusion filtering (fixes #832)
+- fix(security): suppress LPD when VPN kill switch or interface binding is active to prevent LAN leaks (fixes #848)
+- fix(transmission-rpc): support empty labels array, multi-label serialization, and applyAllIfEmpty on torrent-set (fixes #833)
+- fix(security): require InResponseTo on SAML callbacks, sanitize role provisioning, and set OIDC metadata URL (fixes #839)
+- fix(network): implement periodic epoch verification, local IP renewal remapping, and UPnP IGD port registration (fixes #857)
+- fix(categories): support hierarchical save path inheritance, rename cascading, and slash normalization (fixes #838)
+
+### 🔧 Maintenance & Improvements
+- perf(engine): enforce sequential hash checking to prevent concurrent disk I/O thrashing (fixes #844)
+- perf(datastore): add composite indexes for queue position, torrent status, files, and download history (fixes #835)
+
 ## [v1.15.3](https://github.com/dmzoneill/Leecharr/releases/tag/v1.15.3) - 2026-09-18
 
 ### 🐛 Bug Fixes
