@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useTranslation } from "../i18n";
 import { useAddTorrent, useCategories, AddTorrentResult } from "../api/hooks";
 import { useToast } from "../context/ToastContext";
+import { trackTorrentAdd } from "../utils/analytics";
 import {
   TorrentFileInputTab,
   MagnetInputTab,
@@ -55,6 +56,7 @@ export function AddTorrentForm({
         { files, category: selectedCategory, isPaused },
         {
           onSuccess: (result: AddTorrentResult) => {
+            trackTorrentAdd("file", result?.added?.length || files.length, selectedCategory);
             if (result && result.failed && result.failed.length === 0) {
               showToast(
                 t("addTorrent.addedTorrentsSuccess", {
@@ -104,6 +106,7 @@ export function AddTorrentForm({
         { magnetLink: magnetLink.trim(), category: selectedCategory, isPaused },
         {
           onSuccess: () => {
+            trackTorrentAdd("magnet", 1, selectedCategory);
             showToast(
               t(
                 "addTorrent.magnetAddedSuccess",
