@@ -17,7 +17,7 @@ using NzbDrone.Core.Trackers;
 
 namespace NzbDrone.Core.Ai;
 
-public class OllamaAiProvider : IAiEngineProvider, IDisposable
+public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDisposable
 {
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
@@ -36,6 +36,10 @@ public class OllamaAiProvider : IAiEngineProvider, IDisposable
     public string Description => "Local Large Language Model provider connecting to an Ollama server (e.g., Llama 3, Mistral, Qwen, DeepSeek).";
 
     public bool IsAvailable => true;
+
+    public bool LastChatUsedFallback { get; private set; }
+
+    internal TimeSpan HttpClientTimeout => this.httpClient.Timeout;
 
     public AiCapabilities Capabilities =>
         AiCapabilities.SupportsNaturalLanguageSearch |
@@ -57,7 +61,7 @@ public class OllamaAiProvider : IAiEngineProvider, IDisposable
     public OllamaAiProvider(IConfigService configService, HttpClient httpClient, bool ownsHttpClient = false)
     {
         this.configService = configService;
-        this.httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+        this.httpClient = httpClient ?? new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
         this.ownsHttpClient = ownsHttpClient || httpClient == null;
     }
 
@@ -422,6 +426,7 @@ public class OllamaAiProvider : IAiEngineProvider, IDisposable
                 using var doc = JsonDocument.Parse(body);
                 if (doc.RootElement.TryGetProperty("response", out var respProp))
                 {
+                    this.LastChatUsedFallback = false;
                     return respProp.GetString() ?? string.Empty;
                 }
             }
@@ -431,6 +436,7 @@ public class OllamaAiProvider : IAiEngineProvider, IDisposable
             Logger.Debug(ex, "Ollama chat generation failed, falling back to heuristic assistant.");
         }
 
+        this.LastChatUsedFallback = true;
         return await this.fallbackProvider.GenerateChatResponseAsync(userMessage, systemContext);
     }
 

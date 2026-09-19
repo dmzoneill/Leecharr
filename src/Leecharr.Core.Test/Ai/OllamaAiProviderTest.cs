@@ -40,6 +40,13 @@ public class OllamaAiProviderTest
     }
 
     [Test]
+    public void Constructor_DefaultHttpClient_ConfiguresInfiniteTimeout()
+    {
+        using var provider = new OllamaAiProvider(this.configService);
+        provider.HttpClientTimeout.Should().Be(Timeout.InfiniteTimeSpan);
+    }
+
+    [Test]
     public void Properties_ReturnExpectedValues()
     {
         using var provider = new OllamaAiProvider(this.configService);
@@ -102,6 +109,7 @@ public class OllamaAiProviderTest
 
         var response = await provider.GenerateChatResponseAsync("How do I fix stalled torrents?");
         response.Should().Be("To fix a stalled torrent, check seeders.");
+        provider.LastChatUsedFallback.Should().BeFalse();
     }
 
     [Test]
@@ -117,6 +125,7 @@ public class OllamaAiProviderTest
 
         var response = await provider.GenerateChatResponseAsync("Tell me about ratio");
         response.Should().Contain("Ratio");
+        provider.LastChatUsedFallback.Should().BeTrue();
     }
 
     [Test]

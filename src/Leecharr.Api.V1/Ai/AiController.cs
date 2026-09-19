@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -167,11 +168,32 @@ public class AiController : Controller
         var active = this.aiManager.ActiveProvider;
         var reply = await this.aiService.GenerateChatResponseAsync(request.Message, request.Context);
 
+        var providerName = active?.DisplayName ?? this.aiManager.ActiveProviderId;
+        var isFallback = false;
+
+        if (this.aiService is IFallbackAwareAiProvider fallbackService && fallbackService.LastChatUsedFallback)
+        {
+            isFallback = true;
+        }
+        else if (this.aiManager is IFallbackAwareAiProvider fallbackManager && fallbackManager.LastChatUsedFallback)
+        {
+            isFallback = true;
+        }
+        else if (active is IFallbackAwareAiProvider fallbackProvider && fallbackProvider.LastChatUsedFallback)
+        {
+            isFallback = true;
+        }
+
+        if (isFallback && !string.Equals(active?.ProviderId, "RuleHeuristic", StringComparison.OrdinalIgnoreCase))
+        {
+            providerName = $"{providerName} (Fallback Heuristics)";
+        }
+
         return this.Ok(new AiChatResponse
         {
             Success = true,
             Reply = reply,
-            Provider = active?.DisplayName ?? this.aiManager.ActiveProviderId,
+            Provider = providerName,
         });
     }
 }

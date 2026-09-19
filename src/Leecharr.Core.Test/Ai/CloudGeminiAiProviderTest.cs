@@ -37,6 +37,13 @@ public class CloudGeminiAiProviderTest
     }
 
     [Test]
+    public void Constructor_DefaultHttpClient_ConfiguresInfiniteTimeout()
+    {
+        using var provider = new CloudGeminiAiProvider(this.configService);
+        provider.HttpClientTimeout.Should().Be(Timeout.InfiniteTimeSpan);
+    }
+
+    [Test]
     public void Properties_ReturnExpectedValues()
     {
         using var provider = new CloudGeminiAiProvider(this.configService);
@@ -99,6 +106,7 @@ public class CloudGeminiAiProviderTest
 
         var response = await provider.GenerateChatResponseAsync("Explain the VPN kill switch");
         response.Should().Be("Gemini response: VPN kill switch protects against DNS and IP leaks.");
+        provider.LastChatUsedFallback.Should().BeFalse();
     }
 
     [Test]
@@ -114,6 +122,26 @@ public class CloudGeminiAiProviderTest
 
         var response = await provider.GenerateChatResponseAsync("Tell me about ratio");
         response.Should().Contain("Ratio");
+        provider.LastChatUsedFallback.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task GenerateChatResponseAsync_WhenGeminiReturnsNon200_FallsBackToHeuristics()
+    {
+        var handler = new MockHttpMessageHandler((req, ct) =>
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.TooManyRequests)
+            {
+                Content = new StringContent(@"{""error"": {""code"": 429, ""message"": ""RESOURCE_EXHAUSTED""}}"),
+            });
+        });
+
+        using var client = new HttpClient(handler);
+        using var provider = new CloudGeminiAiProvider(this.configService, client);
+
+        var response = await provider.GenerateChatResponseAsync("Tell me about ratio");
+        response.Should().Contain("Ratio");
+        provider.LastChatUsedFallback.Should().BeTrue();
     }
 
     [Test]
