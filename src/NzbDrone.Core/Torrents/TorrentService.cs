@@ -214,23 +214,6 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             TagIds = new List<int>(),
         };
 
-        var cat = !string.IsNullOrWhiteSpace(effectiveCategory)
-            ? this.categoryService.GetByName(effectiveCategory)
-            : null;
-
-        if (cat != null)
-        {
-            if (torrent.TargetRatio <= 0)
-            {
-                torrent.TargetRatio = cat.TargetRatio;
-            }
-
-            if (torrent.TargetSeedTimeMinutes <= 0)
-            {
-                torrent.TargetSeedTimeMinutes = cat.TargetSeedTimeMinutes;
-            }
-        }
-
         Torrent inserted;
         await QueueLock.WaitAsync().ConfigureAwait(false);
         try
@@ -440,23 +423,6 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             TagIds = new List<int>(),
         };
 
-        var cat = !string.IsNullOrWhiteSpace(effectiveCategory)
-            ? this.categoryService.GetByName(effectiveCategory)
-            : null;
-
-        if (cat != null)
-        {
-            if (torrent.TargetRatio <= 0)
-            {
-                torrent.TargetRatio = cat.TargetRatio;
-            }
-
-            if (torrent.TargetSeedTimeMinutes <= 0)
-            {
-                torrent.TargetSeedTimeMinutes = cat.TargetSeedTimeMinutes;
-            }
-        }
-
         Torrent inserted;
         await QueueLock.WaitAsync().ConfigureAwait(false);
         try
@@ -546,24 +512,6 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         if (torrent == null)
         {
             throw new ArgumentNullException(nameof(torrent));
-        }
-
-        var existing = this.torrentRepository.Get(torrent.Id);
-        if (existing != null && !string.Equals(existing.Category, torrent.Category, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(torrent.Category))
-        {
-            var cat = this.categoryService.GetByName(torrent.Category);
-            if (cat != null)
-            {
-                if (torrent.TargetRatio <= 0)
-                {
-                    torrent.TargetRatio = cat.TargetRatio;
-                }
-
-                if (torrent.TargetSeedTimeMinutes <= 0)
-                {
-                    torrent.TargetSeedTimeMinutes = cat.TargetSeedTimeMinutes;
-                }
-            }
         }
 
         var effectiveDl = this.GetEffectiveDownloadLimit(torrent);
@@ -1482,7 +1430,8 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
             if (torrent.Status == TorrentStatus.Seeding && torrent.Ratio > 0)
             {
-                if (torrent.TargetRatio > 0 && torrent.Ratio >= torrent.TargetRatio)
+                var effectiveRatio = this.GetEffectiveTargetRatio(torrent);
+                if (effectiveRatio > 0 && torrent.Ratio >= effectiveRatio)
                 {
                     this.eventAggregator.PublishEvent(new TorrentRatioReachedEvent(torrent, torrent.Ratio));
                     this.eventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
@@ -1711,23 +1660,6 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
 
         torrent.Category = category ?? string.Empty;
 
-        var cat = !string.IsNullOrWhiteSpace(category)
-            ? this.categoryService.GetByName(category)
-            : null;
-
-        if (cat != null)
-        {
-            if (torrent.TargetRatio <= 0)
-            {
-                torrent.TargetRatio = cat.TargetRatio;
-            }
-
-            if (torrent.TargetSeedTimeMinutes <= 0)
-            {
-                torrent.TargetSeedTimeMinutes = cat.TargetSeedTimeMinutes;
-            }
-        }
-
         var effectiveDl = this.GetEffectiveDownloadLimit(torrent);
         var effectiveUl = this.GetEffectiveUploadLimit(torrent);
 
@@ -1816,6 +1748,54 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         var categoryLimit = cat?.DefaultUploadLimit ?? 0;
 
         return this.ResolveEffectiveUploadLimit(torrent.UploadLimit, categoryLimit);
+    }
+
+    public double GetEffectiveTargetRatio(Torrent torrent)
+    {
+        if (torrent == null)
+        {
+            return 0;
+        }
+
+        if (torrent.TargetRatio > 0)
+        {
+            return torrent.TargetRatio;
+        }
+
+        var cat = !string.IsNullOrWhiteSpace(torrent.Category)
+            ? this.categoryService?.GetByName(torrent.Category)
+            : null;
+
+        if (cat != null && cat.TargetRatio > 0)
+        {
+            return cat.TargetRatio;
+        }
+
+        return this.configService?.GlobalSeedRatioLimit ?? 0;
+    }
+
+    public int GetEffectiveTargetSeedTimeMinutes(Torrent torrent)
+    {
+        if (torrent == null)
+        {
+            return 0;
+        }
+
+        if (torrent.TargetSeedTimeMinutes > 0)
+        {
+            return torrent.TargetSeedTimeMinutes;
+        }
+
+        var cat = !string.IsNullOrWhiteSpace(torrent.Category)
+            ? this.categoryService?.GetByName(torrent.Category)
+            : null;
+
+        if (cat != null && cat.TargetSeedTimeMinutes > 0)
+        {
+            return cat.TargetSeedTimeMinutes;
+        }
+
+        return 0;
     }
 
     public async Task PropagateCategoryLimitsAsync(Category category)
