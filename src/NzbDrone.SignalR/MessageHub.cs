@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -14,6 +15,7 @@ namespace NzbDrone.SignalR;
 public class MessageHub : Hub
 {
     private static readonly HashSet<string> Connections = new();
+    private static readonly ConcurrentDictionary<string, HubCallerContext> ActiveContexts = new();
     private readonly IConfigFileProvider configFileProvider;
     private readonly Logger logger;
 
@@ -40,6 +42,30 @@ public class MessageHub : Hub
         {
             Connections.Clear();
         }
+
+        ActiveContexts.Clear();
+    }
+
+    public static void DisconnectAllConnections()
+    {
+        lock (Connections)
+        {
+            Connections.Clear();
+        }
+
+        foreach (var kvp in ActiveContexts)
+        {
+            try
+            {
+                kvp.Value.Abort();
+            }
+            catch
+            {
+                // Suppress abort failures
+            }
+        }
+
+        ActiveContexts.Clear();
     }
 
     public static void AddConnectionForTesting(string connectionId = "test-connection")
@@ -162,6 +188,8 @@ public class MessageHub : Hub
             Connections.Add(this.Context.ConnectionId);
         }
 
+        ActiveContexts[this.Context.ConnectionId] = this.Context;
+
         this.logger.Debug("SignalR client connected: {0}", this.Context.ConnectionId);
 
         var message = new SignalRMessage
@@ -179,6 +207,8 @@ public class MessageHub : Hub
         {
             Connections.Remove(this.Context.ConnectionId);
         }
+
+        ActiveContexts.TryRemove(this.Context.ConnectionId, out _);
 
         this.logger.Debug("SignalR client disconnected: {0}", this.Context.ConnectionId);
         return base.OnDisconnectedAsync(exception);

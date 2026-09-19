@@ -8,6 +8,7 @@ namespace Leecharr.Http.Security;
 
 public class RpcSessionStore
 {
+    private static readonly ConcurrentBag<WeakReference<RpcSessionStore>> Stores = new();
     private readonly ConcurrentDictionary<string, DateTime> sessions = new();
     private readonly int maxCapacity;
     private readonly object pruneLock = new();
@@ -15,6 +16,18 @@ public class RpcSessionStore
     public RpcSessionStore(int maxCapacity = 10000)
     {
         this.maxCapacity = Math.Max(10, maxCapacity);
+        Stores.Add(new WeakReference<RpcSessionStore>(this));
+    }
+
+    public static void InvalidateAllSessions()
+    {
+        foreach (var weakRef in Stores)
+        {
+            if (weakRef.TryGetTarget(out var store))
+            {
+                store.Clear();
+            }
+        }
     }
 
     public int Count => this.sessions.Count;

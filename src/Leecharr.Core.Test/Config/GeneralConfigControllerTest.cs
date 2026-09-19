@@ -5,12 +5,14 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Config;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Security;
+using NzbDrone.SignalR;
 
 namespace Leecharr.Core.Test.Config;
 
@@ -129,5 +131,84 @@ public class GeneralConfigControllerTest
 
         var actionResult = this.controller.GetApiKey();
         actionResult.Result.Should().BeOfType<Microsoft.AspNetCore.Mvc.ForbidResult>();
+    }
+
+    [Test]
+    public async Task SaveConfig_WhenApiKeyChanges_InvalidatesRpcSessionsAndDisconnectsSignalR()
+    {
+        var rpcStore = new RpcSessionStore();
+        rpcStore.SetSession("token-session-1", TimeSpan.FromMinutes(10));
+        rpcStore.IsValid("token-session-1").Should().BeTrue();
+
+        MessageHub.AddConnectionForTesting("signalr-conn-1");
+        MessageHub.IsConnected.Should().BeTrue();
+
+        this.configFileProvider.ApiKey.Returns("old-api-key");
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+
+        var resource = new GeneralConfigResource
+        {
+            ApiKey = "new-api-key",
+            AuthenticationEnabled = true,
+        };
+
+        await this.controller.SaveConfig(resource);
+
+        rpcStore.IsValid("token-session-1").Should().BeFalse();
+        MessageHub.IsConnected.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task SaveConfig_WhenAuthenticationEnabledChanges_InvalidatesRpcSessionsAndDisconnectsSignalR()
+    {
+        var rpcStore = new RpcSessionStore();
+        rpcStore.SetSession("token-session-2", TimeSpan.FromMinutes(10));
+        rpcStore.IsValid("token-session-2").Should().BeTrue();
+
+        MessageHub.AddConnectionForTesting("signalr-conn-2");
+        MessageHub.IsConnected.Should().BeTrue();
+
+        this.configFileProvider.ApiKey.Returns("unchanged-key");
+        this.configFileProvider.AuthenticationEnabled.Returns(false);
+
+        var resource = new GeneralConfigResource
+        {
+            ApiKey = "unchanged-key",
+            AuthenticationEnabled = true,
+        };
+
+        await this.controller.SaveConfig(resource);
+
+        rpcStore.IsValid("token-session-2").Should().BeFalse();
+        MessageHub.IsConnected.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task SaveConfig_WhenNeitherApiKeyNorAuthEnabledChanges_PreservesSessionsAndConnections()
+    {
+        var rpcStore = new RpcSessionStore();
+        rpcStore.SetSession("token-session-3", TimeSpan.FromMinutes(10));
+        rpcStore.IsValid("token-session-3").Should().BeTrue();
+
+        MessageHub.AddConnectionForTesting("signalr-conn-3");
+        MessageHub.IsConnected.Should().BeTrue();
+
+        this.configFileProvider.ApiKey.Returns("stable-key");
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+
+        var resource = new GeneralConfigResource
+        {
+            ApiKey = "stable-key",
+            AuthenticationEnabled = true,
+            Port = 8999,
+        };
+
+        await this.controller.SaveConfig(resource);
+
+        rpcStore.IsValid("token-session-3").Should().BeTrue();
+        MessageHub.IsConnected.Should().BeTrue();
+
+        MessageHub.ResetForTesting();
+        RpcSessionStore.InvalidateAllSessions();
     }
 }
