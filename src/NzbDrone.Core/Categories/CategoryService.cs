@@ -53,7 +53,8 @@ public class CategoryService : ICategoryService
         "/boot",
         "/sys",
         "/proc",
-        "/dev"
+        "/dev",
+        "/var"
     ];
 
     private static readonly string[] ForbiddenWindowsSystemPrefixes =
@@ -337,7 +338,7 @@ public class CategoryService : ICategoryService
                 }
                 catch (Exception ex)
                 {
-                    throw new InvalidOperationException($"Could not create save directory '{fullPath}': {ex.Message}", ex);
+                    this.logger.Warn("Could not create save directory '{0}': {1}", fullPath, ex.Message);
                 }
 
                 if (this.diskProvider.FolderExists(fullPath) && !this.diskProvider.FolderWritable(fullPath))
@@ -350,15 +351,20 @@ public class CategoryService : ICategoryService
         return fullPath;
     }
 
-    private static bool IsForbiddenSystemDirectory(string fullPath)
+    public static bool IsForbiddenSystemDirectory(string fullPath)
     {
-        var normalized = fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (string.IsNullOrWhiteSpace(fullPath))
+        {
+            return false;
+        }
+
+        var normalized = fullPath.Replace('\\', '/').TrimEnd('/');
 
         foreach (var prefix in ForbiddenUnixSystemPrefixes)
         {
-            if (string.Equals(normalized, prefix, StringComparison.OrdinalIgnoreCase) ||
-                normalized.StartsWith(prefix + "/", StringComparison.OrdinalIgnoreCase) ||
-                normalized.StartsWith(prefix + "\\", StringComparison.OrdinalIgnoreCase))
+            var normPrefix = prefix.Replace('\\', '/').TrimEnd('/');
+            if (string.Equals(normalized, normPrefix, StringComparison.OrdinalIgnoreCase) ||
+                normalized.StartsWith(normPrefix + "/", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
@@ -366,10 +372,9 @@ public class CategoryService : ICategoryService
 
         foreach (var prefix in ForbiddenWindowsSystemPrefixes)
         {
-            var trimmedPrefix = prefix.TrimEnd('\\', '/');
-            if (string.Equals(normalized, trimmedPrefix, StringComparison.OrdinalIgnoreCase) ||
-                normalized.StartsWith(trimmedPrefix + "\\", StringComparison.OrdinalIgnoreCase) ||
-                normalized.StartsWith(trimmedPrefix + "/", StringComparison.OrdinalIgnoreCase))
+            var normPrefix = prefix.Replace('\\', '/').TrimEnd('/');
+            if (string.Equals(normalized, normPrefix, StringComparison.OrdinalIgnoreCase) ||
+                normalized.StartsWith(normPrefix + "/", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
@@ -377,24 +382,64 @@ public class CategoryService : ICategoryService
 
         if (OperatingSystem.IsWindows())
         {
-            var winPath = Environment.GetFolderPath(Environment.SpecialFolder.Windows)?.TrimEnd('\\', '/');
+            var winPath = Environment.GetFolderPath(Environment.SpecialFolder.Windows)?.Replace('\\', '/').TrimEnd('/');
             if (!string.IsNullOrEmpty(winPath) &&
                 (string.Equals(normalized, winPath, StringComparison.OrdinalIgnoreCase) ||
-                 normalized.StartsWith(winPath + "\\", StringComparison.OrdinalIgnoreCase)))
+                 normalized.StartsWith(winPath + "/", StringComparison.OrdinalIgnoreCase)))
             {
                 return true;
             }
 
-            var progFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)?.TrimEnd('\\', '/');
+            var progFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)?.Replace('\\', '/').TrimEnd('/');
             if (!string.IsNullOrEmpty(progFiles) &&
                 (string.Equals(normalized, progFiles, StringComparison.OrdinalIgnoreCase) ||
-                 normalized.StartsWith(progFiles + "\\", StringComparison.OrdinalIgnoreCase)))
+                 normalized.StartsWith(progFiles + "/", StringComparison.OrdinalIgnoreCase)))
             {
                 return true;
             }
         }
 
         return false;
+    }
+
+    public static bool IsRootOrSystemDirectory(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return true;
+        }
+
+        var normalized = path.Replace('\\', '/').Trim();
+        if (normalized == "/" ||
+            string.Equals(normalized, "C:", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(normalized, "C:/", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        string fullPath;
+        try
+        {
+            fullPath = Path.GetFullPath(path);
+        }
+        catch
+        {
+            fullPath = normalized;
+        }
+
+        var root = Path.GetPathRoot(fullPath);
+        if (string.IsNullOrEmpty(fullPath) ||
+            fullPath == "/" ||
+            fullPath == "\\" ||
+            string.Equals(
+                fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                root?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return IsForbiddenSystemDirectory(normalized) || IsForbiddenSystemDirectory(fullPath);
     }
 
     private void ClearExistingDefaults(int currentCategoryId)
