@@ -2876,4 +2876,122 @@ public class TransmissionRpcControllerTest
         this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://new0" && t.Tier == 2));
         this.trackerEntryRepository.Received(1).Insert(Arg.Is<TrackerEntry>(t => t.Url == "http://new1" && t.Tier == 3));
     }
+
+    [Test]
+    public async Task HandleRpc_TorrentSet_WhenIdsOmitted_AppliesToAllTorrents()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var t1 = new Torrent { Id = 1, Name = "T1", Priority = 0 };
+        var t2 = new Torrent { Id = 2, Name = "T2", Priority = 0 };
+        this.torrentService.GetAll().Returns(new List<Torrent> { t1, t2 });
+        this.torrentService.Get(1).Returns(t1);
+        this.torrentService.Get(2).Returns(t2);
+
+        var args = new Dictionary<string, JsonElement>();
+        using var bpDoc = JsonDocument.Parse("1");
+        args["bandwidthPriority"] = bpDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        t1.Priority.Should().Be(1);
+        t2.Priority.Should().Be(1);
+        await this.torrentService.Received(1).UpdateAsync(t1);
+        await this.torrentService.Received(1).UpdateAsync(t2);
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentSet_WithEmptyLabelsArray_ClearsCategoryAndLabel()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "Tagged Torrent",
+            Category = "movies",
+            Label = "movies,hd",
+        };
+        this.torrentService.Get(42).Returns(torrent);
+
+        var args = new Dictionary<string, JsonElement>();
+        using var idsDoc = JsonDocument.Parse("[42]");
+        using var labelsDoc = JsonDocument.Parse("[]");
+        args["ids"] = idsDoc.RootElement.Clone();
+        args["labels"] = labelsDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-set",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        torrent.Category.Should().BeEmpty();
+        torrent.Label.Should().BeEmpty();
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+    }
+
+    [Test]
+    public async Task HandleRpc_TorrentGet_MapsCombinedCategoryAndMultiLabels()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent1 = new Torrent
+        {
+            Id = 1,
+            Name = "Multi-label Torrent",
+            Category = "radarr",
+            Label = "radarr, hd, 4k",
+        };
+        var torrent2 = new Torrent
+        {
+            Id = 2,
+            Name = "No Category Multi-label Torrent",
+            Category = string.Empty,
+            Label = "tag1, tag2",
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent1, torrent2 });
+
+        var args = new Dictionary<string, JsonElement>();
+        using var doc = JsonDocument.Parse("[\"id\", \"labels\"]");
+        args["fields"] = doc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-get",
+            Arguments = args,
+        });
+
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var response = okResult.Value.Should().BeOfType<TransmissionRpcResponse>().Subject;
+        var argsDict = response.Arguments as Dictionary<string, object>;
+        var torrentsList = argsDict!["torrents"] as List<Dictionary<string, object>>;
+        torrentsList.Should().HaveCount(2);
+
+        var labels1 = torrentsList![0]["labels"] as string[];
+        labels1.Should().NotBeNull();
+        labels1.Should().BeEquivalentTo(new[] { "radarr", "hd", "4k" });
+
+        var labels2 = torrentsList[1]["labels"] as string[];
+        labels2.Should().NotBeNull();
+        labels2.Should().BeEquivalentTo(new[] { "tag1", "tag2" });
+    }
 }
