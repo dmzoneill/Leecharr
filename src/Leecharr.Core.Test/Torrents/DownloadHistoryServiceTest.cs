@@ -322,7 +322,7 @@ public class DownloadHistoryServiceTest
     }
 
     [Test]
-    public void ReAdd_WhenCompletedInHistory_SetsSeedingStatusAndFullProgress()
+    public void ReAdd_WhenCompletedInHistory_WhenFilesMissingFromDisk_SetsDownloadingStatusAndZeroProgress()
     {
         var history = new DownloadHistory
         {
@@ -350,10 +350,63 @@ public class DownloadHistoryServiceTest
         var added = this.service.ReAdd(17);
 
         added.Should().NotBeNull();
-        added.Status.Should().Be(TorrentStatus.Seeding);
-        added.Progress.Should().Be(1.0);
-        added.Downloaded.Should().Be(50000);
-        added.DateCompleted.Should().NotBeNull();
+        added.Status.Should().Be(TorrentStatus.Downloading);
+        added.Progress.Should().Be(0.0);
+        added.Downloaded.Should().Be(0);
+        added.DateCompleted.Should().BeNull();
+    }
+
+    [Test]
+    public void ReAdd_WhenCompletedInHistory_WhenFilesExistOnDisk_SetsSeedingStatusAndFullProgress()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "leecharr_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var payloadFile = Path.Combine(tempDir, "Completed Show");
+            File.WriteAllText(payloadFile, "completed payload content");
+
+            this.categoryService.GetSavePathForCategory(Arg.Any<string>(), Arg.Any<string>())
+                .Returns(tempDir);
+
+            var history = new DownloadHistory
+            {
+                Id = 17,
+                InfoHash = "completedhash555",
+                Title = "Completed Show",
+                TotalSize = 50000,
+                Status = "Completed",
+                DateCompleted = DateTime.UtcNow.AddDays(-1),
+                Downloaded = 50000,
+                Uploaded = 100000,
+                Ratio = 2.0,
+            };
+
+            this.historyRepository.Get(17).Returns(history);
+            this.torrentRepository.ExistsByInfoHash("completedhash555").Returns(false);
+            this.torrentRepository.All().Returns(new List<Torrent>());
+            this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
+            {
+                var t = (Torrent)args[0];
+                t.Id = 102;
+                return t;
+            });
+
+            var added = this.service.ReAdd(17);
+
+            added.Should().NotBeNull();
+            added.Status.Should().Be(TorrentStatus.Seeding);
+            added.Progress.Should().Be(1.0);
+            added.Downloaded.Should().Be(50000);
+            added.DateCompleted.Should().NotBeNull();
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
     }
 
     [Test]
@@ -725,5 +778,51 @@ public class DownloadHistoryServiceTest
 
         this.torrentRepository.Received(1).Insert(Arg.Is<Torrent>(t => t.IsPrivate == true));
         await this.downloadEngine.Received(1).SetTorrentPrivateStatusAsync(88, true);
+    }
+
+    [Test]
+    public async Task ReAddAsync_WhenEngineThrows_RollsBackDatabaseRecordsAndRethrows()
+    {
+        var history = new DownloadHistory
+        {
+            Id = 20,
+            InfoHash = "enginefailhash123",
+            Title = "Engine Fail Release",
+            TotalSize = 25000,
+            Status = "Removed",
+            TorrentId = null,
+            DateRemoved = DateTime.UtcNow.AddDays(-2),
+            Trackers = new List<string> { "udp://tracker.test.org:1337/announce" },
+            PrimaryTracker = "udp://tracker.test.org:1337/announce",
+        };
+
+        this.historyRepository.Get(20).Returns(history);
+        this.torrentRepository.ExistsByInfoHash("enginefailhash123").Returns(false);
+        this.torrentRepository.All().Returns(new List<Torrent>());
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
+        {
+            var t = (Torrent)args[0];
+            t.Id = 999;
+            return t;
+        });
+
+        this.downloadEngine.AddTorrentAsync(Arg.Any<Torrent>(), Arg.Any<byte[]>(), Arg.Any<string>())
+            .ThrowsAsync(new IOException("Disk is full"));
+
+        Func<Task> act = async () => await this.service.ReAddAsync(20);
+
+        await act.Should().ThrowAsync<IOException>().WithMessage("Disk is full");
+
+        this.trackerEntryRepository.Received(1).DeleteByTorrentId(999);
+        this.fileRepository.Received(1).DeleteByTorrentId(999);
+        this.torrentRepository.Received(1).Delete(999);
+
+        history.TorrentId.Should().BeNull();
+        history.Status.Should().Be("Removed");
+        history.DateRemoved.Should().NotBeNull();
+        this.historyRepository.Received().Update(Arg.Is<DownloadHistory>(h =>
+            h.Id == 20 && h.TorrentId == null && h.Status == "Removed"));
+
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentAddedEvent>());
     }
 }
