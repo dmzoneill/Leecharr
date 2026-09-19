@@ -3349,5 +3349,55 @@ public class DelugeJsonRpcControllerTest
         json.Should().Contain("core.set_torrent_move_completed");
         json.Should().Contain("core.set_torrent_move_completed_path");
         json.Should().Contain("core.set_torrent_prioritize_first_last");
+        json.Should().Contain("web.get_events");
+        json.Should().Contain("core.rescan_plugins");
+    }
+
+    [Test]
+    public async Task HandleRpc_WebGetEvents_ReturnsEmptyEventArray()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("{\"method\":\"web.get_events\",\"params\":[],\"id\":312}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var json = JsonSerializer.Serialize(((JsonResult)result).Value);
+        json.Should().Contain("\"result\":[]");
+        json.Should().Contain("\"error\":null");
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreRescanPlugins_ReturnsTrue()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.rescan_plugins\",\"params\":[],\"id\":313}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var json = JsonSerializer.Serialize(((JsonResult)result).Value);
+        json.Should().Contain("\"result\":true");
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreGetFreeSpaceBytes_ReturnsFreeSpace()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(1073741824L);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_free_space_bytes\",\"params\":[\"/downloads\"],\"id\":314}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var json = JsonSerializer.Serialize(((JsonResult)result).Value);
+        json.Should().Contain("\"result\":1073741824");
     }
 }
