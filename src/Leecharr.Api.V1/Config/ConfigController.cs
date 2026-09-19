@@ -5,11 +5,13 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using FluentValidation;
 using Leecharr.Http;
+using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Ai;
 using NzbDrone.Core.BitTorrent.Tracker;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Security;
+using NzbDrone.SignalR;
 
 namespace Leecharr.Api.V1.Config;
 
@@ -50,6 +52,9 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
             return this.BadRequest("Request body cannot be empty.");
         }
 
+        var previousApiKey = this.configFileProvider.ApiKey;
+        var previousAuthEnabled = this.configFileProvider.AuthenticationEnabled;
+
         if (resource.ApiKey != null && resource.ApiKey.Contains('*'))
         {
             resource.ApiKey = this.configFileProvider.ApiKey;
@@ -81,6 +86,13 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
         };
 
         this.configFileProvider.SaveConfigDictionary(fileUpdates);
+
+        if (!string.Equals(previousApiKey, resource.ApiKey, StringComparison.Ordinal) ||
+            previousAuthEnabled != resource.AuthenticationEnabled)
+        {
+            RpcSessionStore.InvalidateAllSessions();
+            MessageHub.DisconnectAllConnections();
+        }
 
         return await base.SaveConfig(resource);
     }
