@@ -3155,6 +3155,87 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task UpdateEngineListenEndpointsAsync_WhenInterfaceBoundAndIpCannotBeResolvedWithKillSwitchEnabled_FailsClosedAndHaltsEngine()
+    {
+        var mockVpnService = Substitute.For<IVpnKillSwitchService>();
+        this.configService.EnableVpnKillSwitch.Returns(true);
+        this.configService.BindInterface.Returns("tun0");
+        mockVpnService.IsKillSwitchEnabled.Returns(true);
+        mockVpnService.GetVpnInterfaceIpAddress(Arg.Any<System.Net.Sockets.AddressFamily>()).Returns(IPAddress.Loopback);
+
+        using var vpnEngine = new MonoTorrentDownloadEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator,
+            vpnKillSwitchService: mockVpnService);
+
+        await vpnEngine.StartAsync();
+        vpnEngine.IsHaltedByKillSwitch.Should().BeFalse();
+
+        // Simulate interface losing its IP
+        mockVpnService.GetVpnInterfaceIpAddress(Arg.Any<System.Net.Sockets.AddressFamily>()).Returns((IPAddress)null);
+
+        await vpnEngine.UpdateEngineListenEndpointsAsync();
+
+        vpnEngine.IsHaltedByKillSwitch.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task ResumeTorrentsAfterVpnRestoredAsync_WhenKillSwitchEnabledViaRepositorySettings_EnforcesFailClosed()
+    {
+        var mockVpnService = Substitute.For<IVpnKillSwitchService>();
+        // configService returns false, but vpnKillSwitchService returns true (e.g. from network settings repository)
+        this.configService.EnableVpnKillSwitch.Returns(false);
+        this.configService.BindInterface.Returns("tun0");
+        mockVpnService.IsKillSwitchEnabled.Returns(true);
+        mockVpnService.GetVpnInterfaceIpAddress(Arg.Any<System.Net.Sockets.AddressFamily>()).Returns((IPAddress)null);
+
+        using var vpnEngine = new MonoTorrentDownloadEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator,
+            vpnKillSwitchService: mockVpnService);
+
+        vpnEngine.OnVpnDropped("tun0");
+        vpnEngine.IsHaltedByKillSwitch.Should().BeTrue();
+
+        await vpnEngine.ResumeTorrentsAfterVpnRestoredAsync();
+
+        // Must remain halted fail-closed
+        vpnEngine.IsHaltedByKillSwitch.Should().BeTrue();
+    }
+
+    [Test]
+    public void OnVpnRestored_DoesNotPrematurelyClearIsHaltedByKillSwitch()
+    {
+        var mockVpnService = Substitute.For<IVpnKillSwitchService>();
+        this.configService.EnableVpnKillSwitch.Returns(true);
+        this.configService.BindInterface.Returns("tun0");
+        mockVpnService.IsKillSwitchEnabled.Returns(true);
+        mockVpnService.GetVpnInterfaceIpAddress(Arg.Any<System.Net.Sockets.AddressFamily>()).Returns((IPAddress)null);
+
+        using var vpnEngine = new MonoTorrentDownloadEngine(
+            this.configService,
+            this.storagePathService,
+            this.categoryService,
+            this.diskProvider,
+            this.eventAggregator,
+            vpnKillSwitchService: mockVpnService);
+
+        vpnEngine.OnVpnDropped("tun0");
+        vpnEngine.IsHaltedByKillSwitch.Should().BeTrue();
+
+        vpnEngine.OnVpnRestored("tun0");
+
+        // Immediately after OnVpnRestored, before resumption has validated IP, isHaltedByKillSwitch must not be cleared
+        vpnEngine.IsHaltedByKillSwitch.Should().BeTrue();
+    }
+
+    [Test]
     public async Task BoundSocketConnector_WhenLocalIpv4IsNull_ThrowsNetworkUnreachable()
     {
         var connector = new BoundSocketConnector(() => (IPAddress)null, () => IPAddress.IPv6Any);
