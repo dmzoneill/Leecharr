@@ -6979,7 +6979,11 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
         ArgumentNullException.ThrowIfNull(socket);
 
         var ifaceName = this.getInterfaceName?.Invoke();
-        if (this.networkBindingService != null && !string.IsNullOrWhiteSpace(ifaceName))
+        var hasSpecificInterface = !string.IsNullOrWhiteSpace(ifaceName) &&
+            !string.Equals(ifaceName, "Any", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(ifaceName, "all", StringComparison.OrdinalIgnoreCase);
+
+        if (this.networkBindingService != null && hasSpecificInterface)
         {
             this.networkBindingService.BindSocket(socket, ifaceName, localPort);
         }
@@ -7137,27 +7141,7 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
             var socket = new System.Net.Sockets.Socket(address.AddressFamily, socketType, protocolType);
             try
             {
-                if (this.networkBindingService != null && !string.IsNullOrWhiteSpace(ifaceName))
-                {
-                    this.networkBindingService.BindSocket(socket, ifaceName);
-                }
-                else
-                {
-                    if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
-                    {
-                        if (localV4 != null && !localV4.Equals(IPAddress.Any) && !localV4.Equals(IPAddress.None))
-                        {
-                            socket.Bind(new IPEndPoint(localV4, 0));
-                        }
-                    }
-                    else if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
-                    {
-                        if (localV6 != null && !localV6.Equals(IPAddress.IPv6Any) && !localV6.Equals(IPAddress.None))
-                        {
-                            socket.Bind(new IPEndPoint(localV6, 0));
-                        }
-                    }
-                }
+                this.BindSocket(socket, 0);
 
                 await socket.ConnectAsync(new IPEndPoint(address, uri.Port), token).ConfigureAwait(false);
                 return socket;
