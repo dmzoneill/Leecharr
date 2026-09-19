@@ -3059,4 +3059,101 @@ public class DelugeJsonRpcControllerTest
         torrent.TargetRatio.Should().Be(0);
         await this.torrentService.Received().UpdateAsync(torrent);
     }
+
+    [Test]
+    public async Task HandleRpc_CoreGetTorrentsStatus_WithPausedFilter_IncludesPausedStoppedAndCompletedTorrents()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var tPaused = new Torrent { Id = 1, InfoHash = "1111111111111111111111111111111111111111", Status = TorrentStatus.Paused, Name = "Paused Torrent" };
+        var tStopped = new Torrent { Id = 2, InfoHash = "2222222222222222222222222222222222222222", Status = TorrentStatus.Stopped, Name = "Stopped Torrent" };
+        var tCompleted = new Torrent { Id = 3, InfoHash = "3333333333333333333333333333333333333333", Status = TorrentStatus.Completed, Name = "Completed Torrent" };
+        var tDownloading = new Torrent { Id = 4, InfoHash = "4444444444444444444444444444444444444444", Status = TorrentStatus.Downloading, Name = "Downloading Torrent" };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { tPaused, tStopped, tCompleted, tDownloading });
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{\"state\":\"Paused\"},[\"name\",\"state\",\"paused\"]],\"id\":10}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var json = JsonSerializer.Serialize(((JsonResult)result).Value);
+
+        json.Should().Contain(tPaused.InfoHash);
+        json.Should().Contain(tStopped.InfoHash);
+        json.Should().Contain(tCompleted.InfoHash);
+        json.Should().NotContain(tDownloading.InfoHash);
+
+        // Verify paused property and state mapping
+        using var parsedDoc = JsonDocument.Parse(json);
+        var resObj = parsedDoc.RootElement.GetProperty("result");
+
+        var pausedObj = resObj.GetProperty(tPaused.InfoHash);
+        pausedObj.GetProperty("state").GetString().Should().Be("Paused");
+        pausedObj.GetProperty("paused").GetBoolean().Should().BeTrue();
+
+        var stoppedObj = resObj.GetProperty(tStopped.InfoHash);
+        stoppedObj.GetProperty("state").GetString().Should().Be("Paused");
+        stoppedObj.GetProperty("paused").GetBoolean().Should().BeTrue();
+
+        var completedObj = resObj.GetProperty(tCompleted.InfoHash);
+        completedObj.GetProperty("state").GetString().Should().Be("Paused");
+        completedObj.GetProperty("paused").GetBoolean().Should().BeTrue();
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreGetTorrentsStatus_WithCheckingFilter_IncludesCheckingAndQueuedForCheckingTorrents()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var tChecking = new Torrent { Id = 1, InfoHash = "5555555555555555555555555555555555555555", Status = TorrentStatus.Checking, Name = "Checking Torrent" };
+        var tQueuedChecking = new Torrent { Id = 2, InfoHash = "6666666666666666666666666666666666666666", Status = TorrentStatus.QueuedForChecking, Name = "Queued Checking Torrent" };
+        var tDownloading = new Torrent { Id = 3, InfoHash = "7777777777777777777777777777777777777777", Status = TorrentStatus.Downloading, Name = "Downloading Torrent" };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { tChecking, tQueuedChecking, tDownloading });
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{\"state\":\"Checking\"},[\"name\",\"state\"]],\"id\":11}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var json = JsonSerializer.Serialize(((JsonResult)result).Value);
+
+        json.Should().Contain(tChecking.InfoHash);
+        json.Should().Contain(tQueuedChecking.InfoHash);
+        json.Should().NotContain(tDownloading.InfoHash);
+
+        using var parsedDoc = JsonDocument.Parse(json);
+        var resObj = parsedDoc.RootElement.GetProperty("result");
+
+        resObj.GetProperty(tChecking.InfoHash).GetProperty("state").GetString().Should().Be("Checking");
+        resObj.GetProperty(tQueuedChecking.InfoHash).GetProperty("state").GetString().Should().Be("Checking");
+    }
+
+    [Test]
+    public async Task HandleRpc_GetFilterTree_CountsStoppedAndCompletedInPausedAndQueuedForCheckingInChecking()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var tPaused = new Torrent { Id = 1, InfoHash = "1111111111111111111111111111111111111111", Status = TorrentStatus.Paused };
+        var tStopped = new Torrent { Id = 2, InfoHash = "2222222222222222222222222222222222222222", Status = TorrentStatus.Stopped };
+        var tCompleted = new Torrent { Id = 3, InfoHash = "3333333333333333333333333333333333333333", Status = TorrentStatus.Completed };
+        var tChecking = new Torrent { Id = 4, InfoHash = "4444444444444444444444444444444444444444", Status = TorrentStatus.Checking };
+        var tQueuedChecking = new Torrent { Id = 5, InfoHash = "5555555555555555555555555555555555555555", Status = TorrentStatus.QueuedForChecking };
+
+        this.torrentService.GetAll().Returns(new List<Torrent> { tPaused, tStopped, tCompleted, tChecking, tQueuedChecking });
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_filter_tree\",\"params\":[],\"id\":12}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var json = JsonSerializer.Serialize(((JsonResult)result).Value);
+
+        json.Should().Contain("\"Paused\",3");
+        json.Should().Contain("\"Checking\",2");
+    }
 }
