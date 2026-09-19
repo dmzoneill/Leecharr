@@ -1410,11 +1410,6 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                     OldStatus = oldStatus,
                     NewStatus = torrent.Status,
                 });
-
-                if (torrent.Status == TorrentStatus.Seeding && oldStatus != TorrentStatus.Seeding)
-                {
-                    this.eventAggregator.PublishEvent(new TorrentDownloadCompletedEvent(torrent));
-                }
             }
             else if (initialSeedingChanged)
             {
@@ -1426,24 +1421,6 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             {
                 torrent.DateCompleted = DateTime.UtcNow;
                 this.torrentRepository.Update(torrent);
-            }
-
-            if (torrent.Status == TorrentStatus.Seeding && torrent.Ratio > 0)
-            {
-                var effectiveRatio = this.GetEffectiveTargetRatio(torrent);
-                if (effectiveRatio > 0 && torrent.Ratio >= effectiveRatio)
-                {
-                    this.eventAggregator.PublishEvent(new TorrentRatioReachedEvent(torrent, torrent.Ratio));
-                    this.eventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
-                }
-            }
-            else if (torrent.Status == TorrentStatus.Downloading && torrent.DownloadSpeed == 0 && torrent.Progress < 1.0)
-            {
-                var stalledMinutes = (DateTime.UtcNow - torrent.DateAdded).TotalMinutes;
-                if (stalledMinutes >= 5)
-                {
-                    this.eventAggregator.PublishEvent(new TorrentStalledEvent(torrent, (int)stalledMinutes));
-                }
             }
         }
         else if (torrent.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued)

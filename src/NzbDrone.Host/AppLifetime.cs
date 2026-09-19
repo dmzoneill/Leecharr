@@ -27,6 +27,9 @@ public class AppLifetime : IHostedService, IDisposable
     private readonly TimeSpan backgroundLoopInterval;
     private readonly Logger logger;
     private readonly ConcurrentDictionary<int, bool> superSeedingTorrents = new();
+    private readonly ConcurrentDictionary<int, bool> seedGoalReachedTorrents = new();
+    private readonly ConcurrentDictionary<int, bool> ratioReachedTorrents = new();
+    private readonly ConcurrentDictionary<int, bool> stalledTorrents = new();
     private CancellationTokenSource cts;
     private Task backgroundLoopTask;
     private Task rssLoopTask;
@@ -430,6 +433,16 @@ public class AppLifetime : IHostedService, IDisposable
 
                                     if (ratioReached || timeReached)
                                     {
+                                        if (ratioReached && this.ratioReachedTorrents.TryAdd(torrent.Id, true))
+                                        {
+                                            this.services.EventAggregator?.PublishEvent(new TorrentRatioReachedEvent(torrent, torrent.Ratio));
+                                        }
+
+                                        if (this.seedGoalReachedTorrents.TryAdd(torrent.Id, true))
+                                        {
+                                            this.services.EventAggregator?.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
+                                        }
+
                                         var shareAction = !string.IsNullOrWhiteSpace(torrent.ShareLimitAction) && !string.Equals(torrent.ShareLimitAction, "Default", StringComparison.OrdinalIgnoreCase)
                                             ? torrent.ShareLimitAction
                                             : this.services.ConfigService.GlobalShareLimitAction;
@@ -443,8 +456,9 @@ public class AppLifetime : IHostedService, IDisposable
                                             }
                                             else
                                             {
-                                                this.services.EventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
                                                 this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Removing torrent and deleting data files.", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
+                                                this.ratioReachedTorrents.TryRemove(torrent.Id, out _);
+                                                this.seedGoalReachedTorrents.TryRemove(torrent.Id, out _);
                                                 await this.services.TorrentService.DeleteAsync(torrent.Id, deleteFiles: true);
                                             }
                                         }
@@ -457,8 +471,9 @@ public class AppLifetime : IHostedService, IDisposable
                                             }
                                             else
                                             {
-                                                this.services.EventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
                                                 this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Removing torrent (preserving data).", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
+                                                this.ratioReachedTorrents.TryRemove(torrent.Id, out _);
+                                                this.seedGoalReachedTorrents.TryRemove(torrent.Id, out _);
                                                 await this.services.TorrentService.DeleteAsync(torrent.Id, deleteFiles: false);
                                             }
                                         }
@@ -475,13 +490,11 @@ public class AppLifetime : IHostedService, IDisposable
 
                                             if (this.superSeedingTorrents.TryRemove(torrent.Id, out _))
                                             {
-                                                this.services.EventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
                                                 this.logger.Info("Torrent {0} reached seed goal and completed super seeding mode. Pausing seeding.", torrent.Name);
                                                 await this.services.TorrentService.PauseAsync(torrent.Id);
                                             }
                                             else
                                             {
-                                                this.services.EventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
                                                 this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Enabling super seeding mode.", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
                                                 this.superSeedingTorrents.TryAdd(torrent.Id, true);
                                                 await this.services.TorrentService.SetSuperSeedingAsync(torrent.Id, true);
@@ -489,9 +502,7 @@ public class AppLifetime : IHostedService, IDisposable
                                         }
                                         else
                                         {
-                                            this.services.EventAggregator.PublishEvent(new TorrentSeedGoalReachedEvent(torrent));
                                             this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Pausing seeding.", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
-
                                             await this.services.TorrentService.PauseAsync(torrent.Id);
                                         }
                                     }
@@ -622,9 +633,16 @@ public class AppLifetime : IHostedService, IDisposable
                                         var minutes = (DateTime.UtcNow - torrent.DateAdded).TotalMinutes;
                                         if (minutes >= 5)
                                         {
-                                            this.services.EventAggregator?.PublishEvent(new TorrentStalledEvent(torrent, (int)minutes));
+                                            if (this.stalledTorrents.TryAdd(torrent.Id, true))
+                                            {
+                                                this.services.EventAggregator?.PublishEvent(new TorrentStalledEvent(torrent, (int)minutes));
+                                            }
                                         }
                                     }
+                                }
+                                else
+                                {
+                                    this.stalledTorrents.TryRemove(task.TorrentId, out _);
                                 }
                             }
 
