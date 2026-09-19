@@ -52,6 +52,10 @@ public class DiskSpaceHealthCheck : IHealthCheck
                 ? (long)configThresholdMb.Value * 1024 * 1024
                 : DefaultWarningThresholdBytes;
 
+            var errorThresholdBytes = configThresholdMb.HasValue && configThresholdMb.Value > 0
+                ? Math.Min(warningThresholdBytes / 2, ErrorThresholdBytes)
+                : ErrorThresholdBytes;
+
             foreach (var disk in disks)
             {
                 if (disk.TotalSpace <= 0)
@@ -62,7 +66,7 @@ public class DiskSpaceHealthCheck : IHealthCheck
                 var freePercent = (double)disk.FreeSpace / disk.TotalSpace;
                 var freeGb = disk.FreeSpace / (1024.0 * 1024 * 1024);
 
-                if (disk.FreeSpace < ErrorThresholdBytes)
+                if (disk.FreeSpace < errorThresholdBytes)
                 {
                     errors.Add($"{disk.Path} has only {freeGb:0.00} GB free");
                     this.eventAggregator?.PublishEvent(new DiskSpaceCriticalEvent(disk.Path, disk.FreeSpace));

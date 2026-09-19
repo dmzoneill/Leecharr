@@ -14,6 +14,8 @@ namespace NzbDrone.Core.DiskSpace;
 public interface IDiskSpaceService
 {
     List<DiskSpaceInfo> GetDiskSpace();
+
+    void CheckDiskSpaceThresholds();
 }
 
 public class DiskSpaceService : IDiskSpaceService
@@ -37,6 +39,15 @@ public class DiskSpaceService : IDiskSpaceService
         this.diskProvider = diskProvider ?? new DiskProvider();
         this.categoryService = categoryService;
         this.eventAggregator = eventAggregator;
+    }
+
+    public void CheckDiskSpaceThresholds()
+    {
+        var disks = this.GetDiskSpace();
+        foreach (var disk in disks)
+        {
+            this.PublishThresholdEventsIfApplicable(disk);
+        }
     }
 
     public List<DiskSpaceInfo> GetDiskSpace()
@@ -105,7 +116,6 @@ public class DiskSpaceService : IDiskSpaceService
                                 TotalSpace = total,
                             };
                             result.Add(info);
-                            this.PublishThresholdEventsIfApplicable(info);
                         }
                     }
                 }
@@ -174,7 +184,6 @@ public class DiskSpaceService : IDiskSpaceService
                         TotalSpace = totalSpace.Value,
                     };
                     result.Add(info);
-                    this.PublishThresholdEventsIfApplicable(info);
                 }
             }
         }
@@ -193,7 +202,9 @@ public class DiskSpaceService : IDiskSpaceService
 
         var thresholdMb = this.configService?.LowDiskSpaceThresholdMb ?? 500;
         var warningThresholdBytes = (long)thresholdMb * 1024 * 1024;
-        const long criticalThresholdBytes = 1024L * 1024 * 1024; // 1 GB
+        var criticalThresholdBytes = thresholdMb > 0
+            ? Math.Min(warningThresholdBytes / 2, 250L * 1024 * 1024)
+            : 250L * 1024 * 1024;
         var freePercent = (double)info.FreeSpace / info.TotalSpace;
 
         if (info.FreeSpace < criticalThresholdBytes)

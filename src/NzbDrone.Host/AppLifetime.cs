@@ -589,27 +589,7 @@ public class AppLifetime : IHostedService, IDisposable
                     {
                         if (this.services.DiskSpaceService != null)
                         {
-                            var disks = this.services.DiskSpaceService.GetDiskSpace();
-                            if (disks != null)
-                            {
-                                foreach (var disk in disks)
-                                {
-                                    if (disk.TotalSpace <= 0)
-                                    {
-                                        continue;
-                                    }
-
-                                    var freePercent = (double)disk.FreeSpace / disk.TotalSpace;
-                                    if (disk.FreeSpace < 1024L * 1024 * 1024)
-                                    {
-                                        this.services.EventAggregator?.PublishEvent(new DiskSpaceCriticalEvent(disk.Path, disk.FreeSpace));
-                                    }
-                                    else if (disk.FreeSpace < 5L * 1024 * 1024 * 1024 || freePercent < 0.05)
-                                    {
-                                        this.services.EventAggregator?.PublishEvent(new DiskSpaceLowEvent(disk.Path, disk.FreeSpace, disk.TotalSpace, freePercent));
-                                    }
-                                }
-                            }
+                            this.services.DiskSpaceService.CheckDiskSpaceThresholds();
                         }
 
                         if (tasks != null && tasks.Count > 0)
