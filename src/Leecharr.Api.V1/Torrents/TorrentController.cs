@@ -24,6 +24,7 @@ using NzbDrone.Core.Http;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Network.GeoIp;
+using NzbDrone.Core.Tags;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
 using NzbDrone.SignalR;
@@ -156,6 +157,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     private readonly IConfigService configService;
     private readonly ICategoryService categoryService;
     private readonly IBlocklistService blocklistService;
+    private readonly ITagRepository tagRepository;
 
     public TorrentController(
         ITorrentService torrentService,
@@ -171,7 +173,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         ITorrentLogService torrentLogService = null,
         IConfigService configService = null,
         ICategoryService categoryService = null,
-        IBlocklistService blocklistService = null)
+        IBlocklistService blocklistService = null,
+        ITagRepository tagRepository = null)
         : base(signalRBroadcaster)
     {
         this.torrentService = torrentService;
@@ -187,6 +190,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         this.configService = configService;
         this.categoryService = categoryService;
         this.blocklistService = blocklistService;
+        this.tagRepository = tagRepository;
     }
 
     [HttpGet]
@@ -992,9 +996,41 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             existing.Category = resource.Category;
         }
 
+        if (resource.TagIds != null && resource.TagIds.Count > 0)
+        {
+            existing.TagIds = resource.TagIds.Distinct().ToList();
+            if (this.tagRepository != null && resource.Label == null)
+            {
+                var allTags = this.tagRepository.All().ToDictionary(t => t.Id, t => t.Label);
+                var labels = existing.TagIds
+                    .Where(t => allTags.ContainsKey(t))
+                    .Select(t => allTags[t])
+                    .Distinct()
+                    .ToList();
+                existing.Label = string.Join(", ", labels);
+            }
+        }
+
         if (resource.Label != null)
         {
             existing.Label = resource.Label;
+            if (string.IsNullOrWhiteSpace(resource.Label))
+            {
+                existing.TagIds = new List<int>();
+            }
+            else if (this.tagRepository != null && (resource.TagIds == null || resource.TagIds.Count == 0))
+            {
+                var labelToId = this.tagRepository.All().ToDictionary(t => t.Label, t => t.Id, StringComparer.OrdinalIgnoreCase);
+                var parsedLabels = resource.Label.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(t => t.Trim())
+                    .Where(t => !string.IsNullOrWhiteSpace(t))
+                    .ToList();
+                existing.TagIds = parsedLabels
+                    .Where(t => labelToId.ContainsKey(t))
+                    .Select(t => labelToId[t])
+                    .Distinct()
+                    .ToList();
+            }
         }
 
         if (resource.Priority.HasValue)
@@ -1254,6 +1290,18 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                     {
                         torrent.TagIds ??= new List<int>();
                         torrent.TagIds = torrent.TagIds.Union(resource.TagIds).Distinct().ToList();
+
+                        if (this.tagRepository != null)
+                        {
+                            var allTags = this.tagRepository.All().ToDictionary(t => t.Id, t => t.Label);
+                            var labels = torrent.TagIds
+                                .Where(t => allTags.ContainsKey(t))
+                                .Select(t => allTags[t])
+                                .Distinct()
+                                .ToList();
+                            torrent.Label = string.Join(", ", labels);
+                        }
+
                         await this.torrentService.UpdateAsync(torrent);
                     }
 
@@ -1271,6 +1319,18 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                     if (resource.TagIds != null && resource.TagIds.Count > 0 && torrent.TagIds != null)
                     {
                         torrent.TagIds = torrent.TagIds.Except(resource.TagIds).ToList();
+
+                        if (this.tagRepository != null)
+                        {
+                            var allTags = this.tagRepository.All().ToDictionary(t => t.Id, t => t.Label);
+                            var labels = torrent.TagIds
+                                .Where(t => allTags.ContainsKey(t))
+                                .Select(t => allTags[t])
+                                .Distinct()
+                                .ToList();
+                            torrent.Label = string.Join(", ", labels);
+                        }
+
                         await this.torrentService.UpdateAsync(torrent);
                     }
 

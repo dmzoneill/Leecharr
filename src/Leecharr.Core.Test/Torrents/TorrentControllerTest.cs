@@ -17,6 +17,7 @@ using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Network;
 using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Network.GeoIp;
+using NzbDrone.Core.Tags;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
 using NzbDrone.SignalR;
@@ -1331,5 +1332,186 @@ public class TorrentControllerTest
 
         response.Result.Should().BeOfType<OkObjectResult>();
         await this.torrentService.Received(1).SetSuperSeedingAsync(61, true);
+    }
+
+    [Test]
+    public async Task Bulk_AddTags_WithTagRepository_SynchronizesTorrentLabel()
+    {
+        var tagRepo = Substitute.For<ITagRepository>();
+        var tags = new List<Tag>
+        {
+            new() { Id = 10, Label = "Anime" },
+            new() { Id = 20, Label = "1080p" },
+        };
+        tagRepo.All().Returns(tags);
+
+        var controllerWithTags = new TorrentController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.mediaEnrichmentService,
+            this.trackerEntryRepository,
+            this.signalRBroadcaster,
+            tagRepository: tagRepo);
+
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "Torrent 1",
+            TagIds = new List<int>(),
+            Label = string.Empty,
+        };
+        this.torrentService.Get(1).Returns(torrent);
+
+        var bulkRequest = new BulkTorrentActionResource
+        {
+            Action = "addtags",
+            TorrentIds = new List<int> { 1 },
+            TagIds = new List<int> { 10, 20 },
+        };
+
+        var result = await controllerWithTags.BulkAction(bulkRequest);
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var bulkResult = okResult.Value.Should().BeOfType<BulkActionResult>().Subject;
+        bulkResult.SuccessCount.Should().Be(1);
+
+        torrent.TagIds.Should().BeEquivalentTo(new[] { 10, 20 });
+        torrent.Label.Should().Be("Anime, 1080p");
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+    }
+
+    [Test]
+    public async Task Bulk_RemoveTags_WithTagRepository_SynchronizesTorrentLabel()
+    {
+        var tagRepo = Substitute.For<ITagRepository>();
+        var tags = new List<Tag>
+        {
+            new() { Id = 10, Label = "Anime" },
+            new() { Id = 20, Label = "1080p" },
+        };
+        tagRepo.All().Returns(tags);
+
+        var controllerWithTags = new TorrentController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.mediaEnrichmentService,
+            this.trackerEntryRepository,
+            this.signalRBroadcaster,
+            tagRepository: tagRepo);
+
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "Torrent 1",
+            TagIds = new List<int> { 10, 20 },
+            Label = "Anime, 1080p",
+        };
+        this.torrentService.Get(1).Returns(torrent);
+
+        var bulkRequest = new BulkTorrentActionResource
+        {
+            Action = "removetags",
+            TorrentIds = new List<int> { 1 },
+            TagIds = new List<int> { 10 },
+        };
+
+        var result = await controllerWithTags.BulkAction(bulkRequest);
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var bulkResult = okResult.Value.Should().BeOfType<BulkActionResult>().Subject;
+        bulkResult.SuccessCount.Should().Be(1);
+
+        torrent.TagIds.Should().BeEquivalentTo(new[] { 20 });
+        torrent.Label.Should().Be("1080p");
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+    }
+
+    [Test]
+    public async Task Update_WithTagIds_SynchronizesTorrentLabel()
+    {
+        var tagRepo = Substitute.For<ITagRepository>();
+        var tags = new List<Tag>
+        {
+            new() { Id = 5, Label = "Movies" },
+            new() { Id = 8, Label = "4K" },
+        };
+        tagRepo.All().Returns(tags);
+
+        var controllerWithTags = new TorrentController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.mediaEnrichmentService,
+            this.trackerEntryRepository,
+            this.signalRBroadcaster,
+            tagRepository: tagRepo);
+
+        var existing = new Torrent
+        {
+            Id = 15,
+            Name = "Movie Torrent",
+            TagIds = new List<int>(),
+            Label = string.Empty,
+        };
+        this.torrentService.Get(15).Returns(existing);
+        this.torrentService.UpdateAsync(existing).Returns(Task.FromResult(existing));
+
+        var resource = new TorrentResource
+        {
+            Id = 15,
+            TagIds = new List<int> { 5, 8 },
+        };
+
+        var response = await controllerWithTags.Update(15, resource);
+        response.Result.Should().BeOfType<OkObjectResult>();
+
+        existing.TagIds.Should().BeEquivalentTo(new[] { 5, 8 });
+        existing.Label.Should().Be("Movies, 4K");
+        await this.torrentService.Received(1).UpdateAsync(existing);
+    }
+
+    [Test]
+    public async Task Update_WithLabel_SynchronizesTorrentTagIds()
+    {
+        var tagRepo = Substitute.For<ITagRepository>();
+        var tags = new List<Tag>
+        {
+            new() { Id = 5, Label = "Movies" },
+            new() { Id = 8, Label = "4K" },
+        };
+        tagRepo.All().Returns(tags);
+
+        var controllerWithTags = new TorrentController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.mediaEnrichmentService,
+            this.trackerEntryRepository,
+            this.signalRBroadcaster,
+            tagRepository: tagRepo);
+
+        var existing = new Torrent
+        {
+            Id = 15,
+            Name = "Movie Torrent",
+            TagIds = new List<int>(),
+            Label = string.Empty,
+        };
+        this.torrentService.Get(15).Returns(existing);
+        this.torrentService.UpdateAsync(existing).Returns(Task.FromResult(existing));
+
+        var resource = new TorrentResource
+        {
+            Id = 15,
+            Label = "Movies, 4K",
+            TagIds = null,
+        };
+
+        var response = await controllerWithTags.Update(15, resource);
+        response.Result.Should().BeOfType<OkObjectResult>();
+
+        existing.Label.Should().Be("Movies, 4K");
+        existing.TagIds.Should().BeEquivalentTo(new[] { 5, 8 });
+        await this.torrentService.Received(1).UpdateAsync(existing);
     }
 }

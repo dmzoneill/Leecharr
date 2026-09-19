@@ -763,6 +763,31 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         if (!string.IsNullOrWhiteSpace(request.Tags))
         {
             added.Label = request.Tags;
+            if (this.tagRepository != null)
+            {
+                var newTags = request.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(t => t.Trim())
+                    .Where(t => !string.IsNullOrWhiteSpace(t))
+                    .ToList();
+
+                var existingTags = this.tagRepository.All().Select(x => x.Label).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                foreach (var tag in newTags)
+                {
+                    if (!existingTags.Contains(tag))
+                    {
+                        this.tagRepository.Insert(new Tag { Label = tag });
+                        existingTags.Add(tag);
+                    }
+                }
+
+                var allDbTags = this.tagRepository.All().ToDictionary(t => t.Label, t => t.Id, StringComparer.OrdinalIgnoreCase);
+                added.TagIds = newTags
+                    .Where(t => allDbTags.ContainsKey(t))
+                    .Select(t => allDbTags[t])
+                    .Distinct()
+                    .ToList();
+            }
+
             needsUpdate = true;
         }
 
@@ -1183,6 +1208,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             }
         }
 
+        var allDbTags = this.tagRepository?.All().ToDictionary(t => t.Label, t => t.Id, StringComparer.OrdinalIgnoreCase);
+        var idToLabel = allDbTags != null ? allDbTags.ToDictionary(kvp => kvp.Value, kvp => kvp.Key) : null;
+
         foreach (var torrent in this.ResolveTorrents(hashes))
         {
             var currentTags = (torrent.Label ?? string.Empty)
@@ -1190,6 +1218,17 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 .Select(t => t.Trim())
                 .Where(t => !string.IsNullOrWhiteSpace(t))
                 .ToList();
+
+            if (idToLabel != null && torrent.TagIds != null)
+            {
+                foreach (var id in torrent.TagIds)
+                {
+                    if (idToLabel.TryGetValue(id, out var label) && !currentTags.Contains(label, StringComparer.OrdinalIgnoreCase))
+                    {
+                        currentTags.Add(label);
+                    }
+                }
+            }
 
             foreach (var tag in newTags)
             {
@@ -1200,6 +1239,15 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             }
 
             torrent.Label = string.Join(", ", currentTags);
+            if (allDbTags != null)
+            {
+                torrent.TagIds = currentTags
+                    .Where(t => allDbTags.ContainsKey(t))
+                    .Select(t => allDbTags[t])
+                    .Distinct()
+                    .ToList();
+            }
+
             await this.torrentService.UpdateAsync(torrent);
         }
 
@@ -1215,20 +1263,50 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 .Select(t => t.Trim())
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+            var allDbTags = this.tagRepository?.All().ToDictionary(t => t.Label, t => t.Id, StringComparer.OrdinalIgnoreCase);
+            var idToLabel = allDbTags != null ? allDbTags.ToDictionary(kvp => kvp.Value, kvp => kvp.Key) : null;
+
             foreach (var torrent in this.ResolveTorrents(hashes))
             {
-                if (!string.IsNullOrEmpty(torrent.Label))
+                if (!string.IsNullOrEmpty(torrent.Label) || (torrent.TagIds != null && torrent.TagIds.Count > 0))
                 {
                     if (tagsToRemove.Count == 0)
                     {
                         torrent.Label = string.Empty;
+                        torrent.TagIds = new List<int>();
                     }
                     else
                     {
-                        var remaining = torrent.Label.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                        var currentTags = (torrent.Label ?? string.Empty)
+                            .Split(',', StringSplitOptions.RemoveEmptyEntries)
                             .Select(t => t.Trim())
-                            .Where(t => !tagsToRemove.Contains(t));
+                            .Where(t => !string.IsNullOrWhiteSpace(t))
+                            .ToList();
+
+                        if (idToLabel != null && torrent.TagIds != null)
+                        {
+                            foreach (var id in torrent.TagIds)
+                            {
+                                if (idToLabel.TryGetValue(id, out var label) && !currentTags.Contains(label, StringComparer.OrdinalIgnoreCase))
+                                {
+                                    currentTags.Add(label);
+                                }
+                            }
+                        }
+
+                        var remaining = currentTags
+                            .Where(t => !tagsToRemove.Contains(t))
+                            .ToList();
+
                         torrent.Label = string.Join(", ", remaining);
+                        if (allDbTags != null)
+                        {
+                            torrent.TagIds = remaining
+                                .Where(t => allDbTags.ContainsKey(t))
+                                .Select(t => allDbTags[t])
+                                .Distinct()
+                                .ToList();
+                        }
                     }
 
                     await this.torrentService.UpdateAsync(torrent);
@@ -1248,15 +1326,56 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 .Select(t => t.Trim())
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+            var allDbTags = this.tagRepository?.All().ToDictionary(t => t.Label, t => t.Id, StringComparer.OrdinalIgnoreCase);
+            var idToLabel = allDbTags != null ? allDbTags.ToDictionary(kvp => kvp.Value, kvp => kvp.Key) : null;
+
+            if (this.tagRepository != null)
+            {
+                foreach (var tag in tagsToDelete)
+                {
+                    if (allDbTags != null && allDbTags.TryGetValue(tag, out var tagId))
+                    {
+                        this.tagRepository.Delete(tagId);
+                    }
+                }
+            }
+
             var all = this.torrentService.GetAll();
             foreach (var torrent in all)
             {
-                if (!string.IsNullOrEmpty(torrent.Label))
+                if (!string.IsNullOrEmpty(torrent.Label) || (torrent.TagIds != null && torrent.TagIds.Count > 0))
                 {
-                    var remaining = torrent.Label.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    var currentTags = (torrent.Label ?? string.Empty)
+                        .Split(',', StringSplitOptions.RemoveEmptyEntries)
                         .Select(t => t.Trim())
-                        .Where(t => !tagsToDelete.Contains(t));
+                        .Where(t => !string.IsNullOrWhiteSpace(t))
+                        .ToList();
+
+                    if (idToLabel != null && torrent.TagIds != null)
+                    {
+                        foreach (var id in torrent.TagIds)
+                        {
+                            if (idToLabel.TryGetValue(id, out var label) && !currentTags.Contains(label, StringComparer.OrdinalIgnoreCase))
+                            {
+                                currentTags.Add(label);
+                            }
+                        }
+                    }
+
+                    var remaining = currentTags
+                        .Where(t => !tagsToDelete.Contains(t))
+                        .ToList();
+
                     torrent.Label = string.Join(", ", remaining);
+                    if (allDbTags != null)
+                    {
+                        torrent.TagIds = remaining
+                            .Where(t => allDbTags.ContainsKey(t) && !tagsToDelete.Contains(t))
+                            .Select(t => allDbTags[t])
+                            .Distinct()
+                            .ToList();
+                    }
+
                     await this.torrentService.UpdateAsync(torrent);
                 }
             }

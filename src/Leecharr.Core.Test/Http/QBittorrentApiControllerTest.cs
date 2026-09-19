@@ -30,6 +30,7 @@ using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.Indexers.Search;
 using NzbDrone.Core.Peers;
+using NzbDrone.Core.Tags;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
 
@@ -640,6 +641,119 @@ public class QBittorrentApiControllerTest
         removeResult.Should().BeOfType<ContentResult>();
         torrent1.Label.Should().Be("oldTag, tag2");
         torrent2.Label.Should().Be("oldTag, tag2");
+    }
+
+    [Test]
+    public async Task AddAndRemoveTags_WithTagRepository_SynchronizesTagIdsAndLabel()
+    {
+        var tagRepo = Substitute.For<ITagRepository>();
+        var tags = new List<Tag>
+        {
+            new() { Id = 1, Label = "oldTag" },
+            new() { Id = 2, Label = "tag1" },
+            new() { Id = 3, Label = "tag2" },
+        };
+        tagRepo.All().Returns(_ => tags);
+
+        var controllerWithTags = new QBittorrentApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.trackerEntryRepository,
+            configFileProvider: this.configFileProvider,
+            safeHttpClientService: this.safeHttpClientService,
+            downloadEngine: this.downloadEngine,
+            diskProvider: this.diskProvider,
+            tagRepository: tagRepo);
+
+        var torrent = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", Label = "oldTag", TagIds = new List<int> { 1 } };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var addResult = await controllerWithTags.AddTags("all", "tag1, tag2");
+        addResult.Should().BeOfType<ContentResult>();
+        torrent.Label.Should().Be("oldTag, tag1, tag2");
+        torrent.TagIds.Should().BeEquivalentTo(new[] { 1, 2, 3 });
+
+        var removeResult = await controllerWithTags.RemoveTags("all", "tag1");
+        removeResult.Should().BeOfType<ContentResult>();
+        torrent.Label.Should().Be("oldTag, tag2");
+        torrent.TagIds.Should().BeEquivalentTo(new[] { 1, 3 });
+    }
+
+    [Test]
+    public async Task DeleteTags_WithTagRepository_RemovesFromTorrentsAndDeletesFromRepo()
+    {
+        var tagRepo = Substitute.For<ITagRepository>();
+        var tags = new List<Tag>
+        {
+            new() { Id = 1, Label = "tag1" },
+            new() { Id = 2, Label = "tag2" },
+        };
+        tagRepo.All().Returns(_ => tags);
+
+        var controllerWithTags = new QBittorrentApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.trackerEntryRepository,
+            configFileProvider: this.configFileProvider,
+            safeHttpClientService: this.safeHttpClientService,
+            downloadEngine: this.downloadEngine,
+            diskProvider: this.diskProvider,
+            tagRepository: tagRepo);
+
+        var torrent = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1", Label = "tag1, tag2", TagIds = new List<int> { 1, 2 } };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var deleteResult = await controllerWithTags.DeleteTags("tag1");
+        deleteResult.Should().BeOfType<ContentResult>();
+        torrent.Label.Should().Be("tag2");
+        torrent.TagIds.Should().BeEquivalentTo(new[] { 2 });
+        tagRepo.Received(1).Delete(1);
+    }
+
+    [Test]
+    public async Task AddTorrents_WithTagsAndTagRepository_SynchronizesTagIdsAndLabel()
+    {
+        var tagRepo = Substitute.For<ITagRepository>();
+        var tags = new List<Tag>
+        {
+            new() { Id = 1, Label = "movie" },
+            new() { Id = 2, Label = "4k" },
+        };
+        tagRepo.All().Returns(_ => tags);
+
+        var controllerWithTags = new QBittorrentApiController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.categoryService,
+            this.configService,
+            this.trackerEntryRepository,
+            configFileProvider: this.configFileProvider,
+            safeHttpClientService: this.safeHttpClientService,
+            downloadEngine: this.downloadEngine,
+            diskProvider: this.diskProvider,
+            tagRepository: tagRepo);
+
+        var addedTorrent = new Torrent { Id = 1, InfoHash = "hash1", Name = "T1" };
+        this.torrentService.AddFromMagnetAsync("magnet:?xt=urn:btih:hash1", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>())
+            .Returns(addedTorrent);
+
+        var result = await controllerWithTags.AddTorrents(new QBitAddTorrentsRequest
+        {
+            Urls = "magnet:?xt=urn:btih:hash1",
+            Tags = "movie, 4k",
+        });
+
+        result.Should().BeOfType<ContentResult>();
+        addedTorrent.Label.Should().Be("movie, 4k");
+        addedTorrent.TagIds.Should().BeEquivalentTo(new[] { 1, 2 });
+        await this.torrentService.Received(1).UpdateAsync(addedTorrent);
     }
 
     [Test]

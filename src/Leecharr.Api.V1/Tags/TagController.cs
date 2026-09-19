@@ -1,10 +1,13 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Leecharr.Http;
 using Leecharr.Http.REST;
 using Microsoft.AspNetCore.Mvc;
+using NzbDrone.Core.Automation;
+using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Notifications;
 using NzbDrone.Core.Tags;
 using NzbDrone.Core.Torrents;
@@ -23,15 +26,21 @@ public class TagController : Controller
     private readonly ITagRepository tagRepository;
     private readonly ITorrentRepository torrentRepository;
     private readonly INotificationRepository notificationRepository;
+    private readonly IIndexerRepository indexerRepository;
+    private readonly IAutomationScriptRepository automationScriptRepository;
 
     public TagController(
         ITagRepository tagRepository,
         ITorrentRepository torrentRepository,
-        INotificationRepository notificationRepository)
+        INotificationRepository notificationRepository,
+        IIndexerRepository indexerRepository = null,
+        IAutomationScriptRepository automationScriptRepository = null)
     {
         this.tagRepository = tagRepository;
         this.torrentRepository = torrentRepository;
         this.notificationRepository = notificationRepository;
+        this.indexerRepository = indexerRepository;
+        this.automationScriptRepository = automationScriptRepository;
     }
 
     [HttpGet]
@@ -145,6 +154,7 @@ public class TagController : Controller
     [HttpDelete("{id:int}")]
     public ActionResult Delete(int id)
     {
+        var tag = this.tagRepository.Get(id);
         this.tagRepository.Delete(id);
 
         if (this.torrentRepository != null)
@@ -154,7 +164,27 @@ public class TagController : Controller
             {
                 foreach (var torrent in torrents)
                 {
+                    var updated = false;
                     if (torrent.TagIds != null && torrent.TagIds.RemoveAll(t => t == id) > 0)
+                    {
+                        updated = true;
+                    }
+
+                    if (tag != null && !string.IsNullOrEmpty(torrent.Label))
+                    {
+                        var remaining = torrent.Label.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                            .Select(t => t.Trim())
+                            .Where(t => !string.Equals(t, tag.Label, StringComparison.OrdinalIgnoreCase))
+                            .ToList();
+                        var newLabel = string.Join(", ", remaining);
+                        if (newLabel != torrent.Label)
+                        {
+                            torrent.Label = newLabel;
+                            updated = true;
+                        }
+                    }
+
+                    if (updated)
                     {
                         this.torrentRepository.Update(torrent);
                     }
@@ -172,6 +202,36 @@ public class TagController : Controller
                     if (notification.Tags != null && notification.Tags.RemoveAll(t => t == id) > 0)
                     {
                         this.notificationRepository.Update(notification);
+                    }
+                }
+            }
+        }
+
+        if (this.indexerRepository != null)
+        {
+            var indexers = this.indexerRepository.All();
+            if (indexers != null)
+            {
+                foreach (var indexer in indexers)
+                {
+                    if (indexer.Tags != null && indexer.Tags.RemoveAll(t => t == id) > 0)
+                    {
+                        this.indexerRepository.Update(indexer);
+                    }
+                }
+            }
+        }
+
+        if (this.automationScriptRepository != null)
+        {
+            var scripts = this.automationScriptRepository.All();
+            if (scripts != null)
+            {
+                foreach (var script in scripts)
+                {
+                    if (script.TargetTagIds != null && script.TargetTagIds.RemoveAll(t => t == id) > 0)
+                    {
+                        this.automationScriptRepository.Update(script);
                     }
                 }
             }
