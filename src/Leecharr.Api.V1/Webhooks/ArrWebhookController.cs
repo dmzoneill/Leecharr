@@ -11,6 +11,7 @@ using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NzbDrone.Core.ArrIntegration;
+using NzbDrone.Core.Indexers;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Torrents;
 
@@ -23,18 +24,21 @@ public class ArrWebhookController : Controller
     private readonly ITorrentMediaMetadataRepository mediaMetadataRepository;
     private readonly IArrConnectionRepository arrConnectionRepository;
     private readonly ITorrentService torrentService;
+    private readonly IProwlarrSyncService prowlarrSyncService;
     private readonly Logger logger;
 
     public ArrWebhookController(
         ITorrentRepository torrentRepository,
         ITorrentMediaMetadataRepository mediaMetadataRepository = null,
         IArrConnectionRepository arrConnectionRepository = null,
-        ITorrentService torrentService = null)
+        ITorrentService torrentService = null,
+        IProwlarrSyncService prowlarrSyncService = null)
     {
         this.torrentRepository = torrentRepository;
         this.mediaMetadataRepository = mediaMetadataRepository;
         this.arrConnectionRepository = arrConnectionRepository;
         this.torrentService = torrentService;
+        this.prowlarrSyncService = prowlarrSyncService;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -66,6 +70,12 @@ public class ArrWebhookController : Controller
     public async Task<ActionResult<ArrWebhookResult>> HandleReadarr([FromBody] ArrWebhookPayload payload)
     {
         return await this.ProcessWebhookAsync("Readarr", payload);
+    }
+
+    [HttpPost("prowlarr")]
+    public async Task<ActionResult<ArrWebhookResult>> HandleProwlarr([FromBody] ArrWebhookPayload payload)
+    {
+        return await this.ProcessWebhookAsync("Prowlarr", payload);
     }
 
     [HttpPost("{arrType}")]
@@ -102,6 +112,23 @@ public class ArrWebhookController : Controller
                 EventType = eventType,
                 Message = "Webhook test received successfully.",
                 Updated = false,
+            });
+        }
+
+        if (string.Equals(arrType, "Prowlarr", StringComparison.OrdinalIgnoreCase) || IsProwlarrIndexerEvent(eventType))
+        {
+            var syncedCount = 0;
+            if (this.prowlarrSyncService != null)
+            {
+                syncedCount = await this.prowlarrSyncService.SyncAllAsync();
+            }
+
+            return this.Ok(new ArrWebhookResult
+            {
+                Success = true,
+                EventType = eventType,
+                Updated = true,
+                Message = $"Prowlarr indexer sync triggered successfully ({syncedCount} indexers synced).",
             });
         }
 
@@ -221,6 +248,22 @@ public class ArrWebhookController : Controller
                 ? $"Webhook event '{eventType}' processed for torrent '{torrent.Name}'."
                 : $"Webhook event '{eventType}' processed, but no matching torrent was found.",
         });
+    }
+
+    private static bool IsProwlarrIndexerEvent(string eventType)
+    {
+        if (string.IsNullOrWhiteSpace(eventType))
+        {
+            return false;
+        }
+
+        return string.Equals(eventType, "IndexerSync", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(eventType, "IndexerUpdated", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(eventType, "IndexerDeleted", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(eventType, "IndexerAdded", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(eventType, "Sync", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(eventType, "SyncAll", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(eventType, "IndexerStatusChanged", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string NormalizeCandidateInfoHash(string candidate)
