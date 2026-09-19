@@ -423,7 +423,18 @@ public class FloodApiControllerTest
     }
 
     [Test]
-    public async Task ActivityStream_WritesSSEHeadersAndInitialDiff()
+    public void GetClientConnectionTest_ReturnsIsConnectedTrueAndVersion()
+    {
+        var result = this.controller.GetClientConnectionTest();
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("isConnected").GetBoolean().Should().BeTrue();
+        doc.RootElement.GetProperty("version").GetString().Should().Be("0.9.8");
+    }
+
+    [Test]
+    public async Task ActivityStream_WritesSSEHeadersAndInitialFullUpdate()
     {
         var torrent = new Torrent
         {
@@ -455,9 +466,70 @@ public class FloodApiControllerTest
         using var reader = new StreamReader(responseBodyStream, Encoding.UTF8);
         var output = await reader.ReadToEndAsync();
 
-        output.Should().StartWith("event: TORRENT_LIST_DIFF\ndata: ");
+        output.Should().StartWith("event: TORRENT_LIST_FULL_UPDATE\ndata: ");
         output.Should().Contain("1234123412341234123412341234123412341234");
         output.Should().Contain("Stream Torrent");
+    }
+
+    [Test]
+    public async Task AddFiles_WhenMultipartFileExceedsMaxSize_ReturnsBadRequest()
+    {
+        this.configService.MaxTorrentFileSizeBytes.Returns(100);
+
+        var oversizedBytes = new byte[200];
+        var formFile = new FormFile(
+            new MemoryStream(oversizedBytes),
+            0,
+            oversizedBytes.Length,
+            "torrents",
+            "oversized.torrent")
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = "application/x-bittorrent",
+        };
+
+        var formCollection = new FormCollection(
+            new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
+            {
+                { "destination", "/downloads" },
+                { "start", "true" },
+            },
+            new FormFileCollection { formFile });
+
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.ContentType = "multipart/form-data; boundary=----WebKitFormBoundary";
+        httpContext.Request.Form = formCollection;
+
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var result = await this.controller.AddFiles();
+        result.Should().BeOfType<BadRequestObjectResult>();
+        this.torrentFileParser.DidNotReceive().Parse(Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task AddFiles_WhenBase64PayloadExceedsMaxSize_ReturnsBadRequest()
+    {
+        this.configService.MaxTorrentFileSizeBytes.Returns(100);
+
+        var oversizedBytes = new byte[200];
+        var b64 = Convert.ToBase64String(oversizedBytes);
+        var jsonPayload = JsonSerializer.Serialize(new FloodAddFilesRequest
+        {
+            Files = new List<string> { b64 },
+            Destination = "/downloads",
+            Start = true,
+        });
+
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.ContentType = "application/json";
+        httpContext.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(jsonPayload));
+
+        this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var result = await this.controller.AddFiles();
+        result.Should().BeOfType<BadRequestObjectResult>();
+        this.torrentFileParser.DidNotReceive().Parse(Arg.Any<byte[]>());
     }
 
     [TestCase(TorrentStatus.Downloading, 0.5, "downloading")]
