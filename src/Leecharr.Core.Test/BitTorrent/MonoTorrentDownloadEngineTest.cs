@@ -11,6 +11,7 @@ using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using MonoTorrent;
 using MonoTorrent.BEncoding;
 using MonoTorrent.Client;
 using NSubstitute;
@@ -4311,5 +4312,144 @@ public class MonoTorrentDownloadEngineTest
             "Info",
             "Tracker",
             Arg.Is<string>(msg => msg.Contains("Dispatched announce & scrape request")));
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenDatabaseReportsSeedingButCompletedFilesMissing_DoesNotSynthesizeFastResumeAndTriggersHashCheck()
+    {
+        var fileName = "missing_completed_file.bin";
+        var fileSize = 32768;
+        var torrentBytes = CreateSampleSingleFileTorrentBytes(fileName, fileSize);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 701,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = fileName,
+            Status = TorrentStatus.Seeding,
+            Progress = 1.0,
+            SavePath = this.testDownloadDir,
+            DateCompleted = DateTime.UtcNow,
+        };
+
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(50_000_000_000L);
+        this.diskProvider.FileExists(Arg.Any<string>()).Returns(false);
+        this.diskProvider.FolderExists(Arg.Any<string>()).Returns(false);
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.Should().NotBeNull();
+        var cacheDir = (typeof(MonoTorrentDownloadEngine).GetMethod("GetCacheDirectory", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .Invoke(this.engine, null) as string)!;
+        var fastResumeFile = Path.Combine(cacheDir, "FastResume", $"{torrent.InfoHash}.fastresume");
+        File.Exists(fastResumeFile).Should().BeFalse();
+        task.IsFilesMovedToCompleted.Should().BeFalse();
+        task.Manager.Bitfield.AllTrue.Should().BeFalse();
+        (torrent.Status == TorrentStatus.Checking || task.Manager.State == TorrentState.Hashing).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenDatabaseReportsSeedingAndCompletedFilesExist_SynthesizesFastResume()
+    {
+        var fileName = "existing_completed_file.bin";
+        var fileSize = 32768;
+        var torrentBytes = CreateSampleSingleFileTorrentBytes(fileName, fileSize);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var completedFilePath = Path.Combine(this.testDownloadDir, fileName);
+        Directory.CreateDirectory(this.testDownloadDir);
+        await File.WriteAllBytesAsync(completedFilePath, new byte[fileSize]);
+
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(50_000_000_000L);
+        this.diskProvider.FileExists(completedFilePath).Returns(true);
+        this.diskProvider.GetFileSize(completedFilePath).Returns(fileSize);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 702,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = fileName,
+            Status = TorrentStatus.Seeding,
+            Progress = 1.0,
+            SavePath = this.testDownloadDir,
+            DateCompleted = DateTime.UtcNow,
+        };
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.Should().NotBeNull();
+        task.IsFilesMovedToCompleted.Should().BeTrue();
+        task.Manager.Bitfield.AllTrue.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task AddTorrentAsync_WhenSavedFastResumeHasAllTrueBitfieldButFilesMissing_IgnoresFastResumeAndTriggersHashCheck()
+    {
+        var fileName = "stale_resume_missing_file.bin";
+        var fileSize = 32768;
+        var torrentBytes = CreateSampleSingleFileTorrentBytes(fileName, fileSize);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+        var infoHashHex = parsed.InfoHashes.V1OrV2.ToHex();
+
+        var cacheDir = (typeof(MonoTorrentDownloadEngine).GetMethod("GetCacheDirectory", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .Invoke(this.engine, null) as string)!;
+        var fastResumeDir = Path.Combine(cacheDir, "FastResume");
+        Directory.CreateDirectory(fastResumeDir);
+
+        var pieceCount = parsed.PieceCount;
+        var bitfield = new BitField(pieceCount).SetAll(true);
+        var unhashed = new BitField(pieceCount);
+        var fastResume = new FastResume(parsed.InfoHashes, new ReadOnlyBitField(bitfield), new ReadOnlyBitField(unhashed));
+        await File.WriteAllBytesAsync(Path.Combine(fastResumeDir, $"{infoHashHex}.fastresume"), fastResume.Encode());
+
+        var torrent = new CoreTorrent
+        {
+            Id = 703,
+            InfoHash = infoHashHex,
+            Name = fileName,
+            Status = TorrentStatus.Seeding,
+            Progress = 1.0,
+            SavePath = this.testDownloadDir,
+            DateCompleted = DateTime.UtcNow,
+        };
+
+        this.diskProvider.GetAvailableSpace(Arg.Any<string>()).Returns(50_000_000_000L);
+        this.diskProvider.FileExists(Arg.Any<string>()).Returns(false);
+        this.diskProvider.FolderExists(Arg.Any<string>()).Returns(false);
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+
+        task.Should().NotBeNull();
+        task.IsFilesMovedToCompleted.Should().BeFalse();
+        task.Manager.Bitfield.AllTrue.Should().BeFalse();
+        (torrent.Status == TorrentStatus.Checking || task.Manager.State == TorrentState.Hashing).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task TryLoadSavedFastResumeAsync_WithValidDictionary_PreservesMetadata()
+    {
+        var fileName = "valid_metadata_resume.bin";
+        var fileSize = 16384;
+        var torrentBytes = CreateSampleSingleFileTorrentBytes(fileName, fileSize);
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+        var infoHashHex = parsed.InfoHashes.V1OrV2.ToHex();
+
+        var cacheDir = (typeof(MonoTorrentDownloadEngine).GetMethod("GetCacheDirectory", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .Invoke(this.engine, null) as string)!;
+        var fastResumeDir = Path.Combine(cacheDir, "FastResume");
+        Directory.CreateDirectory(fastResumeDir);
+
+        var pieceCount = parsed.PieceCount;
+        var bitfield = new BitField(pieceCount).SetAll(true);
+        var unhashed = new BitField(pieceCount);
+        var fastResume = new FastResume(parsed.InfoHashes, new ReadOnlyBitField(bitfield), new ReadOnlyBitField(unhashed));
+        await File.WriteAllBytesAsync(Path.Combine(fastResumeDir, $"{infoHashHex}.fastresume"), fastResume.Encode());
+
+        var loaded = await this.engine.TryLoadSavedFastResumeAsync(infoHashHex, cacheDir);
+
+        loaded.Should().NotBeNull();
+        loaded!.Bitfield.AllTrue.Should().BeTrue();
+        loaded.InfoHashes.V1OrV2.ToHex().Should().BeEquivalentTo(infoHashHex);
     }
 }
