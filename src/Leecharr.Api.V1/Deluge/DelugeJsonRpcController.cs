@@ -1774,20 +1774,69 @@ public class DelugeJsonRpcController : ControllerBase
                         hasOtherUpdates = true;
                     }
 
+                    if (opts.TryGetProperty("stop_at_ratio", out var sar) && sar.ValueKind != JsonValueKind.Null)
+                    {
+                        var stopAt = SafeGetBoolean(sar);
+                        if (!stopAt)
+                        {
+                            t.TargetRatio = 0;
+                        }
+                        else if (t.TargetRatio <= 0)
+                        {
+                            t.TargetRatio = 1.0;
+                        }
+
+                        hasOtherUpdates = true;
+                    }
+
                     if (opts.TryGetProperty("sequential_download", out var seq) && seq.ValueKind != JsonValueKind.Null)
                     {
                         t.SequentialDownload = SafeGetBoolean(seq);
                         hasOtherUpdates = true;
+                        var task = this.torrentService?.GetDownloadTask(t.Id);
+                        if (task != null)
+                        {
+                            task.SequentialDownload = t.SequentialDownload;
+                        }
+
                         if (this.downloadEngine != null)
                         {
                             await this.downloadEngine.SetSequentialDownloadAsync(t.Id, t.SequentialDownload);
                         }
                     }
 
-                    if (opts.TryGetProperty("prioritize_first_last_pieces", out var pflp) && pflp.ValueKind != JsonValueKind.Null)
+                    if ((opts.TryGetProperty("prioritize_first_last_pieces", out var pflp) && pflp.ValueKind != JsonValueKind.Null) ||
+                        (opts.TryGetProperty("prioritize_first_last", out pflp) && pflp.ValueKind != JsonValueKind.Null))
                     {
                         t.FirstLastPiecePriority = SafeGetBoolean(pflp);
                         hasOtherUpdates = true;
+                        var task = this.torrentService?.GetDownloadTask(t.Id);
+                        if (task != null)
+                        {
+                            task.FirstLastPiecePriority = t.FirstLastPiecePriority;
+                        }
+
+                        if (task?.Picker != null)
+                        {
+                            var pieceCount = task.Picker.PieceCount;
+                            if (pieceCount > 0)
+                            {
+                                var headCount = Math.Max(1, Math.Min(4, pieceCount / 10));
+                                var tailCount = Math.Max(1, Math.Min(2, pieceCount / 20));
+                                var priority = t.FirstLastPiecePriority ? 3 : 1;
+
+                                for (var i = 0; i < headCount && i < pieceCount; i++)
+                                {
+                                    task.Picker.SetPiecePriority(i, priority);
+                                }
+
+                                for (var i = Math.Max(0, pieceCount - tailCount); i < pieceCount; i++)
+                                {
+                                    task.Picker.SetPiecePriority(i, priority);
+                                }
+                            }
+                        }
+
                         if (this.downloadEngine != null)
                         {
                             await this.downloadEngine.SetFirstLastPiecePriorityAsync(t.Id, t.FirstLastPiecePriority);
@@ -2190,6 +2239,17 @@ public class DelugeJsonRpcController : ControllerBase
 
         var totalRemaining = Math.Max(0L, totalWanted - totalDone);
 
+        var trackerEntries = this.trackerEntryRepository?.GetByTorrentId(t.Id)?.ToList();
+        var trackersList = (trackerEntries != null && trackerEntries.Count > 0)
+            ? trackerEntries.Select(tr => new Dictionary<string, object>
+            {
+                { "url", tr.Url },
+                { "tier", tr.Tier },
+            }).ToList()
+            : (!string.IsNullOrWhiteSpace(t.TrackerUrl)
+                ? new List<Dictionary<string, object>> { new() { { "url", t.TrackerUrl }, { "tier", 0 } } }
+                : new List<Dictionary<string, object>>());
+
         var status = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             { "name", t.Name },
@@ -2213,7 +2273,7 @@ public class DelugeJsonRpcController : ControllerBase
             { "seeds_peers_ratio", t.Leechers > 0 ? (double)t.Seeders / t.Leechers : (t.Seeders > 0 ? -1.0 : 0.0) },
             { "tracker", t.TrackerUrl ?? string.Empty },
             { "tracker_host", this.GetTrackerHost(t) },
-            { "trackers", !string.IsNullOrWhiteSpace(t.TrackerUrl) ? new List<Dictionary<string, object>> { new() { { "url", t.TrackerUrl }, { "tier", 0 } } } : new List<Dictionary<string, object>>() },
+            { "trackers", trackersList },
             { "tracker_status", !string.IsNullOrWhiteSpace(t.ErrorMessage) ? t.ErrorMessage : (!string.IsNullOrWhiteSpace(t.TrackerUrl) ? $"{t.TrackerUrl}: Announce OK" : "Announce OK") },
             { "next_announce", 1800 },
             { "finished_time", t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : (t.Status == TorrentStatus.Seeding || t.Progress >= 1.0 ? new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds() : 0L) },
@@ -2237,7 +2297,7 @@ public class DelugeJsonRpcController : ControllerBase
             { "storage_mode", "sparse" },
             { "move_completed", false },
             { "move_completed_path", savePath },
-            { "prioritize_first_last_pieces", false },
+            { "prioritize_first_last_pieces", t.FirstLastPiecePriority },
             { "sequential_download", t.SequentialDownload },
             { "max_connections", -1 },
             { "max_upload_slots", -1 },

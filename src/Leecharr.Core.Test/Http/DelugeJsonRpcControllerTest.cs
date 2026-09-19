@@ -2827,4 +2827,112 @@ public class DelugeJsonRpcControllerTest
         this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
             (string)d["EncryptionMode"] == expectedMode));
     }
+
+    [Test]
+    public async Task HandleRpc_CoreGetTorrentsStatus_MapsFullTrackerListAndFirstLastPiecePriority()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+        var torrent = new Torrent
+        {
+            Id = 88,
+            Name = "MultiTracker Torrent",
+            InfoHash = "1122334455667788990011223344556677889988",
+            TotalSize = 2097152,
+            Downloaded = 1048576,
+            Uploaded = 524288,
+            Progress = 0.5,
+            FirstLastPiecePriority = true,
+            SequentialDownload = true,
+            Status = TorrentStatus.Downloading,
+            TrackerUrl = "http://tracker1.example.com/announce",
+            DateAdded = System.DateTime.UtcNow.AddHours(-1),
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var trackers = new List<TrackerEntry>
+        {
+            new() { TorrentId = 88, Url = "udp://tracker1.example.com:6969/announce", Tier = 0 },
+            new() { TorrentId = 88, Url = "https://tracker2.example.com/announce", Tier = 1 },
+        };
+        this.trackerEntryRepository.GetByTorrentId(88).Returns(trackers);
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{}, [\"trackers\", \"prioritize_first_last_pieces\", \"sequential_download\"]],\"id\":200}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var json = JsonSerializer.Serialize(((JsonResult)result).Value);
+        using var resultDoc = JsonDocument.Parse(json);
+        var status = resultDoc.RootElement.GetProperty("result").GetProperty(torrent.InfoHash.ToLowerInvariant());
+
+        status.GetProperty("prioritize_first_last_pieces").GetBoolean().Should().BeTrue();
+        status.GetProperty("sequential_download").GetBoolean().Should().BeTrue();
+
+        var trackersElem = status.GetProperty("trackers");
+        trackersElem.GetArrayLength().Should().Be(2);
+        trackersElem[0].GetProperty("url").GetString().Should().Be("udp://tracker1.example.com:6969/announce");
+        trackersElem[0].GetProperty("tier").GetInt32().Should().Be(0);
+        trackersElem[1].GetProperty("url").GetString().Should().Be("https://tracker2.example.com/announce");
+        trackersElem[1].GetProperty("tier").GetInt32().Should().Be(1);
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreSetTorrentOptions_WithPrioritizeFirstLast_UpdatesTorrentAndTaskAndEngine()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+        var torrent = new Torrent
+        {
+            Id = 99,
+            InfoHash = "aabbccddeeff00112233445566778899aabbcc99",
+            SequentialDownload = false,
+            FirstLastPiecePriority = false,
+            TargetRatio = 0,
+        };
+        this.torrentService.GetByInfoHash(torrent.InfoHash).Returns(torrent);
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        this.torrentService.GetDownloadTask(99).Returns(mockTask);
+
+        var optsJson = "{\"sequential_download\": true, \"prioritize_first_last\": true, \"stop_at_ratio\": true, \"stop_ratio\": 2.5}";
+        using var doc = JsonDocument.Parse($"{{\"method\":\"core.set_torrent_options\",\"params\":[[\"{torrent.InfoHash}\"], {optsJson}],\"id\":201}}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        torrent.SequentialDownload.Should().BeTrue();
+        torrent.FirstLastPiecePriority.Should().BeTrue();
+        torrent.TargetRatio.Should().Be(2.5);
+
+        mockTask.SequentialDownload.Should().BeTrue();
+        mockTask.FirstLastPiecePriority.Should().BeTrue();
+
+        await this.torrentService.Received().UpdateAsync(torrent);
+        await this.downloadEngine.Received(1).SetSequentialDownloadAsync(99, true);
+        await this.downloadEngine.Received(1).SetFirstLastPiecePriorityAsync(99, true);
+    }
+
+    [Test]
+    public async Task HandleRpc_CoreSetTorrentOptions_WithStopAtRatioFalse_DisablesTargetRatio()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+        var torrent = new Torrent
+        {
+            Id = 100,
+            InfoHash = "aabbccddeeff00112233445566778899aabbcc00",
+            TargetRatio = 2.0,
+        };
+        this.torrentService.GetByInfoHash(torrent.InfoHash).Returns(torrent);
+
+        var optsJson = "{\"stop_at_ratio\": false}";
+        using var doc = JsonDocument.Parse($"{{\"method\":\"core.set_torrent_options\",\"params\":[[\"{torrent.InfoHash}\"], {optsJson}],\"id\":202}}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        torrent.TargetRatio.Should().Be(0);
+        await this.torrentService.Received().UpdateAsync(torrent);
+    }
 }
