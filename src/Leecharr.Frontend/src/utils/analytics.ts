@@ -14,7 +14,8 @@ export function trackPageView(pagePath: string, pageTitle?: string): void {
   if (typeof window !== "undefined" && typeof window.gtag === "function") {
     window.gtag("event", "page_view", {
       page_path: pagePath,
-      page_title: pageTitle || (typeof document !== "undefined" ? document.title : ""),
+      page_title:
+        pageTitle || (typeof document !== "undefined" ? document.title : ""),
       send_to: GA_MEASUREMENT_ID,
     });
   }
@@ -67,10 +68,7 @@ export function trackTorrentAction(
 /**
  * Helper to track indexer search queries.
  */
-export function trackIndexerSearch(
-  query: string,
-  resultCount?: number,
-): void {
+export function trackIndexerSearch(query: string, resultCount?: number): void {
   trackEvent("indexer_search", {
     search_term: query,
     result_count: resultCount,
@@ -80,10 +78,7 @@ export function trackIndexerSearch(
 /**
  * Helper to track grabbing a release from indexer search results.
  */
-export function trackReleaseGrab(
-  title: string,
-  indexerName?: string,
-): void {
+export function trackReleaseGrab(title: string, indexerName?: string): void {
   trackEvent("release_grab", {
     release_title: title,
     indexer: indexerName || "unknown",
