@@ -44,6 +44,14 @@ public class CommandQueueManager : IManageCommandQueue, IDisposable
             throw new ArgumentNullException(nameof(command));
         }
 
+        var body = command.ToJson();
+        var existing = this.repository.FindExisting(command.Name, body);
+        if (existing != null)
+        {
+            this.logger.Debug("Command {0} is already {1}, returning existing command {2}", command.Name, existing.Status, existing.Id);
+            return existing;
+        }
+
         command.QueuedAt = DateTime.UtcNow;
         command.Trigger = trigger;
 
@@ -52,7 +60,7 @@ public class CommandQueueManager : IManageCommandQueue, IDisposable
         var model = new CommandModel
         {
             Name = command.Name,
-            Body = command.ToJson(),
+            Body = body,
             Status = CommandStatus.Queued,
             QueuedAt = command.QueuedAt,
             Trigger = (int)trigger,
@@ -65,6 +73,13 @@ public class CommandQueueManager : IManageCommandQueue, IDisposable
 
     public CommandModel PushRaw(string name, string body, CommandTrigger trigger = CommandTrigger.Manual)
     {
+        var existing = this.repository.FindExisting(name, body);
+        if (existing != null)
+        {
+            this.logger.Debug("Command {0} is already {1}, returning existing command {2}", name, existing.Status, existing.Id);
+            return existing;
+        }
+
         this.logger.Trace("Publishing raw command {0}", name);
 
         var model = new CommandModel

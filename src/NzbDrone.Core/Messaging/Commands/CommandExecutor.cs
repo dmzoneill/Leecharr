@@ -43,11 +43,13 @@ public class CommandExecutor : ICommandExecutor
 
         this.logger.Trace("Executing {0}", command.Name);
 
+        object handler = null;
+
         try
         {
             command.Status = CommandStatus.Running;
             command.StartedAt = DateTime.UtcNow;
-            this.repository.Update(command);
+            this.SafeUpdate(command);
 
             var commandType = FindCommandType(command.Name);
             if (commandType == null)
@@ -62,9 +64,8 @@ public class CommandExecutor : ICommandExecutor
             var asyncHandlerType = typeof(IExecuteAsync<>).MakeGenericType(commandType);
             var syncHandlerType = typeof(IExecute<>).MakeGenericType(commandType);
 
-            object handler = null;
             MethodInfo executeMethod = null;
-            bool isAsync = false;
+            var isAsync = false;
 
             try
             {
@@ -110,7 +111,7 @@ public class CommandExecutor : ICommandExecutor
             if (isAsync)
             {
                 var parameters = executeMethod.GetParameters();
-                object[] args = parameters.Length switch
+                var args = parameters.Length switch
                 {
                     1 => new object[] { typedCommand },
                     2 => new object[] { typedCommand, cancellationToken },
@@ -137,7 +138,7 @@ public class CommandExecutor : ICommandExecutor
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            command.Status = CommandStatus.Failed;
+            command.Status = CommandStatus.Cancelled;
             command.Message = "Command execution cancelled.";
             this.logger.Warn("Command {0} was cancelled", command.Name);
         }
@@ -150,8 +151,31 @@ public class CommandExecutor : ICommandExecutor
         }
         finally
         {
+            if (handler is IAsyncDisposable asyncDisposable)
+            {
+                try
+                {
+                    await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Error disposing async command handler for {0}", command.Name);
+                }
+            }
+            else if (handler is IDisposable disposable)
+            {
+                try
+                {
+                    disposable.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Error disposing command handler for {0}", command.Name);
+                }
+            }
+
             command.EndedAt = DateTime.UtcNow;
-            this.repository.Update(command);
+            this.SafeUpdate(command);
         }
     }
 
@@ -186,5 +210,30 @@ public class CommandExecutor : ICommandExecutor
         }
 
         return (Command)JsonSerializer.Deserialize(body, commandType, STJson.GetSerializerSettings());
+    }
+
+    private void SafeUpdate(CommandModel command)
+    {
+        const int maxRetries = 3;
+        for (var attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                this.repository.Update(command);
+                return;
+            }
+            catch (Exception ex)
+            {
+                if (attempt == maxRetries)
+                {
+                    this.logger.Error(ex, "Failed to update command {0} (ID: {1}) status to {2} after {3} attempts", command.Name, command.Id, command.Status, maxRetries);
+                }
+                else
+                {
+                    this.logger.Warn(ex, "Transient error updating command {0} (ID: {1}) status, retrying (attempt {2}/{3})", command.Name, command.Id, attempt, maxRetries);
+                    Thread.Sleep(50 * attempt);
+                }
+            }
+        }
     }
 }
