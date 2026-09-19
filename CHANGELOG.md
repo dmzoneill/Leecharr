@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.15.6](https://github.com/dmzoneill/Leecharr/releases/tag/v1.15.6) - 2026-09-19
+
+### ✨ Features
+- feat(analytics): integrate Google Analytics (GA4) G-86X994W6SL
+
+### 🔧 Maintenance & Improvements
+- style: format index.html and analytics.ts with prettier
+
 ## [v1.15.5](https://github.com/dmzoneill/Leecharr/releases/tag/v1.15.5) - 2026-09-19
 
 ### ✨ Features
