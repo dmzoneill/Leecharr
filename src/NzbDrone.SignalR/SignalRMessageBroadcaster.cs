@@ -18,18 +18,25 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
     private readonly CancellationTokenSource cancellationTokenSource;
     private readonly Task telemetryProcessingTask;
     private readonly Task guaranteedProcessingTask;
+    private readonly TimeSpan sendTimeout;
     private bool disposed;
 
     public SignalRMessageBroadcaster(IHubContext<MessageHub> hubContext)
-        : this(hubContext, 1000)
+        : this(hubContext, 1000, TimeSpan.FromSeconds(3))
     {
     }
 
     public SignalRMessageBroadcaster(IHubContext<MessageHub> hubContext, int telemetryCapacity)
+        : this(hubContext, telemetryCapacity, TimeSpan.FromSeconds(3))
+    {
+    }
+
+    public SignalRMessageBroadcaster(IHubContext<MessageHub> hubContext, int telemetryCapacity, TimeSpan sendTimeout)
     {
         this.hubContext = hubContext;
         this.logger = LogManager.GetCurrentClassLogger();
         this.cancellationTokenSource = new CancellationTokenSource();
+        this.sendTimeout = sendTimeout > TimeSpan.Zero ? sendTimeout : TimeSpan.FromSeconds(3);
 
         var telemetryOptions = new BoundedChannelOptions(telemetryCapacity)
         {
@@ -74,7 +81,27 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
         }
         else
         {
-            this.guaranteedChannel.Writer.TryWrite(message);
+            if (!this.guaranteedChannel.Writer.TryWrite(message))
+            {
+                this.logger.Warn("Guaranteed SignalR channel is full (50000 capacity). Queueing message '{0}' asynchronously.", message.Name);
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await this.guaranteedChannel.Writer.WriteAsync(message, this.cancellationTokenSource.Token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                    }
+                    catch (ChannelClosedException)
+                    {
+                    }
+                    catch (Exception ex)
+                    {
+                        this.logger.Error(ex, "Failed to write guaranteed SignalR message '{0}'", message.Name);
+                    }
+                });
+            }
         }
     }
 
@@ -111,8 +138,7 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
             return false;
         }
 
-        return message.Name.Equals("speedPulse", StringComparison.OrdinalIgnoreCase) ||
-               message.Name.Equals("pieceMapUpdated", StringComparison.OrdinalIgnoreCase);
+        return message.Name.Equals("speedPulse", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task ProcessChannelAsync(Channel<SignalRMessage> channel, string channelName)
@@ -130,7 +156,17 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
                     {
                         if (this.hubContext != null)
                         {
-                            await this.hubContext.Clients.All.SendAsync("receiveMessage", message, token).ConfigureAwait(false);
+                            using var sendCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                            sendCts.CancelAfter(this.sendTimeout);
+
+                            try
+                            {
+                                await this.hubContext.Clients.All.SendAsync("receiveMessage", message, sendCts.Token).ConfigureAwait(false);
+                            }
+                            catch (OperationCanceledException) when (sendCts.IsCancellationRequested && !token.IsCancellationRequested)
+                            {
+                                this.logger.Warn("SignalR broadcast timed out after {0}s for message '{1}' on {2} channel", this.sendTimeout.TotalSeconds, message.Name, channelName);
+                            }
                         }
                     }
                     catch (OperationCanceledException)
