@@ -2374,15 +2374,54 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             return;
         }
 
+        var oldSavePath = task.Manager.SavePath;
+        var existingPriorities = task.Manager.Files?.Select(f => (File: f, f.Priority)).ToList();
+
         try
         {
             Directory.CreateDirectory(newSavePath);
             await task.Manager.MoveFilesAsync(newSavePath, moveFiles).ConfigureAwait(false);
+
+            if (existingPriorities != null)
+            {
+                foreach (var (file, priority) in existingPriorities)
+                {
+                    if (file.Priority != priority)
+                    {
+                        await task.Manager.SetFilePriorityAsync(file, priority).ConfigureAwait(false);
+                    }
+                }
+            }
+
             this.logger.Info("Successfully moved files for torrent {0} to '{1}' (moveFiles={2})", torrentId, newSavePath, moveFiles);
         }
         catch (Exception ex)
         {
             this.logger.Error(ex, "Failed to move files for torrent {0} to '{1}'", torrentId, newSavePath);
+            if (moveFiles && !string.IsNullOrWhiteSpace(oldSavePath) && !string.Equals(oldSavePath, newSavePath, StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    this.logger.Info("Attempting to rollback moved files for torrent {0} back to '{1}'", torrentId, oldSavePath);
+                    await task.Manager.MoveFilesAsync(oldSavePath, true).ConfigureAwait(false);
+
+                    if (existingPriorities != null)
+                    {
+                        foreach (var (file, priority) in existingPriorities)
+                        {
+                            if (file.Priority != priority)
+                            {
+                                await task.Manager.SetFilePriorityAsync(file, priority).ConfigureAwait(false);
+                            }
+                        }
+                    }
+                }
+                catch (Exception rollbackEx)
+                {
+                    this.logger.Error(rollbackEx, "Failed to rollback files for torrent {0} to '{1}'", torrentId, oldSavePath);
+                }
+            }
+
             throw;
         }
     }

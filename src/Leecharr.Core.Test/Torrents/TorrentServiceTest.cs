@@ -763,6 +763,74 @@ public class TorrentServiceTest
     }
 
     [Test]
+    public async Task SetLocationAsync_WhenEngineMoveThrows_RollsBackFilesToOldSavePathAndRethrows()
+    {
+        var torrent = new Torrent
+        {
+            Id = 10,
+            Name = "Rollback Torrent",
+            SavePath = "/downloads/old",
+        };
+
+        this.torrentRepository.Get(10).Returns(torrent);
+        this.downloadEngine.MoveTorrentFilesAsync(10, "/downloads/new", true)
+            .Returns(Task.FromException(new IOException("Disk full")));
+
+        var act = async () => await this.service.SetLocationAsync(10, "/downloads/new", moveFiles: true);
+        await act.Should().ThrowAsync<IOException>().WithMessage("Disk full");
+
+        await this.downloadEngine.Received(1).MoveTorrentFilesAsync(10, "/downloads/old", moveFiles: true);
+        this.torrentRepository.DidNotReceive().Update(Arg.Any<Torrent>());
+        torrent.SavePath.Should().Be("/downloads/old");
+    }
+
+    [Test]
+    public async Task SetLocationAsync_WhenRepositoryUpdateThrows_RollsBackFilesToOldSavePathAndRethrows()
+    {
+        var torrent = new Torrent
+        {
+            Id = 11,
+            Name = "Db Fail Torrent",
+            SavePath = "/downloads/old",
+        };
+
+        this.torrentRepository.Get(11).Returns(torrent);
+        this.torrentRepository.When(r => r.Update(Arg.Any<Torrent>()))
+            .Do(_ => throw new InvalidOperationException("DB locked"));
+
+        var act = async () => await this.service.SetLocationAsync(11, "/downloads/new", moveFiles: true);
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("DB locked");
+
+        await this.downloadEngine.Received(1).MoveTorrentFilesAsync(11, "/downloads/new", moveFiles: true);
+        await this.downloadEngine.Received(1).MoveTorrentFilesAsync(11, "/downloads/old", moveFiles: true);
+        torrent.SavePath.Should().Be("/downloads/old");
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentUpdatedEvent>());
+    }
+
+    [Test]
+    public async Task SetLocationAsync_WhenEngineMoveAndRollbackBothThrow_ThrowsOriginalException()
+    {
+        var torrent = new Torrent
+        {
+            Id = 12,
+            Name = "Double Fail Torrent",
+            SavePath = "/downloads/old",
+        };
+
+        this.torrentRepository.Get(12).Returns(torrent);
+        this.downloadEngine.MoveTorrentFilesAsync(12, "/downloads/new", true)
+            .Returns(Task.FromException(new IOException("Original error")));
+        this.downloadEngine.MoveTorrentFilesAsync(12, "/downloads/old", true)
+            .Returns(Task.FromException(new IOException("Rollback error")));
+
+        var act = async () => await this.service.SetLocationAsync(12, "/downloads/new", moveFiles: true);
+        var ex = await act.Should().ThrowAsync<IOException>();
+        ex.WithMessage("Original error");
+
+        torrent.SavePath.Should().Be("/downloads/old");
+    }
+
+    [Test]
     public async Task AddFromParsedTorrentAsync_WhenAppFolderInfoProvided_SavesTorrentToAppDataFolder()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "leecharr_test_" + Guid.NewGuid().ToString("N"));
