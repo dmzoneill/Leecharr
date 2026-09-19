@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System.Collections.Generic;
+using NzbDrone.Core.Authentication;
 
 namespace NzbDrone.Core.Configuration;
 
@@ -25,6 +26,8 @@ public interface IConfigFileProvider
     string ApiKey { get; }
 
     bool AuthenticationEnabled { get; }
+
+    AuthenticationRequiredType AuthenticationRequired { get; }
 
     bool TerminalAccessEnabled { get; }
 

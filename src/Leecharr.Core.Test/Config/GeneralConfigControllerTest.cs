@@ -1,11 +1,14 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Config;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Security;
 
@@ -73,5 +76,35 @@ public class GeneralConfigControllerTest
 
         resource.Should().NotBeNull();
         resource.ApiKey.Should().Be("************cdef");
+    }
+
+    [Test]
+    public void GetConfig_ReturnsAuthenticationRequiredFromConfigFileProvider()
+    {
+        this.configFileProvider.AuthenticationRequired.Returns(AuthenticationRequiredType.DisabledForLocalAddresses);
+
+        var resource = this.controller.GetConfig();
+
+        resource.Should().NotBeNull();
+        resource.AuthenticationRequired.Should().Be(AuthenticationRequiredType.DisabledForLocalAddresses);
+    }
+
+    [Test]
+    public async Task SaveConfig_SavesAuthenticationRequiredToConfigFileProvider()
+    {
+        Dictionary<string, object> savedDict = null!;
+        this.configFileProvider.When(x => x.SaveConfigDictionary(Arg.Any<Dictionary<string, object>>()))
+            .Do(call => savedDict = call.Arg<Dictionary<string, object>>());
+
+        var resource = new GeneralConfigResource
+        {
+            Port = 7889,
+            AuthenticationRequired = AuthenticationRequiredType.DisabledForLocalhost,
+        };
+
+        var actionResult = await this.controller.SaveConfig(resource);
+
+        savedDict.Should().NotBeNull();
+        savedDict["AuthenticationRequired"].Should().Be(AuthenticationRequiredType.DisabledForLocalhost);
     }
 }

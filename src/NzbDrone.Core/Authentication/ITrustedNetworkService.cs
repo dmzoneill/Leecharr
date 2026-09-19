@@ -9,4 +9,6 @@ public interface ITrustedNetworkService
     bool IsLocalOrPrivateNetwork(IPAddress remoteIp);
 
     bool IsTrustedProxy(IPAddress remoteIp, string configuredCidrs);
+
+    bool IsAuthenticationBypassed(AuthenticationRequiredType requiredType, IPAddress remoteIp);
 }

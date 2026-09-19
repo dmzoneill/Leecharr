@@ -66,6 +66,7 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
             ["BindAddress"] = resource.BindAddress,
             ["UrlBase"] = resource.UrlBase,
             ["AuthenticationEnabled"] = resource.AuthenticationEnabled,
+            ["AuthenticationRequired"] = resource.AuthenticationRequired,
             ["ApiKey"] = resource.ApiKey,
             ["EnableSsl"] = resource.EnableSsl,
             ["SslPort"] = resource.SslPort,
