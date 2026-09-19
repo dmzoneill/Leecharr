@@ -1,10 +1,10 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Leecharr.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using NzbDrone.Core.BitTorrent;
@@ -14,6 +14,7 @@ namespace Leecharr.Api.V1.BitTorrent;
 
 [V1ApiController("torrentengine")]
 [Route("api/v1/config/engine")]
+[Authorize(Policy = "RequireOperator")]
 public class TorrentEngineController : Controller
 {
     private readonly ITorrentEngineManager engineManager;

@@ -1,5 +1,4 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
-
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -7,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Leecharr.Http;
 using Leecharr.Http.REST;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Bandwidth;
 using NzbDrone.SignalR;
@@ -14,6 +14,7 @@ using NzbDrone.SignalR;
 namespace Leecharr.Api.V1.Seeding;
 
 [V1ApiController("speedschedule")]
+[Authorize(Policy = "RequireOperator")]
 public class SpeedScheduleController : RestControllerWithSignalR<SpeedScheduleResource, SpeedSchedule>
 {
     private readonly ISpeedScheduleRepository speedScheduleRepository;
