@@ -213,4 +213,52 @@ public class TorrentRepositoryTest
         all.Should().HaveCount(10);
         all.Select(t => t.QueuePosition).Should().Equal(Enumerable.Range(1, 10));
     }
+
+    [Test]
+    public void GetByInfoHash_WhenQueriedByV2InfoHash_ReturnsMatchingHybridTorrent()
+    {
+        var torrent = new Torrent
+        {
+            Name = "Hybrid Torrent",
+            InfoHash = "1111111111111111111111111111111111111111",
+            V2InfoHash = "2222222222222222222222222222222222222222222222222222222222222222",
+            Category = "movies",
+            TotalSize = 1000,
+            DateAdded = DateTime.UtcNow,
+        };
+        this.repository.Insert(torrent);
+
+        var byV1 = this.repository.GetByInfoHash("1111111111111111111111111111111111111111");
+        byV1.Should().NotBeNull();
+        byV1.Name.Should().Be("Hybrid Torrent");
+        byV1.V2InfoHash.Should().Be("2222222222222222222222222222222222222222222222222222222222222222");
+
+        var byV2 = this.repository.GetByInfoHash("2222222222222222222222222222222222222222222222222222222222222222");
+        byV2.Should().NotBeNull();
+        byV2.Name.Should().Be("Hybrid Torrent");
+
+        var byV2Upper = this.repository.GetByInfoHash("2222222222222222222222222222222222222222222222222222222222222222".ToUpperInvariant());
+        byV2Upper.Should().NotBeNull();
+        byV2Upper.Name.Should().Be("Hybrid Torrent");
+    }
+
+    [Test]
+    public void ExistsByInfoHash_WhenQueriedByV2InfoHash_ReturnsTrue()
+    {
+        var torrent = new Torrent
+        {
+            Name = "Hybrid Torrent 2",
+            InfoHash = "3333333333333333333333333333333333333333",
+            V2InfoHash = "4444444444444444444444444444444444444444444444444444444444444444",
+            Category = "tv",
+            TotalSize = 500,
+            DateAdded = DateTime.UtcNow,
+        };
+        this.repository.Insert(torrent);
+
+        this.repository.ExistsByInfoHash("3333333333333333333333333333333333333333").Should().BeTrue();
+        this.repository.ExistsByInfoHash("4444444444444444444444444444444444444444444444444444444444444444").Should().BeTrue();
+        this.repository.ExistsByInfoHash("4444444444444444444444444444444444444444444444444444444444444444".ToUpperInvariant()).Should().BeTrue();
+        this.repository.ExistsByInfoHash("5555555555555555555555555555555555555555").Should().BeFalse();
+    }
 }

@@ -173,7 +173,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             throw new ArgumentNullException(nameof(parsed));
         }
 
-        var existing = this.GetByInfoHash(parsed.InfoHash);
+        var existing = this.GetByInfoHash(parsed.InfoHash) ?? (!string.IsNullOrWhiteSpace(parsed.V2InfoHash) ? this.GetByInfoHash(parsed.V2InfoHash) : null);
         if (existing != null)
         {
             this.logger.Warn("Torrent with infohash {0} already exists", parsed.InfoHash);
@@ -197,6 +197,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         {
             Name = parsed.Name,
             InfoHash = parsed.InfoHash.ToLowerInvariant(),
+            V2InfoHash = parsed.V2InfoHash?.ToLowerInvariant(),
             TotalSize = parsed.TotalSize,
             PieceCount = parsed.PieceCount,
             PieceLength = parsed.PieceLength,
@@ -401,7 +402,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         bool startPaused = false)
     {
         var parsedMagnet = MagnetLinkParser.Parse(magnetUri);
-        var existing = this.GetByInfoHash(parsedMagnet?.InfoHash);
+        var existing = this.GetByInfoHash(parsedMagnet?.InfoHash) ?? (!string.IsNullOrWhiteSpace(parsedMagnet?.V2InfoHash) ? this.GetByInfoHash(parsedMagnet.V2InfoHash) : null);
         if (existing != null)
         {
             this.logger.Warn("Torrent with infohash {0} already exists", parsedMagnet.InfoHash);
@@ -425,6 +426,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         {
             Name = !string.IsNullOrWhiteSpace(parsedMagnet.DisplayName) ? parsedMagnet.DisplayName : parsedMagnet.InfoHash,
             InfoHash = parsedMagnet.InfoHash.ToLowerInvariant(),
+            V2InfoHash = parsedMagnet.V2InfoHash?.ToLowerInvariant(),
             TotalSize = 0,
             PieceCount = 0,
             PieceLength = 0,
