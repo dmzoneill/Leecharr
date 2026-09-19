@@ -28,11 +28,15 @@ public interface IDownloadEngine
 
     Task PauseAllAsync() => this.PauseAllTorrentsAsync();
 
+    Task PauseForSchedulerAsync() => this.PauseAllTorrentsAsync();
+
     Task ResumeTorrentAsync(int torrentId);
 
     Task ResumeAllTorrentsAsync() => Task.CompletedTask;
 
     Task ResumeAllAsync() => this.ResumeAllTorrentsAsync();
+
+    Task ResumeFromSchedulerAsync() => this.ResumeAllTorrentsAsync();
 
     Task ForceRecheckAsync(int torrentId);
 
