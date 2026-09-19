@@ -98,7 +98,7 @@ public class BandwidthHierarchyTest
     }
 
     [Test]
-    public void ResolveEffectiveDownloadLimit_Tier3_ScheduleLimitAppliesWhenCategoryIsZero()
+    public void ResolveEffectiveDownloadLimit_WhenCategoryAndTorrentLimitZero_ReturnsZeroUnlimitedEvenWithActiveSchedule()
     {
         var schedules = new List<SpeedSchedule>
         {
@@ -111,32 +111,30 @@ public class BandwidthHierarchyTest
                 MaxDownloadSpeed = 3000,
                 MaxUploadSpeed = 1000,
                 IsEnabled = true,
-                Priority = 10
-            }
+                Priority = 10,
+            },
         };
         _repository.GetEnabled().Returns(schedules);
 
-        // Torrent limit = 0, Category limit = 0, Schedule = 3000, Global = 50000
+        // Torrent limit = 0, Category limit = 0 -> Per-torrent limit is 0 (unlimited per-torrent, aggregate engine throttles)
         var effective = _service.ResolveEffectiveDownloadLimit(torrentLimit: 0, categoryLimit: 0);
 
-        // Tier 3 (Schedule Limit) wins
-        effective.Should().Be(3000);
+        effective.Should().Be(0);
     }
 
     [Test]
-    public void ResolveEffectiveDownloadLimit_Tier4_GlobalLimitFallback()
+    public void ResolveEffectiveDownloadLimit_WhenCategoryAndTorrentLimitZero_ReturnsZeroUnlimitedEvenWithGlobalLimit()
     {
         _repository.GetEnabled().Returns(new List<SpeedSchedule>());
 
-        // Torrent limit = 0, Category limit = 0, No schedule, Global = 50000
+        // Torrent limit = 0, Category limit = 0, No schedule, Global = 50000 -> Per-torrent limit is 0
         var effective = _service.ResolveEffectiveDownloadLimit(torrentLimit: 0, categoryLimit: 0);
 
-        // Tier 4 (Global Limit) fallback
-        effective.Should().Be(50000);
+        effective.Should().Be(0);
     }
 
     [Test]
-    public void ResolveEffectiveUploadLimit_Follows4LevelHierarchy()
+    public void ResolveEffectiveUploadLimit_FollowsHierarchy()
     {
         var schedules = new List<SpeedSchedule>
         {
@@ -149,8 +147,8 @@ public class BandwidthHierarchyTest
                 MaxDownloadSpeed = 10000,
                 MaxUploadSpeed = 1500,
                 IsEnabled = true,
-                Priority = 10
-            }
+                Priority = 10,
+            },
         };
         _repository.GetEnabled().Returns(schedules);
 
@@ -160,12 +158,12 @@ public class BandwidthHierarchyTest
         // 2. Category limit
         _service.ResolveEffectiveUploadLimit(torrentLimit: 0, categoryLimit: 6000).Should().Be(6000);
 
-        // 3. Schedule limit
-        _service.ResolveEffectiveUploadLimit(torrentLimit: 0, categoryLimit: 0).Should().Be(1500);
+        // 3. Active schedule limit does not stamp individual torrent with throttle
+        _service.ResolveEffectiveUploadLimit(torrentLimit: 0, categoryLimit: 0).Should().Be(0);
 
-        // 4. Global limit fallback
+        // 4. Global limit fallback does not stamp individual torrent with throttle
         _repository.GetEnabled().Returns(new List<SpeedSchedule>());
-        _service.ResolveEffectiveUploadLimit(torrentLimit: 0, categoryLimit: 0).Should().Be(20000);
+        _service.ResolveEffectiveUploadLimit(torrentLimit: 0, categoryLimit: 0).Should().Be(0);
     }
 
     [Test]
@@ -190,8 +188,9 @@ public class BandwidthHierarchyTest
         var downloadEffective = _service.ResolveEffectiveDownloadLimit(torrentLimit: 0, categoryLimit: 0);
         var uploadEffective = _service.ResolveEffectiveUploadLimit(torrentLimit: 0, categoryLimit: 0);
 
-        downloadEffective.Should().Be(0); // Schedule download limit (unlimited override)
-        uploadEffective.Should().Be(1500); // Schedule upload limit
+        downloadEffective.Should().Be(0);
+        uploadEffective.Should().Be(0);
+        _service.GetCurrentLimits().MaxUploadSpeedKbps.Should().Be(1500);
     }
 
     [Test]
@@ -216,8 +215,9 @@ public class BandwidthHierarchyTest
         var downloadEffective = _service.ResolveEffectiveDownloadLimit(torrentLimit: 0, categoryLimit: 0);
         var uploadEffective = _service.ResolveEffectiveUploadLimit(torrentLimit: 0, categoryLimit: 0);
 
-        downloadEffective.Should().Be(3000); // Schedule download limit
-        uploadEffective.Should().Be(0); // Schedule upload limit (unlimited override)
+        downloadEffective.Should().Be(0);
+        uploadEffective.Should().Be(0);
+        _service.GetCurrentLimits().MaxDownloadSpeedKbps.Should().Be(3000);
     }
 
     [Test]

@@ -72,7 +72,7 @@ public class SpeedSchedulerServiceTest
     }
 
     [Test]
-    public void ResolveEffectiveDownloadLimit_Follows4LevelHierarchy()
+    public void ResolveEffectiveDownloadLimit_FollowsHierarchy()
     {
         // 1. Torrent override takes precedence
         this.service.ResolveEffectiveDownloadLimit(torrentLimit: 8000, categoryLimit: 15000)
@@ -82,10 +82,10 @@ public class SpeedSchedulerServiceTest
         this.service.ResolveEffectiveDownloadLimit(torrentLimit: 0, categoryLimit: 15000)
             .Should().Be(15000);
 
-        // 3. Global limit fallback
+        // 3. Unlimited (0) per-torrent fallback when neither is set
         this.repository.GetEnabled().Returns(new List<SpeedSchedule>());
         this.service.ResolveEffectiveDownloadLimit(torrentLimit: 0, categoryLimit: 0)
-            .Should().Be(50000);
+            .Should().Be(0);
     }
 
     [Test]
@@ -151,7 +151,7 @@ public class SpeedSchedulerServiceTest
         limits.HasActiveSchedule.Should().BeTrue();
 
         this.service.ResolveEffectiveDownloadLimit(0, 0, new DateTime(2026, 8, 31, 12, 0, 0))
-            .Should().Be(2000);
+            .Should().Be(0);
         this.service.ResolveEffectiveUploadLimit(0, 0, new DateTime(2026, 8, 31, 12, 0, 0))
             .Should().Be(0);
     }
@@ -186,7 +186,7 @@ public class SpeedSchedulerServiceTest
         this.service.ResolveEffectiveDownloadLimit(0, 0, new DateTime(2026, 8, 31, 12, 0, 0))
             .Should().Be(0);
         this.service.ResolveEffectiveUploadLimit(0, 0, new DateTime(2026, 8, 31, 12, 0, 0))
-            .Should().Be(300);
+            .Should().Be(0);
     }
 
     [Test]
