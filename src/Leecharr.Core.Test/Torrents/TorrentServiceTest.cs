@@ -2302,4 +2302,119 @@ public class TorrentServiceTest
         results.Should().HaveCount(1);
         this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentStalledEvent>());
     }
+
+    [Test]
+    public async Task AddFromParsedTorrentAsync_WithSequentialAndFirstLastOptions_PropagatesToModelAndEngine()
+    {
+        var parsed = new ParsedTorrent
+        {
+            Name = "Options ISO",
+            InfoHash = "abc123def456",
+            TotalSize = 1000,
+            PieceCount = 10,
+            PieceLength = 100,
+        };
+
+        var result = await this.service.AddFromParsedTorrentAsync(
+            parsed,
+            category: "movies",
+            savePath: "/downloads",
+            startPaused: false,
+            rawBytes: null,
+            sequentialDownload: true,
+            firstLastPiecePriority: true);
+
+        result.Should().NotBeNull();
+        result.SequentialDownload.Should().BeTrue();
+        result.FirstLastPiecePriority.Should().BeTrue();
+
+        await this.downloadEngine.Received(1).SetSequentialDownloadAsync(result.Id, true);
+        await this.downloadEngine.Received(1).SetFirstLastPiecePriorityAsync(result.Id, true);
+    }
+
+    [Test]
+    public async Task AddFromMagnetAsync_WithSequentialAndFirstLastOptions_PropagatesToModelAndEngine()
+    {
+        var magnetUri = "magnet:?xt=urn:btih:fedcba9876543210fedcba9876543210fedcba98&dn=MagnetOptions";
+
+        var result = await this.service.AddFromMagnetAsync(
+            magnetUri,
+            category: "tv",
+            savePath: "/downloads",
+            startPaused: false,
+            sequentialDownload: true,
+            firstLastPiecePriority: true);
+
+        result.Should().NotBeNull();
+        result.SequentialDownload.Should().BeTrue();
+        result.FirstLastPiecePriority.Should().BeTrue();
+
+        await this.downloadEngine.Received(1).SetSequentialDownloadAsync(result.Id, true);
+        await this.downloadEngine.Received(1).SetFirstLastPiecePriorityAsync(result.Id, true);
+    }
+
+    [Test]
+    public async Task UpdateAsync_WhenSequentialOrFirstLastChanged_PropagatesToEngine()
+    {
+        var existing = new Torrent
+        {
+            Id = 555,
+            Name = "Update Options",
+            SequentialDownload = false,
+            FirstLastPiecePriority = false,
+        };
+        this.torrentRepository.Get(555).Returns(existing);
+        this.torrentRepository.Update(Arg.Any<Torrent>()).Returns(callInfo => callInfo.Arg<Torrent>());
+
+        var updatedTorrent = new Torrent
+        {
+            Id = 555,
+            Name = "Update Options",
+            SequentialDownload = true,
+            FirstLastPiecePriority = true,
+        };
+
+        var result = await this.service.UpdateAsync(updatedTorrent);
+
+        result.SequentialDownload.Should().BeTrue();
+        result.FirstLastPiecePriority.Should().BeTrue();
+        await this.downloadEngine.Received(1).SetSequentialDownloadAsync(555, true);
+        await this.downloadEngine.Received(1).SetFirstLastPiecePriorityAsync(555, true);
+    }
+
+    [Test]
+    public async Task SetSequentialDownloadAsync_UpdatesRepositoryAndEngine()
+    {
+        var torrent = new Torrent
+        {
+            Id = 601,
+            Name = "Seq Test",
+            SequentialDownload = false,
+        };
+        this.torrentRepository.Get(601).Returns(torrent);
+
+        await this.service.SetSequentialDownloadAsync(601, true);
+
+        torrent.SequentialDownload.Should().BeTrue();
+        this.torrentRepository.Received(1).Update(torrent);
+        await this.downloadEngine.Received(1).SetSequentialDownloadAsync(601, true);
+    }
+
+    [Test]
+    public async Task SetFirstLastPiecePriorityAsync_UpdatesRepositoryAndEngine()
+    {
+        var torrent = new Torrent
+        {
+            Id = 602,
+            Name = "FirstLast Test",
+            FirstLastPiecePriority = false,
+        };
+        this.torrentRepository.Get(602).Returns(torrent);
+
+        await this.service.SetFirstLastPiecePriorityAsync(602, true);
+
+        torrent.FirstLastPiecePriority.Should().BeTrue();
+        this.torrentRepository.Received(1).Update(torrent);
+        await this.downloadEngine.Received(1).SetFirstLastPiecePriorityAsync(602, true);
+    }
 }

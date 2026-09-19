@@ -138,6 +138,10 @@ public class AddTorrentJsonRequest
     public bool Paused { get; set; }
 
     public bool StartPaused { get; set; }
+
+    public bool? SequentialDownload { get; set; }
+
+    public bool? FirstLastPiecePriority { get; set; }
 }
 
 [V1ApiController("torrents")]
@@ -753,7 +757,9 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
         if (!string.IsNullOrWhiteSpace(magnet))
         {
-            var torrent = await this.torrentService.AddFromMagnetAsync(magnet, request.Category, request.SavePath, isPaused);
+            var torrent = (request.SequentialDownload.HasValue || request.FirstLastPiecePriority.HasValue)
+                ? await this.torrentService.AddFromMagnetAsync(magnet, request.Category, request.SavePath, isPaused, request.SequentialDownload, request.FirstLastPiecePriority)
+                : await this.torrentService.AddFromMagnetAsync(magnet, request.Category, request.SavePath, isPaused);
             if (torrent == null)
             {
                 return this.BadRequest("Failed to add torrent");
@@ -768,7 +774,9 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024;
             var bytes = await this.safeHttpClientService.DownloadBytesAsync(request.DownloadUrl, maxSizeBytes: maxTorrentBytes);
             var parsed = this.torrentFileParser.Parse(bytes);
-            var torrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePath, isPaused, bytes);
+            var torrent = (request.SequentialDownload.HasValue || request.FirstLastPiecePriority.HasValue)
+                ? await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePath, isPaused, bytes, request.SequentialDownload, request.FirstLastPiecePriority)
+                : await this.torrentService.AddFromParsedTorrentAsync(parsed, request.Category, request.SavePath, isPaused, bytes);
             if (torrent == null)
             {
                 return this.BadRequest("Failed to add torrent");
@@ -790,7 +798,9 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         [FromForm] string savePath = null,
         [FromForm(Name = "paused")] bool paused = false,
         [FromForm(Name = "isPaused")] bool isPaused = false,
-        [FromForm(Name = "startPaused")] bool startPaused = false)
+        [FromForm(Name = "startPaused")] bool startPaused = false,
+        [FromForm(Name = "sequentialDownload")] bool? sequentialDownload = null,
+        [FromForm(Name = "firstLastPiecePriority")] bool? firstLastPiecePriority = null)
     {
         var isPausedFlag = paused || isPaused || startPaused;
 
@@ -807,7 +817,9 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             var bytes = ms.ToArray();
             var parsed = this.torrentFileParser.Parse(bytes);
 
-            var torrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPausedFlag, bytes);
+            var torrent = (sequentialDownload.HasValue || firstLastPiecePriority.HasValue)
+                ? await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPausedFlag, bytes, sequentialDownload, firstLastPiecePriority)
+                : await this.torrentService.AddFromParsedTorrentAsync(parsed, category, savePath, isPausedFlag, bytes);
             if (torrent == null)
             {
                 return this.BadRequest("Failed to add torrent");
@@ -819,7 +831,9 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
         if (!string.IsNullOrWhiteSpace(magnetUrl))
         {
-            var torrent = await this.torrentService.AddFromMagnetAsync(magnetUrl, category, savePath, isPausedFlag);
+            var torrent = (sequentialDownload.HasValue || firstLastPiecePriority.HasValue)
+                ? await this.torrentService.AddFromMagnetAsync(magnetUrl, category, savePath, isPausedFlag, sequentialDownload, firstLastPiecePriority)
+                : await this.torrentService.AddFromMagnetAsync(magnetUrl, category, savePath, isPausedFlag);
             if (torrent == null)
             {
                 return this.BadRequest("Failed to add torrent");
@@ -841,7 +855,9 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         [FromForm(Name = "savePath")] string savePath = null,
         [FromForm(Name = "paused")] bool? paused = null,
         [FromForm(Name = "isPaused")] bool? isPaused = null,
-        [FromForm(Name = "startPaused")] bool? startPaused = null)
+        [FromForm(Name = "startPaused")] bool? startPaused = null,
+        [FromForm(Name = "sequentialDownload")] bool? sequentialDownload = null,
+        [FromForm(Name = "firstLastPiecePriority")] bool? firstLastPiecePriority = null)
     {
         var formFiles = new List<IFormFile>();
         if (files != null && files.Count > 0)
@@ -912,7 +928,21 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                 var bytes = ms.ToArray();
                 var parsed = this.torrentFileParser.Parse(bytes);
 
-                var torrent = await this.torrentService.AddFromParsedTorrentAsync(parsed, category, destination, pausedFlag, bytes);
+                var seqOpt = sequentialDownload;
+                if (!seqOpt.HasValue && this.Request?.HasFormContentType == true && bool.TryParse(this.Request.Form["sequentialDownload"], out var sVal))
+                {
+                    seqOpt = sVal;
+                }
+
+                var flpOpt = firstLastPiecePriority;
+                if (!flpOpt.HasValue && this.Request?.HasFormContentType == true && bool.TryParse(this.Request.Form["firstLastPiecePriority"], out var flpVal))
+                {
+                    flpOpt = flpVal;
+                }
+
+                var torrent = (seqOpt.HasValue || flpOpt.HasValue)
+                    ? await this.torrentService.AddFromParsedTorrentAsync(parsed, category, destination, pausedFlag, bytes, seqOpt, flpOpt)
+                    : await this.torrentService.AddFromParsedTorrentAsync(parsed, category, destination, pausedFlag, bytes);
                 if (torrent == null)
                 {
                     failed.Add(new TorrentUploadFailure(file.FileName, "Failed to add torrent"));
@@ -1061,11 +1091,13 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             existing.DownloadLimit = resource.DownloadLimit.Value;
         }
 
+        var isSequentialChanged = resource.SequentialDownload.HasValue && resource.SequentialDownload.Value != existing.SequentialDownload;
         if (resource.SequentialDownload.HasValue)
         {
             existing.SequentialDownload = resource.SequentialDownload.Value;
         }
 
+        var isFirstLastChanged = resource.FirstLastPiecePriority.HasValue && resource.FirstLastPiecePriority.Value != existing.FirstLastPiecePriority;
         if (resource.FirstLastPiecePriority.HasValue)
         {
             existing.FirstLastPiecePriority = resource.FirstLastPiecePriority.Value;
@@ -1145,6 +1177,16 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         if (isInitialSeedingChanged)
         {
             await this.torrentService.SetSuperSeedingAsync(updated.Id, updated.InitialSeeding);
+        }
+
+        if (this.downloadEngine != null && isSequentialChanged)
+        {
+            await this.downloadEngine.SetSequentialDownloadAsync(updated.Id, updated.SequentialDownload);
+        }
+
+        if (this.downloadEngine != null && isFirstLastChanged)
+        {
+            await this.downloadEngine.SetFirstLastPiecePriorityAsync(updated.Id, updated.FirstLastPiecePriority);
         }
 
         if (this.downloadEngine != null && isPrivateChanged)
