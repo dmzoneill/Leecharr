@@ -197,9 +197,10 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                      (DateTime.UtcNow - (torrent.LastActive ?? torrent.DateAdded)).TotalMinutes >= queueStalledMinutes)) &&
                                     torrent.Status == TorrentStatus.Downloading;
 
-                    var isIgnoredDownload = isSlow || isStalled;
-                    var canRunDownload = (maxDownloads <= 0 || activeDownloads < maxDownloads || isIgnoredDownload) &&
-                                         (maxTotal <= 0 || activeTotal < maxTotal || isIgnoredDownload);
+                    var isIgnoredDownload = isSlow || isStalled || torrent.ForceStart;
+                    var canRunDownload = torrent.ForceStart ||
+                                         ((maxDownloads <= 0 || activeDownloads < maxDownloads || isIgnoredDownload) &&
+                                          (maxTotal <= 0 || activeTotal < maxTotal || isIgnoredDownload));
 
                     if (canRunDownload)
                     {
@@ -242,7 +243,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                     else
                     {
                         // Exceeded download concurrency limit
-                        if (torrent.Status == TorrentStatus.Downloading)
+                        if (torrent.Status == TorrentStatus.Downloading && !torrent.ForceStart)
                         {
                             var inCooldown = state.ActivatedAt.HasValue &&
                                              (DateTime.UtcNow - state.ActivatedAt.Value) < this.minimumActiveCooldown;
@@ -328,9 +329,10 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                        uploadSpeed == 0 &&
                                        (DateTime.UtcNow - (torrent.LastActive ?? torrent.DateCompleted ?? torrent.DateAdded)).TotalMinutes >= idleSeedingLimitMinutes;
 
-                    var isIgnoredUpload = isSlow || isIdleSeeder;
-                    var canRunUpload = (maxUploads <= 0 || activeUploads < maxUploads || isIgnoredUpload) &&
-                                       (maxTotal <= 0 || activeTotal < maxTotal || isIgnoredUpload);
+                    var isIgnoredUpload = isSlow || isIdleSeeder || torrent.ForceStart;
+                    var canRunUpload = torrent.ForceStart ||
+                                       ((maxUploads <= 0 || activeUploads < maxUploads || isIgnoredUpload) &&
+                                        (maxTotal <= 0 || activeTotal < maxTotal || isIgnoredUpload));
 
                     if (canRunUpload)
                     {
@@ -373,7 +375,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                     else
                     {
                         // Exceeded upload concurrency limit
-                        if (torrent.Status == TorrentStatus.Seeding)
+                        if (torrent.Status == TorrentStatus.Seeding && !torrent.ForceStart)
                         {
                             var inCooldown = state.ActivatedAt.HasValue &&
                                              (DateTime.UtcNow - state.ActivatedAt.Value) < this.minimumActiveCooldown;
