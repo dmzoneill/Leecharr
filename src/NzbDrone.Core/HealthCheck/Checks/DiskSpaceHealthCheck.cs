@@ -1,3 +1,5 @@
+// Copyright (c) PlaceholderCompany. All rights reserved.
+
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -18,30 +20,52 @@ public class DiskSpaceHealthCheck : IHealthCheck
     private readonly IDiskSpaceService diskSpaceService;
     private readonly IConfigService configService;
     private readonly IEventAggregator eventAggregator;
+    private readonly TimeSpan queryTimeout;
 
     public DiskSpaceHealthCheck(
         IDiskSpaceService diskSpaceService,
         IConfigService configService = null,
         IEventAggregator eventAggregator = null)
+        : this(diskSpaceService, configService, eventAggregator, TimeSpan.FromSeconds(5))
+    {
+    }
+
+    public DiskSpaceHealthCheck(
+        IDiskSpaceService diskSpaceService,
+        IConfigService configService,
+        IEventAggregator eventAggregator,
+        TimeSpan queryTimeout)
     {
         this.diskSpaceService = diskSpaceService;
         this.configService = configService;
         this.eventAggregator = eventAggregator;
+        this.queryTimeout = queryTimeout > TimeSpan.Zero ? queryTimeout : TimeSpan.FromSeconds(5);
     }
 
-    public Task<HealthCheckResult> CheckAsync(CancellationToken ct = default)
+    public async Task<HealthCheckResult> CheckAsync(CancellationToken ct = default)
     {
         if (this.diskSpaceService == null)
         {
-            return Task.FromResult(HealthCheckResult.Ok("DiskSpace"));
+            return HealthCheckResult.Ok("DiskSpace");
         }
 
         try
         {
-            var disks = this.diskSpaceService.GetDiskSpace();
+            using var timeoutCts = new CancellationTokenSource(this.queryTimeout);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+
+            var disksTask = Task.Run(() => this.diskSpaceService.GetDiskSpace(), linkedCts.Token);
+            var completedTask = await Task.WhenAny(disksTask, Task.Delay(this.queryTimeout, linkedCts.Token)).ConfigureAwait(false);
+
+            if (completedTask != disksTask)
+            {
+                return HealthCheckResult.Error("DiskSpace", $"Disk space check timed out after {this.queryTimeout.TotalSeconds:0.#}s while querying disk space");
+            }
+
+            var disks = await disksTask.ConfigureAwait(false);
             if (disks == null || disks.Count == 0)
             {
-                return Task.FromResult(HealthCheckResult.Ok("DiskSpace"));
+                return HealthCheckResult.Ok("DiskSpace");
             }
 
             var errors = new List<string>();
@@ -70,6 +94,7 @@ public class DiskSpaceHealthCheck : IHealthCheck
                 {
                     errors.Add($"{disk.Path} has only {freeGb:0.00} GB free");
                     this.eventAggregator?.PublishEvent(new DiskSpaceCriticalEvent(disk.Path, disk.FreeSpace));
+                    this.eventAggregator?.PublishEvent(new HealthIssueEvent(torrent: null, "DiskSpace", $"Critically low disk space on {disk.Path}: {freeGb:0.00} GB free", isResolved: false));
                 }
                 else if (disk.FreeSpace < warningThresholdBytes || freePercent < WarningPercentThreshold)
                 {
@@ -80,25 +105,33 @@ public class DiskSpaceHealthCheck : IHealthCheck
 
             if (errors.Count > 0)
             {
-                return Task.FromResult(HealthCheckResult.Error(
+                return HealthCheckResult.Error(
                     "DiskSpace",
-                    $"Critically low disk space: {string.Join("; ", errors)}"));
+                    $"Critically low disk space: {string.Join("; ", errors)}");
             }
 
             if (warnings.Count > 0)
             {
-                return Task.FromResult(HealthCheckResult.Warning(
+                return HealthCheckResult.Warning(
                     "DiskSpace",
-                    $"Low disk space: {string.Join("; ", warnings)}"));
+                    $"Low disk space: {string.Join("; ", warnings)}");
             }
 
-            return Task.FromResult(HealthCheckResult.Ok("DiskSpace"));
+            return HealthCheckResult.Ok("DiskSpace");
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            return HealthCheckResult.Error("DiskSpace", $"Disk space check timed out after {this.queryTimeout.TotalSeconds:0.#}s while querying disk space");
         }
         catch (Exception ex)
         {
-            return Task.FromResult(HealthCheckResult.Error(
+            return HealthCheckResult.Error(
                 "DiskSpace",
-                $"Disk space health check failed: {ex.Message}"));
+                $"Disk space health check failed: {ex.Message}");
         }
     }
 }
