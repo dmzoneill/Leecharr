@@ -6265,4 +6265,30 @@ public class MonoTorrentDownloadEngineTest
         await this.engine.SetTorrentCategoryAsync(826, "updated-cat");
         task.Category.Should().Be("updated-cat");
     }
+
+    [Test]
+    public async Task SetSuperSeedingAsync_WhenToggled_UpdatesSuperSeedingState()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("superseed_toggle.iso");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+        var torrent = new CoreTorrent
+        {
+            Id = 890,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "superseed_toggle.iso",
+            Status = TorrentStatus.Seeding,
+            InitialSeeding = false,
+        };
+
+        await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        var task = this.engine.GetTask(890);
+        task.Should().NotBeNull();
+        task!.IsSuperSeeding.Should().BeFalse();
+
+        await this.engine.SetSuperSeedingAsync(890, true);
+        task.IsSuperSeeding.Should().BeTrue();
+
+        await this.engine.SetSuperSeedingAsync(890, false);
+        task.IsSuperSeeding.Should().BeFalse();
+    }
 }
