@@ -65,6 +65,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     private readonly ConcurrentBag<int> interruptedTorrentIds = new();
     private readonly object pendingTorrentsLock = new();
     private readonly List<(CoreTorrent Torrent, byte[] TorrentFileBytes, string MagnetUri)> pendingTorrents = new();
+    private readonly List<FilteringPeerConnectionListener> activePeerListeners = new();
     private readonly SemaphoreSlim engineStateLock = new(1, 1);
     private readonly object vpnTransitionLock = new();
     private Task vpnTransitionQueue = Task.CompletedTask;
@@ -578,11 +579,28 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             () => Interlocked.Increment(ref this.blockedPeersCount),
             this.configService));
 
-        factories = factories.WithPeerConnectionListenerCreator(endPoint => new FilteringPeerConnectionListener(
-            baseFactories.CreatePeerConnectionListener(endPoint),
-            this.blocklistService,
-            () => Interlocked.Increment(ref this.blockedPeersCount),
-            isHalted: () => this.isHaltedByKillSwitch));
+        lock (this.activePeerListeners)
+        {
+            this.activePeerListeners.Clear();
+        }
+
+        factories = factories.WithPeerConnectionListenerCreator(endPoint =>
+        {
+            var listener = new FilteringPeerConnectionListener(
+                baseFactories.CreatePeerConnectionListener(endPoint),
+                this.blocklistService,
+                () => Interlocked.Increment(ref this.blockedPeersCount),
+                maxHalfOpenConnections: this.configService.MaximumHalfOpenConnections > 0 ? this.configService.MaximumHalfOpenConnections : 50,
+                maxConnectionsPerIp: this.configService.MaxConnectionsPerIp > 0 ? this.configService.MaxConnectionsPerIp : 5,
+                isHalted: () => this.isHaltedByKillSwitch);
+
+            lock (this.activePeerListeners)
+            {
+                this.activePeerListeners.Add(listener);
+            }
+
+            return listener;
+        });
 
         this.engine = new ClientEngine(engineSettings, factories);
         var overrideField = typeof(DiskManager).GetField("GetHashAsyncOverride", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
@@ -756,6 +774,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             await this.engine.StopAllAsync();
             this.engine.Dispose();
             this.engine = null;
+
+            lock (this.activePeerListeners)
+            {
+                this.activePeerListeners.Clear();
+            }
 
             try
             {
@@ -3245,6 +3268,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var totalCacheAccesses = cacheHits + cacheMisses;
         var hitRatio = totalCacheAccesses > 0 ? Math.Round(((double)cacheHits / totalCacheAccesses) * 100.0, 1) : 100.0;
 
+        int halfOpenConns;
+        lock (this.activePeerListeners)
+        {
+            halfOpenConns = this.activePeerListeners.Sum(l => l.HalfOpenConnections);
+        }
+
         return new TorrentEngineMetrics
         {
             EngineId = this.EngineId,
@@ -3265,7 +3294,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             TotalProtocolUploaded = totalProtoUp,
             ProtocolOverheadPercentage = protoOverheadPct,
             OpenConnections = openConns,
-            HalfOpenConnections = 0,
+            HalfOpenConnections = halfOpenConns,
             MaxConnections = this.configService.MaxGlobalConnections > 0 ? this.configService.MaxGlobalConnections : 300,
             ConnectedSeeds = seeds,
             ConnectedLeechers = leechers,
@@ -5944,8 +5973,10 @@ public class FilteringPeerConnectionListener : MonoTorrent.Connections.Peer.IPee
     private readonly IBlocklistService blocklistService;
     private readonly Action onPeerBlocked;
     private readonly int maxHalfOpenConnections;
+    private readonly int maxConnectionsPerIp;
     private readonly TimeSpan handshakeTimeout;
     private readonly Func<bool> isHalted;
+    private readonly ConcurrentDictionary<string, int> connectionsPerIp = new();
     private int halfOpenCount;
 
     public FilteringPeerConnectionListener(
@@ -5953,6 +5984,7 @@ public class FilteringPeerConnectionListener : MonoTorrent.Connections.Peer.IPee
         IBlocklistService blocklistService = null,
         Action onPeerBlocked = null,
         int maxHalfOpenConnections = 50,
+        int maxConnectionsPerIp = 5,
         TimeSpan? handshakeTimeout = null,
         Func<bool> isHalted = null)
     {
@@ -5960,12 +5992,18 @@ public class FilteringPeerConnectionListener : MonoTorrent.Connections.Peer.IPee
         this.blocklistService = blocklistService;
         this.onPeerBlocked = onPeerBlocked;
         this.maxHalfOpenConnections = maxHalfOpenConnections > 0 ? maxHalfOpenConnections : 50;
+        this.maxConnectionsPerIp = maxConnectionsPerIp > 0 ? maxConnectionsPerIp : 5;
         this.handshakeTimeout = handshakeTimeout ?? TimeSpan.FromSeconds(15);
         this.isHalted = isHalted;
         this.inner.ConnectionReceived += this.OnInnerConnectionReceived;
     }
 
     public int HalfOpenConnections => Volatile.Read(ref this.halfOpenCount);
+
+    public int MaxConnectionsPerIp => this.maxConnectionsPerIp;
+
+    public int GetActiveConnections(string ip) =>
+        !string.IsNullOrEmpty(ip) && this.connectionsPerIp.TryGetValue(ip, out var count) ? count : 0;
 
     public IPEndPoint LocalEndPoint => this.inner.LocalEndPoint;
 
@@ -6000,9 +6038,16 @@ public class FilteringPeerConnectionListener : MonoTorrent.Connections.Peer.IPee
             return;
         }
 
+        if (e.Connection == null)
+        {
+            this.ConnectionReceived?.Invoke(this, e);
+            return;
+        }
+
+        string ip = null;
         try
         {
-            var ip = e.Connection?.Uri?.Host ?? e.Connection?.EndPoint?.Address?.ToString();
+            ip = e.Connection.Uri?.Host ?? e.Connection.EndPoint?.Address?.ToString();
             if (!string.IsNullOrEmpty(ip) && this.blocklistService != null && this.blocklistService.IsIpBlocked(ip))
             {
                 this.onPeerBlocked?.Invoke();
@@ -6021,15 +6066,32 @@ public class FilteringPeerConnectionListener : MonoTorrent.Connections.Peer.IPee
         {
         }
 
-        if (e.Connection == null)
+        if (!string.IsNullOrEmpty(ip) && this.maxConnectionsPerIp > 0)
         {
-            this.ConnectionReceived?.Invoke(this, e);
-            return;
+            var ipCount = this.connectionsPerIp.AddOrUpdate(ip, 1, (_, current) => current + 1);
+            if (ipCount > this.maxConnectionsPerIp)
+            {
+                this.DecrementIpConnection(ip);
+                try
+                {
+                    (e.Connection as IDisposable)?.Dispose();
+                }
+                catch
+                {
+                }
+
+                return;
+            }
         }
 
         if (Interlocked.Increment(ref this.halfOpenCount) > this.maxHalfOpenConnections)
         {
             Interlocked.Decrement(ref this.halfOpenCount);
+            if (!string.IsNullOrEmpty(ip))
+            {
+                this.DecrementIpConnection(ip);
+            }
+
             try
             {
                 (e.Connection as IDisposable)?.Dispose();
@@ -6044,7 +6106,14 @@ public class FilteringPeerConnectionListener : MonoTorrent.Connections.Peer.IPee
         var monitored = new HandshakeMonitoredPeerConnection(
             e.Connection,
             this.handshakeTimeout,
-            () => Interlocked.Decrement(ref this.halfOpenCount));
+            () => Interlocked.Decrement(ref this.halfOpenCount),
+            () =>
+            {
+                if (!string.IsNullOrEmpty(ip))
+                {
+                    this.DecrementIpConnection(ip);
+                }
+            });
 
         var args = new MonoTorrent.Connections.Peer.PeerConnectionEventArgs(monitored, e.InfoHash);
 
@@ -6057,23 +6126,45 @@ public class FilteringPeerConnectionListener : MonoTorrent.Connections.Peer.IPee
 
         handler.Invoke(this, args);
     }
+
+    private void DecrementIpConnection(string ip)
+    {
+        if (string.IsNullOrEmpty(ip))
+        {
+            return;
+        }
+
+        this.connectionsPerIp.AddOrUpdate(
+            ip,
+            0,
+            (_, count) => count > 1 ? count - 1 : 0);
+
+        if (this.connectionsPerIp.TryGetValue(ip, out var current) && current <= 0)
+        {
+            ((ICollection<KeyValuePair<string, int>>)this.connectionsPerIp).Remove(new KeyValuePair<string, int>(ip, 0));
+        }
+    }
 }
 
 public sealed class HandshakeMonitoredPeerConnection : MonoTorrent.Connections.Peer.IPeerConnection, IDisposable
 {
     private readonly MonoTorrent.Connections.Peer.IPeerConnection inner;
     private readonly Action onHandshakeCompletedOrClosed;
+    private readonly Action onDisposed;
     private readonly CancellationTokenSource timeoutCts;
     private int completedOrDisposed;
+    private int isDisposed;
     private int totalBytesReceived;
 
     public HandshakeMonitoredPeerConnection(
         MonoTorrent.Connections.Peer.IPeerConnection inner,
         TimeSpan handshakeTimeout,
-        Action onHandshakeCompletedOrClosed)
+        Action onHandshakeCompletedOrClosed,
+        Action onDisposed = null)
     {
         this.inner = inner ?? throw new ArgumentNullException(nameof(inner));
         this.onHandshakeCompletedOrClosed = onHandshakeCompletedOrClosed;
+        this.onDisposed = onDisposed;
         this.timeoutCts = new CancellationTokenSource(handshakeTimeout);
         this.timeoutCts.Token.Register(() =>
         {
@@ -6089,6 +6180,8 @@ public sealed class HandshakeMonitoredPeerConnection : MonoTorrent.Connections.P
 
                 this.onHandshakeCompletedOrClosed?.Invoke();
             }
+
+            this.Dispose();
         });
     }
 
@@ -6108,7 +6201,17 @@ public sealed class HandshakeMonitoredPeerConnection : MonoTorrent.Connections.P
 
     public async ReusableTasks.ReusableTask<int> ReceiveAsync(Memory<byte> buffer)
     {
-        var read = await this.inner.ReceiveAsync(buffer);
+        int read;
+        try
+        {
+            read = await this.inner.ReceiveAsync(buffer);
+        }
+        catch
+        {
+            this.Dispose();
+            throw;
+        }
+
         if (read <= 0)
         {
             this.Dispose();
@@ -6154,12 +6257,23 @@ public sealed class HandshakeMonitoredPeerConnection : MonoTorrent.Connections.P
             this.onHandshakeCompletedOrClosed?.Invoke();
         }
 
-        try
+        if (Interlocked.CompareExchange(ref this.isDisposed, 1, 0) == 0)
         {
-            this.inner.Dispose();
-        }
-        catch
-        {
+            try
+            {
+                this.inner.Dispose();
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                this.onDisposed?.Invoke();
+            }
+            catch
+            {
+            }
         }
     }
 }
