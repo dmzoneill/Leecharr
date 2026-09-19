@@ -70,8 +70,11 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
         try
         {
-            using var stream = File.OpenRead(filePath);
-            var info = this.Inspect(stream, Path.GetFileName(filePath));
+            MediaContainerInfo info;
+            using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+            {
+                info = this.Inspect(stream, Path.GetFileName(filePath));
+            }
 
             if (info == null)
             {
@@ -83,7 +86,8 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             {
                 try
                 {
-                    using var tagFile = TagLib.File.Create(filePath);
+                    using var fileAbstraction = new NonExclusiveFileAbstraction(filePath);
+                    using var tagFile = TagLib.File.Create(fileAbstraction);
                     if (tagFile.Properties != null)
                     {
                         if (tagFile.Properties.VideoWidth > 0 && info.Width == 0)
@@ -3827,5 +3831,40 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         }
 
         return false;
+    }
+
+    private sealed class NonExclusiveFileAbstraction : TagLib.File.IFileAbstraction, IDisposable
+    {
+        private readonly string filePath;
+        private Stream readStream;
+
+        public NonExclusiveFileAbstraction(string filePath)
+        {
+            this.filePath = filePath;
+        }
+
+        public string Name => this.filePath;
+
+        public Stream ReadStream => this.readStream ??= new FileStream(this.filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+
+        public Stream WriteStream => throw new NotSupportedException("TagLib inspection does not perform write operations.");
+
+        public void CloseStream(Stream stream)
+        {
+            if (stream != null)
+            {
+                stream.Dispose();
+                if (ReferenceEquals(this.readStream, stream))
+                {
+                    this.readStream = null;
+                }
+            }
+        }
+
+        public void Dispose()
+        {
+            this.readStream?.Dispose();
+            this.readStream = null;
+        }
     }
 }
