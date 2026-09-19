@@ -1725,4 +1725,116 @@ public class TorrentServiceTest
         result.InitialSeeding.Should().BeFalse();
         this.torrentRepository.Received(1).Update(Arg.Is<Torrent>(t => t.Id == 501 && !t.InitialSeeding));
     }
+
+    [TestCase("/etc")]
+    [TestCase("/var/log")]
+    [TestCase("/root")]
+    [TestCase("C:\\Windows")]
+    public async Task AddFromParsedTorrentAsync_WhenSavePathIsUnauthorizedHostDirectory_FallsBackToDefaultDownloadDir(string unauthorizedPath)
+    {
+        var parsed = new ParsedTorrent
+        {
+            InfoHash = "1111222233334444555566667777888899990000",
+            Name = "HostDirectoryEscapeAttempt",
+            PieceLength = 16384,
+            TotalSize = 16384,
+        };
+
+        this.torrentRepository.GetByInfoHash(parsed.InfoHash).Returns((Torrent)null!);
+
+        Torrent insertedTorrent = null!;
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(callInfo =>
+        {
+            insertedTorrent = callInfo.Arg<Torrent>();
+            insertedTorrent.Id = 201;
+            return insertedTorrent;
+        });
+
+        await this.service.AddFromParsedTorrentAsync(parsed, category: "movies", savePath: unauthorizedPath);
+
+        insertedTorrent.Should().NotBeNull();
+        insertedTorrent.SavePath.Should().Be("/downloads");
+    }
+
+    [TestCase("../../../etc/passwd")]
+    [TestCase("..\\..\\Windows")]
+    public async Task AddFromParsedTorrentAsync_WhenSavePathTraversesOutsideAllowedRoots_FallsBackToDefaultDownloadDir(string traversalPath)
+    {
+        var parsed = new ParsedTorrent
+        {
+            InfoHash = "2222333344445555666677778888999900001111",
+            Name = "TraversalEscapeAttempt",
+            PieceLength = 16384,
+            TotalSize = 16384,
+        };
+
+        this.torrentRepository.GetByInfoHash(parsed.InfoHash).Returns((Torrent)null!);
+
+        Torrent insertedTorrent = null!;
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(callInfo =>
+        {
+            insertedTorrent = callInfo.Arg<Torrent>();
+            insertedTorrent.Id = 202;
+            return insertedTorrent;
+        });
+
+        await this.service.AddFromParsedTorrentAsync(parsed, category: "movies", savePath: traversalPath);
+
+        insertedTorrent.Should().NotBeNull();
+        insertedTorrent.SavePath.Should().Be("/downloads");
+    }
+
+    [Test]
+    public async Task AddFromParsedTorrentAsync_WhenSavePathIsAllowedStrictSubPath_AcceptsSavePath()
+    {
+        var parsed = new ParsedTorrent
+        {
+            InfoHash = "3333444455556666777788889999000011112222",
+            Name = "ValidSubPathTorrent",
+            PieceLength = 16384,
+            TotalSize = 16384,
+        };
+
+        this.torrentRepository.GetByInfoHash(parsed.InfoHash).Returns((Torrent)null!);
+
+        Torrent insertedTorrent = null!;
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(callInfo =>
+        {
+            insertedTorrent = callInfo.Arg<Torrent>();
+            insertedTorrent.Id = 203;
+            return insertedTorrent;
+        });
+
+        await this.service.AddFromParsedTorrentAsync(parsed, category: "movies", savePath: "/downloads/movies/subfolder");
+
+        insertedTorrent.Should().NotBeNull();
+        insertedTorrent.SavePath.Should().Be("/downloads/movies/subfolder");
+    }
+
+    [Test]
+    public async Task AddFromParsedTorrentAsync_WhenSavePathEqualsAllowedRoot_AcceptsSavePath()
+    {
+        var parsed = new ParsedTorrent
+        {
+            InfoHash = "4444555566667777888899990000111122223333",
+            Name = "ValidRootTorrent",
+            PieceLength = 16384,
+            TotalSize = 16384,
+        };
+
+        this.torrentRepository.GetByInfoHash(parsed.InfoHash).Returns((Torrent)null!);
+
+        Torrent insertedTorrent = null!;
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(callInfo =>
+        {
+            insertedTorrent = callInfo.Arg<Torrent>();
+            insertedTorrent.Id = 204;
+            return insertedTorrent;
+        });
+
+        await this.service.AddFromParsedTorrentAsync(parsed, category: "movies", savePath: "/downloads");
+
+        insertedTorrent.Should().NotBeNull();
+        insertedTorrent.SavePath.Should().Be("/downloads");
+    }
 }
