@@ -1199,8 +1199,10 @@ public class TorrentServiceTest
         torrent.Category.Should().Be("tv");
         torrent.DownloadLimit.Should().Be(0); // Preserved as 0 (no override)
         torrent.UploadLimit.Should().Be(0);
-        torrent.TargetRatio.Should().Be(2.0);
-        torrent.TargetSeedTimeMinutes.Should().Be(120);
+        torrent.TargetRatio.Should().Be(0);
+        torrent.TargetSeedTimeMinutes.Should().Be(0);
+        this.service.GetEffectiveTargetRatio(torrent).Should().Be(2.0);
+        this.service.GetEffectiveTargetSeedTimeMinutes(torrent).Should().Be(120);
 
         await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(10, 15000, 4000);
         this.torrentRepository.Received(1).Update(torrent);
@@ -1237,8 +1239,10 @@ public class TorrentServiceTest
         result.Category.Should().Be("movies");
         result.DownloadLimit.Should().Be(0); // Remains 0 for dynamic inheritance
         result.UploadLimit.Should().Be(0);
-        result.TargetRatio.Should().Be(1.5);
-        result.TargetSeedTimeMinutes.Should().Be(60);
+        result.TargetRatio.Should().Be(0);
+        result.TargetSeedTimeMinutes.Should().Be(0);
+        this.service.GetEffectiveTargetRatio(result).Should().Be(1.5);
+        this.service.GetEffectiveTargetSeedTimeMinutes(result).Should().Be(60);
 
         await this.downloadEngine.Received(1).SetTorrentRateLimitsAsync(result.Id, 12000, 6000);
     }
@@ -1281,6 +1285,175 @@ public class TorrentServiceTest
 
         this.service.GetEffectiveDownloadLimit(torrentOverride).Should().Be(7500);
         this.service.GetEffectiveUploadLimit(torrentOverride).Should().Be(2500);
+    }
+
+    [Test]
+    public void GetEffectiveTargetRatio_And_GetEffectiveTargetSeedTimeMinutes_FollowsHierarchy()
+    {
+        var category = new Category
+        {
+            Id = 1,
+            Name = "tv",
+            TargetRatio = 2.5,
+            TargetSeedTimeMinutes = 180,
+        };
+        this.categoryService.GetByName("tv").Returns(category);
+        this.configService.GlobalSeedRatioLimit.Returns(1.2);
+
+        var torrentInherited = new Torrent
+        {
+            Id = 1,
+            Category = "tv",
+            TargetRatio = 0,
+            TargetSeedTimeMinutes = 0,
+        };
+
+        var torrentOverride = new Torrent
+        {
+            Id = 2,
+            Category = "tv",
+            TargetRatio = 3.0,
+            TargetSeedTimeMinutes = 240,
+        };
+
+        var torrentNoCategory = new Torrent
+        {
+            Id = 3,
+            Category = string.Empty,
+            TargetRatio = 0,
+            TargetSeedTimeMinutes = 0,
+        };
+
+        this.service.GetEffectiveTargetRatio(torrentInherited).Should().Be(2.5);
+        this.service.GetEffectiveTargetSeedTimeMinutes(torrentInherited).Should().Be(180);
+
+        this.service.GetEffectiveTargetRatio(torrentOverride).Should().Be(3.0);
+        this.service.GetEffectiveTargetSeedTimeMinutes(torrentOverride).Should().Be(240);
+
+        this.service.GetEffectiveTargetRatio(torrentNoCategory).Should().Be(1.2);
+        this.service.GetEffectiveTargetSeedTimeMinutes(torrentNoCategory).Should().Be(0);
+    }
+
+    [Test]
+    public void CategoryLimits_WhenCategoryUpdated_DynamicallyAffectsExistingTorrents()
+    {
+        var category = new Category
+        {
+            Id = 2,
+            Name = "anime",
+            TargetRatio = 2.0,
+            TargetSeedTimeMinutes = 120,
+        };
+        this.categoryService.GetByName("anime").Returns(category);
+
+        var torrent = new Torrent
+        {
+            Id = 50,
+            Name = "Anime Episode 1",
+            Category = "anime",
+            TargetRatio = 0,
+            TargetSeedTimeMinutes = 0,
+        };
+
+        this.service.GetEffectiveTargetRatio(torrent).Should().Be(2.0);
+        this.service.GetEffectiveTargetSeedTimeMinutes(torrent).Should().Be(120);
+
+        // User updates category target limits
+        category.TargetRatio = 4.0;
+        category.TargetSeedTimeMinutes = 300;
+
+        // Existing torrent without override dynamically reflects new limits
+        this.service.GetEffectiveTargetRatio(torrent).Should().Be(4.0);
+        this.service.GetEffectiveTargetSeedTimeMinutes(torrent).Should().Be(300);
+    }
+
+    [Test]
+    public async Task AddFromMagnetAsync_WhenCategoryHasLimits_LeavesEntityLimitsZeroForDynamicInheritance()
+    {
+        var category = new Category
+        {
+            Id = 3,
+            Name = "music",
+            TargetRatio = 1.8,
+            TargetSeedTimeMinutes = 90,
+        };
+        this.categoryService.GetByName("music").Returns(category);
+
+        var magnet = "magnet:?xt=urn:btih:3344556677889900112233445566778899001122&dn=Album";
+        var result = await this.service.AddFromMagnetAsync(magnet, "music", "/downloads/music", false);
+
+        result.Category.Should().Be("music");
+        result.TargetRatio.Should().Be(0);
+        result.TargetSeedTimeMinutes.Should().Be(0);
+        this.service.GetEffectiveTargetRatio(result).Should().Be(1.8);
+        this.service.GetEffectiveTargetSeedTimeMinutes(result).Should().Be(90);
+    }
+
+    [Test]
+    public async Task SetCategoryAsync_WhenChangingCategory_DynamicallyReflectsNewCategoryLimits()
+    {
+        var cat1 = new Category { Id = 1, Name = "cat1", TargetRatio = 1.5, TargetSeedTimeMinutes = 60 };
+        var cat2 = new Category { Id = 2, Name = "cat2", TargetRatio = 3.0, TargetSeedTimeMinutes = 180 };
+        this.categoryService.GetByName("cat1").Returns(cat1);
+        this.categoryService.GetByName("cat2").Returns(cat2);
+
+        var torrent = new Torrent
+        {
+            Id = 77,
+            Name = "Moving Torrent",
+            Category = "cat1",
+            TargetRatio = 0,
+            TargetSeedTimeMinutes = 0,
+        };
+        this.torrentRepository.Get(77).Returns(torrent);
+
+        this.service.GetEffectiveTargetRatio(torrent).Should().Be(1.5);
+        this.service.GetEffectiveTargetSeedTimeMinutes(torrent).Should().Be(60);
+
+        // Move to cat2
+        await this.service.SetCategoryAsync(77, "cat2");
+
+        torrent.Category.Should().Be("cat2");
+        torrent.TargetRatio.Should().Be(0);
+        torrent.TargetSeedTimeMinutes.Should().Be(0);
+        this.service.GetEffectiveTargetRatio(torrent).Should().Be(3.0);
+        this.service.GetEffectiveTargetSeedTimeMinutes(torrent).Should().Be(180);
+    }
+
+    [Test]
+    public async Task UpdateAsync_WhenCategoryChanges_DoesNotFreezeCategoryLimitsIntoTorrent()
+    {
+        var cat = new Category { Id = 1, Name = "books", TargetRatio = 2.0, TargetSeedTimeMinutes = 100 };
+        this.categoryService.GetByName("books").Returns(cat);
+
+        var existing = new Torrent
+        {
+            Id = 88,
+            Name = "Old Book",
+            Category = string.Empty,
+            TargetRatio = 0,
+            TargetSeedTimeMinutes = 0,
+        };
+        this.torrentRepository.Get(88).Returns(existing);
+
+        var updatedInput = new Torrent
+        {
+            Id = 88,
+            Name = "Old Book",
+            Category = "books",
+            TargetRatio = 0,
+            TargetSeedTimeMinutes = 0,
+        };
+
+        this.torrentRepository.Update(Arg.Any<Torrent>()).Returns(callInfo => callInfo.Arg<Torrent>());
+
+        var result = await this.service.UpdateAsync(updatedInput);
+
+        result.Category.Should().Be("books");
+        result.TargetRatio.Should().Be(0);
+        result.TargetSeedTimeMinutes.Should().Be(0);
+        this.service.GetEffectiveTargetRatio(result).Should().Be(2.0);
+        this.service.GetEffectiveTargetSeedTimeMinutes(result).Should().Be(100);
     }
 
     [Test]
