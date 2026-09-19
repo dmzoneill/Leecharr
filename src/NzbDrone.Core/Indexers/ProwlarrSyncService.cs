@@ -300,7 +300,9 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
             {
                 var allExisting = this.repository.All().ToList();
                 var prowlarrToDelete = allExisting
-                    .Where(e => e.IsProwlarrManaged || e.ProwlarrIndexerId.HasValue || string.Equals(e.ConfigContract, "ProwlarrSettings", StringComparison.OrdinalIgnoreCase))
+                    .Where(e => (e.IsProwlarrManaged || e.ProwlarrIndexerId.HasValue || string.Equals(e.ConfigContract, "ProwlarrSettings", StringComparison.OrdinalIgnoreCase))
+                                && !string.IsNullOrWhiteSpace(e.Url)
+                                && e.Url.StartsWith(baseUri, StringComparison.OrdinalIgnoreCase))
                     .ToList();
                 foreach (var indexerToPrune in prowlarrToDelete)
                 {
@@ -346,9 +348,9 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
                     ? pIndexer.Implementation
                     : "Torznab";
 
-                var existing = existingIndexers.FirstOrDefault(e => e.ProwlarrIndexerId == pIndexer.Id)
-                                ?? existingIndexers.FirstOrDefault(e => !string.IsNullOrWhiteSpace(e.Url) && string.Equals(e.Url.TrimEnd('/'), feedUrl.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
-                                ?? existingIndexers.FirstOrDefault(e => (e.IsProwlarrManaged || string.Equals(e.ConfigContract, "ProwlarrSettings", StringComparison.OrdinalIgnoreCase)) && string.Equals(e.Name, pIndexer.Name, StringComparison.OrdinalIgnoreCase));
+                var existing = existingIndexers.FirstOrDefault(e => !string.IsNullOrWhiteSpace(e.Url) && string.Equals(e.Url.TrimEnd('/'), feedUrl.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
+                                ?? existingIndexers.FirstOrDefault(e => e.ProwlarrIndexerId == pIndexer.Id && !string.IsNullOrWhiteSpace(e.Url) && e.Url.StartsWith(baseUri, StringComparison.OrdinalIgnoreCase))
+                                ?? existingIndexers.FirstOrDefault(e => (e.IsProwlarrManaged || string.Equals(e.ConfigContract, "ProwlarrSettings", StringComparison.OrdinalIgnoreCase)) && string.Equals(e.Name, pIndexer.Name, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(e.Url) && e.Url.StartsWith(baseUri, StringComparison.OrdinalIgnoreCase));
 
                 if (existing == null)
                 {
@@ -419,7 +421,10 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
             }
 
             var toPrune = existingIndexers
-                .Where(e => (e.IsProwlarrManaged || e.ProwlarrIndexerId.HasValue || string.Equals(e.ConfigContract, "ProwlarrSettings", StringComparison.OrdinalIgnoreCase)) && (!e.ProwlarrIndexerId.HasValue || !syncedProwlarrIds.Contains(e.ProwlarrIndexerId.Value)))
+                .Where(e => (e.IsProwlarrManaged || e.ProwlarrIndexerId.HasValue || string.Equals(e.ConfigContract, "ProwlarrSettings", StringComparison.OrdinalIgnoreCase))
+                            && !string.IsNullOrWhiteSpace(e.Url)
+                            && e.Url.StartsWith(baseUri, StringComparison.OrdinalIgnoreCase)
+                            && (!e.ProwlarrIndexerId.HasValue || !syncedProwlarrIds.Contains(e.ProwlarrIndexerId.Value)))
                 .ToList();
 
             foreach (var indexerToPrune in toPrune)
