@@ -417,6 +417,97 @@ public class QBittorrentApiControllerTest
     }
 
     [Test]
+    public async Task SetSavePath_WithHashesAndLocation_InvokesSetLocationAsyncWithMoveTrue()
+    {
+        var torrent = new Torrent { Id = 10, Name = "Torrent 1", InfoHash = "hash1" };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent);
+
+        var result = await this.controller.SetSavePath(hashes: "hash1", location: "/downloads/savepath");
+
+        result.Should().BeOfType<ContentResult>();
+        ((ContentResult)result).Content.Should().Be("Ok.");
+        await this.torrentService.Received(1).SetLocationAsync(10, "/downloads/savepath", moveFiles: true);
+    }
+
+    [Test]
+    public async Task SetSavePath_WithPathAndId_InvokesSetLocationAsyncWithMoveTrue()
+    {
+        var torrent = new Torrent { Id = 10, Name = "Torrent 1", InfoHash = "hash1" };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent);
+
+        var result = await this.controller.SetSavePath(id: "hash1", path: "/downloads/savepath");
+
+        result.Should().BeOfType<ContentResult>();
+        ((ContentResult)result).Content.Should().Be("Ok.");
+        await this.torrentService.Received(1).SetLocationAsync(10, "/downloads/savepath", moveFiles: true);
+    }
+
+    [Test]
+    public async Task SetSavePath_WithNumericIdAndPath_InvokesSetLocationAsyncWithMoveTrue()
+    {
+        var torrent = new Torrent { Id = 42, Name = "Torrent 42", InfoHash = "hash42" };
+        this.torrentService.Get(42).Returns(torrent);
+
+        var result = await this.controller.SetSavePath(id: "42", path: "/downloads/savepath");
+
+        result.Should().BeOfType<ContentResult>();
+        ((ContentResult)result).Content.Should().Be("Ok.");
+        await this.torrentService.Received(1).SetLocationAsync(42, "/downloads/savepath", moveFiles: true);
+    }
+
+    [Test]
+    public async Task SetSavePath_WithMultipleIds_InvokesSetLocationAsyncForEachTorrent()
+    {
+        var torrent1 = new Torrent { Id = 10, Name = "Torrent 1", InfoHash = "hash1" };
+        var torrent2 = new Torrent { Id = 20, Name = "Torrent 2", InfoHash = "hash2" };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent1);
+        this.torrentService.GetByInfoHash("hash2").Returns(torrent2);
+
+        var result = await this.controller.SetSavePath(id: "hash1|hash2", path: "/downloads/savepath");
+
+        result.Should().BeOfType<ContentResult>();
+        ((ContentResult)result).Content.Should().Be("Ok.");
+        await this.torrentService.Received(1).SetLocationAsync(10, "/downloads/savepath", moveFiles: true);
+        await this.torrentService.Received(1).SetLocationAsync(20, "/downloads/savepath", moveFiles: true);
+    }
+
+    [Test]
+    public async Task SetDownloadPath_WithHashesAndPath_InvokesSetLocationAsyncWithMoveFalse()
+    {
+        var torrent = new Torrent { Id = 10, Name = "Torrent 1", InfoHash = "hash1" };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent);
+
+        var result = await this.controller.SetDownloadPath(hashes: "hash1", path: "/downloads/incomplete");
+
+        result.Should().BeOfType<ContentResult>();
+        ((ContentResult)result).Content.Should().Be("Ok.");
+        await this.torrentService.Received(1).SetLocationAsync(10, "/downloads/incomplete", moveFiles: false);
+    }
+
+    [Test]
+    public async Task SetDownloadPath_WithIdAndPath_InvokesSetLocationAsyncWithMoveFalse()
+    {
+        var torrent = new Torrent { Id = 10, Name = "Torrent 1", InfoHash = "hash1" };
+        this.torrentService.GetByInfoHash("hash1").Returns(torrent);
+
+        var result = await this.controller.SetDownloadPath(id: "hash1", path: "/downloads/incomplete");
+
+        result.Should().BeOfType<ContentResult>();
+        ((ContentResult)result).Content.Should().Be("Ok.");
+        await this.torrentService.Received(1).SetLocationAsync(10, "/downloads/incomplete", moveFiles: false);
+    }
+
+    [Test]
+    public async Task SetDownloadPath_WithEmptyOrMissingParams_ReturnsOkAndDoesNotInvokeSetLocationAsync()
+    {
+        var result = await this.controller.SetDownloadPath(hashes: null, id: null, path: null);
+
+        result.Should().BeOfType<ContentResult>();
+        ((ContentResult)result).Content.Should().Be("Ok.");
+        await this.torrentService.DidNotReceiveWithAnyArgs().SetLocationAsync(default, default, default);
+    }
+
+    [Test]
     public void GetFiles_ReturnsEnrichedProgressAndIsSeed()
     {
         var torrent = new Torrent
