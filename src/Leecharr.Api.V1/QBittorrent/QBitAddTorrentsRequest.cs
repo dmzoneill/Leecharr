@@ -40,6 +40,20 @@ public class QBitAddTorrentsRequest
 
     public string ContentLayout { get; set; }
 
+    public string Rename { get; set; }
+
+    public long? UpLimit { get; set; }
+
+    public long? Uplimit { get; set; }
+
+    public long? DlLimit { get; set; }
+
+    public long? Dllimit { get; set; }
+
+    public long? EffectiveUpLimit => this.UpLimit ?? this.Uplimit;
+
+    public long? EffectiveDlLimit => this.DlLimit ?? this.Dllimit;
+
     public string EffectiveSavePath =>
         !string.IsNullOrWhiteSpace(this.Savepath)
             ? this.Savepath
