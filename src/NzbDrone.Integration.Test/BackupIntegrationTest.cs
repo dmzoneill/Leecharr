@@ -20,7 +20,7 @@ namespace NzbDrone.Integration.Test;
 public class BackupIntegrationTest : IntegrationTestBase
 {
     [Test]
-    public async Task CreateAndRestoreBackup_FlushesWalAndPurgesStaleWalOnRestore()
+    public async Task CreateAndRestoreBackup_FlushesWalAndStagesRestoreFile()
     {
         var appFolderInfo = GlobalSetup.Factory.Services.GetRequiredService<IAppFolderInfo>();
 
@@ -45,13 +45,7 @@ public class BackupIntegrationTest : IntegrationTestBase
                 zip.Entries.Should().Contain(e => e.FullName == "leecharr.db");
             }
 
-            // 3. Simulate stale WAL/SHM leftover files in AppDataFolder
-            var staleWalPath = Path.Combine(appFolderInfo.AppDataFolder, "leecharr.db-wal");
-            var staleShmPath = Path.Combine(appFolderInfo.AppDataFolder, "leecharr.db-shm");
-            await File.WriteAllBytesAsync(staleWalPath, new byte[] { 0x37, 0x7f, 0x06, 0x82, 0x01, 0x02, 0x03, 0x04 });
-            await File.WriteAllBytesAsync(staleShmPath, new byte[] { 0x01, 0x02, 0x03, 0x04 });
-
-            // 4. Restore the backup via API endpoint
+            // 3. Restore the backup via API endpoint
             var restoreRequest = new RestoreBackupRequest
             {
                 BackupId = backup.Id,
@@ -61,11 +55,11 @@ public class BackupIntegrationTest : IntegrationTestBase
             using var restoreResponse = await this.PostJsonAsync("/api/v1/backup/restore", restoreRequest);
             restoreResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-            // 5. Verify stale WAL/SHM were deleted on restore
-            File.Exists(staleWalPath).Should().BeFalse("Stale WAL file must be deleted during restore");
-            File.Exists(staleShmPath).Should().BeFalse("Stale SHM file must be deleted during restore");
+            // 4. Verify restored database is staged as leecharr.db.restore for safe restart
+            var restoreDbPath = Path.Combine(appFolderInfo.AppDataFolder, "leecharr.db.restore");
+            File.Exists(restoreDbPath).Should().BeTrue("Pending restore must be staged as leecharr.db.restore");
 
-            // 6. Verify restored database is functional by querying the categories endpoint
+            // 5. Verify active database remains functional during runtime
             var categories = await this.GetJsonAsync<List<CategoryResource>>("/api/v1/categories");
             categories.Should().NotBeNull();
         }
