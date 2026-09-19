@@ -3527,4 +3527,121 @@ public class QBittorrentApiControllerTest
         existing.SavePath.Should().Be("/downloads/new");
         this.categoryService.Received(1).Update(existing);
     }
+
+    [Test]
+    public async Task AddTags_PreservesAndUnionsExistingTagsWithoutOverwriting()
+    {
+        var torrent = new Torrent
+        {
+            Id = 51,
+            InfoHash = "hash51",
+            Name = "T51",
+            Label = "tagA, tagB",
+        };
+        this.torrentService.GetByInfoHash("hash51").Returns(torrent);
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var result = await this.controller.AddTags("hash51", " tagB , tagC , tagD ");
+        result.Should().BeOfType<ContentResult>();
+
+        torrent.Label.Should().Be("tagA, tagB, tagC, tagD");
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+    }
+
+    [Test]
+    public async Task RemoveTags_ParsesCommaSeparatedAndRemovesSpecifiedTagsWithoutCorruptingRemaining()
+    {
+        var torrent = new Torrent
+        {
+            Id = 52,
+            InfoHash = "hash52",
+            Name = "T52",
+            Label = "alpha, beta, gamma, delta",
+        };
+        this.torrentService.GetByInfoHash("hash52").Returns(torrent);
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var result = await this.controller.RemoveTags("hash52", " beta , delta ");
+        result.Should().BeOfType<ContentResult>();
+
+        torrent.Label.Should().Be("alpha, gamma");
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+    }
+
+    [Test]
+    public void GetMainData_FullAndDeltaUpdates_IncludeTagsAndCategoriesDeltas()
+    {
+        var cat1 = new Category { Id = 1, Name = "tv", SavePath = "/downloads/tv" };
+        var cat2 = new Category { Id = 2, Name = "movies", SavePath = "/downloads/movies" };
+        var categories = new List<Category> { cat1, cat2 };
+        this.categoryService.GetAll().Returns(_ => categories);
+
+        var torrent = new Torrent
+        {
+            Id = 1,
+            InfoHash = "h1",
+            Name = "T1",
+            Label = "tag1, tag2",
+        };
+        var torrents = new List<Torrent> { torrent };
+        this.torrentService.GetAll().Returns(_ => torrents);
+
+        var fullRes = this.controller.GetMainData(0);
+        var fullData = ((OkObjectResult)fullRes.Result!).Value as Dictionary<string, object>;
+        fullData!["full_update"].Should().Be(true);
+        fullData["categories_removed"].Should().BeAssignableTo<IEnumerable<string>>().Which.Should().BeEmpty();
+        fullData["tags_removed"].Should().BeAssignableTo<IEnumerable<string>>().Which.Should().BeEmpty();
+        fullData["tags"].Should().BeAssignableTo<IEnumerable<string>>().Which.Should().BeEquivalentTo(new[] { "tag1", "tag2" });
+
+        var initialRid = (int)fullData["rid"];
+
+        categories = new List<Category> { cat1 };
+        torrent.Label = "tag1, tag2, tag3";
+
+        var deltaRes = this.controller.GetMainData(initialRid);
+        var deltaData = ((OkObjectResult)deltaRes.Result!).Value as Dictionary<string, object>;
+        deltaData!["full_update"].Should().Be(false);
+        deltaData["categories_removed"].Should().BeAssignableTo<IEnumerable<string>>().Which.Should().BeEquivalentTo(new[] { "movies" });
+        deltaData["tags"].Should().BeAssignableTo<IEnumerable<string>>().Which.Should().BeEquivalentTo(new[] { "tag3" });
+        deltaData["tags_removed"].Should().BeAssignableTo<IEnumerable<string>>().Which.Should().BeEmpty();
+
+        var deltaRid = (int)deltaData["rid"];
+
+        torrent.Label = "tag1, tag3";
+
+        var deltaRes2 = this.controller.GetMainData(deltaRid);
+        var deltaData2 = ((OkObjectResult)deltaRes2.Result!).Value as Dictionary<string, object>;
+        deltaData2!["full_update"].Should().Be(false);
+        deltaData2["tags_removed"].Should().BeAssignableTo<IEnumerable<string>>().Which.Should().BeEquivalentTo(new[] { "tag2" });
+    }
+
+    [Test]
+    public void GetMainData_WithSidCookie_IsolatesRidSequencePerSession()
+    {
+        var torrent = new Torrent { Id = 1, InfoHash = "h1", Name = "T1" };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var session1Context = new DefaultHttpContext();
+        session1Context.Request.Headers["Cookie"] = "SID=session_alpha";
+        session1Context.Connection.RemoteIpAddress = IPAddress.Parse("192.168.1.100");
+
+        var session2Context = new DefaultHttpContext();
+        session2Context.Request.Headers["Cookie"] = "SID=session_beta";
+        session2Context.Connection.RemoteIpAddress = IPAddress.Parse("192.168.1.100");
+
+        this.controller.ControllerContext = new ControllerContext { HttpContext = session1Context };
+        var res1 = ((OkObjectResult)this.controller.GetMainData(0).Result!).Value as Dictionary<string, object>;
+        res1!["rid"].Should().Be(1);
+
+        var res2 = ((OkObjectResult)this.controller.GetMainData(1).Result!).Value as Dictionary<string, object>;
+        res2!["rid"].Should().Be(2);
+
+        this.controller.ControllerContext = new ControllerContext { HttpContext = session2Context };
+        var resSession2 = ((OkObjectResult)this.controller.GetMainData(0).Result!).Value as Dictionary<string, object>;
+        resSession2!["rid"].Should().Be(1);
+
+        this.controller.ControllerContext = new ControllerContext { HttpContext = session1Context };
+        var resSession1Next = ((OkObjectResult)this.controller.GetMainData(2).Result!).Value as Dictionary<string, object>;
+        resSession1Next!["rid"].Should().Be(3);
+    }
 }
