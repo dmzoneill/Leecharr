@@ -482,10 +482,11 @@ public class PiecePicker
             return prioritized.Distinct().ToList();
         }
 
-        // Rarest-First: sort by swarm availability, then by higher piece priority
+        // Rarest-First: sort by higher piece priority, then by rarest swarm availability, with randomized tie-breaking for equal rarity
         return validPieces
             .OrderByDescending(i => this.pieces[i].Priority)
             .ThenBy(i => this.swarmAvailability[i])
+            .ThenBy(_ => Random.Shared.Next())
             .ToList();
     }
 

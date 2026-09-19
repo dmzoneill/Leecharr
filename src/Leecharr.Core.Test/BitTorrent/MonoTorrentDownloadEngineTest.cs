@@ -1540,6 +1540,19 @@ public class MonoTorrentDownloadEngineTest
         await act.Should().NotThrowAsync();
     }
 
+    [Test]
+    public void MonoTorrentDownloadTask_SynchronizePieceAvailability_DoesNotDecaySwarmAvailabilityOnPeerDisconnect()
+    {
+        var picker = new PiecePicker(5, 16384, 81920);
+        picker.SetAvailability(new[] { 2, 2, 2, 2, 2 });
+
+        var task = new MonoTorrentDownloadTask(1, "test-hash", null, picker: picker);
+        task.PieceAvailability.Should().Equal(2, 2, 2, 2, 2);
+
+        task.SynchronizePieceAvailability();
+        task.PieceAvailability.Should().Equal(2, 2, 2, 2, 2);
+    }
+
     #endregion
 
     #region State Transition & Event Safety Tests

@@ -48,8 +48,7 @@ public class PiecePickerTest
         // Piece 1: 1 block of 16384
         // Piece 2: 1 block of 2232
         requests.Should().HaveCount(3);
-        requests[2].PieceIndex.Should().Be(2);
-        requests[2].BlockLength.Should().Be(2232);
+        requests.First(r => r.PieceIndex == 2).BlockLength.Should().Be(2232);
     }
 
     [Test]
@@ -66,6 +65,41 @@ public class PiecePickerTest
     #endregion
 
     #region Rarest-First Tests
+
+    [Test]
+    public void PickBlocks_WhenPiecesHaveEqualRarityAndPriority_RandomizesTieBreaking()
+    {
+        // 10 pieces with equal priority and equal rarity (0)
+        var fullBitfield = Enumerable.Repeat(true, 10).ToArray();
+        var selectedFirstPieces = new HashSet<int>();
+
+        // Over 40 trials with fresh pickers, randomized tie-breaking should pick more than 1 distinct first piece
+        for (var trial = 0; trial < 40; trial++)
+        {
+            var picker = new PiecePicker(10, 16384, 163840);
+            var requests = picker.PickBlocks(fullBitfield, 1);
+            requests.Should().HaveCount(1);
+            selectedFirstPieces.Add(requests[0].PieceIndex);
+        }
+
+        // Without randomized tie-breaking, stable sort always picked piece 0 (count would be 1).
+        // With randomized tie-breaking, multiple distinct piece indices will be chosen.
+        selectedFirstPieces.Count.Should().BeGreaterThan(1);
+    }
+
+    [Test]
+    public void PickBlocks_RarestPieceStillPrioritizedOverEqualRarityPieces()
+    {
+        var fullBitfield = Enumerable.Repeat(true, 5).ToArray();
+        for (var i = 0; i < 20; i++)
+        {
+            var testPicker = new PiecePicker(5, 16384, 81920);
+            testPicker.SetAvailability(new[] { 3, 3, 1, 3, 3 });
+            var requests = testPicker.PickBlocks(fullBitfield, 1);
+            requests.Should().HaveCount(1);
+            requests[0].PieceIndex.Should().Be(2);
+        }
+    }
 
     [Test]
     public void PickBlocks_PicksRarestPiecesFirst_InMultiPeerSwarm()
@@ -397,14 +431,12 @@ public class PiecePickerTest
         // Peer 1 requests 1 block
         var requestsPeer1 = picker.PickBlocks(fullBitfield, 1, peerId: "peer1");
         requestsPeer1.Should().HaveCount(1);
-        requestsPeer1[0].PieceIndex.Should().Be(0);
 
-        // Peer 2 requests 2 blocks: should only receive piece 1, not duplicate in-flight piece 0
+        // Peer 2 requests 2 blocks: should only receive remaining piece, not duplicate in-flight piece
         var requestsPeer2 = picker.PickBlocks(fullBitfield, 2, peerId: "peer2");
         requestsPeer2.Should().HaveCount(1);
-        requestsPeer2[0].PieceIndex.Should().Be(1);
 
-        // Piece 0 was not duplicated to Peer 2
+        // Piece was not duplicated to Peer 2
         requestsPeer2.Select(r => r.PieceIndex).Should().NotContain(requestsPeer1[0].PieceIndex);
     }
 
@@ -417,39 +449,39 @@ public class PiecePickerTest
 
         picker.IsEndgameMode().Should().BeFalse();
 
-        // Peer 1 requests 1 block -> gets piece 0
+        // Peer 1 requests 1 block
         var requestsPeer1 = picker.PickBlocks(fullBitfield, 1, peerId: "peer1");
         requestsPeer1.Should().HaveCount(1);
-        requestsPeer1[0].PieceIndex.Should().Be(0);
+        var firstPiece = requestsPeer1[0].PieceIndex;
+        var secondPiece = 1 - firstPiece;
 
         // Torrent is still not in endgame mode (1 in-flight < 2 remaining)
         picker.IsEndgameMode().Should().BeFalse();
 
-        // Peer 2 requests 2 blocks -> should not receive piece 0 because it is in flight and not timed out; receives piece 1 only
+        // Peer 2 requests 2 blocks -> receives second piece only
         var requestsPeer2 = picker.PickBlocks(fullBitfield, 2, peerId: "peer2");
         requestsPeer2.Should().HaveCount(1);
-        requestsPeer2[0].PieceIndex.Should().Be(1);
+        requestsPeer2[0].PieceIndex.Should().Be(secondPiece);
 
         // No duplicate in-flight requests were issued across the two peers
         requestsPeer1[0].PieceIndex.Should().NotBe(requestsPeer2[0].PieceIndex);
 
-        // Now both piece 0 and piece 1 are in-flight.
-        // Complete piece 0.
-        picker.MarkBlockReceived(0, 0, 16384, "peer1", out _);
-        picker.MarkPieceVerified(0);
+        // Complete first piece.
+        picker.MarkBlockReceived(firstPiece, 0, 16384, "peer1", out _);
+        picker.MarkPieceVerified(firstPiece);
 
-        // Piece 0 is complete, piece 1 is in-flight.
-        // Wait for piece 1 to time out.
+        // First piece is complete, second piece is in-flight.
+        // Wait for second piece to time out.
         await Task.Delay(75);
 
-        // Now that piece 1 timed out, calling PickBlocks can re-request piece 1.
+        // Now that second piece timed out, calling PickBlocks can re-request second piece.
         var retryRequests = picker.PickBlocks(fullBitfield, 1, peerId: "peer3");
         retryRequests.Should().HaveCount(1);
-        retryRequests[0].PieceIndex.Should().Be(1);
+        retryRequests[0].PieceIndex.Should().Be(secondPiece);
 
-        // Complete piece 1 as well.
-        picker.MarkBlockReceived(1, 0, 16384, "peer3", out _);
-        picker.MarkPieceVerified(1);
+        // Complete second piece as well.
+        picker.MarkBlockReceived(secondPiece, 0, 16384, "peer3", out _);
+        picker.MarkPieceVerified(secondPiece);
 
         // All pieces complete, no further requests issued and endgame mode is false.
         picker.PickBlocks(fullBitfield, 1).Should().BeEmpty();
@@ -477,8 +509,7 @@ public class PiecePickerTest
         var requestsPeerB = picker.PickBlocks(fullBitfield, 2, peerId: "peerB");
         requestsPeerB.Should().HaveCount(2);
 
-        requestsPeerB[0].PieceIndex.Should().Be(requestsPeerA[0].PieceIndex);
-        requestsPeerB[1].PieceIndex.Should().Be(requestsPeerA[1].PieceIndex);
+        requestsPeerB.Select(r => r.PieceIndex).Should().BeEquivalentTo(requestsPeerA.Select(r => r.PieceIndex));
     }
 
     [Test]
@@ -567,7 +598,9 @@ public class PiecePickerTest
         picker.CancelBlock(pIdx, offset);
 
         // Now block can be re-picked
-        var retryReq = picker.PickBlocks(fullBitfield, 1);
+        var onlyBitfield = new bool[50];
+        onlyBitfield[pIdx] = true;
+        var retryReq = picker.PickBlocks(onlyBitfield, 1);
         retryReq.Should().HaveCount(1);
         retryReq[0].PieceIndex.Should().Be(pIdx);
     }
@@ -697,7 +730,9 @@ public class PiecePickerTest
         await Task.Delay(75);
 
         // After timeout, block pIdx can be re-picked by Peer B
-        var retryReq = picker.PickBlocks(fullBitfield, 1);
+        var onlyBitfield = new bool[50];
+        onlyBitfield[pIdx] = true;
+        var retryReq = picker.PickBlocks(onlyBitfield, 1);
         retryReq.Should().HaveCount(1);
         retryReq[0].PieceIndex.Should().Be(pIdx);
     }
@@ -713,12 +748,12 @@ public class PiecePickerTest
         var fullBitfield = new[] { true, true };
 
         // Peer 1 requests block 0:0
-        var req1 = picker.PickBlocks(fullBitfield, 1, peerId: "peer-1");
+        var req1 = picker.PickBlocks(fullBitfield, 1, sequentialMode: true, peerId: "peer-1");
         req1.Should().HaveCount(1);
         req1[0].PieceIndex.Should().Be(0);
 
         // Peer 2 requests block 1:0
-        var req2 = picker.PickBlocks(fullBitfield, 1, peerId: "peer-2");
+        var req2 = picker.PickBlocks(fullBitfield, 1, sequentialMode: true, peerId: "peer-2");
         req2.Should().HaveCount(1);
         req2[0].PieceIndex.Should().Be(1);
 
@@ -730,13 +765,13 @@ public class PiecePickerTest
         await Task.Delay(75);
 
         // Peer 3 now picks the timed-out block 0:0
-        var retryPeer3 = picker.PickBlocks(fullBitfield, 1, peerId: "peer-3");
+        var retryPeer3 = picker.PickBlocks(fullBitfield, 1, sequentialMode: true, peerId: "peer-3");
         retryPeer3.Should().HaveCount(1);
         retryPeer3[0].PieceIndex.Should().Be(0);
 
         // Immediately (before new timeout), Peer 4 picks: block 0:0 timestamp is refreshed to now,
         // so Peer 4 does NOT get block 0:0; it gets timed-out block 1:0 instead
-        var retryPeer4 = picker.PickBlocks(fullBitfield, 1, peerId: "peer-4");
+        var retryPeer4 = picker.PickBlocks(fullBitfield, 1, sequentialMode: true, peerId: "peer-4");
         retryPeer4.Should().HaveCount(1);
         retryPeer4[0].PieceIndex.Should().Be(1);
 
@@ -974,8 +1009,10 @@ public class PiecePickerTest
         // In-flight count decreases immediately without waiting 30 seconds
         picker.InFlightBlockCount.Should().Be(1); // Only peerB's block remains in flight
 
-        // Now piece 0 block 0 is immediately pickable again by peer C
-        var retryReq = picker.PickBlocks(fullBitfield, 1, peerId: "peerC");
+        // Now the rejected block is immediately pickable again by peer C
+        var onlyBitfield = new bool[50];
+        onlyBitfield[requestA[0].PieceIndex] = true;
+        var retryReq = picker.PickBlocks(onlyBitfield, 1, peerId: "peerC");
         retryReq.Should().HaveCount(1);
         retryReq[0].PieceIndex.Should().Be(requestA[0].PieceIndex);
         retryReq[0].BlockOffset.Should().Be(requestA[0].BlockOffset);
@@ -1004,8 +1041,8 @@ public class PiecePickerTest
     [Test]
     public void RejectRequest_WithLengthOverload_EvictsInFlightBlock()
     {
-        var picker = new PiecePicker(10, 16384, 163840);
-        var fullBitfield = Enumerable.Repeat(true, 10).ToArray();
+        var picker = new PiecePicker(1, 16384, 16384);
+        var fullBitfield = new[] { true };
 
         var requests = picker.PickBlocks(fullBitfield, 1, peerId: "peerA");
         requests.Should().HaveCount(1);

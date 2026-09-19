@@ -5011,7 +5011,8 @@ public class MonoTorrentDownloadTask : IDownloadTask
         IConfigService configService = null,
         bool isPrivate = false,
         string workingPath = null,
-        Action<MonoTorrentDownloadTask> onPickerCreated = null)
+        Action<MonoTorrentDownloadTask> onPickerCreated = null,
+        PiecePicker picker = null)
     {
         this.TorrentId = torrentId;
         this.InfoHash = infoHash;
@@ -5024,10 +5025,11 @@ public class MonoTorrentDownloadTask : IDownloadTask
         this.configService = configService;
         this.WorkingPath = workingPath;
         this.onPickerCreated = onPickerCreated;
+        this.Picker = picker;
 
         if (manager != null)
         {
-            if (manager.Torrent != null)
+            if (manager.Torrent != null && this.Picker == null)
             {
                 var t = manager.Torrent;
                 this.Picker = new PiecePicker(t.PieceCount, t.PieceLength, t.Size, configService: configService);
@@ -5115,16 +5117,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
                 return;
             }
 
-            if (this.Picker != null && e.Peer?.BitField != null)
-            {
-                var bf = new bool[e.Peer.BitField.Length];
-                for (var i = 0; i < bf.Length; i++)
-                {
-                    bf[i] = e.Peer.BitField[i];
-                }
-
-                this.Picker.UpdatePeerAvailability(bf, true);
-            }
+            this.SynchronizePieceAvailability();
         }
         catch (Exception ex)
         {
@@ -5136,16 +5129,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
     {
         try
         {
-            if (this.Picker != null && e.Peer?.BitField != null)
-            {
-                var bf = new bool[e.Peer.BitField.Length];
-                for (var i = 0; i < bf.Length; i++)
-                {
-                    bf[i] = e.Peer.BitField[i];
-                }
-
-                this.Picker.UpdatePeerAvailability(bf, false);
-            }
+            this.SynchronizePieceAvailability();
         }
         catch (Exception ex)
         {
@@ -5601,6 +5585,16 @@ public class MonoTorrentDownloadTask : IDownloadTask
         }
     }
 
+    public void SynchronizePieceAvailability()
+    {
+        lock (this.peerLock)
+        {
+            this.lastPeersUpdate = DateTime.MinValue;
+        }
+
+        _ = this.PieceAvailability;
+    }
+
     public int[] PieceAvailability
     {
         get
@@ -5608,6 +5602,11 @@ public class MonoTorrentDownloadTask : IDownloadTask
             if (this.Manager == null && this.Picker == null)
             {
                 return Array.Empty<int>();
+            }
+
+            if (this.Manager == null && this.Picker != null)
+            {
+                return this.Picker.GetAvailability();
             }
 
             var pieceCount = this.Manager?.Bitfield?.Length ?? this.Picker?.PieceCount ?? 0;
