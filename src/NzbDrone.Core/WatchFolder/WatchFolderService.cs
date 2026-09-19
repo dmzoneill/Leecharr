@@ -122,28 +122,54 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
             return false;
         }
 
-        long initialSize;
-        try
+        var delay = debounceDelay ?? TimeSpan.FromMilliseconds(
+            this.configService?.WatchFolderDebounceMilliseconds > 0
+                ? this.configService.WatchFolderDebounceMilliseconds
+                : 500);
+
+        var pollInterval = TimeSpan.FromMilliseconds(50);
+        if (delay > TimeSpan.Zero && pollInterval > delay)
         {
-            if (!this.IsFileReady(path))
+            pollInterval = delay;
+        }
+
+        long initialSize = 0;
+        var isReady = false;
+        var startTime = DateTime.UtcNow;
+
+        while (true)
+        {
+            try
             {
-                return false;
+                if (this.IsFileReady(path))
+                {
+                    var fileInfo = new FileInfo(path);
+                    if (fileInfo.Length > 0)
+                    {
+                        initialSize = fileInfo.Length;
+                        isReady = true;
+                        break;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Failed stability probe for '{0}'", path);
             }
 
-            var fileInfo = new FileInfo(path);
-            initialSize = fileInfo.Length;
-            if (initialSize <= 0)
+            if (delay <= TimeSpan.Zero || (DateTime.UtcNow - startTime) >= delay)
             {
-                return false;
+                break;
             }
+
+            await Task.Delay(pollInterval).ConfigureAwait(false);
         }
-        catch (Exception ex)
+
+        if (!isReady || initialSize <= 0)
         {
-            this.logger.Debug(ex, "Failed initial stability check for '{0}'", path);
             return false;
         }
 
-        var delay = debounceDelay ?? TimeSpan.FromMilliseconds(this.configService?.WatchFolderDebounceMilliseconds > 0 ? this.configService.WatchFolderDebounceMilliseconds : 500);
         if (delay > TimeSpan.Zero)
         {
             await Task.Delay(delay).ConfigureAwait(false);
