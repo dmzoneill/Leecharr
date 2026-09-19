@@ -2859,7 +2859,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         }
     }
 
-    public Task SetSequentialDownloadAsync(int torrentId, bool enabled)
+    public async Task SetSequentialDownloadAsync(int torrentId, bool enabled)
     {
         if (this.tasks.TryGetValue(torrentId, out var task))
         {
@@ -2869,13 +2869,43 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 task.Picker.SequentialMode = enabled;
             }
 
+            if (task.Manager != null)
+            {
+                try
+                {
+                    var requester = enabled
+                        ? Factories.Default.CreateStreamingPieceRequester()
+                        : Factories.Default.CreatePieceRequester();
+
+                    var wasPaused = task.Manager.State == TorrentState.Paused;
+                    var wasRunning = task.Manager.State is not (TorrentState.Stopped or TorrentState.Stopping);
+                    if (wasRunning)
+                    {
+                        await task.Manager.StopAsync().ConfigureAwait(false);
+                    }
+
+                    await task.Manager.ChangePickerAsync(requester).ConfigureAwait(false);
+
+                    if (wasRunning)
+                    {
+                        await task.Manager.StartAsync().ConfigureAwait(false);
+                        if (wasPaused)
+                        {
+                            await task.Manager.PauseAsync().ConfigureAwait(false);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to dynamically change piece picker for torrent {0}", torrentId);
+                }
+            }
+
             this.logger.Info("Updated sequential download for torrent {0}: {1}", torrentId, enabled);
         }
-
-        return Task.CompletedTask;
     }
 
-    public Task SetFirstLastPiecePriorityAsync(int torrentId, bool enabled)
+    public async Task SetFirstLastPiecePriorityAsync(int torrentId, bool enabled)
     {
         if (this.tasks.TryGetValue(torrentId, out var task))
         {
@@ -2898,13 +2928,54 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     {
                         task.Picker.SetPiecePriority(i, priority);
                     }
+
+                    if (task.Manager?.Files != null && task.Manager.Files.Count > 0)
+                    {
+                        foreach (var file in task.Manager.Files)
+                        {
+                            if (file.StartPieceIndex >= 0 && file.StartPieceIndex < pieceCount)
+                            {
+                                task.Picker.SetPiecePriority(file.StartPieceIndex, priority);
+                            }
+
+                            if (file.EndPieceIndex >= 0 && file.EndPieceIndex < pieceCount)
+                            {
+                                task.Picker.SetPiecePriority(file.EndPieceIndex, priority);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (task.Manager != null && task.Manager.Files != null && task.Manager.Files.Count > 0)
+            {
+                try
+                {
+                    var files = task.Manager.Files;
+                    var firstFile = files.OrderBy(f => f.StartPieceIndex).FirstOrDefault() ?? files[0];
+                    var lastPieceIndex = (task.Manager.Torrent?.PieceCount ?? task.Picker?.PieceCount ?? 0) - 1;
+                    var lastFile = files.OrderByDescending(f => f.EndPieceIndex).FirstOrDefault() ?? files[^1];
+
+                    var targetPriority = enabled ? MonoTorrent.Priority.Highest : MonoTorrent.Priority.Normal;
+
+                    if (firstFile.Priority != MonoTorrent.Priority.DoNotDownload)
+                    {
+                        await task.Manager.SetFilePriorityAsync(firstFile, targetPriority).ConfigureAwait(false);
+                    }
+
+                    if (lastFile != firstFile && lastFile.Priority != MonoTorrent.Priority.DoNotDownload)
+                    {
+                        await task.Manager.SetFilePriorityAsync(lastFile, targetPriority).ConfigureAwait(false);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to apply first/last piece priority to manager for torrent {0}", torrentId);
                 }
             }
 
             this.logger.Info("Updated first/last piece priority for torrent {0}: {1}", torrentId, enabled);
         }
-
-        return Task.CompletedTask;
     }
 
     public Task SetTorrentCategoryAsync(int torrentId, string category)
@@ -5902,6 +5973,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
             {
                 var t = this.Manager.Torrent;
                 this.Picker = new PiecePicker(t.PieceCount, t.PieceLength, t.Size, configService: this.configService);
+                this.Picker.SequentialMode = this.SequentialDownload;
                 if (this.Manager.Bitfield != null)
                 {
                     for (var i = 0; i < Math.Min(this.Manager.Bitfield.Length, t.PieceCount); i++)
