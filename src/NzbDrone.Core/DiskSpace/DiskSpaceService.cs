@@ -200,18 +200,18 @@ public class DiskSpaceService : IDiskSpaceService
             return;
         }
 
-        var thresholdMb = this.configService?.LowDiskSpaceThresholdMb ?? 500;
+        var thresholdMb = this.configService?.LowDiskSpaceThresholdMb > 0
+            ? this.configService.LowDiskSpaceThresholdMb
+            : 5000;
         var warningThresholdBytes = (long)thresholdMb * 1024 * 1024;
-        var criticalThresholdBytes = thresholdMb > 0
-            ? Math.Min(warningThresholdBytes / 2, 250L * 1024 * 1024)
-            : 250L * 1024 * 1024;
+        var criticalThresholdBytes = Math.Min(1024L * 1024 * 1024, warningThresholdBytes / 2);
         var freePercent = (double)info.FreeSpace / info.TotalSpace;
 
         if (info.FreeSpace < criticalThresholdBytes)
         {
             this.eventAggregator.PublishEvent(new DiskSpaceCriticalEvent(info.Path, info.FreeSpace));
         }
-        else if (thresholdMb > 0 && (info.FreeSpace < warningThresholdBytes || freePercent < 0.05))
+        else if (info.FreeSpace < warningThresholdBytes || freePercent < 0.05)
         {
             this.eventAggregator.PublishEvent(new DiskSpaceLowEvent(info.Path, info.FreeSpace, info.TotalSpace, freePercent));
         }
