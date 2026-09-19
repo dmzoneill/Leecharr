@@ -14,7 +14,7 @@ using NzbDrone.Core.Trackers;
 
 namespace NzbDrone.Core.Ai;
 
-public class DynamicAiProxy : IAiService, IAiManager, IHandle<ConfigSavedEvent>, IDisposable
+public class DynamicAiProxy : IAiService, IAiManager, IFallbackAwareAiProvider, IHandle<ConfigSavedEvent>, IDisposable
 {
     private readonly IEnumerable<IAiEngineProvider> availableProviders;
     private readonly IConfigService configService;
@@ -29,6 +29,8 @@ public class DynamicAiProxy : IAiService, IAiManager, IHandle<ConfigSavedEvent>,
     public string ActiveProviderId => Volatile.Read(ref this.activeProvider)?.ProviderId ?? "RuleHeuristic";
 
     public IAiEngineProvider ActiveProvider => Volatile.Read(ref this.activeProvider);
+
+    public bool LastChatUsedFallback { get; private set; }
 
     public DynamicAiProxy(
         IEnumerable<IAiEngineProvider> availableProviders,
@@ -240,6 +242,15 @@ public class DynamicAiProxy : IAiService, IAiManager, IHandle<ConfigSavedEvent>,
             var result = await provider.GenerateChatResponseAsync(userMessage, systemContext);
             if (result != null)
             {
+                if (provider is IFallbackAwareAiProvider fallbackAware && fallbackAware.LastChatUsedFallback)
+                {
+                    this.LastChatUsedFallback = true;
+                }
+                else
+                {
+                    this.LastChatUsedFallback = string.Equals(provider.ProviderId, "RuleHeuristic", StringComparison.OrdinalIgnoreCase);
+                }
+
                 return result;
             }
         }
@@ -248,6 +259,7 @@ public class DynamicAiProxy : IAiService, IAiManager, IHandle<ConfigSavedEvent>,
             this.logger.Debug(ex, "Active AI provider '{0}' failed to generate chat response, falling back to heuristic assistant.", provider.ProviderId);
         }
 
+        this.LastChatUsedFallback = true;
         return await this.defaultFallback.GenerateChatResponseAsync(userMessage, systemContext);
     }
 
