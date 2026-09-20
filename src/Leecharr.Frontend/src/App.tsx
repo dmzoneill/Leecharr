@@ -96,6 +96,7 @@ import {
   trackTorrentAction,
   trackThemeChange,
   trackModalOpen,
+  setAnalyticsInstanceUuid,
 } from "./utils/analytics";
 
 function getSystemSubItems(t: (key: string) => string) {
@@ -143,6 +144,12 @@ export function App() {
   useEffect(() => {
     loadUser();
   }, []);
+
+  useEffect(() => {
+    if (generalConfig?.instanceUuid) {
+      setAnalyticsInstanceUuid(generalConfig.instanceUuid);
+    }
+  }, [generalConfig?.instanceUuid]);
 
   const handleLogout = async () => {
     try {
@@ -626,7 +633,8 @@ export function App() {
         }
         if (
           msg.name === "torrentDeleted" ||
-          (msg.name === "torrent" && (msg.action === "Deleted" || msg.action === 3))
+          (msg.name === "torrent" &&
+            (msg.action === "Deleted" || msg.action === 3))
         ) {
           const body = msg.body as unknown;
           if (Array.isArray(body)) {
