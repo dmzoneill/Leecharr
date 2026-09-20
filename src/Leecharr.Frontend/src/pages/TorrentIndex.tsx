@@ -12,6 +12,7 @@ import { extractTrackerDomain } from "../utils/formatters";
 import { useTorrentStore } from "../stores/useTorrentStore";
 import { useTranslation } from "../i18n";
 import { useMoveTorrentQueue } from "../api/hooks";
+import { useColumnPreferences } from "./torrentindex/columnPreferences";
 
 interface TorrentIndexProps {
   torrents: Torrent[];
@@ -41,6 +42,22 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   const [selectedTracker, setSelectedTracker] = useState<string>("All");
   const [selectedPrivacy, setSelectedPrivacy] = useState<string>("All");
   const [filter, setFilter] = useState<string>("");
+
+  const {
+    visibleColumns,
+    toggleColumn,
+    resetToDefaults: resetColumns,
+    resetSort,
+    selectAll: selectAllColumns,
+    deselectAll: deselectAllColumns,
+    applyPreset: applyColumnPreset,
+    toggleCategory: toggleCategoryColumns,
+    columnOrder,
+    setColumnOrder,
+    columnWidths,
+    setColumnWidths,
+  } = useColumnPreferences();
+  const [isColumnCustomizerOpen, setIsColumnCustomizerOpen] = useState(false);
 
   const selectedTorrentId = useTorrentStore((state) => state.selectedTorrentId);
   const setSelectedTorrentId = useTorrentStore(
@@ -356,6 +373,18 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
         onToggleQuickSettings={handleToggleQuickSettings}
         isFilterCollapsed={isFilterCollapsed}
         onToggleFilter={toggleFilter}
+        visibleColumns={visibleColumns}
+        onToggleColumn={toggleColumn}
+        onResetColumns={resetColumns}
+        onResetSort={resetSort}
+        onSelectAllColumns={selectAllColumns}
+        onDeselectAllColumns={deselectAllColumns}
+        onApplyColumnPreset={applyColumnPreset}
+        onToggleCategoryColumns={toggleCategoryColumns}
+        isColumnCustomizerOpen={isColumnCustomizerOpen}
+        onToggleColumnCustomizer={() =>
+          setIsColumnCustomizerOpen((prev) => !prev)
+        }
       />
       <QuickSettingsDrawer
         isOpen={showQuickSettings}
@@ -403,6 +432,12 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
                   onSelectAll={handleSelectAll}
                   onSearchIndexers={onOpenSearchModal}
                   onNavigateTab={onNavigateTab}
+                  visibleColumns={visibleColumns}
+                  onToggleColumn={toggleColumn}
+                  columnOrder={columnOrder}
+                  onColumnOrderChange={setColumnOrder}
+                  columnWidths={columnWidths}
+                  onColumnWidthsChange={setColumnWidths}
                 />
               ) : (
                 <TorrentGrid

@@ -31,220 +31,23 @@ import { getTorrentBadges } from "../utils/milestones";
 import TorrentContextMenu from "./TorrentContextMenu";
 import TrackerFavicon from "./TrackerFavicon";
 import { MediaArtworkImage } from "./common/MediaArtworkImage";
-import useEscapeKey from "../hooks/useEscapeKey";
 import type { Torrent, DownloadHistoryEntry } from "../api/types";
 import { useTranslation } from "../i18n";
+import {
+  type ColumnKey,
+  type ColumnDef,
+  ALL_COLUMNS,
+  getColumnLabel,
+  loadVisibleColumns,
+  saveVisibleColumns,
+  loadColumnOrder,
+  saveColumnOrder,
+  loadColumnWidths,
+  saveColumnWidths,
+} from "../pages/torrentindex/columnPreferences";
 
-export type ColumnKey =
-  | "#"
-  | "queuePosition"
-  | "name"
-  | "status"
-  | "totalSize"
-  | "uploaded"
-  | "downloaded"
-  | "ratio"
-  | "progress"
-  | "seeders"
-  | "leechers"
-  | "trackerUrl"
-  | "dateAdded"
-  | "lastActive"
-  | "pieceCount"
-  | "pieceLength"
-  | "comment"
-  | "createdBy"
-  | "creationDate"
-  | "isPrivate"
-  | "infoHash"
-  | "priority"
-  | "uploadLimit"
-  | "downloadLimit"
-  | "initialSeeding"
-  | "forceStart"
-  | "category"
-  | "label"
-  | "sequentialDownload"
-  | "uploadSpeed"
-  | "downloadSpeed"
-  | "active"
-  | "eta";
-
-export interface ColumnDef {
-  key: ColumnKey;
-  label: string;
-  sortable: boolean;
-}
-
-export const ALL_COLUMNS: ColumnDef[] = [
-  { key: "#", label: "#", sortable: true },
-  { key: "queuePosition", label: "Queue #", sortable: true },
-  { key: "name", label: "Name", sortable: true },
-  { key: "category", label: "Category", sortable: true },
-  { key: "status", label: "Status", sortable: true },
-  { key: "progress", label: "Progress", sortable: true },
-  { key: "totalSize", label: "Size", sortable: true },
-  { key: "downloaded", label: "Downloaded", sortable: true },
-  { key: "uploaded", label: "Uploaded", sortable: true },
-  { key: "downloadSpeed", label: "Down Speed", sortable: true },
-  { key: "uploadSpeed", label: "Up Speed", sortable: true },
-  { key: "ratio", label: "Ratio", sortable: true },
-  { key: "seeders", label: "Seeds", sortable: true },
-  { key: "leechers", label: "Peers", sortable: true },
-  { key: "eta", label: "ETA", sortable: true },
-  { key: "trackerUrl", label: "Tracker", sortable: true },
-  { key: "priority", label: "Priority", sortable: true },
-  { key: "label", label: "Label", sortable: true },
-  { key: "uploadLimit", label: "Upload Limit", sortable: true },
-  { key: "downloadLimit", label: "Download Limit", sortable: true },
-  { key: "initialSeeding", label: "Initial Seeding", sortable: true },
-  { key: "sequentialDownload", label: "Sequential", sortable: true },
-  { key: "dateAdded", label: "Added", sortable: true },
-  { key: "lastActive", label: "Last Active", sortable: true },
-  { key: "pieceCount", label: "Pieces", sortable: true },
-  { key: "pieceLength", label: "Piece Length", sortable: true },
-  { key: "isPrivate", label: "Private Swarm", sortable: true },
-  { key: "infoHash", label: "Info Hash", sortable: true },
-  { key: "comment", label: "Comment", sortable: true },
-  { key: "createdBy", label: "Created By", sortable: true },
-];
-
-export const getColumnLabel = (
-  key: ColumnKey,
-  t: (k: string, p?: any) => string,
-): string => {
-  switch (key) {
-    case "#":
-      return "#";
-    case "queuePosition":
-      return t("torrents.table.queuePosition", { defaultValue: "Queue #" });
-    case "name":
-      return t("torrents.table.name");
-    case "category":
-      return t("torrents.table.category");
-    case "status":
-      return t("torrents.table.state");
-    case "progress":
-      return t("torrents.table.progress");
-    case "totalSize":
-      return t("torrents.table.size");
-    case "downloaded":
-      return t("torrents.table.downloaded");
-    case "uploaded":
-      return t("torrents.table.uploaded");
-    case "downloadSpeed":
-      return t("torrents.table.downloadSpeed");
-    case "uploadSpeed":
-      return t("torrents.table.uploadSpeed");
-    case "ratio":
-      return t("torrents.table.ratio");
-    case "seeders":
-      return t("torrents.table.seeds");
-    case "leechers":
-      return t("torrents.table.peers");
-    case "eta":
-      return t("torrents.table.eta");
-    case "trackerUrl":
-      return t("torrents.table.tracker");
-    case "priority":
-      return t("torrents.contextMenu.priority");
-    case "label":
-      return t("torrents.detail.label");
-    case "uploadLimit":
-      return t("torrents.table.uploadLimit");
-    case "downloadLimit":
-      return t("torrents.table.downloadLimit");
-    case "initialSeeding":
-      return t("torrents.detail.superSeeding");
-    case "sequentialDownload":
-      return t("torrents.table.sequential");
-    case "dateAdded":
-      return t("torrents.table.addedDate");
-    case "lastActive":
-      return t("torrents.table.lastActivity");
-    case "pieceCount":
-      return t("torrents.detail.pieces");
-    case "pieceLength":
-      return t("torrents.table.size");
-    case "isPrivate":
-      return t("torrents.detail.privateSwarm");
-    case "infoHash":
-      return t("torrents.table.infoHash");
-    case "comment":
-      return t("torrents.detail.comment");
-    case "createdBy":
-      return t("torrents.detail.createdBy");
-    default:
-      return key;
-  }
-};
-
-const PREF_VISIBLE_COLS_STORAGE = "leecharr_cols_v2";
-
-const DEFAULT_VISIBLE: Set<string> = new Set([
-  "#",
-  "name",
-  "category",
-  "totalSize",
-  "progress",
-  "status",
-  "downloadSpeed",
-  "uploadSpeed",
-  "seeders",
-  "leechers",
-  "ratio",
-]);
-
-function loadVisibleColumns(): Set<string> {
-  try {
-    const stored = localStorage.getItem(PREF_VISIBLE_COLS_STORAGE);
-    if (stored) {
-      const parsed = JSON.parse(stored) as string[];
-      if (Array.isArray(parsed) && parsed.length > 0) return new Set(parsed);
-    }
-  } catch (err) {
-    console.warn("Failed to parse localStorage:", err);
-  }
-  return new Set(DEFAULT_VISIBLE);
-}
-
-function saveVisibleColumns(cols: Set<string>) {
-  localStorage.setItem(PREF_VISIBLE_COLS_STORAGE, JSON.stringify([...cols]));
-}
-
-const PREF_COL_ORDER_STORAGE = "leecharr_col_order_v1";
-const PREF_COL_WIDTHS_STORAGE = "leecharr_col_widths_v1";
-
-function loadColumnOrder(): ColumnKey[] {
-  try {
-    const stored = localStorage.getItem(PREF_COL_ORDER_STORAGE);
-    if (stored) {
-      const parsed = JSON.parse(stored) as ColumnKey[];
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch {
-    /* ignore */
-  }
-  return ALL_COLUMNS.map((c) => c.key);
-}
-
-function saveColumnOrder(order: ColumnKey[]) {
-  localStorage.setItem(PREF_COL_ORDER_STORAGE, JSON.stringify(order));
-}
-
-function loadColumnWidths(): Record<string, number> {
-  try {
-    const stored = localStorage.getItem(PREF_COL_WIDTHS_STORAGE);
-    if (stored) return JSON.parse(stored) as Record<string, number>;
-  } catch {
-    /* ignore */
-  }
-  return {};
-}
-
-function saveColumnWidths(widths: Record<string, number>) {
-  localStorage.setItem(PREF_COL_WIDTHS_STORAGE, JSON.stringify(widths));
-}
+export type { ColumnKey, ColumnDef };
+export { ALL_COLUMNS, getColumnLabel };
 
 // ---------------------------------------------------------------------------
 // Leaf Telemetry Cell Components (Granular React.memo Subscriptions)
@@ -1012,6 +815,89 @@ export const TorrentCell: React.FC<TorrentCellProps> = React.memo(
       case "label":
         return <span>{t.label || "-"}</span>;
 
+      case "superSeeding":
+        return (
+          <span>
+            {((t as any).superSeeding ?? t.initialSeeding)
+              ? translate("common.yes")
+              : translate("common.no")}
+          </span>
+        );
+
+      case "forceStart":
+        return (
+          <span>
+            {(t as any).forceStart
+              ? translate("common.yes")
+              : translate("common.no")}
+          </span>
+        );
+
+      case "active":
+        return (
+          <span>
+            {(t as any).active
+              ? translate("common.yes")
+              : translate("common.no")}
+          </span>
+        );
+
+      case "availability":
+        return (
+          <span>
+            {typeof (t as any).availability === "number"
+              ? ((t as any).availability as number).toFixed(2)
+              : "-"}
+          </span>
+        );
+
+      case "sessionUploaded":
+        return <span>{formatBytes((t as any).sessionUploaded ?? 0)}</span>;
+
+      case "sessionDownloaded":
+        return <span>{formatBytes((t as any).sessionDownloaded ?? 0)}</span>;
+
+      case "announceInterval":
+        return (
+          <span>
+            {(t as any).announceInterval
+              ? formatSeconds((t as any).announceInterval)
+              : "-"}
+          </span>
+        );
+
+      case "nextUpdate":
+        return (
+          <span>
+            {(t as any).nextAnnounce
+              ? formatDate((t as any).nextAnnounce)
+              : (t as any).nextUpdate
+                ? formatDate((t as any).nextUpdate)
+                : "-"}
+          </span>
+        );
+
+      case "creationDate":
+        return <span>{t.creationDate ? formatDate(t.creationDate) : "-"}</span>;
+
+      case "threshold":
+        return (
+          <span>
+            {(t as any).threshold !== undefined
+              ? `${(t as any).threshold}%`
+              : "-"}
+          </span>
+        );
+
+      case "smallTorrentLimit":
+        return (
+          <span>
+            {(t as any).smallTorrentLimit
+              ? formatBytes((t as any).smallTorrentLimit)
+              : "-"}
+          </span>
+        );
+
       default:
         return <span>{String((t as any)[columnKey] ?? "-")}</span>;
     }
@@ -1172,6 +1058,18 @@ export interface TorrentTableProps {
   onSelectAll?: (ids: number[]) => void;
   onSearchIndexers?: (query: string) => void;
   onNavigateTab?: (nav: string, subNav?: string) => void;
+  visibleColumns?: Set<string>;
+  onToggleColumn?: (key: string) => void;
+  columnOrder?: ColumnKey[];
+  onColumnOrderChange?: (
+    orderOrUpdater: ColumnKey[] | ((prev: ColumnKey[]) => ColumnKey[]),
+  ) => void;
+  columnWidths?: Record<string, number>;
+  onColumnWidthsChange?: (
+    widthsOrUpdater:
+      | Record<string, number>
+      | ((prev: Record<string, number>) => Record<string, number>),
+  ) => void;
 }
 
 export const TorrentTable: React.FC<TorrentTableProps> = ({
@@ -1190,6 +1088,12 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   onSelectAll,
   onSearchIndexers,
   onNavigateTab,
+  visibleColumns: propVisibleColumns,
+  onToggleColumn: propToggleColumn,
+  columnOrder: propColumnOrder,
+  onColumnOrderChange: propOnColumnOrderChange,
+  columnWidths: propColumnWidths,
+  onColumnWidthsChange: propOnColumnWidthsChange,
 }) => {
   const { t } = useTranslation();
   const startSeeding = useStartSeeding();
@@ -1203,12 +1107,19 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   const [sortKey, setSortKey] = useState<ColumnKey>("name");
   const [sortAsc, setSortAsc] = useState(true);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
-  const [visibleColumns, setVisibleColumns] =
+  const [internalVisibleColumns, setInternalVisibleColumns] =
     useState<Set<string>>(loadVisibleColumns);
-  const [showColumnModal, setShowColumnModal] = useState(false);
-  const [columnOrder, setColumnOrder] = useState<ColumnKey[]>(loadColumnOrder);
-  const [columnWidths, setColumnWidths] =
+  const [internalColumnOrder, setInternalColumnOrder] =
+    useState<ColumnKey[]>(loadColumnOrder);
+  const [internalColumnWidths, setInternalColumnWidths] =
     useState<Record<string, number>>(loadColumnWidths);
+
+  const visibleColumns = propVisibleColumns ?? internalVisibleColumns;
+  const columnOrder = propColumnOrder ?? internalColumnOrder;
+  const columnWidths = propColumnWidths ?? internalColumnWidths;
+
+  const setColumnOrder = propOnColumnOrderChange ?? setInternalColumnOrder;
+  const setColumnWidths = propOnColumnWidthsChange ?? setInternalColumnWidths;
 
   // Hover and Sort snapshot tracking for freeze-on-interaction
   const [isHovered, setIsHovered] = useState(false);
@@ -1246,8 +1157,6 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     };
   }, []);
 
-  useEscapeKey(() => setShowColumnModal(false), showColumnModal);
-
   const { data: history } = useDownloadHistory();
   const { data: arrConnections } = useArrConnections();
 
@@ -1269,18 +1178,25 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
 
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
 
-  const toggleColumn = (key: string) => {
-    setVisibleColumns((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        if (next.size > 1) next.delete(key);
+  const toggleColumn = useCallback(
+    (key: string) => {
+      if (propToggleColumn) {
+        propToggleColumn(key);
       } else {
-        next.add(key);
+        setInternalVisibleColumns((prev) => {
+          const next = new Set(prev);
+          if (next.has(key)) {
+            if (next.size > 1) next.delete(key);
+          } else {
+            next.add(key);
+          }
+          saveVisibleColumns(next);
+          return next;
+        });
       }
-      saveVisibleColumns(next);
-      return next;
-    });
-  };
+    },
+    [propToggleColumn],
+  );
 
   // Build ordered, visible column list using the user's saved column order.
   const colDefMap = useMemo(
@@ -1875,85 +1791,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
             </span>
           )}
         </div>
-        <button
-          type="button"
-          className="btn btn-small btn-outline"
-          onClick={() => setShowColumnModal(!showColumnModal)}
-          style={{ fontSize: "0.75rem", padding: "0.25rem 0.6rem" }}
-        >
-          ⚙{" "}
-          {t("torrents.table.customizeColumns", {
-            visible: columns.length,
-            total: ALL_COLUMNS.length,
-          })}
-        </button>
       </div>
-
-      {/* Column Chooser Modal Dropdown */}
-      {showColumnModal && (
-        <>
-          <div
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 99,
-            }}
-            onClick={() => setShowColumnModal(false)}
-          />
-          <div
-            className="card"
-            style={{
-              position: "absolute",
-              top: "40px",
-              right: "10px",
-              zIndex: 100,
-              padding: "1rem",
-              backgroundColor: "var(--bg-card, #171b35)",
-              border: "1px solid var(--border)",
-              boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
-              borderRadius: "8px",
-              maxHeight: "350px",
-              overflowY: "auto",
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
-              maxWidth: "min(380px, 90vw)",
-              minWidth: "240px",
-              gap: "0.4rem 1.2rem",
-              fontSize: "0.8rem",
-            }}
-          >
-            {ALL_COLUMNS.map((c) => (
-              <label
-                key={c.key}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  cursor: "pointer",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={visibleColumns.has(c.key)}
-                  onChange={() => toggleColumn(c.key)}
-                />
-                <span
-                  style={{
-                    color: visibleColumns.has(c.key)
-                      ? "var(--text-primary, #f8f4ed)"
-                      : "var(--text-muted, #7e8092)",
-                  }}
-                >
-                  {getColumnLabel(c.key, t)}
-                </span>
-              </label>
-            ))}
-          </div>
-        </>
-      )}
 
       {/* Main Table */}
       <div

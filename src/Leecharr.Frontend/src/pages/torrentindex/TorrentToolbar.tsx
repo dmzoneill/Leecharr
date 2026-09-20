@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { formatSpeed } from "../../utils/formatters";
 import {
   PlusIcon,
@@ -8,6 +8,7 @@ import {
   GridIcon,
   SlidersIcon,
   FilterIcon,
+  ColumnsIcon,
 } from "../../components/icons/UIIcons";
 import { useSeedingConfig, useSaveSeedingConfig } from "../../api/hooks";
 import { DiskStorageBadge } from "../../components/quicksettings/DiskStorageBadge";
@@ -15,6 +16,12 @@ import { ViewMode } from "./types";
 import { useTranslation } from "../../i18n";
 import { useTorrentStore } from "../../stores/useTorrentStore";
 import type { Torrent } from "../../api/types";
+import { ColumnCustomizerModal } from "./ColumnCustomizerModal";
+import {
+  ColumnCategory,
+  PresetName,
+  useColumnPreferences,
+} from "./columnPreferences";
 
 export interface ToolbarSpeedSummaryProps {
   torrents?: Torrent[];
@@ -83,6 +90,19 @@ interface TorrentToolbarProps {
   onToggleQuickSettings?: () => void;
   isFilterCollapsed?: boolean;
   onToggleFilter?: () => void;
+  visibleColumns?: Set<string>;
+  onToggleColumn?: (key: string) => void;
+  onResetColumns?: () => void;
+  onResetSort?: () => void;
+  onSelectAllColumns?: () => void;
+  onDeselectAllColumns?: () => void;
+  onApplyColumnPreset?: (preset: PresetName) => void;
+  onToggleCategoryColumns?: (
+    category: ColumnCategory,
+    enable?: boolean,
+  ) => void;
+  isColumnCustomizerOpen?: boolean;
+  onToggleColumnCustomizer?: () => void;
 }
 
 export function TorrentToolbar({
@@ -109,7 +129,51 @@ export function TorrentToolbar({
   onToggleQuickSettings,
   isFilterCollapsed = false,
   onToggleFilter,
+  visibleColumns,
+  onToggleColumn,
+  onResetColumns,
+  onResetSort,
+  onSelectAllColumns,
+  onDeselectAllColumns,
+  onApplyColumnPreset,
+  onToggleCategoryColumns,
+  isColumnCustomizerOpen,
+  onToggleColumnCustomizer,
 }: TorrentToolbarProps) {
+  const [isInternalCustomizerOpen, setIsInternalCustomizerOpen] =
+    useState(false);
+  const defaultPrefs = useColumnPreferences();
+
+  const isCustomizerOpen =
+    isColumnCustomizerOpen !== undefined
+      ? isColumnCustomizerOpen
+      : isInternalCustomizerOpen;
+
+  const handleOpenCustomizer = () => {
+    if (onToggleColumnCustomizer) {
+      onToggleColumnCustomizer();
+    } else {
+      setIsInternalCustomizerOpen(true);
+    }
+  };
+
+  const handleCloseCustomizer = () => {
+    if (onToggleColumnCustomizer) {
+      onToggleColumnCustomizer();
+    } else {
+      setIsInternalCustomizerOpen(false);
+    }
+  };
+
+  const activeVisibleColumns = visibleColumns ?? defaultPrefs.visibleColumns;
+  const handleToggleColumn = onToggleColumn ?? defaultPrefs.toggleColumn;
+  const handleResetDefaults = onResetColumns ?? defaultPrefs.resetToDefaults;
+  const handleResetSortAction = onResetSort ?? defaultPrefs.resetSort;
+  const handleSelectAll = onSelectAllColumns ?? defaultPrefs.selectAll;
+  const handleDeselectAll = onDeselectAllColumns ?? defaultPrefs.deselectAll;
+  const handleApplyPreset = onApplyColumnPreset ?? defaultPrefs.applyPreset;
+  const handleToggleCategory =
+    onToggleCategoryColumns ?? defaultPrefs.toggleCategory;
   const { t } = useTranslation();
   const { data: seedConfig } = useSeedingConfig();
   const saveSeedMutation = useSaveSeedingConfig();
@@ -357,7 +421,37 @@ export function TorrentToolbar({
             <GridIcon size={13} /> {t("torrents.toolbar.grid")}
           </button>
         </div>
+        {viewMode === "table" && (
+          <button
+            type="button"
+            className={`btn btn-outline column-customizer-btn${isCustomizerOpen ? " active" : ""}`}
+            onClick={handleOpenCustomizer}
+            title={t("torrents.columns", { defaultValue: "Columns" })}
+            aria-label={t("torrents.columns", { defaultValue: "Columns" })}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              fontSize: "0.82rem",
+            }}
+          >
+            <ColumnsIcon size={13} />
+            <span>{t("torrents.columns", { defaultValue: "Columns" })}</span>
+          </button>
+        )}
       </div>
+      <ColumnCustomizerModal
+        isOpen={isCustomizerOpen}
+        onClose={handleCloseCustomizer}
+        visibleColumns={activeVisibleColumns}
+        onToggleColumn={handleToggleColumn}
+        onResetToDefaults={handleResetDefaults}
+        onResetSort={handleResetSortAction}
+        onSelectAll={handleSelectAll}
+        onDeselectAll={handleDeselectAll}
+        onApplyPreset={handleApplyPreset}
+        onToggleCategory={handleToggleCategory}
+      />
     </div>
   );
 }
