@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.18.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.18.1) - 2026-09-20
+
+### 🔧 Maintenance & Improvements
+- docs: remove completed GAP_TRACKING.md
+
 ## [v1.18.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.18.0) - 2026-09-20
 
 ### ✨ Features
