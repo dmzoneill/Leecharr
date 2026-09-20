@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.18.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.18.0) - 2026-09-20
+
+### ✨ Features
+- feat(analytics): configure GA4 with persistent installation instanceUuid and expose in SystemStatus
+
 ## [v1.17.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.17.0) - 2026-09-20
 
 ### ✨ Features
