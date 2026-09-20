@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.17.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.17.0) - 2026-09-20
+
+### ✨ Features
+- feat(ui): relocate Pause all and Resume all next to Add Torrent and move torrent count above table
+- feat(i18n): update toolbar button labels to Pause all and Resume all across all 20 locales
+
+### 🐛 Bug Fixes
+- fix(frontend): import useMemo in TorrentContextMenu to resolve ReferenceError
+
 ## [v1.16.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.16.0) - 2026-09-19
 
 ### ✨ Features
