@@ -18,9 +18,24 @@
       }
       gtag("js", new Date());
 
-      gtag("config", "G-86X994W6SL", {
-        send_page_view: false,
-      });
+      try {
+        var uuid = localStorage.getItem("leecharr_instance_uuid");
+        if (uuid) {
+          gtag("set", "user_properties", { instance_id: uuid });
+          gtag("config", "G-86X994W6SL", {
+            user_id: uuid,
+            send_page_view: false,
+          });
+        } else {
+          gtag("config", "G-86X994W6SL", {
+            send_page_view: false,
+          });
+        }
+      } catch (e) {
+        gtag("config", "G-86X994W6SL", {
+          send_page_view: false,
+        });
+      }
     </script>
   </head>
   <body>

@@ -1,9 +1,59 @@
 export const GA_MEASUREMENT_ID = "G-86X994W6SL";
+export const STORAGE_KEY_INSTANCE_UUID = "leecharr_instance_uuid";
 
 declare global {
   interface Window {
     dataLayer?: unknown[];
     gtag?: (...args: unknown[]) => void;
+  }
+}
+
+function getStoredInstanceUuid(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    return localStorage.getItem(STORAGE_KEY_INSTANCE_UUID) || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+let currentInstanceUuid: string | undefined = getStoredInstanceUuid();
+
+if (
+  currentInstanceUuid &&
+  typeof window !== "undefined" &&
+  typeof window.gtag === "function"
+) {
+  window.gtag("set", "user_properties", {
+    instance_id: currentInstanceUuid,
+  });
+  window.gtag("config", GA_MEASUREMENT_ID, {
+    user_id: currentInstanceUuid,
+    send_page_view: false,
+  });
+}
+
+/**
+ * Sets the installation UUID for Google Analytics 4 tracking.
+ * Configures both user_id and instance_id user property, and caches it in localStorage.
+ */
+export function setAnalyticsInstanceUuid(instanceUuid?: string): void {
+  if (!instanceUuid) return;
+  currentInstanceUuid = instanceUuid;
+  try {
+    localStorage.setItem(STORAGE_KEY_INSTANCE_UUID, instanceUuid);
+  } catch {
+    /* ignore localStorage errors */
+  }
+
+  if (typeof window !== "undefined" && typeof window.gtag === "function") {
+    window.gtag("set", "user_properties", {
+      instance_id: instanceUuid,
+    });
+    window.gtag("config", GA_MEASUREMENT_ID, {
+      user_id: instanceUuid,
+      send_page_view: false,
+    });
   }
 }
 
@@ -17,6 +67,9 @@ export function trackPageView(pagePath: string, pageTitle?: string): void {
       page_title:
         pageTitle || (typeof document !== "undefined" ? document.title : ""),
       send_to: GA_MEASUREMENT_ID,
+      ...(currentInstanceUuid
+        ? { user_id: currentInstanceUuid, instance_id: currentInstanceUuid }
+        : {}),
     });
   }
 }
@@ -32,6 +85,9 @@ export function trackEvent(
     window.gtag("event", eventName, {
       ...eventParams,
       send_to: GA_MEASUREMENT_ID,
+      ...(currentInstanceUuid
+        ? { user_id: currentInstanceUuid, instance_id: currentInstanceUuid }
+        : {}),
     });
   }
 }

@@ -9,6 +9,7 @@ using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
 using NzbDrone.Common.EnvironmentInfo;
+using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore;
 
 namespace Leecharr.Api.V1.System;
@@ -20,6 +21,8 @@ public class SystemStatusResource
     public string Version => BuildInfo.Version.ToString();
 
     public string Branch => BuildInfo.Branch;
+
+    public string InstanceUuid { get; set; }
 
     public string OsName { get; set; }
 
@@ -80,17 +83,20 @@ public class SystemController : ControllerBase
     private readonly IDatabase database;
     private readonly IRuntimeInfo runtimeInfo;
     private readonly IHostApplicationLifetime hostApplicationLifetime;
+    private readonly IConfigService configService;
 
     public SystemController(
         IAppFolderInfo appFolderInfo,
         IDatabase database = null,
         IRuntimeInfo runtimeInfo = null,
-        IHostApplicationLifetime hostApplicationLifetime = null)
+        IHostApplicationLifetime hostApplicationLifetime = null,
+        IConfigService configService = null)
     {
         this.appFolderInfo = appFolderInfo;
         this.database = database;
         this.runtimeInfo = runtimeInfo;
         this.hostApplicationLifetime = hostApplicationLifetime;
+        this.configService = configService;
     }
 
     [NonAction]
@@ -152,6 +158,7 @@ public class SystemController : ControllerBase
 
         return this.Ok(new SystemStatusResource
         {
+            InstanceUuid = this.configService?.InstanceUuid ?? string.Empty,
             OsName = RuntimeInformation.OSDescription,
             OsVersion = Environment.OSVersion.VersionString,
             RuntimeVersion = RuntimeInformation.FrameworkDescription,
