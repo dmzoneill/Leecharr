@@ -1,11 +1,46 @@
 export const GA_MEASUREMENT_ID = "G-86X994W6SL";
 export const STORAGE_KEY_INSTANCE_UUID = "leecharr_instance_uuid";
+export const STORAGE_KEY_TELEMETRY_ENABLED = "leecharr_telemetry_enabled";
 
 declare global {
   interface Window {
     dataLayer?: unknown[];
     gtag?: (...args: unknown[]) => void;
+    [key: string]: unknown;
   }
+}
+
+/**
+ * Checks whether anonymous usage telemetry is enabled by user preference.
+ * Defaults to true unless explicitly disabled in settings.
+ */
+export function isTelemetryEnabled(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(STORAGE_KEY_TELEMETRY_ENABLED) !== "false";
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Enables or disables telemetry tracking, updating localStorage and Google's opt-out flag.
+ */
+export function setTelemetryEnabled(enabled: boolean): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY_TELEMETRY_ENABLED, String(enabled));
+  } catch {
+    /* ignore localStorage errors */
+  }
+
+  // Set standard GA4 opt-out window property
+  (window as Record<string, unknown>)[`ga-disable-${GA_MEASUREMENT_ID}`] = !enabled;
+}
+
+// On script evaluation, disable GA if user previously opted out
+if (typeof window !== "undefined" && !isTelemetryEnabled()) {
+  (window as Record<string, unknown>)[`ga-disable-${GA_MEASUREMENT_ID}`] = true;
 }
 
 function getStoredInstanceUuid(): string | undefined {
@@ -21,6 +56,7 @@ let currentInstanceUuid: string | undefined = getStoredInstanceUuid();
 
 if (
   currentInstanceUuid &&
+  isTelemetryEnabled() &&
   typeof window !== "undefined" &&
   typeof window.gtag === "function"
 ) {
@@ -46,6 +82,8 @@ export function setAnalyticsInstanceUuid(instanceUuid?: string): void {
     /* ignore localStorage errors */
   }
 
+  if (!isTelemetryEnabled()) return;
+
   if (typeof window !== "undefined" && typeof window.gtag === "function") {
     window.gtag("set", "user_properties", {
       instance_id: instanceUuid,
@@ -58,12 +96,37 @@ export function setAnalyticsInstanceUuid(instanceUuid?: string): void {
 }
 
 /**
- * Sends a page view event to Google Analytics 4.
+ * Sanitizes page path to remove sensitive query parameters (e.g. auth tokens, apikeys, secrets, search queries)
+ */
+function sanitizePath(rawPath: string): string {
+  try {
+    const [pathname, search] = rawPath.split("?");
+    if (!search) return pathname;
+    const params = new URLSearchParams(search);
+    const safeParams = new URLSearchParams();
+    // Allowlist non-sensitive UI routing parameters
+    for (const key of ["tab", "view", "sortKey", "sortDir", "group", "mode"]) {
+      const val = params.get(key);
+      if (val) {
+        safeParams.set(key, val);
+      }
+    }
+    const safeQuery = safeParams.toString();
+    return safeQuery ? `${pathname}?${safeQuery}` : pathname;
+  } catch {
+    return rawPath.split("?")[0];
+  }
+}
+
+/**
+ * Sends a sanitized page view event to Google Analytics 4.
  */
 export function trackPageView(pagePath: string, pageTitle?: string): void {
+  if (!isTelemetryEnabled()) return;
+
   if (typeof window !== "undefined" && typeof window.gtag === "function") {
     window.gtag("event", "page_view", {
-      page_path: pagePath,
+      page_path: sanitizePath(pagePath),
       page_title:
         pageTitle || (typeof document !== "undefined" ? document.title : ""),
       send_to: GA_MEASUREMENT_ID,
@@ -81,6 +144,8 @@ export function trackEvent(
   eventName: string,
   eventParams?: Record<string, string | number | boolean | undefined | null>,
 ): void {
+  if (!isTelemetryEnabled()) return;
+
   if (typeof window !== "undefined" && typeof window.gtag === "function") {
     window.gtag("event", eventName, {
       ...eventParams,
@@ -122,21 +187,26 @@ export function trackTorrentAction(
 }
 
 /**
- * Helper to track indexer search queries.
+ * Helper to track indexer search queries without exposing raw search titles.
  */
-export function trackIndexerSearch(query: string, resultCount?: number): void {
+export function trackIndexerSearch(
+  query: string,
+  resultCount?: number,
+  category?: string,
+): void {
   trackEvent("indexer_search", {
-    search_term: query,
+    has_query: Boolean(query && query.trim()),
+    term_length: query ? query.length : 0,
+    category: category || "all",
     result_count: resultCount,
   });
 }
 
 /**
- * Helper to track grabbing a release from indexer search results.
+ * Helper to track grabbing a release from indexer search results without exposing raw release filenames.
  */
-export function trackReleaseGrab(title: string, indexerName?: string): void {
+export function trackReleaseGrab(_title: string, indexerName?: string): void {
   trackEvent("release_grab", {
-    release_title: title,
     indexer: indexerName || "unknown",
   });
 }
@@ -165,5 +235,47 @@ export function trackLanguageChange(language: string): void {
 export function trackModalOpen(modalName: string): void {
   trackEvent("modal_open", {
     modal_name: modalName,
+  });
+}
+
+/**
+ * Helper to track TrackerBoost optimization actions.
+ */
+export function trackTrackerBoostAction(
+  action: "harvest" | "boost_all" | "scan_all" | "bulk_import",
+  count?: number,
+): void {
+  trackEvent("tracker_boost_action", {
+    tb_action: action,
+    item_count: count,
+  });
+}
+
+/**
+ * Helper to track engine switches (e.g. Libtorrent, Hadouken, MonoTorrent).
+ */
+export function trackEngineSwitch(engine: string): void {
+  trackEvent("engine_switch", {
+    selected_engine: engine,
+  });
+}
+
+/**
+ * Helper to track bulk operations on torrents.
+ */
+export function trackBulkAction(action: string, count: number): void {
+  trackEvent("bulk_action", {
+    bulk_action_type: action,
+    item_count: count,
+  });
+}
+
+/**
+ * Helper to report caught frontend exceptions to Google Analytics.
+ */
+export function trackException(errorDescription: string, fatal: boolean = false): void {
+  trackEvent("exception", {
+    description: (errorDescription || "Unknown error").slice(0, 150),
+    fatal,
   });
 }
