@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.21.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.21.0) - 2026-09-21
+
+### ✨ Features
+- feat(analytics): track user settings adoption, engine configurations, and client interactions
+- feat(analytics): add privacy opt-out toggle, URL/media sanitization, and high-value event tracking
+
 ## [v1.20.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.20.0) - 2026-09-21
 
 ### ✨ Features
