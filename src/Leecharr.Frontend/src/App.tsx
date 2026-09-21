@@ -104,6 +104,7 @@ import {
   trackThemeChange,
   trackModalOpen,
   setAnalyticsInstanceUuid,
+  trackConfigAdoption,
 } from "./utils/analytics";
 
 function getSystemSubItems(t: (key: string) => string) {
@@ -155,8 +156,15 @@ export function App() {
   useEffect(() => {
     if (generalConfig?.instanceUuid) {
       setAnalyticsInstanceUuid(generalConfig.instanceUuid);
+      trackConfigAdoption({
+        has_auth: generalConfig.authenticationEnabled,
+        has_ssl: generalConfig.enableSsl ?? false,
+        theme: generalConfig.themeStyle,
+        color_scheme: generalConfig.colorScheme,
+        language: generalConfig.uiLanguage,
+      });
     }
-  }, [generalConfig?.instanceUuid]);
+  }, [generalConfig]);
 
   const handleLogout = async () => {
     try {

@@ -4,8 +4,11 @@ import { SaveBar, SectionCard, SelectInput, Toggle } from "./shared";
 import { LanguageSelector } from "../../components/LanguageSelector";
 import { useTranslation } from "../../i18n";
 import { useTheme, ThemeStyle, ColorScheme } from "../../context/ThemeContext";
-import { useToast } from "../../context/ToastContext";
-import { isTelemetryEnabled, setTelemetryEnabled } from "../../utils/analytics";
+import {
+  isTelemetryEnabled,
+  setTelemetryEnabled,
+  trackSettingSave,
+} from "../../utils/analytics";
 
 export function WebUiSettingsTab() {
   const { t } = useTranslation();
@@ -61,7 +64,13 @@ export function WebUiSettingsTab() {
         colorScheme: form.colorScheme,
       },
       {
-        onSuccess: () => setDirty(false),
+        onSuccess: () => {
+          setDirty(false);
+          trackSettingSave("webui", {
+            themeStyle: form.themeStyle,
+            colorScheme: form.colorScheme,
+          });
+        },
       },
     );
   };

@@ -14,6 +14,7 @@ import { useToast } from "../../context/ToastContext";
 import TrackerFavicon from "../../components/TrackerFavicon";
 import { useTranslation } from "../../i18n";
 import type { UnifiedDownloadItem } from "./types";
+import { trackTrackerBoostAction } from "../../utils/analytics";
 
 export interface HarvesterPanelProps {
   unifiedItems: UnifiedDownloadItem[];
@@ -96,6 +97,7 @@ export function HarvesterPanel({
   const handleScanAll = () => {
     scanTrackers.mutate(undefined, {
       onSuccess: (res) => {
+        trackTrackerBoostAction("scan_all", res.testedCount);
         showToast(
           t(
             "trackerBoost.probedEndpointsSuccess",
@@ -121,6 +123,7 @@ export function HarvesterPanel({
   const handleHarvestDownloads = () => {
     harvestDownloads.mutate(undefined, {
       onSuccess: (res) => {
+        trackTrackerBoostAction("harvest", res.harvestedCount);
         showToast(
           t(
             "trackerBoost.harvestedTrackersSuccess",
@@ -216,6 +219,7 @@ export function HarvesterPanel({
           (sum, r) => sum + r.totalSeedersFound,
           0,
         );
+        trackTrackerBoostAction("boost_all", totalAdded);
         showToast(
           t(
             "trackerBoost.boostAllSuccess",

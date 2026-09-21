@@ -19,6 +19,7 @@ import {
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { useToast } from "../../context/ToastContext";
 import type { EngineProbeResult } from "../../api/types";
+import { trackEngineSwitch, trackSettingSave } from "../../utils/analytics";
 
 export function EngineSettingsTab() {
   const { t } = useTranslation();
@@ -139,6 +140,12 @@ export function EngineSettingsTab() {
       {
         onSuccess: () => {
           setDirty(false);
+          trackSettingSave("engine", {
+            activeTorrentEngine: form.activeTorrentEngine,
+            diskCacheMb: form.diskCacheMb,
+            piecePickerStrategy: form.piecePickerStrategy,
+            diskIoWriteMode: form.diskIoWriteMode,
+          });
           showToast(
             t("settingsTabs.batch2.engineSettingsSavedSuccessfully"),
             "success",
@@ -165,6 +172,7 @@ export function EngineSettingsTab() {
           onSuccess: (res: any) => {
             setSelectedEngineForSwitch(null);
             update("activeTorrentEngine", targetEngine);
+            trackEngineSwitch(targetEngine);
             showToast(
               res?.message ||
                 `Switched active torrent engine to ${targetEngine}`,

@@ -279,3 +279,54 @@ export function trackException(errorDescription: string, fatal: boolean = false)
     fatal,
   });
 }
+
+/**
+ * Helper to track anonymous settings configuration changes.
+ * Helps determine which settings, features, and defaults are most utilized.
+ */
+export function trackSettingSave(
+  category: string,
+  options?: Record<string, string | number | boolean | undefined | null>,
+): void {
+  trackEvent("setting_save", {
+    setting_category: category,
+    ...options,
+  });
+}
+
+/**
+ * Helper to anonymously report active configuration adoption profile on startup.
+ */
+export function trackConfigAdoption(
+  profile: Record<string, string | number | boolean | undefined | null>,
+): void {
+  trackEvent("config_adoption", profile);
+}
+
+/**
+ * Helper to track download client connections and configurations.
+ */
+export function trackDownloadClientAction(
+  clientType: string,
+  action: "test" | "add" | "delete",
+  success?: boolean,
+): void {
+  trackEvent("download_client_action", {
+    client_type: clientType,
+    client_action: action,
+    is_success: success ?? true,
+  });
+}
+
+/**
+ * Helper to track quick-settings drawer toggles.
+ */
+export function trackQuickSettingChange(
+  settingName: string,
+  value: string | number | boolean,
+): void {
+  trackEvent("quick_setting_change", {
+    setting_name: settingName,
+    setting_value: String(value),
+  });
+}
