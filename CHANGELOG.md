@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.19.4](https://github.com/dmzoneill/Leecharr/releases/tag/v1.19.4) - 2026-09-21
+
+### 🔧 Maintenance & Improvements
+- docs: add both Docker Hub and GHCR container pull options
+
 ## [v1.19.3](https://github.com/dmzoneill/Leecharr/releases/tag/v1.19.3) - 2026-09-21
 
 ### 🔧 Maintenance & Improvements
