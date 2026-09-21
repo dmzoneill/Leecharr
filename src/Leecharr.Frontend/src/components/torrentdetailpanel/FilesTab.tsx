@@ -19,6 +19,7 @@ import { api } from "../../api/client";
 import type { Torrent, TorrentFileInfo } from "../../api/types";
 import { MediaPlayerModal } from "../MediaPlayerModal";
 import { isPlayableFile } from "../../utils/mediaPlayer";
+import { trackFilePriorityChange } from "../../utils/analytics";
 
 export const PRIORITY_OPTIONS = [
   {
@@ -511,6 +512,8 @@ export function FilesTab({
   const handleSetPriority = useCallback(
     (fileId: number, priority: number) => {
       if (effectiveId <= 0) return;
+      const mapped = priority === 0 ? "skip" : priority === 4 ? "high" : priority === 1 ? "low" : "normal";
+      trackFilePriorityChange(mapped, 1);
       setFilePriority.mutate({ torrentId: effectiveId, fileId, priority });
     },
     [effectiveId, setFilePriority],
@@ -519,6 +522,8 @@ export function FilesTab({
   const handleBatchSetPriority = useCallback(
     (targetFiles: TorrentFileInfo[], priority: number) => {
       if (effectiveId <= 0 || targetFiles.length === 0) return;
+      const mapped = priority === 0 ? "skip" : priority === 4 ? "high" : priority === 1 ? "low" : "normal";
+      trackFilePriorityChange(mapped, targetFiles.length);
       setFilesPriority.mutate({
         torrentId: effectiveId,
         files: targetFiles.map((f) => ({ fileId: f.id, priority })),
