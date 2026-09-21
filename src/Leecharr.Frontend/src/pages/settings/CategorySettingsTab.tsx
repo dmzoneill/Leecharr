@@ -14,6 +14,7 @@ import { useFocusTrap } from "../../hooks/useFocusTrap";
 import { FolderBrowserModal } from "../../components/FolderBrowserModal";
 import { formatBytes } from "../../utils/formatters";
 import { SectionCard, TextInput, NumberInput, Toggle } from "./shared";
+import { trackCategoryAction } from "../../utils/analytics";
 
 interface CategorySettingsProps {
   embedded?: boolean;
@@ -135,6 +136,7 @@ export function CategorySettingsTab({
         { id: editingCategory.id, data: payload },
         {
           onSuccess: (updated) => {
+            trackCategoryAction("update", Boolean(payload.savePath));
             showToast(
               t("settingsTabs.categories.updateSuccess", {
                 name: updated.name,
@@ -153,6 +155,7 @@ export function CategorySettingsTab({
     } else {
       createMutation.mutate(payload, {
         onSuccess: (created) => {
+          trackCategoryAction("create", Boolean(payload.savePath));
           showToast(
             t("settingsTabs.categories.createSuccess", {
               name: created.name,
@@ -182,6 +185,7 @@ export function CategorySettingsTab({
 
     deleteMutation.mutate(cat.id, {
       onSuccess: () => {
+        trackCategoryAction("delete");
         showToast(
           t("settingsTabs.categories.deleteSuccess", { name: cat.name }),
           "info",

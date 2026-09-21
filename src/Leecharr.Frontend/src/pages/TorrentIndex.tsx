@@ -14,7 +14,7 @@ import { useTorrentStore } from "../stores/useTorrentStore";
 import { useTranslation } from "../i18n";
 import { useMoveTorrentQueue, useTags, useBulkTorrentAction } from "../api/hooks";
 import { useColumnPreferences } from "./torrentindex/columnPreferences";
-import { trackViewModeChange, trackBulkAction } from "../utils/analytics";
+import { trackViewModeChange, trackBulkAction, trackQueueMove } from "../utils/analytics";
 
 interface TorrentIndexProps {
   torrents: Torrent[];
@@ -379,6 +379,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
       orderedIds.reverse();
     }
 
+    trackQueueMove(position, validSelectedIds.length);
     setBulkPending(true);
     try {
       for (const id of orderedIds) {
