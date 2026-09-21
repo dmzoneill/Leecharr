@@ -14,6 +14,7 @@ import { useTorrentStore } from "../stores/useTorrentStore";
 import { useTranslation } from "../i18n";
 import { useMoveTorrentQueue, useTags, useBulkTorrentAction } from "../api/hooks";
 import { useColumnPreferences } from "./torrentindex/columnPreferences";
+import { trackViewModeChange, trackBulkAction } from "../utils/analytics";
 
 interface TorrentIndexProps {
   torrents: Torrent[];
@@ -238,6 +239,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   const handleStartAll = async () => {
     const inactive = torrents.filter((t) => !isTorrentActive(t));
     if (inactive.length > 0) {
+      trackBulkAction("start_all", inactive.length);
       await Promise.all(inactive.map((t) => onResume(t.id)));
     }
   };
@@ -245,6 +247,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   const handleStopAll = async () => {
     const active = torrents.filter((t) => isTorrentActive(t));
     if (active.length > 0) {
+      trackBulkAction("stop_all", active.length);
       await Promise.all(active.map((t) => onPause(t.id)));
     }
   };
@@ -286,6 +289,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     }
     setBulkPending(true);
     try {
+      trackBulkAction("start", validSelectedIds.length);
       await Promise.all(validSelectedIds.map((id) => onResume(id)));
     } finally {
       setBulkPending(false);
@@ -304,6 +308,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     }
     setBulkPending(true);
     try {
+      trackBulkAction("stop", validSelectedIds.length);
       await Promise.all(validSelectedIds.map((id) => onPause(id)));
     } finally {
       setBulkPending(false);
@@ -397,7 +402,10 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
         filter={filter}
         onFilterChange={setFilter}
         viewMode={viewMode}
-        onViewModeChange={setViewMode}
+        onViewModeChange={(m) => {
+          setViewMode(m);
+          trackViewModeChange(m);
+        }}
         onAddTorrent={onOpenAddModal}
         onSearchIndexers={onOpenSearchModal}
         onStartAll={handleStartAll}

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { trackColumnPreferencesChange } from "../../utils/analytics";
 
 export type ColumnKey =
   | "#"
@@ -362,6 +363,7 @@ export function saveVisibleColumns(cols: Set<string>): void {
       const valid = [...cols].filter((key) => known.has(key));
       const finalCols = valid.length > 0 ? valid : [...DEFAULT_VISIBLE];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(finalCols));
+      trackColumnPreferencesChange(finalCols.length);
     }
   } catch (err) {
     console.warn("Failed to save column preferences to localStorage:", err);
