@@ -94,6 +94,7 @@ export type I18nTranslations = {
       inFuture: string;
     };
     save: string;
+    done: string;
     cancel: string;
     delete: string;
     edit: string;
@@ -212,6 +213,8 @@ export type I18nTranslations = {
     searchPlaceholder: string;
   };
   dashboard: {
+    title: string;
+    subtitle: string;
     level: string;
     noviceSeeder: string;
     badges: string;
@@ -268,6 +271,58 @@ export type I18nTranslations = {
   };
   torrents: {
     title: string;
+    privacy: string;
+    columns: string;
+    contextMenu: {
+      selectedItems: string;
+      resumeDownload: string;
+      pauseDownload: string;
+      updateTracker: string;
+      forceRecheck: string;
+      searchIndexers: string;
+      trackInPeerMap: string;
+      copy: string;
+      copyName: string;
+      copyInfoHash: string;
+      copyMagnetLink: string;
+      copyTrackerUrl: string;
+      priority: string;
+      highPriority: string;
+      normalPriority: string;
+      lowPriority: string;
+      speedLimit: string;
+      setUploadLimit: string;
+      setDownloadLimit: string;
+      resetToGlobalLimits: string;
+      queue: string;
+      top: string;
+      up: string;
+      down: string;
+      bottom: string;
+      setCategory: string;
+      disableSequential: string;
+      enableSequential: string;
+      remove: string;
+      removeTorrent: string;
+      removeTorrentConfirm: string;
+      removeTorrentAndDeleteFiles: string;
+      removeTorrentAndDeleteFilesConfirm: string;
+      columns: string;
+      invalidLimitValidation: string;
+    };
+    columnCustomizer: {
+      title: string;
+      count: string;
+      searchPlaceholder: string;
+      presets: string;
+      presetDefault: string;
+      presetCompact: string;
+      presetAll: string;
+      noMatches: string;
+      minOneColumn: string;
+      resetDefaults: string;
+      resetSort: string;
+    };
     allSwarms: string;
     privateBep27: string;
     publicSwarm: string;
@@ -605,42 +660,6 @@ export type I18nTranslations = {
       openTrackerPickerTitle: string;
     };
     ratio: string;
-    contextMenu: {
-      resumeDownload: string;
-      pauseDownload: string;
-      updateTracker: string;
-      forceRecheck: string;
-      searchIndexers: string;
-      trackInPeerMap: string;
-      copy: string;
-      copyName: string;
-      copyInfoHash: string;
-      copyMagnetLink: string;
-      copyTrackerUrl: string;
-      priority: string;
-      highPriority: string;
-      normalPriority: string;
-      lowPriority: string;
-      speedLimit: string;
-      setUploadLimit: string;
-      setDownloadLimit: string;
-      resetToGlobalLimits: string;
-      queue: string;
-      top: string;
-      up: string;
-      down: string;
-      bottom: string;
-      setCategory: string;
-      disableSequential: string;
-      enableSequential: string;
-      remove: string;
-      removeTorrent: string;
-      removeTorrentConfirm: string;
-      removeTorrentAndDeleteFiles: string;
-      removeTorrentAndDeleteFilesConfirm: string;
-      columns: string;
-      invalidLimitValidation: string;
-    };
     tabs: {
       status: string;
       overview: string;
@@ -744,6 +763,7 @@ export type I18nTranslations = {
   };
   addTorrent: {
     title: string;
+    subtitle: string;
     torrentFileTab: string;
     magnetLinkTab: string;
     indexerSearchTab: string;
@@ -846,6 +866,7 @@ export type I18nTranslations = {
   };
   history: {
     title: string;
+    subtitle: string;
     export: string;
     exportDownloaded: string;
     copiedToClipboard: string;
@@ -1856,6 +1877,26 @@ export type I18nTranslations = {
     rememberMe: string;
     orSignInWith: string;
     adminPlaceholder: string;
+    screenLocked: string;
+    sessionExpired: string;
+    sessionPaused: string;
+    resumeSession: string;
+    screenSaverDescription: string;
+    lockedDescription: string;
+    expiredDescription: string;
+    unlockButton: string;
+    unlocking: string;
+    stayLoggedIn: string;
+    lockNow: string;
+    signOut: string;
+    inactivityWarning: string;
+    inactivityWarningDesc: string;
+    activityHint: string;
+    passwordPlaceholder: string;
+    passwordRequired: string;
+    invalidPassword: string;
+    sessionUnlocked: string;
+    lockScreen: string;
   };
   alerts: {
     connectionLost: string;
@@ -2685,6 +2726,8 @@ export type I18nTranslations = {
       clearSearch: string;
     };
     batch2: {
+      lowDiskSpaceThresholdMb: string;
+      lowDiskSpaceThresholdMbHint: string;
       automatedDirectoryMonitoring: string;
       monitorLocalDirectories: string;
       enableWatchFolderMonitoring: string;
@@ -3472,9 +3515,9 @@ export type I18nTranslations = {
     all: string;
     queued: string;
     checking: string;
-    queuedforchecking?: string;
-    checking_queued?: string;
-    queued_check?: string;
+    queuedforchecking: string;
+    checking_queued: string;
+    queued_check: string;
     downloading: string;
     seeding: string;
     paused: string;
@@ -3890,6 +3933,10 @@ export type I18nTranslations = {
       "50": string;
       "75": string;
       "100": string;
+      seedingTimeMinutes: string;
+      eg288048Hours: string;
+      diskFreeSpace: string;
+      eg10Gb: string;
       title: string;
       subtitle: string;
       enabled: string;

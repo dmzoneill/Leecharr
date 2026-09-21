@@ -1,4 +1,10 @@
-import type { Torrent, TorrentFile, Category, SystemStatus } from "./types";
+import type {
+  Torrent,
+  TorrentFile,
+  Category,
+  SystemStatus,
+  CurrentUser,
+} from "./types";
 
 declare global {
   interface Window {
@@ -247,8 +253,65 @@ export const api = {
     username: string;
     password: string;
     rememberMe?: boolean;
-  }) =>
-    apiClient.post<import("./types").CurrentUser>("/auth/login", credentials),
+  }) => apiClient.post<CurrentUser>("/auth/login", credentials),
+  /**
+   * Re-authenticates with retry for transient network connectivity issues.
+   */
+  loginWithRetry: async (
+    credentials: {
+      username: string;
+      password: string;
+      rememberMe?: boolean;
+    },
+    maxRetries = 2,
+  ): Promise<CurrentUser> => {
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await api.login(credentials);
+      } catch (err: any) {
+        lastError = err;
+        const msg = String(err?.message || "");
+        // Do not retry client/auth errors like invalid password
+        if (
+          msg.includes("401") ||
+          msg.includes("400") ||
+          msg.includes("Invalid credentials") ||
+          msg.includes("required")
+        ) {
+          throw err;
+        }
+        if (attempt < maxRetries) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, 500 * Math.pow(2, attempt)),
+          );
+        }
+      }
+    }
+    throw lastError;
+  },
+  /**
+   * Refreshes active session by probing /auth/me with retry for transient errors.
+   */
+  refreshSession: async (maxRetries = 2): Promise<CurrentUser | null> => {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const user = await api.getCurrentUser();
+        return user;
+      } catch (err: any) {
+        if (err?.message?.includes("401")) {
+          throw err;
+        }
+        if (attempt === maxRetries) {
+          throw err;
+        }
+        await new Promise((resolve) =>
+          setTimeout(resolve, 300 * Math.pow(2, attempt)),
+        );
+      }
+    }
+    return null;
+  },
   logout: () => apiClient.post<{ message: string }>("/auth/logout"),
 
   // Identity Provider Config (Admin)

@@ -87,6 +87,8 @@ import {
 } from "./pages/settings/settingsNavData";
 import { useSettingsDirty } from "./pages/settings/SettingsDirtyContext";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { useIdleTimer } from "./hooks/useIdleTimer";
+import { IdleLockModal, IdleCountdownModal } from "./components/IdleLockModal";
 import "./App.css";
 import { LanguageSelector } from "./components/LanguageSelector";
 import { useTranslation } from "./i18n";
@@ -315,6 +317,47 @@ export function App() {
   const [unmaskedTopApiKey, setUnmaskedTopApiKey] = useState<string | null>(
     null,
   );
+
+  const [isManuallyLocked, setIsManuallyLocked] = useState(false);
+  const [lockReason, setLockReason] = useState<"idle" | "expired">("idle");
+
+  const {
+    isIdle,
+    isWarning,
+    remainingSeconds,
+    resetTimer,
+    lockSession,
+    unlockSession,
+  } = useIdleTimer({
+    enabled: Boolean(currentUser && location.pathname !== "/login"),
+    onIdle: () => {
+      setLockReason("idle");
+    },
+  });
+
+  const isLocked =
+    (isIdle || isManuallyLocked) &&
+    Boolean(currentUser && location.pathname !== "/login");
+
+  const handleUnlockSession = useCallback(() => {
+    setIsManuallyLocked(false);
+    unlockSession();
+    loadUser();
+    showToast(
+      t("auth.sessionUnlocked", "Session unlocked successfully"),
+      "success",
+    );
+  }, [unlockSession, showToast, t]);
+
+  const handleStayLoggedIn = useCallback(async () => {
+    resetTimer();
+    try {
+      await api.refreshSession(1);
+    } catch {
+      setLockReason("expired");
+      setIsManuallyLocked(true);
+    }
+  }, [resetTimer]);
 
   const fetchUnmaskedTopKey = useCallback(async () => {
     if (unmaskedTopApiKey) return unmaskedTopApiKey;
@@ -1804,6 +1847,29 @@ export function App() {
           onClose={() => setShowShortcutsModal(false)}
         />
       </ErrorBoundary>
+
+      {/* Idle Lock Modal & Screen Saver */}
+      <IdleLockModal
+        isOpen={isLocked}
+        currentUser={currentUser}
+        lockReason={lockReason}
+        onUnlock={handleUnlockSession}
+        onLogout={handleLogout}
+      />
+      <IdleCountdownModal
+        isOpen={
+          isWarning &&
+          !isLocked &&
+          Boolean(currentUser && location.pathname !== "/login")
+        }
+        remainingSeconds={remainingSeconds}
+        onStayLoggedIn={handleStayLoggedIn}
+        onLockNow={() => {
+          setLockReason("idle");
+          lockSession();
+        }}
+        onLogout={handleLogout}
+      />
 
       {/* Global Floating Toast Notifications */}
       <ToastContainer />
