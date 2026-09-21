@@ -43,6 +43,7 @@ import {
   SunIcon,
   MoonIcon,
   HeartIcon,
+  TrackerIcon,
 } from "./components/icons/AppIcons";
 import { Dashboard } from "./pages/Dashboard";
 import { TorrentIndex } from "./pages/TorrentIndex";
@@ -64,6 +65,9 @@ import SystemLogs from "./pages/SystemLogs";
 import SystemNetwork from "./pages/SystemNetwork";
 import { ApiDocsPage } from "./pages/ApiDocsPage";
 import TrackerBoost from "./pages/TrackerBoost";
+import TrackerServer from "./pages/TrackerServer";
+import TrackerMetrics from "./pages/TrackerMetrics";
+import Tags from "./pages/Tags";
 import { TerminalPage } from "./pages/TerminalPage";
 import { FileBrowser } from "./pages/FileBrowser";
 import { AutomationPage } from "./pages/AutomationPage";
@@ -256,11 +260,28 @@ export function App() {
   ) {
     activeNav = "indexers";
   } else if (
-    pathname.startsWith("/trackerboost") ||
+    pathname.startsWith("/tracker") ||
     pathname.startsWith("/boost") ||
-    pathname.startsWith("/downloadplusplus")
+    pathname.startsWith("/downloadplusplus") ||
+    pathname.startsWith("/trackermetrics")
   ) {
-    activeNav = "trackerboost";
+    activeNav = "tracker";
+    if (
+      pathname.startsWith("/tracker/trackerboost") ||
+      pathname.startsWith("/tracker/boost") ||
+      pathname === "/trackerboost" ||
+      pathname === "/boost" ||
+      pathname === "/downloadplusplus"
+    ) {
+      activeSubNav = "boost";
+    } else if (
+      pathname.startsWith("/tracker/metrics") ||
+      pathname === "/trackermetrics"
+    ) {
+      activeSubNav = "metrics";
+    } else {
+      activeSubNav = "inbuilt";
+    }
   } else if (pathname.startsWith("/settings")) {
     activeNav = "settings";
     const section = (pathname.split("/")[2] || "host").toLowerCase();
@@ -982,16 +1003,45 @@ export function App() {
             <span>{t("nav.statistics")}</span>
           </div>
 
-          {/* Tracker Boost */}
+          {/* Tracker Server & Swarms */}
           <div
-            className={`sidebar-nav-item ${activeNav === "trackerboost" ? "active" : ""}`}
-            onClick={() => guardedNavigate("/trackerboost")}
+            className={`sidebar-nav-item ${activeNav === "tracker" ? "active-parent" : ""}`}
+            onClick={() => guardedNavigate("/tracker/inbuilt")}
             style={{ cursor: "pointer" }}
-            title="Tracker Boost Swarm Optimization & Discovery"
+            title="Tracker Endpoints, Swarms & Live Metrics"
           >
-            <TrackerBoostIcon size={16} />
-            <span>{t("nav.trackerBoost")}</span>
+            <TrackerIcon />
+            <span>Tracker</span>
           </div>
+          {activeNav === "tracker" && (
+            <>
+              <div
+                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "inbuilt" ? "active" : ""}`}
+                onClick={() => guardedNavigate("/tracker/inbuilt")}
+                style={{ cursor: "pointer" }}
+                title="Inbuilt Tracker Server & Swarms"
+              >
+                <span>Inbuilt</span>
+              </div>
+              <div
+                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "boost" ? "active" : ""}`}
+                onClick={() => guardedNavigate("/tracker/trackerboost")}
+                style={{ cursor: "pointer" }}
+                title="Tracker Boost Swarm Optimization & Discovery"
+              >
+                <TrackerBoostIcon size={14} />{" "}
+                <span>{t("nav.trackerBoost")}</span>
+              </div>
+              <div
+                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "metrics" ? "active" : ""}`}
+                onClick={() => guardedNavigate("/tracker/metrics")}
+                style={{ cursor: "pointer" }}
+                title="Tracker Live Telemetry & Metrics"
+              >
+                <span>Tracker Metrics</span>
+              </div>
+            </>
+          )}
 
           {/* Terminal CLI */}
           <div
@@ -1614,9 +1664,33 @@ export function App() {
                 }
               />
 
-              {/* Tracker Boost */}
+              {/* Tracker */}
+              <Route
+                path="/tracker"
+                element={<Navigate to="/tracker/inbuilt" replace />}
+              />
+              <Route
+                path="/tracker/inbuilt"
+                element={
+                  <ErrorBoundary title="Tracker Server">
+                    <TrackerServer />
+                  </ErrorBoundary>
+                }
+              />
               <Route
                 path="/trackerboost"
+                element={<Navigate to="/tracker/trackerboost" replace />}
+              />
+              <Route
+                path="/boost"
+                element={<Navigate to="/tracker/trackerboost" replace />}
+              />
+              <Route
+                path="/downloadplusplus"
+                element={<Navigate to="/tracker/trackerboost" replace />}
+              />
+              <Route
+                path="/tracker/trackerboost"
                 element={
                   <ErrorBoundary title={t("errors.trackerBoost")}>
                     <TrackerBoost />
@@ -1624,12 +1698,20 @@ export function App() {
                 }
               />
               <Route
-                path="/boost"
-                element={<Navigate to="/trackerboost" replace />}
+                path="/tracker/boost"
+                element={<Navigate to="/tracker/trackerboost" replace />}
               />
               <Route
-                path="/downloadplusplus"
-                element={<Navigate to="/trackerboost" replace />}
+                path="/tracker/metrics"
+                element={
+                  <ErrorBoundary title="Tracker Metrics">
+                    <TrackerMetrics />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/trackermetrics"
+                element={<Navigate to="/tracker/metrics" replace />}
               />
 
               {/* Automation */}
@@ -1643,6 +1725,7 @@ export function App() {
               />
 
               {/* Settings */}
+              <Route path="/settings/tags" element={<Tags />} />
               <Route
                 path="/settings"
                 element={<Navigate to="/settings/general" replace />}
