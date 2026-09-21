@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.19.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.19.1) - 2026-09-21
+
+### 🔧 Maintenance & Improvements
+- docs: remove redundant repository name header from README
+- refactor(container): migrate from docker to podman and generic container naming
+
 ## [v1.19.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.19.0) - 2026-09-21
 
 ### ✨ Features
