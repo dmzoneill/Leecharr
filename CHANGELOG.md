@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.18.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.18.2) - 2026-09-21
+
+### ✨ Features
+- feat(auth): implement idle session lock and screen saver with multi-tab sync
+- feat(ui): align column customizer button placement and view modal with seedarr
+
+### 🐛 Bug Fixes
+- fix(i18n): sanitize irregular whitespace in translation memory and locales
+
 ## [v1.18.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.18.1) - 2026-09-20
 
 ### 🔧 Maintenance & Improvements
