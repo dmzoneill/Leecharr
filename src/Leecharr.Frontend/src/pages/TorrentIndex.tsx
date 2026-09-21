@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { Torrent, Category } from "../api/types";
 import { TorrentGrid } from "../components/TorrentGrid";
 import { TorrentTable } from "../components/TorrentTable";
@@ -7,11 +7,12 @@ import { TorrentToolbar } from "./torrentindex/TorrentToolbar";
 import { TorrentFilterPanel } from "./torrentindex/TorrentFilterPanel";
 import { QuickSettingsDrawer } from "../components/quicksettings/QuickSettingsDrawer";
 import { DeleteTorrentModal } from "../components/DeleteTorrentModal";
+import { BulkTagModal } from "../components/BulkTagModal";
 import { ViewMode } from "./torrentindex/types";
 import { extractTrackerDomain } from "../utils/formatters";
 import { useTorrentStore } from "../stores/useTorrentStore";
 import { useTranslation } from "../i18n";
-import { useMoveTorrentQueue } from "../api/hooks";
+import { useMoveTorrentQueue, useTags, useBulkTorrentAction } from "../api/hooks";
 import { useColumnPreferences } from "./torrentindex/columnPreferences";
 
 interface TorrentIndexProps {
@@ -69,12 +70,51 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   const clearSelection = useTorrentStore((state) => state.clearSelection);
   const removeTorrent = useTorrentStore((state) => state.removeTorrent);
 
+  const { data: tags = [] } = useTags();
+  const bulkAction = useBulkTorrentAction();
+  const [bulkTagModalState, setBulkTagModalState] = useState<{
+    isOpen: boolean;
+    mode: "add" | "remove";
+  } | null>(null);
+
   const [bulkPending, setBulkPending] = useState<boolean>(false);
   const [deleteModalState, setDeleteModalState] = useState<{
     isOpen: boolean;
     torrent?: Torrent | null;
     count?: number;
   }>({ isOpen: false });
+
+  const handleBulkAddTags = useCallback(() => {
+    if (selectedIds.size === 0) return;
+    setBulkTagModalState({ isOpen: true, mode: "add" });
+  }, [selectedIds]);
+
+  const handleBulkRemoveTags = useCallback(() => {
+    if (selectedIds.size === 0) return;
+    setBulkTagModalState({ isOpen: true, mode: "remove" });
+  }, [selectedIds]);
+
+  const handleConfirmBulkTag = useCallback(
+    async (tagIds: number[]) => {
+      if (!bulkTagModalState || selectedIds.size === 0 || tagIds.length === 0) return;
+      const mode = bulkTagModalState.mode;
+      const ids = Array.from(selectedIds);
+      setBulkPending(true);
+      try {
+        await bulkAction.mutateAsync({
+          torrentIds: ids,
+          action: mode === "add" ? "addtags" : "removetags",
+          tagIds,
+        });
+        setBulkTagModalState(null);
+      } catch (err: unknown) {
+        console.error(`Failed to ${mode === "add" ? "assign" : "remove"} tags:`, err);
+      } finally {
+        setBulkPending(false);
+      }
+    },
+    [bulkTagModalState, selectedIds, bulkAction],
+  );
   const [showQuickSettings, setShowQuickSettings] = useState<boolean>(() => {
     return localStorage.getItem("leecharr_quick_settings_open") === "true";
   });
@@ -368,6 +408,8 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
         onBulkStop={handleBulkStop}
         onBulkDelete={handleBulkDelete}
         onBulkClear={clearSelection}
+        onBulkAddTags={handleBulkAddTags}
+        onBulkRemoveTags={handleBulkRemoveTags}
         onBulkMoveQueue={handleBulkMoveQueue}
         showQuickSettings={showQuickSettings}
         onToggleQuickSettings={handleToggleQuickSettings}
@@ -473,6 +515,19 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteModalState({ isOpen: false })}
       />
+      {bulkTagModalState?.isOpen && (
+        <BulkTagModal
+          isOpen={bulkTagModalState.isOpen}
+          mode={bulkTagModalState.mode}
+          selectedCount={selectedIds.size}
+          tags={tags}
+          isPending={bulkPending}
+          onClose={() => {
+            if (!bulkPending) setBulkTagModalState(null);
+          }}
+          onConfirm={handleConfirmBulkTag}
+        />
+      )}
     </div>
   );
 };
