@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.19.3](https://github.com/dmzoneill/Leecharr/releases/tag/v1.19.3) - 2026-09-21
+
+### 🔧 Maintenance & Improvements
+- docs: remove GEMINI.md and local agent configs
+
 ## [v1.19.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.19.2) - 2026-09-21
 
 ### 🔧 Maintenance & Improvements
