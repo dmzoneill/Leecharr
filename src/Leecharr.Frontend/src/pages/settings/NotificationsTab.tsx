@@ -25,6 +25,7 @@ import {
 import { useToast } from "../../context/ToastContext";
 import { useConfirm } from "../../context/ConfirmContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
+import { trackNotificationAction } from "../../utils/analytics";
 
 const NOTIFICATION_SETTINGS_KEY = "leecharr-notification-settings";
 
@@ -492,8 +493,10 @@ export function NotificationsTab() {
   const handleTest = async (id: number, name: string) => {
     try {
       setTestResults((prev) => ({ ...prev, [id]: null }));
+      const notif = notifications?.find((n) => n.id === id);
       testMutation.mutate(id, {
         onSuccess: (data) => {
+          trackNotificationAction(notif?.implementation || "unknown", "test", data.success);
           setTestResults((prev) => ({ ...prev, [id]: data }));
           if (data.success) {
             showToast(
@@ -603,6 +606,7 @@ export function NotificationsTab() {
 
       deleteMutation.mutate(notif.id, {
         onSuccess: () => {
+          trackNotificationAction(notif.implementation || "unknown", "delete", true);
           showToast(
             t("settingsTabs.notifications.deleted", { name: notif.name }),
             "info",
@@ -633,6 +637,7 @@ export function NotificationsTab() {
 
     try {
       const payload = buildNotificationPayload(editing);
+      trackNotificationAction(editing.implementation || "unknown", "save", true);
       if (editing.id) {
         updateMutation.mutate(payload, {
           onSuccess: () => {

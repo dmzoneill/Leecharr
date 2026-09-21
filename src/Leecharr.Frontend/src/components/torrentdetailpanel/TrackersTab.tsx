@@ -17,6 +17,7 @@ import { ErrorBoundary } from "../ErrorBoundary";
 import TrackerMultiSelectModal, {
   TrackerPickerItem,
 } from "../TrackerMultiSelectModal";
+import { trackTrackerAction } from "../../utils/analytics";
 
 export function NextAnnounceCountdown({
   nextAnnounce,
@@ -315,6 +316,7 @@ export function TrackersTab({
     setIsAddingBatch(false);
     setSelectedUrls(new Set());
     if (addedCount > 0) {
+      trackTrackerAction("add");
       showToast(
         t(
           "torrents.detail.addedTrackersQueued",
@@ -332,6 +334,7 @@ export function TrackersTab({
 
   const handleDeleteTracker = (trackerId: number) => {
     if (!effectiveId) return;
+    trackTrackerAction("remove");
     deleteTracker.mutate(
       { torrentId: effectiveId, trackerId },
       {
@@ -511,6 +514,7 @@ export function TrackersTab({
                           }}
                           onClick={() => {
                             if (!effectiveId) return;
+                            trackTrackerAction("reannounce");
                             announceTracker.mutate(
                               { torrentId: effectiveId, trackerId: tItem.id },
                               {

@@ -164,24 +164,30 @@ export function trackTorrentAdd(
   mode: "file" | "magnet" | "search" | "create",
   count: number = 1,
   category?: string,
+  extra?: {
+    start_paused?: boolean;
+    sequential?: boolean;
+    tag_count?: number;
+  },
 ): void {
   trackEvent("torrent_add", {
     add_mode: mode,
     torrent_count: count,
     category: category || "default",
+    ...(extra || {}),
   });
 }
 
 /**
- * Helper to track lifecycle actions on a torrent (pause, resume, delete).
+ * Helper to track lifecycle actions on a torrent (pause, resume, delete, recheck, reannounce).
  */
 export function trackTorrentAction(
-  action: "pause" | "resume" | "delete",
-  torrentId: number,
+  action: "pause" | "resume" | "delete" | "recheck" | "reannounce",
+  torrentId?: number,
   deleteFiles?: boolean,
 ): void {
   trackEvent(`torrent_${action}`, {
-    torrent_id: torrentId,
+    torrent_id: torrentId ?? 0,
     delete_files: deleteFiles ?? false,
   });
 }
@@ -416,4 +422,79 @@ export function trackTorrentOptionsSave(options: {
   priority?: number;
 }): void {
   trackEvent("torrent_options_save", options);
+}
+
+/**
+ * Helper to track notification service configurations and tests.
+ */
+export function trackNotificationAction(
+  serviceType: string,
+  action: "test" | "save" | "delete",
+  success?: boolean,
+): void {
+  trackEvent("notification_action", {
+    service_type: serviceType,
+    action_type: action,
+    is_success: success ?? true,
+  });
+}
+
+/**
+ * Helper to track network / proxy configurations.
+ */
+export function trackNetworkConfigSave(config: {
+  has_proxy?: boolean;
+  proxy_type?: string;
+  upnp_enabled?: boolean;
+  has_vpn_interface?: boolean;
+}): void {
+  trackEvent("network_config_save", config);
+}
+
+/**
+ * Helper to track security / authentication changes.
+ */
+export function trackSecurityConfigSave(config: {
+  auth_type?: string;
+  has_api_key?: boolean;
+  lan_bypass?: boolean;
+}): void {
+  trackEvent("security_config_save", config);
+}
+
+/**
+ * Helper to track file priority changes in swarms.
+ */
+export function trackFilePriorityChange(
+  priority: "skip" | "high" | "normal" | "low",
+  count?: number,
+): void {
+  trackEvent("file_priority_change", {
+    priority_level: priority,
+    affected_count: count ?? 1,
+  });
+}
+
+/**
+ * Helper to track manual tracker interactions.
+ */
+export function trackTrackerAction(
+  action: "add" | "remove" | "reannounce",
+): void {
+  trackEvent("tracker_action", {
+    action_type: action,
+  });
+}
+
+/**
+ * Helper to track system logs operations (filtering, download, clear).
+ */
+export function trackSystemLogAction(
+  action: "filter_level" | "download" | "clear",
+  level?: string,
+): void {
+  trackEvent("system_log_action", {
+    log_action: action,
+    log_level: level || "all",
+  });
 }
