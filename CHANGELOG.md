@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.25.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.25.0) - 2026-09-21
+
+### ✨ Features
+- feat(telemetry): wire global unhandled exception tracking and backend 5xx error telemetry
+
 ## [v1.24.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.24.0) - 2026-09-21
 
 ### ✨ Features
