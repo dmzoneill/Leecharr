@@ -62,6 +62,64 @@ Unlike conventional standalone clients (Deluge, qBittorrent, Transmission) that 
 
 ---
 
+## ⚡ Quick Start
+
+Leecharr container images are available on both **Docker Hub** and **GitHub Container Registry (GHCR)**.
+
+### Run with Podman / Docker
+
+**Option 1: Docker Hub**
+```bash
+podman run -d \
+  --name leecharr \
+  -p 7889:7889 \
+  -p 7890:7890/tcp \
+  -p 7890:7890/udp \
+  -v leecharr-config:/config \
+  -v leecharr-downloads:/downloads \
+  --restart unless-stopped \
+  feeditout/leecharr:latest
+```
+
+**Option 2: GitHub Container Registry (GHCR)**
+```bash
+podman run -d \
+  --name leecharr \
+  -p 7889:7889 \
+  -p 7890:7890/tcp \
+  -p 7890:7890/udp \
+  -v leecharr-config:/config \
+  -v leecharr-downloads:/downloads \
+  --restart unless-stopped \
+  ghcr.io/dmzoneill/leecharr:latest
+```
+
+### Container Compose (`compose.yaml` / `podman-compose.yml`)
+
+```yaml
+services:
+  leecharr:
+    # Option 1: Docker Hub
+    image: feeditout/leecharr:latest
+    # Option 2: GitHub Container Registry (GHCR)
+    # image: ghcr.io/dmzoneill/leecharr:latest
+    container_name: leecharr
+    restart: unless-stopped
+    ports:
+      - "7889:7889"
+      - "7890:7890/tcp"
+      - "7890:7890/udp"
+    volumes:
+      - /opt/leecharr/config:/config
+      - /opt/leecharr/downloads:/downloads
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+```
+
+---
+
 ## Documentation & Changelog
 
 - [Changelog & Version History](CHANGELOG.md)

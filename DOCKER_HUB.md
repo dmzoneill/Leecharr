@@ -60,6 +60,7 @@ Unlike conventional standalone clients that treat downloads as raw filenames and
 
 ### Single Container Run (`podman run` / `docker run`)
 
+**Option 1: Docker Hub**
 ```bash
 podman run -d \
   --name leecharr \
@@ -72,6 +73,19 @@ podman run -d \
   feeditout/leecharr:latest
 ```
 
+**Option 2: GitHub Container Registry (GHCR)**
+```bash
+podman run -d \
+  --name leecharr \
+  -p 7889:7889 \
+  -p 7890:7890/tcp \
+  -p 7890:7890/udp \
+  -v leecharr-config:/config \
+  -v leecharr-downloads:/downloads \
+  --restart unless-stopped \
+  ghcr.io/dmzoneill/leecharr:latest
+```
+
 Open **http://localhost:7889** in your browser.
 
 ---
@@ -81,7 +95,10 @@ Open **http://localhost:7889** in your browser.
 ```yaml
 services:
   leecharr:
+    # Option 1 (Docker Hub):
     image: feeditout/leecharr:latest
+    # Option 2 (GHCR):
+    # image: ghcr.io/dmzoneill/leecharr:latest
     container_name: leecharr
     restart: unless-stopped
     ports:
@@ -103,9 +120,10 @@ services:
       start_period: 15s
 ```
 
-Run with Podman Compose:
+Run with Container Compose:
 ```bash
 podman-compose up -d
+# or: docker compose up -d
 ```
 
 ---
@@ -153,10 +171,10 @@ server {
 
 Multi-architecture builds are automatically published to both Docker Hub and GitHub Packages Container Registry (GHCR):
 
-| Architecture | Tag Example | Status |
-| :--- | :--- | :--- |
-| **`linux/amd64`** | `feeditout/leecharr:latest`, `feeditout/leecharr:1.0.121` | ✅ Verified Stable |
-| **`linux/arm64`** | `feeditout/leecharr:latest`, `feeditout/leecharr:1.0.121` | ✅ Verified Stable |
+| Architecture | Docker Hub Tag Example | GHCR Tag Example | Status |
+| :--- | :--- | :--- | :--- |
+| **`linux/amd64`** | `feeditout/leecharr:latest` | `ghcr.io/dmzoneill/leecharr:latest` | ✅ Verified Stable |
+| **`linux/arm64`** | `feeditout/leecharr:latest` | `ghcr.io/dmzoneill/leecharr:latest` | ✅ Verified Stable |
 
 ---
 
