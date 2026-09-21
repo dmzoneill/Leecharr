@@ -40,6 +40,8 @@ import type {
   TorrentEngineMetrics,
   TorrentResourceMetrics,
   SubtitleTrack,
+  BulkTorrentActionResource,
+  BulkActionResult,
 } from "../types";
 
 export type AddTorrentInput = {
@@ -588,6 +590,19 @@ export function useDeleteTag() {
   return useMutation({
     mutationFn: (id: number) => apiClient.delete(`/tag/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tags"] }),
+  });
+}
+
+export function useBulkTorrentAction() {
+  const queryClient = useQueryClient();
+  return useMutation<BulkActionResult, Error, BulkTorrentActionResource>({
+    mutationFn: (data: BulkTorrentActionResource) =>
+      apiClient.post<BulkActionResult>("/torrent/bulk", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      queryClient.invalidateQueries({ queryKey: ["seeding"] });
+      queryClient.invalidateQueries({ queryKey: ["tags"] });
+    },
   });
 }
 
