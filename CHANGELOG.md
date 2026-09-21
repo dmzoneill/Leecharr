@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.24.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.24.0) - 2026-09-21
+
+### ✨ Features
+- feat(telemetry): wire round 3 interaction telemetry for indexers, search, preview, tags, categories, queue, and theme
+
 ## [v1.23.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.23.0) - 2026-09-21
 
 ### ✨ Features
