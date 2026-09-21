@@ -1,6 +1,6 @@
 .PHONY: setup test-setup test integration build clean restore frontend \
        stack-init stack-build stack-up stack-down stack-configure stack-healthy stack-rebuild stack-clean \
-       test-unit test-integration test-all publish coverage-report hooks lint format \
+       test-unit test-integration test-all publish coverage-report lint format \
        quality-report container-build container-build-test
 
 SOLUTION := src/Leecharr.sln
@@ -20,11 +20,7 @@ PROWLARR_API_KEY := 3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f
 
 # --- Build targets (called by upstream CI: make setup) ---
 
-hooks:
-	@chmod +x .githooks/* 2>/dev/null || true
-	@git config --local core.hooksPath .githooks 2>/dev/null && echo "✅ Git hooks configured (.githooks)" || true
-
-setup: hooks
+setup:
 	dotnet restore $(SOLUTION)
 	@if [ -f $(FRONTEND)/package.json ]; then cd $(FRONTEND) && npm ci; fi
 	@command -v podman-compose > /dev/null 2>&1 || pip install podman-compose 2>/dev/null || true
