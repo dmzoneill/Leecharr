@@ -19,6 +19,7 @@ import {
   setSubtitleTrackActive,
   getCodecErrorMessage,
 } from "../utils/mediaPlayer";
+import { trackMediaPreview } from "../utils/analytics";
 
 export interface MediaPlayerModalProps {
   isOpen: boolean;
@@ -65,6 +66,14 @@ export function MediaPlayerModal({
     () => parseMediaBadges(fileName, torrent.name),
     [fileName, torrent.name],
   );
+
+  useEffect(() => {
+    if (isOpen) {
+      const ext = fileName.split(".").pop()?.toLowerCase() || "unknown";
+      const mimeCat = isAudio ? "audio" : ext === "mp4" ? "video_mp4" : ext === "mkv" ? "video_mkv" : "video_other";
+      trackMediaPreview(mimeCat);
+    }
+  }, [isOpen, isAudio, fileName]);
 
   const streamUrl = useMemo(
     () => buildStreamUrl(torrent.id, file.id),

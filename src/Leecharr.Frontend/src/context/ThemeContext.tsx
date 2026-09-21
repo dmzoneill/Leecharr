@@ -6,8 +6,8 @@ import React, {
   useEffect,
   useMemo,
 } from "react";
-import type { ReactNode } from "react";
 import { useGeneralConfig } from "../api/hooks";
+import { trackThemeChange } from "../utils/analytics";
 
 export type ThemeStyle =
   "dark" | "light" | "indigo" | "oled" | "slate" | "system";
@@ -137,6 +137,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [effectiveTheme, colorScheme]);
 
   const setThemeStyle = useCallback((style: ThemeStyle) => {
+    trackThemeChange(style);
     setThemeStyleState(style);
     try {
       localStorage.setItem(STORAGE_KEY_THEME, style);
@@ -168,6 +169,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       } else {
         next = "light";
       }
+      trackThemeChange(next);
       try {
         localStorage.setItem(STORAGE_KEY_THEME, next);
         localStorage.setItem("leecharr-theme", next);

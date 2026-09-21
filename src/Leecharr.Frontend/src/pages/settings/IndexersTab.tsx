@@ -29,6 +29,7 @@ import {
 import { useToast } from "../../context/ToastContext";
 import { useConfirm } from "../../context/ConfirmContext";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
+import { trackIndexerAction } from "../../utils/analytics";
 
 export function normalizeIndexerPayload(
   editing: Partial<IndexerDefinition>,
@@ -202,6 +203,7 @@ export function IndexersTab() {
         },
         {
           onSuccess: (data) => {
+            trackIndexerAction("sync", "Prowlarr", true);
             showToast(
               `Synced ${data.syncedCount} indexers from Prowlarr`,
               "success",
@@ -210,6 +212,7 @@ export function IndexersTab() {
             setModalTestResult(null);
           },
           onError: (err) => {
+            trackIndexerAction("sync", "Prowlarr", false);
             showToast(
               err?.message || t("settingsTabs.indexers.syncProwlarrFailed"),
               "error",
@@ -223,22 +226,26 @@ export function IndexersTab() {
     if (editing.id) {
       updateMutation.mutate(payload, {
         onSuccess: () => {
+          trackIndexerAction("edit", payload.indexerType || "Prowlarr", true);
           showToast(`Indexer "${payload.name}" updated`, "success");
           setEditing(null);
           setModalTestResult(null);
         },
         onError: (err: any) => {
+          trackIndexerAction("edit", payload.indexerType || "Prowlarr", false);
           showToast(err?.message || "Failed to update indexer", "error");
         },
       });
     } else {
       createMutation.mutate(payload, {
         onSuccess: () => {
+          trackIndexerAction("add", payload.indexerType || "Prowlarr", true);
           showToast(`Indexer "${payload.name}" created`, "success");
           setEditing(null);
           setModalTestResult(null);
         },
         onError: (err: any) => {
+          trackIndexerAction("add", payload.indexerType || "Prowlarr", false);
           showToast(err?.message || "Failed to create indexer", "error");
         },
       });
@@ -306,9 +313,14 @@ export function IndexersTab() {
   const handleTest = (id: number) => {
     setTestResults((prev) => ({ ...prev, [id]: null }));
     testMutation.mutate(id, {
-      onSuccess: (data) =>
-        setTestResults((prev) => ({ ...prev, [id]: data.success })),
-      onError: () => setTestResults((prev) => ({ ...prev, [id]: false })),
+      onSuccess: (data) => {
+        trackIndexerAction("test", "indexer", data.success);
+        setTestResults((prev) => ({ ...prev, [id]: data.success }));
+      },
+      onError: () => {
+        trackIndexerAction("test", "indexer", false);
+        setTestResults((prev) => ({ ...prev, [id]: false }));
+      },
     });
   };
 
@@ -318,9 +330,11 @@ export function IndexersTab() {
     const payload = normalizeIndexerPayload(editing);
     testDirectMutation.mutate(payload, {
       onSuccess: (res) => {
+        trackIndexerAction("test", payload.indexerType || "indexer", res.success);
         setModalTestResult(res);
       },
       onError: (err) => {
+        trackIndexerAction("test", payload.indexerType || "indexer", false);
         setModalTestResult({
           success: false,
           message:
@@ -414,19 +428,23 @@ export function IndexersTab() {
                     if (!ok) return;
 
                     deleteMutation.mutate(idx.id, {
-                      onSuccess: () =>
+                      onSuccess: () => {
+                        trackIndexerAction("delete", idx.indexerType || "indexer", true);
                         showToast(
                           t("settingsTabs.indexers.indexerDeleted", {
                             name: idx.name,
                           }),
                           "info",
-                        ),
-                      onError: (err: any) =>
+                        );
+                      },
+                      onError: (err: any) => {
+                        trackIndexerAction("delete", idx.indexerType || "indexer", false);
                         showToast(
                           err?.message ||
                             t("settingsTabs.indexers.deleteIndexerFailed"),
                           "error",
-                        ),
+                        );
+                      },
                     });
                   }}
                 >
