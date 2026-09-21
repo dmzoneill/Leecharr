@@ -12,6 +12,7 @@ import {
 import { useConfirm } from "../../context/ConfirmContext";
 import { useToast } from "../../context/ToastContext";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
+import { trackDownloadClientAction } from "../../utils/analytics";
 import type {
   DownloadClientDefinition,
   DownloadClientTestResult,
@@ -106,9 +107,11 @@ export function DownloadClientsTab() {
       showToast("Host is required", "error");
       return;
     }
+    const clientType = editing.clientType || "unknown";
     if (editing.id) {
       updateMutation.mutate(editing as DownloadClientDefinition, {
         onSuccess: () => {
+          trackDownloadClientAction(clientType, "add");
           showToast(`Download client "${editing.name}" updated`, "success");
           setEditing(null);
         },
@@ -122,6 +125,7 @@ export function DownloadClientsTab() {
     } else {
       createMutation.mutate(editing, {
         onSuccess: () => {
+          trackDownloadClientAction(clientType, "add");
           showToast(`Download client "${editing.name}" created`, "success");
           setEditing(null);
         },
@@ -150,15 +154,21 @@ export function DownloadClientsTab() {
   const handleModalTest = () => {
     if (!editing) return;
     setModalTestResult(null);
+    const clientType = editing.clientType || "unknown";
     testDirectMutation.mutate(editing, {
-      onSuccess: (data) => setModalTestResult(data),
-      onError: (err) =>
+      onSuccess: (data) => {
+        trackDownloadClientAction(clientType, "test", data.success);
+        setModalTestResult(data);
+      },
+      onError: (err) => {
+        trackDownloadClientAction(clientType, "test", false);
         setModalTestResult({
           success: false,
           message:
             err.message ||
             t("settingsTabs.downloadClients.connectionFailedResult"),
-        }),
+        });
+      },
     });
   };
 
