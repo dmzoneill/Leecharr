@@ -1,6 +1,7 @@
 import { useTranslation } from "../i18n";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../api/client";
+import { trackSystemMaintenanceAction } from "../utils/analytics";
 
 interface ScheduledTask {
   id?: number;
@@ -225,7 +226,8 @@ function SystemTasks() {
         : `/system/task/${encodeURIComponent(task.typeName)}/execute`;
       return apiClient.post(endpoint, {});
     },
-    onSuccess: () => {
+    onSuccess: (_, task) => {
+      trackSystemMaintenanceAction("task_run", task.name || task.typeName);
       queryClient.invalidateQueries({ queryKey: ["system", "tasks"] });
       queryClient.invalidateQueries({ queryKey: ["system", "commands"] });
     },

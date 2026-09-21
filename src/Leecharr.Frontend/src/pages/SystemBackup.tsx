@@ -11,6 +11,7 @@ import {
 import { useToast } from "../context/ToastContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import { formatBytes, formatDate } from "../utils/formatters";
+import { trackSystemMaintenanceAction } from "../utils/analytics";
 
 function BackupIcon() {
   const { t } = useTranslation();
@@ -111,6 +112,7 @@ function SystemBackup() {
   useEscapeKey(() => setConfirmRestore(null), confirmRestore !== null);
 
   const handleCreateBackup = () => {
+    trackSystemMaintenanceAction("backup_create");
     createBackup.mutate(undefined, {
       onSuccess: () =>
         showToast(
@@ -126,6 +128,7 @@ function SystemBackup() {
   };
 
   const handleDeleteBackup = (id: number) => {
+    trackSystemMaintenanceAction("backup_delete");
     deleteBackup.mutate(id, {
       onSuccess: () => {
         showToast(
@@ -144,6 +147,7 @@ function SystemBackup() {
 
   const handleRestoreBackup = async (backup: Backup) => {
     try {
+      trackSystemMaintenanceAction("backup_restore");
       await restoreBackup.mutateAsync({
         backupId: backup.id,
         fileName: backup.name,
@@ -302,6 +306,7 @@ function SystemBackup() {
                         href={getDownloadUrl(backup.id)}
                         className="torrent-link"
                         download
+                        onClick={() => trackSystemMaintenanceAction("backup_download")}
                         style={{
                           display: "inline-flex",
                           alignItems: "center",

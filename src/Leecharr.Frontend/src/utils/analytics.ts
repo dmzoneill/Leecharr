@@ -330,3 +330,90 @@ export function trackQuickSettingChange(
     setting_value: String(value),
   });
 }
+
+/**
+ * Helper to track view mode switches on torrent index (table, grid, cards, posters).
+ */
+export function trackViewModeChange(mode: "table" | "grid" | "cards" | "posters" | string): void {
+  trackEvent("view_mode_change", {
+    view_mode: mode,
+  });
+}
+
+/**
+ * Helper to track torrent index filter usage (state, tracker, category, tag).
+ */
+export function trackFilterChange(
+  filterType: "state" | "tracker" | "category" | "tag",
+  value: string,
+): void {
+  trackEvent("filter_applied", {
+    filter_type: filterType,
+    filter_value: value || "all",
+  });
+}
+
+/**
+ * Helper to track column preferences or presets applied.
+ */
+export function trackColumnPreferencesChange(
+  columnCount: number,
+  preset?: string,
+): void {
+  trackEvent("column_preferences_save", {
+    visible_column_count: columnCount,
+    applied_preset: preset || "custom",
+  });
+}
+
+/**
+ * Helper to track speed schedule / turtle mode toggles.
+ */
+export function trackSpeedModeChange(
+  mode: "normal" | "alternative" | "scheduled",
+  enabled: boolean,
+): void {
+  trackEvent("speed_mode_change", {
+    speed_mode: mode,
+    is_enabled: enabled,
+  });
+}
+
+/**
+ * Helper to track system maintenance and backup operations.
+ */
+export function trackSystemMaintenanceAction(
+  action: "backup_create" | "backup_restore" | "backup_download" | "task_run" | "logs_clear" | "update_check",
+  name?: string,
+): void {
+  trackEvent("system_maintenance", {
+    maintenance_action: action,
+    target_name: name || "default",
+  });
+}
+
+/**
+ * Helper to track workflow / automation creation and execution.
+ */
+export function trackAutomationAction(
+  action: "create" | "update" | "delete" | "trigger" | "install_template",
+  triggerTypeOrName?: string,
+): void {
+  trackEvent("automation_action", {
+    action_type: action,
+    trigger_type: triggerTypeOrName || "manual",
+  });
+}
+
+/**
+ * Helper to track torrent-level option overrides (super-seeding, force-start, limits).
+ */
+export function trackTorrentOptionsSave(options: {
+  super_seeding?: boolean;
+  force_start?: boolean;
+  has_upload_limit?: boolean;
+  has_download_limit?: boolean;
+  priority?: number;
+}): void {
+  trackEvent("torrent_options_save", options);
+}

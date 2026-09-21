@@ -3,6 +3,7 @@ import { useSeedingConfig, useSaveSeedingConfig } from "../../api/hooks";
 import { DownloadIcon, UploadIcon } from "../icons/UIIcons";
 import { useToast } from "../../context/ToastContext";
 import { useTranslation } from "../../i18n";
+import { trackSpeedModeChange } from "../../utils/analytics";
 
 const DL_STEPS: number[] = [
   0, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 600, 700, 800, 900, 1000,
@@ -151,9 +152,11 @@ export const BandwidthCard: React.FC = () => {
         <button
           type="button"
           className={`quick-pill-btn ${isAltActive ? "active-turtle" : ""}`}
-          onClick={() =>
-            handleUpdate({ alternativeSpeedEnabled: !isAltActive })
-          }
+          onClick={() => {
+            const next = !isAltActive;
+            trackSpeedModeChange("alternative", next);
+            handleUpdate({ alternativeSpeedEnabled: next });
+          }}
           title={t("quickSettings.turtleModeToggle")}
         >
           {t("quickSettings.turtleMode")}{" "}

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "../../i18n";
 import { useUpdateTorrent } from "../../api/hooks";
 import type { Torrent } from "../../api/types";
+import { trackTorrentOptionsSave } from "../../utils/analytics";
 
 export function OptionsTab({ torrent }: { torrent: Torrent }) {
   const { t } = useTranslation();
@@ -77,10 +78,18 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
   }, [torrent, dirty]);
 
   const handleSave = () => {
+    const prioVal = parseInt(priority, 10);
+    trackTorrentOptionsSave({
+      super_seeding: initialSeeding,
+      force_start: forceStart,
+      has_upload_limit: uploadLimit > 0,
+      has_download_limit: downloadLimit > 0,
+      priority: prioVal,
+    });
     updateTorrent.mutate(
       {
         ...torrent,
-        priority: parseInt(priority, 10),
+        priority: prioVal,
         uploadLimit: Math.max(0, uploadLimit),
         downloadLimit: Math.max(0, downloadLimit),
         initialSeeding,
