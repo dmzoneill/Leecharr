@@ -93,6 +93,7 @@ import { useSettingsDirty } from "./pages/settings/SettingsDirtyContext";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useIdleTimer } from "./hooks/useIdleTimer";
 import { IdleLockModal, IdleCountdownModal } from "./components/IdleLockModal";
+import AriaLiveAnnouncer from "./components/AriaLiveAnnouncer";
 import "./App.css";
 import { LanguageSelector } from "./components/LanguageSelector";
 import { useTranslation } from "./i18n";
@@ -1953,6 +1954,9 @@ export function App() {
         }}
         onLogout={handleLogout}
       />
+
+      {/* Screen Reader Live Telemetry Announcer */}
+      <AriaLiveAnnouncer />
 
       {/* Global Floating Toast Notifications */}
       <ToastContainer />

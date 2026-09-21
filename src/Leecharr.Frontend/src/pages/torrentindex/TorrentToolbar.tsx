@@ -10,6 +10,7 @@ import {
   FilterIcon,
   ColumnsIcon,
 } from "../../components/icons/UIIcons";
+import { TagIcon } from "../../components/icons/NavIcons";
 import { useSeedingConfig, useSaveSeedingConfig } from "../../api/hooks";
 import { DiskStorageBadge } from "../../components/quicksettings/DiskStorageBadge";
 import { ViewMode } from "./types";
@@ -85,6 +86,8 @@ interface TorrentToolbarProps {
   onBulkStop: () => void;
   onBulkDelete: () => void;
   onBulkClear: () => void;
+  onBulkAddTags?: () => void;
+  onBulkRemoveTags?: () => void;
   onBulkMoveQueue?: (position: "top" | "up" | "down" | "bottom") => void;
   showQuickSettings?: boolean;
   onToggleQuickSettings?: () => void;
@@ -124,6 +127,8 @@ export function TorrentToolbar({
   onBulkStop,
   onBulkDelete,
   onBulkClear,
+  onBulkAddTags,
+  onBulkRemoveTags,
   onBulkMoveQueue,
   showQuickSettings = false,
   onToggleQuickSettings,
@@ -242,6 +247,30 @@ export function TorrentToolbar({
             >
               {t("common.delete")}
             </button>
+            {onBulkAddTags && (
+              <button
+                type="button"
+                className="btn btn-outline bulk-add-tags-btn"
+                onClick={onBulkAddTags}
+                disabled={bulkPending}
+                title={t("torrents.bulkAddTags", { defaultValue: "Assign Tags" })}
+                style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
+              >
+                <TagIcon size={13} /> {t("torrents.bulkAddTags", { defaultValue: "Assign Tags" })}
+              </button>
+            )}
+            {onBulkRemoveTags && (
+              <button
+                type="button"
+                className="btn btn-outline bulk-remove-tags-btn"
+                onClick={onBulkRemoveTags}
+                disabled={bulkPending}
+                title={t("torrents.bulkRemoveTags", { defaultValue: "Remove Tags" })}
+                style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
+              >
+                <TagIcon size={13} /> {t("torrents.bulkRemoveTags", { defaultValue: "Remove Tags" })}
+              </button>
+            )}
             {onBulkMoveQueue && (
               <div
                 className="btn-group"
