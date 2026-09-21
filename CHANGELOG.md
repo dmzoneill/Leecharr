@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.19.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.19.0) - 2026-09-21
+
+### ✨ Features
+- feat(ui): add tracker server, tracker metrics, tags management, and media player modal
+
 ## [v1.18.3](https://github.com/dmzoneill/Leecharr/releases/tag/v1.18.3) - 2026-09-21
 
 ### 🔧 Maintenance & Improvements
