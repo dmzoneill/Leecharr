@@ -22,6 +22,7 @@ import type {
 } from "../api/types";
 import { formatBytes } from "../utils/formatters";
 import { useConfirm } from "../context/ConfirmContext";
+import { trackAutomationAction } from "../utils/analytics";
 
 // Visual Pipeline Interfaces
 export type VisualActionType =
@@ -1115,10 +1116,12 @@ if (torrent) {
     }
 
     if (finalScript.id && finalScript.id > 0) {
+      trackAutomationAction("update", String(finalScript.trigger || "manual"));
       updateScript.mutate(finalScript as AutomationScript, {
         onSuccess: () => setEditorOpen(false),
       });
     } else {
+      trackAutomationAction("create", String(finalScript.trigger || "manual"));
       createScript.mutate(finalScript, {
         onSuccess: () => setEditorOpen(false),
       });
@@ -1134,11 +1137,13 @@ if (torrent) {
       danger: true,
     });
     if (ok) {
+      trackAutomationAction("delete");
       deleteScript.mutate(id);
     }
   }
 
   function handleToggleEnabled(script: AutomationScript) {
+    trackAutomationAction(script.isEnabled ? "disable" : "enable", String(script.trigger || "manual"));
     updateScript.mutate({
       ...script,
       isEnabled: !script.isEnabled,
@@ -1148,6 +1153,7 @@ if (torrent) {
   function handleRunNow(id: number, torrentId?: number) {
     setIsRunningId(id);
     const targetScript = scriptList.find((s) => s.id === id);
+    trackAutomationAction("run_now", String(targetScript?.trigger || "manual"));
     runScript.mutate(
       { id, torrentId },
       {
@@ -1217,6 +1223,7 @@ if (torrent) {
 
   function handleInstallTemplate() {
     if (!selectedTemplate) return;
+    trackAutomationAction("install_template", selectedTemplate.name || selectedTemplate.id);
     installTemplate.mutate(
       {
         templateId: selectedTemplate.id,
