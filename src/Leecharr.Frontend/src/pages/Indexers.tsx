@@ -10,6 +10,7 @@ import { formatBytes, formatDate } from "../utils/formatters";
 import { useToast } from "../context/ToastContext";
 import { useTranslation } from "../i18n";
 import type { ReleaseInfo, IndexerDefinition } from "../api/types";
+import { trackIndexerSearch, trackReleaseGrab } from "../utils/analytics";
 
 interface IndexersProps {
   selectedSubNav?: string;
@@ -53,6 +54,7 @@ export const Indexers: React.FC<IndexersProps> = ({
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
+      trackIndexerSearch(query.trim());
       setActiveSearchTerm(query.trim());
     }
   };
@@ -72,6 +74,7 @@ export const Indexers: React.FC<IndexersProps> = ({
       },
       {
         onSuccess: () => {
+          trackReleaseGrab(release.title, release.indexerName || release.indexer || "");
           setDownloadingGuid(null);
           showToast(
             t("indexers.grabbedSuccess", 'Grabbed "{title}" successfully', {

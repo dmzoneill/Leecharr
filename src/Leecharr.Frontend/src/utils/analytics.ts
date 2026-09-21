@@ -220,9 +220,9 @@ export function trackReleaseGrab(_title: string, indexerName?: string): void {
 /**
  * Helper to track theme toggle.
  */
-export function trackThemeChange(theme: "light" | "dark"): void {
-  trackEvent("theme_change", {
-    theme,
+export function trackThemeChange(theme: "light" | "dark" | "system" | string): void {
+  trackEvent("ui_theme_change", {
+    theme_mode: theme,
   });
 }
 
@@ -496,5 +496,125 @@ export function trackSystemLogAction(
   trackEvent("system_log_action", {
     log_action: action,
     log_level: level || "all",
+  });
+}
+
+/**
+ * Helper to track queue reordering.
+ */
+export function trackQueueMove(
+  action: "top" | "bottom" | "up" | "down",
+  count: number = 1,
+): void {
+  trackEvent("torrent_queue_move", {
+    move_action: action,
+    item_count: count,
+  });
+}
+
+/**
+ * Helper to track table column sorting.
+ */
+export function trackTableSort(
+  column: string,
+  direction: "asc" | "desc",
+): void {
+  trackEvent("torrent_index_sort", {
+    sort_column: column,
+    sort_direction: direction,
+  });
+}
+
+/**
+ * Helper to track category creation / modification / deletion.
+ */
+export function trackCategoryAction(
+  action: "create" | "update" | "delete",
+  hasCustomSavePath?: boolean,
+): void {
+  trackEvent("category_config_save", {
+    category_action: action,
+    has_custom_save_path: hasCustomSavePath ?? false,
+  });
+}
+
+/**
+ * Helper to track tag operations.
+ */
+export function trackTagAction(
+  action: "create" | "update" | "delete",
+): void {
+  trackEvent("tag_config_save", {
+    tag_action: action,
+  });
+}
+
+/**
+ * Helper to track indexer operations (test, add, edit, sync).
+ */
+export function trackIndexerAction(
+  action: "test" | "add" | "edit" | "sync",
+  indexerType: string,
+  success?: boolean,
+): void {
+  trackEvent("indexer_operation", {
+    indexer_action: action,
+    indexer_type: indexerType,
+    is_success: success ?? true,
+  });
+}
+
+/**
+ * Helper to track UI density changes.
+ */
+export function trackDensityChange(
+  density: string,
+): void {
+  trackEvent("ui_density_change", {
+    density_level: density,
+  });
+}
+
+/**
+ * Helper to track UI locale / language changes.
+ */
+export function trackLocaleChange(
+  locale: string,
+): void {
+  trackEvent("ui_locale_change", {
+    locale_code: locale,
+  });
+}
+
+/**
+ * Helper to track system lifecycle commands (restart, shutdown, update_check).
+ */
+export function trackSystemLifecycle(
+  action: "restart" | "shutdown" | "update_check",
+): void {
+  trackEvent("system_lifecycle_action", {
+    lifecycle_action: action,
+  });
+}
+
+/**
+ * Helper to track media player preview modal.
+ */
+export function trackMediaPreview(
+  mimeCategory: string,
+): void {
+  trackEvent("torrent_media_preview", {
+    mime_category: mimeCategory,
+  });
+}
+
+/**
+ * Helper to track peer inspection actions.
+ */
+export function trackPeerAction(
+  action: "view_client_dist" | "view_country_dist" | "disconnect" | "ban",
+): void {
+  trackEvent("torrent_peer_action", {
+    action_type: action,
   });
 }
