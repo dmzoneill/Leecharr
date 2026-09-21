@@ -5,6 +5,7 @@ import type {
   SystemStatus,
   CurrentUser,
 } from "./types";
+import { trackException } from "../utils/analytics";
 
 declare global {
   interface Window {
@@ -120,6 +121,10 @@ class ApiClient {
         statusText: response.statusText,
         data,
       };
+      if (response.status >= 500) {
+        const cleanEndpoint = endpoint.split("?")[0];
+        trackException(`Backend ${response.status}: ${cleanEndpoint} - ${message.slice(0, 80)}`, false, "backend_api_5xx");
+      }
       throw error;
     }
 

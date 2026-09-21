@@ -84,6 +84,8 @@ export function setAnalyticsInstanceUuid(instanceUuid?: string): void {
 
   if (!isTelemetryEnabled()) return;
 
+  initGlobalExceptionTracking();
+
   if (typeof window !== "undefined" && typeof window.gtag === "function") {
     window.gtag("set", "user_properties", {
       instance_id: instanceUuid,
@@ -277,12 +279,68 @@ export function trackBulkAction(action: string, count: number): void {
 }
 
 /**
- * Helper to report caught frontend exceptions to Google Analytics.
+ * Sanitizes error messages to prevent leakage of paths, URLs, query parameters, tokens, or hashes.
  */
-export function trackException(errorDescription: string, fatal: boolean = false): void {
+export function sanitizeErrorMessage(raw: string): string {
+  if (!raw || typeof raw !== "string") return "Unknown error";
+  return raw
+    .replace(/https?:\/\/[^\s]+/g, "[URL]")
+    .replace(/file:\/\/[^\s]+/g, "[PATH]")
+    .replace(/(\/[\w\.-]+){2,}/g, "[PATH]")
+    .replace(/([a-zA-Z]:\\[\w\.-]+){2,}/g, "[PATH]")
+    .replace(/\b[a-fA-F0-9]{32,64}\b/g, "[HASH]")
+    .replace(/\b(bearer\s+|token=|apikey=|password=)[^\s&]+/gi, "$1[REDACTED]")
+    .slice(0, 150)
+    .trim();
+}
+
+/**
+ * Helper to report caught frontend and backend exceptions to Google Analytics.
+ */
+export function trackException(
+  errorDescription: string,
+  fatal: boolean = false,
+  source: string = "frontend_react",
+): void {
   trackEvent("exception", {
-    description: (errorDescription || "Unknown error").slice(0, 150),
+    description: sanitizeErrorMessage(errorDescription),
     fatal,
+    error_source: source,
+  });
+}
+
+let isGlobalExceptionTrackingInitialized = false;
+
+/**
+ * Initializes global uncaught error listeners for window.onerror and unhandled promise rejections.
+ */
+export function initGlobalExceptionTracking(): void {
+  if (typeof window === "undefined" || isGlobalExceptionTrackingInitialized) return;
+  isGlobalExceptionTrackingInitialized = true;
+
+  window.addEventListener("error", (event: ErrorEvent) => {
+    try {
+      const msg = event.error?.message || event.message || "Uncaught script error";
+      const name = event.error?.name || "Error";
+      trackException(`${name}: ${msg}`, false, "frontend_global");
+    } catch {
+      // Ignore telemetry errors
+    }
+  });
+
+  window.addEventListener("unhandledrejection", (event: PromiseRejectionEvent) => {
+    try {
+      const reason = event.reason;
+      const rawMsg =
+        reason instanceof Error
+          ? `${reason.name}: ${reason.message}`
+          : typeof reason === "string"
+            ? reason
+            : "Unhandled promise rejection";
+      trackException(`UnhandledRejection: ${rawMsg}`, false, "frontend_global");
+    } catch {
+      // Ignore telemetry errors
+    }
   });
 }
 
