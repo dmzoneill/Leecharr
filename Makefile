@@ -162,7 +162,8 @@ quality-report:
 	@echo "    - Duplication (HTML): _reports/jscpd/html/index.html"
 
 container-build:
-	podman build -t leecharr:latest -f Containerfile . || docker build -t leecharr:latest -f Containerfile .
+	podman build -t leecharr:latest -f Containerfile .
 
 container-build-test:
-	podman build --target test --build-arg COVERAGE_TOOLS=true -t leecharr:test -f Containerfile . || docker build --target test --build-arg COVERAGE_TOOLS=true -t leecharr:test -f Containerfile .
+	podman build --target test --build-arg COVERAGE_TOOLS=true -t leecharr:test -f Containerfile .
+

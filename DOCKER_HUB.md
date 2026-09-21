@@ -58,10 +58,10 @@ Unlike conventional standalone clients that treat downloads as raw filenames and
 
 ## ⚡ Quick Start
 
-### Single Container Run (`docker run`)
+### Single Container Run (`podman run` / `docker run`)
 
 ```bash
-docker run -d \
+podman run -d \
   --name leecharr \
   -p 7889:7889 \
   -p 7890:7890/tcp \
@@ -76,7 +76,7 @@ Open **http://localhost:7889** in your browser.
 
 ---
 
-### Docker Compose (`compose.yaml` / `docker-compose.yml`)
+### Container Compose (`podman-compose.yml` / `compose.yaml`)
 
 ```yaml
 services:
@@ -101,6 +101,11 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
+```
+
+Run with Podman Compose:
+```bash
+podman-compose up -d
 ```
 
 ---
