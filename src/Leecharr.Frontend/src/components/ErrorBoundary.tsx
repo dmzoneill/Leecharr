@@ -1,6 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from "react";
 import { ErrorIcon } from "./icons/UIIcons";
 import { translate } from "../i18n/useTranslation";
+import { trackException } from "../utils/analytics";
 
 export interface ErrorBoundaryProps {
   children: ReactNode;
@@ -45,6 +46,11 @@ export class ErrorBoundary extends Component<
       error,
       errorInfo,
     );
+    try {
+      trackException(error.message, false);
+    } catch {
+      // ignore telemetry errors
+    }
     this.props.onError?.(error, errorInfo);
   }
 

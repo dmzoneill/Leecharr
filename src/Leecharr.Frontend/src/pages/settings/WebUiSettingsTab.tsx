@@ -1,16 +1,23 @@
 import React, { useState, useEffect } from "react";
 import { useGeneralConfig, useSaveGeneralConfig } from "../../api/hooks";
-import { SaveBar, SectionCard, SelectInput } from "./shared";
+import { SaveBar, SectionCard, SelectInput, Toggle } from "./shared";
 import { LanguageSelector } from "../../components/LanguageSelector";
 import { useTranslation } from "../../i18n";
 import { useTheme, ThemeStyle, ColorScheme } from "../../context/ThemeContext";
+import { useToast } from "../../context/ToastContext";
+import { isTelemetryEnabled, setTelemetryEnabled } from "../../utils/analytics";
 
 export function WebUiSettingsTab() {
   const { t } = useTranslation();
   const { setThemeStyle, setColorScheme } = useTheme();
+  const { showToast } = useToast();
 
   const { data: config, isLoading } = useGeneralConfig();
   const saveMutation = useSaveGeneralConfig();
+
+  const [telemetryEnabled, setTelemetryEnabledState] = useState(() =>
+    isTelemetryEnabled(),
+  );
 
   const [form, setForm] = useState({
     themeStyle: "dark",
@@ -421,6 +428,25 @@ export function WebUiSettingsTab() {
             </div>
           </div>
         </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Privacy & Telemetry"
+        description="Configure anonymous usage statistics and diagnostics"
+      >
+        <Toggle
+          label="Anonymous Usage Telemetry"
+          checked={telemetryEnabled}
+          onChange={(v) => {
+            setTelemetryEnabled(v);
+            setTelemetryEnabledState(v);
+            showToast(
+              v ? "Anonymous telemetry enabled" : "Anonymous telemetry disabled",
+              "info",
+            );
+          }}
+          hint="Send anonymous aggregate usage data and crash reports to help improve Leecharr. No torrent names, file paths, IP addresses, or personal credentials are ever collected."
+        />
       </SectionCard>
     </div>
   );
