@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.23.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.23.0) - 2026-09-21
+
+### ✨ Features
+- feat(telemetry): wire round 2 qualitative interaction analytics
+
 ## [v1.22.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.22.0) - 2026-09-21
 
 ### ✨ Features
