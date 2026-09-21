@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "../i18n";
 import { useTorrents } from "../api/hooks";
@@ -105,7 +111,15 @@ export function CommandPalette({
         subtitle: "Upload .torrent file or paste magnet link",
         icon: "➕",
         badge: "Action",
-        keywords: ["add", "upload", "magnet", "url", "download", "create", "new"],
+        keywords: [
+          "add",
+          "upload",
+          "magnet",
+          "url",
+          "download",
+          "create",
+          "new",
+        ],
         action: () => {
           onClose();
           onOpenAddTorrent?.();
@@ -153,7 +167,8 @@ export function CommandPalette({
       {
         id: "act-toggle-theme",
         category: "actions",
-        title: theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode",
+        title:
+          theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode",
         subtitle: `Currently using ${theme} theme`,
         icon: theme === "light" ? "🌙" : "☀️",
         badge: "UI",
@@ -170,7 +185,14 @@ export function CommandPalette({
         subtitle: "View all hotkeys and keybindings (?)",
         icon: "⌨️",
         badge: "Help",
-        keywords: ["shortcuts", "hotkeys", "keyboard", "help", "cheatsheet", "?"],
+        keywords: [
+          "shortcuts",
+          "hotkeys",
+          "keyboard",
+          "help",
+          "cheatsheet",
+          "?",
+        ],
         action: () => {
           onClose();
           onOpenShortcuts?.();
@@ -183,7 +205,14 @@ export function CommandPalette({
         subtitle: "Interactive setup and onboarding checklist",
         icon: "🚀",
         badge: "Guide",
-        keywords: ["guide", "getting started", "welcome", "setup", "tutorial", "help"],
+        keywords: [
+          "guide",
+          "getting started",
+          "welcome",
+          "setup",
+          "tutorial",
+          "help",
+        ],
         action: () => {
           onClose();
           onOpenGettingStarted?.();
@@ -211,7 +240,14 @@ export function CommandPalette({
         title: t("nav.torrents", "Torrents"),
         subtitle: "Active torrent transfers, queue list, and detail inspector",
         icon: "⬇️",
-        keywords: ["torrents", "transfers", "downloads", "seeds", "queue", "table"],
+        keywords: [
+          "torrents",
+          "transfers",
+          "downloads",
+          "seeds",
+          "queue",
+          "table",
+        ],
         action: () => {
           onClose();
           navigate("/torrents");
@@ -235,7 +271,14 @@ export function CommandPalette({
         title: t("nav.statistics", "Real-Time Activity Metrics"),
         subtitle: "Telemetry graphs and transfer activity",
         icon: "📈",
-        keywords: ["activity", "metrics", "graphs", "charts", "live", "telemetry"],
+        keywords: [
+          "activity",
+          "metrics",
+          "graphs",
+          "charts",
+          "live",
+          "telemetry",
+        ],
         action: () => {
           onClose();
           navigate("/activity/metrics");
@@ -259,7 +302,15 @@ export function CommandPalette({
         title: t("nav.peerMap", "Peer Geo Map"),
         subtitle: "Global visual map of connected swarm peers",
         icon: "🗺️",
-        keywords: ["peermap", "peer map", "map", "geo", "location", "countries", "ip"],
+        keywords: [
+          "peermap",
+          "peer map",
+          "map",
+          "geo",
+          "location",
+          "countries",
+          "ip",
+        ],
         action: () => {
           onClose();
           navigate("/peermap");
@@ -271,7 +322,14 @@ export function CommandPalette({
         title: t("nav.speedSchedule", "Speed Schedule"),
         subtitle: "Automated bandwidth throttling and calendar rules",
         icon: "⏰",
-        keywords: ["schedule", "speed schedule", "calendar", "time", "rate limit", "throttle"],
+        keywords: [
+          "schedule",
+          "speed schedule",
+          "calendar",
+          "time",
+          "rate limit",
+          "throttle",
+        ],
         action: () => {
           onClose();
           navigate("/schedule");
@@ -295,7 +353,14 @@ export function CommandPalette({
         title: t("nav.trackerBoost", "Tracker Boost"),
         subtitle: "Swarm optimization, public tracker pool, and health tester",
         icon: "⚡",
-        keywords: ["trackerboost", "boost", "trackers", "swarm", "optimization", "pool"],
+        keywords: [
+          "trackerboost",
+          "boost",
+          "trackers",
+          "swarm",
+          "optimization",
+          "pool",
+        ],
         action: () => {
           onClose();
           navigate("/trackerboost");
@@ -319,7 +384,14 @@ export function CommandPalette({
         title: t("nav.fileBrowser", "File Browser"),
         subtitle: "Manage downloads directory files and folders",
         icon: "📁",
-        keywords: ["files", "file browser", "explorer", "manager", "download dir", "filesystem"],
+        keywords: [
+          "files",
+          "file browser",
+          "explorer",
+          "manager",
+          "download dir",
+          "filesystem",
+        ],
         action: () => {
           onClose();
           navigate("/files");
@@ -329,9 +401,18 @@ export function CommandPalette({
         id: "nav-automation",
         category: "navigation",
         title: "Automation & DSL Engine",
-        subtitle: "Rule pipelines, webhook actions, and custom automation scripts",
+        subtitle:
+          "Rule pipelines, webhook actions, and custom automation scripts",
         icon: "🤖",
-        keywords: ["automation", "scripts", "dsl", "rules", "triggers", "webhooks", "marketplace"],
+        keywords: [
+          "automation",
+          "scripts",
+          "dsl",
+          "rules",
+          "triggers",
+          "webhooks",
+          "marketplace",
+        ],
         action: () => {
           onClose();
           navigate("/automation");
@@ -355,7 +436,15 @@ export function CommandPalette({
         title: t("system.resources", "System Resources"),
         subtitle: "CPU, memory, disk I/O, and thread telemetry",
         icon: "📈",
-        keywords: ["system", "resources", "cpu", "ram", "memory", "telemetry", "threads"],
+        keywords: [
+          "system",
+          "resources",
+          "cpu",
+          "ram",
+          "memory",
+          "telemetry",
+          "threads",
+        ],
         action: () => {
           onClose();
           navigate("/system/resources");
@@ -379,7 +468,14 @@ export function CommandPalette({
         title: t("system.logs", "System Logs"),
         subtitle: "Live application logs and log files",
         icon: "📄",
-        keywords: ["logs", "system logs", "debug", "trace", "exceptions", "errors"],
+        keywords: [
+          "logs",
+          "system logs",
+          "debug",
+          "trace",
+          "exceptions",
+          "errors",
+        ],
         action: () => {
           onClose();
           navigate("/system/logs");
@@ -391,7 +487,15 @@ export function CommandPalette({
         title: t("system.apiReference", "API Docs / Swagger"),
         subtitle: "REST API interactive OpenAPI documentation",
         icon: "🔌",
-        keywords: ["api", "swagger", "openapi", "rest", "docs", "endpoints", "reference"],
+        keywords: [
+          "api",
+          "swagger",
+          "openapi",
+          "rest",
+          "docs",
+          "endpoints",
+          "reference",
+        ],
         action: () => {
           onClose();
           navigate("/system/api");
@@ -509,7 +613,9 @@ export function CommandPalette({
   useEffect(() => {
     const listEl = listRef.current;
     if (!listEl) return;
-    const activeEl = listEl.querySelector<HTMLElement>(".command-palette-item.active");
+    const activeEl = listEl.querySelector<HTMLElement>(
+      ".command-palette-item.active",
+    );
     if (activeEl) {
       activeEl.scrollIntoView({ block: "nearest" });
     }
@@ -633,8 +739,10 @@ export function CommandPalette({
                 fontSize: "0.9rem",
               }}
             >
-              <div style={{ fontSize: "1.8rem", marginBottom: "0.5rem" }}>🤔</div>
-              No matching commands or torrents found for "{query}".
+              <div style={{ fontSize: "1.8rem", marginBottom: "0.5rem" }}>
+                🤔
+              </div>
+              No matching commands or torrents found for &quot;{query}&quot;.
             </div>
           ) : (
             filteredCommands.map((item, idx) => {

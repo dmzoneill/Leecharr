@@ -55,5 +55,9 @@ public class CurrentUserResource : RestResource
 
     public bool IsAuthenticated { get; set; }
 
+    public bool RequiresPassword { get; set; } = true;
+
+    public bool AuthenticationEnabled { get; set; }
+
     public string ReturnUrl { get; set; } = "/";
 }

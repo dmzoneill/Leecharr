@@ -195,6 +195,8 @@ public class AuthController : ControllerBase
         var requestedUrl = returnUrl ?? request?.ReturnUrl;
         var safeReturnUrl = SanitizeRedirectUrl(requestedUrl);
 
+        var authEnabled = this.configFileProvider?.AuthenticationEnabled ?? true;
+
         return this.Ok(new CurrentUserResource
         {
             Id = user.Id,
@@ -205,6 +207,8 @@ public class AuthController : ControllerBase
             Roles = rolesList,
             AvatarUrl = user.AvatarUrl,
             IsAuthenticated = true,
+            RequiresPassword = authEnabled,
+            AuthenticationEnabled = authEnabled,
             ReturnUrl = safeReturnUrl,
         });
     }
@@ -253,9 +257,11 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public ActionResult<CurrentUserResource> GetCurrentUser()
     {
+        var authEnabled = this.configFileProvider?.AuthenticationEnabled ?? true;
+
         if (!this.User.Identity?.IsAuthenticated ?? true)
         {
-            if (!this.configFileProvider.AuthenticationEnabled)
+            if (!authEnabled)
             {
                 return this.Ok(new CurrentUserResource
                 {
@@ -263,12 +269,16 @@ public class AuthController : ControllerBase
                     DisplayName = "Administrator",
                     Roles = new List<string> { "Admin" },
                     IsAuthenticated = true,
+                    RequiresPassword = false,
+                    AuthenticationEnabled = false,
                 });
             }
 
             return this.Ok(new CurrentUserResource
             {
                 IsAuthenticated = false,
+                RequiresPassword = true,
+                AuthenticationEnabled = true,
             });
         }
 
@@ -289,6 +299,8 @@ public class AuthController : ControllerBase
             DisplayName = displayName,
             Roles = roles,
             IsAuthenticated = true,
+            RequiresPassword = authEnabled,
+            AuthenticationEnabled = authEnabled,
         });
     }
 
