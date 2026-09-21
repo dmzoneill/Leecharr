@@ -19,6 +19,7 @@ import { WatchFolderSettingsTab } from "./settings/WatchFolderSettingsTab";
 import { StorageSettingsTab } from "./settings/StorageSettingsTab";
 import { QueueSettingsTab } from "./settings/QueueSettingsTab";
 import { CategorySettingsTab } from "./settings/CategorySettingsTab";
+import Tags from "./Tags";
 import { CustomScriptsTab } from "./settings/CustomScriptsTab";
 import { EngineSettingsTab } from "./settings/EngineSettingsTab";
 import { ProtocolsSettingsTab } from "./settings/ProtocolsSettingsTab";
@@ -181,6 +182,8 @@ function SettingsContent() {
         return <QueueSettingsTab />;
       case "categories":
         return <CategorySettingsTab />;
+      case "tags":
+        return <Tags />;
       case "custom-scripts":
         return <CustomScriptsTab />;
       case "engine":
@@ -223,7 +226,12 @@ function SettingsContent() {
   return (
     <div
       className="content-area"
-      style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}
+      style={{
+        padding: "1.5rem",
+        display: "flex",
+        flexDirection: "column",
+        gap: "1rem",
+      }}
     >
       {/* 1. Header Banner & Quick Filter Search */}
       <div

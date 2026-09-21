@@ -1,0 +1,686 @@
+import React, {
+  useRef,
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+} from "react";
+import { useModalRegistration } from "./ModalProvider";
+import { useTorrentFileSubtitles } from "../api/hooks";
+import type { SubtitleTrack, Torrent } from "../api/types";
+import {
+  isAudioFile,
+  parseMediaBadges,
+  buildStreamUrl,
+  buildDownloadUrl,
+  buildExternalPlayerUrl,
+  getAbsoluteUrl,
+  cleanUpMediaElement,
+  setSubtitleTrackActive,
+  getCodecErrorMessage,
+} from "../utils/mediaPlayer";
+
+export interface MediaPlayerModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  torrent: Pick<Torrent, "id" | "name"> & Partial<Pick<Torrent, "mediaTitle">>;
+  file: {
+    id: number;
+    path: string;
+    name?: string;
+    size?: number;
+  };
+  subtitles?: SubtitleTrack[];
+}
+
+export type SubtitleSize = "small" | "medium" | "large" | "x-large";
+
+export function MediaPlayerModal({
+  isOpen,
+  onClose,
+  torrent,
+  file,
+  subtitles: propSubtitles,
+}: MediaPlayerModalProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  const [hasCodecError, setHasCodecError] = useState<boolean>(false);
+  const [errorCode, setErrorCode] = useState<number | undefined>(undefined);
+  const [copied, setCopied] = useState<boolean>(false);
+  const [activeSubtitleTrackId, setActiveSubtitleTrackId] = useState<
+    number | "off"
+  >("off");
+  const [subtitleSize, setSubtitleSize] = useState<SubtitleSize>("medium");
+
+  const fileName = useMemo(() => {
+    if (file.name) return file.name;
+    const parts = file.path.replace(/\\/g, "/").split("/");
+    return parts[parts.length - 1] || file.path;
+  }, [file.name, file.path]);
+
+  const isAudio = useMemo(() => isAudioFile(fileName), [fileName]);
+  const mediaBadges = useMemo(
+    () => parseMediaBadges(fileName, torrent.name),
+    [fileName, torrent.name],
+  );
+
+  const streamUrl = useMemo(
+    () => buildStreamUrl(torrent.id, file.id),
+    [torrent.id, file.id],
+  );
+
+  const downloadUrl = useMemo(
+    () => buildDownloadUrl(torrent.id, file.id),
+    [torrent.id, file.id],
+  );
+
+  const { data: fetchedSubtitles } = useTorrentFileSubtitles(
+    isOpen ? torrent.id : undefined,
+    isOpen ? file.id : undefined,
+  );
+
+  const resolvedSubtitles = useMemo(
+    () => propSubtitles ?? fetchedSubtitles ?? [],
+    [propSubtitles, fetchedSubtitles],
+  );
+
+  // Reset state when a new file or torrent is opened
+  useEffect(() => {
+    if (isOpen) {
+      setHasCodecError(false);
+      setErrorCode(undefined);
+      setCopied(false);
+      // Auto-select default subtitle if available
+      const defaultSub = resolvedSubtitles.find((s) => s.isDefault);
+      setActiveSubtitleTrackId(defaultSub ? defaultSub.trackId : "off");
+    }
+  }, [isOpen, file.id, torrent.id, resolvedSubtitles]);
+
+  // Stream Lifecycle Cleanup on Unmount / Close:
+  useEffect(() => {
+    return () => {
+      if (videoRef.current) {
+        cleanUpMediaElement(videoRef.current);
+      }
+      if (audioRef.current) {
+        cleanUpMediaElement(audioRef.current);
+      }
+    };
+  }, []);
+
+  const handleClose = useCallback(() => {
+    if (videoRef.current) {
+      cleanUpMediaElement(videoRef.current);
+    }
+    if (audioRef.current) {
+      cleanUpMediaElement(audioRef.current);
+    }
+    onClose();
+  }, [onClose]);
+
+  useModalRegistration({
+    id: "media-player-modal",
+    isOpen,
+    onClose: handleClose,
+    modalRef,
+  });
+
+  // Handle HTMLMediaElement onError event
+  const handleMediaError = useCallback(
+    (e: React.SyntheticEvent<HTMLMediaElement, Event>) => {
+      const target = e.currentTarget;
+      const code = target.error?.code ?? 4;
+      setErrorCode(code);
+      setHasCodecError(true);
+    },
+    [],
+  );
+
+  // Subtitle track switching synchronization with HTML5 textTracks
+  const handleSubtitleChange = useCallback(
+    (val: string) => {
+      if (val === "off") {
+        setActiveSubtitleTrackId("off");
+        if (videoRef.current) {
+          setSubtitleTrackActive(
+            videoRef.current.textTracks,
+            "off",
+            resolvedSubtitles,
+          );
+        }
+      } else {
+        const id = parseInt(val, 10);
+        setActiveSubtitleTrackId(id);
+        if (videoRef.current) {
+          setSubtitleTrackActive(
+            videoRef.current.textTracks,
+            id,
+            resolvedSubtitles,
+          );
+        }
+      }
+    },
+    [resolvedSubtitles],
+  );
+
+  const handleCopyStreamUrl = useCallback(() => {
+    const fullUrl = getAbsoluteUrl(streamUrl);
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(fullUrl).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+      });
+    }
+  }, [streamUrl]);
+
+  const handleRetryPlayback = useCallback(() => {
+    setHasCodecError(false);
+    setErrorCode(undefined);
+    const media = videoRef.current ?? audioRef.current;
+    if (media) {
+      media.load();
+      media.play().catch(() => {
+        // Ignored
+      });
+    }
+  }, []);
+
+  if (!isOpen) return null;
+
+  const titleText = torrent.mediaTitle || torrent.name;
+  const vlcUrl = buildExternalPlayerUrl("vlc", streamUrl);
+  const mpvUrl = buildExternalPlayerUrl("mpv", streamUrl);
+
+  const fontSizes: Record<SubtitleSize, string> = {
+    small: "14px",
+    medium: "18px",
+    large: "22px",
+    "x-large": "28px",
+  };
+
+  return (
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="media-player-title"
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(0, 0, 0, 0.85)",
+        backdropFilter: "blur(8px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 9999,
+        padding: "1rem",
+      }}
+      onClick={handleClose}
+    >
+      <style>{`
+        .media-player-dialog video::cue {
+          font-size: ${fontSizes[subtitleSize]};
+          background-color: rgba(0, 0, 0, 0.75);
+          color: #ffffff;
+          line-height: 1.3;
+        }
+        .media-badge {
+          display: inline-flex;
+          align-items: center;
+          font-size: 0.68rem;
+          font-weight: 700;
+          padding: 0.15rem 0.45rem;
+          border-radius: 4px;
+          background: rgba(255, 255, 255, 0.12);
+          color: var(--text-primary, #ffffff);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          letter-spacing: 0.5px;
+          text-transform: uppercase;
+        }
+      `}</style>
+
+      <div
+        ref={modalRef}
+        className="card media-player-dialog"
+        style={{
+          width: "900px",
+          maxWidth: "95vw",
+          maxHeight: "92vh",
+          display: "flex",
+          flexDirection: "column",
+          borderRadius: "12px",
+          overflow: "hidden",
+          border: "1px solid var(--border-light, #333)",
+          boxShadow: "0 24px 64px rgba(0, 0, 0, 0.8)",
+          padding: 0,
+          backgroundColor: "var(--bg-primary, #18191c)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal Header */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "0.85rem 1.25rem",
+            borderBottom: "1px solid var(--border-light, #333)",
+            backgroundColor: "var(--bg-secondary, #222328)",
+            gap: "0.75rem",
+          }}
+        >
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                flexWrap: "wrap",
+              }}
+            >
+              <h3
+                id="media-player-title"
+                style={{
+                  margin: 0,
+                  fontSize: "1.1rem",
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  maxWidth: "500px",
+                }}
+              >
+                {titleText}
+              </h3>
+              {mediaBadges.badges.map((b) => (
+                <span key={b} className="media-badge">
+                  {b}
+                </span>
+              ))}
+            </div>
+            <div
+              style={{
+                fontSize: "0.8rem",
+                color: "var(--text-muted, #888)",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                marginTop: "0.2rem",
+              }}
+              title={fileName}
+            >
+              📄 {fileName}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-sm btn-default"
+            aria-label="Close media player"
+            onClick={handleClose}
+            style={{
+              padding: "0.35rem 0.65rem",
+              fontSize: "1.1rem",
+              lineHeight: 1,
+              borderRadius: "6px",
+              cursor: "pointer",
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Media / Fallback Area */}
+        <div
+          style={{
+            position: "relative",
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "#000000",
+            minHeight: "360px",
+            maxHeight: "65vh",
+            overflow: "hidden",
+          }}
+        >
+          {/* Codec Error Fallback Card */}
+          {hasCodecError ? (
+            <div
+              data-testid="codec-error-card"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "2rem",
+                textAlign: "center",
+                maxWidth: "600px",
+                color: "#f8f9fa",
+                gap: "1rem",
+              }}
+            >
+              <div style={{ fontSize: "2.5rem" }}>⚠️</div>
+              <h4 style={{ margin: 0, fontSize: "1.25rem", color: "#ffb703" }}>
+                Browser Codec Playback Error
+              </h4>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "0.9rem",
+                  color: "#d1d5db",
+                  lineHeight: 1.5,
+                }}
+              >
+                {getCodecErrorMessage(errorCode, fileName)}
+              </p>
+
+              {/* Action Buttons */}
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "0.6rem",
+                  justifyContent: "center",
+                  marginTop: "0.5rem",
+                }}
+              >
+                <a
+                  href={vlcUrl}
+                  className="btn btn-primary"
+                  role="button"
+                  style={{
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                    fontWeight: 600,
+                  }}
+                >
+                  <span>📺</span> Open in VLC
+                </a>
+                <a
+                  href={mpvUrl}
+                  className="btn btn-secondary"
+                  role="button"
+                  style={{
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                    fontWeight: 600,
+                  }}
+                >
+                  <span>⚡</span> Open in MPV
+                </a>
+                <a
+                  href={downloadUrl}
+                  download={fileName}
+                  className="btn btn-default"
+                  role="button"
+                  style={{
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                  }}
+                >
+                  <span>⬇️</span> Direct Download
+                </a>
+                <button
+                  type="button"
+                  className="btn btn-default"
+                  onClick={handleCopyStreamUrl}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                  }}
+                >
+                  <span>📋</span> {copied ? "Copied!" : "Copy Stream URL"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-default"
+                  onClick={handleRetryPlayback}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                  }}
+                >
+                  <span>🔄</span> Retry
+                </button>
+              </div>
+            </div>
+          ) : isAudio ? (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "1.5rem",
+                padding: "2rem",
+                width: "100%",
+              }}
+            >
+              <div
+                style={{
+                  width: "120px",
+                  height: "120px",
+                  borderRadius: "50%",
+                  backgroundColor: "rgba(52, 152, 219, 0.15)",
+                  border: "2px solid rgba(52, 152, 219, 0.4)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "3rem",
+                }}
+              >
+                🎵
+              </div>
+              <audio
+                ref={audioRef}
+                controls
+                autoPlay
+                preload="metadata"
+                src={streamUrl}
+                onError={handleMediaError}
+                style={{ width: "80%", maxWidth: "500px" }}
+              />
+            </div>
+          ) : (
+            <video
+              ref={videoRef}
+              controls
+              autoPlay
+              preload="metadata"
+              src={streamUrl}
+              onError={handleMediaError}
+              style={{
+                width: "100%",
+                height: "100%",
+                maxHeight: "65vh",
+                backgroundColor: "#000",
+                outline: "none",
+              }}
+            >
+              {resolvedSubtitles.map((track) => (
+                <track
+                  key={track.trackId}
+                  kind="subtitles"
+                  label={
+                    track.title ||
+                    `${track.language || "Subtitle"} (${track.twoLetterCode || track.format || `Track ${track.trackId}`})`
+                  }
+                  src={track.url}
+                  srcLang={track.twoLetterCode || "en"}
+                  default={track.isDefault}
+                />
+              ))}
+            </video>
+          )}
+        </div>
+
+        {/* Footer Toolbar: Subtitles, Size, & External Links */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "0.75rem 1.25rem",
+            borderTop: "1px solid var(--border-light, #333)",
+            backgroundColor: "var(--bg-secondary, #222328)",
+            flexWrap: "wrap",
+            gap: "0.75rem",
+          }}
+        >
+          {/* Subtitle controls (for video) */}
+          {!isAudio && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                flexWrap: "wrap",
+              }}
+            >
+              <label
+                htmlFor="subtitle-select"
+                style={{
+                  fontSize: "0.8rem",
+                  color: "var(--text-muted, #aaa)",
+                  fontWeight: 500,
+                }}
+              >
+                💬 Subtitles:
+              </label>
+              <select
+                id="subtitle-select"
+                aria-label="Select subtitle track"
+                className="form-control"
+                style={{
+                  fontSize: "0.8rem",
+                  padding: "0.2rem 0.5rem",
+                  height: "auto",
+                  width: "auto",
+                  minWidth: "140px",
+                }}
+                value={activeSubtitleTrackId}
+                onChange={(e) => handleSubtitleChange(e.target.value)}
+              >
+                <option value="off">Off</option>
+                {resolvedSubtitles.map((sub) => {
+                  const labelParts = [
+                    sub.language || sub.title || `Track ${sub.trackId}`,
+                  ];
+                  if (sub.isForced) labelParts.push("(Forced)");
+                  if (sub.isHearingImpaired) labelParts.push("(CC)");
+                  if (sub.isExternal) labelParts.push("[Ext]");
+                  return (
+                    <option key={sub.trackId} value={sub.trackId}>
+                      {labelParts.join(" ")}
+                    </option>
+                  );
+                })}
+              </select>
+
+              {activeSubtitleTrackId !== "off" && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.3rem",
+                  }}
+                >
+                  <label
+                    htmlFor="subtitle-size-select"
+                    style={{
+                      fontSize: "0.75rem",
+                      color: "var(--text-muted, #aaa)",
+                    }}
+                  >
+                    Size:
+                  </label>
+                  <select
+                    id="subtitle-size-select"
+                    aria-label="Subtitle text size"
+                    className="form-control"
+                    style={{
+                      fontSize: "0.75rem",
+                      padding: "0.15rem 0.4rem",
+                      height: "auto",
+                      width: "auto",
+                    }}
+                    value={subtitleSize}
+                    onChange={(e) =>
+                      setSubtitleSize(e.target.value as SubtitleSize)
+                    }
+                  >
+                    <option value="small">Small</option>
+                    <option value="medium">Normal</option>
+                    <option value="large">Large</option>
+                    <option value="x-large">Extra Large</option>
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Quick External Player Toolbar Links */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.4rem",
+              marginLeft: "auto",
+            }}
+          >
+            <a
+              href={vlcUrl}
+              className="btn btn-xs btn-default"
+              title="Open stream in VLC media player"
+              style={{ textDecoration: "none" }}
+            >
+              VLC
+            </a>
+            <a
+              href={mpvUrl}
+              className="btn btn-xs btn-default"
+              title="Open stream in MPV player"
+              style={{ textDecoration: "none" }}
+            >
+              MPV
+            </a>
+            <button
+              type="button"
+              className="btn btn-xs btn-default"
+              onClick={handleCopyStreamUrl}
+              title="Copy direct stream URL"
+            >
+              {copied ? "Copied!" : "Copy URL"}
+            </button>
+            <a
+              href={downloadUrl}
+              download={fileName}
+              className="btn btn-xs btn-default"
+              title="Download media file"
+              style={{ textDecoration: "none" }}
+            >
+              Download
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default MediaPlayerModal;
