@@ -1556,7 +1556,7 @@ const en: I18nTranslations = {
     appdataDir: "AppData Directory",
     startupDir: "Startup Directory",
     executionMode: "Execution Mode",
-    executionDocker: "🐳 Docker",
+    executionDocker: "🦭 Podman / Container",
     executionConsole: "💻 Console",
     schemaVersion: "Schema #{{version}}",
     schemaCurrent: "Current",

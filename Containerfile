@@ -81,7 +81,7 @@ COPY --from=backend /app ./
 COPY --from=frontend /build/src/NzbDrone.Host/wwwroot/ ./wwwroot/
 COPY --chmod=755 src/NzbDrone.Core/BitTorrent/libtorrent_daemon.py /app/libtorrent_daemon.py
 COPY version ./
-COPY --chmod=755 docker-entrypoint.sh /docker-entrypoint.sh
+COPY --chmod=755 container-entrypoint.sh /container-entrypoint.sh
 
 ENV LEECHARR__APP_DATA=/config
 ENV DOTNET_gcServer=0
@@ -92,7 +92,7 @@ VOLUME ["/config", "/downloads"]
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 CMD curl -f http://localhost:7889/ping || exit 1
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
+ENTRYPOINT ["/container-entrypoint.sh"]
 
 # Stage 4: Test image with coverage tools
 FROM runtime AS test
