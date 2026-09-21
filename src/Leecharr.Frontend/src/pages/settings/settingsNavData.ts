@@ -199,6 +199,25 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
         ],
       },
       {
+        id: "tags",
+        groupId: "storage-queues",
+        title: "Tags",
+        shortLabel: "Tags",
+        description:
+          "Manage torrent tags, colors, and per-tag seeding policies",
+        icon: "🏷️",
+        badge: "Labels",
+        keywords: [
+          "tags",
+          "tag",
+          "labels",
+          "seeding policy",
+          "color",
+          "ratio",
+          "limit",
+        ],
+      },
+      {
         id: "custom-scripts",
         groupId: "storage-queues",
         title:
@@ -603,8 +622,10 @@ export const LEGACY_SETTINGS_MAP: Record<
   queue: { groupId: "storage-queues", pageId: "queue" },
   categories: { groupId: "storage-queues", pageId: "categories" },
   category: { groupId: "storage-queues", pageId: "categories" },
-  label: { groupId: "storage-queues", pageId: "categories" },
-  labels: { groupId: "storage-queues", pageId: "categories" },
+  tags: { groupId: "storage-queues", pageId: "tags" },
+  tag: { groupId: "storage-queues", pageId: "tags" },
+  label: { groupId: "storage-queues", pageId: "tags" },
+  labels: { groupId: "storage-queues", pageId: "tags" },
   "custom-scripts": { groupId: "storage-queues", pageId: "custom-scripts" },
   scripts: { groupId: "storage-queues", pageId: "custom-scripts" },
 
