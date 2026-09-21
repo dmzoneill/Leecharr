@@ -12,6 +12,7 @@ import {
 } from "../../api/hooks";
 import { useToast } from "../../context/ToastContext";
 import type { TrackerBoostSettings } from "../../api/types";
+import { trackTrackerBoostAction } from "../../utils/analytics";
 
 export interface ImportToolsProps {
   showModal?: boolean;
@@ -60,6 +61,7 @@ export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
       const res = await bulkImportTrackers.mutateAsync({
         trackersText: lines.join("\n"),
       });
+      trackTrackerBoostAction("bulk_import", res.importedCount);
       onClose();
       setBulkImportText("");
       showToast(
