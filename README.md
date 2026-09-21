@@ -1,5 +1,3 @@
-# Leecharr
-
 <p align="center">
   <img src="logo/leecharr-skull.svg" alt="Leecharr" width="200"/>
   <br/>
