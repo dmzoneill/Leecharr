@@ -17,6 +17,8 @@ import { PanelLoading, PanelEmpty } from "./shared";
 import { useToast } from "../../context/ToastContext";
 import { api } from "../../api/client";
 import type { Torrent, TorrentFileInfo } from "../../api/types";
+import { MediaPlayerModal } from "../MediaPlayerModal";
+import { isPlayableFile } from "../../utils/mediaPlayer";
 
 export const PRIORITY_OPTIONS = [
   {
@@ -373,6 +375,12 @@ export function FilesTab({
   } | null>(null);
   const [renameInput, setRenameInput] = useState("");
   const [isRenaming, setIsRenaming] = useState(false);
+  const [selectedMediaFile, setSelectedMediaFile] = useState<{
+    id: number;
+    path: string;
+    name: string;
+    size: number;
+  } | null>(null);
 
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(
     () => new Set(),
@@ -1102,6 +1110,42 @@ export function FilesTab({
                         ✏️
                       </button>
 
+                      {!isFolder && node.file && isPlayableFile(node.name) && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedMediaFile({
+                              id: node.file!.id,
+                              path: node.fullPath,
+                              name: node.name,
+                              size: node.size,
+                            });
+                          }}
+                          title={`Stream / Play ${node.name}`}
+                          aria-label={`Play ${node.name}`}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            padding: "1px 4px",
+                            fontSize: "0.8rem",
+                            color: "var(--accent-gold, #ffd166)",
+                            borderRadius: "3px",
+                            marginLeft: "4px",
+                            opacity: 0.85,
+                          }}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.opacity = "1")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.opacity = "0.85")
+                          }
+                        >
+                          ▶
+                        </button>
+                      )}
+
                       {!isFolder && (
                         <div
                           style={{
@@ -1359,6 +1403,14 @@ export function FilesTab({
             </div>
           </div>
         </div>
+      )}
+      {selectedMediaFile && (
+        <MediaPlayerModal
+          isOpen={Boolean(selectedMediaFile)}
+          onClose={() => setSelectedMediaFile(null)}
+          torrent={torrent ?? { id: effectiveId, name: "" }}
+          file={selectedMediaFile}
+        />
       )}
     </div>
   );

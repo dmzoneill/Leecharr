@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ToastProvider } from "./context/ToastContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { ConfirmProvider } from "./context/ConfirmContext";
+import { ModalProvider } from "./components/ModalProvider";
 import { SettingsDirtyProvider } from "./pages/settings/SettingsDirtyContext";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import App from "./App";
@@ -44,13 +45,15 @@ root.render(
       <BrowserRouter basename={urlBase || undefined}>
         <ThemeProvider>
           <ToastProvider>
-            <ConfirmProvider>
-              <SettingsDirtyProvider>
-                <ErrorBoundary title="Application Error">
-                  <App />
-                </ErrorBoundary>
-              </SettingsDirtyProvider>
-            </ConfirmProvider>
+            <ModalProvider>
+              <ConfirmProvider>
+                <SettingsDirtyProvider>
+                  <ErrorBoundary title="Application Error">
+                    <App />
+                  </ErrorBoundary>
+                </SettingsDirtyProvider>
+              </ConfirmProvider>
+            </ModalProvider>
           </ToastProvider>
         </ThemeProvider>
       </BrowserRouter>

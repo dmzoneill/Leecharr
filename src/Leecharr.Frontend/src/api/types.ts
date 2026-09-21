@@ -861,6 +861,27 @@ export interface SpeedLimits {
 export interface Tag {
   id: number;
   label: string;
+  color?: string;
+  uploadLimitKbps?: number;
+  downloadLimitKbps?: number;
+  minSeedRatio?: number;
+  minSeedTimeSeconds?: number;
+  torrentCount?: number;
+}
+
+export interface SubtitleTrack {
+  trackId: number;
+  fileId?: number;
+  title: string;
+  language: string;
+  twoLetterCode: string;
+  format: string;
+  path: string;
+  isExternal: boolean;
+  isForced: boolean;
+  isHearingImpaired: boolean;
+  isDefault: boolean;
+  url: string;
 }
 
 export interface NetworkDiagnostics {
