@@ -284,7 +284,7 @@ export const ALL_COLUMNS: ColumnDef[] = [
 
 export const getColumnLabel = (
   key: ColumnKey,
-  t: (k: string, p?: Record<string, unknown>) => string,
+  t: (k: string, ...args: unknown[]) => string,
 ): string => {
   const i18nKey = COLUMN_I18N_KEYS[key] || `torrents.table.${key}`;
   const def = ALL_COLUMNS.find((c) => c.key === key);

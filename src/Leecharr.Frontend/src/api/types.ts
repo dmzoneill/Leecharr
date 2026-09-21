@@ -1437,6 +1437,8 @@ export interface CurrentUser {
   roles: string[];
   avatarUrl?: string | null;
   isAuthenticated: boolean;
+  requiresPassword?: boolean;
+  authenticationEnabled?: boolean;
 }
 
 export interface IdentityProviderDefinition {

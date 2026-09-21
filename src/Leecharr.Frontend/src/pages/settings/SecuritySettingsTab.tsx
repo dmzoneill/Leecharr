@@ -10,6 +10,11 @@ import {
   IdentityProviderDefinition,
   IdentityProviderType,
 } from "../../api/types";
+import {
+  TIMEOUT_OPTIONS,
+  getStoredIdleTimeout,
+  setStoredIdleTimeout,
+} from "../../hooks/useIdleTimer";
 import { SaveBar, SectionCard, SelectInput, TextInput, Toggle } from "./shared";
 
 const PROVIDER_TEMPLATES: Record<
@@ -97,6 +102,16 @@ export function SecuritySettingsTab() {
   const { showToast } = toast;
   const { data: config, isLoading } = useGeneralConfig();
   const saveMutation = useSaveGeneralConfig();
+
+  const [idleTimeout, setIdleTimeout] = useState<number>(() =>
+    getStoredIdleTimeout(),
+  );
+
+  const handleIdleTimeoutChange = (seconds: number) => {
+    setIdleTimeout(seconds);
+    setStoredIdleTimeout(seconds);
+    showToast("Session inactivity lock timeout updated", "info");
+  };
 
   const [form, setForm] = useState({
     authenticationEnabled: false,
@@ -384,6 +399,17 @@ export function SecuritySettingsTab() {
             checked={form.authenticationEnabled}
             onChange={(v) => update("authenticationEnabled", v)}
             hint={t("settingsTabs.batch2.requireLoginBeforeAccessingWebUi")}
+          />
+
+          <SelectInput
+            label="Session Inactivity Lock Timeout"
+            value={String(idleTimeout)}
+            onChange={(v) => handleIdleTimeoutChange(Number(v))}
+            options={TIMEOUT_OPTIONS.map((opt) => ({
+              value: String(opt.value),
+              label: opt.label,
+            }))}
+            hint="Automatically lock screen and require password/PIN re-entry after inactivity without discarding active form state"
           />
 
           {form.authenticationEnabled && (
