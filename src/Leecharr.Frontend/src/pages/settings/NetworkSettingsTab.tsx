@@ -6,6 +6,7 @@ import {
   useNetworkStatus,
 } from "../../api/hooks";
 import { SaveBar, SectionCard, NumberInput, TextInput, Toggle } from "./shared";
+import { trackNetworkConfigSave } from "../../utils/analytics";
 
 export function NetworkSettingsTab() {
   const { t } = useTranslation();
@@ -59,6 +60,10 @@ export function NetworkSettingsTab() {
 
   const handleSave = () => {
     if (!config) return;
+    trackNetworkConfigSave({
+      upnp_enabled: form.upnpEnabled,
+      has_vpn_interface: Boolean(form.bindInterface && form.bindInterface !== ""),
+    });
     saveMutation.mutate(
       {
         ...config,

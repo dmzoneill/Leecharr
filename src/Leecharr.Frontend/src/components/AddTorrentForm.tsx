@@ -56,7 +56,9 @@ export function AddTorrentForm({
         { files, category: selectedCategory, isPaused },
         {
           onSuccess: (result: AddTorrentResult) => {
-            trackTorrentAdd("file", result?.added?.length || files.length, selectedCategory);
+            trackTorrentAdd("file", result?.added?.length || files.length, selectedCategory, {
+              start_paused: isPaused,
+            });
             if (result && result.failed && result.failed.length === 0) {
               showToast(
                 t("addTorrent.addedTorrentsSuccess", {
@@ -106,7 +108,9 @@ export function AddTorrentForm({
         { magnetLink: magnetLink.trim(), category: selectedCategory, isPaused },
         {
           onSuccess: () => {
-            trackTorrentAdd("magnet", 1, selectedCategory);
+            trackTorrentAdd("magnet", 1, selectedCategory, {
+              start_paused: isPaused,
+            });
             showToast(
               t(
                 "addTorrent.magnetAddedSuccess",

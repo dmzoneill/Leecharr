@@ -16,6 +16,7 @@ import {
   setStoredIdleTimeout,
 } from "../../hooks/useIdleTimer";
 import { SaveBar, SectionCard, SelectInput, TextInput, Toggle } from "./shared";
+import { trackSecurityConfigSave } from "../../utils/analytics";
 
 const PROVIDER_TEMPLATES: Record<
   string,
@@ -264,6 +265,10 @@ export function SecuritySettingsTab() {
 
   const handleSave = () => {
     if (!config) return;
+    trackSecurityConfigSave({
+      auth_type: form.authenticationEnabled ? "forms" : "none",
+      has_api_key: Boolean(form.apiKey),
+    });
     saveMutation.mutate(
       {
         ...config,
