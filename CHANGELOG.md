@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.19.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.19.2) - 2026-09-21
+
+### 🔧 Maintenance & Improvements
+- chore: remove githooks, add fonts directory, and clean repository
+
 ## [v1.19.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.19.1) - 2026-09-21
 
 ### 🔧 Maintenance & Improvements
