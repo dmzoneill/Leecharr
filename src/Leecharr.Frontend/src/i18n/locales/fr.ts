@@ -2014,7 +2014,7 @@ const fr: I18nTranslations = {
     signOut: "Se déconnecter",
     inactivityWarning: "Avertissement d'inactivité",
     inactivityWarningDesc:
-      "Votre session sera automatiquement verrouillée en raison d'une inactivité dans :",
+      "Votre session sera automatiquement verrouillée en raison d'une inactivité dans :",
     activityHint:
       "Déplacez votre souris ou appuyez sur n'importe quelle touche pour rester actif.",
     passwordPlaceholder: "Entrez le mot de passe ou la clé API",
