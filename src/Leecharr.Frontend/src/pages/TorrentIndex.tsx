@@ -23,7 +23,7 @@ interface TorrentIndexProps {
   onSelectCategory?: (cat: string) => void;
   onPause: (id: number) => void;
   onResume: (id: number) => void;
-  onDelete: (payload: { id: number; deleteFiles?: boolean }) => void;
+  onDelete: (payload: { id: number; deleteFiles?: boolean; ids?: number[] }) => void;
   onOpenAddModal: () => void;
   onOpenSearchModal: () => void;
   onNavigateTab?: (nav: string, subNav?: string) => void;
@@ -145,9 +145,15 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
       const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
       if (tag === "input" || tag === "textarea" || tag === "select") return;
 
-      if (e.key === "q" || e.key === "Q") {
-        e.preventDefault();
-        handleToggleQuickSettings();
+      // Escape key closes detail panel when no modal is open
+      if (e.key === "Escape") {
+        const modalOpen = !!document.querySelector(
+          'dialog[open], [role="dialog"], [aria-modal="true"], .modal-overlay, .modal-backdrop',
+        );
+        if (!modalOpen && selectedTorrentId !== null) {
+          e.preventDefault();
+          setSelectedTorrentId(null);
+        }
       }
     };
 
@@ -166,7 +172,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
       window.removeEventListener("toggle-quick-settings", handleCustomToggle);
       window.removeEventListener("close-modals", handleCustomClose);
     };
-  }, []);
+  }, [selectedTorrentId, setSelectedTorrentId]);
 
   const stateCounts = useMemo(() => {
     const counts: Record<string, number> = {
@@ -263,7 +269,22 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   const handleRequestDelete = (payload: {
     id: number;
     deleteFiles?: boolean;
+    ids?: number[];
   }) => {
+    const ids =
+      payload.ids && payload.ids.length > 0 ? payload.ids : [payload.id];
+    if (ids.length > 1) {
+      const activeIds = new Set(torrents.map((t) => t.id));
+      const validIds = ids.filter((id) => activeIds.has(id));
+      if (validIds.length > 1) {
+        selectAllIds(validIds);
+        setDeleteModalState({
+          isOpen: true,
+          count: validIds.length,
+        });
+        return;
+      }
+    }
     if (selectedIds.size > 1 && selectedIds.has(payload.id)) {
       handleBulkDelete();
       return;
