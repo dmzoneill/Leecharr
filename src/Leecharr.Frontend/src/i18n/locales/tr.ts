@@ -498,9 +498,11 @@ const tr: I18nTranslations = {
       "pieceMapVerifiedPercent": "Parça Haritası Doğrulanmış Yüzde",
       "pieceMapPiecesInfo": "Parça Haritası Parça Bilgisi",
       "pieceMapLinearBarView": "Parça Haritası Doğrusal Çubuk Görünümü",
-      "pieceMapBar": "Parça Harita Çubuğu",
+      "pieceMapBar": "Bar",
       "pieceMapMatrixGridView": "Parça Haritası Matris Izgara Görünümü",
-      "pieceMapGrid": "Parça Harita Izgarası",
+      "pieceMapGrid": "Izgara",
+      "pieceMapStatus": "Durum",
+      "pieceMapAvailability": "Kullanılabilirlik",
       "pieceMapCompleteLegend": "Parça Haritası Tam Efsane",
       "pieceMapActiveLegend": "Parça Haritası Aktif Lejantı",
       "pieceMapMissingLegend": "Parça Haritası Eksik Efsane",
@@ -701,7 +703,10 @@ const tr: I18nTranslations = {
       "trackerRemovedSuccess": "Takipçi Başarıyla Kaldırıldı",
       "failedToRemoveTracker": "İzleyici Kaldırılamadı",
       "privateTrackerDisabledTitle": "Özel Takip Devre Dışı Bırakılan Başlık",
-      "openTrackerPickerTitle": "İzleyici Seçici Başlığını Aç"
+      "openTrackerPickerTitle": "İzleyici Seçici Başlığını Aç",
+      "pieceMapRarity": "Nadirlik Isı Haritası",
+      "pieceMapFileBoundaries": "Dosya Sınırları",
+      "pieceMapFilesCount": "Dosya sayısı: {{count}} dosyalar"
     },
     "ratio": "Oran",
     "tabs": {
@@ -731,22 +736,22 @@ const tr: I18nTranslations = {
     "removeTags": "Kaldır",
     "bulkAddTags": "Etiketleri Ata",
     "bulkRemoveTags": "Etiketleri Kaldır",
+    "deleteTorrentsTitle": "Torrentleri Sil",
     "deleteTorrentTitle": "Torrenti Sil",
+    "readOnlyDeleteWarning": "Salt Okunur izinleriniz var. Torrentler silinemez.",
+    "deleteMultipleConfirm": "{{count}} torrentleri silmek istediğinizden emin misiniz?",
+    "deleteSingleConfirm": "Silmek istediğinizden emin misiniz?",
     "deleteSingleConfirmGeneric": "Bu torrenti silmek istediğinizden emin misiniz?",
     "deleteFilesFromDisk": "İndirilen dosyaları da diskten sil",
+    "deleteFilesWarning": "Bu torrentle ilişkili indirilen tüm dosyalar kalıcı olarak silinecek.",
+    "deletePermissionRequired": "Torrentleri silmek operatör veya yönetici rolünü gerektirir",
     "torrentPaused": "Torrent duraklatıldı",
     "failedToPause": "Torrent duraklatılamadı",
     "torrentResumed": "Torrent yeniden başlatıldı",
     "failedToResume": "Torrent devam ettirilemedi",
     "torrentAndFilesDeleted": "Torrent ve dosyalar silindi",
     "torrentRemoved": "Torrent kaldırıldı",
-    "failedToDelete": "Torrent silinemedi",
-    "deleteTorrentsTitle": "Torrentleri Sil",
-    "readOnlyDeleteWarning": "Salt Okunur izinleriniz var. Torrentler silinemez.",
-    "deleteMultipleConfirm": "{{count}} torrentleri silmek istediğinizden emin misiniz?",
-    "deleteSingleConfirm": "Silmek istediğinizden emin misiniz?",
-    "deleteFilesWarning": "Bu torrentle ilişkili indirilen tüm dosyalar kalıcı olarak silinecek.",
-    "deletePermissionRequired": "Torrentleri silmek operatör veya yönetici rolünü gerektirir"
+    "failedToDelete": "Torrent silinemedi"
   },
   "torrentDetail": {
     "overview": "Genel Bakış",
@@ -831,6 +836,8 @@ const tr: I18nTranslations = {
   },
   "addTorrent": {
     "title": "Yeni Torrent Ekle",
+    "closeDialog": "Torrent ekleme iletişim kutusunu kapat",
+    "readOnlyWarning": "🔒 Salt Okunur izinleriniz var. Torrent eklenmesine izin verilmiyor.",
     "subtitle": "Torrent dosyalarını yükleyin veya mıknatıs bağlantısıyla indirin",
     "torrentFileTab": "Torrent Dosyası",
     "magnetLinkTab": "Magnet Bağlantısı",
@@ -919,8 +926,6 @@ const tr: I18nTranslations = {
     "failedToCreateTorrent": "Torrent oluşturulamadı",
     "failedToAddTorrent": "Torrent Eklenemedi",
     "bulkAddSummary": "Toplu Ekleme Özeti",
-    "closeDialog": "Torrent ekleme iletişim kutusunu kapat",
-    "readOnlyWarning": "🔒 Salt Okunur izinleriniz var. Torrent eklenmesine izin verilmiyor.",
     "freeleech": "FREELEECH"
   },
   "activity": {
@@ -4347,6 +4352,7 @@ const tr: I18nTranslations = {
     "minSeedTimePlaceholder": "örneğin 86400",
     "cancel": "İptal",
     "saveTag": "Etiketi Kaydet",
+    "createTag": "Etiket oluştur",
     "saving": "Kaydediliyor...",
     "deleteTagModalTitle": "Etiketi Sil: \"{{label}}\"",
     "deleteWarning": "⚠️ Uyarı: Bu etiketin silinmesi, atanmış tüm torrentlerden, indeksleyicilerden ve otomatik kurallardan kaldırılacaktır. Bu eylem geri alınamaz.",
@@ -4354,8 +4360,7 @@ const tr: I18nTranslations = {
     "assignedToCount": "Şu anda {{count}} {{torrentWord}}'ye atanmış.",
     "notAssigned": "Bu etiket şu anda herhangi bir torrente atanmamış.",
     "deleteConfirm": "Etiketi Sil",
-    "deleting": "Siliniyor...",
-    "createTag": "Etiket oluştur"
+    "deleting": "Siliniyor..."
   },
   "keyboardShortcuts": {
     "title": "Klavye Kısayolları",
