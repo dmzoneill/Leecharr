@@ -502,7 +502,10 @@ const ar: I18nTranslations = {
       "pieceMapMatrixGridView": "عرض شبكة مصفوفة خريطة القطعة",
       "pieceMapGrid": "شبكة",
       "pieceMapStatus": "الحالة",
+      "pieceMapRarity": "خريطة الحرارة النادرة",
+      "pieceMapFileBoundaries": "حدود الملف",
       "pieceMapAvailability": "التوفر",
+      "pieceMapFilesCount": "عدد الملفات: {{count}} ملفات",
       "pieceMapCompleteLegend": "خريطة قطعة أسطورة كاملة",
       "pieceMapActiveLegend": "خريطة قطعة الأسطورة النشطة",
       "pieceMapMissingLegend": "خريطة قطعة الأسطورة المفقودة",
@@ -703,9 +706,6 @@ const ar: I18nTranslations = {
       "failedToRemoveTracker": "فشل في إزالة المتعقب",
       "privateTrackerDisabledTitle": "عنوان المتعقب الخاص معطل",
       "openTrackerPickerTitle": "افتح عنوان منتقي المتعقب",
-      "pieceMapRarity": "خريطة الحرارة النادرة",
-      "pieceMapFileBoundaries": "حدود الملف",
-      "pieceMapFilesCount": "عدد الملفات: {{count}} ملفات",
       "live3s": "Live3s"
     },
     "ratio": "النسبة",
@@ -4451,6 +4451,11 @@ const ar: I18nTranslations = {
     "goToParent": "انتقل إلى الدليل الأصل",
     "createNewFolder": "إنشاء مجلد جديد",
     "close": "إغلاق متصفح المجلد"
+  },
+  "signalr": {
+    "reconnecting": "تم فقد الاتصال في الوقت الحقيقي. جارٍ محاولة إعادة الاتصال...",
+    "disconnected": "تم قطع الاتصال بالخادم. انقر فوق \"إعادة المحاولة الآن\" لإعادة الاتصال.",
+    "retryNow": "أعد المحاولة الآن"
   }
 };
 

@@ -3783,7 +3783,10 @@
     "a61978621a8a776b": "🔒 您拥有只读权限。不允许添加种子。",
     "c293e0cbe27cacfd": "稀有度热图",
     "68dcef622f8b6fae": "文件边界",
-    "506e248cd9a5df38": "文件数： {{count}} 文件"
+    "506e248cd9a5df38": "文件数： {{count}} 文件",
+    "bd549bf014f72bee": "实时连接丢失。正在尝试重新连接...",
+    "e16469565a71c64d": "与服务器断开连接。单击立即重试重新连接。",
+    "38da990a24e5c3e0": "立即重试"
   },
   "hi": {
     "b43594c795c4ca3f": "जोड़ने के लिए और फ़ाइलें क्लिक करें या खींचें",
@@ -7569,7 +7572,10 @@
     "1e188e95dd92460f": "टोरेंट हटाएं",
     "68dcef622f8b6fae": "फ़ाइल सीमाएँ",
     "c293e0cbe27cacfd": "दुर्लभता हीटमैप",
-    "506e248cd9a5df38": "फ़ाइल संख्या: {{count}} फ़ाइलें"
+    "506e248cd9a5df38": "फ़ाइल संख्या: {{count}} फ़ाइलें",
+    "38da990a24e5c3e0": "अभी पुनः प्रयास करें",
+    "bd549bf014f72bee": "रीयल-टाइम कनेक्शन खो गया. फिर से कनेक्ट करने का प्रयास...",
+    "e16469565a71c64d": "सर्वर से डिस्कनेक्ट हो गया. पुनः कनेक्ट करने के लिए अभी पुनः प्रयास करें पर क्लिक करें।"
   },
   "es": {
     "33b8a7901c02ac2e": "Explorador de archivos",
@@ -11355,7 +11361,10 @@
     "7af189a2b3f03017": "Crear etiqueta",
     "506e248cd9a5df38": "Recuento de archivos: {{count}} archivos",
     "68dcef622f8b6fae": "Límites de archivos",
-    "c293e0cbe27cacfd": "Mapa de calor de rareza"
+    "c293e0cbe27cacfd": "Mapa de calor de rareza",
+    "38da990a24e5c3e0": "Reintentar ahora",
+    "bd549bf014f72bee": "Se perdió la conexión en tiempo real. Intentando volver a conectar...",
+    "e16469565a71c64d": "Desconectado del servidor. Haga clic en Reintentar ahora para volver a conectarse."
   },
   "ar": {
     "33b8a7901c02ac2e": "مستعرض الملفات",
@@ -15141,7 +15150,10 @@
     "1e188e95dd92460f": "حذف السيول",
     "506e248cd9a5df38": "عدد الملفات: {{count}} ملفات",
     "68dcef622f8b6fae": "حدود الملف",
-    "c293e0cbe27cacfd": "خريطة الحرارة النادرة"
+    "c293e0cbe27cacfd": "خريطة الحرارة النادرة",
+    "38da990a24e5c3e0": "أعد المحاولة الآن",
+    "e16469565a71c64d": "تم قطع الاتصال بالخادم. انقر فوق \"إعادة المحاولة الآن\" لإعادة الاتصال.",
+    "bd549bf014f72bee": "تم فقد الاتصال في الوقت الحقيقي. جارٍ محاولة إعادة الاتصال..."
   },
   "fr": {
     "57fd7a0cf33f2666": "Choisi",
@@ -18927,7 +18939,10 @@
     "cba44b38b4a1a8f2": "Fermer le navigateur de dossiers",
     "68dcef622f8b6fae": "Limites des fichiers",
     "c293e0cbe27cacfd": "Carte thermique de rareté",
-    "506e248cd9a5df38": "Nombre de fichiers : {{count}} fichiers"
+    "506e248cd9a5df38": "Nombre de fichiers : {{count}} fichiers",
+    "e16469565a71c64d": "Déconnecté du serveur. Cliquez sur Réessayer maintenant pour vous reconnecter.",
+    "bd549bf014f72bee": "Connexion en temps réel perdue. Tentative de reconnexion...",
+    "38da990a24e5c3e0": "Réessayez maintenant"
   },
   "bn": {
     "33b8a7901c02ac2e": "ফাইল ব্রাউজার",
@@ -22713,7 +22728,10 @@
     "cba44b38b4a1a8f2": "ফোল্ডার ব্রাউজার বন্ধ করুন",
     "506e248cd9a5df38": "ফাইলের সংখ্যা: {{count}} ফাইল",
     "c293e0cbe27cacfd": "বিরলতা হিটম্যাপ",
-    "68dcef622f8b6fae": "ফাইলের সীমানা"
+    "68dcef622f8b6fae": "ফাইলের সীমানা",
+    "38da990a24e5c3e0": "এখনই আবার চেষ্টা করুন",
+    "bd549bf014f72bee": "রিয়েল-টাইম সংযোগ হারিয়েছে। পুনরায় সংযোগ করার চেষ্টা করা হচ্ছে...",
+    "e16469565a71c64d": "সার্ভার থেকে সংযোগ বিচ্ছিন্ন। পুনঃসংযোগ করতে এখনই পুনরায় চেষ্টা করুন ক্লিক করুন৷"
   },
   "pt": {
     "33b8a7901c02ac2e": "Navegador de arquivos",
@@ -26499,7 +26517,10 @@
     "7af189a2b3f03017": "Criar etiqueta",
     "506e248cd9a5df38": "Contagem de arquivos: {{count}} arquivos",
     "c293e0cbe27cacfd": "Mapa de calor de raridade",
-    "68dcef622f8b6fae": "Limites de arquivo"
+    "68dcef622f8b6fae": "Limites de arquivo",
+    "e16469565a71c64d": "Desconectado do servidor. Clique em Tentar novamente agora para reconectar.",
+    "bd549bf014f72bee": "Conexão em tempo real perdida. Tentando reconectar...",
+    "38da990a24e5c3e0": "Tente novamente agora"
   },
   "ru": {
     "33b8a7901c02ac2e": "Файловый менеджер",
@@ -30285,7 +30306,10 @@
     "a61978621a8a776b": "🔒 У вас есть разрешения только для чтения. Добавление торрентов запрещено.",
     "506e248cd9a5df38": "Количество файлов: {{count}} файлов",
     "68dcef622f8b6fae": "Границы файлов",
-    "c293e0cbe27cacfd": "Тепловая карта редкости"
+    "c293e0cbe27cacfd": "Тепловая карта редкости",
+    "38da990a24e5c3e0": "Повторить попытку сейчас",
+    "e16469565a71c64d": "Отключился от сервера. Нажмите «Повторить сейчас», чтобы повторно подключиться.",
+    "bd549bf014f72bee": "Потеряно соединение в режиме реального времени. Попытка восстановить соединение..."
   },
   "ur": {
     "33b8a7901c02ac2e": "فائل براؤزر",
@@ -34071,7 +34095,10 @@
     "cba44b38b4a1a8f2": "فولڈر براؤزر بند کریں۔",
     "c293e0cbe27cacfd": "نایاب ہیٹ میپ",
     "68dcef622f8b6fae": "فائل کی حدود",
-    "506e248cd9a5df38": "فائلوں کی تعداد: {{count}} فائلیں۔"
+    "506e248cd9a5df38": "فائلوں کی تعداد: {{count}} فائلیں۔",
+    "38da990a24e5c3e0": "ابھی دوبارہ کوشش کریں۔",
+    "bd549bf014f72bee": "ریئل ٹائم کنکشن ٹوٹ گیا۔ دوبارہ منسلک کرنے کی کوشش کر رہا ہے...",
+    "e16469565a71c64d": "سرور سے منقطع۔ دوبارہ جڑنے کے لیے ابھی دوبارہ کوشش کریں پر کلک کریں۔"
   },
   "id": {
     "33b8a7901c02ac2e": "Peramban Berkas",
@@ -37857,7 +37884,10 @@
     "cba44b38b4a1a8f2": "Tutup folder peramban",
     "c293e0cbe27cacfd": "Peta Panas Kelangkaan",
     "68dcef622f8b6fae": "Batasan File",
-    "506e248cd9a5df38": "Jumlah file: {{count}} file"
+    "506e248cd9a5df38": "Jumlah file: {{count}} file",
+    "bd549bf014f72bee": "Koneksi real-time terputus. Mencoba menyambung kembali...",
+    "38da990a24e5c3e0": "Coba lagi sekarang",
+    "e16469565a71c64d": "Terputus dari server. Klik Coba Lagi Sekarang untuk menyambung kembali."
   },
   "de": {
     "57fd7a0cf33f2666": "Ausgewählt",
@@ -41643,7 +41673,10 @@
     "cba44b38b4a1a8f2": "Ordnerbrowser schließen",
     "68dcef622f8b6fae": "Dateigrenzen",
     "c293e0cbe27cacfd": "Seltenheits-Heatmap",
-    "506e248cd9a5df38": "Dateianzahl: {{count}} Dateien"
+    "506e248cd9a5df38": "Dateianzahl: {{count}} Dateien",
+    "38da990a24e5c3e0": "Jetzt erneut versuchen",
+    "bd549bf014f72bee": "Echtzeitverbindung verloren. Es wird versucht, die Verbindung wiederherzustellen...",
+    "e16469565a71c64d": "Vom Server getrennt. Klicken Sie auf Jetzt erneut versuchen, um die Verbindung wiederherzustellen."
   },
   "ja": {
     "33b8a7901c02ac2e": "ファイルブラウザー",
@@ -45429,7 +45462,10 @@
     "7af189a2b3f03017": "タグの作成",
     "68dcef622f8b6fae": "ファイルの境界",
     "c293e0cbe27cacfd": "レアリティヒートマップ",
-    "506e248cd9a5df38": "ファイル数: {{count}} ファイル"
+    "506e248cd9a5df38": "ファイル数: {{count}} ファイル",
+    "38da990a24e5c3e0": "今すぐ再試行してください",
+    "bd549bf014f72bee": "リアルタイム接続が失われました。再接続しようとしています...",
+    "e16469565a71c64d": "サーバーから切断されました。 「今すぐ再試行」をクリックして再接続します。"
   },
   "mr": {
     "33b8a7901c02ac2e": "फाइल ब्राउझर",
@@ -49215,7 +49251,10 @@
     "cba44b38b4a1a8f2": "फोल्डर ब्राउझर बंद करा",
     "506e248cd9a5df38": "फाइल संख्या: {{count}} फाइल्स",
     "68dcef622f8b6fae": "फाइल सीमा",
-    "c293e0cbe27cacfd": "दुर्मिळता हीटमॅप"
+    "c293e0cbe27cacfd": "दुर्मिळता हीटमॅप",
+    "38da990a24e5c3e0": "आता पुन्हा प्रयत्न करा",
+    "bd549bf014f72bee": "रिअल-टाइम कनेक्शन गमावले. पुन्हा कनेक्ट करण्याचा प्रयत्न करत आहे...",
+    "e16469565a71c64d": "सर्व्हरवरून डिस्कनेक्ट झाले. पुन्हा कनेक्ट करण्यासाठी आता पुन्हा प्रयत्न करा क्लिक करा."
   },
   "te": {
     "33b8a7901c02ac2e": "ఫైల్ బ్రౌజర్",
@@ -53001,7 +53040,10 @@
     "7af189a2b3f03017": "ట్యాగ్‌ని సృష్టించండి",
     "68dcef622f8b6fae": "ఫైల్ సరిహద్దులు",
     "c293e0cbe27cacfd": "అరుదైన హీట్‌మ్యాప్",
-    "506e248cd9a5df38": "ఫైల్ కౌంట్: {{count}} ఫైల్‌లు"
+    "506e248cd9a5df38": "ఫైల్ కౌంట్: {{count}} ఫైల్‌లు",
+    "38da990a24e5c3e0": "ఇప్పుడు మళ్లీ ప్రయత్నించండి",
+    "e16469565a71c64d": "సర్వర్ నుండి డిస్‌కనెక్ట్ చేయబడింది. మళ్లీ కనెక్ట్ చేయడానికి ఇప్పుడు మళ్లీ ప్రయత్నించండి క్లిక్ చేయండి.",
+    "bd549bf014f72bee": "రియల్ టైమ్ కనెక్షన్ కోల్పోయింది. మళ్లీ కనెక్ట్ చేయడానికి ప్రయత్నిస్తోంది..."
   },
   "tr": {
     "33b8a7901c02ac2e": "Dosya Tarayıcısı",
@@ -56787,7 +56829,10 @@
     "2cb15b3bb2fbb946": "Torrentleri silmek operatör veya yönetici rolünü gerektirir",
     "68dcef622f8b6fae": "Dosya Sınırları",
     "c293e0cbe27cacfd": "Nadirlik Isı Haritası",
-    "506e248cd9a5df38": "Dosya sayısı: {{count}} dosyalar"
+    "506e248cd9a5df38": "Dosya sayısı: {{count}} dosyalar",
+    "38da990a24e5c3e0": "Şimdi Yeniden Dene",
+    "e16469565a71c64d": "Sunucuyla bağlantı kesildi. Yeniden bağlanmak için Şimdi Yeniden Dene'yi tıklayın.",
+    "bd549bf014f72bee": "Gerçek zamanlı bağlantı kesildi. Yeniden bağlanmaya çalışılıyor..."
   },
   "ta": {
     "33b8a7901c02ac2e": "கோப்பு உலாவி",
@@ -60573,7 +60618,10 @@
     "cba44b38b4a1a8f2": "கோப்புறை உலாவியை மூடு",
     "506e248cd9a5df38": "கோப்பு எண்ணிக்கை: {{count}} கோப்புகள்",
     "68dcef622f8b6fae": "கோப்பு எல்லைகள்",
-    "c293e0cbe27cacfd": "அரிதான வெப்ப வரைபடம்"
+    "c293e0cbe27cacfd": "அரிதான வெப்ப வரைபடம்",
+    "bd549bf014f72bee": "நிகழ்நேர இணைப்பு துண்டிக்கப்பட்டது. மீண்டும் இணைக்க முயற்சிக்கிறது...",
+    "e16469565a71c64d": "சர்வரில் இருந்து துண்டிக்கப்பட்டது. மீண்டும் இணைக்க இப்போது மீண்டும் முயற்சிக்கவும் என்பதைக் கிளிக் செய்யவும்.",
+    "38da990a24e5c3e0": "இப்போது மீண்டும் முயற்சிக்கவும்"
   },
   "vi": {
     "57fd7a0cf33f2666": "Đã chọn",
@@ -64359,7 +64407,10 @@
     "cba44b38b4a1a8f2": "Đóng trình duyệt thư mục",
     "68dcef622f8b6fae": "Ranh giới tập tin",
     "c293e0cbe27cacfd": "Bản đồ nhiệt độ hiếm",
-    "506e248cd9a5df38": "Số lượng tập tin: {{count}} tập tin"
+    "506e248cd9a5df38": "Số lượng tập tin: {{count}} tập tin",
+    "38da990a24e5c3e0": "Thử lại ngay bây giờ",
+    "bd549bf014f72bee": "Mất kết nối thời gian thực. Đang cố gắng kết nối lại...",
+    "e16469565a71c64d": "Đã ngắt kết nối khỏi máy chủ. Bấm vào Thử lại ngay để kết nối lại."
   },
   "ko": {
     "33b8a7901c02ac2e": "파일 탐색기",
@@ -68145,7 +68196,10 @@
     "e031763416f87c0a": "이 토렌트와 관련된 다운로드된 모든 파일은 영구적으로 삭제됩니다.",
     "c293e0cbe27cacfd": "희귀도 히트맵",
     "68dcef622f8b6fae": "파일 경계",
-    "506e248cd9a5df38": "파일 수: {{count}} 파일"
+    "506e248cd9a5df38": "파일 수: {{count}} 파일",
+    "38da990a24e5c3e0": "지금 다시 시도",
+    "bd549bf014f72bee": "실시간 연결이 끊어졌습니다. 다시 연결을 시도하는 중...",
+    "e16469565a71c64d": "서버와의 연결이 끊어졌습니다. 다시 연결하려면 지금 다시 시도를 클릭하세요."
   },
   "it": {
     "bbdffe25dc7d80cf": "Posizione:",
@@ -71931,6 +71985,9 @@
     "a61978621a8a776b": "🔒 Disponi di permessi di sola lettura. Non è consentito aggiungere torrent.",
     "68dcef622f8b6fae": "Confini dei file",
     "c293e0cbe27cacfd": "Mappa termica della rarità",
-    "506e248cd9a5df38": "Conteggio file: {{count}} file"
+    "506e248cd9a5df38": "Conteggio file: {{count}} file",
+    "38da990a24e5c3e0": "Riprova ora",
+    "bd549bf014f72bee": "Connessione in tempo reale persa. Tentativo di riconnessione...",
+    "e16469565a71c64d": "Disconnesso dal server. Fare clic su Riprova ora per riconnettersi."
   }
 }

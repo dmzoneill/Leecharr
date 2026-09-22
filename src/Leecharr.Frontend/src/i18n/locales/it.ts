@@ -502,7 +502,10 @@ const it: I18nTranslations = {
       "pieceMapMatrixGridView": "Visualizzazione griglia matrice mappa pezzo",
       "pieceMapGrid": "Griglia",
       "pieceMapStatus": "Stato",
+      "pieceMapRarity": "Mappa termica della rarità",
+      "pieceMapFileBoundaries": "Confini dei file",
       "pieceMapAvailability": "Disponibilità",
+      "pieceMapFilesCount": "Conteggio file: {{count}} file",
       "pieceMapCompleteLegend": "Legenda completa della mappa a pezzi",
       "pieceMapActiveLegend": "Legenda attiva della mappa pezzo",
       "pieceMapMissingLegend": "Legenda mancante della mappa dei pezzi",
@@ -700,9 +703,6 @@ const it: I18nTranslations = {
       "failedToRemoveTracker": "Impossibile rimuovere il tracker",
       "privateTrackerDisabledTitle": "Titolo disabilitato del tracker privato",
       "openTrackerPickerTitle": "Apri il titolo del selettore tracker",
-      "pieceMapRarity": "Mappa termica della rarità",
-      "pieceMapFileBoundaries": "Confini dei file",
-      "pieceMapFilesCount": "Conteggio file: {{count}} file",
       "live3s": "Live3s",
       "colDownSpeed": "Col Down Speed",
       "colUrl": "Col Url",
@@ -4451,6 +4451,11 @@ const it: I18nTranslations = {
     "goToParent": "Vai alla directory principale",
     "createNewFolder": "Crea nuova cartella",
     "close": "Chiudi il browser delle cartelle"
+  },
+  "signalr": {
+    "reconnecting": "Connessione in tempo reale persa. Tentativo di riconnessione...",
+    "disconnected": "Disconnesso dal server. Fare clic su Riprova ora per riconnettersi.",
+    "retryNow": "Riprova ora"
   }
 };
 

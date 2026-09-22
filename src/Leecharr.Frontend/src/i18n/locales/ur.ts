@@ -502,7 +502,10 @@ const ur: I18nTranslations = {
       "pieceMapMatrixGridView": "ٹکڑا نقشہ میٹرکس گرڈ ویو",
       "pieceMapGrid": "گرڈ",
       "pieceMapStatus": "حالت",
+      "pieceMapRarity": "نایاب ہیٹ میپ",
+      "pieceMapFileBoundaries": "فائل کی حدود",
       "pieceMapAvailability": "دستیابی",
+      "pieceMapFilesCount": "فائلوں کی تعداد: {{count}} فائلیں۔",
       "pieceMapCompleteLegend": "ٹکڑا نقشہ مکمل لیجنڈ",
       "pieceMapActiveLegend": "ٹکڑا نقشہ ایکٹو لیجنڈ",
       "pieceMapMissingLegend": "ٹکڑا نقشہ غائب لیجنڈ",
@@ -698,9 +701,6 @@ const ur: I18nTranslations = {
       "failedToRemoveTracker": "ٹریکر کو ہٹانے میں ناکام",
       "privateTrackerDisabledTitle": "نجی ٹریکر غیر فعال عنوان",
       "openTrackerPickerTitle": "ٹریکر چنندہ کا عنوان کھولیں۔",
-      "pieceMapRarity": "نایاب ہیٹ میپ",
-      "pieceMapFileBoundaries": "فائل کی حدود",
-      "pieceMapFilesCount": "فائلوں کی تعداد: {{count}} فائلیں۔",
       "diagSwarm": "Diag Swarm",
       "diagReAnnounceTrackers": "Diag Re Announce Trackers",
       "diagReEvaluate": "Diag Re Evaluate",
@@ -4451,6 +4451,11 @@ const ur: I18nTranslations = {
     "goToParent": "پیرنٹ ڈائرکٹری پر جائیں۔",
     "createNewFolder": "نیا فولڈر بنائیں",
     "close": "فولڈر براؤزر بند کریں۔"
+  },
+  "signalr": {
+    "reconnecting": "ریئل ٹائم کنکشن ٹوٹ گیا۔ دوبارہ منسلک کرنے کی کوشش کر رہا ہے...",
+    "disconnected": "سرور سے منقطع۔ دوبارہ جڑنے کے لیے ابھی دوبارہ کوشش کریں پر کلک کریں۔",
+    "retryNow": "ابھی دوبارہ کوشش کریں۔"
   }
 };
 

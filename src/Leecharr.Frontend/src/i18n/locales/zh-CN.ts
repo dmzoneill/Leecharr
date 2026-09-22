@@ -502,7 +502,10 @@ const zhCN: I18nTranslations = {
       "pieceMapMatrixGridView": "矩阵网格视图",
       "pieceMapGrid": "网格",
       "pieceMapStatus": "地位",
+      "pieceMapRarity": "稀有度热图",
+      "pieceMapFileBoundaries": "文件边界",
       "pieceMapAvailability": "可用性",
+      "pieceMapFilesCount": "文件数： {{count}} 文件",
       "pieceMapCompleteLegend": "碎片地图完整图例",
       "pieceMapActiveLegend": "碎片地图活动图例",
       "pieceMapMissingLegend": "碎片地图失踪传奇",
@@ -703,9 +706,6 @@ const zhCN: I18nTranslations = {
       "failedToRemoveTracker": "删除跟踪器失败",
       "privateTrackerDisabledTitle": "私人跟踪器禁用标题",
       "openTrackerPickerTitle": "打开跟踪器选取器标题",
-      "pieceMapRarity": "稀有度热图",
-      "pieceMapFileBoundaries": "文件边界",
-      "pieceMapFilesCount": "文件数： {{count}} 文件",
       "live3s": "Live3s"
     },
     "ratio": "比率",
@@ -4451,6 +4451,11 @@ const zhCN: I18nTranslations = {
     "goToParent": "转到父目录",
     "createNewFolder": "创建新文件夹",
     "close": "关闭文件夹浏览器"
+  },
+  "signalr": {
+    "reconnecting": "实时连接丢失。正在尝试重新连接...",
+    "disconnected": "与服务器断开连接。单击立即重试重新连接。",
+    "retryNow": "立即重试"
   }
 };
 

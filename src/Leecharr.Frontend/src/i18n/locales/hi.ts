@@ -502,7 +502,10 @@ const hi: I18nTranslations = {
       "pieceMapMatrixGridView": "पीस मैप मैट्रिक्स ग्रिड व्यू",
       "pieceMapGrid": "ग्रिड",
       "pieceMapStatus": "स्थिति",
+      "pieceMapRarity": "दुर्लभता हीटमैप",
+      "pieceMapFileBoundaries": "फ़ाइल सीमाएँ",
       "pieceMapAvailability": "उपलब्धता",
+      "pieceMapFilesCount": "फ़ाइल संख्या: {{count}} फ़ाइलें",
       "pieceMapCompleteLegend": "पीस मैप कम्प्लीट लीजेंड",
       "pieceMapActiveLegend": "पीस मैप एक्टिव लीजेंड",
       "pieceMapMissingLegend": "पीस मैप मिसिंग लीजेंड",
@@ -703,9 +706,6 @@ const hi: I18nTranslations = {
       "failedToRemoveTracker": "ट्रैकर नहीं हटाया जा सका",
       "privateTrackerDisabledTitle": "निजी ट्रैकर अक्षम शीर्षक",
       "openTrackerPickerTitle": "ट्रैकर पिकर शीर्षक खोलें",
-      "pieceMapRarity": "दुर्लभता हीटमैप",
-      "pieceMapFileBoundaries": "फ़ाइल सीमाएँ",
-      "pieceMapFilesCount": "फ़ाइल संख्या: {{count}} फ़ाइलें",
       "live3s": "Live3s"
     },
     "ratio": "अनुपात",
@@ -4451,6 +4451,11 @@ const hi: I18nTranslations = {
     "goToParent": "मूल निर्देशिका पर जाएँ",
     "createNewFolder": "नया फ़ोल्डर बनाएं",
     "close": "फ़ोल्डर ब्राउज़र बंद करें"
+  },
+  "signalr": {
+    "reconnecting": "रीयल-टाइम कनेक्शन खो गया. फिर से कनेक्ट करने का प्रयास...",
+    "disconnected": "सर्वर से डिस्कनेक्ट हो गया. पुनः कनेक्ट करने के लिए अभी पुनः प्रयास करें पर क्लिक करें।",
+    "retryNow": "अभी पुनः प्रयास करें"
   }
 };
 

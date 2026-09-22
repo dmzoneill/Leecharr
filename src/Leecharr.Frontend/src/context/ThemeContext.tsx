@@ -44,7 +44,9 @@ function resolveSystemTheme(): "light" | "dark" {
 
 function getInitialThemeStyle(): ThemeStyle {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY_THEME);
+    const stored =
+      localStorage.getItem(STORAGE_KEY_THEME) ||
+      localStorage.getItem("seedarr-theme-style");
     if (
       stored === "dark" ||
       stored === "light" ||
@@ -55,7 +57,9 @@ function getInitialThemeStyle(): ThemeStyle {
     ) {
       return stored as ThemeStyle;
     }
-    const legacy = localStorage.getItem("leecharr-theme");
+    const legacy =
+      localStorage.getItem("leecharr-theme") ||
+      localStorage.getItem("seedarr-theme");
     if (legacy === "light" || legacy === "dark") {
       return legacy;
     }
@@ -67,7 +71,10 @@ function getInitialThemeStyle(): ThemeStyle {
 
 function getInitialColorScheme(): ColorScheme {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY_ACCENT);
+    const stored =
+      localStorage.getItem(STORAGE_KEY_ACCENT) ||
+      localStorage.getItem("seedarr-color-scheme") ||
+      localStorage.getItem("seedarr-accent");
     if (
       stored === "auto" ||
       stored === "blue" ||
