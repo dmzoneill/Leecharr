@@ -3421,7 +3421,8 @@ const zhCN: I18nTranslations = {
     "addTorrentModal": "无法加载 addTorrentModal 视图。发生意外错误。",
     "searchModal": "无法加载 searchModal 视图。发生意外错误。",
     "setupGuide": "无法加载 setupGuide 视图。发生意外错误。",
-    "copilotDrawer": "无法加载 copilotDrawer 视图。发生意外错误。"
+    "copilotDrawer": "无法加载 copilotDrawer 视图。发生意外错误。",
+    "downloadClients": "无法加载下载客户端视图。发生意外错误。"
   },
   "copilot": {
     "welcomeMessage": "您好！我是您的 Leecharr 智能副驾驶。今天有什么我可以帮您的（种子、影视发布或设置）？",

@@ -3400,6 +3400,7 @@ export type I18nTranslations = {
     "torrents": string;
     "addTorrent": string;
     "downloadHistory": string;
+    "downloadClients": string;
     "activity": string;
     "indexers": string;
     "peerMap": string;

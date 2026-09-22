@@ -66,19 +66,59 @@ public class DownloadClientRemoteItem
 {
     public string Id { get; set; }
 
+    public string DownloadId
+    {
+        get => this.Id;
+        set => this.Id = value;
+    }
+
     public string InfoHash { get; set; }
 
     public string Name { get; set; }
 
+    public string Title
+    {
+        get => this.Name;
+        set => this.Name = value;
+    }
+
     public long Size { get; set; }
+
+    public long TotalSize
+    {
+        get => this.Size;
+        set => this.Size = value;
+    }
+
+    public long RemainingSize { get; set; }
 
     public double Progress { get; set; }
 
     public string State { get; set; }
 
+    public string Status
+    {
+        get => this.State;
+        set => this.State = value;
+    }
+
     public string SavePath { get; set; }
 
+    public string OutputPath
+    {
+        get => this.SavePath;
+        set => this.SavePath = value;
+    }
+
     public string Category { get; set; }
+
+    public bool IsInLibrary { get; set; }
+
+    public int? LibraryTorrentId { get; set; }
+
+    public int ClientId { get; set; }
+
+    public string ClientName { get; set; }
 }
 
 public class ImportRequest

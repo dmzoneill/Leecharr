@@ -696,6 +696,23 @@ export interface DownloadClientRemoteItem {
   category: string;
   isInLibrary: boolean;
   libraryTorrentId?: number | null;
+  clientId?: number;
+  clientName?: string;
+  isPrivate?: boolean;
+}
+
+export interface BatchImportItemResult {
+  infoHash: string;
+  title: string;
+  success: boolean;
+  errorMessage?: string | null;
+}
+
+export interface BatchImportResponse {
+  added: number;
+  skipped: number;
+  failed: number;
+  items: BatchImportItemResult[];
 }
 
 export interface IndexerDefinition {
