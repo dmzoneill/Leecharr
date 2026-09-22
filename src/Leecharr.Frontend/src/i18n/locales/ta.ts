@@ -498,9 +498,11 @@ const ta: I18nTranslations = {
       "pieceMapVerifiedPercent": "துண்டு வரைபடம் சரிபார்க்கப்பட்ட சதவீதம்",
       "pieceMapPiecesInfo": "துண்டு வரைபடம் துண்டுகள் தகவல்",
       "pieceMapLinearBarView": "துண்டு வரைபடம் லீனியர் பார் காட்சி",
-      "pieceMapBar": "துண்டு வரைபடப் பட்டி",
+      "pieceMapBar": "Bar",
       "pieceMapMatrixGridView": "துண்டு வரைபடம் மேட்ரிக்ஸ் கட்டம் காட்சி",
-      "pieceMapGrid": "துண்டு வரைபடம் கட்டம்",
+      "pieceMapGrid": "கட்டம்",
+      "pieceMapStatus": "நிலை",
+      "pieceMapAvailability": "கிடைக்கும்",
       "pieceMapCompleteLegend": "துண்டு வரைபடம் முழுமையான புராணக்கதை",
       "pieceMapActiveLegend": "துண்டு வரைபடம் செயலில் லெஜண்ட்",
       "pieceMapMissingLegend": "துண்டு வரைபடம் விடுபட்ட புராணக்கதை",
@@ -701,6 +703,9 @@ const ta: I18nTranslations = {
       "failedToRemoveTracker": "டிராக்கரை அகற்ற முடியவில்லை",
       "privateTrackerDisabledTitle": "தனிப்பட்ட டிராக்கர் முடக்கப்பட்ட தலைப்பு",
       "openTrackerPickerTitle": "டிராக்கர் பிக்கர் தலைப்பைத் திறக்கவும்",
+      "pieceMapRarity": "அரிதான வெப்ப வரைபடம்",
+      "pieceMapFileBoundaries": "கோப்பு எல்லைகள்",
+      "pieceMapFilesCount": "கோப்பு எண்ணிக்கை: {{count}} கோப்புகள்",
       "colUrl": "Col Url"
     },
     "ratio": "விகிதம்",
@@ -731,22 +736,22 @@ const ta: I18nTranslations = {
     "removeTags": "அகற்று",
     "bulkAddTags": "குறிச்சொற்களை ஒதுக்கவும்",
     "bulkRemoveTags": "குறிச்சொற்களை அகற்று",
+    "deleteTorrentsTitle": "டோரண்ட்களை நீக்கு",
     "deleteTorrentTitle": "டொரண்ட்டை நீக்கு",
+    "readOnlyDeleteWarning": "உங்களிடம் படிக்க மட்டும் அனுமதிகள் உள்ளன. டோரன்ட்களை நீக்க முடியாது.",
+    "deleteMultipleConfirm": "{{count}} டொரண்ட்களை நிச்சயமாக நீக்க விரும்புகிறீர்களா?",
+    "deleteSingleConfirm": "நீங்கள் நிச்சயமாக நீக்க விரும்புகிறீர்களா",
     "deleteSingleConfirmGeneric": "இந்த டொரண்ட்டை நிச்சயமாக நீக்க விரும்புகிறீர்களா?",
     "deleteFilesFromDisk": "வட்டிலிருந்து பதிவிறக்கிய கோப்புகளையும் நீக்கு",
+    "deleteFilesWarning": "இந்த டொரண்டுடன் தொடர்புடைய அனைத்து பதிவிறக்கம் செய்யப்பட்ட கோப்புகளும் நிரந்தரமாக நீக்கப்படும்.",
+    "deletePermissionRequired": "டோரண்ட்களை நீக்க ஆபரேட்டர் அல்லது நிர்வாகப் பங்கு தேவை",
     "torrentPaused": "Torrent இடைநிறுத்தப்பட்டது",
     "failedToPause": "டோரண்டை இடைநிறுத்த முடியவில்லை",
     "torrentResumed": "டோரண்ட் மீண்டும் தொடங்கியது",
     "failedToResume": "டோரண்டை மீண்டும் தொடங்குவதில் தோல்வி",
     "torrentAndFilesDeleted": "டோரண்ட் மற்றும் கோப்புகள் நீக்கப்பட்டன",
     "torrentRemoved": "டோரண்ட் அகற்றப்பட்டது",
-    "failedToDelete": "டோரண்டை நீக்க முடியவில்லை",
-    "deleteTorrentsTitle": "டோரண்ட்களை நீக்கு",
-    "readOnlyDeleteWarning": "உங்களிடம் படிக்க மட்டும் அனுமதிகள் உள்ளன. டோரன்ட்களை நீக்க முடியாது.",
-    "deleteMultipleConfirm": "{{count}} டொரண்ட்களை நிச்சயமாக நீக்க விரும்புகிறீர்களா?",
-    "deleteSingleConfirm": "நீங்கள் நிச்சயமாக நீக்க விரும்புகிறீர்களா",
-    "deleteFilesWarning": "இந்த டொரண்டுடன் தொடர்புடைய அனைத்து பதிவிறக்கம் செய்யப்பட்ட கோப்புகளும் நிரந்தரமாக நீக்கப்படும்.",
-    "deletePermissionRequired": "டோரண்ட்களை நீக்க ஆபரேட்டர் அல்லது நிர்வாகப் பங்கு தேவை"
+    "failedToDelete": "டோரண்டை நீக்க முடியவில்லை"
   },
   "torrentDetail": {
     "overview": "கண்ணோட்டம்",
@@ -831,6 +836,8 @@ const ta: I18nTranslations = {
   },
   "addTorrent": {
     "title": "புதிய டொரண்ட் சேர்",
+    "closeDialog": "டொரண்ட் சேர் உரையாடலை மூடு",
+    "readOnlyWarning": "🔒 உங்களிடம் படிக்க மட்டும் அனுமதி உள்ளது. டோரண்டுகளைச் சேர்ப்பது அனுமதிக்கப்படாது.",
     "subtitle": "டோரண்ட் கோப்புகளைப் பதிவேற்றவும் அல்லது காந்த இணைப்பு வழியாக பதிவிறக்கவும்",
     "torrentFileTab": "டொரண்ட் கோப்பு",
     "magnetLinkTab": "காந்த இணைப்பு",
@@ -919,9 +926,7 @@ const ta: I18nTranslations = {
     "sourcePathRequired": "ஒரு டொரண்டை உருவாக்க, மூலப் பாதை தேவை",
     "failedToCreateTorrent": "டோரண்டை உருவாக்க முடியவில்லை",
     "failedToAddTorrent": "Torrent ஐ சேர்க்க முடியவில்லை",
-    "bulkAddSummary": "மொத்தமாகச் சேர் சுருக்கம்",
-    "closeDialog": "டொரண்ட் சேர் உரையாடலை மூடு",
-    "readOnlyWarning": "🔒 உங்களிடம் படிக்க மட்டும் அனுமதி உள்ளது. டோரண்டுகளைச் சேர்ப்பது அனுமதிக்கப்படாது."
+    "bulkAddSummary": "மொத்தமாகச் சேர் சுருக்கம்"
   },
   "activity": {
     "title": "பிணையம் & கூட்ட செயல்பாடு",
@@ -4347,6 +4352,7 @@ const ta: I18nTranslations = {
     "minSeedTimePlaceholder": "எ.கா. 86400",
     "cancel": "ரத்துசெய்",
     "saveTag": "குறிச்சொல்லைச் சேமிக்கவும்",
+    "createTag": "குறிச்சொல்லை உருவாக்கவும்",
     "saving": "சேமிக்கிறது...",
     "deleteTagModalTitle": "குறிச்சொல்லை நீக்கு: \"{{label}}\"",
     "deleteWarning": "⚠️ எச்சரிக்கை: இந்தக் குறிச்சொல்லை நீக்கினால், ஒதுக்கப்பட்ட அனைத்து டோரண்டுகள், இண்டெக்சர்கள் மற்றும் தானியங்கு விதிகளில் இருந்து இது அகற்றப்படும். இந்தச் செயலைச் செயல்தவிர்க்க முடியாது.",
@@ -4354,8 +4360,7 @@ const ta: I18nTranslations = {
     "assignedToCount": "தற்போது {{count}} {{torrentWord}}க்கு ஒதுக்கப்பட்டுள்ளது.",
     "notAssigned": "இந்தக் குறிச்சொல் தற்போது எந்த டொரண்டுகளுக்கும் ஒதுக்கப்படவில்லை.",
     "deleteConfirm": "குறிச்சொல்லை நீக்கு",
-    "deleting": "நீக்குகிறது...",
-    "createTag": "குறிச்சொல்லை உருவாக்கவும்"
+    "deleting": "நீக்குகிறது..."
   },
   "keyboardShortcuts": {
     "title": "விசைப்பலகை குறுக்குவழிகள்",

@@ -497,9 +497,10 @@ const id: I18nTranslations = {
       "pieceMapVerifiedPercent": "Persen Terverifikasi Peta Bagian",
       "pieceMapPiecesInfo": "Info Potongan Peta Potongan",
       "pieceMapLinearBarView": "Tampilan Batang Linier Peta Bagian",
-      "pieceMapBar": "Bilah Peta Bagian",
+      "pieceMapBar": "Bar",
       "pieceMapMatrixGridView": "Tampilan Kotak Matriks Peta Bagian",
-      "pieceMapGrid": "Kotak Peta Bagian",
+      "pieceMapGrid": "jaringan",
+      "pieceMapAvailability": "Tersedianya",
       "pieceMapCompleteLegend": "Legenda Lengkap Peta Potongan",
       "pieceMapActiveLegend": "Legenda Aktif Peta Potongan",
       "pieceMapMissingLegend": "Legenda Hilang Peta Sepotong",
@@ -699,6 +700,10 @@ const id: I18nTranslations = {
       "failedToRemoveTracker": "Gagal Menghapus Pelacak",
       "privateTrackerDisabledTitle": "Judul Pelacak Pribadi Dinonaktifkan",
       "openTrackerPickerTitle": "Buka Judul Pemilih Pelacak",
+      "pieceMapStatus": "Status",
+      "pieceMapRarity": "Peta Panas Kelangkaan",
+      "pieceMapFileBoundaries": "Batasan File",
+      "pieceMapFilesCount": "Jumlah file: {{count}} file",
       "label": "Label",
       "status": "Status"
     },
@@ -730,9 +735,15 @@ const id: I18nTranslations = {
     "removeTags": "Hapus",
     "bulkAddTags": "Tetapkan Tag",
     "bulkRemoveTags": "Hapus Tag",
+    "deleteTorrentsTitle": "Hapus Torrent",
     "deleteTorrentTitle": "Hapus Torrent",
+    "readOnlyDeleteWarning": "Anda memiliki izin ReadOnly. Torrent tidak dapat dihapus.",
+    "deleteMultipleConfirm": "Apakah Anda yakin ingin menghapus {{count}} torrent?",
+    "deleteSingleConfirm": "Apakah Anda yakin ingin menghapus",
     "deleteSingleConfirmGeneric": "Apakah Anda yakin ingin menghapus torrent ini?",
     "deleteFilesFromDisk": "Hapus juga berkas yang diunduh dari disk",
+    "deleteFilesWarning": "Semua file unduhan yang terkait dengan torrent ini akan dihapus secara permanen.",
+    "deletePermissionRequired": "Menghapus torrent memerlukan peran operator atau admin",
     "torrentPaused": "Torrent berhenti",
     "failedToPause": "Gagal menjeda torrent",
     "torrentResumed": "Torrent dilanjutkan",
@@ -740,13 +751,7 @@ const id: I18nTranslations = {
     "torrentAndFilesDeleted": "Torrent dan file dihapus",
     "torrentRemoved": "Torrent dihapus",
     "failedToDelete": "Gagal menghapus torrent",
-    "statusHeader": "Status",
-    "deleteTorrentsTitle": "Hapus Torrent",
-    "readOnlyDeleteWarning": "Anda memiliki izin ReadOnly. Torrent tidak dapat dihapus.",
-    "deleteMultipleConfirm": "Apakah Anda yakin ingin menghapus {{count}} torrent?",
-    "deleteSingleConfirm": "Apakah Anda yakin ingin menghapus",
-    "deleteFilesWarning": "Semua file unduhan yang terkait dengan torrent ini akan dihapus secara permanen.",
-    "deletePermissionRequired": "Menghapus torrent memerlukan peran operator atau admin"
+    "statusHeader": "Status"
   },
   "torrentDetail": {
     "overview": "Ikhtisar",
@@ -831,6 +836,8 @@ const id: I18nTranslations = {
   },
   "addTorrent": {
     "title": "Tambah Torrent Baru",
+    "closeDialog": "Tutup dialog tambahkan torrent",
+    "readOnlyWarning": "🔒 Anda memiliki izin ReadOnly. Menambahkan torrent tidak diizinkan.",
     "subtitle": "Unggah file torrent atau unduh melalui tautan magnet",
     "torrentFileTab": "Berkas Torrent",
     "magnetLinkTab": "Tautan Magnet",
@@ -919,8 +926,6 @@ const id: I18nTranslations = {
     "failedToCreateTorrent": "Gagal membuat torrent",
     "failedToAddTorrent": "Gagal Menambahkan Torrent",
     "bulkAddSummary": "Tambahkan Ringkasan Secara Massal",
-    "closeDialog": "Tutup dialog tambahkan torrent",
-    "readOnlyWarning": "🔒 Anda memiliki izin ReadOnly. Menambahkan torrent tidak diizinkan.",
     "freeleech": "FREELEECH"
   },
   "activity": {
@@ -4347,6 +4352,7 @@ const id: I18nTranslations = {
     "minSeedTimePlaceholder": "misalnya 86400",
     "cancel": "Batal",
     "saveTag": "Simpan Tanda",
+    "createTag": "Buat tanda",
     "saving": "Penghematan...",
     "deleteTagModalTitle": "Hapus Tanda: \"{{label}}\"",
     "deleteWarning": "⚠️ Peringatan: Menghapus tag ini akan menghapusnya dari semua torrent, pengindeks, dan aturan otomatis yang ditetapkan. Tindakan ini tidak dapat dibatalkan.",
@@ -4354,8 +4360,7 @@ const id: I18nTranslations = {
     "assignedToCount": "Saat ini ditugaskan ke {{count}} {{torrentWord}}.",
     "notAssigned": "Tag ini saat ini tidak ditetapkan ke torrent mana pun.",
     "deleteConfirm": "Hapus Tanda",
-    "deleting": "Menghapus...",
-    "createTag": "Buat tanda"
+    "deleting": "Menghapus..."
   },
   "keyboardShortcuts": {
     "title": "Pintasan Papan Ketik",

@@ -25,11 +25,11 @@ This document tracks cross-system architectural parity, feature synchronization,
   - [x] **03.3 Settings & Configuration Endpoints**: Standardize vacuum maintenance aliases (`/api/v1/system/database/vacuum` and `/api/v1/system/maintenance/vacuum`).
   - [x] **03.4 OpenAPI / Swagger Schema Validation**: Align Swagger UI dark theme injection (`/swagger-custom.css` endpoint and `SwaggerTheme.cs`) across both solutions.
 
-- [ ] **Workpackage 04: Torrent Detail Drawer & Visualization Parity**
-  - [ ] **04.1 Piece Map Canvas Visualizer**: Unify HTML5 canvas visualizer supporting Linear Bar and Grid Block modes, streaming bitfield updates, and piece index tooltips.
-  - [ ] **04.2 Files Tab Tree & Selective Download Priorities**: Hierarchical file and folder tree navigation with selective download checkboxes and file priorities (Skip, Low, Normal, High).
-  - [ ] **04.3 Peers Tab Swarm Flags & Protocol Inspection**: Virtualized peer table, GeoIP country flags, client identification badges, encryption status, and BEP 27 protocol flags.
-  - [ ] **04.4 Logs Tab & CLI Shell Scoping**: Torrent-scoped logging view and embedded terminal shell integration.
+- [x] **Workpackage 04: Torrent Detail Drawer & Visualization Parity**
+  - [x] **04.1 Piece Map Canvas Visualizer**: Unify HTML5 canvas visualizer supporting Linear Bar and Grid Block modes, streaming bitfield updates, and piece index tooltips.
+  - [x] **04.2 Files Tab Tree & Selective Download Priorities**: Hierarchical file and folder tree navigation with selective download checkboxes and file priorities (Skip, Low, Normal, High).
+  - [x] **04.3 Peers Tab Swarm Flags & Protocol Inspection**: Virtualized peer table, GeoIP country flags, client identification badges, encryption status, and BEP 27 protocol flags.
+  - [x] **04.4 Logs Tab & CLI Shell Scoping**: Torrent-scoped logging view and embedded terminal shell integration.
 
 - [ ] **Workpackage 05: SignalR Real-Time Protocol & Store Lifecycle Parity**
   - [ ] **05.1 Event Topic Normalization & Dispatching**: Normalize hub event names (`torrent_updated`, `speed_update`, `task_progress`, `health_warning`) across both solutions.

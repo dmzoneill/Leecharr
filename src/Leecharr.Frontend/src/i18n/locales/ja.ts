@@ -498,9 +498,11 @@ const ja: I18nTranslations = {
       "pieceMapVerifiedPercent": "ピースマップの検証済みパーセント",
       "pieceMapPiecesInfo": "ピースマップ ピース情報",
       "pieceMapLinearBarView": "ピース マップの線形バー ビュー",
-      "pieceMapBar": "ピースマップバー",
+      "pieceMapBar": "Bar",
       "pieceMapMatrixGridView": "ピースマップマトリックスグリッドビュー",
-      "pieceMapGrid": "ピースマップグリッド",
+      "pieceMapGrid": "グリッド",
+      "pieceMapStatus": "状態",
+      "pieceMapAvailability": "可用性",
       "pieceMapCompleteLegend": "ピースマップコンプリートレジェンド",
       "pieceMapActiveLegend": "ピースマップアクティブレジェンド",
       "pieceMapMissingLegend": "ピースマップに凡例がありません",
@@ -701,6 +703,9 @@ const ja: I18nTranslations = {
       "failedToRemoveTracker": "トラッカーの削除に失敗しました",
       "privateTrackerDisabledTitle": "プライベート トラッカーの無効化されたタイトル",
       "openTrackerPickerTitle": "トラッカーピッカーのタイトルを開く",
+      "pieceMapRarity": "レアリティヒートマップ",
+      "pieceMapFileBoundaries": "ファイルの境界",
+      "pieceMapFilesCount": "ファイル数: {{count}} ファイル",
       "live3s": "Live3s"
     },
     "ratio": "共有比率",
@@ -731,22 +736,22 @@ const ja: I18nTranslations = {
     "removeTags": "削除",
     "bulkAddTags": "タグの割り当て",
     "bulkRemoveTags": "タグを削除する",
+    "deleteTorrentsTitle": "トレントの削除",
     "deleteTorrentTitle": "トレントを削除",
+    "readOnlyDeleteWarning": "読み取り専用権限があります。トレントは削除できません。",
+    "deleteMultipleConfirm": "{{count}} torrent を削除してもよろしいですか?",
+    "deleteSingleConfirm": "削除してもよろしいですか",
     "deleteSingleConfirmGeneric": "このトレントを削除してもよろしいですか？",
     "deleteFilesFromDisk": "ダウンロードしたファイルもディスクから完全に削除する",
+    "deleteFilesWarning": "この torrent に関連するダウンロードされたファイルはすべて完全に削除されます。",
+    "deletePermissionRequired": "トレントを削除するにはオペレーターまたは管理者の役割が必要です",
     "torrentPaused": "トレントが一時停止されました",
     "failedToPause": "トレントを一時停止できませんでした",
     "torrentResumed": "トレントが再開されました",
     "failedToResume": "トレントを再開できませんでした",
     "torrentAndFilesDeleted": "Torrent とファイルが削除されました",
     "torrentRemoved": "トレントが削除されました",
-    "failedToDelete": "トレントの削除に失敗しました",
-    "deleteTorrentsTitle": "トレントの削除",
-    "readOnlyDeleteWarning": "読み取り専用権限があります。トレントは削除できません。",
-    "deleteMultipleConfirm": "{{count}} torrent を削除してもよろしいですか?",
-    "deleteSingleConfirm": "削除してもよろしいですか",
-    "deleteFilesWarning": "この torrent に関連するダウンロードされたファイルはすべて完全に削除されます。",
-    "deletePermissionRequired": "トレントを削除するにはオペレーターまたは管理者の役割が必要です"
+    "failedToDelete": "トレントの削除に失敗しました"
   },
   "torrentDetail": {
     "overview": "概要",
@@ -831,6 +836,8 @@ const ja: I18nTranslations = {
   },
   "addTorrent": {
     "title": "新規トレントの追加",
+    "closeDialog": "トレントの追加ダイアログを閉じます",
+    "readOnlyWarning": "🔒 読み取り専用権限があります。 torrent の追加は許可されていません。",
     "subtitle": "トレント ファイルをアップロードするか、マグネット リンク経由でダウンロードします",
     "torrentFileTab": "Torrentファイル",
     "magnetLinkTab": "Magnetリンク",
@@ -919,9 +926,7 @@ const ja: I18nTranslations = {
     "sourcePathRequired": "トレントを作成するにはソース パスが必要です",
     "failedToCreateTorrent": "トレントの作成に失敗しました",
     "failedToAddTorrent": "トレントの追加に失敗しました",
-    "bulkAddSummary": "一括追加の概要",
-    "closeDialog": "トレントの追加ダイアログを閉じます",
-    "readOnlyWarning": "🔒 読み取り専用権限があります。 torrent の追加は許可されていません。"
+    "bulkAddSummary": "一括追加の概要"
   },
   "activity": {
     "title": "ネットワーク＆スウォームアクティビティ",
@@ -4347,6 +4352,7 @@ const ja: I18nTranslations = {
     "minSeedTimePlaceholder": "例えば86400",
     "cancel": "キャンセル",
     "saveTag": "タグの保存",
+    "createTag": "タグの作成",
     "saving": "保存中...",
     "deleteTagModalTitle": "タグを削除:「{{label}}」",
     "deleteWarning": "⚠️ 警告: このタグを削除すると、割り当てられたすべてのトレント、インデクサー、自動ルールから削除されます。この操作は元に戻すことができません。",
@@ -4354,8 +4360,7 @@ const ja: I18nTranslations = {
     "assignedToCount": "現在 {{count}}_ {{torrentWord}} に割り当てられています。",
     "notAssigned": "このタグは現在どの torrent にも割り当てられていません。",
     "deleteConfirm": "タグの削除",
-    "deleting": "削除中...",
-    "createTag": "タグの作成"
+    "deleting": "削除中..."
   },
   "keyboardShortcuts": {
     "title": "キーボードショートカット",

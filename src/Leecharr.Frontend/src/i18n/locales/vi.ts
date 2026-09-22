@@ -498,9 +498,11 @@ const vi: I18nTranslations = {
       "pieceMapVerifiedPercent": "Phần trăm bản đồ đã được xác minh",
       "pieceMapPiecesInfo": "Mảnh bản đồ Mảnh thông tin",
       "pieceMapLinearBarView": "Bản đồ mảnh Chế độ xem thanh tuyến tính",
-      "pieceMapBar": "Thanh bản đồ mảnh",
+      "pieceMapBar": "Bar",
       "pieceMapMatrixGridView": "Chế độ xem lưới ma trận bản đồ mảnh",
-      "pieceMapGrid": "Lưới bản đồ mảnh",
+      "pieceMapGrid": "Lưới",
+      "pieceMapStatus": "Trạng thái",
+      "pieceMapAvailability": "sẵn có",
       "pieceMapCompleteLegend": "Mảnh bản đồ Truyền thuyết hoàn chỉnh",
       "pieceMapActiveLegend": "Mảnh bản đồ Truyền thuyết hoạt động",
       "pieceMapMissingLegend": "Mảnh bản đồ Thiếu huyền thoại",
@@ -700,6 +702,9 @@ const vi: I18nTranslations = {
       "failedToRemoveTracker": "Không thể xóa trình theo dõi",
       "privateTrackerDisabledTitle": "Tiêu đề bị vô hiệu hóa theo dõi riêng tư",
       "openTrackerPickerTitle": "Mở tiêu đề bộ chọn theo dõi",
+      "pieceMapRarity": "Bản đồ nhiệt độ hiếm",
+      "pieceMapFileBoundaries": "Ranh giới tập tin",
+      "pieceMapFilesCount": "Số lượng tập tin: {{count}} tập tin",
       "live3s": "Live3s",
       "colUrl": "Col Url"
     },
@@ -731,22 +736,22 @@ const vi: I18nTranslations = {
     "removeTags": "Xóa",
     "bulkAddTags": "Gán thẻ",
     "bulkRemoveTags": "Xóa thẻ",
+    "deleteTorrentsTitle": "Xóa torrent",
     "deleteTorrentTitle": "Xóa torrent",
+    "readOnlyDeleteWarning": "Bạn có quyền ReadOnly. Torrent không thể bị xóa.",
+    "deleteMultipleConfirm": "Bạn có chắc chắn muốn xóa torrent {{count}} không?",
+    "deleteSingleConfirm": "Bạn có chắc chắn muốn xóa",
     "deleteSingleConfirmGeneric": "Bạn có chắc chắn muốn xóa torrent này?",
     "deleteFilesFromDisk": "Xóa cả các tệp đã tải xuống khỏi ổ đĩa",
+    "deleteFilesWarning": "Tất cả các tệp đã tải xuống được liên kết với torrent này sẽ bị xóa vĩnh viễn.",
+    "deletePermissionRequired": "Xóa torrent cần có vai trò của người điều hành hoặc quản trị viên",
     "torrentPaused": "Torrent đã tạm dừng",
     "failedToPause": "Không thể tạm dừng torrent",
     "torrentResumed": "Torrent đã được tiếp tục",
     "failedToResume": "Không thể tiếp tục torrent",
     "torrentAndFilesDeleted": "Torrent và tập tin đã bị xóa",
     "torrentRemoved": "Đã xóa torrent",
-    "failedToDelete": "Không thể xóa torrent",
-    "deleteTorrentsTitle": "Xóa torrent",
-    "readOnlyDeleteWarning": "Bạn có quyền ReadOnly. Torrent không thể bị xóa.",
-    "deleteMultipleConfirm": "Bạn có chắc chắn muốn xóa torrent {{count}} không?",
-    "deleteSingleConfirm": "Bạn có chắc chắn muốn xóa",
-    "deleteFilesWarning": "Tất cả các tệp đã tải xuống được liên kết với torrent này sẽ bị xóa vĩnh viễn.",
-    "deletePermissionRequired": "Xóa torrent cần có vai trò của người điều hành hoặc quản trị viên"
+    "failedToDelete": "Không thể xóa torrent"
   },
   "torrentDetail": {
     "overview": "Tổng quan",
@@ -831,6 +836,8 @@ const vi: I18nTranslations = {
   },
   "addTorrent": {
     "title": "Thêm Torrent mới",
+    "closeDialog": "Đóng hộp thoại thêm torrent",
+    "readOnlyWarning": "🔒 Bạn có quyền ReadOnly. Thêm torrent là không được phép.",
     "subtitle": "Tải lên file torrent hoặc tải xuống qua liên kết nam châm",
     "torrentFileTab": "Tệp Torrent",
     "magnetLinkTab": "Liên kết Magnet",
@@ -919,9 +926,7 @@ const vi: I18nTranslations = {
     "sourcePathRequired": "Cần có đường dẫn nguồn để tạo torrent",
     "failedToCreateTorrent": "Không tạo được torrent",
     "failedToAddTorrent": "Không thể thêm torrent",
-    "bulkAddSummary": "Thêm hàng loạt",
-    "closeDialog": "Đóng hộp thoại thêm torrent",
-    "readOnlyWarning": "🔒 Bạn có quyền ReadOnly. Thêm torrent là không được phép."
+    "bulkAddSummary": "Thêm hàng loạt"
   },
   "activity": {
     "title": "Hoạt động mạng & bầy",
@@ -4347,6 +4352,7 @@ const vi: I18nTranslations = {
     "minSeedTimePlaceholder": "ví dụ. 86400",
     "cancel": "Hủy",
     "saveTag": "Lưu thẻ",
+    "createTag": "Tạo thẻ",
     "saving": "Đang lưu...",
     "deleteTagModalTitle": "Xóa thẻ: \"{{label}}\"",
     "deleteWarning": "⚠️ Cảnh báo: Xóa thẻ này sẽ xóa thẻ khỏi tất cả các torrent, trình lập chỉ mục và quy tắc tự động được chỉ định. Không thể hoàn tác hành động này.",
@@ -4354,8 +4360,7 @@ const vi: I18nTranslations = {
     "assignedToCount": "Hiện được giao cho {{count}} {{torrentWord}}.",
     "notAssigned": "Thẻ này hiện không được gán cho bất kỳ torrent nào.",
     "deleteConfirm": "Xóa thẻ",
-    "deleting": "Đang xóa...",
-    "createTag": "Tạo thẻ"
+    "deleting": "Đang xóa..."
   },
   "keyboardShortcuts": {
     "title": "Phím tắt",
