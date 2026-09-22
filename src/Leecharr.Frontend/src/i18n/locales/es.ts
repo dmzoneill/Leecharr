@@ -498,9 +498,11 @@ const es: I18nTranslations = {
       "pieceMapVerifiedPercent": "Porcentaje verificado del mapa de piezas",
       "pieceMapPiecesInfo": "Mapa de piezas Información de piezas",
       "pieceMapLinearBarView": "Vista de barra lineal del mapa de piezas",
-      "pieceMapBar": "Barra de mapa de piezas",
+      "pieceMapBar": "Bar",
       "pieceMapMatrixGridView": "Vista de cuadrícula de matriz de mapa de piezas",
-      "pieceMapGrid": "Cuadrícula de mapa de piezas",
+      "pieceMapGrid": "Red",
+      "pieceMapStatus": "Estado",
+      "pieceMapAvailability": "Disponibilidad",
       "pieceMapCompleteLegend": "Leyenda completa del mapa de piezas",
       "pieceMapActiveLegend": "Leyenda activa del mapa de piezas",
       "pieceMapMissingLegend": "Leyenda faltante del mapa de piezas",
@@ -699,6 +701,9 @@ const es: I18nTranslations = {
       "failedToRemoveTracker": "No se pudo eliminar el rastreador",
       "privateTrackerDisabledTitle": "Título deshabilitado del rastreador privado",
       "openTrackerPickerTitle": "Título del selector de seguimiento abierto",
+      "pieceMapRarity": "Mapa de calor de rareza",
+      "pieceMapFileBoundaries": "Límites de archivos",
+      "pieceMapFilesCount": "Recuento de archivos: {{count}} archivos",
       "prioNormal": "Prio Normal",
       "prioHigh": "Prio High",
       "live3s": "Live3s"
@@ -731,22 +736,22 @@ const es: I18nTranslations = {
     "removeTags": "Quitar",
     "bulkAddTags": "Asignar etiquetas",
     "bulkRemoveTags": "Quitar etiquetas",
+    "deleteTorrentsTitle": "Eliminar torrentes",
     "deleteTorrentTitle": "Eliminar torrent",
+    "readOnlyDeleteWarning": "Tienes permisos de sólo lectura. Los torrents no se pueden eliminar.",
+    "deleteMultipleConfirm": "¿Estás seguro de que deseas eliminar {{count}} torrents?",
+    "deleteSingleConfirm": "¿Estás seguro de que quieres eliminar?",
     "deleteSingleConfirmGeneric": "¿Está seguro de que desea eliminar este torrent?",
     "deleteFilesFromDisk": "Eliminar también los archivos descargados del disco",
+    "deleteFilesWarning": "Todos los archivos descargados asociados con este torrent se eliminarán permanentemente.",
+    "deletePermissionRequired": "Eliminar torrents requiere rol de operador o administrador",
     "torrentPaused": "Torrente en pausa",
     "failedToPause": "No se pudo pausar el torrent",
     "torrentResumed": "Torrente reanudado",
     "failedToResume": "No se pudo reanudar el torrent",
     "torrentAndFilesDeleted": "Torrent y archivos eliminados",
     "torrentRemoved": "Torrente eliminado",
-    "failedToDelete": "No se pudo eliminar el torrent",
-    "deleteTorrentsTitle": "Eliminar torrentes",
-    "readOnlyDeleteWarning": "Tienes permisos de sólo lectura. Los torrents no se pueden eliminar.",
-    "deleteMultipleConfirm": "¿Estás seguro de que deseas eliminar {{count}} torrents?",
-    "deleteSingleConfirm": "¿Estás seguro de que quieres eliminar?",
-    "deleteFilesWarning": "Todos los archivos descargados asociados con este torrent se eliminarán permanentemente.",
-    "deletePermissionRequired": "Eliminar torrents requiere rol de operador o administrador"
+    "failedToDelete": "No se pudo eliminar el torrent"
   },
   "torrentDetail": {
     "overview": "Resumen",
@@ -831,6 +836,8 @@ const es: I18nTranslations = {
   },
   "addTorrent": {
     "title": "Añadir nuevo torrent",
+    "closeDialog": "Cerrar el cuadro de diálogo Agregar torrent",
+    "readOnlyWarning": "🔒 Tienes permisos de Solo Lectura. No se permite agregar torrents.",
     "subtitle": "Cargue archivos torrent o descárguelos mediante un enlace magnético",
     "torrentFileTab": "Archivo Torrent",
     "magnetLinkTab": "Enlace Magnet",
@@ -919,9 +926,7 @@ const es: I18nTranslations = {
     "sourcePathRequired": "Se requiere la ruta de origen para crear un torrent",
     "failedToCreateTorrent": "No se pudo crear torrent",
     "failedToAddTorrent": "No se pudo agregar Torrent",
-    "bulkAddSummary": "Resumen de adición masiva",
-    "closeDialog": "Cerrar el cuadro de diálogo Agregar torrent",
-    "readOnlyWarning": "🔒 Tienes permisos de Solo Lectura. No se permite agregar torrents."
+    "bulkAddSummary": "Resumen de adición masiva"
   },
   "activity": {
     "title": "Actividad de red y enjambres",
@@ -4347,6 +4352,7 @@ const es: I18nTranslations = {
     "minSeedTimePlaceholder": "p.ej. 86400",
     "cancel": "Cancelar",
     "saveTag": "Guardar etiqueta",
+    "createTag": "Crear etiqueta",
     "saving": "Ahorro...",
     "deleteTagModalTitle": "Eliminar etiqueta: \"{{label}}\"",
     "deleteWarning": "⚠️ Advertencia: al eliminar esta etiqueta, se eliminará de todos los torrents, indexadores y reglas automatizadas asignados. Esta acción no se puede deshacer.",
@@ -4354,8 +4360,7 @@ const es: I18nTranslations = {
     "assignedToCount": "Actualmente asignado a {{count}} {{torrentWord}}.",
     "notAssigned": "Esta etiqueta no está asignada actualmente a ningún torrent.",
     "deleteConfirm": "Eliminar etiqueta",
-    "deleting": "Eliminando...",
-    "createTag": "Crear etiqueta"
+    "deleting": "Eliminando..."
   },
   "keyboardShortcuts": {
     "title": "Atajos de teclado",

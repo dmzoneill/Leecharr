@@ -501,6 +501,11 @@ export type I18nTranslations = {
       "pieceMapBar": string;
       "pieceMapMatrixGridView": string;
       "pieceMapGrid": string;
+      "pieceMapStatus": string;
+      "pieceMapRarity": string;
+      "pieceMapFileBoundaries": string;
+      "pieceMapAvailability": string;
+      "pieceMapFilesCount": string;
       "pieceMapCompleteLegend": string;
       "pieceMapActiveLegend": string;
       "pieceMapMissingLegend": string;

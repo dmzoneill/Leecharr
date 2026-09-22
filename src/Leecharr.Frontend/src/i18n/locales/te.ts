@@ -498,9 +498,11 @@ const te: I18nTranslations = {
       "pieceMapVerifiedPercent": "పీస్ మ్యాప్ ధృవీకరించబడిన శాతం",
       "pieceMapPiecesInfo": "పీస్ మ్యాప్ పీసెస్ సమాచారం",
       "pieceMapLinearBarView": "పీస్ మ్యాప్ లీనియర్ బార్ వ్యూ",
-      "pieceMapBar": "పీస్ మ్యాప్ బార్",
+      "pieceMapBar": "Bar",
       "pieceMapMatrixGridView": "పీస్ మ్యాప్ మ్యాట్రిక్స్ గ్రిడ్ వీక్షణ",
-      "pieceMapGrid": "పీస్ మ్యాప్ గ్రిడ్",
+      "pieceMapGrid": "గ్రిడ్",
+      "pieceMapStatus": "స్థితి",
+      "pieceMapAvailability": "లభ్యత",
       "pieceMapCompleteLegend": "పీస్ మ్యాప్ కంప్లీట్ లెజెండ్",
       "pieceMapActiveLegend": "పీస్ మ్యాప్ యాక్టివ్ లెజెండ్",
       "pieceMapMissingLegend": "పీస్ మ్యాప్ మిస్సింగ్ లెజెండ్",
@@ -701,6 +703,9 @@ const te: I18nTranslations = {
       "failedToRemoveTracker": "ట్రాకర్ని తీసివేయడంలో విఫలమైంది",
       "privateTrackerDisabledTitle": "ప్రైవేట్ ట్రాకర్ డిసేబుల్ శీర్షిక",
       "openTrackerPickerTitle": "ట్రాకర్ పిక్కర్ శీర్షికను తెరవండి",
+      "pieceMapRarity": "అరుదైన హీట్‌మ్యాప్",
+      "pieceMapFileBoundaries": "ఫైల్ సరిహద్దులు",
+      "pieceMapFilesCount": "ఫైల్ కౌంట్: {{count}} ఫైల్‌లు",
       "colUrl": "Col Url"
     },
     "ratio": "నిష్పత్తి",
@@ -731,22 +736,22 @@ const te: I18nTranslations = {
     "removeTags": "తీసివేయి",
     "bulkAddTags": "ట్యాగ్‌లను కేటాయించండి",
     "bulkRemoveTags": "ట్యాగ్‌లను తీసివేయండి",
+    "deleteTorrentsTitle": "టోరెంట్లను తొలగించండి",
     "deleteTorrentTitle": "టొరెంట్ తొలగించు",
+    "readOnlyDeleteWarning": "మీకు చదవడానికి మాత్రమే అనుమతులు ఉన్నాయి. టొరెంట్‌లను తొలగించడం సాధ్యం కాదు.",
+    "deleteMultipleConfirm": "మీరు {{count}} టొరెంట్‌లను ఖచ్చితంగా తొలగించాలనుకుంటున్నారా?",
+    "deleteSingleConfirm": "మీరు ఖచ్చితంగా తొలగించాలనుకుంటున్నారా",
     "deleteSingleConfirmGeneric": "మీరు ఖచ్చితంగా ఈ టొరెంట్ను తొలగించాలనుకుంటున్నారా?",
     "deleteFilesFromDisk": "డిస్క్ నుండి డౌన్లోడ్ చేసిన ఫైల్స్ను కూడా తొలగించు",
+    "deleteFilesWarning": "ఈ టొరెంట్‌తో అనుబంధించబడిన అన్ని డౌన్‌లోడ్ చేయబడిన ఫైల్‌లు శాశ్వతంగా తొలగించబడతాయి.",
+    "deletePermissionRequired": "టొరెంట్‌లను తొలగించాలంటే ఆపరేటర్ లేదా అడ్మిన్ పాత్ర అవసరం",
     "torrentPaused": "టోరెంట్ పాజ్ చేయబడింది",
     "failedToPause": "టొరెంట్‌ని పాజ్ చేయడంలో విఫలమైంది",
     "torrentResumed": "టోరెంట్ పునఃప్రారంభమైంది",
     "failedToResume": "టొరెంట్‌ని పునఃప్రారంభించడంలో విఫలమైంది",
     "torrentAndFilesDeleted": "టొరెంట్ మరియు ఫైల్‌లు తొలగించబడ్డాయి",
     "torrentRemoved": "టొరెంట్ తొలగించబడింది",
-    "failedToDelete": "టొరెంట్‌ని తొలగించడంలో విఫలమైంది",
-    "deleteTorrentsTitle": "టోరెంట్లను తొలగించండి",
-    "readOnlyDeleteWarning": "మీకు చదవడానికి మాత్రమే అనుమతులు ఉన్నాయి. టొరెంట్‌లను తొలగించడం సాధ్యం కాదు.",
-    "deleteMultipleConfirm": "మీరు {{count}} టొరెంట్‌లను ఖచ్చితంగా తొలగించాలనుకుంటున్నారా?",
-    "deleteSingleConfirm": "మీరు ఖచ్చితంగా తొలగించాలనుకుంటున్నారా",
-    "deleteFilesWarning": "ఈ టొరెంట్‌తో అనుబంధించబడిన అన్ని డౌన్‌లోడ్ చేయబడిన ఫైల్‌లు శాశ్వతంగా తొలగించబడతాయి.",
-    "deletePermissionRequired": "టొరెంట్‌లను తొలగించాలంటే ఆపరేటర్ లేదా అడ్మిన్ పాత్ర అవసరం"
+    "failedToDelete": "టొరెంట్‌ని తొలగించడంలో విఫలమైంది"
   },
   "torrentDetail": {
     "overview": "అవలోకనం",
@@ -831,6 +836,8 @@ const te: I18nTranslations = {
   },
   "addTorrent": {
     "title": "కొత్త టొరెంట్ జోడించు",
+    "closeDialog": "యాడ్ టొరెంట్ డైలాగ్‌ను మూసివేయండి",
+    "readOnlyWarning": "🔒 మీకు చదవడానికి మాత్రమే అనుమతులు ఉన్నాయి. టొరెంట్లను జోడించడం అనుమతించబడదు.",
     "subtitle": "టొరెంట్ ఫైల్‌లను అప్‌లోడ్ చేయండి లేదా మాగ్నెట్ లింక్ ద్వారా డౌన్‌లోడ్ చేయండి",
     "torrentFileTab": "టొరెంట్ ఫైల్",
     "magnetLinkTab": "మాగ్నెట్ లింక్",
@@ -919,9 +926,7 @@ const te: I18nTranslations = {
     "sourcePathRequired": "టొరెంట్ని సృష్టించడానికి సోర్స్ పాత్ అవసరం",
     "failedToCreateTorrent": "టొరెంట్ని సృష్టించడం విఫలమైంది",
     "failedToAddTorrent": "టొరెంట్ని జోడించడంలో విఫలమైంది",
-    "bulkAddSummary": "సమూహ సారాంశాన్ని జోడించండి",
-    "closeDialog": "యాడ్ టొరెంట్ డైలాగ్‌ను మూసివేయండి",
-    "readOnlyWarning": "🔒 మీకు చదవడానికి మాత్రమే అనుమతులు ఉన్నాయి. టొరెంట్లను జోడించడం అనుమతించబడదు."
+    "bulkAddSummary": "సమూహ సారాంశాన్ని జోడించండి"
   },
   "activity": {
     "title": "నెట్వర్క్ & సమూహ కార్యకలాపాలు",
@@ -4347,6 +4352,7 @@ const te: I18nTranslations = {
     "minSeedTimePlaceholder": "ఉదా 86400",
     "cancel": "రద్దు చేయి",
     "saveTag": "ట్యాగ్‌ని సేవ్ చేయండి",
+    "createTag": "ట్యాగ్‌ని సృష్టించండి",
     "saving": "సేవ్ చేస్తోంది...",
     "deleteTagModalTitle": "ట్యాగ్‌ని తొలగించండి: \"{{label}}\"",
     "deleteWarning": "⚠️ హెచ్చరిక: ఈ ట్యాగ్‌ని తొలగించడం వలన కేటాయించబడిన అన్ని టొరెంట్‌లు, ఇండెక్సర్‌లు మరియు ఆటోమేటెడ్ నియమాల నుండి ఇది తీసివేయబడుతుంది. ఈ చర్య రద్దు చేయబడదు.",
@@ -4354,8 +4360,7 @@ const te: I18nTranslations = {
     "assignedToCount": "ప్రస్తుతం {{count}} {{torrentWord}}కి కేటాయించబడింది.",
     "notAssigned": "ఈ ట్యాగ్ ప్రస్తుతం ఏ టొరెంట్‌లకు కేటాయించబడలేదు.",
     "deleteConfirm": "ట్యాగ్‌ని తొలగించండి",
-    "deleting": "తొలగిస్తోంది...",
-    "createTag": "ట్యాగ్‌ని సృష్టించండి"
+    "deleting": "తొలగిస్తోంది..."
   },
   "keyboardShortcuts": {
     "title": "కీబోర్డ్ సత్వరమార్గాలు",

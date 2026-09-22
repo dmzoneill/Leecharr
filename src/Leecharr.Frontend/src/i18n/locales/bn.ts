@@ -498,9 +498,11 @@ const bn: I18nTranslations = {
       "pieceMapVerifiedPercent": "পিস ম্যাপ যাচাইকৃত শতাংশ",
       "pieceMapPiecesInfo": "টুকরা মানচিত্র টুকরা তথ্য",
       "pieceMapLinearBarView": "পিস ম্যাপ লিনিয়ার বার ভিউ",
-      "pieceMapBar": "টুকরা মানচিত্র বার",
+      "pieceMapBar": "Bar",
       "pieceMapMatrixGridView": "পিস ম্যাপ ম্যাট্রিক্স গ্রিড ভিউ",
-      "pieceMapGrid": "টুকরা মানচিত্র গ্রিড",
+      "pieceMapGrid": "গ্রিড",
+      "pieceMapStatus": "অবস্থা",
+      "pieceMapAvailability": "প্রাপ্যতা",
       "pieceMapCompleteLegend": "টুকরা মানচিত্র সম্পূর্ণ কিংবদন্তি",
       "pieceMapActiveLegend": "টুকরা মানচিত্র সক্রিয় কিংবদন্তি",
       "pieceMapMissingLegend": "টুকরা মানচিত্র অনুপস্থিত কিংবদন্তি",
@@ -701,6 +703,9 @@ const bn: I18nTranslations = {
       "failedToRemoveTracker": "ট্র্যাকার সরাতে ব্যর্থ হয়েছে৷",
       "privateTrackerDisabledTitle": "ব্যক্তিগত ট্র্যাকার নিষ্ক্রিয় শিরোনাম",
       "openTrackerPickerTitle": "ট্র্যাকার পিকার শিরোনাম খুলুন",
+      "pieceMapRarity": "বিরলতা হিটম্যাপ",
+      "pieceMapFileBoundaries": "ফাইলের সীমানা",
+      "pieceMapFilesCount": "ফাইলের সংখ্যা: {{count}} ফাইল",
       "live3s": "Live3s"
     },
     "ratio": "অনুপাত",
@@ -731,22 +736,22 @@ const bn: I18nTranslations = {
     "removeTags": "সরান",
     "bulkAddTags": "ট্যাগ বরাদ্দ করুন",
     "bulkRemoveTags": "ট্যাগ সরান",
+    "deleteTorrentsTitle": "টরেন্ট মুছুন",
     "deleteTorrentTitle": "টোরেন্ট মুছুন",
+    "readOnlyDeleteWarning": "আপনার শুধুমাত্র পঠনযোগ্য অনুমতি আছে। টরেন্ট মুছে ফেলা যাবে না.",
+    "deleteMultipleConfirm": "আপনি কি নিশ্চিত আপনি {{count}} টরেন্ট মুছে ফেলতে চান?",
+    "deleteSingleConfirm": "আপনি কি নিশ্চিত আপনি মুছে দিতে চান",
     "deleteSingleConfirmGeneric": "আপনি কি নিশ্চিতভাবে এই টোরেন্টটি মুছে ফেলতে চান?",
     "deleteFilesFromDisk": "ডিস্ক থেকে ডাউনলোড করা ফাইলগুলিও মুছে ফেলুন",
+    "deleteFilesWarning": "এই টরেন্টের সাথে যুক্ত সমস্ত ডাউনলোড করা ফাইল স্থায়ীভাবে মুছে ফেলা হবে।",
+    "deletePermissionRequired": "টরেন্ট মুছে ফেলার জন্য অপারেটর বা অ্যাডমিন ভূমিকা প্রয়োজন",
     "torrentPaused": "টরেন্ট থামানো হয়েছে",
     "failedToPause": "টরেন্ট পজ করতে ব্যর্থ হয়েছে৷",
     "torrentResumed": "টরেন্ট আবার চালু হয়েছে",
     "failedToResume": "টরেন্ট পুনরায় চালু করতে ব্যর্থ হয়েছে৷",
     "torrentAndFilesDeleted": "টরেন্ট এবং ফাইল মুছে ফেলা হয়েছে",
     "torrentRemoved": "টরেন্ট সরানো হয়েছে",
-    "failedToDelete": "টরেন্ট মুছে ফেলতে ব্যর্থ হয়েছে",
-    "deleteTorrentsTitle": "টরেন্ট মুছুন",
-    "readOnlyDeleteWarning": "আপনার শুধুমাত্র পঠনযোগ্য অনুমতি আছে। টরেন্ট মুছে ফেলা যাবে না.",
-    "deleteMultipleConfirm": "আপনি কি নিশ্চিত আপনি {{count}} টরেন্ট মুছে ফেলতে চান?",
-    "deleteSingleConfirm": "আপনি কি নিশ্চিত আপনি মুছে দিতে চান",
-    "deleteFilesWarning": "এই টরেন্টের সাথে যুক্ত সমস্ত ডাউনলোড করা ফাইল স্থায়ীভাবে মুছে ফেলা হবে।",
-    "deletePermissionRequired": "টরেন্ট মুছে ফেলার জন্য অপারেটর বা অ্যাডমিন ভূমিকা প্রয়োজন"
+    "failedToDelete": "টরেন্ট মুছে ফেলতে ব্যর্থ হয়েছে"
   },
   "torrentDetail": {
     "overview": "সংক্ষিপ্ত বিবরণ",
@@ -831,6 +836,8 @@ const bn: I18nTranslations = {
   },
   "addTorrent": {
     "title": "নতুন টোরেন্ট যোগ করুন",
+    "closeDialog": "টরেন্ট ডায়ালগ যুক্ত করুন বন্ধ করুন",
+    "readOnlyWarning": "🔒 আপনার কাছে শুধুমাত্র পঠনযোগ্য অনুমতি আছে। টরেন্ট যোগ করা অনুমোদিত নয়.",
     "subtitle": "টরেন্ট ফাইল আপলোড করুন বা চুম্বক লিঙ্কের মাধ্যমে ডাউনলোড করুন",
     "torrentFileTab": "টোরেন্ট ফাইল",
     "magnetLinkTab": "ম্যাগনেট লিংক",
@@ -919,9 +926,7 @@ const bn: I18nTranslations = {
     "sourcePathRequired": "একটি টরেন্ট তৈরি করতে সোর্স পাথ প্রয়োজন",
     "failedToCreateTorrent": "টরেন্ট তৈরি করতে ব্যর্থ হয়েছে৷",
     "failedToAddTorrent": "টরেন্ট যোগ করতে ব্যর্থ হয়েছে",
-    "bulkAddSummary": "বাল্ক যোগ সারাংশ",
-    "closeDialog": "টরেন্ট ডায়ালগ যুক্ত করুন বন্ধ করুন",
-    "readOnlyWarning": "🔒 আপনার কাছে শুধুমাত্র পঠনযোগ্য অনুমতি আছে। টরেন্ট যোগ করা অনুমোদিত নয়."
+    "bulkAddSummary": "বাল্ক যোগ সারাংশ"
   },
   "activity": {
     "title": "নেটওয়ার্ক ও ঝাঁক কার্যকলাপ",
@@ -4347,6 +4352,7 @@ const bn: I18nTranslations = {
     "minSeedTimePlaceholder": "যেমন 86400",
     "cancel": "বাতিল",
     "saveTag": "ট্যাগ সংরক্ষণ করুন",
+    "createTag": "ট্যাগ তৈরি করুন",
     "saving": "সংরক্ষণ করা হচ্ছে...",
     "deleteTagModalTitle": "ট্যাগ মুছুন: \"{{label}}\"",
     "deleteWarning": "⚠️ সতর্কীকরণ: এই ট্যাগটি মুছে দিলে এটি সমস্ত নির্ধারিত টরেন্ট, সূচক এবং স্বয়ংক্রিয় নিয়মগুলি থেকে মুছে যাবে৷ এই ক্রিয়াটি পূর্বাবস্থায় ফেরানো যাবে না৷",
@@ -4354,8 +4360,7 @@ const bn: I18nTranslations = {
     "assignedToCount": "বর্তমানে {{count}} {{torrentWord}} এ বরাদ্দ করা হয়েছে।",
     "notAssigned": "এই ট্যাগটি বর্তমানে কোনো টরেন্টে বরাদ্দ করা হয়নি।",
     "deleteConfirm": "ট্যাগ মুছুন",
-    "deleting": "মুছে ফেলা হচ্ছে...",
-    "createTag": "ট্যাগ তৈরি করুন"
+    "deleting": "মুছে ফেলা হচ্ছে..."
   },
   "keyboardShortcuts": {
     "title": "কীবোর্ড শর্টকাট",

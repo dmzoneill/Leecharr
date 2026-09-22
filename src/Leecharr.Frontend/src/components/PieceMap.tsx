@@ -8,21 +8,58 @@ import React, {
 import { useTranslation } from "../i18n";
 import { formatBytes } from "../utils/formatters";
 import { useTorrentStore } from "../stores/useTorrentStore";
+import { useTorrentFiles } from "../api/hooks";
+import type { TorrentFileInfo } from "../api/types";
 import {
   decodeBase64Bitfield,
   countVerifiedPieces,
   binBitfieldBlocks,
   mergeBitfields,
+  VisualBlock,
 } from "../utils/pieceMapUtils";
 
 export interface PieceMapProps {
   torrentId?: number;
   pieceCount: number;
   pieceLength: number;
-  progress: number; // 0.0 - 1.0
+  progress?: number; // 0.0 - 1.0
   isSeeding?: boolean;
   bitfield?: string | null;
   className?: string;
+  files?: TorrentFileInfo[];
+}
+
+export type PieceMapColorMode = "status" | "rarity" | "files";
+
+interface FileBoundary {
+  file: TorrentFileInfo;
+  startByte: number;
+  endByte: number;
+  startPiece: number;
+  endPiece: number;
+  colorIndex: number;
+}
+
+const FILE_PALETTE = [
+  "#3498db",
+  "#9b59b6",
+  "#e67e22",
+  "#1abc9c",
+  "#f39c12",
+  "#e74c3c",
+  "#2ecc71",
+  "#e84393",
+  "#00cec9",
+  "#6c5ce7",
+];
+
+function getRarityColor(count: number): string {
+  if (count <= 0) return "rgba(255, 255, 255, 0.05)";
+  if (count === 1) return "#e74c3c"; // Rare red
+  if (count <= 3) return "#e67e22"; // 2-3 orange
+  if (count <= 5) return "#f1c40f"; // 4-5 yellow
+  if (count <= 9) return "#82c91e"; // 6-9 lime
+  return "#27ae60"; // 10+ green
 }
 
 export function PieceMap({
@@ -33,16 +70,57 @@ export function PieceMap({
   isSeeding = false,
   bitfield,
   className,
+  files: propFiles,
 }: PieceMapProps) {
   const { t } = useTranslation();
   const [viewMode, setViewMode] = useState<"bar" | "grid">("bar");
+  const [colorMode, setColorMode] = useState<PieceMapColorMode>("status");
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [selectedFileIndex, setSelectedFileIndex] = useState<number | null>(
+    null,
+  );
+  const [hoveredFileIndex, setHoveredFileIndex] = useState<number | null>(null);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const barContainerRef = useRef<HTMLDivElement | null>(null);
   const barCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const layoutRef = useRef({ cols: 0, blockSize: 0, gap: 0 });
+
+  // Fetch torrent files if not passed
+  const { data: fetchedFiles } = useTorrentFiles(torrentId ?? 0);
+  const files = propFiles || fetchedFiles || [];
+
+  // Compute file boundaries
+  const fileBoundaries = useMemo<FileBoundary[]>(() => {
+    if (!files || files.length === 0) return [];
+    let curByte = 0;
+    return files.map((file, idx) => {
+      const startByte = curByte;
+      const endByte = curByte + file.size;
+      curByte = endByte;
+      const startPiece = Math.floor(startByte / Math.max(1, pieceLength));
+      const endPiece = Math.max(
+        startPiece,
+        Math.floor(Math.max(0, endByte - 1) / Math.max(1, pieceLength)),
+      );
+      return {
+        file,
+        startByte,
+        endByte,
+        startPiece,
+        endPiece,
+        colorIndex: idx,
+      };
+    });
+  }, [files, pieceLength]);
+
+  const activeFileIndex =
+    hoveredFileIndex !== null ? hoveredFileIndex : selectedFileIndex;
+  const activeFileBoundary =
+    activeFileIndex !== null && fileBoundaries[activeFileIndex]
+      ? fileBoundaries[activeFileIndex]
+      : null;
 
   // Subscribe to live SignalR piece map bitmap updates with version counter
   const livePieceData = useTorrentStore((state) =>
@@ -105,6 +183,21 @@ export function PieceMap({
   const hoveredIndexRef = useRef<number | null>(null);
   hoveredIndexRef.current = hoveredIndex;
 
+  // Resolve files for a visual block
+  const getFilesForBlock = useCallback(
+    (b: VisualBlock) => {
+      const results: { name: string; size: number }[] = [];
+      for (const fb of fileBoundaries) {
+        if (fb.startPiece <= b.endIndex && fb.endPiece >= b.startIndex) {
+          const fileName = fb.file.path.split("/").pop() || fb.file.path;
+          results.push({ name: fileName, size: fb.file.size });
+        }
+      }
+      return results;
+    },
+    [fileBoundaries],
+  );
+
   // Render Bar View directly to HTML5 Canvas
   const renderBar = useCallback(() => {
     if (viewMode !== "bar") return;
@@ -115,7 +208,7 @@ export function PieceMap({
     const currentBlocks = displayBlocksRef.current;
     const currentHovered = hoveredIndexRef.current;
     const availWidth = Math.max(100, container.clientWidth);
-    const height = 22;
+    const height = 24;
 
     const dpr = window.devicePixelRatio || 1;
     const targetW = Math.max(0, Math.floor(availWidth * dpr));
@@ -140,10 +233,7 @@ export function PieceMap({
       return;
     }
 
-    if (isComplete) {
-      ctx.fillStyle = "#27ae60";
-      ctx.fillRect(0, 0, availWidth, height);
-    } else if (currentBlocks.length > 0) {
+    if (currentBlocks.length > 0) {
       const numBlocks = currentBlocks.length;
       for (let i = 0; i < numBlocks; i++) {
         const b = currentBlocks[i];
@@ -151,19 +241,47 @@ export function PieceMap({
         const x1 = ((i + 1) / numBlocks) * availWidth;
         const blockW = Math.max(0.5, x1 - x0);
 
-        if (b.status === "complete") {
-          ctx.fillStyle = currentHovered === i ? "#2ecc71" : "#27ae60";
-          ctx.fillRect(x0, 0, blockW, height);
-        } else if (b.status === "active") {
-          ctx.fillStyle = currentHovered === i ? "#60a5fa" : "#3b82f6";
-          ctx.fillRect(x0, 0, blockW, height);
+        let fillColor = "rgba(255, 255, 255, 0.04)";
+
+        if (colorMode === "files") {
+          if (activeFileBoundary) {
+            const overlaps =
+              b.startIndex <= activeFileBoundary.endPiece &&
+              b.endIndex >= activeFileBoundary.startPiece;
+            fillColor = overlaps
+              ? FILE_PALETTE[activeFileBoundary.colorIndex % FILE_PALETTE.length]
+              : "#1a1815";
+          } else {
+            const containingFb = fileBoundaries.find(
+              (fb) =>
+                b.startIndex <= fb.endPiece && b.endIndex >= fb.startPiece,
+            );
+            fillColor = containingFb
+              ? FILE_PALETTE[containingFb.colorIndex % FILE_PALETTE.length]
+              : b.status === "complete"
+                ? "#27ae60"
+                : "rgba(255, 255, 255, 0.04)";
+          }
+        } else if (colorMode === "rarity") {
+          const estRarity =
+            isComplete || b.status === "complete" ? 10 : b.status === "active" ? 3 : 0;
+          fillColor = getRarityColor(estRarity);
         } else {
-          ctx.fillStyle =
-            currentHovered === i
-              ? "rgba(255, 255, 255, 0.12)"
-              : "rgba(255, 255, 255, 0.04)";
-          ctx.fillRect(x0, 0, blockW, height);
+          // Status mode
+          if (isComplete || b.status === "complete") {
+            fillColor = currentHovered === i ? "#2ecc71" : "#27ae60";
+          } else if (b.status === "active") {
+            fillColor = currentHovered === i ? "#60a5fa" : "#3b82f6";
+          } else {
+            fillColor =
+              currentHovered === i
+                ? "rgba(255, 255, 255, 0.12)"
+                : "rgba(255, 255, 255, 0.04)";
+          }
         }
+
+        ctx.fillStyle = fillColor;
+        ctx.fillRect(x0, 0, blockW, height);
       }
 
       if (
@@ -173,15 +291,24 @@ export function PieceMap({
       ) {
         const hx0 = (currentHovered / numBlocks) * availWidth;
         const hx1 = ((currentHovered + 1) / numBlocks) * availWidth;
-        const hW = Math.max(2, hx1 - hx0);
+        const hW = Math.max(3, hx1 - hx0);
         ctx.strokeStyle = "#ffd166";
         ctx.lineWidth = 2;
         ctx.strokeRect(hx0, 1, hW, height - 2);
       }
+    } else if (isComplete) {
+      ctx.fillStyle = "#27ae60";
+      ctx.fillRect(0, 0, availWidth, height);
     }
 
     ctx.restore();
-  }, [viewMode, isComplete]);
+  }, [
+    viewMode,
+    colorMode,
+    isComplete,
+    activeFileBoundary,
+    fileBoundaries,
+  ]);
 
   // Render Matrix Grid View with virtualized Canvas drawing
   const renderGrid = useCallback(() => {
@@ -253,19 +380,60 @@ export function PieceMap({
       const y = row * (blockSize + gap);
 
       const isHovered = currentHovered === i;
+      let fillColor = "rgba(255, 255, 255, 0.05)";
+      let strokeColor = "rgba(255, 255, 255, 0.12)";
 
-      if (b.status === "complete") {
-        ctx.fillStyle = isHovered ? "#2ecc71" : "#27ae60";
-        ctx.strokeStyle = "#2ecc71";
-      } else if (b.status === "active") {
-        ctx.fillStyle = isHovered ? "#60a5fa" : "#3b82f6";
-        ctx.strokeStyle = "#60a5fa";
+      if (colorMode === "files") {
+        if (activeFileBoundary) {
+          const overlaps =
+            b.startIndex <= activeFileBoundary.endPiece &&
+            b.endIndex >= activeFileBoundary.startPiece;
+          fillColor = overlaps
+            ? FILE_PALETTE[activeFileBoundary.colorIndex % FILE_PALETTE.length]
+            : "#1a1815";
+          strokeColor = overlaps
+            ? FILE_PALETTE[activeFileBoundary.colorIndex % FILE_PALETTE.length]
+            : "#222";
+        } else {
+          const containingFb = fileBoundaries.find(
+            (fb) =>
+              b.startIndex <= fb.endPiece && b.endIndex >= fb.startPiece,
+          );
+          if (containingFb) {
+            fillColor =
+              FILE_PALETTE[containingFb.colorIndex % FILE_PALETTE.length];
+            strokeColor = fillColor;
+          } else {
+            fillColor =
+              b.status === "complete"
+                ? "#27ae60"
+                : "rgba(255, 255, 255, 0.05)";
+            strokeColor = "rgba(255, 255, 255, 0.12)";
+          }
+        }
+      } else if (colorMode === "rarity") {
+        const estRarity =
+          isComplete || b.status === "complete" ? 10 : b.status === "active" ? 3 : 0;
+        fillColor = getRarityColor(estRarity);
+        strokeColor = fillColor;
       } else {
-        ctx.fillStyle = isHovered
-          ? "rgba(255, 255, 255, 0.15)"
-          : "rgba(255, 255, 255, 0.05)";
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+        // Status mode
+        if (b.status === "complete") {
+          fillColor = isHovered ? "#2ecc71" : "#27ae60";
+          strokeColor = "#2ecc71";
+        } else if (b.status === "active") {
+          fillColor = isHovered ? "#60a5fa" : "#3b82f6";
+          strokeColor = "#60a5fa";
+        } else {
+          fillColor = isHovered
+            ? "rgba(255, 255, 255, 0.15)"
+            : "rgba(255, 255, 255, 0.05)";
+          strokeColor = "rgba(255, 255, 255, 0.12)";
+        }
       }
+
+      ctx.fillStyle = fillColor;
+      ctx.strokeStyle = strokeColor;
 
       const radius = 2;
       ctx.beginPath();
@@ -292,9 +460,15 @@ export function PieceMap({
     }
 
     ctx.restore();
-  }, [viewMode]);
+  }, [
+    viewMode,
+    colorMode,
+    isComplete,
+    activeFileBoundary,
+    fileBoundaries,
+  ]);
 
-  // Redraw canvas on data or hover change
+  // Redraw canvas on data, hover, or mode change
   useEffect(() => {
     if (viewMode === "bar") {
       const animId = requestAnimationFrame(renderBar);
@@ -303,7 +477,15 @@ export function PieceMap({
       const animId = requestAnimationFrame(renderGrid);
       return () => cancelAnimationFrame(animId);
     }
-  }, [viewMode, displayBlocks, hoveredIndex, renderBar, renderGrid]);
+  }, [
+    viewMode,
+    colorMode,
+    displayBlocks,
+    hoveredIndex,
+    activeFileBoundary,
+    renderBar,
+    renderGrid,
+  ]);
 
   // ResizeObserver for Grid container
   useEffect(() => {
@@ -401,6 +583,8 @@ export function PieceMap({
       ? displayBlocks[hoveredIndex]
       : null;
 
+  const hoveredFiles = hoveredBlock ? getFilesForBlock(hoveredBlock) : [];
+
   return (
     <div
       className={className}
@@ -414,7 +598,7 @@ export function PieceMap({
         gap: "0.6rem",
       }}
     >
-      {/* Header with stats and view toggles */}
+      {/* Header with stats, layout toggles, and color mode toggles */}
       <div
         style={{
           display: "flex",
@@ -438,7 +622,14 @@ export function PieceMap({
           </span>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            flexWrap: "wrap",
+          }}
+        >
           <span
             style={{
               fontSize: "0.75rem",
@@ -451,7 +642,9 @@ export function PieceMap({
               size: formatBytes(pieceLength),
             })}
           </span>
-          <div className="view-toggle" style={{ margin: 0 }}>
+
+          {/* Layout Mode Toggle: Bar vs Grid */}
+          <div className="view-toggle" style={{ margin: 0, display: "flex", gap: "2px" }}>
             <button
               type="button"
               className={`view-toggle-btn ${viewMode === "bar" ? "active" : ""}`}
@@ -471,6 +664,52 @@ export function PieceMap({
               {t("torrents.detail.pieceMapGrid")}
             </button>
           </div>
+
+          {/* Color Mode Toggle: Status vs Rarity vs Files */}
+          <div className="view-toggle" style={{ margin: 0, display: "flex", gap: "2px" }}>
+            <button
+              type="button"
+              className={`view-toggle-btn ${colorMode === "status" ? "active" : ""}`}
+              onClick={() => setColorMode("status")}
+              style={{
+                padding: "0.15rem 0.4rem",
+                fontSize: "0.7rem",
+                backgroundColor: colorMode === "status" ? "var(--accent, #ffd166)" : "transparent",
+                color: colorMode === "status" ? "#000" : "inherit",
+              }}
+              title="Download Status: Missing, Active, Verified"
+            >
+              {t("torrents.detail.pieceMapStatus")}
+            </button>
+            <button
+              type="button"
+              className={`view-toggle-btn ${colorMode === "rarity" ? "active" : ""}`}
+              onClick={() => setColorMode("rarity")}
+              style={{
+                padding: "0.15rem 0.4rem",
+                fontSize: "0.7rem",
+                backgroundColor: colorMode === "rarity" ? "var(--accent, #ffd166)" : "transparent",
+                color: colorMode === "rarity" ? "#000" : "inherit",
+              }}
+              title="Swarm Availability Heatmap (Rare -> Common)"
+            >
+              {t("torrents.detail.pieceMapRarity")}
+            </button>
+            <button
+              type="button"
+              className={`view-toggle-btn ${colorMode === "files" ? "active" : ""}`}
+              onClick={() => setColorMode("files")}
+              style={{
+                padding: "0.15rem 0.4rem",
+                fontSize: "0.7rem",
+                backgroundColor: colorMode === "files" ? "var(--accent, #ffd166)" : "transparent",
+                color: colorMode === "files" ? "#000" : "inherit",
+              }}
+              title="File Boundary Overlays"
+            >
+              {t("torrents.detail.pieceMapFileBoundaries")}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -481,12 +720,13 @@ export function PieceMap({
           style={{
             position: "relative",
             width: "100%",
-            height: "22px",
-            backgroundColor: "rgba(255, 255, 255, 0.06)",
+            height: "26px",
+            backgroundColor: "rgba(0, 0, 0, 0.4)",
             borderRadius: "4px",
             overflow: "hidden",
             border: "1px solid var(--border-light)",
             display: "flex",
+            alignItems: "center",
           }}
         >
           <canvas
@@ -496,7 +736,7 @@ export function PieceMap({
             style={{
               display: "block",
               width: "100%",
-              height: "22px",
+              height: "24px",
               cursor: "pointer",
             }}
           />
@@ -531,6 +771,111 @@ export function PieceMap({
         </div>
       )}
 
+      {/* File Boundary Selector List (when File Boundaries mode active) */}
+      {colorMode === "files" && fileBoundaries.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.35rem",
+            backgroundColor: "rgba(0, 0, 0, 0.2)",
+            padding: "0.5rem",
+            borderRadius: "4px",
+            border: "1px solid var(--border-light)",
+            maxHeight: "130px",
+            overflowY: "auto",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "0.72rem",
+              fontWeight: 600,
+              color: "var(--text-secondary)",
+              display: "flex",
+              justifyContent: "space-between",
+            }}
+          >
+            <span>{t("torrents.detail.pieceMapFilesCount", { count: fileBoundaries.length })}</span>
+            {selectedFileIndex !== null && (
+              <button
+                type="button"
+                onClick={() => setSelectedFileIndex(null)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--accent, #ffd166)",
+                  fontSize: "0.7rem",
+                  cursor: "pointer",
+                  padding: 0,
+                }}
+              >
+                Clear selection
+              </button>
+            )}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
+            {fileBoundaries.map((fb, idx) => {
+              const isSelected = selectedFileIndex === idx;
+              const isHovered = hoveredFileIndex === idx;
+              const color = FILE_PALETTE[fb.colorIndex % FILE_PALETTE.length];
+              const fileName = fb.file.path.split("/").pop() || fb.file.path;
+
+              return (
+                <button
+                  key={fb.file.id || idx}
+                  type="button"
+                  onMouseEnter={() => setHoveredFileIndex(idx)}
+                  onMouseLeave={() => setHoveredFileIndex(null)}
+                  onClick={() => setSelectedFileIndex(isSelected ? null : idx)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.35rem",
+                    padding: "0.2rem 0.5rem",
+                    fontSize: "0.68rem",
+                    borderRadius: "3px",
+                    border: isSelected
+                      ? "1px solid #fff"
+                      : isHovered
+                        ? `1px solid ${color}`
+                        : "1px solid var(--border-light)",
+                    backgroundColor:
+                      isSelected || isHovered
+                        ? "rgba(255,255,255,0.12)"
+                        : "rgba(0,0,0,0.3)",
+                    color: "#fff",
+                    cursor: "pointer",
+                  }}
+                  title={`${fb.file.path} (Pieces ${fb.startPiece} - ${fb.endPiece})`}
+                >
+                  <span
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "2px",
+                      backgroundColor: color,
+                    }}
+                  />
+                  <span
+                    style={{
+                      maxWidth: "160px",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {fileName}
+                  </span>
+                  <span style={{ color: "var(--text-muted)", fontSize: "0.64rem" }}>
+                    ({formatBytes(fb.file.size)})
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Legend & Details footer */}
       <div
         style={{
@@ -543,65 +888,98 @@ export function PieceMap({
           color: "var(--text-muted)",
         }}
       >
-        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.3rem",
-            }}
-          >
+        {colorMode === "status" && (
+          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
             <span
               style={{
-                width: "8px",
-                height: "8px",
-                borderRadius: "2px",
-                backgroundColor: "#27ae60",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.3rem",
               }}
-            />
-            {t("torrents.detail.pieceMapCompleteLegend", {
-              completed: completedPieces,
-              total: totalPieces,
-            })}
-          </span>
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.3rem",
-            }}
-          >
+            >
+              <span
+                style={{
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "2px",
+                  backgroundColor: "#27ae60",
+                }}
+              />
+              {t("torrents.detail.pieceMapCompleteLegend", {
+                completed: completedPieces,
+                total: totalPieces,
+              })}
+            </span>
             <span
               style={{
-                width: "8px",
-                height: "8px",
-                borderRadius: "2px",
-                backgroundColor: "#3b82f6",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.3rem",
               }}
-            />
-            {t("torrents.detail.pieceMapActiveLegend")}
-          </span>
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.3rem",
-            }}
-          >
+            >
+              <span
+                style={{
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "2px",
+                  backgroundColor: "#3b82f6",
+                }}
+              />
+              {t("torrents.detail.pieceMapActiveLegend")}
+            </span>
             <span
               style={{
-                width: "8px",
-                height: "8px",
-                borderRadius: "2px",
-                backgroundColor: "rgba(255,255,255,0.08)",
-                border: "1px solid var(--border)",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.3rem",
               }}
-            />
-            {t("torrents.detail.pieceMapMissingLegend", {
-              count: Math.max(0, totalPieces - completedPieces),
-            })}
-          </span>
-        </div>
+            >
+              <span
+                style={{
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "2px",
+                  backgroundColor: "rgba(255,255,255,0.08)",
+                  border: "1px solid var(--border)",
+                }}
+              />
+              {t("torrents.detail.pieceMapMissingLegend", {
+                count: Math.max(0, totalPieces - completedPieces),
+              })}
+            </span>
+          </div>
+        )}
+
+        {colorMode === "rarity" && (
+          <div style={{ display: "flex", gap: "0.6rem", alignItems: "center", flexWrap: "wrap" }}>
+            <span>{t("torrents.detail.pieceMapAvailability")}:</span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
+              <span style={{ width: "8px", height: "8px", borderRadius: "2px", backgroundColor: "rgba(255, 255, 255, 0.05)" }} /> 0
+            </span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
+              <span style={{ width: "8px", height: "8px", borderRadius: "2px", backgroundColor: "#e74c3c" }} /> 1 (Rare)
+            </span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
+              <span style={{ width: "8px", height: "8px", borderRadius: "2px", backgroundColor: "#e67e22" }} /> 2-3
+            </span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
+              <span style={{ width: "8px", height: "8px", borderRadius: "2px", backgroundColor: "#f1c40f" }} /> 4-5
+            </span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
+              <span style={{ width: "8px", height: "8px", borderRadius: "2px", backgroundColor: "#82c91e" }} /> 6-9
+            </span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
+              <span style={{ width: "8px", height: "8px", borderRadius: "2px", backgroundColor: "#27ae60" }} /> 10+
+            </span>
+          </div>
+        )}
+
+        {colorMode === "files" && (
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <span>{t("torrents.detail.pieceMapFilesCount", { count: fileBoundaries.length })}</span>
+          </div>
+        )}
+
         {hoveredBlock && (
           <span
             style={{ fontFamily: "monospace", color: "var(--accent, #ffd166)" }}
@@ -628,6 +1006,7 @@ export function PieceMap({
                     total: hoveredBlock.totalInBlock,
                   })
                 : t("torrents.detail.pieceMapMissing")}
+            {hoveredFiles.length > 0 && ` • [${hoveredFiles[0].name}${hoveredFiles.length > 1 ? ` +${hoveredFiles.length - 1}` : ""}]`}
           </span>
         )}
       </div>

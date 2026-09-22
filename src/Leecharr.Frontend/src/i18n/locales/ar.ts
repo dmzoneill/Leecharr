@@ -498,9 +498,11 @@ const ar: I18nTranslations = {
       "pieceMapVerifiedPercent": "خريطة القطعة التي تم التحقق منها في المئة",
       "pieceMapPiecesInfo": "معلومات قطع خريطة القطعة",
       "pieceMapLinearBarView": "عرض الشريط الخطي لخريطة القطعة",
-      "pieceMapBar": "شريط خريطة القطعة",
+      "pieceMapBar": "Bar",
       "pieceMapMatrixGridView": "عرض شبكة مصفوفة خريطة القطعة",
-      "pieceMapGrid": "شبكة خريطة القطعة",
+      "pieceMapGrid": "شبكة",
+      "pieceMapStatus": "الحالة",
+      "pieceMapAvailability": "التوفر",
       "pieceMapCompleteLegend": "خريطة قطعة أسطورة كاملة",
       "pieceMapActiveLegend": "خريطة قطعة الأسطورة النشطة",
       "pieceMapMissingLegend": "خريطة قطعة الأسطورة المفقودة",
@@ -701,6 +703,9 @@ const ar: I18nTranslations = {
       "failedToRemoveTracker": "فشل في إزالة المتعقب",
       "privateTrackerDisabledTitle": "عنوان المتعقب الخاص معطل",
       "openTrackerPickerTitle": "افتح عنوان منتقي المتعقب",
+      "pieceMapRarity": "خريطة الحرارة النادرة",
+      "pieceMapFileBoundaries": "حدود الملف",
+      "pieceMapFilesCount": "عدد الملفات: {{count}} ملفات",
       "live3s": "Live3s"
     },
     "ratio": "النسبة",
@@ -731,22 +736,22 @@ const ar: I18nTranslations = {
     "removeTags": "إزالة",
     "bulkAddTags": "تعيين العلامات",
     "bulkRemoveTags": "إزالة العلامات",
+    "deleteTorrentsTitle": "حذف السيول",
     "deleteTorrentTitle": "حذف التورنت",
+    "readOnlyDeleteWarning": "لديك أذونات للقراءة فقط. لا يمكن حذف السيول.",
+    "deleteMultipleConfirm": "هل أنت متأكد أنك تريد حذف {{count}}_ السيول؟",
+    "deleteSingleConfirm": "هل أنت متأكد أنك تريد الحذف",
     "deleteSingleConfirmGeneric": "هل أنت متأكد من رغبتك في حذف هذا التورنت؟",
     "deleteFilesFromDisk": "حذف الملفات التي تم تنزيلها من القرص أيضاً",
+    "deleteFilesWarning": "سيتم حذف جميع الملفات التي تم تنزيلها والمرتبطة بهذا التورنت نهائيًا.",
+    "deletePermissionRequired": "يتطلب حذف السيول دور المشغل أو المسؤول",
     "torrentPaused": "توقف التورنت مؤقتًا",
     "failedToPause": "فشل في إيقاف التورنت مؤقتًا",
     "torrentResumed": "تم استئناف السيل",
     "failedToResume": "فشل في استئناف التورنت",
     "torrentAndFilesDeleted": "تورنت والملفات المحذوفة",
     "torrentRemoved": "تمت إزالة السيل",
-    "failedToDelete": "فشل في حذف التورنت",
-    "deleteTorrentsTitle": "حذف السيول",
-    "readOnlyDeleteWarning": "لديك أذونات للقراءة فقط. لا يمكن حذف السيول.",
-    "deleteMultipleConfirm": "هل أنت متأكد أنك تريد حذف {{count}}_ السيول؟",
-    "deleteSingleConfirm": "هل أنت متأكد أنك تريد الحذف",
-    "deleteFilesWarning": "سيتم حذف جميع الملفات التي تم تنزيلها والمرتبطة بهذا التورنت نهائيًا.",
-    "deletePermissionRequired": "يتطلب حذف السيول دور المشغل أو المسؤول"
+    "failedToDelete": "فشل في حذف التورنت"
   },
   "torrentDetail": {
     "overview": "نظرة عامة",
@@ -831,6 +836,8 @@ const ar: I18nTranslations = {
   },
   "addTorrent": {
     "title": "إضافة تورنت جديد",
+    "closeDialog": "أغلق مربع حوار إضافة تورنت",
+    "readOnlyWarning": "🔒 لديك أذونات للقراءة فقط. لا يسمح بإضافة السيول.",
     "subtitle": "قم بتحميل ملفات تورنت أو تنزيلها عبر رابط المغناطيس",
     "torrentFileTab": "ملف تورنت",
     "magnetLinkTab": "رابط مغناطيسي",
@@ -919,9 +926,7 @@ const ar: I18nTranslations = {
     "sourcePathRequired": "مطلوب مسار المصدر لإنشاء سيل",
     "failedToCreateTorrent": "فشل في إنشاء تورنت",
     "failedToAddTorrent": "فشل في إضافة تورنت",
-    "bulkAddSummary": "ملخص الإضافة المجمعة",
-    "closeDialog": "أغلق مربع حوار إضافة تورنت",
-    "readOnlyWarning": "🔒 لديك أذونات للقراءة فقط. لا يسمح بإضافة السيول."
+    "bulkAddSummary": "ملخص الإضافة المجمعة"
   },
   "activity": {
     "title": "نشاط الشبكة والسرب",
@@ -4347,6 +4352,7 @@ const ar: I18nTranslations = {
     "minSeedTimePlaceholder": "على سبيل المثال 86400",
     "cancel": "إلغاء",
     "saveTag": "حفظ العلامة",
+    "createTag": "إنشاء علامة",
     "saving": "توفير...",
     "deleteTagModalTitle": "حذف العلامة: \"{{label}}\"",
     "deleteWarning": "⚠️ تحذير: سيؤدي حذف هذه العلامة إلى إزالتها من جميع ملفات التورنت والمفهرسات والقواعد الآلية المخصصة. لا يمكن التراجع عن هذا الإجراء.",
@@ -4354,8 +4360,7 @@ const ar: I18nTranslations = {
     "assignedToCount": "تم تعيينه حاليًا إلى {{count}}_ {{torrentWord}}.",
     "notAssigned": "لم يتم تعيين هذه العلامة حاليا لأي السيول.",
     "deleteConfirm": "حذف العلامة",
-    "deleting": "جارٍ الحذف...",
-    "createTag": "إنشاء علامة"
+    "deleting": "جارٍ الحذف..."
   },
   "keyboardShortcuts": {
     "title": "اختصارات لوحة المفاتيح",

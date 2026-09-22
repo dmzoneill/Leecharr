@@ -498,9 +498,11 @@ const hi: I18nTranslations = {
       "pieceMapVerifiedPercent": "टुकड़ा मानचित्र सत्यापित प्रतिशत",
       "pieceMapPiecesInfo": "पीस मैप पीस की जानकारी",
       "pieceMapLinearBarView": "पीस मैप लीनियर बार व्यू",
-      "pieceMapBar": "पीस मैप बार",
+      "pieceMapBar": "Bar",
       "pieceMapMatrixGridView": "पीस मैप मैट्रिक्स ग्रिड व्यू",
-      "pieceMapGrid": "पीस मैप ग्रिड",
+      "pieceMapGrid": "ग्रिड",
+      "pieceMapStatus": "स्थिति",
+      "pieceMapAvailability": "उपलब्धता",
       "pieceMapCompleteLegend": "पीस मैप कम्प्लीट लीजेंड",
       "pieceMapActiveLegend": "पीस मैप एक्टिव लीजेंड",
       "pieceMapMissingLegend": "पीस मैप मिसिंग लीजेंड",
@@ -701,6 +703,9 @@ const hi: I18nTranslations = {
       "failedToRemoveTracker": "ट्रैकर नहीं हटाया जा सका",
       "privateTrackerDisabledTitle": "निजी ट्रैकर अक्षम शीर्षक",
       "openTrackerPickerTitle": "ट्रैकर पिकर शीर्षक खोलें",
+      "pieceMapRarity": "दुर्लभता हीटमैप",
+      "pieceMapFileBoundaries": "फ़ाइल सीमाएँ",
+      "pieceMapFilesCount": "फ़ाइल संख्या: {{count}} फ़ाइलें",
       "live3s": "Live3s"
     },
     "ratio": "अनुपात",
@@ -731,22 +736,22 @@ const hi: I18nTranslations = {
     "removeTags": "हटाएं",
     "bulkAddTags": "टैग निर्दिष्ट करें",
     "bulkRemoveTags": "टैग हटाएँ",
+    "deleteTorrentsTitle": "टोरेंट हटाएं",
     "deleteTorrentTitle": "टोरेंट हटाएं",
+    "readOnlyDeleteWarning": "आपके पास केवल पढ़ने की अनुमतियाँ हैं. टोरेंट को हटाया नहीं जा सकता.",
+    "deleteMultipleConfirm": "क्या आप वाकई {{count}} टोरेंट को हटाना चाहते हैं?",
+    "deleteSingleConfirm": "क्या आप आश्वस्त है कि आपको डिलीट करना है",
     "deleteSingleConfirmGeneric": "क्या आप वाकई इस टोरेंट को हटाना चाहते हैं?",
     "deleteFilesFromDisk": "डिस्क से डाउनलोड की गई फ़ाइलें भी हटाएं",
+    "deleteFilesWarning": "इस टोरेंट से जुड़ी सभी डाउनलोड की गई फ़ाइलें स्थायी रूप से हटा दी जाएंगी।",
+    "deletePermissionRequired": "टोरेंट को हटाने के लिए ऑपरेटर या व्यवस्थापक की भूमिका की आवश्यकता होती है",
     "torrentPaused": "टोरेंट रुक गया",
     "failedToPause": "टोरेंट को रोकने में विफल",
     "torrentResumed": "टोरेंट फिर से शुरू हो गया",
     "failedToResume": "टोरेंट पुनः प्रारंभ करने में विफल",
     "torrentAndFilesDeleted": "टोरेंट और फ़ाइलें हटा दी गईं",
     "torrentRemoved": "टोरेंट हटा दिया गया",
-    "failedToDelete": "टोरेंट हटाने में विफल",
-    "deleteTorrentsTitle": "टोरेंट हटाएं",
-    "readOnlyDeleteWarning": "आपके पास केवल पढ़ने की अनुमतियाँ हैं. टोरेंट को हटाया नहीं जा सकता.",
-    "deleteMultipleConfirm": "क्या आप वाकई {{count}} टोरेंट को हटाना चाहते हैं?",
-    "deleteSingleConfirm": "क्या आप आश्वस्त है कि आपको डिलीट करना है",
-    "deleteFilesWarning": "इस टोरेंट से जुड़ी सभी डाउनलोड की गई फ़ाइलें स्थायी रूप से हटा दी जाएंगी।",
-    "deletePermissionRequired": "टोरेंट को हटाने के लिए ऑपरेटर या व्यवस्थापक की भूमिका की आवश्यकता होती है"
+    "failedToDelete": "टोरेंट हटाने में विफल"
   },
   "torrentDetail": {
     "overview": "अवलोकन",
@@ -831,6 +836,8 @@ const hi: I18nTranslations = {
   },
   "addTorrent": {
     "title": "नया टोरेंट जोड़ें",
+    "closeDialog": "टोरेंट जोड़ें संवाद बंद करें",
+    "readOnlyWarning": "🔒 आपके पास केवल पढ़ने की अनुमति है। टोरेंट जोड़ने की अनुमति नहीं है.",
     "subtitle": "टोरेंट फ़ाइलें अपलोड करें या मैगनेट लिंक के माध्यम से डाउनलोड करें",
     "torrentFileTab": "टोरेंट फ़ाइल",
     "magnetLinkTab": "मैग्नेट लिंक",
@@ -919,9 +926,7 @@ const hi: I18nTranslations = {
     "sourcePathRequired": "टोरेंट बनाने के लिए स्रोत पथ आवश्यक है",
     "failedToCreateTorrent": "टोरेंट बनाने में विफल",
     "failedToAddTorrent": "टोरेंट जोड़ने में विफल",
-    "bulkAddSummary": "बल्क में सारांश जोड़ें",
-    "closeDialog": "टोरेंट जोड़ें संवाद बंद करें",
-    "readOnlyWarning": "🔒 आपके पास केवल पढ़ने की अनुमति है। टोरेंट जोड़ने की अनुमति नहीं है."
+    "bulkAddSummary": "बल्क में सारांश जोड़ें"
   },
   "activity": {
     "title": "नेटवर्क और झुंड गतिविधि",
@@ -4347,6 +4352,7 @@ const hi: I18nTranslations = {
     "minSeedTimePlaceholder": "जैसे 86400",
     "cancel": "रद्द करें",
     "saveTag": "टैग सहेजें",
+    "createTag": "टैग बनाएं",
     "saving": "सेव हो रही है ...",
     "deleteTagModalTitle": "टैग हटाएं: \"{{label}}\"",
     "deleteWarning": "⚠️ चेतावनी: इस टैग को हटाने से यह सभी निर्दिष्ट टोरेंट, इंडेक्सर्स और स्वचालित नियमों से हट जाएगा। इस एक्शन को वापस नहीं किया जा सकता।",
@@ -4354,8 +4360,7 @@ const hi: I18nTranslations = {
     "assignedToCount": "वर्तमान में {{count}} {{torrentWord}} को सौंपा गया है।",
     "notAssigned": "यह टैग वर्तमान में किसी भी टोरेंट को नहीं सौंपा गया है।",
     "deleteConfirm": "टैग हटाएँ",
-    "deleting": "हटाया जा रहा है...",
-    "createTag": "टैग बनाएं"
+    "deleting": "हटाया जा रहा है..."
   },
   "keyboardShortcuts": {
     "title": "कुंजीपटल अल्प मार्ग",

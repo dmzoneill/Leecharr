@@ -498,9 +498,11 @@ const ru: I18nTranslations = {
       "pieceMapVerifiedPercent": "Процент проверенной карты частей",
       "pieceMapPiecesInfo": "Информация о частях карты",
       "pieceMapLinearBarView": "Линейный вид карты фрагментов",
-      "pieceMapBar": "Панель карты частей",
+      "pieceMapBar": "Bar",
       "pieceMapMatrixGridView": "Представление в виде сетки матрицы фрагмента карты",
-      "pieceMapGrid": "Сетка карты частей",
+      "pieceMapGrid": "Сетка",
+      "pieceMapStatus": "Статус",
+      "pieceMapAvailability": "Доступность",
       "pieceMapCompleteLegend": "Часть карты Полная легенда",
       "pieceMapActiveLegend": "Активная легенда части карты",
       "pieceMapMissingLegend": "Часть карты отсутствует легенда",
@@ -700,6 +702,9 @@ const ru: I18nTranslations = {
       "failedToRemoveTracker": "Не удалось удалить трекер",
       "privateTrackerDisabledTitle": "Название «Частный трекер отключен»",
       "openTrackerPickerTitle": "Открыть заголовок окна выбора трекера",
+      "pieceMapRarity": "Тепловая карта редкости",
+      "pieceMapFileBoundaries": "Границы файлов",
+      "pieceMapFilesCount": "Количество файлов: {{count}} файлов",
       "live3s": "Live3s",
       "colAction": "Col Action"
     },
@@ -731,22 +736,22 @@ const ru: I18nTranslations = {
     "removeTags": "Удалить",
     "bulkAddTags": "Назначить теги",
     "bulkRemoveTags": "Удалить теги",
+    "deleteTorrentsTitle": "Удалить торренты",
     "deleteTorrentTitle": "Удалить торрент",
+    "readOnlyDeleteWarning": "У вас есть разрешения только для чтения. Торренты удалить невозможно.",
+    "deleteMultipleConfirm": "Вы уверены, что хотите удалить торренты {{count}}?",
+    "deleteSingleConfirm": "Вы уверены, что хотите удалить",
     "deleteSingleConfirmGeneric": "Вы уверены, что хотите удалить этот торрент?",
     "deleteFilesFromDisk": "Также удалить скачанные файлы с диска",
+    "deleteFilesWarning": "Все загруженные файлы, связанные с этим торрентом, будут безвозвратно удалены.",
+    "deletePermissionRequired": "Для удаления торрентов требуется роль оператора или администратора.",
     "torrentPaused": "Торрент приостановлен",
     "failedToPause": "Не удалось приостановить торрент",
     "torrentResumed": "Торрент возобновлен",
     "failedToResume": "Не удалось возобновить торрент",
     "torrentAndFilesDeleted": "Торрент и файлы удалены.",
     "torrentRemoved": "Торрент удален",
-    "failedToDelete": "Не удалось удалить торрент",
-    "deleteTorrentsTitle": "Удалить торренты",
-    "readOnlyDeleteWarning": "У вас есть разрешения только для чтения. Торренты удалить невозможно.",
-    "deleteMultipleConfirm": "Вы уверены, что хотите удалить торренты {{count}}?",
-    "deleteSingleConfirm": "Вы уверены, что хотите удалить",
-    "deleteFilesWarning": "Все загруженные файлы, связанные с этим торрентом, будут безвозвратно удалены.",
-    "deletePermissionRequired": "Для удаления торрентов требуется роль оператора или администратора."
+    "failedToDelete": "Не удалось удалить торрент"
   },
   "torrentDetail": {
     "overview": "Обзор",
@@ -831,6 +836,8 @@ const ru: I18nTranslations = {
   },
   "addTorrent": {
     "title": "Добавить новый торрент",
+    "closeDialog": "Закрыть диалоговое окно добавления торрента",
+    "readOnlyWarning": "🔒 У вас есть разрешения только для чтения. Добавление торрентов запрещено.",
     "subtitle": "Загружайте торрент-файлы или скачивайте по магнитной ссылке.",
     "torrentFileTab": "Торрент-файл",
     "magnetLinkTab": "Magnet-ссылка",
@@ -919,9 +926,7 @@ const ru: I18nTranslations = {
     "sourcePathRequired": "Для создания торрента необходим исходный путь",
     "failedToCreateTorrent": "Не удалось создать торрент",
     "failedToAddTorrent": "Не удалось добавить торрент",
-    "bulkAddSummary": "Массовое добавление сводки",
-    "closeDialog": "Закрыть диалоговое окно добавления торрента",
-    "readOnlyWarning": "🔒 У вас есть разрешения только для чтения. Добавление торрентов запрещено."
+    "bulkAddSummary": "Массовое добавление сводки"
   },
   "activity": {
     "title": "Сетевая активность и рой",
@@ -4347,6 +4352,7 @@ const ru: I18nTranslations = {
     "minSeedTimePlaceholder": "например 86400",
     "cancel": "Отмена",
     "saveTag": "Сохранить тег",
+    "createTag": "Создать тег",
     "saving": "Сохранение...",
     "deleteTagModalTitle": "Удалить тег: \"{{label}}\"",
     "deleteWarning": "⚠️ Внимание: удаление этого тега приведет к его удалению из всех назначенных торрентов, индексаторов и автоматических правил. Это действие невозможно отменить.",
@@ -4354,8 +4360,7 @@ const ru: I18nTranslations = {
     "assignedToCount": "В настоящее время назначен {{count}} {{torrentWord}}.",
     "notAssigned": "Этот тег в настоящее время не присвоен ни одному торренту.",
     "deleteConfirm": "Удалить тег",
-    "deleting": "Удаление...",
-    "createTag": "Создать тег"
+    "deleting": "Удаление..."
   },
   "keyboardShortcuts": {
     "title": "Сочетания клавиш",
