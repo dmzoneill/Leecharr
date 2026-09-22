@@ -100,11 +100,11 @@ export function DownloadClientsTab() {
   const handleSave = () => {
     if (!editing) return;
     if (!editing.name?.trim()) {
-      showToast("Name is required", "error");
+      showToast(t("settingsTabs.downloadClients.nameRequired", "Name is required"), "error");
       return;
     }
     if (!editing.host?.trim()) {
-      showToast("Host is required", "error");
+      showToast(t("settingsTabs.downloadClients.hostRequired", "Host is required"), "error");
       return;
     }
     const clientType = editing.clientType || "unknown";
@@ -112,12 +112,19 @@ export function DownloadClientsTab() {
       updateMutation.mutate(editing as DownloadClientDefinition, {
         onSuccess: () => {
           trackDownloadClientAction(clientType, "add");
-          showToast(`Download client "${editing.name}" updated`, "success");
+          showToast(
+            t("settingsTabs.downloadClients.clientUpdated", {
+              name: editing.name,
+              defaultValue: `Download client "${editing.name}" updated`,
+            }),
+            "success",
+          );
           setEditing(null);
         },
         onError: (err: any) => {
           showToast(
-            err?.message || "Failed to update download client",
+            err?.message ||
+              t("settingsTabs.downloadClients.updateFailed", "Failed to update download client"),
             "error",
           );
         },
@@ -126,12 +133,19 @@ export function DownloadClientsTab() {
       createMutation.mutate(editing, {
         onSuccess: () => {
           trackDownloadClientAction(clientType, "add");
-          showToast(`Download client "${editing.name}" created`, "success");
+          showToast(
+            t("settingsTabs.downloadClients.clientCreated", {
+              name: editing.name,
+              defaultValue: `Download client "${editing.name}" created`,
+            }),
+            "success",
+          );
           setEditing(null);
         },
         onError: (err: any) => {
           showToast(
-            err?.message || "Failed to create download client",
+            err?.message ||
+              t("settingsTabs.downloadClients.createFailed", "Failed to create download client"),
             "error",
           );
         },

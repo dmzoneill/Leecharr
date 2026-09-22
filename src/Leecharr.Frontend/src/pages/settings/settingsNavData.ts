@@ -201,12 +201,13 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
       {
         id: "tags",
         groupId: "storage-queues",
-        title: "Tags",
-        shortLabel: "Tags",
+        title: "settingsTabs.nav.groups.storageQueues.pages.tags.title",
+        shortLabel:
+          "settingsTabs.nav.groups.storageQueues.pages.tags.shortLabel",
         description:
-          "Manage torrent tags, colors, and per-tag seeding policies",
+          "settingsTabs.nav.groups.storageQueues.pages.tags.description",
         icon: "🏷️",
-        badge: "Labels",
+        badge: "settingsTabs.nav.groups.storageQueues.pages.tags.badge",
         keywords: [
           "tags",
           "tag",

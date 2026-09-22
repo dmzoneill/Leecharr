@@ -451,7 +451,15 @@ export function WebUiSettingsTab() {
             setTelemetryEnabled(v);
             setTelemetryEnabledState(v);
             showToast(
-              v ? "Anonymous telemetry enabled" : "Anonymous telemetry disabled",
+              v
+                ? t(
+                    "settingsTabs.webui.telemetryEnabled",
+                    "Anonymous telemetry enabled",
+                  )
+                : t(
+                    "settingsTabs.webui.telemetryDisabled",
+                    "Anonymous telemetry disabled",
+                  ),
               "info",
             );
           }}

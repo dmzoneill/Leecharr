@@ -186,10 +186,10 @@ export function FolderBrowserModal({
               className="btn btn-outline btn-small"
               onClick={handleNavigateUp}
               disabled={!currentPath || currentPath === "/"}
-              title="Go to parent directory"
+              title={t("folderBrowser.goToParent", "Go to parent directory")}
               style={{ padding: "0.3rem 0.6rem", fontSize: "0.8rem", flexShrink: 0 }}
             >
-              ⬆ Up
+              ⬆ {t("folderBrowser.up", "Up")}
             </button>
 
             <div
@@ -214,10 +214,10 @@ export function FolderBrowserModal({
               type="button"
               className="btn btn-outline btn-small"
               onClick={() => setShowNewFolderInput((prev) => !prev)}
-              title="Create new folder"
+              title={t("folderBrowser.createNewFolder", "Create new folder")}
               style={{ padding: "0.3rem 0.6rem", fontSize: "0.8rem", flexShrink: 0 }}
             >
-              + New Folder
+              + {t("folderBrowser.newFolder", "New Folder")}
             </button>
           </div>
 
@@ -238,7 +238,7 @@ export function FolderBrowserModal({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleCreateFolder();
                 }}
-                placeholder="Folder name..."
+                placeholder={t("folderBrowser.folderNamePlaceholder", "Folder name...")}
                 style={{ flex: 1, padding: "0.3rem 0.6rem", fontSize: "0.85rem" }}
                 autoFocus
               />
@@ -249,7 +249,7 @@ export function FolderBrowserModal({
                 disabled={!newFolderName.trim() || mkdirMutation.isPending}
                 style={{ padding: "0.3rem 0.6rem", fontSize: "0.8rem" }}
               >
-                Create
+                {t("folderBrowser.create", "Create")}
               </button>
               <button
                 type="button"
@@ -260,7 +260,7 @@ export function FolderBrowserModal({
                 }}
                 style={{ padding: "0.3rem 0.6rem", fontSize: "0.8rem" }}
               >
-                Cancel
+                {t("folderBrowser.cancel", "Cancel")}
               </button>
             </div>
           )}
@@ -285,7 +285,7 @@ export function FolderBrowserModal({
                 fontSize: "0.85rem",
               }}
             >
-              Loading directory listing...
+              {t("folderBrowser.loading", "Loading directory listing...")}
             </div>
           ) : isError ? (
             <div
@@ -296,7 +296,7 @@ export function FolderBrowserModal({
                 fontSize: "0.85rem",
               }}
             >
-              Failed to load directory.
+              {t("folderBrowser.failedToLoad", "Failed to load directory.")}
             </div>
           ) : directories.length === 0 ? (
             <div
@@ -308,7 +308,7 @@ export function FolderBrowserModal({
               }}
             >
               <div style={{ fontSize: "1.6rem", marginBottom: "0.35rem" }}>📂</div>
-              No subfolders in this directory.
+              {t("folderBrowser.noSubfolders", "No subfolders in this directory.")}
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
@@ -329,7 +329,7 @@ export function FolderBrowserModal({
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor =
-                      "rgba(255, 209, 102, 0.12)";
+                       "rgba(255, 209, 102, 0.12)";
                     e.currentTarget.style.borderColor = "rgba(255, 209, 102, 0.3)";
                   }}
                   onMouseLeave={(e) => {
@@ -397,7 +397,7 @@ export function FolderBrowserModal({
               maxWidth: "280px",
             }}
           >
-            Selected: <code style={{ color: "var(--accent)" }}>{currentPath}</code>
+            {t("folderBrowser.selected", "Selected:")} <code style={{ color: "var(--accent)" }}>{currentPath}</code>
           </div>
 
           <div style={{ display: "flex", gap: "0.5rem" }}>
@@ -413,7 +413,7 @@ export function FolderBrowserModal({
               className="btn btn-primary btn-small"
               onClick={handleConfirmSelect}
             >
-              Select This Folder
+              {t("folderBrowser.selectThisFolder", "Select This Folder")}
             </button>
           </div>
         </div>

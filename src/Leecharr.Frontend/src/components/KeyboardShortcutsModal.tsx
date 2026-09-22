@@ -37,186 +37,186 @@ export function KeyboardShortcutsModal({
 
   const groups: ShortcutGroup[] = [
     {
-      category: "Global & Search",
+      category: t("keyboardShortcuts.categories.globalSearch", "Global & Search"),
       icon: "🌐",
       shortcuts: [
         {
           keys: [`${modKey}`, "K"],
-          description: "Open Command Palette / Quick Search",
+          description: t("keyboardShortcuts.openCommandPalette", "Open Command Palette / Quick Search"),
         },
         {
           keys: ["/"],
-          description: "Focus Global Search / Command Palette",
+          description: t("keyboardShortcuts.focusGlobalSearch", "Focus Global Search / Command Palette"),
         },
         {
           keys: ["?"],
-          description: "Open this Keyboard Shortcuts cheatsheet",
+          description: t("keyboardShortcuts.openShortcutsCheatsheet", "Open this Keyboard Shortcuts cheatsheet"),
         },
         {
           keys: ["q"],
-          description: "Toggle Quick Settings & Bandwidth drawer",
+          description: t("keyboardShortcuts.toggleQuickSettings", "Toggle Quick Settings & Bandwidth drawer"),
         },
         {
           keys: ["Alt", "M"],
-          description: "Toggle navigation sidebar collapse",
+          description: t("keyboardShortcuts.toggleSidebarCollapse", "Toggle navigation sidebar collapse"),
         },
         {
           keys: ["Esc"],
-          description: "Close active modal, drawer, or detail panel",
+          description: t("keyboardShortcuts.closeModalOrDrawer", "Close active modal, drawer, or detail panel"),
         },
       ],
     },
     {
-      category: "Two-Key Sequence Navigation",
+      category: t("keyboardShortcuts.categories.navigation", "Two-Key Sequence Navigation"),
       icon: "⚡",
       shortcuts: [
         {
           keys: ["g", "d"],
-          description: "Go to Dashboard",
+          description: t("keyboardShortcuts.navDashboard", "Go to Dashboard"),
         },
         {
           keys: ["g", "t"],
-          description: "Go to Torrents view",
+          description: t("keyboardShortcuts.navTorrents", "Go to Torrents view"),
         },
         {
           keys: ["g", "a", "or", "h"],
-          description: "Go to Activity Hub & Download History",
+          description: t("keyboardShortcuts.navActivity", "Go to Activity Hub & Download History"),
         },
         {
           keys: ["g", "s"],
-          description: "Go to Host Settings",
+          description: t("keyboardShortcuts.navSettings", "Go to Host Settings"),
         },
         {
           keys: ["g", "f"],
-          description: "Go to File Browser",
+          description: t("keyboardShortcuts.navFileBrowser", "Go to File Browser"),
         },
         {
           keys: ["g", "c"],
-          description: "Go to Terminal CLI Shell",
+          description: t("keyboardShortcuts.navTerminal", "Go to Terminal CLI Shell"),
         },
         {
           keys: ["g", "i"],
-          description: "Go to Indexers & Discovery",
+          description: t("keyboardShortcuts.navIndexers", "Go to Indexers & Discovery"),
         },
       ],
     },
     {
-      category: "Torrent Table & Selection",
+      category: t("keyboardShortcuts.categories.torrentTable", "Torrent Table & Selection"),
       icon: "📋",
       shortcuts: [
         {
           keys: ["↑", "↓"],
-          description: "Navigate up and down torrent table rows",
+          description: t("keyboardShortcuts.tableNavigateRows", "Navigate up and down torrent table rows"),
         },
         {
           keys: ["Shift", "↑ / ↓"],
-          description: "True range select (dynamically expand/contract)",
+          description: t("keyboardShortcuts.tableRangeSelect", "True range select (dynamically expand/contract)"),
         },
         {
           keys: ["Home", "End"],
-          description: "Jump to first or last row in table",
+          description: t("keyboardShortcuts.tableJumpFirstLast", "Jump to first or last row in table"),
         },
         {
           keys: ["Enter"],
-          description: "Open & focus torrent detail panel",
+          description: t("keyboardShortcuts.tableOpenDetail", "Open & focus torrent detail panel"),
         },
         {
           keys: [`${modKey}`, "A"],
-          description: "Select all filtered torrents",
+          description: t("keyboardShortcuts.tableSelectAll", "Select all filtered torrents"),
         },
         {
           keys: [`${modKey}`, "Shift", "I"],
-          description: "Invert torrent selection",
+          description: t("keyboardShortcuts.tableInvertSelection", "Invert torrent selection"),
         },
         {
           keys: ["Space", "or", "p"],
-          description: "Pause / Resume selected torrent(s)",
+          description: t("keyboardShortcuts.tablePauseResume", "Pause / Resume selected torrent(s)"),
         },
         {
           keys: ["Delete"],
-          description: "Delete selected torrent(s) (multi-select supported)",
+          description: t("keyboardShortcuts.tableDeleteSelected", "Delete selected torrent(s) (multi-select supported)"),
         },
       ],
     },
     {
-      category: "Queue Priority & Quick Actions",
+      category: t("keyboardShortcuts.categories.queuePriority", "Queue Priority & Quick Actions"),
       icon: "🚀",
       shortcuts: [
         {
           keys: [`${modKey}`, "↑ / ↓"],
-          description: "Move selected torrent up / down in queue",
+          description: t("keyboardShortcuts.queueMoveUpDown", "Move selected torrent up / down in queue"),
         },
         {
           keys: [`${modKey}`, "Shift", "↑ / ↓"],
-          description: "Move selected torrent to top / bottom of queue",
+          description: t("keyboardShortcuts.queueMoveTopBottom", "Move selected torrent to top / bottom of queue"),
         },
         {
           keys: [`${modKey}`, "R", "or", "F5"],
-          description: "Force recheck selected torrent(s)",
+          description: t("keyboardShortcuts.queueForceRecheck", "Force recheck selected torrent(s)"),
         },
         {
           keys: ["F6"],
-          description: "Announce / update tracker for selected torrent(s)",
+          description: t("keyboardShortcuts.queueAnnounceTracker", "Announce / update tracker for selected torrent(s)"),
         },
       ],
     },
     {
-      category: "Media Player",
+      category: t("keyboardShortcuts.categories.mediaPlayer", "Media Player"),
       icon: "🎬",
       shortcuts: [
         {
           keys: ["Space"],
-          description: "Play / Pause media playback",
+          description: t("keyboardShortcuts.playerPlayPause", "Play / Pause media playback"),
         },
         {
           keys: ["←", "→"],
-          description: "Seek -/+ 5 seconds (with Shift: 30s)",
+          description: t("keyboardShortcuts.playerSeek", "Seek -/+ 5 seconds (with Shift: 30s)"),
         },
         {
           keys: ["↑", "↓"],
-          description: "Adjust volume -/+ 5%",
+          description: t("keyboardShortcuts.playerVolume", "Adjust volume -/+ 5%"),
         },
         {
           keys: ["m"],
-          description: "Mute / unmute audio",
+          description: t("keyboardShortcuts.playerMute", "Mute / unmute audio"),
         },
         {
           keys: ["f"],
-          description: "Toggle fullscreen playback",
+          description: t("keyboardShortcuts.playerFullscreen", "Toggle fullscreen playback"),
         },
         {
           keys: ["c"],
-          description: "Cycle subtitle tracks",
+          description: t("keyboardShortcuts.playerSubtitles", "Cycle subtitle tracks"),
         },
         {
           keys: ["[", "]"],
-          description: "Cycle speed (0.75x, 1x, 1.25x, 1.5x, 2x)",
+          description: t("keyboardShortcuts.playerSpeed", "Cycle speed (0.75x, 1x, 1.25x, 1.5x, 2x)"),
         },
       ],
     },
     {
-      category: "Detail Panel Files & Script Editor",
+      category: t("keyboardShortcuts.categories.detailPanel", "Detail Panel Files & Script Editor"),
       icon: "📁",
       shortcuts: [
         {
           keys: ["↑", "↓"],
-          description: "Navigate files and folders tree",
+          description: t("keyboardShortcuts.panelNavTree", "Navigate files and folders tree"),
         },
         {
           keys: ["←", "→"],
-          description: "Collapse / expand folder or traverse depth",
+          description: t("keyboardShortcuts.panelCollapseExpand", "Collapse / expand folder or traverse depth"),
         },
         {
           keys: ["Space"],
-          description: "Toggle selective download checkbox",
+          description: t("keyboardShortcuts.panelToggleSelective", "Toggle selective download checkbox"),
         },
         {
           keys: ["0", "1", "2"],
-          description: "Set file priority (0=Skip, 1=Low, 2=Normal)",
+          description: t("keyboardShortcuts.panelSetPriority", "Set file priority (0=Skip, 1=Low, 2=Normal)"),
         },
         {
           keys: ["Esc", "or", "Shift+Tab"],
-          description: "Unfocus code editor (WCAG keyboard trap escape)",
+          description: t("keyboardShortcuts.panelUnfocusEditor", "Unfocus code editor (WCAG keyboard trap escape)"),
         },
       ],
     },
@@ -281,7 +281,7 @@ export function KeyboardShortcutsModal({
                   color: "var(--text-primary, #f8f4ed)",
                 }}
               >
-                Keyboard Shortcuts
+                {t("keyboardShortcuts.title", "Keyboard Shortcuts")}
               </h3>
               <p
                 style={{
@@ -290,7 +290,7 @@ export function KeyboardShortcutsModal({
                   color: "var(--text-muted, #8a879e)",
                 }}
               >
-                Quick hotkeys for fast client ergonomics and workflow navigation
+                {t("keyboardShortcuts.description", "Quick hotkeys for fast client ergonomics and workflow navigation")}
               </p>
             </div>
           </div>
@@ -299,6 +299,7 @@ export function KeyboardShortcutsModal({
             type="button"
             className="btn btn-outline btn-small"
             onClick={onClose}
+            aria-label={t("keyboardShortcuts.close", "Close")}
             style={{ padding: "0.25rem 0.6rem", fontSize: "0.85rem" }}
           >
             ✕

@@ -175,7 +175,10 @@ export function EngineSettingsTab() {
             trackEngineSwitch(targetEngine);
             showToast(
               res?.message ||
-                `Switched active torrent engine to ${targetEngine}`,
+                t("settingsTabs.engine.switchedEngine", {
+                  engine: targetEngine,
+                  defaultValue: `Switched active torrent engine to ${targetEngine}`,
+                }),
               "success",
             );
           },
@@ -200,18 +203,31 @@ export function EngineSettingsTab() {
       setProbeResult(res);
       if (res.isHealthy) {
         showToast(
-          res.statusMessage || `${engineId} is healthy and operational.`,
+          res.statusMessage ||
+            t("settingsTabs.engine.engineHealthy", {
+              engine: engineId,
+              defaultValue: `${engineId} is healthy and operational.`,
+            }),
           "success",
         );
       } else {
         showToast(
-          res.statusMessage || `${engineId} health check reported issues.`,
+          res.statusMessage ||
+            t("settingsTabs.engine.engineIssues", {
+              engine: engineId,
+              defaultValue: `${engineId} health check reported issues.`,
+            }),
           "error",
         );
       }
     } catch (err: any) {
       showToast(
-        `Probe failed for ${engineId}: ${err?.message || t("settingsTabs.notifications.unknownError")}`,
+        t("settingsTabs.engine.probeFailed", {
+          engine: engineId,
+          error:
+            err?.message || t("settingsTabs.notifications.unknownError"),
+          defaultValue: `Probe failed for ${engineId}: ${err?.message || ""}`,
+        }),
         "error",
       );
     } finally {

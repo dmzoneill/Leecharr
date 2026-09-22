@@ -176,12 +176,12 @@ def main():
                 fp = os.path.join(root, file)
                 with open(fp, "r", encoding="utf-8", errors="ignore") as f:
                     code = f.read()
-                matches = re.findall(r'\bt\(\s*["\'`]([a-zA-Z0-9_.]+)["\'`]', code)
+                matches = re.findall(r'\b(?:t|translate)\(\s*["\'`]([a-zA-Z0-9_.]+)["\'`]', code)
                 for m in matches:
                     used_keys.add(m)
     print(f"ℹ️  Found {len(used_keys)} distinct translation key references in codebase.")
 
-    # 2. Load en.ts & prune junk
+    # 2. Load en.ts
     en_file = os.path.join(LOCALES_DIR, "en.ts")
     en_tree = parse_ts_dict(en_file)
     if not en_tree:
@@ -189,14 +189,7 @@ def main():
         sys.exit(1)
         
     flat_en = flatten_keys(en_tree)
-    
-    clean_flat_en = {}
-    for k, v in flat_en.items():
-        if k.startswith("components."):
-            if k in used_keys:
-                clean_flat_en[k] = v
-        else:
-            clean_flat_en[k] = v
+    clean_flat_en = dict(flat_en)
 
     total_keys = len(clean_flat_en)
     print(f"📖 Canonical English dictionary: {total_keys} keys")
