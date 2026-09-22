@@ -3770,7 +3770,17 @@
     "c14832f3ea288be8": "在 VLC 媒体播放器中打开流",
     "8bf2da5fbb2c5fdd": "加载目录失败。",
     "aaa5aebcf7b8de9e": "该目录中没有子文件夹。",
-    "dc8edcfe356a98af": "正在加载目录列表..."
+    "dc8edcfe356a98af": "正在加载目录列表...",
+    "3a57bb9fb3bf7756": "您确定要删除吗",
+    "cba44b38b4a1a8f2": "关闭文件夹浏览器",
+    "1e188e95dd92460f": "删除种子",
+    "0a7ce1ab50f63698": "关闭添加 torrent 对话框",
+    "7af189a2b3f03017": "创建标签",
+    "2cb15b3bb2fbb946": "删除种子需要操作员或管理员角色",
+    "58f469ec407de4fd": "您确定要删除 {{count}} 种子吗？",
+    "e031763416f87c0a": "所有与此 torrent 关联的下载文件都将被永久删除。",
+    "23e387240e54f325": "您拥有只读权限。种子无法删除。",
+    "a61978621a8a776b": "🔒 您拥有只读权限。不允许添加种子。"
   },
   "hi": {
     "b43594c795c4ca3f": "जोड़ने के लिए और फ़ाइलें क्लिक करें या खींचें",
@@ -7543,7 +7553,17 @@
     "dc8edcfe356a98af": "निर्देशिका सूची लोड हो रही है...",
     "aaa5aebcf7b8de9e": "इस निर्देशिका में कोई सबफ़ोल्डर नहीं है.",
     "399df46a3b8c1c68": "एमपीवी प्लेयर में ओपन स्ट्रीम",
-    "8bf2da5fbb2c5fdd": "निर्देशिका लोड करने में विफल."
+    "8bf2da5fbb2c5fdd": "निर्देशिका लोड करने में विफल.",
+    "3a57bb9fb3bf7756": "क्या आप आश्वस्त है कि आपको डिलीट करना है",
+    "23e387240e54f325": "आपके पास केवल पढ़ने की अनुमतियाँ हैं. टोरेंट को हटाया नहीं जा सकता.",
+    "a61978621a8a776b": "🔒 आपके पास केवल पढ़ने की अनुमति है। टोरेंट जोड़ने की अनुमति नहीं है.",
+    "e031763416f87c0a": "इस टोरेंट से जुड़ी सभी डाउनलोड की गई फ़ाइलें स्थायी रूप से हटा दी जाएंगी।",
+    "58f469ec407de4fd": "क्या आप वाकई {{count}} टोरेंट को हटाना चाहते हैं?",
+    "2cb15b3bb2fbb946": "टोरेंट को हटाने के लिए ऑपरेटर या व्यवस्थापक की भूमिका की आवश्यकता होती है",
+    "0a7ce1ab50f63698": "टोरेंट जोड़ें संवाद बंद करें",
+    "cba44b38b4a1a8f2": "फ़ोल्डर ब्राउज़र बंद करें",
+    "7af189a2b3f03017": "टैग बनाएं",
+    "1e188e95dd92460f": "टोरेंट हटाएं"
   },
   "es": {
     "33b8a7901c02ac2e": "Explorador de archivos",
@@ -11316,7 +11336,17 @@
     "dc8edcfe356a98af": "Cargando listado de directorio...",
     "aaa5aebcf7b8de9e": "No hay subcarpetas en este directorio.",
     "8bf2da5fbb2c5fdd": "No se pudo cargar el directorio.",
-    "926639737b8129b2": "Seleccione esta carpeta"
+    "926639737b8129b2": "Seleccione esta carpeta",
+    "3a57bb9fb3bf7756": "¿Estás seguro de que quieres eliminar?",
+    "2cb15b3bb2fbb946": "Eliminar torrents requiere rol de operador o administrador",
+    "58f469ec407de4fd": "¿Estás seguro de que deseas eliminar {{count}} torrents?",
+    "e031763416f87c0a": "Todos los archivos descargados asociados con este torrent se eliminarán permanentemente.",
+    "0a7ce1ab50f63698": "Cerrar el cuadro de diálogo Agregar torrent",
+    "1e188e95dd92460f": "Eliminar torrentes",
+    "a61978621a8a776b": "🔒 Tienes permisos de Solo Lectura. No se permite agregar torrents.",
+    "23e387240e54f325": "Tienes permisos de sólo lectura. Los torrents no se pueden eliminar.",
+    "cba44b38b4a1a8f2": "Cerrar el navegador de carpetas",
+    "7af189a2b3f03017": "Crear etiqueta"
   },
   "ar": {
     "33b8a7901c02ac2e": "مستعرض الملفات",
@@ -15089,7 +15119,17 @@
     "dc8edcfe356a98af": "جارٍ تحميل قائمة الدليل...",
     "aaa5aebcf7b8de9e": "لا توجد مجلدات فرعية في هذا الدليل.",
     "f747344cdf172197": "إنشاء مجلد جديد",
-    "8914e9d02c744cfb": "اسم المجلد..."
+    "8914e9d02c744cfb": "اسم المجلد...",
+    "3a57bb9fb3bf7756": "هل أنت متأكد أنك تريد الحذف",
+    "23e387240e54f325": "لديك أذونات للقراءة فقط. لا يمكن حذف السيول.",
+    "a61978621a8a776b": "🔒 لديك أذونات للقراءة فقط. لا يسمح بإضافة السيول.",
+    "58f469ec407de4fd": "هل أنت متأكد أنك تريد حذف {{count}}_ السيول؟",
+    "2cb15b3bb2fbb946": "يتطلب حذف السيول دور المشغل أو المسؤول",
+    "e031763416f87c0a": "سيتم حذف جميع الملفات التي تم تنزيلها والمرتبطة بهذا التورنت نهائيًا.",
+    "7af189a2b3f03017": "إنشاء علامة",
+    "cba44b38b4a1a8f2": "إغلاق متصفح المجلد",
+    "0a7ce1ab50f63698": "أغلق مربع حوار إضافة تورنت",
+    "1e188e95dd92460f": "حذف السيول"
   },
   "fr": {
     "57fd7a0cf33f2666": "Choisi",
@@ -18862,7 +18902,17 @@
     "926639737b8129b2": "Sélectionnez ce dossier",
     "8bf2da5fbb2c5fdd": "Échec du chargement du répertoire.",
     "dc8edcfe356a98af": "Chargement de la liste des répertoires...",
-    "aaa5aebcf7b8de9e": "Aucun sous-dossier dans ce répertoire."
+    "aaa5aebcf7b8de9e": "Aucun sous-dossier dans ce répertoire.",
+    "3a57bb9fb3bf7756": "Etes-vous sûr de vouloir supprimer",
+    "0a7ce1ab50f63698": "Fermer la boîte de dialogue d'ajout de torrent",
+    "23e387240e54f325": "Vous disposez des autorisations en lecture seule. Les torrents ne peuvent pas être supprimés.",
+    "a61978621a8a776b": "🔒 Vous disposez des autorisations ReadOnly. L'ajout de torrents n'est pas autorisé.",
+    "2cb15b3bb2fbb946": "La suppression de torrents nécessite un rôle d'opérateur ou d'administrateur",
+    "58f469ec407de4fd": "Êtes-vous sûr de vouloir supprimer les torrents {{count}} ?",
+    "e031763416f87c0a": "Tous les fichiers téléchargés associés à ce torrent seront définitivement supprimés.",
+    "1e188e95dd92460f": "Supprimer les torrents",
+    "7af189a2b3f03017": "Créer une balise",
+    "cba44b38b4a1a8f2": "Fermer le navigateur de dossiers"
   },
   "bn": {
     "33b8a7901c02ac2e": "ফাইল ব্রাউজার",
@@ -22635,7 +22685,17 @@
     "6b7fa9fb201cd58e": "সাবটাইটেল টেক্সট আকার",
     "8bf2da5fbb2c5fdd": "ডিরেক্টরি লোড করতে ব্যর্থ হয়েছে৷",
     "aaa5aebcf7b8de9e": "এই ডিরেক্টরিতে কোন সাবফোল্ডার নেই।",
-    "067009f4399b0362": "মিডিয়া প্লেয়ার বন্ধ করুন"
+    "067009f4399b0362": "মিডিয়া প্লেয়ার বন্ধ করুন",
+    "3a57bb9fb3bf7756": "আপনি কি নিশ্চিত আপনি মুছে দিতে চান",
+    "1e188e95dd92460f": "টরেন্ট মুছুন",
+    "0a7ce1ab50f63698": "টরেন্ট ডায়ালগ যুক্ত করুন বন্ধ করুন",
+    "2cb15b3bb2fbb946": "টরেন্ট মুছে ফেলার জন্য অপারেটর বা অ্যাডমিন ভূমিকা প্রয়োজন",
+    "23e387240e54f325": "আপনার শুধুমাত্র পঠনযোগ্য অনুমতি আছে। টরেন্ট মুছে ফেলা যাবে না.",
+    "e031763416f87c0a": "এই টরেন্টের সাথে যুক্ত সমস্ত ডাউনলোড করা ফাইল স্থায়ীভাবে মুছে ফেলা হবে।",
+    "a61978621a8a776b": "🔒 আপনার কাছে শুধুমাত্র পঠনযোগ্য অনুমতি আছে। টরেন্ট যোগ করা অনুমোদিত নয়.",
+    "58f469ec407de4fd": "আপনি কি নিশ্চিত আপনি {{count}} টরেন্ট মুছে ফেলতে চান?",
+    "7af189a2b3f03017": "ট্যাগ তৈরি করুন",
+    "cba44b38b4a1a8f2": "ফোল্ডার ব্রাউজার বন্ধ করুন"
   },
   "pt": {
     "33b8a7901c02ac2e": "Navegador de arquivos",
@@ -26408,7 +26468,17 @@
     "dc8edcfe356a98af": "Carregando listagem de diretórios...",
     "8bf2da5fbb2c5fdd": "Falha ao carregar o diretório.",
     "f747344cdf172197": "Criar nova pasta",
-    "926639737b8129b2": "Selecione esta pasta"
+    "926639737b8129b2": "Selecione esta pasta",
+    "3a57bb9fb3bf7756": "Tem certeza de que deseja excluir",
+    "0a7ce1ab50f63698": "Fechar caixa de diálogo para adicionar torrent",
+    "1e188e95dd92460f": "Excluir torrentes",
+    "a61978621a8a776b": "🔒 Você tem permissões ReadOnly. Adicionar torrents não é permitido.",
+    "23e387240e54f325": "Você tem permissões ReadOnly. Torrents não podem ser excluídos.",
+    "58f469ec407de4fd": "Tem certeza de que deseja excluir torrents {{count}}?",
+    "2cb15b3bb2fbb946": "A exclusão de torrents requer função de operador ou administrador",
+    "e031763416f87c0a": "Todos os arquivos baixados associados a este torrent serão excluídos permanentemente.",
+    "cba44b38b4a1a8f2": "Fechar navegador de pastas",
+    "7af189a2b3f03017": "Criar etiqueta"
   },
   "ru": {
     "33b8a7901c02ac2e": "Файловый менеджер",
@@ -30181,7 +30251,17 @@
     "97232a340367c6d9": "Субтитры:",
     "f44f24c71f1f594c": "Очень большой",
     "8914e9d02c744cfb": "Имя папки...",
-    "926639737b8129b2": "Выберите эту папку"
+    "926639737b8129b2": "Выберите эту папку",
+    "0a7ce1ab50f63698": "Закрыть диалоговое окно добавления торрента",
+    "1e188e95dd92460f": "Удалить торренты",
+    "7af189a2b3f03017": "Создать тег",
+    "cba44b38b4a1a8f2": "Закрыть браузер папок",
+    "2cb15b3bb2fbb946": "Для удаления торрентов требуется роль оператора или администратора.",
+    "58f469ec407de4fd": "Вы уверены, что хотите удалить торренты {{count}}?",
+    "e031763416f87c0a": "Все загруженные файлы, связанные с этим торрентом, будут безвозвратно удалены.",
+    "3a57bb9fb3bf7756": "Вы уверены, что хотите удалить",
+    "23e387240e54f325": "У вас есть разрешения только для чтения. Торренты удалить невозможно.",
+    "a61978621a8a776b": "🔒 У вас есть разрешения только для чтения. Добавление торрентов запрещено."
   },
   "ur": {
     "33b8a7901c02ac2e": "فائل براؤزر",
@@ -33954,7 +34034,17 @@
     "8914e9d02c744cfb": "فولڈر کا نام...",
     "8bf2da5fbb2c5fdd": "ڈائریکٹری لوڈ کرنے میں ناکام۔",
     "926639737b8129b2": "اس فولڈر کو منتخب کریں۔",
-    "aaa5aebcf7b8de9e": "اس ڈائریکٹری میں کوئی ذیلی فولڈر نہیں ہے۔"
+    "aaa5aebcf7b8de9e": "اس ڈائریکٹری میں کوئی ذیلی فولڈر نہیں ہے۔",
+    "1e188e95dd92460f": "Torrents کو حذف کریں۔",
+    "0a7ce1ab50f63698": "ٹورینٹ ڈائیلاگ شامل کریں بند کریں۔",
+    "3a57bb9fb3bf7756": "کیا آپ واقعی حذف کرنا چاہتے ہیں۔",
+    "a61978621a8a776b": "🔒 آپ کے پاس صرف پڑھنے کی اجازت ہے۔ ٹورینٹ شامل کرنے کی اجازت نہیں ہے۔",
+    "23e387240e54f325": "آپ کے پاس صرف پڑھنے کی اجازت ہے۔ ٹورینٹ کو حذف نہیں کیا جا سکتا۔",
+    "2cb15b3bb2fbb946": "ٹورینٹ کو حذف کرنے کے لیے آپریٹر یا ایڈمن کا کردار درکار ہوتا ہے۔",
+    "e031763416f87c0a": "اس ٹورینٹ سے وابستہ تمام ڈاؤن لوڈ فائلز کو مستقل طور پر حذف کر دیا جائے گا۔",
+    "58f469ec407de4fd": "کیا آپ واقعی {{count}} ٹورینٹ کو حذف کرنا چاہتے ہیں؟",
+    "7af189a2b3f03017": "ٹیگ بنائیں",
+    "cba44b38b4a1a8f2": "فولڈر براؤزر بند کریں۔"
   },
   "id": {
     "33b8a7901c02ac2e": "Peramban Berkas",
@@ -37727,7 +37817,17 @@
     "926639737b8129b2": "Pilih Folder Ini",
     "97232a340367c6d9": "Terjemahan:",
     "232a0db85e76128a": "Salin URL streaming langsung",
-    "bd35116c4bff3c5a": "Pilih trek subtitle"
+    "bd35116c4bff3c5a": "Pilih trek subtitle",
+    "a61978621a8a776b": "🔒 Anda memiliki izin ReadOnly. Menambahkan torrent tidak diizinkan.",
+    "3a57bb9fb3bf7756": "Apakah Anda yakin ingin menghapus",
+    "23e387240e54f325": "Anda memiliki izin ReadOnly. Torrent tidak dapat dihapus.",
+    "7af189a2b3f03017": "Buat tanda",
+    "0a7ce1ab50f63698": "Tutup dialog tambahkan torrent",
+    "1e188e95dd92460f": "Hapus Torrent",
+    "58f469ec407de4fd": "Apakah Anda yakin ingin menghapus {{count}} torrent?",
+    "e031763416f87c0a": "Semua file unduhan yang terkait dengan torrent ini akan dihapus secara permanen.",
+    "2cb15b3bb2fbb946": "Menghapus torrent memerlukan peran operator atau admin",
+    "cba44b38b4a1a8f2": "Tutup folder peramban"
   },
   "de": {
     "57fd7a0cf33f2666": "Ausgewählt",
@@ -41500,7 +41600,17 @@
     "aaa5aebcf7b8de9e": "Keine Unterordner in diesem Verzeichnis.",
     "dc8edcfe356a98af": "Verzeichniseintrag wird geladen...",
     "399df46a3b8c1c68": "Öffnen Sie den Stream im MPV-Player",
-    "8bf2da5fbb2c5fdd": "Das Verzeichnis konnte nicht geladen werden."
+    "8bf2da5fbb2c5fdd": "Das Verzeichnis konnte nicht geladen werden.",
+    "3a57bb9fb3bf7756": "Sind Sie sicher, dass Sie löschen möchten?",
+    "23e387240e54f325": "Sie haben Nur-Lese-Berechtigungen. Torrents können nicht gelöscht werden.",
+    "58f469ec407de4fd": "Sind Sie sicher, dass Sie {{count}} Torrents löschen möchten?",
+    "e031763416f87c0a": "Alle heruntergeladenen Dateien, die mit diesem Torrent verknüpft sind, werden dauerhaft gelöscht.",
+    "1e188e95dd92460f": "Torrents löschen",
+    "a61978621a8a776b": "🔒 Sie haben Nur-Lese-Berechtigungen. Das Hinzufügen von Torrents ist nicht gestattet.",
+    "2cb15b3bb2fbb946": "Das Löschen von Torrents erfordert die Rolle eines Operators oder Administrators",
+    "0a7ce1ab50f63698": "Schließen Sie das Dialogfeld „Torrent hinzufügen“.",
+    "7af189a2b3f03017": "Tag erstellen",
+    "cba44b38b4a1a8f2": "Ordnerbrowser schließen"
   },
   "ja": {
     "33b8a7901c02ac2e": "ファイルブラウザー",
@@ -45273,7 +45383,17 @@
     "bd35116c4bff3c5a": "字幕トラックを選択",
     "067009f4399b0362": "メディアプレーヤーを閉じる",
     "bef9d85df8ea13fe": "選択済み:",
-    "6b7fa9fb201cd58e": "字幕の文字サイズ"
+    "6b7fa9fb201cd58e": "字幕の文字サイズ",
+    "3a57bb9fb3bf7756": "削除してもよろしいですか",
+    "e031763416f87c0a": "この torrent に関連するダウンロードされたファイルはすべて完全に削除されます。",
+    "58f469ec407de4fd": "{{count}} torrent を削除してもよろしいですか?",
+    "2cb15b3bb2fbb946": "トレントを削除するにはオペレーターまたは管理者の役割が必要です",
+    "23e387240e54f325": "読み取り専用権限があります。トレントは削除できません。",
+    "a61978621a8a776b": "🔒 読み取り専用権限があります。 torrent の追加は許可されていません。",
+    "cba44b38b4a1a8f2": "フォルダブラウザを閉じる",
+    "1e188e95dd92460f": "トレントの削除",
+    "0a7ce1ab50f63698": "トレントの追加ダイアログを閉じます",
+    "7af189a2b3f03017": "タグの作成"
   },
   "mr": {
     "33b8a7901c02ac2e": "फाइल ब्राउझर",
@@ -49046,7 +49166,17 @@
     "bd35116c4bff3c5a": "उपशीर्षक ट्रॅक निवडा",
     "067009f4399b0362": "मीडिया प्लेयर बंद करा",
     "6b7fa9fb201cd58e": "उपशीर्षक मजकूर आकार",
-    "aaa5aebcf7b8de9e": "या निर्देशिकेत कोणतेही सबफोल्डर नाहीत."
+    "aaa5aebcf7b8de9e": "या निर्देशिकेत कोणतेही सबफोल्डर नाहीत.",
+    "3a57bb9fb3bf7756": "तुम्हाला खात्री आहे की तुम्ही हटवू इच्छिता",
+    "a61978621a8a776b": "🔒 तुमच्याकडे केवळ वाचनीय परवानग्या आहेत. टोरेंट जोडण्याची परवानगी नाही.",
+    "0a7ce1ab50f63698": "टोरेंट डायलॉग जोडा बंद करा",
+    "7af189a2b3f03017": "टॅग तयार करा",
+    "1e188e95dd92460f": "टोरेंट्स हटवा",
+    "23e387240e54f325": "तुमच्याकडे केवळ वाचनीय परवानग्या आहेत. टोरेंट्स हटवता येत नाहीत.",
+    "e031763416f87c0a": "या टॉरेंटशी संबंधित सर्व डाउनलोड केलेल्या फायली कायमच्या हटविल्या जातील.",
+    "2cb15b3bb2fbb946": "टोरेंट हटवण्यासाठी ऑपरेटर किंवा प्रशासकाची भूमिका आवश्यक आहे",
+    "58f469ec407de4fd": "तुमची खात्री आहे की तुम्ही {{count}} टोरेंट हटवू इच्छिता?",
+    "cba44b38b4a1a8f2": "फोल्डर ब्राउझर बंद करा"
   },
   "te": {
     "33b8a7901c02ac2e": "ఫైల్ బ్రౌజర్",
@@ -52819,7 +52949,17 @@
     "c183b42f6931b298": "మీడియా ఫైల్‌ని డౌన్‌లోడ్ చేయండి",
     "bd35116c4bff3c5a": "ఉపశీర్షిక ట్రాక్‌ని ఎంచుకోండి",
     "926639737b8129b2": "ఈ ఫోల్డర్‌ని ఎంచుకోండి",
-    "dc8edcfe356a98af": "డైరెక్టరీ జాబితాను లోడ్ చేస్తోంది..."
+    "dc8edcfe356a98af": "డైరెక్టరీ జాబితాను లోడ్ చేస్తోంది...",
+    "3a57bb9fb3bf7756": "మీరు ఖచ్చితంగా తొలగించాలనుకుంటున్నారా",
+    "e031763416f87c0a": "ఈ టొరెంట్‌తో అనుబంధించబడిన అన్ని డౌన్‌లోడ్ చేయబడిన ఫైల్‌లు శాశ్వతంగా తొలగించబడతాయి.",
+    "2cb15b3bb2fbb946": "టొరెంట్‌లను తొలగించాలంటే ఆపరేటర్ లేదా అడ్మిన్ పాత్ర అవసరం",
+    "1e188e95dd92460f": "టోరెంట్లను తొలగించండి",
+    "0a7ce1ab50f63698": "యాడ్ టొరెంట్ డైలాగ్‌ను మూసివేయండి",
+    "a61978621a8a776b": "🔒 మీకు చదవడానికి మాత్రమే అనుమతులు ఉన్నాయి. టొరెంట్లను జోడించడం అనుమతించబడదు.",
+    "23e387240e54f325": "మీకు చదవడానికి మాత్రమే అనుమతులు ఉన్నాయి. టొరెంట్‌లను తొలగించడం సాధ్యం కాదు.",
+    "58f469ec407de4fd": "మీరు {{count}} టొరెంట్‌లను ఖచ్చితంగా తొలగించాలనుకుంటున్నారా?",
+    "cba44b38b4a1a8f2": "ఫోల్డర్ బ్రౌజర్‌ను మూసివేయండి",
+    "7af189a2b3f03017": "ట్యాగ్‌ని సృష్టించండి"
   },
   "tr": {
     "33b8a7901c02ac2e": "Dosya Tarayıcısı",
@@ -56592,7 +56732,17 @@
     "399df46a3b8c1c68": "Akışı MPV oynatıcısında açın",
     "8bf2da5fbb2c5fdd": "Dizin yüklenemedi.",
     "dc8edcfe356a98af": "Dizin listesi yükleniyor...",
-    "aaa5aebcf7b8de9e": "Bu dizinde alt klasör yok."
+    "aaa5aebcf7b8de9e": "Bu dizinde alt klasör yok.",
+    "23e387240e54f325": "Salt Okunur izinleriniz var. Torrentler silinemez.",
+    "a61978621a8a776b": "🔒 Salt Okunur izinleriniz var. Torrent eklenmesine izin verilmiyor.",
+    "3a57bb9fb3bf7756": "Silmek istediğinizden emin misiniz?",
+    "7af189a2b3f03017": "Etiket oluştur",
+    "0a7ce1ab50f63698": "Torrent ekleme iletişim kutusunu kapat",
+    "cba44b38b4a1a8f2": "Klasör tarayıcısını kapat",
+    "1e188e95dd92460f": "Torrentleri Sil",
+    "58f469ec407de4fd": "{{count}} torrentleri silmek istediğinizden emin misiniz?",
+    "e031763416f87c0a": "Bu torrentle ilişkili indirilen tüm dosyalar kalıcı olarak silinecek.",
+    "2cb15b3bb2fbb946": "Torrentleri silmek operatör veya yönetici rolünü gerektirir"
   },
   "ta": {
     "33b8a7901c02ac2e": "கோப்பு உலாவி",
@@ -60365,7 +60515,17 @@
     "399df46a3b8c1c68": "MPV பிளேயரில் ஸ்ட்ரீமைத் திறக்கவும்",
     "dc8edcfe356a98af": "அடைவு பட்டியலை ஏற்றுகிறது...",
     "8914e9d02c744cfb": "கோப்புறையின் பெயர்...",
-    "232a0db85e76128a": "நேரடி ஸ்ட்ரீம் URL ஐ நகலெடுக்கவும்"
+    "232a0db85e76128a": "நேரடி ஸ்ட்ரீம் URL ஐ நகலெடுக்கவும்",
+    "2cb15b3bb2fbb946": "டோரண்ட்களை நீக்க ஆபரேட்டர் அல்லது நிர்வாகப் பங்கு தேவை",
+    "3a57bb9fb3bf7756": "நீங்கள் நிச்சயமாக நீக்க விரும்புகிறீர்களா",
+    "e031763416f87c0a": "இந்த டொரண்டுடன் தொடர்புடைய அனைத்து பதிவிறக்கம் செய்யப்பட்ட கோப்புகளும் நிரந்தரமாக நீக்கப்படும்.",
+    "58f469ec407de4fd": "{{count}} டொரண்ட்களை நிச்சயமாக நீக்க விரும்புகிறீர்களா?",
+    "1e188e95dd92460f": "டோரண்ட்களை நீக்கு",
+    "0a7ce1ab50f63698": "டொரண்ட் சேர் உரையாடலை மூடு",
+    "a61978621a8a776b": "🔒 உங்களிடம் படிக்க மட்டும் அனுமதி உள்ளது. டோரண்டுகளைச் சேர்ப்பது அனுமதிக்கப்படாது.",
+    "7af189a2b3f03017": "குறிச்சொல்லை உருவாக்கவும்",
+    "23e387240e54f325": "உங்களிடம் படிக்க மட்டும் அனுமதிகள் உள்ளன. டோரன்ட்களை நீக்க முடியாது.",
+    "cba44b38b4a1a8f2": "கோப்புறை உலாவியை மூடு"
   },
   "vi": {
     "57fd7a0cf33f2666": "Đã chọn",
@@ -64138,7 +64298,17 @@
     "8914e9d02c744cfb": "Tên thư mục...",
     "97232a340367c6d9": "Phụ đề:",
     "f747344cdf172197": "Tạo thư mục mới",
-    "e1b8fec083420fbd": "Mở trong MPV"
+    "e1b8fec083420fbd": "Mở trong MPV",
+    "1e188e95dd92460f": "Xóa torrent",
+    "0a7ce1ab50f63698": "Đóng hộp thoại thêm torrent",
+    "a61978621a8a776b": "🔒 Bạn có quyền ReadOnly. Thêm torrent là không được phép.",
+    "23e387240e54f325": "Bạn có quyền ReadOnly. Torrent không thể bị xóa.",
+    "3a57bb9fb3bf7756": "Bạn có chắc chắn muốn xóa",
+    "2cb15b3bb2fbb946": "Xóa torrent cần có vai trò của người điều hành hoặc quản trị viên",
+    "e031763416f87c0a": "Tất cả các tệp đã tải xuống được liên kết với torrent này sẽ bị xóa vĩnh viễn.",
+    "58f469ec407de4fd": "Bạn có chắc chắn muốn xóa torrent {{count}} không?",
+    "7af189a2b3f03017": "Tạo thẻ",
+    "cba44b38b4a1a8f2": "Đóng trình duyệt thư mục"
   },
   "ko": {
     "33b8a7901c02ac2e": "파일 탐색기",
@@ -67911,7 +68081,17 @@
     "aaa5aebcf7b8de9e": "이 디렉터리에는 하위 폴더가 없습니다.",
     "f747344cdf172197": "새 폴더 만들기",
     "8914e9d02c744cfb": "폴더 이름...",
-    "926639737b8129b2": "이 폴더를 선택하세요"
+    "926639737b8129b2": "이 폴더를 선택하세요",
+    "a61978621a8a776b": "🔒 읽기 전용 권한이 있습니다. 토렌트 추가는 허용되지 않습니다.",
+    "23e387240e54f325": "읽기 전용 권한이 있습니다. 토렌트는 삭제할 수 없습니다.",
+    "3a57bb9fb3bf7756": "삭제하시겠습니까?",
+    "cba44b38b4a1a8f2": "폴더 브라우저 닫기",
+    "1e188e95dd92460f": "급류 삭제",
+    "0a7ce1ab50f63698": "토렌트 추가 대화상자 닫기",
+    "7af189a2b3f03017": "태그 만들기",
+    "58f469ec407de4fd": "정말로 __V0___ 토렌트를 삭제하시겠습니까?",
+    "2cb15b3bb2fbb946": "토렌트를 삭제하려면 운영자 또는 관리자 역할이 필요합니다.",
+    "e031763416f87c0a": "이 토렌트와 관련된 다운로드된 모든 파일은 영구적으로 삭제됩니다."
   },
   "it": {
     "bbdffe25dc7d80cf": "Posizione:",
@@ -71684,6 +71864,16 @@
     "c183b42f6931b298": "Scarica il file multimediale",
     "dc8edcfe356a98af": "Caricamento elenco directory...",
     "8bf2da5fbb2c5fdd": "Impossibile caricare la directory.",
-    "aaa5aebcf7b8de9e": "Nessuna sottocartella in questa directory."
+    "aaa5aebcf7b8de9e": "Nessuna sottocartella in questa directory.",
+    "2cb15b3bb2fbb946": "L'eliminazione dei torrent richiede il ruolo di operatore o amministratore",
+    "58f469ec407de4fd": "Sei sicuro di voler eliminare i torrent {{count}}?",
+    "e031763416f87c0a": "Tutti i file scaricati associati a questo torrent verranno eliminati definitivamente.",
+    "1e188e95dd92460f": "Elimina torrent",
+    "0a7ce1ab50f63698": "Chiudi la finestra di dialogo Aggiungi torrent",
+    "cba44b38b4a1a8f2": "Chiudi il browser delle cartelle",
+    "7af189a2b3f03017": "Crea etichetta",
+    "3a57bb9fb3bf7756": "Sei sicuro di voler eliminare?",
+    "23e387240e54f325": "Disponi di autorizzazioni di sola lettura. I torrent non possono essere eliminati.",
+    "a61978621a8a776b": "🔒 Disponi di permessi di sola lettura. Non è consentito aggiungere torrent."
   }
 }

@@ -164,6 +164,7 @@ export type I18nTranslations = {
     "searchLanguage": string;
     "noLanguagesFound": string;
     "saving": string;
+    "deleting": string;
     "title": string;
     "speed": string;
     "general": string;
@@ -730,6 +731,15 @@ export type I18nTranslations = {
     "removeTags": string;
     "bulkAddTags": string;
     "bulkRemoveTags": string;
+    "deleteTorrentsTitle": string;
+    "deleteTorrentTitle": string;
+    "readOnlyDeleteWarning": string;
+    "deleteMultipleConfirm": string;
+    "deleteSingleConfirm": string;
+    "deleteSingleConfirmGeneric": string;
+    "deleteFilesFromDisk": string;
+    "deleteFilesWarning": string;
+    "deletePermissionRequired": string;
     "torrentPaused": string;
     "failedToPause": string;
     "torrentResumed": string;
@@ -821,6 +831,8 @@ export type I18nTranslations = {
   };
   "addTorrent": {
     "title": string;
+    "closeDialog": string;
+    "readOnlyWarning": string;
     "subtitle": string;
     "torrentFileTab": string;
     "magnetLinkTab": string;
@@ -4335,6 +4347,7 @@ export type I18nTranslations = {
     "minSeedTimePlaceholder": string;
     "cancel": string;
     "saveTag": string;
+    "createTag": string;
     "saving": string;
     "deleteTagModalTitle": string;
     "deleteWarning": string;
@@ -4432,5 +4445,6 @@ export type I18nTranslations = {
     "folderNamePlaceholder": string;
     "goToParent": string;
     "createNewFolder": string;
+    "close": string;
   };
 };

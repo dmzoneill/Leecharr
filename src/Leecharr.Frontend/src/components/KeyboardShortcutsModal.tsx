@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "../i18n";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import { useModalRegistration } from "./ModalProvider";
 
 export interface KeyboardShortcutsModalProps {
   isOpen: boolean;
@@ -27,6 +28,13 @@ export function KeyboardShortcutsModal({
   const trapRef = useFocusTrap<HTMLDivElement>({
     isOpen,
     onClose,
+  });
+
+  useModalRegistration({
+    id: "keyboard-shortcuts-modal",
+    isOpen,
+    onClose,
+    modalRef: trapRef,
   });
 
   const isMac =
@@ -299,7 +307,8 @@ export function KeyboardShortcutsModal({
             type="button"
             className="btn btn-outline btn-small"
             onClick={onClose}
-            aria-label={t("keyboardShortcuts.close", "Close")}
+            aria-label={t("keyboardShortcuts.close", undefined, "Close")}
+            title={t("keyboardShortcuts.close", undefined, "Close")}
             style={{ padding: "0.25rem 0.6rem", fontSize: "0.85rem" }}
           >
             ✕

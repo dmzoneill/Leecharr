@@ -23,7 +23,6 @@ const es: I18nTranslations = {
     "copies": "copias",
     "toggleFilesInFolder": "Alternar archivos en carpeta",
     "toggleSelectiveDownload": "Alternar descarga selectiva",
-    "audio": "Audio",
     "anUnexpectedErrorOccurred": "Se produjo un error inesperado al renderizar este componente.",
     "tryAgain": "Intentar otra vez",
     "reloadPage": "Recargar página",
@@ -31,7 +30,8 @@ const es: I18nTranslations = {
     "showErrorDetails": "Mostrar detalles del error",
     "diagnosticStackTrace": "Seguimiento de pila de diagnóstico",
     "failedToRenderTab": "No se pudo representar el contenido de la pestaña",
-    "retryTab": "Pestaña Reintentar"
+    "retryTab": "Pestaña Reintentar",
+    "audio": "Audio"
   },
   "filebrowser": {
     "title": "Explorador de archivos",
@@ -163,6 +163,7 @@ const es: I18nTranslations = {
     "searchLanguage": "Idioma de búsqueda...",
     "noLanguagesFound": "No se encontraron idiomas",
     "saving": "Ahorro...",
+    "deleting": "Eliminando...",
     "title": "Título",
     "speed": "Velocidad",
     "languageTitle": "Título del idioma",
@@ -173,10 +174,10 @@ const es: I18nTranslations = {
     "clearAll": "Borrar todo",
     "testing": "Pruebas",
     "unknownError": "Error desconocido",
+    "noResults": "No hay etiquetas coincidentes",
     "error": "Error",
     "general": "General",
-    "total": "Total",
-    "noResults": "No hay etiquetas coincidentes"
+    "total": "Total"
   },
   "nav": {
     "dashboard": "Panel de control",
@@ -378,6 +379,7 @@ const es: I18nTranslations = {
       "dragToResize": "Arrastrar para cambiar el tamaño",
       "completed": "Terminado",
       "index": "#",
+      "queuePosition": "Cola #",
       "status": "Estado",
       "sessionUploaded": "Sesión cargada",
       "sessionDownloaded": "Sesión descargada",
@@ -387,21 +389,20 @@ const es: I18nTranslations = {
       "nextUpdate": "Próxima actualización",
       "priority": "Prioridad",
       "label": "Etiqueta",
+      "active": "Tiempo activo",
       "superSeeding": "Súper siembra",
       "sequentialDownload": "Descarga secuencial",
       "forceStart": "Forzar inicio",
       "availability": "Disponibilidad",
+      "threshold": "Límite de proporción de carga",
+      "smallTorrentLimit": "Límite de tiempo de siembra",
       "added": "Fecha agregada",
       "lastActive": "Último activo",
+      "creationDate": "Torrente creado el",
       "createdBy": "Creado por",
       "comment": "Comentario",
       "pieceCount": "Piezas",
       "pieceLength": "Tamaño de pieza",
-      "queuePosition": "Cola #",
-      "active": "Tiempo activo",
-      "threshold": "Límite de proporción de carga",
-      "smallTorrentLimit": "Límite de tiempo de siembra",
-      "creationDate": "Torrente creado el",
       "isPrivate": "Privado"
     },
     "grid": {
@@ -722,21 +723,30 @@ const es: I18nTranslations = {
       "noFilterMatchesDesc": "Ningún filtro coincide con la descripción",
       "noTorrentsDesc": "Sin descripción de torrents"
     },
-    "removeTags": "Quitar",
     "bulkAddTagsTitle": "Asignar etiquetas",
     "bulkRemoveTagsTitle": "Quitar etiquetas",
     "bulkAddTagsDesc": "Asignar etiquetas seleccionadas a {{count}} torrent(s)",
     "bulkRemoveTagsDesc": "Eliminar etiquetas seleccionadas de {{count}} torrent(s)",
     "assignTags": "Asignar",
+    "removeTags": "Quitar",
     "bulkAddTags": "Asignar etiquetas",
     "bulkRemoveTags": "Quitar etiquetas",
+    "deleteTorrentTitle": "Eliminar torrent",
+    "deleteSingleConfirmGeneric": "¿Está seguro de que desea eliminar este torrent?",
+    "deleteFilesFromDisk": "Eliminar también los archivos descargados del disco",
     "torrentPaused": "Torrente en pausa",
     "failedToPause": "No se pudo pausar el torrent",
     "torrentResumed": "Torrente reanudado",
     "failedToResume": "No se pudo reanudar el torrent",
     "torrentAndFilesDeleted": "Torrent y archivos eliminados",
     "torrentRemoved": "Torrente eliminado",
-    "failedToDelete": "No se pudo eliminar el torrent"
+    "failedToDelete": "No se pudo eliminar el torrent",
+    "deleteTorrentsTitle": "Eliminar torrentes",
+    "readOnlyDeleteWarning": "Tienes permisos de sólo lectura. Los torrents no se pueden eliminar.",
+    "deleteMultipleConfirm": "¿Estás seguro de que deseas eliminar {{count}} torrents?",
+    "deleteSingleConfirm": "¿Estás seguro de que quieres eliminar?",
+    "deleteFilesWarning": "Todos los archivos descargados asociados con este torrent se eliminarán permanentemente.",
+    "deletePermissionRequired": "Eliminar torrents requiere rol de operador o administrador"
   },
   "torrentDetail": {
     "overview": "Resumen",
@@ -909,7 +919,9 @@ const es: I18nTranslations = {
     "sourcePathRequired": "Se requiere la ruta de origen para crear un torrent",
     "failedToCreateTorrent": "No se pudo crear torrent",
     "failedToAddTorrent": "No se pudo agregar Torrent",
-    "bulkAddSummary": "Resumen de adición masiva"
+    "bulkAddSummary": "Resumen de adición masiva",
+    "closeDialog": "Cerrar el cuadro de diálogo Agregar torrent",
+    "readOnlyWarning": "🔒 Tienes permisos de Solo Lectura. No se permite agregar torrents."
   },
   "activity": {
     "title": "Actividad de red y enjambres",
@@ -1500,9 +1512,9 @@ const es: I18nTranslations = {
     "indexerFallback": "Reserva del indexador",
     "types": {
       "torznab": "Torznab",
+      "jackett": "chaqueta",
       "prowlarr": "Prowlarr",
-      "newznab": "Newznab",
-      "jackett": "chaqueta"
+      "newznab": "Newznab"
     }
   },
   "system": {
@@ -4299,22 +4311,11 @@ const es: I18nTranslations = {
     }
   },
   "tags": {
-    "category": "Categoría:",
-    "allCategories": "Todas las categorías",
-    "actions": "Acciones",
-    "defaultPolicy": "Por defecto",
-    "edit": "Editar",
-    "delete": "Eliminar",
-    "addTagModalTitle": "Agregar etiqueta",
-    "clearColor": "Limpiar",
-    "presets": "Preajustes:",
-    "unlimitedPlaceholder": "Ilimitado",
-    "minSeedRatioPlaceholder": "p.ej. 2.0",
-    "cancel": "Cancelar",
-    "saving": "Ahorro...",
     "noTags": "No hay etiquetas disponibles. Primero cree etiquetas en Configuración > Etiquetas.",
     "title": "Etiquetas",
     "description": "Organice y filtre enjambres de torrents mediante etiquetas, colores y políticas de propagación personalizados",
+    "category": "Categoría:",
+    "allCategories": "Todas las categorías",
     "uncategorized": "Sin categoría",
     "addTag": "+ Agregar etiqueta",
     "loading": "Cargando etiquetas...",
@@ -4322,32 +4323,44 @@ const es: I18nTranslations = {
     "tagLabel": "Etiqueta de etiqueta",
     "seedingPolicies": "Políticas de siembra",
     "assignedTorrents": "Torrentes asignados",
+    "actions": "Acciones",
     "noTagsDefined": "Aún no hay etiquetas definidas. Haga clic en \"+ Agregar etiqueta\" para crear una.",
+    "defaultPolicy": "Por defecto",
     "torrentsCount": "torrentes",
     "torrentsCountWithCategory": "torrentes ({{category}})",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "addTagModalTitle": "Agregar etiqueta",
     "editTagModalTitle": "Editar etiqueta: \"{{label}}\"",
     "tagLabelInput": "Etiqueta Etiqueta *",
     "tagLabelPlaceholder": "p.ej. 4k-hdr, caja de semillas, ptp",
     "colorCustomization": "Personalización del color",
+    "clearColor": "Limpiar",
     "preview": "Avance",
+    "presets": "Preajustes:",
     "uploadLimit": "Límite de carga (KB/s)",
     "downloadLimit": "Límite de descarga (KB/s)",
+    "unlimitedPlaceholder": "Ilimitado",
     "minSeedRatio": "Proporción mínima de semillas",
+    "minSeedRatioPlaceholder": "p.ej. 2.0",
     "minSeedTime": "Tiempo mínimo de siembra (segundos)",
     "minSeedTimePlaceholder": "p.ej. 86400",
+    "cancel": "Cancelar",
     "saveTag": "Guardar etiqueta",
+    "saving": "Ahorro...",
     "deleteTagModalTitle": "Eliminar etiqueta: \"{{label}}\"",
     "deleteWarning": "⚠️ Advertencia: al eliminar esta etiqueta, se eliminará de todos los torrents, indexadores y reglas automatizadas asignados. Esta acción no se puede deshacer.",
     "deleteConfirmQuestion": "¿Está seguro de que desea eliminar la etiqueta {{label}}?",
     "assignedToCount": "Actualmente asignado a {{count}} {{torrentWord}}.",
     "notAssigned": "Esta etiqueta no está asignada actualmente a ningún torrent.",
     "deleteConfirm": "Eliminar etiqueta",
-    "deleting": "Eliminando..."
+    "deleting": "Eliminando...",
+    "createTag": "Crear etiqueta"
   },
   "keyboardShortcuts": {
-    "close": "Cerrar",
     "title": "Atajos de teclado",
     "description": "Teclas de acceso rápido para una rápida ergonomía del cliente y navegación del flujo de trabajo",
+    "close": "Cerrar",
     "categories": {
       "globalSearch": "Global y búsqueda",
       "navigation": "Navegación por secuencia de dos teclas",
@@ -4395,8 +4408,6 @@ const es: I18nTranslations = {
     "panelUnfocusEditor": "Editor de código desenfocado (escape de trampa de teclado WCAG)"
   },
   "mediaPlayer": {
-    "download": "Descargar",
-    "retry": "Rever",
     "playbackError": "Error de reproducción del códec del navegador",
     "openInVlc": "Abrir en VLC",
     "openInMpv": "Abierto en monovolumen",
@@ -4404,11 +4415,12 @@ const es: I18nTranslations = {
     "copyStreamUrl": "Copiar URL de transmisión",
     "copied": "¡Copiado!",
     "copyUrl": "Copiar URL",
+    "download": "Descargar",
+    "retry": "Rever",
     "subtitles": "Subtítulos:",
     "off": "Apagado",
     "size": "Tamaño:",
     "sizeSmall": "Pequeño",
-    "sizeNormal": "Normal",
     "sizeLarge": "Grande",
     "sizeExtraLarge": "Extra grande",
     "tooltipVlc": "Abrir transmisión en el reproductor multimedia VLC",
@@ -4417,21 +4429,23 @@ const es: I18nTranslations = {
     "tooltipDownload": "Descargar archivo multimedia",
     "close": "Cerrar reproductor multimedia",
     "selectSubtitleTrack": "Seleccionar pista de subtítulos",
-    "subtitleTextSize": "Tamaño del texto de los subtítulos"
+    "subtitleTextSize": "Tamaño del texto de los subtítulos",
+    "sizeNormal": "Normal"
   },
   "folderBrowser": {
     "up": "Up",
     "newFolder": "Nueva carpeta",
-    "cancel": "Cancelar",
-    "goToParent": "Ir al directorio principal",
     "create": "Crear",
+    "cancel": "Cancelar",
     "loading": "Cargando listado de directorio...",
     "failedToLoad": "No se pudo cargar el directorio.",
     "noSubfolders": "No hay subcarpetas en este directorio.",
     "selected": "Seleccionado:",
     "selectThisFolder": "Seleccione esta carpeta",
     "folderNamePlaceholder": "Nombre de la carpeta...",
-    "createNewFolder": "Crear nueva carpeta"
+    "goToParent": "Ir al directorio principal",
+    "createNewFolder": "Crear nueva carpeta",
+    "close": "Cerrar el navegador de carpetas"
   }
 };
 

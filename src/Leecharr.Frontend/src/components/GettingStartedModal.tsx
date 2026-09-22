@@ -18,6 +18,7 @@ import { normalizeIndexerPayload } from "../pages/settings/IndexersTab";
 import LeecharrLogo from "./icons/LeecharrLogo";
 import LeecharrText from "./icons/LeecharrText";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import { useModalRegistration } from "./ModalProvider";
 import { LanguageSelector } from "./LanguageSelector";
 
 export const STORAGE_KEY_HIDE_GUIDE = "leecharr_hide_getting_started";
@@ -87,6 +88,13 @@ export function GettingStartedModal({
 }: GettingStartedModalProps) {
   const { t } = useTranslation();
   const trapRef = useFocusTrap<HTMLDivElement>({ isOpen, onClose });
+
+  useModalRegistration({
+    id: "getting-started-modal",
+    isOpen,
+    onClose,
+    modalRef: trapRef,
+  });
 
   const [currentStep, setCurrentStep] = useState(0);
   const [mode, setMode] = useState<GuideMode>("readonly");
@@ -401,7 +409,8 @@ export function GettingStartedModal({
                 borderRadius: "4px",
                 lineHeight: 1,
               }}
-              title={t("gettingStarted.close")}
+              aria-label={t("gettingStarted.close", undefined, "Close getting started wizard")}
+              title={t("gettingStarted.close", undefined, "Close getting started wizard")}
             >
               ✕
             </button>

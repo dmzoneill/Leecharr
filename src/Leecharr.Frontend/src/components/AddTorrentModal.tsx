@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useRef } from "react";
 import { useTranslation } from "../i18n";
 import AddTorrentForm, { InputMode } from "./AddTorrentForm";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import { useModalRegistration } from "./ModalProvider";
+import { usePermissions } from "../hooks/usePermissions";
 
 export interface AddTorrentModalProps {
   isOpen?: boolean;
@@ -19,14 +21,38 @@ export function AddTorrentModal({
   onSuccess,
 }: AddTorrentModalProps) {
   const { t } = useTranslation();
-  const trapRef = useFocusTrap<HTMLDivElement>({ isOpen, onClose });
+  const { canAddTorrent } = usePermissions();
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useModalRegistration({
+    id: "add-torrent-modal",
+    isOpen,
+    onClose,
+    modalRef,
+  });
+
+  const trapRef = useFocusTrap<HTMLDivElement>({
+    isOpen,
+    onClose,
+  });
+
+  const setContainerRef = (el: HTMLDivElement | null) => {
+    (modalRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+    (trapRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+  };
 
   if (!isOpen) return null;
+
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
 
   return (
     <div
       className="modal-overlay"
-      onClick={onClose}
+      onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
       aria-labelledby="add-torrent-modal-title"
@@ -46,7 +72,7 @@ export function AddTorrentModal({
       }}
     >
       <div
-        ref={trapRef}
+        ref={setContainerRef}
         className="modal-content"
         onClick={(e) => e.stopPropagation()}
         style={{
@@ -81,13 +107,14 @@ export function AddTorrentModal({
               color: "var(--text-primary)",
             }}
           >
-            {t("addTorrent.title")}
+            {t("addTorrent.title", undefined, "Add New Torrent")}
           </h2>
           <button
             type="button"
             className="modal-close"
             onClick={onClose}
-            aria-label={t("common.close")}
+            aria-label={t("addTorrent.closeDialog", undefined, "Close add torrent dialog")}
+            title={t("common.close", undefined, "Close dialog")}
             style={{
               background: "none",
               border: "none",
@@ -101,23 +128,56 @@ export function AddTorrentModal({
           </button>
         </div>
 
-        <div
-          style={{
-            flex: "1 1 auto",
-            minHeight: 0,
-            overflow: "hidden",
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          <AddTorrentForm
-            initialMode={initialMode}
-            initialQuery={initialQuery}
-            isModal={true}
-            onClose={onClose}
-            onSuccess={onSuccess}
-          />
-        </div>
+        {!canAddTorrent ? (
+          <div style={{ padding: "1rem 0" }}>
+            <div
+              role="alert"
+              style={{
+                padding: "0.75rem 1rem",
+                backgroundColor: "rgba(239, 68, 68, 0.1)",
+                border: "1px solid rgba(239, 68, 68, 0.3)",
+                borderRadius: "6px",
+                color: "#fca5a5",
+                fontSize: "0.875rem",
+              }}
+            >
+              {t(
+                "addTorrent.readOnlyWarning",
+                undefined,
+                "🔒 You have ReadOnly permissions. Adding torrents is not permitted.",
+              )}
+            </div>
+            <div
+              style={{
+                marginTop: "1rem",
+                display: "flex",
+                justifyContent: "flex-end",
+              }}
+            >
+              <button className="btn btn-outline" onClick={onClose}>
+                {t("common.close", undefined, "Close")}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div
+            style={{
+              flex: "1 1 auto",
+              minHeight: 0,
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <AddTorrentForm
+              initialMode={initialMode}
+              initialQuery={initialQuery}
+              isModal={true}
+              onClose={onClose}
+              onSuccess={onSuccess}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

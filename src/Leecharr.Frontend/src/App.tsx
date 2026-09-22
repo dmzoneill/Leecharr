@@ -58,6 +58,7 @@ import AddTorrentPage from "./pages/AddTorrentPage";
 import PeerMap from "./pages/PeerMap";
 import Statistics from "./pages/Statistics";
 import SystemTasks from "./pages/SystemTasks";
+import { useAppStore } from "./store/app";
 import SystemBackup from "./pages/SystemBackup";
 import SystemUpdates from "./pages/SystemUpdates";
 import SystemEvents from "./pages/SystemEvents";
@@ -134,6 +135,14 @@ export function App() {
   const [currentUser, setCurrentUser] = useState<
     import("./api/types").CurrentUser | null
   >(null);
+  const setStoreCurrentUser = useAppStore((s) => s.setCurrentUser);
+  const updateCurrentUser = useCallback(
+    (user: import("./api/types").CurrentUser | null) => {
+      setCurrentUser(user);
+      setStoreCurrentUser(user);
+    },
+    [setStoreCurrentUser],
+  );
 
   const queryClient = useQueryClient();
 
@@ -143,7 +152,7 @@ export function App() {
   const loadUser = async () => {
     try {
       const user = await api.getCurrentUser();
-      setCurrentUser(user);
+      updateCurrentUser(user);
     } catch (_err: unknown) {
       // Auth might not be enabled or user not logged in
     }
@@ -169,7 +178,7 @@ export function App() {
   const handleLogout = async () => {
     try {
       await api.logout();
-      setCurrentUser(null);
+      updateCurrentUser(null);
       navigate("/login");
     } catch (err: unknown) {
       console.error("Logout failed", getErrorMessage(err));
