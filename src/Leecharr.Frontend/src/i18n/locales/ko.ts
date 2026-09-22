@@ -502,7 +502,10 @@ const ko: I18nTranslations = {
       "pieceMapMatrixGridView": "조각 지도 매트릭스 그리드 보기",
       "pieceMapGrid": "그리드",
       "pieceMapStatus": "상태",
+      "pieceMapRarity": "희귀도 히트맵",
+      "pieceMapFileBoundaries": "파일 경계",
       "pieceMapAvailability": "유효성",
+      "pieceMapFilesCount": "파일 수: {{count}} 파일",
       "pieceMapCompleteLegend": "조각 지도 완전한 전설",
       "pieceMapActiveLegend": "조각 지도 활성 범례",
       "pieceMapMissingLegend": "조각 지도 누락된 범례",
@@ -703,9 +706,6 @@ const ko: I18nTranslations = {
       "failedToRemoveTracker": "추적기를 제거하지 못했습니다.",
       "privateTrackerDisabledTitle": "개인 추적기 비활성화됨 제목",
       "openTrackerPickerTitle": "트래커 선택기 제목 열기",
-      "pieceMapRarity": "희귀도 히트맵",
-      "pieceMapFileBoundaries": "파일 경계",
-      "pieceMapFilesCount": "파일 수: {{count}} 파일",
       "live3s": "Live3s"
     },
     "ratio": "비율",
@@ -4451,6 +4451,11 @@ const ko: I18nTranslations = {
     "goToParent": "상위 디렉터리로 이동",
     "createNewFolder": "새 폴더 만들기",
     "close": "폴더 브라우저 닫기"
+  },
+  "signalr": {
+    "reconnecting": "실시간 연결이 끊어졌습니다. 다시 연결을 시도하는 중...",
+    "disconnected": "서버와의 연결이 끊어졌습니다. 다시 연결하려면 지금 다시 시도를 클릭하세요.",
+    "retryNow": "지금 다시 시도"
   }
 };
 

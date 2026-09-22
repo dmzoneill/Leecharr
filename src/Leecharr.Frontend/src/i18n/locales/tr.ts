@@ -502,7 +502,10 @@ const tr: I18nTranslations = {
       "pieceMapMatrixGridView": "Parça Haritası Matris Izgara Görünümü",
       "pieceMapGrid": "Izgara",
       "pieceMapStatus": "Durum",
+      "pieceMapRarity": "Nadirlik Isı Haritası",
+      "pieceMapFileBoundaries": "Dosya Sınırları",
       "pieceMapAvailability": "Kullanılabilirlik",
+      "pieceMapFilesCount": "Dosya sayısı: {{count}} dosyalar",
       "pieceMapCompleteLegend": "Parça Haritası Tam Efsane",
       "pieceMapActiveLegend": "Parça Haritası Aktif Lejantı",
       "pieceMapMissingLegend": "Parça Haritası Eksik Efsane",
@@ -703,10 +706,7 @@ const tr: I18nTranslations = {
       "trackerRemovedSuccess": "Takipçi Başarıyla Kaldırıldı",
       "failedToRemoveTracker": "İzleyici Kaldırılamadı",
       "privateTrackerDisabledTitle": "Özel Takip Devre Dışı Bırakılan Başlık",
-      "openTrackerPickerTitle": "İzleyici Seçici Başlığını Aç",
-      "pieceMapRarity": "Nadirlik Isı Haritası",
-      "pieceMapFileBoundaries": "Dosya Sınırları",
-      "pieceMapFilesCount": "Dosya sayısı: {{count}} dosyalar"
+      "openTrackerPickerTitle": "İzleyici Seçici Başlığını Aç"
     },
     "ratio": "Oran",
     "tabs": {
@@ -4451,6 +4451,11 @@ const tr: I18nTranslations = {
     "goToParent": "Ana dizine git",
     "createNewFolder": "Yeni klasör oluştur",
     "close": "Klasör tarayıcısını kapat"
+  },
+  "signalr": {
+    "reconnecting": "Gerçek zamanlı bağlantı kesildi. Yeniden bağlanmaya çalışılıyor...",
+    "disconnected": "Sunucuyla bağlantı kesildi. Yeniden bağlanmak için Şimdi Yeniden Dene'yi tıklayın.",
+    "retryNow": "Şimdi Yeniden Dene"
   }
 };
 

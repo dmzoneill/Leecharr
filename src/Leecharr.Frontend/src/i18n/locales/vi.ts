@@ -502,7 +502,10 @@ const vi: I18nTranslations = {
       "pieceMapMatrixGridView": "Chế độ xem lưới ma trận bản đồ mảnh",
       "pieceMapGrid": "Lưới",
       "pieceMapStatus": "Trạng thái",
+      "pieceMapRarity": "Bản đồ nhiệt độ hiếm",
+      "pieceMapFileBoundaries": "Ranh giới tập tin",
       "pieceMapAvailability": "sẵn có",
+      "pieceMapFilesCount": "Số lượng tập tin: {{count}} tập tin",
       "pieceMapCompleteLegend": "Mảnh bản đồ Truyền thuyết hoàn chỉnh",
       "pieceMapActiveLegend": "Mảnh bản đồ Truyền thuyết hoạt động",
       "pieceMapMissingLegend": "Mảnh bản đồ Thiếu huyền thoại",
@@ -702,9 +705,6 @@ const vi: I18nTranslations = {
       "failedToRemoveTracker": "Không thể xóa trình theo dõi",
       "privateTrackerDisabledTitle": "Tiêu đề bị vô hiệu hóa theo dõi riêng tư",
       "openTrackerPickerTitle": "Mở tiêu đề bộ chọn theo dõi",
-      "pieceMapRarity": "Bản đồ nhiệt độ hiếm",
-      "pieceMapFileBoundaries": "Ranh giới tập tin",
-      "pieceMapFilesCount": "Số lượng tập tin: {{count}} tập tin",
       "live3s": "Live3s",
       "colUrl": "Col Url"
     },
@@ -4451,6 +4451,11 @@ const vi: I18nTranslations = {
     "goToParent": "Đi tới thư mục mẹ",
     "createNewFolder": "Tạo thư mục mới",
     "close": "Đóng trình duyệt thư mục"
+  },
+  "signalr": {
+    "reconnecting": "Mất kết nối thời gian thực. Đang cố gắng kết nối lại...",
+    "disconnected": "Đã ngắt kết nối khỏi máy chủ. Bấm vào Thử lại ngay để kết nối lại.",
+    "retryNow": "Thử lại ngay bây giờ"
   }
 };
 
