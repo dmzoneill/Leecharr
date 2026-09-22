@@ -3421,7 +3421,8 @@ const pt: I18nTranslations = {
     "addTorrentModal": "Falha ao carregar a visualização addTorrentModal. Ocorreu um erro inesperado.",
     "searchModal": "Falha ao carregar a visualização searchModal. Ocorreu um erro inesperado.",
     "setupGuide": "Falha ao carregar a visualização setupGuide. Ocorreu um erro inesperado.",
-    "copilotDrawer": "Falha ao carregar a visualização copilotDrawer. Ocorreu um erro inesperado."
+    "copilotDrawer": "Falha ao carregar a visualização copilotDrawer. Ocorreu um erro inesperado.",
+    "downloadClients": "Falha ao carregar a visualização dos clientes de download. Ocorreu um erro inesperado."
   },
   "copilot": {
     "welcomeMessage": "Olá! Sou o seu Copiloto Leecharr. Como posso ajudar com seus torrents, lançamentos ou configurações hoje?",

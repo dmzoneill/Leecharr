@@ -40,6 +40,17 @@ export function applySmartFallback(
   return trimmed;
 }
 
+export function getDownloadClientUrl(client: {
+  host?: string | null;
+  port?: number | null;
+  useSsl?: boolean | null;
+  urlBase?: string | null;
+}): string {
+  if (!client.host) return "";
+  const urlBase = (client.urlBase || "").replace(/^\/+|\/+$/g, "");
+  return `${client.useSsl ? "https" : "http"}://${client.host}${client.port ? `:${client.port}` : ""}${urlBase ? `/${urlBase}` : ""}`;
+}
+
 export function getArrInstanceUrl(
   source: string | null | undefined,
   connections?: ArrConnection[] | null,

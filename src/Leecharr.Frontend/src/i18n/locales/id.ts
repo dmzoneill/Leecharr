@@ -3421,7 +3421,8 @@ const id: I18nTranslations = {
     "addTorrentModal": "Gagal memuat tampilan addTorrentModal. Terjadi kesalahan yang tidak terduga.",
     "searchModal": "Gagal memuat tampilan searchModal. Terjadi kesalahan yang tidak terduga.",
     "setupGuide": "Gagal memuat tampilan setupGuide. Terjadi kesalahan yang tidak terduga.",
-    "copilotDrawer": "Gagal memuat tampilan kopilotDrawer. Terjadi kesalahan yang tidak terduga."
+    "copilotDrawer": "Gagal memuat tampilan kopilotDrawer. Terjadi kesalahan yang tidak terduga.",
+    "downloadClients": "Gagal memuat tampilan klien unduhan. Terjadi kesalahan yang tidak terduga."
   },
   "copilot": {
     "welcomeMessage": "Halo! Saya Asisten AI Leecharr. Ada yang bisa saya bantu terkait torrent, rilis, atau pengaturan hari ini?",

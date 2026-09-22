@@ -3421,7 +3421,8 @@ const tr: I18nTranslations = {
     "addTorrentModal": "addTorrentModal görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
     "searchModal": "SearchModal görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
     "setupGuide": "setupGuide görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
-    "copilotDrawer": "CopilotDrawer görünümü yüklenemedi. Beklenmeyen bir hata oluştu."
+    "copilotDrawer": "CopilotDrawer görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
+    "downloadClients": "İndirme istemcileri görünümü yüklenemedi. Beklenmeyen bir hata oluştu."
   },
   "copilot": {
     "welcomeMessage": "Merhaba! Ben Leecharr Yardımcınızım. Bugün torrentler, sürümler veya ayarlar konusunda size nasıl yardımcı olabilirim?",
