@@ -498,9 +498,11 @@ const ko: I18nTranslations = {
       "pieceMapVerifiedPercent": "조각 지도 확인된 백분율",
       "pieceMapPiecesInfo": "조각 지도 조각 정보",
       "pieceMapLinearBarView": "조각 지도 선형 막대 보기",
-      "pieceMapBar": "조각 지도 바",
+      "pieceMapBar": "Bar",
       "pieceMapMatrixGridView": "조각 지도 매트릭스 그리드 보기",
-      "pieceMapGrid": "조각 지도 그리드",
+      "pieceMapGrid": "그리드",
+      "pieceMapStatus": "상태",
+      "pieceMapAvailability": "유효성",
       "pieceMapCompleteLegend": "조각 지도 완전한 전설",
       "pieceMapActiveLegend": "조각 지도 활성 범례",
       "pieceMapMissingLegend": "조각 지도 누락된 범례",
@@ -701,6 +703,9 @@ const ko: I18nTranslations = {
       "failedToRemoveTracker": "추적기를 제거하지 못했습니다.",
       "privateTrackerDisabledTitle": "개인 추적기 비활성화됨 제목",
       "openTrackerPickerTitle": "트래커 선택기 제목 열기",
+      "pieceMapRarity": "희귀도 히트맵",
+      "pieceMapFileBoundaries": "파일 경계",
+      "pieceMapFilesCount": "파일 수: {{count}} 파일",
       "live3s": "Live3s"
     },
     "ratio": "비율",
@@ -731,22 +736,22 @@ const ko: I18nTranslations = {
     "removeTags": "제거",
     "bulkAddTags": "태그 할당",
     "bulkRemoveTags": "태그 제거",
+    "deleteTorrentsTitle": "급류 삭제",
     "deleteTorrentTitle": "토렌트 삭제",
+    "readOnlyDeleteWarning": "읽기 전용 권한이 있습니다. 토렌트는 삭제할 수 없습니다.",
+    "deleteMultipleConfirm": "정말로 __V0___ 토렌트를 삭제하시겠습니까?",
+    "deleteSingleConfirm": "삭제하시겠습니까?",
     "deleteSingleConfirmGeneric": "이 토렌트를 삭제하시겠습니까?",
     "deleteFilesFromDisk": "다운로드한 파일도 디스크에서 완전히 삭제",
+    "deleteFilesWarning": "이 토렌트와 관련된 다운로드된 모든 파일은 영구적으로 삭제됩니다.",
+    "deletePermissionRequired": "토렌트를 삭제하려면 운영자 또는 관리자 역할이 필요합니다.",
     "torrentPaused": "토렌트가 일시중지되었습니다.",
     "failedToPause": "토렌트를 일시중지하지 못했습니다.",
     "torrentResumed": "토렌트 재개됨",
     "failedToResume": "토렌트를 재개하지 못했습니다.",
     "torrentAndFilesDeleted": "토렌트 및 파일이 삭제되었습니다.",
     "torrentRemoved": "토렌트가 삭제되었습니다",
-    "failedToDelete": "토렌트 삭제 실패",
-    "deleteTorrentsTitle": "급류 삭제",
-    "readOnlyDeleteWarning": "읽기 전용 권한이 있습니다. 토렌트는 삭제할 수 없습니다.",
-    "deleteMultipleConfirm": "정말로 __V0___ 토렌트를 삭제하시겠습니까?",
-    "deleteSingleConfirm": "삭제하시겠습니까?",
-    "deleteFilesWarning": "이 토렌트와 관련된 다운로드된 모든 파일은 영구적으로 삭제됩니다.",
-    "deletePermissionRequired": "토렌트를 삭제하려면 운영자 또는 관리자 역할이 필요합니다."
+    "failedToDelete": "토렌트 삭제 실패"
   },
   "torrentDetail": {
     "overview": "개요",
@@ -831,6 +836,8 @@ const ko: I18nTranslations = {
   },
   "addTorrent": {
     "title": "새 토렌트 추가",
+    "closeDialog": "토렌트 추가 대화상자 닫기",
+    "readOnlyWarning": "🔒 읽기 전용 권한이 있습니다. 토렌트 추가는 허용되지 않습니다.",
     "subtitle": "토렌트 파일 업로드 또는 마그넷 링크를 통해 다운로드",
     "torrentFileTab": "토렌트 파일",
     "magnetLinkTab": "마그넷 링크",
@@ -919,9 +926,7 @@ const ko: I18nTranslations = {
     "sourcePathRequired": "토렌트를 생성하려면 소스 경로가 필요합니다.",
     "failedToCreateTorrent": "토렌트 생성 실패",
     "failedToAddTorrent": "토렌트 추가에 실패했습니다",
-    "bulkAddSummary": "대량 추가 요약",
-    "closeDialog": "토렌트 추가 대화상자 닫기",
-    "readOnlyWarning": "🔒 읽기 전용 권한이 있습니다. 토렌트 추가는 허용되지 않습니다."
+    "bulkAddSummary": "대량 추가 요약"
   },
   "activity": {
     "title": "네트워크 및 스웜 활동",
@@ -4347,6 +4352,7 @@ const ko: I18nTranslations = {
     "minSeedTimePlaceholder": "예를 들어 86400",
     "cancel": "취소",
     "saveTag": "태그 저장",
+    "createTag": "태그 만들기",
     "saving": "절약...",
     "deleteTagModalTitle": "태그 삭제: \"{{label}}\"",
     "deleteWarning": "⚠️ 경고: 이 태그를 삭제하면 할당된 모든 토렌트, 인덱서 및 자동 규칙에서 태그가 제거됩니다. 이 작업은 취소할 수 없습니다.",
@@ -4354,8 +4360,7 @@ const ko: I18nTranslations = {
     "assignedToCount": "현재 {{count}} {{torrentWord}}에 할당되어 있습니다.",
     "notAssigned": "이 태그는 현재 어떤 토렌트에도 할당되어 있지 않습니다.",
     "deleteConfirm": "태그 삭제",
-    "deleting": "삭제 중...",
-    "createTag": "태그 만들기"
+    "deleting": "삭제 중..."
   },
   "keyboardShortcuts": {
     "title": "키보드 단축키",

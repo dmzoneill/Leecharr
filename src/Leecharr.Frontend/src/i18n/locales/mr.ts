@@ -498,9 +498,11 @@ const mr: I18nTranslations = {
       "pieceMapVerifiedPercent": "तुकडा नकाशा सत्यापित टक्केवारी",
       "pieceMapPiecesInfo": "तुकडा नकाशा तुकडे माहिती",
       "pieceMapLinearBarView": "तुकडा नकाशा रेखीय बार दृश्य",
-      "pieceMapBar": "तुकडा नकाशा बार",
+      "pieceMapBar": "Bar",
       "pieceMapMatrixGridView": "तुकडा नकाशा मॅट्रिक्स ग्रिड दृश्य",
-      "pieceMapGrid": "तुकडा नकाशा ग्रिड",
+      "pieceMapGrid": "ग्रिड",
+      "pieceMapStatus": "स्थिती",
+      "pieceMapAvailability": "उपलब्धता",
       "pieceMapCompleteLegend": "तुकडा नकाशा पूर्ण आख्यायिका",
       "pieceMapActiveLegend": "तुकडा नकाशा सक्रिय दंतकथा",
       "pieceMapMissingLegend": "तुकडा नकाशा गहाळ आख्यायिका",
@@ -700,6 +702,9 @@ const mr: I18nTranslations = {
       "failedToRemoveTracker": "ट्रॅकर काढण्यात अयशस्वी",
       "privateTrackerDisabledTitle": "खाजगी ट्रॅकर अक्षम केलेले शीर्षक",
       "openTrackerPickerTitle": "ट्रॅकर पिकर शीर्षक उघडा",
+      "pieceMapRarity": "दुर्मिळता हीटमॅप",
+      "pieceMapFileBoundaries": "फाइल सीमा",
+      "pieceMapFilesCount": "फाइल संख्या: {{count}} फाइल्स",
       "diagReAnnounceTrackers": "Diag Re Announce Trackers",
       "live3s": "Live3s"
     },
@@ -731,22 +736,22 @@ const mr: I18nTranslations = {
     "removeTags": "काढून टाका",
     "bulkAddTags": "टॅग नियुक्त करा",
     "bulkRemoveTags": "टॅग काढा",
+    "deleteTorrentsTitle": "टोरेंट्स हटवा",
     "deleteTorrentTitle": "टॉरेंट हटवा",
+    "readOnlyDeleteWarning": "तुमच्याकडे केवळ वाचनीय परवानग्या आहेत. टोरेंट्स हटवता येत नाहीत.",
+    "deleteMultipleConfirm": "तुमची खात्री आहे की तुम्ही {{count}} टोरेंट हटवू इच्छिता?",
+    "deleteSingleConfirm": "तुम्हाला खात्री आहे की तुम्ही हटवू इच्छिता",
     "deleteSingleConfirmGeneric": "तुम्हाला खात्री आहे की तुम्ही हा टॉरेंट हटवू इच्छिता?",
     "deleteFilesFromDisk": "डिस्कवरून डाउनलोड केलेल्या फाइल्स देखील हटवा",
+    "deleteFilesWarning": "या टॉरेंटशी संबंधित सर्व डाउनलोड केलेल्या फायली कायमच्या हटविल्या जातील.",
+    "deletePermissionRequired": "टोरेंट हटवण्यासाठी ऑपरेटर किंवा प्रशासकाची भूमिका आवश्यक आहे",
     "torrentPaused": "टोरंट थांबवले",
     "failedToPause": "टॉरेंटला विराम देण्यात अयशस्वी",
     "torrentResumed": "टोरेंट पुन्हा सुरू झाला",
     "failedToResume": "टोरेंट पुन्हा सुरू करण्यात अयशस्वी",
     "torrentAndFilesDeleted": "टोरेंट आणि फाइल्स हटवल्या",
     "torrentRemoved": "टोरेंट काढला",
-    "failedToDelete": "टोरेंट हटवण्यात अयशस्वी",
-    "deleteTorrentsTitle": "टोरेंट्स हटवा",
-    "readOnlyDeleteWarning": "तुमच्याकडे केवळ वाचनीय परवानग्या आहेत. टोरेंट्स हटवता येत नाहीत.",
-    "deleteMultipleConfirm": "तुमची खात्री आहे की तुम्ही {{count}} टोरेंट हटवू इच्छिता?",
-    "deleteSingleConfirm": "तुम्हाला खात्री आहे की तुम्ही हटवू इच्छिता",
-    "deleteFilesWarning": "या टॉरेंटशी संबंधित सर्व डाउनलोड केलेल्या फायली कायमच्या हटविल्या जातील.",
-    "deletePermissionRequired": "टोरेंट हटवण्यासाठी ऑपरेटर किंवा प्रशासकाची भूमिका आवश्यक आहे"
+    "failedToDelete": "टोरेंट हटवण्यात अयशस्वी"
   },
   "torrentDetail": {
     "overview": "आढावा",
@@ -831,6 +836,8 @@ const mr: I18nTranslations = {
   },
   "addTorrent": {
     "title": "नवीन टॉरेंट जोडा",
+    "closeDialog": "टोरेंट डायलॉग जोडा बंद करा",
+    "readOnlyWarning": "🔒 तुमच्याकडे केवळ वाचनीय परवानग्या आहेत. टोरेंट जोडण्याची परवानगी नाही.",
     "subtitle": "टॉरेंट फाइल्स अपलोड करा किंवा मॅग्नेट लिंकद्वारे डाउनलोड करा",
     "torrentFileTab": "टॉरेंट फाइल",
     "magnetLinkTab": "मॅग्नेट लिंक",
@@ -919,9 +926,7 @@ const mr: I18nTranslations = {
     "sourcePathRequired": "टॉरेंट तयार करण्यासाठी स्त्रोत पथ आवश्यक आहे",
     "failedToCreateTorrent": "टोरेंट तयार करण्यात अयशस्वी",
     "failedToAddTorrent": "टोरेंट जोडण्यात अयशस्वी",
-    "bulkAddSummary": "मोठ्या प्रमाणात जोडा सारांश",
-    "closeDialog": "टोरेंट डायलॉग जोडा बंद करा",
-    "readOnlyWarning": "🔒 तुमच्याकडे केवळ वाचनीय परवानग्या आहेत. टोरेंट जोडण्याची परवानगी नाही."
+    "bulkAddSummary": "मोठ्या प्रमाणात जोडा सारांश"
   },
   "activity": {
     "title": "नेटवर्क आणि थवा क्रियाकलाप",
@@ -4347,6 +4352,7 @@ const mr: I18nTranslations = {
     "minSeedTimePlaceholder": "उदा. 86400",
     "cancel": "रद्द करा",
     "saveTag": "टॅग जतन करा",
+    "createTag": "टॅग तयार करा",
     "saving": "सेव्ह करत आहे...",
     "deleteTagModalTitle": "टॅग हटवा: \"{{label}}\"",
     "deleteWarning": "⚠️ चेतावणी: हा टॅग हटवल्यास तो सर्व नियुक्त टॉरंट, इंडेक्सर्स आणि स्वयंचलित नियमांमधून काढून टाकला जाईल. ही क्रिया पूर्ववत केली जाऊ शकत नाही.",
@@ -4354,8 +4360,7 @@ const mr: I18nTranslations = {
     "assignedToCount": "सध्या {{count}} {{torrentWord}} ला नियुक्त केले आहे.",
     "notAssigned": "हा टॅग सध्या कोणत्याही टॉरंटला नियुक्त केलेला नाही.",
     "deleteConfirm": "टॅग हटवा",
-    "deleting": "हटवत आहे...",
-    "createTag": "टॅग तयार करा"
+    "deleting": "हटवत आहे..."
   },
   "keyboardShortcuts": {
     "title": "कीबोर्ड शॉर्टकट",
