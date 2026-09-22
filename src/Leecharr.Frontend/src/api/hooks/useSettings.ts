@@ -20,6 +20,7 @@ import type {
   DownloadClientTestResult,
   DownloadClientRemoteItem,
   SyncResult,
+  BatchImportResponse,
   IndexerDefinition,
   IndexerTestResult,
   RssRule,
@@ -276,41 +277,103 @@ export function useDownloadClientSync() {
   });
 }
 
-export function useDownloadClientItems(clientId: number) {
+export function useDownloadClientItems(clientId: number | string) {
   const interval = useRefetchInterval();
+  const isAll = clientId === "all";
+  const numId = typeof clientId === "number" ? clientId : parseInt(clientId, 10);
+  const isValid = isAll || (!isNaN(numId) && numId > 0);
+
   return useQuery<DownloadClientRemoteItem[]>({
-    queryKey: ["downloadclients", clientId, "items"],
-    queryFn: () => apiClient.get(`/downloadclients/${clientId}/items`),
-    enabled: clientId > 0,
+    queryKey: ["downloadclients", isAll ? "all" : numId, "items"],
+    queryFn: () =>
+      isAll
+        ? apiClient.get("/downloadclients/items")
+        : apiClient.get(`/downloadclients/${numId}/items`),
+    enabled: isValid,
     refetchInterval: interval,
   });
 }
 
-export function useImportDownloadClientTorrent(clientId: number) {
+export function usePauseRemoteTorrent(clientId?: number) {
   const queryClient = useQueryClient();
-  return useMutation<Torrent, Error, string>({
-    mutationFn: (infoHash) =>
-      apiClient.post(`/downloadclients/${clientId}/import/${infoHash}`),
+  return useMutation<{ success: boolean }, Error, { clientId?: number; infoHash: string }>({
+    mutationFn: ({ clientId: targetId, infoHash }) => {
+      const id = targetId ?? clientId;
+      return apiClient.post(`/downloadclients/${id}/torrents/${infoHash}/pause`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["downloadclients"] });
+    },
+  });
+}
+
+export function useResumeRemoteTorrent(clientId?: number) {
+  const queryClient = useQueryClient();
+  return useMutation<{ success: boolean }, Error, { clientId?: number; infoHash: string }>({
+    mutationFn: ({ clientId: targetId, infoHash }) => {
+      const id = targetId ?? clientId;
+      return apiClient.post(`/downloadclients/${id}/torrents/${infoHash}/resume`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["downloadclients"] });
+    },
+  });
+}
+
+export function useDeleteRemoteTorrent(clientId?: number) {
+  const queryClient = useQueryClient();
+  return useMutation<
+    { success: boolean },
+    Error,
+    { clientId?: number; infoHash: string; deleteData?: boolean }
+  >({
+    mutationFn: ({ clientId: targetId, infoHash, deleteData = false }) => {
+      const id = targetId ?? clientId;
+      return apiClient.delete(
+        `/downloadclients/${id}/torrents/${infoHash}?deleteData=${deleteData}`,
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["downloadclients"] });
+    },
+  });
+}
+
+export function useImportDownloadClientTorrent(clientId?: number) {
+  const queryClient = useQueryClient();
+  return useMutation<Torrent, Error, { infoHash: string; clientId?: number } | string>({
+    mutationFn: (param) => {
+      const hash = typeof param === "string" ? param : param.infoHash;
+      const targetId = typeof param === "object" && param.clientId ? param.clientId : clientId;
+      return apiClient.post(`/downloadclients/${targetId}/import/${hash}`);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["downloadclients", clientId, "items"],
+        queryKey: ["downloadclients"],
       });
       queryClient.invalidateQueries({ queryKey: ["torrents"] });
     },
   });
 }
 
-export function useImportDownloadClientTorrents(clientId: number) {
+export function useImportDownloadClientTorrents(clientId?: number) {
   const queryClient = useQueryClient();
-  return useMutation<SyncResult, Error, string[]>({
-    mutationFn: (infoHashes) =>
-      apiClient.post(`/downloadclients/${clientId}/import`, {
-        infoHashes,
-        hashes: infoHashes,
-      }),
+  return useMutation<
+    BatchImportResponse,
+    Error,
+    { infoHashes: string[]; clientId?: number } | string[]
+  >({
+    mutationFn: (param) => {
+      const hashes = Array.isArray(param) ? param : param.infoHashes;
+      const targetId = !Array.isArray(param) && param.clientId ? param.clientId : clientId;
+      return apiClient.post(`/downloadclients/${targetId}/import`, {
+        infoHashes: hashes,
+        hashes,
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["downloadclients", clientId, "items"],
+        queryKey: ["downloadclients"],
       });
       queryClient.invalidateQueries({ queryKey: ["torrents"] });
     },

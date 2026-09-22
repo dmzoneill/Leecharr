@@ -36,10 +36,10 @@ This document tracks cross-system architectural parity, feature synchronization,
   - [x] **05.2 Reconnection Banners & Offline Detection**: Consistent visual indicator for disconnected, connecting, and reconnected SignalR states.
   - [x] **05.3 Zustand Store Hydration & Persistence**: Standardize localStorage schema keys, optimistic state updates, and hydration guards.
 
-- [ ] **Workpackage 06: Notifications & Servarr Integrations Parity**
-  - [ ] **06.1 Notification Provider Templates & Tokens**: Standardize message formatting and token variables (`{Torrent.Title}`, `{Torrent.Size}`) for Discord, Telegram, Webhook, Pushover, Apprise.
-  - [ ] **06.2 Torznab/Newznab Indexer Connectors**: Standardize test connection routines, query syntax, category mappings, and RSS sync intervals.
-  - [ ] **06.3 External Client Synchronization & Import**: Parity for remote download client bridging (qBittorrent, Deluge, Transmission).
+- [x] **Workpackage 06: Notifications & Servarr Integrations Parity**
+  - [x] **06.1 Notification Provider Templates & Tokens**: Standardize message formatting and token variables (`{Torrent.Title}`, `{Torrent.Size}`) for Discord, Telegram, Webhook, Pushover, Apprise.
+  - [x] **06.2 Torznab/Newznab Indexer Connectors**: Standardize test connection routines, query syntax, category mappings, and RSS sync intervals.
+  - [x] **06.3 External Client Synchronization & Import**: Parity for remote download client bridging (qBittorrent, Deluge, Transmission).
 
 - [ ] **Workpackage 07: Code Quality, Linters & CI/CD Pipelines**
   - [ ] **07.1 GitHub Actions Multi-Arch CI Matrix**: Standardize multi-arch container image workflows (`linux/amd64`, `linux/arm64`) and release draft automation.

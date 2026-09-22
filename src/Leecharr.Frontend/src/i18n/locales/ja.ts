@@ -3421,7 +3421,8 @@ const ja: I18nTranslations = {
     "addTorrentModal": "addTorrentModal ビューのロードに失敗しました。予期しないエラーが発生しました。",
     "searchModal": "searchModal ビューの読み込みに失敗しました。予期しないエラーが発生しました。",
     "setupGuide": "setupGuide ビューのロードに失敗しました。予期しないエラーが発生しました。",
-    "copilotDrawer": "copilotDrawer ビューのロードに失敗しました。予期しないエラーが発生しました。"
+    "copilotDrawer": "copilotDrawer ビューのロードに失敗しました。予期しないエラーが発生しました。",
+    "downloadClients": "ダウンロード クライアント ビューの読み込みに失敗しました。予期しないエラーが発生しました。"
   },
   "copilot": {
     "welcomeMessage": "こんにちは！Leecharr Copilot です。トレント、リリース、設定など何でもお気軽にご相談ください。",

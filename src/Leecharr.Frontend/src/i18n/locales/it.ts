@@ -3421,7 +3421,8 @@ const it: I18nTranslations = {
     "addTorrentModal": "Errore nella finestra di aggiunta torrent",
     "searchModal": "Errore nella finestra di ricerca",
     "setupGuide": "Errore nella guida di configurazione",
-    "copilotDrawer": "Errore nel pannello Copilot"
+    "copilotDrawer": "Errore nel pannello Copilot",
+    "downloadClients": "Impossibile caricare la vista dei client di download. Si è verificato un errore imprevisto."
   },
   "copilot": {
     "welcomeMessage": "Ciao! Sono il tuo Copilota Leecharr. Come posso aiutarti oggi con torrent, release o impostazioni?",
