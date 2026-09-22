@@ -196,6 +196,149 @@ export function MediaPlayerModal({
     }
   }, []);
 
+  // Keyboard Shortcuts: Space, Arrows, M, F, C, [/]
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const SPEED_STEPS = [0.75, 1, 1.25, 1.5, 2];
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const tagName = target?.tagName?.toLowerCase();
+      if (
+        tagName === "input" ||
+        tagName === "textarea" ||
+        tagName === "select" ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+
+      const media = videoRef.current ?? audioRef.current;
+      if (!media) return;
+
+      // Space: play/pause
+      if (e.key === " " || e.code === "Space") {
+        e.preventDefault();
+        if (media.paused) {
+          media.play().catch(() => {});
+        } else {
+          media.pause();
+        }
+        return;
+      }
+
+      // ArrowLeft / ArrowRight: seek -/+ 5s, with Shift 30s
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        const delta = e.shiftKey ? 30 : 5;
+        media.currentTime = Math.max(0, media.currentTime - delta);
+        return;
+      }
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        const delta = e.shiftKey ? 30 : 5;
+        const dur = Number.isFinite(media.duration) ? media.duration : Infinity;
+        media.currentTime = Math.min(dur, media.currentTime + delta);
+        return;
+      }
+
+      // ArrowUp / ArrowDown: volume -/+ 5%
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        media.volume = Math.min(
+          1,
+          Math.round((media.volume + 0.05) * 100) / 100,
+        );
+        if (media.muted && media.volume > 0) media.muted = false;
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        media.volume = Math.max(
+          0,
+          Math.round((media.volume - 0.05) * 100) / 100,
+        );
+        return;
+      }
+
+      // M / m: mute
+      if (e.key === "m" || e.key === "M") {
+        e.preventDefault();
+        media.muted = !media.muted;
+        return;
+      }
+
+      // F / f: fullscreen
+      if (e.key === "f" || e.key === "F") {
+        e.preventDefault();
+        if (!document.fullscreenElement) {
+          const targetEl = videoRef.current ?? modalRef.current;
+          if (targetEl?.requestFullscreen) {
+            targetEl.requestFullscreen().catch(() => {});
+          }
+        } else {
+          if (document.exitFullscreen) {
+            document.exitFullscreen().catch(() => {});
+          }
+        }
+        return;
+      }
+
+      // C / c: cycle subtitles
+      if (e.key === "c" || e.key === "C") {
+        e.preventDefault();
+        if (resolvedSubtitles.length > 0) {
+          const options: (number | "off")[] = [
+            "off",
+            ...resolvedSubtitles.map((s) => s.trackId),
+          ];
+          const currentIdx = options.indexOf(activeSubtitleTrackId);
+          const nextIdx = (currentIdx + 1) % options.length;
+          const nextVal = options[nextIdx];
+          handleSubtitleChange(String(nextVal));
+        }
+        return;
+      }
+
+      // [ / ]: speed 0.75x, 1x, 1.25x, 1.5x, 2x
+      if (e.key === "[") {
+        e.preventDefault();
+        const currentRate = media.playbackRate;
+        let nextRate = SPEED_STEPS[0];
+        for (let i = SPEED_STEPS.length - 1; i >= 0; i--) {
+          if (SPEED_STEPS[i] < currentRate - 0.05) {
+            nextRate = SPEED_STEPS[i];
+            break;
+          }
+        }
+        media.playbackRate = nextRate;
+        return;
+      }
+      if (e.key === "]") {
+        e.preventDefault();
+        const currentRate = media.playbackRate;
+        let nextRate = SPEED_STEPS[SPEED_STEPS.length - 1];
+        for (let i = 0; i < SPEED_STEPS.length; i++) {
+          if (SPEED_STEPS[i] > currentRate + 0.05) {
+            nextRate = SPEED_STEPS[i];
+            break;
+          }
+        }
+        media.playbackRate = nextRate;
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    isOpen,
+    resolvedSubtitles,
+    activeSubtitleTrackId,
+    handleSubtitleChange,
+  ]);
+
   if (!isOpen) return null;
 
   const titleText = torrent.mediaTitle || torrent.name;

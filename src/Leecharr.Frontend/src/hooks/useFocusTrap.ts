@@ -89,9 +89,44 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
     }, 10);
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      const currentContainer = containerRef.current;
+      if (!currentContainer) return;
+
+      const myModal =
+        currentContainer.closest<HTMLElement>(
+          'dialog[open], [role="dialog"], [aria-modal="true"], .modal-overlay, .modal-backdrop',
+        ) || currentContainer;
+
+      const activeEl = document.activeElement as HTMLElement | null;
+      const activeModal = activeEl?.closest<HTMLElement>(
+        'dialog[open], [role="dialog"], [aria-modal="true"], .modal-overlay, .modal-backdrop',
+      );
+
+      const openModals = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          'dialog[open], [role="dialog"], [aria-modal="true"], .modal-overlay, .modal-backdrop',
+        ),
+      );
+
       if (event.key === "Escape" || event.key === "Esc") {
+        // If active element is inside another child modal, let that modal handle Escape
+        if (activeModal && activeModal !== myModal) {
+          return;
+        }
+        // If this modal is not the topmost modal in DOM, do not intercept
+        if (openModals.length > 0) {
+          const topModal = openModals[openModals.length - 1];
+          if (
+            topModal &&
+            topModal !== myModal &&
+            !topModal.contains(currentContainer)
+          ) {
+            return;
+          }
+        }
         if (onClose) {
           event.stopPropagation();
+          event.stopImmediatePropagation();
           onClose();
         }
         return;
@@ -99,8 +134,20 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
 
       if (event.key !== "Tab") return;
 
-      const currentContainer = containerRef.current;
-      if (!currentContainer) return;
+      // Ensure Tab does not trap if activeElement is inside another child/topmost modal
+      if (activeModal && activeModal !== myModal) {
+        return;
+      }
+      if (openModals.length > 0) {
+        const topModal = openModals[openModals.length - 1];
+        if (
+          topModal &&
+          topModal !== myModal &&
+          !topModal.contains(currentContainer)
+        ) {
+          return;
+        }
+      }
 
       const focusable = Array.from(
         currentContainer.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),

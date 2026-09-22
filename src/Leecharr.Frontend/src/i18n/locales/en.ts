@@ -211,6 +211,7 @@ const en: I18nTranslations = {
   },
   topbar: {
     searchPlaceholder: "Quick Jump / Search... (Ctrl+K)",
+    keyboardShortcuts: "Keyboard Shortcuts (?)",
   },
   dashboard: {
     title: "Dashboard",

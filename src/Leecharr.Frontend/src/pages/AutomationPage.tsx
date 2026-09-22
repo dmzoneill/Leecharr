@@ -2631,6 +2631,13 @@ if (torrent) {
                     value={editingScript.code || ""}
                     onChange={(e) => setEditingScript({ ...editingScript, code: e.target.value })}
                     onKeyDown={(e) => {
+                      if (e.key === "Escape") {
+                        e.currentTarget.blur();
+                        return;
+                      }
+                      if (e.key === "Tab" && e.shiftKey) {
+                        return;
+                      }
                       if (e.key === "Tab") {
                         e.preventDefault();
                         const target = e.currentTarget;

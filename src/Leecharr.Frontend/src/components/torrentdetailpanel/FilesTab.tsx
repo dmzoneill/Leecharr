@@ -577,6 +577,7 @@ export function FilesTab({
     return rows;
   }, [tree, expandedPaths, filterQuery]);
 
+  const [focusedIndex, setFocusedIndex] = useState<number>(0);
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
   const rowVirtualizer = useVirtualizer({
@@ -585,6 +586,126 @@ export function FilesTab({
     estimateSize: () => 36,
     overscan: 20,
   });
+
+  const handleTableKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      const target = e.target as HTMLElement | null;
+      const tagName = target?.tagName?.toLowerCase();
+      if (
+        tagName === "input" &&
+        (target as HTMLInputElement).type !== "checkbox"
+      ) {
+        return;
+      }
+      if (tagName === "textarea" || tagName === "select") {
+        return;
+      }
+
+      if (flatRows.length === 0) return;
+
+      const currentNode = flatRows[focusedIndex];
+
+      // Up / Down navigation
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setFocusedIndex((prev) => {
+          const next = Math.min(flatRows.length - 1, prev + 1);
+          rowVirtualizer.scrollToIndex(next, { align: "auto" });
+          return next;
+        });
+        return;
+      }
+
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setFocusedIndex((prev) => {
+          const next = Math.max(0, prev - 1);
+          rowVirtualizer.scrollToIndex(next, { align: "auto" });
+          return next;
+        });
+        return;
+      }
+
+      // Right arrow: expand folder if collapsed
+      if (e.key === "ArrowRight") {
+        if (currentNode?.isFolder) {
+          e.preventDefault();
+          if (!expandedPaths.has(currentNode.fullPath)) {
+            setExpandedPaths((prev) => new Set([...prev, currentNode.fullPath]));
+          } else {
+            setFocusedIndex((prev) => {
+              const next = Math.min(flatRows.length - 1, prev + 1);
+              rowVirtualizer.scrollToIndex(next, { align: "auto" });
+              return next;
+            });
+          }
+        }
+        return;
+      }
+
+      // Left arrow: collapse folder if expanded, or move to parent
+      if (e.key === "ArrowLeft") {
+        if (currentNode?.isFolder && expandedPaths.has(currentNode.fullPath)) {
+          e.preventDefault();
+          setExpandedPaths((prev) => {
+            const next = new Set(prev);
+            next.delete(currentNode.fullPath);
+            return next;
+          });
+        } else if (currentNode && currentNode.depth > 0) {
+          e.preventDefault();
+          const currentDepth = currentNode.depth;
+          for (let i = focusedIndex - 1; i >= 0; i--) {
+            if (flatRows[i].isFolder && flatRows[i].depth < currentDepth) {
+              setFocusedIndex(i);
+              rowVirtualizer.scrollToIndex(i, { align: "auto" });
+              break;
+            }
+          }
+        }
+        return;
+      }
+
+      // Space: toggle selective download checkbox
+      if (e.key === " ") {
+        if (currentNode) {
+          e.preventDefault();
+          handleToggleNodeCheckbox(currentNode);
+        }
+        return;
+      }
+
+      // Priority keys: '0', '1', '2' (also '3', '4')
+      if (["0", "1", "2", "3", "4"].includes(e.key)) {
+        if (currentNode) {
+          e.preventDefault();
+          const pMap: Record<string, number> = {
+            "0": 0, // Skip
+            "1": 1, // Low
+            "2": 3, // Normal
+            "3": 3, // Normal
+            "4": 4, // High
+          };
+          const prio = pMap[e.key];
+          if (currentNode.isFolder) {
+            handleBatchSetPriority(currentNode.descendantFiles, prio);
+          } else if (currentNode.file) {
+            handleSetPriority(currentNode.file.id, prio);
+          }
+        }
+        return;
+      }
+    },
+    [
+      flatRows,
+      focusedIndex,
+      expandedPaths,
+      rowVirtualizer,
+      handleToggleNodeCheckbox,
+      handleBatchSetPriority,
+      handleSetPriority,
+    ],
+  );
 
   const virtualRows = rowVirtualizer.getVirtualItems();
   const totalHeight = rowVirtualizer.getTotalSize();
@@ -869,8 +990,10 @@ export function FilesTab({
       {/* Hierarchical File Tree Table */}
       <div
         ref={tableContainerRef}
+        tabIndex={0}
+        onKeyDown={handleTableKeyDown}
         className="detail-panel-table-wrap"
-        style={{ flex: 1, overflow: "auto", minHeight: 0 }}
+        style={{ flex: 1, overflow: "auto", minHeight: 0, outline: "none" }}
       >
         <table
           className="torrent-table"
@@ -974,18 +1097,27 @@ export function FilesTab({
                 : normalizePriority(node.file?.priority);
 
               const pct = Math.floor(node.progress * 100);
+              const isKeyboardFocused = focusedIndex === virtualRow.index;
 
               return (
                 <tr
                   key={node.id}
                   className="torrent-table-row"
                   style={{
-                    backgroundColor: isFolder
-                      ? "rgba(23, 27, 53, 0.4)"
-                      : "transparent",
+                    backgroundColor: isKeyboardFocused
+                      ? "rgba(255, 209, 102, 0.15)"
+                      : isFolder
+                        ? "rgba(23, 27, 53, 0.4)"
+                        : "transparent",
                     borderBottom: "1px solid rgba(35, 40, 75, 0.5)",
+                    outline: isKeyboardFocused
+                      ? "1px solid var(--accent, #ffd166)"
+                      : "none",
+                    outlineOffset: "-1px",
                     fontSize: "0.8rem",
+                    cursor: "pointer",
                   }}
+                  onClick={() => setFocusedIndex(virtualRow.index)}
                 >
                   {/* Selective Download Checkbox */}
                   <td style={{ textAlign: "center", padding: "0.4rem 0.2rem" }}>

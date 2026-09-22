@@ -4,6 +4,7 @@ import { SaveBar, SectionCard, SelectInput, Toggle } from "./shared";
 import { LanguageSelector } from "../../components/LanguageSelector";
 import { useTranslation } from "../../i18n";
 import { useTheme, ThemeStyle, ColorScheme } from "../../context/ThemeContext";
+import { useToast } from "../../context/ToastContext";
 import {
   isTelemetryEnabled,
   setTelemetryEnabled,

@@ -1052,7 +1052,11 @@ export interface TorrentTableProps {
   onSelectTorrent?: (id: number | null) => void;
   onPause?: (id: number) => void;
   onResume?: (id: number) => void;
-  onDelete?: (payload: { id: number; deleteFiles?: boolean }) => void;
+  onDelete?: (payload: {
+    id: number;
+    deleteFiles?: boolean;
+    ids?: number[];
+  }) => void;
   selectedIds?: Set<number>;
   onToggleSelect?: (id: number) => void;
   onSelectAll?: (ids: number[]) => void;
@@ -1559,6 +1563,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const lastClickedIndexRef = useRef<number | null>(null);
+  const selectionAnchorIndexRef = useRef<number | null>(null);
 
   const rowVirtualizer = useVirtualizer({
     count: sortedTorrents.length,
@@ -1570,23 +1575,29 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
 
   const handleRowClick = useCallback(
     (torrent: Torrent, index: number, e: React.MouseEvent) => {
-      if (e.shiftKey && lastClickedIndexRef.current !== null) {
-        const start = Math.min(lastClickedIndexRef.current, index);
-        const end = Math.max(lastClickedIndexRef.current, index);
-        const range = sortedTorrents.slice(start, end + 1);
-        const next = new Set(selectedIds);
-        range.forEach((r) => next.add(r.id));
+      if (e.shiftKey) {
+        const anchor =
+          selectionAnchorIndexRef.current ??
+          lastClickedIndexRef.current ??
+          index;
+        selectionAnchorIndexRef.current = anchor;
+        lastClickedIndexRef.current = index;
+        const start = Math.min(anchor, index);
+        const end = Math.max(anchor, index);
+        const range = sortedTorrents.slice(start, end + 1).map((r) => r.id);
         if (onSelectAll) {
-          onSelectAll(Array.from(next));
+          onSelectAll(range);
         } else {
-          useTorrentStore.getState().setSelectedIds(next);
+          useTorrentStore.getState().setSelectedIds(new Set(range));
         }
         onSelect?.(torrent);
       } else if (e.ctrlKey || e.metaKey) {
+        selectionAnchorIndexRef.current = index;
         lastClickedIndexRef.current = index;
         onToggleSelect?.(torrent.id);
         onSelect?.(torrent);
       } else {
+        selectionAnchorIndexRef.current = index;
         lastClickedIndexRef.current = index;
         if (
           selectedIds.size > 0 &&
@@ -1606,6 +1617,12 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
 
   useEffect(() => {
     const handleTableKeyDown = (e: KeyboardEvent) => {
+      // Return early if any modal or dialog is open so keys don't hijack dialog controls
+      const isModalOpen = !!document.querySelector(
+        'dialog[open], [role="dialog"], [aria-modal="true"], .modal-overlay, .modal-backdrop',
+      );
+      if (isModalOpen) return;
+
       const target = e.target as HTMLElement | null;
       const tagName = target?.tagName?.toLowerCase();
       const isInput =
@@ -1613,10 +1630,10 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
         tagName === "textarea" ||
         tagName === "select" ||
         target?.isContentEditable;
-      if (isInput) return;
+      if (isInput || target?.closest(".detail-panel")) return;
 
       // Ctrl+A / Cmd+A: Select all filtered torrents
-      if ((e.ctrlKey || e.metaKey) && (e.key === "a" || e.key === "A")) {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === "a" || e.key === "A")) {
         e.preventDefault();
         const allFilteredIds = filteredTorrents.map((t) => t.id);
         if (onSelectAll) {
@@ -1627,7 +1644,156 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
         return;
       }
 
-      // Up / Down arrow navigation
+      // Ctrl+Shift+I / Cmd+Shift+I: Invert selection
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "i" || e.key === "I")) {
+        e.preventDefault();
+        const allIds = sortedTorrents.map((t) => t.id);
+        const inverted = allIds.filter((id) => !selectedIds.has(id));
+        if (onSelectAll) {
+          onSelectAll(inverted);
+        } else {
+          useTorrentStore.getState().setSelectedIds(new Set(inverted));
+        }
+        return;
+      }
+
+      // Home / End: Jump to first / last row
+      if (e.key === "Home" || e.key === "End") {
+        if (sortedTorrents.length === 0) return;
+        e.preventDefault();
+        const targetIdx = e.key === "Home" ? 0 : sortedTorrents.length - 1;
+        const targetTorrent = sortedTorrents[targetIdx];
+        if (!targetTorrent) return;
+
+        if (e.shiftKey) {
+          const currentIdx = selectedId
+            ? sortedTorrents.findIndex((t) => t.id === selectedId)
+            : 0;
+          const anchor =
+            selectionAnchorIndexRef.current ??
+            (currentIdx >= 0 ? currentIdx : 0);
+          selectionAnchorIndexRef.current = anchor;
+          const start = Math.min(anchor, targetIdx);
+          const end = Math.max(anchor, targetIdx);
+          const range = sortedTorrents.slice(start, end + 1).map((t) => t.id);
+          if (onSelectAll) {
+            onSelectAll(range);
+          } else {
+            useTorrentStore.getState().setSelectedIds(new Set(range));
+          }
+        } else {
+          selectionAnchorIndexRef.current = targetIdx;
+          if (onSelectAll) {
+            onSelectAll([targetTorrent.id]);
+          } else {
+            useTorrentStore.getState().setSelectedIds(new Set([targetTorrent.id]));
+          }
+        }
+        lastClickedIndexRef.current = targetIdx;
+        const telTorrent = applyTelemetry(
+          targetTorrent,
+          useTorrentStore.getState().telemetry[targetTorrent.id],
+        );
+        onSelect?.(telTorrent);
+        rowVirtualizer.scrollToIndex(targetIdx, { align: "auto" });
+        return;
+      }
+
+      // Enter: open/focus detail panel
+      if (e.key === "Enter") {
+        const currentIdx = selectedId
+          ? sortedTorrents.findIndex((t) => t.id === selectedId)
+          : sortedTorrents.length > 0
+            ? 0
+            : -1;
+        if (currentIdx >= 0) {
+          e.preventDefault();
+          const targetTorrent = sortedTorrents[currentIdx];
+          const telTorrent = applyTelemetry(
+            targetTorrent,
+            useTorrentStore.getState().telemetry[targetTorrent.id],
+          );
+          onSelect?.(telTorrent);
+          setTimeout(() => {
+            const panel = document.querySelector<HTMLElement>(
+              ".detail-panel, .detail-panel-tab.active, .detail-panel button",
+            );
+            panel?.focus();
+          }, 50);
+        }
+        return;
+      }
+
+      // Queue Controls: Ctrl+Up / Ctrl+Down (up/down), Ctrl+Shift+Up / Ctrl+Shift+Down (top/bottom)
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key === "ArrowUp" || e.key === "ArrowDown")
+      ) {
+        e.preventDefault();
+        const targetIds =
+          selectedIds.size > 0
+            ? Array.from(selectedIds)
+            : selectedId
+              ? [selectedId]
+              : [];
+        if (targetIds.length === 0) return;
+
+        const position: "top" | "up" | "down" | "bottom" =
+          e.key === "ArrowUp"
+            ? e.shiftKey
+              ? "top"
+              : "up"
+            : e.shiftKey
+              ? "bottom"
+              : "down";
+
+        const ordered = sortedTorrents
+          .filter((t) => targetIds.includes(t.id))
+          .map((t) => t.id);
+        if (position === "down" || position === "bottom") {
+          ordered.reverse();
+        }
+
+        ordered.forEach((id) => {
+          moveTorrentQueue.mutate({ id, position });
+        });
+        return;
+      }
+
+      // Quick Action: Ctrl+R / F5 to force recheck selected torrent(s)
+      if (
+        ((e.ctrlKey || e.metaKey) && (e.key === "r" || e.key === "R")) ||
+        e.key === "F5"
+      ) {
+        const targetIds =
+          selectedIds.size > 0
+            ? Array.from(selectedIds)
+            : selectedId
+              ? [selectedId]
+              : [];
+        if (targetIds.length > 0) {
+          e.preventDefault();
+          targetIds.forEach((id) => recheckTorrent.mutate(id));
+          return;
+        }
+      }
+
+      // Quick Action: F6 to announce / update tracker
+      if (e.key === "F6") {
+        const targetIds =
+          selectedIds.size > 0
+            ? Array.from(selectedIds)
+            : selectedId
+              ? [selectedId]
+              : [];
+        if (targetIds.length > 0) {
+          e.preventDefault();
+          targetIds.forEach((id) => announceTorrent.mutate(id));
+          return;
+        }
+      }
+
+      // Up / Down arrow navigation (with true range selection when Shift is held)
       if (e.key === "ArrowUp" || e.key === "ArrowDown") {
         if (sortedTorrents.length === 0) return;
         e.preventDefault();
@@ -1644,15 +1810,39 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
               : Math.min(sortedTorrents.length - 1, currentIdx + 1);
         }
         const nextTorrent = sortedTorrents[nextIdx];
-        if (nextTorrent) {
-          lastClickedIndexRef.current = nextIdx;
-          const telTorrent = applyTelemetry(
-            nextTorrent,
-            useTorrentStore.getState().telemetry[nextTorrent.id],
-          );
-          onSelect?.(telTorrent);
-          rowVirtualizer.scrollToIndex(nextIdx, { align: "auto" });
+        if (!nextTorrent) return;
+
+        if (e.shiftKey) {
+          if (selectionAnchorIndexRef.current === null) {
+            selectionAnchorIndexRef.current = currentIdx >= 0 ? currentIdx : 0;
+          }
+          const anchor = selectionAnchorIndexRef.current;
+          const start = Math.min(anchor, nextIdx);
+          const end = Math.max(anchor, nextIdx);
+          const range = sortedTorrents.slice(start, end + 1).map((t) => t.id);
+          if (onSelectAll) {
+            onSelectAll(range);
+          } else {
+            useTorrentStore.getState().setSelectedIds(new Set(range));
+          }
+        } else {
+          selectionAnchorIndexRef.current = nextIdx;
+          if (selectedIds.size > 1) {
+            if (onSelectAll) {
+              onSelectAll([nextTorrent.id]);
+            } else {
+              useTorrentStore.getState().setSelectedIds(new Set([nextTorrent.id]));
+            }
+          }
         }
+
+        lastClickedIndexRef.current = nextIdx;
+        const telTorrent = applyTelemetry(
+          nextTorrent,
+          useTorrentStore.getState().telemetry[nextTorrent.id],
+        );
+        onSelect?.(telTorrent);
+        rowVirtualizer.scrollToIndex(nextIdx, { align: "auto" });
         return;
       }
 
@@ -1709,7 +1899,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
               : [];
         if (targetIds.length === 0) return;
         e.preventDefault();
-        onDelete?.({ id: targetIds[0] });
+        onDelete?.({ id: targetIds[0], ids: targetIds });
         return;
       }
     };
@@ -1729,6 +1919,9 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     rowVirtualizer,
     startSeeding,
     stopSeeding,
+    moveTorrentQueue,
+    recheckTorrent,
+    announceTorrent,
   ]);
 
   const virtualRows = rowVirtualizer.getVirtualItems();
@@ -2028,6 +2221,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
               onDelete({
                 id: payload.ids[0],
                 deleteFiles: payload.deleteFiles,
+                ids: payload.ids,
               });
             } else {
               payload.ids.forEach((id) =>

@@ -100,7 +100,7 @@ function SettingsContent() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
-        (e.key === "/" || (e.ctrlKey && e.key.toLowerCase() === "f")) &&
+        (e.key === "/" || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f")) &&
         document.activeElement?.tagName !== "INPUT" &&
         document.activeElement?.tagName !== "TEXTAREA"
       ) {
