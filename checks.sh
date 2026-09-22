@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
 set -e
 
-# Configure GitHub Actions environment for subsequent Super-Linter steps
+# Disable linters not supported in dispatch.yaml inputs or incompatible with repo
 if [ -n "$GITHUB_ENV" ]; then
-  echo "VALIDATE_CSS=false" >> "$GITHUB_ENV"
-  echo "VALIDATE_CSS_STYLELINT=false" >> "$GITHUB_ENV"
-  echo "VALIDATE_GITLEAKS=false" >> "$GITHUB_ENV"
-  echo "VALIDATE_TYPESCRIPT_PRETTIER=false" >> "$GITHUB_ENV"
-  echo "VALIDATE_MARKDOWN_PRETTIER=false" >> "$GITHUB_ENV"
-  echo "VALIDATE_SPELL_CODESPELL=false" >> "$GITHUB_ENV"
-  echo "VALIDATE_PRETTIER=false" >> "$GITHUB_ENV"
+  {
+    echo "VALIDATE_CSS=false"
+    echo "VALIDATE_CSS_STYLELINT=false"
+    echo "VALIDATE_GITLEAKS=false"
+    echo "VALIDATE_TYPESCRIPT_PRETTIER=false"
+    echo "VALIDATE_MARKDOWN_PRETTIER=false"
+    echo "VALIDATE_SPELL_CODESPELL=false"
+    echo "VALIDATE_TYPESCRIPT_ES=false"
+    echo "VALIDATE_MARKDOWN=false"
+    echo "VALIDATE_NATURAL_LANGUAGE=false"
+    echo "VALIDATE_PRETTIER=false"
+  } >> "$GITHUB_ENV"
 fi
 
 # Output exit code 0 for dispatch.yaml 'exit $(./checks.sh)'

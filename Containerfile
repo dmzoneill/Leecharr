@@ -81,6 +81,7 @@ COPY --from=backend /app ./
 COPY --from=frontend /build/src/NzbDrone.Host/wwwroot/ ./wwwroot/
 COPY --chmod=755 src/NzbDrone.Core/BitTorrent/libtorrent_daemon.py /app/libtorrent_daemon.py
 COPY version ./
+COPY CHANGELOG.md ./
 COPY --chmod=755 container-entrypoint.sh /container-entrypoint.sh
 
 ENV LEECHARR__APP_DATA=/config
