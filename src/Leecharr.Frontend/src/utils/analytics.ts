@@ -447,7 +447,14 @@ export function trackSpeedModeChange(
  * Helper to track system maintenance and backup operations.
  */
 export function trackSystemMaintenanceAction(
-  action: "backup_create" | "backup_restore" | "backup_download" | "task_run" | "logs_clear" | "update_check",
+  action:
+    | "backup_create"
+    | "backup_restore"
+    | "backup_download"
+    | "backup_delete"
+    | "task_run"
+    | "logs_clear"
+    | "update_check",
   name?: string,
 ): void {
   trackEvent("system_maintenance", {
@@ -460,7 +467,15 @@ export function trackSystemMaintenanceAction(
  * Helper to track workflow / automation creation and execution.
  */
 export function trackAutomationAction(
-  action: "create" | "update" | "delete" | "trigger" | "install_template",
+  action:
+    | "create"
+    | "update"
+    | "delete"
+    | "trigger"
+    | "install_template"
+    | "enable"
+    | "disable"
+    | "run_now",
   triggerTypeOrName?: string,
 ): void {
   trackEvent("automation_action", {
@@ -611,7 +626,7 @@ export function trackTagAction(
  * Helper to track indexer operations (test, add, edit, sync).
  */
 export function trackIndexerAction(
-  action: "test" | "add" | "edit" | "sync",
+  action: "test" | "add" | "edit" | "sync" | "delete",
   indexerType: string,
   success?: boolean,
 ): void {

@@ -45,6 +45,10 @@ export function KeyboardShortcutsModal({
           description: "Open Command Palette / Quick Search",
         },
         {
+          keys: ["/"],
+          description: "Focus Global Search / Command Palette",
+        },
+        {
           keys: ["?"],
           description: "Open this Keyboard Shortcuts cheatsheet",
         },
@@ -75,12 +79,12 @@ export function KeyboardShortcutsModal({
           description: "Go to Torrents view",
         },
         {
-          keys: ["g", "a"],
+          keys: ["g", "a", "or", "h"],
           description: "Go to Activity Hub & Download History",
         },
         {
           keys: ["g", "s"],
-          description: "Go to Settings",
+          description: "Go to Host Settings",
         },
         {
           keys: ["g", "f"],
@@ -105,12 +109,24 @@ export function KeyboardShortcutsModal({
           description: "Navigate up and down torrent table rows",
         },
         {
-          keys: ["Shift", "Click"],
-          description: "Range select multiple contiguous torrents",
+          keys: ["Shift", "↑ / ↓"],
+          description: "True range select (dynamically expand/contract)",
+        },
+        {
+          keys: ["Home", "End"],
+          description: "Jump to first or last row in table",
+        },
+        {
+          keys: ["Enter"],
+          description: "Open & focus torrent detail panel",
         },
         {
           keys: [`${modKey}`, "A"],
           description: "Select all filtered torrents",
+        },
+        {
+          keys: [`${modKey}`, "Shift", "I"],
+          description: "Invert torrent selection",
         },
         {
           keys: ["Space", "or", "p"],
@@ -118,7 +134,89 @@ export function KeyboardShortcutsModal({
         },
         {
           keys: ["Delete"],
-          description: "Delete selected torrent(s) from client",
+          description: "Delete selected torrent(s) (multi-select supported)",
+        },
+      ],
+    },
+    {
+      category: "Queue Priority & Quick Actions",
+      icon: "🚀",
+      shortcuts: [
+        {
+          keys: [`${modKey}`, "↑ / ↓"],
+          description: "Move selected torrent up / down in queue",
+        },
+        {
+          keys: [`${modKey}`, "Shift", "↑ / ↓"],
+          description: "Move selected torrent to top / bottom of queue",
+        },
+        {
+          keys: [`${modKey}`, "R", "or", "F5"],
+          description: "Force recheck selected torrent(s)",
+        },
+        {
+          keys: ["F6"],
+          description: "Announce / update tracker for selected torrent(s)",
+        },
+      ],
+    },
+    {
+      category: "Media Player",
+      icon: "🎬",
+      shortcuts: [
+        {
+          keys: ["Space"],
+          description: "Play / Pause media playback",
+        },
+        {
+          keys: ["←", "→"],
+          description: "Seek -/+ 5 seconds (with Shift: 30s)",
+        },
+        {
+          keys: ["↑", "↓"],
+          description: "Adjust volume -/+ 5%",
+        },
+        {
+          keys: ["m"],
+          description: "Mute / unmute audio",
+        },
+        {
+          keys: ["f"],
+          description: "Toggle fullscreen playback",
+        },
+        {
+          keys: ["c"],
+          description: "Cycle subtitle tracks",
+        },
+        {
+          keys: ["[", "]"],
+          description: "Cycle speed (0.75x, 1x, 1.25x, 1.5x, 2x)",
+        },
+      ],
+    },
+    {
+      category: "Detail Panel Files & Script Editor",
+      icon: "📁",
+      shortcuts: [
+        {
+          keys: ["↑", "↓"],
+          description: "Navigate files and folders tree",
+        },
+        {
+          keys: ["←", "→"],
+          description: "Collapse / expand folder or traverse depth",
+        },
+        {
+          keys: ["Space"],
+          description: "Toggle selective download checkbox",
+        },
+        {
+          keys: ["0", "1", "2"],
+          description: "Set file priority (0=Skip, 1=Low, 2=Normal)",
+        },
+        {
+          keys: ["Esc", "or", "Shift+Tab"],
+          description: "Unfocus code editor (WCAG keyboard trap escape)",
         },
       ],
     },
