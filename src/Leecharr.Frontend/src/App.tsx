@@ -801,10 +801,13 @@ export function App() {
           },
         ]);
       }
-      showToast("Torrent paused", "info");
+      showToast(t("torrents.torrentPaused", "Torrent paused"), "info");
       refreshServerData();
     } catch (err: unknown) {
-      showToast(getErrorMessage(err, "Failed to pause torrent"), "error");
+      showToast(
+        getErrorMessage(err, t("torrents.failedToPause", "Failed to pause torrent")),
+        "error",
+      );
     }
   };
 
@@ -830,10 +833,13 @@ export function App() {
           },
         ]);
       }
-      showToast("Torrent resumed", "success");
+      showToast(t("torrents.torrentResumed", "Torrent resumed"), "success");
       refreshServerData();
     } catch (err: unknown) {
-      showToast(getErrorMessage(err, "Failed to resume torrent"), "error");
+      showToast(
+        getErrorMessage(err, t("torrents.failedToResume", "Failed to resume torrent")),
+        "error",
+      );
     }
   };
 
@@ -849,12 +855,17 @@ export function App() {
       await api.deleteTorrent(id, deleteFiles);
       useTorrentStore.getState().removeTorrent(id);
       showToast(
-        deleteFiles ? "Torrent and files deleted" : "Torrent removed",
+        deleteFiles
+          ? t("torrents.torrentAndFilesDeleted", "Torrent and files deleted")
+          : t("torrents.torrentRemoved", "Torrent removed"),
         "info",
       );
       refreshServerData();
     } catch (err: unknown) {
-      showToast(getErrorMessage(err, "Failed to delete torrent"), "error");
+      showToast(
+        getErrorMessage(err, t("torrents.failedToDelete", "Failed to delete torrent")),
+        "error",
+      );
     }
   };
 

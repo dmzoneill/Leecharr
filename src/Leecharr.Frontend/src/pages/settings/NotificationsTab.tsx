@@ -500,7 +500,10 @@ export function NotificationsTab() {
           setTestResults((prev) => ({ ...prev, [id]: data }));
           if (data.success) {
             showToast(
-              `Test notification for "${name}" sent successfully`,
+              t("settingsTabs.notifications.testSuccessWithName", {
+                name,
+                defaultValue: `Test notification for "${name}" sent successfully`,
+              }),
               "success",
             );
           } else {
