@@ -164,6 +164,7 @@ const vi: I18nTranslations = {
     "searchLanguage": "Tìm kiếm ngôn ngữ...",
     "noLanguagesFound": "Không tìm thấy ngôn ngữ nào",
     "saving": "Đang lưu...",
+    "deleting": "Đang xóa...",
     "title": "Leecharr Copilot",
     "speed": "Tốc độ",
     "general": "Chung",
@@ -378,6 +379,7 @@ const vi: I18nTranslations = {
       "dragToResize": "Kéo để thay đổi kích thước",
       "completed": "Đã hoàn thành",
       "index": "#",
+      "queuePosition": "Hàng đợi #",
       "status": "Trạng thái",
       "sessionUploaded": "Phiên đã tải lên",
       "sessionDownloaded": "Phiên đã tải xuống",
@@ -387,21 +389,20 @@ const vi: I18nTranslations = {
       "nextUpdate": "Cập nhật tiếp theo",
       "priority": "Mức ưu tiên",
       "label": "Nhãn",
+      "active": "Thời gian hoạt động",
       "superSeeding": "Siêu gieo hạt",
       "sequentialDownload": "Tải xuống tuần tự",
       "forceStart": "Buộc bắt đầu",
       "availability": "sẵn có",
+      "threshold": "Giới hạn tỷ lệ tải lên",
+      "smallTorrentLimit": "Giới hạn thời gian gieo hạt",
       "added": "Ngày thêm",
       "lastActive": "Hoạt động lần cuối",
+      "creationDate": "Torrent được tạo trên",
       "createdBy": "Tạo bởi",
       "comment": "Bình luận",
       "pieceCount": "Mảnh (Pieces)",
       "pieceLength": "Kích thước mảnh",
-      "queuePosition": "Hàng đợi #",
-      "active": "Thời gian hoạt động",
-      "threshold": "Giới hạn tỷ lệ tải lên",
-      "smallTorrentLimit": "Giới hạn thời gian gieo hạt",
-      "creationDate": "Torrent được tạo trên",
       "isPrivate": "Riêng tư"
     },
     "grid": {
@@ -722,21 +723,30 @@ const vi: I18nTranslations = {
       "noFilterMatchesDesc": "Không có bộ lọc nào phù hợp với mô tả",
       "noTorrentsDesc": "Không có torrent"
     },
-    "removeTags": "Xóa",
     "bulkAddTagsTitle": "Gán thẻ",
     "bulkRemoveTagsTitle": "Xóa thẻ",
     "bulkAddTagsDesc": "Gán các thẻ đã chọn cho {{count}} torrent",
     "bulkRemoveTagsDesc": "Xóa các thẻ đã chọn khỏi {{count}} torrent",
     "assignTags": "Giao phó",
+    "removeTags": "Xóa",
     "bulkAddTags": "Gán thẻ",
     "bulkRemoveTags": "Xóa thẻ",
+    "deleteTorrentTitle": "Xóa torrent",
+    "deleteSingleConfirmGeneric": "Bạn có chắc chắn muốn xóa torrent này?",
+    "deleteFilesFromDisk": "Xóa cả các tệp đã tải xuống khỏi ổ đĩa",
     "torrentPaused": "Torrent đã tạm dừng",
     "failedToPause": "Không thể tạm dừng torrent",
     "torrentResumed": "Torrent đã được tiếp tục",
     "failedToResume": "Không thể tiếp tục torrent",
     "torrentAndFilesDeleted": "Torrent và tập tin đã bị xóa",
     "torrentRemoved": "Đã xóa torrent",
-    "failedToDelete": "Không thể xóa torrent"
+    "failedToDelete": "Không thể xóa torrent",
+    "deleteTorrentsTitle": "Xóa torrent",
+    "readOnlyDeleteWarning": "Bạn có quyền ReadOnly. Torrent không thể bị xóa.",
+    "deleteMultipleConfirm": "Bạn có chắc chắn muốn xóa torrent {{count}} không?",
+    "deleteSingleConfirm": "Bạn có chắc chắn muốn xóa",
+    "deleteFilesWarning": "Tất cả các tệp đã tải xuống được liên kết với torrent này sẽ bị xóa vĩnh viễn.",
+    "deletePermissionRequired": "Xóa torrent cần có vai trò của người điều hành hoặc quản trị viên"
   },
   "torrentDetail": {
     "overview": "Tổng quan",
@@ -909,7 +919,9 @@ const vi: I18nTranslations = {
     "sourcePathRequired": "Cần có đường dẫn nguồn để tạo torrent",
     "failedToCreateTorrent": "Không tạo được torrent",
     "failedToAddTorrent": "Không thể thêm torrent",
-    "bulkAddSummary": "Thêm hàng loạt"
+    "bulkAddSummary": "Thêm hàng loạt",
+    "closeDialog": "Đóng hộp thoại thêm torrent",
+    "readOnlyWarning": "🔒 Bạn có quyền ReadOnly. Thêm torrent là không được phép."
   },
   "activity": {
     "title": "Hoạt động mạng & bầy",
@@ -1500,9 +1512,9 @@ const vi: I18nTranslations = {
     "indexerFallback": "Dự phòng lập chỉ mục",
     "types": {
       "torznab": "Torznab",
+      "jackett": "Áo khoác",
       "prowlarr": "Prowlarr",
-      "newznab": "Newznab",
-      "jackett": "Áo khoác"
+      "newznab": "Newznab"
     }
   },
   "system": {
@@ -2475,7 +2487,6 @@ const vi: I18nTranslations = {
       "mustNotContainHint": "Biểu thức chính quy mà tiêu đề phát hành KHÔNG được khớp",
       "minSeedersLabel": "Máy gieo hạt tối thiểu",
       "minSizeLabel": "Kích thước tối thiểu (Byte)",
-      "freeleech": "Freeleech",
       "nameRequired": "Tên là bắt buộc",
       "urlRequired": "URL là bắt buộc",
       "ruleNameRequired": "Tên quy tắc là bắt buộc",
@@ -2483,7 +2494,8 @@ const vi: I18nTranslations = {
       "indexerUpdated": "Đã cập nhật trình lập chỉ mục \"{{name}}\"",
       "indexerCreated": "Người lập chỉ mục \"{{name}}\" đã được tạo",
       "updateFailed": "Không thể cập nhật bộ chỉ mục",
-      "createFailed": "Không tạo được bộ chỉ mục"
+      "createFailed": "Không tạo được bộ chỉ mục",
+      "freeleech": "Freeleech"
     },
     "nav": {
       "groups": {
@@ -3104,13 +3116,13 @@ const vi: I18nTranslations = {
       "save": "Lưu",
       "sectionTitle": "Ứng dụng khách tải xuống BitTorrent",
       "sectionDescription": "Kết nối các ứng dụng khách tải xuống bên ngoài (qBittorrent, Transmission, Deluge) để nhập trạng thái gieo hạt đang hoạt động",
-      "hostPlaceholder": "localhost",
       "nameRequired": "Tên là bắt buộc",
       "hostRequired": "Máy chủ là bắt buộc",
       "clientUpdated": "Đã cập nhật tải xuống ứng dụng khách \"{{name}}\"",
       "clientCreated": "Tải xuống ứng dụng khách \"{{name}}\" đã được tạo",
       "updateFailed": "Không thể cập nhật ứng dụng khách tải xuống",
-      "createFailed": "Không tạo được ứng dụng khách tải xuống"
+      "createFailed": "Không tạo được ứng dụng khách tải xuống",
+      "hostPlaceholder": "localhost"
     },
     "shared": {
       "failedToSave": "Không lưu được:",
@@ -3357,13 +3369,13 @@ const vi: I18nTranslations = {
       "addTitle": "Thêm kết nối",
       "webhookHostHint": "Tên máy chủ hoặc IP cho *arr để tiếp cận Leecharr (để trống để sử dụng mặc định)",
       "testingConnection": "Đang kiểm tra kết nối tới {{url}}...",
-      "badgeWebhook": "Webhook",
       "nameRequired": "Tên là bắt buộc",
       "urlRequired": "URL là bắt buộc",
       "connectionUpdated": "Đã cập nhật kết nối \"{{name}}\"",
       "connectionCreated": "Đã tạo kết nối \"{{name}}\"",
       "updateFailed": "Không cập nhật được kết nối",
-      "createFailed": "Không tạo được kết nối"
+      "createFailed": "Không tạo được kết nối",
+      "badgeWebhook": "Webhook"
     },
     "webui": {
       "telemetryEnabled": "Đã bật phép đo từ xa ẩn danh",
@@ -4299,22 +4311,11 @@ const vi: I18nTranslations = {
     }
   },
   "tags": {
-    "category": "Loại:",
-    "allCategories": "Tất cả danh mục",
-    "actions": "Hành động",
-    "defaultPolicy": "Mặc định",
-    "edit": "Chỉnh sửa",
-    "delete": "Xóa",
-    "addTagModalTitle": "Thêm thẻ",
-    "clearColor": "Xóa sạch",
-    "presets": "Cài đặt trước:",
-    "unlimitedPlaceholder": "Không giới hạn",
-    "minSeedRatioPlaceholder": "ví dụ. 2.0",
-    "cancel": "Hủy",
-    "saving": "Đang lưu...",
     "noTags": "Không có thẻ có sẵn. Vui lòng tạo thẻ trước trong Cài đặt > Thẻ.",
     "title": "Thẻ",
     "description": "Tổ chức và lọc các luồng torrent theo nhãn, màu sắc và chính sách gieo hạt tùy chỉnh",
+    "category": "Loại:",
+    "allCategories": "Tất cả danh mục",
     "uncategorized": "Chưa được phân loại",
     "addTag": "+ Thêm thẻ",
     "loading": "Đang tải thẻ...",
@@ -4322,32 +4323,44 @@ const vi: I18nTranslations = {
     "tagLabel": "Nhãn thẻ",
     "seedingPolicies": "Chính sách gieo hạt",
     "assignedTorrents": "Torrent được chỉ định",
+    "actions": "Hành động",
     "noTagsDefined": "Chưa có thẻ nào được xác định. Nhấp vào \"+ Thêm thẻ\" để tạo một thẻ.",
+    "defaultPolicy": "Mặc định",
     "torrentsCount": "torrent",
     "torrentsCountWithCategory": "torrent ({{category}})",
+    "edit": "Chỉnh sửa",
+    "delete": "Xóa",
+    "addTagModalTitle": "Thêm thẻ",
     "editTagModalTitle": "Chỉnh sửa thẻ: \"{{label}}\"",
     "tagLabelInput": "Nhãn thẻ *",
     "tagLabelPlaceholder": "ví dụ. 4k-hdr, hộp hạt giống, ptp",
     "colorCustomization": "Tùy chỉnh màu sắc",
+    "clearColor": "Xóa sạch",
     "preview": "Xem trước",
+    "presets": "Cài đặt trước:",
     "uploadLimit": "Giới hạn tải lên (KB/s)",
     "downloadLimit": "Giới hạn tải xuống (KB/s)",
+    "unlimitedPlaceholder": "Không giới hạn",
     "minSeedRatio": "Tỷ lệ hạt giống tối thiểu",
+    "minSeedRatioPlaceholder": "ví dụ. 2.0",
     "minSeedTime": "Thời gian gieo hạt tối thiểu (Giây)",
     "minSeedTimePlaceholder": "ví dụ. 86400",
+    "cancel": "Hủy",
     "saveTag": "Lưu thẻ",
+    "saving": "Đang lưu...",
     "deleteTagModalTitle": "Xóa thẻ: \"{{label}}\"",
     "deleteWarning": "⚠️ Cảnh báo: Xóa thẻ này sẽ xóa thẻ khỏi tất cả các torrent, trình lập chỉ mục và quy tắc tự động được chỉ định. Không thể hoàn tác hành động này.",
     "deleteConfirmQuestion": "Bạn có chắc chắn muốn xóa thẻ {{label}} không?",
     "assignedToCount": "Hiện được giao cho {{count}} {{torrentWord}}.",
     "notAssigned": "Thẻ này hiện không được gán cho bất kỳ torrent nào.",
     "deleteConfirm": "Xóa thẻ",
-    "deleting": "Đang xóa..."
+    "deleting": "Đang xóa...",
+    "createTag": "Tạo thẻ"
   },
   "keyboardShortcuts": {
-    "close": "Đóng",
     "title": "Phím tắt",
     "description": "Phím nóng nhanh để điều hướng quy trình công việc và công thái học của khách hàng nhanh chóng",
+    "close": "Đóng",
     "categories": {
       "globalSearch": "Toàn cầu & Tìm kiếm",
       "navigation": "Điều hướng trình tự hai phím",
@@ -4395,8 +4408,6 @@ const vi: I18nTranslations = {
     "panelUnfocusEditor": "Trình chỉnh sửa mã không tập trung (thoát bẫy bàn phím WCAG)"
   },
   "mediaPlayer": {
-    "download": "Tải xuống",
-    "retry": "Thử lại",
     "playbackError": "Lỗi phát lại Codec của trình duyệt",
     "openInVlc": "Mở trong VLC",
     "openInMpv": "Mở trong MPV",
@@ -4404,6 +4415,8 @@ const vi: I18nTranslations = {
     "copyStreamUrl": "Sao chép URL luồng",
     "copied": "Đã sao chép!",
     "copyUrl": "Sao chép URL",
+    "download": "Tải xuống",
+    "retry": "Thử lại",
     "subtitles": "Phụ đề:",
     "off": "Tắt",
     "size": "Kích cỡ:",
@@ -4422,16 +4435,17 @@ const vi: I18nTranslations = {
   "folderBrowser": {
     "up": "Up",
     "newFolder": "Thư mục mới",
-    "cancel": "Hủy",
-    "goToParent": "Đi tới thư mục mẹ",
     "create": "Tạo nên",
+    "cancel": "Hủy",
     "loading": "Đang tải danh sách thư mục...",
     "failedToLoad": "Không tải được thư mục.",
     "noSubfolders": "Không có thư mục con trong thư mục này.",
     "selected": "Đã chọn:",
     "selectThisFolder": "Chọn thư mục này",
     "folderNamePlaceholder": "Tên thư mục...",
-    "createNewFolder": "Tạo thư mục mới"
+    "goToParent": "Đi tới thư mục mẹ",
+    "createNewFolder": "Tạo thư mục mới",
+    "close": "Đóng trình duyệt thư mục"
   }
 };
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useFileListing, useCreateDirectory } from "../api/hooks";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import { useModalRegistration } from "./ModalProvider";
 import { useToast } from "../context/ToastContext";
 import { useTranslation } from "../i18n";
 
@@ -38,6 +39,13 @@ export function FolderBrowserModal({
   const trapRef = useFocusTrap<HTMLDivElement>({
     isOpen,
     onClose,
+  });
+
+  useModalRegistration({
+    id: "folder-browser-modal",
+    isOpen,
+    onClose,
+    modalRef: trapRef,
   });
 
   const {
@@ -157,6 +165,8 @@ export function FolderBrowserModal({
             type="button"
             className="btn btn-outline btn-small"
             onClick={onClose}
+            aria-label={t("folderBrowser.close", undefined, "Close folder browser")}
+            title={t("folderBrowser.close", undefined, "Close folder browser")}
             style={{ padding: "0.2rem 0.5rem", fontSize: "0.8rem" }}
           >
             ✕

@@ -1,54 +1,98 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "../i18n";
+import { useModalRegistration } from "./ModalProvider";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import { usePermissions } from "../hooks/usePermissions";
 import type { Torrent } from "../api/types";
 
 export interface DeleteTorrentModalProps {
   isOpen: boolean;
   torrent?: Torrent | null;
+  torrentName?: string;
   count?: number;
-  onConfirm: (deleteFiles: boolean) => void;
-  onCancel: () => void;
+  isPending?: boolean;
+  onConfirm: (deleteFiles: boolean) => Promise<void> | void;
+  onClose?: () => void;
+  onCancel?: () => void;
 }
 
 export function DeleteTorrentModal({
   isOpen,
   torrent,
-  count,
+  torrentName,
+  count = 1,
+  isPending = false,
   onConfirm,
+  onClose,
   onCancel,
 }: DeleteTorrentModalProps) {
   const { t } = useTranslation();
+  const { canDeleteTorrent } = usePermissions();
   const [deleteFiles, setDeleteFiles] = useState(false);
-  const trapRef = useFocusTrap<HTMLDivElement>({ isOpen, onClose: onCancel });
+  const modalRef = useRef<HTMLDivElement>(null);
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+
+  const handleClose = () => {
+    if (isPending) return;
+    if (onClose) {
+      onClose();
+    } else if (onCancel) {
+      onCancel();
+    }
+  };
+
+  useModalRegistration({
+    id: "delete-torrent-modal",
+    isOpen,
+    onClose: handleClose,
+    modalRef,
+  });
+
+  const trapRef = useFocusTrap<HTMLDivElement>({
+    isOpen,
+    onClose: handleClose,
+  });
+
+  const setContainerRef = (el: HTMLDivElement | null) => {
+    (modalRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+    (trapRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+  };
 
   useEffect(() => {
     if (isOpen) {
       setDeleteFiles(false);
+      const timer = setTimeout(() => {
+        confirmButtonRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const isBulk = typeof count === "number" && count > 1;
-  const title = isBulk
-    ? t("torrents.toolbar.bulkDeleteTitle", { count })
-    : t("torrents.contextMenu.removeTorrent");
+  const effectiveTorrentName = torrentName ?? torrent?.name;
+  const isMultiple =
+    (typeof count === "number" && count > 1) || (!effectiveTorrentName && count !== 1);
 
-  const message = isBulk
-    ? t("torrents.toolbar.bulkDeleteConfirm", { count })
-    : t("torrents.contextMenu.removeTorrentConfirm", {
-        name: torrent?.name || "",
-      });
+  const title = isMultiple
+    ? t("torrents.deleteTorrentsTitle", undefined, "Delete Torrents")
+    : t("torrents.deleteTorrentTitle", undefined, "Delete Torrent");
 
-  const handleConfirm = () => {
-    onConfirm(deleteFiles);
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget && !isPending) {
+      handleClose();
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (isPending || !canDeleteTorrent) return;
+    await onConfirm(deleteFiles);
   };
 
   return (
     <div
       className="modal-overlay"
-      onClick={onCancel}
+      onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
       aria-labelledby="delete-torrent-modal-title"
@@ -70,8 +114,8 @@ export function DeleteTorrentModal({
       }}
     >
       <div
-        ref={trapRef}
-        className="modal-content"
+        ref={setContainerRef}
+        className="modal-content modal"
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "100%",
@@ -92,94 +136,182 @@ export function DeleteTorrentModal({
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "0.75rem",
+            justifyContent: "space-between",
             marginBottom: "0.85rem",
           }}
         >
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <div
+              style={{
+                width: "36px",
+                height: "36px",
+                borderRadius: "8px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "rgba(230, 57, 70, 0.15)",
+                color: "#e63946",
+                fontSize: "1.2rem",
+                flexShrink: 0,
+              }}
+            >
+              ⚠️
+            </div>
+            <h3
+              id="delete-torrent-modal-title"
+              className="modal-title"
+              style={{
+                margin: 0,
+                fontSize: "1.15rem",
+                fontWeight: 600,
+                color: "var(--text-primary, #f8f4ed)",
+              }}
+            >
+              {title}
+            </h3>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-outline btn-small"
+            onClick={handleClose}
+            disabled={isPending}
+            aria-label={t("common.close", undefined, "Close")}
+            title={t("common.close", undefined, "Close")}
+            style={{ padding: "0.2rem 0.5rem", fontSize: "0.8rem" }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* ReadOnly Permission Warning Banner */}
+        {!canDeleteTorrent && (
           <div
+            role="alert"
             style={{
-              width: "36px",
-              height: "36px",
-              borderRadius: "8px",
+              padding: "0.75rem 1rem",
+              backgroundColor: "rgba(239, 68, 68, 0.1)",
+              border: "1px solid rgba(239, 68, 68, 0.3)",
+              borderRadius: "6px",
+              marginBottom: "1rem",
+              color: "#fca5a5",
+              fontSize: "0.875rem",
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: "rgba(230, 57, 70, 0.15)",
-              color: "#e63946",
-              fontSize: "1.2rem",
-              flexShrink: 0,
+              gap: "0.5rem",
             }}
           >
-            ⚠️
+            <span>🔒</span>
+            <span>
+              {t(
+                "torrents.readOnlyDeleteWarning",
+                undefined,
+                "You have ReadOnly permissions. Torrents cannot be deleted.",
+              )}
+            </span>
           </div>
-          <h3
-            id="delete-torrent-modal-title"
-            style={{
-              margin: 0,
-              fontSize: "1.15rem",
-              fontWeight: 600,
-              color: "var(--text-primary, #f8f4ed)",
-            }}
-          >
-            {title}
-          </h3>
-        </div>
+        )}
 
         {/* Message */}
         <div
           id="delete-torrent-modal-desc"
           style={{
-            fontSize: "0.95rem",
-            color: "var(--text-secondary, #c7c5d3)",
-            lineHeight: 1.5,
+            padding: "0.75rem 1rem",
+            backgroundColor: "var(--danger-bg-alert, rgba(239, 68, 68, 0.12))",
+            border: "1px solid var(--danger-border-alert, rgba(239, 68, 68, 0.3))",
+            borderRadius: "6px",
             marginBottom: "1.25rem",
-            wordBreak: "break-word",
+            fontSize: "0.875rem",
+            color: "var(--text-primary, #fff)",
+            lineHeight: 1.5,
           }}
         >
-          {message}
+          {isMultiple ? (
+            <span>
+              {t(
+                "torrents.deleteMultipleConfirm",
+                { count },
+                `Are you sure you want to delete ${count} torrents?`,
+              )}
+            </span>
+          ) : effectiveTorrentName ? (
+            <span>
+              {t(
+                "torrents.deleteSingleConfirm",
+                undefined,
+                "Are you sure you want to delete",
+              )}{" "}
+              <strong style={{ wordBreak: "break-all" }}>
+                "{effectiveTorrentName}"
+              </strong>
+              ?
+            </span>
+          ) : (
+            <span>
+              {t(
+                "torrents.deleteSingleConfirmGeneric",
+                undefined,
+                "Are you sure you want to delete this torrent?",
+              )}
+            </span>
+          )}
         </div>
 
         {/* Checkbox for deleteFiles */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.65rem",
-            marginBottom: "1.5rem",
-            padding: "0.75rem",
-            backgroundColor: "rgba(0, 0, 0, 0.2)",
-            borderRadius: "6px",
-            border: "1px solid var(--border)",
-          }}
-        >
-          <input
-            type="checkbox"
-            id="deleteFilesCheckbox"
-            checked={deleteFiles}
-            onChange={(e) => setDeleteFiles(e.target.checked)}
-            style={{
-              cursor: "pointer",
-              accentColor: "#e63946",
-              width: "16px",
-              height: "16px",
-            }}
-          />
+        <div style={{ marginBottom: "1.25rem" }}>
           <label
             htmlFor="deleteFilesCheckbox"
             style={{
-              color: "var(--text-primary, #f8f4ed)",
-              fontSize: "0.9rem",
-              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.6rem",
+              cursor: isPending ? "not-allowed" : "pointer",
               userSelect: "none",
+              fontSize: "0.9rem",
+              color: "var(--text-primary, #f8f4ed)",
             }}
           >
-            {t("torrents.contextMenu.removeTorrentAndDeleteFiles") ||
-              "Also delete downloaded files from disk"}
+            <input
+              type="checkbox"
+              id="deleteFilesCheckbox"
+              checked={deleteFiles}
+              onChange={(e) => setDeleteFiles(e.target.checked)}
+              disabled={isPending}
+              style={{
+                cursor: isPending ? "not-allowed" : "pointer",
+                width: "1.1rem",
+                height: "1.1rem",
+                accentColor: "var(--danger, #ef4444)",
+              }}
+            />
+            <span>
+              {t(
+                "torrents.deleteFilesFromDisk",
+                undefined,
+                "Also delete downloaded files from disk",
+              )}
+            </span>
           </label>
+          {deleteFiles && (
+            <p
+              style={{
+                margin: "0.4rem 0 0 1.7rem",
+                fontSize: "0.8rem",
+                color: "var(--danger, #ef4444)",
+              }}
+            >
+              {t(
+                "torrents.deleteFilesWarning",
+                undefined,
+                "All downloaded files associated with this torrent will be permanently deleted.",
+              )}
+            </p>
+          )}
         </div>
 
         {/* Actions */}
         <div
+          className="modal-actions"
           style={{
             display: "flex",
             justifyContent: "flex-end",
@@ -188,20 +320,55 @@ export function DeleteTorrentModal({
         >
           <button
             type="button"
-            className="btn btn-secondary"
-            onClick={onCancel}
+            className="btn btn-outline"
+            onClick={handleClose}
+            disabled={isPending}
             style={{ minWidth: "90px" }}
-            autoFocus
           >
-            {t("common.cancel")}
+            {t("common.cancel", undefined, "Cancel")}
           </button>
           <button
+            ref={confirmButtonRef}
             type="button"
             className="btn btn-danger"
             onClick={handleConfirm}
-            style={{ minWidth: "90px" }}
+            disabled={isPending || !canDeleteTorrent}
+            title={
+              !canDeleteTorrent
+                ? t(
+                    "torrents.deletePermissionRequired",
+                    undefined,
+                    "Deleting torrents requires operator or admin role",
+                  )
+                : undefined
+            }
+            style={{
+              minWidth: "90px",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.5rem",
+            }}
           >
-            {t("common.delete")}
+            {isPending ? (
+              <>
+                <span
+                  className="spinner"
+                  style={{
+                    display: "inline-block",
+                    width: "0.85rem",
+                    height: "0.85rem",
+                    border: "2px solid rgba(255,255,255,0.3)",
+                    borderTopColor: "#fff",
+                    borderRadius: "50%",
+                    animation: "spin 0.6s linear infinite",
+                  }}
+                />
+                <span>{t("common.deleting", undefined, "Deleting...")}</span>
+              </>
+            ) : (
+              <span>{t("common.delete", undefined, "Delete")}</span>
+            )}
           </button>
         </div>
       </div>

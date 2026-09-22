@@ -1,6 +1,7 @@
 import { useTranslation } from "../i18n";
 import React, { useState, useEffect, useRef } from "react";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import { useModalRegistration } from "./ModalProvider";
 
 export interface PromptModalProps {
   isOpen: boolean;
@@ -57,6 +58,13 @@ export function PromptModal({
     isOpen,
     onClose: onCancel,
     initialFocusRef: inputRef,
+  });
+
+  useModalRegistration({
+    id: "prompt-modal",
+    isOpen,
+    onClose: onCancel,
+    modalRef: trapRef,
   });
 
   useEffect(() => {
