@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.26.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.26.1) - 2026-09-22
+
+### 🐛 Bug Fixes
+- fix(i18n): reconcile missing keys, synchronize 20 locales to 100% parity, and localize components
+
+### 🔧 Maintenance & Improvements
+- chore(devops): add CHANGELOG.md to container build and standardize checks.sh flags
+
 ## [v1.26.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.26.0) - 2026-09-22
 
 ### ✨ Features
