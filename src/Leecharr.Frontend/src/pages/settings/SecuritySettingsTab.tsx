@@ -111,7 +111,13 @@ export function SecuritySettingsTab() {
   const handleIdleTimeoutChange = (seconds: number) => {
     setIdleTimeout(seconds);
     setStoredIdleTimeout(seconds);
-    showToast("Session inactivity lock timeout updated", "info");
+    showToast(
+      t(
+        "settingsTabs.security.sessionTimeoutUpdated",
+        "Session inactivity lock timeout updated",
+      ),
+      "info",
+    );
   };
 
   const [form, setForm] = useState({

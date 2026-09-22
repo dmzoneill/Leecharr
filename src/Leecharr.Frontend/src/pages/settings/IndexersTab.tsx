@@ -188,11 +188,11 @@ export function IndexersTab() {
   const handleSave = () => {
     if (!editing) return;
     if (!editing.name?.trim()) {
-      showToast("Name is required", "error");
+      showToast(t("settingsTabs.indexers.nameRequired", "Name is required"), "error");
       return;
     }
     if (!editing.url?.trim()) {
-      showToast("URL is required", "error");
+      showToast(t("settingsTabs.indexers.urlRequired", "URL is required"), "error");
       return;
     }
     if (editing.indexerType === "Prowlarr" && !editing.id) {
@@ -205,7 +205,10 @@ export function IndexersTab() {
           onSuccess: (data) => {
             trackIndexerAction("sync", "Prowlarr", true);
             showToast(
-              `Synced ${data.syncedCount} indexers from Prowlarr`,
+              t("settingsTabs.indexers.syncedProwlarr", {
+                count: data.syncedCount,
+                defaultValue: `Synced ${data.syncedCount} indexers from Prowlarr`,
+              }),
               "success",
             );
             setEditing(null);
@@ -227,26 +230,46 @@ export function IndexersTab() {
       updateMutation.mutate(payload, {
         onSuccess: () => {
           trackIndexerAction("edit", payload.indexerType || "Prowlarr", true);
-          showToast(`Indexer "${payload.name}" updated`, "success");
+          showToast(
+            t("settingsTabs.indexers.indexerUpdated", {
+              name: payload.name,
+              defaultValue: `Indexer "${payload.name}" updated`,
+            }),
+            "success",
+          );
           setEditing(null);
           setModalTestResult(null);
         },
         onError: (err: any) => {
           trackIndexerAction("edit", payload.indexerType || "Prowlarr", false);
-          showToast(err?.message || "Failed to update indexer", "error");
+          showToast(
+            err?.message ||
+              t("settingsTabs.indexers.updateFailed", "Failed to update indexer"),
+            "error",
+          );
         },
       });
     } else {
       createMutation.mutate(payload, {
         onSuccess: () => {
           trackIndexerAction("add", payload.indexerType || "Prowlarr", true);
-          showToast(`Indexer "${payload.name}" created`, "success");
+          showToast(
+            t("settingsTabs.indexers.indexerCreated", {
+              name: payload.name,
+              defaultValue: `Indexer "${payload.name}" created`,
+            }),
+            "success",
+          );
           setEditing(null);
           setModalTestResult(null);
         },
         onError: (err: any) => {
           trackIndexerAction("add", payload.indexerType || "Prowlarr", false);
-          showToast(err?.message || "Failed to create indexer", "error");
+          showToast(
+            err?.message ||
+              t("settingsTabs.indexers.createFailed", "Failed to create indexer"),
+            "error",
+          );
         },
       });
     }
@@ -255,7 +278,10 @@ export function IndexersTab() {
   const handleSaveRule = () => {
     if (!editingRule) return;
     if (!editingRule.name?.trim()) {
-      showToast("Rule name is required", "error");
+      showToast(
+        t("settingsTabs.indexers.ruleNameRequired", "Rule name is required"),
+        "error",
+      );
       return;
     }
     const name = editingRule.name.trim();
@@ -553,7 +579,13 @@ export function IndexersTab() {
 
                     deleteRuleMutation.mutate(rule.id, {
                       onSuccess: () =>
-                        showToast(`RSS Rule "${rule.name}" deleted`, "info"),
+                        showToast(
+                          t("settingsTabs.indexers.rssRuleDeleted", {
+                            name: rule.name,
+                            defaultValue: `RSS Rule "${rule.name}" deleted`,
+                          }),
+                          "info",
+                        ),
                       onError: (err: any) =>
                         showToast(
                           err?.message ||
