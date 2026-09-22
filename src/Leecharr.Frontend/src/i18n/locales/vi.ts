@@ -3421,7 +3421,8 @@ const vi: I18nTranslations = {
     "addTorrentModal": "Lỗi hộp thoại thêm torrent",
     "searchModal": "Lỗi hộp thoại tìm kiếm",
     "setupGuide": "Lỗi hướng dẫn thiết lập",
-    "copilotDrawer": "Lỗi ngăn Copilot"
+    "copilotDrawer": "Lỗi ngăn Copilot",
+    "downloadClients": "Không tải được chế độ xem ứng dụng khách tải xuống. Đã xảy ra lỗi không mong muốn."
   },
   "copilot": {
     "welcomeMessage": "Xin chào! Tôi là trợ lý Leecharr Copilot. Tôi có thể giúp gì cho bạn hôm nay về torrent, bản phát hành hoặc cài đặt?",

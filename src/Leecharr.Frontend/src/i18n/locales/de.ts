@@ -3421,7 +3421,8 @@ const de: I18nTranslations = {
     "addTorrentModal": "Die addTorrentModal-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
     "searchModal": "Die searchModal-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
     "setupGuide": "Die setupGuide-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
-    "copilotDrawer": "Die CopilotDrawer-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten."
+    "copilotDrawer": "Die CopilotDrawer-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
+    "downloadClients": "Download-Client-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten."
   },
   "copilot": {
     "welcomeMessage": "Hallo! Ich bin dein Leecharr Copilot. Wie kann ich dir heute bei Torrents, Releases oder Einstellungen helfen?",

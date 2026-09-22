@@ -19,9 +19,26 @@ using Polly.Retry;
 
 namespace NzbDrone.Core.Notifications;
 
+public class WebhookDispatchResult
+{
+    public bool Success { get; set; }
+
+    public HttpStatusCode? StatusCode { get; set; }
+
+    public string Message { get; set; }
+
+    public string ResponseBodySnippet { get; set; }
+}
+
 public interface IWebhookDispatcher
 {
     Task<bool> DispatchAsync(string targetUrl, object payload, string customHeadersJson = null, CancellationToken cancellationToken = default);
+
+    Task<bool> DispatchAsync(string targetUrl, object payload, string customHeadersJson, HttpMethod httpMethod, CancellationToken cancellationToken = default);
+
+    Task<WebhookDispatchResult> DispatchDetailedAsync(string targetUrl, object payload, string customHeadersJson = null, CancellationToken cancellationToken = default);
+
+    Task<WebhookDispatchResult> DispatchDetailedAsync(string targetUrl, object payload, string customHeadersJson, HttpMethod httpMethod, CancellationToken cancellationToken = default);
 }
 
 public class WebhookDispatcher : IWebhookDispatcher
@@ -386,15 +403,39 @@ public class WebhookDispatcher : IWebhookDispatcher
 
     public async Task<bool> DispatchAsync(string targetUrl, object payload, string customHeadersJson = null, CancellationToken cancellationToken = default)
     {
+        return await this.DispatchAsync(targetUrl, payload, customHeadersJson, HttpMethod.Post, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<bool> DispatchAsync(string targetUrl, object payload, string customHeadersJson, HttpMethod httpMethod, CancellationToken cancellationToken = default)
+    {
+        var result = await this.DispatchDetailedAsync(targetUrl, payload, customHeadersJson, httpMethod ?? HttpMethod.Post, cancellationToken).ConfigureAwait(false);
+        return result.Success;
+    }
+
+    public async Task<WebhookDispatchResult> DispatchDetailedAsync(string targetUrl, object payload, string customHeadersJson = null, CancellationToken cancellationToken = default)
+    {
+        return await this.DispatchDetailedAsync(targetUrl, payload, customHeadersJson, HttpMethod.Post, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<WebhookDispatchResult> DispatchDetailedAsync(string targetUrl, object payload, string customHeadersJson, HttpMethod httpMethod, CancellationToken cancellationToken = default)
+    {
         if (string.IsNullOrWhiteSpace(targetUrl))
         {
-            return false;
+            return new WebhookDispatchResult
+            {
+                Success = false,
+                Message = "Target webhook URL is required.",
+            };
         }
 
         if (!IsValidTargetUrl(targetUrl, this.allowLoopback))
         {
             this.logger.Warn("Webhook dispatch blocked: Invalid or prohibited target URL (SSRF protection): {0}", targetUrl);
-            return false;
+            return new WebhookDispatchResult
+            {
+                Success = false,
+                Message = $"Target URL '{targetUrl}' is prohibited (SSRF protection: loopback, link-local, and cloud metadata addresses are not permitted).",
+            };
         }
 
         try
@@ -408,7 +449,7 @@ public class WebhookDispatcher : IWebhookDispatcher
                 using var response = await this.retryPolicy.ExecuteAsync(
                     async (ct) =>
                     {
-                        var request = this.BuildHttpRequest(currentUrl, payload, customHeadersJson);
+                        var request = this.BuildHttpRequest(currentUrl, payload, customHeadersJson, httpMethod);
                         return await this.httpClient.SendAsync(request, ct).ConfigureAwait(false);
                     },
                     cancellationToken).ConfigureAwait(false);
@@ -419,21 +460,36 @@ public class WebhookDispatcher : IWebhookDispatcher
                     if (redirectCount > maxRedirects)
                     {
                         this.logger.Warn("Webhook dispatch to {0} exceeded maximum redirect limit ({1})", targetUrl, maxRedirects);
-                        return false;
+                        return new WebhookDispatchResult
+                        {
+                            Success = false,
+                            StatusCode = response.StatusCode,
+                            Message = $"Webhook dispatch to {targetUrl} exceeded maximum redirect limit ({maxRedirects}).",
+                        };
                     }
 
                     var baseUri = new Uri(currentUrl);
                     if (!Uri.TryCreate(baseUri, response.Headers.Location, out var redirectUri))
                     {
                         this.logger.Warn("Webhook dispatch to {0} returned invalid redirect location: {1}", currentUrl, response.Headers.Location);
-                        return false;
+                        return new WebhookDispatchResult
+                        {
+                            Success = false,
+                            StatusCode = response.StatusCode,
+                            Message = $"Webhook dispatch returned invalid redirect location: {response.Headers.Location}.",
+                        };
                     }
 
                     var nextUrl = redirectUri.AbsoluteUri;
                     if (!IsValidTargetUrl(nextUrl, this.allowLoopback))
                     {
                         this.logger.Warn("Webhook redirect blocked: Target prohibited by SSRF protection: {0}", nextUrl);
-                        return false;
+                        return new WebhookDispatchResult
+                        {
+                            Success = false,
+                            StatusCode = response.StatusCode,
+                            Message = $"Webhook redirect blocked: Target prohibited by SSRF protection: {nextUrl}",
+                        };
                     }
 
                     this.logger.Debug("Webhook redirected from {0} to {1}", currentUrl, nextUrl);
@@ -444,19 +500,106 @@ public class WebhookDispatcher : IWebhookDispatcher
                 if (response.IsSuccessStatusCode)
                 {
                     this.logger.Info("Webhook successfully dispatched to {0} (Status: {1})", currentUrl, response.StatusCode);
-                    return true;
+                    return new WebhookDispatchResult
+                    {
+                        Success = true,
+                        StatusCode = response.StatusCode,
+                        Message = $"Webhook dispatched successfully (HTTP {(int)response.StatusCode} {response.StatusCode}).",
+                    };
                 }
 
+                if (response.StatusCode == HttpStatusCode.BadRequest)
+                {
+                    var responseBody = response.Content != null
+                        ? await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false)
+                        : string.Empty;
+
+                    if (responseBody.Contains("can't parse entities", StringComparison.OrdinalIgnoreCase))
+                    {
+                        this.logger.Warn("Telegram entity parse failure for {0}: {1}. Retrying once with plain text without parse_mode.", currentUrl, responseBody);
+
+                        var fallbackPayload = RemoveParseMode(payload);
+                        using var fallbackResponse = await this.retryPolicy.ExecuteAsync(
+                            async (ct) =>
+                            {
+                                var fallbackRequest = this.BuildHttpRequest(currentUrl, fallbackPayload, customHeadersJson, httpMethod);
+                                return await this.httpClient.SendAsync(fallbackRequest, ct).ConfigureAwait(false);
+                            },
+                            cancellationToken).ConfigureAwait(false);
+
+                        if (fallbackResponse.IsSuccessStatusCode)
+                        {
+                            this.logger.Info("Webhook successfully dispatched to {0} on plain text retry (Status: {1})", currentUrl, fallbackResponse.StatusCode);
+                            return new WebhookDispatchResult
+                            {
+                                Success = true,
+                                StatusCode = fallbackResponse.StatusCode,
+                                Message = $"Webhook dispatched successfully (HTTP {(int)fallbackResponse.StatusCode} {fallbackResponse.StatusCode}).",
+                            };
+                        }
+
+                        this.logger.Warn("Webhook plain text retry to {0} returned non-success status code: {1}", currentUrl, fallbackResponse.StatusCode);
+                        var fallbackSnippet = await ExtractBodySnippetAsync(fallbackResponse, cancellationToken).ConfigureAwait(false);
+                        var fallbackReason = fallbackResponse.ReasonPhrase ?? fallbackResponse.StatusCode.ToString();
+                        return new WebhookDispatchResult
+                        {
+                            Success = false,
+                            StatusCode = fallbackResponse.StatusCode,
+                            ResponseBodySnippet = fallbackSnippet,
+                            Message = string.IsNullOrEmpty(fallbackSnippet)
+                                ? $"Webhook endpoint returned HTTP {(int)fallbackResponse.StatusCode} ({fallbackReason})."
+                                : $"Webhook endpoint returned HTTP {(int)fallbackResponse.StatusCode} ({fallbackReason}): {fallbackSnippet}",
+                        };
+                    }
+                }
+
+                var bodySnippet = await ExtractBodySnippetAsync(response, cancellationToken).ConfigureAwait(false);
+                var reason = response.ReasonPhrase ?? response.StatusCode.ToString();
                 this.logger.Warn("Webhook dispatch to {0} returned non-success status code: {1}", currentUrl, response.StatusCode);
-                return false;
+                return new WebhookDispatchResult
+                {
+                    Success = false,
+                    StatusCode = response.StatusCode,
+                    ResponseBodySnippet = bodySnippet,
+                    Message = string.IsNullOrEmpty(bodySnippet)
+                        ? $"Webhook endpoint returned HTTP {(int)response.StatusCode} ({reason})."
+                        : $"Webhook endpoint returned HTTP {(int)response.StatusCode} ({reason}): {bodySnippet}",
+                };
             }
 
-            return false;
+            return new WebhookDispatchResult
+            {
+                Success = false,
+                Message = "Webhook dispatch failed.",
+            };
+        }
+        catch (HttpRequestException ex)
+        {
+            this.logger.Error(ex, "HTTP error while dispatching webhook to {0}", targetUrl);
+            return new WebhookDispatchResult
+            {
+                Success = false,
+                StatusCode = ex.StatusCode,
+                Message = $"HTTP request failed: {ex.Message}",
+            };
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or TimeoutException)
+        {
+            this.logger.Error(ex, "Webhook dispatch to {0} timed out", targetUrl);
+            return new WebhookDispatchResult
+            {
+                Success = false,
+                Message = "Webhook request timed out.",
+            };
         }
         catch (Exception ex)
         {
             this.logger.Error(ex, "Failed to dispatch webhook to {0}", targetUrl);
-            return false;
+            return new WebhookDispatchResult
+            {
+                Success = false,
+                Message = $"Webhook dispatch failed: {ex.Message}",
+            };
         }
     }
 
@@ -466,7 +609,121 @@ public class WebhookDispatcher : IWebhookDispatcher
         NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
     };
 
-    private HttpRequestMessage BuildHttpRequest(string targetUrl, object payload, string customHeadersJson)
+    internal static object RemoveParseMode(object payload)
+    {
+        if (payload == null)
+        {
+            return null;
+        }
+
+        if (payload is IDictionary<string, object> dict)
+        {
+            var newDict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kvp in dict)
+            {
+                if (!string.Equals(kvp.Key, "parse_mode", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(kvp.Key, "parseMode", StringComparison.OrdinalIgnoreCase))
+                {
+                    newDict[kvp.Key] = kvp.Value;
+                }
+            }
+
+            return newDict;
+        }
+
+        if (payload is IDictionary<string, string> stringDict)
+        {
+            var newDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kvp in stringDict)
+            {
+                if (!string.Equals(kvp.Key, "parse_mode", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(kvp.Key, "parseMode", StringComparison.OrdinalIgnoreCase))
+                {
+                    newDict[kvp.Key] = kvp.Value;
+                }
+            }
+
+            return newDict;
+        }
+
+        if (payload is string jsonStr && jsonStr.TrimStart().StartsWith('{'))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(jsonStr);
+                if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                {
+                    var dictFromJson = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var prop in doc.RootElement.EnumerateObject())
+                    {
+                        if (!prop.NameEquals("parse_mode") && !prop.NameEquals("parseMode"))
+                        {
+                            dictFromJson[prop.Name] = prop.Value.Clone();
+                        }
+                    }
+
+                    return dictFromJson;
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        try
+        {
+            var json = JsonSerializer.Serialize(payload, DefaultJsonOptions);
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind == JsonValueKind.Object)
+            {
+                var dictFromJson = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+                foreach (var prop in doc.RootElement.EnumerateObject())
+                {
+                    if (!prop.NameEquals("parse_mode") && !prop.NameEquals("parseMode"))
+                    {
+                        dictFromJson[prop.Name] = prop.Value.Clone();
+                    }
+                }
+
+                return dictFromJson;
+            }
+        }
+        catch
+        {
+        }
+
+        return payload;
+    }
+
+    private static async Task<string> ExtractBodySnippetAsync(HttpResponseMessage response, CancellationToken cancellationToken = default)
+    {
+        if (response?.Content == null)
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            var raw = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(raw))
+            {
+                var bodySnippet = raw.Trim().Replace("\r\n", " ").Replace("\n", " ").Replace("\r", " ");
+                if (bodySnippet.Length > 256)
+                {
+                    bodySnippet = string.Concat(bodySnippet.AsSpan(0, 256), "...");
+                }
+
+                return bodySnippet;
+            }
+        }
+        catch
+        {
+        }
+
+        return string.Empty;
+    }
+
+    private HttpRequestMessage BuildHttpRequest(string targetUrl, object payload, string customHeadersJson, HttpMethod httpMethod = null)
     {
         HttpContent content;
 
@@ -482,13 +739,22 @@ public class WebhookDispatcher : IWebhookDispatcher
         {
             content = new FormUrlEncodedContent(stringDict);
         }
+        else if (payload is string strPayload)
+        {
+            var trimmed = strPayload.TrimStart();
+            var mediaType = (trimmed.StartsWith("{") || trimmed.StartsWith("["))
+                ? "application/json"
+                : "text/plain";
+            content = new StringContent(strPayload, Encoding.UTF8, mediaType);
+        }
         else
         {
             var json = JsonSerializer.Serialize(payload, DefaultJsonOptions);
             content = new StringContent(json, Encoding.UTF8, "application/json");
         }
 
-        var request = new HttpRequestMessage(HttpMethod.Post, targetUrl)
+        var method = httpMethod ?? HttpMethod.Post;
+        var request = new HttpRequestMessage(method, targetUrl)
         {
             Content = content,
         };

@@ -3421,7 +3421,8 @@ const fr: I18nTranslations = {
     "addTorrentModal": "Échec du chargement de la vue addTorrentModal. Une erreur inattendue s'est produite.",
     "searchModal": "Échec du chargement de la vue searchModal. Une erreur inattendue s'est produite.",
     "setupGuide": "Échec du chargement de la vue setupGuide. Une erreur inattendue s'est produite.",
-    "copilotDrawer": "Échec du chargement de la vue copilotDrawer. Une erreur inattendue s'est produite."
+    "copilotDrawer": "Échec du chargement de la vue copilotDrawer. Une erreur inattendue s'est produite.",
+    "downloadClients": "Échec du chargement de la vue des clients de téléchargement. Une erreur inattendue s'est produite."
   },
   "copilot": {
     "welcomeMessage": "Bonjour ! Je suis votre Copilote Leecharr. Comment puis-je vous aider aujourd'hui avec vos torrents, releases ou réglages ?",

@@ -3400,6 +3400,7 @@ const en: I18nTranslations = {
     "torrents": "Failed to load torrents view. An unexpected error occurred.",
     "addTorrent": "Failed to load addTorrent view. An unexpected error occurred.",
     "downloadHistory": "Failed to load downloadHistory view. An unexpected error occurred.",
+    "downloadClients": "Failed to load download clients view. An unexpected error occurred.",
     "activity": "Failed to load activity view. An unexpected error occurred.",
     "indexers": "Failed to load indexers view. An unexpected error occurred.",
     "peerMap": "Failed to load peerMap view. An unexpected error occurred.",

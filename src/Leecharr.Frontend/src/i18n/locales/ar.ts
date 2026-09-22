@@ -3421,7 +3421,8 @@ const ar: I18nTranslations = {
     "addTorrentModal": "فشل تحميل عرض addTorrentModal. حدث خطأ غير متوقع.",
     "searchModal": "فشل تحميل عرض searchModal. حدث خطأ غير متوقع.",
     "setupGuide": "فشل تحميل طريقة عرض setupGuide. حدث خطأ غير متوقع.",
-    "copilotDrawer": "فشل تحميل عرض copilotDrawer. حدث خطأ غير متوقع."
+    "copilotDrawer": "فشل تحميل عرض copilotDrawer. حدث خطأ غير متوقع.",
+    "downloadClients": "فشل تحميل عرض عملاء التنزيل. حدث خطأ غير متوقع."
   },
   "copilot": {
     "welcomeMessage": "مرحبًا! أنا مساعد Leecharr الذكي. كيف يمكنني مساعدتك اليوم في ملفات التورنت أو الإصدارات أو الإعدادات؟",

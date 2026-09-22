@@ -17,6 +17,7 @@ import {
   useRefetchInterval,
   useTorrents,
   useCategories,
+  useDownloadClients,
 } from "./api/hooks";
 import { useTorrentStore } from "./stores/useTorrentStore";
 import { LeecharrLogo } from "./components/icons/LeecharrLogo";
@@ -30,6 +31,7 @@ import {
   TrackerBoostIcon,
   TerminalIcon,
   AutomationIcon,
+  DownloadAgentIcon,
 } from "./components/icons/NavIcons";
 import { ActivityIcon } from "./components/icons/UIIcons";
 import {
@@ -55,6 +57,7 @@ import SystemStatus from "./pages/SystemStatus";
 import SystemResources from "./pages/SystemResources";
 import Activity from "./pages/Activity";
 import DownloadHistory from "./pages/DownloadHistory";
+import DownloadClientTorrents from "./pages/DownloadClientTorrents";
 import AddTorrentPage from "./pages/AddTorrentPage";
 import PeerMap from "./pages/PeerMap";
 import Statistics from "./pages/Statistics";
@@ -264,6 +267,7 @@ export function App() {
     activeNav = "activity";
     if (pathname.includes("/history")) activeSubNav = "history";
     else if (pathname.includes("/metrics")) activeSubNav = "metrics";
+    else if (pathname.includes("/client")) activeSubNav = "client";
     else activeSubNav = "history";
   } else if (pathname.startsWith("/peermap")) {
     activeNav = "peermap";
@@ -343,6 +347,7 @@ export function App() {
   }, [queryClient]);
 
   const { showToast } = useToast();
+  const { data: downloadClients } = useDownloadClients();
   const { theme, toggleTheme } = useTheme();
 
   const handleToggleTheme = useCallback(() => {
@@ -818,6 +823,29 @@ export function App() {
               >
                 <HistoryIcon /> <span>{t("nav.history")}</span>
               </div>
+              {downloadClients && downloadClients.filter((c) => c.enable).length > 1 && (
+                <div
+                  className={`sidebar-nav-item sidebar-nav-sub ${location.pathname === "/activity/client/all" ? "active" : ""}`}
+                  onClick={() => guardedNavigate("/activity/client/all")}
+                  style={{ cursor: "pointer" }}
+                  title="All Clients"
+                >
+                  <DownloadAgentIcon size={14} /> <span>All Clients</span>
+                </div>
+              )}
+              {downloadClients
+                ?.filter((c) => c.enable)
+                .map((client) => (
+                  <div
+                    key={client.id}
+                    className={`sidebar-nav-item sidebar-nav-sub ${location.pathname === `/activity/client/${client.id}` ? "active" : ""}`}
+                    onClick={() => guardedNavigate(`/activity/client/${client.id}`)}
+                    style={{ cursor: "pointer" }}
+                    title={client.name}
+                  >
+                    <DownloadAgentIcon size={14} /> <span>{client.name}</span>
+                  </div>
+                ))}
               <div
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "metrics" ? "active" : ""}`}
                 onClick={() => guardedNavigate("/activity/metrics")}
@@ -1567,6 +1595,14 @@ export function App() {
                 element={
                   <ErrorBoundary title={t("errors.activity")}>
                     <Activity />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/activity/client/:id"
+                element={
+                  <ErrorBoundary title={t("errors.downloadClients", "Download Client Torrents")}>
+                    <DownloadClientTorrents />
                   </ErrorBoundary>
                 }
               />

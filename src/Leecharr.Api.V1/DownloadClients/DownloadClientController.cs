@@ -193,6 +193,44 @@ public class DownloadClientController : Controller
         return await this.TestDirectInternal(resource, password);
     }
 
+    [HttpGet("items")]
+    public async Task<ActionResult<List<DownloadClientRemoteItem>>> GetAllItems()
+    {
+        var clients = this.repository.GetEnabled().ToList();
+        var allItems = new List<DownloadClientRemoteItem>();
+        var http = this.GetHttpClient();
+
+        foreach (var client in clients)
+        {
+            try
+            {
+                var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, http, this.safeHttpClientService);
+                foreach (var item in items)
+                {
+                    item.ClientId = client.Id;
+                    item.ClientName = client.Name;
+                    if (!string.IsNullOrWhiteSpace(item.InfoHash))
+                    {
+                        var existing = this.torrentService.GetByInfoHash(item.InfoHash);
+                        if (existing != null)
+                        {
+                            item.IsInLibrary = true;
+                            item.LibraryTorrentId = existing.Id;
+                        }
+                    }
+
+                    allItems.Add(item);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to query items for client {0}", client.Name);
+            }
+        }
+
+        return this.Ok(allItems);
+    }
+
     [HttpGet("{id:int}/items")]
     public async Task<ActionResult<List<DownloadClientRemoteItem>>> GetItems(int id)
     {
@@ -203,6 +241,21 @@ public class DownloadClientController : Controller
         }
 
         var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, this.GetHttpClient(), this.safeHttpClientService);
+        foreach (var item in items)
+        {
+            item.ClientId = client.Id;
+            item.ClientName = client.Name;
+            if (!string.IsNullOrWhiteSpace(item.InfoHash))
+            {
+                var existing = this.torrentService.GetByInfoHash(item.InfoHash);
+                if (existing != null)
+                {
+                    item.IsInLibrary = true;
+                    item.LibraryTorrentId = existing.Id;
+                }
+            }
+        }
+
         return this.Ok(items);
     }
 

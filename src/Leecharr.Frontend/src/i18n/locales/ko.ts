@@ -3421,7 +3421,8 @@ const ko: I18nTranslations = {
     "addTorrentModal": "토렌트 추가 대화상자 오류",
     "searchModal": "검색 대화상자 오류",
     "setupGuide": "설정 가이드 오류",
-    "copilotDrawer": "Copilot 서랍 오류"
+    "copilotDrawer": "Copilot 서랍 오류",
+    "downloadClients": "다운로드 클라이언트 보기를 로드하지 못했습니다. 예상치 못한 오류가 발생했습니다."
   },
   "copilot": {
     "welcomeMessage": "안녕하세요! Leecharr 코파일럿입니다. 오늘 토렌트, 릴리스 또는 설정에 대해 무엇을 도와드릴까요?",

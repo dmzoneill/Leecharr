@@ -3421,7 +3421,8 @@ const es: I18nTranslations = {
     "addTorrentModal": "No se pudo cargar la vista addTorrentModal. Se produjo un error inesperado.",
     "searchModal": "No se pudo cargar la vista searchModal. Se produjo un error inesperado.",
     "setupGuide": "No se pudo cargar la vista de la Guía de configuración. Se produjo un error inesperado.",
-    "copilotDrawer": "No se pudo cargar la vista del cajón del copiloto. Se produjo un error inesperado."
+    "copilotDrawer": "No se pudo cargar la vista del cajón del copiloto. Se produjo un error inesperado.",
+    "downloadClients": "No se pudo cargar la vista de clientes de descarga. Se produjo un error inesperado."
   },
   "copilot": {
     "welcomeMessage": "¡Hola! Soy tu Copiloto Leecharr. ¿En qué puedo ayudarte hoy con torrents, lanzamientos o configuraciones?",
