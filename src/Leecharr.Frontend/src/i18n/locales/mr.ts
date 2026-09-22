@@ -502,7 +502,10 @@ const mr: I18nTranslations = {
       "pieceMapMatrixGridView": "तुकडा नकाशा मॅट्रिक्स ग्रिड दृश्य",
       "pieceMapGrid": "ग्रिड",
       "pieceMapStatus": "स्थिती",
+      "pieceMapRarity": "दुर्मिळता हीटमॅप",
+      "pieceMapFileBoundaries": "फाइल सीमा",
       "pieceMapAvailability": "उपलब्धता",
+      "pieceMapFilesCount": "फाइल संख्या: {{count}} फाइल्स",
       "pieceMapCompleteLegend": "तुकडा नकाशा पूर्ण आख्यायिका",
       "pieceMapActiveLegend": "तुकडा नकाशा सक्रिय दंतकथा",
       "pieceMapMissingLegend": "तुकडा नकाशा गहाळ आख्यायिका",
@@ -702,9 +705,6 @@ const mr: I18nTranslations = {
       "failedToRemoveTracker": "ट्रॅकर काढण्यात अयशस्वी",
       "privateTrackerDisabledTitle": "खाजगी ट्रॅकर अक्षम केलेले शीर्षक",
       "openTrackerPickerTitle": "ट्रॅकर पिकर शीर्षक उघडा",
-      "pieceMapRarity": "दुर्मिळता हीटमॅप",
-      "pieceMapFileBoundaries": "फाइल सीमा",
-      "pieceMapFilesCount": "फाइल संख्या: {{count}} फाइल्स",
       "diagReAnnounceTrackers": "Diag Re Announce Trackers",
       "live3s": "Live3s"
     },
@@ -4451,6 +4451,11 @@ const mr: I18nTranslations = {
     "goToParent": "मूळ निर्देशिकेवर जा",
     "createNewFolder": "नवीन फोल्डर तयार करा",
     "close": "फोल्डर ब्राउझर बंद करा"
+  },
+  "signalr": {
+    "reconnecting": "रिअल-टाइम कनेक्शन गमावले. पुन्हा कनेक्ट करण्याचा प्रयत्न करत आहे...",
+    "disconnected": "सर्व्हरवरून डिस्कनेक्ट झाले. पुन्हा कनेक्ट करण्यासाठी आता पुन्हा प्रयत्न करा क्लिक करा.",
+    "retryNow": "आता पुन्हा प्रयत्न करा"
   }
 };
 

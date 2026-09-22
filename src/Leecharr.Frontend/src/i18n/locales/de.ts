@@ -498,7 +498,10 @@ const de: I18nTranslations = {
       "pieceMapBar": "Bar",
       "pieceMapMatrixGridView": "Stückkarten-Matrix-Rasteransicht",
       "pieceMapGrid": "Netz",
+      "pieceMapRarity": "Seltenheits-Heatmap",
+      "pieceMapFileBoundaries": "Dateigrenzen",
       "pieceMapAvailability": "Verfügbarkeit",
+      "pieceMapFilesCount": "Dateianzahl: {{count}} Dateien",
       "pieceMapCompleteLegend": "Stückkarte Komplette Legende",
       "pieceMapActiveLegend": "Aktive Legende der Stückkarte",
       "pieceMapMissingLegend": "Legende zur Stückkarte fehlt",
@@ -690,9 +693,6 @@ const de: I18nTranslations = {
       "privateTrackerDisabledTitle": "Titel „Privater Tracker deaktiviert“.",
       "openTrackerPickerTitle": "Öffnen Sie den Tracker-Picker-Titel",
       "pieceMapStatus": "Status",
-      "pieceMapRarity": "Seltenheits-Heatmap",
-      "pieceMapFileBoundaries": "Dateigrenzen",
-      "pieceMapFilesCount": "Dateianzahl: {{count}} Dateien",
       "superSeeding": "Super Seeding",
       "diagCollapse": "Diag Collapse",
       "name": "Name",
@@ -4451,6 +4451,11 @@ const de: I18nTranslations = {
     "goToParent": "Gehen Sie zum übergeordneten Verzeichnis",
     "createNewFolder": "Neuen Ordner erstellen",
     "close": "Ordnerbrowser schließen"
+  },
+  "signalr": {
+    "reconnecting": "Echtzeitverbindung verloren. Es wird versucht, die Verbindung wiederherzustellen...",
+    "disconnected": "Vom Server getrennt. Klicken Sie auf Jetzt erneut versuchen, um die Verbindung wiederherzustellen.",
+    "retryNow": "Jetzt erneut versuchen"
   }
 };
 

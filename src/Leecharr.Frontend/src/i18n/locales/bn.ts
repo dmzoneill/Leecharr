@@ -502,7 +502,10 @@ const bn: I18nTranslations = {
       "pieceMapMatrixGridView": "পিস ম্যাপ ম্যাট্রিক্স গ্রিড ভিউ",
       "pieceMapGrid": "গ্রিড",
       "pieceMapStatus": "অবস্থা",
+      "pieceMapRarity": "বিরলতা হিটম্যাপ",
+      "pieceMapFileBoundaries": "ফাইলের সীমানা",
       "pieceMapAvailability": "প্রাপ্যতা",
+      "pieceMapFilesCount": "ফাইলের সংখ্যা: {{count}} ফাইল",
       "pieceMapCompleteLegend": "টুকরা মানচিত্র সম্পূর্ণ কিংবদন্তি",
       "pieceMapActiveLegend": "টুকরা মানচিত্র সক্রিয় কিংবদন্তি",
       "pieceMapMissingLegend": "টুকরা মানচিত্র অনুপস্থিত কিংবদন্তি",
@@ -703,9 +706,6 @@ const bn: I18nTranslations = {
       "failedToRemoveTracker": "ট্র্যাকার সরাতে ব্যর্থ হয়েছে৷",
       "privateTrackerDisabledTitle": "ব্যক্তিগত ট্র্যাকার নিষ্ক্রিয় শিরোনাম",
       "openTrackerPickerTitle": "ট্র্যাকার পিকার শিরোনাম খুলুন",
-      "pieceMapRarity": "বিরলতা হিটম্যাপ",
-      "pieceMapFileBoundaries": "ফাইলের সীমানা",
-      "pieceMapFilesCount": "ফাইলের সংখ্যা: {{count}} ফাইল",
       "live3s": "Live3s"
     },
     "ratio": "অনুপাত",
@@ -4451,6 +4451,11 @@ const bn: I18nTranslations = {
     "goToParent": "মূল ডিরেক্টরিতে যান",
     "createNewFolder": "নতুন ফোল্ডার তৈরি করুন",
     "close": "ফোল্ডার ব্রাউজার বন্ধ করুন"
+  },
+  "signalr": {
+    "reconnecting": "রিয়েল-টাইম সংযোগ হারিয়েছে। পুনরায় সংযোগ করার চেষ্টা করা হচ্ছে...",
+    "disconnected": "সার্ভার থেকে সংযোগ বিচ্ছিন্ন। পুনঃসংযোগ করতে এখনই পুনরায় চেষ্টা করুন ক্লিক করুন৷",
+    "retryNow": "এখনই আবার চেষ্টা করুন"
   }
 };
 

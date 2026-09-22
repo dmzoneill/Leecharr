@@ -31,10 +31,10 @@ This document tracks cross-system architectural parity, feature synchronization,
   - [x] **04.3 Peers Tab Swarm Flags & Protocol Inspection**: Virtualized peer table, GeoIP country flags, client identification badges, encryption status, and BEP 27 protocol flags.
   - [x] **04.4 Logs Tab & CLI Shell Scoping**: Torrent-scoped logging view and embedded terminal shell integration.
 
-- [ ] **Workpackage 05: SignalR Real-Time Protocol & Store Lifecycle Parity**
-  - [ ] **05.1 Event Topic Normalization & Dispatching**: Normalize hub event names (`torrent_updated`, `speed_update`, `task_progress`, `health_warning`) across both solutions.
-  - [ ] **05.2 Reconnection Banners & Offline Detection**: Consistent visual indicator for disconnected, connecting, and reconnected SignalR states.
-  - [ ] **05.3 Zustand Store Hydration & Persistence**: Standardize localStorage schema keys, optimistic state updates, and hydration guards.
+- [x] **Workpackage 05: SignalR Real-Time Protocol & Store Lifecycle Parity**
+  - [x] **05.1 Event Topic Normalization & Dispatching**: Normalize hub event names (`torrent_updated`, `speed_update`, `task_progress`, `health_warning`) across both solutions.
+  - [x] **05.2 Reconnection Banners & Offline Detection**: Consistent visual indicator for disconnected, connecting, and reconnected SignalR states.
+  - [x] **05.3 Zustand Store Hydration & Persistence**: Standardize localStorage schema keys, optimistic state updates, and hydration guards.
 
 - [ ] **Workpackage 06: Notifications & Servarr Integrations Parity**
   - [ ] **06.1 Notification Provider Templates & Tokens**: Standardize message formatting and token variables (`{Torrent.Title}`, `{Torrent.Size}`) for Discord, Telegram, Webhook, Pushover, Apprise.
