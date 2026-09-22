@@ -339,6 +339,7 @@ export interface GeneralConfig {
   hostHeaderValidationEnabled?: boolean;
   allowedHosts?: string;
   terminalAccessEnabled?: boolean;
+  uiLanguage?: string;
 }
 
 export interface ApiKeyResource {

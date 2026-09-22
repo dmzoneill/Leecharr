@@ -211,6 +211,7 @@ export type I18nTranslations = {
   };
   topbar: {
     searchPlaceholder: string;
+    keyboardShortcuts?: string;
   };
   dashboard: {
     title: string;

@@ -462,8 +462,12 @@ export function App() {
         tagName === "select" ||
         target?.isContentEditable;
 
-      // Command Palette hotkey: Ctrl+K / Cmd+K (allowed anywhere, even in inputs)
-      if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
+      // Command Palette hotkey: Ctrl+K / Cmd+K (allowed anywhere, even in inputs, except terminal)
+      const isTerminal = !!(
+        target?.closest(".xterm, .terminal") ||
+        target?.classList?.contains("xterm-helper-textarea")
+      );
+      if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K") && !isTerminal) {
         e.preventDefault();
         setShowCommandPalette((prev) => {
           if (!prev) trackModalOpen("command_palette");
@@ -472,8 +476,8 @@ export function App() {
         return;
       }
 
-      // Sidebar toggle shortcut: Alt+M (allowed anywhere)
-      if (e.altKey && (e.key === "m" || e.key === "M")) {
+      // Sidebar toggle shortcut: Alt+M (allowed anywhere, supports Mac KeyM)
+      if (e.altKey && (e.key.toLowerCase() === "m" || e.code === "KeyM")) {
         e.preventDefault();
         setIsSidebarCollapsed((prev) => {
           const next = !prev;
@@ -483,8 +487,9 @@ export function App() {
         return;
       }
 
-      // Global Esc dismissal: dismiss open modals, palette, and quick settings
+      // Global Esc dismissal: dismiss open modals, palette, and quick settings (only when not in input)
       if (e.key === "Escape") {
+        if (isInput) return;
         setShowCommandPalette(false);
         setShowShortcutsModal(false);
         setShowAddModal(false);
@@ -496,6 +501,19 @@ export function App() {
 
       // Ignore remaining shortcuts if focused inside an input/form control
       if (isInput) return;
+
+      // Global search shortcut: '/' when not in input/modal
+      if (e.key === "/" && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        const isModalOpen = !!document.querySelector(
+          'dialog[open], [role="dialog"], [aria-modal="true"], .modal-overlay, .modal-backdrop',
+        );
+        if (!isModalOpen) {
+          e.preventDefault();
+          setShowCommandPalette(true);
+          trackModalOpen("command_palette");
+          return;
+        }
+      }
 
       // Quick settings drawer toggle: 'q' / 'Q'
       if (
@@ -517,7 +535,7 @@ export function App() {
         return;
       }
 
-      // Two-key sequence navigation starting with 'g'
+      // Two-key sequence navigation starting with 'g' or 'G'
       const now = Date.now();
       if (lastKeySeqRef.current && now - lastKeySeqRef.current.time < 1200) {
         const prevKey = lastKeySeqRef.current.key.toLowerCase();
@@ -536,7 +554,7 @@ export function App() {
             e.preventDefault();
             guardedNavigate("/settings/host");
             return;
-          } else if (nextKey === "a") {
+          } else if (nextKey === "a" || nextKey === "h") {
             e.preventDefault();
             guardedNavigate("/activity/history");
             return;
@@ -557,7 +575,7 @@ export function App() {
       }
 
       if (
-        e.key.toLowerCase() === "g" &&
+        (e.key.toLowerCase() === "g" || e.code === "KeyG") &&
         !e.ctrlKey &&
         !e.metaKey &&
         !e.altKey &&
@@ -1295,6 +1313,38 @@ export function App() {
             style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}
           >
             <LanguageSelector />
+            <button
+              type="button"
+              className="topbar-btn"
+              onClick={openShortcutsModal}
+              title={t("topbar.keyboardShortcuts", "Keyboard Shortcuts (?)")}
+              aria-label={t("topbar.keyboardShortcuts", "Keyboard Shortcuts (?)")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                padding: "0.25rem 0.5rem",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontSize: "0.85rem",
+              }}
+            >
+              <span style={{ fontSize: "1rem", lineHeight: 1 }}>⌨️</span>
+              <kbd
+                style={{
+                  backgroundColor: "rgba(255, 255, 255, 0.08)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "3px",
+                  padding: "0.05rem 0.35rem",
+                  fontSize: "0.7rem",
+                  color: "var(--text-muted)",
+                  fontFamily: "monospace",
+                  lineHeight: 1.2,
+                }}
+              >
+                ?
+              </kbd>
+            </button>
             <button
               className="btn btn-small"
               onClick={() => setShowGettingStartedModal(true)}
