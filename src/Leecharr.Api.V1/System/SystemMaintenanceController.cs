@@ -23,6 +23,7 @@ public class SystemMaintenanceController : ControllerBase
     }
 
     [HttpPost("vacuum")]
+    [HttpPost("/api/v1/system/database/vacuum")]
     public async Task<ActionResult> Vacuum()
     {
         try
