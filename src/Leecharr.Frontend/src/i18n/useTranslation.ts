@@ -18,6 +18,41 @@ export type TranslationParams =
   | Record<string, string | number | boolean | null | undefined>
   | (string | number | boolean | null | undefined)[];
 
+export type TFunction = {
+  (key: string, defaultValue?: string, params?: TranslationParams): string;
+  (key: string, params?: TranslationParams, defaultValue?: string): string;
+};
+
+function extractArgs(
+  arg1?: string | TranslationParams,
+  arg2?: string | TranslationParams,
+): { defaultValue?: string; params?: TranslationParams } {
+  let defaultValue: string | undefined;
+  let params: TranslationParams | undefined;
+
+  if (typeof arg1 === "string") {
+    defaultValue = arg1;
+    if (typeof arg2 === "object" && arg2 !== null) {
+      params = arg2;
+    }
+  } else if (typeof arg2 === "string") {
+    defaultValue = arg2;
+    if (typeof arg1 === "object" && arg1 !== null) {
+      params = arg1;
+    }
+  } else if (typeof arg1 === "object" && arg1 !== null) {
+    params = arg1;
+    if (
+      !Array.isArray(arg1) &&
+      "defaultValue" in arg1 &&
+      typeof (arg1 as any).defaultValue === "string"
+    ) {
+      defaultValue = (arg1 as any).defaultValue;
+    }
+  }
+  return { defaultValue, params };
+}
+
 function interpolate(text: string, params?: TranslationParams): string {
   if (!params) return text;
   if (Array.isArray(params)) {
@@ -43,8 +78,8 @@ function interpolate(text: string, params?: TranslationParams): string {
 
 export function translate(
   key: string,
-  defaultOrParams?: string | TranslationParams,
-  params?: TranslationParams,
+  arg1?: string | TranslationParams,
+  arg2?: string | TranslationParams,
 ): string {
   const translations = useI18nStore.getState().translations;
   const keys = key.split(".");
@@ -52,34 +87,21 @@ export function translate(
   if (!value && translations !== en) {
     value = lookupKey(en, keys);
   }
+  const { defaultValue, params } = extractArgs(arg1, arg2);
   if (!value) {
-    if (typeof defaultOrParams === "string") {
-      value = defaultOrParams;
-    } else if (
-      defaultOrParams &&
-      typeof defaultOrParams === "object" &&
-      !Array.isArray(defaultOrParams) &&
-      "defaultValue" in defaultOrParams &&
-      typeof (defaultOrParams as any).defaultValue === "string"
-    ) {
-      value = (defaultOrParams as any).defaultValue;
-    } else {
-      value = key;
-    }
+    value = defaultValue ?? key;
   }
-  const actualParams =
-    typeof defaultOrParams === "object" ? defaultOrParams : params;
-  return interpolate(value ?? key, actualParams);
+  return interpolate(value ?? key, params);
 }
 
 export const useTranslation = () => {
   const translations = useI18nStore((state) => state.translations);
 
-  const t = useCallback(
+  const t: TFunction = useCallback(
     (
       key: string,
-      defaultOrParams?: string | TranslationParams,
-      params?: TranslationParams,
+      arg1?: string | TranslationParams,
+      arg2?: string | TranslationParams,
     ) => {
       const keys = key.split(".");
       let value = lookupKey(translations, keys);
@@ -88,28 +110,17 @@ export const useTranslation = () => {
         value = lookupKey(en, keys);
       }
 
+      const { defaultValue, params } = extractArgs(arg1, arg2);
       if (!value) {
-        if (typeof defaultOrParams === "string") {
-          value = defaultOrParams;
-        } else if (
-          defaultOrParams &&
-          typeof defaultOrParams === "object" &&
-          !Array.isArray(defaultOrParams) &&
-          "defaultValue" in defaultOrParams &&
-          typeof (defaultOrParams as any).defaultValue === "string"
-        ) {
-          value = (defaultOrParams as any).defaultValue;
-        } else {
-          value = key;
-        }
+        value = defaultValue ?? key;
       }
 
-      const actualParams =
-        typeof defaultOrParams === "object" ? defaultOrParams : params;
-      return interpolate(value ?? key, actualParams);
+      return interpolate(value ?? key, params);
     },
     [translations],
-  );
+  ) as TFunction;
 
   return { t };
 };
+
+export default useTranslation;

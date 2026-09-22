@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useTranslation } from "../i18n";
 import TrackerFavicon from "./TrackerFavicon";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import { useModalRegistration } from "./ModalProvider";
 
 export interface TrackerPickerItem {
   url: string;
@@ -43,6 +44,13 @@ export function TrackerMultiSelectModal({
 }: TrackerMultiSelectModalProps) {
   const { t } = useTranslation();
   const trapRef = useFocusTrap<HTMLDivElement>({ isOpen, onClose });
+
+  useModalRegistration({
+    id: "tracker-multi-select-modal",
+    isOpen,
+    onClose,
+    modalRef: trapRef,
+  });
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -213,6 +221,8 @@ export function TrackerMultiSelectModal({
             type="button"
             className="btn btn-small btn-outline"
             onClick={onClose}
+            aria-label={t("common.close", undefined, "Close")}
+            title={t("common.close", undefined, "Close")}
             style={{ padding: "0.2rem 0.5rem" }}
           >
             ✕

@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { useTranslation } from "../i18n";
 import { useModalRegistration } from "./ModalProvider";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useTorrentFileSubtitles } from "../api/hooks";
 import type { SubtitleTrack, Torrent } from "../api/types";
 import {
@@ -137,6 +138,16 @@ export function MediaPlayerModal({
     onClose: handleClose,
     modalRef,
   });
+
+  const trapRef = useFocusTrap<HTMLDivElement>({
+    isOpen,
+    onClose: handleClose,
+  });
+
+  const setContainerRef = (el: HTMLDivElement | null) => {
+    (modalRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+    (trapRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+  };
 
   // Handle HTMLMediaElement onError event
   const handleMediaError = useCallback(
@@ -399,7 +410,7 @@ export function MediaPlayerModal({
       `}</style>
 
       <div
-        ref={modalRef}
+        ref={setContainerRef}
         className="card media-player-dialog"
         style={{
           width: "900px",
@@ -475,7 +486,8 @@ export function MediaPlayerModal({
           <button
             type="button"
             className="btn btn-sm btn-default"
-            aria-label={t("mediaPlayer.close", "Close media player")}
+            aria-label={t("mediaPlayer.close", undefined, "Close media player")}
+            title={t("mediaPlayer.close", undefined, "Close media player")}
             onClick={handleClose}
             style={{
               padding: "0.35rem 0.65rem",
