@@ -19,11 +19,11 @@ This document tracks cross-system architectural parity, feature synchronization,
   - [x] **02.3 Folder Browser Modal**: Standardize directory tree navigation, breadcrumb pathing, inline new folder creation, loading/error states, and accessibility focus trap.
   - [x] **02.4 Confirmation & Delete Modals**: Unify `useModalRegistration` and `useFocusTrap` integration, Escape dismissal hierarchy, and ReadOnly permission enforcement.
 
-- [ ] **Workpackage 03: Backend REST API & DTO Contract Parity**
-  - [ ] **03.1 System Diagnostics Endpoints**: Standardize `/api/v1/health`, `/api/v1/status`, `/api/v1/task`, `/api/v1/log`, `/api/v1/backup`, `/api/v1/update`, `/api/v1/diskspace`.
-  - [ ] **03.2 Torrent Lifecycle & Batch Actions Endpoints**: Standardize `/api/v1/queue`, `/api/v1/torrent`, `/api/v1/history`, `/api/v1/command` for batch operations (pause, resume, delete, force recheck, queue reorder).
-  - [ ] **03.3 Settings & Configuration Endpoints**: Standardize `/api/v1/config/host`, `/api/v1/config/ui`, `/api/v1/downloadclient`, `/api/v1/indexer`, `/api/v1/notification`, `/api/v1/tag`.
-  - [ ] **03.4 OpenAPI / Swagger Schema Validation**: Generate and synchronize complete Swagger / OpenAPI v3 endpoint definitions and schema models.
+- [x] **Workpackage 03: Backend REST API & DTO Contract Parity**
+  - [x] **03.1 System Diagnostics Endpoints**: Standardize `/api/v1/health` (async CancellationToken support), `/api/v1/system/resources` (host, engine, subsystems, per-torrent telemetry), `/api/v1/diskspace` (`FileSystemType`, `IsReadOnly`, `refresh`), `/api/v1/filesystem` (mkdir, validate).
+  - [x] **03.2 Torrent Lifecycle & Batch Actions Endpoints**: Standardize `/api/v1/torrents` plural/singular route parity, `/api/v1/torrents/bulk` partial failure granularity (`SucceededIds`, `FailedIds`, `Category`).
+  - [x] **03.3 Settings & Configuration Endpoints**: Standardize vacuum maintenance aliases (`/api/v1/system/database/vacuum` and `/api/v1/system/maintenance/vacuum`).
+  - [x] **03.4 OpenAPI / Swagger Schema Validation**: Align Swagger UI dark theme injection (`/swagger-custom.css` endpoint and `SwaggerTheme.cs`) across both solutions.
 
 - [ ] **Workpackage 04: Torrent Detail Drawer & Visualization Parity**
   - [ ] **04.1 Piece Map Canvas Visualizer**: Unify HTML5 canvas visualizer supporting Linear Bar and Grid Block modes, streaming bitfield updates, and piece index tooltips.

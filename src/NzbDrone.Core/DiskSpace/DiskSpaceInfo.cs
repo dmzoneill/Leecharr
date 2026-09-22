@@ -11,4 +11,8 @@ public class DiskSpaceInfo
     public long FreeSpace { get; set; }
 
     public long TotalSpace { get; set; }
+
+    public string FileSystemType { get; set; } = string.Empty;
+
+    public bool IsReadOnly { get; set; }
 }

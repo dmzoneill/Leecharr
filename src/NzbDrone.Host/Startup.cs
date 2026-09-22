@@ -448,6 +448,8 @@ public class Startup
         app.Map("/ws/terminal", terminalHandler);
         app.Map("/api/v1/terminal/ws", terminalHandler);
 
+        app.MapGet("/swagger-custom.css", () => Microsoft.AspNetCore.Http.Results.Content(SwaggerTheme.Css, "text/css")).AllowAnonymous();
+
         app.MapFallback(async context =>
         {
             var webRoot = app.Environment.WebRootPath ?? Path.Combine(AppContext.BaseDirectory, "wwwroot");

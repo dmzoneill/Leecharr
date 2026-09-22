@@ -18,6 +18,10 @@ public class DiskSpaceResource : RestResource
     public long FreeSpace { get; set; }
 
     public long TotalSpace { get; set; }
+
+    public string FileSystemType { get; set; } = string.Empty;
+
+    public bool IsReadOnly { get; set; }
 }
 
 [V1ApiController("diskspace")]
@@ -31,7 +35,7 @@ public class DiskSpaceController : Controller
     }
 
     [HttpGet]
-    public ActionResult<List<DiskSpaceResource>> GetDiskSpace()
+    public ActionResult<List<DiskSpaceResource>> GetDiskSpace([FromQuery] bool refresh = false)
     {
         var diskSpace = this.diskSpaceService.GetDiskSpace();
         var resources = diskSpace.Select((d, idx) => new DiskSpaceResource
@@ -41,6 +45,8 @@ public class DiskSpaceController : Controller
             Label = d.Label,
             FreeSpace = d.FreeSpace,
             TotalSpace = d.TotalSpace,
+            FileSystemType = d.FileSystemType ?? string.Empty,
+            IsReadOnly = d.IsReadOnly,
         }).ToList();
 
         return this.Ok(resources);

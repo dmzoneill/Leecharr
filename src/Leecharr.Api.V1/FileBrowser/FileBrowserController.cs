@@ -49,6 +49,7 @@ public class FileBrowserTransferRequest
 }
 
 [V1ApiController("files")]
+[Route("api/v1/filesystem")]
 [Authorize(Policy = "RequireAdmin")]
 public class FileBrowserController : Controller
 {
@@ -87,6 +88,31 @@ public class FileBrowserController : Controller
         catch (Exception ex)
         {
             return this.BadRequest(new { Message = ex.Message });
+        }
+    }
+
+    [HttpPost("validate")]
+    public ActionResult Validate([FromBody] FileBrowserPathRequest request)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.Path))
+        {
+            return this.BadRequest(new { IsValid = false, ErrorMessage = "A path is required." });
+        }
+
+        try
+        {
+            var target = this.fileBrowserService.ResolvePath(request.Path);
+            var isBlocked = this.fileBrowserService.IsRootPath(target) || this.fileBrowserService.IsRootOrSystemDirectory(target);
+            if (isBlocked)
+            {
+                return this.BadRequest(new { IsValid = false, ErrorMessage = $"Access to system directory '{target}' is restricted." });
+            }
+
+            return this.Ok(new { IsValid = true, ErrorMessage = (string)null });
+        }
+        catch (Exception ex)
+        {
+            return this.BadRequest(new { IsValid = false, ErrorMessage = ex.Message });
         }
     }
 

@@ -14,6 +14,8 @@ public class BulkTorrentActionResource
 
     public int? CategoryId { get; set; }
 
+    public string Category { get; set; }
+
     public List<int> TagIds { get; set; }
 
     public int? Priority { get; set; }
@@ -30,4 +32,8 @@ public class BulkActionResult
     public int FailedCount { get; set; }
 
     public List<string> Errors { get; set; } = new();
+
+    public List<int> SucceededIds { get; set; } = new();
+
+    public Dictionary<int, string> FailedIds { get; set; } = new();
 }

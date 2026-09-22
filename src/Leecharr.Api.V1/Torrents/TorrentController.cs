@@ -1261,6 +1261,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         }
 
         var errors = new ConcurrentBag<string>();
+        var succeededIds = new ConcurrentBag<int>();
+        var failedIds = new ConcurrentDictionary<int, string>();
         var successCount = 0;
         var failedCount = 0;
 
@@ -1270,17 +1272,21 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             {
                 await this.ExecuteActionForTorrentAsync(id, resource);
                 Interlocked.Increment(ref successCount);
+                succeededIds.Add(id);
             }
             catch (Exception ex)
             {
                 Interlocked.Increment(ref failedCount);
                 errors.Add($"Torrent {id}: {ex.Message}");
+                failedIds.TryAdd(id, ex.Message);
             }
         });
 
         result.SuccessCount = successCount;
         result.FailedCount = failedCount;
         result.Errors = errors.ToList();
+        result.SucceededIds = succeededIds.OrderBy(x => x).ToList();
+        result.FailedIds = new Dictionary<int, string>(failedIds);
 
         return this.Ok(result);
     }
@@ -1323,8 +1329,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                         throw new KeyNotFoundException($"Torrent {id} not found");
                     }
 
-                    string categoryName = null;
-                    if (resource.CategoryId.HasValue && resource.CategoryId.Value > 0 && this.categoryService != null)
+                    string categoryName = resource.Category;
+                    if (string.IsNullOrEmpty(categoryName) && resource.CategoryId.HasValue && resource.CategoryId.Value > 0 && this.categoryService != null)
                     {
                         var cat = this.categoryService.Get(resource.CategoryId.Value);
                         categoryName = cat?.Name;
