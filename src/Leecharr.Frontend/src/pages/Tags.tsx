@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useTranslation } from "../i18n";
 import {
   useTags,
   useCreateTag,
@@ -63,6 +64,7 @@ export function calculateTagUsageCounts(
 }
 
 function Tags() {
+  const { t } = useTranslation();
   const { data: tags, isLoading, isError } = useTags();
   const { data: torrents } = useTorrents();
   const { data: categories } = useCategories();
@@ -185,7 +187,7 @@ function Tags() {
               gap: "0.5rem",
             }}
           >
-            <span>🏷️</span> Tags ({tagList.length})
+            <span>🏷️</span> {t("tags.title", "Tags")} ({tagList.length})
           </h1>
           <p
             style={{
@@ -194,8 +196,10 @@ function Tags() {
               fontSize: "0.9rem",
             }}
           >
-            Organize and filter torrent swarms by custom labels, colors, and
-            seeding policies
+            {t(
+              "tags.description",
+              "Organize and filter torrent swarms by custom labels, colors, and seeding policies",
+            )}
           </p>
         </div>
 
@@ -208,7 +212,7 @@ function Tags() {
                 htmlFor="category-filter"
                 style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}
               >
-                Category:
+                {t("tags.category", "Category:")}
               </label>
               <select
                 id="category-filter"
@@ -221,13 +225,17 @@ function Tags() {
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
               >
-                <option value="All">All Categories</option>
+                <option value="All">
+                  {t("tags.allCategories", "All Categories")}
+                </option>
                 {categories.map((c) => (
                   <option key={c.id} value={c.name}>
                     {c.name}
                   </option>
                 ))}
-                <option value="Uncategorized">Uncategorized</option>
+                <option value="Uncategorized">
+                  {t("tags.uncategorized", "Uncategorized")}
+                </option>
               </select>
             </div>
           )}
@@ -235,7 +243,7 @@ function Tags() {
             className="btn btn-primary"
             onClick={() => setModalTag({ label: "", color: "#3b82f6" })}
           >
-            + Add Tag
+            {t("tags.addTag", "+ Add Tag")}
           </button>
         </div>
       </div>
@@ -253,25 +261,31 @@ function Tags() {
       >
         {isLoading ? (
           <p className="loading" style={{ padding: "1.5rem" }}>
-            Loading tags...
+            {t("tags.loading", "Loading tags...")}
           </p>
         ) : isError ? (
           <p className="error" style={{ padding: "1.5rem" }}>
-            Failed to load tags.
+            {t("tags.failedToLoad", "Failed to load tags.")}
           </p>
         ) : (
           <div className="torrent-table-wrapper">
             <table className="torrent-table">
               <thead>
                 <tr>
-                  <th className="torrent-table-th">Tag Label</th>
-                  <th className="torrent-table-th">Seeding Policies</th>
-                  <th className="torrent-table-th">Assigned Torrents</th>
+                  <th className="torrent-table-th">
+                    {t("tags.tagLabel", "Tag Label")}
+                  </th>
+                  <th className="torrent-table-th">
+                    {t("tags.seedingPolicies", "Seeding Policies")}
+                  </th>
+                  <th className="torrent-table-th">
+                    {t("tags.assignedTorrents", "Assigned Torrents")}
+                  </th>
                   <th
                     className="torrent-table-th"
                     style={{ textAlign: "right" }}
                   >
-                    Actions
+                    {t("tags.actions", "Actions")}
                   </th>
                 </tr>
               </thead>
@@ -279,8 +293,10 @@ function Tags() {
                 {tagList.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="torrent-table-empty">
-                      No tags defined yet. Click &quot;+ Add Tag&quot; to create
-                      one.
+                      {t(
+                        "tags.noTagsDefined",
+                        'No tags defined yet. Click "+ Add Tag" to create one.',
+                      )}
                     </td>
                   </tr>
                 ) : (
@@ -355,7 +371,7 @@ function Tags() {
                                   fontStyle: "italic",
                                 }}
                               >
-                                Default
+                                {t("tags.defaultPolicy", "Default")}
                               </span>
                             )}
                         </div>
@@ -371,8 +387,15 @@ function Tags() {
                           }}
                         >
                           {selectedCategory !== "All"
-                            ? `torrents (${selectedCategory})`
-                            : "torrents"}
+                            ? t("tags.torrentsCountWithCategory", {
+                                count: getTagUsageCount(tag),
+                                category: selectedCategory,
+                                defaultValue: `torrents (${selectedCategory})`,
+                              })
+                            : t("tags.torrentsCount", {
+                                count: getTagUsageCount(tag),
+                                defaultValue: "torrents",
+                              })}
                         </span>
                       </td>
                       <td style={{ textAlign: "right" }}>
@@ -381,13 +404,13 @@ function Tags() {
                             className="btn btn-outline btn-small"
                             onClick={() => setModalTag({ ...tag })}
                           >
-                            Edit
+                            {t("tags.edit", "Edit")}
                           </button>
                           <button
                             className="btn btn-danger btn-small"
                             onClick={() => handleDelete(tag.id)}
                           >
-                            Delete
+                            {t("tags.delete", "Delete")}
                           </button>
                         </div>
                       </td>
@@ -417,7 +440,12 @@ function Tags() {
               className="modal-title"
               style={{ fontSize: "1.15rem", marginBottom: "1rem" }}
             >
-              {modalTag.id ? `Edit Tag: "${modalTag.label}"` : "Add Tag"}
+              {modalTag.id
+                ? t("tags.editTagModalTitle", {
+                    label: modalTag.label,
+                    defaultValue: `Edit Tag: "${modalTag.label}"`,
+                  })
+                : t("tags.addTagModalTitle", "Add Tag")}
             </h3>
 
             {/* Label Input */}
@@ -430,12 +458,15 @@ function Tags() {
                   marginBottom: "0.35rem",
                 }}
               >
-                Tag Label *
+                {t("tags.tagLabelInput", "Tag Label *")}
               </label>
               <input
                 type="text"
                 className="form-input"
-                placeholder="e.g. 4k-hdr, seedbox, ptp"
+                placeholder={t(
+                  "tags.tagLabelPlaceholder",
+                  "e.g. 4k-hdr, seedbox, ptp",
+                )}
                 value={modalTag.label || ""}
                 onChange={(e) =>
                   setModalTag({ ...modalTag, label: e.target.value })
@@ -454,7 +485,7 @@ function Tags() {
                   marginBottom: "0.35rem",
                 }}
               >
-                Color Customization
+                {t("tags.colorCustomization", "Color Customization")}
               </label>
               <div
                 style={{
@@ -497,9 +528,9 @@ function Tags() {
                     onClick={() =>
                       setModalTag({ ...modalTag, color: undefined })
                     }
-                    title="Clear color"
+                    title={t("tags.clearColor", "Clear")}
                   >
-                    Clear
+                    {t("tags.clearColor", "Clear")}
                   </button>
                 )}
                 {/* Live chip preview */}
@@ -514,7 +545,7 @@ function Tags() {
                     padding: "0.25rem 0.65rem",
                   }}
                 >
-                  🏷️ {modalTag.label?.trim() || "Preview"}
+                  🏷️ {modalTag.label?.trim() || t("tags.preview", "Preview")}
                 </span>
               </div>
               <div
@@ -523,7 +554,7 @@ function Tags() {
                 <span
                   style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}
                 >
-                  Presets:
+                  {t("tags.presets", "Presets:")}
                 </span>
                 {COLOR_PRESETS.map((preset) => (
                   <button
@@ -566,12 +597,12 @@ function Tags() {
                     marginBottom: "0.35rem",
                   }}
                 >
-                  Upload Limit (KB/s)
+                  {t("tags.uploadLimit", "Upload Limit (KB/s)")}
                 </label>
                 <input
                   type="number"
                   className="form-input"
-                  placeholder="Unlimited"
+                  placeholder={t("tags.unlimitedPlaceholder", "Unlimited")}
                   min="0"
                   value={modalTag.uploadLimitKbps ?? ""}
                   onChange={(e) =>
@@ -593,12 +624,12 @@ function Tags() {
                     marginBottom: "0.35rem",
                   }}
                 >
-                  Download Limit (KB/s)
+                  {t("tags.downloadLimit", "Download Limit (KB/s)")}
                 </label>
                 <input
                   type="number"
                   className="form-input"
-                  placeholder="Unlimited"
+                  placeholder={t("tags.unlimitedPlaceholder", "Unlimited")}
                   min="0"
                   value={modalTag.downloadLimitKbps ?? ""}
                   onChange={(e) =>
@@ -631,12 +662,12 @@ function Tags() {
                     marginBottom: "0.35rem",
                   }}
                 >
-                  Min Seed Ratio
+                  {t("tags.minSeedRatio", "Min Seed Ratio")}
                 </label>
                 <input
                   type="number"
                   className="form-input"
-                  placeholder="e.g. 2.0"
+                  placeholder={t("tags.minSeedRatioPlaceholder", "e.g. 2.0")}
                   step="0.1"
                   min="0"
                   value={modalTag.minSeedRatio ?? ""}
@@ -659,12 +690,15 @@ function Tags() {
                     marginBottom: "0.35rem",
                   }}
                 >
-                  Min Seed Time (Seconds)
+                  {t("tags.minSeedTime", "Min Seed Time (Seconds)")}
                 </label>
                 <input
                   type="number"
                   className="form-input"
-                  placeholder="e.g. 86400"
+                  placeholder={t(
+                    "tags.minSeedTimePlaceholder",
+                    "e.g. 86400",
+                  )}
                   min="0"
                   value={modalTag.minSeedTimeSeconds ?? ""}
                   onChange={(e) =>
@@ -692,7 +726,7 @@ function Tags() {
                 className="btn btn-outline btn-small"
                 onClick={() => setModalTag(null)}
               >
-                Cancel
+                {t("tags.cancel", "Cancel")}
               </button>
               <button
                 type="button"
@@ -705,8 +739,8 @@ function Tags() {
                 }
               >
                 {createTag.isPending || updateTag.isPending
-                  ? "Saving..."
-                  : "Save Tag"}
+                  ? t("tags.saving", "Saving...")
+                  : t("tags.saveTag", "Save Tag")}
               </button>
             </div>
           </div>
@@ -730,7 +764,10 @@ function Tags() {
               className="modal-title"
               style={{ fontSize: "1.15rem", marginBottom: "0.75rem" }}
             >
-              Delete Tag: &quot;{deletingTag.label}&quot;
+              {t("tags.deleteTagModalTitle", {
+                label: deletingTag.label,
+                defaultValue: `Delete Tag: "${deletingTag.label}"`,
+              })}
             </h3>
 
             <div
@@ -745,9 +782,10 @@ function Tags() {
                 lineHeight: 1.4,
               }}
             >
-              ⚠️ Warning: Deleting this tag will remove it from all assigned
-              torrents, indexers, and automated rules. This action cannot be
-              undone.
+              {t(
+                "tags.deleteWarning",
+                "⚠️ Warning: Deleting this tag will remove it from all assigned torrents, indexers, and automated rules. This action cannot be undone.",
+              )}
             </div>
 
             <p
@@ -758,20 +796,29 @@ function Tags() {
                 lineHeight: 1.5,
               }}
             >
-              Are you sure you want to delete tag{" "}
-              <strong>{deletingTag.label}</strong>?
+              {t("tags.deleteConfirmQuestion", {
+                label: deletingTag.label,
+                defaultValue: `Are you sure you want to delete tag ${deletingTag.label}?`,
+              })}
               {getTagUsageCount(deletingTag) ? (
                 <>
                   <br />
-                  Currently assigned to{" "}
-                  <strong>{getTagUsageCount(deletingTag)}</strong>{" "}
-                  {getTagUsageCount(deletingTag) === 1 ? "torrent" : "torrents"}
-                  .
+                  {t("tags.assignedToCount", {
+                    count: getTagUsageCount(deletingTag),
+                    torrentWord:
+                      getTagUsageCount(deletingTag) === 1
+                        ? "torrent"
+                        : "torrents",
+                    defaultValue: `Currently assigned to ${getTagUsageCount(deletingTag)} ${getTagUsageCount(deletingTag) === 1 ? "torrent" : "torrents"}.`,
+                  })}
                 </>
               ) : (
                 <>
                   <br />
-                  This tag is not currently assigned to any torrents.
+                  {t(
+                    "tags.notAssigned",
+                    "This tag is not currently assigned to any torrents.",
+                  )}
                 </>
               )}
             </p>
@@ -789,14 +836,16 @@ function Tags() {
                 onClick={() => setDeletingTag(null)}
                 disabled={deleteTag.isPending}
               >
-                Cancel
+                {t("tags.cancel", "Cancel")}
               </button>
               <button
                 className="btn btn-danger btn-small"
                 onClick={confirmDeleteTag}
                 disabled={deleteTag.isPending}
               >
-                {deleteTag.isPending ? "Deleting..." : "Delete Tag"}
+                {deleteTag.isPending
+                  ? t("tags.deleting", "Deleting...")
+                  : t("tags.deleteConfirm", "Delete Tag")}
               </button>
             </div>
           </div>

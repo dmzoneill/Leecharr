@@ -86,31 +86,51 @@ export function ConnectionsTab() {
   const handleSave = () => {
     if (!editing) return;
     if (!editing.name?.trim()) {
-      showToast("Name is required", "error");
+      showToast(t("settingsTabs.connections.nameRequired", "Name is required"), "error");
       return;
     }
     if (!editing.url?.trim()) {
-      showToast("URL is required", "error");
+      showToast(t("settingsTabs.connections.urlRequired", "URL is required"), "error");
       return;
     }
     if (editing.id) {
       updateMutation.mutate(editing as ArrConnection, {
         onSuccess: () => {
-          showToast(`Connection "${editing.name}" updated`, "success");
+          showToast(
+            t("settingsTabs.connections.connectionUpdated", {
+              name: editing.name,
+              defaultValue: `Connection "${editing.name}" updated`,
+            }),
+            "success",
+          );
           setEditing(null);
         },
         onError: (err: any) => {
-          showToast(err?.message || "Failed to update connection", "error");
+          showToast(
+            err?.message ||
+              t("settingsTabs.connections.updateFailed", "Failed to update connection"),
+            "error",
+          );
         },
       });
     } else {
       createMutation.mutate(editing, {
         onSuccess: () => {
-          showToast(`Connection "${editing.name}" created`, "success");
+          showToast(
+            t("settingsTabs.connections.connectionCreated", {
+              name: editing.name,
+              defaultValue: `Connection "${editing.name}" created`,
+            }),
+            "success",
+          );
           setEditing(null);
         },
         onError: (err: any) => {
-          showToast(err?.message || "Failed to create connection", "error");
+          showToast(
+            err?.message ||
+              t("settingsTabs.connections.createFailed", "Failed to create connection"),
+            "error",
+          );
         },
       });
     }
