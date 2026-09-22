@@ -114,6 +114,8 @@ public class DiskSpaceService : IDiskSpaceService
                                 Label = !string.IsNullOrWhiteSpace(drive.VolumeLabel) ? drive.VolumeLabel : drive.RootDirectory.FullName,
                                 FreeSpace = drive.AvailableFreeSpace,
                                 TotalSpace = total,
+                                FileSystemType = drive.DriveFormat ?? string.Empty,
+                                IsReadOnly = total > 0 && drive.AvailableFreeSpace == 0,
                             };
                             result.Add(info);
                         }
@@ -182,6 +184,8 @@ public class DiskSpaceService : IDiskSpaceService
                         Label = label,
                         FreeSpace = freeSpace.Value,
                         TotalSpace = totalSpace.Value,
+                        FileSystemType = drive?.DriveFormat ?? string.Empty,
+                        IsReadOnly = drive != null && drive.TotalSize > 0 && drive.AvailableFreeSpace == 0,
                     };
                     result.Add(info);
                 }
