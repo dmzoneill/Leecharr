@@ -595,10 +595,51 @@ export function useDeleteTag() {
 
 export function useBulkTorrentAction() {
   const queryClient = useQueryClient();
-  return useMutation<BulkActionResult, Error, BulkTorrentActionResource>({
+  return useMutation<
+    BulkActionResult,
+    Error,
+    BulkTorrentActionResource,
+    { previousTorrents?: Torrent[] }
+  >({
     mutationFn: (data: BulkTorrentActionResource) =>
       apiClient.post<BulkActionResult>("/torrent/bulk", data),
-    onSuccess: () => {
+    onMutate: async (newAction) => {
+      await queryClient.cancelQueries({ queryKey: ["torrents"] });
+      const previousTorrents =
+        queryClient.getQueryData<Torrent[]>(["torrents"]);
+
+      if (
+        previousTorrents &&
+        (newAction.action === "addtags" || newAction.action === "removetags") &&
+        newAction.tagIds &&
+        newAction.torrentIds
+      ) {
+        const idSet = new Set(newAction.torrentIds);
+        const tagIdSet = new Set(newAction.tagIds);
+        queryClient.setQueryData<Torrent[]>(["torrents"], (old) => {
+          if (!old) return [];
+          return old.map((tor) => {
+            if (!idSet.has(tor.id)) return tor;
+            const currentTags = tor.tagIds || [];
+            let nextTags: number[];
+            if (newAction.action === "addtags") {
+              const combined = new Set([...currentTags, ...newAction.tagIds!]);
+              nextTags = Array.from(combined);
+            } else {
+              nextTags = currentTags.filter((t) => !tagIdSet.has(t));
+            }
+            return { ...tor, tagIds: nextTags };
+          });
+        });
+      }
+      return { previousTorrents };
+    },
+    onError: (_err, _newAction, context) => {
+      if (context?.previousTorrents) {
+        queryClient.setQueryData(["torrents"], context.previousTorrents);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["torrents"] });
       queryClient.invalidateQueries({ queryKey: ["seeding"] });
       queryClient.invalidateQueries({ queryKey: ["tags"] });

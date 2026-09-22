@@ -21,9 +21,6 @@ const fr: I18nTranslations = {
     "c0Global": "0 = mondial",
     "toggleFilesInFolder": "Basculer les fichiers dans le dossier",
     "toggleSelectiveDownload": "Basculer le téléchargement sélectif",
-    "score": "Score:",
-    "audio": "Audio",
-    "copies": "copies",
     "anUnexpectedErrorOccurred": "Une erreur inattendue s'est produite lors du rendu de ce composant.",
     "tryAgain": "Essayer à nouveau",
     "reloadPage": "Recharger la page",
@@ -31,7 +28,10 @@ const fr: I18nTranslations = {
     "showErrorDetails": "Afficher les détails de l'erreur",
     "diagnosticStackTrace": "Trace de pile de diagnostic",
     "failedToRenderTab": "Échec du rendu du contenu de l'onglet",
-    "retryTab": "Onglet Réessayer"
+    "retryTab": "Onglet Réessayer",
+    "score": "Score:",
+    "audio": "Audio",
+    "copies": "copies"
   },
   "filebrowser": {
     "title": "Explorateur de fichiers",
@@ -163,6 +163,7 @@ const fr: I18nTranslations = {
     "searchLanguage": "Langue de recherche...",
     "noLanguagesFound": "Aucune langue trouvée",
     "saving": "Économie...",
+    "deleting": "Suppression...",
     "title": "Titre",
     "speed": "Vitesse",
     "general": "Général",
@@ -174,9 +175,9 @@ const fr: I18nTranslations = {
     "clearAll": "Tout effacer",
     "testing": "Essai",
     "unknownError": "Erreur inconnue",
+    "noResults": "Aucune balise correspondante",
     "date": "Date",
-    "total": "Total",
-    "noResults": "Aucune balise correspondante"
+    "total": "Total"
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -330,14 +331,14 @@ const fr: I18nTranslations = {
       "minOneColumn": "Au moins une colonne doit rester visible",
       "resetDefaults": "Réinitialiser aux valeurs par défaut",
       "resetSort": "Réinitialiser le tri",
-      "presetCompact": "Compact",
       "categories": {
         "basic": "Informations de base",
         "transfer": "Transfert et vitesses",
         "swarm": "Essaim et pairs",
         "activity": "Activité et paramètres",
         "metadata": "Dates et détails"
-      }
+      },
+      "presetCompact": "Compact"
     },
     "allSwarms": "Tous les essaims",
     "privateBep27": "Privé (BEP 27)",
@@ -377,6 +378,7 @@ const fr: I18nTranslations = {
       "dragToResize": "Faites glisser pour redimensionner",
       "completed": "Complété",
       "index": "#",
+      "queuePosition": "File d'attente #",
       "status": "Statut",
       "sessionUploaded": "Session téléchargée",
       "sessionDownloaded": "Session téléchargée",
@@ -386,21 +388,20 @@ const fr: I18nTranslations = {
       "nextUpdate": "Prochaine mise à jour",
       "priority": "Priorité",
       "label": "Étiquette",
+      "active": "Temps actif",
       "superSeeding": "Super semis",
       "sequentialDownload": "Téléchargement séquentiel",
       "forceStart": "Forcer le démarrage",
       "availability": "Disponibilité",
+      "threshold": "Limite du taux de téléchargement",
+      "smallTorrentLimit": "Limite de temps d'ensemencement",
       "added": "Date d'ajout",
       "lastActive": "Dernier actif",
+      "creationDate": "Torrent créé le",
       "createdBy": "Créé par",
       "comment": "Commentaire",
       "pieceCount": "Pièces",
       "pieceLength": "Taille de la pièce",
-      "queuePosition": "File d'attente #",
-      "active": "Temps actif",
-      "threshold": "Limite du taux de téléchargement",
-      "smallTorrentLimit": "Limite de temps d'ensemencement",
-      "creationDate": "Torrent créé le",
       "isPrivate": "Privé"
     },
     "grid": {
@@ -721,22 +722,31 @@ const fr: I18nTranslations = {
       "noFilterMatchesDesc": "Aucun filtre ne correspond à la description",
       "noTorrentsDesc": "Aucune description des torrents"
     },
-    "removeTags": "Retirer",
-    "title": "Torrents",
     "bulkAddTagsTitle": "Attribuer des balises",
     "bulkRemoveTagsTitle": "Supprimer les balises",
     "bulkAddTagsDesc": "Attribuer les balises sélectionnées au(x) torrent(s) {{count}}",
     "bulkRemoveTagsDesc": "Supprimer les balises sélectionnées du(des) torrent(s) {{count}}",
     "assignTags": "Attribuer",
+    "removeTags": "Retirer",
     "bulkAddTags": "Attribuer des balises",
     "bulkRemoveTags": "Supprimer les balises",
+    "deleteTorrentTitle": "Supprimer le torrent",
+    "deleteSingleConfirmGeneric": "Êtes-vous sûr de vouloir supprimer ce torrent ?",
+    "deleteFilesFromDisk": "Supprimer également les fichiers téléchargés du disque",
     "torrentPaused": "Torrent en pause",
     "failedToPause": "Échec de la mise en pause du torrent",
     "torrentResumed": "Le torrent a repris",
     "failedToResume": "Échec de la reprise du torrent",
     "torrentAndFilesDeleted": "Torrent et fichiers supprimés",
     "torrentRemoved": "Torrent supprimé",
-    "failedToDelete": "Échec de la suppression du torrent"
+    "failedToDelete": "Échec de la suppression du torrent",
+    "title": "Torrents",
+    "deleteTorrentsTitle": "Supprimer les torrents",
+    "readOnlyDeleteWarning": "Vous disposez des autorisations en lecture seule. Les torrents ne peuvent pas être supprimés.",
+    "deleteMultipleConfirm": "Êtes-vous sûr de vouloir supprimer les torrents {{count}} ?",
+    "deleteSingleConfirm": "Etes-vous sûr de vouloir supprimer",
+    "deleteFilesWarning": "Tous les fichiers téléchargés associés à ce torrent seront définitivement supprimés.",
+    "deletePermissionRequired": "La suppression de torrents nécessite un rôle d'opérateur ou d'administrateur"
   },
   "torrentDetail": {
     "overview": "Aperçu",
@@ -908,6 +918,8 @@ const fr: I18nTranslations = {
     "failedToCreateTorrent": "Échec de la création du torrent",
     "failedToAddTorrent": "Échec de l'ajout du torrent",
     "bulkAddSummary": "Ajouter un résumé en masse",
+    "closeDialog": "Fermer la boîte de dialogue d'ajout de torrent",
+    "readOnlyWarning": "🔒 Vous disposez des autorisations ReadOnly. L'ajout de torrents n'est pas autorisé.",
     "colDate": "Date",
     "colAction": "Action"
   },
@@ -1499,9 +1511,9 @@ const fr: I18nTranslations = {
     "indexerFallback": "Repli de l'indexeur",
     "types": {
       "torznab": "Torznab",
+      "jackett": "Veste",
       "prowlarr": "Prowlarr",
-      "newznab": "Newznab",
-      "jackett": "Veste"
+      "newznab": "Newznab"
     },
     "action": "Action"
   },
@@ -3104,13 +3116,13 @@ const fr: I18nTranslations = {
       "save": "Enregistrer",
       "sectionTitle": "Clients de téléchargement BitTorrent",
       "sectionDescription": "Connectez des clients de téléchargement externes (qBittorrent, Transmission, Deluge) pour importer l'état d'amorçage actif",
-      "port": "Port",
       "nameRequired": "Le nom est requis",
       "hostRequired": "L'hôte est requis",
       "clientUpdated": "Télécharger le client \"{{name}}\" mis à jour",
       "clientCreated": "Téléchargement du client \"{{name}}\" créé",
       "updateFailed": "Échec de la mise à jour du client de téléchargement",
-      "createFailed": "Échec de la création du client de téléchargement"
+      "createFailed": "Échec de la création du client de téléchargement",
+      "port": "Port"
     },
     "shared": {
       "failedToSave": "Échec de l'enregistrement :",
@@ -3357,13 +3369,13 @@ const fr: I18nTranslations = {
       "addTitle": "Ajouter une connexion",
       "webhookHostHint": "Nom d'hôte ou IP pour *arr pour atteindre Leecharr (laissez vide pour utiliser la valeur par défaut)",
       "testingConnection": "Test de la connexion à {{url}}...",
-      "badgeWebhook": "Webhook",
       "nameRequired": "Le nom est requis",
       "urlRequired": "L'URL est obligatoire",
       "connectionUpdated": "Connexion \"{{name}}\" mise à jour",
       "connectionCreated": "Connexion \"{{name}}\" créée",
       "updateFailed": "Échec de la mise à jour de la connexion",
-      "createFailed": "Échec de la création de la connexion"
+      "createFailed": "Échec de la création de la connexion",
+      "badgeWebhook": "Webhook"
     },
     "webui": {
       "telemetryEnabled": "Télémétrie anonyme activée",
@@ -4299,22 +4311,11 @@ const fr: I18nTranslations = {
     }
   },
   "tags": {
-    "category": "Catégorie:",
-    "allCategories": "Toutes les catégories",
-    "actions": "Actes",
-    "defaultPolicy": "Défaut",
-    "edit": "Modifier",
-    "delete": "Supprimer",
-    "addTagModalTitle": "Ajouter une balise",
-    "clearColor": "Effacer",
-    "presets": "Préréglages :",
-    "unlimitedPlaceholder": "Illimité",
-    "minSeedRatioPlaceholder": "par ex. 2.0",
-    "cancel": "Annuler",
-    "saving": "Économie...",
     "noTags": "Aucune balise disponible. Veuillez d'abord créer des balises dans Paramètres > Balises.",
     "title": "Balises",
     "description": "Organisez et filtrez les essaims de torrent par étiquettes personnalisées, couleurs et politiques d'amorçage",
+    "category": "Catégorie:",
+    "allCategories": "Toutes les catégories",
     "uncategorized": "Non classé",
     "addTag": "+ Ajouter une balise",
     "loading": "Chargement des balises...",
@@ -4322,32 +4323,44 @@ const fr: I18nTranslations = {
     "tagLabel": "Étiquette d'étiquette",
     "seedingPolicies": "Politiques de semis",
     "assignedTorrents": "Torrents attribués",
+    "actions": "Actes",
     "noTagsDefined": "Aucune balise définie pour l'instant. Cliquez sur \"+ Ajouter une balise\" pour en créer une.",
+    "defaultPolicy": "Défaut",
     "torrentsCount": "torrent",
-    "torrentsCountWithCategory": "torrents ({{category}})",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "addTagModalTitle": "Ajouter une balise",
     "editTagModalTitle": "Modifier la balise : \"{{label}}\"",
     "tagLabelInput": "Étiquette Étiquette *",
     "tagLabelPlaceholder": "par ex. 4k-hdr, boîte de graines, ptp",
     "colorCustomization": "Personnalisation des couleurs",
+    "clearColor": "Effacer",
     "preview": "Aperçu",
+    "presets": "Préréglages :",
     "uploadLimit": "Limite de téléchargement (Ko/s)",
     "downloadLimit": "Limite de téléchargement (Ko/s)",
+    "unlimitedPlaceholder": "Illimité",
     "minSeedRatio": "Rapport minimum de semences",
+    "minSeedRatioPlaceholder": "par ex. 2.0",
     "minSeedTime": "Temps de semis minimum (secondes)",
     "minSeedTimePlaceholder": "par ex. 86400",
+    "cancel": "Annuler",
     "saveTag": "Enregistrer la balise",
+    "saving": "Économie...",
     "deleteTagModalTitle": "Supprimer la balise : \"{{label}}\"",
     "deleteWarning": "⚠️ Attention : la suppression de cette balise la supprimera de tous les torrents, indexeurs et règles automatisées attribués. Cette action ne peut pas être annulée.",
     "deleteConfirmQuestion": "Êtes-vous sûr de vouloir supprimer la balise {{label}} ?",
     "assignedToCount": "Actuellement affecté à {{count}} {{torrentWord}}.",
     "notAssigned": "Cette balise n’est actuellement attribuée à aucun torrent.",
     "deleteConfirm": "Supprimer la balise",
-    "deleting": "Suppression..."
+    "deleting": "Suppression...",
+    "torrentsCountWithCategory": "torrents ({{category}})",
+    "createTag": "Créer une balise"
   },
   "keyboardShortcuts": {
-    "close": "Fermer",
     "title": "Raccourcis clavier",
     "description": "Touches de raccourci rapides pour une ergonomie client et une navigation rapides dans les flux de travail",
+    "close": "Fermer",
     "categories": {
       "globalSearch": "Mondial et recherche",
       "navigation": "Navigation par séquence à deux touches",
@@ -4395,8 +4408,6 @@ const fr: I18nTranslations = {
     "panelUnfocusEditor": "Éditeur de code Unfocus (évasion des pièges du clavier WCAG)"
   },
   "mediaPlayer": {
-    "download": "Télécharger",
-    "retry": "Réessayer",
     "playbackError": "Erreur de lecture du codec du navigateur",
     "openInVlc": "Ouvrir dans VLC",
     "openInMpv": "Ouvrir en MPV",
@@ -4404,6 +4415,8 @@ const fr: I18nTranslations = {
     "copyStreamUrl": "Copier l'URL du flux",
     "copied": "Copié!",
     "copyUrl": "Copier l'URL",
+    "download": "Télécharger",
+    "retry": "Réessayer",
     "subtitles": "Sous-titres :",
     "off": "Désactivé",
     "size": "Taille:",
@@ -4422,16 +4435,17 @@ const fr: I18nTranslations = {
   "folderBrowser": {
     "up": "Up",
     "newFolder": "Nouveau dossier",
-    "cancel": "Annuler",
-    "goToParent": "Aller au répertoire parent",
     "create": "Créer",
+    "cancel": "Annuler",
     "loading": "Chargement de la liste des répertoires...",
     "failedToLoad": "Échec du chargement du répertoire.",
     "noSubfolders": "Aucun sous-dossier dans ce répertoire.",
     "selected": "Choisi:",
     "selectThisFolder": "Sélectionnez ce dossier",
     "folderNamePlaceholder": "Nom du dossier...",
-    "createNewFolder": "Créer un nouveau dossier"
+    "goToParent": "Aller au répertoire parent",
+    "createNewFolder": "Créer un nouveau dossier",
+    "close": "Fermer le navigateur de dossiers"
   }
 };
 

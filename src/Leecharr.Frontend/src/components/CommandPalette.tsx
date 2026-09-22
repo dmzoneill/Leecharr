@@ -15,6 +15,7 @@ import { api } from "../api/client";
 import { SETTINGS_GROUPS } from "../pages/settings/settingsNavData";
 import { formatBytes } from "../utils/formatters";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import { useModalRegistration } from "./ModalProvider";
 
 export interface CommandPaletteProps {
   isOpen: boolean;
@@ -63,6 +64,13 @@ export function CommandPalette({
   const trapRef = useFocusTrap<HTMLDivElement>({
     isOpen,
     onClose,
+  });
+
+  useModalRegistration({
+    id: "command-palette",
+    isOpen,
+    onClose,
+    modalRef: trapRef,
   });
 
   useEffect(() => {

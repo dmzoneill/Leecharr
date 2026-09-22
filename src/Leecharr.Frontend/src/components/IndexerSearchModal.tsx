@@ -15,6 +15,7 @@ import {
 } from "../api/hooks";
 import { useToast } from "../context/ToastContext";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import { useModalRegistration } from "./ModalProvider";
 import { useTranslation } from "../i18n";
 import { trackIndexerSearch, trackReleaseGrab } from "../utils/analytics";
 
@@ -35,6 +36,13 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
   const trapRef = useFocusTrap<HTMLDivElement>({
     isOpen: isOpen ?? true,
     onClose,
+  });
+
+  useModalRegistration({
+    id: "indexer-search-modal",
+    isOpen: isOpen ?? true,
+    onClose,
+    modalRef: trapRef,
   });
 
   const [query, setQuery] = useState<string>(initialQuery || "");
@@ -210,7 +218,8 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
             type="button"
             className="btn-close"
             onClick={onClose}
-            aria-label={t("common.close", "Close")}
+            aria-label={t("common.close", undefined, "Close")}
+            title={t("common.close", undefined, "Close")}
           >
             <CloseIcon size={18} />
           </button>

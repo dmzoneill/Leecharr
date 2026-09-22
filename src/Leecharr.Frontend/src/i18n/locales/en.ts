@@ -164,6 +164,7 @@ const en: I18nTranslations = {
     "searchLanguage": "Search language...",
     "noLanguagesFound": "No languages found",
     "saving": "Saving...",
+    "deleting": "Deleting...",
     "title": "Title",
     "speed": "Speed",
     "general": "General",
@@ -730,6 +731,15 @@ const en: I18nTranslations = {
     "removeTags": "Remove",
     "bulkAddTags": "Assign Tags",
     "bulkRemoveTags": "Remove Tags",
+    "deleteTorrentsTitle": "Delete Torrents",
+    "deleteTorrentTitle": "Delete Torrent",
+    "readOnlyDeleteWarning": "You have ReadOnly permissions. Torrents cannot be deleted.",
+    "deleteMultipleConfirm": "Are you sure you want to delete {{count}} torrents?",
+    "deleteSingleConfirm": "Are you sure you want to delete",
+    "deleteSingleConfirmGeneric": "Are you sure you want to delete this torrent?",
+    "deleteFilesFromDisk": "Also delete downloaded files from disk",
+    "deleteFilesWarning": "All downloaded files associated with this torrent will be permanently deleted.",
+    "deletePermissionRequired": "Deleting torrents requires operator or admin role",
     "torrentPaused": "Torrent paused",
     "failedToPause": "Failed to pause torrent",
     "torrentResumed": "Torrent resumed",
@@ -821,6 +831,8 @@ const en: I18nTranslations = {
   },
   "addTorrent": {
     "title": "Add New Torrent",
+    "closeDialog": "Close add torrent dialog",
+    "readOnlyWarning": "🔒 You have ReadOnly permissions. Adding torrents is not permitted.",
     "subtitle": "Upload torrent files or download via magnet link",
     "torrentFileTab": "📁 Torrent File",
     "magnetLinkTab": "🧲 Magnet Link",
@@ -4335,6 +4347,7 @@ const en: I18nTranslations = {
     "minSeedTimePlaceholder": "e.g. 86400",
     "cancel": "Cancel",
     "saveTag": "Save Tag",
+    "createTag": "Create tag",
     "saving": "Saving...",
     "deleteTagModalTitle": "Delete Tag: \"{{label}}\"",
     "deleteWarning": "⚠️ Warning: Deleting this tag will remove it from all assigned torrents, indexers, and automated rules. This action cannot be undone.",
@@ -4431,7 +4444,8 @@ const en: I18nTranslations = {
     "selectThisFolder": "Select This Folder",
     "folderNamePlaceholder": "Folder name...",
     "goToParent": "Go to parent directory",
-    "createNewFolder": "Create new folder"
+    "createNewFolder": "Create new folder",
+    "close": "Close folder browser"
   }
 };
 

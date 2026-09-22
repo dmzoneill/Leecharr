@@ -14,6 +14,7 @@ import { useTorrentStore } from "../stores/useTorrentStore";
 import { useTranslation } from "../i18n";
 import { useMoveTorrentQueue, useTags, useBulkTorrentAction } from "../api/hooks";
 import { useColumnPreferences } from "./torrentindex/columnPreferences";
+import { useToast } from "../context/ToastContext";
 import { trackViewModeChange, trackBulkAction, trackQueueMove } from "../utils/analytics";
 
 interface TorrentIndexProps {
@@ -95,6 +96,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     setBulkTagModalState({ isOpen: true, mode: "remove" });
   }, [selectedIds]);
 
+  const { showToast } = useToast();
   const handleConfirmBulkTag = useCallback(
     async (tagIds: number[]) => {
       if (!bulkTagModalState || selectedIds.size === 0 || tagIds.length === 0) return;
@@ -102,19 +104,37 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
       const ids = Array.from(selectedIds);
       setBulkPending(true);
       try {
-        await bulkAction.mutateAsync({
+        const res = await bulkAction.mutateAsync({
           torrentIds: ids,
           action: mode === "add" ? "addtags" : "removetags",
           tagIds,
         });
+
+        if (res.failedCount === 0) {
+          showToast(
+            mode === "add"
+              ? `Successfully assigned tags to ${res.successCount} torrent(s).`
+              : `Successfully removed tags from ${res.successCount} torrent(s).`,
+            "success",
+          );
+        } else {
+          showToast(
+            `${res.successCount} succeeded, ${res.failedCount} failed`,
+            "info",
+          );
+        }
         setBulkTagModalState(null);
       } catch (err: unknown) {
-        console.error(`Failed to ${mode === "add" ? "assign" : "remove"} tags:`, err);
+        const msg =
+          err instanceof Error
+            ? err.message
+            : `Failed to ${mode === "add" ? "assign" : "remove"} tags`;
+        showToast(msg, "error");
       } finally {
         setBulkPending(false);
       }
     },
-    [bulkTagModalState, selectedIds, bulkAction],
+    [bulkTagModalState, selectedIds, bulkAction, showToast],
   );
   const [showQuickSettings, setShowQuickSettings] = useState<boolean>(() => {
     return localStorage.getItem("leecharr_quick_settings_open") === "true";

@@ -11,6 +11,7 @@ import type { Category } from "../../api/types";
 import { useConfirm } from "../../context/ConfirmContext";
 import { useToast } from "../../context/ToastContext";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
+import { useModalRegistration } from "../../components/ModalProvider";
 import { FolderBrowserModal } from "../../components/FolderBrowserModal";
 import { formatBytes } from "../../utils/formatters";
 import { SectionCard, TextInput, NumberInput, Toggle } from "./shared";
@@ -83,6 +84,13 @@ export function CategorySettingsTab({
   const trapRef = useFocusTrap<HTMLDivElement>({
     isOpen: Boolean(editingCategory),
     onClose: handleCloseModal,
+  });
+
+  useModalRegistration({
+    id: "category-edit-modal",
+    isOpen: Boolean(editingCategory),
+    onClose: handleCloseModal,
+    modalRef: trapRef,
   });
 
   const handleOpenAdd = () => {

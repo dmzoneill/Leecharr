@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Tag } from "../api/types";
 import { useTranslation } from "../i18n";
 import { useModalRegistration } from "./ModalProvider";
+import { useFocusTrap } from "../hooks/useFocusTrap";
+import { useCreateTag } from "../api/hooks";
 import { TagIcon } from "./icons/NavIcons";
 
 export interface BulkTagModalProps {
@@ -24,26 +26,41 @@ export function BulkTagModal({
   onConfirm,
 }: BulkTagModalProps) {
   const { t } = useTranslation();
+  const createTagMutation = useCreateTag();
   const modalRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [selectedTagIds, setSelectedTagIds] = useState<Set<number>>(new Set());
   const [searchTerm, setSearchTerm] = useState("");
+  const [isCreatingTag, setIsCreatingTag] = useState(false);
+
+  const handleClose = () => {
+    if (!isPending && !isCreatingTag) {
+      onClose();
+    }
+  };
 
   useModalRegistration({
     id: "bulk-tag-modal",
     isOpen,
-    onClose: () => {
-      if (!isPending) {
-        onClose();
-      }
-    },
+    onClose: handleClose,
     modalRef,
   });
+
+  const trapRef = useFocusTrap<HTMLDivElement>({
+    isOpen,
+    onClose: handleClose,
+  });
+
+  const setContainerRef = (el: HTMLDivElement | null) => {
+    (modalRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+    (trapRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+  };
 
   useEffect(() => {
     if (isOpen) {
       setSelectedTagIds(new Set());
       setSearchTerm("");
+      setIsCreatingTag(false);
       const timer = setTimeout(() => {
         searchInputRef.current?.focus();
       }, 50);
@@ -51,24 +68,32 @@ export function BulkTagModal({
     }
   }, [isOpen]);
 
+  const trimmedSearch = searchTerm.trim();
+
   const filteredTags = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase();
+    const q = trimmedSearch.toLowerCase();
     if (!q) return tags;
     return tags.filter((tag) => tag.label.toLowerCase().includes(q));
-  }, [tags, searchTerm]);
+  }, [tags, trimmedSearch]);
+
+  const hasExactMatch = useMemo(() => {
+    const q = trimmedSearch.toLowerCase();
+    if (!q) return false;
+    return tags.some((tag) => tag.label.toLowerCase() === q);
+  }, [tags, trimmedSearch]);
 
   if (!isOpen) {
     return null;
   }
 
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget && !isPending) {
+    if (e.target === e.currentTarget && !isPending && !isCreatingTag) {
       onClose();
     }
   };
 
   const handleToggleTag = (id: number) => {
-    if (isPending) return;
+    if (isPending || isCreatingTag) return;
     setSelectedTagIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -81,38 +106,64 @@ export function BulkTagModal({
   };
 
   const handleSelectAll = () => {
-    if (isPending) return;
+    if (isPending || isCreatingTag) return;
     setSelectedTagIds(new Set(filteredTags.map((t) => t.id)));
   };
 
   const handleClearAll = () => {
-    if (isPending) return;
+    if (isPending || isCreatingTag) return;
     setSelectedTagIds(new Set());
   };
 
+  const handleQuickCreateTag = async () => {
+    if (!trimmedSearch || hasExactMatch || isCreatingTag || isPending) return;
+    setIsCreatingTag(true);
+    try {
+      const newTag = await createTagMutation.mutateAsync({
+        label: trimmedSearch,
+      });
+      if (newTag?.id) {
+        setSelectedTagIds((prev) => new Set(prev).add(newTag.id));
+      }
+      setSearchTerm("");
+    } catch (err) {
+      console.error("Failed to create tag shortcut:", err);
+    } finally {
+      setIsCreatingTag(false);
+    }
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && mode === "add" && trimmedSearch && !hasExactMatch) {
+      e.preventDefault();
+      handleQuickCreateTag();
+    }
+  };
+
   const handleConfirm = async () => {
-    if (isPending || selectedTagIds.size === 0) return;
+    if (isPending || isCreatingTag || selectedTagIds.size === 0) return;
     await onConfirm(Array.from(selectedTagIds));
   };
 
   const isAdd = mode === "add";
   const title = isAdd
-    ? t("torrents.bulkAddTagsTitle", { defaultValue: "Assign Tags" })
-    : t("torrents.bulkRemoveTagsTitle", { defaultValue: "Remove Tags" });
+    ? t("torrents.bulkAddTagsTitle", undefined, "Assign Tags")
+    : t("torrents.bulkRemoveTagsTitle", undefined, "Remove Tags");
 
   const subtitle = isAdd
-    ? t("torrents.bulkAddTagsDesc", {
-        count: selectedCount,
-        defaultValue: `Assign selected tags to ${selectedCount} torrent(s)`,
-      })
-    : t("torrents.bulkRemoveTagsDesc", {
-        count: selectedCount,
-        defaultValue: `Remove selected tags from ${selectedCount} torrent(s)`,
-      });
+    ? t(
+        "torrents.bulkAddTagsDesc",
+        { count: selectedCount },
+        `Assign selected tags to ${selectedCount} torrent(s)`,
+      )
+    : t(
+        "torrents.bulkRemoveTagsDesc",
+        { count: selectedCount },
+        `Remove selected tags from ${selectedCount} torrent(s)`,
+      );
 
   return (
     <div
-      ref={modalRef}
       className="modal-overlay"
       onClick={handleBackdropClick}
       role="dialog"
@@ -120,6 +171,7 @@ export function BulkTagModal({
       aria-labelledby="bulk-tag-modal-title"
     >
       <div
+        ref={setContainerRef}
         className="modal"
         style={{
           maxWidth: "480px",
@@ -130,30 +182,51 @@ export function BulkTagModal({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ padding: "1.25rem 1.5rem 0.75rem" }}>
-          <h3
-            id="bulk-tag-modal-title"
-            className="modal-title"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              marginBottom: "0.25rem",
-              fontSize: "1.15rem",
-            }}
+        {/* Header with Title and Close Button */}
+        <div
+          style={{
+            padding: "1.25rem 1.5rem 0.75rem",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+          }}
+        >
+          <div>
+            <h3
+              id="bulk-tag-modal-title"
+              className="modal-title"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                marginBottom: "0.25rem",
+                fontSize: "1.15rem",
+              }}
+            >
+              <TagIcon size={18} />
+              <span>{title}</span>
+            </h3>
+            <p
+              style={{
+                margin: 0,
+                fontSize: "0.85rem",
+                color: "var(--text-muted, #888)",
+              }}
+            >
+              {subtitle}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-outline btn-small"
+            onClick={handleClose}
+            disabled={isPending || isCreatingTag}
+            aria-label={t("common.close", undefined, "Close")}
+            title={t("common.close", undefined, "Close")}
+            style={{ padding: "0.2rem 0.5rem", fontSize: "0.8rem", marginLeft: "1rem" }}
           >
-            <TagIcon size={18} />
-            <span>{title}</span>
-          </h3>
-          <p
-            style={{
-              margin: 0,
-              fontSize: "0.85rem",
-              color: "var(--text-muted, #888)",
-            }}
-          >
-            {subtitle}
-          </p>
+            ✕
+          </button>
         </div>
 
         <div
@@ -166,7 +239,7 @@ export function BulkTagModal({
             overflow: "hidden",
           }}
         >
-          {tags.length === 0 ? (
+          {tags.length === 0 && !trimmedSearch ? (
             <div
               style={{
                 padding: "1.5rem",
@@ -177,7 +250,8 @@ export function BulkTagModal({
             >
               {t(
                 "tags.noTags",
-                { defaultValue: "No tags available. Please create tags first in Settings > Tags." },
+                undefined,
+                "No tags available. Please create tags first in Settings > Tags.",
               )}
             </div>
           ) : (
@@ -187,10 +261,11 @@ export function BulkTagModal({
                   ref={searchInputRef}
                   type="text"
                   className="search-input"
-                  placeholder={t("common.filter", { defaultValue: "Filter tags..." })}
+                  placeholder={t("common.filter", undefined, "Filter tags...")}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  disabled={isPending}
+                  onKeyDown={handleSearchKeyDown}
+                  disabled={isPending || isCreatingTag}
                   style={{
                     flex: 1,
                     padding: "0.4rem 0.6rem",
@@ -205,21 +280,64 @@ export function BulkTagModal({
                   type="button"
                   className="btn btn-small btn-outline"
                   onClick={handleSelectAll}
-                  disabled={isPending || filteredTags.length === 0}
+                  disabled={isPending || isCreatingTag || filteredTags.length === 0}
                   style={{ fontSize: "0.75rem", padding: "0.35rem 0.5rem" }}
                 >
-                  {t("common.selectAll", { defaultValue: "Select All" })}
+                  {t("common.selectAll", undefined, "Select All")}
                 </button>
                 <button
                   type="button"
                   className="btn btn-small btn-outline"
                   onClick={handleClearAll}
-                  disabled={isPending || selectedTagIds.size === 0}
+                  disabled={isPending || isCreatingTag || selectedTagIds.size === 0}
                   style={{ fontSize: "0.75rem", padding: "0.35rem 0.5rem" }}
                 >
-                  {t("common.clear", { defaultValue: "Clear" })}
+                  {t("common.clear", undefined, "Clear")}
                 </button>
               </div>
+
+              {/* Tag Creation Shortcut when in Add Mode */}
+              {isAdd && trimmedSearch && !hasExactMatch && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "0.4rem 0.65rem",
+                    backgroundColor: "rgba(59, 130, 246, 0.1)",
+                    border: "1px dashed var(--primary, #3b82f6)",
+                    borderRadius: "6px",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "0.82rem",
+                      color: "var(--text-primary, #fff)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.35rem",
+                    }}
+                  >
+                    <span>➕</span>
+                    <span>
+                      {t("tags.createTag", undefined, "Create tag")}:{" "}
+                      <strong>"{trimmedSearch}"</strong>
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-small btn-primary"
+                    onClick={handleQuickCreateTag}
+                    disabled={isCreatingTag || isPending}
+                    style={{ fontSize: "0.75rem", padding: "0.25rem 0.55rem" }}
+                  >
+                    {isCreatingTag
+                      ? t("common.saving", undefined, "Creating...")
+                      : t("common.add", undefined, "Create & Select")}
+                  </button>
+                </div>
+              )}
 
               <div
                 style={{
@@ -243,7 +361,7 @@ export function BulkTagModal({
                       fontSize: "0.85rem",
                     }}
                   >
-                    {t("common.noResults", { defaultValue: "No matching tags" })}
+                    {t("common.noResults", undefined, "No matching tags")}
                   </div>
                 ) : (
                   filteredTags.map((tag) => {
@@ -259,7 +377,7 @@ export function BulkTagModal({
                           gap: "0.6rem",
                           padding: "0.4rem 0.6rem",
                           borderRadius: "4px",
-                          cursor: isPending ? "not-allowed" : "pointer",
+                          cursor: isPending || isCreatingTag ? "not-allowed" : "pointer",
                           backgroundColor: isChecked
                             ? "var(--bg-selected, rgba(59, 130, 246, 0.15))"
                             : "transparent",
@@ -271,7 +389,7 @@ export function BulkTagModal({
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => handleToggleTag(tag.id)}
-                          disabled={isPending}
+                          disabled={isPending || isCreatingTag}
                           style={{ cursor: "inherit" }}
                         />
                         <span
@@ -286,7 +404,9 @@ export function BulkTagModal({
                               ? `${tag.color}22`
                               : "rgba(59, 130, 246, 0.15)",
                             color: tagColor,
-                            border: `1px solid ${tag.color ? `${tag.color}44` : "rgba(59, 130, 246, 0.3)"}`,
+                            border: `1px solid ${
+                              tag.color ? `${tag.color}44` : "rgba(59, 130, 246, 0.3)"
+                            }`,
                             fontWeight: 500,
                           }}
                         >
@@ -301,6 +421,24 @@ export function BulkTagModal({
                           />
                           {tag.label}
                         </span>
+
+                        {/* Tag Count Badge */}
+                        {typeof tag.torrentCount === "number" && (
+                          <span
+                            style={{
+                              marginLeft: "auto",
+                              fontSize: "0.75rem",
+                              padding: "0.1rem 0.45rem",
+                              borderRadius: "10px",
+                              backgroundColor: "rgba(255, 255, 255, 0.08)",
+                              color: "var(--text-muted, #aaa)",
+                              fontWeight: 400,
+                            }}
+                            title={`${tag.torrentCount} torrent(s)`}
+                          >
+                            {tag.torrentCount}
+                          </span>
+                        )}
                       </label>
                     );
                   })
@@ -323,22 +461,22 @@ export function BulkTagModal({
           <button
             type="button"
             className="btn btn-outline"
-            onClick={onClose}
-            disabled={isPending}
+            onClick={handleClose}
+            disabled={isPending || isCreatingTag}
           >
-            {t("common.cancel", { defaultValue: "Cancel" })}
+            {t("common.cancel", undefined, "Cancel")}
           </button>
           <button
             type="button"
             className={isAdd ? "btn btn-primary" : "btn btn-danger"}
             onClick={handleConfirm}
-            disabled={isPending || selectedTagIds.size === 0}
+            disabled={isPending || isCreatingTag || selectedTagIds.size === 0}
           >
             {isPending
-              ? t("common.saving", { defaultValue: "Saving..." })
+              ? t("common.saving", undefined, "Saving...")
               : isAdd
-                ? `${t("torrents.assignTags", { defaultValue: "Assign" })} (${selectedTagIds.size})`
-                : `${t("torrents.removeTags", { defaultValue: "Remove" })} (${selectedTagIds.size})`}
+                ? `${t("torrents.assignTags", undefined, "Assign")} (${selectedTagIds.size})`
+                : `${t("torrents.removeTags", undefined, "Remove")} (${selectedTagIds.size})`}
           </button>
         </div>
       </div>
