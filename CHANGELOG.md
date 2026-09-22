@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.26.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.26.0) - 2026-09-22
+
+### ✨ Features
+- feat(a11y): expand keyboard controls, fix modal traps, and add topbar shortcuts button
+
 ## [v1.25.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.25.0) - 2026-09-21
 
 ### ✨ Features
