@@ -501,7 +501,10 @@ const fr: I18nTranslations = {
       "pieceMapMatrixGridView": "Vue en grille matricielle de la carte des morceaux",
       "pieceMapGrid": "Grille",
       "pieceMapStatus": "Statut",
+      "pieceMapRarity": "Carte thermique de rareté",
+      "pieceMapFileBoundaries": "Limites des fichiers",
       "pieceMapAvailability": "Disponibilité",
+      "pieceMapFilesCount": "Nombre de fichiers : {{count}} fichiers",
       "pieceMapCompleteLegend": "Légende complète de la carte des morceaux",
       "pieceMapActiveLegend": "Légende active de la carte des morceaux",
       "pieceMapMissingLegend": "Légende manquante de la carte des morceaux",
@@ -699,9 +702,6 @@ const fr: I18nTranslations = {
       "failedToRemoveTracker": "Échec de la suppression du tracker",
       "privateTrackerDisabledTitle": "Titre désactivé du tracker privé",
       "openTrackerPickerTitle": "Ouvrir le titre du sélecteur de suivi",
-      "pieceMapRarity": "Carte thermique de rareté",
-      "pieceMapFileBoundaries": "Limites des fichiers",
-      "pieceMapFilesCount": "Nombre de fichiers : {{count}} fichiers",
       "diagTracker": "Diag Tracker",
       "colSource": "Col Source",
       "colTier": "Col Tier",
@@ -4451,6 +4451,11 @@ const fr: I18nTranslations = {
     "goToParent": "Aller au répertoire parent",
     "createNewFolder": "Créer un nouveau dossier",
     "close": "Fermer le navigateur de dossiers"
+  },
+  "signalr": {
+    "reconnecting": "Connexion en temps réel perdue. Tentative de reconnexion...",
+    "disconnected": "Déconnecté du serveur. Cliquez sur Réessayer maintenant pour vous reconnecter.",
+    "retryNow": "Réessayez maintenant"
   }
 };
 

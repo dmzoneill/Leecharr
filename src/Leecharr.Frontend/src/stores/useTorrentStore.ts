@@ -49,6 +49,11 @@ export interface TorrentStoreState {
   selectAllIds: (ids: number[]) => void;
   clearSelection: () => void;
   removeTorrent: (id: number) => void;
+
+  // Optimistic Updates layer for immediate UI feedback on actions
+  optimisticUpdates: Record<number, Partial<Torrent>>;
+  updateTorrentOptimistic: (id: number, partial: Partial<Torrent>) => void;
+  clearOptimisticUpdates: (id?: number) => void;
 }
 
 export const useTorrentStore = create<TorrentStoreState>((set) => ({
@@ -214,26 +219,53 @@ export const useTorrentStore = create<TorrentStoreState>((set) => ({
       delete nextTelemetry[id];
       const nextPieceMaps = { ...state.pieceMaps };
       delete nextPieceMaps[id];
+      const nextOptimistic = { ...state.optimisticUpdates };
+      delete nextOptimistic[id];
       return {
         selectedIds: nextSelected,
         selectedTorrentId:
           state.selectedTorrentId === id ? null : state.selectedTorrentId,
         telemetry: nextTelemetry,
         pieceMaps: nextPieceMaps,
+        optimisticUpdates: nextOptimistic,
       };
+    }),
+  optimisticUpdates: {},
+  updateTorrentOptimistic: (id, partial) =>
+    set((state) => ({
+      optimisticUpdates: {
+        ...state.optimisticUpdates,
+        [id]: { ...(state.optimisticUpdates[id] || {}), ...partial },
+      },
+    })),
+  clearOptimisticUpdates: (id) =>
+    set((state) => {
+      if (id !== undefined) {
+        if (!state.optimisticUpdates[id]) return state;
+        const next = { ...state.optimisticUpdates };
+        delete next[id];
+        return { optimisticUpdates: next };
+      }
+      if (Object.keys(state.optimisticUpdates).length === 0) return state;
+      return { optimisticUpdates: {} };
     }),
 }));
 
 export function applyTelemetry(
   torrent: Torrent,
   telemetry?: TorrentTelemetry,
+  optimistic?: Partial<Torrent>,
 ): Torrent {
   const isStale = Boolean(
     telemetry?.lastUpdated && Date.now() - telemetry.lastUpdated > 10000,
   );
 
   const effectiveStatus = (
-    !isStale && telemetry?.status ? telemetry.status : torrent.status
+    optimistic?.status
+      ? optimistic.status
+      : !isStale && telemetry?.status
+        ? telemetry.status
+        : torrent.status
   )?.toLowerCase();
 
   const isInactive =
@@ -251,9 +283,10 @@ export function applyTelemetry(
         eta: 0,
         seeders: 0,
         leechers: 0,
+        ...optimistic,
       };
     }
-    return torrent;
+    return optimistic ? { ...torrent, ...optimistic } : torrent;
   }
 
   return {
@@ -275,9 +308,10 @@ export function applyTelemetry(
         : telemetry.eta
           ? Number(telemetry.eta)
           : torrent.eta,
-    status: telemetry.status ?? torrent.status,
+    status: optimistic?.status ?? telemetry.status ?? torrent.status,
     seeders: isInactive ? 0 : (telemetry.seeders ?? torrent.seeders),
     leechers: isInactive ? 0 : (telemetry.leechers ?? torrent.leechers),
+    ...optimistic,
   };
 }
 
@@ -426,4 +460,55 @@ export function useAggregatedTorrentMetrics(
       networkActivity: resolvedUl + resolvedDl,
     };
   }, [torrents, telemetry, stats]);
+}
+
+export function useHydratedTorrents(torrents?: Torrent[]): Torrent[] {
+  const telemetry = useTorrentStore((state) => state.telemetry);
+  const optimisticUpdates = useTorrentStore((state) => state.optimisticUpdates);
+
+  return useMemo(() => {
+    if (!torrents) return [];
+    return torrents.map((t) =>
+      applyTelemetry(t, telemetry[t.id], optimisticUpdates[t.id]),
+    );
+  }, [torrents, telemetry, optimisticUpdates]);
+}
+
+export function useHydratedTorrent(torrent?: Torrent | null): Torrent | null {
+  const telemetry = useTorrentStore((state) =>
+    torrent ? state.telemetry[torrent.id] : undefined,
+  );
+  const optimistic = useTorrentStore((state) =>
+    torrent ? state.optimisticUpdates[torrent.id] : undefined,
+  );
+
+  return useMemo(() => {
+    if (!torrent) return null;
+    return applyTelemetry(torrent, telemetry, optimistic);
+  }, [torrent, telemetry, optimistic]);
+}
+
+/**
+ * Safely parse JSON from localStorage with cross-application fallback support.
+ */
+export function safeGetStorage<T>(
+  primaryKey: string,
+  fallbackKeys: string[] = [],
+  defaultValue: T,
+): T {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return defaultValue;
+  }
+  const keys = [primaryKey, ...fallbackKeys];
+  for (const key of keys) {
+    try {
+      const item = localStorage.getItem(key);
+      if (item !== null && item !== undefined && item !== "") {
+        return JSON.parse(item) as T;
+      }
+    } catch {
+      // Ignore parse failure and try next fallback key
+    }
+  }
+  return defaultValue;
 }

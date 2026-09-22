@@ -1,11 +1,13 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
 using NLog;
+using NzbDrone.Core.Datastore;
 
 namespace NzbDrone.SignalR;
 
@@ -105,6 +107,45 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
         }
     }
 
+    public void BroadcastToGroup(string groupName, SignalRMessage message)
+    {
+        if (string.IsNullOrWhiteSpace(groupName) || message == null || this.disposed || !this.IsConnected)
+        {
+            return;
+        }
+
+        var group = this.hubContext?.Clients?.Group(groupName);
+        if (group == null)
+        {
+            return;
+        }
+
+        group.SendAsync("receiveMessage", message)
+            ?.ContinueWith(t => this.logger.Warn(t.Exception, "SignalR group broadcast failed"), TaskContinuationOptions.OnlyOnFaulted);
+
+        var events = GetNamedEvents(message);
+        foreach (var ev in events)
+        {
+            group.SendAsync(ev, message.Body)
+                ?.ContinueWith(t => this.logger.Warn(t.Exception, "SignalR group named event broadcast failed"), TaskContinuationOptions.OnlyOnFaulted);
+        }
+    }
+
+    public void BroadcastToTorrent(int torrentId, SignalRMessage message)
+    {
+        this.BroadcastToGroup($"torrent-{torrentId}", message);
+    }
+
+    public void BroadcastToChannel(string channel, SignalRMessage message)
+    {
+        if (string.IsNullOrWhiteSpace(channel))
+        {
+            return;
+        }
+
+        this.BroadcastToGroup($"channel-{channel.ToLowerInvariant()}", message);
+    }
+
     public void Dispose()
     {
         if (this.disposed)
@@ -162,6 +203,19 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
                             try
                             {
                                 await this.hubContext.Clients.All.SendAsync("receiveMessage", message, sendCts.Token).ConfigureAwait(false);
+
+                                var events = GetNamedEvents(message);
+                                foreach (var ev in events)
+                                {
+                                    try
+                                    {
+                                        await this.hubContext.Clients.All.SendAsync(ev, message.Body, sendCts.Token).ConfigureAwait(false);
+                                    }
+                                    catch
+                                    {
+                                        // Ignore individual named event send failure
+                                    }
+                                }
                             }
                             catch (OperationCanceledException) when (sendCts.IsCancellationRequested && !token.IsCancellationRequested)
                             {
@@ -194,5 +248,124 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
         {
             this.logger.Error(ex, "Unhandled exception in SignalRMessageBroadcaster {0} channel processor", channelName);
         }
+    }
+
+    private static List<string> GetNamedEvents(SignalRMessage message)
+    {
+        var list = new List<string>();
+        if (string.IsNullOrEmpty(message?.Name))
+        {
+            return list;
+        }
+
+        var name = message.Name;
+        if (string.Equals(name, "Torrent", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, "Torrents", StringComparison.OrdinalIgnoreCase))
+        {
+            switch (message.Action)
+            {
+                case ModelAction.Created:
+                    list.Add("TorrentAdded");
+                    list.Add("torrent_added");
+                    list.Add("torrentAdded");
+                    break;
+                case ModelAction.Updated:
+                    list.Add("TorrentUpdated");
+                    list.Add("torrent_updated");
+                    list.Add("torrentUpdated");
+                    break;
+                case ModelAction.Deleted:
+                    list.Add("TorrentDeleted");
+                    list.Add("torrent_deleted");
+                    list.Add("torrentDeleted");
+                    break;
+            }
+        }
+        else if (string.Equals(name, "TorrentAdded", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "torrentAdded", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "torrent_added", StringComparison.OrdinalIgnoreCase))
+        {
+            list.Add("TorrentAdded");
+            list.Add("torrent_added");
+            list.Add("torrentAdded");
+        }
+        else if (string.Equals(name, "TorrentUpdated", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "torrentUpdated", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "torrent_updated", StringComparison.OrdinalIgnoreCase))
+        {
+            list.Add("TorrentUpdated");
+            list.Add("torrent_updated");
+            list.Add("torrentUpdated");
+        }
+        else if (string.Equals(name, "TorrentDeleted", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "torrentDeleted", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "torrent_deleted", StringComparison.OrdinalIgnoreCase))
+        {
+            list.Add("TorrentDeleted");
+            list.Add("torrent_deleted");
+            list.Add("torrentDeleted");
+        }
+        else if (string.Equals(name, "speedPulse", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "speed_update", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "speedUpdate", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "Seeding", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "SeedingStatsUpdated", StringComparison.OrdinalIgnoreCase))
+        {
+            list.Add("speedPulse");
+            list.Add("speed_update");
+            list.Add("speedUpdate");
+            list.Add("SeedingStatsUpdated");
+        }
+        else if (string.Equals(name, "Health", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "HealthCheckCompleted", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "health_warning", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "healthWarning", StringComparison.OrdinalIgnoreCase))
+        {
+            list.Add("HealthCheckCompleted");
+            list.Add("health_warning");
+            list.Add("healthWarning");
+        }
+        else if (string.Equals(name, "Task", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "TaskStarted", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "TaskCompleted", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "task_progress", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "taskProgress", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "Command", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "CommandStarted", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "CommandCompleted", StringComparison.OrdinalIgnoreCase))
+        {
+            list.Add(name);
+            list.Add("task_progress");
+            list.Add("taskProgress");
+        }
+        else if (string.Equals(name, "pieceMapUpdated", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "piece_map_updated", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "PieceCompleted", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "PieceBatchCompleted", StringComparison.OrdinalIgnoreCase))
+        {
+            list.Add("pieceMapUpdated");
+            list.Add("piece_map_updated");
+        }
+        else if (string.Equals(name, "Tracker", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "trackerUpdated", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "TrackerUpdated", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "tracker_updated", StringComparison.OrdinalIgnoreCase))
+        {
+            list.Add("trackerUpdated");
+            list.Add("tracker_updated");
+        }
+        else if (string.Equals(name, "trackerAnnounced", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "TrackerAnnounced", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "tracker_announced", StringComparison.OrdinalIgnoreCase))
+        {
+            list.Add("trackerAnnounced");
+            list.Add("tracker_announced");
+        }
+        else
+        {
+            list.Add(name);
+        }
+
+        return list;
     }
 }

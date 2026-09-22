@@ -502,7 +502,10 @@ const ru: I18nTranslations = {
       "pieceMapMatrixGridView": "Представление в виде сетки матрицы фрагмента карты",
       "pieceMapGrid": "Сетка",
       "pieceMapStatus": "Статус",
+      "pieceMapRarity": "Тепловая карта редкости",
+      "pieceMapFileBoundaries": "Границы файлов",
       "pieceMapAvailability": "Доступность",
+      "pieceMapFilesCount": "Количество файлов: {{count}} файлов",
       "pieceMapCompleteLegend": "Часть карты Полная легенда",
       "pieceMapActiveLegend": "Активная легенда части карты",
       "pieceMapMissingLegend": "Часть карты отсутствует легенда",
@@ -702,9 +705,6 @@ const ru: I18nTranslations = {
       "failedToRemoveTracker": "Не удалось удалить трекер",
       "privateTrackerDisabledTitle": "Название «Частный трекер отключен»",
       "openTrackerPickerTitle": "Открыть заголовок окна выбора трекера",
-      "pieceMapRarity": "Тепловая карта редкости",
-      "pieceMapFileBoundaries": "Границы файлов",
-      "pieceMapFilesCount": "Количество файлов: {{count}} файлов",
       "live3s": "Live3s",
       "colAction": "Col Action"
     },
@@ -4451,6 +4451,11 @@ const ru: I18nTranslations = {
     "goToParent": "Перейти в родительский каталог",
     "createNewFolder": "Создать новую папку",
     "close": "Закрыть браузер папок"
+  },
+  "signalr": {
+    "reconnecting": "Потеряно соединение в режиме реального времени. Попытка восстановить соединение...",
+    "disconnected": "Отключился от сервера. Нажмите «Повторить сейчас», чтобы повторно подключиться.",
+    "retryNow": "Повторить попытку сейчас"
   }
 };
 

@@ -502,7 +502,10 @@ const ta: I18nTranslations = {
       "pieceMapMatrixGridView": "துண்டு வரைபடம் மேட்ரிக்ஸ் கட்டம் காட்சி",
       "pieceMapGrid": "கட்டம்",
       "pieceMapStatus": "நிலை",
+      "pieceMapRarity": "அரிதான வெப்ப வரைபடம்",
+      "pieceMapFileBoundaries": "கோப்பு எல்லைகள்",
       "pieceMapAvailability": "கிடைக்கும்",
+      "pieceMapFilesCount": "கோப்பு எண்ணிக்கை: {{count}} கோப்புகள்",
       "pieceMapCompleteLegend": "துண்டு வரைபடம் முழுமையான புராணக்கதை",
       "pieceMapActiveLegend": "துண்டு வரைபடம் செயலில் லெஜண்ட்",
       "pieceMapMissingLegend": "துண்டு வரைபடம் விடுபட்ட புராணக்கதை",
@@ -703,9 +706,6 @@ const ta: I18nTranslations = {
       "failedToRemoveTracker": "டிராக்கரை அகற்ற முடியவில்லை",
       "privateTrackerDisabledTitle": "தனிப்பட்ட டிராக்கர் முடக்கப்பட்ட தலைப்பு",
       "openTrackerPickerTitle": "டிராக்கர் பிக்கர் தலைப்பைத் திறக்கவும்",
-      "pieceMapRarity": "அரிதான வெப்ப வரைபடம்",
-      "pieceMapFileBoundaries": "கோப்பு எல்லைகள்",
-      "pieceMapFilesCount": "கோப்பு எண்ணிக்கை: {{count}} கோப்புகள்",
       "colUrl": "Col Url"
     },
     "ratio": "விகிதம்",
@@ -4451,6 +4451,11 @@ const ta: I18nTranslations = {
     "goToParent": "பெற்றோர் கோப்பகத்திற்குச் செல்லவும்",
     "createNewFolder": "புதிய கோப்புறையை உருவாக்கவும்",
     "close": "கோப்புறை உலாவியை மூடு"
+  },
+  "signalr": {
+    "reconnecting": "நிகழ்நேர இணைப்பு துண்டிக்கப்பட்டது. மீண்டும் இணைக்க முயற்சிக்கிறது...",
+    "disconnected": "சர்வரில் இருந்து துண்டிக்கப்பட்டது. மீண்டும் இணைக்க இப்போது மீண்டும் முயற்சிக்கவும் என்பதைக் கிளிக் செய்யவும்.",
+    "retryNow": "இப்போது மீண்டும் முயற்சிக்கவும்"
   }
 };
 

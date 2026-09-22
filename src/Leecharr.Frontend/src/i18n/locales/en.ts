@@ -4451,6 +4451,11 @@ const en: I18nTranslations = {
     "goToParent": "Go to parent directory",
     "createNewFolder": "Create new folder",
     "close": "Close folder browser"
+  },
+  "signalr": {
+    "reconnecting": "Real-time connection lost. Attempting to reconnect...",
+    "disconnected": "Disconnected from server. Click Retry Now to reconnect.",
+    "retryNow": "Retry Now"
   }
 };
 

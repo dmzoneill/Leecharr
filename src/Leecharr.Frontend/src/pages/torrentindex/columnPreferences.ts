@@ -294,6 +294,10 @@ export const getColumnLabel = (
 
 export const STORAGE_KEY = "leecharr_cols_v2";
 export const LEGACY_STORAGE_KEY = "leecharr-visible-columns";
+export const CROSS_APP_STORAGE_KEYS = [
+  "seedarr-visible-columns-v2",
+  "seedarr-visible-columns",
+];
 export const SORT_KEY_STORAGE = "leecharr-table-sort-key";
 export const SORT_ASC_STORAGE = "leecharr-table-sort-asc";
 export const PAGE_SIZE_STORAGE = "leecharr-table-page-size";
@@ -306,13 +310,10 @@ export const DEFAULT_VISIBLE: ReadonlySet<string> = new Set([
   "name",
   "status",
   "totalSize",
-  "uploaded",
-  "ratio",
   "progress",
   "uploadSpeed",
   "downloadSpeed",
-  "seeders",
-  "leechers",
+  "ratio",
 ]);
 
 export const COMPACT_VISIBLE: ReadonlySet<string> = new Set([
@@ -333,6 +334,14 @@ export function loadVisibleColumns(): Set<string> {
         const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
         if (legacy) {
           stored = legacy;
+        } else {
+          for (const crossKey of CROSS_APP_STORAGE_KEYS) {
+            const crossStored = localStorage.getItem(crossKey);
+            if (crossStored) {
+              stored = crossStored;
+              break;
+            }
+          }
         }
       }
       if (stored) {

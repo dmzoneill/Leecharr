@@ -502,7 +502,10 @@ const te: I18nTranslations = {
       "pieceMapMatrixGridView": "పీస్ మ్యాప్ మ్యాట్రిక్స్ గ్రిడ్ వీక్షణ",
       "pieceMapGrid": "గ్రిడ్",
       "pieceMapStatus": "స్థితి",
+      "pieceMapRarity": "అరుదైన హీట్‌మ్యాప్",
+      "pieceMapFileBoundaries": "ఫైల్ సరిహద్దులు",
       "pieceMapAvailability": "లభ్యత",
+      "pieceMapFilesCount": "ఫైల్ కౌంట్: {{count}} ఫైల్‌లు",
       "pieceMapCompleteLegend": "పీస్ మ్యాప్ కంప్లీట్ లెజెండ్",
       "pieceMapActiveLegend": "పీస్ మ్యాప్ యాక్టివ్ లెజెండ్",
       "pieceMapMissingLegend": "పీస్ మ్యాప్ మిస్సింగ్ లెజెండ్",
@@ -703,9 +706,6 @@ const te: I18nTranslations = {
       "failedToRemoveTracker": "ట్రాకర్ని తీసివేయడంలో విఫలమైంది",
       "privateTrackerDisabledTitle": "ప్రైవేట్ ట్రాకర్ డిసేబుల్ శీర్షిక",
       "openTrackerPickerTitle": "ట్రాకర్ పిక్కర్ శీర్షికను తెరవండి",
-      "pieceMapRarity": "అరుదైన హీట్‌మ్యాప్",
-      "pieceMapFileBoundaries": "ఫైల్ సరిహద్దులు",
-      "pieceMapFilesCount": "ఫైల్ కౌంట్: {{count}} ఫైల్‌లు",
       "colUrl": "Col Url"
     },
     "ratio": "నిష్పత్తి",
@@ -4451,6 +4451,11 @@ const te: I18nTranslations = {
     "goToParent": "పేరెంట్ డైరెక్టరీకి వెళ్లండి",
     "createNewFolder": "కొత్త ఫోల్డర్‌ని సృష్టించండి",
     "close": "ఫోల్డర్ బ్రౌజర్‌ను మూసివేయండి"
+  },
+  "signalr": {
+    "reconnecting": "రియల్ టైమ్ కనెక్షన్ కోల్పోయింది. మళ్లీ కనెక్ట్ చేయడానికి ప్రయత్నిస్తోంది...",
+    "disconnected": "సర్వర్ నుండి డిస్‌కనెక్ట్ చేయబడింది. మళ్లీ కనెక్ట్ చేయడానికి ఇప్పుడు మళ్లీ ప్రయత్నించండి క్లిక్ చేయండి.",
+    "retryNow": "ఇప్పుడు మళ్లీ ప్రయత్నించండి"
   }
 };
 

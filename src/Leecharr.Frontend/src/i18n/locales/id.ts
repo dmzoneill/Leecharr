@@ -500,7 +500,10 @@ const id: I18nTranslations = {
       "pieceMapBar": "Bar",
       "pieceMapMatrixGridView": "Tampilan Kotak Matriks Peta Bagian",
       "pieceMapGrid": "jaringan",
+      "pieceMapRarity": "Peta Panas Kelangkaan",
+      "pieceMapFileBoundaries": "Batasan File",
       "pieceMapAvailability": "Tersedianya",
+      "pieceMapFilesCount": "Jumlah file: {{count}} file",
       "pieceMapCompleteLegend": "Legenda Lengkap Peta Potongan",
       "pieceMapActiveLegend": "Legenda Aktif Peta Potongan",
       "pieceMapMissingLegend": "Legenda Hilang Peta Sepotong",
@@ -701,9 +704,6 @@ const id: I18nTranslations = {
       "privateTrackerDisabledTitle": "Judul Pelacak Pribadi Dinonaktifkan",
       "openTrackerPickerTitle": "Buka Judul Pemilih Pelacak",
       "pieceMapStatus": "Status",
-      "pieceMapRarity": "Peta Panas Kelangkaan",
-      "pieceMapFileBoundaries": "Batasan File",
-      "pieceMapFilesCount": "Jumlah file: {{count}} file",
       "label": "Label",
       "status": "Status"
     },
@@ -4451,6 +4451,11 @@ const id: I18nTranslations = {
     "goToParent": "Buka direktori induk",
     "createNewFolder": "Buat folder baru",
     "close": "Tutup folder peramban"
+  },
+  "signalr": {
+    "reconnecting": "Koneksi real-time terputus. Mencoba menyambung kembali...",
+    "disconnected": "Terputus dari server. Klik Coba Lagi Sekarang untuk menyambung kembali.",
+    "retryNow": "Coba lagi sekarang"
   }
 };
 

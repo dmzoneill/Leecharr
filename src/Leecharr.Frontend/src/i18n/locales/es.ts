@@ -502,7 +502,10 @@ const es: I18nTranslations = {
       "pieceMapMatrixGridView": "Vista de cuadrícula de matriz de mapa de piezas",
       "pieceMapGrid": "Red",
       "pieceMapStatus": "Estado",
+      "pieceMapRarity": "Mapa de calor de rareza",
+      "pieceMapFileBoundaries": "Límites de archivos",
       "pieceMapAvailability": "Disponibilidad",
+      "pieceMapFilesCount": "Recuento de archivos: {{count}} archivos",
       "pieceMapCompleteLegend": "Leyenda completa del mapa de piezas",
       "pieceMapActiveLegend": "Leyenda activa del mapa de piezas",
       "pieceMapMissingLegend": "Leyenda faltante del mapa de piezas",
@@ -701,9 +704,6 @@ const es: I18nTranslations = {
       "failedToRemoveTracker": "No se pudo eliminar el rastreador",
       "privateTrackerDisabledTitle": "Título deshabilitado del rastreador privado",
       "openTrackerPickerTitle": "Título del selector de seguimiento abierto",
-      "pieceMapRarity": "Mapa de calor de rareza",
-      "pieceMapFileBoundaries": "Límites de archivos",
-      "pieceMapFilesCount": "Recuento de archivos: {{count}} archivos",
       "prioNormal": "Prio Normal",
       "prioHigh": "Prio High",
       "live3s": "Live3s"
@@ -4451,6 +4451,11 @@ const es: I18nTranslations = {
     "goToParent": "Ir al directorio principal",
     "createNewFolder": "Crear nueva carpeta",
     "close": "Cerrar el navegador de carpetas"
+  },
+  "signalr": {
+    "reconnecting": "Se perdió la conexión en tiempo real. Intentando volver a conectar...",
+    "disconnected": "Desconectado del servidor. Haga clic en Reintentar ahora para volver a conectarse.",
+    "retryNow": "Reintentar ahora"
   }
 };
 

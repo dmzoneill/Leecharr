@@ -4452,4 +4452,9 @@ export type I18nTranslations = {
     "createNewFolder": string;
     "close": string;
   };
+  "signalr": {
+    "reconnecting": string;
+    "disconnected": string;
+    "retryNow": string;
+  };
 };

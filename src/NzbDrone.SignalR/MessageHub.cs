@@ -3,12 +3,14 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
 using NLog;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.SignalR;
 
@@ -17,11 +19,13 @@ public class MessageHub : Hub
     private static readonly HashSet<string> Connections = new();
     private static readonly ConcurrentDictionary<string, HubCallerContext> ActiveContexts = new();
     private readonly IConfigFileProvider configFileProvider;
+    private readonly ITorrentService torrentService;
     private readonly Logger logger;
 
-    public MessageHub(IConfigFileProvider configFileProvider = null)
+    public MessageHub(IConfigFileProvider configFileProvider = null, ITorrentService torrentService = null)
     {
         this.configFileProvider = configFileProvider;
+        this.torrentService = torrentService;
         this.logger = LogManager.GetCurrentClassLogger();
     }
 
@@ -224,5 +228,103 @@ public class MessageHub : Hub
         return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
             System.Text.Encoding.UTF8.GetBytes(a),
             System.Text.Encoding.UTF8.GetBytes(b));
+    }
+
+    public Task TrackerUpdated(object payload)
+    {
+        return this.Clients.All.SendAsync("trackerUpdated", payload);
+    }
+
+    public Task TrackerAnnounced(object payload)
+    {
+        return this.Clients.All.SendAsync("trackerAnnounced", payload);
+    }
+
+    public async Task SubscribeToTorrent(int torrentId)
+    {
+        await this.Groups.AddToGroupAsync(this.Context.ConnectionId, $"torrent-{torrentId}");
+    }
+
+    public async Task UnsubscribeFromTorrent(int torrentId)
+    {
+        await this.Groups.RemoveFromGroupAsync(this.Context.ConnectionId, $"torrent-{torrentId}");
+    }
+
+    public async Task SubscribeToChannel(string channel)
+    {
+        if (string.IsNullOrWhiteSpace(channel))
+        {
+            return;
+        }
+
+        await this.Groups.AddToGroupAsync(this.Context.ConnectionId, $"channel-{channel.ToLowerInvariant()}");
+    }
+
+    public async Task UnsubscribeFromChannel(string channel)
+    {
+        if (string.IsNullOrWhiteSpace(channel))
+        {
+            return;
+        }
+
+        await this.Groups.RemoveFromGroupAsync(this.Context.ConnectionId, $"channel-{channel.ToLowerInvariant()}");
+    }
+
+    public virtual async Task<StateSnapshotResource> RequestStateSnapshot()
+    {
+        var httpContext = this.Context.GetHttpContext();
+        var svc = this.torrentService ?? (httpContext?.RequestServices?.GetService(typeof(ITorrentService)) as ITorrentService);
+
+        var torrents = (svc?.GetAll() ?? Enumerable.Empty<Torrent>()).ToList();
+
+        long totalDownloadSpeed = 0;
+        long totalUploadSpeed = 0;
+        var summaries = new List<TorrentSnapshotResource>(torrents.Count);
+
+        foreach (var t in torrents)
+        {
+            totalDownloadSpeed += t.DownloadSpeed;
+            totalUploadSpeed += t.UploadSpeed;
+
+            var isActive = t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding;
+
+            summaries.Add(new TorrentSnapshotResource
+            {
+                Id = t.Id,
+                Name = t.Name,
+                Status = t.Status.ToString(),
+                Progress = t.Progress,
+                DownloadSpeed = t.DownloadSpeed,
+                UploadSpeed = t.UploadSpeed,
+                Eta = t.Eta,
+                Size = t.TotalSize,
+                TotalSize = t.TotalSize,
+                Active = isActive,
+            });
+        }
+
+        var snapshot = new StateSnapshotResource
+        {
+            Torrents = summaries,
+            DownloadSpeed = totalDownloadSpeed,
+            UploadSpeed = totalUploadSpeed,
+            ActiveCount = torrents.Count(t => t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding),
+            TotalCount = torrents.Count,
+            TimestampUtc = DateTime.UtcNow,
+        };
+
+        if (this.Clients?.Caller != null)
+        {
+            try
+            {
+                await this.Clients.Caller.SendAsync("stateSnapshot", snapshot);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Debug(ex, "Failed to send stateSnapshot event to caller");
+            }
+        }
+
+        return snapshot;
     }
 }

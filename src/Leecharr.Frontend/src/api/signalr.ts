@@ -1,8 +1,33 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import * as signalR from "@microsoft/signalr";
+import type { QueryClient } from "@tanstack/react-query";
 import { apiClient, getUrlBase } from "./client";
 
+export type ConnectionStatus = "connected" | "disconnected" | "reconnecting";
+
 export type ModelAction = "Unknown" | "Created" | "Updated" | "Deleted" | "Sync";
+
+export interface TorrentSnapshot {
+  id: number;
+  name: string;
+  status: string;
+  progress: number;
+  downloadSpeed: number;
+  uploadSpeed: number;
+  eta: number;
+  size: number;
+  totalSize?: number;
+  active?: boolean;
+}
+
+export interface StateSnapshot {
+  torrents: TorrentSnapshot[];
+  downloadSpeed: number;
+  uploadSpeed: number;
+  activeCount?: number;
+  totalCount?: number;
+  timestampUtc: string;
+}
 
 export type MessageHandler = (message: {
   name: string;
@@ -20,7 +45,7 @@ export function isUnauthorizedError(error: unknown): boolean {
   if (error instanceof signalR.HttpError) {
     return error.statusCode === 401 || error.statusCode === 403;
   }
-  const err = error as any;
+  const err = error as { statusCode?: number; status?: number; message?: string };
   if (
     err.statusCode === 401 ||
     err.statusCode === 403 ||
@@ -88,15 +113,19 @@ class SignalRManager {
   private reconnectingHandlers: Set<ReconnectingHandler> = new Set();
   private reconnectedHandlers: Set<ReconnectedHandler> = new Set();
   private closeHandlers: Set<CloseHandler> = new Set();
-  private connectionStateHandlers: Set<ConnectionStateChangeHandler> =
-    new Set();
+  private connectionStateHandlers: Set<ConnectionStateChangeHandler> = new Set();
+  private statusListeners: Set<(status: ConnectionStatus) => void> = new Set();
+  private snapshotListeners: Set<(snapshot: StateSnapshot) => void> = new Set();
+
+  private activeTorrentSubscriptions = new Set<number>();
+  private activeChannelSubscriptions = new Set<string>();
 
   private isStarting = false;
   private isStopped = false;
   private retryTimeout: ReturnType<typeof setTimeout> | null = null;
   private coldStartRetryCount = 0;
 
-  private ensureConnection(): signalR.HubConnection {
+  public ensureConnection(): signalR.HubConnection {
     if (!this.connection) {
       const urlBase = getUrlBase();
 
@@ -122,9 +151,16 @@ class SignalRManager {
         }
       });
 
+      this.connection.on("stateSnapshot", (snapshot: StateSnapshot) => {
+        if (snapshot) {
+          this.notifySnapshot(snapshot);
+        }
+      });
+
       this.connection.onreconnecting((error) => {
         console.warn("SignalR connection reconnecting:", error);
         this.notifyConnectionChange(false);
+        this.notifyStatus("reconnecting");
         for (const handler of this.reconnectingHandlers) {
           try {
             handler(error);
@@ -134,10 +170,13 @@ class SignalRManager {
         }
       });
 
-      this.connection.onreconnected((connectionId) => {
+      this.connection.onreconnected(async (connectionId) => {
         console.info("SignalR connection reconnected:", connectionId);
         this.coldStartRetryCount = 0;
         this.notifyConnectionChange(true);
+        this.notifyStatus("connected");
+        await this.resubscribeActiveGroups();
+        await this.requestStateSnapshot();
         for (const handler of this.reconnectedHandlers) {
           try {
             handler(connectionId);
@@ -150,6 +189,7 @@ class SignalRManager {
       this.connection.onclose((error) => {
         console.warn("SignalR connection closed:", error);
         this.notifyConnectionChange(false);
+        this.notifyStatus("disconnected");
         for (const handler of this.closeHandlers) {
           try {
             handler(error);
@@ -175,6 +215,18 @@ class SignalRManager {
 
   public getConnection(): signalR.HubConnection | null {
     return this.connection;
+  }
+
+  public getConnectionStatus(): ConnectionStatus {
+    if (!this.connection) return "disconnected";
+    switch (this.connection.state) {
+      case signalR.HubConnectionState.Connected:
+        return "connected";
+      case signalR.HubConnectionState.Reconnecting:
+        return "reconnecting";
+      default:
+        return "disconnected";
+    }
   }
 
   public onReconnecting(cb: ReconnectingHandler): () => void {
@@ -205,11 +257,122 @@ class SignalRManager {
     };
   }
 
+  public onStatusChange(cb: (status: ConnectionStatus) => void): () => void {
+    this.statusListeners.add(cb);
+    return () => {
+      this.statusListeners.delete(cb);
+    };
+  }
+
+  public onStateSnapshot(cb: (snapshot: StateSnapshot) => void): () => void {
+    this.snapshotListeners.add(cb);
+    return () => {
+      this.snapshotListeners.delete(cb);
+    };
+  }
+
+  public notifySnapshot(snapshot: StateSnapshot): void {
+    for (const handler of this.snapshotListeners) {
+      try {
+        handler(snapshot);
+      } catch (err) {
+        console.error("Error in SignalR snapshot listener:", err);
+      }
+    }
+  }
+
   public subscribe(handler: MessageHandler): () => void {
     this.messageHandlers.add(handler);
     return () => {
       this.messageHandlers.delete(handler);
     };
+  }
+
+  public async subscribeToTorrent(torrentId: number): Promise<void> {
+    this.activeTorrentSubscriptions.add(torrentId);
+    const conn = this.ensureConnection();
+    if (conn.state === signalR.HubConnectionState.Connected) {
+      try {
+        await conn.invoke("SubscribeToTorrent", torrentId);
+      } catch (err) {
+        console.warn("Failed to subscribe to torrent:", torrentId, err);
+      }
+    }
+  }
+
+  public async unsubscribeFromTorrent(torrentId: number): Promise<void> {
+    this.activeTorrentSubscriptions.delete(torrentId);
+    const conn = this.ensureConnection();
+    if (conn.state === signalR.HubConnectionState.Connected) {
+      try {
+        await conn.invoke("UnsubscribeFromTorrent", torrentId);
+      } catch (err) {
+        console.warn("Failed to unsubscribe from torrent:", torrentId, err);
+      }
+    }
+  }
+
+  public async subscribeToChannel(channel: string): Promise<void> {
+    if (!channel) return;
+    this.activeChannelSubscriptions.add(channel.toLowerCase());
+    const conn = this.ensureConnection();
+    if (conn.state === signalR.HubConnectionState.Connected) {
+      try {
+        await conn.invoke("SubscribeToChannel", channel);
+      } catch (err) {
+        console.warn("Failed to subscribe to channel:", channel, err);
+      }
+    }
+  }
+
+  public async unsubscribeFromChannel(channel: string): Promise<void> {
+    if (!channel) return;
+    this.activeChannelSubscriptions.delete(channel.toLowerCase());
+    const conn = this.ensureConnection();
+    if (conn.state === signalR.HubConnectionState.Connected) {
+      try {
+        await conn.invoke("UnsubscribeFromChannel", channel);
+      } catch (err) {
+        console.warn("Failed to unsubscribe from channel:", channel, err);
+      }
+    }
+  }
+
+  public async resubscribeActiveGroups(): Promise<void> {
+    const conn = this.ensureConnection();
+    if (conn.state !== signalR.HubConnectionState.Connected) return;
+
+    for (const tid of this.activeTorrentSubscriptions) {
+      try {
+        await conn.invoke("SubscribeToTorrent", tid);
+      } catch (err) {
+        console.warn("Failed to resubscribe to torrent:", tid, err);
+      }
+    }
+
+    for (const ch of this.activeChannelSubscriptions) {
+      try {
+        await conn.invoke("SubscribeToChannel", ch);
+      } catch (err) {
+        console.warn("Failed to resubscribe to channel:", ch, err);
+      }
+    }
+  }
+
+  public async requestStateSnapshot(): Promise<StateSnapshot | null> {
+    const conn = this.ensureConnection();
+    if (conn.state === signalR.HubConnectionState.Connected) {
+      try {
+        const snapshot = await conn.invoke<StateSnapshot>("RequestStateSnapshot");
+        if (snapshot) {
+          this.notifySnapshot(snapshot);
+        }
+        return snapshot;
+      } catch (err) {
+        console.warn("Failed to request state snapshot:", err);
+      }
+    }
+    return null;
   }
 
   public async startWithRetry(): Promise<void> {
@@ -220,6 +383,7 @@ class SignalRManager {
       this.connection.state === signalR.HubConnectionState.Connected
     ) {
       this.notifyConnectionChange(true);
+      this.notifyStatus("connected");
       return;
     }
 
@@ -253,6 +417,9 @@ class SignalRManager {
         }
 
         this.notifyConnectionChange(true);
+        this.notifyStatus("connected");
+        await this.resubscribeActiveGroups();
+
         if (wasRetrying) {
           this.notifyReconnected(conn.connectionId || undefined);
         }
@@ -260,11 +427,13 @@ class SignalRManager {
         this.isStarting = false;
         if (conn.state === signalR.HubConnectionState.Connected) {
           this.notifyConnectionChange(true);
+          this.notifyStatus("connected");
         }
       }
     } catch (err) {
       this.isStarting = false;
       this.notifyConnectionChange(false);
+      this.notifyStatus("disconnected");
 
       const errorObj = err instanceof Error ? err : new Error(String(err));
       this.notifyReconnecting(errorObj);
@@ -296,6 +465,7 @@ class SignalRManager {
       await this.connection.stop();
     }
     this.notifyConnectionChange(false);
+    this.notifyStatus("disconnected");
   }
 
   private scheduleColdStartRetry(): void {
@@ -354,9 +524,70 @@ class SignalRManager {
       }
     }
   }
+
+  private notifyStatus(status: ConnectionStatus): void {
+    for (const handler of this.statusListeners) {
+      try {
+        handler(status);
+      } catch (e) {
+        console.error("Error in SignalR status listener:", e);
+      }
+    }
+  }
 }
 
 export const signalRManager = new SignalRManager();
+
+export function getSignalRConnection(): signalR.HubConnection {
+  return signalRManager.ensureConnection();
+}
+
+export function startSignalR(): Promise<void> {
+  return signalRManager.startWithRetry();
+}
+
+export function stopSignalR(): Promise<void> {
+  return signalRManager.stop();
+}
+
+export function reconnectSignalR(): Promise<void> {
+  return signalRManager.startWithRetry();
+}
+
+export function subscribeToTorrent(torrentId: number): Promise<void> {
+  return signalRManager.subscribeToTorrent(torrentId);
+}
+
+export function unsubscribeFromTorrent(torrentId: number): Promise<void> {
+  return signalRManager.unsubscribeFromTorrent(torrentId);
+}
+
+export function subscribeToChannel(channel: string): Promise<void> {
+  return signalRManager.subscribeToChannel(channel);
+}
+
+export function unsubscribeFromChannel(channel: string): Promise<void> {
+  return signalRManager.unsubscribeFromChannel(channel);
+}
+
+export function requestStateSnapshot(): Promise<StateSnapshot | null> {
+  return signalRManager.requestStateSnapshot();
+}
+
+export function onStateSnapshot(callback: (snapshot: StateSnapshot) => void): () => void {
+  return signalRManager.onStateSnapshot(callback);
+}
+
+export function onSignalRMessage(
+  action: string,
+  callback: (data: unknown) => void,
+): () => void {
+  const conn = getSignalRConnection();
+  conn.on(action, callback);
+  return () => {
+    conn.off(action, callback);
+  };
+}
 
 export function useIsSignalRConnected(): boolean {
   const [connected, setConnected] = useState<boolean>(() =>
@@ -395,4 +626,49 @@ export function useIsDocumentVisible(): boolean {
   }, []);
 
   return visible;
+}
+
+export function useSignalR(queryClient?: QueryClient) {
+  const conn = getSignalRConnection();
+  const [status, setStatus] = useState<ConnectionStatus>(() =>
+    signalRManager.getConnectionStatus(),
+  );
+  const queryClientRef = useRef(queryClient);
+  queryClientRef.current = queryClient;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const handleStatusChange = (newStatus: ConnectionStatus) => {
+      if (isMounted) {
+        setStatus(newStatus);
+      }
+    };
+
+    const unsub = signalRManager.onStatusChange(handleStatusChange);
+    setStatus(signalRManager.getConnectionStatus());
+
+    if (!signalRManager.isConnected()) {
+      signalRManager.startWithRetry().catch(() => {});
+    }
+
+    return () => {
+      isMounted = false;
+      unsub();
+    };
+  }, []);
+
+  return {
+    connection: conn,
+    status,
+    connected: status === "connected",
+    isReconnecting: status === "reconnecting",
+    reconnect: reconnectSignalR,
+    disconnect: stopSignalR,
+    requestStateSnapshot,
+    subscribeToTorrent,
+    unsubscribeFromTorrent,
+    subscribeToChannel,
+    unsubscribeFromChannel,
+  };
 }

@@ -502,7 +502,10 @@ const ja: I18nTranslations = {
       "pieceMapMatrixGridView": "ピースマップマトリックスグリッドビュー",
       "pieceMapGrid": "グリッド",
       "pieceMapStatus": "状態",
+      "pieceMapRarity": "レアリティヒートマップ",
+      "pieceMapFileBoundaries": "ファイルの境界",
       "pieceMapAvailability": "可用性",
+      "pieceMapFilesCount": "ファイル数: {{count}} ファイル",
       "pieceMapCompleteLegend": "ピースマップコンプリートレジェンド",
       "pieceMapActiveLegend": "ピースマップアクティブレジェンド",
       "pieceMapMissingLegend": "ピースマップに凡例がありません",
@@ -703,9 +706,6 @@ const ja: I18nTranslations = {
       "failedToRemoveTracker": "トラッカーの削除に失敗しました",
       "privateTrackerDisabledTitle": "プライベート トラッカーの無効化されたタイトル",
       "openTrackerPickerTitle": "トラッカーピッカーのタイトルを開く",
-      "pieceMapRarity": "レアリティヒートマップ",
-      "pieceMapFileBoundaries": "ファイルの境界",
-      "pieceMapFilesCount": "ファイル数: {{count}} ファイル",
       "live3s": "Live3s"
     },
     "ratio": "共有比率",
@@ -4451,6 +4451,11 @@ const ja: I18nTranslations = {
     "goToParent": "親ディレクトリに移動",
     "createNewFolder": "新しいフォルダーを作成する",
     "close": "フォルダブラウザを閉じる"
+  },
+  "signalr": {
+    "reconnecting": "リアルタイム接続が失われました。再接続しようとしています...",
+    "disconnected": "サーバーから切断されました。 「今すぐ再試行」をクリックして再接続します。",
+    "retryNow": "今すぐ再試行してください"
   }
 };
 

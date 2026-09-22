@@ -8,7 +8,8 @@ import {
   Navigate,
 } from "react-router";
 import { api } from "./api/client";
-import { signalRManager } from "./api/signalr";
+import { signalRManager, useSignalR } from "./api/signalr";
+import SignalRProvider from "./components/SignalRProvider";
 import { Torrent, Category } from "./api/types";
 import {
   useIndexers,
@@ -128,10 +129,10 @@ export function App() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const queryClient = useQueryClient();
   const { data: torrents = [] } = useTorrents();
   const { data: categories = [] } = useCategories();
-  const [connected, setConnected] = useState<boolean>(false);
-  const [isReconnecting, setIsReconnecting] = useState<boolean>(false);
+  const { connected, isReconnecting, reconnect } = useSignalR(queryClient);
   const [currentUser, setCurrentUser] = useState<
     import("./api/types").CurrentUser | null
   >(null);
@@ -143,8 +144,6 @@ export function App() {
     },
     [setStoreCurrentUser],
   );
-
-  const queryClient = useQueryClient();
 
   const { data: indexersList } = useIndexers();
   const { data: generalConfig } = useGeneralConfig();
@@ -601,191 +600,15 @@ export function App() {
   }, [guardedNavigate]);
 
   useEffect(() => {
-    const unsubReconnecting = signalRManager.onReconnecting(() => {
-      setConnected(false);
-      setIsReconnecting(true);
-      useTorrentStore.getState().clearTelemetry();
-    });
-
-    const unsubReconnected = signalRManager.onReconnected(() => {
-      setConnected(true);
-      setIsReconnecting(false);
-      useTorrentStore.getState().clearTelemetry();
-      refreshServerData();
-    });
-
-    const unsubClose = signalRManager.onClose(() => {
-      setConnected(false);
-      setIsReconnecting(true);
-      useTorrentStore.getState().clearTelemetry();
-    });
-
     const staleInterval = setInterval(() => {
       useTorrentStore.getState().purgeStaleTelemetry(8000);
     }, 4000);
 
-    signalRManager
-      .start()
-      .then(() => {
-        if (signalRManager.isConnected()) {
-          setConnected(true);
-          setIsReconnecting(false);
-        }
-      })
-      .catch((err: unknown) => {
-        console.warn("SignalR start error:", getErrorMessage(err));
-        setConnected(false);
-        setIsReconnecting(true);
-      });
-
-    const unsubscribe = signalRManager.subscribe((msg) => {
-      if (msg.name === "speedPulse") {
-        if (msg.body) {
-          const body = msg.body as
-            | Array<{ id: number; [key: string]: unknown }>
-            | {
-                torrents?: Array<{ id: number; [key: string]: unknown }>;
-                id?: number;
-              }
-            | Record<string, { id?: number; [key: string]: unknown }>;
-          const updates: Array<{ id: number; [key: string]: unknown }> =
-            Array.isArray(body)
-              ? (body as Array<{ id: number; [key: string]: unknown }>)
-              : Array.isArray(
-                    (
-                      body as {
-                        torrents?: Array<{
-                          id: number;
-                          [key: string]: unknown;
-                        }>;
-                      }
-                    ).torrents,
-                  )
-                ? (
-                    body as {
-                      torrents: Array<{ id: number; [key: string]: unknown }>;
-                    }
-                  ).torrents
-                : typeof (body as { id?: number }).id === "number"
-                  ? [body as { id: number; [key: string]: unknown }]
-                  : typeof body === "object"
-                    ? Object.entries(
-                        body as Record<
-                          string,
-                          { id?: number; [key: string]: unknown }
-                        >,
-                      ).map(
-                        ([id, data]: [
-                          string,
-                          { id?: number; [key: string]: unknown },
-                        ]) => ({
-                          id: Number(id) || data?.id || 0,
-                          ...(typeof data === "object" ? data : {}),
-                        }),
-                      )
-                    : [];
-
-          if (updates.length > 0) {
-            useTorrentStore.getState().updateTelemetry(updates);
-          }
-        }
-        return;
-      }
-
-      if (msg.name === "pieceMapUpdated") {
-        if (msg.body) {
-          const body = msg.body as { torrentId?: number; id?: number };
-          const tid = Number(body.torrentId || body.id);
-          if (tid) {
-            useTorrentStore.getState().updatePieceMap(tid, body);
-          }
-        }
-        return;
-      }
-
-      if (
-        msg.name === "torrent" ||
-        msg.name === "torrentAdded" ||
-        msg.name === "torrentUpdated" ||
-        msg.name === "torrentDeleted" ||
-        msg.name === "category" ||
-        msg.name === "categoryAdded" ||
-        msg.name === "categoryUpdated" ||
-        msg.name === "categoryDeleted" ||
-        msg.name === "speedschedule" ||
-        msg.name === "speedscheduleAdded" ||
-        msg.name === "speedscheduleUpdated" ||
-        msg.name === "speedscheduleDeleted" ||
-        msg.name === "subsystemSwitched" ||
-        msg.name === "AutomationExecuted" ||
-        msg.name === "AutomationTriggerEvaluated" ||
-        msg.name?.toLowerCase().includes("automation")
-      ) {
-        if (
-          msg.name?.toLowerCase().includes("automation") ||
-          msg.name === "AutomationExecuted" ||
-          msg.name === "AutomationTriggerEvaluated"
-        ) {
-          queryClient.invalidateQueries({
-            queryKey: ["automation", "scripts"],
-          });
-          queryClient.invalidateQueries({ queryKey: ["automation"] });
-        }
-        if (
-          msg.name === "torrentDeleted" ||
-          (msg.name === "torrent" &&
-            (msg.action === "Deleted" || msg.action === 3))
-        ) {
-          const body = msg.body as unknown;
-          if (Array.isArray(body)) {
-            for (const item of body) {
-              const tid = Number(
-                typeof item === "object" && item !== null
-                  ? ((item as { id?: number; torrentId?: number }).id ??
-                      (item as { id?: number; torrentId?: number }).torrentId)
-                  : item,
-              );
-              if (!Number.isNaN(tid) && tid > 0) {
-                useTorrentStore.getState().removeTorrent(tid);
-              }
-            }
-          } else if (body !== undefined && body !== null) {
-            const tid = Number(
-              typeof body === "object"
-                ? ((body as { id?: number; torrentId?: number }).id ??
-                    (body as { id?: number; torrentId?: number }).torrentId)
-                : body,
-            );
-            if (!Number.isNaN(tid) && tid > 0) {
-              useTorrentStore.getState().removeTorrent(tid);
-            }
-          }
-        }
-        if (msg.name === "subsystemSwitched") {
-          const body = msg.body as { subsystemId?: string; id?: string } | null;
-          const subsystemId =
-            typeof body === "object" && body !== null
-              ? (body.subsystemId ?? body.id)
-              : undefined;
-          if (subsystemId) {
-            queryClient.invalidateQueries({
-              queryKey: ["subsystems", subsystemId],
-            });
-          }
-          queryClient.invalidateQueries({ queryKey: ["torrentengine"] });
-        }
-        refreshServerData();
-      }
-    });
-
     return () => {
       clearInterval(staleInterval);
-      unsubscribe();
-      unsubReconnecting();
-      unsubReconnected();
-      unsubClose();
     };
-  }, [queryClient, refreshServerData]);
+  }, []);
+
 
   const handlePause = async (id: number) => {
     trackTorrentAction("pause", id);
@@ -1576,37 +1399,82 @@ export function App() {
         </header>
 
         {/* Reconnecting State Notification Banner */}
-        {isReconnecting && (
+        {!connected && (
           <div
-            className="reconnecting-banner"
-            role="status"
-            aria-live="polite"
+            role="alert"
+            className="signalr-reconnection-banner"
             style={{
-              backgroundColor: "rgba(251, 191, 36, 0.15)",
-              borderBottom: "1px solid rgba(251, 191, 36, 0.35)",
-              color: "var(--warning, #fbbf24)",
-              padding: "0.45rem 1rem",
-              fontSize: "0.85rem",
+              backgroundColor: isReconnecting
+                ? "rgba(245, 158, 11, 0.15)"
+                : "rgba(239, 68, 68, 0.15)",
+              borderBottom: isReconnecting
+                ? "1px solid rgba(245, 158, 11, 0.4)"
+                : "1px solid rgba(239, 68, 68, 0.4)",
+              color: isReconnecting ? "#fbbf24" : "#fca5a5",
+              padding: "0.5rem 1.25rem",
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              gap: "0.6rem",
+              justifyContent: "space-between",
+              fontSize: "0.85rem",
               fontWeight: 500,
+              zIndex: 1001,
             }}
           >
-            <span
+            <div
               style={{
-                display: "inline-block",
-                width: "8px",
-                height: "8px",
-                borderRadius: "50%",
-                backgroundColor: "var(--warning, #fbbf24)",
-                boxShadow: "0 0 6px var(--warning, #fbbf24)",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.6rem",
               }}
-            />
-            <span>{t("alerts.connectionLost")}</span>
+            >
+              <span
+                className="reconnect-pulse-dot"
+                style={{
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "50%",
+                  backgroundColor: isReconnecting ? "#f59e0b" : "#ef4444",
+                  display: "inline-block",
+                  boxShadow: isReconnecting
+                    ? "0 0 8px #f59e0b"
+                    : "0 0 8px #ef4444",
+                  animation: isReconnecting
+                    ? "skeleton-pulse 1.5s infinite ease-in-out"
+                    : undefined,
+                }}
+              />
+              <span>
+                {isReconnecting
+                  ? t(
+                      "signalr.reconnecting",
+                      "Real-time connection lost. Attempting to reconnect...",
+                    )
+                  : t(
+                      "signalr.disconnected",
+                      "Disconnected from server. Click Retry Now to reconnect.",
+                    )}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => reconnect()}
+              className="btn btn-small"
+              style={{
+                backgroundColor: isReconnecting ? "#f59e0b" : "#ef4444",
+                color: isReconnecting ? "#000" : "#fff",
+                fontWeight: 600,
+                border: "none",
+                padding: "0.2rem 0.65rem",
+                cursor: "pointer",
+                borderRadius: "4px",
+                fontSize: "0.75rem",
+              }}
+            >
+              {t("signalr.retryNow", "Retry Now")}
+            </button>
           </div>
         )}
+
 
         {/* Declarative React Router Viewport */}
         <main className="app-main">
@@ -2035,6 +1903,9 @@ export function App() {
 
       {/* Screen Reader Live Telemetry Announcer */}
       <AriaLiveAnnouncer />
+
+      {/* Real-time SignalR Event Dispatcher & Query Synchronizer */}
+      <SignalRProvider />
 
       {/* Global Floating Toast Notifications */}
       <ToastContainer />
