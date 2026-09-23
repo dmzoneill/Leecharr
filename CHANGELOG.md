@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.26.5](https://github.com/dmzoneill/Leecharr/releases/tag/v1.26.5) - 2026-09-23
+
+### 🐛 Bug Fixes
+- fix(rpc): support groupsetname in NzbgetRpcController editqueue
+- fix(test): resolve assertions for Nzbget, cleanup task, AutomationService, and YamlScriptRunner
+- fix(test): add NSubstitute.ExceptionExtensions to HadoukenRpcControllerTest
+- fix(test): resolve ParsedTorrent, nullable annotations, and event ctor signatures
+- fix(test): escape newline characters in AutomationServiceTest yaml string
+
+### 🔧 Maintenance & Improvements
+- test(coverage): add comprehensive test suites for Automation, RPC controllers, History, Categories, Config, and Subsystems
+
 ## [v1.26.4](https://github.com/dmzoneill/Leecharr/releases/tag/v1.26.4) - 2026-09-23
 
 ### 🐛 Bug Fixes
