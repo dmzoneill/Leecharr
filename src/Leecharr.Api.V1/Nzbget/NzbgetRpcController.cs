@@ -356,6 +356,15 @@ public class NzbgetRpcController : ControllerBase
                                     await this.torrentService.UpdateAsync(t);
                                 }
                             }
+                            else if (command == "groupsetname")
+                            {
+                                var t = this.torrentService.Get(targetId);
+                                if (t != null && !string.IsNullOrWhiteSpace(editText))
+                                {
+                                    t.Name = editText;
+                                    await this.torrentService.UpdateAsync(t);
+                                }
+                            }
                             else if (command == "groupsetpriority")
                             {
                                 var t = this.torrentService.Get(targetId);
