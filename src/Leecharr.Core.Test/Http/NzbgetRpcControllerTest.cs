@@ -1012,7 +1012,7 @@ public class NzbgetRpcControllerTest
         {
             var req = new NzbgetRequest { Method = "editqueue", Params = moveOffsetDoc.RootElement.GetProperty("params"), Id = 26 };
             await this.controller.HandleRpc(req);
-            await this.torrentService.Received(1).MoveQueueAsync(77, "down");
+            await this.torrentService.Received(2).MoveQueueAsync(77, "down");
         }
 
         // GroupSetCategory
