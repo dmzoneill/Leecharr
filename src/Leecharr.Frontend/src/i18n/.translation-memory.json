@@ -3789,7 +3789,13 @@
     "38da990a24e5c3e0": "立即重试",
     "9d247503b4abdb7f": "无法加载下载客户端视图。发生意外错误。",
     "0ce59b3e88584b90": "出口包装",
-    "3c7b5a9f687a6b7a": "导入包"
+    "3c7b5a9f687a6b7a": "导入包",
+    "3d621f6f3138dcd6": "在网格上拖动到绘画窗口 · 单击块进行切换 · 支持触摸",
+    "d8f2a3d5aa004e9d": "{{hours}} 小时{{plural}} 每天 {{days}} 天{{dayPlural}}",
+    "0c82cb92cfebe6ec": "切换 {{count}} 时间表",
+    "651693efc69379b1": "+ 添加范围时间表",
+    "95917ae71066a19c": "选定范围",
+    "653d847138d139a4": "切换时间表"
   },
   "hi": {
     "b43594c795c4ca3f": "जोड़ने के लिए और फ़ाइलें क्लिक करें या खींचें",
@@ -7581,7 +7587,13 @@
     "e16469565a71c64d": "सर्वर से डिस्कनेक्ट हो गया. पुनः कनेक्ट करने के लिए अभी पुनः प्रयास करें पर क्लिक करें।",
     "9d247503b4abdb7f": "डाउनलोड क्लाइंट दृश्य लोड करने में विफल. एक अप्रत्याशित त्रुटि हुई।",
     "0ce59b3e88584b90": "निर्यात पैकेज",
-    "3c7b5a9f687a6b7a": "आयात पैकेज"
+    "3c7b5a9f687a6b7a": "आयात पैकेज",
+    "0c82cb92cfebe6ec": "{{count}} अनुसूचियों को टॉगल करें",
+    "d8f2a3d5aa004e9d": "{{hours}} घंटा{{plural}} प्रति दिन {{days}} दिन{{dayPlural}}",
+    "3d621f6f3138dcd6": "विंडो को पेंट करने के लिए ग्रिड पर खींचें · टॉगल करने के लिए ब्लॉक पर क्लिक करें · स्पर्श समर्थित",
+    "651693efc69379b1": "+ रेंज के लिए शेड्यूल जोड़ें",
+    "653d847138d139a4": "शेड्यूल टॉगल करें",
+    "95917ae71066a19c": "चयनित रेंज"
   },
   "es": {
     "33b8a7901c02ac2e": "Explorador de archivos",
@@ -11373,7 +11385,13 @@
     "e16469565a71c64d": "Desconectado del servidor. Haga clic en Reintentar ahora para volver a conectarse.",
     "9d247503b4abdb7f": "No se pudo cargar la vista de clientes de descarga. Se produjo un error inesperado.",
     "3c7b5a9f687a6b7a": "Paquete de importación",
-    "0ce59b3e88584b90": "Paquete de exportación"
+    "0ce59b3e88584b90": "Paquete de exportación",
+    "651693efc69379b1": "+ Agregar horario para rango",
+    "d8f2a3d5aa004e9d": "{{hours}} hr{{plural}} por día durante {{days}} día{{dayPlural}}",
+    "3d621f6f3138dcd6": "Arrastre a través de la cuadrícula para pintar la ventana · Haga clic en el bloque para alternar · Toque compatible",
+    "0c82cb92cfebe6ec": "Alternar {{count}} Horarios",
+    "653d847138d139a4": "Alternar horario",
+    "95917ae71066a19c": "Rango seleccionado"
   },
   "ar": {
     "33b8a7901c02ac2e": "مستعرض الملفات",
@@ -15165,7 +15183,13 @@
     "bd549bf014f72bee": "تم فقد الاتصال في الوقت الحقيقي. جارٍ محاولة إعادة الاتصال...",
     "9d247503b4abdb7f": "فشل تحميل عرض عملاء التنزيل. حدث خطأ غير متوقع.",
     "0ce59b3e88584b90": "حزمة التصدير",
-    "3c7b5a9f687a6b7a": "حزمة الاستيراد"
+    "3c7b5a9f687a6b7a": "حزمة الاستيراد",
+    "653d847138d139a4": "تبديل الجدول الزمني",
+    "651693efc69379b1": "+ إضافة جدول زمني للنطاق",
+    "95917ae71066a19c": "النطاق المحدد",
+    "d8f2a3d5aa004e9d": "{{hours}}_ ساعة{{plural}} يوميًا عبر {{days}}_ يوم{{dayPlural}}",
+    "3d621f6f3138dcd6": "اسحب عبر الشبكة لطلاء النافذة · انقر فوق كتلة للتبديل · دعم اللمس",
+    "0c82cb92cfebe6ec": "تبديل {{count}}_ الجداول"
   },
   "fr": {
     "57fd7a0cf33f2666": "Choisi",
@@ -18957,7 +18981,13 @@
     "38da990a24e5c3e0": "Réessayez maintenant",
     "9d247503b4abdb7f": "Échec du chargement de la vue des clients de téléchargement. Une erreur inattendue s'est produite.",
     "3c7b5a9f687a6b7a": "Importer le package",
-    "0ce59b3e88584b90": "Forfait d'exportation"
+    "0ce59b3e88584b90": "Forfait d'exportation",
+    "653d847138d139a4": "Basculer le calendrier",
+    "651693efc69379b1": "+ Ajouter un calendrier pour la plage",
+    "95917ae71066a19c": "Plage sélectionnée",
+    "d8f2a3d5aa004e9d": "{{hours}} heures{{plural}} par jour sur {{days}} jour{{dayPlural}}",
+    "3d621f6f3138dcd6": "Faites glisser sur la grille pour peindre la fenêtre · Cliquez sur le bloc pour basculer · Touchez pris en charge",
+    "0c82cb92cfebe6ec": "Toggle {{count}} Horaires"
   },
   "bn": {
     "33b8a7901c02ac2e": "ফাইল ব্রাউজার",
@@ -22749,7 +22779,13 @@
     "e16469565a71c64d": "সার্ভার থেকে সংযোগ বিচ্ছিন্ন। পুনঃসংযোগ করতে এখনই পুনরায় চেষ্টা করুন ক্লিক করুন৷",
     "9d247503b4abdb7f": "ডাউনলোড ক্লায়েন্ট ভিউ লোড করতে ব্যর্থ৷ একটি অপ্রত্যাশিত ত্রুটি ঘটেছে৷",
     "3c7b5a9f687a6b7a": "প্যাকেজ আমদানি করুন",
-    "0ce59b3e88584b90": "রপ্তানি প্যাকেজ"
+    "0ce59b3e88584b90": "রপ্তানি প্যাকেজ",
+    "653d847138d139a4": "সময়সূচী টগল করুন",
+    "d8f2a3d5aa004e9d": "{{hours}} hr{{plural}} প্রতিদিন {{days}} দিন{{dayPlural}}",
+    "3d621f6f3138dcd6": "উইন্ডো পেইন্ট করতে গ্রিড জুড়ে টেনে আনুন · টগল করতে ব্লক ক্লিক করুন · টাচ সমর্থিত",
+    "0c82cb92cfebe6ec": "{{count}} সময়সূচী টগল করুন",
+    "95917ae71066a19c": "নির্বাচিত পরিসর",
+    "651693efc69379b1": "+ পরিসরের জন্য সময়সূচী যোগ করুন"
   },
   "pt": {
     "33b8a7901c02ac2e": "Navegador de arquivos",
@@ -26541,7 +26577,13 @@
     "38da990a24e5c3e0": "Tente novamente agora",
     "9d247503b4abdb7f": "Falha ao carregar a visualização dos clientes de download. Ocorreu um erro inesperado.",
     "0ce59b3e88584b90": "Pacote de exportação",
-    "3c7b5a9f687a6b7a": "Pacote de importação"
+    "3c7b5a9f687a6b7a": "Pacote de importação",
+    "0c82cb92cfebe6ec": "Alternar programações {{count}}",
+    "3d621f6f3138dcd6": "Arraste pela grade para pintar a janela · Clique no bloco para alternar · Suporte para toque",
+    "d8f2a3d5aa004e9d": "{{hours}} horas{{plural}} por dia durante {{days}} dia{{dayPlural}}",
+    "651693efc69379b1": "+ Adicionar programação para intervalo",
+    "95917ae71066a19c": "Intervalo selecionado",
+    "653d847138d139a4": "Alternar programação"
   },
   "ru": {
     "33b8a7901c02ac2e": "Файловый менеджер",
@@ -30333,7 +30375,13 @@
     "bd549bf014f72bee": "Потеряно соединение в режиме реального времени. Попытка восстановить соединение...",
     "9d247503b4abdb7f": "Не удалось загрузить представление клиентов загрузки. Произошла непредвиденная ошибка.",
     "3c7b5a9f687a6b7a": "Импортировать пакет",
-    "0ce59b3e88584b90": "Экспортный пакет"
+    "0ce59b3e88584b90": "Экспортный пакет",
+    "95917ae71066a19c": "Выбранный диапазон",
+    "651693efc69379b1": "+ Добавить расписание для диапазона",
+    "653d847138d139a4": "Переключить расписание",
+    "0c82cb92cfebe6ec": "Переключить расписания {{count}}",
+    "d8f2a3d5aa004e9d": "{{hours}} час{{plural}} в день в течение {{days}} дня{{dayPlural}}",
+    "3d621f6f3138dcd6": "Перетащите сетку, чтобы нарисовать окно · Нажмите блок, чтобы переключиться · Поддерживается сенсорное управление"
   },
   "ur": {
     "33b8a7901c02ac2e": "فائل براؤزر",
@@ -34125,7 +34173,13 @@
     "e16469565a71c64d": "سرور سے منقطع۔ دوبارہ جڑنے کے لیے ابھی دوبارہ کوشش کریں پر کلک کریں۔",
     "9d247503b4abdb7f": "ڈاؤن لوڈ کلائنٹس کا منظر لوڈ کرنے میں ناکام۔ ایک غیر متوقع خرابی پیش آگئی۔",
     "3c7b5a9f687a6b7a": "پیکج درآمد کریں۔",
-    "0ce59b3e88584b90": "ایکسپورٹ پیکج"
+    "0ce59b3e88584b90": "ایکسپورٹ پیکج",
+    "0c82cb92cfebe6ec": "{{count}} شیڈولز کو ٹوگل کریں۔",
+    "d8f2a3d5aa004e9d": "{{hours}} گھنٹہ{{plural}} فی دن {{days}} دن{{dayPlural}}",
+    "651693efc69379b1": "+ رینج کے لیے شیڈول شامل کریں۔",
+    "95917ae71066a19c": "منتخب کردہ رینج",
+    "653d847138d139a4": "شیڈول ٹوگل کریں۔",
+    "3d621f6f3138dcd6": "پینٹ ونڈو کے لیے گرڈ پر گھسیٹیں · ٹوگل کرنے کے لیے بلاک پر کلک کریں · ٹچ سپورٹڈ"
   },
   "id": {
     "33b8a7901c02ac2e": "Peramban Berkas",
@@ -37917,7 +37971,13 @@
     "e16469565a71c64d": "Terputus dari server. Klik Coba Lagi Sekarang untuk menyambung kembali.",
     "9d247503b4abdb7f": "Gagal memuat tampilan klien unduhan. Terjadi kesalahan yang tidak terduga.",
     "0ce59b3e88584b90": "Paket Ekspor",
-    "3c7b5a9f687a6b7a": "Paket Impor"
+    "3c7b5a9f687a6b7a": "Paket Impor",
+    "651693efc69379b1": "+ Tambahkan Jadwal untuk Jangkauan",
+    "653d847138d139a4": "Beralih Jadwal",
+    "95917ae71066a19c": "Rentang yang Dipilih",
+    "0c82cb92cfebe6ec": "Alihkan __V0___ Jadwal",
+    "d8f2a3d5aa004e9d": "{{hours}} jam{{plural}} per hari selama {{days}} hari{{dayPlural}}",
+    "3d621f6f3138dcd6": "Seret melintasi kisi untuk mengecat jendela · Klik blok untuk beralih · Sentuh didukung"
   },
   "de": {
     "57fd7a0cf33f2666": "Ausgewählt",
@@ -41709,7 +41769,13 @@
     "e16469565a71c64d": "Vom Server getrennt. Klicken Sie auf Jetzt erneut versuchen, um die Verbindung wiederherzustellen.",
     "9d247503b4abdb7f": "Download-Client-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
     "0ce59b3e88584b90": "Paket exportieren",
-    "3c7b5a9f687a6b7a": "Paket importieren"
+    "3c7b5a9f687a6b7a": "Paket importieren",
+    "651693efc69379b1": "+ Zeitplan für Bereich hinzufügen",
+    "95917ae71066a19c": "Ausgewählter Bereich",
+    "653d847138d139a4": "Zeitplan umschalten",
+    "0c82cb92cfebe6ec": "Schalten Sie {{count}} Zeitpläne um",
+    "3d621f6f3138dcd6": "Ziehen Sie über das Raster, um das Fenster zu malen. · Klicken Sie zum Umschalten auf den Block. · Touch wird unterstützt",
+    "d8f2a3d5aa004e9d": "{{hours}} Std.{{plural}} pro Tag über {{days}} Tag{{dayPlural}}"
   },
   "ja": {
     "33b8a7901c02ac2e": "ファイルブラウザー",
@@ -45501,7 +45567,13 @@
     "e16469565a71c64d": "サーバーから切断されました。 「今すぐ再試行」をクリックして再接続します。",
     "9d247503b4abdb7f": "ダウンロード クライアント ビューの読み込みに失敗しました。予期しないエラーが発生しました。",
     "0ce59b3e88584b90": "エクスポートパッケージ",
-    "3c7b5a9f687a6b7a": "パッケージのインポート"
+    "3c7b5a9f687a6b7a": "パッケージのインポート",
+    "3d621f6f3138dcd6": "グリッド上でドラッグしてウィンドウをペイントします · ブロックをクリックして切り替えます · タッチ対応",
+    "d8f2a3d5aa004e9d": "{{hours}} hr{{plural}} / {{days}}_ 日{{dayPlural}}",
+    "95917ae71066a19c": "選択範囲",
+    "653d847138d139a4": "スケジュールの切り替え",
+    "651693efc69379b1": "+ 範囲のスケジュールを追加",
+    "0c82cb92cfebe6ec": "{{count}} スケジュールの切り替え"
   },
   "mr": {
     "33b8a7901c02ac2e": "फाइल ब्राउझर",
@@ -49293,7 +49365,13 @@
     "e16469565a71c64d": "सर्व्हरवरून डिस्कनेक्ट झाले. पुन्हा कनेक्ट करण्यासाठी आता पुन्हा प्रयत्न करा क्लिक करा.",
     "9d247503b4abdb7f": "डाउनलोड क्लायंट दृश्य लोड करण्यात अयशस्वी. एक अनपेक्षित त्रुटी आली.",
     "0ce59b3e88584b90": "निर्यात पॅकेज",
-    "3c7b5a9f687a6b7a": "पॅकेज आयात करा"
+    "3c7b5a9f687a6b7a": "पॅकेज आयात करा",
+    "653d847138d139a4": "शेड्यूल टॉगल करा",
+    "3d621f6f3138dcd6": "विंडो पेंट करण्यासाठी ग्रिडवर ड्रॅग करा · टॉगल करण्यासाठी ब्लॉक क्लिक करा · समर्थित स्पर्श करा",
+    "95917ae71066a19c": "निवडलेली श्रेणी",
+    "651693efc69379b1": "+ श्रेणीसाठी वेळापत्रक जोडा",
+    "0c82cb92cfebe6ec": "{{count}} शेड्युल टॉगल करा",
+    "d8f2a3d5aa004e9d": "{{hours}} तास{{plural}} दररोज {{days}} दिवस{{dayPlural}}"
   },
   "te": {
     "33b8a7901c02ac2e": "ఫైల్ బ్రౌజర్",
@@ -53085,7 +53163,13 @@
     "bd549bf014f72bee": "రియల్ టైమ్ కనెక్షన్ కోల్పోయింది. మళ్లీ కనెక్ట్ చేయడానికి ప్రయత్నిస్తోంది...",
     "9d247503b4abdb7f": "డౌన్‌లోడ్ క్లయింట్‌ల వీక్షణను లోడ్ చేయడంలో విఫలమైంది. ఊహించని లోపం సంభవించింది.",
     "0ce59b3e88584b90": "ఎగుమతి ప్యాకేజీ",
-    "3c7b5a9f687a6b7a": "ప్యాకేజీని దిగుమతి చేయండి"
+    "3c7b5a9f687a6b7a": "ప్యాకేజీని దిగుమతి చేయండి",
+    "95917ae71066a19c": "ఎంచుకున్న పరిధి",
+    "d8f2a3d5aa004e9d": "{{hours}} hr{{plural}} {{days}} రోజు{{dayPlural}} అంతటా",
+    "3d621f6f3138dcd6": "విండోను పెయింట్ చేయడానికి గ్రిడ్ అంతటా లాగండి · టోగుల్ చేయడానికి బ్లాక్ క్లిక్ చేయండి · టచ్ మద్దతు ఉంది",
+    "0c82cb92cfebe6ec": "{{count}} షెడ్యూల్‌లను టోగుల్ చేయండి",
+    "653d847138d139a4": "షెడ్యూల్‌ను టోగుల్ చేయండి",
+    "651693efc69379b1": "+ పరిధి కోసం షెడ్యూల్‌ని జోడించండి"
   },
   "tr": {
     "33b8a7901c02ac2e": "Dosya Tarayıcısı",
@@ -56877,7 +56961,13 @@
     "bd549bf014f72bee": "Gerçek zamanlı bağlantı kesildi. Yeniden bağlanmaya çalışılıyor...",
     "9d247503b4abdb7f": "İndirme istemcileri görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
     "3c7b5a9f687a6b7a": "Paketi İçe Aktar",
-    "0ce59b3e88584b90": "İhracat Paketi"
+    "0ce59b3e88584b90": "İhracat Paketi",
+    "0c82cb92cfebe6ec": "_{{count}} Programları Değiştir",
+    "3d621f6f3138dcd6": "Pencereyi boyamak için ızgara boyunca sürükleyin · Geçiş yapmak için bloğa tıklayın · Dokunma desteklenir",
+    "d8f2a3d5aa004e9d": "{{hours}} saat{{plural}} {{days}} gün{{dayPlural}} boyunca günde",
+    "95917ae71066a19c": "Seçilen Aralık",
+    "653d847138d139a4": "Programı Değiştir",
+    "651693efc69379b1": "+ Aralık için Program Ekle"
   },
   "ta": {
     "33b8a7901c02ac2e": "கோப்பு உலாவி",
@@ -60669,7 +60759,13 @@
     "38da990a24e5c3e0": "இப்போது மீண்டும் முயற்சிக்கவும்",
     "9d247503b4abdb7f": "பதிவிறக்க கிளையன்ட் பார்வையை ஏற்றுவதில் தோல்வி. எதிர்பாராத பிழை ஏற்பட்டது.",
     "0ce59b3e88584b90": "ஏற்றுமதி தொகுப்பு",
-    "3c7b5a9f687a6b7a": "இறக்குமதி தொகுப்பு"
+    "3c7b5a9f687a6b7a": "இறக்குமதி தொகுப்பு",
+    "653d847138d139a4": "அட்டவணையை மாற்று",
+    "d8f2a3d5aa004e9d": "{{hours}} மணி{{plural}} {{days}} நாள் முழுவதும்{{dayPlural}}",
+    "0c82cb92cfebe6ec": "{{count}} அட்டவணைகளை நிலைமாற்று",
+    "95917ae71066a19c": "தேர்ந்தெடுக்கப்பட்ட வரம்பு",
+    "651693efc69379b1": "+ வரம்பிற்கான அட்டவணையைச் சேர்க்கவும்",
+    "3d621f6f3138dcd6": "சாளரத்தை வரைவதற்கு கட்டம் முழுவதும் இழுக்கவும் · நிலைமாற்ற பிளாக் கிளிக் செய்யவும் · தொடு ஆதரவு"
   },
   "vi": {
     "57fd7a0cf33f2666": "Đã chọn",
@@ -64461,7 +64557,13 @@
     "e16469565a71c64d": "Đã ngắt kết nối khỏi máy chủ. Bấm vào Thử lại ngay để kết nối lại.",
     "9d247503b4abdb7f": "Không tải được chế độ xem ứng dụng khách tải xuống. Đã xảy ra lỗi không mong muốn.",
     "3c7b5a9f687a6b7a": "Gói nhập khẩu",
-    "0ce59b3e88584b90": "Gói xuất khẩu"
+    "0ce59b3e88584b90": "Gói xuất khẩu",
+    "d8f2a3d5aa004e9d": "{{hours}} giờ{{plural}} mỗi ngày trong {{days}} ngày{{dayPlural}}",
+    "3d621f6f3138dcd6": "Kéo qua lưới để vẽ cửa sổ · Nhấp vào khối để chuyển đổi · Hỗ trợ cảm ứng",
+    "0c82cb92cfebe6ec": "Chuyển đổi lịch trình {{count}}",
+    "651693efc69379b1": "+ Thêm lịch trình cho phạm vi",
+    "653d847138d139a4": "Chuyển đổi lịch trình",
+    "95917ae71066a19c": "Phạm vi đã chọn"
   },
   "ko": {
     "33b8a7901c02ac2e": "파일 탐색기",
@@ -68253,7 +68355,13 @@
     "e16469565a71c64d": "서버와의 연결이 끊어졌습니다. 다시 연결하려면 지금 다시 시도를 클릭하세요.",
     "9d247503b4abdb7f": "다운로드 클라이언트 보기를 로드하지 못했습니다. 예상치 못한 오류가 발생했습니다.",
     "0ce59b3e88584b90": "패키지 내보내기",
-    "3c7b5a9f687a6b7a": "패키지 가져오기"
+    "3c7b5a9f687a6b7a": "패키지 가져오기",
+    "d8f2a3d5aa004e9d": "_{{hours}} 시간{{plural}}/일 {{days}}일{{dayPlural}}",
+    "3d621f6f3138dcd6": "그리드를 가로질러 드래그하여 창 그리기 · 전환하려면 블록을 클릭 · 터치 지원",
+    "651693efc69379b1": "+ 범위 일정 추가",
+    "95917ae71066a19c": "선택 범위",
+    "653d847138d139a4": "일정 전환",
+    "0c82cb92cfebe6ec": "{{count}} 일정 전환"
   },
   "it": {
     "bbdffe25dc7d80cf": "Posizione:",
@@ -72045,6 +72153,12 @@
     "e16469565a71c64d": "Disconnesso dal server. Fare clic su Riprova ora per riconnettersi.",
     "9d247503b4abdb7f": "Impossibile caricare la vista dei client di download. Si è verificato un errore imprevisto.",
     "0ce59b3e88584b90": "Pacchetto di esportazione",
-    "3c7b5a9f687a6b7a": "Importa pacchetto"
+    "3c7b5a9f687a6b7a": "Importa pacchetto",
+    "0c82cb92cfebe6ec": "Attiva/disattiva gli orari {{count}}",
+    "3d621f6f3138dcd6": "Trascina sulla griglia per dipingere la finestra · Fai clic sul blocco per attivare · Tocca supportato",
+    "d8f2a3d5aa004e9d": "{{hours}} ore{{plural}} al giorno per {{days}} giorno{{dayPlural}}",
+    "651693efc69379b1": "+ Aggiungi pianificazione per intervallo",
+    "653d847138d139a4": "Attiva/disattiva pianificazione",
+    "95917ae71066a19c": "Intervallo selezionato"
   }
 }

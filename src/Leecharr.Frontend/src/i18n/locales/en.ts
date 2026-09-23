@@ -1201,6 +1201,15 @@ const en: I18nTranslations = {
     deleteConfirm: "Delete Confirm",
     deletedToast: "Deleted Toast",
     deleteError: "Delete Error",
+    gridDragHint:
+      "Drag across grid to paint window · Click block to toggle · Touch supported",
+    selectedRange: "Selected Range",
+    addScheduleForRange: "+ Add Schedule for Range",
+    toggleSchedule: "Toggle Schedule",
+    toggleSchedules: "Toggle {{count}} Schedules",
+    clearSelection: "Clear",
+    hrsPerDay:
+      "{{hours}} hr{{plural}} per day across {{days}} day{{dayPlural}}",
   },
   peerMap: {
     title: "Global Peer Swarm Map",
