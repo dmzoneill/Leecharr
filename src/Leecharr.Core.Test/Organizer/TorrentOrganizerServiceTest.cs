@@ -575,7 +575,7 @@ public class TorrentOrganizerServiceTest
             SeriesTitle = "Chernobyl",
             SeasonNumber = 1,
             EpisodeNumbers = new List<int> { 1 },
-            EpisodeTitles = new List<string> { "1:23:45" },
+            EpisodeTitles = new List<string> { "1-23-45" },
             Extension = "mkv",
         };
 
@@ -603,7 +603,7 @@ public class TorrentOrganizerServiceTest
             SeriesTitle = "Chernobyl",
             SeasonNumber = 1,
             EpisodeNumbers = new List<int> { 1 },
-            EpisodeTitles = new List<string> { "1:23:45" },
+            EpisodeTitles = new List<string> { "1-23-45" },
             Extension = "mkv",
         };
 
@@ -630,7 +630,7 @@ public class TorrentOrganizerServiceTest
             SeriesTitle = "Chernobyl",
             SeasonNumber = 1,
             EpisodeNumbers = new List<int> { 1 },
-            EpisodeTitles = new List<string> { "1:23:45" },
+            EpisodeTitles = new List<string> { "1-23-45" },
             Extension = "mkv",
         };
 
@@ -664,7 +664,7 @@ public class TorrentOrganizerServiceTest
             SeriesTitle = "Chernobyl",
             SeasonNumber = 1,
             EpisodeNumbers = new List<int> { 1 },
-            EpisodeTitles = new List<string> { "1:23:45" },
+            EpisodeTitles = new List<string> { "1-23-45" },
             Extension = "mkv",
         };
 
