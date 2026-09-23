@@ -86,11 +86,17 @@ export function ConnectionsTab() {
   const handleSave = () => {
     if (!editing) return;
     if (!editing.name?.trim()) {
-      showToast(t("settingsTabs.connections.nameRequired", "Name is required"), "error");
+      showToast(
+        t("settingsTabs.connections.nameRequired", "Name is required"),
+        "error",
+      );
       return;
     }
     if (!editing.url?.trim()) {
-      showToast(t("settingsTabs.connections.urlRequired", "URL is required"), "error");
+      showToast(
+        t("settingsTabs.connections.urlRequired", "URL is required"),
+        "error",
+      );
       return;
     }
     if (editing.id) {
@@ -108,7 +114,10 @@ export function ConnectionsTab() {
         onError: (err: any) => {
           showToast(
             err?.message ||
-              t("settingsTabs.connections.updateFailed", "Failed to update connection"),
+              t(
+                "settingsTabs.connections.updateFailed",
+                "Failed to update connection",
+              ),
             "error",
           );
         },
@@ -128,7 +137,10 @@ export function ConnectionsTab() {
         onError: (err: any) => {
           showToast(
             err?.message ||
-              t("settingsTabs.connections.createFailed", "Failed to create connection"),
+              t(
+                "settingsTabs.connections.createFailed",
+                "Failed to create connection",
+              ),
             "error",
           );
         },

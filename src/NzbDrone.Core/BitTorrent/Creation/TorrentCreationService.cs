@@ -423,7 +423,7 @@ public class TorrentCreationService : ITorrentCreationService
             return false;
         }
 
-        bool isAllowed = false;
+        var isAllowed = false;
         foreach (var allowed in allowedDirs)
         {
             if (string.IsNullOrWhiteSpace(allowed))

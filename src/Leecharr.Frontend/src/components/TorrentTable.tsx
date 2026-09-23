@@ -1633,7 +1633,11 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
       if (isInput || target?.closest(".detail-panel")) return;
 
       // Ctrl+A / Cmd+A: Select all filtered torrents
-      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === "a" || e.key === "A")) {
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        !e.shiftKey &&
+        (e.key === "a" || e.key === "A")
+      ) {
         e.preventDefault();
         const allFilteredIds = filteredTorrents.map((t) => t.id);
         if (onSelectAll) {
@@ -1645,7 +1649,11 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
       }
 
       // Ctrl+Shift+I / Cmd+Shift+I: Invert selection
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "i" || e.key === "I")) {
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.shiftKey &&
+        (e.key === "i" || e.key === "I")
+      ) {
         e.preventDefault();
         const allIds = sortedTorrents.map((t) => t.id);
         const inverted = allIds.filter((id) => !selectedIds.has(id));
@@ -1686,7 +1694,9 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
           if (onSelectAll) {
             onSelectAll([targetTorrent.id]);
           } else {
-            useTorrentStore.getState().setSelectedIds(new Set([targetTorrent.id]));
+            useTorrentStore
+              .getState()
+              .setSelectedIds(new Set([targetTorrent.id]));
           }
         }
         lastClickedIndexRef.current = targetIdx;
@@ -1831,7 +1841,9 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
             if (onSelectAll) {
               onSelectAll([nextTorrent.id]);
             } else {
-              useTorrentStore.getState().setSelectedIds(new Set([nextTorrent.id]));
+              useTorrentStore
+                .getState()
+                .setSelectedIds(new Set([nextTorrent.id]));
             }
           }
         }

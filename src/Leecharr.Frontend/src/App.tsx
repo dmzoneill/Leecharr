@@ -480,7 +480,11 @@ export function App() {
         target?.closest(".xterm, .terminal") ||
         target?.classList?.contains("xterm-helper-textarea")
       );
-      if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K") && !isTerminal) {
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key === "k" || e.key === "K") &&
+        !isTerminal
+      ) {
         e.preventDefault();
         setShowCommandPalette((prev) => {
           if (!prev) trackModalOpen("command_palette");
@@ -516,7 +520,13 @@ export function App() {
       if (isInput) return;
 
       // Global search shortcut: '/' when not in input/modal
-      if (e.key === "/" && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+      if (
+        e.key === "/" &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        !e.shiftKey
+      ) {
         const isModalOpen = !!document.querySelector(
           'dialog[open], [role="dialog"], [aria-modal="true"], .modal-overlay, .modal-backdrop',
         );
@@ -614,7 +624,6 @@ export function App() {
     };
   }, []);
 
-
   const handlePause = async (id: number) => {
     trackTorrentAction("pause", id);
     try {
@@ -642,7 +651,10 @@ export function App() {
       refreshServerData();
     } catch (err: unknown) {
       showToast(
-        getErrorMessage(err, t("torrents.failedToPause", "Failed to pause torrent")),
+        getErrorMessage(
+          err,
+          t("torrents.failedToPause", "Failed to pause torrent"),
+        ),
         "error",
       );
     }
@@ -674,7 +686,10 @@ export function App() {
       refreshServerData();
     } catch (err: unknown) {
       showToast(
-        getErrorMessage(err, t("torrents.failedToResume", "Failed to resume torrent")),
+        getErrorMessage(
+          err,
+          t("torrents.failedToResume", "Failed to resume torrent"),
+        ),
         "error",
       );
     }
@@ -700,7 +715,10 @@ export function App() {
       refreshServerData();
     } catch (err: unknown) {
       showToast(
-        getErrorMessage(err, t("torrents.failedToDelete", "Failed to delete torrent")),
+        getErrorMessage(
+          err,
+          t("torrents.failedToDelete", "Failed to delete torrent"),
+        ),
         "error",
       );
     }
@@ -823,23 +841,26 @@ export function App() {
               >
                 <HistoryIcon /> <span>{t("nav.history")}</span>
               </div>
-              {downloadClients && downloadClients.filter((c) => c.enable).length > 1 && (
-                <div
-                  className={`sidebar-nav-item sidebar-nav-sub ${location.pathname === "/activity/client/all" ? "active" : ""}`}
-                  onClick={() => guardedNavigate("/activity/client/all")}
-                  style={{ cursor: "pointer" }}
-                  title="All Clients"
-                >
-                  <DownloadAgentIcon size={14} /> <span>All Clients</span>
-                </div>
-              )}
+              {downloadClients &&
+                downloadClients.filter((c) => c.enable).length > 1 && (
+                  <div
+                    className={`sidebar-nav-item sidebar-nav-sub ${location.pathname === "/activity/client/all" ? "active" : ""}`}
+                    onClick={() => guardedNavigate("/activity/client/all")}
+                    style={{ cursor: "pointer" }}
+                    title="All Clients"
+                  >
+                    <DownloadAgentIcon size={14} /> <span>All Clients</span>
+                  </div>
+                )}
               {downloadClients
                 ?.filter((c) => c.enable)
                 .map((client) => (
                   <div
                     key={client.id}
                     className={`sidebar-nav-item sidebar-nav-sub ${location.pathname === `/activity/client/${client.id}` ? "active" : ""}`}
-                    onClick={() => guardedNavigate(`/activity/client/${client.id}`)}
+                    onClick={() =>
+                      guardedNavigate(`/activity/client/${client.id}`)
+                    }
                     style={{ cursor: "pointer" }}
                     title={client.name}
                   >
@@ -1189,7 +1210,10 @@ export function App() {
               className="topbar-btn"
               onClick={openShortcutsModal}
               title={t("topbar.keyboardShortcuts", "Keyboard Shortcuts (?)")}
-              aria-label={t("topbar.keyboardShortcuts", "Keyboard Shortcuts (?)")}
+              aria-label={t(
+                "topbar.keyboardShortcuts",
+                "Keyboard Shortcuts (?)",
+              )}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -1503,7 +1527,6 @@ export function App() {
           </div>
         )}
 
-
         {/* Declarative React Router Viewport */}
         <main className="app-main">
           <ErrorBoundary title={t("errors.view")}>
@@ -1601,7 +1624,12 @@ export function App() {
               <Route
                 path="/activity/client/:id"
                 element={
-                  <ErrorBoundary title={t("errors.downloadClients", "Download Client Torrents")}>
+                  <ErrorBoundary
+                    title={t(
+                      "errors.downloadClients",
+                      "Download Client Torrents",
+                    )}
+                  >
                     <DownloadClientTorrents />
                   </ErrorBoundary>
                 }

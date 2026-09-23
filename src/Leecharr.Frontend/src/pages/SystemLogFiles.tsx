@@ -373,7 +373,11 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
     return content;
   }
 
-  return <div className="content-area" style={{ padding: "1.5rem" }}>{content}</div>;
+  return (
+    <div className="content-area" style={{ padding: "1.5rem" }}>
+      {content}
+    </div>
+  );
 }
 
 export default SystemLogFiles;

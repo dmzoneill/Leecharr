@@ -2878,7 +2878,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 var parsed = this.torrentFileParser.Parse(bytes);
                 if (parsed.PieceHashes != null && parsed.PieceHashes.Length >= 20)
                 {
-                    for (int i = 0; i + 20 <= parsed.PieceHashes.Length; i += 20)
+                    for (var i = 0; i + 20 <= parsed.PieceHashes.Length; i += 20)
                     {
                         var hex = Convert.ToHexString(parsed.PieceHashes, i, 20).ToLowerInvariant();
                         result.Add(hex);
@@ -2895,7 +2895,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
         var task = this.downloadEngine?.GetTask(torrent.Id);
         var pieceCount = torrent.PieceCount > 0 ? torrent.PieceCount : (task?.PieceBitfield?.Length ?? 0);
-        for (int i = 0; i < pieceCount; i++)
+        for (var i = 0; i < pieceCount; i++)
         {
             result.Add(new string('0', 40));
         }

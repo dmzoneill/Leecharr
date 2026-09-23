@@ -12,10 +12,18 @@ import { ViewMode } from "./torrentindex/types";
 import { extractTrackerDomain } from "../utils/formatters";
 import { useTorrentStore } from "../stores/useTorrentStore";
 import { useTranslation } from "../i18n";
-import { useMoveTorrentQueue, useTags, useBulkTorrentAction } from "../api/hooks";
+import {
+  useMoveTorrentQueue,
+  useTags,
+  useBulkTorrentAction,
+} from "../api/hooks";
 import { useColumnPreferences } from "./torrentindex/columnPreferences";
 import { useToast } from "../context/ToastContext";
-import { trackViewModeChange, trackBulkAction, trackQueueMove } from "../utils/analytics";
+import {
+  trackViewModeChange,
+  trackBulkAction,
+  trackQueueMove,
+} from "../utils/analytics";
 
 interface TorrentIndexProps {
   torrents: Torrent[];
@@ -24,7 +32,11 @@ interface TorrentIndexProps {
   onSelectCategory?: (cat: string) => void;
   onPause: (id: number) => void;
   onResume: (id: number) => void;
-  onDelete: (payload: { id: number; deleteFiles?: boolean; ids?: number[] }) => void;
+  onDelete: (payload: {
+    id: number;
+    deleteFiles?: boolean;
+    ids?: number[];
+  }) => void;
   onOpenAddModal: () => void;
   onOpenSearchModal: () => void;
   onNavigateTab?: (nav: string, subNav?: string) => void;
@@ -99,7 +111,8 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   const { showToast } = useToast();
   const handleConfirmBulkTag = useCallback(
     async (tagIds: number[]) => {
-      if (!bulkTagModalState || selectedIds.size === 0 || tagIds.length === 0) return;
+      if (!bulkTagModalState || selectedIds.size === 0 || tagIds.length === 0)
+        return;
       const mode = bulkTagModalState.mode;
       const ids = Array.from(selectedIds);
       setBulkPending(true);

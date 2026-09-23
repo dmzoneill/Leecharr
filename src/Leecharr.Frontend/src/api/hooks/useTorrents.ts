@@ -605,8 +605,9 @@ export function useBulkTorrentAction() {
       apiClient.post<BulkActionResult>("/torrent/bulk", data),
     onMutate: async (newAction) => {
       await queryClient.cancelQueries({ queryKey: ["torrents"] });
-      const previousTorrents =
-        queryClient.getQueryData<Torrent[]>(["torrents"]);
+      const previousTorrents = queryClient.getQueryData<Torrent[]>([
+        "torrents",
+      ]);
 
       if (
         previousTorrents &&

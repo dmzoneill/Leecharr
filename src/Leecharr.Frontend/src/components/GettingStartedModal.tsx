@@ -409,8 +409,16 @@ export function GettingStartedModal({
                 borderRadius: "4px",
                 lineHeight: 1,
               }}
-              aria-label={t("gettingStarted.close", undefined, "Close getting started wizard")}
-              title={t("gettingStarted.close", undefined, "Close getting started wizard")}
+              aria-label={t(
+                "gettingStarted.close",
+                undefined,
+                "Close getting started wizard",
+              )}
+              title={t(
+                "gettingStarted.close",
+                undefined,
+                "Close getting started wizard",
+              )}
             >
               ✕
             </button>
@@ -425,8 +433,7 @@ export function GettingStartedModal({
             justifyContent: "space-between",
             marginBottom: "1.25rem",
             paddingBottom: "0.75rem",
-            borderBottom:
-              "1px solid var(--border-light)",
+            borderBottom: "1px solid var(--border-light)",
             gap: "0.25rem",
             overflowX: "auto",
           }}
@@ -517,8 +524,7 @@ export function GettingStartedModal({
                   backgroundColor: "rgba(0, 0, 0, 0.25)",
                   padding: "0.9rem 1rem",
                   borderRadius: "6px",
-                  border:
-                    "1px solid var(--border-light)",
+                  border: "1px solid var(--border-light)",
                   marginBottom: "1.25rem",
                   fontSize: "0.85rem",
                   lineHeight: 1.4,
@@ -1620,8 +1626,7 @@ export function GettingStartedModal({
             alignItems: "center",
             marginTop: "1.25rem",
             paddingTop: "0.75rem",
-            borderTop:
-              "1px solid var(--border-light)",
+            borderTop: "1px solid var(--border-light)",
             fontSize: "0.8rem",
             color: "var(--text-muted)",
           }}

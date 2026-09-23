@@ -71,9 +71,7 @@ export function NextAnnounceCountdown({
   const mins = Math.floor(diffSec / 60);
   const secs = diffSec % 60;
   const formattedCountdown =
-    mins > 0
-      ? `${mins}m ${secs.toString().padStart(2, "0")}s`
-      : `${secs}s`;
+    mins > 0 ? `${mins}m ${secs.toString().padStart(2, "0")}s` : `${secs}s`;
 
   return (
     <span
@@ -496,7 +494,9 @@ export function TrackersTab({
                         : t("common.never", "Never")}
                     </td>
                     <td>
-                      <NextAnnounceCountdown nextAnnounce={tItem.nextAnnounce} />
+                      <NextAnnounceCountdown
+                        nextAnnounce={tItem.nextAnnounce}
+                      />
                     </td>
                     <td style={{ textAlign: "right" }}>
                       <div

@@ -232,7 +232,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             using var ms = new MemoryStream();
             var buf = new byte[4096];
             int read;
-            int totalRead = 0;
+            var totalRead = 0;
             while (totalRead < 65536 && (read = stream.Read(buf, 0, Math.Min(buf.Length, 65536 - totalRead))) > 0)
             {
                 ms.Write(buf, 0, read);
@@ -349,12 +349,12 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
         try
         {
-            int offset = 0;
+            var offset = 0;
             ParseEbmlContainer(header, ref offset, header.Length, info, ref context);
 
             if (stream != null && stream.CanSeek && context.TracksSeekPosition > 0 && string.IsNullOrEmpty(info.VideoCodec))
             {
-                long tracksOffset = context.SegmentDataStart + context.TracksSeekPosition;
+                var tracksOffset = context.SegmentDataStart + context.TracksSeekPosition;
                 if (tracksOffset > 0 && tracksOffset < stream.Length)
                 {
                     var originalPos = stream.Position;
@@ -362,10 +362,10 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                     {
                         stream.Seek(tracksOffset, SeekOrigin.Begin);
                         var tracksBuffer = new byte[65536];
-                        int read = stream.Read(tracksBuffer, 0, tracksBuffer.Length);
+                        var read = stream.Read(tracksBuffer, 0, tracksBuffer.Length);
                         if (read > 0)
                         {
-                            int tOffset = 0;
+                            var tOffset = 0;
                             ParseEbmlContainer(tracksBuffer, ref tOffset, read, info, ref context);
                         }
                     }
@@ -405,8 +405,8 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 break;
             }
 
-            int elemSize = size < 0 ? limit - offset : (int)Math.Min((long)offset + size, limit) - offset;
-            int childLimit = size < 0 ? limit : offset + elemSize;
+            var elemSize = size < 0 ? limit - offset : (int)Math.Min((long)offset + size, limit) - offset;
+            var childLimit = size < 0 ? limit : offset + elemSize;
 
             switch (id)
             {
@@ -535,7 +535,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         context.CurrentTrackChannels = 0;
         context.CurrentTrackName = null;
 
-        int trackType = 0;
+        var trackType = 0;
         string trackCodecId = null;
         string trackName = null;
         string trackLanguage = null;
@@ -543,7 +543,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
         while (offset < trackEnd)
         {
-            int elemStart = offset;
+            var elemStart = offset;
             if (!ReadElementId(header, ref offset, out var id, out _))
             {
                 break;
@@ -560,8 +560,8 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 break;
             }
 
-            int elemSize = size < 0 ? trackEnd - offset : (int)Math.Min((long)offset + size, trackEnd) - offset;
-            int childLimit = size < 0 ? trackEnd : offset + elemSize;
+            var elemSize = size < 0 ? trackEnd - offset : (int)Math.Min((long)offset + size, trackEnd) - offset;
+            var childLimit = size < 0 ? trackEnd : offset + elemSize;
 
             switch (id)
             {
@@ -668,7 +668,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
     {
         while (offset < videoEnd)
         {
-            int elemStart = offset;
+            var elemStart = offset;
             if (!ReadElementId(header, ref offset, out var id, out _))
             {
                 break;
@@ -685,8 +685,8 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 break;
             }
 
-            int elemSize = size < 0 ? videoEnd - offset : (int)Math.Min((long)offset + size, videoEnd) - offset;
-            int childLimit = size < 0 ? videoEnd : offset + elemSize;
+            var elemSize = size < 0 ? videoEnd - offset : (int)Math.Min((long)offset + size, videoEnd) - offset;
+            var childLimit = size < 0 ? videoEnd : offset + elemSize;
 
             switch (id)
             {
@@ -717,7 +717,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
     {
         while (offset < audioEnd)
         {
-            int elemStart = offset;
+            var elemStart = offset;
             if (!ReadElementId(header, ref offset, out var id, out _))
             {
                 break;
@@ -734,7 +734,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 break;
             }
 
-            int elemSize = size < 0 ? audioEnd - offset : (int)Math.Min((long)offset + size, audioEnd) - offset;
+            var elemSize = size < 0 ? audioEnd - offset : (int)Math.Min((long)offset + size, audioEnd) - offset;
 
             switch (id)
             {
@@ -756,7 +756,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
     {
         while (offset < colourEnd)
         {
-            int elemStart = offset;
+            var elemStart = offset;
             if (!ReadElementId(header, ref offset, out var id, out _))
             {
                 break;
@@ -773,7 +773,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 break;
             }
 
-            int elemSize = size < 0 ? colourEnd - offset : (int)Math.Min((long)offset + size, colourEnd) - offset;
+            var elemSize = size < 0 ? colourEnd - offset : (int)Math.Min((long)offset + size, colourEnd) - offset;
 
             switch (id)
             {
@@ -1012,8 +1012,8 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             return;
         }
 
-        int curr = offset;
-        int end = offset + mappingSize;
+        var curr = offset;
+        var end = offset + mappingSize;
 
         while (curr < end)
         {
@@ -1027,7 +1027,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 break;
             }
 
-            int elemSize = size < 0 ? end - curr : (int)Math.Min((long)curr + size, end) - curr;
+            var elemSize = size < 0 ? end - curr : (int)Math.Min((long)curr + size, end) - curr;
 
             switch (id)
             {
@@ -1086,7 +1086,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             return true;
         }
 
-        for (int i = 0; i + 4 < span.Length; i++)
+        for (var i = 0; i + 4 < span.Length; i++)
         {
             if (span[i] == 0x00 && span[i + 1] == 0x00)
             {
@@ -1288,7 +1288,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
     private static void ParseEbmlSeekHead(byte[] data, int offset, int length, ref EbmlParserContext context)
     {
-        int seekHeadEnd = Math.Min(offset + length, data.Length);
+        var seekHeadEnd = Math.Min(offset + length, data.Length);
         while (offset < seekHeadEnd)
         {
             if (!ReadElementId(data, ref offset, out var id, out _))
@@ -1301,7 +1301,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 break;
             }
 
-            int elemSize = size < 0 ? seekHeadEnd - offset : (int)Math.Min((long)offset + size, seekHeadEnd) - offset;
+            var elemSize = size < 0 ? seekHeadEnd - offset : (int)Math.Min((long)offset + size, seekHeadEnd) - offset;
 
             if (id == 0x4DBB)
             {
@@ -1314,7 +1314,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
     private static void ParseEbmlSeekEntry(byte[] data, int offset, int length, ref EbmlParserContext context)
     {
-        int seekEnd = Math.Min(offset + length, data.Length);
+        var seekEnd = Math.Min(offset + length, data.Length);
         uint seekId = 0;
         ulong seekPos = 0;
 
@@ -1330,14 +1330,14 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 break;
             }
 
-            int elemSize = size < 0 ? seekEnd - offset : (int)Math.Min((long)offset + size, seekEnd) - offset;
+            var elemSize = size < 0 ? seekEnd - offset : (int)Math.Min((long)offset + size, seekEnd) - offset;
 
             if (id == 0x53AB)
             {
                 if (elemSize > 0 && offset + elemSize <= data.Length)
                 {
                     seekId = 0;
-                    for (int i = 0; i < elemSize && i < 4; i++)
+                    for (var i = 0; i < elemSize && i < 4; i++)
                     {
                         seekId = (seekId << 8) | data[offset + i];
                     }
@@ -1366,7 +1366,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             return false;
         }
 
-        byte b = data[offset];
+        var b = data[offset];
         if ((b & 0x80) != 0)
         {
             idLen = 1;
@@ -1394,7 +1394,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         }
 
         uint result = 0;
-        for (int i = 0; i < idLen; i++)
+        for (var i = 0; i < idLen; i++)
         {
             result = (result << 8) | data[offset + i];
         }
@@ -1413,7 +1413,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             return false;
         }
 
-        byte b = data[offset];
+        var b = data[offset];
         byte mask;
         if ((b & 0x80) != 0)
         {
@@ -1466,11 +1466,11 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         }
 
         long result = data[offset] & mask;
-        bool allOnes = (data[offset] & mask) == mask;
+        var allOnes = (data[offset] & mask) == mask;
 
-        for (int i = 1; i < sizeLen; i++)
+        for (var i = 1; i < sizeLen; i++)
         {
-            byte nextByte = data[offset + i];
+            var nextByte = data[offset + i];
             if (nextByte != 0xFF)
             {
                 allOnes = false;
@@ -1516,9 +1516,9 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             return 0;
         }
 
-        int clampedLength = Math.Min(length, 8);
+        var clampedLength = Math.Min(length, 8);
         ulong val = 0;
-        for (int i = 0; i < clampedLength && (offset + i) < data.Length; i++)
+        for (var i = 0; i < clampedLength && (offset + i) < data.Length; i++)
         {
             val = (val << 8) | data[offset + i];
         }
@@ -1856,7 +1856,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             incomingScore = GetAudioCodecScore(codecName);
         }
 
-        int currentScore = GetAudioCodecScore(info.AudioCodec);
+        var currentScore = GetAudioCodecScore(info.AudioCodec);
 
         if (currentScore == 0 || incomingScore > currentScore)
         {
@@ -1883,7 +1883,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             return false;
         }
 
-        for (int sectorOffset = 32768; sectorOffset + 6 <= bytesRead; sectorOffset += 2048)
+        for (var sectorOffset = 32768; sectorOffset + 6 <= bytesRead; sectorOffset += 2048)
         {
             var span1 = header.AsSpan(sectorOffset + 1, 5);
             if (span1.SequenceEqual("CD001"u8) ||
@@ -2132,7 +2132,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             score = 1;
         }
 
-        string formattedChannels = channels > 0 ? FormatAudioChannels(channels) : null;
+        var formattedChannels = channels > 0 ? FormatAudioChannels(channels) : null;
         context.IsCurrentAudioTrackAccepted = ApplyAudioCodec(info, codecName, formattedChannels, score);
     }
 
@@ -2223,19 +2223,19 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
     private static void ParseMp4Stream(Stream stream, MediaContainerInfo info)
     {
         var headerBuf = new byte[16];
-        long streamLength = stream.Length;
+        var streamLength = stream.Length;
 
         while (stream.Position + 8 <= streamLength)
         {
-            long boxStartPos = stream.Position;
-            int read = stream.Read(headerBuf, 0, 8);
+            var boxStartPos = stream.Position;
+            var read = stream.Read(headerBuf, 0, 8);
             if (read < 8)
             {
                 break;
             }
 
-            uint size32 = ((uint)headerBuf[0] << 24) | ((uint)headerBuf[1] << 16) | ((uint)headerBuf[2] << 8) | headerBuf[3];
-            string boxType = System.Text.Encoding.ASCII.GetString(headerBuf, 4, 4);
+            var size32 = ((uint)headerBuf[0] << 24) | ((uint)headerBuf[1] << 16) | ((uint)headerBuf[2] << 8) | headerBuf[3];
+            var boxType = System.Text.Encoding.ASCII.GetString(headerBuf, 4, 4);
 
             long boxSize;
             long headerSize = 8;
@@ -2247,13 +2247,13 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                     break;
                 }
 
-                int extRead = stream.Read(headerBuf, 8, 8);
+                var extRead = stream.Read(headerBuf, 8, 8);
                 if (extRead < 8)
                 {
                     break;
                 }
 
-                ulong size64 = ((ulong)headerBuf[8] << 56) |
+                var size64 = ((ulong)headerBuf[8] << 56) |
                                ((ulong)headerBuf[9] << 48) |
                                ((ulong)headerBuf[10] << 40) |
                                ((ulong)headerBuf[11] << 32) |
@@ -2279,19 +2279,19 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 break;
             }
 
-            long boxEndPos = boxStartPos + boxSize;
+            var boxEndPos = boxStartPos + boxSize;
 
             if (boxType == "moov")
             {
-                long payloadSize = boxSize - headerSize;
-                int bytesToRead = (int)Math.Min(payloadSize, 32 * 1024 * 1024);
+                var payloadSize = boxSize - headerSize;
+                var bytesToRead = (int)Math.Min(payloadSize, 32 * 1024 * 1024);
                 var moovData = ArrayPool<byte>.Shared.Rent(bytesToRead);
                 try
                 {
-                    int totalRead = 0;
+                    var totalRead = 0;
                     while (totalRead < bytesToRead)
                     {
-                        int r = stream.Read(moovData, totalRead, bytesToRead - totalRead);
+                        var r = stream.Read(moovData, totalRead, bytesToRead - totalRead);
                         if (r <= 0)
                         {
                             break;
@@ -2309,13 +2309,13 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             }
             else if (boxType == "ftyp")
             {
-                long payloadSize = boxSize - headerSize;
-                int bytesToRead = (int)Math.Min(payloadSize, 1024);
+                var payloadSize = boxSize - headerSize;
+                var bytesToRead = (int)Math.Min(payloadSize, 1024);
                 var ftypData = new byte[bytesToRead];
-                int totalRead = 0;
+                var totalRead = 0;
                 while (totalRead < bytesToRead)
                 {
-                    int r = stream.Read(ftypData, totalRead, bytesToRead - totalRead);
+                    var r = stream.Read(ftypData, totalRead, bytesToRead - totalRead);
                     if (r <= 0)
                     {
                         break;
@@ -2347,12 +2347,12 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
     {
         while (offset + 8 <= limit)
         {
-            int boxStart = offset;
-            uint size32 = ((uint)data[offset] << 24) | ((uint)data[offset + 1] << 16) | ((uint)data[offset + 2] << 8) | data[offset + 3];
-            string boxType = System.Text.Encoding.ASCII.GetString(data, offset + 4, 4);
+            var boxStart = offset;
+            var size32 = ((uint)data[offset] << 24) | ((uint)data[offset + 1] << 16) | ((uint)data[offset + 2] << 8) | data[offset + 3];
+            var boxType = System.Text.Encoding.ASCII.GetString(data, offset + 4, 4);
 
             long boxSize;
-            int headerSize = 8;
+            var headerSize = 8;
 
             if (size32 == 1)
             {
@@ -2361,7 +2361,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                     break;
                 }
 
-                ulong size64 = ((ulong)data[offset + 8] << 56) |
+                var size64 = ((ulong)data[offset + 8] << 56) |
                                ((ulong)data[offset + 9] << 48) |
                                ((ulong)data[offset + 10] << 40) |
                                ((ulong)data[offset + 11] << 32) |
@@ -2386,8 +2386,8 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 break;
             }
 
-            int boxEnd = (int)Math.Min(boxStart + boxSize, limit);
-            int payloadOffset = boxStart + headerSize;
+            var boxEnd = (int)Math.Min(boxStart + boxSize, limit);
+            var payloadOffset = boxStart + headerSize;
 
             switch (boxType)
             {
@@ -2418,7 +2418,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
     private static void ParseFtypBox(byte[] data, int offset, int limit, MediaContainerInfo info)
     {
-        for (int i = offset; i + 4 <= limit; i += 4)
+        for (var i = offset; i + 4 <= limit; i += 4)
         {
             var brand = System.Text.Encoding.ASCII.GetString(data, i, 4);
             switch (brand)
@@ -2527,17 +2527,17 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             return;
         }
 
-        byte version = data[payloadOffset];
-        int widthOffset = version == 1 ? payloadOffset + 88 : payloadOffset + 76;
-        int heightOffset = widthOffset + 4;
+        var version = data[payloadOffset];
+        var widthOffset = version == 1 ? payloadOffset + 88 : payloadOffset + 76;
+        var heightOffset = widthOffset + 4;
 
         if (heightOffset + 4 <= boxEnd)
         {
-            uint wRaw = ((uint)data[widthOffset] << 24) | ((uint)data[widthOffset + 1] << 16) | ((uint)data[widthOffset + 2] << 8) | data[widthOffset + 3];
-            uint hRaw = ((uint)data[heightOffset] << 24) | ((uint)data[heightOffset + 1] << 16) | ((uint)data[heightOffset + 2] << 8) | data[heightOffset + 3];
+            var wRaw = ((uint)data[widthOffset] << 24) | ((uint)data[widthOffset + 1] << 16) | ((uint)data[widthOffset + 2] << 8) | data[widthOffset + 3];
+            var hRaw = ((uint)data[heightOffset] << 24) | ((uint)data[heightOffset + 1] << 16) | ((uint)data[heightOffset + 2] << 8) | data[heightOffset + 3];
 
-            int width = (int)(wRaw >> 16);
-            int height = (int)(hRaw >> 16);
+            var width = (int)(wRaw >> 16);
+            var height = (int)(hRaw >> 16);
 
             if (width > 0 && height > 0 && info.Width == 0)
             {
@@ -2555,18 +2555,18 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             return;
         }
 
-        uint entryCount = ((uint)data[payloadOffset + 4] << 24) | ((uint)data[payloadOffset + 5] << 16) | ((uint)data[payloadOffset + 6] << 8) | data[payloadOffset + 7];
-        int entryOffset = payloadOffset + 8;
+        var entryCount = ((uint)data[payloadOffset + 4] << 24) | ((uint)data[payloadOffset + 5] << 16) | ((uint)data[payloadOffset + 6] << 8) | data[payloadOffset + 7];
+        var entryOffset = payloadOffset + 8;
 
-        for (int i = 0; i < entryCount && entryOffset + 8 <= boxEnd; i++)
+        for (var i = 0; i < entryCount && entryOffset + 8 <= boxEnd; i++)
         {
-            uint entrySize = ((uint)data[entryOffset] << 24) | ((uint)data[entryOffset + 1] << 16) | ((uint)data[entryOffset + 2] << 8) | data[entryOffset + 3];
+            var entrySize = ((uint)data[entryOffset] << 24) | ((uint)data[entryOffset + 1] << 16) | ((uint)data[entryOffset + 2] << 8) | data[entryOffset + 3];
             if (entrySize < 8 || entryOffset + entrySize > boxEnd)
             {
                 break;
             }
 
-            string format = System.Text.Encoding.ASCII.GetString(data, entryOffset + 4, 4);
+            var format = System.Text.Encoding.ASCII.GetString(data, entryOffset + 4, 4);
 
             switch (format)
             {
@@ -2698,8 +2698,8 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
     {
         if (entrySize >= 36 && entryOffset + 36 <= data.Length)
         {
-            ushort width = (ushort)((data[entryOffset + 32] << 8) | data[entryOffset + 33]);
-            ushort height = (ushort)((data[entryOffset + 34] << 8) | data[entryOffset + 35]);
+            var width = (ushort)((data[entryOffset + 32] << 8) | data[entryOffset + 33]);
+            var height = (ushort)((data[entryOffset + 34] << 8) | data[entryOffset + 35]);
 
             if (width > 0 && height > 0 && info.Width == 0)
             {
@@ -2709,27 +2709,27 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             }
         }
 
-        bool hasDvBox = false;
-        bool hasHdr10 = false;
-        bool hasHdr10Plus = false;
-        bool hasHlg = false;
+        var hasDvBox = false;
+        var hasHdr10 = false;
+        var hasHdr10Plus = false;
+        var hasHlg = false;
 
         // Search child boxes for HDR / Dolby Vision indicators
-        int childOffset = entryOffset + 86;
-        int childLimit = entryOffset + (int)entrySize;
-        int dvProfile = 0;
-        bool elPresent = false;
-        int compatId = 0;
+        var childOffset = entryOffset + 86;
+        var childLimit = entryOffset + (int)entrySize;
+        var dvProfile = 0;
+        var elPresent = false;
+        var compatId = 0;
 
         while (childOffset + 8 <= childLimit && childOffset + 8 <= data.Length)
         {
-            uint cSize = ((uint)data[childOffset] << 24) | ((uint)data[childOffset + 1] << 16) | ((uint)data[childOffset + 2] << 8) | data[childOffset + 3];
+            var cSize = ((uint)data[childOffset] << 24) | ((uint)data[childOffset + 1] << 16) | ((uint)data[childOffset + 2] << 8) | data[childOffset + 3];
             if (cSize < 8 || childOffset + cSize > childLimit)
             {
                 break;
             }
 
-            string cType = System.Text.Encoding.ASCII.GetString(data, childOffset + 4, 4);
+            var cType = System.Text.Encoding.ASCII.GetString(data, childOffset + 4, 4);
             if (cType == "dvcC" || cType == "dvvC")
             {
                 hasDvBox = true;
@@ -2749,11 +2749,11 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             }
             else if (cType == "colr" && childOffset + 16 <= childLimit && childOffset + 16 <= data.Length)
             {
-                string colrType = System.Text.Encoding.ASCII.GetString(data, childOffset + 8, 4);
+                var colrType = System.Text.Encoding.ASCII.GetString(data, childOffset + 8, 4);
                 if (colrType == "nclx")
                 {
-                    ushort primaries = (ushort)((data[childOffset + 12] << 8) | data[childOffset + 13]);
-                    ushort transferChar = (ushort)((data[childOffset + 14] << 8) | data[childOffset + 15]);
+                    var primaries = (ushort)((data[childOffset + 12] << 8) | data[childOffset + 13]);
+                    var transferChar = (ushort)((data[childOffset + 14] << 8) | data[childOffset + 15]);
                     if (transferChar == 16)
                     {
                         hasHdr10 = true;
@@ -2854,14 +2854,14 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
     private static void ExtractAudioSampleEntry(byte[] data, int entryOffset, uint entrySize, MediaContainerInfo info, string codecName, string defaultChannels, int incomingScore = -1)
     {
         string channels = null;
-        int sampleRate = 0;
-        int bitDepth = 0;
+        var sampleRate = 0;
+        var bitDepth = 0;
 
         if (entrySize >= 36 && entryOffset + 36 <= data.Length)
         {
-            ushort channelCount = (ushort)((data[entryOffset + 24] << 8) | data[entryOffset + 25]);
-            ushort sampleSize = (ushort)((data[entryOffset + 26] << 8) | data[entryOffset + 27]);
-            uint sampleRateRaw = ((uint)data[entryOffset + 32] << 24) | ((uint)data[entryOffset + 33] << 16) | ((uint)data[entryOffset + 34] << 8) | data[entryOffset + 35];
+            var channelCount = (ushort)((data[entryOffset + 24] << 8) | data[entryOffset + 25]);
+            var sampleSize = (ushort)((data[entryOffset + 26] << 8) | data[entryOffset + 27]);
+            var sampleRateRaw = ((uint)data[entryOffset + 32] << 24) | ((uint)data[entryOffset + 33] << 16) | ((uint)data[entryOffset + 34] << 8) | data[entryOffset + 35];
             sampleRate = (int)(sampleRateRaw >> 16);
 
             if (channelCount > 0)
@@ -2885,7 +2885,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             incomingScore = GetAudioCodecScore(codecName);
         }
 
-        int currentScore = GetAudioCodecScore(info.AudioCodec);
+        var currentScore = GetAudioCodecScore(info.AudioCodec);
 
         if (currentScore == 0 || incomingScore > currentScore)
         {
@@ -2980,7 +2980,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
             if (header.Length >= 26)
             {
-                ulong totalSamples = ((ulong)(header[21] & 0x0F) << 32) |
+                var totalSamples = ((ulong)(header[21] & 0x0F) << 32) |
                                      ((ulong)header[22] << 24) |
                                      ((ulong)header[23] << 16) |
                                      ((ulong)header[24] << 8) |
@@ -3058,7 +3058,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             AudioSampleRate = 44100,
         };
 
-        int offset = 12;
+        var offset = 12;
         while (offset + 8 <= header.Length)
         {
             var chunkId0 = (char)header[offset];
@@ -3066,19 +3066,19 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             var chunkId2 = (char)header[offset + 2];
             var chunkId3 = (char)header[offset + 3];
 
-            uint chunkSize = (uint)(header[offset + 4] |
+            var chunkSize = (uint)(header[offset + 4] |
                                    (header[offset + 5] << 8) |
                                    (header[offset + 6] << 16) |
                                    (header[offset + 7] << 24));
 
             if (chunkId0 == 'f' && chunkId1 == 'm' && chunkId2 == 't' && chunkId3 == ' ')
             {
-                int fmtOffset = offset + 8;
-                int fmtAvailable = Math.Min((int)chunkSize, header.Length - fmtOffset);
+                var fmtOffset = offset + 8;
+                var fmtAvailable = Math.Min((int)chunkSize, header.Length - fmtOffset);
 
                 if (fmtAvailable >= 2)
                 {
-                    ushort formatTag = (ushort)(header[fmtOffset] | (header[fmtOffset + 1] << 8));
+                    var formatTag = (ushort)(header[fmtOffset] | (header[fmtOffset + 1] << 8));
                     info.AudioCodec = formatTag switch
                     {
                         1 => "PCM",
@@ -3096,7 +3096,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
                 if (fmtAvailable >= 4)
                 {
-                    ushort channels = (ushort)(header[fmtOffset + 2] | (header[fmtOffset + 3] << 8));
+                    var channels = (ushort)(header[fmtOffset + 2] | (header[fmtOffset + 3] << 8));
                     if (channels > 0)
                     {
                         info.AudioChannels = FormatAudioChannels(channels);
@@ -3105,7 +3105,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
                 if (fmtAvailable >= 8)
                 {
-                    uint sampleRate = (uint)(header[fmtOffset + 4] |
+                    var sampleRate = (uint)(header[fmtOffset + 4] |
                                             (header[fmtOffset + 5] << 8) |
                                             (header[fmtOffset + 6] << 16) |
                                             (header[fmtOffset + 7] << 24));
@@ -3117,7 +3117,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
                 if (fmtAvailable >= 16)
                 {
-                    ushort bitsPerSample = (ushort)(header[fmtOffset + 14] | (header[fmtOffset + 15] << 8));
+                    var bitsPerSample = (ushort)(header[fmtOffset + 14] | (header[fmtOffset + 15] << 8));
                     if (bitsPerSample > 0)
                     {
                         info.AudioBitDepth = bitsPerSample;
@@ -3127,7 +3127,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 break;
             }
 
-            long nextOffset = offset + 8L + chunkSize + (chunkSize & 1);
+            var nextOffset = offset + 8L + chunkSize + (chunkSize & 1);
             if (nextOffset <= offset || nextOffset > header.Length)
             {
                 break;
@@ -3153,8 +3153,8 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             return;
         }
 
-        int offset = 12;
-        int limit = header.Length;
+        var offset = 12;
+        var limit = header.Length;
         string currentStreamType = null;
 
         ParseRiffChunks(header, offset, limit, info, ref currentStreamType);
@@ -3162,13 +3162,13 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
     private static void ParseRiffChunks(byte[] data, int startOffset, int endOffset, MediaContainerInfo info, ref string currentStreamType)
     {
-        int offset = startOffset;
+        var offset = startOffset;
         while (offset + 8 <= endOffset)
         {
             var fourCC = System.Text.Encoding.ASCII.GetString(data, offset, 4);
-            uint chunkSize = BitConverter.ToUInt32(data, offset + 4);
-            int dataOffset = offset + 8;
-            int chunkEnd = Math.Min(dataOffset + (int)Math.Min(chunkSize, (uint)(endOffset - dataOffset)), endOffset);
+            var chunkSize = BitConverter.ToUInt32(data, offset + 4);
+            var dataOffset = offset + 8;
+            var chunkEnd = Math.Min(dataOffset + (int)Math.Min(chunkSize, (uint)(endOffset - dataOffset)), endOffset);
 
             if (fourCC == "LIST" && dataOffset + 4 <= endOffset)
             {
@@ -3180,8 +3180,8 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             }
             else if (fourCC == "avih" && dataOffset + 40 <= endOffset)
             {
-                uint width = BitConverter.ToUInt32(data, dataOffset + 32);
-                uint height = BitConverter.ToUInt32(data, dataOffset + 36);
+                var width = BitConverter.ToUInt32(data, dataOffset + 32);
+                var height = BitConverter.ToUInt32(data, dataOffset + 36);
                 if (info.Width == 0 && width > 0)
                 {
                     info.Width = (int)width;
@@ -3202,8 +3202,8 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             {
                 if (currentStreamType == "vids" && dataOffset + 40 <= endOffset)
                 {
-                    int biWidth = BitConverter.ToInt32(data, dataOffset + 4);
-                    int biHeight = Math.Abs(BitConverter.ToInt32(data, dataOffset + 8));
+                    var biWidth = BitConverter.ToInt32(data, dataOffset + 4);
+                    var biHeight = Math.Abs(BitConverter.ToInt32(data, dataOffset + 8));
                     if (info.Width == 0 && biWidth > 0)
                     {
                         info.Width = biWidth;
@@ -3218,10 +3218,10 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 }
                 else if (currentStreamType == "auds" && dataOffset + 14 <= endOffset)
                 {
-                    ushort wFormatTag = BitConverter.ToUInt16(data, dataOffset);
-                    ushort nChannels = BitConverter.ToUInt16(data, dataOffset + 2);
-                    uint nSamplesPerSec = BitConverter.ToUInt32(data, dataOffset + 4);
-                    ushort wBitsPerSample = (chunkSize >= 16 && dataOffset + 16 <= endOffset)
+                    var wFormatTag = BitConverter.ToUInt16(data, dataOffset);
+                    var nChannels = BitConverter.ToUInt16(data, dataOffset + 2);
+                    var nSamplesPerSec = BitConverter.ToUInt32(data, dataOffset + 4);
+                    var wBitsPerSample = (chunkSize >= 16 && dataOffset + 16 <= endOffset)
                         ? BitConverter.ToUInt16(data, dataOffset + 14)
                         : (ushort)0;
 
@@ -3256,7 +3256,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 }
             }
 
-            long nextOffset = (long)dataOffset + chunkSize + ((chunkSize & 1) != 0 ? 1 : 0);
+            var nextOffset = (long)dataOffset + chunkSize + ((chunkSize & 1) != 0 ? 1 : 0);
             if (nextOffset <= offset || nextOffset > endOffset)
             {
                 break;
@@ -3327,15 +3327,15 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
     {
         var ext = !string.IsNullOrWhiteSpace(fileName) ? Path.GetExtension(fileName).ToLowerInvariant() : string.Empty;
 
-        int tagOffset = -1;
+        var tagOffset = -1;
         if (bytesRead >= 10)
         {
-            int tagSize = ((header[6] & 0x7F) << 21) |
+            var tagSize = ((header[6] & 0x7F) << 21) |
                           ((header[7] & 0x7F) << 14) |
                           ((header[8] & 0x7F) << 7) |
                           (header[9] & 0x7F);
 
-            bool hasFooter = (header[5] & 0x10) != 0;
+            var hasFooter = (header[5] & 0x10) != 0;
             tagOffset = 10 + tagSize + (hasFooter ? 10 : 0);
         }
 
@@ -3583,10 +3583,10 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         }
 
         // HDR (support hybrid / dual-layer HDR profiles without discarding base format)
-        bool hasDv = Regex.IsMatch(normalized, @"\b(DV|DOVI)\b|\bDOLBY\s*VISION\b");
-        bool hasHdr10Plus = Regex.IsMatch(upper, @"\bHDR10\+") || Regex.IsMatch(normalized, @"\bHDR10\s*PLUS\b");
-        bool hasHdr10 = Regex.IsMatch(normalized, @"\bHDR10\b") || (!hasHdr10Plus && Regex.IsMatch(normalized, @"\bHDR\b"));
-        bool hasHlg = Regex.IsMatch(normalized, @"\bHLG\b");
+        var hasDv = Regex.IsMatch(normalized, @"\b(DV|DOVI)\b|\bDOLBY\s*VISION\b");
+        var hasHdr10Plus = Regex.IsMatch(upper, @"\bHDR10\+") || Regex.IsMatch(normalized, @"\bHDR10\s*PLUS\b");
+        var hasHdr10 = Regex.IsMatch(normalized, @"\bHDR10\b") || (!hasHdr10Plus && Regex.IsMatch(normalized, @"\bHDR\b"));
+        var hasHlg = Regex.IsMatch(normalized, @"\bHLG\b");
 
         if (hasDv)
         {
@@ -3776,8 +3776,8 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         }
 
         var unescaped = new List<byte>(length);
-        int end = offset + length;
-        for (int i = offset; i < end; i++)
+        var end = offset + length;
+        for (var i = offset; i < end; i++)
         {
             if (i + 2 < end && data[i] == 0x00 && data[i + 1] == 0x00 && data[i + 2] == 0x03)
             {
@@ -3801,12 +3801,12 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             return false;
         }
 
-        int pos = offset;
-        int end = offset + length;
+        var pos = offset;
+        var end = offset + length;
 
         while (pos < end)
         {
-            int payloadType = 0;
+            var payloadType = 0;
             while (pos < end && nalPayload[pos] == 0xFF)
             {
                 payloadType += 255;
@@ -3820,7 +3820,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
             payloadType += nalPayload[pos++];
 
-            int payloadSize = 0;
+            var payloadSize = 0;
             while (pos < end && nalPayload[pos] == 0xFF)
             {
                 payloadSize += 255;
@@ -3834,15 +3834,15 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
             payloadSize += nalPayload[pos++];
 
-            int effectiveSize = Math.Min(payloadSize, end - pos);
+            var effectiveSize = Math.Min(payloadSize, end - pos);
 
             // payloadType 4: user_data_registered_itu_t_t35 (SMPTE ST 2094-40 / HDR10+)
             if (payloadType == 4 && effectiveSize >= 3)
             {
-                byte countryCode = nalPayload[pos];
+                var countryCode = nalPayload[pos];
                 if (countryCode == 0xB5)
                 {
-                    ushort providerCode = (ushort)((nalPayload[pos + 1] << 8) | nalPayload[pos + 2]);
+                    var providerCode = (ushort)((nalPayload[pos + 1] << 8) | nalPayload[pos + 2]);
                     if (providerCode == 0x003C)
                     {
                         return true;
@@ -3863,19 +3863,19 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             return false;
         }
 
-        int pos = offset + 22;
+        var pos = offset + 22;
         int numOfArrays = hvcCData[pos++];
 
-        for (int i = 0; i < numOfArrays && pos + 3 <= offset + length; i++)
+        for (var i = 0; i < numOfArrays && pos + 3 <= offset + length; i++)
         {
-            byte arrayInfo = hvcCData[pos++];
-            int nalUnitType = arrayInfo & 0x3F;
-            int numNalus = (hvcCData[pos] << 8) | hvcCData[pos + 1];
+            var arrayInfo = hvcCData[pos++];
+            var nalUnitType = arrayInfo & 0x3F;
+            var numNalus = (hvcCData[pos] << 8) | hvcCData[pos + 1];
             pos += 2;
 
-            for (int j = 0; j < numNalus && pos + 2 <= offset + length; j++)
+            for (var j = 0; j < numNalus && pos + 2 <= offset + length; j++)
             {
-                int nalLength = (hvcCData[pos] << 8) | hvcCData[pos + 1];
+                var nalLength = (hvcCData[pos] << 8) | hvcCData[pos + 1];
                 pos += 2;
 
                 if (nalLength <= 0 || pos + nalLength > offset + length)
@@ -3893,7 +3893,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 }
                 else if (nalLength > 2)
                 {
-                    int nType = (hvcCData[pos] >> 1) & 0x3F;
+                    var nType = (hvcCData[pos] >> 1) & 0x3F;
                     if (nType == 39 || nType == 40)
                     {
                         var unescaped = UnescapeNalUnit(hvcCData, pos, nalLength);
@@ -3918,11 +3918,11 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             return false;
         }
 
-        int end = offset + length;
+        var end = offset + length;
 
-        for (int i = offset; i + 4 < end; i++)
+        for (var i = offset; i + 4 < end; i++)
         {
-            int startCodeLen = 0;
+            var startCodeLen = 0;
             if (data[i] == 0x00 && data[i + 1] == 0x00 && data[i + 2] == 0x01)
             {
                 startCodeLen = 3;
@@ -3934,14 +3934,14 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
             if (startCodeLen > 0)
             {
-                int nalStart = i + startCodeLen;
+                var nalStart = i + startCodeLen;
                 if (nalStart < end)
                 {
-                    int nalType = (data[nalStart] >> 1) & 0x3F;
+                    var nalType = (data[nalStart] >> 1) & 0x3F;
                     if (nalType == 39 || nalType == 40)
                     {
-                        int nalEnd = end;
-                        for (int k = nalStart + 2; k + 2 < end; k++)
+                        var nalEnd = end;
+                        for (var k = nalStart + 2; k + 2 < end; k++)
                         {
                             if (data[k] == 0x00 && data[k + 1] == 0x00 && (data[k + 2] == 0x01 || (k + 3 < end && data[k + 2] == 0x00 && data[k + 3] == 0x01)))
                             {
@@ -3950,7 +3950,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                             }
                         }
 
-                        int nalLen = nalEnd - nalStart;
+                        var nalLen = nalEnd - nalStart;
                         if (nalLen > 2)
                         {
                             var unescaped = UnescapeNalUnit(data, nalStart, nalLen);
@@ -3964,11 +3964,11 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                     }
                     else
                     {
-                        int avcNalType = data[nalStart] & 0x1F;
+                        var avcNalType = data[nalStart] & 0x1F;
                         if (avcNalType == 6)
                         {
-                            int nalEnd = end;
-                            for (int k = nalStart + 1; k + 2 < end; k++)
+                            var nalEnd = end;
+                            for (var k = nalStart + 1; k + 2 < end; k++)
                             {
                                 if (data[k] == 0x00 && data[k + 1] == 0x00 && (data[k + 2] == 0x01 || (k + 3 < end && data[k + 2] == 0x00 && data[k + 3] == 0x01)))
                                 {
@@ -3977,7 +3977,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                                 }
                             }
 
-                            int nalLen = nalEnd - nalStart;
+                            var nalLen = nalEnd - nalStart;
                             if (nalLen > 1)
                             {
                                 var unescaped = UnescapeNalUnit(data, nalStart, nalLen);

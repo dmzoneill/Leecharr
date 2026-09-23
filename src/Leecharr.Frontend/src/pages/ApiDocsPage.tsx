@@ -42,7 +42,12 @@ export function ApiDocsPage() {
   return (
     <div
       className="content-area"
-      style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}
+      style={{
+        padding: "1.5rem",
+        display: "flex",
+        flexDirection: "column",
+        gap: "1rem",
+      }}
     >
       {/* Header Banner */}
       <div

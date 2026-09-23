@@ -62,7 +62,9 @@ export function NetworkSettingsTab() {
     if (!config) return;
     trackNetworkConfigSave({
       upnp_enabled: form.upnpEnabled,
-      has_vpn_interface: Boolean(form.bindInterface && form.bindInterface !== ""),
+      has_vpn_interface: Boolean(
+        form.bindInterface && form.bindInterface !== "",
+      ),
     });
     saveMutation.mutate(
       {

@@ -353,7 +353,10 @@ function SystemTasks() {
                   <th className="torrent-table-th">
                     {t("system.nextExecution")}
                   </th>
-                  <th className="torrent-table-th" style={{ textAlign: "right" }}>
+                  <th
+                    className="torrent-table-th"
+                    style={{ textAlign: "right" }}
+                  >
                     Actions
                   </th>
                 </tr>

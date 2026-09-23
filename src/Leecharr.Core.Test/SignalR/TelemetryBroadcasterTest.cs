@@ -110,7 +110,7 @@ public class TelemetryBroadcasterTest
         await Task.Delay(50);
 
         // Push 5 more telemetry messages while worker is blocked
-        for (int i = 1; i <= 5; i++)
+        for (var i = 1; i <= 5; i++)
         {
             broadcaster.BroadcastMessage(new SignalRMessage { Name = "speedPulse" });
         }
@@ -145,7 +145,7 @@ public class TelemetryBroadcasterTest
         await Task.Delay(50);
 
         // Push 5 more domain messages while worker is blocked
-        for (int i = 1; i <= 5; i++)
+        for (var i = 1; i <= 5; i++)
         {
             broadcaster.BroadcastMessage(new SignalRMessage { Name = $"TorrentDownloadCompleted_{i}" });
         }
@@ -163,10 +163,10 @@ public class TelemetryBroadcasterTest
         var broadcaster = Substitute.For<IBroadcastSignalRMessage>();
         broadcaster.IsConnected.Returns(true);
 
-        for (int i = 0; i < 20; i++)
+        for (var i = 0; i < 20; i++)
         {
             var handler = new PieceMapSignalREventHandler(broadcaster, flushIntervalMs: 5);
-            for (int p = 0; p < 50; p++)
+            for (var p = 0; p < 50; p++)
             {
                 handler.Handle(new PieceVerifiedEvent(1, p));
             }

@@ -47,7 +47,11 @@ export class ErrorBoundary extends Component<
       errorInfo,
     );
     try {
-      trackException(`${error.name || "Error"}: ${error.message}`, false, "frontend_react");
+      trackException(
+        `${error.name || "Error"}: ${error.message}`,
+        false,
+        "frontend_react",
+      );
     } catch {
       // ignore telemetry errors
     }

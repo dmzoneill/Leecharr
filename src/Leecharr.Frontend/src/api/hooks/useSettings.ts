@@ -280,7 +280,8 @@ export function useDownloadClientSync() {
 export function useDownloadClientItems(clientId: number | string) {
   const interval = useRefetchInterval();
   const isAll = clientId === "all";
-  const numId = typeof clientId === "number" ? clientId : parseInt(clientId, 10);
+  const numId =
+    typeof clientId === "number" ? clientId : parseInt(clientId, 10);
   const isValid = isAll || (!isNaN(numId) && numId > 0);
 
   return useQuery<DownloadClientRemoteItem[]>({
@@ -296,10 +297,16 @@ export function useDownloadClientItems(clientId: number | string) {
 
 export function usePauseRemoteTorrent(clientId?: number) {
   const queryClient = useQueryClient();
-  return useMutation<{ success: boolean }, Error, { clientId?: number; infoHash: string }>({
+  return useMutation<
+    { success: boolean },
+    Error,
+    { clientId?: number; infoHash: string }
+  >({
     mutationFn: ({ clientId: targetId, infoHash }) => {
       const id = targetId ?? clientId;
-      return apiClient.post(`/downloadclients/${id}/torrents/${infoHash}/pause`);
+      return apiClient.post(
+        `/downloadclients/${id}/torrents/${infoHash}/pause`,
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["downloadclients"] });
@@ -309,10 +316,16 @@ export function usePauseRemoteTorrent(clientId?: number) {
 
 export function useResumeRemoteTorrent(clientId?: number) {
   const queryClient = useQueryClient();
-  return useMutation<{ success: boolean }, Error, { clientId?: number; infoHash: string }>({
+  return useMutation<
+    { success: boolean },
+    Error,
+    { clientId?: number; infoHash: string }
+  >({
     mutationFn: ({ clientId: targetId, infoHash }) => {
       const id = targetId ?? clientId;
-      return apiClient.post(`/downloadclients/${id}/torrents/${infoHash}/resume`);
+      return apiClient.post(
+        `/downloadclients/${id}/torrents/${infoHash}/resume`,
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["downloadclients"] });
@@ -341,10 +354,15 @@ export function useDeleteRemoteTorrent(clientId?: number) {
 
 export function useImportDownloadClientTorrent(clientId?: number) {
   const queryClient = useQueryClient();
-  return useMutation<Torrent, Error, { infoHash: string; clientId?: number } | string>({
+  return useMutation<
+    Torrent,
+    Error,
+    { infoHash: string; clientId?: number } | string
+  >({
     mutationFn: (param) => {
       const hash = typeof param === "string" ? param : param.infoHash;
-      const targetId = typeof param === "object" && param.clientId ? param.clientId : clientId;
+      const targetId =
+        typeof param === "object" && param.clientId ? param.clientId : clientId;
       return apiClient.post(`/downloadclients/${targetId}/import/${hash}`);
     },
     onSuccess: () => {
@@ -365,7 +383,8 @@ export function useImportDownloadClientTorrents(clientId?: number) {
   >({
     mutationFn: (param) => {
       const hashes = Array.isArray(param) ? param : param.infoHashes;
-      const targetId = !Array.isArray(param) && param.clientId ? param.clientId : clientId;
+      const targetId =
+        !Array.isArray(param) && param.clientId ? param.clientId : clientId;
       return apiClient.post(`/downloadclients/${targetId}/import`, {
         infoHashes: hashes,
         hashes,

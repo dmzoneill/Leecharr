@@ -1329,7 +1329,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
                         throw new KeyNotFoundException($"Torrent {id} not found");
                     }
 
-                    string categoryName = resource.Category;
+                    var categoryName = resource.Category;
                     if (string.IsNullOrEmpty(categoryName) && resource.CategoryId.HasValue && resource.CategoryId.Value > 0 && this.categoryService != null)
                     {
                         var cat = this.categoryService.Get(resource.CategoryId.Value);

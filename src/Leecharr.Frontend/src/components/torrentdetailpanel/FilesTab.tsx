@@ -512,7 +512,14 @@ export function FilesTab({
   const handleSetPriority = useCallback(
     (fileId: number, priority: number) => {
       if (effectiveId <= 0) return;
-      const mapped = priority === 0 ? "skip" : priority === 4 ? "high" : priority === 1 ? "low" : "normal";
+      const mapped =
+        priority === 0
+          ? "skip"
+          : priority === 4
+            ? "high"
+            : priority === 1
+              ? "low"
+              : "normal";
       trackFilePriorityChange(mapped, 1);
       setFilePriority.mutate({ torrentId: effectiveId, fileId, priority });
     },
@@ -522,7 +529,14 @@ export function FilesTab({
   const handleBatchSetPriority = useCallback(
     (targetFiles: TorrentFileInfo[], priority: number) => {
       if (effectiveId <= 0 || targetFiles.length === 0) return;
-      const mapped = priority === 0 ? "skip" : priority === 4 ? "high" : priority === 1 ? "low" : "normal";
+      const mapped =
+        priority === 0
+          ? "skip"
+          : priority === 4
+            ? "high"
+            : priority === 1
+              ? "low"
+              : "normal";
       trackFilePriorityChange(mapped, targetFiles.length);
       setFilesPriority.mutate({
         torrentId: effectiveId,
@@ -631,7 +645,9 @@ export function FilesTab({
         if (currentNode?.isFolder) {
           e.preventDefault();
           if (!expandedPaths.has(currentNode.fullPath)) {
-            setExpandedPaths((prev) => new Set([...prev, currentNode.fullPath]));
+            setExpandedPaths(
+              (prev) => new Set([...prev, currentNode.fullPath]),
+            );
           } else {
             setFocusedIndex((prev) => {
               const next = Math.min(flatRows.length - 1, prev + 1);

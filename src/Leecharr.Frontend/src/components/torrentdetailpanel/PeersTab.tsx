@@ -9,30 +9,63 @@ import PeerClientBadge from "../PeerClientBadge";
 import type { Torrent } from "../../api/types";
 
 const PEER_FLAG_MAP: Record<string, { label: string; desc: string }> = {
-  D: { label: "Downloading", desc: "Currently downloading from peer (interested and unchoked)" },
-  d: { label: "Download Choked", desc: "Client interested in peer, but peer is choking client" },
-  U: { label: "Uploading", desc: "Currently uploading to peer (peer interested and unchoked)" },
-  u: { label: "Upload Choked", desc: "Peer interested in client, but client is choking peer" },
+  D: {
+    label: "Downloading",
+    desc: "Currently downloading from peer (interested and unchoked)",
+  },
+  d: {
+    label: "Download Choked",
+    desc: "Client interested in peer, but peer is choking client",
+  },
+  U: {
+    label: "Uploading",
+    desc: "Currently uploading to peer (peer interested and unchoked)",
+  },
+  u: {
+    label: "Upload Choked",
+    desc: "Peer interested in client, but client is choking peer",
+  },
   C: { label: "Client Choking", desc: "Client is currently choking peer" },
   c: { label: "Peer Choking", desc: "Peer is currently choking client" },
-  I: { label: "Client Interested", desc: "Client is interested in peer's pieces" },
-  i: { label: "Peer Interested", desc: "Peer is interested in client's pieces" },
-  K: { label: "Peer Unchoked", desc: "Peer unchoked client, but client is not interested" },
-  k: { label: "Client Unchoked", desc: "Client unchoked peer, but peer is not interested" },
+  I: {
+    label: "Client Interested",
+    desc: "Client is interested in peer's pieces",
+  },
+  i: {
+    label: "Peer Interested",
+    desc: "Peer is interested in client's pieces",
+  },
+  K: {
+    label: "Peer Unchoked",
+    desc: "Peer unchoked client, but client is not interested",
+  },
+  k: {
+    label: "Client Unchoked",
+    desc: "Client unchoked peer, but peer is not interested",
+  },
   O: { label: "Optimistic", desc: "Optimistic unchoke slot active" },
   o: { label: "Optimistic", desc: "Optimistic unchoke slot active" },
   S: { label: "Snubbed", desc: "Peer is snubbed (no data received in > 60s)" },
   s: { label: "Snubbed", desc: "Peer is snubbed (no data received in > 60s)" },
   E: { label: "Encrypted", desc: "Connection is fully encrypted (MSE/PE RC4)" },
-  e: { label: "Encrypted Handshake", desc: "Connection established with encrypted handshake" },
+  e: {
+    label: "Encrypted Handshake",
+    desc: "Connection established with encrypted handshake",
+  },
   P: { label: "uTP", desc: "Micro Transport Protocol (UDP transport)" },
   p: { label: "uTP", desc: "Micro Transport Protocol (UDP transport)" },
   H: { label: "DHT", desc: "Peer discovered via Mainline DHT (BEP 5)" },
   h: { label: "DHT", desc: "Peer discovered via Mainline DHT (BEP 5)" },
   X: { label: "PEX", desc: "Peer discovered via Peer Exchange (BEP 11)" },
   x: { label: "PEX", desc: "Peer discovered via Peer Exchange (BEP 11)" },
-  L: { label: "Local", desc: "Peer discovered via Local Service Discovery (LSD)" },
-  l: { label: "Local", desc: "Peer discovered via Local Service Discovery (LSD)" },
+  L: {
+    label: "Local",
+    desc: "Peer discovered via Local Service Discovery (LSD)",
+  },
+  l: {
+    label: "Local",
+    desc: "Peer discovered via Local Service Discovery (LSD)",
+  },
 };
 
 function formatPeerFlagsTooltip(flags?: string): string {
@@ -40,7 +73,9 @@ function formatPeerFlagsTooltip(flags?: string): string {
   const lines = flags
     .split("")
     .filter((ch) => PEER_FLAG_MAP[ch])
-    .map((ch) => `${ch}: ${PEER_FLAG_MAP[ch].label} (${PEER_FLAG_MAP[ch].desc})`);
+    .map(
+      (ch) => `${ch}: ${PEER_FLAG_MAP[ch].label} (${PEER_FLAG_MAP[ch].desc})`,
+    );
   return lines.length > 0 ? lines.join("\n") : `Flags: ${flags}`;
 }
 

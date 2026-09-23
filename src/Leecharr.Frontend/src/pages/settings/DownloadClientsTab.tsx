@@ -100,11 +100,17 @@ export function DownloadClientsTab() {
   const handleSave = () => {
     if (!editing) return;
     if (!editing.name?.trim()) {
-      showToast(t("settingsTabs.downloadClients.nameRequired", "Name is required"), "error");
+      showToast(
+        t("settingsTabs.downloadClients.nameRequired", "Name is required"),
+        "error",
+      );
       return;
     }
     if (!editing.host?.trim()) {
-      showToast(t("settingsTabs.downloadClients.hostRequired", "Host is required"), "error");
+      showToast(
+        t("settingsTabs.downloadClients.hostRequired", "Host is required"),
+        "error",
+      );
       return;
     }
     const clientType = editing.clientType || "unknown";
@@ -124,7 +130,10 @@ export function DownloadClientsTab() {
         onError: (err: any) => {
           showToast(
             err?.message ||
-              t("settingsTabs.downloadClients.updateFailed", "Failed to update download client"),
+              t(
+                "settingsTabs.downloadClients.updateFailed",
+                "Failed to update download client",
+              ),
             "error",
           );
         },
@@ -145,7 +154,10 @@ export function DownloadClientsTab() {
         onError: (err: any) => {
           showToast(
             err?.message ||
-              t("settingsTabs.downloadClients.createFailed", "Failed to create download client"),
+              t(
+                "settingsTabs.downloadClients.createFailed",
+                "Failed to create download client",
+              ),
             "error",
           );
         },

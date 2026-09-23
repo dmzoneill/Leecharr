@@ -607,11 +607,17 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
               </div>
               <div style={{ fontSize: "0.85rem", fontWeight: 600 }}>
                 {item.isPrivate ? (
-                  <span className="badge badge-warning" style={{ fontSize: "0.75rem" }}>
+                  <span
+                    className="badge badge-warning"
+                    style={{ fontSize: "0.75rem" }}
+                  >
                     🔒 BEP 27 Private
                   </span>
                 ) : (
-                  <span className="badge badge-secondary" style={{ fontSize: "0.75rem" }}>
+                  <span
+                    className="badge badge-secondary"
+                    style={{ fontSize: "0.75rem" }}
+                  >
                     🌐 Public
                   </span>
                 )}
@@ -625,7 +631,10 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
                   color: "var(--text-muted, #888)",
                 }}
               >
-                {t("history.filterByTracker")} {item.trackers && item.trackers.length > 1 ? `(${item.trackers.length})` : ""}
+                {t("history.filterByTracker")}{" "}
+                {item.trackers && item.trackers.length > 1
+                  ? `(${item.trackers.length})`
+                  : ""}
               </div>
               <div
                 style={{
@@ -648,7 +657,14 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
                 {item.primaryTracker || t("common.none", "None")}
               </div>
               {item.trackers && item.trackers.length > 1 && (
-                <div style={{ marginTop: "0.25rem", display: "flex", flexDirection: "column", gap: "0.15rem" }}>
+                <div
+                  style={{
+                    marginTop: "0.25rem",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.15rem",
+                  }}
+                >
                   {item.trackers.slice(1, 4).map((tr, idx) => (
                     <span
                       key={idx}
@@ -670,7 +686,12 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
                     </span>
                   ))}
                   {item.trackers.length > 4 && (
-                    <span style={{ fontSize: "0.7rem", color: "var(--accent-gold)" }}>
+                    <span
+                      style={{
+                        fontSize: "0.7rem",
+                        color: "var(--accent-gold)",
+                      }}
+                    >
                       +{item.trackers.length - 4} more
                     </span>
                   )}

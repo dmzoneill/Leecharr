@@ -49,7 +49,7 @@ public class FallbackProcessSessionTest
         bytesRead.Should().Be(0);
 
         // Subsequent reads must continue to return 0
-        int subsequentRead = await session.ReadAsync(buffer, cts.Token);
+        var subsequentRead = await session.ReadAsync(buffer, cts.Token);
         subsequentRead.Should().Be(0);
     }
 
@@ -65,7 +65,7 @@ public class FallbackProcessSessionTest
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         var buffer = new byte[1024];
-        int bytesRead = await session.ReadAsync(buffer, cts.Token);
+        var bytesRead = await session.ReadAsync(buffer, cts.Token);
         bytesRead.Should().Be(0);
     }
 

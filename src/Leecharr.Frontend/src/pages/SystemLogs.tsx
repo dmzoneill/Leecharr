@@ -107,7 +107,10 @@ export function SystemLogs() {
   }, [filteredEntries, autoScroll]);
 
   return (
-    <div className="content-area system-logs-page" style={{ padding: "1.5rem" }}>
+    <div
+      className="content-area system-logs-page"
+      style={{ padding: "1.5rem" }}
+    >
       {/* Page Header */}
       <div
         style={{

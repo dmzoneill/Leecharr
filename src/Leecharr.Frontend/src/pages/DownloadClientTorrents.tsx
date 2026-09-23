@@ -75,7 +75,11 @@ export default function DownloadClientTorrents() {
     return dupes;
   }, [items]);
 
-  const handlePauseTorrent = (targetClientId: number, hash: string, title: string) => {
+  const handlePauseTorrent = (
+    targetClientId: number,
+    hash: string,
+    title: string,
+  ) => {
     pauseRemoteMutation.mutate(
       { clientId: targetClientId, infoHash: hash },
       {
@@ -89,7 +93,11 @@ export default function DownloadClientTorrents() {
     );
   };
 
-  const handleResumeTorrent = (targetClientId: number, hash: string, title: string) => {
+  const handleResumeTorrent = (
+    targetClientId: number,
+    hash: string,
+    title: string,
+  ) => {
     resumeRemoteMutation.mutate(
       { clientId: targetClientId, infoHash: hash },
       {
@@ -113,11 +121,17 @@ export default function DownloadClientTorrents() {
       },
       {
         onSuccess: () => {
-          showToast(`Removed "${deleteTarget.title}" from download client`, "success");
+          showToast(
+            `Removed "${deleteTarget.title}" from download client`,
+            "success",
+          );
           setDeleteTarget(null);
         },
         onError: (err) => {
-          showToast(`Failed to delete "${deleteTarget.title}": ${err.message}`, "error");
+          showToast(
+            `Failed to delete "${deleteTarget.title}": ${err.message}`,
+            "error",
+          );
           setDeleteTarget(null);
         },
       },
@@ -158,7 +172,9 @@ export default function DownloadClientTorrents() {
   const [importingHash, setImportingHash] = useState<string | null>(null);
   const [selectedHashes, setSelectedHashes] = useState<Set<string>>(new Set());
   const [importingSelected, setImportingSelected] = useState(false);
-  const [failedImportItems, setFailedImportItems] = useState<BatchImportItemResult[] | null>(null);
+  const [failedImportItems, setFailedImportItems] = useState<
+    BatchImportItemResult[] | null
+  >(null);
 
   useEffect(() => {
     setSearchTerm("");
@@ -233,26 +249,33 @@ export default function DownloadClientTorrents() {
     });
   };
 
-  const handleImportOne = (hash: string, title: string, targetClientId?: number) => {
+  const handleImportOne = (
+    hash: string,
+    title: string,
+    targetClientId?: number,
+  ) => {
     setImportingHash(hash);
-    importOneMutation.mutate({ infoHash: hash, clientId: targetClientId || clientId }, {
-      onSuccess: () => {
-        setImportingHash(null);
-        setSelectedHashes((prev) => {
-          const next = new Set(prev);
-          next.delete(hash);
-          return next;
-        });
-        showToast(`Imported "${title}" into Leecharr library`, "success");
+    importOneMutation.mutate(
+      { infoHash: hash, clientId: targetClientId || clientId },
+      {
+        onSuccess: () => {
+          setImportingHash(null);
+          setSelectedHashes((prev) => {
+            const next = new Set(prev);
+            next.delete(hash);
+            return next;
+          });
+          showToast(`Imported "${title}" into Leecharr library`, "success");
+        },
+        onError: (err) => {
+          setImportingHash(null);
+          showToast(
+            `Failed to import "${title}": ${err.message || "Unknown error"}`,
+            "error",
+          );
+        },
       },
-      onError: (err) => {
-        setImportingHash(null);
-        showToast(
-          `Failed to import "${title}": ${err.message || "Unknown error"}`,
-          "error",
-        );
-      },
-    });
+    );
   };
 
   const handleImportSelected = () => {
@@ -279,7 +302,9 @@ export default function DownloadClientTorrents() {
           failedCount > 0 ? "error" : "success",
         );
         if (failedCount > 0 && res.items) {
-          const failures = res.items.filter((i: BatchImportItemResult) => !i.success);
+          const failures = res.items.filter(
+            (i: BatchImportItemResult) => !i.success,
+          );
           if (failures.length > 0) {
             setFailedImportItems(failures);
           }
@@ -318,7 +343,9 @@ export default function DownloadClientTorrents() {
           failedCount > 0 ? "error" : "success",
         );
         if (failedCount > 0 && res.items) {
-          const failures = res.items.filter((i: BatchImportItemResult) => !i.success);
+          const failures = res.items.filter(
+            (i: BatchImportItemResult) => !i.success,
+          );
           if (failures.length > 0) {
             setFailedImportItems(failures);
           }
@@ -409,13 +436,16 @@ export default function DownloadClientTorrents() {
                 gap: "0.5rem",
               }}
             >
-              <span>💽</span> {isAll ? "All Download Clients" : client?.name} ({totalCount})
+              <span>💽</span> {isAll ? "All Download Clients" : client?.name} (
+              {totalCount})
             </h1>
             {isAll ? (
               <span className="badge badge-primary">Aggregated View</span>
             ) : (
               <>
-                <span className="badge badge-primary">{client?.clientType}</span>
+                <span className="badge badge-primary">
+                  {client?.clientType}
+                </span>
                 <span className="badge badge-secondary">
                   {client?.host}:{client?.port}
                 </span>
@@ -434,11 +464,22 @@ export default function DownloadClientTorrents() {
               : `Live torrent list from ${client?.clientType} download agent`}
           </p>
           {clients && clients.filter((c) => c.enable).length > 1 && (
-            <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "0.5rem",
+                marginTop: "0.75rem",
+                flexWrap: "wrap",
+              }}
+            >
               <Link
                 to="/activity/client/all"
                 className={`btn btn-small ${isAll ? "btn-primary" : "btn-outline"}`}
-                style={{ borderRadius: "16px", padding: "0.2rem 0.75rem", fontSize: "0.8rem" }}
+                style={{
+                  borderRadius: "16px",
+                  padding: "0.2rem 0.75rem",
+                  fontSize: "0.8rem",
+                }}
               >
                 All Clients
               </Link>
@@ -449,7 +490,11 @@ export default function DownloadClientTorrents() {
                     key={c.id}
                     to={`/activity/client/${c.id}`}
                     className={`btn btn-small ${!isAll && clientId === c.id ? "btn-primary" : "btn-outline"}`}
-                    style={{ borderRadius: "16px", padding: "0.2rem 0.75rem", fontSize: "0.8rem" }}
+                    style={{
+                      borderRadius: "16px",
+                      padding: "0.2rem 0.75rem",
+                      fontSize: "0.8rem",
+                    }}
                   >
                     {c.name}
                   </Link>
@@ -650,7 +695,8 @@ export default function DownloadClientTorrents() {
           style={{ padding: "3rem", textAlign: "center", borderRadius: "8px" }}
         >
           <div className="loading">
-            Connecting to {isAll ? "download clients" : client?.name} and fetching torrents...
+            Connecting to {isAll ? "download clients" : client?.name} and
+            fetching torrents...
           </div>
         </div>
       )}
@@ -718,7 +764,9 @@ export default function DownloadClientTorrents() {
           >
             {searchTerm || filterMode !== "all"
               ? "No torrents match the active search or filter criteria."
-              : isAll ? "No torrents currently reported across download clients." : `No torrents currently reported by ${client?.name}.`}
+              : isAll
+                ? "No torrents currently reported across download clients."
+                : `No torrents currently reported by ${client?.name}.`}
           </div>
         </div>
       )}
@@ -996,7 +1044,8 @@ export default function DownloadClientTorrents() {
                             ? "badge-success"
                             : item.status?.toLowerCase() === "downloading"
                               ? "badge-primary"
-                              : item.status?.toLowerCase() === "paused" || item.status?.toLowerCase() === "stopped"
+                              : item.status?.toLowerCase() === "paused" ||
+                                  item.status?.toLowerCase() === "stopped"
                                 ? "badge-warning"
                                 : "badge-secondary"
                         }`}
@@ -1005,7 +1054,10 @@ export default function DownloadClientTorrents() {
                         {item.status || "unknown"}
                       </span>
                       {isAll && item.clientName && (
-                        <span className="badge badge-secondary" style={{ fontSize: "0.72rem" }}>
+                        <span
+                          className="badge badge-secondary"
+                          style={{ fontSize: "0.72rem" }}
+                        >
                           {item.clientName}
                         </span>
                       )}
@@ -1019,7 +1071,13 @@ export default function DownloadClientTorrents() {
                         </span>
                       )}
 
-                      <div style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "0.35rem",
+                          alignItems: "center",
+                        }}
+                      >
                         {!item.isPrivate ? (
                           <button
                             className="btn btn-primary btn-small"
@@ -1085,7 +1143,11 @@ export default function DownloadClientTorrents() {
                               borderRadius: "4px",
                             }}
                             onClick={() =>
-                              handleImportOne(item.infoHash, item.title, item.clientId)
+                              handleImportOne(
+                                item.infoHash,
+                                item.title,
+                                item.clientId,
+                              )
                             }
                             disabled={isImporting}
                           >
@@ -1093,7 +1155,8 @@ export default function DownloadClientTorrents() {
                           </button>
                         )}
 
-                        {item.status?.toLowerCase() === "paused" || item.status?.toLowerCase() === "stopped" ? (
+                        {item.status?.toLowerCase() === "paused" ||
+                        item.status?.toLowerCase() === "stopped" ? (
                           <button
                             className="btn btn-outline btn-small"
                             style={{
@@ -1379,14 +1442,22 @@ export default function DownloadClientTorrents() {
                         </td>
 
                         <td style={{ padding: "0.75rem 1rem" }}>
-                          <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", alignItems: "flex-start" }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "0.25rem",
+                              alignItems: "flex-start",
+                            }}
+                          >
                             <span
                               className={`badge ${
                                 item.status?.toLowerCase() === "seeding"
                                   ? "badge-success"
                                   : item.status?.toLowerCase() === "downloading"
                                     ? "badge-primary"
-                                    : item.status?.toLowerCase() === "paused" || item.status?.toLowerCase() === "stopped"
+                                    : item.status?.toLowerCase() === "paused" ||
+                                        item.status?.toLowerCase() === "stopped"
                                       ? "badge-warning"
                                       : "badge-secondary"
                               }`}
@@ -1395,14 +1466,25 @@ export default function DownloadClientTorrents() {
                               {item.status || "unknown"}
                             </span>
                             {isAll && item.clientName && (
-                              <span className="badge badge-secondary" style={{ fontSize: "0.7rem", borderRadius: "4px" }}>
+                              <span
+                                className="badge badge-secondary"
+                                style={{
+                                  fontSize: "0.7rem",
+                                  borderRadius: "4px",
+                                }}
+                              >
                                 {item.clientName}
                               </span>
                             )}
-                            {duplicateHashes.has(item.infoHash?.toLowerCase()) && (
+                            {duplicateHashes.has(
+                              item.infoHash?.toLowerCase(),
+                            ) && (
                               <span
                                 className="badge badge-warning"
-                                style={{ fontSize: "0.7rem", borderRadius: "4px" }}
+                                style={{
+                                  fontSize: "0.7rem",
+                                  borderRadius: "4px",
+                                }}
                                 title="This torrent is running on multiple download clients"
                               >
                                 Duplicate
@@ -1636,7 +1718,11 @@ export default function DownloadClientTorrents() {
                                   whiteSpace: "nowrap",
                                 }}
                                 onClick={() =>
-                                  handleImportOne(item.infoHash, item.title, item.clientId)
+                                  handleImportOne(
+                                    item.infoHash,
+                                    item.title,
+                                    item.clientId,
+                                  )
                                 }
                                 disabled={isImporting}
                               >
@@ -1651,7 +1737,8 @@ export default function DownloadClientTorrents() {
                               </button>
                             )}
 
-                            {item.status?.toLowerCase() === "paused" || item.status?.toLowerCase() === "stopped" ? (
+                            {item.status?.toLowerCase() === "paused" ||
+                            item.status?.toLowerCase() === "stopped" ? (
                               <button
                                 className="btn btn-outline"
                                 style={{
@@ -1784,9 +1871,19 @@ export default function DownloadClientTorrents() {
               </h3>
             </div>
 
-            <p style={{ color: "var(--text-primary)", fontSize: "0.95rem", lineHeight: 1.5 }}>
-              Are you sure you want to remove <strong>"{deleteTarget.title}"</strong>
-              {deleteTarget.clientName ? ` from ${deleteTarget.clientName}` : ""}?
+            <p
+              style={{
+                color: "var(--text-primary)",
+                fontSize: "0.95rem",
+                lineHeight: 1.5,
+              }}
+            >
+              Are you sure you want to remove{" "}
+              <strong>"{deleteTarget.title}"</strong>
+              {deleteTarget.clientName
+                ? ` from ${deleteTarget.clientName}`
+                : ""}
+              ?
             </p>
 
             <label
@@ -1808,7 +1905,13 @@ export default function DownloadClientTorrents() {
                 onChange={(e) => setDeleteFiles(e.target.checked)}
                 style={{ width: "16px", height: "16px", cursor: "pointer" }}
               />
-              <span style={{ fontSize: "0.88rem", color: "var(--text-danger, #e55353)", fontWeight: 500 }}>
+              <span
+                style={{
+                  fontSize: "0.88rem",
+                  color: "var(--text-danger, #e55353)",
+                  fontWeight: 500,
+                }}
+              >
                 Also delete downloaded files from disk
               </span>
             </label>
@@ -1833,7 +1936,9 @@ export default function DownloadClientTorrents() {
                 onClick={confirmDeleteTorrent}
                 disabled={deleteRemoteMutation.isPending}
               >
-                {deleteRemoteMutation.isPending ? "Removing..." : "Delete Torrent"}
+                {deleteRemoteMutation.isPending
+                  ? "Removing..."
+                  : "Delete Torrent"}
               </button>
             </div>
           </div>
@@ -1884,7 +1989,9 @@ export default function DownloadClientTorrents() {
                 lineHeight: 1.5,
               }}
             >
-              The following torrents failed to import from {client?.name || "download client"}. Diagnostic details and retry actions are listed below:
+              The following torrents failed to import from{" "}
+              {client?.name || "download client"}. Diagnostic details and retry
+              actions are listed below:
             </p>
 
             <div
@@ -1898,37 +2005,107 @@ export default function DownloadClientTorrents() {
                 backgroundColor: "var(--bg-primary)",
               }}
             >
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: "0.85rem",
+                }}
+              >
                 <thead>
-                  <tr style={{ borderBottom: "1px solid var(--border-light)", backgroundColor: "var(--bg-secondary)" }}>
-                    <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>Torrent</th>
-                    <th style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}>Failure Reason</th>
-                    <th style={{ textAlign: "right", padding: "0.6rem 0.75rem", width: "80px" }}>Action</th>
+                  <tr
+                    style={{
+                      borderBottom: "1px solid var(--border-light)",
+                      backgroundColor: "var(--bg-secondary)",
+                    }}
+                  >
+                    <th
+                      style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}
+                    >
+                      Torrent
+                    </th>
+                    <th
+                      style={{ textAlign: "left", padding: "0.6rem 0.75rem" }}
+                    >
+                      Failure Reason
+                    </th>
+                    <th
+                      style={{
+                        textAlign: "right",
+                        padding: "0.6rem 0.75rem",
+                        width: "80px",
+                      }}
+                    >
+                      Action
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {failedImportItems.map((item) => (
-                    <tr key={item.infoHash} style={{ borderBottom: "1px solid var(--border-light)" }}>
+                    <tr
+                      key={item.infoHash}
+                      style={{ borderBottom: "1px solid var(--border-light)" }}
+                    >
                       <td style={{ padding: "0.6rem 0.75rem" }}>
-                        <div style={{ fontWeight: 600, wordBreak: "break-word" }}>{item.title || item.infoHash}</div>
-                        <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontFamily: "monospace" }}>
+                        <div
+                          style={{ fontWeight: 600, wordBreak: "break-word" }}
+                        >
+                          {item.title || item.infoHash}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "0.72rem",
+                            color: "var(--text-muted)",
+                            fontFamily: "monospace",
+                          }}
+                        >
                           {item.infoHash}
                         </div>
                       </td>
-                      <td style={{ padding: "0.6rem 0.75rem", color: "var(--danger, #e74c3c)", wordBreak: "break-word" }}>
-                        {item.errorMessage || "Unknown error occurred during import."}
+                      <td
+                        style={{
+                          padding: "0.6rem 0.75rem",
+                          color: "var(--danger, #e74c3c)",
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        {item.errorMessage ||
+                          "Unknown error occurred during import."}
                       </td>
-                      <td style={{ padding: "0.6rem 0.75rem", textAlign: "right" }}>
+                      <td
+                        style={{
+                          padding: "0.6rem 0.75rem",
+                          textAlign: "right",
+                        }}
+                      >
                         <button
                           className="btn btn-outline btn-small"
-                          style={{ fontSize: "0.75rem", padding: "0.25rem 0.55rem" }}
-                          disabled={importOneMutation.isPending && importingHash === item.infoHash}
+                          style={{
+                            fontSize: "0.75rem",
+                            padding: "0.25rem 0.55rem",
+                          }}
+                          disabled={
+                            importOneMutation.isPending &&
+                            importingHash === item.infoHash
+                          }
                           onClick={() => {
-                            handleImportOne(item.infoHash, item.title || item.infoHash);
-                            setFailedImportItems((prev) => (prev ? prev.filter((f) => f.infoHash !== item.infoHash) : null));
+                            handleImportOne(
+                              item.infoHash,
+                              item.title || item.infoHash,
+                            );
+                            setFailedImportItems((prev) =>
+                              prev
+                                ? prev.filter(
+                                    (f) => f.infoHash !== item.infoHash,
+                                  )
+                                : null,
+                            );
                           }}
                         >
-                          {importOneMutation.isPending && importingHash === item.infoHash ? "..." : "Retry"}
+                          {importOneMutation.isPending &&
+                          importingHash === item.infoHash
+                            ? "..."
+                            : "Retry"}
                         </button>
                       </td>
                     </tr>
@@ -1937,8 +2114,18 @@ export default function DownloadClientTorrents() {
               </table>
             </div>
 
-            <div className="modal-actions" style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
-              <button className="btn btn-primary" onClick={() => setFailedImportItems(null)}>
+            <div
+              className="modal-actions"
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "0.5rem",
+              }}
+            >
+              <button
+                className="btn btn-primary"
+                onClick={() => setFailedImportItems(null)}
+              >
                 Dismiss
               </button>
             </div>

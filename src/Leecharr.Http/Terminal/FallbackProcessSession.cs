@@ -94,7 +94,7 @@ public sealed class FallbackProcessSession : ITerminalSession
                 }
             }
 
-            int toCopy = Math.Min(buffer.Length, this.pendingChunk.Length - this.pendingOffset);
+            var toCopy = Math.Min(buffer.Length, this.pendingChunk.Length - this.pendingOffset);
             this.pendingChunk.AsMemory(this.pendingOffset, toCopy).CopyTo(buffer);
             this.pendingOffset += toCopy;
             return toCopy;
@@ -166,7 +166,7 @@ public sealed class FallbackProcessSession : ITerminalSession
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false);
+                var bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false);
                 if (bytesRead <= 0)
                 {
                     break;

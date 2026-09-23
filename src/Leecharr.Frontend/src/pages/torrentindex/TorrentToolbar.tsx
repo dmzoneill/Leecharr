@@ -253,10 +253,17 @@ export function TorrentToolbar({
                 className="btn btn-outline bulk-add-tags-btn"
                 onClick={onBulkAddTags}
                 disabled={bulkPending}
-                title={t("torrents.bulkAddTags", { defaultValue: "Assign Tags" })}
-                style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
+                title={t("torrents.bulkAddTags", {
+                  defaultValue: "Assign Tags",
+                })}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
               >
-                <TagIcon size={13} /> {t("torrents.bulkAddTags", { defaultValue: "Assign Tags" })}
+                <TagIcon size={13} />{" "}
+                {t("torrents.bulkAddTags", { defaultValue: "Assign Tags" })}
               </button>
             )}
             {onBulkRemoveTags && (
@@ -265,10 +272,17 @@ export function TorrentToolbar({
                 className="btn btn-outline bulk-remove-tags-btn"
                 onClick={onBulkRemoveTags}
                 disabled={bulkPending}
-                title={t("torrents.bulkRemoveTags", { defaultValue: "Remove Tags" })}
-                style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
+                title={t("torrents.bulkRemoveTags", {
+                  defaultValue: "Remove Tags",
+                })}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
               >
-                <TagIcon size={13} /> {t("torrents.bulkRemoveTags", { defaultValue: "Remove Tags" })}
+                <TagIcon size={13} />{" "}
+                {t("torrents.bulkRemoveTags", { defaultValue: "Remove Tags" })}
               </button>
             )}
             {onBulkMoveQueue && (

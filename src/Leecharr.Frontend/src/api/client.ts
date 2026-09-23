@@ -123,7 +123,11 @@ class ApiClient {
       };
       if (response.status >= 500) {
         const cleanEndpoint = endpoint.split("?")[0];
-        trackException(`Backend ${response.status}: ${cleanEndpoint} - ${message.slice(0, 80)}`, false, "backend_api_5xx");
+        trackException(
+          `Backend ${response.status}: ${cleanEndpoint} - ${message.slice(0, 80)}`,
+          false,
+          "backend_api_5xx",
+        );
       }
       throw error;
     }

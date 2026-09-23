@@ -92,8 +92,8 @@ public static class TerminalWebSocketHandler
             cwd = Directory.GetCurrentDirectory();
         }
 
-        int cols = int.TryParse(context.Request.Query["cols"], out int c) ? Math.Max(10, c) : 100;
-        int rows = int.TryParse(context.Request.Query["rows"], out int r) ? Math.Max(5, r) : 30;
+        var cols = int.TryParse(context.Request.Query["cols"], out var c) ? Math.Max(10, c) : 100;
+        var rows = int.TryParse(context.Request.Query["rows"], out var r) ? Math.Max(5, r) : 30;
 
         using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
         ITerminalSession session;
@@ -150,16 +150,16 @@ public static class TerminalWebSocketHandler
             {
                 while (!cts.IsCancellationRequested && webSocket.State == WebSocketState.Open)
                 {
-                    int bytesRead = await session.ReadAsync(buffer, cts.Token);
+                    var bytesRead = await session.ReadAsync(buffer, cts.Token);
                     if (bytesRead <= 0)
                     {
                         break;
                     }
 
-                    int charsRead = decoder.GetChars(buffer, 0, bytesRead, charBuffer, 0, flush: false);
+                    var charsRead = decoder.GetChars(buffer, 0, bytesRead, charBuffer, 0, flush: false);
                     if (charsRead > 0)
                     {
-                        string text = new string(charBuffer, 0, charsRead);
+                        var text = new string(charBuffer, 0, charsRead);
                         var payload = JsonSerializer.Serialize(new { type = "output", data = text });
                         await SafeSendTextAsync(payload, cts.Token);
                     }
@@ -204,7 +204,7 @@ public static class TerminalWebSocketHandler
                     if (ms.Length > 0)
                     {
                         ms.Seek(0, SeekOrigin.Begin);
-                        bool isHandled = false;
+                        var isHandled = false;
                         try
                         {
                             using var doc = await JsonDocument.ParseAsync(ms, cancellationToken: cts.Token);

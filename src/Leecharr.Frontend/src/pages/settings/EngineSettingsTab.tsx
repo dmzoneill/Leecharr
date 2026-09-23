@@ -224,8 +224,7 @@ export function EngineSettingsTab() {
       showToast(
         t("settingsTabs.engine.probeFailed", {
           engine: engineId,
-          error:
-            err?.message || t("settingsTabs.notifications.unknownError"),
+          error: err?.message || t("settingsTabs.notifications.unknownError"),
           defaultValue: `Probe failed for ${engineId}: ${err?.message || ""}`,
         }),
         "error",

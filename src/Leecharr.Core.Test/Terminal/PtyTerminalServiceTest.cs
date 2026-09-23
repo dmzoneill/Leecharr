@@ -101,7 +101,7 @@ public class PtyTerminalServiceTest
 
         while (!cts.IsCancellationRequested && sb.Length < 500)
         {
-            int bytesRead = await session.ReadAsync(buffer, cts.Token);
+            var bytesRead = await session.ReadAsync(buffer, cts.Token);
             if (bytesRead <= 0)
             {
                 break;
@@ -144,7 +144,7 @@ public class PtyTerminalServiceTest
         var sb1 = new StringBuilder();
         while (!cts.IsCancellationRequested && !sb1.ToString().Contains("24 80"))
         {
-            int bytesRead = await session.ReadAsync(buffer, cts.Token);
+            var bytesRead = await session.ReadAsync(buffer, cts.Token);
             if (bytesRead <= 0)
             {
                 break;
@@ -167,7 +167,7 @@ public class PtyTerminalServiceTest
         var sb2 = new StringBuilder();
         while (!cts.IsCancellationRequested && !sb2.ToString().Contains("40 120"))
         {
-            int bytesRead = await session.ReadAsync(buffer, cts.Token);
+            var bytesRead = await session.ReadAsync(buffer, cts.Token);
             if (bytesRead <= 0)
             {
                 break;
@@ -196,7 +196,7 @@ public class PtyTerminalServiceTest
 
         while (!cts.IsCancellationRequested && sb.Length < 100)
         {
-            int bytesRead = await session.ReadAsync(buffer, cts.Token);
+            var bytesRead = await session.ReadAsync(buffer, cts.Token);
             if (bytesRead <= 0)
             {
                 break;
@@ -224,18 +224,18 @@ public class PtyTerminalServiceTest
         var charBuffer = new char[1024];
         var sb = new StringBuilder();
 
-        int chunkSize = 7;
-        for (int offset = 0; offset < fullBytes.Length; offset += chunkSize)
+        var chunkSize = 7;
+        for (var offset = 0; offset < fullBytes.Length; offset += chunkSize)
         {
-            int count = Math.Min(chunkSize, fullBytes.Length - offset);
-            int charsDecoded = decoder.GetChars(fullBytes, offset, count, charBuffer, 0, flush: false);
+            var count = Math.Min(chunkSize, fullBytes.Length - offset);
+            var charsDecoded = decoder.GetChars(fullBytes, offset, count, charBuffer, 0, flush: false);
             if (charsDecoded > 0)
             {
                 sb.Append(charBuffer, 0, charsDecoded);
             }
         }
 
-        int finalChars = decoder.GetChars(Array.Empty<byte>(), 0, 0, charBuffer, 0, flush: true);
+        var finalChars = decoder.GetChars(Array.Empty<byte>(), 0, 0, charBuffer, 0, flush: true);
         if (finalChars > 0)
         {
             sb.Append(charBuffer, 0, finalChars);
@@ -286,7 +286,7 @@ public class PtyTerminalServiceTest
 
             while (!cts.IsCancellationRequested && sb.Length < 500)
             {
-                int bytesRead = await session.ReadAsync(buffer, cts.Token);
+                var bytesRead = await session.ReadAsync(buffer, cts.Token);
                 if (bytesRead <= 0)
                 {
                     break;
@@ -333,11 +333,11 @@ public class PtyTerminalServiceTest
 
         var buffer = new byte[1024];
         var sb = new StringBuilder();
-        int childPid = -1;
+        var childPid = -1;
 
         while (!cts.IsCancellationRequested && sb.Length < 1000)
         {
-            int bytesRead = await session.ReadAsync(buffer, cts.Token);
+            var bytesRead = await session.ReadAsync(buffer, cts.Token);
             if (bytesRead <= 0)
             {
                 break;
@@ -473,7 +473,7 @@ public class PtyTerminalServiceTest
 
             while (!cts.IsCancellationRequested && sb.Length < 500)
             {
-                int bytesRead = await session.ReadAsync(buffer, cts.Token);
+                var bytesRead = await session.ReadAsync(buffer, cts.Token);
                 if (bytesRead <= 0)
                 {
                     break;

@@ -149,7 +149,7 @@ public class UpdateCheckService : IUpdateCheckService
 
                 var platformIdentifier = GetPackagePlatformIdentifier();
                 var packageExtension = GetPackageExtension();
-                string fileName = GetPackageFileName(cleanVersion);
+                var fileName = GetPackageFileName(cleanVersion);
 
                 if (elem.TryGetProperty("assets", out var assetsProp) && assetsProp.ValueKind == JsonValueKind.Array)
                 {

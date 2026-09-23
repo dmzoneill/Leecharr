@@ -496,7 +496,11 @@ export function NotificationsTab() {
       const notif = notifications?.find((n) => n.id === id);
       testMutation.mutate(id, {
         onSuccess: (data) => {
-          trackNotificationAction(notif?.implementation || "unknown", "test", data.success);
+          trackNotificationAction(
+            notif?.implementation || "unknown",
+            "test",
+            data.success,
+          );
           setTestResults((prev) => ({ ...prev, [id]: data }));
           if (data.success) {
             showToast(
@@ -609,7 +613,11 @@ export function NotificationsTab() {
 
       deleteMutation.mutate(notif.id, {
         onSuccess: () => {
-          trackNotificationAction(notif.implementation || "unknown", "delete", true);
+          trackNotificationAction(
+            notif.implementation || "unknown",
+            "delete",
+            true,
+          );
           showToast(
             t("settingsTabs.notifications.deleted", { name: notif.name }),
             "info",
@@ -640,7 +648,11 @@ export function NotificationsTab() {
 
     try {
       const payload = buildNotificationPayload(editing);
-      trackNotificationAction(editing.implementation || "unknown", "save", true);
+      trackNotificationAction(
+        editing.implementation || "unknown",
+        "save",
+        true,
+      );
       if (editing.id) {
         updateMutation.mutate(payload, {
           onSuccess: () => {

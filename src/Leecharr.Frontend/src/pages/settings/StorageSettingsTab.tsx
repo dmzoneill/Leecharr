@@ -1,7 +1,14 @@
 import { useTranslation } from "../../i18n";
 import React, { useState, useEffect } from "react";
 import { useBitTorrentConfig, useSaveBitTorrentConfig } from "../../api/hooks";
-import { SaveBar, SectionCard, TextInput, NumberInput, SelectInput, Toggle } from "./shared";
+import {
+  SaveBar,
+  SectionCard,
+  TextInput,
+  NumberInput,
+  SelectInput,
+  Toggle,
+} from "./shared";
 
 export function StorageSettingsTab() {
   const { t } = useTranslation();

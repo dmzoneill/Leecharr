@@ -724,7 +724,7 @@ public class YamlScriptRunner : IScriptRunner
                                 if (Directory.Exists(dirStr))
                                 {
                                     var files = Directory.GetFiles(dirStr, "*.*", SearchOption.AllDirectories);
-                                    int count = 0;
+                                    var count = 0;
                                     foreach (var f in files)
                                     {
                                         var fExt = Path.GetExtension(f);

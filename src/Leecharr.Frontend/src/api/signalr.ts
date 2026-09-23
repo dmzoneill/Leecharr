@@ -5,7 +5,8 @@ import { apiClient, getUrlBase } from "./client";
 
 export type ConnectionStatus = "connected" | "disconnected" | "reconnecting";
 
-export type ModelAction = "Unknown" | "Created" | "Updated" | "Deleted" | "Sync";
+export type ModelAction =
+  "Unknown" | "Created" | "Updated" | "Deleted" | "Sync";
 
 export interface TorrentSnapshot {
   id: number;
@@ -45,7 +46,11 @@ export function isUnauthorizedError(error: unknown): boolean {
   if (error instanceof signalR.HttpError) {
     return error.statusCode === 401 || error.statusCode === 403;
   }
-  const err = error as { statusCode?: number; status?: number; message?: string };
+  const err = error as {
+    statusCode?: number;
+    status?: number;
+    message?: string;
+  };
   if (
     err.statusCode === 401 ||
     err.statusCode === 403 ||
@@ -113,7 +118,8 @@ class SignalRManager {
   private reconnectingHandlers: Set<ReconnectingHandler> = new Set();
   private reconnectedHandlers: Set<ReconnectedHandler> = new Set();
   private closeHandlers: Set<CloseHandler> = new Set();
-  private connectionStateHandlers: Set<ConnectionStateChangeHandler> = new Set();
+  private connectionStateHandlers: Set<ConnectionStateChangeHandler> =
+    new Set();
   private statusListeners: Set<(status: ConnectionStatus) => void> = new Set();
   private snapshotListeners: Set<(snapshot: StateSnapshot) => void> = new Set();
 
@@ -363,7 +369,9 @@ class SignalRManager {
     const conn = this.ensureConnection();
     if (conn.state === signalR.HubConnectionState.Connected) {
       try {
-        const snapshot = await conn.invoke<StateSnapshot>("RequestStateSnapshot");
+        const snapshot = await conn.invoke<StateSnapshot>(
+          "RequestStateSnapshot",
+        );
         if (snapshot) {
           this.notifySnapshot(snapshot);
         }
@@ -574,7 +582,9 @@ export function requestStateSnapshot(): Promise<StateSnapshot | null> {
   return signalRManager.requestStateSnapshot();
 }
 
-export function onStateSnapshot(callback: (snapshot: StateSnapshot) => void): () => void {
+export function onStateSnapshot(
+  callback: (snapshot: StateSnapshot) => void,
+): () => void {
   return signalRManager.onStateSnapshot(callback);
 }
 

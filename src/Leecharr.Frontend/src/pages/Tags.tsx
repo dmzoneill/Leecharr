@@ -695,10 +695,7 @@ function Tags() {
                 <input
                   type="number"
                   className="form-input"
-                  placeholder={t(
-                    "tags.minSeedTimePlaceholder",
-                    "e.g. 86400",
-                  )}
+                  placeholder={t("tags.minSeedTimePlaceholder", "e.g. 86400")}
                   min="0"
                   value={modalTag.minSeedTimeSeconds ?? ""}
                   onChange={(e) =>

@@ -50,7 +50,10 @@ export function AddTorrentPage({ onSuccess }: AddTorrentPageProps) {
               fontSize: "0.9rem",
             }}
           >
-            {t("addTorrent.subtitle", "Upload torrent files or download via magnet link")}
+            {t(
+              "addTorrent.subtitle",
+              "Upload torrent files or download via magnet link",
+            )}
           </p>
         </div>
       </div>

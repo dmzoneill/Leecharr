@@ -1486,7 +1486,7 @@ public class TorznabClient : ITorznabClient
         var existingParams = HttpUtility.ParseQueryString(uriBuilder.Query);
         var newParams = HttpUtility.ParseQueryString(queryParams);
 
-        foreach (string key in newParams.AllKeys)
+        foreach (var key in newParams.AllKeys)
         {
             if (key != null)
             {
