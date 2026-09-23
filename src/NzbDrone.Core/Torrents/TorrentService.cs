@@ -722,8 +722,8 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
     private async Task DeleteTorrentDataOnDiskAsync(Torrent torrent, List<TorrentFile> torrentFiles)
     {
         var isIncomplete = torrent.Progress < 1.0 ||
-                           torrent.Status == TorrentStatus.Downloading ||
-                           torrent.Status == TorrentStatus.Queued;
+            torrent.Status == TorrentStatus.Downloading ||
+            torrent.Status == TorrentStatus.Queued;
 
         if (isIncomplete)
         {
@@ -753,7 +753,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             {
                 var savePathDirName = Path.GetFileName(torrent.SavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
                 var isDedicatedFolder = string.Equals(savePathDirName, torrent.Name, StringComparison.OrdinalIgnoreCase) ||
-                                       (!string.IsNullOrWhiteSpace(sanitizedName) && string.Equals(savePathDirName, sanitizedName, StringComparison.OrdinalIgnoreCase));
+                    (!string.IsNullOrWhiteSpace(sanitizedName) && string.Equals(savePathDirName, sanitizedName, StringComparison.OrdinalIgnoreCase));
 
                 if (isDedicatedFolder && !this.IsProtectedRoot(torrent.SavePath))
                 {
@@ -1538,9 +1538,9 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             var statusChanged = oldStatus != torrent.Status;
             var progressChanged = Math.Abs(torrent.Progress - oldProgress) > 0.0001;
             var statsChanged = torrent.Uploaded != oldUploaded ||
-                               torrent.Downloaded != oldDownloaded ||
-                               Math.Abs(torrent.Ratio - oldRatio) > 0.0001 ||
-                               progressChanged;
+                torrent.Downloaded != oldDownloaded ||
+                Math.Abs(torrent.Ratio - oldRatio) > 0.0001 ||
+                progressChanged;
 
             if (statusChanged)
             {
@@ -2259,7 +2259,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         var allowedRoots = this.GetAllowedDownloadDirectories(category, defaultDownloadDir);
 
         var isRooted = Path.IsPathRooted(normalizedPath) ||
-                       (normalizedPath.Length >= 2 && char.IsLetter(normalizedPath[0]) && normalizedPath[1] == ':');
+            (normalizedPath.Length >= 2 && char.IsLetter(normalizedPath[0]) && normalizedPath[1] == ':');
 
         if (isRooted)
         {
