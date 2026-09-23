@@ -137,16 +137,15 @@ public class PackageController : Controller
 
     [HttpPost("import")]
     [HttpPost("/api/v1/package/import")]
-    [Consumes("multipart/form-data")]
     public async Task<IActionResult> Import(
-        [FromForm] IFormFile file = null,
-        [FromForm] string targetRootDir = null,
-        [FromForm] string destinationPath = null,
-        [FromForm] string destinationRoot = null,
-        [FromForm] string sourcePrefix = null,
-        [FromForm] string destinationPrefix = null,
-        [FromForm] bool restoreTorrents = true,
-        [FromForm] bool skipDuplicates = true,
+        IFormFile file = null,
+        string targetRootDir = null,
+        string destinationPath = null,
+        string destinationRoot = null,
+        string sourcePrefix = null,
+        string destinationPrefix = null,
+        bool restoreTorrents = true,
+        bool skipDuplicates = true,
         CancellationToken cancellationToken = default)
     {
         if (this.packageImportService == null)
