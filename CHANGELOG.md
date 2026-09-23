@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.26.4](https://github.com/dmzoneill/Leecharr/releases/tag/v1.26.4) - 2026-09-23
+
+### 🐛 Bug Fixes
+- fix(test): resolve 7z extractor assertions and FreeboxUpdateRequest JsonPropertyName mapping
+- fix(test): correct type names and FluentAssertions methods in unit test suites
+
+### 🔧 Maintenance & Improvements
+- test(coverage): add unit test suites for Freebox, NzbVortex, Automation, Backup, and Extractors
+
 ## [v1.26.3](https://github.com/dmzoneill/Leecharr/releases/tag/v1.26.3) - 2026-09-23
 
 ### ✨ Features
