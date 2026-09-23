@@ -2877,7 +2877,40 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         ? Factories.Default.CreateStreamingPieceRequester()
                         : Factories.Default.CreatePieceRequester();
 
-                    await task.Manager.ChangePickerAsync(requester).ConfigureAwait(false);
+                    if (task.Manager.State == TorrentState.Stopped)
+                    {
+                        try
+                        {
+                            await task.Manager.ChangePickerAsync(requester).ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                        }
+                    }
+
+                    var requesterProp = task.Manager.PieceManager.GetType().GetProperty("Requester", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    requesterProp?.SetValue(task.Manager.PieceManager, requester);
+
+                    var initProp = task.Manager.PieceManager.GetType().GetProperty("Initialised", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    initProp?.SetValue(task.Manager.PieceManager, false);
+
+                    var streamProviderProp = typeof(TorrentManager).GetProperty("StreamProvider", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (streamProviderProp != null)
+                    {
+                        if (enabled)
+                        {
+                            var streamProviderType = typeof(TorrentManager).Assembly.GetType("MonoTorrent.Streaming.StreamProvider");
+                            if (streamProviderType != null)
+                            {
+                                var streamProvider = Activator.CreateInstance(streamProviderType, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public, null, new object[] { task.Manager, requester }, null);
+                                streamProviderProp.SetValue(task.Manager, streamProvider);
+                            }
+                        }
+                        else
+                        {
+                            streamProviderProp.SetValue(task.Manager, null);
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {
