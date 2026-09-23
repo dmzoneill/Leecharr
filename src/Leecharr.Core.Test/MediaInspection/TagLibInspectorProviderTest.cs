@@ -1372,7 +1372,7 @@ public class TagLibInspectorProviderTest
         var stsdBox = CreateStsdBox(sampleEntry);
         var trakBox = CreateTrackBox(stsdBox);
         var moovBox = CreateMoovBox(trakBox);
-        var ftypBox = CreateMp4Box("ftyp", Encoding.ASCII.GetBytes("isom    isommp42"));
+        var ftypBox = CreateMp4Box("ftyp", new byte[] { 0x69, 0x73, 0x6F, 0x6D, 0x00, 0x00, 0x00, 0x00, 0x69, 0x73, 0x6F, 0x6D, 0x6D, 0x70, 0x34, 0x32 });
 
         using var ms = new MemoryStream();
         ms.Write(ftypBox, 0, ftypBox.Length);
@@ -1422,7 +1422,7 @@ public class TagLibInspectorProviderTest
         var stsdBox = CreateStsdBox(audioSampleEntry);
         var trakBox = CreateTrackBox(stsdBox);
         var moovBox = CreateMoovBox(trakBox);
-        var ftypBox = CreateMp4Box("ftyp", Encoding.ASCII.GetBytes("isom    isommp42"));
+        var ftypBox = CreateMp4Box("ftyp", new byte[] { 0x69, 0x73, 0x6F, 0x6D, 0x00, 0x00, 0x00, 0x00, 0x69, 0x73, 0x6F, 0x6D, 0x6D, 0x70, 0x34, 0x32 });
 
         using var ms = new MemoryStream();
         ms.Write(ftypBox, 0, ftypBox.Length);
