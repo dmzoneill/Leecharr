@@ -466,9 +466,10 @@ public class AutomationService : IAutomationService
         var oldStatus = torrent.Status;
         if (result.ShouldPause && torrent.Status != TorrentStatus.Paused)
         {
+            this._logger.Info("[State Machine] Torrent #{0} ('{1}') auto-paused by automation rule/action", torrent.Id, torrent.Name);
             if (_torrentService != null)
             {
-                await _torrentService.PauseAsync(torrent.Id).ConfigureAwait(false);
+                await _torrentService.PauseAsync(torrent.Id, "Auto-paused by automation rule/action").ConfigureAwait(false);
                 torrent.Status = TorrentStatus.Paused;
             }
             else
@@ -481,11 +482,13 @@ public class AutomationService : IAutomationService
                     Torrent = torrent,
                     OldStatus = oldStatus,
                     NewStatus = TorrentStatus.Paused,
+                    Reason = "Auto-paused by automation rule/action",
                 });
             }
         }
         else if (result.ShouldResume && torrent.Status == TorrentStatus.Paused)
         {
+            this._logger.Info("[State Machine] Torrent #{0} ('{1}') auto-resumed by automation rule/action", torrent.Id, torrent.Name);
             if (_torrentService != null)
             {
                 await _torrentService.ResumeAsync(torrent.Id).ConfigureAwait(false);
@@ -505,6 +508,7 @@ public class AutomationService : IAutomationService
                     Torrent = torrent,
                     OldStatus = oldStatus,
                     NewStatus = torrent.Status,
+                    Reason = "Auto-resumed by automation rule/action",
                 });
             }
         }
