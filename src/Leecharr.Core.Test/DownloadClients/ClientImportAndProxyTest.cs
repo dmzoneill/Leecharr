@@ -195,7 +195,7 @@ public class ClientImportAndProxyTest
     [Test]
     public async Task QueryRemoteClientItemsAsync_WhenQBittorrentCredentialsProvided_SendsFormUrlEncodedPost()
     {
-        string? capturedBody = null;
+        string capturedBody = null;
         var handler = new MockHttpMessageHandler(req =>
         {
             if (req.RequestUri!.AbsolutePath.Contains("/api/v2/auth/login"))
@@ -254,7 +254,7 @@ public class ClientImportAndProxyTest
     [Test]
     public async Task QueryRemoteClientItemsAsync_WhenTransmissionCredentialsProvided_SendsBasicAuthHeader()
     {
-        string? capturedAuthHeader = null;
+        string capturedAuthHeader = null;
         var handler = new MockHttpMessageHandler(req =>
         {
             capturedAuthHeader = req.Headers.Authorization?.ToString();
@@ -284,7 +284,7 @@ public class ClientImportAndProxyTest
     public async Task QueryRemoteClientItemsAsync_WhenTransmissionReturnsConflictWithSessionId_RetriesWithSessionIdHeader()
     {
         var callCount = 0;
-        string? secondCallSessionId = null;
+        string secondCallSessionId = null;
 
         var handler = new MockHttpMessageHandler(req =>
         {
@@ -327,7 +327,7 @@ public class ClientImportAndProxyTest
     [Test]
     public async Task QueryRemoteClientItemsAsync_WhenDelugeCredentialsProvided_SendsAuthLoginJsonRpc()
     {
-        string? capturedBody = null;
+        string capturedBody = null;
         var handler = new MockHttpMessageHandler(req =>
         {
             var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult();
@@ -567,7 +567,7 @@ public class ClientImportAndProxyTest
     [Test]
     public async Task TestDirect_WhenUseSslIsTrue_UsesHttpsScheme()
     {
-        string? probedScheme = null;
+        string probedScheme = null;
         var handler = new MockHttpMessageHandler(req =>
         {
             probedScheme = req.RequestUri!.Scheme;
@@ -794,7 +794,7 @@ public class ClientImportAndProxyTest
             InfoHash = hash,
             Name = "Target Movie",
             Category = "custom-cat",
-            OutputPath = "/mnt/storage/movies",
+            SavePath = "/mnt/storage/movies",
         };
 
         this.torrentService.AddFromMagnetAsync(
@@ -1135,12 +1135,12 @@ public class ClientImportAndProxyTest
     [TestCase("")]
     [TestCase(" ")]
     [TestCase(null)]
-    public void Create_WhenNameIsNullOrWhiteSpace_ReturnsBadRequest(string? invalidName)
+    public void Create_WhenNameIsNullOrWhiteSpace_ReturnsBadRequest(string invalidName)
     {
         var controller = new DownloadClientController(this.repository, this.torrentService);
         var resource = new DownloadClientResource
         {
-            Name = invalidName!,
+            Name = invalidName,
             Host = "127.0.0.1",
             Port = 8080,
         };
