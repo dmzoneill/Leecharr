@@ -61,3 +61,7 @@ patch*.py
 patch*.js
 update*.js
 scratch/
+
+# i18n translation cache
+.translation-memory.json
+*.translation-memory.json
