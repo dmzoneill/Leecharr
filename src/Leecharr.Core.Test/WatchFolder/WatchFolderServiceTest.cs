@@ -74,8 +74,6 @@ public class WatchFolderServiceTest
         }
     }
 
-    #region Scene Release Regex Categorization
-
     [TestCase("Severance.S02E01.1080p.WEB-DL.x265", "tv")]
     [TestCase("Severance.S01E01-E04.1080p.WEB-DL", "tv")]
     [TestCase("The.Office.S01E01E02.1080p.BluRay", "tv")]
@@ -154,10 +152,6 @@ public class WatchFolderServiceTest
         category.Should().Be(expectedCategory);
     }
 
-    #endregion
-
-    #region Auto-Add Processing and Deletion / Moving
-
     [Test]
     public async Task ScanWatchFolderAsync_WhenAutoDeleteEnabled_AddsTorrentAndDeletesFile()
     {
@@ -222,10 +216,6 @@ public class WatchFolderServiceTest
             true);
     }
 
-    #endregion
-
-    #region File Lock Resilience During In-Flight Copying
-
     [Test]
     public async Task ScanWatchFolderAsync_WhenFileIsLockedDuringInFlightCopy_LogsAndContinuesRemainingFiles()
     {
@@ -279,10 +269,6 @@ public class WatchFolderServiceTest
 
         this.diskProvider.DidNotReceive().GetFiles(Arg.Any<string>(), Arg.Any<bool>());
     }
-
-    #endregion
-
-    #region IsFileReady Tests
 
     [Test]
     public void IsFileReady_WhenFileDoesNotExist_ReturnsFalse()
@@ -408,10 +394,6 @@ public class WatchFolderServiceTest
         var result = await this.service.IsFileStabilizedAsync(emptyFile, TimeSpan.FromMilliseconds(150));
         result.Should().BeTrue();
     }
-
-    #endregion
-
-    #region Quarantine Tests
 
     [Test]
     public async Task ScanWatchFolderAsync_WhenTorrentFailsParsingThreeTimes_QuarantinesToFailedDirectory()
@@ -587,10 +569,6 @@ public class WatchFolderServiceTest
         this.diskProvider.DidNotReceive().MoveFile(fullPath, expectedDest, Arg.Any<bool>());
     }
 
-    #endregion
-
-    #region Category Cross-Referencing
-
     [Test]
     public void MatchCategoryFromReleaseName_WhenConfiguredCategoryMatches_ResolvesToConfiguredCategoryName()
     {
@@ -603,10 +581,6 @@ public class WatchFolderServiceTest
         var resultTv = this.service.MatchCategoryFromReleaseName("Breaking.Bad.S01E01.1080p");
         resultTv.Should().Be("TV Shows");
     }
-
-    #endregion
-
-    #region FileSystemWatcher and Async Void Reliability Tests
 
     [Test]
     public async Task OnFileSystemWatcherCreated_WhenFileThrowsUnexpectedException_CatchesAndDoesNotCrashProcess()
@@ -797,7 +771,6 @@ public class WatchFolderServiceTest
         disposeAction.Should().NotThrow();
     }
 
-    #endregion
     [Test]
     public async Task ProcessFileAsync_WhenCalledConcurrentlyForSameFile_OnlyProcessesOnce()
     {
@@ -828,8 +801,6 @@ public class WatchFolderServiceTest
             startPaused: Arg.Any<bool>(),
             rawBytes: Arg.Any<byte[]>());
     }
-
-    #region Subdirectory Support and Auto-Mapping
 
     [Test]
     public async Task ScanWatchFolderAsync_WhenFileInSubfolderMatchingCategory_AssignsSubfolderCategory()
@@ -928,10 +899,6 @@ public class WatchFolderServiceTest
         this.diskProvider.Received(1).MoveFile(corruptFile, Path.Combine(rootFailedDir, "corrupt.torrent"), true);
     }
 
-    #endregion
-
-    #region Command and Event Execution Tests
-
     [Test]
     public async Task ExecuteAsync_WhenWatchFolderScanCommandReceived_ScansWatchFolder()
     {
@@ -998,10 +965,6 @@ public class WatchFolderServiceTest
         action.Should().NotThrow();
     }
 
-    #endregion
-
-    #region Renamed File Handling Tests
-
     [Test]
     public async Task OnFileSystemWatcherRenamed_WhenValidTorrent_ProcessesSuccessfully()
     {
@@ -1055,10 +1018,6 @@ public class WatchFolderServiceTest
         await actEmpty.Should().NotThrowAsync();
     }
 
-    #endregion
-
-    #region Category Synonym Mapping Tests
-
     [TestCase("Severance.S02E01.1080p.WEB-DL.x265", "shows", "shows")]
     [TestCase("Severance.S02E01.1080p.WEB-DL.x265", "television", "television")]
     [TestCase("Severance.S02E01.1080p.WEB-DL.x265", "series", "series")]
@@ -1077,10 +1036,6 @@ public class WatchFolderServiceTest
         var category = this.service.MatchCategoryFromReleaseName(releaseName);
         category.Should().Be(expectedCategory);
     }
-
-    #endregion
-
-    #region Additional ProcessFile and Stabilization Tests
 
     [Test]
     public async Task ProcessFileAsync_WhenAutoStartTorrentsFalse_AddsTorrentWithStartPausedTrue()
@@ -1136,6 +1091,4 @@ public class WatchFolderServiceTest
         var result = await this.service.IsFileStabilizedAsync(testFile, TimeSpan.Zero);
         result.Should().BeTrue();
     }
-
-    #endregion
 }

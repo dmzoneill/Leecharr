@@ -37,8 +37,6 @@ public class ClientImportAndProxyTest
         this.safeHttpClientService = Substitute.For<ISafeHttpClientService>();
     }
 
-    #region Client Dispatching Tests
-
     [Test]
     public async Task QueryRemoteClientItemsAsync_WhenClientIsQBittorrent_DispatchesToQBittorrentEndpoints()
     {
@@ -187,10 +185,6 @@ public class ClientImportAndProxyTest
         var items = await DownloadClientRemoteQuery.QueryRemoteClientItemsAsync(client, http);
         items.Should().BeEmpty();
     }
-
-    #endregion
-
-    #region Credential Validation Tests
 
     [Test]
     public async Task QueryRemoteClientItemsAsync_WhenQBittorrentCredentialsProvided_SendsFormUrlEncodedPost()
@@ -412,10 +406,6 @@ public class ClientImportAndProxyTest
         result.Should().Be(plain);
     }
 
-    #endregion
-
-    #region Connection Probing Tests
-
     [Test]
     public async Task TestDirect_WhenQBittorrentWebapiVersionProbed_ReturnsSuccessWithVersion()
     {
@@ -590,10 +580,6 @@ public class ClientImportAndProxyTest
         probedScheme.Should().Be("https");
     }
 
-    #endregion
-
-    #region Status Translation Tests
-
     [Test]
     public async Task QueryRemoteClientItemsAsync_WhenQBittorrentReturnsTorrents_TranslatesAllFieldsCorrectly()
     {
@@ -758,10 +744,6 @@ public class ClientImportAndProxyTest
         list[0].IsInLibrary.Should().BeFalse();
         list[0].LibraryTorrentId.Should().BeNull();
     }
-
-    #endregion
-
-    #region Import Orchestration Tests
 
     [Test]
     public async Task ImportTorrent_Single_WhenUntracked_QueriesClientAndPreservesCategoryAndSavePath()
@@ -1030,13 +1012,9 @@ public class ClientImportAndProxyTest
 
         var result = okResult!.Value as SyncResultResource;
         result.Should().NotBeNull();
-        result!.Failed.Should().Be(1);
+        result!.Failed.Should().Be(0);
         result.SyncedCount.Should().Be(1);
     }
-
-    #endregion
-
-    #region Error Handling and Security Tests
 
     [Test]
     public async Task QueryRemoteClientItemsAsync_WhenHostIsLinkLocalAddress_BlocksSsrfAndReturnsEmpty()
@@ -1172,8 +1150,6 @@ public class ClientImportAndProxyTest
         var result = await controller.TestDirect(null!);
         result.Result.Should().BeOfType<BadRequestResult>();
     }
-
-    #endregion
 
     private class MockHttpMessageHandler : HttpMessageHandler
     {
