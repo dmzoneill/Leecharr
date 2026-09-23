@@ -6,6 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.26.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.26.2) - 2026-09-23
+
+### ✨ Features
+- feat(parity): implement Workpackage 12 interactive calendar matrix, touch painting, and range toolbar parity
+- feat(parity): workpackage 11 - tracker telemetry, embedded server swarms & peer inspection
+- feat(parity): implement Workpackage 10 package import/export and health check parity
+- feat(parity): implement Workpackage 09 filtering and blocklist security parity
+- feat(parity): complete Workpackage 08 test automation parity
+- feat(parity): implement Workpackage 07 Code Quality, Linters & CI/CD Pipelines Parity
+- feat(parity): implement Workpackage 06 Notifications and Servarr Integrations Parity
+- feat(parity): implement Workpackage 05 SignalR Real-Time Protocol and Store Lifecycle Parity
+- feat(parity): implement Workpackage 04 PieceMap visualizer color modes and file boundaries
+- feat(api): achieve Workpackage 03 backend REST API parity with Seedarr
+- feat(modals): align BulkTagModal and DeleteTorrentModal with RBAC permissions and modal provider stack
+
+### 🐛 Bug Fixes
+- fix(engine): ensure PieceManager Requester and StreamProvider update cleanly in SetSequentialDownloadAsync
+- fix(engine): simplify ChangePickerAsync without stopping manager to avoid state transition race
+- fix(test): return Array.Empty<TrackerSwarmInfo>() in GetTorrents when empty to satisfy unit test cast
+- fix(swagger): remove [FromForm] attributes on PackageController.Import to resolve SwaggerGeneratorException
+- fix(ci): use var instead of explicit type in EmbeddedTrackerController
+- fix(ci): use ExecuteWithRetry and table field in TrackerMetric repositories
+- fix(ci): resolve integration test endpoint check and untrack translation memory cache
+
+### 🔧 Maintenance & Improvements
+- style: fix remaining indentation lines to multiple of 4 in MonoTorrentDownloadEngine
+- test(integration): include /api/v1/packages/export in parameter-required GET expectations
+- style: fix indentation on lines 380-381 for editorconfig compliance
+
 ## [v1.26.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.26.1) - 2026-09-22
 
 ### 🐛 Bug Fixes
