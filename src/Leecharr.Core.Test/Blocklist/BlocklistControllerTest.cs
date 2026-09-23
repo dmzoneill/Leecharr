@@ -110,7 +110,7 @@ public class BlocklistControllerTest
     [Test]
     public void UpdateBlocklist_WithAllFields_SavesConfigurationAndReturnsOkWithResource()
     {
-        Dictionary<string, object>? savedUpdates = null;
+        Dictionary<string, object> savedUpdates = null!;
         this.configService.SaveConfigDictionary(Arg.Do<Dictionary<string, object>>(x => savedUpdates = x));
 
         var request = new BlocklistConfigRequest
@@ -135,7 +135,7 @@ public class BlocklistControllerTest
     [Test]
     public void UpdateBlocklist_WithPartialFields_SavesOnlySpecifiedFields()
     {
-        Dictionary<string, object>? savedUpdates = null;
+        Dictionary<string, object> savedUpdates = null!;
         this.configService.SaveConfigDictionary(Arg.Do<Dictionary<string, object>>(x => savedUpdates = x));
 
         var request = new BlocklistConfigRequest
@@ -156,7 +156,7 @@ public class BlocklistControllerTest
     [Test]
     public void UpdateBlocklist_WithOnlyUrl_TrimsAndSavesUrl()
     {
-        Dictionary<string, object>? savedUpdates = null;
+        Dictionary<string, object> savedUpdates = null!;
         this.configService.SaveConfigDictionary(Arg.Do<Dictionary<string, object>>(x => savedUpdates = x));
 
         var request = new BlocklistConfigRequest
@@ -177,7 +177,7 @@ public class BlocklistControllerTest
     [Test]
     public void UpdateBlocklist_WithZeroOrNegativeIntervalDays_DoesNotSaveInterval()
     {
-        Dictionary<string, object>? savedUpdates = null;
+        Dictionary<string, object> savedUpdates = null!;
         this.configService.SaveConfigDictionary(Arg.Do<Dictionary<string, object>>(x => savedUpdates = x));
 
         var request = new BlocklistConfigRequest
