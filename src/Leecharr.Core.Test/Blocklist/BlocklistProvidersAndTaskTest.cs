@@ -74,7 +74,7 @@ public class BlocklistProvidersAndTaskTest
     }
 
     [Test]
-    public void BlocklistUpdateTask_Handle_WhenBlocklistEnabled_StartsLoop()
+    public async Task BlocklistUpdateTask_Handle_WhenBlocklistEnabled_StartsLoop()
     {
         var updateService = Substitute.For<IBlocklistUpdateService>();
         var configService = Substitute.For<IConfigService>();
@@ -85,8 +85,11 @@ public class BlocklistProvidersAndTaskTest
         using var task = new BlocklistUpdateTask(updateService, configService);
         task.Handle(new ApplicationStartedEvent());
 
+        // Wait briefly for background Task.Run to trigger the initial run
+        await Task.Delay(100);
+
         // Initial run on startup in loop
-        updateService.Received().UpdateRulesAsync(Arg.Any<CancellationToken>());
+        await updateService.Received().UpdateRulesAsync(Arg.Any<CancellationToken>());
     }
 
     [Test]
