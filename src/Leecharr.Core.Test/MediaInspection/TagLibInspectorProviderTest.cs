@@ -175,7 +175,7 @@ public class TagLibInspectorProviderTest
         // 2. Segment
         WriteId(ms, 0x18538067);
         WriteSize(ms, -1);
-        long segmentStart = ms.Position;
+        var segmentStart = ms.Position;
 
         // Tracks will be written at an offset beyond the initial 64KB buffer (e.g. 70,000 bytes into Segment)
         const long tracksSeekOffset = 70000;
@@ -207,7 +207,7 @@ public class TagLibInspectorProviderTest
         }
 
         // 4. Fill padding until reaching tracksSeekOffset from segmentStart
-        long currentOffsetFromSegment = ms.Position - segmentStart;
+        var currentOffsetFromSegment = ms.Position - segmentStart;
         if (currentOffsetFromSegment < tracksSeekOffset)
         {
             var padding = new byte[tracksSeekOffset - currentOffsetFromSegment];
@@ -294,7 +294,7 @@ public class TagLibInspectorProviderTest
         WriteEbmlString(ms, 0x86, "A_FLAC");
 
         // Insert unknown master element (0x1254C367 Tags) inside TrackEntry
-        byte[] dummyMasterPayload = new byte[] { 0x01, 0x02, 0x03, 0x04 };
+        var dummyMasterPayload = new byte[] { 0x01, 0x02, 0x03, 0x04 };
         WriteId(ms, 0x1254C367);
         WriteSize(ms, dummyMasterPayload.Length);
         ms.Write(dummyMasterPayload);
@@ -325,13 +325,13 @@ public class TagLibInspectorProviderTest
         using var ms = new MemoryStream();
 
         ms.Write(new byte[] { 0x00, 0x00, 0x00, 0x01 });
-        byte[] seiNal = new byte[] { 0x4E, 0x01, 0x04, 0x05, 0xB5, 0x00, 0x3C, 0x00, 0x01 };
+        var seiNal = new byte[] { 0x4E, 0x01, 0x04, 0x05, 0xB5, 0x00, 0x3C, 0x00, 0x01 };
         ms.Write(seiNal);
 
         ms.Write(new byte[] { 0x00, 0x00, 0x01, 0x26, 0x01 });
 
         var buffer = ms.ToArray();
-        bool hasHdr10Plus = TagLibInspectorProvider.ScanBufferForHdr10PlusSei(buffer, 0, buffer.Length);
+        var hasHdr10Plus = TagLibInspectorProvider.ScanBufferForHdr10PlusSei(buffer, 0, buffer.Length);
 
         hasHdr10Plus.Should().BeTrue();
     }
@@ -1618,9 +1618,9 @@ public class TagLibInspectorProviderTest
         writer.Write(formatTag);
         writer.Write(channels);
         writer.Write(sampleRate);
-        uint byteRate = sampleRate * channels * (uint)(bitsPerSample / 8);
+        var byteRate = sampleRate * channels * (uint)(bitsPerSample / 8);
         writer.Write(byteRate);
-        ushort blockAlign = (ushort)(channels * (bitsPerSample / 8));
+        var blockAlign = (ushort)(channels * (bitsPerSample / 8));
         writer.Write(blockAlign);
         writer.Write(bitsPerSample);
 
@@ -1630,7 +1630,7 @@ public class TagLibInspectorProviderTest
 
         var data = ms.ToArray();
         // Update RIFF chunk size at offset 4
-        int riffSize = data.Length - 8;
+        var riffSize = data.Length - 8;
         data[4] = (byte)(riffSize & 0xFF);
         data[5] = (byte)((riffSize >> 8) & 0xFF);
         data[6] = (byte)((riffSize >> 16) & 0xFF);
@@ -1877,7 +1877,7 @@ public class TagLibInspectorProviderTest
 
         byte sampleRateBits;
         int frameSize;
-        int bitrate = 128000;
+        var bitrate = 128000;
         switch (sampleRate)
         {
             case 48000:
@@ -1895,9 +1895,9 @@ public class TagLibInspectorProviderTest
                 break;
         }
 
-        byte channelBits = channels == 1 ? (byte)0x03 : (byte)0x00;
+        var channelBits = channels == 1 ? (byte)0x03 : (byte)0x00;
 
-        for (int i = 0; i < frameCount; i++)
+        for (var i = 0; i < frameCount; i++)
         {
             var frame = new byte[frameSize];
             frame[0] = 0xFF;
@@ -2259,7 +2259,7 @@ public class TagLibInspectorProviderTest
     private static byte[] CreateMp4Box(string type, byte[] payload)
     {
         using var ms = new MemoryStream();
-        uint size = (uint)(payload.Length + 8);
+        var size = (uint)(payload.Length + 8);
         ms.WriteByte((byte)(size >> 24));
         ms.WriteByte((byte)((size >> 16) & 0xFF));
         ms.WriteByte((byte)((size >> 8) & 0xFF));
@@ -2279,8 +2279,8 @@ public class TagLibInspectorProviderTest
         ms.WriteByte(1);
         var typeBytes = Encoding.ASCII.GetBytes(type);
         ms.Write(typeBytes, 0, 4);
-        ulong totalSize = (ulong)(payload.Length + 16);
-        for (int i = 7; i >= 0; i--)
+        var totalSize = (ulong)(payload.Length + 16);
+        for (var i = 7; i >= 0; i--)
         {
             ms.WriteByte((byte)((totalSize >> (i * 8)) & 0xFF));
         }
@@ -2466,7 +2466,7 @@ public class TagLibInspectorProviderTest
         // NAL unit: Prefix SEI with user_data_registered_itu_t_t35 (SMPTE ST 2094-40)
         // NAL header: 0x4E (39 << 1), 0x01
         // SEI payload: type=4, size=5, payload = [0xB5, 0x00, 0x3C, 0x00, 0x01]
-        byte[] seiNal = new byte[] { 0x4E, 0x01, 0x04, 0x05, 0xB5, 0x00, 0x3C, 0x00, 0x01 };
+        var seiNal = new byte[] { 0x4E, 0x01, 0x04, 0x05, 0xB5, 0x00, 0x3C, 0x00, 0x01 };
         ms.WriteByte((byte)(seiNal.Length >> 8));
         ms.WriteByte((byte)(seiNal.Length & 0xFF));
         ms.Write(seiNal, 0, seiNal.Length);
@@ -2485,7 +2485,7 @@ public class TagLibInspectorProviderTest
         ms.WriteByte((byte)(sampleSize >> 8));
         ms.WriteByte((byte)(sampleSize & 0xFF));
         ms.Write(new byte[4], 0, 4);
-        uint srFixed = sampleRate << 16;
+        var srFixed = sampleRate << 16;
         ms.WriteByte((byte)(srFixed >> 24));
         ms.WriteByte((byte)((srFixed >> 16) & 0xFF));
         ms.WriteByte((byte)((srFixed >> 8) & 0xFF));
@@ -2627,10 +2627,10 @@ public class TagLibInspectorProviderTest
                 strfMs.Write(BitConverter.GetBytes(audioFormatTag.Value)); // wFormatTag
                 strfMs.Write(BitConverter.GetBytes(audioChannels)); // nChannels
                 strfMs.Write(BitConverter.GetBytes(audioSampleRate)); // nSamplesPerSec
-                uint avgBytesPerSec = audioSampleRate * audioChannels * (uint)(audioBitsPerSample / 8);
+                var avgBytesPerSec = audioSampleRate * audioChannels * (uint)(audioBitsPerSample / 8);
                 strfMs.Write(BitConverter.GetBytes(avgBytesPerSec)); // nAvgBytesPerSec
-                ushort blockAlign = (ushort)(audioChannels * (audioBitsPerSample / 8));
-                ushort effectiveBlockAlign = blockAlign == 0 ? (ushort)1 : blockAlign;
+                var blockAlign = (ushort)(audioChannels * (audioBitsPerSample / 8));
+                var effectiveBlockAlign = blockAlign == 0 ? (ushort)1 : blockAlign;
                 strfMs.Write(BitConverter.GetBytes(effectiveBlockAlign)); // nBlockAlign
                 strfMs.Write(BitConverter.GetBytes(audioBitsPerSample)); // wBitsPerSample
                 ushort cbSize = 0;
@@ -3052,7 +3052,7 @@ public class TagLibInspectorProviderTest
                 return 0;
             }
 
-            int toRead = Math.Min(count, this.data.Length - this.position);
+            var toRead = Math.Min(count, this.data.Length - this.position);
             Array.Copy(this.data, this.position, buffer, offset, toRead);
             this.position += toRead;
             return toRead;

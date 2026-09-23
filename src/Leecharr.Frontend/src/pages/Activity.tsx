@@ -131,7 +131,11 @@ function Activity() {
             <span>⚡</span> {t("activity.title")}
             <span
               className="badge badge-success"
-              style={{ fontSize: "0.75rem", borderRadius: "4px", marginLeft: "0.25rem" }}
+              style={{
+                fontSize: "0.75rem",
+                borderRadius: "4px",
+                marginLeft: "0.25rem",
+              }}
             >
               {t("common.live")}
             </span>

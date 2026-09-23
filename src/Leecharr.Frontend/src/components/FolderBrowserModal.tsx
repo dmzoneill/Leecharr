@@ -165,7 +165,11 @@ export function FolderBrowserModal({
             type="button"
             className="btn btn-outline btn-small"
             onClick={onClose}
-            aria-label={t("folderBrowser.close", undefined, "Close folder browser")}
+            aria-label={t(
+              "folderBrowser.close",
+              undefined,
+              "Close folder browser",
+            )}
             title={t("folderBrowser.close", undefined, "Close folder browser")}
             style={{ padding: "0.2rem 0.5rem", fontSize: "0.8rem" }}
           >
@@ -197,7 +201,11 @@ export function FolderBrowserModal({
               onClick={handleNavigateUp}
               disabled={!currentPath || currentPath === "/"}
               title={t("folderBrowser.goToParent", "Go to parent directory")}
-              style={{ padding: "0.3rem 0.6rem", fontSize: "0.8rem", flexShrink: 0 }}
+              style={{
+                padding: "0.3rem 0.6rem",
+                fontSize: "0.8rem",
+                flexShrink: 0,
+              }}
             >
               ⬆ {t("folderBrowser.up", "Up")}
             </button>
@@ -225,7 +233,11 @@ export function FolderBrowserModal({
               className="btn btn-outline btn-small"
               onClick={() => setShowNewFolderInput((prev) => !prev)}
               title={t("folderBrowser.createNewFolder", "Create new folder")}
-              style={{ padding: "0.3rem 0.6rem", fontSize: "0.8rem", flexShrink: 0 }}
+              style={{
+                padding: "0.3rem 0.6rem",
+                fontSize: "0.8rem",
+                flexShrink: 0,
+              }}
             >
               + {t("folderBrowser.newFolder", "New Folder")}
             </button>
@@ -248,8 +260,15 @@ export function FolderBrowserModal({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleCreateFolder();
                 }}
-                placeholder={t("folderBrowser.folderNamePlaceholder", "Folder name...")}
-                style={{ flex: 1, padding: "0.3rem 0.6rem", fontSize: "0.85rem" }}
+                placeholder={t(
+                  "folderBrowser.folderNamePlaceholder",
+                  "Folder name...",
+                )}
+                style={{
+                  flex: 1,
+                  padding: "0.3rem 0.6rem",
+                  fontSize: "0.85rem",
+                }}
                 autoFocus
               />
               <button
@@ -317,11 +336,22 @@ export function FolderBrowserModal({
                 fontSize: "0.85rem",
               }}
             >
-              <div style={{ fontSize: "1.6rem", marginBottom: "0.35rem" }}>📂</div>
-              {t("folderBrowser.noSubfolders", "No subfolders in this directory.")}
+              <div style={{ fontSize: "1.6rem", marginBottom: "0.35rem" }}>
+                📂
+              </div>
+              {t(
+                "folderBrowser.noSubfolders",
+                "No subfolders in this directory.",
+              )}
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.25rem",
+              }}
+            >
               {directories.map((dir) => (
                 <div
                   key={dir.path}
@@ -339,8 +369,9 @@ export function FolderBrowserModal({
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor =
-                       "rgba(255, 209, 102, 0.12)";
-                    e.currentTarget.style.borderColor = "rgba(255, 209, 102, 0.3)";
+                      "rgba(255, 209, 102, 0.12)";
+                    e.currentTarget.style.borderColor =
+                      "rgba(255, 209, 102, 0.3)";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor =
@@ -407,7 +438,8 @@ export function FolderBrowserModal({
               maxWidth: "280px",
             }}
           >
-            {t("folderBrowser.selected", "Selected:")} <code style={{ color: "var(--accent)" }}>{currentPath}</code>
+            {t("folderBrowser.selected", "Selected:")}{" "}
+            <code style={{ color: "var(--accent)" }}>{currentPath}</code>
           </div>
 
           <div style={{ display: "flex", gap: "0.5rem" }}>

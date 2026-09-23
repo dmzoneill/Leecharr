@@ -680,7 +680,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                 var rpcIds = this.GetRpcIdsForTorrent(torrentId, task.InfoHash);
                 if (rpcIds.Count > 0)
                 {
-                    int fileIndex = -1;
+                    var fileIndex = -1;
                     if (!int.TryParse(filePath, out fileIndex))
                     {
                         var getResp = await this.SendRpcRequestAsync("torrent-get", new Dictionary<string, object>
@@ -696,7 +696,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                             {
                                 if (item.TryGetProperty("files", out var fArr))
                                 {
-                                    int idx = 0;
+                                    var idx = 0;
                                     foreach (var f in fArr.EnumerateArray())
                                     {
                                         var name = f.TryGetProperty("name", out var n) ? n.GetString()?.Replace('\\', '/').TrimStart('/') : null;

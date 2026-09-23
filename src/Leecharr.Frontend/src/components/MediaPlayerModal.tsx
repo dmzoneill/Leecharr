@@ -73,7 +73,13 @@ export function MediaPlayerModal({
   useEffect(() => {
     if (isOpen) {
       const ext = fileName.split(".").pop()?.toLowerCase() || "unknown";
-      const mimeCat = isAudio ? "audio" : ext === "mp4" ? "video_mp4" : ext === "mkv" ? "video_mkv" : "video_other";
+      const mimeCat = isAudio
+        ? "audio"
+        : ext === "mp4"
+          ? "video_mp4"
+          : ext === "mkv"
+            ? "video_mkv"
+            : "video_other";
       trackMediaPreview(mimeCat);
     }
   }, [isOpen, isAudio, fileName]);
@@ -345,12 +351,7 @@ export function MediaPlayerModal({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [
-    isOpen,
-    resolvedSubtitles,
-    activeSubtitleTrackId,
-    handleSubtitleChange,
-  ]);
+  }, [isOpen, resolvedSubtitles, activeSubtitleTrackId, handleSubtitleChange]);
 
   if (!isOpen) return null;
 
@@ -597,7 +598,8 @@ export function MediaPlayerModal({
                     gap: "0.4rem",
                   }}
                 >
-                  <span>⬇️</span> {t("mediaPlayer.directDownload", "Direct Download")}
+                  <span>⬇️</span>{" "}
+                  {t("mediaPlayer.directDownload", "Direct Download")}
                 </a>
                 <button
                   type="button"
@@ -609,7 +611,10 @@ export function MediaPlayerModal({
                     gap: "0.4rem",
                   }}
                 >
-                  <span>📋</span> {copied ? t("mediaPlayer.copied", "Copied!") : t("mediaPlayer.copyStreamUrl", "Copy Stream URL")}
+                  <span>📋</span>{" "}
+                  {copied
+                    ? t("mediaPlayer.copied", "Copied!")
+                    : t("mediaPlayer.copyStreamUrl", "Copy Stream URL")}
                 </button>
                 <button
                   type="button"
@@ -730,7 +735,10 @@ export function MediaPlayerModal({
               </label>
               <select
                 id="subtitle-select"
-                aria-label={t("mediaPlayer.selectSubtitleTrack", "Select subtitle track")}
+                aria-label={t(
+                  "mediaPlayer.selectSubtitleTrack",
+                  "Select subtitle track",
+                )}
                 className="form-control"
                 style={{
                   fontSize: "0.8rem",
@@ -777,7 +785,10 @@ export function MediaPlayerModal({
                   </label>
                   <select
                     id="subtitle-size-select"
-                    aria-label={t("mediaPlayer.subtitleTextSize", "Subtitle text size")}
+                    aria-label={t(
+                      "mediaPlayer.subtitleTextSize",
+                      "Subtitle text size",
+                    )}
                     className="form-control"
                     style={{
                       fontSize: "0.75rem",
@@ -790,10 +801,18 @@ export function MediaPlayerModal({
                       setSubtitleSize(e.target.value as SubtitleSize)
                     }
                   >
-                    <option value="small">{t("mediaPlayer.sizeSmall", "Small")}</option>
-                    <option value="medium">{t("mediaPlayer.sizeNormal", "Normal")}</option>
-                    <option value="large">{t("mediaPlayer.sizeLarge", "Large")}</option>
-                    <option value="x-large">{t("mediaPlayer.sizeExtraLarge", "Extra Large")}</option>
+                    <option value="small">
+                      {t("mediaPlayer.sizeSmall", "Small")}
+                    </option>
+                    <option value="medium">
+                      {t("mediaPlayer.sizeNormal", "Normal")}
+                    </option>
+                    <option value="large">
+                      {t("mediaPlayer.sizeLarge", "Large")}
+                    </option>
+                    <option value="x-large">
+                      {t("mediaPlayer.sizeExtraLarge", "Extra Large")}
+                    </option>
                   </select>
                 </div>
               )}
@@ -812,7 +831,10 @@ export function MediaPlayerModal({
             <a
               href={vlcUrl}
               className="btn btn-xs btn-default"
-              title={t("mediaPlayer.tooltipVlc", "Open stream in VLC media player")}
+              title={t(
+                "mediaPlayer.tooltipVlc",
+                "Open stream in VLC media player",
+              )}
               style={{ textDecoration: "none" }}
             >
               VLC
@@ -831,7 +853,9 @@ export function MediaPlayerModal({
               onClick={handleCopyStreamUrl}
               title={t("mediaPlayer.tooltipCopyUrl", "Copy direct stream URL")}
             >
-              {copied ? t("mediaPlayer.copied", "Copied!") : t("mediaPlayer.copyUrl", "Copy URL")}
+              {copied
+                ? t("mediaPlayer.copied", "Copied!")
+                : t("mediaPlayer.copyUrl", "Copy URL")}
             </button>
             <a
               href={downloadUrl}

@@ -168,8 +168,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               color: "var(--accent, #ffd166)",
               textTransform: "uppercase",
               letterSpacing: "0.05em",
-              borderBottom:
-                "1px solid var(--border-light)",
+              borderBottom: "1px solid var(--border-light)",
               paddingBottom: "0.25rem",
             }}
           >
@@ -304,8 +303,7 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
               color: "var(--accent, #ffd166)",
               textTransform: "uppercase",
               letterSpacing: "0.05em",
-              borderBottom:
-                "1px solid var(--border-light)",
+              borderBottom: "1px solid var(--border-light)",
               paddingBottom: "0.25rem",
             }}
           >

@@ -72,7 +72,8 @@ export function DeleteTorrentModal({
 
   const effectiveTorrentName = torrentName ?? torrent?.name;
   const isMultiple =
-    (typeof count === "number" && count > 1) || (!effectiveTorrentName && count !== 1);
+    (typeof count === "number" && count > 1) ||
+    (!effectiveTorrentName && count !== 1);
 
   const title = isMultiple
     ? t("torrents.deleteTorrentsTitle", undefined, "Delete Torrents")
@@ -140,7 +141,9 @@ export function DeleteTorrentModal({
             marginBottom: "0.85rem",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <div
+            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+          >
             <div
               style={{
                 width: "36px",
@@ -218,7 +221,8 @@ export function DeleteTorrentModal({
           style={{
             padding: "0.75rem 1rem",
             backgroundColor: "var(--danger-bg-alert, rgba(239, 68, 68, 0.12))",
-            border: "1px solid var(--danger-border-alert, rgba(239, 68, 68, 0.3))",
+            border:
+              "1px solid var(--danger-border-alert, rgba(239, 68, 68, 0.3))",
             borderRadius: "6px",
             marginBottom: "1.25rem",
             fontSize: "0.875rem",
