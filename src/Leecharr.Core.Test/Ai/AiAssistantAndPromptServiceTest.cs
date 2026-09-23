@@ -48,13 +48,12 @@ public class AiAssistantAndPromptServiceTest
         Environment.SetEnvironmentVariable("GEMINI_API_KEY", this.originalEnvKey);
     }
 
-    #region 1. Prompt Building Tests
 
     [Test]
     public async Task ParseReleaseAsync_CloudGemini_WrapsUntrustedReleaseNameInXmlTags()
     {
         HttpRequestMessage capturedRequest = null!;
-        string capturedBody = string.Empty;
+        var capturedBody = string.Empty;
 
         var handler = new MockHttpMessageHandler(async (req, ct) =>
         {
@@ -100,7 +99,7 @@ public class AiAssistantAndPromptServiceTest
     [Test]
     public async Task ProcessNaturalLanguageSearchAsync_CloudGemini_BuildsPromptWithQueryXmlTags()
     {
-        string capturedBody = string.Empty;
+        var capturedBody = string.Empty;
 
         var handler = new MockHttpMessageHandler(async (req, ct) =>
         {
@@ -146,7 +145,7 @@ public class AiAssistantAndPromptServiceTest
     [Test]
     public async Task AnalyzeMalwareRiskAsync_CloudGemini_BuildsPromptWithTorrentNameAndFilesListXmlTags()
     {
-        string capturedBody = string.Empty;
+        var capturedBody = string.Empty;
 
         var handler = new MockHttpMessageHandler(async (req, ct) =>
         {
@@ -200,7 +199,7 @@ public class AiAssistantAndPromptServiceTest
     [Test]
     public async Task DiagnoseTorrentHealthAsync_CloudGemini_BuildsDiagnosticPromptWithSwarmMetrics()
     {
-        string capturedBody = string.Empty;
+        var capturedBody = string.Empty;
 
         var handler = new MockHttpMessageHandler(async (req, ct) =>
         {
@@ -256,7 +255,7 @@ public class AiAssistantAndPromptServiceTest
     [Test]
     public async Task GenerateChatResponseAsync_Ollama_BuildsPayloadWithModelPromptAndSystemContext()
     {
-        string capturedBody = string.Empty;
+        var capturedBody = string.Empty;
 
         var handler = new MockHttpMessageHandler(async (req, ct) =>
         {
@@ -287,9 +286,7 @@ public class AiAssistantAndPromptServiceTest
         capturedBody.Should().Contain("\"system\":\"Custom Bittorrent Assistant Context\"");
     }
 
-    #endregion
 
-    #region 2. Response Parsing Tests
 
     [Test]
     public async Task ParseReleaseAsync_CloudGemini_StripsMarkdownFencesAndParsesJsonProperly()
@@ -506,9 +503,7 @@ public class AiAssistantAndPromptServiceTest
         assessment.AnalyzedFilesCount.Should().Be(3);
     }
 
-    #endregion
 
-    #region 3. Error Handling Tests
 
     [TestCase(HttpStatusCode.Unauthorized)]
     [TestCase(HttpStatusCode.Forbidden)]
@@ -610,9 +605,7 @@ public class AiAssistantAndPromptServiceTest
         reply.Should().Contain("VPN & Network Binding");
     }
 
-    #endregion
 
-    #region 4. Token Limits and Large Inputs Tests
 
     [Test]
     public async Task AnalyzeMalwareRiskAsync_WithThousandsOfFiles_PackagesPromptWithoutException()
@@ -706,7 +699,7 @@ public class AiAssistantAndPromptServiceTest
     [Test]
     public async Task ParseReleaseAsync_WhenPromptInjectionPayloadAttempted_EnclosesLiteralDataInXmlTags()
     {
-        string capturedBody = string.Empty;
+        var capturedBody = string.Empty;
 
         var handler = new MockHttpMessageHandler(async (req, ct) =>
         {
@@ -746,9 +739,7 @@ public class AiAssistantAndPromptServiceTest
         result.CleanTitle.Should().Be("Attack Payload");
     }
 
-    #endregion
 
-    #region 5. Fallback When AI Provider Fails Tests
 
     [Test]
     public async Task CloudGemini_WhenApiKeyMissing_SetsLastChatUsedFallbackTrueAndUsesHeuristic()
@@ -898,9 +889,7 @@ public class AiAssistantAndPromptServiceTest
         speedResponse.Should().Contain("Diagnostics & Speed Troubleshooting");
     }
 
-    #endregion
 
-    #region 6. Model Configuration Tests
 
     [Test]
     public async Task CloudGemini_ModelConfiguration_UsesConfiguredModelInRequestUrl()
@@ -978,7 +967,7 @@ public class AiAssistantAndPromptServiceTest
     {
         this.configService.GetValue("OllamaModel", Arg.Any<string>()).Returns("mistral:7b");
 
-        string capturedBody = string.Empty;
+        var capturedBody = string.Empty;
         var handler = new MockHttpMessageHandler(async (req, ct) =>
         {
             capturedBody = await req.Content!.ReadAsStringAsync();
@@ -996,7 +985,6 @@ public class AiAssistantAndPromptServiceTest
         capturedBody.Should().Contain("\"model\":\"mistral:7b\"");
     }
 
-    #endregion
 
     private class MockHttpMessageHandler : HttpMessageHandler
     {
