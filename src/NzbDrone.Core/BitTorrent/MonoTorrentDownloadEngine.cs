@@ -1807,7 +1807,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 try
                 {
                     await task.Manager.PauseAsync();
-                    this.logger.Info("Paused torrent id {0}", task.TorrentId);
+                    this.logger.Info("[State Machine] Torrent #{0} ('{1}') auto-paused by speed scheduler / rate limit schedule", task.TorrentId, task.Manager?.Torrent?.Name ?? task.InfoHash);
+                    this.torrentLogService?.Log(task.TorrentId, "Info", "Scheduler", "Auto-paused by speed scheduler / rate limit schedule");
                 }
                 catch (Exception ex)
                 {
@@ -1876,7 +1877,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         this.logger.Debug(ex, "Failed to announce tracker on resume for torrent {0}", task.TorrentId);
                     }
 
-                    this.logger.Info("Resumed torrent id {0} from speed scheduler", task.TorrentId);
+                    this.logger.Info("[State Machine] Torrent #{0} ('{1}') resumed from speed scheduler", task.TorrentId, task.Manager?.Torrent?.Name ?? task.InfoHash);
+                    this.torrentLogService?.Log(task.TorrentId, "Info", "Scheduler", "Resumed from speed scheduler pause");
                 }
                 catch (Exception ex)
                 {
@@ -4192,6 +4194,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
                         // Immediately pause manager to stop all network requests
                         await task.Manager.PauseAsync().ConfigureAwait(false);
+                        this.logger.Warn("[State Machine] Torrent #{0} ('{1}') halted and paused: VPN Kill Switch triggered (network interface dropped)", task.TorrentId, task.Manager?.Torrent?.Name ?? task.InfoHash);
+                        this.torrentLogService?.Log(task.TorrentId, "Warn", "Network", "Halted and paused: VPN Kill Switch triggered (network interface dropped)");
 
                         // Immediately abort active peer socket connections to prevent traffic leakage
                         var peers = await task.Manager.GetPeersAsync().ConfigureAwait(false);
@@ -4311,7 +4315,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                     try
                     {
                         await task.Manager.StartAsync().ConfigureAwait(false);
-                        this.logger.Info("Resumed torrent id {0} following VPN interface recovery", torrentId);
+                        this.logger.Info("[State Machine] Torrent #{0} ('{1}') resumed following VPN interface recovery", torrentId, task.Manager?.Torrent?.Name ?? task.InfoHash);
+                        this.torrentLogService?.Log(torrentId, "Info", "Network", "Resumed following VPN interface recovery");
                     }
                     catch (Exception ex)
                     {
@@ -6624,7 +6629,10 @@ public class MonoTorrentDownloadTask : IDownloadTask
                     this.logger.Debug(ex, "Failed to pause manager during low-disk condition for torrent {0}", this.TorrentId);
                 }
 
-                this.SetStorageFull($"StorageFull: Free disk space dropped below threshold ({freeSpace.Value / (1024 * 1024)} MB available, {thresholdBytes / (1024 * 1024)} MB required).", eventAggregator);
+                var freeMb = freeSpace.Value / (1024 * 1024);
+                var reqMb = thresholdBytes / (1024 * 1024);
+                this.logger.Warn("[State Machine] Torrent #{0} ('{1}') auto-paused due to low disk space ({2} MB available, {3} MB required on destination path '{4}').", this.TorrentId, this.Manager?.Torrent?.Name ?? this.InfoHash, freeMb, reqMb, path);
+                this.SetStorageFull($"StorageFull: Free disk space dropped below threshold ({freeMb} MB available, {reqMb} MB required).", eventAggregator);
                 return true;
             }
         }
