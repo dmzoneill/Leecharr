@@ -141,7 +141,7 @@ public class TorrentOrganizerService
     }
 
     public IReadOnlyList<OrganizeFilePlan> OrganizeBatch(
-        IEnumerable<(string sourcePath, EpisodeNamingContext context)> items,
+        IEnumerable<(string SourcePath, EpisodeNamingContext Context)> items,
         string destinationRoot,
         CollisionResolution collisionResolution = CollisionResolution.RenameWithIndex,
         bool dryRun = false)
@@ -149,7 +149,7 @@ public class TorrentOrganizerService
         var results = new List<OrganizeFilePlan>();
         foreach (var item in items)
         {
-            var plan = this.OrganizeEpisode(item.sourcePath, destinationRoot, item.context, collisionResolution, dryRun);
+            var plan = this.OrganizeEpisode(item.SourcePath, destinationRoot, item.Context, collisionResolution, dryRun);
             results.Add(plan);
         }
 
