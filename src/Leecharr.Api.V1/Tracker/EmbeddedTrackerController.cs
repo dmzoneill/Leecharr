@@ -148,7 +148,7 @@ public class EmbeddedTrackerController : ControllerBase
         var swarms = this.trackerService.GetAllSwarms();
         if (swarms == null || swarms.Count == 0)
         {
-            return this.Ok(new List<object>());
+            return this.Ok(Array.Empty<TrackerSwarmInfo>());
         }
 
         var torrentsByHash = new Dictionary<string, Torrent>(StringComparer.OrdinalIgnoreCase);
