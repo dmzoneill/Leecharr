@@ -171,7 +171,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 }
 
                 var prop = this.engine.GetType().GetProperty("DhtEngine", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-                           ?? this.engine.GetType().GetProperty("Dht", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                            ?? this.engine.GetType().GetProperty("Dht", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
                 if (prop != null)
                 {
@@ -1015,8 +1015,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                                         torrent.DateCompleted.HasValue;
 
             var isCompleteOrSeeding = ((torrent.Status == TorrentStatus.Seeding || torrent.Progress >= 1.0) && hasCompletedFiles) ||
-                                      (torrent.DateCompleted.HasValue && hasCompletedFiles) ||
-                                      (savedFastResume?.Bitfield != null && savedFastResume.Bitfield.AllTrue && hasCompletedFiles);
+                                        (torrent.DateCompleted.HasValue && hasCompletedFiles) ||
+                                        (savedFastResume?.Bitfield != null && savedFastResume.Bitfield.AllTrue && hasCompletedFiles);
 
             var workingPath = (isCompleteOrSeeding || isDbCompleteOrSeeding || !useIncompleteDir || (!hasIncompleteFiles && hasCompletedFiles && torrent.DateCompleted.HasValue))
                 ? completedDir
@@ -1641,7 +1641,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                             var sanitizedTorrentName = TorrentPathValidator.SanitizeRelativePath(torrentName);
 
                             var isMatchingName = string.Equals(dirName, torrentName, StringComparison.OrdinalIgnoreCase) ||
-                                                 (!string.IsNullOrWhiteSpace(sanitizedTorrentName) && string.Equals(dirName, sanitizedTorrentName, StringComparison.OrdinalIgnoreCase));
+                                                    (!string.IsNullOrWhiteSpace(sanitizedTorrentName) && string.Equals(dirName, sanitizedTorrentName, StringComparison.OrdinalIgnoreCase));
                             var isRootIncomplete = !string.IsNullOrWhiteSpace(incompleteDir) &&
                                 string.Equals(
                                     Path.GetFullPath(containingDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
@@ -2048,7 +2048,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
 
             var isMultiFile = (manager.Torrent != null && manager.Torrent.Files.Count > 1) ||
-                              (manager.Files != null && manager.Files.Count > 1);
+                                (manager.Files != null && manager.Files.Count > 1);
 
             foreach (var p in candidatePaths.Distinct(StringComparer.OrdinalIgnoreCase))
             {
@@ -3199,10 +3199,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 {
                     var taskCompleted = this.tasks.TryGetValue(torrentId, out var activeT) && activeT.IsFilesMovedToCompleted;
                     var isComplete = taskCompleted ||
-                                     manager.Complete ||
-                                     (manager.Bitfield != null && manager.Bitfield.Length > 0 && manager.Bitfield.AllTrue) ||
-                                     manager.Progress >= 99.99 ||
-                                     e.NewState == TorrentState.Seeding;
+                                        manager.Complete ||
+                                        (manager.Bitfield != null && manager.Bitfield.Length > 0 && manager.Bitfield.AllTrue) ||
+                                        manager.Progress >= 99.99 ||
+                                        e.NewState == TorrentState.Seeding;
 
                     if (!isComplete)
                     {
@@ -4224,12 +4224,12 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     public async Task ResumeTorrentsAfterVpnRestoredAsync()
     {
         var isKillSwitchEnabled = this.configService.EnableVpnKillSwitch ||
-                                  (this.vpnKillSwitchService?.IsKillSwitchEnabled ?? false);
+                                    (this.vpnKillSwitchService?.IsKillSwitchEnabled ?? false);
 
         if (this.vpnKillSwitchService != null && isKillSwitchEnabled)
         {
             var vpnIp = this.vpnKillSwitchService.GetVpnInterfaceIpAddress(System.Net.Sockets.AddressFamily.InterNetwork) ??
-                         this.vpnKillSwitchService.GetVpnInterfaceIpAddress(System.Net.Sockets.AddressFamily.InterNetworkV6);
+                            this.vpnKillSwitchService.GetVpnInterfaceIpAddress(System.Net.Sockets.AddressFamily.InterNetworkV6);
             if (vpnIp == null)
             {
                 this.isHaltedByKillSwitch = true;
@@ -4506,7 +4506,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             var nic = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces()
                 .FirstOrDefault(n => string.Equals(n.Name, interfaceName, StringComparison.OrdinalIgnoreCase) ||
-                                     string.Equals(n.Id, interfaceName, StringComparison.OrdinalIgnoreCase));
+                                        string.Equals(n.Id, interfaceName, StringComparison.OrdinalIgnoreCase));
 
             if (nic == null || nic.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up)
             {
@@ -4711,13 +4711,13 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var anonymousModeChanged = this.lastAppliedAnonymousMode != currentAnonymousMode;
 
         var interfaceOrPortChanged = !string.Equals(this.lastAppliedInterfaceBinding, currentIface, StringComparison.OrdinalIgnoreCase) ||
-                                     this.lastAppliedListenPort != currentPort;
+                                        this.lastAppliedListenPort != currentPort;
 
         var proxyChanged = !string.Equals(this.lastAppliedProxyType, currentProxyType, StringComparison.OrdinalIgnoreCase) ||
-                           !string.Equals(this.lastAppliedProxyHost, currentProxyHost, StringComparison.OrdinalIgnoreCase) ||
-                           this.lastAppliedProxyPort != currentProxyPort ||
-                           !string.Equals(this.lastAppliedProxyUsername, currentProxyUsername, StringComparison.Ordinal) ||
-                           !string.Equals(this.lastAppliedProxyPassword, currentProxyPassword, StringComparison.Ordinal);
+                            !string.Equals(this.lastAppliedProxyHost, currentProxyHost, StringComparison.OrdinalIgnoreCase) ||
+                            this.lastAppliedProxyPort != currentProxyPort ||
+                            !string.Equals(this.lastAppliedProxyUsername, currentProxyUsername, StringComparison.Ordinal) ||
+                            !string.Equals(this.lastAppliedProxyPassword, currentProxyPassword, StringComparison.Ordinal);
 
         if (interfaceOrPortChanged || proxyChanged || anonymousModeChanged)
         {
@@ -5047,9 +5047,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                                 (manager.Bitfield != null && manager.Bitfield.Length > 0 && (manager.Bitfield.AllTrue || manager.Bitfield.TrueCount > 0)) ||
                                 manager.Progress > 0 ||
                                 (manager.InfoHashes?.V1OrV2 != null &&
-                                 this.infoHashToId.TryGetValue(manager.InfoHashes.V1OrV2.ToHex(), out var tId) &&
-                                 this.tasks.TryGetValue(tId, out var tTask) &&
-                                 tTask.IsFilesMovedToCompleted)))
+                                    this.infoHashToId.TryGetValue(manager.InfoHashes.V1OrV2.ToHex(), out var tId) &&
+                                    this.tasks.TryGetValue(tId, out var tTask) &&
+                                    tTask.IsFilesMovedToCompleted)))
         {
             return;
         }
@@ -6292,9 +6292,9 @@ public class MonoTorrentDownloadTask : IDownloadTask
     public string ErrorMessage => this.errorMessage;
 
     public bool IsPrivate => this.Manager?.Torrent?.IsPrivate == true ||
-                             this.Manager?.TrackerManager?.Private == true ||
-                             this.initialTorrent?.IsPrivate == true ||
-                             this.initialIsPrivate;
+                                this.Manager?.TrackerManager?.Private == true ||
+                                this.initialTorrent?.IsPrivate == true ||
+                                this.initialIsPrivate;
 
     public static TorrentStatus MapTorrentStateToStatus(TorrentState state)
     {
@@ -6451,7 +6451,7 @@ public class MonoTorrentDownloadTask : IDownloadTask
 
         if (!hasPendingTrackers &&
             (failingTrackers.Count == allTrackers.Count ||
-             allTrackers.All(t => t.Status != MonoTorrent.Trackers.TrackerState.Ok)))
+                allTrackers.All(t => t.Status != MonoTorrent.Trackers.TrackerState.Ok)))
         {
             var failDetails = failingTrackers
                 .Select(t => $"{t.Uri}: {(!string.IsNullOrWhiteSpace(t.FailureMessage) ? t.FailureMessage : t.Status.ToString())}")
@@ -7691,8 +7691,8 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
         }
 
         var isDatagram = string.Equals(uri.Scheme, "udp", StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(uri.Scheme, "utp", StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(uri.Scheme, "dgram", StringComparison.OrdinalIgnoreCase);
+                            string.Equals(uri.Scheme, "utp", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(uri.Scheme, "dgram", StringComparison.OrdinalIgnoreCase);
 
         var activeProvider = this.networkBindingService?.ActiveProvider;
         var isProxyConfigured = this.configService?.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
