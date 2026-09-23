@@ -1348,7 +1348,7 @@ public class DownloadHistoryServiceTest
     public void Handle_TorrentDownloadCompletedEvent_UpdatesStatus()
     {
         this.service.Handle((TorrentDownloadCompletedEvent)null!);
-        this.service.Handle(new TorrentDownloadCompletedEvent { Torrent = null });
+        this.service.Handle(new TorrentDownloadCompletedEvent(null));
 
         var t = new Torrent
         {
@@ -1360,7 +1360,7 @@ public class DownloadHistoryServiceTest
         };
         this.historyRepository.FindByInfoHash("handlecompletehash").Returns((DownloadHistory)null!);
 
-        this.service.Handle(new TorrentDownloadCompletedEvent { Torrent = t });
+        this.service.Handle(new TorrentDownloadCompletedEvent(t));
         this.historyRepository.DidNotReceiveWithAnyArgs().Update(Arg.Any<DownloadHistory>());
 
         var existing = new DownloadHistory
@@ -1371,7 +1371,7 @@ public class DownloadHistoryServiceTest
         };
         this.historyRepository.FindByInfoHash("handlecompletehash").Returns(existing);
 
-        this.service.Handle(new TorrentDownloadCompletedEvent { Torrent = t });
+        this.service.Handle(new TorrentDownloadCompletedEvent(t));
 
         existing.Status.Should().Be("Completed");
         existing.DateCompleted.Should().NotBeNull();

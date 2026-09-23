@@ -376,7 +376,7 @@ public class HadoukenRpcControllerTest
     {
         var rawBytes = new byte[] { 1, 2, 3, 4 };
         var base64 = Convert.ToBase64String(rawBytes);
-        var parsed = new ParsedTorrentInfo { InfoHash = "feedbeef11223344556677889900112233445566", Name = "AddFile.Torrent" };
+        var parsed = new ParsedTorrent { InfoHash = "feedbeef11223344556677889900112233445566", Name = "AddFile.Torrent" };
         var added = new Torrent { Id = 20, InfoHash = parsed.InfoHash, Name = parsed.Name };
 
         this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsed);

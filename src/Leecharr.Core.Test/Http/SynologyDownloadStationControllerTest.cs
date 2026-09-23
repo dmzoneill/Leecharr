@@ -222,7 +222,7 @@ public class SynologyDownloadStationControllerTest
 
         var url = "http://example.com/movie.torrent";
         var bytes = new byte[] { 1, 2, 3 };
-        var parsed = new ParsedTorrentInfo { InfoHash = "abc", Name = "Movie" };
+        var parsed = new ParsedTorrent { InfoHash = "abc", Name = "Movie" };
 
         this.safeHttpClientService.DownloadBytesAsync(url, maxSizeBytes: Arg.Any<long>()).Returns(bytes);
         this.torrentFileParser.Parse(bytes).Returns(parsed);
@@ -257,7 +257,7 @@ public class SynologyDownloadStationControllerTest
         }, formFiles);
         this.controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
 
-        var parsed = new ParsedTorrentInfo { InfoHash = "filehash123", Name = "Uploaded.Torrent" };
+        var parsed = new ParsedTorrent { InfoHash = "filehash123", Name = "Uploaded.Torrent" };
         this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsed);
 
         var result = await this.controller.TaskHandler(
