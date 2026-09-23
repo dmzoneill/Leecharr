@@ -1826,20 +1826,13 @@ public class AutomationServiceTest
             ShareLimitAction = "Pause",
         };
 
-        var yaml = "name: 'Set Limits'
-" +
-            "steps:
-" +
-            "  - name: 'Update Limits'
-" +
-            "    actions:
-" +
-            "      - setRatioLimit: 3.0
-" +
-            "      - setSeedingTimeLimit: 1440
-" +
-            "      - setShareLimitAction: 'SuperSeeding'
-";
+        var yaml = "name: 'Set Limits'\n" +
+            "steps:\n" +
+            "  - name: 'Update Limits'\n" +
+            "    actions:\n" +
+            "      - setRatioLimit: 3.0\n" +
+            "      - setSeedingTimeLimit: 1440\n" +
+            "      - setShareLimitAction: 'SuperSeeding'\n";
 
         var script = new AutomationScript
         {
