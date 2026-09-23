@@ -33,7 +33,7 @@ public class TrackerMetricsAndOptimizationTest
     private List<TrackerMetricSnapshot> storedSnapshots = null!;
     private List<TrackerEntry> storedEntries = null!;
     private List<Torrent> storedTorrents = null!;
-    private List<object> publishedEvents = null!;
+    private List<IEvent> publishedEvents = null!;
 
     [SetUp]
     public void SetUp()
@@ -42,7 +42,7 @@ public class TrackerMetricsAndOptimizationTest
         this.storedSnapshots = new List<TrackerMetricSnapshot>();
         this.storedEntries = new List<TrackerEntry>();
         this.storedTorrents = new List<Torrent>();
-        this.publishedEvents = new List<object>();
+        this.publishedEvents = new List<IEvent>();
 
         this.metricRepository = Substitute.For<ITrackerMetricRepository>();
         this.metricRepository.All().Returns(_ => this.storedMetrics.ToList());
@@ -131,9 +131,9 @@ public class TrackerMetricsAndOptimizationTest
         this.torrentRepository.All().Returns(_ => this.storedTorrents.ToList());
 
         this.eventAggregator = Substitute.For<IEventAggregator>();
-        this.eventAggregator.When(e => e.PublishEvent(Arg.Any<object>())).Do(ci =>
+        this.eventAggregator.When(e => e.PublishEvent(Arg.Any<IEvent>())).Do(ci =>
         {
-            this.publishedEvents.Add(ci.Arg<object>());
+            this.publishedEvents.Add(ci.Arg<IEvent>());
         });
 
         this.metricService = new TrackerMetricService(

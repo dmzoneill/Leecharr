@@ -294,7 +294,7 @@ public class BlocklistControllerTest
     [TestCase(null)]
     [TestCase("")]
     [TestCase("   ")]
-    public void TestIp_WhenIpIsNullOrEmptyOrWhitespace_ReturnsBadRequest(string? ip)
+    public void TestIp_WhenIpIsNullOrEmptyOrWhitespace_ReturnsBadRequest(string ip)
     {
         var request = new BlocklistTestRequest { Ip = ip! };
 

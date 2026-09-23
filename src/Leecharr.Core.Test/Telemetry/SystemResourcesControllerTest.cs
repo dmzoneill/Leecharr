@@ -298,7 +298,7 @@ public class SystemResourcesControllerTest
         var apiAttribute = type.GetCustomAttribute<V1ApiControllerAttribute>();
 
         apiAttribute.Should().NotBeNull();
-        apiAttribute!.Resource.Should().Be("system/resources");
+        apiAttribute!.Template.Should().Be("api/v1/system/resources");
 
         var snapshotMethod = type.GetMethod(nameof(SystemResourcesController.GetFullSnapshot));
         snapshotMethod.Should().NotBeNull();
