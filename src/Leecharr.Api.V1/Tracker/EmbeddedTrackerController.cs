@@ -192,9 +192,9 @@ public class EmbeddedTrackerController : ControllerBase
                 }
             }
 
-            string posterUrl = meta?.PosterUrl;
-            string fanartUrl = meta?.BackdropUrl;
-            string mediaTitle = meta?.Title;
+            var posterUrl = meta?.PosterUrl;
+            var fanartUrl = meta?.BackdropUrl;
+            var mediaTitle = meta?.Title;
             int? year = meta?.Year > 0 ? meta.Year : null;
             double? rating = meta?.Rating > 0 ? meta.Rating : null;
             var genres = !string.IsNullOrWhiteSpace(meta?.Genres)
