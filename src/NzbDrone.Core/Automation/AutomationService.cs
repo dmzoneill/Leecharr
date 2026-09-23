@@ -469,7 +469,7 @@ public class AutomationService : IAutomationService
             this._logger.Info("[State Machine] Torrent #{0} ('{1}') auto-paused by automation rule/action", torrent.Id, torrent.Name);
             if (_torrentService != null)
             {
-                await _torrentService.PauseAsync(torrent.Id, "Auto-paused by automation rule/action").ConfigureAwait(false);
+                await _torrentService.PauseAsync(torrent.Id).ConfigureAwait(false);
                 torrent.Status = TorrentStatus.Paused;
             }
             else
