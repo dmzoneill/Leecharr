@@ -32,17 +32,17 @@ public class TrackerMetricRepository : BasicRepository<TrackerMetric>, ITrackerM
             return null;
         }
 
-        return this.QueryWithRetry(connection =>
+        return this.ExecuteWithRetry(connection =>
             connection.QueryFirstOrDefault<TrackerMetric>(
-                $"SELECT * FROM \"{this._table}\" WHERE LOWER(\"TrackerUrl\") = LOWER(@Url)",
+                $"SELECT * FROM \"{this.table}\" WHERE LOWER(\"TrackerUrl\") = LOWER(@Url)",
                 new { Url = url.Trim() }));
     }
 
     public List<TrackerMetric> GetAllByUpload()
     {
-        return this.QueryWithRetry(connection =>
+        return this.ExecuteWithRetry(connection =>
             connection.Query<TrackerMetric>(
-                $"SELECT * FROM \"{this._table}\" ORDER BY \"TotalUploaded\" DESC, \"TotalAnnounces\" DESC")
+                $"SELECT * FROM \"{this.table}\" ORDER BY \"TotalUploaded\" DESC, \"TotalAnnounces\" DESC")
                 .ToList());
     }
 
@@ -53,9 +53,9 @@ public class TrackerMetricRepository : BasicRepository<TrackerMetric>, ITrackerM
             return new List<TrackerMetric>();
         }
 
-        return this.QueryWithRetry(connection =>
+        return this.ExecuteWithRetry(connection =>
             connection.Query<TrackerMetric>(
-                $"SELECT * FROM \"{this._table}\" WHERE LOWER(\"Domain\") = LOWER(@Domain) ORDER BY \"TotalUploaded\" DESC",
+                $"SELECT * FROM \"{this.table}\" WHERE LOWER(\"Domain\") = LOWER(@Domain) ORDER BY \"TotalUploaded\" DESC",
                 new { Domain = domain.Trim() })
                 .ToList());
     }
@@ -64,7 +64,7 @@ public class TrackerMetricRepository : BasicRepository<TrackerMetric>, ITrackerM
     {
         this.ExecuteWithRetry(connection =>
             connection.Execute(
-                $"UPDATE \"{this._table}\" SET \"TotalAnnounces\" = 0, \"SuccessfulAnnounces\" = 0, \"FailedAnnounces\" = 0, \"TotalScrapes\" = 0, \"SuccessfulScrapes\" = 0, \"FailedScrapes\" = 0, \"TotalUploaded\" = 0, \"TotalDownloaded\" = 0, \"SessionUploaded\" = 0, \"SessionDownloaded\" = 0, \"TotalPeersDiscovered\" = 0 WHERE \"Id\" = @Id",
+                $"UPDATE \"{this.table}\" SET \"TotalAnnounces\" = 0, \"SuccessfulAnnounces\" = 0, \"FailedAnnounces\" = 0, \"TotalScrapes\" = 0, \"SuccessfulScrapes\" = 0, \"FailedScrapes\" = 0, \"TotalUploaded\" = 0, \"TotalDownloaded\" = 0, \"SessionUploaded\" = 0, \"SessionDownloaded\" = 0, \"TotalPeersDiscovered\" = 0 WHERE \"Id\" = @Id",
                 new { Id = id }));
     }
 }
