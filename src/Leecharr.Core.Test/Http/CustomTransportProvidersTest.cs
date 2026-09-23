@@ -370,7 +370,7 @@ public class CustomTransportProvidersTest
                 createdCount++;
                 return new HttpResponseMessage(HttpStatusCode.OK)
                 {
-                    Content = new StringContent($"\"{{\"status\":\"ok\",\"session\":\"sess_{createdCount}\"}}\""),
+                    Content = new StringContent($"{{\"status\":\"ok\",\"session\":\"sess_{createdCount}\"}}"),
                 };
             }
 
