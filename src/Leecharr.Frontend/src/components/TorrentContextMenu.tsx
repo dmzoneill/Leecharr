@@ -798,6 +798,29 @@ export function TorrentContextMenu({
                   : t("torrents.contextMenu.enableSequential")}
             </button>
 
+            {/* Export Package (.leecharr bundle) */}
+            <button
+              type="button"
+              className="context-menu-item"
+              onClick={() => {
+                const ids = effectiveTorrents.map((t) => t.id).join(",");
+                const link = document.createElement("a");
+                link.href = `/api/v1/packages/export?torrentIds=${ids}`;
+                link.download =
+                  effectiveTorrents.length === 1
+                    ? `${effectiveTorrents[0].name}.leecharr`
+                    : "package.leecharr";
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                onClose();
+              }}
+            >
+              📦{" "}
+              {t("torrents.exportPackage", { defaultValue: "Export Package" })}
+              {countSuffix}
+            </button>
+
             <div className="context-menu-separator" />
 
             {/* Delete button */}

@@ -766,6 +766,8 @@ const tr: I18nTranslations = {
     torrentAndFilesDeleted: "Torrent ve dosyalar silindi",
     torrentRemoved: "Torrent kaldırıldı",
     failedToDelete: "Torrent silinemedi",
+    exportPackage: "İhracat Paketi",
+    importPackage: "Paketi İçe Aktar",
   },
   torrentDetail: {
     overview: "Genel Bakış",
@@ -3760,6 +3762,8 @@ const tr: I18nTranslations = {
     addTorrent: "AddTorrent görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
     downloadHistory:
       "DownloadHistory görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
+    downloadClients:
+      "İndirme istemcileri görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
     activity: "Etkinlik görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
     indexers:
       "Dizin oluşturucu görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
@@ -3797,8 +3801,6 @@ const tr: I18nTranslations = {
     setupGuide: "setupGuide görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
     copilotDrawer:
       "CopilotDrawer görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
-    downloadClients:
-      "İndirme istemcileri görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
   },
   copilot: {
     welcomeMessage:

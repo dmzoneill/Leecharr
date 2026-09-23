@@ -289,6 +289,8 @@ const en: I18nTranslations = {
     title: "Torrents",
     privacy: "Privacy / Swarm",
     columns: "Columns",
+    exportPackage: "Export Package",
+    importPackage: "Import Package",
     contextMenu: {
       selectedItems: "{{count}} items selected",
       resumeDownload: "Resume Download",

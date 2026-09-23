@@ -763,6 +763,8 @@ const ja: I18nTranslations = {
     torrentAndFilesDeleted: "Torrent とファイルが削除されました",
     torrentRemoved: "トレントが削除されました",
     failedToDelete: "トレントの削除に失敗しました",
+    exportPackage: "エクスポートパッケージ",
+    importPackage: "パッケージのインポート",
   },
   torrentDetail: {
     overview: "概要",
@@ -3730,6 +3732,8 @@ const ja: I18nTranslations = {
       "addTorrent ビューのロードに失敗しました。予期しないエラーが発生しました。",
     downloadHistory:
       "ダウンロード履歴ビューの読み込みに失敗しました。予期しないエラーが発生しました。",
+    downloadClients:
+      "ダウンロード クライアント ビューの読み込みに失敗しました。予期しないエラーが発生しました。",
     activity:
       "アクティビティ ビューの読み込みに失敗しました。予期しないエラーが発生しました。",
     indexers:
@@ -3774,8 +3778,6 @@ const ja: I18nTranslations = {
       "setupGuide ビューのロードに失敗しました。予期しないエラーが発生しました。",
     copilotDrawer:
       "copilotDrawer ビューのロードに失敗しました。予期しないエラーが発生しました。",
-    downloadClients:
-      "ダウンロード クライアント ビューの読み込みに失敗しました。予期しないエラーが発生しました。",
   },
   copilot: {
     welcomeMessage:

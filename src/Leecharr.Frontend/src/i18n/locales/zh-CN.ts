@@ -755,6 +755,8 @@ const zhCN: I18nTranslations = {
     torrentAndFilesDeleted: "Torrent 和文件已删除",
     torrentRemoved: "洪流已删除",
     failedToDelete: "删除 torrent 失败",
+    exportPackage: "出口包装",
+    importPackage: "导入包",
   },
   torrentDetail: {
     overview: "概述",
@@ -3534,6 +3536,7 @@ const zhCN: I18nTranslations = {
     torrents: "无法加载种子视图。发生意外错误。",
     addTorrent: "无法加载 addTorrent 视图。发生意外错误。",
     downloadHistory: "无法加载下载历史记录视图。发生意外错误。",
+    downloadClients: "无法加载下载客户端视图。发生意外错误。",
     activity: "无法加载活动视图。发生意外错误。",
     indexers: "无法加载索引器视图。发生意外错误。",
     peerMap: "无法加载peerMap视图。发生意外错误。",
@@ -3556,7 +3559,6 @@ const zhCN: I18nTranslations = {
     searchModal: "无法加载 searchModal 视图。发生意外错误。",
     setupGuide: "无法加载 setupGuide 视图。发生意外错误。",
     copilotDrawer: "无法加载 copilotDrawer 视图。发生意外错误。",
-    downloadClients: "无法加载下载客户端视图。发生意外错误。",
   },
   copilot: {
     welcomeMessage:
