@@ -9,6 +9,7 @@ using Leecharr.Api.V1.Hadouken;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using NUnit.Framework;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
