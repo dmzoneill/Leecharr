@@ -58,6 +58,13 @@ public class AutomationServiceTest
         _customScriptService = Substitute.For<ICustomScriptService>();
         _notificationRepository = Substitute.For<INotificationRepository>();
         _webhookDispatcher = Substitute.For<IWebhookDispatcher>();
+
+        _tagRepository.All().Returns(new List<Tag>());
+        _tagRepository.Insert(Arg.Any<Tag>()).Returns(ci =>
+        {
+            var tag = ci.Arg<Tag>();
+            return new Tag { Id = tag.Id > 0 ? tag.Id : 1, Label = tag.Label };
+        });
     }
 
     [Test]

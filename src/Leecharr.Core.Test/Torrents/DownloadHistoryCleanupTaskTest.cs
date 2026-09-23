@@ -31,7 +31,13 @@ public class DownloadHistoryCleanupTaskTest
     [TearDown]
     public void TearDown()
     {
-        this.task.Dispose();
+        try
+        {
+            this.task?.Dispose();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
     }
 
     [Test]
