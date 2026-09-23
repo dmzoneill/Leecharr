@@ -2877,23 +2877,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         ? Factories.Default.CreateStreamingPieceRequester()
                         : Factories.Default.CreatePieceRequester();
 
-                    var wasPaused = task.Manager.State == TorrentState.Paused;
-                    var wasRunning = task.Manager.State is not (TorrentState.Stopped or TorrentState.Stopping);
-                    if (wasRunning)
-                    {
-                        await task.Manager.StopAsync().ConfigureAwait(false);
-                    }
-
                     await task.Manager.ChangePickerAsync(requester).ConfigureAwait(false);
-
-                    if (wasRunning)
-                    {
-                        await task.Manager.StartAsync().ConfigureAwait(false);
-                        if (wasPaused)
-                        {
-                            await task.Manager.PauseAsync().ConfigureAwait(false);
-                        }
-                    }
                 }
                 catch (Exception ex)
                 {
