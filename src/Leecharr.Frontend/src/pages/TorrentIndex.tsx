@@ -57,6 +57,27 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   const [selectedTracker, setSelectedTracker] = useState<string>("All");
   const [selectedPrivacy, setSelectedPrivacy] = useState<string>("All");
   const [filter, setFilter] = useState<string>("");
+  const [selectedTag, setSelectedTag] = useState<string>("All");
+  const [selectedTagIds, setSelectedTagIds] = useState<Set<number>>(new Set());
+  const [tagMatchMode, setTagMatchMode] = useState<"AND" | "OR">("OR");
+
+  const toggleTag = useCallback((id: number) => {
+    setSelectedTagIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+    setSelectedTag("All");
+  }, []);
+
+  const clearTags = useCallback(() => {
+    setSelectedTagIds(new Set());
+    setSelectedTag("All");
+  }, []);
 
   const {
     visibleColumns,
@@ -265,6 +286,27 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     }
     return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
   }, [torrents]);
+
+  const { tagGroups, untaggedCount } = useMemo(() => {
+    let untagged = 0;
+    const tagCountMap: Record<number, number> = {};
+    for (const t of torrents) {
+      if (!t.tagIds || t.tagIds.length === 0) {
+        untagged++;
+      } else {
+        for (const tid of t.tagIds) {
+          tagCountMap[tid] = (tagCountMap[tid] || 0) + 1;
+        }
+      }
+    }
+    const groups = (tags || []).map((tag) => ({
+      id: tag.id,
+      label: tag.label || `Tag ${tag.id}`,
+      count: tagCountMap[tag.id] || 0,
+      color: tag.color,
+    }));
+    return { tagGroups: groups, untaggedCount: untagged };
+  }, [torrents, tags]);
 
   const isTorrentActive = (t: Torrent) => {
     const st = (
@@ -510,6 +552,15 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
             onSelectTracker={setSelectedTracker}
             selectedPrivacy={selectedPrivacy}
             onSelectPrivacy={setSelectedPrivacy}
+            selectedTag={selectedTag}
+            onSelectTag={setSelectedTag}
+            selectedTagIds={selectedTagIds}
+            onToggleTag={toggleTag}
+            tagMatchMode={tagMatchMode}
+            onTagMatchModeChange={setTagMatchMode}
+            onClearTags={clearTags}
+            untaggedCount={untaggedCount}
+            tagGroups={tagGroups}
             privacyCounts={privacyCounts}
             stateCounts={stateCounts}
             trackerGroups={trackerGroups}
@@ -527,6 +578,9 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
                   stateFilter={selectedState}
                   trackerFilter={selectedTracker}
                   privacyFilter={selectedPrivacy}
+                  selectedTagIds={selectedTagIds}
+                  tagMatchMode={tagMatchMode}
+                  selectedTag={selectedTag}
                   selectedId={currentSelectedTorrent?.id ?? null}
                   onSelect={(t) => setSelectedTorrentId(t ? t.id : null)}
                   onPause={onPause}
@@ -551,6 +605,9 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
                   stateFilter={selectedState}
                   trackerFilter={selectedTracker}
                   privacyFilter={selectedPrivacy}
+                  selectedTagIds={selectedTagIds}
+                  tagMatchMode={tagMatchMode}
+                  selectedTag={selectedTag}
                   selectedId={currentSelectedTorrent?.id ?? null}
                   onSelect={(t) => setSelectedTorrentId(t ? t.id : null)}
                   onPause={onPause}
