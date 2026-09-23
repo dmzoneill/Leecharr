@@ -41,9 +41,35 @@ export function calculateHnrStatus(
   torrent: Torrent,
   requiredHours: number = 72,
 ): HnrStatus {
+  if (!torrent.isPrivate) {
+    return {
+      isCleared: true,
+      requiredSeconds: 0,
+      seededSeconds: torrent.seedingTime || 0,
+      progressPercent: 100,
+      remainingSeconds: 0,
+      label: "Public Swarm (No HnR rules)",
+    };
+  }
+
   const requiredSeconds = requiredHours * 3600;
   const seededSeconds = torrent.seedingTime || 0;
-  const ratio = torrent.ratio || 0;
+  const isCompleted =
+    (torrent.status || "").toLowerCase() === "seeding" ||
+    (torrent.progress ?? 0) >= 1.0;
+
+  if (!isCompleted) {
+    return {
+      isCleared: false,
+      requiredSeconds,
+      seededSeconds,
+      progressPercent: 0,
+      remainingSeconds: requiredSeconds,
+      label: "Downloading (HnR timer starts after completion)",
+    };
+  }
+
+  const ratio = Number.isFinite(torrent.ratio) ? torrent.ratio : 0;
 
   if (ratio >= 1.0 || seededSeconds >= requiredSeconds) {
     return {
@@ -116,35 +142,43 @@ export function getTorrentBadges(
     });
   }
 
-  // Ratio Badges
-  if (torrent.ratio >= 10.0) {
-    badges.push({
-      label: `${torrent.ratio.toFixed(1)}x`,
-      icon: "💎",
-      title: `Diamond Ratio: ${formatRatio(torrent.ratio)}`,
-      color: "#2ecc71",
-    });
-  } else if (torrent.ratio >= 5.0) {
-    badges.push({
-      label: `${torrent.ratio.toFixed(1)}x`,
-      icon: "🥇",
-      title: `Gold Ratio: ${formatRatio(torrent.ratio)}`,
-      color: "#f1c40f",
-    });
-  } else if (torrent.ratio >= 2.0) {
-    badges.push({
-      label: `${torrent.ratio.toFixed(1)}x`,
-      icon: "🥈",
-      title: `Silver Ratio: ${formatRatio(torrent.ratio)}`,
-      color: "#bdc3c7",
-    });
-  } else if (torrent.ratio >= 1.0) {
-    badges.push({
-      label: "1.0x",
-      icon: "🥉",
-      title: `Bronze Target Ratio met: ${formatRatio(torrent.ratio)}`,
-      color: "#cd7f32",
-    });
+  // Ratio Badges: Guard against Infinity / NaN and require meaningful traffic volume (>= 10 MB)
+  const ratio = torrent.ratio;
+  const downloaded = torrent.downloaded ?? 0;
+  const uploaded = torrent.uploaded ?? 0;
+  const hasTraffic =
+    downloaded >= 10 * 1024 * 1024 || uploaded >= 10 * 1024 * 1024;
+
+  if (Number.isFinite(ratio) && !isNaN(ratio) && hasTraffic) {
+    if (ratio >= 10.0) {
+      badges.push({
+        label: `${ratio.toFixed(1)}x`,
+        icon: "💎",
+        title: `Diamond Ratio: ${formatRatio(ratio)}`,
+        color: "#2ecc71",
+      });
+    } else if (ratio >= 5.0) {
+      badges.push({
+        label: `${ratio.toFixed(1)}x`,
+        icon: "🥇",
+        title: `Gold Ratio: ${formatRatio(ratio)}`,
+        color: "#f1c40f",
+      });
+    } else if (ratio >= 2.0) {
+      badges.push({
+        label: `${ratio.toFixed(1)}x`,
+        icon: "🥈",
+        title: `Silver Ratio: ${formatRatio(ratio)}`,
+        color: "#bdc3c7",
+      });
+    } else if (ratio >= 1.0) {
+      badges.push({
+        label: "1.0x",
+        icon: "🥉",
+        title: `Bronze Target Ratio met: ${formatRatio(ratio)}`,
+        color: "#cd7f32",
+      });
+    }
   }
 
   return badges;
@@ -166,8 +200,20 @@ export function calculateAchievements(
 } {
   const tList = torrents ?? [];
   const totalUploaded = stats?.totalUploaded ?? 0;
+  const MIN_TRAFFIC_BYTES = 10 * 1024 * 1024; // 10 MB meaningful traffic volume
+
+  const qualifyingRatioTorrents = tList.filter(
+    (t) =>
+      Number.isFinite(t.ratio) &&
+      !isNaN(t.ratio) &&
+      ((t.downloaded ?? 0) >= MIN_TRAFFIC_BYTES ||
+        (t.uploaded ?? 0) >= MIN_TRAFFIC_BYTES),
+  );
+
   const maxRatio =
-    tList.length > 0 ? Math.max(...tList.map((t) => t.ratio || 0)) : 0;
+    qualifyingRatioTorrents.length > 0
+      ? Math.max(...qualifyingRatioTorrents.map((t) => t.ratio || 0))
+      : 0;
   const maxSeedTime =
     tList.length > 0 ? Math.max(...tList.map((t) => t.seedingTime || 0)) : 0;
   const swarmGuardians = tList.filter(
@@ -373,14 +419,15 @@ export function calculateTrackerBuffers(
 
   return Object.entries(trackerMap)
     .map(([tracker, data]) => {
-      const ratio =
+      const rawRatio =
         data.downloaded > 0
           ? data.uploaded / data.downloaded
           : data.uploaded > 0
             ? 10.0
             : 0;
-      // Buffer = data.uploaded - (data.downloaded * 1.0)
-      const bufferBytes = Math.max(0, data.uploaded - data.downloaded);
+      const ratio = Number.isFinite(rawRatio) ? rawRatio : 0;
+      // Buffer = data.uploaded - (data.downloaded * 1.0), can be negative when in deficit
+      const bufferBytes = data.uploaded - data.downloaded;
 
       // Private tracker formula: Size(GB)^0.55 * (1 + days/10) / Seeders^0.5
       let estimatedPointsPerHour = 0;
