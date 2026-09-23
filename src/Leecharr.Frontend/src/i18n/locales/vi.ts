@@ -761,6 +761,8 @@ const vi: I18nTranslations = {
     torrentAndFilesDeleted: "Torrent và tập tin đã bị xóa",
     torrentRemoved: "Đã xóa torrent",
     failedToDelete: "Không thể xóa torrent",
+    exportPackage: "Gói xuất khẩu",
+    importPackage: "Gói nhập khẩu",
   },
   torrentDetail: {
     overview: "Tổng quan",
@@ -3738,6 +3740,8 @@ const vi: I18nTranslations = {
     torrents: "Lỗi khi tải danh sách torrent",
     addTorrent: "Lỗi khi thêm torrent",
     downloadHistory: "Lỗi khi tải lịch sử tải xuống",
+    downloadClients:
+      "Không tải được chế độ xem ứng dụng khách tải xuống. Đã xảy ra lỗi không mong muốn.",
     activity: "Lỗi khi tải nhật ký hoạt động",
     indexers: "Lỗi khi tải danh sách indexer",
     peerMap: "Lỗi khi tải bản đồ peer",
@@ -3760,8 +3764,6 @@ const vi: I18nTranslations = {
     searchModal: "Lỗi hộp thoại tìm kiếm",
     setupGuide: "Lỗi hướng dẫn thiết lập",
     copilotDrawer: "Lỗi ngăn Copilot",
-    downloadClients:
-      "Không tải được chế độ xem ứng dụng khách tải xuống. Đã xảy ra lỗi không mong muốn.",
   },
   copilot: {
     welcomeMessage:
@@ -4512,7 +4514,7 @@ const vi: I18nTranslations = {
       customDynamic: "Tùy chỉnh / Động",
       egInputsminratioOrSystemfreedi:
         "ví dụ. ${inputs.minRatio} hoặc ${system.freeDiskBytes}",
-      "500Mb": "500 MB",
+      "500Mb": "500MB",
       "5Gb": "5 GB",
       "10x": "1.0x",
       "20x": "2.0x",
