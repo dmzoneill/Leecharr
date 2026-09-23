@@ -50,3 +50,8 @@ This document tracks cross-system architectural parity, feature synchronization,
   - [x] **08.1 Frontend Test Automation**: Automated unit and utility test suites (`tsx --test`) for magnet parsing, milestone calculation, HnR clearance, buffer deficit tracking, fuzzy search, arr instance linking, media player URL & badge extraction, and role permissions.
   - [x] **08.2 Backend Unit & Integration Tests**: Test parity across `NzbDrone.Core.Test` and `Leecharr.Core.Test`, including system resource telemetry, host process metrics, engine stats, and torrent streaming controller fixtures.
   - [x] **08.3 Mock Swarms & Fixtures**: Reusable test fixtures, mock swarm piece picking, and streaming controller test suites across both solutions.
+
+- [x] **Workpackage 09: Advanced Filtering, Settings Protection & Security Parity**
+  - [x] **09.1 Filter Pipeline & Tag Match Modes**: Unified filter predicate utility (`filterUtils.ts` and `filterUtils.test.ts`), supporting AND/OR tag matching modes, untagged filtering, and multi-tag filtering across both table and grid views.
+  - [x] **09.2 Unsaved Settings Form Guard**: Standardized `SettingsDirtyContext` and unsaved changes badge/prompt across all settings tabs and subpages, with 20-locale dictionary synchronization.
+  - [x] **09.3 Peer IP Blocklist API & Security UI Parity**: Parity for IP blocklist engine endpoints (`/api/v1/blocklist`, `/api/v1/blocklist/sync`, `/api/v1/blocklist/test`) and security settings card featuring auto-update interval scheduling, manual blocklist synchronization, and interactive IP diagnostics test utility.
