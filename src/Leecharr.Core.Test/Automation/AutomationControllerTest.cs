@@ -263,7 +263,7 @@ public class AutomationControllerTest
                 Trigger = AutomationTrigger.TorrentAdded,
                 Language = AutomationLanguage.JavaScript,
             },
-            CustomInputs = new Dictionary<string, string> { { "key", "value" } },
+            CustomInputs = new Dictionary<string, object> { { "key", "value" } },
         };
 
         var execResult = new AutomationExecutionResult

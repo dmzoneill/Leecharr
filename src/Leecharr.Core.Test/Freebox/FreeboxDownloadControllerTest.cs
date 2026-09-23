@@ -367,7 +367,7 @@ public class FreeboxDownloadControllerTest
     {
         var torrentUrl = "https://tracker.example.com/test.torrent";
         var dummyBytes = new byte[] { 1, 2, 3, 4, 5 };
-        var parsed = new ParsedTorrentInfo { Name = "HttpTorrent" };
+        var parsed = new ParsedTorrent { Name = "HttpTorrent" };
         var added = new Torrent { Id = 77, Name = "HttpTorrent" };
 
         this.configService.MaxTorrentFileSizeBytes.Returns(10 * 1024 * 1024L);
@@ -404,7 +404,7 @@ public class FreeboxDownloadControllerTest
         this.httpContext.Request.ContentType = "multipart/form-data";
         this.httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>(), fileCollection);
 
-        var parsed = new ParsedTorrentInfo { Name = "UploadedTorrent" };
+        var parsed = new ParsedTorrent { Name = "UploadedTorrent" };
         var added = new Torrent { Id = 88, Name = "UploadedTorrent" };
 
         this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsed);

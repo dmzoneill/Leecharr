@@ -255,7 +255,7 @@ public class ArchiveExtractorProvidersTest
 
         provider.BaseTimeout.Should().Be(TimeSpan.FromMinutes(45));
         var timeout = provider.CalculateTimeout("/downloads/archive.rar");
-        timeout.Should().BeGreaterOrEqualTo(TimeSpan.FromMinutes(45));
+        timeout.Should().BeGreaterThanOrEqualTo(TimeSpan.FromMinutes(45));
     }
 
     [Test]
@@ -271,7 +271,7 @@ public class ArchiveExtractorProvidersTest
         var timeout = provider.CalculateTimeout("/downloads/huge_archive.7z");
 
         // Base 10 min + 10 GB * 2 min/GB = 30 min
-        timeout.Should().BeGreaterOrEqualTo(TimeSpan.FromMinutes(30));
+        timeout.Should().BeGreaterThanOrEqualTo(TimeSpan.FromMinutes(30));
     }
 
     #endregion

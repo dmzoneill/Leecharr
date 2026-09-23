@@ -40,7 +40,7 @@ public class BackupServiceTest
 
         this.diskProvider = Substitute.For<IDiskProvider>();
         this.connectionStringFactory = Substitute.For<IConnectionStringFactory>();
-        this.connectionStringFactory.DatabaseType.Returns(DatabaseType.Sqlite);
+        this.connectionStringFactory.DatabaseType.Returns(DatabaseType.SQLite);
 
         this.configFileProvider = Substitute.For<IConfigFileProvider>();
         this.configFileProvider.PostgresHost.Returns((string)null!);
