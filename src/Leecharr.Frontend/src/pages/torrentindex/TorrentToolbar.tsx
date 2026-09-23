@@ -9,6 +9,7 @@ import {
   SlidersIcon,
   FilterIcon,
   ColumnsIcon,
+  UploadIcon,
 } from "../../components/icons/UIIcons";
 import { TagIcon } from "../../components/icons/NavIcons";
 import { useSeedingConfig, useSaveSeedingConfig } from "../../api/hooks";
@@ -77,6 +78,7 @@ interface TorrentToolbarProps {
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
   onAddTorrent: () => void;
+  onImportPackage?: () => void;
   onSearchIndexers?: () => void;
   onStartAll: () => void;
   onStopAll: () => void;
@@ -118,6 +120,7 @@ export function TorrentToolbar({
   viewMode,
   onViewModeChange,
   onAddTorrent,
+  onImportPackage,
   onSearchIndexers,
   onStartAll,
   onStopAll,
@@ -367,6 +370,28 @@ export function TorrentToolbar({
             >
               <PlusIcon size={13} /> {t("modals.addTorrent")}
             </button>
+            {onImportPackage && (
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={onImportPackage}
+                title={t("torrents.importPackage", {
+                  defaultValue: "Import Package",
+                })}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "5px",
+                }}
+              >
+                <UploadIcon size={13} />{" "}
+                <span>
+                  {t("torrents.importPackage", {
+                    defaultValue: "Import Package",
+                  })}
+                </span>
+              </button>
+            )}
             <button
               type="button"
               className="btn btn-success"

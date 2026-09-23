@@ -3787,7 +3787,9 @@
     "bd549bf014f72bee": "实时连接丢失。正在尝试重新连接...",
     "e16469565a71c64d": "与服务器断开连接。单击立即重试重新连接。",
     "38da990a24e5c3e0": "立即重试",
-    "9d247503b4abdb7f": "无法加载下载客户端视图。发生意外错误。"
+    "9d247503b4abdb7f": "无法加载下载客户端视图。发生意外错误。",
+    "0ce59b3e88584b90": "出口包装",
+    "3c7b5a9f687a6b7a": "导入包"
   },
   "hi": {
     "b43594c795c4ca3f": "जोड़ने के लिए और फ़ाइलें क्लिक करें या खींचें",
@@ -7577,7 +7579,9 @@
     "38da990a24e5c3e0": "अभी पुनः प्रयास करें",
     "bd549bf014f72bee": "रीयल-टाइम कनेक्शन खो गया. फिर से कनेक्ट करने का प्रयास...",
     "e16469565a71c64d": "सर्वर से डिस्कनेक्ट हो गया. पुनः कनेक्ट करने के लिए अभी पुनः प्रयास करें पर क्लिक करें।",
-    "9d247503b4abdb7f": "डाउनलोड क्लाइंट दृश्य लोड करने में विफल. एक अप्रत्याशित त्रुटि हुई।"
+    "9d247503b4abdb7f": "डाउनलोड क्लाइंट दृश्य लोड करने में विफल. एक अप्रत्याशित त्रुटि हुई।",
+    "0ce59b3e88584b90": "निर्यात पैकेज",
+    "3c7b5a9f687a6b7a": "आयात पैकेज"
   },
   "es": {
     "33b8a7901c02ac2e": "Explorador de archivos",
@@ -10926,7 +10930,7 @@
     "470736b92a261a28": "500 megas",
     "f8441eee3a2afe1c": "Números y métricas",
     "5693cb754becc32c": "⚠️Error",
-    "daa020f4e4e8db4c": "10 GB",
+    "daa020f4e4e8db4c": "10GB",
     "e1b0d332d9eb2108": "Registrar mensaje en flujo de salida",
     "54ddc7ed2deb7170": "¡Torrent ${torrent.name} completado!",
     "95c8b4910c0c045e": "⏹️ Detenido",
@@ -11367,7 +11371,9 @@
     "38da990a24e5c3e0": "Reintentar ahora",
     "bd549bf014f72bee": "Se perdió la conexión en tiempo real. Intentando volver a conectar...",
     "e16469565a71c64d": "Desconectado del servidor. Haga clic en Reintentar ahora para volver a conectarse.",
-    "9d247503b4abdb7f": "No se pudo cargar la vista de clientes de descarga. Se produjo un error inesperado."
+    "9d247503b4abdb7f": "No se pudo cargar la vista de clientes de descarga. Se produjo un error inesperado.",
+    "3c7b5a9f687a6b7a": "Paquete de importación",
+    "0ce59b3e88584b90": "Paquete de exportación"
   },
   "ar": {
     "33b8a7901c02ac2e": "مستعرض الملفات",
@@ -15157,7 +15163,9 @@
     "38da990a24e5c3e0": "أعد المحاولة الآن",
     "e16469565a71c64d": "تم قطع الاتصال بالخادم. انقر فوق \"إعادة المحاولة الآن\" لإعادة الاتصال.",
     "bd549bf014f72bee": "تم فقد الاتصال في الوقت الحقيقي. جارٍ محاولة إعادة الاتصال...",
-    "9d247503b4abdb7f": "فشل تحميل عرض عملاء التنزيل. حدث خطأ غير متوقع."
+    "9d247503b4abdb7f": "فشل تحميل عرض عملاء التنزيل. حدث خطأ غير متوقع.",
+    "0ce59b3e88584b90": "حزمة التصدير",
+    "3c7b5a9f687a6b7a": "حزمة الاستيراد"
   },
   "fr": {
     "57fd7a0cf33f2666": "Choisi",
@@ -18947,7 +18955,9 @@
     "e16469565a71c64d": "Déconnecté du serveur. Cliquez sur Réessayer maintenant pour vous reconnecter.",
     "bd549bf014f72bee": "Connexion en temps réel perdue. Tentative de reconnexion...",
     "38da990a24e5c3e0": "Réessayez maintenant",
-    "9d247503b4abdb7f": "Échec du chargement de la vue des clients de téléchargement. Une erreur inattendue s'est produite."
+    "9d247503b4abdb7f": "Échec du chargement de la vue des clients de téléchargement. Une erreur inattendue s'est produite.",
+    "3c7b5a9f687a6b7a": "Importer le package",
+    "0ce59b3e88584b90": "Forfait d'exportation"
   },
   "bn": {
     "33b8a7901c02ac2e": "ফাইল ব্রাউজার",
@@ -22737,7 +22747,9 @@
     "38da990a24e5c3e0": "এখনই আবার চেষ্টা করুন",
     "bd549bf014f72bee": "রিয়েল-টাইম সংযোগ হারিয়েছে। পুনরায় সংযোগ করার চেষ্টা করা হচ্ছে...",
     "e16469565a71c64d": "সার্ভার থেকে সংযোগ বিচ্ছিন্ন। পুনঃসংযোগ করতে এখনই পুনরায় চেষ্টা করুন ক্লিক করুন৷",
-    "9d247503b4abdb7f": "ডাউনলোড ক্লায়েন্ট ভিউ লোড করতে ব্যর্থ৷ একটি অপ্রত্যাশিত ত্রুটি ঘটেছে৷"
+    "9d247503b4abdb7f": "ডাউনলোড ক্লায়েন্ট ভিউ লোড করতে ব্যর্থ৷ একটি অপ্রত্যাশিত ত্রুটি ঘটেছে৷",
+    "3c7b5a9f687a6b7a": "প্যাকেজ আমদানি করুন",
+    "0ce59b3e88584b90": "রপ্তানি প্যাকেজ"
   },
   "pt": {
     "33b8a7901c02ac2e": "Navegador de arquivos",
@@ -26527,7 +26539,9 @@
     "e16469565a71c64d": "Desconectado do servidor. Clique em Tentar novamente agora para reconectar.",
     "bd549bf014f72bee": "Conexão em tempo real perdida. Tentando reconectar...",
     "38da990a24e5c3e0": "Tente novamente agora",
-    "9d247503b4abdb7f": "Falha ao carregar a visualização dos clientes de download. Ocorreu um erro inesperado."
+    "9d247503b4abdb7f": "Falha ao carregar a visualização dos clientes de download. Ocorreu um erro inesperado.",
+    "0ce59b3e88584b90": "Pacote de exportação",
+    "3c7b5a9f687a6b7a": "Pacote de importação"
   },
   "ru": {
     "33b8a7901c02ac2e": "Файловый менеджер",
@@ -30317,7 +30331,9 @@
     "38da990a24e5c3e0": "Повторить попытку сейчас",
     "e16469565a71c64d": "Отключился от сервера. Нажмите «Повторить сейчас», чтобы повторно подключиться.",
     "bd549bf014f72bee": "Потеряно соединение в режиме реального времени. Попытка восстановить соединение...",
-    "9d247503b4abdb7f": "Не удалось загрузить представление клиентов загрузки. Произошла непредвиденная ошибка."
+    "9d247503b4abdb7f": "Не удалось загрузить представление клиентов загрузки. Произошла непредвиденная ошибка.",
+    "3c7b5a9f687a6b7a": "Импортировать пакет",
+    "0ce59b3e88584b90": "Экспортный пакет"
   },
   "ur": {
     "33b8a7901c02ac2e": "فائل براؤزر",
@@ -34107,7 +34123,9 @@
     "38da990a24e5c3e0": "ابھی دوبارہ کوشش کریں۔",
     "bd549bf014f72bee": "ریئل ٹائم کنکشن ٹوٹ گیا۔ دوبارہ منسلک کرنے کی کوشش کر رہا ہے...",
     "e16469565a71c64d": "سرور سے منقطع۔ دوبارہ جڑنے کے لیے ابھی دوبارہ کوشش کریں پر کلک کریں۔",
-    "9d247503b4abdb7f": "ڈاؤن لوڈ کلائنٹس کا منظر لوڈ کرنے میں ناکام۔ ایک غیر متوقع خرابی پیش آگئی۔"
+    "9d247503b4abdb7f": "ڈاؤن لوڈ کلائنٹس کا منظر لوڈ کرنے میں ناکام۔ ایک غیر متوقع خرابی پیش آگئی۔",
+    "3c7b5a9f687a6b7a": "پیکج درآمد کریں۔",
+    "0ce59b3e88584b90": "ایکسپورٹ پیکج"
   },
   "id": {
     "33b8a7901c02ac2e": "Peramban Berkas",
@@ -37897,7 +37915,9 @@
     "bd549bf014f72bee": "Koneksi real-time terputus. Mencoba menyambung kembali...",
     "38da990a24e5c3e0": "Coba lagi sekarang",
     "e16469565a71c64d": "Terputus dari server. Klik Coba Lagi Sekarang untuk menyambung kembali.",
-    "9d247503b4abdb7f": "Gagal memuat tampilan klien unduhan. Terjadi kesalahan yang tidak terduga."
+    "9d247503b4abdb7f": "Gagal memuat tampilan klien unduhan. Terjadi kesalahan yang tidak terduga.",
+    "0ce59b3e88584b90": "Paket Ekspor",
+    "3c7b5a9f687a6b7a": "Paket Impor"
   },
   "de": {
     "57fd7a0cf33f2666": "Ausgewählt",
@@ -41687,7 +41707,9 @@
     "38da990a24e5c3e0": "Jetzt erneut versuchen",
     "bd549bf014f72bee": "Echtzeitverbindung verloren. Es wird versucht, die Verbindung wiederherzustellen...",
     "e16469565a71c64d": "Vom Server getrennt. Klicken Sie auf Jetzt erneut versuchen, um die Verbindung wiederherzustellen.",
-    "9d247503b4abdb7f": "Download-Client-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten."
+    "9d247503b4abdb7f": "Download-Client-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
+    "0ce59b3e88584b90": "Paket exportieren",
+    "3c7b5a9f687a6b7a": "Paket importieren"
   },
   "ja": {
     "33b8a7901c02ac2e": "ファイルブラウザー",
@@ -45477,7 +45499,9 @@
     "38da990a24e5c3e0": "今すぐ再試行してください",
     "bd549bf014f72bee": "リアルタイム接続が失われました。再接続しようとしています...",
     "e16469565a71c64d": "サーバーから切断されました。 「今すぐ再試行」をクリックして再接続します。",
-    "9d247503b4abdb7f": "ダウンロード クライアント ビューの読み込みに失敗しました。予期しないエラーが発生しました。"
+    "9d247503b4abdb7f": "ダウンロード クライアント ビューの読み込みに失敗しました。予期しないエラーが発生しました。",
+    "0ce59b3e88584b90": "エクスポートパッケージ",
+    "3c7b5a9f687a6b7a": "パッケージのインポート"
   },
   "mr": {
     "33b8a7901c02ac2e": "फाइल ब्राउझर",
@@ -49267,7 +49291,9 @@
     "38da990a24e5c3e0": "आता पुन्हा प्रयत्न करा",
     "bd549bf014f72bee": "रिअल-टाइम कनेक्शन गमावले. पुन्हा कनेक्ट करण्याचा प्रयत्न करत आहे...",
     "e16469565a71c64d": "सर्व्हरवरून डिस्कनेक्ट झाले. पुन्हा कनेक्ट करण्यासाठी आता पुन्हा प्रयत्न करा क्लिक करा.",
-    "9d247503b4abdb7f": "डाउनलोड क्लायंट दृश्य लोड करण्यात अयशस्वी. एक अनपेक्षित त्रुटी आली."
+    "9d247503b4abdb7f": "डाउनलोड क्लायंट दृश्य लोड करण्यात अयशस्वी. एक अनपेक्षित त्रुटी आली.",
+    "0ce59b3e88584b90": "निर्यात पॅकेज",
+    "3c7b5a9f687a6b7a": "पॅकेज आयात करा"
   },
   "te": {
     "33b8a7901c02ac2e": "ఫైల్ బ్రౌజర్",
@@ -53057,7 +53083,9 @@
     "38da990a24e5c3e0": "ఇప్పుడు మళ్లీ ప్రయత్నించండి",
     "e16469565a71c64d": "సర్వర్ నుండి డిస్‌కనెక్ట్ చేయబడింది. మళ్లీ కనెక్ట్ చేయడానికి ఇప్పుడు మళ్లీ ప్రయత్నించండి క్లిక్ చేయండి.",
     "bd549bf014f72bee": "రియల్ టైమ్ కనెక్షన్ కోల్పోయింది. మళ్లీ కనెక్ట్ చేయడానికి ప్రయత్నిస్తోంది...",
-    "9d247503b4abdb7f": "డౌన్‌లోడ్ క్లయింట్‌ల వీక్షణను లోడ్ చేయడంలో విఫలమైంది. ఊహించని లోపం సంభవించింది."
+    "9d247503b4abdb7f": "డౌన్‌లోడ్ క్లయింట్‌ల వీక్షణను లోడ్ చేయడంలో విఫలమైంది. ఊహించని లోపం సంభవించింది.",
+    "0ce59b3e88584b90": "ఎగుమతి ప్యాకేజీ",
+    "3c7b5a9f687a6b7a": "ప్యాకేజీని దిగుమతి చేయండి"
   },
   "tr": {
     "33b8a7901c02ac2e": "Dosya Tarayıcısı",
@@ -56847,7 +56875,9 @@
     "38da990a24e5c3e0": "Şimdi Yeniden Dene",
     "e16469565a71c64d": "Sunucuyla bağlantı kesildi. Yeniden bağlanmak için Şimdi Yeniden Dene'yi tıklayın.",
     "bd549bf014f72bee": "Gerçek zamanlı bağlantı kesildi. Yeniden bağlanmaya çalışılıyor...",
-    "9d247503b4abdb7f": "İndirme istemcileri görünümü yüklenemedi. Beklenmeyen bir hata oluştu."
+    "9d247503b4abdb7f": "İndirme istemcileri görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
+    "3c7b5a9f687a6b7a": "Paketi İçe Aktar",
+    "0ce59b3e88584b90": "İhracat Paketi"
   },
   "ta": {
     "33b8a7901c02ac2e": "கோப்பு உலாவி",
@@ -60637,7 +60667,9 @@
     "bd549bf014f72bee": "நிகழ்நேர இணைப்பு துண்டிக்கப்பட்டது. மீண்டும் இணைக்க முயற்சிக்கிறது...",
     "e16469565a71c64d": "சர்வரில் இருந்து துண்டிக்கப்பட்டது. மீண்டும் இணைக்க இப்போது மீண்டும் முயற்சிக்கவும் என்பதைக் கிளிக் செய்யவும்.",
     "38da990a24e5c3e0": "இப்போது மீண்டும் முயற்சிக்கவும்",
-    "9d247503b4abdb7f": "பதிவிறக்க கிளையன்ட் பார்வையை ஏற்றுவதில் தோல்வி. எதிர்பாராத பிழை ஏற்பட்டது."
+    "9d247503b4abdb7f": "பதிவிறக்க கிளையன்ட் பார்வையை ஏற்றுவதில் தோல்வி. எதிர்பாராத பிழை ஏற்பட்டது.",
+    "0ce59b3e88584b90": "ஏற்றுமதி தொகுப்பு",
+    "3c7b5a9f687a6b7a": "இறக்குமதி தொகுப்பு"
   },
   "vi": {
     "57fd7a0cf33f2666": "Đã chọn",
@@ -63986,7 +64018,7 @@
     "6506f6bd854b6a87": "⬇️ Đang tải xuống",
     "43644bc50d716147": "5 GB",
     "f8441eee3a2afe1c": "Con số & Số liệu",
-    "470736b92a261a28": "500 MB",
+    "470736b92a261a28": "500MB",
     "6c31b63a02708634": "1GB",
     "daa020f4e4e8db4c": "10GB",
     "ca1a6e278a4ce6de": "🎯 Tỷ lệ chia sẻ",
@@ -64427,7 +64459,9 @@
     "38da990a24e5c3e0": "Thử lại ngay bây giờ",
     "bd549bf014f72bee": "Mất kết nối thời gian thực. Đang cố gắng kết nối lại...",
     "e16469565a71c64d": "Đã ngắt kết nối khỏi máy chủ. Bấm vào Thử lại ngay để kết nối lại.",
-    "9d247503b4abdb7f": "Không tải được chế độ xem ứng dụng khách tải xuống. Đã xảy ra lỗi không mong muốn."
+    "9d247503b4abdb7f": "Không tải được chế độ xem ứng dụng khách tải xuống. Đã xảy ra lỗi không mong muốn.",
+    "3c7b5a9f687a6b7a": "Gói nhập khẩu",
+    "0ce59b3e88584b90": "Gói xuất khẩu"
   },
   "ko": {
     "33b8a7901c02ac2e": "파일 탐색기",
@@ -68217,7 +68251,9 @@
     "38da990a24e5c3e0": "지금 다시 시도",
     "bd549bf014f72bee": "실시간 연결이 끊어졌습니다. 다시 연결을 시도하는 중...",
     "e16469565a71c64d": "서버와의 연결이 끊어졌습니다. 다시 연결하려면 지금 다시 시도를 클릭하세요.",
-    "9d247503b4abdb7f": "다운로드 클라이언트 보기를 로드하지 못했습니다. 예상치 못한 오류가 발생했습니다."
+    "9d247503b4abdb7f": "다운로드 클라이언트 보기를 로드하지 못했습니다. 예상치 못한 오류가 발생했습니다.",
+    "0ce59b3e88584b90": "패키지 내보내기",
+    "3c7b5a9f687a6b7a": "패키지 가져오기"
   },
   "it": {
     "bbdffe25dc7d80cf": "Posizione:",
@@ -72007,6 +72043,8 @@
     "38da990a24e5c3e0": "Riprova ora",
     "bd549bf014f72bee": "Connessione in tempo reale persa. Tentativo di riconnessione...",
     "e16469565a71c64d": "Disconnesso dal server. Fare clic su Riprova ora per riconnettersi.",
-    "9d247503b4abdb7f": "Impossibile caricare la vista dei client di download. Si è verificato un errore imprevisto."
+    "9d247503b4abdb7f": "Impossibile caricare la vista dei client di download. Si è verificato un errore imprevisto.",
+    "0ce59b3e88584b90": "Pacchetto di esportazione",
+    "3c7b5a9f687a6b7a": "Importa pacchetto"
   }
 }

@@ -772,6 +772,8 @@ const fr: I18nTranslations = {
     torrentRemoved: "Torrent supprimé",
     failedToDelete: "Échec de la suppression du torrent",
     title: "Torrents",
+    exportPackage: "Forfait d'exportation",
+    importPackage: "Importer le package",
   },
   torrentDetail: {
     overview: "Aperçu",
@@ -3841,6 +3843,8 @@ const fr: I18nTranslations = {
       "Échec du chargement de la vue addTorrent. Une erreur inattendue s'est produite.",
     downloadHistory:
       "Échec du chargement de la vue downloadHistory. Une erreur inattendue s'est produite.",
+    downloadClients:
+      "Échec du chargement de la vue des clients de téléchargement. Une erreur inattendue s'est produite.",
     activity:
       "Échec du chargement de la vue d'activité. Une erreur inattendue s'est produite.",
     indexers:
@@ -3885,8 +3889,6 @@ const fr: I18nTranslations = {
       "Échec du chargement de la vue setupGuide. Une erreur inattendue s'est produite.",
     copilotDrawer:
       "Échec du chargement de la vue copilotDrawer. Une erreur inattendue s'est produite.",
-    downloadClients:
-      "Échec du chargement de la vue des clients de téléchargement. Une erreur inattendue s'est produite.",
   },
   copilot: {
     welcomeMessage:

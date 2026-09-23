@@ -768,6 +768,8 @@ const de: I18nTranslations = {
     torrentRemoved: "Torrent entfernt",
     failedToDelete: "Torrent konnte nicht gelöscht werden",
     title: "Torrents",
+    exportPackage: "Paket exportieren",
+    importPackage: "Paket importieren",
     nameHeader: "Name",
     statusHeader: "Status",
   },
@@ -3806,6 +3808,8 @@ const de: I18nTranslations = {
       "AddTorrent-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
     downloadHistory:
       "DownloadHistory-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
+    downloadClients:
+      "Download-Client-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
     activity:
       "Aktivitätsansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
     indexers:
@@ -3850,8 +3854,6 @@ const de: I18nTranslations = {
       "Die setupGuide-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
     copilotDrawer:
       "Die CopilotDrawer-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
-    downloadClients:
-      "Download-Client-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
   },
   copilot: {
     welcomeMessage:

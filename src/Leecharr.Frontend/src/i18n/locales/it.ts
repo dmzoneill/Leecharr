@@ -765,6 +765,8 @@ const it: I18nTranslations = {
     torrentAndFilesDeleted: "Torrent e file eliminati",
     torrentRemoved: "Torrente rimosso",
     failedToDelete: "Impossibile eliminare il torrent",
+    exportPackage: "Pacchetto di esportazione",
+    importPackage: "Importa pacchetto",
   },
   torrentDetail: {
     overview: "Panoramica",
@@ -3791,6 +3793,8 @@ const it: I18nTranslations = {
     torrents: "Errore nel caricamento dei torrent",
     addTorrent: "Errore nell'aggiunta del torrent",
     downloadHistory: "Errore nel caricamento della cronologia dei download",
+    downloadClients:
+      "Impossibile caricare la vista dei client di download. Si è verificato un errore imprevisto.",
     activity: "Errore nel caricamento delle attività",
     indexers: "Errore nel caricamento degli indexer",
     peerMap: "Errore nel caricamento della mappa dei peer",
@@ -3813,8 +3817,6 @@ const it: I18nTranslations = {
     searchModal: "Errore nella finestra di ricerca",
     setupGuide: "Errore nella guida di configurazione",
     copilotDrawer: "Errore nel pannello Copilot",
-    downloadClients:
-      "Impossibile caricare la vista dei client di download. Si è verificato un errore imprevisto.",
   },
   copilot: {
     welcomeMessage:

@@ -8,6 +8,7 @@ import { TorrentFilterPanel } from "./torrentindex/TorrentFilterPanel";
 import { QuickSettingsDrawer } from "../components/quicksettings/QuickSettingsDrawer";
 import { DeleteTorrentModal } from "../components/DeleteTorrentModal";
 import { BulkTagModal } from "../components/BulkTagModal";
+import { ImportPackageModal } from "../components/ImportPackageModal";
 import { ViewMode } from "./torrentindex/types";
 import { extractTrackerDomain } from "../utils/formatters";
 import { useTorrentStore } from "../stores/useTorrentStore";
@@ -118,6 +119,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     torrent?: Torrent | null;
     count?: number;
   }>({ isOpen: false });
+  const [showImportPackageModal, setShowImportPackageModal] = useState(false);
 
   const handleBulkAddTags = useCallback(() => {
     if (selectedIds.size === 0) return;
@@ -504,6 +506,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
           trackViewModeChange(m);
         }}
         onAddTorrent={onOpenAddModal}
+        onImportPackage={() => setShowImportPackageModal(true)}
         onSearchIndexers={onOpenSearchModal}
         onStartAll={handleStartAll}
         onStopAll={handleStopAll}
@@ -646,6 +649,12 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
             if (!bulkPending) setBulkTagModalState(null);
           }}
           onConfirm={handleConfirmBulkTag}
+        />
+      )}
+      {showImportPackageModal && (
+        <ImportPackageModal
+          isOpen={showImportPackageModal}
+          onClose={() => setShowImportPackageModal(false)}
         />
       )}
     </div>

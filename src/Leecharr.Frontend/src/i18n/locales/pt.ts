@@ -767,6 +767,8 @@ const pt: I18nTranslations = {
     torrentAndFilesDeleted: "Torrent e arquivos excluídos",
     torrentRemoved: "Torrente removida",
     failedToDelete: "Falha ao excluir torrent",
+    exportPackage: "Pacote de exportação",
+    importPackage: "Pacote de importação",
     statusHeader: "Status",
   },
   torrentDetail: {
@@ -3788,6 +3790,8 @@ const pt: I18nTranslations = {
       "Falha ao carregar a visualização addTorrent. Ocorreu um erro inesperado.",
     downloadHistory:
       "Falha ao carregar a visualização downloadHistory. Ocorreu um erro inesperado.",
+    downloadClients:
+      "Falha ao carregar a visualização dos clientes de download. Ocorreu um erro inesperado.",
     activity:
       "Falha ao carregar a visualização de atividades. Ocorreu um erro inesperado.",
     indexers:
@@ -3832,8 +3836,6 @@ const pt: I18nTranslations = {
       "Falha ao carregar a visualização setupGuide. Ocorreu um erro inesperado.",
     copilotDrawer:
       "Falha ao carregar a visualização copilotDrawer. Ocorreu um erro inesperado.",
-    downloadClients:
-      "Falha ao carregar a visualização dos clientes de download. Ocorreu um erro inesperado.",
   },
   copilot: {
     welcomeMessage:

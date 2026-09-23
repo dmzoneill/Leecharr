@@ -1809,3 +1809,26 @@ export interface BulkActionResult {
   succeededIds?: number[];
   failedIds?: Record<number, string>;
 }
+
+export interface PackageImportTorrentSummary {
+  id: number;
+  name: string;
+  infoHash: string;
+  category?: string;
+  tags?: string[];
+  totalSize: number;
+  isDuplicate: boolean;
+  status?: string;
+  savePath?: string;
+}
+
+export interface PackageImportResult {
+  success: boolean;
+  importedTorrentsCount: number;
+  skippedDuplicatesCount: number;
+  torrents: PackageImportTorrentSummary[];
+  skippedDuplicates: string[];
+  extractedFiles: string[];
+  totalBytesExtracted: number;
+  message?: string;
+}

@@ -759,6 +759,8 @@ const ar: I18nTranslations = {
     torrentAndFilesDeleted: "تورنت والملفات المحذوفة",
     torrentRemoved: "تمت إزالة السيل",
     failedToDelete: "فشل في حذف التورنت",
+    exportPackage: "حزمة التصدير",
+    importPackage: "حزمة الاستيراد",
   },
   torrentDetail: {
     overview: "نظرة عامة",
@@ -3691,6 +3693,7 @@ const ar: I18nTranslations = {
     torrents: "فشل تحميل عرض السيول. حدث خطأ غير متوقع.",
     addTorrent: "فشل تحميل عرض addTorrent. حدث خطأ غير متوقع.",
     downloadHistory: "فشل تحميل عرض سجل التنزيل. حدث خطأ غير متوقع.",
+    downloadClients: "فشل تحميل عرض عملاء التنزيل. حدث خطأ غير متوقع.",
     activity: "فشل تحميل عرض النشاط. حدث خطأ غير متوقع.",
     indexers: "فشل تحميل عرض الفهارس. حدث خطأ غير متوقع.",
     peerMap: "فشل تحميل طريقة عرضpeerMap. حدث خطأ غير متوقع.",
@@ -3713,7 +3716,6 @@ const ar: I18nTranslations = {
     searchModal: "فشل تحميل عرض searchModal. حدث خطأ غير متوقع.",
     setupGuide: "فشل تحميل طريقة عرض setupGuide. حدث خطأ غير متوقع.",
     copilotDrawer: "فشل تحميل عرض copilotDrawer. حدث خطأ غير متوقع.",
-    downloadClients: "فشل تحميل عرض عملاء التنزيل. حدث خطأ غير متوقع.",
   },
   copilot: {
     welcomeMessage:

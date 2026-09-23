@@ -764,6 +764,8 @@ const ur: I18nTranslations = {
     torrentAndFilesDeleted: "ٹورینٹ اور فائلیں حذف کر دی گئیں۔",
     torrentRemoved: "ٹورینٹ ہٹا دیا گیا۔",
     failedToDelete: "ٹورینٹ کو حذف کرنے میں ناکام",
+    exportPackage: "ایکسپورٹ پیکج",
+    importPackage: "پیکج درآمد کریں۔",
   },
   torrentDetail: {
     overview: "جائزہ",
@@ -3709,6 +3711,8 @@ const ur: I18nTranslations = {
       "ایڈ ٹورنٹ ویو لوڈ کرنے میں ناکام۔ ایک غیر متوقع خرابی پیش آگئی۔",
     downloadHistory:
       "ڈاؤن لوڈ ہسٹری کا منظر لوڈ کرنے میں ناکام۔ ایک غیر متوقع خرابی پیش آگئی۔",
+    downloadClients:
+      "ڈاؤن لوڈ کلائنٹس کا منظر لوڈ کرنے میں ناکام۔ ایک غیر متوقع خرابی پیش آگئی۔",
     activity:
       "سرگرمی کا منظر لوڈ کرنے میں ناکام۔ ایک غیر متوقع خرابی پیش آگئی۔",
     indexers:
@@ -3751,8 +3755,6 @@ const ur: I18nTranslations = {
       "سیٹ اپ گائیڈ ویو لوڈ کرنے میں ناکام۔ ایک غیر متوقع خرابی پیش آگئی۔",
     copilotDrawer:
       "copilotDrawer منظر لوڈ کرنے میں ناکام۔ ایک غیر متوقع خرابی پیش آگئی۔",
-    downloadClients:
-      "ڈاؤن لوڈ کلائنٹس کا منظر لوڈ کرنے میں ناکام۔ ایک غیر متوقع خرابی پیش آگئی۔",
   },
   copilot: {
     welcomeMessage:

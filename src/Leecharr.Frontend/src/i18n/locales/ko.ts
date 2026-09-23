@@ -760,6 +760,8 @@ const ko: I18nTranslations = {
     torrentAndFilesDeleted: "토렌트 및 파일이 삭제되었습니다.",
     torrentRemoved: "토렌트가 삭제되었습니다",
     failedToDelete: "토렌트 삭제 실패",
+    exportPackage: "패키지 내보내기",
+    importPackage: "패키지 가져오기",
   },
   torrentDetail: {
     overview: "개요",
@@ -3640,6 +3642,8 @@ const ko: I18nTranslations = {
     torrents: "토렌트 목록을 불러오는 중 오류가 발생했습니다",
     addTorrent: "토렌트를 추가하는 중 오류가 발생했습니다",
     downloadHistory: "다운로드 기록을 불러오는 중 오류가 발생했습니다",
+    downloadClients:
+      "다운로드 클라이언트 보기를 로드하지 못했습니다. 예상치 못한 오류가 발생했습니다.",
     activity: "활동 내역을 불러오는 중 오류가 발생했습니다",
     indexers: "인덱서를 불러오는 중 오류가 발생했습니다",
     peerMap: "피어 맵을 불러오는 중 오류가 발생했습니다",
@@ -3662,8 +3666,6 @@ const ko: I18nTranslations = {
     searchModal: "검색 대화상자 오류",
     setupGuide: "설정 가이드 오류",
     copilotDrawer: "Copilot 서랍 오류",
-    downloadClients:
-      "다운로드 클라이언트 보기를 로드하지 못했습니다. 예상치 못한 오류가 발생했습니다.",
   },
   copilot: {
     welcomeMessage:
