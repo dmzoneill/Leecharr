@@ -263,7 +263,7 @@ public class NzbVortexApiControllerTest
         this.httpContext.Request.ContentType = "multipart/form-data";
         this.httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>(), fileCollection);
 
-        var parsed = new ParsedTorrentInfo { Name = "ParsedTorrent" };
+        var parsed = new ParsedTorrent { Name = "ParsedTorrent" };
         var added = new Torrent { Id = 44, Name = "ParsedTorrent" };
 
         this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsed);
@@ -307,7 +307,7 @@ public class NzbVortexApiControllerTest
         this.httpContext.Request.QueryString = new QueryString($"?url={Uri.EscapeDataString(torrentUrl)}");
 
         var dummyBytes = new byte[] { 9, 8, 7, 6 };
-        var parsed = new ParsedTorrentInfo { Name = "HttpItem" };
+        var parsed = new ParsedTorrent { Name = "HttpItem" };
         var added = new Torrent { Id = 66, Name = "HttpItem" };
 
         this.configService.MaxTorrentFileSizeBytes.Returns(50 * 1024 * 1024L);
