@@ -27,7 +27,7 @@ public class AutomationMarketplaceServiceTest
         var templates = this.service.GetTemplates();
 
         templates.Should().NotBeNull();
-        templates.Should().HaveCountGreaterOrEqualTo(5);
+        templates.Should().HaveCountGreaterThanOrEqualTo(5);
 
         var ids = templates.Select(t => t.Id).ToList();
         ids.Should().Contain(new[]
