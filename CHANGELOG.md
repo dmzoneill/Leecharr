@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.26.6](https://github.com/dmzoneill/Leecharr/releases/tag/v1.26.6) - 2026-09-23
+
+### 🐛 Bug Fixes
+- fix(test): resolve edge-case unit test assertions across blocklist, transports, and packages
+- fix(test): add missing using namespaces and remove nullable dictionary annotations
+- fix(test): resolve nullable warnings and controller attribute routing in new tests
+
+### 🔧 Maintenance & Improvements
+- test(coverage): add 10 comprehensive test suites across network, health, telemetry, trackers, and packages
+
 ## [v1.26.5](https://github.com/dmzoneill/Leecharr/releases/tag/v1.26.5) - 2026-09-23
 
 ### 🐛 Bug Fixes
