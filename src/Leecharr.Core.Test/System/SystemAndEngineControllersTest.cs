@@ -528,9 +528,9 @@ public class TrackerBoostControllerTest
 [TestFixture]
 public class LogControllerTest
 {
-    private IConfigService configService = null!;
-    private LogController controller = null!;
-    private RingBufferTarget? originalTarget;
+    private IConfigService configService;
+    private LogController controller;
+    private RingBufferTarget originalTarget;
 
     private class TestRingBufferTarget : RingBufferTarget
     {
@@ -539,7 +539,7 @@ public class LogControllerTest
         {
         }
 
-        public void AddLog(LogLevel level, string loggerName, string message, Exception? ex = null)
+        public void AddLog(LogLevel level, string loggerName, string message, Exception ex = null)
         {
             this.Write(new LogEventInfo(level, loggerName, message) { Exception = ex });
         }
@@ -586,7 +586,7 @@ public class LogControllerTest
         var ok = (OkObjectResult)result.Result!;
         var logs = ok.Value as List<LogResource>;
         logs.Should().NotBeNull();
-        logs!.Count.Should().BeGreaterOrEqualTo(1);
+        logs!.Count.Should().BeGreaterThanOrEqualTo(1);
 
         var entry = logs.First(l => l.Message == "Sample log message");
         entry.Level.Should().Be("Info");
