@@ -152,6 +152,22 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
         return list;
     }
 
+    public IReadOnlyList<TrackerPeerState> GetPeersForSwarm(string infoHashHex)
+    {
+        if (string.IsNullOrWhiteSpace(infoHashHex))
+        {
+            return Array.Empty<TrackerPeerState>();
+        }
+
+        var normalizedHex = infoHashHex.Trim().ToUpperInvariant();
+        if (this.swarms.TryGetValue(normalizedHex, out var swarm))
+        {
+            return swarm.Peers.Values.ToList();
+        }
+
+        return Array.Empty<TrackerPeerState>();
+    }
+
     public void Handle(TorrentAddedEvent message)
     {
         if (message?.Torrent?.InfoHash != null)
