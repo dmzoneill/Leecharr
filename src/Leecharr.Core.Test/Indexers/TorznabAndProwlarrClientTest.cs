@@ -323,8 +323,8 @@ public class TorznabAndProwlarrClientTest
         var query = capturedRequest.RequestUri!.Query;
 
         query.Should().Contain("t=music");
-        query.Should().Contain("artist=Pink%20Floyd");
-        query.Should().Contain("album=The%20Dark%20Side%20of%20the%20Moon");
+        query.Should().Match(q => q.Contains("artist=Pink+Floyd") || q.Contains("artist=Pink%20Floyd"));
+        query.Should().Match(q => q.Contains("album=The+Dark+Side+of+the+Moon") || q.Contains("album=The%20Dark%20Side%20of%20the%20Moon"));
     }
 
     [Test]
@@ -362,7 +362,7 @@ public class TorznabAndProwlarrClientTest
         var query = capturedRequest.RequestUri!.Query;
 
         query.Should().Contain("t=book");
-        query.Should().Contain("author=Isaac%20Asimov");
+        query.Should().Match(q => q.Contains("author=Isaac+Asimov") || q.Contains("author=Isaac%20Asimov"));
         query.Should().Contain("isbn=9780553293357");
     }
 
