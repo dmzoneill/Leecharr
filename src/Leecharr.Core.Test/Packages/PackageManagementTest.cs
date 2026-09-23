@@ -131,8 +131,8 @@ public class PackageManagementTest
         using var gzipStream = new GZipStream(memoryStream, CompressionMode.Decompress);
         using var tarReader = new TarReader(gzipStream);
 
-        TarEntry? entry;
-        PackageManifest? manifest = null;
+        TarEntry entry;
+        PackageManifest manifest = null;
         var entriesFound = new List<string>();
 
         while ((entry = await tarReader.GetNextEntryAsync()) != null)
@@ -196,7 +196,7 @@ public class PackageManagementTest
         using var tarReader = new TarReader(gzipStream);
 
         var entryNames = new List<string>();
-        TarEntry? entry;
+        TarEntry entry;
         while ((entry = await tarReader.GetNextEntryAsync()) != null)
         {
             entryNames.Add(entry.Name.Replace('\\', '/'));

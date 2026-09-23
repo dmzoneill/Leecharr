@@ -241,7 +241,7 @@ public class DiskSpaceControllerTest
         var apiAttribute = type.GetCustomAttribute<V1ApiControllerAttribute>();
 
         apiAttribute.Should().NotBeNull();
-        apiAttribute!.Resource.Should().Be("diskspace");
+        apiAttribute!.Template.Should().Be("api/v1/diskspace");
 
         var method = type.GetMethod(nameof(DiskSpaceController.GetDiskSpace));
         method.Should().NotBeNull();

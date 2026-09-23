@@ -87,7 +87,7 @@ public class SystemMaintenanceControllerTest
         var apiAttribute = type.GetCustomAttribute<V1ApiControllerAttribute>();
 
         apiAttribute.Should().NotBeNull();
-        apiAttribute!.Resource.Should().Be("system/maintenance");
+        apiAttribute!.Template.Should().Be("api/v1/system/maintenance");
     }
 
     [Test]
@@ -174,7 +174,7 @@ public class SystemRestartControllerTest
         var apiAttribute = type.GetCustomAttribute<V1ApiControllerAttribute>();
 
         apiAttribute.Should().NotBeNull();
-        apiAttribute!.Resource.Should().Be("system/restart");
+        apiAttribute!.Template.Should().Be("api/v1/system/restart");
 
         var method = type.GetMethod(nameof(SystemRestartController.Restart));
         method.Should().NotBeNull();
@@ -255,7 +255,7 @@ public class SystemShutdownControllerTest
         var apiAttribute = type.GetCustomAttribute<V1ApiControllerAttribute>();
 
         apiAttribute.Should().NotBeNull();
-        apiAttribute!.Resource.Should().Be("system/shutdown");
+        apiAttribute!.Template.Should().Be("api/v1/system/shutdown");
 
         var method = type.GetMethod(nameof(SystemShutdownController.Shutdown));
         method.Should().NotBeNull();
