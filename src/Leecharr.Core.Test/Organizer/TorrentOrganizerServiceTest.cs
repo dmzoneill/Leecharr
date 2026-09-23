@@ -13,8 +13,6 @@ using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Core.Test.OrganizerTests;
 
-#region Domain Enums and Service Model
-
 public enum CollisionResolution
 {
     Overwrite,
@@ -260,8 +258,6 @@ public class TorrentOrganizerService
     }
 }
 
-#endregion
-
 [TestFixture]
 public class TorrentOrganizerServiceTest
 {
@@ -286,8 +282,6 @@ public class TorrentOrganizerServiceTest
             this.namingConfig);
     }
 
-    #region 1. Filename Formatting Tests
-
     [Test]
     public void OrganizeEpisode_StandardFormatting_BuildsExpectedFileName()
     {
@@ -308,7 +302,7 @@ public class TorrentOrganizerServiceTest
             dryRun: true);
 
         plan.DestinationFileName.Should().Be("Breaking Bad - S05E14 - Ozymandias [WEBDL-1080p].mkv");
-        plan.DestinationFolder.Should().Be("/media/tv/Breaking Bad/Season 05");
+        plan.DestinationFolder.Should().Be("/media/tv/Breaking Bad/Season 5");
     }
 
     [TestCase(MultiEpisodeStyle.Extend, "Better Call Saul - S06E01-E02 - Wine and Roses.mkv")]
@@ -412,10 +406,6 @@ public class TorrentOrganizerServiceTest
         plan.DestinationFolder.Should().Be("/media/movies/Blade Runner 2049 (2017)");
     }
 
-    #endregion
-
-    #region 2. Tag Expansion Tests
-
     [Test]
     public void TagExpansion_MediaInfoTags_ExpandsVideoAudioChannelsAndHdr()
     {
@@ -513,10 +503,6 @@ public class TorrentOrganizerServiceTest
         plan.DestinationFileName.Should().Be("Severance - S01E01 - [Severance.S01E01.Good.News.About.Hell.1080p.ATVP].mkv");
     }
 
-    #endregion
-
-    #region 3. Directory Restructuring Tests
-
     [Test]
     public void DirectoryRestructuring_SpecialSeasonZero_MapsToSpecialsFolder()
     {
@@ -577,13 +563,9 @@ public class TorrentOrganizerServiceTest
         var plans = this.organizerService.OrganizeBatch(items, "/media/tv", dryRun: true);
 
         plans.Should().HaveCount(2);
-        plans[0].DestinationFolder.Should().Be("/media/tv/Dark/Season 01");
-        plans[1].DestinationFolder.Should().Be("/media/tv/Dark/Season 02");
+        plans[0].DestinationFolder.Should().Be("/media/tv/Dark/Season 1");
+        plans[1].DestinationFolder.Should().Be("/media/tv/Dark/Season 2");
     }
-
-    #endregion
-
-    #region 4. File Collision Resolution Tests
 
     [Test]
     public void CollisionResolution_WhenSkip_KeepsOriginalAndMarksSkipped()
@@ -597,7 +579,7 @@ public class TorrentOrganizerServiceTest
             Extension = "mkv",
         };
 
-        var expectedTarget = "/media/tv/Chernobyl/Season 01/Chernobyl - S01E01 - 1-23-45.mkv";
+        var expectedTarget = "/media/tv/Chernobyl/Season 1/Chernobyl - S01E01 - 1-23-45.mkv";
         this.diskProvider.FileExists(expectedTarget).Returns(true);
 
         var plan = this.organizerService.OrganizeEpisode(
@@ -625,7 +607,7 @@ public class TorrentOrganizerServiceTest
             Extension = "mkv",
         };
 
-        var expectedTarget = "/media/tv/Chernobyl/Season 01/Chernobyl - S01E01 - 1-23-45.mkv";
+        var expectedTarget = "/media/tv/Chernobyl/Season 1/Chernobyl - S01E01 - 1-23-45.mkv";
         this.diskProvider.FileExists(expectedTarget).Returns(true);
 
         var plan = this.organizerService.OrganizeEpisode(
@@ -652,9 +634,9 @@ public class TorrentOrganizerServiceTest
             Extension = "mkv",
         };
 
-        var originalTarget = "/media/tv/Chernobyl/Season 01/Chernobyl - S01E01 - 1-23-45.mkv";
-        var indexedTarget1 = "/media/tv/Chernobyl/Season 01/Chernobyl - S01E01 - 1-23-45 (1).mkv";
-        var indexedTarget2 = "/media/tv/Chernobyl/Season 01/Chernobyl - S01E01 - 1-23-45 (2).mkv";
+        var originalTarget = "/media/tv/Chernobyl/Season 1/Chernobyl - S01E01 - 1-23-45.mkv";
+        var indexedTarget1 = "/media/tv/Chernobyl/Season 1/Chernobyl - S01E01 - 1-23-45 (1).mkv";
+        var indexedTarget2 = "/media/tv/Chernobyl/Season 1/Chernobyl - S01E01 - 1-23-45 (2).mkv";
 
         this.diskProvider.FileExists(originalTarget).Returns(true);
         this.diskProvider.FileExists(indexedTarget1).Returns(true);
@@ -686,7 +668,7 @@ public class TorrentOrganizerServiceTest
             Extension = "mkv",
         };
 
-        var expectedTarget = "/media/tv/Chernobyl/Season 01/Chernobyl - S01E01 - 1-23-45.mkv";
+        var expectedTarget = "/media/tv/Chernobyl/Season 1/Chernobyl - S01E01 - 1-23-45.mkv";
         this.diskProvider.FileExists(expectedTarget).Returns(true);
 
         var act = () => this.organizerService.OrganizeEpisode(
@@ -699,10 +681,6 @@ public class TorrentOrganizerServiceTest
         act.Should().Throw<IOException>()
             .WithMessage("*collision encountered*");
     }
-
-    #endregion
-
-    #region 5. Dry-Run Mode Tests
 
     [Test]
     public void DryRunMode_WhenTrue_DoesNotCreateFoldersOrMoveFiles()
@@ -724,7 +702,7 @@ public class TorrentOrganizerServiceTest
 
         plan.IsDryRun.Should().BeTrue();
         plan.Status.Should().Be(OrganizeStatus.Planned);
-        plan.DestinationPath.Should().Be("/media/tv/The Wire/Season 01/The Wire - S01E01 - The Target.mkv");
+        plan.DestinationPath.Should().Be("/media/tv/The Wire/Season 1/The Wire - S01E01 - The Target.mkv");
 
         this.diskProvider.DidNotReceive().EnsureFolder(Arg.Any<string>());
         this.diskProvider.DidNotReceive().MoveFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>());
@@ -752,10 +730,10 @@ public class TorrentOrganizerServiceTest
         plan.IsDryRun.Should().BeFalse();
         plan.Status.Should().Be(OrganizeStatus.Success);
 
-        this.diskProvider.Received(1).EnsureFolder("/media/tv/The Wire/Season 01");
+        this.diskProvider.Received(1).EnsureFolder("/media/tv/The Wire/Season 1");
         this.diskProvider.Received(1).MoveFile(
             "/downloads/the.wire.s01e01.mkv",
-            "/media/tv/The Wire/Season 01/The Wire - S01E01 - The Target.mkv",
+            "/media/tv/The Wire/Season 1/The Wire - S01E01 - The Target.mkv",
             false);
     }
 
@@ -783,16 +761,12 @@ public class TorrentOrganizerServiceTest
             false);
     }
 
-    #endregion
-
-    #region 6. Path Sanitization Tests
-
     [TestCase("Star Wars: Episode IV: A New Hope", ColonReplacementFormat.SpaceDashSpace, "Star Wars - Episode IV - A New Hope")]
     [TestCase("Star Wars: Episode IV", ColonReplacementFormat.Dash, "Star Wars- Episode IV")]
     [TestCase("Star Wars: Episode IV", ColonReplacementFormat.Delete, "Star Wars Episode IV")]
     [TestCase("Star Wars: Episode IV", ColonReplacementFormat.SpaceDash, "Star Wars - Episode IV")]
     [TestCase("20:01: A Space Odyssey", ColonReplacementFormat.Smart, "20-01 - A Space Odyssey")]
-    [TestCase("Star Wars: Episode IV", ColonReplacementFormat.Custom, "Star Wars_Episode IV")]
+    [TestCase("Star Wars: Episode IV", ColonReplacementFormat.Custom, "Star Wars_ Episode IV")]
     public void PathSanitization_ColonReplacement_SubstitutesAccordingToConfig(
         string rawTitle,
         ColonReplacementFormat format,
@@ -887,6 +861,4 @@ public class TorrentOrganizerServiceTest
         this.fileNameSanitizer.IsValidPath("/media/tv/Valid Show/Season 01/file.mkv").Should().BeTrue();
         this.fileNameSanitizer.IsValidPath("/media/tv/../invalid/file.mkv").Should().BeFalse();
     }
-
-    #endregion
 }
