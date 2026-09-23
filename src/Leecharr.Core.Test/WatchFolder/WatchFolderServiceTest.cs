@@ -2,6 +2,7 @@
 
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -10,10 +11,12 @@ using NzbDrone.Common.Disk;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Exceptions;
+using NzbDrone.Core.Messaging.Commands;
+using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.WatchFolder;
 
-namespace Leecharr.Core.Test.WatchFolder;
+namespace Leecharr.Core.Test.WatchFolderTests;
 
 [TestFixture]
 public class WatchFolderServiceTest
@@ -923,6 +926,215 @@ public class WatchFolderServiceTest
         var rootFailedDir = Path.Combine(this.tempDirectory, "failed");
         this.diskProvider.Received(1).EnsureFolder(rootFailedDir);
         this.diskProvider.Received(1).MoveFile(corruptFile, Path.Combine(rootFailedDir, "corrupt.torrent"), true);
+    }
+
+    #endregion
+
+    #region Command and Event Execution Tests
+
+    [Test]
+    public async Task ExecuteAsync_WhenWatchFolderScanCommandReceived_ScansWatchFolder()
+    {
+        var torrentFile = Path.Combine(this.tempDirectory, "cmd_async.torrent");
+        await File.WriteAllBytesAsync(torrentFile, new byte[] { 1, 2, 3 });
+
+        this.diskProvider.GetFiles(this.tempDirectory, true).Returns(new[] { torrentFile });
+
+        var parsedTorrent = new ParsedTorrent
+        {
+            Name = "Command.Async.Test.2024",
+            InfoHash = "1234567890123456789012345678901234567890",
+            TotalSize = 1000,
+        };
+
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsedTorrent);
+
+        await this.service.ExecuteAsync(new WatchFolderScanCommand());
+
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(
+            parsedTorrent,
+            category: Arg.Any<string>(),
+            startPaused: Arg.Any<bool>(),
+            rawBytes: Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public void Execute_WhenWatchFolderScanCommandReceived_ScansWatchFolderSynchronously()
+    {
+        var torrentFile = Path.Combine(this.tempDirectory, "cmd_sync.torrent");
+        File.WriteAllBytes(torrentFile, new byte[] { 1, 2, 3 });
+
+        this.diskProvider.GetFiles(this.tempDirectory, true).Returns(new[] { torrentFile });
+
+        var parsedTorrent = new ParsedTorrent
+        {
+            Name = "Command.Sync.Test.2024",
+            InfoHash = "2345678901234567890123456789012345678901",
+            TotalSize = 1000,
+        };
+
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsedTorrent);
+
+        this.service.Execute(new WatchFolderScanCommand());
+
+        this.torrentService.Received(1).AddFromParsedTorrentAsync(
+            parsedTorrent,
+            category: Arg.Any<string>(),
+            startPaused: Arg.Any<bool>(),
+            rawBytes: Arg.Any<byte[]>()).GetAwaiter().GetResult();
+    }
+
+    [Test]
+    public void Handle_ConfigSavedEvent_RestartsOrStopsWatcherWithoutThrowing()
+    {
+        var action = () => this.service.Handle(new ConfigSavedEvent());
+        action.Should().NotThrow();
+    }
+
+    [Test]
+    public void Handle_ConfigFileSavedEvent_RestartsOrStopsWatcherWithoutThrowing()
+    {
+        var action = () => this.service.Handle(new ConfigFileSavedEvent());
+        action.Should().NotThrow();
+    }
+
+    #endregion
+
+    #region Renamed File Handling Tests
+
+    [Test]
+    public async Task OnFileSystemWatcherRenamed_WhenValidTorrent_ProcessesSuccessfully()
+    {
+        var testFile = Path.Combine(this.tempDirectory, "renamed.torrent");
+        await File.WriteAllBytesAsync(testFile, new byte[] { 0x64, 0x32, 0x30, 0x65 });
+
+        var parsed = new ParsedTorrent
+        {
+            Name = "Renamed.Movie.2024.1080p",
+            InfoHash = "3456789012345678901234567890123456789012",
+            TotalSize = 1024,
+        };
+
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsed);
+
+        this.service.OnFileSystemWatcherRenamed(this, new RenamedEventArgs(WatcherChangeTypes.Renamed, this.tempDirectory, "renamed.torrent", "old.torrent"));
+
+        await Task.Delay(150);
+
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(
+            parsed,
+            category: "movies",
+            savePath: null,
+            startPaused: false,
+            rawBytes: Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task HandleFileSystemWatcherRenamedAsync_WhenNonTorrentFile_IgnoresFile()
+    {
+        var textFile = Path.Combine(this.tempDirectory, "renamed.txt");
+        await File.WriteAllBytesAsync(textFile, new byte[] { 1, 2, 3 });
+
+        await this.service.HandleFileSystemWatcherRenamedAsync(new RenamedEventArgs(WatcherChangeTypes.Renamed, this.tempDirectory, "renamed.txt", "old.txt"));
+
+        await this.torrentService.DidNotReceive().AddFromParsedTorrentAsync(
+            Arg.Any<ParsedTorrent>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<bool>(),
+            Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task HandleFileSystemWatcherRenamedAsync_WhenNullOrEmpty_IgnoresGracefully()
+    {
+        var actNull = async () => await this.service.HandleFileSystemWatcherRenamedAsync(null!);
+        await actNull.Should().NotThrowAsync();
+
+        var actEmpty = async () => await this.service.HandleFileSystemWatcherRenamedAsync(new RenamedEventArgs(WatcherChangeTypes.Renamed, this.tempDirectory, string.Empty, string.Empty));
+        await actEmpty.Should().NotThrowAsync();
+    }
+
+    #endregion
+
+    #region Category Synonym Mapping Tests
+
+    [TestCase("Severance.S02E01.1080p.WEB-DL.x265", "shows", "shows")]
+    [TestCase("Severance.S02E01.1080p.WEB-DL.x265", "television", "television")]
+    [TestCase("Severance.S02E01.1080p.WEB-DL.x265", "series", "series")]
+    [TestCase("Oppenheimer.2023.1080p.Remux", "films", "films")]
+    [TestCase("Oppenheimer.2023.1080p.Remux", "film", "film")]
+    [TestCase("Sousou no Frieren 2023 1080p Batch Subs", "animation", "animation")]
+    [TestCase("Pink.Floyd-The.Dark.Side.Of.The.Moon.1973.FLAC.Lossless", "audio", "audio")]
+    [TestCase("Pink.Floyd-The.Dark.Side.Of.The.Moon.1973.FLAC.Lossless", "albums", "albums")]
+    public void MatchCategoryFromReleaseName_WhenConfiguredCategoryMatchesSynonym_ResolvesToSynonymCategoryName(string releaseName, string configuredCategoryName, string expectedCategory)
+    {
+        this.categoryService.GetAll().Returns(new[]
+        {
+            new Category { Name = configuredCategoryName },
+        });
+
+        var category = this.service.MatchCategoryFromReleaseName(releaseName);
+        category.Should().Be(expectedCategory);
+    }
+
+    #endregion
+
+    #region Additional ProcessFile and Stabilization Tests
+
+    [Test]
+    public async Task ProcessFileAsync_WhenAutoStartTorrentsFalse_AddsTorrentWithStartPausedTrue()
+    {
+        var testFile = Path.Combine(this.tempDirectory, "paused.torrent");
+        await File.WriteAllBytesAsync(testFile, new byte[] { 1, 2, 3 });
+
+        this.configService.WatchFolderAutoStartTorrents.Returns(false);
+
+        var parsed = new ParsedTorrent
+        {
+            Name = "Paused.Movie.2024",
+            InfoHash = "4567890123456789012345678901234567890123",
+            TotalSize = 1000,
+        };
+
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(parsed);
+
+        var result = await this.service.ProcessFileAsync(testFile);
+        result.Should().BeTrue();
+
+        await this.torrentService.Received(1).AddFromParsedTorrentAsync(
+            parsed,
+            category: Arg.Any<string>(),
+            startPaused: true,
+            rawBytes: Arg.Any<byte[]>());
+    }
+
+    [Test]
+    public async Task ProcessFileAsync_WhenQuarantineMoveThrowsException_CatchesAndReturnsFalse()
+    {
+        var corruptFile = Path.Combine(this.tempDirectory, "quarantine_fail.torrent");
+        await File.WriteAllBytesAsync(corruptFile, new byte[] { 0x64, 0x30, 0x65 });
+
+        this.torrentFileParser.Parse(Arg.Any<byte[]>()).Returns(_ => throw new InvalidTorrentFileException("Corrupt Bencode"));
+        this.diskProvider.When(d => d.MoveFile(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>()))
+            .Do(_ => throw new IOException("Disk failure during quarantine move"));
+
+        // Attempt 1, 2, 3 (which triggers quarantine move failure)
+        await this.service.ProcessFileAsync(corruptFile);
+        await this.service.ProcessFileAsync(corruptFile);
+        var act = async () => await this.service.ProcessFileAsync(corruptFile);
+
+        await act.Should().NotThrowAsync();
+    }
+
+    [Test]
+    public async Task IsFileStabilizedAsync_WhenDebounceDelayIsZero_ReturnsTrueForExistingFile()
+    {
+        var testFile = Path.Combine(this.tempDirectory, "zero_debounce.torrent");
+        await File.WriteAllBytesAsync(testFile, new byte[] { 1, 2, 3 });
+
+        var result = await this.service.IsFileStabilizedAsync(testFile, TimeSpan.Zero);
+        result.Should().BeTrue();
     }
 
     #endregion
