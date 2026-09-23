@@ -144,10 +144,10 @@ public class CustomTransportProvidersTest
         listener.Prefixes.Add($"http://127.0.0.1:{port}/api/");
         listener.Start();
 
-        string? receivedUserAgent = null;
-        string? receivedSecChUa = null;
-        string? receivedSecChUaMobile = null;
-        string? receivedSecChUaPlatform = null;
+        string receivedUserAgent = null!;
+        string receivedSecChUa = null!;
+        string receivedSecChUaMobile = null!;
+        string receivedSecChUaPlatform = null!;
 
         var serverTask = Task.Run(async () =>
         {
@@ -187,7 +187,7 @@ public class CustomTransportProvidersTest
         listener.Prefixes.Add($"http://127.0.0.1:{port}/api/");
         listener.Start();
 
-        string? receivedUserAgent = null;
+        string receivedUserAgent = null!;
 
         var serverTask = Task.Run(async () =>
         {
@@ -314,7 +314,7 @@ public class CustomTransportProvidersTest
     [Test]
     public async Task CookieHandling_FlareSolverr_TransmitsCookieHeadersAndExtractsSolution()
     {
-        string? receivedPostData = null;
+        string receivedPostData = null!;
 
         var mockHandler = new MockHttpMessageHandler(req =>
         {
