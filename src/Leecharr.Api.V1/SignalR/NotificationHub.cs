@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
 using NLog;
 using NzbDrone.Core.Configuration;
+using CryptographicOperations = global::System.Security.Cryptography.CryptographicOperations;
+using Encoding = global::System.Text.Encoding;
 
 namespace Leecharr.Api.V1.SignalR;
 
@@ -102,7 +104,7 @@ public class NotificationHub : Hub
                             try
                             {
                                 var credentialBytes = Convert.FromBase64String(param);
-                                var credentials = System.Text.Encoding.UTF8.GetString(credentialBytes).Split(':', 2);
+                                var credentials = Encoding.UTF8.GetString(credentialBytes).Split(':', 2);
                                 var username = credentials.Length > 0 ? credentials[0] : string.Empty;
                                 var password = credentials.Length > 1 ? credentials[1] : string.Empty;
 
@@ -270,8 +272,8 @@ public class NotificationHub : Hub
             return a == b;
         }
 
-        return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
-            System.Text.Encoding.UTF8.GetBytes(a),
-            System.Text.Encoding.UTF8.GetBytes(b));
+        return CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(a),
+            Encoding.UTF8.GetBytes(b));
     }
 }
