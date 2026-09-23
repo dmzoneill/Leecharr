@@ -72,11 +72,11 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.directory.set</methodName>
-              <params>
+                <methodName>d.directory.set</methodName>
+                <params>
                 <param><value><string>aabbccddeeff00112233445566778899aabbccdd</string></value></param>
                 <param><value><string>/downloads/new_dir</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -104,11 +104,11 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.directory_base.set</methodName>
-              <params>
+                <methodName>d.directory_base.set</methodName>
+                <params>
                 <param><value><string>aabbccddeeff00112233445566778899aabbccdd</string></value></param>
                 <param><value><string>/downloads/base_dir</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -136,11 +136,11 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.directory.set</methodName>
-              <params>
+                <methodName>d.directory.set</methodName>
+                <params>
                 <param><value><i4>42</i4></value></param>
                 <param><value><string>/downloads/id_target</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -177,53 +177,53 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>system.multicall</methodName>
-              <params>
+                <methodName>system.multicall</methodName>
+                <params>
                 <param>
-                  <value>
+                    <value>
                     <array>
-                      <data>
+                        <data>
                         <value>
-                          <struct>
+                            <struct>
                             <member>
-                              <name>methodName</name>
-                              <value><string>d.name</string></value>
+                                <name>methodName</name>
+                                <value><string>d.name</string></value>
                             </member>
                             <member>
-                              <name>params</name>
-                              <value>
+                                <name>params</name>
+                                <value>
                                 <array>
-                                  <data>
+                                    <data>
                                     <value><string>1111111111111111111111111111111111111111</string></value>
-                                  </data>
+                                    </data>
                                 </array>
-                              </value>
+                                </value>
                             </member>
-                          </struct>
+                            </struct>
                         </value>
                         <value>
-                          <struct>
+                            <struct>
                             <member>
-                              <name>methodName</name>
-                              <value><string>d.get_custom1</string></value>
+                                <name>methodName</name>
+                                <value><string>d.get_custom1</string></value>
                             </member>
                             <member>
-                              <name>params</name>
-                              <value>
+                                <name>params</name>
+                                <value>
                                 <array>
-                                  <data>
+                                    <data>
                                     <value><string>2222222222222222222222222222222222222222</string></value>
-                                  </data>
+                                    </data>
                                 </array>
-                              </value>
+                                </value>
                             </member>
-                          </struct>
+                            </struct>
                         </value>
-                      </data>
+                        </data>
                     </array>
-                  </value>
+                    </value>
                 </param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -244,49 +244,49 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>system.multicall</methodName>
-              <params>
+                <methodName>system.multicall</methodName>
+                <params>
                 <param>
-                  <value>
+                    <value>
                     <array>
-                      <data>
+                        <data>
                         <value>
-                          <struct>
+                            <struct>
                             <member>
-                              <name>methodName</name>
-                              <value><string>get_directory</string></value>
+                                <name>methodName</name>
+                                <value><string>get_directory</string></value>
                             </member>
                             <member>
-                              <name>params</name>
-                              <value>
+                                <name>params</name>
+                                <value>
                                 <array>
-                                  <data />
+                                    <data />
                                 </array>
-                              </value>
+                                </value>
                             </member>
-                          </struct>
+                            </struct>
                         </value>
                         <value>
-                          <struct>
+                            <struct>
                             <member>
-                              <name>methodName</name>
-                              <value><string>system.client_version</string></value>
+                                <name>methodName</name>
+                                <value><string>system.client_version</string></value>
                             </member>
                             <member>
-                              <name>params</name>
-                              <value>
+                                <name>params</name>
+                                <value>
                                 <array>
-                                  <data />
+                                    <data />
                                 </array>
-                              </value>
+                                </value>
                             </member>
-                          </struct>
+                            </struct>
                         </value>
-                      </data>
+                        </data>
                     </array>
-                  </value>
+                    </value>
                 </param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -328,8 +328,8 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>f.multicall</methodName>
-              <params>
+                <methodName>f.multicall</methodName>
+                <params>
                 <param><value><string>4444444444444444444444444444444444444444</string></value></param>
                 <param><value><string></string></value></param>
                 <param><value><string>f.get_path=</string></value></param>
@@ -339,7 +339,7 @@ public class RTorrentControllerTest
                 <param><value><string>f.get_range_first=</string></value></param>
                 <param><value><string>f.get_range_second=</string></value></param>
                 <param><value><string>f.get_priority=</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -370,10 +370,10 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.tracker_announce</methodName>
-              <params>
+                <methodName>d.tracker_announce</methodName>
+                <params>
                 <param><value><string>1234567890abcdef1234567890abcdef12345678</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -399,10 +399,10 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.tracker.announce</methodName>
-              <params>
+                <methodName>d.tracker.announce</methodName>
+                <params>
                 <param><value><string>abcdefabcdefabcdefabcdefabcdefabcdefabcd</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -429,11 +429,11 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.down.rate.set</methodName>
-              <params>
+                <methodName>d.down.rate.set</methodName>
+                <params>
                 <param><value><string>feedbeefcafefeedbeefcafefeedbeefcafefeed</string></value></param>
                 <param><value><i8>5242880</i8></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -461,11 +461,11 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.down.rate.set_kb</methodName>
-              <params>
+                <methodName>d.down.rate.set_kb</methodName>
+                <params>
                 <param><value><string>feedbeefcafefeedbeefcafefeedbeefcafefeed</string></value></param>
                 <param><value><i4>3500</i4></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -493,11 +493,11 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.up.rate.set</methodName>
-              <params>
+                <methodName>d.up.rate.set</methodName>
+                <params>
                 <param><value><string>deadbeefdeadbeefdeadbeefdeadbeefdeadbeef</string></value></param>
                 <param><value><i8>2097152</i8></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -525,11 +525,11 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.up.rate.set_kb</methodName>
-              <params>
+                <methodName>d.up.rate.set_kb</methodName>
+                <params>
                 <param><value><string>deadbeefdeadbeefdeadbeefdeadbeefdeadbeef</string></value></param>
                 <param><value><i4>1500</i4></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -549,10 +549,10 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>throttle.global_down.max_rate.set_kb</methodName>
-              <params>
+                <methodName>throttle.global_down.max_rate.set_kb</methodName>
+                <params>
                 <param><value><i4>12000</i4></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -571,10 +571,10 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>throttle.global_up.max_rate.set_kb</methodName>
-              <params>
+                <methodName>throttle.global_up.max_rate.set_kb</methodName>
+                <params>
                 <param><value><i4>6000</i4></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -593,10 +593,10 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>set_download_rate</methodName>
-              <params>
+                <methodName>set_download_rate</methodName>
+                <params>
                 <param><value><i8>10485760</i8></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -615,10 +615,10 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>set_upload_rate</methodName>
-              <params>
+                <methodName>set_upload_rate</methodName>
+                <params>
                 <param><value><i8>5242880</i8></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -645,11 +645,11 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.set_custom1</methodName>
-              <params>
+                <methodName>d.set_custom1</methodName>
+                <params>
                 <param><value><string>hash10</string></value></param>
                 <param><value><string>tv-sonarr</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -677,11 +677,11 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.set_directory</methodName>
-              <params>
+                <methodName>d.set_directory</methodName>
+                <params>
                 <param><value><string>hash20</string></value></param>
                 <param><value><string>/downloads/tv</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -708,11 +708,11 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.set_directory_base</methodName>
-              <params>
+                <methodName>d.set_directory_base</methodName>
+                <params>
                 <param><value><string>hash21</string></value></param>
                 <param><value><string>/downloads/movies</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -739,11 +739,11 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.set_priority</methodName>
-              <params>
+                <methodName>d.set_priority</methodName>
+                <params>
                 <param><value><string>hash30</string></value></param>
                 <param><value><i4>2</i4></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -772,10 +772,10 @@ public class RTorrentControllerTest
         var getXml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.custom2</methodName>
-              <params>
+                <methodName>d.custom2</methodName>
+                <params>
                 <param><value><string>hash40</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(getXml);
@@ -786,11 +786,11 @@ public class RTorrentControllerTest
         var setXml2 = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.set_custom2</methodName>
-              <params>
+                <methodName>d.set_custom2</methodName>
+                <params>
                 <param><value><string>hash40</string></value></param>
                 <param><value><string>val-custom2</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(setXml2);
@@ -800,11 +800,11 @@ public class RTorrentControllerTest
         var setXml3 = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.custom3.set</methodName>
-              <params>
+                <methodName>d.custom3.set</methodName>
+                <params>
                 <param><value><string>hash40</string></value></param>
                 <param><value><string>val-custom3</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(setXml3);
@@ -814,11 +814,11 @@ public class RTorrentControllerTest
         var setXml4 = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.set_custom4</methodName>
-              <params>
+                <methodName>d.set_custom4</methodName>
+                <params>
                 <param><value><string>hash40</string></value></param>
                 <param><value><string>val-custom4</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(setXml4);
@@ -828,11 +828,11 @@ public class RTorrentControllerTest
         var setXml5 = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.custom5.set</methodName>
-              <params>
+                <methodName>d.custom5.set</methodName>
+                <params>
                 <param><value><string>hash40</string></value></param>
                 <param><value><string>val-custom5</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(setXml5);
@@ -843,10 +843,10 @@ public class RTorrentControllerTest
         var verifyXml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.get_custom2</methodName>
-              <params>
+                <methodName>d.get_custom2</methodName>
+                <params>
                 <param><value><string>hash40</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(verifyXml);
@@ -868,12 +868,12 @@ public class RTorrentControllerTest
         var xmlStarted = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.multicall2</methodName>
-              <params>
+                <methodName>d.multicall2</methodName>
+                <params>
                 <param><value><string></string></value></param>
                 <param><value><string>started</string></value></param>
                 <param><value><string>d.hash=</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xmlStarted);
@@ -887,11 +887,11 @@ public class RTorrentControllerTest
         var xmlStopped = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.multicall</methodName>
-              <params>
+                <methodName>d.multicall</methodName>
+                <params>
                 <param><value><string>stopped</string></value></param>
                 <param><value><string>d.hash=</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xmlStopped);
@@ -905,11 +905,11 @@ public class RTorrentControllerTest
         var xmlComplete = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.multicall</methodName>
-              <params>
+                <methodName>d.multicall</methodName>
+                <params>
                 <param><value><string>complete</string></value></param>
                 <param><value><string>d.hash=</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xmlComplete);
@@ -923,11 +923,11 @@ public class RTorrentControllerTest
         var xmlIncomplete = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.multicall</methodName>
-              <params>
+                <methodName>d.multicall</methodName>
+                <params>
                 <param><value><string>incomplete</string></value></param>
                 <param><value><string>d.hash=</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xmlIncomplete);
@@ -951,12 +951,12 @@ public class RTorrentControllerTest
         var xmlChecking = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.multicall2</methodName>
-              <params>
+                <methodName>d.multicall2</methodName>
+                <params>
                 <param><value><string></string></value></param>
                 <param><value><string>checking</string></value></param>
                 <param><value><string>d.hash=</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xmlChecking);
@@ -969,12 +969,12 @@ public class RTorrentControllerTest
         var xmlPaused = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.multicall2</methodName>
-              <params>
+                <methodName>d.multicall2</methodName>
+                <params>
                 <param><value><string></string></value></param>
                 <param><value><string>paused</string></value></param>
                 <param><value><string>d.hash=</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xmlPaused);
@@ -987,12 +987,12 @@ public class RTorrentControllerTest
         var xmlUnknown = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.multicall2</methodName>
-              <params>
+                <methodName>d.multicall2</methodName>
+                <params>
                 <param><value><string></string></value></param>
                 <param><value><string>unknown_view</string></value></param>
                 <param><value><string>d.hash=</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xmlUnknown);
@@ -1013,12 +1013,12 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.multicall2</methodName>
-              <params>
+                <methodName>d.multicall2</methodName>
+                <params>
                 <param><value><string></string></value></param>
                 <param><value><string>incomplete</string></value></param>
                 <param><value><string>d.hash=</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -1046,8 +1046,8 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.multicall2</methodName>
-              <params>
+                <methodName>d.multicall2</methodName>
+                <params>
                 <param><value><string></string></value></param>
                 <param><value><string>main</string></value></param>
                 <param><value><string>d.base_path=</string></value></param>
@@ -1055,7 +1055,7 @@ public class RTorrentControllerTest
                 <param><value><string>d.base_filename=</string></value></param>
                 <param><value><string>d.get_base_filename=</string></value></param>
                 <param><value><string>d.directory=</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -1084,11 +1084,11 @@ public class RTorrentControllerTest
         var xml1 = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.views.has</methodName>
-              <params>
+                <methodName>d.views.has</methodName>
+                <params>
                 <param><value><string>hash50</string></value></param>
                 <param><value><string>started</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml1);
@@ -1099,11 +1099,11 @@ public class RTorrentControllerTest
         var xml2 = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.views.has</methodName>
-              <params>
+                <methodName>d.views.has</methodName>
+                <params>
                 <param><value><string>hash50</string></value></param>
                 <param><value><string>complete</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml2);
@@ -1114,13 +1114,13 @@ public class RTorrentControllerTest
         var xml3 = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.multicall</methodName>
-              <params>
+                <methodName>d.multicall</methodName>
+                <params>
                 <param><value><string>main</string></value></param>
                 <param><value><string>d.views.has=started</string></value></param>
                 <param><value><string>d.views.has=complete</string></value></param>
                 <param><value><string>d.custom2</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml3);
@@ -1149,8 +1149,8 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.multicall</methodName>
-              <params>
+                <methodName>d.multicall</methodName>
+                <params>
                 <param><value><string>main</string></value></param>
                 <param><value><string>d.completed_bytes=</string></value></param>
                 <param><value><string>d.get_completed_bytes=</string></value></param>
@@ -1158,7 +1158,7 @@ public class RTorrentControllerTest
                 <param><value><string>d.get_bytes_done=</string></value></param>
                 <param><value><string>d.left_bytes=</string></value></param>
                 <param><value><string>d.get_left_bytes=</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -1188,12 +1188,12 @@ public class RTorrentControllerTest
         var xmlComplete = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>d.multicall</methodName>
-              <params>
+                <methodName>d.multicall</methodName>
+                <params>
                 <param><value><string>2222222222222222222222222222222222222222</string></value></param>
                 <param><value><string>d.completed_bytes=</string></value></param>
                 <param><value><string>d.left_bytes=</string></value></param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xmlComplete);
@@ -1220,53 +1220,53 @@ public class RTorrentControllerTest
         var xml = """
             <?xml version="1.0"?>
             <methodCall>
-              <methodName>system.multicall</methodName>
-              <params>
+                <methodName>system.multicall</methodName>
+                <params>
                 <param>
-                  <value>
+                    <value>
                     <array>
-                      <data>
+                        <data>
                         <value>
-                          <struct>
+                            <struct>
                             <member>
-                              <name>methodName</name>
-                              <value><string>d.name</string></value>
+                                <name>methodName</name>
+                                <value><string>d.name</string></value>
                             </member>
                             <member>
-                              <name>params</name>
-                              <value>
+                                <name>params</name>
+                                <value>
                                 <array>
-                                  <data>
+                                    <data>
                                     <value><string>1111111111111111111111111111111111111111</string></value>
-                                  </data>
+                                    </data>
                                 </array>
-                              </value>
+                                </value>
                             </member>
-                          </struct>
+                            </struct>
                         </value>
                         <value>
-                          <struct>
+                            <struct>
                             <member>
-                              <name>methodName</name>
-                              <value><string>d.erase</string></value>
+                                <name>methodName</name>
+                                <value><string>d.erase</string></value>
                             </member>
                             <member>
-                              <name>params</name>
-                              <value>
+                                <name>params</name>
+                                <value>
                                 <array>
-                                  <data>
+                                    <data>
                                     <value><string>9999999999999999999999999999999999999999</string></value>
-                                  </data>
+                                    </data>
                                 </array>
-                              </value>
+                                </value>
                             </member>
-                          </struct>
+                            </struct>
                         </value>
-                      </data>
+                        </data>
                     </array>
-                  </value>
+                    </value>
                 </param>
-              </params>
+                </params>
             </methodCall>
             """;
         this.SetRequestBody(xml);
@@ -1283,5 +1283,434 @@ public class RTorrentControllerTest
         // Second subcall returned a fault struct
         contentResult.Content.Should().Contain("<name>faultCode</name><value><int>1</int></value>");
         contentResult.Content.Should().Contain("<name>faultString</name><value><string>Failed to query torrent</string></value>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_DMulticall2_WithRequestedFields_ReturnsExpectedData()
+    {
+        var torrent = new Torrent
+        {
+            Id = 1,
+            Name = "MultiCall.Movie.2024",
+            InfoHash = "11223344556677889900aabbccddeeff00112233",
+            TotalSize = 1000000000L,
+            PieceLength = 1000000,
+            PieceCount = 1000,
+            Progress = 0.5,
+            DownloadSpeed = 2500000,
+            UploadSpeed = 500000,
+            Status = TorrentStatus.Downloading,
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>d.multicall2</methodName>
+                <params>
+                <param><value><string></string></value></param>
+                <param><value><string>main</string></value></param>
+                <param><value><string>d.get_name=</string></value></param>
+                <param><value><string>d.get_down_rate=</string></value></param>
+                <param><value><string>d.get_up_rate=</string></value></param>
+                <param><value><string>d.get_size_bytes=</string></value></param>
+                <param><value><string>d.get_completed_chunks=</string></value></param>
+                <param><value><string>d.hash=</string></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+
+        contentResult.Content.Should().Contain("<string>MultiCall.Movie.2024</string>");
+        contentResult.Content.Should().Contain("<i8>2500000</i8>");
+        contentResult.Content.Should().Contain("<i8>500000</i8>");
+        contentResult.Content.Should().Contain("<i8>1000000000</i8>");
+        contentResult.Content.Should().Contain("<i8>500</i8>");
+        contentResult.Content.Should().Contain("<string>11223344556677889900AABBCCDDEEFF00112233</string>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_DGetName_DirectCall_ReturnsTorrentName()
+    {
+        var hash = "aabbccddeeff00112233445566778899aabbccdd";
+        var torrent = new Torrent
+        {
+            Id = 5,
+            InfoHash = hash,
+            Name = "Direct.Call.Torrent",
+        };
+        this.torrentService.GetByInfoHash(hash).Returns(torrent);
+
+        var xml = $"""
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>d.get_name</methodName>
+                <params>
+                <param><value><string>{hash}</string></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<string>Direct.Call.Torrent</string>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_DGetName_DirectCall_WhenNotFound_ReturnsEmptyString()
+    {
+        var hash = "0000000000000000000000000000000000000000";
+        this.torrentService.GetByInfoHash(hash).Returns((Torrent)null!);
+
+        var xml = $"""
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>d.get_name</methodName>
+                <params>
+                <param><value><string>{hash}</string></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<string></string>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_DGetRates_DirectCalls_ReturnDownloadAndUploadRates()
+    {
+        var hash = "1234567890123456789012345678901234567890";
+        var torrent = new Torrent
+        {
+            Id = 8,
+            InfoHash = hash,
+            DownloadSpeed = 123456,
+            UploadSpeed = 65432,
+        };
+        this.torrentService.GetByInfoHash(hash).Returns(torrent);
+
+        var downXml = $"""
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>d.get_down_rate</methodName>
+                <params>
+                <param><value><string>{hash}</string></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(downXml);
+        var downResult = (ContentResult)await this.controller.HandleXmlRpc();
+        downResult.Content.Should().Contain("<i8>123456</i8>");
+
+        var upXml = $"""
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>d.get_up_rate</methodName>
+                <params>
+                <param><value><string>{hash}</string></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(upXml);
+        var upResult = (ContentResult)await this.controller.HandleXmlRpc();
+        upResult.Content.Should().Contain("<i8>65432</i8>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_DGetSizeBytes_DirectCall_ReturnsTotalSize()
+    {
+        var hash = "2222222222222222222222222222222222222222";
+        var torrent = new Torrent
+        {
+            Id = 9,
+            InfoHash = hash,
+            TotalSize = 5368709120L,
+        };
+        this.torrentService.GetByInfoHash(hash).Returns(torrent);
+
+        var xml = $"""
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>d.get_size_bytes</methodName>
+                <params>
+                <param><value><string>{hash}</string></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = (ContentResult)await this.controller.HandleXmlRpc();
+        result.Content.Should().Contain("<i8>5368709120</i8>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_DGetCompletedChunks_DirectCall_ReturnsCalculatedChunks()
+    {
+        var hash = "3333333333333333333333333333333333333333";
+        var torrent = new Torrent
+        {
+            Id = 11,
+            InfoHash = hash,
+            TotalSize = 2000000,
+            PieceLength = 1000000,
+            PieceCount = 2,
+            Progress = 0.5,
+        };
+        this.torrentService.GetByInfoHash(hash).Returns(torrent);
+
+        var xml = $"""
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>d.get_completed_chunks</methodName>
+                <params>
+                <param><value><string>{hash}</string></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = (ContentResult)await this.controller.HandleXmlRpc();
+        result.Content.Should().Contain("<i8>1</i8>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_DHash_DirectCall_ReturnsUppercaseHash()
+    {
+        var hash = "4444444444444444444444444444444444444444";
+        var torrent = new Torrent
+        {
+            Id = 12,
+            InfoHash = hash,
+        };
+        this.torrentService.GetByInfoHash(hash).Returns(torrent);
+
+        var xml = $"""
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>d.hash</methodName>
+                <params>
+                <param><value><string>{hash}</string></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = (ContentResult)await this.controller.HandleXmlRpc();
+        result.Content.Should().Contain("<string>4444444444444444444444444444444444444444</string>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_DStart_DirectCall_InvokesResumeAsync()
+    {
+        var hash = "5555555555555555555555555555555555555555";
+        var torrent = new Torrent { Id = 15, InfoHash = hash };
+        this.torrentService.GetByInfoHash(hash).Returns(torrent);
+
+        var xml = $"""
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>d.start</methodName>
+                <params>
+                <param><value><string>{hash}</string></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = (ContentResult)await this.controller.HandleXmlRpc();
+        result.Content.Should().Contain("<i4>0</i4>");
+        await this.torrentService.Received(1).ResumeAsync(15);
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_DStop_DirectCall_InvokesPauseAsync()
+    {
+        var hash = "6666666666666666666666666666666666666666";
+        var torrent = new Torrent { Id = 16, InfoHash = hash };
+        this.torrentService.GetByInfoHash(hash).Returns(torrent);
+
+        var xml = $"""
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>d.stop</methodName>
+                <params>
+                <param><value><string>{hash}</string></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = (ContentResult)await this.controller.HandleXmlRpc();
+        result.Content.Should().Contain("<i4>0</i4>");
+        await this.torrentService.Received(1).PauseAsync(16);
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_DErase_WithDeleteFilesFalse_InvokesDeleteAsyncWithFalse()
+    {
+        var hash = "7777777777777777777777777777777777777777";
+        var torrent = new Torrent { Id = 17, InfoHash = hash };
+        this.torrentService.GetByInfoHash(hash).Returns(torrent);
+
+        var xml = $"""
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>d.erase</methodName>
+                <params>
+                <param><value><string>{hash}</string></value></param>
+                <param><value><i4>0</i4></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = (ContentResult)await this.controller.HandleXmlRpc();
+        result.Content.Should().Contain("<i4>0</i4>");
+        await this.torrentService.Received(1).DeleteAsync(17, false);
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_DErase_WithDeleteFilesTrue_InvokesDeleteAsyncWithTrue()
+    {
+        var hash = "8888888888888888888888888888888888888888";
+        var torrent = new Torrent { Id = 18, InfoHash = hash };
+        this.torrentService.GetByInfoHash(hash).Returns(torrent);
+
+        var xml = $"""
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>d.erase</methodName>
+                <params>
+                <param><value><string>{hash}</string></value></param>
+                <param><value><i4>1</i4></value></param>
+                </params>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = (ContentResult)await this.controller.HandleXmlRpc();
+        result.Content.Should().Contain("<i4>0</i4>");
+        await this.torrentService.Received(1).DeleteAsync(18, true);
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_GetDirectory_ReturnsDownloadDirectoryFromConfigService()
+    {
+        this.configService.DownloadDir.Returns("/custom/rtorrent/downloads");
+
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>get_directory</methodName>
+                <params/>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = (ContentResult)await this.controller.HandleXmlRpc();
+        result.Content.Should().Contain("<string>/custom/rtorrent/downloads</string>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_GlobalGetRates_ReturnsAggregatedRates()
+    {
+        var torrents = new List<Torrent>
+        {
+            new() { Id = 1, DownloadSpeed = 100000, UploadSpeed = 50000 },
+            new() { Id = 2, DownloadSpeed = 200000, UploadSpeed = 70000 },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+
+        var dlXml = """
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>get_down_rate</methodName>
+                <params/>
+            </methodCall>
+            """;
+        this.SetRequestBody(dlXml);
+        var dlResult = (ContentResult)await this.controller.HandleXmlRpc();
+        dlResult.Content.Should().Contain("<i8>300000</i8>");
+
+        var ulXml = """
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>get_up_rate</methodName>
+                <params/>
+            </methodCall>
+            """;
+        this.SetRequestBody(ulXml);
+        var ulResult = (ContentResult)await this.controller.HandleXmlRpc();
+        ulResult.Content.Should().Contain("<i8>120000</i8>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_InvalidXmlPayload_ReturnsFaultResponse()
+    {
+        this.SetRequestBody("<not-valid-xml-missing-closing-tag");
+
+        var result = await this.controller.HandleXmlRpc();
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<methodResponse><fault><value><struct>");
+        contentResult.Content.Should().Contain("<name>faultCode</name><value><int>1</int></value>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_MissingOrUnhandledMethod_ReturnsZero()
+    {
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>completely.unknown.method</methodName>
+                <params/>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<i4>0</i4>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_EmptyRequestBody_ReturnsDefaultVersion()
+    {
+        this.SetRequestBody(string.Empty);
+
+        var result = await this.controller.HandleXmlRpc();
+        result.Should().BeOfType<ContentResult>();
+        var contentResult = (ContentResult)result;
+        contentResult.Content.Should().Contain("<string>0.9.8</string>");
+    }
+
+    [Test]
+    public async Task HandleXmlRpc_WhenAuthenticationEnabledAndMissingCredentials_ReturnsUnauthorized()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("secret_api_key");
+
+        var xml = """
+            <?xml version="1.0"?>
+            <methodCall>
+                <methodName>system.client_version</methodName>
+                <params/>
+            </methodCall>
+            """;
+        this.SetRequestBody(xml);
+
+        var result = await this.controller.HandleXmlRpc();
+        result.Should().BeOfType<UnauthorizedResult>();
+        this.controller.Response.Headers.ContainsKey("WWW-Authenticate").Should().BeTrue();
     }
 }
