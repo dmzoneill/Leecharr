@@ -769,6 +769,8 @@ const es: I18nTranslations = {
     torrentAndFilesDeleted: "Torrent y archivos eliminados",
     torrentRemoved: "Torrente eliminado",
     failedToDelete: "No se pudo eliminar el torrent",
+    exportPackage: "Paquete de exportación",
+    importPackage: "Paquete de importación",
   },
   torrentDetail: {
     overview: "Resumen",
@@ -3827,6 +3829,8 @@ const es: I18nTranslations = {
       "No se pudo cargar la vista addTorrent. Se produjo un error inesperado.",
     downloadHistory:
       "No se pudo cargar la vista del historial de descargas. Se produjo un error inesperado.",
+    downloadClients:
+      "No se pudo cargar la vista de clientes de descarga. Se produjo un error inesperado.",
     activity:
       "No se pudo cargar la vista de actividad. Se produjo un error inesperado.",
     indexers:
@@ -3871,8 +3875,6 @@ const es: I18nTranslations = {
       "No se pudo cargar la vista de la Guía de configuración. Se produjo un error inesperado.",
     copilotDrawer:
       "No se pudo cargar la vista del cajón del copiloto. Se produjo un error inesperado.",
-    downloadClients:
-      "No se pudo cargar la vista de clientes de descarga. Se produjo un error inesperado.",
   },
   copilot: {
     welcomeMessage:
@@ -4619,7 +4621,7 @@ const es: I18nTranslations = {
       customDynamic: "Personalizado / Dinámico",
       egInputsminratioOrSystemfreedi:
         "p.ej. ${inputs.minRatio} o ${system.freeDiskBytes}",
-      "10Gb": "10 GB",
+      "10Gb": "10GB",
       "20x": "2.0x",
       "30x": "3.0x",
       "50x": "5.0x",

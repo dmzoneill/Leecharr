@@ -768,6 +768,8 @@ const ta: I18nTranslations = {
     torrentAndFilesDeleted: "டோரண்ட் மற்றும் கோப்புகள் நீக்கப்பட்டன",
     torrentRemoved: "டோரண்ட் அகற்றப்பட்டது",
     failedToDelete: "டோரண்டை நீக்க முடியவில்லை",
+    exportPackage: "ஏற்றுமதி தொகுப்பு",
+    importPackage: "இறக்குமதி தொகுப்பு",
   },
   torrentDetail: {
     overview: "கண்ணோட்டம்",
@@ -3789,6 +3791,8 @@ const ta: I18nTranslations = {
       "addTorrent காட்சியை ஏற்றுவதில் தோல்வி. எதிர்பாராத பிழை ஏற்பட்டது.",
     downloadHistory:
       "பதிவிறக்க வரலாறு காட்சியை ஏற்றுவதில் தோல்வி. எதிர்பாராத பிழை ஏற்பட்டது.",
+    downloadClients:
+      "பதிவிறக்க கிளையன்ட் பார்வையை ஏற்றுவதில் தோல்வி. எதிர்பாராத பிழை ஏற்பட்டது.",
     activity:
       "செயல்பாட்டுக் காட்சியை ஏற்றுவதில் தோல்வி. எதிர்பாராத பிழை ஏற்பட்டது.",
     indexers:
@@ -3831,8 +3835,6 @@ const ta: I18nTranslations = {
       "setupGuide காட்சியை ஏற்றுவதில் தோல்வி. எதிர்பாராத பிழை ஏற்பட்டது.",
     copilotDrawer:
       "CopilotDrawer காட்சியை ஏற்றுவதில் தோல்வி. எதிர்பாராத பிழை ஏற்பட்டது.",
-    downloadClients:
-      "பதிவிறக்க கிளையன்ட் பார்வையை ஏற்றுவதில் தோல்வி. எதிர்பாராத பிழை ஏற்பட்டது.",
   },
   copilot: {
     welcomeMessage:

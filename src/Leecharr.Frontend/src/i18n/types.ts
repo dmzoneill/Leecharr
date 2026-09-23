@@ -284,6 +284,8 @@ export type I18nTranslations = {
     title: string;
     privacy: string;
     columns: string;
+    exportPackage: string;
+    importPackage: string;
     contextMenu: {
       selectedItems: string;
       resumeDownload: string;

@@ -764,6 +764,8 @@ const id: I18nTranslations = {
     torrentAndFilesDeleted: "Torrent dan file dihapus",
     torrentRemoved: "Torrent dihapus",
     failedToDelete: "Gagal menghapus torrent",
+    exportPackage: "Paket Ekspor",
+    importPackage: "Paket Impor",
     statusHeader: "Status",
   },
   torrentDetail: {
@@ -3729,6 +3731,8 @@ const id: I18nTranslations = {
       "Gagal memuat tampilan addTorrent. Terjadi kesalahan yang tidak terduga.",
     downloadHistory:
       "Gagal memuat tampilan downloadHistory. Terjadi kesalahan yang tidak terduga.",
+    downloadClients:
+      "Gagal memuat tampilan klien unduhan. Terjadi kesalahan yang tidak terduga.",
     activity:
       "Gagal memuat tampilan aktivitas. Terjadi kesalahan yang tidak terduga.",
     indexers:
@@ -3773,8 +3777,6 @@ const id: I18nTranslations = {
       "Gagal memuat tampilan setupGuide. Terjadi kesalahan yang tidak terduga.",
     copilotDrawer:
       "Gagal memuat tampilan kopilotDrawer. Terjadi kesalahan yang tidak terduga.",
-    downloadClients:
-      "Gagal memuat tampilan klien unduhan. Terjadi kesalahan yang tidak terduga.",
   },
   copilot: {
     welcomeMessage:
