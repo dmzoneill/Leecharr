@@ -862,7 +862,7 @@ public class AutomationServiceTest
         service.ExecuteScript(script, torrent);
 
         Thread.Sleep(100);
-        _webhookDispatcher.Received(1).DispatchAsync("https://example.com/webhook", Arg.Any<object>(), Arg.Any<IDictionary<string, string>>());
+        _webhookDispatcher.Received(1).DispatchAsync("https://example.com/webhook", Arg.Any<object>(), Arg.Any<string>());
     }
 
     [Test]
