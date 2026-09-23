@@ -31,6 +31,8 @@ public class TorrentStatusChangedEvent : IEvent
     public TorrentStatus NewStatus { get; set; }
 
     public bool IsQueueManagerInternal { get; set; }
+
+    public string Reason { get; set; }
 }
 
 public class TorrentDownloadCompletedEvent : IEvent

@@ -453,12 +453,12 @@ public class AppLifetime : IHostedService, IDisposable
                                         {
                                             if (!torrent.IsImported)
                                             {
-                                                this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m), but Servarr import is pending. Pausing seeding and deferring removal until Servarr import completes.", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
-                                                await this.services.TorrentService.PauseAsync(torrent.Id);
+                                                this.logger.Info("[State Machine] Torrent #{0} ('{1}') reached seed goal (Ratio: {2:F2}/{3:F2}, SeedTime: {4}/{5}m), but Servarr import is pending. Pausing seeding and deferring removal until Servarr import completes.", torrent.Id, torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
+                                                await this.services.TorrentService.PauseAsync(torrent.Id, $"Seed goal reached (Ratio: {torrent.Ratio:F2}/{effectiveRatio:F2}, SeedTime: {torrent.SeedTimeMinutes}/{effectiveSeedTime}m); Servarr import pending");
                                             }
                                             else
                                             {
-                                                this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Removing torrent and deleting data files.", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
+                                                this.logger.Info("[State Machine] Torrent #{0} ('{1}') reached seed goal (Ratio: {2:F2}/{3:F2}, SeedTime: {4}/{5}m). Removing torrent and deleting data files.", torrent.Id, torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
                                                 this.ratioReachedTorrents.TryRemove(torrent.Id, out _);
                                                 this.seedGoalReachedTorrents.TryRemove(torrent.Id, out _);
                                                 this.superSeedingTorrents.TryRemove(torrent.Id, out _);
@@ -469,12 +469,12 @@ public class AppLifetime : IHostedService, IDisposable
                                         {
                                             if (!torrent.IsImported)
                                             {
-                                                this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m), but Servarr import is pending. Pausing seeding and deferring removal until Servarr import completes.", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
-                                                await this.services.TorrentService.PauseAsync(torrent.Id);
+                                                this.logger.Info("[State Machine] Torrent #{0} ('{1}') reached seed goal (Ratio: {2:F2}/{3:F2}, SeedTime: {4}/{5}m), but Servarr import is pending. Pausing seeding and deferring removal until Servarr import completes.", torrent.Id, torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
+                                                await this.services.TorrentService.PauseAsync(torrent.Id, $"Seed goal reached (Ratio: {torrent.Ratio:F2}/{effectiveRatio:F2}, SeedTime: {torrent.SeedTimeMinutes}/{effectiveSeedTime}m); Servarr import pending");
                                             }
                                             else
                                             {
-                                                this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Removing torrent (preserving data).", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
+                                                this.logger.Info("[State Machine] Torrent #{0} ('{1}') reached seed goal (Ratio: {2:F2}/{3:F2}, SeedTime: {4}/{5}m). Removing torrent (preserving data).", torrent.Id, torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
                                                 this.ratioReachedTorrents.TryRemove(torrent.Id, out _);
                                                 this.seedGoalReachedTorrents.TryRemove(torrent.Id, out _);
                                                 this.superSeedingTorrents.TryRemove(torrent.Id, out _);
@@ -494,20 +494,20 @@ public class AppLifetime : IHostedService, IDisposable
 
                                             if (this.superSeedingTorrents.TryRemove(torrent.Id, out _))
                                             {
-                                                this.logger.Info("Torrent {0} reached seed goal and completed super seeding mode. Pausing seeding.", torrent.Name);
-                                                await this.services.TorrentService.PauseAsync(torrent.Id);
+                                                this.logger.Info("[State Machine] Torrent #{0} ('{1}') reached seed goal and completed super seeding mode. Pausing seeding.", torrent.Id, torrent.Name);
+                                                await this.services.TorrentService.PauseAsync(torrent.Id, "Seed goal reached and completed super seeding mode");
                                             }
                                             else
                                             {
-                                                this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Enabling super seeding mode.", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
+                                                this.logger.Info("[State Machine] Torrent #{0} ('{1}') reached seed goal (Ratio: {2:F2}/{3:F2}, SeedTime: {4}/{5}m). Enabling super seeding mode.", torrent.Id, torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
                                                 this.superSeedingTorrents.TryAdd(torrent.Id, true);
                                                 await this.services.TorrentService.SetSuperSeedingAsync(torrent.Id, true);
                                             }
                                         }
                                         else
                                         {
-                                            this.logger.Info("Torrent {0} reached seed goal (Ratio: {1:F2}/{2:F2}, SeedTime: {3}/{4}m). Pausing seeding.", torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
-                                            await this.services.TorrentService.PauseAsync(torrent.Id);
+                                            this.logger.Info("[State Machine] Torrent #{0} ('{1}') reached seed goal (Ratio: {2:F2}/{3:F2}, SeedTime: {4}/{5}m). Pausing seeding.", torrent.Id, torrent.Name, torrent.Ratio, effectiveRatio, torrent.SeedTimeMinutes, effectiveSeedTime);
+                                            await this.services.TorrentService.PauseAsync(torrent.Id, $"Seed goal reached (Ratio: {torrent.Ratio:F2}/{effectiveRatio:F2}, SeedTime: {torrent.SeedTimeMinutes}/{effectiveSeedTime}m)");
                                         }
                                     }
                                 }

@@ -1039,6 +1039,11 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                     history.DateCompleted = DateTime.UtcNow;
                 }
 
+                if (!string.IsNullOrWhiteSpace(message.Reason))
+                {
+                    history.RemovalReason = message.Reason;
+                }
+
                 history.Uploaded = message.Torrent.Uploaded;
                 history.Downloaded = message.Torrent.Downloaded;
                 history.Ratio = message.Torrent.Ratio;
