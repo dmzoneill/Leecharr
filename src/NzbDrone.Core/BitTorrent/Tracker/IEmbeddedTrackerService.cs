@@ -111,6 +111,8 @@ public interface IEmbeddedTrackerService
 
     IReadOnlyList<TrackerSwarmInfo> GetAllSwarms();
 
+    IReadOnlyList<TrackerPeerState> GetPeersForSwarm(string infoHashHex);
+
     byte[] ProcessAnnounce(TrackerAnnounceRequest request);
 
     byte[] ProcessScrape(List<byte[]> infoHashList);

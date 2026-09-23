@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using Leecharr.Http.Security;
@@ -12,6 +13,8 @@ using NLog;
 using NzbDrone.Core.Authentication;
 using NzbDrone.Core.BitTorrent.Tracker;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.MediaEnrichment;
+using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Api.V1.Tracker;
 
@@ -19,16 +22,25 @@ namespace Leecharr.Api.V1.Tracker;
 public class EmbeddedTrackerController : ControllerBase
 {
     private readonly IEmbeddedTrackerService trackerService;
+    private readonly ITorrentRepository torrentRepository;
+    private readonly IDownloadHistoryRepository downloadHistoryRepository;
+    private readonly ITorrentMediaMetadataRepository mediaMetadataRepository;
     private readonly ITrustedNetworkService trustedNetworkService;
     private readonly IConfigService configService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public EmbeddedTrackerController(
         IEmbeddedTrackerService trackerService,
+        ITorrentRepository torrentRepository = null,
+        IDownloadHistoryRepository downloadHistoryRepository = null,
+        ITorrentMediaMetadataRepository mediaMetadataRepository = null,
         ITrustedNetworkService trustedNetworkService = null,
         IConfigService configService = null)
     {
         this.trackerService = trackerService;
+        this.torrentRepository = torrentRepository;
+        this.downloadHistoryRepository = downloadHistoryRepository;
+        this.mediaMetadataRepository = mediaMetadataRepository;
         this.trustedNetworkService = trustedNetworkService ?? new TrustedNetworkService();
         this.configService = configService;
     }
@@ -96,11 +108,30 @@ public class EmbeddedTrackerController : ControllerBase
     [HttpGet("/api/v1/tracker/stats")]
     public ActionResult GetStats()
     {
+        var swarms = this.trackerService.GetAllSwarms();
+        var internalCount = 0;
+        if (swarms.Count > 0 && this.torrentRepository != null)
+        {
+            var torrents = this.torrentRepository.All().ToList();
+            var knownHashes = new HashSet<string>(
+                torrents.Where(t => !string.IsNullOrEmpty(t.InfoHash)).Select(t => t.InfoHash),
+                StringComparer.OrdinalIgnoreCase);
+
+            foreach (var swarm in swarms)
+            {
+                if (knownHashes.Contains(swarm.InfoHash))
+                {
+                    internalCount++;
+                }
+            }
+        }
+
         return this.Ok(new
         {
             enabled = this.trackerService.IsEnabled,
             activeSwarms = this.trackerService.ActiveSwarmsCount,
             totalTorrents = this.trackerService.ActiveSwarmsCount,
+            internalTorrents = internalCount,
             activePeers = this.trackerService.ActivePeersCount,
             totalPeers = this.trackerService.ActivePeersCount,
             totalAnnounces = this.trackerService.TotalAnnounces,
@@ -114,7 +145,112 @@ public class EmbeddedTrackerController : ControllerBase
     [HttpGet("/api/v1/tracker/torrents")]
     public ActionResult GetTorrents()
     {
-        return this.Ok(this.trackerService.GetAllSwarms());
+        var swarms = this.trackerService.GetAllSwarms();
+        if (swarms == null || swarms.Count == 0)
+        {
+            return this.Ok(new List<object>());
+        }
+
+        var torrentsByHash = new Dictionary<string, Torrent>(StringComparer.OrdinalIgnoreCase);
+        if (this.torrentRepository != null)
+        {
+            foreach (var t in this.torrentRepository.All())
+            {
+                if (!string.IsNullOrEmpty(t.InfoHash))
+                {
+                    torrentsByHash[t.InfoHash] = t;
+                }
+            }
+        }
+
+        var result = swarms.Select(swarm =>
+        {
+            var hash = swarm.InfoHash;
+            torrentsByHash.TryGetValue(hash, out var torrent);
+
+            DownloadHistory hist = null;
+            if (this.downloadHistoryRepository != null)
+            {
+                try
+                {
+                    hist = this.downloadHistoryRepository.FindByInfoHash(hash);
+                }
+                catch
+                {
+                }
+            }
+
+            TorrentMediaMetadata meta = null;
+            if (torrent != null && this.mediaMetadataRepository != null)
+            {
+                try
+                {
+                    meta = this.mediaMetadataRepository.GetByTorrentId(torrent.Id);
+                }
+                catch
+                {
+                }
+            }
+
+            string posterUrl = meta?.PosterUrl;
+            string fanartUrl = meta?.BackdropUrl;
+            string mediaTitle = meta?.Title;
+            int? year = meta?.Year > 0 ? meta.Year : null;
+            double? rating = meta?.Rating > 0 ? meta.Rating : null;
+            var genres = !string.IsNullOrWhiteSpace(meta?.Genres)
+                ? meta.Genres.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(g => g.Trim()).ToList()
+                : new List<string>();
+
+            var source = torrent != null ? (torrent.IsPrivate ? "Private Tracker" : "Public Tracker") : (hist?.Source ?? "External");
+
+            var peers = this.trackerService.GetPeersForSwarm(hash);
+            var peerCount = peers.Count > 0 ? peers.Count : (swarm.Seeders + swarm.Leechers);
+            DateTime? lastActivity = peers.Count > 0
+                ? peers.Max(p => p.LastAnnounceUtc)
+                : (swarm.LastActivityUtc != default ? swarm.LastActivityUtc : null);
+
+            return new
+            {
+                infoHash = hash,
+                name = torrent?.Name ?? mediaTitle ?? hist?.Title ?? hash,
+                peerCount = peerCount,
+                seeders = swarm.Seeders,
+                leechers = swarm.Leechers,
+                completed = swarm.DownloadedCount,
+                uploaded = torrent?.Uploaded ?? hist?.Uploaded ?? 0L,
+                downloaded = torrent?.Downloaded ?? hist?.Downloaded ?? 0L,
+                totalSize = torrent?.TotalSize ?? hist?.TotalSize ?? 0L,
+                ratio = torrent?.Ratio ?? hist?.Ratio ?? 0.0,
+                isInternal = torrent != null,
+                lastActivity = lastActivity,
+                posterUrl = posterUrl,
+                fanartUrl = fanartUrl,
+                mediaTitle = mediaTitle,
+                year = year,
+                rating = rating,
+                genres = genres,
+                source = source,
+            };
+        }).ToList();
+
+        return this.Ok(result);
+    }
+
+    [Authorize]
+    [HttpGet("/api/v1/trackerserver/torrents/{infoHash}/peers")]
+    [HttpGet("/api/v1/tracker/torrents/{infoHash}/peers")]
+    public ActionResult GetPeersForTorrent(string infoHash)
+    {
+        var peers = this.trackerService.GetPeersForSwarm(infoHash);
+        var result = peers.Select(p => new
+        {
+            ip = p.Ip?.ToString() ?? "0.0.0.0",
+            port = p.Port,
+            peerId = p.PeerId != null ? Convert.ToHexString(p.PeerId) : string.Empty,
+            lastAnnounce = p.LastAnnounceUtc,
+        }).ToList();
+
+        return this.Ok(result);
     }
 
     private static TrackerAnnounceRequest ParseAnnounceQuery(string rawQuery, IPAddress remoteIp)
