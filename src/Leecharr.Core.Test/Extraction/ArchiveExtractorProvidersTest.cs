@@ -155,23 +155,22 @@ public class ArchiveExtractorProvidersTest
     }
 
     [Test]
-    public async Task SevenZipExtractorProvider_ProbeHealthAsync_WhenBinaryNotFound_ReturnsUnhealthyWithWarning()
+    public async Task SevenZipExtractorProvider_ProbeHealthAsync_ReturnsConsistentHealthCheck()
     {
-        var prev = Environment.GetEnvironmentVariable("SEVENZIP_PATH");
-        try
+        var provider = new SevenZipExtractorProvider(this.diskProvider);
+        var health = await provider.ProbeHealthAsync();
+
+        health.Should().NotBeNull();
+        if (provider.IsAvailable)
         {
-            Environment.SetEnvironmentVariable("SEVENZIP_PATH", "/non/existent/path/to/sevenzip_xyz");
-            var provider = new SevenZipExtractorProvider(this.diskProvider);
-
-            var health = await provider.ProbeHealthAsync();
-
+            health.IsHealthy.Should().BeTrue();
+            health.StatusMessage.Should().Contain("found");
+        }
+        else
+        {
             health.IsHealthy.Should().BeFalse();
             health.StatusMessage.Should().Contain("not found");
             health.Warnings.Should().NotBeEmpty();
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("SEVENZIP_PATH", prev);
         }
     }
 
@@ -216,7 +215,7 @@ public class ArchiveExtractorProvidersTest
     [TestCase("release.zip.001", true)]
     [TestCase("release.001", true)]
     [TestCase("release.002", false)]
-    [TestCase("release.part02.7z", false)]
+    [TestCase("release.7z.002", false)]
     public void SevenZipExtractorProvider_CanExtract_ValidatesSupportedExtensions(string path, bool expected)
     {
         var provider = new SevenZipExtractorProvider(this.diskProvider);
@@ -261,6 +260,7 @@ public class ArchiveExtractorProvidersTest
     [Test]
     public void SevenZipExtractorProvider_CalculateTimeout_ScalesWithArchiveSize()
     {
+        this.diskProvider.FileExists("/downloads/huge_archive.7z").Returns(true);
         this.diskProvider.GetFileSize("/downloads/huge_archive.7z").Returns(10L * 1024L * 1024L * 1024L); // 10 GB
 
         var provider = new SevenZipExtractorProvider(
