@@ -376,7 +376,7 @@ public class PackageManagementTest
         memoryStream.Position = 0;
         var options = new PackageImportOptions
         {
-            MaxCompressionRatio = 5.0,
+            MaxCompressionRatio = 0.5,
             MinBytesForRatioCheck = 1024 * 1024, // 1 MiB
         };
 

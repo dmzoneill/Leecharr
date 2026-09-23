@@ -100,8 +100,16 @@ public class BlocklistUpdateTask : IBlocklistUpdateTask, IHandle<ApplicationStar
         }
     }
 
+    private bool disposed;
+
     public void Dispose()
     {
+        if (this.disposed)
+        {
+            return;
+        }
+
+        this.disposed = true;
         this.cts.Cancel();
         this.cts.Dispose();
     }
