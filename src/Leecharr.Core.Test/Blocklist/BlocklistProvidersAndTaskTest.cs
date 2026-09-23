@@ -369,7 +369,7 @@ public class BlocklistProvidersAndTaskTest
     [TestCase("   ")]
     [TestCase("not_valid")]
     [TestCase("300.0.0.1")]
-    public void RadixTree_IsIpBlocked_WithNullOrInvalidInput_ReturnsFalse(string? ip)
+    public void RadixTree_IsIpBlocked_WithNullOrInvalidInput_ReturnsFalse(string ip)
     {
         var provider = new RadixTreeBlocklistProvider();
         provider.IsIpBlocked(ip!).Should().BeFalse();
@@ -592,7 +592,7 @@ public class BlocklistProvidersAndTaskTest
     [TestCase("")]
     [TestCase("   ")]
     [TestCase("invalid-ip")]
-    public void P2PDat_IsIpBlocked_WithNullOrInvalidInput_ReturnsFalse(string? ip)
+    public void P2PDat_IsIpBlocked_WithNullOrInvalidInput_ReturnsFalse(string ip)
     {
         var provider = new P2PDatBlocklistProvider();
         provider.IsIpBlocked(ip!).Should().BeFalse();

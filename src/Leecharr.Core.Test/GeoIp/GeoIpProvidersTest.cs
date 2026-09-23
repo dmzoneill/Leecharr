@@ -110,7 +110,7 @@ public class GeoIpProvidersTest
     [TestCase(null)]
     [TestCase("")]
     [TestCase("   ")]
-    public async Task MaxMind_LookupAsync_WithNullOrWhitespace_ReturnsNull(string? ip)
+    public async Task MaxMind_LookupAsync_WithNullOrWhitespace_ReturnsNull(string ip)
     {
         using var provider = new MaxMindGeoIpProvider(this.diskProvider, this.appFolderInfo);
         var result = await provider.LookupAsync(ip!);
@@ -213,7 +213,7 @@ public class GeoIpProvidersTest
     [TestCase(null)]
     [TestCase("")]
     [TestCase("   ")]
-    public async Task OnlineApi_LookupAsync_WithNullOrWhitespace_ReturnsNull(string? ip)
+    public async Task OnlineApi_LookupAsync_WithNullOrWhitespace_ReturnsNull(string ip)
     {
         var callCount = 0;
         using var handler = new TestHttpMessageHandler(_ =>

@@ -397,7 +397,7 @@ public class HealthControllerTest
         var apiAttribute = type.GetCustomAttribute<V1ApiControllerAttribute>();
 
         apiAttribute.Should().NotBeNull();
-        apiAttribute!.Resource.Should().Be("health");
+        apiAttribute!.Template.Should().Be("api/v1/health");
 
         var method = type.GetMethod(nameof(HealthController.GetHealth));
         method.Should().NotBeNull();
