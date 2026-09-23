@@ -160,8 +160,8 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                 var state = this.torrentStates.GetOrAdd(torrent.Id, _ => new TorrentQueueState());
                 var task = this.downloadEngine?.GetTask(torrent.Id);
                 var isComplete = torrent.Status == TorrentStatus.Seeding ||
-                                 torrent.Progress >= 1.0 ||
-                                 torrent.DateCompleted.HasValue;
+                    torrent.Progress >= 1.0 ||
+                    torrent.DateCompleted.HasValue;
 
                 if (!isComplete)
                 {
@@ -178,9 +178,9 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                     }
 
                     var isCurrentlySlow = ignoreSlow &&
-                                         torrent.Status == TorrentStatus.Downloading &&
-                                         task != null &&
-                                         task.DownloadSpeed < slowDownThresholdBytes;
+                        torrent.Status == TorrentStatus.Downloading &&
+                        task != null &&
+                        task.DownloadSpeed < slowDownThresholdBytes;
 
                     if (isCurrentlySlow)
                     {
@@ -194,15 +194,15 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                     var isSlow = isCurrentlySlow && state.SlowDownloadTicks >= this.requiredSlowTicks;
 
                     var isStalled = ((task != null && task.IsStalled) ||
-                                    (queueStalledEnabled &&
-                                     queueStalledMinutes > 0 &&
-                                     downloadSpeed == 0 &&
-                                     (DateTime.UtcNow - (torrent.LastActive ?? torrent.DateAdded)).TotalMinutes >= queueStalledMinutes)) &&
-                                    torrent.Status == TorrentStatus.Downloading;
+                        (queueStalledEnabled &&
+                            queueStalledMinutes > 0 &&
+                            downloadSpeed == 0 &&
+                            (DateTime.UtcNow - (torrent.LastActive ?? torrent.DateAdded)).TotalMinutes >= queueStalledMinutes)) &&
+                        torrent.Status == TorrentStatus.Downloading;
 
                     var isResolvingMetadata = (torrent.TotalSize == 0 || torrent.PieceCount == 0) &&
-                                              torrent.Progress <= 0 &&
-                                              (task == null || (task.TotalSize == 0 && task.Progress <= 0));
+                        torrent.Progress <= 0 &&
+                        (task == null || (task.TotalSize == 0 && task.Progress <= 0));
 
                     var isMagnetTimeout = false;
                     if (isResolvingMetadata && downloadSpeed == 0)
@@ -223,9 +223,9 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
 
                     var isIgnoredDownload = isSlow || isStalled || torrent.ForceStart;
                     var canRunDownload = torrent.ForceStart ||
-                                         (!isMagnetTimeout &&
-                                          ((maxDownloads <= 0 || activeDownloads < maxDownloads || isIgnoredDownload) &&
-                                           (maxTotal <= 0 || activeTotal < maxTotal || isIgnoredDownload)));
+                        (!isMagnetTimeout &&
+                            ((maxDownloads <= 0 || activeDownloads < maxDownloads || isIgnoredDownload) &&
+                                (maxTotal <= 0 || activeTotal < maxTotal || isIgnoredDownload)));
 
                     if (canRunDownload)
                     {
@@ -272,8 +272,8 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                         if (torrent.Status == TorrentStatus.Downloading && !torrent.ForceStart)
                         {
                             var inCooldown = !isMagnetTimeout &&
-                                             state.ActivatedAt.HasValue &&
-                                             (DateTime.UtcNow - state.ActivatedAt.Value) < this.minimumActiveCooldown;
+                                state.ActivatedAt.HasValue &&
+                                (DateTime.UtcNow - state.ActivatedAt.Value) < this.minimumActiveCooldown;
 
                             if (inCooldown)
                             {
@@ -340,9 +340,9 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                     }
 
                     var isCurrentlySlow = ignoreSlow &&
-                                         torrent.Status == TorrentStatus.Seeding &&
-                                         task != null &&
-                                         task.UploadSpeed < slowUpThresholdBytes;
+                        torrent.Status == TorrentStatus.Seeding &&
+                        task != null &&
+                        task.UploadSpeed < slowUpThresholdBytes;
 
                     if (isCurrentlySlow)
                     {
@@ -356,14 +356,14 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                     var isSlow = isCurrentlySlow && state.SlowUploadTicks >= this.requiredSlowTicks;
 
                     var isIdleSeeder = idleSeedingLimitMinutes > 0 &&
-                                       torrent.Status == TorrentStatus.Seeding &&
-                                       uploadSpeed == 0 &&
-                                       (DateTime.UtcNow - (torrent.LastActive ?? torrent.DateCompleted ?? torrent.DateAdded)).TotalMinutes >= idleSeedingLimitMinutes;
+                        torrent.Status == TorrentStatus.Seeding &&
+                        uploadSpeed == 0 &&
+                        (DateTime.UtcNow - (torrent.LastActive ?? torrent.DateCompleted ?? torrent.DateAdded)).TotalMinutes >= idleSeedingLimitMinutes;
 
                     var isIgnoredUpload = isSlow || isIdleSeeder || torrent.ForceStart;
                     var canRunUpload = torrent.ForceStart ||
-                                       ((maxUploads <= 0 || activeUploads < maxUploads || isIgnoredUpload) &&
-                                        (maxTotal <= 0 || activeTotal < maxTotal || isIgnoredUpload));
+                        ((maxUploads <= 0 || activeUploads < maxUploads || isIgnoredUpload) &&
+                            (maxTotal <= 0 || activeTotal < maxTotal || isIgnoredUpload));
 
                     if (canRunUpload)
                     {
@@ -410,7 +410,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                         if (torrent.Status == TorrentStatus.Seeding && !torrent.ForceStart)
                         {
                             var inCooldown = state.ActivatedAt.HasValue &&
-                                             (DateTime.UtcNow - state.ActivatedAt.Value) < this.minimumActiveCooldown;
+                                (DateTime.UtcNow - state.ActivatedAt.Value) < this.minimumActiveCooldown;
 
                             if (inCooldown)
                             {

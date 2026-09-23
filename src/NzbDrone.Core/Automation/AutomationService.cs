@@ -537,7 +537,7 @@ public class AutomationService : IAutomationService
                     try
                     {
                         var blockMethod = _blocklistService.GetType().GetMethod("AddBlockedIp", new[] { typeof(string) })
-                                          ?? _blocklistService.GetType().GetMethod("BlockIp", new[] { typeof(string) });
+                            ?? _blocklistService.GetType().GetMethod("BlockIp", new[] { typeof(string) });
                         if (blockMethod != null)
                         {
                             var ret = blockMethod.Invoke(_blocklistService, new object[] { ip });
@@ -582,8 +582,8 @@ public class AutomationService : IAutomationService
                     try
                     {
                         var disconnectMethod = _downloadEngine.GetType().GetMethod("DisconnectPeerAsync", new[] { typeof(int), typeof(string) })
-                                               ?? _downloadEngine.GetType().GetMethod("DisconnectPeer", new[] { typeof(int), typeof(string) })
-                                               ?? _downloadEngine.GetType().GetMethod("BanPeerAsync", new[] { typeof(int), typeof(string) });
+                            ?? _downloadEngine.GetType().GetMethod("DisconnectPeer", new[] { typeof(int), typeof(string) })
+                            ?? _downloadEngine.GetType().GetMethod("BanPeerAsync", new[] { typeof(int), typeof(string) });
                         if (disconnectMethod != null)
                         {
                             var ret = disconnectMethod.Invoke(_downloadEngine, new object[] { torrent.Id, ip });
@@ -819,7 +819,7 @@ public class AutomationService : IAutomationService
         }
 
         return string.Equals(fileName, trimmed, StringComparison.OrdinalIgnoreCase) ||
-               fileName.EndsWith("." + trimmed.TrimStart('.'), StringComparison.OrdinalIgnoreCase);
+            fileName.EndsWith("." + trimmed.TrimStart('.'), StringComparison.OrdinalIgnoreCase);
     }
 
     internal async Task<bool> ExtractArchiveWithServiceAsync(Torrent torrent, string? destination, bool deleteArchive)
