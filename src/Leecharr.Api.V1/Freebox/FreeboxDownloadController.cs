@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -19,10 +20,13 @@ namespace Leecharr.Api.V1.Freebox;
 
 public class FreeboxUpdateRequest
 {
+    [JsonPropertyName("status")]
     public string Status { get; set; }
 
+    [JsonPropertyName("queue_pos")]
     public string QueuePos { get; set; }
 
+    [JsonPropertyName("stop_ratio")]
     public double? StopRatio { get; set; }
 }
 
@@ -160,12 +164,12 @@ public class FreeboxDownloadController : ControllerBase
                     isAuth = true;
                 }
                 else if (this.Request.Query.TryGetValue("password", out var queryPass) && !string.IsNullOrWhiteSpace(queryPass) &&
-                         RpcAuthenticationHelper.FixedTimeEquals(queryPass.ToString(), masterKey))
+                        RpcAuthenticationHelper.FixedTimeEquals(queryPass.ToString(), masterKey))
                 {
                     isAuth = true;
                 }
                 else if (this.Request.Query.TryGetValue("app_token", out var queryAppToken) && !string.IsNullOrWhiteSpace(queryAppToken) &&
-                         RpcAuthenticationHelper.FixedTimeEquals(queryAppToken.ToString(), masterKey))
+                        RpcAuthenticationHelper.FixedTimeEquals(queryAppToken.ToString(), masterKey))
                 {
                     isAuth = true;
                 }
