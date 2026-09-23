@@ -1,4 +1,11 @@
-import { useEffect, useRef, createContext, useContext, useMemo, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  createContext,
+  useContext,
+  useMemo,
+  type ReactNode,
+} from "react";
 import type { HubConnection } from "@microsoft/signalr";
 import { HubConnectionState } from "@microsoft/signalr";
 import { useQueryClient } from "@tanstack/react-query";
@@ -44,7 +51,10 @@ export function useSignalRContext(): SignalRContextValue {
   const conn = getSignalRConnection();
   return {
     connection: conn,
-    status: conn.state === HubConnectionState.Connected ? "connected" : "disconnected",
+    status:
+      conn.state === HubConnectionState.Connected
+        ? "connected"
+        : "disconnected",
     connected: conn.state === HubConnectionState.Connected,
     isReconnecting: conn.state === HubConnectionState.Reconnecting,
     reconnect: reconnectSignalR,
@@ -74,12 +84,30 @@ export const EVENT_INVALIDATION_MAP: Record<string, string[][]> = {
   HealthCheckCompleted: [["health"]],
   health_warning: [["health"]],
   healthWarning: [["health"]],
-  CommandStarted: [["system", "status"], ["system", "commands"]],
-  CommandCompleted: [["system", "status"], ["system", "commands"]],
-  TaskStarted: [["system", "tasks"], ["system", "status"]],
-  TaskCompleted: [["system", "tasks"], ["system", "status"]],
-  task_progress: [["system", "tasks"], ["system", "status"]],
-  taskProgress: [["system", "tasks"], ["system", "status"]],
+  CommandStarted: [
+    ["system", "status"],
+    ["system", "commands"],
+  ],
+  CommandCompleted: [
+    ["system", "status"],
+    ["system", "commands"],
+  ],
+  TaskStarted: [
+    ["system", "tasks"],
+    ["system", "status"],
+  ],
+  TaskCompleted: [
+    ["system", "tasks"],
+    ["system", "status"],
+  ],
+  task_progress: [
+    ["system", "tasks"],
+    ["system", "status"],
+  ],
+  taskProgress: [
+    ["system", "tasks"],
+    ["system", "status"],
+  ],
   AutomationExecuted: [["automation", "scripts"], ["automation"]],
   AutomationTriggerEvaluated: [["automation", "scripts"], ["automation"]],
   TrackerUpdated: [["trackerboost"]],
@@ -92,7 +120,6 @@ export const EVENT_INVALIDATION_MAP: Record<string, string[][]> = {
   subsystemSwitched: [["subsystems"], ["torrentengine"]],
   subsystem_switched: [["subsystems"], ["torrentengine"]],
 };
-
 
 export const RECONNECT_QUERY_KEYS: string[][] = [
   ["torrents"],
@@ -132,7 +159,9 @@ export function isHandledByNamedEvent(name?: string): boolean {
   );
 }
 
-export default function SignalRProvider({ children }: { children?: ReactNode } = {}) {
+export default function SignalRProvider({
+  children,
+}: { children?: ReactNode } = {}) {
   const queryClient = useQueryClient();
   const {
     connection,
@@ -158,7 +187,10 @@ export default function SignalRProvider({ children }: { children?: ReactNode } =
       } else if (typeof body === "object") {
         const obj = body as Record<string, unknown>;
         if (Array.isArray(obj.torrents)) {
-          updates = obj.torrents as Array<{ id: number; [key: string]: unknown }>;
+          updates = obj.torrents as Array<{
+            id: number;
+            [key: string]: unknown;
+          }>;
         } else if (typeof obj.id === "number") {
           updates = [obj as { id: number; [key: string]: unknown }];
         } else {
@@ -209,7 +241,11 @@ export default function SignalRProvider({ children }: { children?: ReactNode } =
       };
       const name = (message.name ?? "").toLowerCase();
 
-      if (name === "speedpulse" || name === "speed_update" || name === "statesnapshot") {
+      if (
+        name === "speedpulse" ||
+        name === "speed_update" ||
+        name === "statesnapshot"
+      ) {
         handleTelemetryPayload(message.body);
         return;
       }
@@ -231,8 +267,8 @@ export default function SignalRProvider({ children }: { children?: ReactNode } =
           typeof bodyObj?.torrentId === "number"
             ? bodyObj.torrentId
             : typeof bodyObj?.TorrentId === "number"
-            ? bodyObj.TorrentId
-            : undefined;
+              ? bodyObj.TorrentId
+              : undefined;
         if (torrentId) {
           queryClient.invalidateQueries({
             queryKey: ["torrents", torrentId, "trackers"],
@@ -246,7 +282,9 @@ export default function SignalRProvider({ children }: { children?: ReactNode } =
         queryClient.invalidateQueries({ queryKey: ["seeding", "stats"] });
       } else if (name.includes("schedule") || name.includes("speedschedule")) {
         queryClient.invalidateQueries({ queryKey: ["speedschedule"] });
-        queryClient.invalidateQueries({ queryKey: ["speedschedule", "active"] });
+        queryClient.invalidateQueries({
+          queryKey: ["speedschedule", "active"],
+        });
       }
     };
 
@@ -270,10 +308,10 @@ export default function SignalRProvider({ children }: { children?: ReactNode } =
             typeof bodyObj?.id === "number"
               ? bodyObj.id
               : typeof bodyObj?.torrentId === "number"
-              ? bodyObj.torrentId
-              : typeof bodyObj?.TorrentId === "number"
-              ? bodyObj.TorrentId
-              : undefined;
+                ? bodyObj.torrentId
+                : typeof bodyObj?.TorrentId === "number"
+                  ? bodyObj.TorrentId
+                  : undefined;
 
           if (torrentId) {
             queryClient.invalidateQueries({
@@ -286,9 +324,9 @@ export default function SignalRProvider({ children }: { children?: ReactNode } =
             if (lowerEvent.includes("deleted")) {
               useTorrentStore.getState().removeTorrent(torrentId);
             } else if (bodyObj) {
-              useTorrentStore.getState().updateTelemetry([
-                { id: torrentId, ...bodyObj },
-              ]);
+              useTorrentStore
+                .getState()
+                .updateTelemetry([{ id: torrentId, ...bodyObj }]);
             }
           }
         }
@@ -300,8 +338,8 @@ export default function SignalRProvider({ children }: { children?: ReactNode } =
             typeof bodyObj?.torrentId === "number"
               ? bodyObj.torrentId
               : typeof bodyObj?.TorrentId === "number"
-              ? bodyObj.TorrentId
-              : undefined;
+                ? bodyObj.TorrentId
+                : undefined;
 
           if (torrentId) {
             queryClient.invalidateQueries({
@@ -320,7 +358,10 @@ export default function SignalRProvider({ children }: { children?: ReactNode } =
             name ? `Torrent added: ${name}` : "Torrent added",
             "success",
           );
-        } else if (lowerEvent === "torrentdeleted" || lowerEvent === "torrent_deleted") {
+        } else if (
+          lowerEvent === "torrentdeleted" ||
+          lowerEvent === "torrent_deleted"
+        ) {
           showToastRef.current("Torrent removed", "info");
         } else if (lowerEvent.includes("automationexecuted")) {
           const body = data as Record<string, unknown> | undefined;

@@ -41,10 +41,10 @@ This document tracks cross-system architectural parity, feature synchronization,
   - [x] **06.2 Torznab/Newznab Indexer Connectors**: Standardize test connection routines, query syntax, category mappings, and RSS sync intervals.
   - [x] **06.3 External Client Synchronization & Import**: Parity for remote download client bridging (qBittorrent, Deluge, Transmission).
 
-- [ ] **Workpackage 07: Code Quality, Linters & CI/CD Pipelines**
-  - [ ] **07.1 GitHub Actions Multi-Arch CI Matrix**: Standardize multi-arch container image workflows (`linux/amd64`, `linux/arm64`) and release draft automation.
-  - [ ] **07.2 StyleCop, Prettier, ESLint & Pre-Commit Rules**: Align C# Analyzer rules (`stylecop.json`), ESLint configurations, and Prettier formatting rules.
-  - [ ] **07.3 Release & Versioning Automation**: Synchronize Makefile targets, `version` file bumping, and CHANGELOG generation.
+- [x] **Workpackage 07: Code Quality, Linters & CI/CD Pipelines**
+  - [x] **07.1 GitHub Actions Multi-Arch CI Matrix**: Standardize multi-arch container image workflows (`linux/amd64`, `linux/arm64`), concurrency cancellations, and release draft automation.
+  - [x] **07.2 StyleCop, Prettier, ESLint & Pre-Commit Rules**: Align C# Analyzer rules (`stylecop.json`, `.editorconfig`), ESLint configurations, and Prettier formatting rules.
+  - [x] **07.3 Release & Versioning Automation**: Synchronize Makefile targets (`quality-report`, `bump-patch`, `bump-minor`, `bump-major`), `version` file bumping, and CHANGELOG generation.
 
 - [ ] **Workpackage 08: Test Automation Parity**
   - [ ] **08.1 Frontend Vitest Component Suites**: Automated tests for critical modals, virtualized tables, and navigation.

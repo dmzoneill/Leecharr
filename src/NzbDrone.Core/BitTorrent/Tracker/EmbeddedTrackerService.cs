@@ -244,8 +244,7 @@ public class EmbeddedTrackerService : IEmbeddedTrackerService,
             return;
         }
 
-        string normalizedHex;
-        if (!TryValidateInfoHashHex(infoHashHex, out normalizedHex, out _, out _))
+        if (!TryValidateInfoHashHex(infoHashHex, out var normalizedHex, out _, out _))
         {
             normalizedHex = infoHashHex.Trim().ToUpperInvariant();
         }

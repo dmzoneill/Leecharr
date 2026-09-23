@@ -1,7 +1,8 @@
 .PHONY: setup test-setup test integration build clean restore frontend \
        stack-init stack-build stack-up stack-down stack-configure stack-healthy stack-rebuild stack-clean \
        test-unit test-integration test-all publish coverage-report lint format \
-       quality-report container-build container-build-test
+       quality-report container-build container-build-test \
+       bump-patch bump-minor bump-major
 
 SOLUTION := src/Leecharr.sln
 UNIT_TEST := src/Leecharr.Core.Test/Leecharr.Core.Test.csproj
@@ -27,13 +28,13 @@ setup:
 
 lint:
 	@echo "🔍 Checking Prettier style..."
-	@npx prettier --check "src/Leecharr.Frontend/**/*.{ts,tsx,css,json,js,html}"
+	@npx --yes prettier --check "src/Leecharr.Frontend/**/*.{ts,tsx,css,json,js,html}"
 	@echo "🔍 Checking C# format..."
 	@dotnet format $(SOLUTION) --verify-no-changes
 
 format:
 	@echo "✨ Formatting frontend with Prettier..."
-	@npx prettier --write "src/Leecharr.Frontend/**/*.{ts,tsx,css,json,js,html}"
+	@npx --yes prettier --write "src/Leecharr.Frontend/**/*.{ts,tsx,css,json,js,html}"
 	@echo "✨ Formatting C# with dotnet format..."
 	@dotnet format $(SOLUTION)
 
@@ -162,4 +163,28 @@ container-build:
 
 container-build-test:
 	podman build --target test --build-arg COVERAGE_TOOLS=true -t leecharr:test -f Containerfile .
+
+bump-patch:
+	@CURRENT=$$(grep '^version=' version | cut -d= -f2); \
+	IFS='.' read -r major minor patch <<< "$$CURRENT"; \
+	NEW_VER="$$major.$$minor.$$((patch + 1))"; \
+	echo "Bumping version: $$CURRENT -> $$NEW_VER"; \
+	echo "version=$$NEW_VER" > version; \
+	if [ -f $(FRONTEND)/package.json ]; then (cd $(FRONTEND) && npm version $$NEW_VER --no-git-tag-version --allow-same-version); fi
+
+bump-minor:
+	@CURRENT=$$(grep '^version=' version | cut -d= -f2); \
+	IFS='.' read -r major minor patch <<< "$$CURRENT"; \
+	NEW_VER="$$major.$$((minor + 1)).0"; \
+	echo "Bumping version: $$CURRENT -> $$NEW_VER"; \
+	echo "version=$$NEW_VER" > version; \
+	if [ -f $(FRONTEND)/package.json ]; then (cd $(FRONTEND) && npm version $$NEW_VER --no-git-tag-version --allow-same-version); fi
+
+bump-major:
+	@CURRENT=$$(grep '^version=' version | cut -d= -f2); \
+	IFS='.' read -r major minor patch <<< "$$CURRENT"; \
+	NEW_VER="$$((major + 1)).0.0"; \
+	echo "Bumping version: $$CURRENT -> $$NEW_VER"; \
+	echo "version=$$NEW_VER" > version; \
+	if [ -f $(FRONTEND)/package.json ]; then (cd $(FRONTEND) && npm version $$NEW_VER --no-git-tag-version --allow-same-version); fi
 

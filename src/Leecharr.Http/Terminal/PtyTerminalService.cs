@@ -53,8 +53,8 @@ public class PtyTerminalService : IPtyTerminalService
         }
 
         // 3. Clamp dimensions to safe bounds
-        int clampedCols = Math.Clamp(cols, 10, 500);
-        int clampedRows = Math.Clamp(rows, 5, 200);
+        var clampedCols = Math.Clamp(cols, 10, 500);
+        var clampedRows = Math.Clamp(rows, 5, 200);
 
         if (File.Exists("/usr/bin/python3") || File.Exists("/bin/python3") || File.Exists("/usr/local/bin/python3"))
         {

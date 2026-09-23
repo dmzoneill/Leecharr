@@ -2640,8 +2640,7 @@ public class MonoTorrentDownloadEngineTest
 
         await this.engine.OnTorrentCompletedAsync(150, torrent.InfoHash, task.Manager);
 
-        string dummy;
-        this.storagePathService.DidNotReceive().MoveToCompleted(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), out dummy);
+        this.storagePathService.DidNotReceive().MoveToCompleted(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), out var dummy);
         task.Manager.SavePath.Should().Be(this.testIncompleteDir);
         task.SavePath.Should().Be(this.testIncompleteDir);
         task.WorkingPath.Should().Be(this.testIncompleteDir);
@@ -2672,9 +2671,8 @@ public class MonoTorrentDownloadEngineTest
         this.storagePathService.GetCompletedDirectory("movies").Returns(targetDest);
         this.diskProvider.GetAvailableSpace(targetDest).Returns(100L * 1024 * 1024 * 1024);
 
-        string dummy;
         this.storagePathService
-            .MoveToCompleted(Arg.Any<string>(), "movies", Arg.Any<string>(), out dummy)
+            .MoveToCompleted(Arg.Any<string>(), "movies", Arg.Any<string>(), out var dummy)
             .Throws(new IOException("Read-only file system"));
 
         var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
@@ -2716,9 +2714,8 @@ public class MonoTorrentDownloadEngineTest
         this.storagePathService.GetCompletedDirectory("movies").Returns(targetDest);
         this.diskProvider.GetAvailableSpace(targetDest).Returns(100L * 1024 * 1024 * 1024);
 
-        string dummy;
         this.storagePathService
-            .MoveToCompleted(Arg.Any<string>(), "movies", Arg.Any<string>(), out dummy)
+            .MoveToCompleted(Arg.Any<string>(), "movies", Arg.Any<string>(), out var dummy)
             .Returns(false);
 
         var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
@@ -2744,9 +2741,8 @@ public class MonoTorrentDownloadEngineTest
 
         var customPath = Path.Combine(Path.GetTempPath(), "leecharr_custom_tv_" + Guid.NewGuid().ToString("N"));
         this.storagePathService.GetCompletedDirectory("tv").Returns(customPath);
-        string tvMovedDest;
         this.storagePathService
-            .MoveToCompleted(Arg.Any<string>(), "tv", Arg.Any<string>(), out tvMovedDest)
+            .MoveToCompleted(Arg.Any<string>(), "tv", Arg.Any<string>(), out var tvMovedDest)
             .Returns(x =>
             {
                 x[3] = customPath;
@@ -2768,8 +2764,7 @@ public class MonoTorrentDownloadEngineTest
 
             await this.engine.OnTorrentCompletedAsync(110, torrent.InfoHash, task.Manager);
 
-            string tvAssertDest;
-            this.storagePathService.Received(1).MoveToCompleted(Arg.Any<string>(), "tv", Arg.Any<string>(), out tvAssertDest);
+            this.storagePathService.Received(1).MoveToCompleted(Arg.Any<string>(), "tv", Arg.Any<string>(), out var tvAssertDest);
             task.Manager.SavePath.Should().Be(customPath);
             this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentDownloadCompletedEvent>(e =>
                 e.Torrent.Id == 110 &&
@@ -2792,9 +2787,8 @@ public class MonoTorrentDownloadEngineTest
         var torrentBytes = CreateSampleSingleFileTorrentBytes("completed_empty_category.bin");
         var parsed = MonoTorrent.Torrent.Load(torrentBytes);
 
-        string moviesMovedDest;
         this.storagePathService
-            .MoveToCompleted(Arg.Any<string>(), "movies", Arg.Any<string>(), out moviesMovedDest)
+            .MoveToCompleted(Arg.Any<string>(), "movies", Arg.Any<string>(), out var moviesMovedDest)
             .Returns(x =>
             {
                 x[3] = this.testDownloadDir;
@@ -2814,8 +2808,7 @@ public class MonoTorrentDownloadEngineTest
 
         await this.engine.OnTorrentCompletedAsync(111, torrent.InfoHash, task.Manager);
 
-        string moviesAssertDest;
-        this.storagePathService.Received(1).MoveToCompleted(Arg.Any<string>(), "movies", Arg.Any<string>(), out moviesAssertDest);
+        this.storagePathService.Received(1).MoveToCompleted(Arg.Any<string>(), "movies", Arg.Any<string>(), out var moviesAssertDest);
         task.Manager.SavePath.Should().Be(this.testDownloadDir);
         this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentDownloadCompletedEvent>(e =>
             e.Torrent.Id == 111 &&
@@ -2830,9 +2823,8 @@ public class MonoTorrentDownloadEngineTest
         var torrentBytes = CreateSampleSingleFileTorrentBytes("completed_no_category.bin");
         var parsed = MonoTorrent.Torrent.Load(torrentBytes);
 
-        string noCatMovedDest;
         this.storagePathService
-            .MoveToCompleted(Arg.Any<string>(), Arg.Is<string>(s => s == null), Arg.Any<string>(), out noCatMovedDest)
+            .MoveToCompleted(Arg.Any<string>(), Arg.Is<string>(s => s == null), Arg.Any<string>(), out var noCatMovedDest)
             .Returns(x =>
             {
                 x[3] = this.testDownloadDir;
@@ -2852,8 +2844,7 @@ public class MonoTorrentDownloadEngineTest
 
         await this.engine.OnTorrentCompletedAsync(112, torrent.InfoHash, task.Manager);
 
-        string noCatAssertDest;
-        this.storagePathService.Received(1).MoveToCompleted(Arg.Any<string>(), Arg.Is<string>(s => s == null), Arg.Any<string>(), out noCatAssertDest);
+        this.storagePathService.Received(1).MoveToCompleted(Arg.Any<string>(), Arg.Is<string>(s => s == null), Arg.Any<string>(), out var noCatAssertDest);
         task.Manager.SavePath.Should().Be(this.testDownloadDir);
         this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentDownloadCompletedEvent>(e =>
             e.Torrent.Id == 112 &&
@@ -2891,8 +2882,7 @@ public class MonoTorrentDownloadEngineTest
 
             await this.engine.OnTorrentCompletedAsync(120, torrent.InfoHash, task.Manager);
 
-            string assertDest;
-            this.storagePathService.DidNotReceive().MoveToCompleted(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), out assertDest);
+            this.storagePathService.DidNotReceive().MoveToCompleted(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), out var assertDest);
             task.Manager.SavePath.Should().Be(customSavePath);
             task.SavePath.Should().Be(customSavePath);
             this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentDownloadCompletedEvent>(e =>
@@ -2940,8 +2930,7 @@ public class MonoTorrentDownloadEngineTest
 
             await this.engine.OnTorrentCompletedAsync(121, torrent.InfoHash, task.Manager);
 
-            string assertDest;
-            this.storagePathService.DidNotReceive().MoveToCompleted(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), out assertDest);
+            this.storagePathService.DidNotReceive().MoveToCompleted(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), out var assertDest);
             task.Manager.SavePath.Should().Be(relocatedPath);
             task.SavePath.Should().Be(relocatedPath);
             this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentDownloadCompletedEvent>(e =>
@@ -2965,12 +2954,11 @@ public class MonoTorrentDownloadEngineTest
         var torrentBytes = CreateSampleSingleFileTorrentBytes("SingleFileMovie.mkv");
         var parsed = MonoTorrent.Torrent.Load(torrentBytes);
 
-        string expectedSourcePath = Path.Combine(this.testIncompleteDir, "SingleFileMovie.mkv");
+        var expectedSourcePath = Path.Combine(this.testIncompleteDir, "SingleFileMovie.mkv");
         string capturedSource = null;
-        string movedDest;
 
         this.storagePathService
-            .MoveToCompleted(Arg.Do<string>(s => capturedSource = s), "movies", "SingleFileMovie.mkv", out movedDest)
+            .MoveToCompleted(Arg.Do<string>(s => capturedSource = s), "movies", "SingleFileMovie.mkv", out var movedDest)
             .Returns(x =>
             {
                 x[3] = Path.Combine(this.testDownloadDir, "SingleFileMovie.mkv");
@@ -3000,12 +2988,11 @@ public class MonoTorrentDownloadEngineTest
         var torrentBytes = CreateSampleSingleFileTorrentBytes("DirectMovie.mkv");
         var parsed = MonoTorrent.Torrent.Load(torrentBytes);
 
-        string expectedSourcePath = Path.Combine(this.testDownloadDir, "DirectMovie.mkv");
+        var expectedSourcePath = Path.Combine(this.testDownloadDir, "DirectMovie.mkv");
         string capturedSource = null;
-        string movedDest;
 
         this.storagePathService
-            .MoveToCompleted(Arg.Do<string>(s => capturedSource = s), "movies", "DirectMovie.mkv", out movedDest)
+            .MoveToCompleted(Arg.Do<string>(s => capturedSource = s), "movies", "DirectMovie.mkv", out var movedDest)
             .Returns(x =>
             {
                 x[3] = Path.Combine(this.testDownloadDir, "DirectMovie.mkv");
@@ -3034,10 +3021,9 @@ public class MonoTorrentDownloadEngineTest
         var parsed = MonoTorrent.Torrent.Load(torrentBytes);
 
         string capturedSource = null;
-        string movedDest;
 
         this.storagePathService
-            .MoveToCompleted(Arg.Do<string>(s => capturedSource = s), "tv", "MultiSeasonFolder", out movedDest)
+            .MoveToCompleted(Arg.Do<string>(s => capturedSource = s), "tv", "MultiSeasonFolder", out var movedDest)
             .Returns(x =>
             {
                 x[3] = Path.Combine(this.testDownloadDir, "MultiSeasonFolder");

@@ -379,7 +379,9 @@ export const HistoryTableView: React.FC<HistoryTableViewProps> = ({
                               title={t("history.filterByTracker")}
                             >
                               • {item.primaryTracker}
-                              {item.trackers && item.trackers.length > 1 ? ` (+${item.trackers.length - 1})` : ""}
+                              {item.trackers && item.trackers.length > 1
+                                ? ` (+${item.trackers.length - 1})`
+                                : ""}
                             </span>
                           )}
                         </div>

@@ -490,7 +490,13 @@ export function CategorySettingsTab({
               hint={t("settingsTabs.categories.modal.nameHint")}
             />
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.25rem",
+              }}
+            >
               <TextInput
                 label={t("settingsTabs.categories.modal.savePathLabel")}
                 value={editingCategory.savePath || ""}
@@ -537,11 +543,21 @@ export function CategorySettingsTab({
                     marginBottom: "0.5rem",
                   }}
                 >
-                  <span style={{ color: "var(--accent, #ffd166)" }}>💾 Disk:</span>
-                  <span style={{ color: "var(--success, #22c55e)", fontWeight: 600 }}>
+                  <span style={{ color: "var(--accent, #ffd166)" }}>
+                    💾 Disk:
+                  </span>
+                  <span
+                    style={{
+                      color: "var(--success, #22c55e)",
+                      fontWeight: 600,
+                    }}
+                  >
                     {formatBytes(matchedDisk.freeSpace)} free
                   </span>
-                  <span>of {formatBytes(matchedDisk.totalSpace)} ({matchedDisk.path || matchedDisk.label})</span>
+                  <span>
+                    of {formatBytes(matchedDisk.totalSpace)} (
+                    {matchedDisk.path || matchedDisk.label})
+                  </span>
                   <div
                     style={{
                       width: 55,

@@ -487,9 +487,7 @@ export function ClientEmulationSettingsTab() {
             label={t("settingsTabs.clientEmulation.enableSwarmIntelligence")}
             checked={form.swarmIntelligenceEnabled}
             onChange={(v) => update("swarmIntelligenceEnabled", v)}
-            hint={t(
-              "settingsTabs.clientEmulation.enableSwarmIntelligenceHint",
-            )}
+            hint={t("settingsTabs.clientEmulation.enableSwarmIntelligenceHint")}
           />
         </div>
       </SectionCard>

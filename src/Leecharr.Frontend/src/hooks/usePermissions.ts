@@ -19,7 +19,9 @@ export interface Permissions {
   hasRole: (role: string) => boolean;
 }
 
-export function getPermissions(user: CurrentUser | null | undefined): Permissions {
+export function getPermissions(
+  user: CurrentUser | null | undefined,
+): Permissions {
   const roles = user?.roles ?? [];
   const normalizedRoles = roles.map((r) => r.toLowerCase().trim());
 
@@ -54,7 +56,8 @@ export function getPermissions(user: CurrentUser | null | undefined): Permission
     canModifyTorrent: isOperator,
     canSaveSettings: isAdmin,
     canWipeData: isOperator,
-    hasRole: (role: string) => normalizedRoles.includes(role.toLowerCase().trim()),
+    hasRole: (role: string) =>
+      normalizedRoles.includes(role.toLowerCase().trim()),
   };
 }
 

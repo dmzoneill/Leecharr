@@ -134,7 +134,12 @@ export function BulkTagModal({
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && mode === "add" && trimmedSearch && !hasExactMatch) {
+    if (
+      e.key === "Enter" &&
+      mode === "add" &&
+      trimmedSearch &&
+      !hasExactMatch
+    ) {
       e.preventDefault();
       handleQuickCreateTag();
     }
@@ -223,7 +228,11 @@ export function BulkTagModal({
             disabled={isPending || isCreatingTag}
             aria-label={t("common.close", undefined, "Close")}
             title={t("common.close", undefined, "Close")}
-            style={{ padding: "0.2rem 0.5rem", fontSize: "0.8rem", marginLeft: "1rem" }}
+            style={{
+              padding: "0.2rem 0.5rem",
+              fontSize: "0.8rem",
+              marginLeft: "1rem",
+            }}
           >
             ✕
           </button>
@@ -256,7 +265,9 @@ export function BulkTagModal({
             </div>
           ) : (
             <>
-              <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+              <div
+                style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
+              >
                 <input
                   ref={searchInputRef}
                   type="text"
@@ -280,7 +291,9 @@ export function BulkTagModal({
                   type="button"
                   className="btn btn-small btn-outline"
                   onClick={handleSelectAll}
-                  disabled={isPending || isCreatingTag || filteredTags.length === 0}
+                  disabled={
+                    isPending || isCreatingTag || filteredTags.length === 0
+                  }
                   style={{ fontSize: "0.75rem", padding: "0.35rem 0.5rem" }}
                 >
                   {t("common.selectAll", undefined, "Select All")}
@@ -289,7 +302,9 @@ export function BulkTagModal({
                   type="button"
                   className="btn btn-small btn-outline"
                   onClick={handleClearAll}
-                  disabled={isPending || isCreatingTag || selectedTagIds.size === 0}
+                  disabled={
+                    isPending || isCreatingTag || selectedTagIds.size === 0
+                  }
                   style={{ fontSize: "0.75rem", padding: "0.35rem 0.5rem" }}
                 >
                   {t("common.clear", undefined, "Clear")}
@@ -344,7 +359,8 @@ export function BulkTagModal({
                   flex: 1,
                   overflowY: "auto",
                   maxHeight: "260px",
-                  border: "1px solid var(--border-color, rgba(255, 255, 255, 0.1))",
+                  border:
+                    "1px solid var(--border-color, rgba(255, 255, 255, 0.1))",
                   borderRadius: "6px",
                   padding: "0.5rem",
                   display: "flex",
@@ -377,7 +393,10 @@ export function BulkTagModal({
                           gap: "0.6rem",
                           padding: "0.4rem 0.6rem",
                           borderRadius: "4px",
-                          cursor: isPending || isCreatingTag ? "not-allowed" : "pointer",
+                          cursor:
+                            isPending || isCreatingTag
+                              ? "not-allowed"
+                              : "pointer",
                           backgroundColor: isChecked
                             ? "var(--bg-selected, rgba(59, 130, 246, 0.15))"
                             : "transparent",
@@ -405,7 +424,9 @@ export function BulkTagModal({
                               : "rgba(59, 130, 246, 0.15)",
                             color: tagColor,
                             border: `1px solid ${
-                              tag.color ? `${tag.color}44` : "rgba(59, 130, 246, 0.3)"
+                              tag.color
+                                ? `${tag.color}44`
+                                : "rgba(59, 130, 246, 0.3)"
                             }`,
                             fontWeight: 500,
                           }}
@@ -455,7 +476,8 @@ export function BulkTagModal({
             display: "flex",
             justifyContent: "flex-end",
             gap: "0.75rem",
-            borderTop: "1px solid var(--border-color, rgba(255, 255, 255, 0.1))",
+            borderTop:
+              "1px solid var(--border-color, rgba(255, 255, 255, 0.1))",
           }}
         >
           <button

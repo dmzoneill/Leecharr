@@ -188,11 +188,17 @@ export function IndexersTab() {
   const handleSave = () => {
     if (!editing) return;
     if (!editing.name?.trim()) {
-      showToast(t("settingsTabs.indexers.nameRequired", "Name is required"), "error");
+      showToast(
+        t("settingsTabs.indexers.nameRequired", "Name is required"),
+        "error",
+      );
       return;
     }
     if (!editing.url?.trim()) {
-      showToast(t("settingsTabs.indexers.urlRequired", "URL is required"), "error");
+      showToast(
+        t("settingsTabs.indexers.urlRequired", "URL is required"),
+        "error",
+      );
       return;
     }
     if (editing.indexerType === "Prowlarr" && !editing.id) {
@@ -244,7 +250,10 @@ export function IndexersTab() {
           trackIndexerAction("edit", payload.indexerType || "Prowlarr", false);
           showToast(
             err?.message ||
-              t("settingsTabs.indexers.updateFailed", "Failed to update indexer"),
+              t(
+                "settingsTabs.indexers.updateFailed",
+                "Failed to update indexer",
+              ),
             "error",
           );
         },
@@ -267,7 +276,10 @@ export function IndexersTab() {
           trackIndexerAction("add", payload.indexerType || "Prowlarr", false);
           showToast(
             err?.message ||
-              t("settingsTabs.indexers.createFailed", "Failed to create indexer"),
+              t(
+                "settingsTabs.indexers.createFailed",
+                "Failed to create indexer",
+              ),
             "error",
           );
         },
@@ -356,7 +368,11 @@ export function IndexersTab() {
     const payload = normalizeIndexerPayload(editing);
     testDirectMutation.mutate(payload, {
       onSuccess: (res) => {
-        trackIndexerAction("test", payload.indexerType || "indexer", res.success);
+        trackIndexerAction(
+          "test",
+          payload.indexerType || "indexer",
+          res.success,
+        );
         setModalTestResult(res);
       },
       onError: (err) => {
@@ -455,7 +471,11 @@ export function IndexersTab() {
 
                     deleteMutation.mutate(idx.id, {
                       onSuccess: () => {
-                        trackIndexerAction("delete", idx.indexerType || "indexer", true);
+                        trackIndexerAction(
+                          "delete",
+                          idx.indexerType || "indexer",
+                          true,
+                        );
                         showToast(
                           t("settingsTabs.indexers.indexerDeleted", {
                             name: idx.name,
@@ -464,7 +484,11 @@ export function IndexersTab() {
                         );
                       },
                       onError: (err: any) => {
-                        trackIndexerAction("delete", idx.indexerType || "indexer", false);
+                        trackIndexerAction(
+                          "delete",
+                          idx.indexerType || "indexer",
+                          false,
+                        );
                         showToast(
                           err?.message ||
                             t("settingsTabs.indexers.deleteIndexerFailed"),

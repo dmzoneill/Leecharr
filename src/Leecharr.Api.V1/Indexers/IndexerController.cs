@@ -235,7 +235,7 @@ public class IndexerController : Controller
                 var testResult = await this.TestDirectInternal(idx).ConfigureAwait(false);
                 sw.Stop();
 
-                bool success = false;
+                var success = false;
                 string message = null;
 
                 if (testResult.Result is OkObjectResult ok && ok.Value is IndexerTestResult tr)
@@ -603,8 +603,8 @@ public class IndexerController : Controller
                 try
                 {
                     IDictionary<string, string> customHeaders = null;
-                    string cookies = request.Cookie;
-                    string userAgent = request.UserAgent;
+                    var cookies = request.Cookie;
+                    var userAgent = request.UserAgent;
 
                     if (request.IndexerId.HasValue && request.IndexerId.Value > 0)
                     {

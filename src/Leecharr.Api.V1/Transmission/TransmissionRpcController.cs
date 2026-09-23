@@ -1007,7 +1007,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
                         if (item.ValueKind == JsonValueKind.Number)
                         {
                             var trkId = item.GetInt32();
-                            TrackerEntry tracker = dbTrackers.FirstOrDefault(x => x.Id == trkId);
+                            var tracker = dbTrackers.FirstOrDefault(x => x.Id == trkId);
                             if (tracker == null && trkId >= 0 && trkId < dbTrackers.Count)
                             {
                                 tracker = dbTrackers[trkId];
@@ -1074,7 +1074,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
                             continue;
                         }
 
-                        TrackerEntry tracker = dbTrackers.FirstOrDefault(x => x.Id == trkId);
+                        var tracker = dbTrackers.FirstOrDefault(x => x.Id == trkId);
                         if (tracker == null && trkId >= 0 && trkId < dbTrackers.Count)
                         {
                             tracker = dbTrackers[trkId];
@@ -2183,7 +2183,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
 
         if (dbTrackers.Count > 0)
         {
-            for (int i = 0; i < dbTrackers.Count; i++)
+            for (var i = 0; i < dbTrackers.Count; i++)
             {
                 var trk = dbTrackers[i];
                 trackersList.Add(new
@@ -2313,9 +2313,9 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
         var bitfield = downloadTask?.PieceBitfield;
         if (bitfield != null && bitfield.Length > 0)
         {
-            int numBytes = (bitfield.Length + 7) / 8;
-            byte[] bytes = new byte[numBytes];
-            for (int i = 0; i < bitfield.Length; i++)
+            var numBytes = (bitfield.Length + 7) / 8;
+            var bytes = new byte[numBytes];
+            for (var i = 0; i < bitfield.Length; i++)
             {
                 if (bitfield[i])
                 {
@@ -2328,14 +2328,14 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
 
         if (torrent.Progress >= 1.0 && pieceCount > 0)
         {
-            int numBytes = (pieceCount + 7) / 8;
-            byte[] bytes = new byte[numBytes];
-            for (int i = 0; i < numBytes; i++)
+            var numBytes = (pieceCount + 7) / 8;
+            var bytes = new byte[numBytes];
+            for (var i = 0; i < numBytes; i++)
             {
                 bytes[i] = 0xFF;
             }
 
-            int remainder = pieceCount % 8;
+            var remainder = pieceCount % 8;
             if (remainder > 0)
             {
                 bytes[numBytes - 1] = (byte)(0xFF << (8 - remainder));
