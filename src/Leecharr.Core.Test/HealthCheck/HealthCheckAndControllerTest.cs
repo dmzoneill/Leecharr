@@ -15,6 +15,7 @@ using NSubstitute.ExceptionExtensions;
 using NUnit.Framework;
 using NzbDrone.Core.HealthCheck;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Core.Test.HealthCheck;
 
