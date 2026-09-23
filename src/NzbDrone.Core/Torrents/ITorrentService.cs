@@ -31,6 +31,8 @@ public interface ITorrentService
 
     Task PauseAsync(int id);
 
+    Task PauseAsync(int id, string reason);
+
     Task ResumeAsync(int id);
 
     Task ForceRecheckAsync(int id);

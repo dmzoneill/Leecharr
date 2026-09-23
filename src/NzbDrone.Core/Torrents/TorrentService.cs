@@ -1108,13 +1108,19 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
         }
     }
 
-    public async Task PauseAsync(int id)
+    public Task PauseAsync(int id)
+    {
+        return this.PauseAsync(id, null);
+    }
+
+    public async Task PauseAsync(int id, string reason)
     {
         var torrent = this.torrentRepository.Get(id);
         if (torrent != null && torrent.Status != TorrentStatus.Paused)
         {
             var old = torrent.Status;
-            this.logger.Info("[State Machine] Torrent #{0} ('{1}') pause requested (Status: {2} -> Paused)", id, torrent.Name, old);
+            var reasonSuffix = !string.IsNullOrWhiteSpace(reason) ? $" [Reason: {reason}]" : string.Empty;
+            this.logger.Info("[State Machine] Torrent #{0} ('{1}') pause requested (Status: {2} -> Paused){3}", id, torrent.Name, old, reasonSuffix);
             torrent.Status = TorrentStatus.Paused;
             torrent.DownloadSpeed = 0;
             torrent.UploadSpeed = 0;
@@ -1132,7 +1138,13 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 this.logger.Warn(ex, "Error pausing torrent in download engine {0}", id);
             }
 
-            this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent { Torrent = torrent, OldStatus = old, NewStatus = TorrentStatus.Paused });
+            this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
+            {
+                Torrent = torrent,
+                OldStatus = old,
+                NewStatus = TorrentStatus.Paused,
+                Reason = reason,
+            });
         }
     }
 
@@ -2192,13 +2204,16 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 this.logger.Warn(ex, "Error pausing torrent for AutoStop category on download completion: {0}", torrent.Id);
             }
 
-            this.logger.Info("Torrent {0} ({1}) auto-stopped upon download completion per category '{2}' setting.", torrent.Id, torrent.Name, category.Name);
+            var autoStopReason = $"Auto-stopped upon download completion per category '{category?.Name ?? "Default"}' AutoStop setting";
+            this.logger.Info("[State Machine] Torrent #{0} ('{1}') auto-stopped upon download completion per category '{2}' setting.", torrent.Id, torrent.Name, category?.Name);
+            this.torrentLogService?.Log(torrent.Id, "Info", "Engine", autoStopReason);
 
             this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
             {
                 Torrent = torrent,
                 OldStatus = oldStatus,
                 NewStatus = TorrentStatus.Paused,
+                Reason = autoStopReason,
             });
         }
         else
@@ -2207,11 +2222,14 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             torrent.DownloadSpeed = 0;
             torrent.Eta = 0;
             this.torrentRepository.Update(torrent);
+            this.logger.Info("[State Machine] Torrent #{0} ('{1}') download completed (100% verified); transitioned to Seeding.", torrent.Id, torrent.Name);
+            this.torrentLogService?.Log(torrent.Id, "Info", "Engine", "Download completed; entered Seeding state");
             this.eventAggregator.PublishEvent(new TorrentStatusChangedEvent
             {
                 Torrent = torrent,
                 OldStatus = oldStatus,
                 NewStatus = TorrentStatus.Seeding,
+                Reason = "Download completed (100% verified)",
             });
         }
     }

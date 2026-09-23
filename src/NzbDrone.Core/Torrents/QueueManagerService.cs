@@ -251,6 +251,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                     OldStatus = oldStatus,
                                     NewStatus = TorrentStatus.Downloading,
                                     IsQueueManagerInternal = true,
+                                    Reason = "Queue manager promoted to Downloading",
                                 });
                             }
                             catch (Exception ex)
@@ -301,8 +302,11 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                     torrent.Leechers = 0;
                                     state.ActivatedAt = null;
                                     state.SlowDownloadTicks = 0;
+                                    var demoteReason = isMagnetTimeout
+                                        ? $"Magnet metadata resolution timed out after {magnetMetadataTimeoutSeconds}s; demoted to Queued and paused"
+                                        : $"Queue manager demoted to Queued (download concurrency limit reached: {activeDownloads}/{maxDownloads} active downloads)";
                                     this.torrentRepository.Update(torrent);
-                                    this.logger.Info("[State Machine] Queue manager demoted torrent #{0} ('{1}') from Downloading to Queued (Active downloads: {2}/{3})", torrent.Id, torrent.Name, activeDownloads, maxDownloads);
+                                    this.logger.Info("[State Machine] Queue manager demoted torrent #{0} ('{1}') from Downloading to Queued: {2}", torrent.Id, torrent.Name, demoteReason);
 
                                     eventsToPublish.Add(new TorrentStatusChangedEvent
                                     {
@@ -310,6 +314,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                         OldStatus = oldStatus,
                                         NewStatus = TorrentStatus.Queued,
                                         IsQueueManagerInternal = true,
+                                        Reason = demoteReason,
                                     });
                                 }
                                 catch (Exception ex)
@@ -384,6 +389,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                     OldStatus = oldStatus,
                                     NewStatus = TorrentStatus.Seeding,
                                     IsQueueManagerInternal = true,
+                                    Reason = "Queue manager promoted to Seeding",
                                 });
                             }
                             catch (Exception ex)
@@ -433,8 +439,9 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                     torrent.Leechers = 0;
                                     state.ActivatedAt = null;
                                     state.SlowUploadTicks = 0;
+                                    var demoteReason = $"Queue manager demoted to Queued (upload concurrency limit reached: {activeUploads}/{maxUploads} active uploads)";
                                     this.torrentRepository.Update(torrent);
-                                    this.logger.Info("[State Machine] Queue manager demoted torrent #{0} ('{1}') from Seeding to Queued (Active uploads: {2}/{3})", torrent.Id, torrent.Name, activeUploads, maxUploads);
+                                    this.logger.Info("[State Machine] Queue manager demoted torrent #{0} ('{1}') from Seeding to Queued: {2}", torrent.Id, torrent.Name, demoteReason);
 
                                     eventsToPublish.Add(new TorrentStatusChangedEvent
                                     {
@@ -442,6 +449,7 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
                                         OldStatus = oldStatus,
                                         NewStatus = TorrentStatus.Queued,
                                         IsQueueManagerInternal = true,
+                                        Reason = demoteReason,
                                     });
                                 }
                                 catch (Exception ex)
