@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.26.3](https://github.com/dmzoneill/Leecharr/releases/tag/v1.26.3) - 2026-09-23
+
+### ✨ Features
+- feat(logging): track automatic state changes and reasons in state machine and event logs
+
+### 🐛 Bug Fixes
+- fix(automation): call single-parameter PauseAsync in AutomationService
+- fix(lifecycle): invoke PauseAsync with single id to satisfy integration test contracts
+
+### 🔧 Maintenance & Improvements
+- style: fix indentation to multiples of 4 in AutomationService, QueueManagerService, and TorrentService
+
 ## [v1.26.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.26.2) - 2026-09-23
 
 ### ✨ Features
