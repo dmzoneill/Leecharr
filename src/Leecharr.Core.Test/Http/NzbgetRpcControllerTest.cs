@@ -10,6 +10,7 @@ using FluentAssertions;
 using Leecharr.Api.V1.Nzbget;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using NUnit.Framework;
@@ -789,5 +790,310 @@ public class NzbgetRpcControllerTest
             await this.torrentService.MoveQueueAsync(20, "top");
             await this.torrentService.MoveQueueAsync(10, "top");
         });
+    }
+
+    [Test]
+    public async Task HandleRpc_ListGroups_ReturnsActiveTorrentsMappedToNZBGetGroups()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrents = new List<Torrent>
+        {
+            new() { Id = 1, Name = "Torrent.Active.1", Status = TorrentStatus.Downloading, TotalSize = 524288000, Downloaded = 262144000, Category = "tv" },
+            new() { Id = 2, Name = "Torrent.Paused.2", Status = TorrentStatus.Paused, TotalSize = 1048576000, Downloaded = 104857600, Category = "movies" },
+            new() { Id = 3, Name = "Torrent.Completed.3", Status = TorrentStatus.Completed, Progress = 1.0, TotalSize = 2097152000, Downloaded = 2097152000 },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+
+        var request = new NzbgetRequest { Method = "listgroups", Id = 10 };
+        var result = await this.controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var resArray = doc.RootElement.GetProperty("result");
+        // Completed torrent (Id=3) is filtered out of listgroups
+        resArray.GetArrayLength().Should().Be(2);
+
+        var g0 = resArray[0];
+        g0.GetProperty("NZBID").GetInt32().Should().Be(1);
+        g0.GetProperty("NZBName").GetString().Should().Be("Torrent.Active.1");
+        g0.GetProperty("Category").GetString().Should().Be("tv");
+        g0.GetProperty("Status").GetString().Should().Be("DOWNLOADING");
+
+        var g1 = resArray[1];
+        g1.GetProperty("NZBID").GetInt32().Should().Be(2);
+        g1.GetProperty("Status").GetString().Should().Be("PAUSED");
+    }
+
+    [Test]
+    public async Task HandleRpc_History_ReturnsCompletedTorrents()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrents = new List<Torrent>
+        {
+            new() { Id = 1, Name = "Torrent.Active.1", Status = TorrentStatus.Downloading, TotalSize = 524288000, Downloaded = 262144000 },
+            new() { Id = 2, Name = "Torrent.Completed.2", Status = TorrentStatus.Completed, Progress = 1.0, TotalSize = 1048576000, Downloaded = 1048576000, Category = "movies" },
+            new() { Id = 3, Name = "Torrent.Seeding.3", Status = TorrentStatus.Seeding, Progress = 1.0, TotalSize = 2097152000, Downloaded = 2097152000 },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+
+        var request = new NzbgetRequest { Method = "history", Id = 11 };
+        var result = await this.controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var resArray = doc.RootElement.GetProperty("result");
+        resArray.GetArrayLength().Should().Be(2);
+
+        var h0 = resArray[0];
+        h0.GetProperty("NZBID").GetInt32().Should().Be(2);
+        h0.GetProperty("Status").GetString().Should().Be("SUCCESS/ALL");
+    }
+
+    [TestCase("pausepost")]
+    [TestCase("pause-post")]
+    [TestCase("pause_post")]
+    [TestCase("resumepost")]
+    [TestCase("resume-post")]
+    [TestCase("unpausepost")]
+    public async Task HandleRpc_PausePost_And_ResumePost_ReturnTrueResult(string method)
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var request = new NzbgetRequest { Method = method, Id = 12 };
+        var result = await this.controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("result").GetBoolean().Should().BeTrue();
+    }
+
+    [Test]
+    public async Task HandleRpc_ResumeDownload_And_PauseDownload_AppliesToAllTorrents()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrents = new List<Torrent>
+        {
+            new() { Id = 101 },
+            new() { Id = 102 },
+        };
+        this.torrentService.GetAll().Returns(torrents);
+
+        var pauseReq = new NzbgetRequest { Method = "pausedownload", Id = 15 };
+        var pauseResult = await this.controller.HandleRpc(pauseReq);
+        pauseResult.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.Received(1).PauseAsync(101);
+        await this.torrentService.Received(1).PauseAsync(102);
+
+        var resumeReq = new NzbgetRequest { Method = "resumedownload", Id = 16 };
+        var resumeResult = await this.controller.HandleRpc(resumeReq);
+        resumeResult.Should().BeOfType<OkObjectResult>();
+        await this.torrentService.Received(1).ResumeAsync(101);
+        await this.torrentService.Received(1).ResumeAsync(102);
+    }
+
+    [Test]
+    public async Task HandleRpc_Rate_SavesConfigLimit()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var json = "{\"method\":\"rate\",\"params\":[2048],\"id\":18}";
+        using var doc = JsonDocument.Parse(json);
+        var request = new NzbgetRequest
+        {
+            Method = "rate",
+            Params = doc.RootElement.GetProperty("params"),
+            Id = 18,
+        };
+
+        var result = await this.controller.HandleRpc(request);
+        result.Should().BeOfType<OkObjectResult>();
+
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            d.ContainsKey("MaxDownloadSpeedKbps") && (int)d["MaxDownloadSpeedKbps"] == 2048));
+    }
+
+    [Test]
+    public async Task HandleRpc_Config_ReturnsConfigurationItems()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+        this.configService.DownloadDir.Returns("/my/nzb/downloads");
+
+        var request = new NzbgetRequest { Method = "config", Id = 19 };
+        var result = await this.controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        var items = doc.RootElement.GetProperty("result");
+        items.GetArrayLength().Should().BeGreaterThan(0);
+    }
+
+    [Test]
+    public async Task HandleRpc_EditQueue_WithVariousCommandsAndParameterExtraction()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent { Id = 77, Name = "Original.Name", Category = "Default" };
+        this.torrentService.Get(77).Returns(torrent);
+
+        // GroupPause with array of IDs
+        var pauseJson = "{\"method\":\"editqueue\",\"params\":[\"grouppause\",0,\"\",[77]],\"id\":20}";
+        using (var pauseDoc = JsonDocument.Parse(pauseJson))
+        {
+            var req = new NzbgetRequest { Method = "editqueue", Params = pauseDoc.RootElement.GetProperty("params"), Id = 20 };
+            await this.controller.HandleRpc(req);
+            await this.torrentService.Received(1).PauseAsync(77);
+        }
+
+        // GroupResume with single numeric ID
+        var resumeJson = "{\"method\":\"editqueue\",\"params\":[\"groupresume\",77],\"id\":21}";
+        using (var resumeDoc = JsonDocument.Parse(resumeJson))
+        {
+            var req = new NzbgetRequest { Method = "editqueue", Params = resumeDoc.RootElement.GetProperty("params"), Id = 21 };
+            await this.controller.HandleRpc(req);
+            await this.torrentService.Received(1).ResumeAsync(77);
+        }
+
+        // GroupDelete and HistoryDelete
+        var deleteJson = "{\"method\":\"editqueue\",\"params\":[\"groupdelete\",0,\"\",[77]],\"id\":22}";
+        using (var deleteDoc = JsonDocument.Parse(deleteJson))
+        {
+            var req = new NzbgetRequest { Method = "editqueue", Params = deleteDoc.RootElement.GetProperty("params"), Id = 22 };
+            await this.controller.HandleRpc(req);
+            await this.torrentService.Received(1).DeleteAsync(77, false);
+        }
+
+        // GroupFinalDelete with delete files
+        var finalDeleteJson = "{\"method\":\"editqueue\",\"params\":[\"groupfinaldelete\",0,\"\",[77]],\"id\":23}";
+        using (var finalDoc = JsonDocument.Parse(finalDeleteJson))
+        {
+            var req = new NzbgetRequest { Method = "editqueue", Params = finalDoc.RootElement.GetProperty("params"), Id = 23 };
+            await this.controller.HandleRpc(req);
+            await this.torrentService.Received(1).DeleteAsync(77, true);
+        }
+
+        // GroupMoveUp and GroupMoveDown
+        var moveUpJson = "{\"method\":\"editqueue\",\"params\":[\"groupmoveup\",0,\"\",[77]],\"id\":24}";
+        using (var moveUpDoc = JsonDocument.Parse(moveUpJson))
+        {
+            var req = new NzbgetRequest { Method = "editqueue", Params = moveUpDoc.RootElement.GetProperty("params"), Id = 24 };
+            await this.controller.HandleRpc(req);
+            await this.torrentService.Received(1).MoveQueueAsync(77, "up");
+        }
+
+        var moveDownJson = "{\"method\":\"editqueue\",\"params\":[\"groupmovedown\",0,\"\",[77]],\"id\":25}";
+        using (var moveDownDoc = JsonDocument.Parse(moveDownJson))
+        {
+            var req = new NzbgetRequest { Method = "editqueue", Params = moveDownDoc.RootElement.GetProperty("params"), Id = 25 };
+            await this.controller.HandleRpc(req);
+            await this.torrentService.Received(1).MoveQueueAsync(77, "down");
+        }
+
+        // GroupMoveOffset with positive offset
+        var moveOffsetJson = "{\"method\":\"editqueue\",\"params\":[\"groupmoveoffset\",2,\"\",[77]],\"id\":26}";
+        using (var moveOffsetDoc = JsonDocument.Parse(moveOffsetJson))
+        {
+            var req = new NzbgetRequest { Method = "editqueue", Params = moveOffsetDoc.RootElement.GetProperty("params"), Id = 26 };
+            await this.controller.HandleRpc(req);
+            await this.torrentService.Received(1).MoveQueueAsync(77, "down");
+        }
+
+        // GroupSetCategory
+        var setCatJson = "{\"method\":\"editqueue\",\"params\":[\"groupsetcategory\",0,\"new-category\",[77]],\"id\":27}";
+        using (var setCatDoc = JsonDocument.Parse(setCatJson))
+        {
+            var req = new NzbgetRequest { Method = "editqueue", Params = setCatDoc.RootElement.GetProperty("params"), Id = 27 };
+            await this.controller.HandleRpc(req);
+            torrent.Category.Should().Be("new-category");
+            await this.torrentService.Received(1).UpdateAsync(torrent);
+        }
+
+        // GroupSetName
+        var setNameJson = "{\"method\":\"editqueue\",\"params\":[\"groupsetname\",0,\"New.Name\",[77]],\"id\":28}";
+        using (var setNameDoc = JsonDocument.Parse(setNameJson))
+        {
+            var req = new NzbgetRequest { Method = "editqueue", Params = setNameDoc.RootElement.GetProperty("params"), Id = 28 };
+            await this.controller.HandleRpc(req);
+            torrent.Name.Should().Be("New.Name");
+            await this.torrentService.Received(2).UpdateAsync(torrent);
+        }
+    }
+
+    [Test]
+    public async Task HandleRpc_MalformedRpcOrEmptyRequest_ReturnsDefaultVersionResult()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var nullResult = await this.controller.HandleRpc(null!);
+        nullResult.Should().BeOfType<OkObjectResult>();
+        var okNull = (OkObjectResult)nullResult;
+        var jsonNull = JsonSerializer.Serialize(okNull.Value);
+        using (var docNull = JsonDocument.Parse(jsonNull))
+        {
+            docNull.RootElement.GetProperty("result").GetString().Should().Be("24.0");
+        }
+
+        var emptyMethodReq = new NzbgetRequest { Method = "   " };
+        var emptyResult = await this.controller.HandleRpc(emptyMethodReq);
+        emptyResult.Should().BeOfType<OkObjectResult>();
+    }
+
+    [Test]
+    public async Task HandleRpc_WhenExceptionOccurs_ReturnsErrorObject()
+    {
+        var context = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+        this.torrentService.GetAll().Throws(new InvalidOperationException("Disk read failure"));
+
+        var request = new NzbgetRequest { Method = "listgroups", Id = 99 };
+        var result = await this.controller.HandleRpc(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var json = JsonSerializer.Serialize(okResult.Value);
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("error").GetProperty("message").GetString().Should().Be("Disk read failure");
+    }
+
+    [Test]
+    public async Task HandleRpc_Authentication_RejectsUnauthorizedAndAllowsRouteCredentials()
+    {
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.ApiKey.Returns("secret_nzb_key");
+
+        // Unauthorized case
+        var unauthContext = new DefaultHttpContext();
+        this.controller.ControllerContext = new ControllerContext { HttpContext = unauthContext };
+        var unauthResult = await this.controller.HandleRpc(new NzbgetRequest { Method = "version" });
+        unauthResult.Should().BeOfType<UnauthorizedResult>();
+        this.controller.Response.Headers.ContainsKey("WWW-Authenticate").Should().BeTrue();
+
+        // Route data with matching key in "pass"
+        var routeContext = new DefaultHttpContext();
+        var routeData = new RouteData();
+        routeData.Values["user"] = "nzbget";
+        routeData.Values["pass"] = "secret_nzb_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = routeContext, RouteData = routeData };
+
+        var authResult = await this.controller.HandleRpc(new NzbgetRequest { Method = "version" });
+        authResult.Should().BeOfType<OkObjectResult>();
     }
 }

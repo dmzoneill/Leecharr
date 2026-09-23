@@ -10,11 +10,13 @@ using FluentAssertions;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using NUnit.Framework;
+using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Http;
+using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.Trackers;
@@ -824,5 +826,608 @@ public class DownloadHistoryServiceTest
             h.Id == 20 && h.TorrentId == null && h.Status == "Removed"));
 
         this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentAddedEvent>());
+    }
+
+    [Test]
+    public void GetAll_ReturnsPagedHistory()
+    {
+        var records = new List<DownloadHistory>
+        {
+            new DownloadHistory { Id = 1, Title = "Movie 1", Status = "Active" },
+            new DownloadHistory { Id = 2, Title = "Movie 2", Status = "Active" },
+        };
+
+        this.historyRepository.GetHistory("movie", "Active", 25, 50).Returns(records);
+
+        var result = this.service.GetAll("movie", "Active", 25, 50);
+
+        result.Should().BeSameAs(records);
+        this.historyRepository.Received(1).GetHistory("movie", "Active", 25, 50);
+    }
+
+    [Test]
+    public void Get_ReturnsEntryById()
+    {
+        var entry = new DownloadHistory { Id = 10, Title = "Title 10" };
+        this.historyRepository.Get(10).Returns(entry);
+
+        var result = this.service.Get(10);
+
+        result.Should().BeSameAs(entry);
+        this.historyRepository.Received(1).Get(10);
+    }
+
+    [Test]
+    public void GetByInfoHash_ReturnsEntryByInfoHash()
+    {
+        var entry = new DownloadHistory { Id = 10, InfoHash = "hash123" };
+        this.historyRepository.FindByInfoHash("hash123").Returns(entry);
+
+        var result = this.service.GetByInfoHash("hash123");
+
+        result.Should().BeSameAs(entry);
+        this.historyRepository.Received(1).FindByInfoHash("hash123");
+    }
+
+    [Test]
+    public void Delete_WhenTorrentExistsInLibrary_DoesNotDeleteTorrentFile_AndDeletesHistoryRecord()
+    {
+        var entry = new DownloadHistory { Id = 12, InfoHash = "existinghash" };
+        this.historyRepository.Get(12).Returns(entry);
+        this.torrentRepository.ExistsByInfoHash("existinghash").Returns(true);
+
+        this.service.Delete(12);
+
+        this.historyRepository.Received(1).Delete(12);
+    }
+
+    [Test]
+    public void Delete_WhenTorrentNotInLibrary_CleansUpCachedTorrentFile_AndDeletesHistoryRecord()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "leecharr_del_test_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var torrentsDir = Path.Combine(tempDir, "Torrents");
+            Directory.CreateDirectory(torrentsDir);
+            var hash = "cachedhash123";
+            var torrentFile = Path.Combine(torrentsDir, $"{hash}.torrent");
+            File.WriteAllText(torrentFile, "fake torrent content");
+
+            var appFolderInfo = Substitute.For<IAppFolderInfo>();
+            appFolderInfo.AppDataFolder.Returns(tempDir);
+
+            var customService = new DownloadHistoryService(
+                this.historyRepository,
+                this.torrentRepository,
+                this.trackerEntryRepository,
+                this.downloadEngine,
+                this.eventAggregator,
+                this.safeHttpClientService,
+                this.categoryService,
+                this.storagePathService,
+                this.torrentFileParser,
+                this.fileRepository,
+                this.configService,
+                appFolderInfo: appFolderInfo);
+
+            this.historyRepository.Get(15).Returns(new DownloadHistory { Id = 15, InfoHash = hash });
+            this.torrentRepository.ExistsByInfoHash(hash).Returns(false);
+
+            customService.Delete(15);
+
+            File.Exists(torrentFile).Should().BeFalse();
+            this.historyRepository.Received(1).Delete(15);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Test]
+    public void ClearAll_CleansUpCachedFilesAndDeletesAll()
+    {
+        var entries = new List<DownloadHistory>
+        {
+            new DownloadHistory { Id = 1, InfoHash = "hash1" },
+            new DownloadHistory { Id = 2, InfoHash = string.Empty },
+        };
+        this.historyRepository.GetHistory(limit: 10000).Returns(entries);
+
+        this.service.ClearAll();
+
+        this.historyRepository.Received(1).DeleteAll();
+    }
+
+    [Test]
+    public void PruneHistory_WhenRetentionDaysZeroOrNegative_DoesNotCallDelete()
+    {
+        this.service.PruneHistory(0);
+        this.service.PruneHistory(-10);
+
+        this.historyRepository.DidNotReceiveWithAnyArgs().DeleteOlderThan(Arg.Any<DateTime>());
+    }
+
+    [Test]
+    public void PruneHistory_WhenRetentionDaysPositive_CallsDeleteOlderThanCutoff()
+    {
+        this.service.PruneHistory(60);
+
+        this.historyRepository.Received(1).DeleteOlderThan(Arg.Is<DateTime>(d =>
+            d <= DateTime.UtcNow.AddDays(-59) && d >= DateTime.UtcNow.AddDays(-61)));
+    }
+
+    [Test]
+    public void RecordTorrentAdded_WhenTorrentIsNull_ReturnsNull()
+    {
+        var result = this.service.RecordTorrentAdded(null);
+
+        result.Should().BeNull();
+    }
+
+    [Test]
+    public void RecordTorrentAdded_WhenTrackersEmptyAndTrackerUrlSet_UsesTrackerUrl()
+    {
+        var torrent = new Torrent
+        {
+            Id = 301,
+            Name = "TrackerUrl Torrent",
+            InfoHash = "trackerurlhash",
+            TrackerUrl = "http://mytracker.org/announce",
+            TotalSize = 500,
+        };
+
+        this.historyRepository.FindByInfoHash("trackerurlhash").Returns((DownloadHistory)null!);
+        this.trackerEntryRepository.GetByTorrentId(301).Returns(new List<TrackerEntry>());
+        this.historyRepository.Insert(Arg.Any<DownloadHistory>()).Returns(args => (DownloadHistory)args[0]);
+
+        var result = this.service.RecordTorrentAdded(torrent);
+
+        result.Should().NotBeNull();
+        result.PrimaryTracker.Should().Be("http://mytracker.org/announce");
+        result.Trackers.Should().Contain("http://mytracker.org/announce");
+    }
+
+    [Test]
+    public void RecordTorrentAdded_WhenProgressIsComplete_SetsDateCompleted()
+    {
+        var torrent = new Torrent
+        {
+            Id = 302,
+            Name = "Completed Torrent",
+            InfoHash = "completedhash",
+            Progress = 1.0,
+        };
+
+        this.historyRepository.FindByInfoHash("completedhash").Returns((DownloadHistory)null!);
+        this.historyRepository.Insert(Arg.Any<DownloadHistory>()).Returns(args => (DownloadHistory)args[0]);
+
+        var result = this.service.RecordTorrentAdded(torrent);
+
+        result.DateCompleted.Should().NotBeNull();
+    }
+
+    [Test]
+    public void RecordTorrentUpdated_WhenTorrentIsNull_DoesNothing()
+    {
+        this.service.RecordTorrentUpdated(null);
+
+        this.historyRepository.DidNotReceiveWithAnyArgs().Update(Arg.Any<DownloadHistory>());
+    }
+
+    [Test]
+    public void RecordTorrentUpdated_WhenEntryNotFound_DoesNothing()
+    {
+        var torrent = new Torrent { Id = 501, InfoHash = "notfoundhash" };
+        this.historyRepository.FindByTorrentId(501).Returns((DownloadHistory)null!);
+        this.historyRepository.FindByInfoHash("notfoundhash").Returns((DownloadHistory)null!);
+
+        this.service.RecordTorrentUpdated(torrent);
+
+        this.historyRepository.DidNotReceiveWithAnyArgs().Update(Arg.Any<DownloadHistory>());
+    }
+
+    [Test]
+    public void RecordTorrentUpdated_WhenEntryFound_UpdatesStatsAndTrackersAndDateCompleted()
+    {
+        var torrent = new Torrent
+        {
+            Id = 502,
+            InfoHash = "updatedhash",
+            Uploaded = 5000,
+            Downloaded = 2500,
+            Ratio = 2.0,
+            IsPrivate = true,
+            Progress = 1.0,
+        };
+
+        var existing = new DownloadHistory
+        {
+            Id = 80,
+            TorrentId = 502,
+            InfoHash = "updatedhash",
+            DateCompleted = null,
+            Status = "Active",
+        };
+
+        this.historyRepository.FindByTorrentId(502).Returns(existing);
+        this.trackerEntryRepository.GetByTorrentId(502).Returns(new List<TrackerEntry>
+        {
+            new TrackerEntry { Url = "udp://tracker.updated.org:1337" },
+        });
+
+        this.service.RecordTorrentUpdated(torrent);
+
+        existing.Uploaded.Should().Be(5000);
+        existing.Downloaded.Should().Be(2500);
+        existing.Ratio.Should().Be(2.0);
+        existing.IsPrivate.Should().BeTrue();
+        existing.DateCompleted.Should().NotBeNull();
+        existing.Status.Should().Be("Completed");
+        existing.PrimaryTracker.Should().Be("udp://tracker.updated.org:1337");
+        this.historyRepository.Received(1).Update(existing);
+    }
+
+    [Test]
+    public void RecordTorrentRemoved_WhenTorrentIsNull_DoesNothing()
+    {
+        this.service.RecordTorrentRemoved(null);
+
+        this.historyRepository.DidNotReceiveWithAnyArgs().Insert(Arg.Any<DownloadHistory>());
+        this.historyRepository.DidNotReceiveWithAnyArgs().Update(Arg.Any<DownloadHistory>());
+    }
+
+    [Test]
+    public void RecordTorrentRemoved_WhenEntryDoesNotExist_InsertsNewRemovedEntryWithSeedingTimeAndMediaMetadata()
+    {
+        var dateAdded = DateTime.UtcNow.AddMinutes(-30);
+        var torrent = new Torrent
+        {
+            Id = 601,
+            Name = "Deleted Torrent",
+            InfoHash = "delhash",
+            TotalSize = 9000,
+            DateAdded = dateAdded,
+            Progress = 1.0,
+            Uploaded = 18000,
+            Downloaded = 9000,
+            Ratio = 2.0,
+            IsPrivate = true,
+        };
+
+        this.historyRepository.FindByTorrentId(601).Returns((DownloadHistory)null!);
+        this.historyRepository.FindByInfoHash("delhash").Returns((DownloadHistory)null!);
+
+        var mediaMetaRepo = Substitute.For<ITorrentMediaMetadataRepository>();
+        mediaMetaRepo.GetByTorrentId(601).Returns(new TorrentMediaMetadata
+        {
+            TorrentId = 601,
+            Title = "Deleted Torrent Movie",
+        });
+
+        var serviceWithMeta = new DownloadHistoryService(
+            this.historyRepository,
+            this.torrentRepository,
+            this.trackerEntryRepository,
+            this.downloadEngine,
+            this.eventAggregator,
+            this.safeHttpClientService,
+            mediaMetadataRepository: mediaMetaRepo);
+
+        serviceWithMeta.RecordTorrentRemoved(torrent, "Cleaned up");
+
+        this.historyRepository.Received(1).Insert(Arg.Is<DownloadHistory>(h =>
+            h.Title == "Deleted Torrent" &&
+            h.Status == "Removed" &&
+            h.RemovalReason == "Cleaned up" &&
+            h.SeedingTime > 0 &&
+            h.DataJson != null &&
+            h.DataJson.Contains("Deleted Torrent Movie")));
+    }
+
+    [Test]
+    public void RecordTorrentRemoved_WhenEntryExists_UpdatesTorrentIdToNullAndSetsMediaMetadata()
+    {
+        var torrent = new Torrent
+        {
+            Id = 602,
+            Name = "Existing Movie",
+            InfoHash = "existingdelhash",
+            Uploaded = 500,
+            Downloaded = 500,
+            Ratio = 1.0,
+        };
+
+        var existing = new DownloadHistory
+        {
+            Id = 85,
+            TorrentId = 602,
+            InfoHash = "existingdelhash",
+            Status = "Active",
+        };
+
+        this.historyRepository.FindByTorrentId(602).Returns(existing);
+
+        var mediaMetaRepo = Substitute.For<ITorrentMediaMetadataRepository>();
+        mediaMetaRepo.GetByTorrentId(602).Returns(new TorrentMediaMetadata
+        {
+            TorrentId = 602,
+            Title = "Existing Movie Title",
+        });
+
+        var serviceWithMeta = new DownloadHistoryService(
+            this.historyRepository,
+            this.torrentRepository,
+            this.trackerEntryRepository,
+            this.downloadEngine,
+            this.eventAggregator,
+            this.safeHttpClientService,
+            mediaMetadataRepository: mediaMetaRepo);
+
+        serviceWithMeta.RecordTorrentRemoved(torrent, "User requested");
+
+        existing.TorrentId.Should().BeNull();
+        existing.Status.Should().Be("Removed");
+        existing.RemovalReason.Should().Be("User requested");
+        existing.DataJson.Should().Contain("Existing Movie Title");
+        this.historyRepository.Received(1).Update(existing);
+    }
+
+    [Test]
+    public void ReAdd_WhenEntryNotFound_ThrowsArgumentException()
+    {
+        this.historyRepository.Get(777).Returns((DownloadHistory)null!);
+
+        Action act = () => this.service.ReAdd(777);
+
+        act.Should().Throw<ArgumentException>().WithMessage("*not found*");
+    }
+
+    [Test]
+    public async Task ReAddAsync_WithParsedAnnounceListMultipleTiers_InsertsTrackerEntriesWithConfiguredInterval()
+    {
+        var history = new DownloadHistory
+        {
+            Id = 778,
+            InfoHash = "multitierhash",
+            Title = "Multi Tier Torrent",
+            TotalSize = 10000,
+            DownloadUrl = "https://tracker.example.com/multi.torrent",
+        };
+
+        var fakeBytes = new byte[] { 0x64, 0x38 };
+        var parsed = new ParsedTorrent
+        {
+            Name = "Multi Tier Torrent",
+            InfoHash = "multitierhash",
+            TotalSize = 10000,
+            AnnounceList = new List<List<string>>
+            {
+                new List<string> { "udp://tier0.example.com:1337/announce" },
+                new List<string> { "udp://tier1.example.com:1337/announce" },
+            },
+        };
+
+        this.historyRepository.Get(778).Returns(history);
+        this.torrentRepository.ExistsByInfoHash("multitierhash").Returns(false);
+        this.torrentRepository.All().Returns(new List<Torrent>());
+        this.configService.TrackerAnnounceInterval.Returns(3600);
+        this.safeHttpClientService.DownloadBytesAsync("https://tracker.example.com/multi.torrent")
+            .Returns(Task.FromResult(fakeBytes));
+        this.torrentFileParser.Parse(fakeBytes).Returns(parsed);
+
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
+        {
+            var t = (Torrent)args[0];
+            t.Id = 110;
+            return t;
+        });
+
+        var added = await this.service.ReAddAsync(778);
+
+        added.Should().NotBeNull();
+        this.trackerEntryRepository.Received(1).InsertMany(Arg.Is<List<TrackerEntry>>(entries =>
+            entries.Count == 2 &&
+            entries[0].Tier == 0 &&
+            entries[0].AnnounceInterval == 3600 &&
+            entries[1].Tier == 1 &&
+            entries[1].AnnounceInterval == 3600));
+    }
+
+    [Test]
+    public void Update_WhenHistoryIsNull_DoesNothing_WhenNotNull_CallsUpdate()
+    {
+        this.service.Update(null!);
+        this.historyRepository.DidNotReceiveWithAnyArgs().Update(Arg.Any<DownloadHistory>());
+
+        var item = new DownloadHistory { Id = 33 };
+        this.service.Update(item);
+        this.historyRepository.Received(1).Update(item);
+    }
+
+    [Test]
+    public void ReconcileAllTorrents_BackfillsMissingAndUpdatesExisting()
+    {
+        var t1 = new Torrent
+        {
+            Id = 701,
+            InfoHash = "newreconcilehash",
+            Name = "T1",
+            TotalSize = 1000,
+            IsPrivate = false,
+        };
+        var t2 = new Torrent
+        {
+            Id = 702,
+            InfoHash = "existingreconcilehash",
+            Name = "T2",
+            TotalSize = 2000,
+            IsPrivate = true,
+        };
+        var t3 = new Torrent
+        {
+            Id = 703,
+            InfoHash = string.Empty,
+            Name = "EmptyHash",
+        };
+
+        var existingH2 = new DownloadHistory
+        {
+            Id = 90,
+            TorrentId = null,
+            InfoHash = "existingreconcilehash",
+            IsPrivate = false,
+            Trackers = new List<string>(),
+        };
+
+        this.torrentRepository.All().Returns(new List<Torrent> { t1, t2, t3 });
+        this.historyRepository.FindByInfoHash("newreconcilehash").Returns((DownloadHistory)null!);
+        this.historyRepository.FindByInfoHash("existingreconcilehash").Returns(existingH2);
+        this.trackerEntryRepository.GetByTorrentId(702).Returns(new List<TrackerEntry>
+        {
+            new TrackerEntry { Url = "udp://recon-tracker.org:1337" },
+        });
+
+        var backfilled = this.service.ReconcileAllTorrents();
+
+        backfilled.Should().Be(1);
+        this.historyRepository.Received(1).Insert(Arg.Is<DownloadHistory>(h =>
+            h.TorrentId == 701 &&
+            h.InfoHash == "newreconcilehash" &&
+            h.Source == "Public Tracker"));
+
+        existingH2.TorrentId.Should().Be(702);
+        existingH2.Status.Should().Be("Active");
+        existingH2.IsPrivate.Should().BeTrue();
+        existingH2.Trackers.Should().Contain("udp://recon-tracker.org:1337");
+        this.historyRepository.Received(1).Update(existingH2);
+    }
+
+    [Test]
+    public void Handle_TorrentAddedEvent_NullAndValid_Behaviors()
+    {
+        this.service.Handle((TorrentAddedEvent)null!);
+        this.service.Handle(new TorrentAddedEvent { Torrent = null });
+        this.historyRepository.DidNotReceiveWithAnyArgs().Insert(Arg.Any<DownloadHistory>());
+
+        var t = new Torrent
+        {
+            Id = 801,
+            InfoHash = "handleaddhash",
+            Name = "Add Torrent",
+            TotalSize = 500,
+        };
+        this.historyRepository.FindByInfoHash("handleaddhash").Returns((DownloadHistory)null!);
+
+        this.service.Handle(new TorrentAddedEvent { Torrent = t });
+
+        this.historyRepository.Received(1).Insert(Arg.Is<DownloadHistory>(h => h.TorrentId == 801));
+    }
+
+    [Test]
+    public void Handle_TorrentDeletedEvent_NullAndValid_Behaviors()
+    {
+        this.service.Handle((TorrentDeletedEvent)null!);
+        this.service.Handle(new TorrentDeletedEvent { Torrent = null });
+
+        var t = new Torrent { Id = 802, InfoHash = "handledelhash" };
+        var existing = new DownloadHistory { Id = 95, TorrentId = 802, InfoHash = "handledelhash" };
+        this.historyRepository.FindByTorrentId(802).Returns(existing);
+
+        this.service.Handle(new TorrentDeletedEvent { Torrent = t });
+
+        existing.Status.Should().Be("Removed");
+        existing.RemovalReason.Should().Be("Deleted from active library");
+        this.historyRepository.Received(1).Update(existing);
+    }
+
+    [Test]
+    public void Handle_TorrentDownloadCompletedEvent_UpdatesStatus()
+    {
+        this.service.Handle((TorrentDownloadCompletedEvent)null!);
+        this.service.Handle(new TorrentDownloadCompletedEvent { Torrent = null });
+
+        var t = new Torrent
+        {
+            Id = 803,
+            InfoHash = "handlecompletehash",
+            Downloaded = 1000,
+            Uploaded = 2000,
+            Ratio = 2.0,
+        };
+        this.historyRepository.FindByInfoHash("handlecompletehash").Returns((DownloadHistory)null!);
+
+        this.service.Handle(new TorrentDownloadCompletedEvent { Torrent = t });
+        this.historyRepository.DidNotReceiveWithAnyArgs().Update(Arg.Any<DownloadHistory>());
+
+        var existing = new DownloadHistory
+        {
+            Id = 96,
+            InfoHash = "handlecompletehash",
+            Status = "Active",
+        };
+        this.historyRepository.FindByInfoHash("handlecompletehash").Returns(existing);
+
+        this.service.Handle(new TorrentDownloadCompletedEvent { Torrent = t });
+
+        existing.Status.Should().Be("Completed");
+        existing.DateCompleted.Should().NotBeNull();
+        existing.Downloaded.Should().Be(1000);
+        existing.Uploaded.Should().Be(2000);
+        existing.Ratio.Should().Be(2.0);
+        this.historyRepository.Received(1).Update(existing);
+    }
+
+    [Test]
+    public void Handle_TorrentStatusChangedEvent_UpdatesStatus()
+    {
+        this.service.Handle((TorrentStatusChangedEvent)null!);
+        this.service.Handle(new TorrentStatusChangedEvent { Torrent = null });
+
+        var t = new Torrent
+        {
+            Id = 804,
+            InfoHash = "statuschangehash",
+            Uploaded = 100,
+            Downloaded = 50,
+            Ratio = 2.0,
+        };
+
+        var existing = new DownloadHistory
+        {
+            Id = 97,
+            InfoHash = "statuschangehash",
+            DateCompleted = null,
+        };
+        this.historyRepository.FindByInfoHash("statuschangehash").Returns(existing);
+
+        this.service.Handle(new TorrentStatusChangedEvent
+        {
+            Torrent = t,
+            NewStatus = TorrentStatus.Downloading,
+        });
+        this.historyRepository.DidNotReceive().Update(existing);
+
+        this.service.Handle(new TorrentStatusChangedEvent
+        {
+            Torrent = t,
+            NewStatus = TorrentStatus.Seeding,
+            Reason = "Seeding completed",
+        });
+        existing.DateCompleted.Should().NotBeNull();
+        existing.RemovalReason.Should().Be("Seeding completed");
+        existing.Uploaded.Should().Be(100);
+        this.historyRepository.Received(1).Update(existing);
+
+        this.service.Handle(new TorrentStatusChangedEvent
+        {
+            Torrent = t,
+            NewStatus = TorrentStatus.Error,
+            Reason = "I/O Error",
+        });
+        existing.RemovalReason.Should().Be("I/O Error");
     }
 }
