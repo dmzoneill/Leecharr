@@ -74,7 +74,10 @@ export const Indexers: React.FC<IndexersProps> = ({
       },
       {
         onSuccess: () => {
-          trackReleaseGrab(release.title, release.indexerName || release.indexer || "");
+          trackReleaseGrab(
+            release.title,
+            release.indexerName || release.indexer || "",
+          );
           setDownloadingGuid(null);
           showToast(
             t("indexers.grabbedSuccess", 'Grabbed "{title}" successfully', {

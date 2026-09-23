@@ -284,8 +284,8 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                         // Check HDR indicators
                         var colorTransfer = stream.TryGetProperty("color_transfer", out var ctProp) && ctProp.ValueKind == JsonValueKind.String ? ctProp.GetString() : string.Empty;
 
-                        bool hasDv = false;
-                        bool hasHdr10Plus = false;
+                        var hasDv = false;
+                        var hasHdr10Plus = false;
                         if (stream.TryGetProperty("side_data_list", out var sideDataArray) && sideDataArray.ValueKind == JsonValueKind.Array)
                         {
                             foreach (var sideData in sideDataArray.EnumerateArray())
@@ -306,8 +306,8 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                             }
                         }
 
-                        bool hasHdr10 = false;
-                        bool hasHlg = false;
+                        var hasHdr10 = false;
+                        var hasHlg = false;
                         if (!string.IsNullOrEmpty(colorTransfer))
                         {
                             if (colorTransfer.Contains("smpte2084", StringComparison.OrdinalIgnoreCase))

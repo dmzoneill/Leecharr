@@ -328,7 +328,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var allowedEncryption = GetAllowedEncryption(this.configService.EncryptionMode);
 
         var listenIp = IPAddress.Any;
-        IPAddress listenIpv6 = IPAddress.IPv6Any;
+        var listenIpv6 = IPAddress.IPv6Any;
         IPAddress resolvedIpv6 = null;
         var iface = !string.IsNullOrWhiteSpace(this.configService.NetworkInterfaceBinding)
             ? this.configService.NetworkInterfaceBinding
@@ -5285,10 +5285,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         fs.Seek(0, SeekOrigin.End);
                         const int bufferSize = 1024 * 1024; // 1 MB buffer
                         var buffer = new byte[bufferSize];
-                        long bytesRemaining = expectedLength - fs.Length;
+                        var bytesRemaining = expectedLength - fs.Length;
                         while (bytesRemaining > 0)
                         {
-                            int toWrite = (int)Math.Min(bytesRemaining, bufferSize);
+                            var toWrite = (int)Math.Min(bytesRemaining, bufferSize);
                             await fs.WriteAsync(buffer.AsMemory(0, toWrite)).ConfigureAwait(false);
                             bytesRemaining -= toWrite;
                         }

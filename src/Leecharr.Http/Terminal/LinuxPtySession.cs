@@ -36,8 +36,8 @@ public sealed class LinuxPtySession : ITerminalSession
             WsRow = (ushort)Math.Max(5, Math.Min(rows, 200)),
         };
 
-        string safeCwd = !string.IsNullOrWhiteSpace(cwd) && Directory.Exists(cwd) ? Path.GetFullPath(cwd) : null;
-        string shell = File.Exists("/bin/bash") ? "/bin/bash" : "/bin/sh";
+        var safeCwd = !string.IsNullOrWhiteSpace(cwd) && Directory.Exists(cwd) ? Path.GetFullPath(cwd) : null;
+        var shell = File.Exists("/bin/bash") ? "/bin/bash" : "/bin/sh";
         string[] argv = [shell, "-i"];
 
         var envVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -70,13 +70,13 @@ public sealed class LinuxPtySession : ITerminalSession
 
         var envStrings = envVars.Select(kv => $"{kv.Key}={kv.Value}").ToArray();
 
-        IntPtr cwdPtr = safeCwd != null ? Marshal.StringToCoTaskMemUTF8(safeCwd) : IntPtr.Zero;
-        IntPtr shellPtr = Marshal.StringToCoTaskMemUTF8(shell);
-        IntPtr argvArrayPtr = AllocateNativeStringArray(argv, out var argvPointers);
-        IntPtr envArrayPtr = AllocateNativeStringArray(envStrings, out var envPointers);
+        var cwdPtr = safeCwd != null ? Marshal.StringToCoTaskMemUTF8(safeCwd) : IntPtr.Zero;
+        var shellPtr = Marshal.StringToCoTaskMemUTF8(shell);
+        var argvArrayPtr = AllocateNativeStringArray(argv, out var argvPointers);
+        var envArrayPtr = AllocateNativeStringArray(envStrings, out var envPointers);
 
-        int masterFd = -1;
-        int pid = -1;
+        var masterFd = -1;
+        var pid = -1;
 
         System.Runtime.CompilerServices.RuntimeHelpers.PrepareMethod(typeof(NativePty).GetMethod(nameof(NativePty.Chdir)).MethodHandle);
         System.Runtime.CompilerServices.RuntimeHelpers.PrepareMethod(typeof(NativePty).GetMethod(nameof(NativePty.ExecveRaw)).MethodHandle);
@@ -138,7 +138,7 @@ public sealed class LinuxPtySession : ITerminalSession
         return await Task.Run(
             () =>
             {
-                nint bytesRead = NativePty.Read(this.masterFd, temp, (nuint)temp.Length);
+                var bytesRead = NativePty.Read(this.masterFd, temp, (nuint)temp.Length);
                 if (bytesRead <= 0)
                 {
                     return 0;
@@ -214,11 +214,11 @@ public sealed class LinuxPtySession : ITerminalSession
             }
 
             var sw = Stopwatch.StartNew();
-            bool reaped = false;
+            var reaped = false;
 
             while (sw.ElapsedMilliseconds < 1500)
             {
-                int res = NativePty.Waitpid(this.pid, out _, 1); // WNOHANG
+                var res = NativePty.Waitpid(this.pid, out _, 1); // WNOHANG
                 if (res > 0 || res < 0)
                 {
                     reaped = true;
@@ -241,7 +241,7 @@ public sealed class LinuxPtySession : ITerminalSession
                 var killSw = Stopwatch.StartNew();
                 while (killSw.ElapsedMilliseconds < 2000)
                 {
-                    int res = NativePty.Waitpid(this.pid, out _, 1); // WNOHANG
+                    var res = NativePty.Waitpid(this.pid, out _, 1); // WNOHANG
                     if (res > 0 || res < 0)
                     {
                         break;
@@ -262,14 +262,14 @@ public sealed class LinuxPtySession : ITerminalSession
     private static IntPtr AllocateNativeStringArray(string[] array, out IntPtr[] elementPointers)
     {
         elementPointers = new IntPtr[array.Length + 1];
-        for (int i = 0; i < array.Length; i++)
+        for (var i = 0; i < array.Length; i++)
         {
             elementPointers[i] = Marshal.StringToCoTaskMemUTF8(array[i]);
         }
 
         elementPointers[^1] = IntPtr.Zero;
 
-        IntPtr arrayPtr = Marshal.AllocHGlobal(IntPtr.Size * elementPointers.Length);
+        var arrayPtr = Marshal.AllocHGlobal(IntPtr.Size * elementPointers.Length);
         Marshal.Copy(elementPointers, 0, arrayPtr, elementPointers.Length);
         return arrayPtr;
     }
@@ -304,7 +304,7 @@ public sealed class LinuxPtySession : ITerminalSession
         {
             while (this.disposed == 0)
             {
-                int res = NativePty.Waitpid(this.pid, out _, 1); // WNOHANG
+                var res = NativePty.Waitpid(this.pid, out _, 1); // WNOHANG
                 if (res > 0 || res < 0)
                 {
                     this.Kill();

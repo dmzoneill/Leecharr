@@ -13,12 +13,19 @@ interface ClientMeta {
   icon: string;
 }
 
-const AZUREUS_CLIENTS: Record<string, { name: string; badgeClass: string; icon: string }> = {
+const AZUREUS_CLIENTS: Record<
+  string,
+  { name: string; badgeClass: string; icon: string }
+> = {
   qB: { name: "qBittorrent", badgeClass: "badge-primary", icon: "🔵" },
   TR: { name: "Transmission", badgeClass: "badge-danger", icon: "🔴" },
   DE: { name: "Deluge", badgeClass: "badge-success", icon: "🟢" },
   rt: { name: "rTorrent", badgeClass: "badge-warning", icon: "🟣" },
-  LT: { name: "libtorrent (Rasterbar)", badgeClass: "badge-secondary", icon: "⚙️" },
+  LT: {
+    name: "libtorrent (Rasterbar)",
+    badgeClass: "badge-secondary",
+    icon: "⚙️",
+  },
   lt: { name: "libTorrent", badgeClass: "badge-secondary", icon: "⚙️" },
   UT: { name: "µTorrent", badgeClass: "badge-success", icon: "µ" },
   UM: { name: "µTorrent Mac", badgeClass: "badge-success", icon: "µ" },
@@ -60,7 +67,11 @@ export function parsePeerClient(clientStr: string): ClientMeta {
   if (azMatch) {
     const code = azMatch[1];
     const verRaw = azMatch[2];
-    const clientInfo = AZUREUS_CLIENTS[code] || { name: `Client (${code})`, badgeClass: "badge-secondary", icon: "👤" };
+    const clientInfo = AZUREUS_CLIENTS[code] || {
+      name: `Client (${code})`,
+      badgeClass: "badge-secondary",
+      icon: "👤",
+    };
     const version = decodeAzureusVersion(verRaw);
     return {
       name: clientInfo.name,

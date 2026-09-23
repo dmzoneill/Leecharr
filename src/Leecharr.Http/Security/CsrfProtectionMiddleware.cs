@@ -201,8 +201,8 @@ public class CsrfProtectionMiddleware
             return false;
         }
 
-        int effectiveRequestPort = requestHost.Port ?? (string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase) ? 443 : 80);
-        int effectiveOriginPort = uri.Port > 0 ? uri.Port : (string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase) ? 443 : 80);
+        var effectiveRequestPort = requestHost.Port ?? (string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase) ? 443 : 80);
+        var effectiveOriginPort = uri.Port > 0 ? uri.Port : (string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase) ? 443 : 80);
 
         if (effectiveOriginPort != effectiveRequestPort)
         {

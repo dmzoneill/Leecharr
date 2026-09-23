@@ -113,7 +113,11 @@ export function AddTorrentModal({
             type="button"
             className="modal-close"
             onClick={onClose}
-            aria-label={t("addTorrent.closeDialog", undefined, "Close add torrent dialog")}
+            aria-label={t(
+              "addTorrent.closeDialog",
+              undefined,
+              "Close add torrent dialog",
+            )}
             title={t("common.close", undefined, "Close dialog")}
             style={{
               background: "none",

@@ -55,9 +55,15 @@ export function useDeleteAutomationScript() {
 
 export function useRunAutomationScript() {
   const queryClient = useQueryClient();
-  return useMutation<AutomationExecutionResult, Error, { id: number; torrentId?: number }>({
+  return useMutation<
+    AutomationExecutionResult,
+    Error,
+    { id: number; torrentId?: number }
+  >({
     mutationFn: ({ id, torrentId }) =>
-      apiClient.post(`/automation/${id}/run${torrentId ? `?torrentId=${torrentId}` : ""}`),
+      apiClient.post(
+        `/automation/${id}/run${torrentId ? `?torrentId=${torrentId}` : ""}`,
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["automation", "scripts"] });
       queryClient.invalidateQueries({ queryKey: ["torrents"] });
@@ -80,7 +86,11 @@ export function useAutomationMarketplace() {
 
 export function useInstallMarketplaceTemplate() {
   const queryClient = useQueryClient();
-  return useMutation<AutomationScript, Error, InstallMarketplaceTemplateRequest>({
+  return useMutation<
+    AutomationScript,
+    Error,
+    InstallMarketplaceTemplateRequest
+  >({
     mutationFn: (req) => apiClient.post("/automation/marketplace/install", req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["automation", "scripts"] });

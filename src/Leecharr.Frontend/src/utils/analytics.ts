@@ -35,7 +35,8 @@ export function setTelemetryEnabled(enabled: boolean): void {
   }
 
   // Set standard GA4 opt-out window property
-  (window as Record<string, unknown>)[`ga-disable-${GA_MEASUREMENT_ID}`] = !enabled;
+  (window as Record<string, unknown>)[`ga-disable-${GA_MEASUREMENT_ID}`] =
+    !enabled;
 }
 
 // On script evaluation, disable GA if user previously opted out
@@ -222,7 +223,9 @@ export function trackReleaseGrab(_title: string, indexerName?: string): void {
 /**
  * Helper to track theme toggle.
  */
-export function trackThemeChange(theme: "light" | "dark" | "system" | string): void {
+export function trackThemeChange(
+  theme: "light" | "dark" | "system" | string,
+): void {
   trackEvent("ui_theme_change", {
     theme_mode: theme,
   });
@@ -315,12 +318,14 @@ let isGlobalExceptionTrackingInitialized = false;
  * Initializes global uncaught error listeners for window.onerror and unhandled promise rejections.
  */
 export function initGlobalExceptionTracking(): void {
-  if (typeof window === "undefined" || isGlobalExceptionTrackingInitialized) return;
+  if (typeof window === "undefined" || isGlobalExceptionTrackingInitialized)
+    return;
   isGlobalExceptionTrackingInitialized = true;
 
   window.addEventListener("error", (event: ErrorEvent) => {
     try {
-      const msg = event.error?.message || event.message || "Uncaught script error";
+      const msg =
+        event.error?.message || event.message || "Uncaught script error";
       const name = event.error?.name || "Error";
       trackException(`${name}: ${msg}`, false, "frontend_global");
     } catch {
@@ -328,20 +333,27 @@ export function initGlobalExceptionTracking(): void {
     }
   });
 
-  window.addEventListener("unhandledrejection", (event: PromiseRejectionEvent) => {
-    try {
-      const reason = event.reason;
-      const rawMsg =
-        reason instanceof Error
-          ? `${reason.name}: ${reason.message}`
-          : typeof reason === "string"
-            ? reason
-            : "Unhandled promise rejection";
-      trackException(`UnhandledRejection: ${rawMsg}`, false, "frontend_global");
-    } catch {
-      // Ignore telemetry errors
-    }
-  });
+  window.addEventListener(
+    "unhandledrejection",
+    (event: PromiseRejectionEvent) => {
+      try {
+        const reason = event.reason;
+        const rawMsg =
+          reason instanceof Error
+            ? `${reason.name}: ${reason.message}`
+            : typeof reason === "string"
+              ? reason
+              : "Unhandled promise rejection";
+        trackException(
+          `UnhandledRejection: ${rawMsg}`,
+          false,
+          "frontend_global",
+        );
+      } catch {
+        // Ignore telemetry errors
+      }
+    },
+  );
 }
 
 /**
@@ -398,7 +410,9 @@ export function trackQuickSettingChange(
 /**
  * Helper to track view mode switches on torrent index (table, grid, cards, posters).
  */
-export function trackViewModeChange(mode: "table" | "grid" | "cards" | "posters" | string): void {
+export function trackViewModeChange(
+  mode: "table" | "grid" | "cards" | "posters" | string,
+): void {
   trackEvent("view_mode_change", {
     view_mode: mode,
   });
@@ -614,9 +628,7 @@ export function trackCategoryAction(
 /**
  * Helper to track tag operations.
  */
-export function trackTagAction(
-  action: "create" | "update" | "delete",
-): void {
+export function trackTagAction(action: "create" | "update" | "delete"): void {
   trackEvent("tag_config_save", {
     tag_action: action,
   });
@@ -640,9 +652,7 @@ export function trackIndexerAction(
 /**
  * Helper to track UI density changes.
  */
-export function trackDensityChange(
-  density: string,
-): void {
+export function trackDensityChange(density: string): void {
   trackEvent("ui_density_change", {
     density_level: density,
   });
@@ -651,9 +661,7 @@ export function trackDensityChange(
 /**
  * Helper to track UI locale / language changes.
  */
-export function trackLocaleChange(
-  locale: string,
-): void {
+export function trackLocaleChange(locale: string): void {
   trackEvent("ui_locale_change", {
     locale_code: locale,
   });
@@ -673,9 +681,7 @@ export function trackSystemLifecycle(
 /**
  * Helper to track media player preview modal.
  */
-export function trackMediaPreview(
-  mimeCategory: string,
-): void {
+export function trackMediaPreview(mimeCategory: string): void {
   trackEvent("torrent_media_preview", {
     mime_category: mimeCategory,
   });

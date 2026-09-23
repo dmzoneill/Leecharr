@@ -249,7 +249,9 @@ export function PieceMap({
               b.startIndex <= activeFileBoundary.endPiece &&
               b.endIndex >= activeFileBoundary.startPiece;
             fillColor = overlaps
-              ? FILE_PALETTE[activeFileBoundary.colorIndex % FILE_PALETTE.length]
+              ? FILE_PALETTE[
+                  activeFileBoundary.colorIndex % FILE_PALETTE.length
+                ]
               : "#1a1815";
           } else {
             const containingFb = fileBoundaries.find(
@@ -264,7 +266,11 @@ export function PieceMap({
           }
         } else if (colorMode === "rarity") {
           const estRarity =
-            isComplete || b.status === "complete" ? 10 : b.status === "active" ? 3 : 0;
+            isComplete || b.status === "complete"
+              ? 10
+              : b.status === "active"
+                ? 3
+                : 0;
           fillColor = getRarityColor(estRarity);
         } else {
           // Status mode
@@ -302,13 +308,7 @@ export function PieceMap({
     }
 
     ctx.restore();
-  }, [
-    viewMode,
-    colorMode,
-    isComplete,
-    activeFileBoundary,
-    fileBoundaries,
-  ]);
+  }, [viewMode, colorMode, isComplete, activeFileBoundary, fileBoundaries]);
 
   // Render Matrix Grid View with virtualized Canvas drawing
   const renderGrid = useCallback(() => {
@@ -396,8 +396,7 @@ export function PieceMap({
             : "#222";
         } else {
           const containingFb = fileBoundaries.find(
-            (fb) =>
-              b.startIndex <= fb.endPiece && b.endIndex >= fb.startPiece,
+            (fb) => b.startIndex <= fb.endPiece && b.endIndex >= fb.startPiece,
           );
           if (containingFb) {
             fillColor =
@@ -405,15 +404,17 @@ export function PieceMap({
             strokeColor = fillColor;
           } else {
             fillColor =
-              b.status === "complete"
-                ? "#27ae60"
-                : "rgba(255, 255, 255, 0.05)";
+              b.status === "complete" ? "#27ae60" : "rgba(255, 255, 255, 0.05)";
             strokeColor = "rgba(255, 255, 255, 0.12)";
           }
         }
       } else if (colorMode === "rarity") {
         const estRarity =
-          isComplete || b.status === "complete" ? 10 : b.status === "active" ? 3 : 0;
+          isComplete || b.status === "complete"
+            ? 10
+            : b.status === "active"
+              ? 3
+              : 0;
         fillColor = getRarityColor(estRarity);
         strokeColor = fillColor;
       } else {
@@ -460,13 +461,7 @@ export function PieceMap({
     }
 
     ctx.restore();
-  }, [
-    viewMode,
-    colorMode,
-    isComplete,
-    activeFileBoundary,
-    fileBoundaries,
-  ]);
+  }, [viewMode, colorMode, isComplete, activeFileBoundary, fileBoundaries]);
 
   // Redraw canvas on data, hover, or mode change
   useEffect(() => {
@@ -644,7 +639,10 @@ export function PieceMap({
           </span>
 
           {/* Layout Mode Toggle: Bar vs Grid */}
-          <div className="view-toggle" style={{ margin: 0, display: "flex", gap: "2px" }}>
+          <div
+            className="view-toggle"
+            style={{ margin: 0, display: "flex", gap: "2px" }}
+          >
             <button
               type="button"
               className={`view-toggle-btn ${viewMode === "bar" ? "active" : ""}`}
@@ -666,7 +664,10 @@ export function PieceMap({
           </div>
 
           {/* Color Mode Toggle: Status vs Rarity vs Files */}
-          <div className="view-toggle" style={{ margin: 0, display: "flex", gap: "2px" }}>
+          <div
+            className="view-toggle"
+            style={{ margin: 0, display: "flex", gap: "2px" }}
+          >
             <button
               type="button"
               className={`view-toggle-btn ${colorMode === "status" ? "active" : ""}`}
@@ -674,7 +675,10 @@ export function PieceMap({
               style={{
                 padding: "0.15rem 0.4rem",
                 fontSize: "0.7rem",
-                backgroundColor: colorMode === "status" ? "var(--accent, #ffd166)" : "transparent",
+                backgroundColor:
+                  colorMode === "status"
+                    ? "var(--accent, #ffd166)"
+                    : "transparent",
                 color: colorMode === "status" ? "#000" : "inherit",
               }}
               title="Download Status: Missing, Active, Verified"
@@ -688,7 +692,10 @@ export function PieceMap({
               style={{
                 padding: "0.15rem 0.4rem",
                 fontSize: "0.7rem",
-                backgroundColor: colorMode === "rarity" ? "var(--accent, #ffd166)" : "transparent",
+                backgroundColor:
+                  colorMode === "rarity"
+                    ? "var(--accent, #ffd166)"
+                    : "transparent",
                 color: colorMode === "rarity" ? "#000" : "inherit",
               }}
               title="Swarm Availability Heatmap (Rare -> Common)"
@@ -702,7 +709,10 @@ export function PieceMap({
               style={{
                 padding: "0.15rem 0.4rem",
                 fontSize: "0.7rem",
-                backgroundColor: colorMode === "files" ? "var(--accent, #ffd166)" : "transparent",
+                backgroundColor:
+                  colorMode === "files"
+                    ? "var(--accent, #ffd166)"
+                    : "transparent",
                 color: colorMode === "files" ? "#000" : "inherit",
               }}
               title="File Boundary Overlays"
@@ -795,7 +805,11 @@ export function PieceMap({
               justifyContent: "space-between",
             }}
           >
-            <span>{t("torrents.detail.pieceMapFilesCount", { count: fileBoundaries.length })}</span>
+            <span>
+              {t("torrents.detail.pieceMapFilesCount", {
+                count: fileBoundaries.length,
+              })}
+            </span>
             {selectedFileIndex !== null && (
               <button
                 type="button"
@@ -866,7 +880,9 @@ export function PieceMap({
                   >
                     {fileName}
                   </span>
-                  <span style={{ color: "var(--text-muted)", fontSize: "0.64rem" }}>
+                  <span
+                    style={{ color: "var(--text-muted)", fontSize: "0.64rem" }}
+                  >
                     ({formatBytes(fb.file.size)})
                   </span>
                 </button>
@@ -951,32 +967,127 @@ export function PieceMap({
         )}
 
         {colorMode === "rarity" && (
-          <div style={{ display: "flex", gap: "0.6rem", alignItems: "center", flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: "0.6rem",
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
             <span>{t("torrents.detail.pieceMapAvailability")}:</span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
-              <span style={{ width: "8px", height: "8px", borderRadius: "2px", backgroundColor: "rgba(255, 255, 255, 0.05)" }} /> 0
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.25rem",
+              }}
+            >
+              <span
+                style={{
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "2px",
+                  backgroundColor: "rgba(255, 255, 255, 0.05)",
+                }}
+              />{" "}
+              0
             </span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
-              <span style={{ width: "8px", height: "8px", borderRadius: "2px", backgroundColor: "#e74c3c" }} /> 1 (Rare)
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.25rem",
+              }}
+            >
+              <span
+                style={{
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "2px",
+                  backgroundColor: "#e74c3c",
+                }}
+              />{" "}
+              1 (Rare)
             </span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
-              <span style={{ width: "8px", height: "8px", borderRadius: "2px", backgroundColor: "#e67e22" }} /> 2-3
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.25rem",
+              }}
+            >
+              <span
+                style={{
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "2px",
+                  backgroundColor: "#e67e22",
+                }}
+              />{" "}
+              2-3
             </span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
-              <span style={{ width: "8px", height: "8px", borderRadius: "2px", backgroundColor: "#f1c40f" }} /> 4-5
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.25rem",
+              }}
+            >
+              <span
+                style={{
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "2px",
+                  backgroundColor: "#f1c40f",
+                }}
+              />{" "}
+              4-5
             </span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
-              <span style={{ width: "8px", height: "8px", borderRadius: "2px", backgroundColor: "#82c91e" }} /> 6-9
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.25rem",
+              }}
+            >
+              <span
+                style={{
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "2px",
+                  backgroundColor: "#82c91e",
+                }}
+              />{" "}
+              6-9
             </span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
-              <span style={{ width: "8px", height: "8px", borderRadius: "2px", backgroundColor: "#27ae60" }} /> 10+
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.25rem",
+              }}
+            >
+              <span
+                style={{
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "2px",
+                  backgroundColor: "#27ae60",
+                }}
+              />{" "}
+              10+
             </span>
           </div>
         )}
 
         {colorMode === "files" && (
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-            <span>{t("torrents.detail.pieceMapFilesCount", { count: fileBoundaries.length })}</span>
+            <span>
+              {t("torrents.detail.pieceMapFilesCount", {
+                count: fileBoundaries.length,
+              })}
+            </span>
           </div>
         )}
 
@@ -1006,7 +1117,8 @@ export function PieceMap({
                     total: hoveredBlock.totalInBlock,
                   })
                 : t("torrents.detail.pieceMapMissing")}
-            {hoveredFiles.length > 0 && ` • [${hoveredFiles[0].name}${hoveredFiles.length > 1 ? ` +${hoveredFiles.length - 1}` : ""}]`}
+            {hoveredFiles.length > 0 &&
+              ` • [${hoveredFiles[0].name}${hoveredFiles.length > 1 ? ` +${hoveredFiles.length - 1}` : ""}]`}
           </span>
         )}
       </div>

@@ -143,7 +143,10 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
       },
       {
         onSuccess: () => {
-          trackReleaseGrab(result.title, result.indexerName || result.indexer || "");
+          trackReleaseGrab(
+            result.title,
+            result.indexerName || result.indexer || "",
+          );
           setDownloadingKey(null);
           showToast(
             t("modals.addedToQueue", 'Added "{title}" to download queue', {

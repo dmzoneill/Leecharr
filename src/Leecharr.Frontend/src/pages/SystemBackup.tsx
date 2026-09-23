@@ -102,7 +102,11 @@ function SystemBackup() {
   const [confirmRestore, setConfirmRestore] = useState<Backup | null>(null);
 
   const getDownloadUrl = (backupId: number) => {
-    const urlBase = (generalConfig?.urlBase || (typeof window !== "undefined" && (window as any).Leecharr?.urlBase) || "").replace(/\/+$/, "");
+    const urlBase = (
+      generalConfig?.urlBase ||
+      (typeof window !== "undefined" && (window as any).Leecharr?.urlBase) ||
+      ""
+    ).replace(/\/+$/, "");
     const apiKey = generalConfig?.apiKey || "";
     const base = `${urlBase}/api/v1/backup/${backupId}/download`;
     return apiKey ? `${base}?apikey=${encodeURIComponent(apiKey)}` : base;
@@ -306,7 +310,9 @@ function SystemBackup() {
                         href={getDownloadUrl(backup.id)}
                         className="torrent-link"
                         download
-                        onClick={() => trackSystemMaintenanceAction("backup_download")}
+                        onClick={() =>
+                          trackSystemMaintenanceAction("backup_download")
+                        }
                         style={{
                           display: "inline-flex",
                           alignItems: "center",

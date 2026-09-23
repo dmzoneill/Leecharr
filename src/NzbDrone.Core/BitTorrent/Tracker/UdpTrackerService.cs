@@ -218,7 +218,7 @@ public class UdpTrackerService : IUdpTrackerService
             var numWant = BinaryPrimitives.ReadInt32BigEndian(packet.Slice(92, 4));
             var port = (int)BinaryPrimitives.ReadUInt16BigEndian(packet.Slice(96, 2));
 
-            string eventStr = eventCode switch
+            var eventStr = eventCode switch
             {
                 1 => "completed",
                 2 => "started",

@@ -174,12 +174,12 @@ public class PieceMapSignalREventHandler : IHandle<PieceVerifiedEvent>, IDisposa
             return ranges;
         }
 
-        int start = enumerator.Current;
-        int end = start;
+        var start = enumerator.Current;
+        var end = start;
 
         while (enumerator.MoveNext())
         {
-            int current = enumerator.Current;
+            var current = enumerator.Current;
             if (current == end + 1)
             {
                 end = current;
