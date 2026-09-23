@@ -3017,6 +3017,246 @@ public class TagLibInspectorProviderTest
         info.HdrFormat.Should().Be("Dolby Vision / HDR10");
     }
 
+    [Test]
+    public void Provider_MetadataAndCapabilities_ExposesExpectedProperties()
+    {
+        this.provider.ProviderId.Should().Be("TagLib");
+        this.provider.DisplayName.Should().Contain("TagLib#");
+        this.provider.Version.Should().NotBeNullOrWhiteSpace();
+        this.provider.Description.Should().NotBeNullOrWhiteSpace();
+        this.provider.IsAvailable.Should().BeTrue();
+
+        var caps = this.provider.Capabilities;
+        caps.Should().NotBeNull();
+        caps.SupportsChapters.Should().BeFalse();
+        caps.SupportsPureManagedStreams.Should().BeTrue();
+        caps.SupportsDolbyVision.Should().BeTrue();
+        caps.SupportsHdr10Plus.Should().BeTrue();
+        caps.SupportsEac3Atmos.Should().BeTrue();
+        caps.SupportsTrueHd.Should().BeTrue();
+        caps.SupportsDtsX.Should().BeTrue();
+        caps.SupportsSubtitleTracks.Should().BeTrue();
+        caps.SupportsAudioStreamTracks.Should().BeTrue();
+        caps.SupportsVideoStreamTracks.Should().BeTrue();
+        caps.SupportsVideoThumbnails.Should().BeFalse();
+    }
+
+    [Test]
+    public async System.Threading.Tasks.Task Provider_ProbeHealthAsync_ReturnsHealthyResult()
+    {
+        var health = await this.provider.ProbeHealthAsync();
+
+        health.Should().NotBeNull();
+        health.IsHealthy.Should().BeTrue();
+        health.StatusMessage.Should().NotBeNullOrWhiteSpace();
+        health.DependencyChecks.Should().NotBeEmpty();
+    }
+
+    [Test]
+    public void Inspect_MatroskaWithChaptersElement_SkipsChaptersAndParsesTracks()
+    {
+        using var ms = new MemoryStream();
+
+        // 1. EBML Header
+        using (var ebmlMs = new MemoryStream())
+        {
+            WriteEbmlString(ebmlMs, 0x4282, "matroska");
+            var ebmlPayload = ebmlMs.ToArray();
+            WriteId(ms, 0x1A45DFA3);
+            WriteSize(ms, ebmlPayload.Length);
+            ms.Write(ebmlPayload);
+        }
+
+        // 2. Segment
+        WriteId(ms, 0x18538067);
+        WriteSize(ms, -1);
+
+        // 3. Chapters element (0x1043A770) before Tracks
+        var chapterPayload = new byte[256];
+        Array.Fill(chapterPayload, (byte)0x42);
+        WriteId(ms, 0x1043A770);
+        WriteSize(ms, chapterPayload.Length);
+        ms.Write(chapterPayload);
+
+        // 4. Tracks
+        WriteId(ms, 0x1654AE6B);
+        WriteSize(ms, -1);
+
+        // Video TrackEntry
+        WriteId(ms, 0xAE);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0x83, 1);
+        WriteEbmlString(ms, 0x86, "V_MPEGH/ISO/HEVC");
+        WriteId(ms, 0xE0);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0xB0, 3840);
+        WriteEbmlUInt(ms, 0xBA, 2160);
+
+        // Audio TrackEntry
+        WriteId(ms, 0xAE);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0x83, 2);
+        WriteEbmlString(ms, 0x86, "A_DTS");
+        WriteId(ms, 0xE1);
+        WriteSize(ms, -1);
+        WriteEbmlUInt(ms, 0x9F, 6);
+
+        ms.Position = 0;
+        var result = this.provider.Inspect(ms, "chaptered_movie.mkv");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("Matroska (MKV)");
+        result.VideoCodec.Should().Be("HEVC (H.265)");
+        result.Width.Should().Be(3840);
+        result.Height.Should().Be(2160);
+        result.Resolution.Should().Be("4K UHD (2160p)");
+        result.AudioCodec.Should().Be("DTS");
+        result.AudioChannels.Should().Be("5.1");
+    }
+
+    [Test]
+    public void Inspect_MatroskaWithMultipleSubtitleFormats_DetectsAllSubtitleTracks()
+    {
+        var audioTracks = new (string, int)[]
+        {
+            ("A_AAC", 2),
+        };
+        var subTracks = new string[]
+        {
+            "S_TEXT/WEBVTT",
+            "S_TEXT/USF",
+            "S_KATE",
+        };
+
+        var ebmlData = CreateMultiTrackMatroskaHeader("matroska", "V_MPEG4/ISO/AVC", 1920, 1080, audioTracks, subTracks);
+        using var ms = new MemoryStream(ebmlData);
+
+        var result = this.provider.Inspect(ms, "subs.mkv");
+
+        result.Should().NotBeNull();
+        result.SubtitleTracks.Should().Contain("WebVTT");
+        result.SubtitleTracks.Should().Contain("Universal Subtitle Format");
+        result.SubtitleTracks.Should().Contain("Kate Subtitles");
+    }
+
+    [Test]
+    public void Inspect_ZeroByteStream_WithKnownFilename_FallsBackToFilenameInspection()
+    {
+        using var ms = new MemoryStream(Array.Empty<byte>());
+        var result = this.provider.Inspect(ms, "Avatar.2009.2160p.UHD.mkv");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("Matroska (MKV)");
+        result.Resolution.Should().Be("4K UHD (2160p)");
+        result.Width.Should().Be(3840);
+        result.Height.Should().Be(2160);
+    }
+
+    [Test]
+    public void Inspect_ZeroByteStream_WithUnknownExtension_ReturnsNull()
+    {
+        using var ms = new MemoryStream(Array.Empty<byte>());
+        var result = this.provider.Inspect(ms, "unknown_file.xyz");
+
+        result.Should().BeNull();
+    }
+
+    [Test]
+    public void Inspect_TruncatedStreamLessThanFourBytes_FallsBackToFileName()
+    {
+        using var ms = new MemoryStream(new byte[] { 0x1A, 0x45 });
+        var result = this.provider.Inspect(ms, "clip.mp4");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("MP4");
+    }
+
+    [Test]
+    public void Inspect_CorruptedEbmlHeaderWithTrailingGarbage_HandlesGracefully()
+    {
+        var corruptData = new byte[] { 0x1A, 0x45, 0xDF, 0xA3, 0x7F, 0xFF, 0xFF, 0xFF };
+        using var ms = new MemoryStream(corruptData);
+
+        var result = this.provider.Inspect(ms, "corrupt_ebml.mkv");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("Matroska (MKV)");
+    }
+
+    [Test]
+    public void Inspect_CorruptedMp4BoxExcessiveLength_HandlesGracefully()
+    {
+        var data = new byte[]
+        {
+            0x7F, 0xFF, 0xFF, 0xFF,
+            (byte)'f', (byte)'t', (byte)'y', (byte)'p',
+            (byte)'i', (byte)'s', (byte)'o', (byte)'m',
+        };
+        using var ms = new MemoryStream(data);
+
+        var result = this.provider.Inspect(ms, "corrupted_ftyp.mp4");
+
+        result.Should().NotBeNull();
+        result.ContainerFormat.Should().Be("MP4");
+    }
+
+    [Test]
+    public void Inspect_UnsupportedContainerWithUnknownExtension_ReturnsNull()
+    {
+        var binaryGarbage = new byte[] { 0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE };
+        using var ms = new MemoryStream(binaryGarbage);
+
+        var result = this.provider.Inspect(ms, "firmware.bin");
+
+        result.Should().BeNull();
+    }
+
+    [TestCase("document.pdf")]
+    [TestCase("archive.zip")]
+    [TestCase("program.exe")]
+    [TestCase("backup.tar.gz")]
+    public void InspectByFileName_WithUnsupportedExtensions_ReturnsNull(string fileName)
+    {
+        var result = TagLibInspectorProvider.InspectByFileName(fileName);
+        result.Should().BeNull();
+    }
+
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase("   ")]
+    public void InspectByFileName_WithNullOrWhitespace_ReturnsNull(string fileName)
+    {
+        var result = TagLibInspectorProvider.InspectByFileName(fileName);
+        result.Should().BeNull();
+    }
+
+    [Test]
+    public void UnescapeNalUnit_WithEmulationPreventionBytes_RemovesZeroThree()
+    {
+        var escaped = new byte[] { 0x00, 0x00, 0x03, 0x01, 0x00, 0x00, 0x03, 0x02 };
+        var unescaped = TagLibInspectorProvider.UnescapeNalUnit(escaped, 0, escaped.Length);
+
+        unescaped.Should().Equal(0x00, 0x00, 0x01, 0x00, 0x00, 0x02);
+    }
+
+    [Test]
+    public void UnescapeNalUnit_WithoutEmulationPreventionBytes_ReturnsOriginalSequence()
+    {
+        var original = new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05 };
+        var result = TagLibInspectorProvider.UnescapeNalUnit(original, 0, original.Length);
+
+        result.Should().Equal(original);
+    }
+
+    [Test]
+    public void ContainsHdr10PlusSei_WithShortPayload_ReturnsFalse()
+    {
+        var shortData = new byte[] { 0x01, 0x02, 0x03 };
+        var result = TagLibInspectorProvider.ContainsHdr10PlusSei(shortData, 0, shortData.Length);
+
+        result.Should().BeFalse();
+    }
+
     private sealed class UnseekableStream : Stream
     {
         private readonly byte[] data;
