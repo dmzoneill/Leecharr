@@ -32,6 +32,7 @@ import TorrentContextMenu from "./TorrentContextMenu";
 import TrackerFavicon from "./TrackerFavicon";
 import { MediaArtworkImage } from "./common/MediaArtworkImage";
 import type { Torrent, DownloadHistoryEntry } from "../api/types";
+import { filterTorrents } from "../utils/filterUtils";
 import { useTranslation } from "../i18n";
 import {
   type ColumnKey,
@@ -1046,6 +1047,9 @@ export interface TorrentTableProps {
   stateFilter?: string;
   trackerFilter?: string;
   privacyFilter?: string;
+  selectedTagIds?: Set<number>;
+  tagMatchMode?: "AND" | "OR";
+  selectedTag?: string;
   selectedId?: number | null;
   selectedTorrentId?: number | null;
   onSelect?: (torrent: Torrent) => void;
@@ -1082,6 +1086,9 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   stateFilter,
   trackerFilter,
   privacyFilter,
+  selectedTagIds,
+  tagMatchMode = "OR",
+  selectedTag,
   selectedId,
   onSelect,
   onPause,
@@ -1377,41 +1384,30 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   const sourceTorrents = propTorrents || [];
 
   const filteredTorrents = useMemo(() => {
-    return sourceTorrents.filter((t) => {
-      if (filter) {
-        const q = filter.toLowerCase();
-        const matchName = (t.name || "").toLowerCase().includes(q);
-        const matchMedia = (t.mediaTitle || "").toLowerCase().includes(q);
-        if (!matchName && !matchMedia) return false;
-      }
-      if (stateFilter && stateFilter !== "All") {
-        const st = (t.status || "").toLowerCase();
-        const target = stateFilter.toLowerCase();
-        if (target === "stopped" || target === "paused") {
-          if (st !== "paused" && st !== "stopped" && st !== "idle")
-            return false;
-        } else if (st !== target) {
-          return false;
-        }
-      }
-      if (trackerFilter && trackerFilter !== "All") {
-        const matchesTracker =
-          (t.trackers &&
-            t.trackers.some(
-              (u) => extractTrackerDomain(u) === trackerFilter,
-            )) ||
-          extractTrackerDomain(t.trackerUrl || "") === trackerFilter;
-        if (!matchesTracker) return false;
-      }
-      if (privacyFilter && privacyFilter !== "All") {
-        if (privacyFilter === "Private" && !t.isPrivate) return false;
-        if (privacyFilter === "Public" && t.isPrivate) return false;
-      }
-      return true;
+    return filterTorrents(sourceTorrents, {
+      filter,
+      stateFilter,
+      trackerFilter,
+      privacyFilter,
+      selectedTagIds,
+      tagMatchMode,
+      tagFilter: selectedTag,
     });
-  }, [sourceTorrents, filter, stateFilter, trackerFilter, privacyFilter]);
+  }, [
+    sourceTorrents,
+    filter,
+    stateFilter,
+    trackerFilter,
+    privacyFilter,
+    selectedTagIds,
+    tagMatchMode,
+    selectedTag,
+  ]);
 
-  const filterSignature = `${filter || ""}|${stateFilter || ""}|${trackerFilter || ""}|${privacyFilter || ""}|${sortKey}|${sortAsc}`;
+  const tagIdsKey = selectedTagIds
+    ? Array.from(selectedTagIds).sort().join(",")
+    : "";
+  const filterSignature = `${filter || ""}|${stateFilter || ""}|${trackerFilter || ""}|${privacyFilter || ""}|${tagIdsKey}|${tagMatchMode}|${selectedTag || ""}|${sortKey}|${sortAsc}`;
 
   const sortedTorrents = useMemo(() => {
     const isExplicitChange =

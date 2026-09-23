@@ -10,6 +10,7 @@ import {
   formatRatio,
   formatSeconds,
 } from "../utils/formatters";
+import { filterTorrents } from "../utils/filterUtils";
 import { useTorrentStore, applyTelemetry } from "../stores/useTorrentStore";
 import { useTranslation } from "../i18n";
 
@@ -373,6 +374,9 @@ export interface TorrentGridProps {
   stateFilter?: string;
   trackerFilter?: string;
   privacyFilter?: string;
+  selectedTagIds?: Set<number>;
+  tagMatchMode?: "AND" | "OR";
+  selectedTag?: string;
   selectedId: number | null;
   onSelect: (torrent: Torrent) => void;
   onPause: (id: number) => void;
@@ -386,6 +390,9 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
   stateFilter,
   trackerFilter,
   privacyFilter,
+  selectedTagIds,
+  tagMatchMode = "OR",
+  selectedTag,
   selectedId,
   onSelect,
   onPause,
@@ -410,41 +417,25 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
   }, []);
 
   const filteredTorrents = useMemo(() => {
-    return torrents.filter((tTorrent) => {
-      if (filter) {
-        const q = filter.toLowerCase();
-        const matchName = (tTorrent.name || "").toLowerCase().includes(q);
-        const matchMedia = (tTorrent.mediaTitle || "")
-          .toLowerCase()
-          .includes(q);
-        if (!matchName && !matchMedia) return false;
-      }
-      if (stateFilter && stateFilter !== "All") {
-        const st = (tTorrent.status || "").toLowerCase();
-        const target = stateFilter.toLowerCase();
-        if (target === "stopped" || target === "paused") {
-          if (st !== "paused" && st !== "stopped" && st !== "idle")
-            return false;
-        } else if (st !== target) {
-          return false;
-        }
-      }
-      if (trackerFilter && trackerFilter !== "All") {
-        const matchesTracker =
-          (tTorrent.trackers &&
-            tTorrent.trackers.some(
-              (u) => extractTrackerDomain(u) === trackerFilter,
-            )) ||
-          extractTrackerDomain(tTorrent.trackerUrl || "") === trackerFilter;
-        if (!matchesTracker) return false;
-      }
-      if (privacyFilter && privacyFilter !== "All") {
-        if (privacyFilter === "Private" && !tTorrent.isPrivate) return false;
-        if (privacyFilter === "Public" && tTorrent.isPrivate) return false;
-      }
-      return true;
+    return filterTorrents(torrents, {
+      filter,
+      stateFilter,
+      trackerFilter,
+      privacyFilter,
+      selectedTagIds,
+      tagMatchMode,
+      tagFilter: selectedTag,
     });
-  }, [torrents, filter, stateFilter, trackerFilter, privacyFilter]);
+  }, [
+    torrents,
+    filter,
+    stateFilter,
+    trackerFilter,
+    privacyFilter,
+    selectedTagIds,
+    tagMatchMode,
+    selectedTag,
+  ]);
 
   const gap = 16;
   const minCardWidth = 240;

@@ -15,7 +15,20 @@ import {
   getStoredIdleTimeout,
   setStoredIdleTimeout,
 } from "../../hooks/useIdleTimer";
-import { SaveBar, SectionCard, SelectInput, TextInput, Toggle } from "./shared";
+import {
+  SaveBar,
+  SectionCard,
+  SelectInput,
+  TextInput,
+  Toggle,
+  NumberInput,
+} from "./shared";
+import {
+  useBlocklistStatus,
+  useUpdateBlocklistConfig,
+  useSyncBlocklist,
+  testBlocklistIp,
+} from "../../api/blocklist";
 import { trackSecurityConfigSave } from "../../utils/analytics";
 
 const PROVIDER_TEMPLATES: Record<
@@ -151,6 +164,102 @@ export function SecuritySettingsTab() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [revealedApiKey, setRevealedApiKey] = useState<string | null>(null);
   const [loadingApiKey, setLoadingApiKey] = useState(false);
+
+  // Peer IP Blocklist state
+  const { data: blocklistData } = useBlocklistStatus();
+  const updateBlocklistMutation = useUpdateBlocklistConfig();
+  const syncBlocklistMutation = useSyncBlocklist();
+
+  const [blocklistForm, setBlocklistForm] = useState({
+    enabled: false,
+    url: "",
+    autoUpdateEnabled: true,
+    autoUpdateIntervalDays: 1,
+  });
+  const [blocklistDirty, setBlocklistDirty] = useState(false);
+  const [customInterval, setCustomInterval] = useState(false);
+
+  // IP Diagnostics state
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+  const [testIpInput, setTestIpInput] = useState("");
+  const [testingIp, setTestingIp] = useState(false);
+  const [ipTestResult, setIpTestResult] = useState<{
+    isBlocked: boolean;
+    rule: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (blocklistData) {
+      setBlocklistForm({
+        enabled: blocklistData.enabled ?? false,
+        url: blocklistData.url ?? "",
+        autoUpdateEnabled: blocklistData.autoUpdateEnabled ?? true,
+        autoUpdateIntervalDays: blocklistData.autoUpdateIntervalDays ?? 1,
+      });
+      const isPreset = [1, 3, 7, 14, 30].includes(
+        blocklistData.autoUpdateIntervalDays ?? 1,
+      );
+      setCustomInterval(!isPreset);
+      setBlocklistDirty(false);
+    }
+  }, [blocklistData]);
+
+  const updateBlocklist = <K extends keyof typeof blocklistForm>(
+    key: K,
+    val: (typeof blocklistForm)[K],
+  ) => {
+    setBlocklistForm((prev) => ({ ...prev, [key]: val }));
+    setBlocklistDirty(true);
+  };
+
+  const handleSaveBlocklist = async () => {
+    try {
+      await updateBlocklistMutation.mutateAsync(blocklistForm);
+      setBlocklistDirty(false);
+      showToast("Peer blocklist configuration saved", "success");
+    } catch (err: any) {
+      showToast(
+        err?.message || "Failed to save blocklist configuration",
+        "error",
+      );
+    }
+  };
+
+  const handleSyncBlocklist = async () => {
+    try {
+      const res = await syncBlocklistMutation.mutateAsync();
+      if (res.success) {
+        showToast(
+          `Blocklist synchronized: ${res.ruleCount.toLocaleString()} rules active`,
+          "success",
+        );
+      } else {
+        showToast(
+          `Blocklist sync warning: ${res.status || res.message}`,
+          "info",
+        );
+      }
+    } catch (err: any) {
+      showToast(err?.message || "Failed to synchronize blocklist", "error");
+    }
+  };
+
+  const handleCheckIp = async () => {
+    if (!testIpInput.trim()) return;
+    try {
+      setTestingIp(true);
+      setIpTestResult(null);
+      const res = await testBlocklistIp(testIpInput.trim());
+      setIpTestResult(res);
+    } catch (err: any) {
+      showToast(
+        err?.message || "Failed to verify IP against blocklist",
+        "error",
+      );
+    } finally {
+      setTestingIp(false);
+    }
+  };
 
   useEffect(() => {
     if (config) {
@@ -751,6 +860,355 @@ export function SecuritySettingsTab() {
             >
               📖 {t("settingsTabs.batch2.apiDocs")}
             </button>
+          </div>
+        </div>
+      </SectionCard>
+
+      {/* Card 5: Peer IP Blocklist */}
+      <SectionCard
+        title="Peer IP Blocklist"
+        description="Block incoming and outgoing BitTorrent peer connections from known hostile IP ranges, monitoring agencies, and corrupt peers"
+      >
+        <div
+          style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
+        >
+          {/* Live Status Summary Banner */}
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "0.75rem",
+              padding: "0.75rem 1rem",
+              backgroundColor: "var(--bg-primary)",
+              borderRadius: "6px",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.75rem",
+                flexWrap: "wrap",
+              }}
+            >
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  padding: "3px 8px",
+                  borderRadius: "12px",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  backgroundColor: blocklistForm.enabled
+                    ? "rgba(16, 185, 129, 0.15)"
+                    : "rgba(107, 114, 128, 0.15)",
+                  color: blocklistForm.enabled
+                    ? "var(--success, #10B981)"
+                    : "var(--text-muted, #9CA3AF)",
+                  border: `1px solid ${blocklistForm.enabled ? "rgba(16, 185, 129, 0.3)" : "rgba(107, 114, 128, 0.3)"}`,
+                }}
+              >
+                {blocklistForm.enabled ? "● Enforced" : "○ Disabled"}
+              </span>
+
+              <span
+                style={{
+                  fontSize: "0.85rem",
+                  color: "var(--text-primary)",
+                  fontWeight: 500,
+                }}
+              >
+                {blocklistData
+                  ? `${blocklistData.totalRuleCount.toLocaleString()} rules active (${blocklistData.ipv4RuleCount.toLocaleString()} IPv4 / ${blocklistData.ipv6RuleCount.toLocaleString()} IPv6)`
+                  : "0 rules active"}
+              </span>
+
+              <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                | Last updated:{" "}
+                {blocklistData?.lastUpdatedUtc
+                  ? new Date(blocklistData.lastUpdatedUtc).toLocaleString()
+                  : "Never"}
+              </span>
+
+              {blocklistData?.lastSyncStatus && (
+                <span
+                  style={{
+                    fontSize: "0.75rem",
+                    padding: "2px 6px",
+                    borderRadius: "4px",
+                    backgroundColor:
+                      blocklistData.lastSyncStatus === "Success" ||
+                      blocklistData.lastSyncStatus.includes("Not Modified")
+                        ? "rgba(16, 185, 129, 0.1)"
+                        : "rgba(239, 68, 68, 0.1)",
+                    color:
+                      blocklistData.lastSyncStatus === "Success" ||
+                      blocklistData.lastSyncStatus.includes("Not Modified")
+                        ? "var(--success, #10B981)"
+                        : "var(--danger, #EF4444)",
+                  }}
+                >
+                  Status: {blocklistData.lastSyncStatus}
+                </span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={handleSyncBlocklist}
+              disabled={syncBlocklistMutation.isPending}
+              style={{
+                fontSize: "0.8rem",
+                padding: "4px 12px",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {syncBlocklistMutation.isPending
+                ? "⏳ Syncing..."
+                : "🔄 Sync Now"}
+            </button>
+          </div>
+
+          {/* Form Settings */}
+          <Toggle
+            label="Enable Peer Blocklist"
+            checked={blocklistForm.enabled}
+            onChange={(v) => updateBlocklist("enabled", v)}
+            hint="Filter BitTorrent peer connections against the downloaded IP blocklist ruleset"
+          />
+
+          <TextInput
+            label="Blocklist Feed URL"
+            value={blocklistForm.url}
+            onChange={(v) => updateBlocklist("url", v)}
+            placeholder="https://example.com/blocklist.gz"
+            hint="Supports gzip (.gz), zip (.zip), P2P plaintext, and DAT blocklists (e.g., Bluetack, I-Blocklist, PeerGuardian format)"
+          />
+
+          <Toggle
+            label="Automatic Updates"
+            checked={blocklistForm.autoUpdateEnabled}
+            onChange={(v) => updateBlocklist("autoUpdateEnabled", v)}
+            hint="Automatically refresh blocklist rules in the background using HTTP ETag and Last-Modified caching"
+          />
+
+          {blocklistForm.autoUpdateEnabled && (
+            <div
+              style={{
+                display: "flex",
+                gap: "1rem",
+                alignItems: "flex-end",
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ flex: 1, minWidth: "220px" }}>
+                <SelectInput
+                  label="Update Interval"
+                  value={
+                    customInterval
+                      ? "custom"
+                      : String(blocklistForm.autoUpdateIntervalDays)
+                  }
+                  options={[
+                    { value: "1", label: "Daily (Every 24 hours)" },
+                    { value: "3", label: "Every 3 days" },
+                    { value: "7", label: "Weekly (Every 7 days)" },
+                    { value: "14", label: "Bi-weekly (Every 14 days)" },
+                    { value: "30", label: "Monthly (Every 30 days)" },
+                    { value: "custom", label: "Custom interval..." },
+                  ]}
+                  onChange={(v) => {
+                    if (v === "custom") {
+                      setCustomInterval(true);
+                    } else {
+                      setCustomInterval(false);
+                      updateBlocklist("autoUpdateIntervalDays", Number(v));
+                    }
+                  }}
+                  hint="Frequency at which upstream blocklist changes are checked"
+                />
+              </div>
+
+              {customInterval && (
+                <div style={{ width: "160px" }}>
+                  <NumberInput
+                    label="Days"
+                    value={blocklistForm.autoUpdateIntervalDays}
+                    min={1}
+                    max={365}
+                    onChange={(v) =>
+                      updateBlocklist("autoUpdateIntervalDays", v)
+                    }
+                    suffix="days"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Save blocklist settings bar if dirty */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: "0.5rem",
+            }}
+          >
+            <button
+              type="button"
+              className={`btn ${blocklistDirty ? "btn-primary" : "btn-outline"}`}
+              onClick={handleSaveBlocklist}
+              disabled={!blocklistDirty || updateBlocklistMutation.isPending}
+              style={{ fontSize: "0.85rem", padding: "6px 14px" }}
+            >
+              {updateBlocklistMutation.isPending
+                ? "Saving..."
+                : blocklistDirty
+                  ? "💾 Save Blocklist Settings"
+                  : "✓ Settings Saved"}
+            </button>
+          </div>
+
+          {/* Collapsible IP Diagnostics Utility */}
+          <div
+            style={{
+              marginTop: "0.5rem",
+              borderTop: "1px solid var(--border)",
+              paddingTop: "1rem",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setDiagnosticsOpen((prev) => !prev)}
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--text-primary)",
+                cursor: "pointer",
+                padding: 0,
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                fontSize: "0.9rem",
+                fontWeight: 600,
+              }}
+            >
+              <span>{diagnosticsOpen ? "▼" : "▶"}</span>
+              <span>🔍 Test IP Diagnostics Utility</span>
+            </button>
+
+            {diagnosticsOpen && (
+              <div
+                style={{
+                  marginTop: "0.75rem",
+                  padding: "1rem",
+                  backgroundColor: "var(--bg-primary)",
+                  borderRadius: "6px",
+                  border: "1px solid var(--border)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.75rem",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "0.85rem",
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  Verify whether a specific IPv4 or IPv6 peer address is blocked
+                  by the active ruleset:
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "0.5rem",
+                    alignItems: "flex-end",
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <TextInput
+                      label="Peer IP Address"
+                      value={testIpInput}
+                      onChange={(v) => {
+                        setTestIpInput(v);
+                        setIpTestResult(null);
+                      }}
+                      placeholder="e.g. 198.51.100.1 or 2001:db8::1"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleCheckIp}
+                    disabled={testingIp || !testIpInput.trim()}
+                    style={{
+                      marginBottom: "0.25rem",
+                      whiteSpace: "nowrap",
+                      height: "36px",
+                    }}
+                  >
+                    {testingIp ? "Checking..." : "Check IP"}
+                  </button>
+                </div>
+
+                {ipTestResult && (
+                  <div
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      backgroundColor: ipTestResult.isBlocked
+                        ? "rgba(239, 68, 68, 0.12)"
+                        : "rgba(16, 185, 129, 0.12)",
+                      border: `1px solid ${
+                        ipTestResult.isBlocked
+                          ? "rgba(239, 68, 68, 0.3)"
+                          : "rgba(16, 185, 129, 0.3)"
+                      }`,
+                      color: ipTestResult.isBlocked
+                        ? "var(--danger, #EF4444)"
+                        : "var(--success, #10B981)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontWeight: 600,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <span>
+                        {ipTestResult.isBlocked ? "🚫 BLOCKED" : "✓ ALLOWED"}
+                      </span>
+                      <span>—</span>
+                      <span>
+                        {ipTestResult.isBlocked
+                          ? "Peer connection will be dropped."
+                          : "Peer is allowed to connect."}
+                      </span>
+                    </div>
+                    {ipTestResult.rule && (
+                      <div
+                        style={{
+                          marginTop: "4px",
+                          fontSize: "0.8rem",
+                          fontFamily: "monospace",
+                          color: "var(--text-secondary)",
+                        }}
+                      >
+                        Matched Rule: {ipTestResult.rule}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </SectionCard>
