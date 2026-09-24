@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.MediaInspection;
 using NzbDrone.Core.Torrents;
@@ -32,7 +33,7 @@ public static class TorrentResourceMapper
         return Convert.ToBase64String(bytes);
     }
 
-    public static TorrentResource ToResource(Torrent model, TorrentMediaMetadata metadata = null, string bitfield = null)
+    public static TorrentResource ToResource(Torrent model, TorrentMediaMetadata metadata = null, string bitfield = null, IDownloadTask task = null)
     {
         if (model == null)
         {
@@ -40,29 +41,70 @@ public static class TorrentResourceMapper
         }
 
         var isInactive = model.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued;
+
+        var progress = model.Progress;
+        var downloaded = model.Downloaded;
+        var downloadSpeed = isInactive ? 0 : model.DownloadSpeed;
+        var uploadSpeed = isInactive ? 0 : model.UploadSpeed;
+        var seeders = isInactive ? 0 : model.Seeders;
+        var leechers = isInactive ? 0 : model.Leechers;
+        var totalSize = model.TotalSize;
+        var status = model.Status.ToString().ToLowerInvariant();
+
+        if (task != null)
+        {
+            if (task.Progress > 0 || model.Progress == 0)
+            {
+                progress = task.Progress;
+            }
+
+            if (task.DownloadedBytes > 0)
+            {
+                downloaded = task.DownloadedBytes;
+            }
+
+            if (totalSize <= 0 && task.TotalBytes > 0)
+            {
+                totalSize = task.TotalBytes;
+            }
+
+            if (!isInactive)
+            {
+                downloadSpeed = task.DownloadSpeed;
+                uploadSpeed = task.UploadSpeed;
+                seeders = task.ConnectedSeeders;
+                leechers = task.ConnectedLeechers;
+            }
+
+            if (task.Status != TorrentStatus.Downloading || model.Status != TorrentStatus.Checking)
+            {
+                status = task.Status.ToString().ToLowerInvariant();
+            }
+        }
+
         var resource = new TorrentResource
         {
             Id = model.Id,
             Name = model.Name,
             InfoHash = model.InfoHash,
             V2InfoHash = model.V2InfoHash,
-            TotalSize = model.TotalSize,
+            TotalSize = totalSize,
             PieceCount = model.PieceCount,
             PieceLength = model.PieceLength,
             Comment = model.Comment,
             CreatedBy = model.CreatedBy,
             CreationDate = model.CreationDate,
             IsPrivate = model.IsPrivate,
-            Status = model.Status.ToString().ToLowerInvariant(),
-            Downloaded = model.Downloaded,
+            Status = status,
+            Downloaded = downloaded,
             Uploaded = model.Uploaded,
             Ratio = model.Ratio,
-            Progress = model.Progress,
-            DownloadSpeed = isInactive ? 0 : model.DownloadSpeed,
-            UploadSpeed = isInactive ? 0 : model.UploadSpeed,
+            Progress = progress,
+            DownloadSpeed = downloadSpeed,
+            UploadSpeed = uploadSpeed,
             Eta = isInactive ? 0 : model.Eta,
-            Seeders = isInactive ? 0 : model.Seeders,
-            Leechers = isInactive ? 0 : model.Leechers,
+            Seeders = seeders,
+            Leechers = leechers,
             SavePath = model.SavePath,
             Category = model.Category,
             Label = model.Label,
