@@ -28,9 +28,6 @@ public interface IExternalIpService
 
 public class ExternalIpService : BackgroundService, IExternalIpService
 {
-    private const string PrimaryEndpointTemplate = "https://www.leecharr.net/ip/?uuid={0}";
-    private const string PrimaryHttpEndpointTemplate = "http://www.leecharr.net/ip/?uuid={0}";
-
     private static readonly TimeSpan FallbackInterval = TimeSpan.FromHours(6);
     private static readonly TimeSpan CacheDuration = TimeSpan.FromHours(1);
 
@@ -167,10 +164,11 @@ public class ExternalIpService : BackgroundService, IExternalIpService
                 uuid = Guid.NewGuid().ToString().ToLowerInvariant();
             }
 
+            var encodedUuid = Uri.EscapeDataString(uuid);
             var sources = new List<string>
             {
-                string.Format(PrimaryEndpointTemplate, Uri.EscapeDataString(uuid)),
-                string.Format(PrimaryHttpEndpointTemplate, Uri.EscapeDataString(uuid)),
+                $"https://www.leecharr.net/ip/?uuid={encodedUuid}",
+                $"http://www.leecharr.net/ip/?uuid={encodedUuid}",
             };
             sources.AddRange(FallbackSources);
 
