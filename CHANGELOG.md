@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.27.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.27.1) - 2026-09-24
+
+### ✨ Features
+- feat(filebrowser): add media playback, M3U streaming, and file preview to file manager and context menu
+
+### 🔧 Maintenance & Improvements
+- test(disk): add tolerance to symlink available space assertion to avoid concurrent IO flakiness
+- test(integration): add file stream and playlist endpoints to query param required list
+
 ## [v1.27.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.27.0) - 2026-09-24
 
 ### ✨ Features
