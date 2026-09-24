@@ -204,8 +204,9 @@ else:
                 {
                     controlPipeStream.Dispose();
                 }
-                catch
+                catch (Exception)
                 {
+                    // Ignore pipe disposal errors during cleanup
                 }
             }
 
@@ -215,8 +216,9 @@ else:
                 {
                     File.Delete(controlPipePath);
                 }
-                catch
+                catch (Exception)
                 {
+                    // Ignore pipe deletion errors during cleanup
                 }
             }
 
@@ -231,8 +233,9 @@ else:
 
                     proc.Dispose();
                 }
-                catch
+                catch (Exception)
                 {
+                    // Ignore process termination errors during cleanup
                 }
             }
 
@@ -312,8 +315,9 @@ else:
                 {
                     this.controlPipeStream.Dispose();
                 }
-                catch
+                catch (Exception)
                 {
+                    // Ignore pipe disposal errors during session disposal
                 }
 
                 this.controlPipeStream = null;
@@ -325,8 +329,9 @@ else:
                 {
                     File.Delete(this.controlPipePath);
                 }
-                catch
+                catch (Exception)
                 {
+                    // Ignore pipe deletion errors during session disposal
                 }
             }
 

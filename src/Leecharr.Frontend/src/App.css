@@ -5089,7 +5089,10 @@ input[type="number"]::-webkit-inner-spin-button {
 .leecharr-file-manager .file-item-container[title$=".mpeg" i] .file-item > svg,
 .leecharr-file-manager .file-item-container[title$=".vob" i] .file-item > svg,
 .leecharr-file-manager .file-item-container[title$=".iso" i] .file-item > svg,
-.leecharr-file-manager .file-item-container[data-file-category="video"] .file-item > svg {
+.leecharr-file-manager
+  .file-item-container[data-file-category="video"]
+  .file-item
+  > svg {
   color: #38bdf8 !important;
   filter: drop-shadow(0 2px 5px rgba(56, 189, 248, 0.3));
 }
@@ -5106,7 +5109,10 @@ input[type="number"]::-webkit-inner-spin-button {
 .leecharr-file-manager .file-item-container[title$=".alac" i] .file-item > svg,
 .leecharr-file-manager .file-item-container[title$=".ape" i] .file-item > svg,
 .leecharr-file-manager .file-item-container[title$=".mka" i] .file-item > svg,
-.leecharr-file-manager .file-item-container[data-file-category="audio"] .file-item > svg {
+.leecharr-file-manager
+  .file-item-container[data-file-category="audio"]
+  .file-item
+  > svg {
   color: #fbbf24 !important;
   filter: drop-shadow(0 2px 5px rgba(251, 191, 36, 0.3));
 }
@@ -5118,7 +5124,10 @@ input[type="number"]::-webkit-inner-spin-button {
 .leecharr-file-manager .file-item-container[title$=".ssa" i] .file-item > svg,
 .leecharr-file-manager .file-item-container[title$=".sub" i] .file-item > svg,
 .leecharr-file-manager .file-item-container[title$=".idx" i] .file-item > svg,
-.leecharr-file-manager .file-item-container[data-file-category="subtitle"] .file-item > svg {
+.leecharr-file-manager
+  .file-item-container[data-file-category="subtitle"]
+  .file-item
+  > svg {
   color: #c084fc !important;
   filter: drop-shadow(0 2px 5px rgba(192, 132, 252, 0.25));
 }
@@ -5127,7 +5136,10 @@ input[type="number"]::-webkit-inner-spin-button {
 .leecharr-file-manager .file-item-container[title$=".nfo" i] .file-item > svg,
 .leecharr-file-manager .file-item-container[title$=".diz" i] .file-item > svg,
 .leecharr-file-manager .file-item-container[title$=".sfv" i] .file-item > svg,
-.leecharr-file-manager .file-item-container[data-file-category="nfo"] .file-item > svg {
+.leecharr-file-manager
+  .file-item-container[data-file-category="nfo"]
+  .file-item
+  > svg {
   color: #34d399 !important;
   filter: drop-shadow(0 2px 5px rgba(52, 211, 153, 0.35));
 }
@@ -5142,21 +5154,33 @@ input[type="number"]::-webkit-inner-spin-button {
 .leecharr-file-manager .file-item-container[title$=".xz" i] .file-item > svg,
 .leecharr-file-manager .file-item-container[title$=".zst" i] .file-item > svg,
 .leecharr-file-manager .file-item-container[title$=".tgz" i] .file-item > svg,
-.leecharr-file-manager .file-item-container[data-file-category="archive"] .file-item > svg {
+.leecharr-file-manager
+  .file-item-container[data-file-category="archive"]
+  .file-item
+  > svg {
   color: #fb923c !important;
   filter: drop-shadow(0 2px 5px rgba(251, 146, 60, 0.3));
 }
 
 /* Torrent Files */
-.leecharr-file-manager .file-item-container[title$=".torrent" i] .file-item > svg,
-.leecharr-file-manager .file-item-container[data-file-category="torrent"] .file-item > svg {
+.leecharr-file-manager
+  .file-item-container[title$=".torrent" i]
+  .file-item
+  > svg,
+.leecharr-file-manager
+  .file-item-container[data-file-category="torrent"]
+  .file-item
+  > svg {
   color: #4ade80 !important;
   filter: drop-shadow(0 2px 6px rgba(74, 222, 128, 0.35));
 }
 
 /* PDF Files */
 .leecharr-file-manager .file-item-container[title$=".pdf" i] .file-item > svg,
-.leecharr-file-manager .file-item-container[data-file-category="pdf"] .file-item > svg {
+.leecharr-file-manager
+  .file-item-container[data-file-category="pdf"]
+  .file-item
+  > svg {
   color: #f87171 !important;
   filter: drop-shadow(0 2px 5px rgba(248, 113, 113, 0.25));
 }
@@ -5169,7 +5193,10 @@ input[type="number"]::-webkit-inner-spin-button {
 .leecharr-file-manager .file-item-container[title$=".deb" i] .file-item > svg,
 .leecharr-file-manager .file-item-container[title$=".rpm" i] .file-item > svg,
 .leecharr-file-manager .file-item-container[title$=".app" i] .file-item > svg,
-.leecharr-file-manager .file-item-container[data-file-category="executable"] .file-item > svg {
+.leecharr-file-manager
+  .file-item-container[data-file-category="executable"]
+  .file-item
+  > svg {
   color: #f43f5e !important;
   filter: drop-shadow(0 2px 5px rgba(244, 63, 94, 0.3));
 }
@@ -5181,7 +5208,10 @@ input[type="number"]::-webkit-inner-spin-button {
 .leecharr-file-manager .file-item-container[title$=".mobi" i] .file-item > svg,
 .leecharr-file-manager .file-item-container[title$=".rtf" i] .file-item > svg,
 .leecharr-file-manager .file-item-container[title$=".odt" i] .file-item > svg,
-.leecharr-file-manager .file-item-container[data-file-category="document"] .file-item > svg {
+.leecharr-file-manager
+  .file-item-container[data-file-category="document"]
+  .file-item
+  > svg {
   color: #60a5fa !important;
 }
 
@@ -5201,7 +5231,10 @@ input[type="number"]::-webkit-inner-spin-button {
 .leecharr-file-manager .file-item-container[title$=".gif" i] .file-item > svg,
 .leecharr-file-manager .file-item-container[title$=".bmp" i] .file-item > svg,
 .leecharr-file-manager .file-item-container[title$=".svg" i] .file-item > svg,
-.leecharr-file-manager .file-item-container[data-file-category="image"] .file-item > svg {
+.leecharr-file-manager
+  .file-item-container[data-file-category="image"]
+  .file-item
+  > svg {
   color: #f472b6 !important;
 }
 
@@ -5217,7 +5250,10 @@ input[type="number"]::-webkit-inner-spin-button {
 .leecharr-file-manager .file-item-container[title$=".bash" i] .file-item > svg,
 .leecharr-file-manager .file-item-container[title$=".bat" i] .file-item > svg,
 .leecharr-file-manager .file-item-container[title$=".ps1" i] .file-item > svg,
-.leecharr-file-manager .file-item-container[data-file-category="code"] .file-item > svg {
+.leecharr-file-manager
+  .file-item-container[data-file-category="code"]
+  .file-item
+  > svg {
   color: #a78bfa !important;
 }
 
@@ -5225,7 +5261,10 @@ input[type="number"]::-webkit-inner-spin-button {
 .leecharr-file-manager .file-item-container[title$=".txt" i] .file-item > svg,
 .leecharr-file-manager .file-item-container[title$=".md" i] .file-item > svg,
 .leecharr-file-manager .file-item-container[title$=".log" i] .file-item > svg,
-.leecharr-file-manager .file-item-container[data-file-category="text"] .file-item > svg {
+.leecharr-file-manager
+  .file-item-container[data-file-category="text"]
+  .file-item
+  > svg {
   color: #94a3b8 !important;
 }
 

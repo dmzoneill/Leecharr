@@ -274,8 +274,9 @@ public static class TerminalWebSocketHandler
         {
             await Task.WhenAll(readPtyTask, receiveWsTask);
         }
-        catch
+        catch (Exception)
         {
+            // PTY reading and WebSocket receive tasks are expected to be cancelled upon connection exit
         }
 
         try
