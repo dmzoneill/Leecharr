@@ -399,8 +399,8 @@ public class RadixTreeBlocklistProvider : IBlocklistProvider
 
     private class RadixNode
     {
-        public RadixNode Zero;
-        public RadixNode One;
-        public bool IsBlocked;
+        public RadixNode Zero { get; set; }
+        public RadixNode One { get; set; }
+        public bool IsBlocked { get; set; }
     }
 }

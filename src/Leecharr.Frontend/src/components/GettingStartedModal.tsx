@@ -338,6 +338,7 @@ export function GettingStartedModal({
         >
           {/* Mode Selector */}
           <div
+            className="wizard-mode-selector"
             style={{
               display: "inline-flex",
               background: "var(--bg-primary, #101322)",
@@ -349,20 +350,23 @@ export function GettingStartedModal({
           >
             <button
               type="button"
+              className={`wizard-mode-btn ${mode === "readonly" ? "active" : ""}`}
               onClick={() => setMode("readonly")}
               style={{
                 background:
                   mode === "readonly"
-                    ? "var(--accent, #ffd166)"
+                    ? "var(--accent, #5b8def)"
                     : "transparent",
                 color:
-                  mode === "readonly" ? "#0d0e17" : "var(--text-muted, #aaa)",
+                  mode === "readonly" ? "#ffffff" : "var(--text-muted, #94a3b8)",
                 border: "none",
                 padding: "3px 10px",
                 borderRadius: "16px",
                 fontWeight: mode === "readonly" ? 600 : 400,
                 cursor: "pointer",
                 transition: "all 0.2s",
+                boxShadow:
+                  mode === "readonly" ? "0 1px 3px rgba(0, 0, 0, 0.3)" : "none",
               }}
               title="Tour mode with example preview"
             >
@@ -370,22 +374,27 @@ export function GettingStartedModal({
             </button>
             <button
               type="button"
+              className={`wizard-mode-btn ${mode === "interactive" ? "active" : ""}`}
               onClick={() => setMode("interactive")}
               style={{
                 background:
                   mode === "interactive"
-                    ? "var(--accent, #ffd166)"
+                    ? "var(--accent, #5b8def)"
                     : "transparent",
                 color:
                   mode === "interactive"
-                    ? "#0d0e17"
-                    : "var(--text-muted, #aaa)",
+                    ? "#ffffff"
+                    : "var(--text-muted, #94a3b8)",
                 border: "none",
                 padding: "3px 10px",
                 borderRadius: "16px",
                 fontWeight: mode === "interactive" ? 600 : 400,
                 cursor: "pointer",
                 transition: "all 0.2s",
+                boxShadow:
+                  mode === "interactive"
+                    ? "0 1px 3px rgba(0, 0, 0, 0.3)"
+                    : "none",
               }}
               title="Live setup to test and save credentials"
             >
@@ -445,26 +454,31 @@ export function GettingStartedModal({
               <button
                 key={s.id}
                 type="button"
+                className={`wizard-step-tab ${isActive ? "active" : isCompleted ? "completed" : ""}`}
                 onClick={() => setCurrentStep(idx)}
                 style={{
                   background: isActive
-                    ? "var(--accent, #ffd166)"
+                    ? "var(--accent, #5b8def)"
                     : isCompleted
-                      ? "rgba(255, 255, 255, 0.08)"
+                      ? "rgba(255, 255, 255, 0.06)"
                       : "transparent",
                   color: isActive
-                    ? "#0d0e17"
+                    ? "#ffffff"
                     : isCompleted
-                      ? "var(--text-primary)"
-                      : "var(--text-muted)",
-                  border: "none",
+                      ? "var(--text-secondary, #cbd5e1)"
+                      : "var(--text-muted, #64748b)",
+                  border: isCompleted
+                    ? "1px solid var(--border-light, #222f46)"
+                    : "1px solid transparent",
                   borderRadius: "12px",
                   padding: "2px 8px",
                   fontSize: "0.72rem",
-                  fontWeight: isActive ? 600 : 400,
+                  fontWeight: isActive ? 600 : isCompleted ? 500 : 400,
                   cursor: "pointer",
                   whiteSpace: "nowrap",
                   transition: "all 0.15s",
+                  boxShadow:
+                    isActive ? "0 1px 3px rgba(0, 0, 0, 0.3)" : "none",
                 }}
               >
                 {t(s.shortNameKey)}
