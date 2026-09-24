@@ -12,7 +12,6 @@ import { ImportPackageModal } from "../components/ImportPackageModal";
 import { ViewMode } from "./torrentindex/types";
 import { extractTrackerDomain } from "../utils/formatters";
 import { useTorrentStore } from "../stores/useTorrentStore";
-import { useTranslation } from "../i18n";
 import {
   useMoveTorrentQueue,
   useTags,
@@ -52,7 +51,6 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   onOpenSearchModal,
   onNavigateTab,
 }) => {
-  const { t } = useTranslation();
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [selectedState, setSelectedState] = useState<string>("All");
   const [selectedTracker, setSelectedTracker] = useState<string>("All");

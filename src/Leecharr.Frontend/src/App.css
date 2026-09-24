@@ -5047,6 +5047,29 @@ input[type="number"]::-webkit-inner-spin-button {
   color: var(--accent, #5b8def) !important;
 }
 
+.leecharr-file-manager .toolbar .file-action-container .leecharr-tb-play,
+.leecharr-file-manager .toolbar .file-action-container .leecharr-tb-preview {
+  font-weight: 600 !important;
+  color: var(--accent, #ffd166) !important;
+}
+
+.leecharr-file-manager .toolbar .file-action-container .leecharr-tb-m3u {
+  color: var(--text-primary, #f1f5f9) !important;
+}
+
+.leecharr-file-manager .toolbar .file-action-container .leecharr-tb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.leecharr-file-manager .toolbar .file-action-container .leecharr-tb-btn:hover {
+  background-color: rgba(91, 141, 239, 0.15) !important;
+  transform: translateY(-1px);
+}
+
 .leecharr-file-manager .rename-file {
   background-color: var(--bg-primary, #0e131d) !important;
   color: var(--text-primary, #f1f5f9) !important;

@@ -7879,7 +7879,7 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
 
         if (lastException != null)
         {
-            throw lastException;
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(lastException).Throw();
         }
 
         throw new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.HostNotFound);

@@ -332,7 +332,7 @@ export function SecuritySettingsTab() {
         setRevealedApiKey(res.apiKey);
         setShowApiKey(true);
       }
-    } catch (_err) {
+    } catch {
       toast?.showToast(
         t("settingsTabs.batch2.failedToRetrieveUnmaskedApiKey"),
         "error",
@@ -373,7 +373,7 @@ export function SecuritySettingsTab() {
         t("settingsTabs.batch2.apiKeyCopiedToClipboard"),
         "success",
       );
-    } catch (_err) {
+    } catch {
       toast?.showToast(t("settingsTabs.batch2.failedToCopyApiKey"), "error");
     }
   };
