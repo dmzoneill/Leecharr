@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.26.9](https://github.com/dmzoneill/Leecharr/releases/tag/v1.26.9) - 2026-09-24
+
+### ✨ Features
+- feat(ui): add torrent engine version selection and hot-swap controls
+
+### 🐛 Bug Fixes
+- fix(test): import NzbDrone.Core.Torrents namespace in LibTorrentVersionSupportTest
+- fix(sync): real-time live telemetry synchronization between engine and API/UI
+- fix(engine): add resilient progress calculation fallbacks and trace logging
+- fix(engine): decode peer client bytes and add fallback json serializer
+- fix(engine): remove non-existent Torrent.Trackers property reference
+- fix(engine): resolve pipe buffer deadlock, multi-tracker binding, and swarm interface in libtorrent daemon
+
+### 🔧 Maintenance & Improvements
+- test(sync): add unit tests for live telemetry sync, downloaded bytes priority, and LibTorrentDownloadTask
+- test(frontend): add unit tests for engine version resolution and switching
+
 ## [v1.26.8](https://github.com/dmzoneill/Leecharr/releases/tag/v1.26.8) - 2026-09-24
 
 ### ✨ Features
