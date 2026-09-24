@@ -6,6 +6,7 @@ import {
   parseMediaBadges,
   buildStreamUrl,
   buildDownloadUrl,
+  buildPlaylistUrl,
   buildExternalPlayerUrl,
   getAbsoluteUrl,
   cleanUpMediaElement,
@@ -94,6 +95,10 @@ describe("mediaPlayer: URL builders", () => {
     assert.equal(
       buildDownloadUrl(42, 7),
       "/api/v1/torrent/42/files/7/download",
+    );
+    assert.equal(
+      buildPlaylistUrl(42, 7),
+      "/api/v1/torrent/42/files/7/stream.m3u",
     );
   });
 

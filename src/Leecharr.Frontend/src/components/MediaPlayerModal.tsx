@@ -15,6 +15,7 @@ import {
   parseMediaBadges,
   buildStreamUrl,
   buildDownloadUrl,
+  buildPlaylistUrl,
   buildExternalPlayerUrl,
   getAbsoluteUrl,
   cleanUpMediaElement,
@@ -50,9 +51,13 @@ export function MediaPlayerModal({
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
+  const [activeTab, setActiveTab] = useState<"player" | "setup">("player");
   const [hasCodecError, setHasCodecError] = useState<boolean>(false);
   const [errorCode, setErrorCode] = useState<number | undefined>(undefined);
   const [copied, setCopied] = useState<boolean>(false);
+  const [copiedScript, setCopiedScript] = useState<boolean>(false);
+  const [copiedMpvCmd, setCopiedMpvCmd] = useState<boolean>(false);
+  const [copiedVlcCmd, setCopiedVlcCmd] = useState<boolean>(false);
   const [activeSubtitleTrackId, setActiveSubtitleTrackId] = useState<
     number | "off"
   >("off");
@@ -94,6 +99,11 @@ export function MediaPlayerModal({
     [torrent.id, file.id],
   );
 
+  const playlistUrl = useMemo(
+    () => buildPlaylistUrl(torrent.id, file.id),
+    [torrent.id, file.id],
+  );
+
   const { data: fetchedSubtitles } = useTorrentFileSubtitles(
     isOpen ? torrent.id : undefined,
     isOpen ? file.id : undefined,
@@ -108,9 +118,13 @@ export function MediaPlayerModal({
   // Reset state when a new file or torrent is opened
   useEffect(() => {
     if (isOpen) {
+      setActiveTab("player");
       setHasCodecError(false);
       setErrorCode(undefined);
       setCopied(false);
+      setCopiedScript(false);
+      setCopiedMpvCmd(false);
+      setCopiedVlcCmd(false);
       // Auto-select default subtitle if available
       const defaultSub = Array.isArray(resolvedSubtitles)
         ? resolvedSubtitles.find((s) => s.isDefault)
@@ -488,6 +502,38 @@ export function MediaPlayerModal({
             </div>
           </div>
 
+          {/* Header Tab Switcher */}
+          <div style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
+            <button
+              type="button"
+              className={`btn btn-xs ${activeTab === "player" ? "btn-primary" : "btn-default"}`}
+              onClick={() => setActiveTab("player")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.3rem",
+                fontWeight: 600,
+                padding: "0.25rem 0.55rem",
+              }}
+            >
+              <span>▶</span> {t("mediaPlayer.tabPlayer", "Player")}
+            </button>
+            <button
+              type="button"
+              className={`btn btn-xs ${activeTab === "setup" ? "btn-primary" : "btn-default"}`}
+              onClick={() => setActiveTab("setup")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.3rem",
+                fontWeight: 600,
+                padding: "0.25rem 0.55rem",
+              }}
+            >
+              <span>⚙</span> {t("mediaPlayer.tabSetup", "External Players & Setup")}
+            </button>
+          </div>
+
           <button
             type="button"
             className="btn btn-sm btn-default"
@@ -506,21 +552,349 @@ export function MediaPlayerModal({
           </button>
         </div>
 
-        {/* Media / Fallback Area */}
-        <div
-          style={{
-            position: "relative",
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "#000000",
-            minHeight: "360px",
-            maxHeight: "65vh",
-            overflow: "hidden",
-          }}
-        >
+        {/* Media / Fallback Area or Setup Instructions */}
+        {activeTab === "setup" ? (
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              backgroundColor: "var(--bg-primary, #18191c)",
+              minHeight: "360px",
+              maxHeight: "65vh",
+              overflowY: "auto",
+              padding: "1.5rem",
+              gap: "1.25rem",
+              color: "#e2e8f0",
+              lineHeight: 1.5,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: "0.5rem",
+              }}
+            >
+              <h4
+                style={{
+                  margin: 0,
+                  fontSize: "1.15rem",
+                  color: "#60a5fa",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                }}
+              >
+                <span>📺</span> External Player Streaming & Linux Protocol Setup
+              </h4>
+              <button
+                type="button"
+                className="btn btn-xs btn-default"
+                onClick={() => setActiveTab("player")}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.3rem",
+                }}
+              >
+                <span>◀</span> Return to Player
+              </button>
+            </div>
+
+            {/* Section 1: Instant M3U Playlist */}
+            <div
+              style={{
+                backgroundColor: "rgba(255, 255, 255, 0.04)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                borderRadius: "8px",
+                padding: "1rem",
+              }}
+            >
+              <h5
+                style={{
+                  margin: "0 0 0.4rem 0",
+                  color: "#34d399",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.4rem",
+                  fontSize: "0.95rem",
+                }}
+              >
+                <span>⚡</span> 1. Direct Playlist (.m3u) — Instant, Zero Setup
+              </h5>
+              <p
+                style={{
+                  margin: "0 0 0.75rem 0",
+                  fontSize: "0.85rem",
+                  color: "#94a3b8",
+                }}
+              >
+                Most Linux desktop players (VLC, MPV, Celluloid, Totem) open standard{" "}
+                <code>.m3u</code> playlist files automatically when downloaded or clicked.
+              </p>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.6rem",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                }}
+              >
+                <a
+                  href={playlistUrl}
+                  download={`${fileName}.m3u`}
+                  className="btn btn-sm btn-success"
+                  style={{
+                    textDecoration: "none",
+                    fontWeight: 600,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                  }}
+                >
+                  <span>📥</span> Download M3U Playlist
+                </a>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-default"
+                  onClick={handleCopyStreamUrl}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                  }}
+                >
+                  <span>📋</span>{" "}
+                  {copied ? "Stream URL Copied!" : "Copy Stream URL"}
+                </button>
+              </div>
+            </div>
+
+            {/* Section 2: Command Line Playback */}
+            <div
+              style={{
+                backgroundColor: "rgba(255, 255, 255, 0.04)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                borderRadius: "8px",
+                padding: "1rem",
+              }}
+            >
+              <h5
+                style={{
+                  margin: "0 0 0.4rem 0",
+                  color: "#38bdf8",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.4rem",
+                  fontSize: "0.95rem",
+                }}
+              >
+                <span>💻</span> 2. Command Line Playback (MPV & VLC)
+              </h5>
+              <p
+                style={{
+                  margin: "0 0 0.5rem 0",
+                  fontSize: "0.85rem",
+                  color: "#94a3b8",
+                }}
+              >
+                Stream directly from your Linux terminal using MPV or VLC:
+              </p>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.5rem",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <code
+                    style={{
+                      flex: 1,
+                      backgroundColor: "#0f172a",
+                      padding: "0.4rem 0.6rem",
+                      borderRadius: "4px",
+                      fontSize: "0.8rem",
+                      overflowX: "auto",
+                    }}
+                  >
+                    mpv "{getAbsoluteUrl(streamUrl)}"
+                  </code>
+                  <button
+                    type="button"
+                    className="btn btn-xs btn-default"
+                    onClick={() => {
+                      if (navigator.clipboard?.writeText) {
+                        navigator.clipboard.writeText(
+                          `mpv "${getAbsoluteUrl(streamUrl)}"`,
+                        );
+                        setCopiedMpvCmd(true);
+                        setTimeout(() => setCopiedMpvCmd(false), 2000);
+                      }
+                    }}
+                  >
+                    {copiedMpvCmd ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <code
+                    style={{
+                      flex: 1,
+                      backgroundColor: "#0f172a",
+                      padding: "0.4rem 0.6rem",
+                      borderRadius: "4px",
+                      fontSize: "0.8rem",
+                      overflowX: "auto",
+                    }}
+                  >
+                    vlc "{getAbsoluteUrl(streamUrl)}"
+                  </code>
+                  <button
+                    type="button"
+                    className="btn btn-xs btn-default"
+                    onClick={() => {
+                      if (navigator.clipboard?.writeText) {
+                        navigator.clipboard.writeText(
+                          `vlc "${getAbsoluteUrl(streamUrl)}"`,
+                        );
+                        setCopiedVlcCmd(true);
+                        setTimeout(() => setCopiedVlcCmd(false), 2000);
+                      }
+                    }}
+                  >
+                    {copiedVlcCmd ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 3: Linux Desktop URI Handlers */}
+            <div
+              style={{
+                backgroundColor: "rgba(255, 255, 255, 0.04)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                borderRadius: "8px",
+                padding: "1rem",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "0.5rem",
+                  flexWrap: "wrap",
+                  gap: "0.4rem",
+                }}
+              >
+                <h5
+                  style={{
+                    margin: 0,
+                    color: "#f59e0b",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                    fontSize: "0.95rem",
+                  }}
+                >
+                  <span>🐧</span> 3. One-Click Browser Integration (vlc:// & web+mpv://)
+                </h5>
+                <button
+                  type="button"
+                  className="btn btn-xs btn-primary"
+                  onClick={() => {
+                    const script = `mkdir -p ~/.local/bin ~/.local/share/applications
+
+cat << 'EOF' > ~/.local/bin/vlc-stream-handler
+#!/usr/bin/env bash
+url="\${1#vlc://}"; url="\${url#vlc:}"
+[[ -n "$url" ]] && exec /usr/bin/vlc "$url"
+EOF
+chmod +x ~/.local/bin/vlc-stream-handler
+
+cat << 'EOF' > ~/.local/bin/mpv-stream-handler
+#!/usr/bin/env bash
+url="\${1#web+mpv://}"; url="\${url#mpv://}"; url="\${url#web+mpv:}"; url="\${url#mpv:}"
+[[ -n "$url" ]] && exec /usr/bin/mpv "$url"
+EOF
+chmod +x ~/.local/bin/mpv-stream-handler
+
+cat << 'EOF' > ~/.local/share/applications/vlc-stream-handler.desktop
+[Desktop Entry]
+Name=VLC Stream Handler
+Exec=/home/$USER/.local/bin/vlc-stream-handler %u
+Type=Application
+Terminal=false
+NoDisplay=true
+MimeType=x-scheme-handler/vlc;
+EOF
+
+cat << 'EOF' > ~/.local/share/applications/mpv-stream-handler.desktop
+[Desktop Entry]
+Name=MPV Stream Handler
+Exec=/home/$USER/.local/bin/mpv-stream-handler %u
+Type=Application
+Terminal=false
+NoDisplay=true
+MimeType=x-scheme-handler/web+mpv;x-scheme-handler/mpv;
+EOF
+
+xdg-mime default vlc-stream-handler.desktop x-scheme-handler/vlc
+xdg-mime default mpv-stream-handler.desktop x-scheme-handler/web+mpv
+xdg-mime default mpv-stream-handler.desktop x-scheme-handler/mpv
+update-desktop-database ~/.local/share/applications/`;
+                    if (navigator.clipboard?.writeText) {
+                      navigator.clipboard.writeText(script);
+                      setCopiedScript(true);
+                      setTimeout(() => setCopiedScript(false), 2500);
+                    }
+                  }}
+                >
+                  {copiedScript ? "Copied Script!" : "Copy Linux Setup Script"}
+                </button>
+              </div>
+              <p
+                style={{
+                  margin: "0 0 0.5rem 0",
+                  fontSize: "0.85rem",
+                  color: "#94a3b8",
+                }}
+              >
+                Standard Linux distributions do not register <code>vlc://</code> or{" "}
+                <code>web+mpv://</code> URI schemes by default. Click the button above to copy the setup script, run it in your terminal, and browser links will launch VLC and MPV directly with a single click.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div
+            style={{
+              position: "relative",
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "#000000",
+              minHeight: "360px",
+              maxHeight: "65vh",
+              overflow: "hidden",
+            }}
+          >
           {/* Codec Error Fallback Card */}
           {hasCodecError ? (
             <div
@@ -591,6 +965,21 @@ export function MediaPlayerModal({
                   <span>⚡</span> {t("mediaPlayer.openInMpv", "Open in MPV")}
                 </a>
                 <a
+                  href={playlistUrl}
+                  download={`${fileName}.m3u`}
+                  className="btn btn-success"
+                  role="button"
+                  style={{
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                    fontWeight: 600,
+                  }}
+                >
+                  <span>📥</span> {t("mediaPlayer.downloadM3u", "M3U Playlist")}
+                </a>
+                <a
                   href={downloadUrl}
                   download={fileName}
                   className="btn btn-default"
@@ -619,6 +1008,18 @@ export function MediaPlayerModal({
                   {copied
                     ? t("mediaPlayer.copied", "Copied!")
                     : t("mediaPlayer.copyStreamUrl", "Copy Stream URL")}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-default"
+                  onClick={() => setActiveTab("setup")}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                  }}
+                >
+                  <span>📖</span> {t("mediaPlayer.setupGuide", "Linux Setup Guide")}
                 </button>
                 <button
                   type="button"
@@ -704,6 +1105,7 @@ export function MediaPlayerModal({
             </video>
           )}
         </div>
+        )}
 
         {/* Footer Toolbar: Subtitles, Size, & External Links */}
         <div
@@ -852,6 +1254,15 @@ export function MediaPlayerModal({
               style={{ textDecoration: "none" }}
             >
               MPV
+            </a>
+            <a
+              href={playlistUrl}
+              download={`${fileName}.m3u`}
+              className="btn btn-xs btn-default"
+              title={t("mediaPlayer.tooltipPlaylist", "Download M3U playlist for desktop media players")}
+              style={{ textDecoration: "none" }}
+            >
+              {t("mediaPlayer.playlist", "Playlist (.m3u)")}
             </a>
             <button
               type="button"
