@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -521,27 +522,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         subFile ??= files.FirstOrDefault(f => string.Equals(f.Path, matchedTrack.Path, StringComparison.OrdinalIgnoreCase));
 
         var relativePath = subFile?.Path ?? matchedTrack.Path;
-        var basePath = !string.IsNullOrWhiteSpace(torrent.SavePath)
-            ? torrent.SavePath
-            : this.configService?.DownloadDir ?? "/downloads";
-
-        if (string.IsNullOrWhiteSpace(basePath) || string.IsNullOrWhiteSpace(relativePath))
-        {
-            return this.NotFound("Subtitle path not configured.");
-        }
-
-        var fullBasePath = Path.GetFullPath(basePath);
-        var baseDirWithSep = fullBasePath.EndsWith(Path.DirectorySeparatorChar)
-            ? fullBasePath
-            : fullBasePath + Path.DirectorySeparatorChar;
-
-        var fullPath = Path.GetFullPath(Path.Combine(fullBasePath, relativePath));
-        if (!fullPath.StartsWith(baseDirWithSep, StringComparison.OrdinalIgnoreCase) && !string.Equals(fullPath, fullBasePath, StringComparison.OrdinalIgnoreCase))
-        {
-            return this.BadRequest("Invalid subtitle file path.");
-        }
-
-        if (!global::System.IO.File.Exists(fullPath))
+        var fullPath = this.ResolveTorrentFilePath(torrent, relativePath);
+        if (string.IsNullOrWhiteSpace(fullPath))
         {
             return this.NotFound("Subtitle file not found on disk.");
         }
@@ -606,33 +588,67 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         return this.GetSubtitleTrack(id, primaryFile.Id, trackId);
     }
 
+    [HttpGet("{id:int}/files/{fileId:int}/stream.m3u")]
+    [HttpGet("{id:int}/files/{fileId:int}/playlist.m3u")]
+    public ActionResult GetPlaylistM3u(int id, int fileId)
+    {
+        var torrent = this.torrentService.Get(id);
+        if (torrent == null)
+        {
+            return this.NotFound("Torrent not found.");
+        }
+
+        var files = this.torrentFileService.GetFiles(id).ToList();
+        var file = files.FirstOrDefault(f => f.Id == fileId);
+        if (file == null)
+        {
+            return this.NotFound("File not found in torrent.");
+        }
+
+        var host = this.Request?.Host.Value ?? "localhost:7889";
+        var scheme = this.Request?.Scheme ?? "http";
+        var fullStreamUrl = $"{scheme}://{host}/api/v1/torrent/{id}/files/{fileId}/stream";
+        var fileName = Path.GetFileName(file.Path);
+
+        var m3uContent = $"#EXTM3U\n#EXTINF:-1,{fileName}\n{fullStreamUrl}\n";
+        var bytes = Encoding.UTF8.GetBytes(m3uContent);
+        return this.File(bytes, "audio/x-mpegurl", $"{fileName}.m3u");
+    }
+
+    [HttpGet("{id:int}/stream.m3u")]
+    [HttpGet("{id:int}/playlist.m3u")]
+    public ActionResult GetTorrentPlaylistM3u(int id)
+    {
+        var torrent = this.torrentService.Get(id);
+        if (torrent == null)
+        {
+            return this.NotFound("Torrent not found.");
+        }
+
+        var files = this.torrentFileService.GetFiles(id)
+            .Where(f => !f.IsPaddingFile)
+            .ToList();
+
+        var mediaFiles = files.Where(f => this.subtitleDiscoveryService.IsMediaFile(f.Path)).ToList();
+        var primaryFile = mediaFiles.OrderByDescending(f => f.Size).FirstOrDefault() ?? files.FirstOrDefault();
+        if (primaryFile == null)
+        {
+            return this.NotFound("No media files found in torrent.");
+        }
+
+        return this.GetPlaylistM3u(id, primaryFile.Id);
+    }
+
     [SuppressMessage("Security", "CA3003:Review code for file path injection vulnerabilities", Justification = "File path is validated against torrent save directory")]
     private ActionResult ServeTorrentFile(Torrent torrent, TorrentFile file, bool download)
     {
-        var baseDir = !string.IsNullOrWhiteSpace(torrent.SavePath)
-            ? torrent.SavePath
-            : this.configService?.DownloadDir ?? "/downloads";
-
-        if (string.IsNullOrWhiteSpace(baseDir))
-        {
-            return this.NotFound("Torrent save path not available");
-        }
-
         if (string.IsNullOrWhiteSpace(file?.Path))
         {
             return this.BadRequest("Invalid file path");
         }
 
-        var fullPath = Path.GetFullPath(Path.Combine(baseDir, file.Path));
-        var canonicalBase = Path.GetFullPath(baseDir).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-
-        if (!fullPath.StartsWith(canonicalBase, StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(fullPath, Path.GetFullPath(baseDir), StringComparison.OrdinalIgnoreCase))
-        {
-            return this.BadRequest("Invalid file path");
-        }
-
-        if (!global::System.IO.File.Exists(fullPath))
+        var fullPath = this.ResolveTorrentFilePath(torrent, file.Path);
+        if (string.IsNullOrWhiteSpace(fullPath))
         {
             return this.NotFound("File not found on disk");
         }
@@ -645,6 +661,61 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         }
 
         return this.PhysicalFile(fullPath, contentType, enableRangeProcessing: true);
+    }
+
+    [SuppressMessage("Security", "CA3003:Review code for file path injection vulnerabilities", Justification = "File path is validated against torrent save directory")]
+    private string ResolveTorrentFilePath(Torrent torrent, string relativeFilePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativeFilePath))
+        {
+            return null;
+        }
+
+        var baseDir = !string.IsNullOrWhiteSpace(torrent?.SavePath)
+            ? torrent.SavePath
+            : this.configService?.DownloadDir ?? "/downloads";
+
+        if (string.IsNullOrWhiteSpace(baseDir))
+        {
+            return null;
+        }
+
+        var canonicalBase = Path.GetFullPath(baseDir).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        var cleanRelPath = relativeFilePath.Replace('\\', '/').TrimStart('/');
+
+        var candidateBases = new List<string> { baseDir };
+        var incompleteDir = Path.Combine(baseDir, "incomplete");
+        if (Directory.Exists(incompleteDir))
+        {
+            candidateBases.Add(incompleteDir);
+        }
+
+        foreach (var b in candidateBases)
+        {
+            var candidates = new List<string>
+            {
+                Path.Combine(b, cleanRelPath),
+            };
+
+            if (!string.IsNullOrWhiteSpace(torrent.Name))
+            {
+                candidates.Add(Path.Combine(b, torrent.Name, cleanRelPath));
+            }
+
+            foreach (var cand in candidates)
+            {
+                var full = Path.GetFullPath(cand);
+                var isSafe = full.StartsWith(canonicalBase, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(full, Path.GetFullPath(baseDir), StringComparison.OrdinalIgnoreCase);
+
+                if (isSafe && global::System.IO.File.Exists(full))
+                {
+                    return full;
+                }
+            }
+        }
+
+        return null;
     }
 
     private static string GetContentType(string path)
