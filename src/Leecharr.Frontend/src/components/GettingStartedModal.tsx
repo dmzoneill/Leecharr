@@ -358,7 +358,9 @@ export function GettingStartedModal({
                     ? "var(--accent, #5b8def)"
                     : "transparent",
                 color:
-                  mode === "readonly" ? "#ffffff" : "var(--text-muted, #94a3b8)",
+                  mode === "readonly"
+                    ? "#ffffff"
+                    : "var(--text-muted, #94a3b8)",
                 border: "none",
                 padding: "3px 10px",
                 borderRadius: "16px",
@@ -477,8 +479,7 @@ export function GettingStartedModal({
                   cursor: "pointer",
                   whiteSpace: "nowrap",
                   transition: "all 0.15s",
-                  boxShadow:
-                    isActive ? "0 1px 3px rgba(0, 0, 0, 0.3)" : "none",
+                  boxShadow: isActive ? "0 1px 3px rgba(0, 0, 0, 0.3)" : "none",
                 }}
               >
                 {t(s.shortNameKey)}
@@ -649,7 +650,7 @@ export function GettingStartedModal({
                     <div
                       style={{
                         fontWeight: 600,
-                        color: "var(--accent, #ffd166)",
+                        color: "var(--accent, #5b8def)",
                         marginBottom: "0.75rem",
                       }}
                     >
@@ -866,7 +867,7 @@ export function GettingStartedModal({
                     <div
                       style={{
                         fontWeight: 600,
-                        color: "var(--accent, #ffd166)",
+                        color: "var(--accent, #5b8def)",
                         marginBottom: "0.75rem",
                       }}
                     >
@@ -1105,7 +1106,7 @@ export function GettingStartedModal({
                     <div
                       style={{
                         fontWeight: 600,
-                        color: "var(--accent, #ffd166)",
+                        color: "var(--accent, #5b8def)",
                         marginBottom: "0.75rem",
                       }}
                     >
@@ -1344,7 +1345,7 @@ export function GettingStartedModal({
                     <div
                       style={{
                         fontWeight: 600,
-                        color: "var(--accent, #ffd166)",
+                        color: "var(--accent, #5b8def)",
                         marginBottom: "0.75rem",
                       }}
                     >
@@ -1660,7 +1661,7 @@ export function GettingStartedModal({
               onChange={(e) => handleDontShowChange(e.target.checked)}
               style={{
                 cursor: "pointer",
-                accentColor: "var(--accent, #ffd166)",
+                accentColor: "var(--accent, #5b8def)",
               }}
             />
             <span>{t("gettingStarted.dontShowAgain")}</span>
