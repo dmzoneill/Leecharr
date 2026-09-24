@@ -99,10 +99,11 @@ export function MediaPlayerModal({
     isOpen ? file.id : undefined,
   );
 
-  const resolvedSubtitles = useMemo(
-    () => propSubtitles ?? fetchedSubtitles ?? [],
-    [propSubtitles, fetchedSubtitles],
-  );
+  const resolvedSubtitles = useMemo<SubtitleTrack[]>(() => {
+    if (Array.isArray(propSubtitles)) return propSubtitles;
+    if (Array.isArray(fetchedSubtitles)) return fetchedSubtitles;
+    return [];
+  }, [propSubtitles, fetchedSubtitles]);
 
   // Reset state when a new file or torrent is opened
   useEffect(() => {
@@ -111,7 +112,9 @@ export function MediaPlayerModal({
       setErrorCode(undefined);
       setCopied(false);
       // Auto-select default subtitle if available
-      const defaultSub = resolvedSubtitles.find((s) => s.isDefault);
+      const defaultSub = Array.isArray(resolvedSubtitles)
+        ? resolvedSubtitles.find((s) => s.isDefault)
+        : undefined;
       setActiveSubtitleTrackId(defaultSub ? defaultSub.trackId : "off");
     }
   }, [isOpen, file.id, torrent.id, resolvedSubtitles]);
@@ -307,7 +310,7 @@ export function MediaPlayerModal({
       // C / c: cycle subtitles
       if (e.key === "c" || e.key === "C") {
         e.preventDefault();
-        if (resolvedSubtitles.length > 0) {
+        if (Array.isArray(resolvedSubtitles) && resolvedSubtitles.length > 0) {
           const options: (number | "off")[] = [
             "off",
             ...resolvedSubtitles.map((s) => s.trackId),
@@ -463,11 +466,12 @@ export function MediaPlayerModal({
               >
                 {titleText}
               </h3>
-              {mediaBadges.badges.map((b) => (
-                <span key={b} className="media-badge">
-                  {b}
-                </span>
-              ))}
+              {Array.isArray(mediaBadges?.badges) &&
+                mediaBadges.badges.map((b) => (
+                  <span key={b} className="media-badge">
+                    {b}
+                  </span>
+                ))}
             </div>
             <div
               style={{
@@ -683,19 +687,20 @@ export function MediaPlayerModal({
                 outline: "none",
               }}
             >
-              {resolvedSubtitles.map((track) => (
-                <track
-                  key={track.trackId}
-                  kind="subtitles"
-                  label={
-                    track.title ||
-                    `${track.language || "Subtitle"} (${track.twoLetterCode || track.format || `Track ${track.trackId}`})`
-                  }
-                  src={track.url}
-                  srcLang={track.twoLetterCode || "en"}
-                  default={track.isDefault}
-                />
-              ))}
+              {Array.isArray(resolvedSubtitles) &&
+                resolvedSubtitles.map((track) => (
+                  <track
+                    key={track.trackId}
+                    kind="subtitles"
+                    label={
+                      track.title ||
+                      `${track.language || "Subtitle"} (${track.twoLetterCode || track.format || `Track ${track.trackId}`})`
+                    }
+                    src={track.url}
+                    srcLang={track.twoLetterCode || "en"}
+                    default={track.isDefault}
+                  />
+                ))}
             </video>
           )}
         </div>
@@ -751,19 +756,20 @@ export function MediaPlayerModal({
                 onChange={(e) => handleSubtitleChange(e.target.value)}
               >
                 <option value="off">{t("mediaPlayer.off", "Off")}</option>
-                {resolvedSubtitles.map((sub) => {
-                  const labelParts = [
-                    sub.language || sub.title || `Track ${sub.trackId}`,
-                  ];
-                  if (sub.isForced) labelParts.push("(Forced)");
-                  if (sub.isHearingImpaired) labelParts.push("(CC)");
-                  if (sub.isExternal) labelParts.push("[Ext]");
-                  return (
-                    <option key={sub.trackId} value={sub.trackId}>
-                      {labelParts.join(" ")}
-                    </option>
-                  );
-                })}
+                {Array.isArray(resolvedSubtitles) &&
+                  resolvedSubtitles.map((sub) => {
+                    const labelParts = [
+                      sub.language || sub.title || `Track ${sub.trackId}`,
+                    ];
+                    if (sub.isForced) labelParts.push("(Forced)");
+                    if (sub.isHearingImpaired) labelParts.push("(CC)");
+                    if (sub.isExternal) labelParts.push("[Ext]");
+                    return (
+                      <option key={sub.trackId} value={sub.trackId}>
+                        {labelParts.join(" ")}
+                      </option>
+                    );
+                  })}
               </select>
 
               {activeSubtitleTrackId !== "off" && (
