@@ -926,9 +926,9 @@ update-desktop-database ~/.local/share/applications/`;
                 }}
               >
                 Standard Linux distributions do not register <code>vlc://</code>{" "}
-                or <code>mpv://</code> URI schemes by default. Click the
-                button above to copy the setup script, run it in your terminal,
-                and browser links will launch VLC and MPV directly with a single
+                or <code>mpv://</code> URI schemes by default. Click the button
+                above to copy the setup script, run it in your terminal, and
+                browser links will launch VLC and MPV directly with a single
                 click.
               </p>
             </div>
