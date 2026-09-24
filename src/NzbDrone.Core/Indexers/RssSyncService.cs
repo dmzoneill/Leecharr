@@ -182,8 +182,9 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                                         release.InfoHash = MagnetLinkParser.NormalizeInfoHash(parsed.InfoHash);
                                     }
                                 }
-                                catch
+                                catch (Exception ex)
                                 {
+                                    this.logger.Trace(ex, "Failed to parse infohash from release MagnetUrl for '{Title}'", release.Title);
                                 }
                             }
                             else if (release.DownloadUrl?.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase) == true)
@@ -196,8 +197,9 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
                                         release.InfoHash = MagnetLinkParser.NormalizeInfoHash(parsed.InfoHash);
                                     }
                                 }
-                                catch
+                                catch (Exception ex)
                                 {
+                                    this.logger.Trace(ex, "Failed to parse infohash from release DownloadUrl for '{Title}'", release.Title);
                                 }
                             }
                         }
