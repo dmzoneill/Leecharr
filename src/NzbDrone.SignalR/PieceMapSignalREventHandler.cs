@@ -57,11 +57,13 @@ public class PieceMapSignalREventHandler : IHandle<PieceVerifiedEvent>, IDisposa
                         }
                         catch (ObjectDisposedException)
                         {
+                            // Expected if flushLock is disposed during service shutdown
                         }
                     }
                 }
                 catch (ObjectDisposedException)
                 {
+                    // Expected when handler is disposed during periodic timer callback
                 }
                 catch (Exception ex)
                 {
@@ -212,6 +214,7 @@ public class PieceMapSignalREventHandler : IHandle<PieceVerifiedEvent>, IDisposa
         }
         catch (ObjectDisposedException)
         {
+            // Expected if lock was already disposed
         }
 
         try
@@ -229,6 +232,7 @@ public class PieceMapSignalREventHandler : IHandle<PieceVerifiedEvent>, IDisposa
         }
         catch (ObjectDisposedException)
         {
+            // Expected if lock was concurrently disposed
         }
     }
 }

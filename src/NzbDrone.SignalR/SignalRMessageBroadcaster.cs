@@ -94,9 +94,11 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
                     }
                     catch (OperationCanceledException)
                     {
+                        // Expected when broadcaster is being shut down
                     }
                     catch (ChannelClosedException)
                     {
+                        // Expected if guaranteed channel writer was closed during shutdown
                     }
                     catch (Exception ex)
                     {
@@ -163,8 +165,9 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
             this.cancellationTokenSource.Cancel();
             Task.WaitAll(new[] { this.telemetryProcessingTask, this.guaranteedProcessingTask }, TimeSpan.FromSeconds(3));
         }
-        catch
+        catch (Exception ex)
         {
+            this.logger.Trace(ex, "Error while waiting for SignalR message broadcaster processing tasks to terminate");
         }
         finally
         {
@@ -240,9 +243,11 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
         }
         catch (OperationCanceledException)
         {
+            // Expected during clean shutdown of processing loop
         }
         catch (ObjectDisposedException)
         {
+            // Expected if channels are disposed during shutdown
         }
         catch (Exception ex)
         {
