@@ -141,7 +141,7 @@ describe("mediaPlayer: URL builders", () => {
     const mpv = buildExternalPlayerUrl("mpv", streamUrl, origin);
     assert.equal(
       mpv,
-      "web+mpv://http://127.0.0.1:5000/api/v1/torrent/15/files/1/stream",
+      "mpv://http://127.0.0.1:5000/api/v1/torrent/15/files/1/stream",
     );
   });
 });

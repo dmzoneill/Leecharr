@@ -188,7 +188,7 @@ export function buildExternalPlayerUrl(
   if (player === "vlc") {
     return `vlc://${absoluteStreamUrl}`;
   }
-  return `web+mpv://${absoluteStreamUrl}`;
+  return `mpv://${absoluteStreamUrl}`;
 }
 
 export function cleanUpMediaElement(
