@@ -9,6 +9,7 @@ using NzbDrone.Common.Disk;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Download;
 using NzbDrone.Core.Messaging.Events;
 
 namespace Leecharr.Core.Test.BitTorrent;
