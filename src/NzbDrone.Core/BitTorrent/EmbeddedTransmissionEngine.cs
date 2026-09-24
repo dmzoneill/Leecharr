@@ -251,8 +251,9 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                     await Task.WhenAny(this.syncLoopTask, Task.Delay(2000));
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Trace(ex, "Exception while awaiting sync loop task during engine shutdown");
             }
 
             this.syncCts.Dispose();
@@ -461,8 +462,9 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                 await this.SendRpcRequestAsync("torrent-stop", new Dictionary<string, object>());
                 await this.ConfigureSessionSettingsAsync();
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Trace(ex, "Failed to stop torrents or update session settings during killswitch activation");
             }
         });
     }
@@ -478,8 +480,9 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             {
                 await this.ConfigureSessionSettingsAsync();
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Trace(ex, "Failed to update session settings during killswitch deactivation");
             }
         });
 

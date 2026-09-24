@@ -79,6 +79,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             }
             catch (ObjectDisposedException)
             {
+                // Timer already disposed during shutdown
             }
         }
     }
@@ -96,6 +97,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 }
                 catch (ObjectDisposedException)
                 {
+                    // Timer already disposed during shutdown
                 }
             }
         }
@@ -400,8 +402,9 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 }
             }
         }
-        catch
+        catch (Exception)
         {
+            // Fallback gateway resolution via route table failed
         }
 
         return null;
@@ -476,13 +479,15 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                         unicasts,
                         gateways));
                 }
-                catch
+                catch (Exception)
                 {
+                    // Ignore interface property read errors during candidate discovery
                 }
             }
         }
-        catch
+        catch (Exception)
         {
+            // System network interface enumeration failed
         }
 
         return candidates;
@@ -537,8 +542,9 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 }
             }
         }
-        catch
+        catch (Exception)
         {
+            // Failed to resolve local endpoint for interface
         }
 
         return null;
@@ -635,6 +641,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                     }
                     catch (ObjectDisposedException)
                     {
+                        // Renewal timer disposed during registration
                     }
                 }
 
@@ -771,6 +778,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             }
             catch (ObjectDisposedException)
             {
+                // Renewal lock disposed during shutdown
             }
         }
     }
@@ -788,6 +796,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         }
         catch (ObjectDisposedException)
         {
+            // Renewal timer disposed during stop
         }
 
         if (this.isSuspended != 0)
@@ -839,8 +848,9 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         {
             NetworkChange.NetworkAddressChanged -= this.OnNetworkAddressChanged;
         }
-        catch
+        catch (Exception)
         {
+            // Ignore unregistration failure during dispose
         }
 
         try
@@ -849,6 +859,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         }
         catch (ObjectDisposedException)
         {
+            // Timer already disposed
         }
 
         try
@@ -856,8 +867,9 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             using var cts = new CancellationTokenSource(1000);
             this.StopAsync(cts.Token).GetAwaiter().GetResult();
         }
-        catch
+        catch (Exception)
         {
+            // StopAsync timed out or threw during synchronous dispose
         }
 
         try
@@ -866,6 +878,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         }
         catch (ObjectDisposedException)
         {
+            // Semaphore already disposed
         }
     }
 
@@ -880,8 +893,9 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         {
             NetworkChange.NetworkAddressChanged -= this.OnNetworkAddressChanged;
         }
-        catch
+        catch (Exception)
         {
+            // Ignore unregistration failure during async dispose
         }
 
         try
@@ -890,6 +904,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         }
         catch (ObjectDisposedException)
         {
+            // Timer already disposed
         }
 
         try
@@ -897,8 +912,9 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             using var cts = new CancellationTokenSource(2000);
             await this.StopAsync(cts.Token).ConfigureAwait(false);
         }
-        catch
+        catch (Exception)
         {
+            // StopAsync timed out or threw during async dispose
         }
 
         try
@@ -907,6 +923,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         }
         catch (ObjectDisposedException)
         {
+            // Semaphore already disposed
         }
     }
 
@@ -1043,6 +1060,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         }
         catch (ObjectDisposedException)
         {
+            // Service or renewal lock disposed during renewal check
         }
         catch (Exception ex)
         {
@@ -1056,6 +1074,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             }
             catch (ObjectDisposedException)
             {
+                // Renewal lock disposed during shutdown
             }
         }
     }
@@ -1279,8 +1298,9 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 {
                     udp?.Dispose();
                 }
-                catch
+                catch (Exception)
                 {
+                    // UdpClient already disposed
                 }
             }
 
@@ -1365,6 +1385,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             }
             catch (ObjectDisposedException)
             {
+                // Service disposed during reboot renewal
             }
             catch (Exception ex)
             {
@@ -1430,8 +1451,9 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 return ep.Address;
             }
         }
-        catch
+        catch (Exception)
         {
+            // UDP socket connect probe failed
         }
 
         try
@@ -1452,8 +1474,9 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 return gwMatch.UnicastAddresses[0].Address;
             }
         }
-        catch
+        catch (Exception)
         {
+            // Failed to match candidate local IP address for gateway
         }
 
         return null;
