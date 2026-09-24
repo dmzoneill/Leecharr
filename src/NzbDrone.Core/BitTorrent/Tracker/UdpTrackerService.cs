@@ -125,8 +125,13 @@ public class UdpTrackerService : IUdpTrackerService
             {
                 await tokenSource.CancelAsync();
             }
-            catch
+            catch (ObjectDisposedException)
             {
+                // Token source already disposed during shutdown
+            }
+            catch (Exception ex)
+            {
+                this.logger.Trace(ex, "Exception while cancelling UDP tracker token source");
             }
         }
 
@@ -136,8 +141,13 @@ public class UdpTrackerService : IUdpTrackerService
             {
                 await Task.WhenAny(task, Task.Delay(2000, cancellationToken));
             }
-            catch
+            catch (OperationCanceledException)
             {
+                // Shutdown delay or task wait was canceled
+            }
+            catch (Exception ex)
+            {
+                this.logger.Trace(ex, "Exception while awaiting UDP tracker listen task shutdown");
             }
         }
 
@@ -425,8 +435,9 @@ public class UdpTrackerService : IUdpTrackerService
             this.socket?.Close();
             this.socket?.Dispose();
         }
-        catch
+        catch (Exception ex)
         {
+            this.logger.Trace(ex, "Exception while closing and disposing UDP tracker socket");
         }
         finally
         {

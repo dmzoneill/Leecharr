@@ -204,8 +204,9 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
                             process.Kill(true);
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        this.logger.Trace(ex, "Failed to kill 7-Zip process on cancellation");
                     }
 
                     this.RollbackExtractedFiles(normalizedDest, existingFiles, existingDirectories);
@@ -253,8 +254,9 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
                             process.Kill(true);
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        this.logger.Trace(ex, "Failed to kill 7-Zip process during disposal");
                     }
 
                     process.Dispose();
@@ -302,8 +304,9 @@ public class SevenZipExtractorProvider : IArchiveExtractorProvider
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Trace(ex, "Failed to recurse into directory '{Directory}' during snapshot", current);
             }
         }
 

@@ -567,6 +567,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
             }
             catch (Exception)
             {
+                // Cancellation token source may already be canceled or disposed
             }
 
             try
@@ -575,6 +576,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
             }
             catch (Exception)
             {
+                // Token source already disposed during concurrent cleanup
             }
         }
 

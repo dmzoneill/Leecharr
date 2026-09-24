@@ -332,8 +332,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             Directory.CreateDirectory(cacheDir);
         }
-        catch
+        catch (Exception ex)
         {
+            this.logger.Trace(ex, "Failed to create MonoTorrent cache directory '{CacheDir}'", cacheDir);
         }
 
         var allowedEncryption = GetAllowedEncryption(this.configService.EncryptionMode);
@@ -705,8 +706,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             {
                 inFlight.Cancel();
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Trace(ex, "Exception cancelling in-flight torrent add on engine stop");
             }
         }
 
@@ -1037,8 +1039,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             {
                 Directory.CreateDirectory(workingPath);
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Trace(ex, "Failed to create working directory '{WorkingPath}'", workingPath);
             }
 
             var isProxyConfigured = this.configService.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
@@ -1117,8 +1120,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                                     }
                                 }
                             }
-                            catch
+                            catch (Exception ex)
                             {
+                                this.logger.Trace(ex, "Failed to parse webseeds from magnet URI in AddStreamingAsync");
                             }
 
                             manager = await this.engine.AddStreamingAsync(magnetLink, workingPath, torrentSettings);
@@ -1155,8 +1159,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                                     }
                                 }
                             }
-                            catch
+                            catch (Exception ex)
                             {
+                                this.logger.Trace(ex, "Failed to parse webseeds from magnet URI in AddAsync");
                             }
 
                             manager = await this.engine.AddAsync(magnetLink, workingPath, torrentSettings);
@@ -1495,8 +1500,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 {
                     removedCts.Dispose();
                 }
-                catch
+                catch (ObjectDisposedException)
                 {
+                    // CancellationTokenSource already disposed
                 }
             }
 
@@ -1569,6 +1575,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
             catch (ObjectDisposedException)
             {
+                // In-flight CTS already disposed during removal
             }
 
             for (var i = 0; i < 50 && this.inFlightAdds.ContainsKey(torrentId); i++)
@@ -2896,8 +2903,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         {
                             await task.Manager.ChangePickerAsync(requester).ConfigureAwait(false);
                         }
-                        catch
+                        catch (Exception ex)
                         {
+                            this.logger.Trace(ex, "Failed to update picker on stopped TorrentManager");
                         }
                     }
 
@@ -4078,8 +4086,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 }
             }
         }
-        catch
+        catch (Exception)
         {
+            // Failed to read internal MonoTorrent disk IO telemetry properties
         }
     }
 
@@ -4874,8 +4883,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 {
                     Assembly.Load(new AssemblyName(asmName));
                 }
-                catch
+                catch (Exception)
                 {
+                    // Assembly may not be present in bin directory, ignore
                 }
             }
 
@@ -4908,8 +4918,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         SetStaticField(clientIdentifierField, cleanIdentifier);
                     }
                 }
-                catch
+                catch (Exception)
                 {
+                    // Failed to patch MonoTorrent.GitInfoHelper on this assembly
                 }
 
                 try
@@ -4922,8 +4933,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         dhtVersionField?.SetValue(null, new BEncodedString(cleanVersion));
                     }
                 }
-                catch
+                catch (Exception)
                 {
+                    // Failed to patch MonoTorrent.Dht.Messages.DhtMessage on this assembly
                 }
 
                 try
@@ -4942,8 +4954,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                         SetStaticField(extVerField, userAgent);
                     }
                 }
-                catch
+                catch (Exception)
                 {
+                    // Failed to patch ExtendedHandshakeMessage on this assembly
                 }
             }
         }
@@ -5393,8 +5406,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             totalSystemRam = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
         }
-        catch
+        catch (Exception)
         {
+            // GC memory info unavailable on this runtime/platform; fallback to default 8GB
         }
 
         if (totalSystemRam <= 0)
@@ -6046,8 +6060,9 @@ public class MonoTorrentDownloadTask : IDownloadTask
             {
                 clientStr = e.Peer?.ClientApp.Client.ToString();
             }
-            catch
+            catch (Exception)
             {
+                // Peer client string could not be formatted
             }
 
             clientStr ??= string.Empty;
@@ -6124,8 +6139,9 @@ public class MonoTorrentDownloadTask : IDownloadTask
             {
                 clientStr = e.Peer?.ClientApp.Client.ToString();
             }
-            catch
+            catch (Exception)
             {
+                // Peer client string could not be formatted
             }
 
             clientStr ??= string.Empty;
@@ -6175,8 +6191,9 @@ public class MonoTorrentDownloadTask : IDownloadTask
             var connProp = peer.GetType().GetProperty("Connection", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             (connProp?.GetValue(peer) as IDisposable)?.Dispose();
         }
-        catch
+        catch (Exception)
         {
+            // Peer connection disposal error, ignore
         }
     }
 
@@ -6793,8 +6810,9 @@ public class MonoTorrentDownloadTask : IDownloadTask
                         this.cachedMonoPeers = peers;
                     }
                 }
-                catch
+                catch (Exception)
                 {
+                    // Failed to query peers asynchronously from manager
                 }
                 finally
                 {
@@ -6860,8 +6878,9 @@ public class MonoTorrentDownloadTask : IDownloadTask
                     }
                 }
             }
-            catch
+            catch (Exception)
             {
+                // Failed to compute piece availability across active peers
             }
 
             if (this.Picker != null)
@@ -7015,8 +7034,9 @@ public class MonoTorrentDownloadTask : IDownloadTask
                 }
             }
         }
-        catch
+        catch (Exception)
         {
+            // Reflection reading incoming peer direction threw
         }
 
         return false;
@@ -7316,8 +7336,9 @@ public class FilteringPeerConnectionListener : MonoTorrent.Connections.Peer.IPee
             {
                 (e.Connection as IDisposable)?.Dispose();
             }
-            catch
+            catch (Exception)
             {
+                // Connection disposal failed
             }
 
             return;
@@ -7340,15 +7361,17 @@ public class FilteringPeerConnectionListener : MonoTorrent.Connections.Peer.IPee
                 {
                     (e.Connection as IDisposable)?.Dispose();
                 }
-                catch
+                catch (Exception)
                 {
+                    // Blocked connection disposal failed
                 }
 
                 return;
             }
         }
-        catch
+        catch (Exception)
         {
+            // URI or EndPoint formatting failed
         }
 
         if (!string.IsNullOrEmpty(ip) && this.maxConnectionsPerIp > 0)
@@ -7361,8 +7384,9 @@ public class FilteringPeerConnectionListener : MonoTorrent.Connections.Peer.IPee
                 {
                     (e.Connection as IDisposable)?.Dispose();
                 }
-                catch
+                catch (Exception)
                 {
+                    // Rate-limited connection disposal failed
                 }
 
                 return;
@@ -7381,8 +7405,9 @@ public class FilteringPeerConnectionListener : MonoTorrent.Connections.Peer.IPee
             {
                 (e.Connection as IDisposable)?.Dispose();
             }
-            catch
+            catch (Exception)
             {
+                // Max half-open connections exceeded, disposal failed
             }
 
             return;
@@ -7463,8 +7488,9 @@ public sealed class HandshakeMonitoredPeerConnection : MonoTorrent.Connections.P
                 {
                     this.inner.Dispose();
                 }
-                catch
+                catch (Exception)
                 {
+                    // Inner connection disposal failed
                 }
 
                 this.onHandshakeCompletedOrClosed?.Invoke();
@@ -7522,8 +7548,9 @@ public sealed class HandshakeMonitoredPeerConnection : MonoTorrent.Connections.P
                     this.timeoutCts.CancelAfter(Timeout.InfiniteTimeSpan);
                     this.timeoutCts.Dispose();
                 }
-                catch
+                catch (ObjectDisposedException)
                 {
+                    // Timeout CTS already disposed
                 }
 
                 this.onHandshakeCompletedOrClosed?.Invoke();
@@ -7552,8 +7579,9 @@ public sealed class HandshakeMonitoredPeerConnection : MonoTorrent.Connections.P
                 this.timeoutCts.CancelAfter(Timeout.InfiniteTimeSpan);
                 this.timeoutCts.Dispose();
             }
-            catch
+            catch (ObjectDisposedException)
             {
+                // Timeout CTS already disposed
             }
 
             this.onHandshakeCompletedOrClosed?.Invoke();
@@ -7565,16 +7593,18 @@ public sealed class HandshakeMonitoredPeerConnection : MonoTorrent.Connections.P
             {
                 this.inner.Dispose();
             }
-            catch
+            catch (Exception)
             {
+                // Inner connection disposal failed
             }
 
             try
             {
                 this.onDisposed?.Invoke();
             }
-            catch
+            catch (Exception)
             {
+                // Callback invoked on disposal threw
             }
         }
     }
