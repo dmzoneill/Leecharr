@@ -81,7 +81,7 @@ export function SettingsDirtyProvider({
 
       return false;
     },
-    [isDirty, confirmCtx],
+    [isDirty, confirmCtx, t],
   );
 
   return (

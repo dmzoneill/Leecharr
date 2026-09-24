@@ -51,6 +51,108 @@ function getPathSegments(path: string): { label: string; fullPath: string }[] {
   return result;
 }
 
+export type FileCategory =
+  | "folder"
+  | "video"
+  | "audio"
+  | "archive"
+  | "nfo"
+  | "subtitle"
+  | "torrent"
+  | "document"
+  | "executable"
+  | "image"
+  | "code"
+  | "text"
+  | "other";
+
+export function getFileCategory(fileName: string): FileCategory {
+  if (!fileName || !fileName.includes(".")) return "other";
+  const ext = fileName.split(".").pop()?.toLowerCase() || "";
+
+  if (
+    [
+      "mkv", "mp4", "avi", "mov", "m4v", "webm", "flv", "wmv", "ts",
+      "m2ts", "mpg", "mpeg", "vob", "ogv", "3gp", "divx", "rmvb", "asf",
+    ].includes(ext)
+  ) {
+    return "video";
+  }
+
+  if (
+    [
+      "mp3", "flac", "wav", "m4a", "aac", "ogg", "opus", "wma", "alac",
+      "ape", "mka", "mid", "midi", "ac3", "dts", "eac3", "aiff",
+    ].includes(ext)
+  ) {
+    return "audio";
+  }
+
+  if (
+    [
+      "zip", "rar", "7z", "tar", "gz", "bz2", "xz", "zst", "tgz",
+      "tbz2", "cab", "iso", "img", "dmg",
+    ].includes(ext)
+  ) {
+    return "archive";
+  }
+
+  if (["nfo", "diz"].includes(ext)) {
+    return "nfo";
+  }
+
+  if (["srt", "vtt", "ass", "ssa", "sub", "idx"].includes(ext)) {
+    return "subtitle";
+  }
+
+  if (ext === "torrent") {
+    return "torrent";
+  }
+
+  if (
+    [
+      "pdf", "doc", "docx", "epub", "mobi", "azw", "azw3", "cbz",
+      "cbr", "rtf", "odt", "xls", "xlsx", "csv", "tsv", "ppt", "pptx",
+    ].includes(ext)
+  ) {
+    return "document";
+  }
+
+  if (
+    [
+      "exe", "msi", "bin", "apk", "deb", "rpm", "run", "app", "pkg",
+    ].includes(ext)
+  ) {
+    return "executable";
+  }
+
+  if (
+    [
+      "png", "jpg", "jpeg", "webp", "gif", "bmp", "ico", "tiff",
+      "tif", "heic", "heif", "avif", "svg",
+    ].includes(ext)
+  ) {
+    return "image";
+  }
+
+  if (
+    [
+      "js", "ts", "jsx", "tsx", "py", "json", "xml", "html", "css",
+      "yaml", "yml", "toml", "ini", "conf", "config", "env", "sql",
+      "c", "cpp", "h", "cs", "java", "go", "rs", "php", "rb", "sh",
+      "bash", "zsh", "bat", "cmd", "ps1",
+    ].includes(ext)
+  ) {
+    return "code";
+  }
+
+  if (["txt", "log", "readme", "license", "changelog"].includes(ext)) {
+    return "text";
+  }
+
+  return "other";
+}
+
 export function FileBrowser() {
   const { language } = useI18nStore();
   const { t } = useTranslation();
@@ -456,7 +558,54 @@ export function FileBrowser() {
 
       enhanceContextMenu();
       enhanceToolbar();
+      enhanceFileItems();
     });
+
+    const enhanceFileItems = () => {
+      const items =
+        container.querySelectorAll<HTMLElement>(".file-item-container");
+      items.forEach((itemEl) => {
+        const title =
+          itemEl.getAttribute("title") ||
+          itemEl
+            .querySelector<HTMLElement>(".file-name")
+            ?.textContent?.trim() ||
+          "";
+
+        // Check if directory
+        const isDir =
+          itemEl.querySelector(".folder-item") !== null ||
+          files.find((f) => f.name === title)?.isDirectory;
+
+        if (isDir) {
+          itemEl.dataset.fileCategory = "folder";
+          return;
+        }
+
+        const category = getFileCategory(title);
+        const ext = title.includes(".")
+          ? title.split(".").pop()?.toLowerCase() || ""
+          : "";
+
+        if (itemEl.dataset.fileCategory !== category) {
+          itemEl.dataset.fileCategory = category;
+        }
+        if (ext && itemEl.dataset.fileExt !== ext) {
+          itemEl.dataset.fileExt = ext;
+        }
+
+        // Add badge if not present and not editing
+        if (!itemEl.querySelector(".rename-file-container")) {
+          const nameEl = itemEl.querySelector<HTMLElement>(".file-name");
+          if (nameEl && !itemEl.querySelector(".leecharr-file-badge")) {
+            const badge = document.createElement("span");
+            badge.className = `leecharr-file-badge leecharr-badge-${category}`;
+            badge.textContent = (ext || category).toUpperCase();
+            nameEl.insertAdjacentElement("beforebegin", badge);
+          }
+        }
+      });
+    };
 
     observer.observe(container, {
       childList: true,
@@ -466,6 +615,7 @@ export function FileBrowser() {
     });
 
     enhanceToolbar();
+    enhanceFileItems();
 
     return () => {
       container.removeEventListener("contextmenu", onContextMenuCapture, true);

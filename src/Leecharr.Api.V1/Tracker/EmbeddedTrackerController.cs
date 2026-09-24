@@ -175,8 +175,9 @@ public class EmbeddedTrackerController : ControllerBase
                 {
                     hist = this.downloadHistoryRepository.FindByInfoHash(hash);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    this.logger.Trace(ex, "Failed to find download history for infohash {Hash}", hash);
                 }
             }
 
@@ -187,8 +188,9 @@ public class EmbeddedTrackerController : ControllerBase
                 {
                     meta = this.mediaMetadataRepository.GetByTorrentId(torrent.Id);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    this.logger.Trace(ex, "Failed to retrieve media metadata for torrent {TorrentId}", torrent.Id);
                 }
             }
 

@@ -444,8 +444,9 @@ public class DownloadClientController : Controller
                     }
                 }
             }
-            catch (SocketException)
+            catch (SocketException ex)
             {
+                this.logger.Trace(ex, "Failed to resolve host '{Host}' during SSRF validation", trimmed);
             }
         }
     }
