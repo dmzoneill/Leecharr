@@ -316,7 +316,7 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
         }
     }
 
-    private static void InspectLocalArtwork(string directory, MediaMetadata meta)
+    private void InspectLocalArtwork(string directory, MediaMetadata meta)
     {
         try
         {
@@ -342,8 +342,9 @@ public class LocalNfoMetadataProvider : IMediaMetadataProvider
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
+            this.logger.Trace(ex, "Error scanning local poster/fanart images in {Directory}", directory);
         }
     }
 
