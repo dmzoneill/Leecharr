@@ -153,6 +153,18 @@ export function buildPlaylistUrl(torrentId: number, fileId: number): string {
   return `/api/v1/torrent/${torrentId}/files/${fileId}/stream.m3u`;
 }
 
+export function buildFileStreamUrl(path: string): string {
+  return `/api/v1/files/stream?path=${encodeURIComponent(path)}`;
+}
+
+export function buildFileDownloadUrl(path: string): string {
+  return `/api/v1/files/download?path=${encodeURIComponent(path)}`;
+}
+
+export function buildFilePlaylistUrl(path: string): string {
+  return `/api/v1/files/stream.m3u?path=${encodeURIComponent(path)}`;
+}
+
 export function getAbsoluteUrl(url: string, origin?: string): string {
   if (/^https?:\/\//i.test(url)) {
     return url;
