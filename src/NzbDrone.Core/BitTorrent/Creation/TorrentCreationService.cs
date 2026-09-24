@@ -444,8 +444,9 @@ public class TorrentCreationService : ITorrentCreationService
                     break;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Trace(ex, "Failed to resolve allowed path '{AllowedPath}' while validating target", allowed);
             }
         }
 
