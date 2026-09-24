@@ -6016,65 +6016,91 @@ input[type="number"]::-webkit-inner-spin-button {
   border-radius: 20px;
   border: 1px solid var(--border-light);
   font-size: 0.75rem;
+  user-select: none;
 }
 
 .wizard-mode-btn {
-  background: transparent;
-  color: var(--text-muted, #94a3b8);
-  border: 1px solid transparent;
+  background: transparent !important;
+  background-color: transparent !important;
+  color: var(--text-muted, #94a3b8) !important;
+  border: none !important;
   padding: 3px 10px;
   border-radius: 16px;
   font-size: 0.75rem;
-  font-weight: 400;
+  font-weight: 400 !important;
   cursor: pointer;
-  transition: all 0.2s ease;
-  outline: none;
+  transition: all 0.15s ease;
+  outline: none !important;
+  box-shadow: none !important;
   line-height: 1.4;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.wizard-mode-btn:focus,
+.wizard-mode-btn:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .wizard-mode-btn:hover:not(.active) {
-  color: var(--text-primary);
-  background: var(--bg-hover, rgba(255, 255, 255, 0.05));
+  color: var(--text-primary) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  background-color: rgba(255, 255, 255, 0.06) !important;
 }
 
 .wizard-mode-btn.active {
   background: var(--accent, #5b8def) !important;
+  background-color: var(--accent, #5b8def) !important;
   color: #ffffff !important;
-  font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  font-weight: 600 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
   border-color: transparent !important;
 }
 
 .wizard-step-tab {
-  background: transparent;
-  color: var(--text-muted, #64748b);
-  border: 1px solid transparent;
+  background: transparent !important;
+  background-color: transparent !important;
+  color: var(--text-muted, #64748b) !important;
+  border: 1px solid transparent !important;
   border-radius: 12px;
   padding: 2px 8px;
   font-size: 0.72rem;
-  font-weight: 400;
+  font-weight: 400 !important;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.15s ease;
-  outline: none;
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.wizard-step-tab:focus,
+.wizard-step-tab:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .wizard-step-tab:hover:not(.active) {
-  color: var(--text-primary);
-  background: var(--bg-hover, rgba(255, 255, 255, 0.05));
+  color: var(--text-primary) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.wizard-step-tab.completed {
+  background: rgba(255, 255, 255, 0.04) !important;
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  color: var(--text-secondary, #94a3b8) !important;
+  border: 1px solid var(--border-light, #222f46) !important;
+  font-weight: 500 !important;
 }
 
 .wizard-step-tab.active {
   background: var(--accent, #5b8def) !important;
+  background-color: var(--accent, #5b8def) !important;
   color: #ffffff !important;
-  font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  border-color: transparent !important;
-}
-
-.wizard-step-tab.completed {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-secondary, #cbd5e1);
-  border: 1px solid var(--border-light, #222f46);
-  font-weight: 500;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+  border: 1px solid transparent !important;
 }
