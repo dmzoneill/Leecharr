@@ -329,11 +329,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                 ["info_hash"] = torrent.InfoHash,
             };
 
-            if (torrent.Trackers != null && torrent.Trackers.Count > 0)
-            {
-                addArgs["trackers"] = torrent.Trackers;
-            }
-            else if (!string.IsNullOrWhiteSpace(torrent.TrackerUrl))
+            if (!string.IsNullOrWhiteSpace(torrent.TrackerUrl))
             {
                 addArgs["trackers"] = new List<string> { torrent.TrackerUrl };
             }
