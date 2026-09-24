@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.27.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.27.2) - 2026-09-24
+
+### ✨ Features
+- feat(filebrowser): add play, stream, m3u, and preview actions to toolbar and context menu
+
+### 🐛 Bug Fixes
+- fix(filebrowser): restore content-area layout wrapper and 1.5rem padding
+
 ## [v1.27.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.27.1) - 2026-09-24
 
 ### ✨ Features
