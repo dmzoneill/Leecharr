@@ -1691,6 +1691,8 @@ export interface FilePreviewResult {
   content?: string;
   truncated?: boolean;
   downloadUrl?: string;
+  streamUrl?: string;
+  playlistUrl?: string;
 }
 
 export type AutomationTrigger =
