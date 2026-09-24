@@ -53,8 +53,9 @@ public static class NotificationPayloadBuilder
                     sound = s.GetString() ?? s.ToString();
                 }
             }
-            catch
+            catch (JsonException)
             {
+                // Fall back to query-string extraction when JSON parsing fails
             }
         }
 
@@ -138,8 +139,9 @@ public static class NotificationPayloadBuilder
                     }
                 }
             }
-            catch
+            catch (JsonException)
             {
+                // Fall back to query-string extraction when JSON parsing fails
             }
         }
         else
@@ -212,8 +214,9 @@ public static class NotificationPayloadBuilder
                     }
                 }
             }
-            catch
+            catch (JsonException)
             {
+                // Fall back to alternative parsing strategy when JSON parsing fails
             }
         }
 
@@ -290,8 +293,9 @@ public static class NotificationPayloadBuilder
                     }
                 }
             }
-            catch
+            catch (JsonException)
             {
+                // Fall back to alternative parsing strategy when JSON parsing fails
             }
         }
 
@@ -357,8 +361,9 @@ public static class NotificationPayloadBuilder
                     }
                 }
             }
-            catch
+            catch (JsonException)
             {
+                // Fall back to alternative parsing strategy when JSON parsing fails
             }
         }
 
@@ -484,8 +489,9 @@ public static class NotificationPayloadBuilder
                     }
                 }
             }
-            catch
+            catch (JsonException)
             {
+                // Fall back to alternative parsing strategy when JSON parsing fails
             }
         }
         else
@@ -575,8 +581,9 @@ public static class NotificationPayloadBuilder
                     }
                 }
             }
-            catch
+            catch (JsonException)
             {
+                // Fall back to alternative parsing strategy when JSON parsing fails
             }
         }
         else
@@ -654,8 +661,9 @@ public static class NotificationPayloadBuilder
                     candidateUrl = u.GetString() ?? trimmed;
                 }
             }
-            catch
+            catch (JsonException)
             {
+                // Fall back to alternative parsing strategy when JSON parsing fails
             }
         }
         else if (trimmed.Contains("url="))
@@ -725,8 +733,9 @@ public static class NotificationPayloadBuilder
                     }
                 }
             }
-            catch
+            catch (JsonException)
             {
+                // Fall back to alternative parsing strategy when JSON parsing fails
             }
         }
 
@@ -779,8 +788,9 @@ public static class NotificationPayloadBuilder
                             return JsonSerializer.Serialize(dict);
                         }
                     }
-                    catch
+                    catch (JsonException)
                     {
+                        // Fall back to alternative parsing strategy when JSON parsing fails
                     }
                 }
 
@@ -1069,7 +1079,7 @@ public static class NotificationPayloadBuilder
         {
             return (string)meta.Overview;
         }
-        catch
+        catch (Exception)
         {
             try
             {
@@ -1079,8 +1089,9 @@ public static class NotificationPayloadBuilder
                     return prop.GetValue((object)meta) as string;
                 }
             }
-            catch
+            catch (Exception)
             {
+                // Ignore missing dynamic Overview property fallback
             }
 
             return null;
@@ -1736,8 +1747,9 @@ public static class NotificationPayloadBuilder
             var prop = meta.GetType().GetProperty("Title", BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
             return prop?.GetValue(meta)?.ToString();
         }
-        catch
+        catch (Exception)
         {
+            // Ignore reflection errors on non-compliant metadata models
             return null;
         }
     }
@@ -1763,8 +1775,9 @@ public static class NotificationPayloadBuilder
                 return parsed;
             }
         }
-        catch
+        catch (Exception)
         {
+            // Ignore reflection errors on non-compliant metadata models
         }
 
         return null;
