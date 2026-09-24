@@ -209,8 +209,9 @@ public sealed class LinuxPtySession : ITerminalSession
             {
                 NativePty.Kill(this.pid, 15); // SIGTERM
             }
-            catch
+            catch (Exception)
             {
+                // Process may have already exited before SIGTERM signal could be delivered
             }
 
             var sw = Stopwatch.StartNew();
@@ -234,8 +235,9 @@ public sealed class LinuxPtySession : ITerminalSession
                 {
                     NativePty.Kill(this.pid, 9); // SIGKILL
                 }
-                catch
+                catch (Exception)
                 {
+                    // Process may have already exited before SIGKILL signal could be delivered
                 }
 
                 var killSw = Stopwatch.StartNew();
