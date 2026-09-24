@@ -6,6 +6,7 @@ import {
   useTorrentEngines,
   useActiveTorrentEngine,
   useSwitchTorrentEngine,
+  useSwitchTorrentEngineVersion,
   useProbeTorrentEngine,
 } from "../../api/hooks";
 import {
@@ -31,12 +32,16 @@ export function EngineSettingsTab() {
   const { data: engines } = useTorrentEngines();
   const { data: activeEngineData } = useActiveTorrentEngine();
   const switchMutation = useSwitchTorrentEngine();
+  const switchVersionMutation = useSwitchTorrentEngineVersion();
   const probeMutation = useProbeTorrentEngine();
 
   const [probeResult, setProbeResult] = useState<EngineProbeResult | null>(
     null,
   );
   const [probingEngineId, setProbingEngineId] = useState<string | null>(null);
+  const [selectedEngineVersions, setSelectedEngineVersions] = useState<
+    Record<string, string>
+  >({});
 
   const [form, setForm] = useState({
     activeTorrentEngine: "MonoTorrent",
@@ -62,12 +67,23 @@ export function EngineSettingsTab() {
   });
 
   const [dirty, setDirty] = useState(false);
-  const [selectedEngineForSwitch, setSelectedEngineForSwitch] = useState<
-    string | null
-  >(null);
+  const [selectedEngineForSwitch, setSelectedEngineForSwitch] = useState<{
+    engineId: string;
+    version?: string;
+  } | null>(null);
+  const [selectedVersionForSwitch, setSelectedVersionForSwitch] = useState<{
+    engineId: string;
+    fromVersion: string;
+    toVersion: string;
+  } | null>(null);
+
   useEscapeKey(
     () => setSelectedEngineForSwitch(null),
     Boolean(selectedEngineForSwitch),
+  );
+  useEscapeKey(
+    () => setSelectedVersionForSwitch(null),
+    Boolean(selectedVersionForSwitch),
   );
   useEscapeKey(() => setProbeResult(null), Boolean(probeResult));
 
@@ -165,9 +181,10 @@ export function EngineSettingsTab() {
 
   const handleSwitchConfirm = () => {
     if (selectedEngineForSwitch) {
-      const targetEngine = selectedEngineForSwitch;
+      const targetEngine = selectedEngineForSwitch.engineId;
+      const targetVersion = selectedEngineForSwitch.version;
       switchMutation.mutate(
-        { engineId: targetEngine, preserveTransfers: true },
+        { engineId: targetEngine, version: targetVersion, preserveTransfers: true },
         {
           onSuccess: (res: any) => {
             setSelectedEngineForSwitch(null);
@@ -176,8 +193,10 @@ export function EngineSettingsTab() {
             showToast(
               res?.message ||
                 t("settingsTabs.engine.switchedEngine", {
-                  engine: targetEngine,
-                  defaultValue: `Switched active torrent engine to ${targetEngine}`,
+                  engine: targetVersion
+                    ? `${targetEngine} (v${targetVersion})`
+                    : targetEngine,
+                  defaultValue: `Switched active torrent engine to ${targetEngine}${targetVersion ? ` (v${targetVersion})` : ""}`,
                 }),
               "success",
             );
@@ -196,17 +215,45 @@ export function EngineSettingsTab() {
     }
   };
 
-  const handleProbe = async (engineId: string) => {
+  const handleSwitchVersionConfirm = () => {
+    if (selectedVersionForSwitch) {
+      const targetVersion = selectedVersionForSwitch.toVersion;
+      switchVersionMutation.mutate(
+        { version: targetVersion, preserveTransfers: true },
+        {
+          onSuccess: (res: any) => {
+            setSelectedVersionForSwitch(null);
+            showToast(
+              res?.message ||
+                `Switched active engine version to v${targetVersion}`,
+              "success",
+            );
+          },
+          onError: (err: any) => {
+            const errorMsg =
+              err?.response?.data?.error ||
+              err?.response?.data?.message ||
+              err?.message ||
+              "Failed to switch engine version";
+            showToast(errorMsg, "error");
+            setSelectedVersionForSwitch(null);
+          },
+        },
+      );
+    }
+  };
+
+  const handleProbe = async (engineId: string, version?: string) => {
     setProbingEngineId(engineId);
     try {
-      const res = await probeMutation.mutateAsync(engineId);
+      const res = await probeMutation.mutateAsync({ engineId, version });
       setProbeResult(res);
       if (res.isHealthy) {
         showToast(
           res.statusMessage ||
             t("settingsTabs.engine.engineHealthy", {
-              engine: engineId,
-              defaultValue: `${engineId} is healthy and operational.`,
+              engine: version ? `${engineId} (v${version})` : engineId,
+              defaultValue: `${engineId}${version ? ` (v${version})` : ""} is healthy and operational.`,
             }),
           "success",
         );
@@ -214,8 +261,8 @@ export function EngineSettingsTab() {
         showToast(
           res.statusMessage ||
             t("settingsTabs.engine.engineIssues", {
-              engine: engineId,
-              defaultValue: `${engineId} health check reported issues.`,
+              engine: version ? `${engineId} (v${version})` : engineId,
+              defaultValue: `${engineId}${version ? ` (v${version})` : ""} health check reported issues.`,
             }),
           "error",
         );
@@ -223,9 +270,9 @@ export function EngineSettingsTab() {
     } catch (err: any) {
       showToast(
         t("settingsTabs.engine.probeFailed", {
-          engine: engineId,
+          engine: version ? `${engineId} (v${version})` : engineId,
           error: err?.message || t("settingsTabs.notifications.unknownError"),
-          defaultValue: `Probe failed for ${engineId}: ${err?.message || ""}`,
+          defaultValue: `Probe failed for ${engineId}${version ? ` (v${version})` : ""}: ${err?.message || ""}`,
         }),
         "error",
       );
@@ -274,6 +321,25 @@ export function EngineSettingsTab() {
           {engines?.map((eng) => {
             const engineId = eng.engineId || (eng as any).engineType || "";
             const isActive = engineId.toLowerCase() === currentActiveEngine;
+            const supportedVersions =
+              eng.supportedVersions && eng.supportedVersions.length > 0
+                ? eng.supportedVersions
+                : eng.version
+                  ? [eng.version]
+                  : [];
+            const hasMultipleVersions = supportedVersions.length > 1;
+            const currentSelectedVersion =
+              selectedEngineVersions[engineId] ||
+              eng.activeVersion ||
+              supportedVersions[0] ||
+              eng.version;
+            const activeVersion = eng.activeVersion || eng.version;
+            const isVersionActive =
+              isActive && currentSelectedVersion === activeVersion;
+            const selectedCaps =
+              eng.versionCapabilities?.[currentSelectedVersion] ||
+              eng.capabilities;
+
             return (
               <div
                 key={engineId || eng.displayName}
@@ -344,46 +410,221 @@ export function EngineSettingsTab() {
                   >
                     {eng.description}
                   </div>
+
+                  {/* Version Selection */}
                   <div
                     style={{
-                      fontSize: "0.75rem",
-                      color: "var(--text-secondary)",
+                      marginTop: "0.5rem",
+                      marginBottom: "0.5rem",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.35rem",
                     }}
                   >
-                    {t("settingsTabs.batch2.version")}:{" "}
-                    <strong>{eng.version}</strong>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <label
+                        style={{
+                          fontSize: "0.75rem",
+                          fontWeight: 600,
+                          color: "var(--text-secondary)",
+                          margin: 0,
+                        }}
+                      >
+                        {t("settingsTabs.batch2.version")}:
+                      </label>
+                      {isActive && activeVersion && (
+                        <span
+                          style={{
+                            fontSize: "0.7rem",
+                            color: "var(--text-muted)",
+                          }}
+                        >
+                          Running: <strong>v{activeVersion}</strong>
+                        </span>
+                      )}
+                    </div>
+
+                    {hasMultipleVersions ? (
+                      <select
+                        className="form-control"
+                        value={currentSelectedVersion}
+                        onChange={(e) =>
+                          setSelectedEngineVersions((prev) => ({
+                            ...prev,
+                            [engineId]: e.target.value,
+                          }))
+                        }
+                        style={{
+                          fontSize: "0.8rem",
+                          padding: "0.25rem 0.5rem",
+                          height: "auto",
+                          backgroundColor: "var(--bg-secondary)",
+                          color: "var(--text-primary)",
+                          borderColor: "var(--border)",
+                          borderRadius: "4px",
+                        }}
+                      >
+                        {supportedVersions.map((v) => (
+                          <option key={v} value={v}>
+                            v{v}
+                            {isActive && v === activeVersion
+                              ? " (Active)"
+                              : ""}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div
+                        style={{
+                          fontSize: "0.8rem",
+                          color: "var(--text-primary)",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {eng.version}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Dynamic Version Capabilities */}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: "0.3rem",
+                      marginTop: "0.4rem",
+                    }}
+                  >
+                    {selectedCaps?.supportsV2Torrents ? (
+                      <span
+                        className="badge badge-info"
+                        style={{
+                          fontSize: "0.65rem",
+                          padding: "0.1rem 0.35rem",
+                        }}
+                        title="Supports BitTorrent v2 Merkle trees and hybrid swarms"
+                      >
+                        v1 + v2 Merkle
+                      </span>
+                    ) : (
+                      <span
+                        className="badge badge-secondary"
+                        style={{
+                          fontSize: "0.65rem",
+                          padding: "0.1rem 0.35rem",
+                        }}
+                        title="BitTorrent v1 single SHA-1 hash only"
+                      >
+                        v1 Only
+                      </span>
+                    )}
+                    {selectedCaps?.supportsMemoryMappedIo ? (
+                      <span
+                        className="badge badge-info"
+                        style={{
+                          fontSize: "0.65rem",
+                          padding: "0.1rem 0.35rem",
+                        }}
+                        title="Asynchronous memory-mapped / disk AIO"
+                      >
+                        Async AIO
+                      </span>
+                    ) : (
+                      <span
+                        className="badge badge-secondary"
+                        style={{
+                          fontSize: "0.65rem",
+                          padding: "0.1rem 0.35rem",
+                        }}
+                        title="POSIX synchronous disk I/O"
+                      >
+                        POSIX I/O
+                      </span>
+                    )}
+                    {selectedCaps?.supportsUtp && (
+                      <span
+                        className="badge badge-secondary"
+                        style={{
+                          fontSize: "0.65rem",
+                          padding: "0.1rem 0.35rem",
+                        }}
+                      >
+                        uTP
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 <div
                   style={{
                     display: "flex",
-                    gap: "0.5rem",
+                    flexDirection: "column",
+                    gap: "0.4rem",
                     marginTop: "0.5rem",
                   }}
                 >
-                  <button
-                    type="button"
-                    className="btn btn-outline btn-small"
-                    onClick={() => handleProbe(engineId)}
-                    disabled={probingEngineId !== null}
-                    style={{ flex: 1, fontSize: "0.75rem" }}
-                  >
-                    {probingEngineId === engineId
-                      ? t("settingsTabs.batch2.probing")
-                      : t("settingsTabs.batch2.probeHealth")}
-                  </button>
-                  {!isActive && (
+                  {isActive && hasMultipleVersions && !isVersionActive && (
                     <button
                       type="button"
-                      className="btn btn-primary btn-small"
-                      onClick={() => setSelectedEngineForSwitch(engineId)}
-                      disabled={!eng.isAvailable || switchMutation.isPending}
-                      style={{ flex: 1, fontSize: "0.75rem" }}
+                      className="btn btn-warning btn-small"
+                      onClick={() =>
+                        setSelectedVersionForSwitch({
+                          engineId,
+                          fromVersion: activeVersion,
+                          toVersion: currentSelectedVersion,
+                        })
+                      }
+                      disabled={switchVersionMutation.isPending}
+                      style={{ fontSize: "0.75rem", width: "100%" }}
                     >
-                      {t("settingsTabs.batch2.hotSwap")}
+                      ⚡ Switch to v{currentSelectedVersion}
                     </button>
                   )}
+
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "0.5rem",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-small"
+                      onClick={() =>
+                        handleProbe(engineId, currentSelectedVersion)
+                      }
+                      disabled={probingEngineId !== null}
+                      style={{ flex: 1, fontSize: "0.75rem" }}
+                    >
+                      {probingEngineId === engineId
+                        ? t("settingsTabs.batch2.probing")
+                        : t("settingsTabs.batch2.probeHealth")}
+                    </button>
+                    {!isActive && (
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-small"
+                        onClick={() =>
+                          setSelectedEngineForSwitch({
+                            engineId,
+                            version: currentSelectedVersion,
+                          })
+                        }
+                        disabled={
+                          !eng.isAvailable || switchMutation.isPending
+                        }
+                        style={{ flex: 1, fontSize: "0.75rem" }}
+                      >
+                        {t("settingsTabs.batch2.hotSwap")}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -709,7 +950,13 @@ export function EngineSettingsTab() {
               }}
             >
               Are you sure you want to switch the active BitTorrent engine to{" "}
-              <strong>{selectedEngineForSwitch}</strong>?
+              <strong>
+                {selectedEngineForSwitch.engineId}
+                {selectedEngineForSwitch.version
+                  ? ` (v${selectedEngineForSwitch.version})`
+                  : ""}
+              </strong>
+              ?
             </p>
             <p
               style={{
@@ -751,6 +998,72 @@ export function EngineSettingsTab() {
         </div>
       )}
 
+      {/* Version Switch Modal */}
+      {selectedVersionForSwitch && (
+        <div
+          className="modal-overlay"
+          onClick={() => setSelectedVersionForSwitch(null)}
+        >
+          <div
+            className="modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 460 }}
+          >
+            <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.2rem" }}>
+              Switch Active Engine Version
+            </h2>
+            <p
+              style={{
+                color: "var(--text-secondary)",
+                fontSize: "0.9rem",
+                lineHeight: 1.4,
+              }}
+            >
+              Are you sure you want to switch the active{" "}
+              <strong>{selectedVersionForSwitch.engineId}</strong> engine version from{" "}
+              <strong>v{selectedVersionForSwitch.fromVersion}</strong> to{" "}
+              <strong>v{selectedVersionForSwitch.toVersion}</strong>?
+            </p>
+            <p
+              style={{
+                color: "var(--text-muted)",
+                fontSize: "0.82rem",
+                lineHeight: 1.4,
+              }}
+            >
+              The engine session will be gracefully re-initialized with target version
+              capabilities. Active torrent bitfields and transfer states are preserved.
+            </p>
+            <div
+              style={{
+                display: "flex",
+                gap: "0.5rem",
+                justifyContent: "flex-end",
+                marginTop: "1.5rem",
+              }}
+            >
+              <button
+                type="button"
+                className="btn btn-outline btn-small"
+                onClick={() => setSelectedVersionForSwitch(null)}
+              >
+                {t("settingsTabs.categories.modal.cancel")}
+              </button>
+              <button
+                type="button"
+                className="btn btn-warning btn-small"
+                onClick={handleSwitchVersionConfirm}
+                disabled={switchVersionMutation.isPending}
+              >
+                {switchVersionMutation.isPending
+                  ? "Switching Version..."
+                  : "Confirm Version Switch"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Probe Diagnostic Results Modal */}
       {probeResult && (
         <div className="modal-overlay" onClick={() => setProbeResult(null)}>
@@ -775,6 +1088,7 @@ export function EngineSettingsTab() {
                 }}
               >
                 Probe Results: {probeResult.engineId}
+                {probeResult.version ? ` (v${probeResult.version})` : ""}
               </h2>
               <span
                 style={{

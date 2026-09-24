@@ -31,6 +31,7 @@ import type {
   TorrentEngine,
   ActiveEngineStatus,
   SwitchEngineRequest,
+  SwitchEngineVersionRequest,
   SwitchEngineResult,
   EngineProbeResult,
   SubsystemOverview,
@@ -1094,8 +1095,23 @@ export function useActiveTorrentEngine() {
 export function useSwitchTorrentEngine() {
   const queryClient = useQueryClient();
   return useMutation<SwitchEngineResult, Error, SwitchEngineRequest>({
-    mutationFn: (req: SwitchEngineRequest) =>
-      apiClient.post("/torrentengine/switch", req),
+    mutationFn: (req: SwitchEngineRequest) => {
+      const params = req.version ? `?version=${encodeURIComponent(req.version)}` : "";
+      return apiClient.post(`/torrentengine/switch${params}`, req);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["torrentengine"] });
+      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+      queryClient.invalidateQueries({ queryKey: ["config"] });
+    },
+  });
+}
+
+export function useSwitchTorrentEngineVersion() {
+  const queryClient = useQueryClient();
+  return useMutation<SwitchEngineResult, Error, SwitchEngineVersionRequest>({
+    mutationFn: (req: SwitchEngineVersionRequest) =>
+      apiClient.post("/torrentengine/version", req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["torrentengine"] });
       queryClient.invalidateQueries({ queryKey: ["torrents"] });
@@ -1105,9 +1121,13 @@ export function useSwitchTorrentEngine() {
 }
 
 export function useProbeTorrentEngine() {
-  return useMutation<EngineProbeResult, Error, string>({
-    mutationFn: (engineId: string) =>
-      apiClient.post(`/torrentengine/${engineId}/probe`, {}),
+  return useMutation<EngineProbeResult, Error, { engineId: string; version?: string } | string>({
+    mutationFn: (arg: { engineId: string; version?: string } | string) => {
+      const engineId = typeof arg === "string" ? arg : arg.engineId;
+      const version = typeof arg === "object" ? arg.version : undefined;
+      const params = version ? `?version=${encodeURIComponent(version)}` : "";
+      return apiClient.post(`/torrentengine/${engineId}/probe${params}`, {});
+    },
   });
 }
 
