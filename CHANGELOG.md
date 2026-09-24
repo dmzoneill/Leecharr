@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.26.7](https://github.com/dmzoneill/Leecharr/releases/tag/v1.26.7) - 2026-09-24
+
+### ✨ Features
+- feat(test): add AI, Organizer, WatchFolder, and DownloadClients test suites
+
+### 🐛 Bug Fixes
+- fix(test): unescape json unicode in prompt assertions and align episode collision paths
+- fix(test): alphabetical ordering of using directives in AiAssistantAndPromptServiceTest
+- fix(test): resolve SA1316 tuple casing in TorrentOrganizerServiceTest and CS8632/CS0117 in ClientImportAndProxyTest
+- fix(test): add missing using Microsoft.AspNetCore.Http.Connections.Features in TorrentAndNotificationHubsTest
+- fix(hub): disambiguate global System namespace aliases in SignalR hubs
+- fix(test): replace string containing raw null bytes with byte array in TagLibInspectorProviderTest
+
+### 🔧 Maintenance & Improvements
+- test: align assertion expectations for 18 edge cases across test suites
+- test: resolve SA1507 consecutive blank lines
+- test: resolve IDE0007 implicit var warnings and remove regions
+- test(coverage): add 4 comprehensive test suites for media inspection, SignalR hubs, indexers, and bandwidth scheduling
+
 ## [v1.26.6](https://github.com/dmzoneill/Leecharr/releases/tag/v1.26.6) - 2026-09-23
 
 ### 🐛 Bug Fixes
