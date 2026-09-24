@@ -39,6 +39,14 @@ async function parseResponseBody<T>(response: Response): Promise<T> {
   try {
     return JSON.parse(text) as T;
   } catch {
+    const contentType = response.headers.get("content-type") || "";
+    if (
+      contentType.includes("text/html") ||
+      text.trim().toLowerCase().startsWith("<!doctype html") ||
+      text.trim().toLowerCase().startsWith("<html")
+    ) {
+      throw new Error(`Unexpected HTML response from API endpoint`);
+    }
     return text as unknown as T;
   }
 }

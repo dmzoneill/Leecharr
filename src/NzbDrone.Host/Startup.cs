@@ -455,6 +455,13 @@ public class Startup
 
         app.MapFallback(async context =>
         {
+            if (context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase) ||
+                context.Request.Path.StartsWithSegments("/signalr", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.StatusCode = Microsoft.AspNetCore.Http.StatusCodes.Status404NotFound;
+                return;
+            }
+
             var webRoot = app.Environment.WebRootPath ?? Path.Combine(AppContext.BaseDirectory, "wwwroot");
             var indexPath = Path.Combine(webRoot, "index.html");
             if (File.Exists(indexPath))
