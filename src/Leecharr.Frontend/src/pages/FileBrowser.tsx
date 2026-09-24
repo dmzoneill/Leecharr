@@ -670,7 +670,6 @@ export function FileBrowser() {
             ?.textContent?.trim() ||
           "";
 
-        // Check if directory
         const isDir =
           itemEl.querySelector(".folder-item") !== null ||
           files.find((f) => f.name === title)?.isDirectory;

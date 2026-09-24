@@ -269,8 +269,9 @@ public class StoragePathService : IStoragePathService
                 return true;
             }
         }
-        catch
+        catch (Exception ex)
         {
+            this.logger.Trace(ex, "Failed to resolve full path when comparing {Source} and {Destination}", actualSource, finalDestination);
         }
 
         try
@@ -629,8 +630,9 @@ public class StoragePathService : IStoragePathService
             {
                 File.SetUnixFileMode(path, dirMode);
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Trace(ex, "Unable to set Unix file mode on directory {Path}", path);
             }
 
             var dirs = this.diskProvider.GetDirectories(path);
@@ -651,8 +653,9 @@ public class StoragePathService : IStoragePathService
                     {
                         File.SetUnixFileMode(f, fileMode);
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        this.logger.Trace(ex, "Unable to set Unix file mode on file {File}", f);
                     }
                 }
             }
@@ -663,8 +666,9 @@ public class StoragePathService : IStoragePathService
             {
                 File.SetUnixFileMode(path, fileMode);
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Trace(ex, "Unable to set Unix file mode on file {Path}", path);
             }
         }
     }
@@ -697,8 +701,9 @@ public class StoragePathService : IStoragePathService
             {
                 dirModeInt = Convert.ToInt32(configuredFolderChmod.Trim(), 8);
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Debug(ex, "Invalid octal value for FolderChmod: {Value}", configuredFolderChmod);
             }
         }
 
@@ -709,8 +714,9 @@ public class StoragePathService : IStoragePathService
             {
                 fileModeInt = Convert.ToInt32(configuredFileChmod.Trim(), 8);
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Debug(ex, "Invalid octal value for FileChmod: {Value}", configuredFileChmod);
             }
         }
 
@@ -733,8 +739,9 @@ public class StoragePathService : IStoragePathService
         {
             incompleteDir = this.GetIncompleteDirectory()?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         }
-        catch
+        catch (Exception ex)
         {
+            this.logger.Trace(ex, "Unable to resolve incomplete directory for path normalization");
         }
 
         var incompleteCandidates = new List<string>();

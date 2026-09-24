@@ -25,20 +25,13 @@ export function getPermissions(
   const roles = user?.roles ?? [];
   const normalizedRoles = roles.map((r) => r.toLowerCase().trim());
 
-  // Check if authenticated
   const isAuthenticated = user?.isAuthenticated ?? false;
-
-  // An admin must have admin role
   const isAdmin = isAuthenticated && normalizedRoles.includes("admin");
-
-  // An operator has admin, operator, or user role
   const isOperator =
     isAuthenticated &&
     (isAdmin ||
       normalizedRoles.includes("user") ||
       normalizedRoles.includes("operator"));
-
-  // ReadOnly user has no admin/operator role or is explicitly ReadOnly or unauthenticated
   const isReadOnly = !isOperator;
 
   return {
