@@ -12,6 +12,7 @@ using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Core.Test.BitTorrent;
 
