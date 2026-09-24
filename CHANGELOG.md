@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.26.10](https://github.com/dmzoneill/Leecharr/releases/tag/v1.26.10) - 2026-09-24
+
+### 🐛 Bug Fixes
+- fix(controller): define logger and sort using directives alphabetically
+- fix(lint): remove trailing whitespace on line 22 of TorrentFile.cs
+- fix(player): resolve L.map crash, add streaming, download and subtitles backend support
+
+### 🔧 Maintenance & Improvements
+- test(subtitles): align TrackId, FileId, and language code assertions in SubtitleDiscoveryAndStreamingTest
+
 ## [v1.26.9](https://github.com/dmzoneill/Leecharr/releases/tag/v1.26.9) - 2026-09-24
 
 ### ✨ Features
