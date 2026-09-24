@@ -41,6 +41,8 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
 
     public string ActiveEngineId => Volatile.Read(ref this.activeEngine)?.EngineId ?? "MonoTorrent";
 
+    public string ActiveEngineVersion => Volatile.Read(ref this.activeEngine)?.ActiveVersion ?? string.Empty;
+
     public int DhtNodeCount => this.GetActiveOrMigratingEngine()?.DhtNodeCount ?? 0;
 
     public DynamicDownloadEngineProxy(
@@ -90,7 +92,12 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
         return this.availableEngines.FirstOrDefault(e => e.EngineId.Equals(engineId, StringComparison.OrdinalIgnoreCase));
     }
 
-    public async Task<EngineHealthCheckResult> ProbeEngineAsync(string engineId)
+    public Task<EngineHealthCheckResult> ProbeEngineAsync(string engineId)
+    {
+        return this.ProbeEngineAsync(engineId, null);
+    }
+
+    public async Task<EngineHealthCheckResult> ProbeEngineAsync(string engineId, string version)
     {
         var engine = this.GetEngine(engineId);
         if (engine == null)
@@ -106,7 +113,17 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
         return await engine.ProbeHealthAsync();
     }
 
-    public async Task<EngineSwitchResult> SwitchEngineAsync(string targetEngineId, bool preserveTransfers = true)
+    public Task<EngineSwitchResult> SwitchEngineAsync(string targetEngineId, bool preserveTransfers = true)
+    {
+        return this.SwitchEngineAsync(targetEngineId, null, preserveTransfers);
+    }
+
+    public Task<EngineSwitchResult> SwitchVersionAsync(string targetVersion, bool preserveTransfers = true)
+    {
+        return this.SwitchEngineAsync(this.ActiveEngineId, targetVersion, preserveTransfers);
+    }
+
+    public async Task<EngineSwitchResult> SwitchEngineAsync(string targetEngineId, string targetVersion, bool preserveTransfers = true)
     {
         if (string.IsNullOrWhiteSpace(targetEngineId))
         {
@@ -133,20 +150,28 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
             {
                 Success = false,
                 PreviousEngine = Volatile.Read(ref this.activeEngine).EngineId,
+                PreviousVersion = Volatile.Read(ref this.activeEngine).ActiveVersion,
                 ActiveEngine = Volatile.Read(ref this.activeEngine).EngineId,
+                ActiveVersion = Volatile.Read(ref this.activeEngine).ActiveVersion,
                 Error = $"Cannot switch to engine '{targetEngine.DisplayName}': engine is not available.",
             };
         }
 
-        if (string.Equals(Volatile.Read(ref this.activeEngine).EngineId, targetEngine.EngineId, StringComparison.OrdinalIgnoreCase))
+        var currentEngine = Volatile.Read(ref this.activeEngine);
+        var isSameEngine = string.Equals(currentEngine.EngineId, targetEngine.EngineId, StringComparison.OrdinalIgnoreCase);
+        var isSameVersion = string.IsNullOrWhiteSpace(targetVersion) || string.Equals(currentEngine.ActiveVersion, targetVersion, StringComparison.OrdinalIgnoreCase);
+
+        if (isSameEngine && isSameVersion)
         {
             return new EngineSwitchResult
             {
                 Success = true,
-                PreviousEngine = Volatile.Read(ref this.activeEngine).EngineId,
+                PreviousEngine = currentEngine.EngineId,
+                PreviousVersion = currentEngine.ActiveVersion,
                 ActiveEngine = targetEngine.EngineId,
+                ActiveVersion = targetEngine.ActiveVersion,
                 TorrentsMigrated = 0,
-                Message = $"Engine '{targetEngine.DisplayName}' is already active.",
+                Message = $"Engine '{targetEngine.DisplayName}' ({currentEngine.ActiveVersion}) is already active.",
             };
         }
 
@@ -157,35 +182,50 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
         var previousEngine = Volatile.Read(ref this.activeEngine);
         try
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            EngineHealthCheckResult health;
-            try
+            if (!isSameEngine)
             {
-                health = await targetEngine.ProbeHealthAsync().WaitAsync(cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                return new EngineSwitchResult
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                EngineHealthCheckResult health;
+                try
                 {
-                    Success = false,
-                    PreviousEngine = previousEngine.EngineId,
-                    ActiveEngine = previousEngine.EngineId,
-                    Error = $"Cannot switch to engine '{targetEngine.DisplayName}': health check timed out after 5 seconds.",
-                };
+                    health = await targetEngine.ProbeHealthAsync().WaitAsync(cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    return new EngineSwitchResult
+                    {
+                        Success = false,
+                        PreviousEngine = previousEngine.EngineId,
+                        PreviousVersion = previousEngine.ActiveVersion,
+                        ActiveEngine = previousEngine.EngineId,
+                        ActiveVersion = previousEngine.ActiveVersion,
+                        Error = $"Cannot switch to engine '{targetEngine.DisplayName}': health check timed out after 5 seconds.",
+                    };
+                }
+
+                if (!health.IsHealthy)
+                {
+                    return new EngineSwitchResult
+                    {
+                        Success = false,
+                        PreviousEngine = previousEngine.EngineId,
+                        PreviousVersion = previousEngine.ActiveVersion,
+                        ActiveEngine = previousEngine.EngineId,
+                        ActiveVersion = previousEngine.ActiveVersion,
+                        Error = $"Cannot switch to engine '{targetEngine.DisplayName}': health check failed ({health.StatusMessage}).",
+                    };
+                }
             }
 
-            if (!health.IsHealthy)
-            {
-                return new EngineSwitchResult
-                {
-                    Success = false,
-                    PreviousEngine = previousEngine.EngineId,
-                    ActiveEngine = previousEngine.EngineId,
-                    Error = $"Cannot switch to engine '{targetEngine.DisplayName}': health check failed ({health.StatusMessage}).",
-                };
-            }
+            var previousVersion = previousEngine.ActiveVersion;
+            this.logger.Info(
+                "Initiating zero-downtime hot-swap: {0} ({1}) -> {2} ({3}) (PreserveTransfers: {4})",
+                previousEngine.EngineId,
+                previousVersion,
+                targetEngine.EngineId,
+                targetVersion ?? targetEngine.ActiveVersion,
+                preserveTransfers);
 
-            this.logger.Info("Initiating zero-downtime hot-swap: {0} -> {1} (PreserveTransfers: {2})", previousEngine.EngineId, targetEngine.EngineId, preserveTransfers);
             var rehydrated = 0;
 
             // Set up migration gating
@@ -206,10 +246,16 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
                 }
             }
 
+            // If a specific version was requested for target engine, switch version
+            if (!string.IsNullOrWhiteSpace(targetVersion))
+            {
+                await targetEngine.SwitchVersionAsync(targetVersion);
+            }
+
             // 2. Start target engine
             if (this.isRunning)
             {
-                this.logger.Info("Starting target engine: {0}...", targetEngine.EngineId);
+                this.logger.Info("Starting target engine: {0} ({1})...", targetEngine.EngineId, targetEngine.ActiveVersion);
                 await targetEngine.StartAsync();
             }
 
@@ -224,23 +270,37 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
             this.migrationTcs.TrySetResult();
 
             // 4. Persist setting to configuration
-            this.configService.SaveConfigDictionary(new Dictionary<string, object>
+            var configDict = new Dictionary<string, object>
             {
                 { "ActiveTorrentEngine", targetEngine.EngineId },
-            });
+            };
+            if (!string.IsNullOrWhiteSpace(targetEngine.ActiveVersion))
+            {
+                configDict["ActiveTorrentEngineVersion"] = targetEngine.ActiveVersion;
+            }
 
-            this.logger.Info("Engine hot-swap completed: {0} -> {1} ({2} torrents migrated)", previousEngine.EngineId, targetEngine.EngineId, rehydrated);
+            this.configService.SaveConfigDictionary(configDict);
+
+            this.logger.Info(
+                "Engine hot-swap completed: {0} ({1}) -> {2} ({3}) ({4} torrents migrated)",
+                previousEngine.EngineId,
+                previousVersion,
+                targetEngine.EngineId,
+                targetEngine.ActiveVersion,
+                rehydrated);
 
             // 5. Broadcast event
-            switchedEvent = new TorrentEngineSwitchedEvent(previousEngine.EngineId, targetEngine.EngineId, rehydrated);
+            switchedEvent = new TorrentEngineSwitchedEvent(previousEngine.EngineId, previousVersion, targetEngine.EngineId, targetEngine.ActiveVersion, rehydrated);
 
             result = new EngineSwitchResult
             {
                 Success = true,
                 PreviousEngine = previousEngine.EngineId,
+                PreviousVersion = previousVersion,
                 ActiveEngine = targetEngine.EngineId,
+                ActiveVersion = targetEngine.ActiveVersion,
                 TorrentsMigrated = rehydrated,
-                Message = $"Successfully switched download engine to {targetEngine.DisplayName}.",
+                Message = $"Successfully switched download engine to {targetEngine.DisplayName} ({targetEngine.ActiveVersion}).",
             };
         }
         catch (Exception ex)
@@ -248,7 +308,7 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
             Volatile.Write(ref this.migratingTargetEngine, null);
             this.logger.Error(ex, "Fatal error during engine hot-swap to {0}. Attempting rollback to {1}...", targetEngineId, previousEngine?.EngineId);
 
-            if (targetEngine != null)
+            if (targetEngine != null && !isSameEngine)
             {
                 try
                 {
@@ -282,7 +342,9 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
             {
                 Success = false,
                 PreviousEngine = previousEngine?.EngineId,
+                PreviousVersion = previousEngine?.ActiveVersion,
                 ActiveEngine = previousEngine?.EngineId,
+                ActiveVersion = previousEngine?.ActiveVersion,
                 Error = $"Hot-swap failed: {ex.Message}",
             };
         }

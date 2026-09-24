@@ -36,6 +36,8 @@ public class DynamicDownloadEngineProxyTest
         this.monoTorrentEngine.DisplayName.Returns("MonoTorrent (Pure .NET)");
         this.monoTorrentEngine.ProtocolName.Returns("BitTorrent");
         this.monoTorrentEngine.IsAvailable.Returns(true);
+        this.monoTorrentEngine.ActiveVersion.Returns("3.0.2");
+        this.monoTorrentEngine.SupportedVersions.Returns(new[] { "3.0.2" });
         this.monoTorrentEngine.ProbeHealthAsync().Returns(Task.FromResult(new EngineHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
 
         this.libTorrentEngine = Substitute.For<ITorrentEngine>();
@@ -43,6 +45,8 @@ public class DynamicDownloadEngineProxyTest
         this.libTorrentEngine.DisplayName.Returns("libtorrent (Rasterbar C++)");
         this.libTorrentEngine.ProtocolName.Returns("BitTorrent");
         this.libTorrentEngine.IsAvailable.Returns(true);
+        this.libTorrentEngine.ActiveVersion.Returns("2.1.1");
+        this.libTorrentEngine.SupportedVersions.Returns(new[] { "1.2.20", "2.1.1" });
         this.libTorrentEngine.ProbeHealthAsync().Returns(Task.FromResult(new EngineHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
 
         this.transmissionEngine = Substitute.For<ITorrentEngine>();
@@ -50,6 +54,8 @@ public class DynamicDownloadEngineProxyTest
         this.transmissionEngine.DisplayName.Returns("Transmission Daemon (Sidecar)");
         this.transmissionEngine.ProtocolName.Returns("BitTorrent");
         this.transmissionEngine.IsAvailable.Returns(true);
+        this.transmissionEngine.ActiveVersion.Returns("4.0.5");
+        this.transmissionEngine.SupportedVersions.Returns(new[] { "4.0.5" });
         this.transmissionEngine.ProbeHealthAsync().Returns(Task.FromResult(new EngineHealthCheckResult { IsHealthy = true, StatusMessage = "OK" }));
 
         this.configService = Substitute.For<IConfigService>();
@@ -867,5 +873,43 @@ public class DynamicDownloadEngineProxyTest
         await pauseTask;
 
         await this.libTorrentEngine.Received(1).PauseTorrentAsync(1);
+    }
+
+    [Test]
+    public void ActiveEngineVersion_ReflectsCurrentlyActiveEngineVersion()
+    {
+        this.proxy.ActiveEngineVersion.Should().Be("3.0.2");
+    }
+
+    [Test]
+    public async Task SwitchVersionAsync_SameEngine_DelegatesToActiveEngineAndPersistsConfig()
+    {
+        this.monoTorrentEngine.SwitchVersionAsync("3.0.2").Returns(Task.FromResult(true));
+
+        var result = await this.proxy.SwitchVersionAsync("3.0.2");
+
+        result.Success.Should().BeTrue();
+        result.ActiveEngine.Should().Be("MonoTorrent");
+        result.ActiveVersion.Should().Be("3.0.2");
+    }
+
+    [Test]
+    public async Task SwitchEngineAsync_WithTargetVersion_SwitchesEngineAndSetsVersion()
+    {
+        this.libTorrentEngine.SwitchVersionAsync("1.2.20").Returns(Task.FromResult(true));
+        this.libTorrentEngine.ActiveVersion.Returns("1.2.20");
+
+        var result = await this.proxy.SwitchEngineAsync("LibTorrent", "1.2.20", preserveTransfers: false);
+
+        result.Success.Should().BeTrue();
+        result.ActiveEngine.Should().Be("LibTorrent");
+        result.ActiveVersion.Should().Be("1.2.20");
+        result.PreviousEngine.Should().Be("MonoTorrent");
+        result.PreviousVersion.Should().Be("3.0.2");
+
+        await this.libTorrentEngine.Received(1).SwitchVersionAsync("1.2.20");
+        this.configService.Received(1).SaveConfigDictionary(Arg.Is<Dictionary<string, object>>(d =>
+            d.ContainsKey("ActiveTorrentEngine") && (string)d["ActiveTorrentEngine"] == "LibTorrent" &&
+            d.ContainsKey("ActiveTorrentEngineVersion") && (string)d["ActiveTorrentEngineVersion"] == "1.2.20"));
     }
 }
