@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -11,13 +12,13 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using Leecharr.Api.V1.Subtitles;
 using Leecharr.Http;
 using Leecharr.Http.REST;
-using System.Diagnostics.CodeAnalysis;
-using Leecharr.Api.V1.Subtitles;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using NLog;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.BitTorrent.Creation;
 using NzbDrone.Core.Categories;
@@ -168,6 +169,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     private readonly ITagRepository tagRepository;
     private readonly ISubtitleDiscoveryService subtitleDiscoveryService;
     private readonly ISubtitleConversionService subtitleConversionService;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public TorrentController(
         ITorrentService torrentService,
