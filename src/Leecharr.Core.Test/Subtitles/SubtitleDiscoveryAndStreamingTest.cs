@@ -113,13 +113,15 @@ public class SubtitleDiscoveryAndStreamingTest
         discovered.Should().NotBeNull();
         discovered.Should().HaveCount(2);
 
-        var enSub = discovered.Find(s => s.Language == "English");
+        var enSub = discovered.Find(s => s.Language == "en");
         enSub.Should().NotBeNull();
         enSub!.IsForced.Should().BeFalse();
+        enSub.Title.Should().Be("English");
 
-        var frSub = discovered.Find(s => s.Language == "French");
+        var frSub = discovered.Find(s => s.Language == "fr");
         frSub.Should().NotBeNull();
         frSub!.IsForced.Should().BeTrue();
+        frSub.Title.Should().Be("French (Forced)");
     }
 
     [Test]
@@ -206,9 +208,10 @@ public class SubtitleDiscoveryAndStreamingTest
         var tracks = okResult.Value.Should().BeAssignableTo<List<SubtitleTrackResource>>().Subject;
 
         tracks.Should().HaveCount(1);
-        tracks[0].TrackId.Should().Be(11);
-        tracks[0].Language.Should().Be("English");
-        tracks[0].Url.Should().Be("/api/v1/torrent/1/files/10/subtitles/11.vtt");
+        tracks[0].TrackId.Should().Be(1);
+        tracks[0].FileId.Should().Be(11);
+        tracks[0].Language.Should().Be("en");
+        tracks[0].Url.Should().Be("/api/v1/torrent/1/files/10/subtitles/1.vtt");
     }
 
     [Test]
