@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.27.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.27.0) - 2026-09-24
+
+### ✨ Features
+- feat(api): add HttpHead attribute to streaming, download, and playlist endpoints
+- feat(media): add M3U playlist endpoints, multi-folder stream resolution, and external player setup tab
+
 ## [v1.26.10](https://github.com/dmzoneill/Leecharr/releases/tag/v1.26.10) - 2026-09-24
 
 ### 🐛 Bug Fixes
