@@ -146,8 +146,9 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
             {
                 scopeIndex = props.GetIPv6Properties()?.Index;
             }
-            catch
+            catch (NetworkInformationException)
             {
+                // IPv6 properties are not available or not supported on this interface
             }
         }
 

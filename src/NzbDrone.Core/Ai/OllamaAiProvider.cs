@@ -274,8 +274,9 @@ public class OllamaAiProvider : IAiEngineProvider, IFallbackAwareAiProvider, IDi
                 report.Recommendations.Insert(0, $"[Ollama AI] {aiText.Trim()}");
             }
         }
-        catch
+        catch (Exception ex)
         {
+            Logger.Debug(ex, "Failed to augment swarm diagnostic report with Ollama AI");
         }
 
         return report;

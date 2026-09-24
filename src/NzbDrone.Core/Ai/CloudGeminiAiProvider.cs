@@ -295,8 +295,9 @@ public class CloudGeminiAiProvider : IAiEngineProvider, IFallbackAwareAiProvider
                 report.Recommendations.Insert(0, $"[Gemini AI] {aiText.Trim()}");
             }
         }
-        catch
+        catch (Exception ex)
         {
+            Logger.Debug(ex, "Failed to augment swarm diagnostic report with Gemini AI");
         }
 
         return report;

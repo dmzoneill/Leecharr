@@ -560,8 +560,9 @@ public class PowerManagementService : IPowerManagementService, IDisposable
             {
                 process.Dispose();
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Trace(ex, "Failed to dispose Linux sleep inhibition process");
             }
         }
     }

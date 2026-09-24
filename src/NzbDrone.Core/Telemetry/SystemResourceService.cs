@@ -124,8 +124,9 @@ public class SystemResourceService : ISystemResourceService
             {
                 lastTotalProcessorTime = CurrentProcess.TotalProcessorTime;
             }
-            catch
+            catch (Exception)
             {
+                // Fallback to zero processor time if process telemetry is inaccessible
             }
 
             cachedCpuPercent = 0.0;
@@ -163,8 +164,9 @@ public class SystemResourceService : ISystemResourceService
         {
             CurrentProcess.Refresh();
         }
-        catch
+        catch (Exception)
         {
+            // Process inspection might be restricted or exited
         }
 
         lock (CpuLock)
@@ -179,8 +181,9 @@ public class SystemResourceService : ISystemResourceService
                 {
                     lastTotalProcessorTime = CurrentProcess.TotalProcessorTime;
                 }
-                catch
+                catch (Exception)
                 {
+                    // Fallback if process timing query is disallowed
                 }
             }
             else if (elapsedMs >= 350)
@@ -197,8 +200,9 @@ public class SystemResourceService : ISystemResourceService
                         cachedCpuPercent = Math.Clamp((cpuUsedMs / (elapsedMs * cores)) * 100.0, 0.0, 100.0);
                     }
                 }
-                catch
+                catch (Exception)
                 {
+                    // Fallback to cached CPU percent if CPU sample query fails
                 }
             }
 
@@ -215,8 +219,9 @@ public class SystemResourceService : ISystemResourceService
         {
             uptimeSec = (long)(DateTime.UtcNow - CurrentProcess.StartTime.ToUniversalTime()).TotalSeconds;
         }
-        catch
+        catch (Exception)
         {
+            // StartTime may throw PlatformNotSupportedException or Win32Exception on restricted environments
         }
 
         return new HostProcessResourceMetrics
@@ -809,8 +814,9 @@ public class SystemResourceService : ISystemResourceService
                 }
             }
         }
-        catch
+        catch (Exception)
         {
+            // Ignore drive enumeration errors (e.g. permission/unmounted filesystems)
         }
 
         return drives;

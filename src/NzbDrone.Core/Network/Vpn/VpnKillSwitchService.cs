@@ -252,8 +252,9 @@ public class VpnKillSwitchService : IVpnKillSwitchService, IHandle<ConfigSavedEv
                 NetworkChange.NetworkAddressChanged -= this.OnNetworkChanged;
                 NetworkChange.NetworkAvailabilityChanged -= this.OnNetworkAvailabilityChanged;
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Trace(ex, "Error unregistering network change listeners on dispose");
             }
 
             this.heartbeatTimer?.Dispose();
