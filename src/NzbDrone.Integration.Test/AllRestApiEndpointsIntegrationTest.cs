@@ -67,7 +67,18 @@ public class AllRestApiEndpointsIntegrationTest : IntegrationTestBase
                 }
                 else
                 {
-                    var isQueryParamRequiredEndpoint = path is "/api/v1/files/download" or "/api/v1/files/preview" or "/api/v1/filesystem/download" or "/api/v1/filesystem/preview" or "/api/v1/packages/export" or "/api/v1/package/export";
+                    var isQueryParamRequiredEndpoint = path is "/api/v1/files/download"
+                        or "/api/v1/files/preview"
+                        or "/api/v1/files/stream"
+                        or "/api/v1/files/stream.m3u"
+                        or "/api/v1/files/playlist.m3u"
+                        or "/api/v1/filesystem/download"
+                        or "/api/v1/filesystem/preview"
+                        or "/api/v1/filesystem/stream"
+                        or "/api/v1/filesystem/stream.m3u"
+                        or "/api/v1/filesystem/playlist.m3u"
+                        or "/api/v1/packages/export"
+                        or "/api/v1/package/export";
                     if (isQueryParamRequiredEndpoint)
                     {
                         response.StatusCode.Should().Be(HttpStatusCode.BadRequest, $"Endpoint GET {path} requires query parameters and should return 400 BadRequest");
