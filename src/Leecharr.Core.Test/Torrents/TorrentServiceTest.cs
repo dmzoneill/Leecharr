@@ -2827,4 +2827,68 @@ public class TorrentServiceTest
         this.eventAggregator.Received(1).PublishEvent(Arg.Is<TorrentUpdatedEvent>(e => e.Torrent.Id == 55));
         this.fileRepository.Received(1).InsertMany(Arg.Is<List<TorrentFile>>(l => l.Count == 1 && l[0].Path == "video.mp4"));
     }
+
+    [Test]
+    public void SyncWithEngine_PrioritizesTaskDownloadedBytesOverFloatFormula()
+    {
+        var torrent = new Torrent
+        {
+            Id = 88,
+            Name = "Sync Precision Test",
+            TotalSize = 1000000000,
+            Progress = 0.5,
+            Downloaded = 1000,
+            Status = TorrentStatus.Downloading,
+        };
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.Status.Returns(TorrentStatus.Downloading);
+        mockTask.Progress.Returns(0.5000001);
+        mockTask.DownloadedBytes.Returns(500000420L); // Exact bytes
+        mockTask.TotalBytes.Returns(1000000000L);
+        mockTask.DownloadSpeed.Returns(5000000L);
+        mockTask.UploadSpeed.Returns(100000L);
+        mockTask.ConnectedSeeders.Returns(15);
+        mockTask.ConnectedLeechers.Returns(25);
+
+        this.downloadEngine.GetTask(88).Returns(mockTask);
+        this.torrentRepository.Get(88).Returns(torrent);
+
+        var result = this.service.Get(88);
+
+        result.Should().NotBeNull();
+        result.Downloaded.Should().Be(500000420L);
+        result.DownloadSpeed.Should().Be(5000000L);
+        result.UploadSpeed.Should().Be(100000L);
+        result.Seeders.Should().Be(15);
+        result.Leechers.Should().Be(25);
+    }
+
+    [Test]
+    public void SyncWithEngine_WhenTorrentTotalSizeZeroAndTaskReportsTotalBytes_UpdatesTotalSize()
+    {
+        var torrent = new Torrent
+        {
+            Id = 89,
+            Name = "Zero Size Test",
+            TotalSize = 0,
+            Progress = 0.0,
+            Status = TorrentStatus.Downloading,
+        };
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.Status.Returns(TorrentStatus.Downloading);
+        mockTask.Progress.Returns(0.1);
+        mockTask.DownloadedBytes.Returns(100000L);
+        mockTask.TotalBytes.Returns(1000000L);
+
+        this.downloadEngine.GetTask(89).Returns(mockTask);
+        this.torrentRepository.Get(89).Returns(torrent);
+
+        var result = this.service.Get(89);
+
+        result.Should().NotBeNull();
+        result.TotalSize.Should().Be(1000000L);
+        result.Downloaded.Should().Be(100000L);
+    }
 }
