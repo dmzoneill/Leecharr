@@ -10,7 +10,7 @@ import json
 import signal
 import sys
 import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 try:
     import libtorrent as lt
@@ -93,6 +93,21 @@ class LibTorrentManager:
 
         with self.lock:
             h = self.session.add_torrent(atp)
+            trackers = params.get("trackers")
+            if trackers and isinstance(trackers, list):
+                for tr in trackers:
+                    try:
+                        h.add_tracker({"url": str(tr), "tier": 0})
+                    except Exception:
+                        pass
+            try:
+                if hasattr(h, "auto_managed"):
+                    h.auto_managed(True)
+                if hasattr(h, "resume"):
+                    h.resume()
+            except Exception:
+                pass
+
             st = h.status()
             ih = (
                 str(st.info_hashes.v1)
@@ -127,7 +142,13 @@ class LibTorrentManager:
         h = self.find_handle(params.get("info_hash"))
         if h:
             with self.lock:
-                h.resume()
+                try:
+                    if hasattr(h, "auto_managed"):
+                        h.auto_managed(True)
+                    if hasattr(h, "resume"):
+                        h.resume()
+                except Exception:
+                    pass
             return {"status": "resumed"}
         return {"status": "not_found"}
 
@@ -403,10 +424,17 @@ def main():
     global manager
     parser = argparse.ArgumentParser(description="Leecharr LibTorrent RPC Daemon")
     parser.add_argument(
-        "--bind", default="127.0.0.1", help="Bind IP address (default: 127.0.0.1)"
+        "--bind",
+        default="127.0.0.1",
+        help="Bind IP address for RPC (default: 127.0.0.1)",
     )
     parser.add_argument(
         "--port", type=int, default=58846, help="Port to listen on (default: 58846)"
+    )
+    parser.add_argument(
+        "--listen-ip",
+        default="0.0.0.0",
+        help="BitTorrent swarm listen IP address (default: 0.0.0.0)",
     )
     parser.add_argument(
         "--torrent-port",
@@ -421,13 +449,13 @@ def main():
     )
     args = parser.parse_args()
 
-    listen_iface = f"{args.bind}:{args.torrent_port}"
+    listen_iface = f"{args.listen_ip}:{args.torrent_port}"
     manager = LibTorrentManager(
         listen_interfaces=listen_iface,
         version_target=args.version_target,
     )
 
-    server = HTTPServer((args.bind, args.port), RpcHandler)
+    server = ThreadingHTTPServer((args.bind, args.port), RpcHandler)
     sys.stdout.write(
         f"libtorrent_daemon listening on {args.bind}:{args.port} (Swarm: {listen_iface})\n"
     )

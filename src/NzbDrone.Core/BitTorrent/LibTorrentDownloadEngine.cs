@@ -278,6 +278,15 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         {
             try
             {
+                try
+                {
+                    this.daemonProcess.CancelOutputRead();
+                    this.daemonProcess.CancelErrorRead();
+                }
+                catch
+                {
+                }
+
                 this.daemonProcess.Kill(entireProcessTree: true);
                 this.daemonProcess.Dispose();
             }
@@ -319,6 +328,15 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                 ["name"] = torrent.Name,
                 ["info_hash"] = torrent.InfoHash,
             };
+
+            if (torrent.Trackers != null && torrent.Trackers.Count > 0)
+            {
+                addArgs["trackers"] = torrent.Trackers;
+            }
+            else if (!string.IsNullOrWhiteSpace(torrent.TrackerUrl))
+            {
+                addArgs["trackers"] = new List<string> { torrent.TrackerUrl };
+            }
 
             if (torrentFileBytes != null && torrentFileBytes.Length > 0)
             {
@@ -980,7 +998,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             var startInfo = new ProcessStartInfo
             {
                 FileName = pythonBinary,
-                Arguments = $"\"{scriptPath}\" --port {port} --bind 127.0.0.1 --version-target {this.ActiveVersion}",
+                Arguments = $"\"{scriptPath}\" --port {port} --bind 127.0.0.1 --listen-ip 0.0.0.0 --version-target {this.ActiveVersion}",
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -988,7 +1006,25 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             };
 
             this.logger.Info("Starting embedded libtorrent daemon sidecar: {0} {1}", pythonBinary, startInfo.Arguments);
-            this.daemonProcess = Process.Start(startInfo);
+            var process = new Process { StartInfo = startInfo };
+            process.OutputDataReceived += (s, e) =>
+            {
+                if (!string.IsNullOrWhiteSpace(e.Data))
+                {
+                    this.logger.Trace("libtorrent daemon: {0}", e.Data);
+                }
+            };
+            process.ErrorDataReceived += (s, e) =>
+            {
+                if (!string.IsNullOrWhiteSpace(e.Data))
+                {
+                    this.logger.Debug("libtorrent daemon err: {0}", e.Data);
+                }
+            };
+            process.Start();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+            this.daemonProcess = process;
 
             for (var i = 0; i < 15; i++)
             {
