@@ -275,13 +275,21 @@ class LibTorrentManager:
                 peer_list = []
                 try:
                     for pi in h.get_peer_info():
+                        client_raw = getattr(pi, "client", "")
+                        if isinstance(client_raw, (bytes, bytearray)):
+                            client_str = client_raw.decode("utf-8", errors="replace")
+                        else:
+                            client_str = (
+                                str(client_raw) if client_raw is not None else ""
+                            )
+
                         peer_list.append(
                             {
                                 "ip": pi.ip[0]
                                 if isinstance(pi.ip, tuple)
                                 else str(pi.ip),
                                 "port": pi.ip[1] if isinstance(pi.ip, tuple) else 0,
-                                "client": getattr(pi, "client", ""),
+                                "client": client_str,
                                 "flags": str(getattr(pi, "flags", "")),
                                 "progress": float(getattr(pi, "progress", 0.0)),
                                 "download_rate": int(getattr(pi, "down_speed", 0)),
@@ -417,7 +425,12 @@ class RpcHandler(BaseHTTPRequestHandler):
         else:
             response["result"] = result
 
-        self.wfile.write(json.dumps(response).encode("utf-8"))
+        def json_fallback(obj):
+            if isinstance(obj, (bytes, bytearray)):
+                return obj.decode("utf-8", errors="replace")
+            return str(obj)
+
+        self.wfile.write(json.dumps(response, default=json_fallback).encode("utf-8"))
 
 
 def main():
