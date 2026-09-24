@@ -423,7 +423,8 @@ def main():
 
     listen_iface = f"{args.bind}:{args.torrent_port}"
     manager = LibTorrentManager(
-        listen_interfaces=listen_iface, version_target=args.version_target
+        listen_interfaces=listen_iface,
+        version_target=args.version_target,
     )
 
     server = HTTPServer((args.bind, args.port), RpcHandler)
