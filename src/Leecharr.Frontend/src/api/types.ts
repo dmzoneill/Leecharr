@@ -1245,11 +1245,14 @@ export interface TorrentEngine {
   engineId: string;
   displayName: string;
   version: string;
+  activeVersion?: string;
+  supportedVersions?: string[];
   isActive: boolean;
   isAvailable: boolean;
   status: string;
   description: string;
   capabilities: TorrentEngineCapabilities;
+  versionCapabilities?: Record<string, TorrentEngineCapabilities>;
   warnings: string[];
 }
 
@@ -1257,6 +1260,8 @@ export interface ActiveEngineStatus {
   engineId: string;
   displayName: string;
   version: string;
+  activeVersion?: string;
+  supportedVersions?: string[];
   activeTorrentsCount: number;
   connectedPeersCount: number;
   downloadSpeedBytes: number;
@@ -1266,13 +1271,21 @@ export interface ActiveEngineStatus {
 
 export interface SwitchEngineRequest {
   engineId: string;
+  version?: string;
   preserveTransfers: boolean;
+}
+
+export interface SwitchEngineVersionRequest {
+  version: string;
+  preserveTransfers?: boolean;
 }
 
 export interface SwitchEngineResult {
   success: boolean;
   previousEngine: string;
+  previousVersion?: string;
   activeEngine: string;
+  activeVersion?: string;
   torrentsMigrated: number;
   message?: string;
   error?: string;
@@ -1286,6 +1299,7 @@ export interface EngineProbeDependencyCheck {
 
 export interface EngineProbeResult {
   engineId: string;
+  version?: string;
   isHealthy: boolean;
   statusMessage: string;
   dependencyChecks?: (string | EngineProbeDependencyCheck)[];
