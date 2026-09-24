@@ -20,7 +20,7 @@ export function TorrentCreationTab({
   const [createPath, setCreatePath] = useState("");
   const [createName, setCreateName] = useState("");
   const [createComment, setCreateComment] = useState("");
-  const [createCreatedBy, setCreateCreatedBy] = useState("Leecharr");
+  const createCreatedBy = "Leecharr";
   const [createPieceLength, setCreatePieceLength] = useState(0);
   const [createIsPrivate, setCreateIsPrivate] = useState(false);
   const [createTrackers, setCreateTrackers] = useState("");

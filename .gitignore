@@ -65,3 +65,7 @@ scratch/
 # i18n translation cache
 .translation-memory.json
 *.translation-memory.json
+
+# Code review tracker
+.code-review-tracker*.md
+

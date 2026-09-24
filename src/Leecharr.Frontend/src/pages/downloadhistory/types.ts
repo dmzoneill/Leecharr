@@ -1,9 +1,3 @@
-import type {
-  DownloadHistoryEntry,
-  ArrConnection,
-  IndexerDefinition,
-} from "../../api/types";
-
 export type HistorySortColumn =
   | "title"
   | "totalSize"

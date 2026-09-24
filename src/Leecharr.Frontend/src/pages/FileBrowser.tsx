@@ -63,7 +63,8 @@ export function FileBrowser() {
 
   const currentPath = searchParams.get("path") || "";
   const [previewPath, setPreviewPath] = useState<string | null>(null);
-  const [playingMediaFile, setPlayingMediaFile] = useState<FileManagerFile | null>(null);
+  const [playingMediaFile, setPlayingMediaFile] =
+    useState<FileManagerFile | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<FileManagerFile[]>([]);
   const lastContextMenuFileRef = useRef<FileManagerFile | null>(null);
   const fileManagerContainerRef = useRef<HTMLDivElement>(null);
@@ -199,33 +200,251 @@ export function FileBrowser() {
     }
   };
 
-  // Enhance context menu & bypass internal delete modal
+  // Enhance context menu & toolbar & bypass internal delete modal
   useEffect(() => {
     const container = fileManagerContainerRef.current;
     if (!container) return;
 
+    const getTargetFile = (): FileManagerFile | null => {
+      if (
+        lastContextMenuFileRef.current &&
+        !lastContextMenuFileRef.current.isDirectory
+      ) {
+        return lastContextMenuFileRef.current;
+      }
+      if (selectedFiles.length === 1 && !selectedFiles[0].isDirectory) {
+        return selectedFiles[0];
+      }
+      // Check DOM for selected element title
+      const selectedEl = container.querySelector<HTMLElement>(
+        ".file-item-container.file-selected",
+      );
+      const title =
+        selectedEl?.getAttribute("title") ||
+        selectedEl?.querySelector<HTMLElement>(".file-name")?.textContent?.trim();
+      if (title) {
+        const found = files.find((f) => f.name === title && !f.isDirectory);
+        if (found) return found;
+      }
+      return null;
+    };
+
+    const enhanceContextMenu = () => {
+      const contextMenuUl = container.querySelector<HTMLUListElement>(
+        ".fm-context-menu .file-context-menu-list ul",
+      );
+      if (!contextMenuUl) return;
+
+      const targetFile = getTargetFile();
+      if (!targetFile || targetFile.isDirectory) return;
+
+      const existingGroup = contextMenuUl.querySelector<HTMLElement>(
+        ".leecharr-ctx-group",
+      );
+      if (existingGroup) {
+        if (existingGroup.dataset.filePath === targetFile.path) {
+          return;
+        }
+        existingGroup.remove();
+      }
+
+      const isPlayable = isPlayableFile(targetFile.name);
+      const closeMenu = () => {
+        const contextMenuEl =
+          container.querySelector<HTMLElement>(".fm-context-menu");
+        if (contextMenuEl) {
+          contextMenuEl.classList.remove("visible");
+          contextMenuEl.classList.add("hidden");
+        }
+      };
+
+      const groupDiv = document.createElement("div");
+      groupDiv.className = "leecharr-ctx-group";
+      groupDiv.dataset.filePath = targetFile.path;
+
+      if (isPlayable) {
+        // Play
+        const playLi = document.createElement("li");
+        playLi.className = "leecharr-ctx-item leecharr-ctx-play";
+        playLi.style.cursor = "pointer";
+        playLi.style.fontWeight = "600";
+        playLi.style.color = "var(--accent, #ffd166)";
+        playLi.innerHTML = `<span style="font-size: 15px; width: 18px; display: inline-flex; align-items: center; justify-content: center;">▶</span> <span>${t("common.play", "Play / Stream")}</span>`;
+        playLi.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          closeMenu();
+          handlePlayFile(targetFile);
+        });
+        groupDiv.appendChild(playLi);
+
+        // M3U
+        const m3uLi = document.createElement("li");
+        m3uLi.className = "leecharr-ctx-item leecharr-ctx-m3u";
+        m3uLi.style.cursor = "pointer";
+        m3uLi.innerHTML = `<span style="font-size: 15px; width: 18px; display: inline-flex; align-items: center; justify-content: center;">📥</span> <span>${t("filebrowser.downloadM3u", "Download M3U Playlist")}</span>`;
+        m3uLi.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          closeMenu();
+          handleDownloadM3u(targetFile);
+        });
+        groupDiv.appendChild(m3uLi);
+
+        // Quick Preview
+        const previewLi = document.createElement("li");
+        previewLi.className = "leecharr-ctx-item leecharr-ctx-preview";
+        previewLi.style.cursor = "pointer";
+        previewLi.innerHTML = `<span style="font-size: 15px; width: 18px; display: inline-flex; align-items: center; justify-content: center;">👁</span> <span>${t("common.preview", "Quick Preview")}</span>`;
+        previewLi.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          closeMenu();
+          handlePreviewFile(targetFile);
+        });
+        groupDiv.appendChild(previewLi);
+      } else {
+        // Preview File
+        const previewLi = document.createElement("li");
+        previewLi.className = "leecharr-ctx-item leecharr-ctx-preview";
+        previewLi.style.cursor = "pointer";
+        previewLi.style.fontWeight = "600";
+        previewLi.style.color = "var(--accent, #ffd166)";
+        previewLi.innerHTML = `<span style="font-size: 15px; width: 18px; display: inline-flex; align-items: center; justify-content: center;">👁</span> <span>${t("common.preview", "Preview File")}</span>`;
+        previewLi.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          closeMenu();
+          handlePreviewFile(targetFile);
+        });
+        groupDiv.appendChild(previewLi);
+      }
+
+      const divider = document.createElement("div");
+      divider.className = "divider";
+      groupDiv.appendChild(divider);
+
+      contextMenuUl.insertBefore(groupDiv, contextMenuUl.firstChild);
+    };
+
+    const enhanceToolbar = () => {
+      const tbActions = container.querySelector<HTMLElement>(
+        ".toolbar.file-selected .file-action-container > div",
+      );
+      if (!tbActions) return;
+
+      const targetFile =
+        (selectedFiles.length === 1 && !selectedFiles[0].isDirectory
+          ? selectedFiles[0]
+          : null) ||
+        files.find(
+          (f) =>
+            !f.isDirectory &&
+            f.name ===
+              container
+                .querySelector(".file-item-container.file-selected")
+                ?.getAttribute("title"),
+        );
+
+      if (!targetFile || targetFile.isDirectory) {
+        tbActions
+          .querySelectorAll(".leecharr-tb-btn")
+          .forEach((el) => el.remove());
+        delete tbActions.dataset.leecharrPath;
+        return;
+      }
+
+      if (tbActions.dataset.leecharrPath === targetFile.path) {
+        return; // already enhanced
+      }
+
+      tbActions
+        .querySelectorAll(".leecharr-tb-btn")
+        .forEach((el) => el.remove());
+      tbActions.dataset.leecharrPath = targetFile.path;
+
+      const isPlayable = isPlayableFile(targetFile.name);
+
+      if (isPlayable) {
+        const playBtn = document.createElement("button");
+        playBtn.type = "button";
+        playBtn.className =
+          "item-action file-action leecharr-tb-btn leecharr-tb-play";
+        playBtn.style.color = "var(--accent, #ffd166)";
+        playBtn.style.fontWeight = "700";
+        playBtn.innerHTML = `<span style="font-size: 16px; margin-right: 4px;">▶</span><span>${t("common.play", "Play")}</span>`;
+        playBtn.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          handlePlayFile(targetFile);
+        });
+
+        const m3uBtn = document.createElement("button");
+        m3uBtn.type = "button";
+        m3uBtn.className =
+          "item-action file-action leecharr-tb-btn leecharr-tb-m3u";
+        m3uBtn.innerHTML = `<span style="font-size: 16px; margin-right: 4px;">📥</span><span>M3U</span>`;
+        m3uBtn.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          handleDownloadM3u(targetFile);
+        });
+
+        const prevBtn = document.createElement("button");
+        prevBtn.type = "button";
+        prevBtn.className =
+          "item-action file-action leecharr-tb-btn leecharr-tb-preview";
+        prevBtn.innerHTML = `<span style="font-size: 16px; margin-right: 4px;">👁</span><span>${t("common.preview", "Preview")}</span>`;
+        prevBtn.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          handlePreviewFile(targetFile);
+        });
+
+        tbActions.insertBefore(prevBtn, tbActions.firstChild);
+        tbActions.insertBefore(m3uBtn, tbActions.firstChild);
+        tbActions.insertBefore(playBtn, tbActions.firstChild);
+      } else {
+        const prevBtn = document.createElement("button");
+        prevBtn.type = "button";
+        prevBtn.className =
+          "item-action file-action leecharr-tb-btn leecharr-tb-preview";
+        prevBtn.style.color = "var(--accent, #ffd166)";
+        prevBtn.style.fontWeight = "700";
+        prevBtn.innerHTML = `<span style="font-size: 16px; margin-right: 4px;">👁</span><span>${t("common.preview", "Preview")}</span>`;
+        prevBtn.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          handlePreviewFile(targetFile);
+        });
+
+        tbActions.insertBefore(prevBtn, tbActions.firstChild);
+      }
+    };
+
     const onContextMenuCapture = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
-      const itemEl = target?.closest<HTMLElement>("[title]");
-      const title = itemEl?.getAttribute("title");
+      const itemEl = target?.closest<HTMLElement>(
+        ".file-item-container, [title]",
+      );
+      const title =
+        itemEl?.getAttribute("title") ||
+        itemEl?.querySelector<HTMLElement>(".file-name")?.textContent?.trim();
       if (title) {
         const found = files.find((f) => f.name === title && !f.isDirectory);
         if (found) {
           lastContextMenuFileRef.current = found;
-          return;
         }
       }
-      if (selectedFiles.length === 1 && !selectedFiles[0].isDirectory) {
+      if (
+        !lastContextMenuFileRef.current &&
+        selectedFiles.length === 1 &&
+        !selectedFiles[0].isDirectory
+      ) {
         lastContextMenuFileRef.current = selectedFiles[0];
-      } else {
-        lastContextMenuFileRef.current = null;
       }
+
+      [0, 15, 40, 80, 150].forEach((delay) => {
+        setTimeout(enhanceContextMenu, delay);
+      });
     };
 
     container.addEventListener("contextmenu", onContextMenuCapture, true);
 
     const observer = new MutationObserver(() => {
-      // 1. Automatically bypass Cubone react-file-manager's internal delete modal
+      // 1. Bypass Cubone delete modal
       const deleteDangerBtn = container.querySelector<HTMLButtonElement>(
         ".file-delete-confirm-actions .fm-button-danger",
       );
@@ -233,110 +452,31 @@ export function FileBrowser() {
         deleteDangerBtn.click();
       }
 
-      // 2. Enhance file context menu with Play / Stream and Preview actions
-      const contextMenuUl = container.querySelector<HTMLUListElement>(
-        ".fm-context-menu.visible .file-context-menu-list ul",
-      );
-
-      if (contextMenuUl && !contextMenuUl.dataset.leecharrEnhanced) {
-        const targetFile =
-          lastContextMenuFileRef.current ||
-          (selectedFiles.length === 1 && !selectedFiles[0].isDirectory
-            ? selectedFiles[0]
-            : null);
-
-        if (targetFile && !targetFile.isDirectory) {
-          contextMenuUl.dataset.leecharrEnhanced = "true";
-
-          const isPlayable = isPlayableFile(targetFile.name);
-          const frag = document.createDocumentFragment();
-
-          const closeMenu = () => {
-            const contextMenuEl = container.querySelector<HTMLElement>(".fm-context-menu");
-            if (contextMenuEl) {
-              contextMenuEl.classList.remove("visible");
-              contextMenuEl.classList.add("hidden");
-            }
-          };
-
-          if (isPlayable) {
-            // Play item
-            const playLi = document.createElement("li");
-            playLi.className = "leecharr-ctx-item leecharr-ctx-play";
-            playLi.style.cursor = "pointer";
-            playLi.style.fontWeight = "600";
-            playLi.style.color = "var(--accent, #ffd166)";
-            playLi.innerHTML = `<span style="font-size: 15px; width: 18px; display: inline-flex; align-items: center; justify-content: center;">▶</span> <span>${t("common.play", "Play / Stream")}</span>`;
-            playLi.addEventListener("click", (ev) => {
-              ev.stopPropagation();
-              closeMenu();
-              handlePlayFile(targetFile);
-            });
-            frag.appendChild(playLi);
-
-            // M3U Playlist item
-            const m3uLi = document.createElement("li");
-            m3uLi.className = "leecharr-ctx-item leecharr-ctx-m3u";
-            m3uLi.style.cursor = "pointer";
-            m3uLi.innerHTML = `<span style="font-size: 15px; width: 18px; display: inline-flex; align-items: center; justify-content: center;">📥</span> <span>${t("filebrowser.downloadM3u", "Download M3U Playlist")}</span>`;
-            m3uLi.addEventListener("click", (ev) => {
-              ev.stopPropagation();
-              closeMenu();
-              handleDownloadM3u(targetFile);
-            });
-            frag.appendChild(m3uLi);
-
-            // Quick Preview item
-            const previewLi = document.createElement("li");
-            previewLi.className = "leecharr-ctx-item leecharr-ctx-preview";
-            previewLi.style.cursor = "pointer";
-            previewLi.innerHTML = `<span style="font-size: 15px; width: 18px; display: inline-flex; align-items: center; justify-content: center;">👁</span> <span>${t("common.preview", "Quick Preview")}</span>`;
-            previewLi.addEventListener("click", (ev) => {
-              ev.stopPropagation();
-              closeMenu();
-              handlePreviewFile(targetFile);
-            });
-            frag.appendChild(previewLi);
-
-            // Divider
-            const divider = document.createElement("div");
-            divider.className = "divider";
-            frag.appendChild(divider);
-          } else {
-            // Preview item
-            const previewLi = document.createElement("li");
-            previewLi.className = "leecharr-ctx-item leecharr-ctx-preview";
-            previewLi.style.cursor = "pointer";
-            previewLi.style.fontWeight = "600";
-            previewLi.style.color = "var(--accent, #ffd166)";
-            previewLi.innerHTML = `<span style="font-size: 15px; width: 18px; display: inline-flex; align-items: center; justify-content: center;">👁</span> <span>${t("common.preview", "Preview File")}</span>`;
-            previewLi.addEventListener("click", (ev) => {
-              ev.stopPropagation();
-              closeMenu();
-              handlePreviewFile(targetFile);
-            });
-            frag.appendChild(previewLi);
-
-            // Divider
-            const divider = document.createElement("div");
-            divider.className = "divider";
-            frag.appendChild(divider);
-          }
-
-          contextMenuUl.insertBefore(frag, contextMenuUl.firstChild);
-        }
-      } else if (!container.querySelector(".fm-context-menu.visible") && contextMenuUl?.dataset.leecharrEnhanced) {
-        delete contextMenuUl.dataset.leecharrEnhanced;
-      }
+      enhanceContextMenu();
+      enhanceToolbar();
     });
 
-    observer.observe(container, { childList: true, subtree: true });
+    observer.observe(container, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["class", "style"],
+    });
+
+    enhanceToolbar();
 
     return () => {
       container.removeEventListener("contextmenu", onContextMenuCapture, true);
       observer.disconnect();
     };
-  }, [files, selectedFiles, handlePlayFile, handlePreviewFile, handleDownloadM3u, t]);
+  }, [
+    files,
+    selectedFiles,
+    handlePlayFile,
+    handlePreviewFile,
+    handleDownloadM3u,
+    t,
+  ]);
 
   const handleCreateFolder = async (
     nameOrParent?: any,
@@ -592,14 +732,11 @@ export function FileBrowser() {
 
   return (
     <div
-      className="content-area"
       style={{
         display: "flex",
         flexDirection: "column",
         height: "100%",
         gap: "0.85rem",
-        padding: "1.5rem",
-        boxSizing: "border-box",
       }}
     >
       {/* Header Banner */}
@@ -608,7 +745,7 @@ export function FileBrowser() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: "1.5rem",
+          marginBottom: "1rem",
           flexWrap: "wrap",
           gap: "1rem",
           flexShrink: 0,
@@ -634,13 +771,9 @@ export function FileBrowser() {
               fontSize: "0.9rem",
             }}
           >
-            {t("filebrowser.folderCount", "{count} folder(s)", {
-              count: dirStats.folderCount,
-            })}{" "}
+            {dirStats.folderCount} {t("filebrowser.folderCount", "folder(s)")}{" "}
             &bull;{" "}
-            {t("filebrowser.fileCount", "{count} file(s)", {
-              count: dirStats.fileCount,
-            })}{" "}
+            {dirStats.fileCount} {t("filebrowser.fileCount", "file(s)")}{" "}
             &bull; {formatBytes(dirStats.totalSize)}{" "}
             {t("common.total", "total")}
           </p>
@@ -678,7 +811,10 @@ export function FileBrowser() {
                     className="btn btn-outline"
                     style={{ fontSize: "0.85rem", padding: "0.35rem 0.75rem" }}
                     onClick={() => handleDownloadM3u(selectedFiles[0])}
-                    title={t("filebrowser.downloadM3u", "Download M3U Playlist")}
+                    title={t(
+                      "filebrowser.downloadM3u",
+                      "Download M3U Playlist",
+                    )}
                   >
                     📥 M3U
                   </button>
@@ -992,7 +1128,8 @@ export function FileBrowser() {
                       }}
                       title={t("player.openInPlayer", "Open in Media Player")}
                     >
-                      <span>▶</span> {t("player.openInPlayer", "Open in Player")}
+                      <span>▶</span>{" "}
+                      {t("player.openInPlayer", "Open in Player")}
                     </button>
                     <button
                       type="button"

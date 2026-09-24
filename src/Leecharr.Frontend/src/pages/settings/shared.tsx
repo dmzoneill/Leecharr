@@ -256,8 +256,6 @@ export function SectionCard({
   description?: string;
   children: React.ReactNode;
 }) {
-  const { t } = useTranslation();
-
   return (
     <div
       className="card"
@@ -528,8 +526,6 @@ export function SelectInput({
 }
 
 export function SectionTitle({ children }: { children: React.ReactNode }) {
-  const { t } = useTranslation();
-
   return (
     <div
       className="form-section-title"

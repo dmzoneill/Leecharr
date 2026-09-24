@@ -625,7 +625,10 @@ export function useBulkTorrentAction() {
             const currentTags = tor.tagIds || [];
             let nextTags: number[];
             if (newAction.action === "addtags") {
-              const combined = new Set([...currentTags, ...newAction.tagIds!]);
+              const combined = new Set([
+                ...currentTags,
+                ...(newAction.tagIds ?? []),
+              ]);
               nextTags = Array.from(combined);
             } else {
               nextTags = currentTags.filter((t) => !tagIdSet.has(t));
@@ -1096,7 +1099,9 @@ export function useSwitchTorrentEngine() {
   const queryClient = useQueryClient();
   return useMutation<SwitchEngineResult, Error, SwitchEngineRequest>({
     mutationFn: (req: SwitchEngineRequest) => {
-      const params = req.version ? `?version=${encodeURIComponent(req.version)}` : "";
+      const params = req.version
+        ? `?version=${encodeURIComponent(req.version)}`
+        : "";
       return apiClient.post(`/torrentengine/switch${params}`, req);
     },
     onSuccess: () => {
@@ -1121,7 +1126,11 @@ export function useSwitchTorrentEngineVersion() {
 }
 
 export function useProbeTorrentEngine() {
-  return useMutation<EngineProbeResult, Error, { engineId: string; version?: string } | string>({
+  return useMutation<
+    EngineProbeResult,
+    Error,
+    { engineId: string; version?: string } | string
+  >({
     mutationFn: (arg: { engineId: string; version?: string } | string) => {
       const engineId = typeof arg === "string" ? arg : arg.engineId;
       const version = typeof arg === "object" ? arg.version : undefined;

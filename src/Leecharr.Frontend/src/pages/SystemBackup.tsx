@@ -14,8 +14,6 @@ import { formatBytes, formatDate } from "../utils/formatters";
 import { trackSystemMaintenanceAction } from "../utils/analytics";
 
 function BackupIcon() {
-  const { t } = useTranslation();
-
   return (
     <svg
       width="14"

@@ -437,7 +437,6 @@ export function useTestIndexer() {
 }
 
 export function useTestDirectIndexer() {
-  const queryClient = useQueryClient();
   return useMutation<IndexerTestResult, Error, Partial<IndexerDefinition>>({
     mutationFn: (indexer) => apiClient.post("/indexers/test", indexer),
   });

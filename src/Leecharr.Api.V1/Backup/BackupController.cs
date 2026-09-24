@@ -122,9 +122,9 @@ public class BackupController : Controller
                     includesDb = true;
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore archive reading errors
+                this.logger.Debug(ex, "Failed to read zip archive metadata for {Backup}", fi.Name);
             }
 
             list.Add(new BackupResource
@@ -324,9 +324,9 @@ public class BackupController : Controller
                 {
                     global::System.IO.File.Delete(tempDumpFile);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Ignore temp file cleanup error
+                    this.logger.Debug(ex, "Failed to delete temporary dump file {TempFile}", tempDumpFile);
                 }
             }
         }

@@ -177,7 +177,6 @@ class SignalRManager {
       });
 
       this.connection.onreconnected(async (connectionId) => {
-        console.info("SignalR connection reconnected:", connectionId);
         this.coldStartRetryCount = 0;
         this.notifyConnectionChange(true);
         this.notifyStatus("connected");
@@ -413,7 +412,6 @@ class SignalRManager {
     try {
       if (conn.state === signalR.HubConnectionState.Disconnected) {
         await conn.start();
-        console.info("SignalR connection established successfully");
 
         const wasRetrying = this.coldStartRetryCount > 0;
         this.coldStartRetryCount = 0;

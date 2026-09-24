@@ -111,10 +111,10 @@ interface TorrentToolbarProps {
 }
 
 export function TorrentToolbar({
-  count,
-  torrents,
-  totalUploadSpeed,
-  totalDownloadSpeed,
+  count: _count,
+  torrents: _torrents,
+  totalUploadSpeed: _totalUploadSpeed,
+  totalDownloadSpeed: _totalDownloadSpeed,
   filter,
   onFilterChange,
   viewMode,

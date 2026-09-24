@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useModalRegistration } from "./ModalProvider";
 import { usePermissions } from "../hooks/usePermissions";
 import { useToast } from "../context/ToastContext";

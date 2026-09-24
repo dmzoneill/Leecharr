@@ -22,7 +22,7 @@ interface CategorySettingsProps {
 }
 
 export function CategorySettingsTab({
-  embedded = false,
+  embedded: _embedded = false,
 }: CategorySettingsProps) {
   const { t } = useTranslation();
 

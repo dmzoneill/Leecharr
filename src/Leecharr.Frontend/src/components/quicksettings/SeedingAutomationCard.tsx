@@ -21,7 +21,7 @@ interface SeedingAutomationCardProps {
 }
 
 export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
-  onNavigateSettings,
+  onNavigateSettings: _onNavigateSettings,
 }) => {
   const { t } = useTranslation();
   const { data: seedConfig, isLoading: seedLoading } = useSeedingConfig();

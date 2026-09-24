@@ -263,6 +263,27 @@ export function LogTab({
             </button>
           ))}
         </div>
+        {sources.length > 1 && (
+          <select
+            className="form-control"
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+            style={{
+              padding: "0.1rem 0.35rem",
+              fontSize: "0.68rem",
+              height: "24px",
+              backgroundColor: "var(--bg-primary)",
+              color: "inherit",
+            }}
+          >
+            <option value="ALL">All Sources</option>
+            {sources.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* Table wrap */}

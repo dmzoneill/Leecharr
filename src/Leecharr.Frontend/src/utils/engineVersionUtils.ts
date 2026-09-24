@@ -40,7 +40,10 @@ export function isEngineVersionActive(
   return isEngineActive && activeVer === version;
 }
 
-export function buildEngineProbeUrl(engineId: string, version?: string): string {
+export function buildEngineProbeUrl(
+  engineId: string,
+  version?: string,
+): string {
   const params = version ? `?version=${encodeURIComponent(version)}` : "";
   return `/torrentengine/${encodeURIComponent(engineId)}/probe${params}`;
 }

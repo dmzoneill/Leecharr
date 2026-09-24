@@ -293,7 +293,7 @@ public class ArrConnectionController : Controller
                     }
                 }
             }
-            catch
+            catch (SocketException)
             {
                 // DNS resolution failure (e.g. offline or mock host)
             }
