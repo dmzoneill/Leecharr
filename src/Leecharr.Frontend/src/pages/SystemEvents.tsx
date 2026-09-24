@@ -14,8 +14,6 @@ function formatEventTime(iso: string): string {
 }
 
 function RefreshIcon() {
-  const { t } = useTranslation();
-
   return (
     <svg
       width="14"

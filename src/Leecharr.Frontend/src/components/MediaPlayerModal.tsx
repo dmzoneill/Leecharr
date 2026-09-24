@@ -100,19 +100,22 @@ export function MediaPlayerModal({
 
   const streamUrl = useMemo(() => {
     if (propStreamUrl) return propStreamUrl;
-    if (torrent?.id != null && file.id != null) return buildStreamUrl(torrent.id, file.id);
+    if (torrent?.id != null && file.id != null)
+      return buildStreamUrl(torrent.id, file.id);
     return buildFileStreamUrl(file.path);
   }, [propStreamUrl, torrent?.id, file.id, file.path]);
 
   const downloadUrl = useMemo(() => {
     if (propDownloadUrl) return propDownloadUrl;
-    if (torrent?.id != null && file.id != null) return buildDownloadUrl(torrent.id, file.id);
+    if (torrent?.id != null && file.id != null)
+      return buildDownloadUrl(torrent.id, file.id);
     return buildFileDownloadUrl(file.path);
   }, [propDownloadUrl, torrent?.id, file.id, file.path]);
 
   const playlistUrl = useMemo(() => {
     if (propPlaylistUrl) return propPlaylistUrl;
-    if (torrent?.id != null && file.id != null) return buildPlaylistUrl(torrent.id, file.id);
+    if (torrent?.id != null && file.id != null)
+      return buildPlaylistUrl(torrent.id, file.id);
     return buildFilePlaylistUrl(file.path);
   }, [propPlaylistUrl, torrent?.id, file.id, file.path]);
 
@@ -515,7 +518,9 @@ export function MediaPlayerModal({
           </div>
 
           {/* Header Tab Switcher */}
-          <div style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
+          <div
+            style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}
+          >
             <button
               type="button"
               className={`btn btn-xs ${activeTab === "player" ? "btn-primary" : "btn-default"}`}
@@ -542,7 +547,8 @@ export function MediaPlayerModal({
                 padding: "0.25rem 0.55rem",
               }}
             >
-              <span>⚙</span> {t("mediaPlayer.tabSetup", "External Players & Setup")}
+              <span>⚙</span>{" "}
+              {t("mediaPlayer.tabSetup", "External Players & Setup")}
             </button>
           </div>
 
@@ -644,8 +650,9 @@ export function MediaPlayerModal({
                   color: "#94a3b8",
                 }}
               >
-                Most Linux desktop players (VLC, MPV, Celluloid, Totem) open standard{" "}
-                <code>.m3u</code> playlist files automatically when downloaded or clicked.
+                Most Linux desktop players (VLC, MPV, Celluloid, Totem) open
+                standard <code>.m3u</code> playlist files automatically when
+                downloaded or clicked.
               </p>
               <div
                 style={{
@@ -824,7 +831,8 @@ export function MediaPlayerModal({
                     fontSize: "0.95rem",
                   }}
                 >
-                  <span>🐧</span> 3. One-Click Browser Integration (vlc:// & web+mpv://)
+                  <span>🐧</span> 3. One-Click Browser Integration (vlc:// &
+                  web+mpv://)
                 </h5>
                 <button
                   type="button"
@@ -887,8 +895,11 @@ update-desktop-database ~/.local/share/applications/`;
                   color: "#94a3b8",
                 }}
               >
-                Standard Linux distributions do not register <code>vlc://</code> or{" "}
-                <code>web+mpv://</code> URI schemes by default. Click the button above to copy the setup script, run it in your terminal, and browser links will launch VLC and MPV directly with a single click.
+                Standard Linux distributions do not register <code>vlc://</code>{" "}
+                or <code>web+mpv://</code> URI schemes by default. Click the
+                button above to copy the setup script, run it in your terminal,
+                and browser links will launch VLC and MPV directly with a single
+                click.
               </p>
             </div>
           </div>
@@ -907,216 +918,223 @@ update-desktop-database ~/.local/share/applications/`;
               overflow: "hidden",
             }}
           >
-          {/* Codec Error Fallback Card */}
-          {hasCodecError ? (
-            <div
-              data-testid="codec-error-card"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "2rem",
-                textAlign: "center",
-                maxWidth: "600px",
-                color: "#f8f9fa",
-                gap: "1rem",
-              }}
-            >
-              <div style={{ fontSize: "2.5rem" }}>⚠️</div>
-              <h4 style={{ margin: 0, fontSize: "1.25rem", color: "#ffb703" }}>
-                {t("mediaPlayer.playbackError", "Browser Codec Playback Error")}
-              </h4>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "0.9rem",
-                  color: "#d1d5db",
-                  lineHeight: 1.5,
-                }}
-              >
-                {getCodecErrorMessage(errorCode, fileName)}
-              </p>
-
-              {/* Action Buttons */}
+            {/* Codec Error Fallback Card */}
+            {hasCodecError ? (
               <div
+                data-testid="codec-error-card"
                 style={{
                   display: "flex",
-                  flexWrap: "wrap",
-                  gap: "0.6rem",
-                  justifyContent: "center",
-                  marginTop: "0.5rem",
-                }}
-              >
-                <a
-                  href={vlcUrl}
-                  className="btn btn-primary"
-                  role="button"
-                  style={{
-                    textDecoration: "none",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "0.4rem",
-                    fontWeight: 600,
-                  }}
-                >
-                  <span>📺</span> {t("mediaPlayer.openInVlc", "Open in VLC")}
-                </a>
-                <a
-                  href={mpvUrl}
-                  className="btn btn-secondary"
-                  role="button"
-                  style={{
-                    textDecoration: "none",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "0.4rem",
-                    fontWeight: 600,
-                  }}
-                >
-                  <span>⚡</span> {t("mediaPlayer.openInMpv", "Open in MPV")}
-                </a>
-                <a
-                  href={playlistUrl}
-                  download={`${fileName}.m3u`}
-                  className="btn btn-success"
-                  role="button"
-                  style={{
-                    textDecoration: "none",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "0.4rem",
-                    fontWeight: 600,
-                  }}
-                >
-                  <span>📥</span> {t("mediaPlayer.downloadM3u", "M3U Playlist")}
-                </a>
-                <a
-                  href={downloadUrl}
-                  download={fileName}
-                  className="btn btn-default"
-                  role="button"
-                  style={{
-                    textDecoration: "none",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "0.4rem",
-                  }}
-                >
-                  <span>⬇️</span>{" "}
-                  {t("mediaPlayer.directDownload", "Direct Download")}
-                </a>
-                <button
-                  type="button"
-                  className="btn btn-default"
-                  onClick={handleCopyStreamUrl}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "0.4rem",
-                  }}
-                >
-                  <span>📋</span>{" "}
-                  {copied
-                    ? t("mediaPlayer.copied", "Copied!")
-                    : t("mediaPlayer.copyStreamUrl", "Copy Stream URL")}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-default"
-                  onClick={() => setActiveTab("setup")}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "0.4rem",
-                  }}
-                >
-                  <span>📖</span> {t("mediaPlayer.setupGuide", "Linux Setup Guide")}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-default"
-                  onClick={handleRetryPlayback}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "0.4rem",
-                  }}
-                >
-                  <span>🔄</span> {t("mediaPlayer.retry", "Retry")}
-                </button>
-              </div>
-            </div>
-          ) : isAudio ? (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "1.5rem",
-                padding: "2rem",
-                width: "100%",
-              }}
-            >
-              <div
-                style={{
-                  width: "120px",
-                  height: "120px",
-                  borderRadius: "50%",
-                  backgroundColor: "rgba(52, 152, 219, 0.15)",
-                  border: "2px solid rgba(52, 152, 219, 0.4)",
-                  display: "flex",
+                  flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: "3rem",
+                  padding: "2rem",
+                  textAlign: "center",
+                  maxWidth: "600px",
+                  color: "#f8f9fa",
+                  gap: "1rem",
                 }}
               >
-                🎵
+                <div style={{ fontSize: "2.5rem" }}>⚠️</div>
+                <h4
+                  style={{ margin: 0, fontSize: "1.25rem", color: "#ffb703" }}
+                >
+                  {t(
+                    "mediaPlayer.playbackError",
+                    "Browser Codec Playback Error",
+                  )}
+                </h4>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: "0.9rem",
+                    color: "#d1d5db",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {getCodecErrorMessage(errorCode, fileName)}
+                </p>
+
+                {/* Action Buttons */}
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "0.6rem",
+                    justifyContent: "center",
+                    marginTop: "0.5rem",
+                  }}
+                >
+                  <a
+                    href={vlcUrl}
+                    className="btn btn-primary"
+                    role="button"
+                    style={{
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    <span>📺</span> {t("mediaPlayer.openInVlc", "Open in VLC")}
+                  </a>
+                  <a
+                    href={mpvUrl}
+                    className="btn btn-secondary"
+                    role="button"
+                    style={{
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    <span>⚡</span> {t("mediaPlayer.openInMpv", "Open in MPV")}
+                  </a>
+                  <a
+                    href={playlistUrl}
+                    download={`${fileName}.m3u`}
+                    className="btn btn-success"
+                    role="button"
+                    style={{
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    <span>📥</span>{" "}
+                    {t("mediaPlayer.downloadM3u", "M3U Playlist")}
+                  </a>
+                  <a
+                    href={downloadUrl}
+                    download={fileName}
+                    className="btn btn-default"
+                    role="button"
+                    style={{
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                    }}
+                  >
+                    <span>⬇️</span>{" "}
+                    {t("mediaPlayer.directDownload", "Direct Download")}
+                  </a>
+                  <button
+                    type="button"
+                    className="btn btn-default"
+                    onClick={handleCopyStreamUrl}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                    }}
+                  >
+                    <span>📋</span>{" "}
+                    {copied
+                      ? t("mediaPlayer.copied", "Copied!")
+                      : t("mediaPlayer.copyStreamUrl", "Copy Stream URL")}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-default"
+                    onClick={() => setActiveTab("setup")}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                    }}
+                  >
+                    <span>📖</span>{" "}
+                    {t("mediaPlayer.setupGuide", "Linux Setup Guide")}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-default"
+                    onClick={handleRetryPlayback}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                    }}
+                  >
+                    <span>🔄</span> {t("mediaPlayer.retry", "Retry")}
+                  </button>
+                </div>
               </div>
-              <audio
-                ref={audioRef}
+            ) : isAudio ? (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "1.5rem",
+                  padding: "2rem",
+                  width: "100%",
+                }}
+              >
+                <div
+                  style={{
+                    width: "120px",
+                    height: "120px",
+                    borderRadius: "50%",
+                    backgroundColor: "rgba(52, 152, 219, 0.15)",
+                    border: "2px solid rgba(52, 152, 219, 0.4)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "3rem",
+                  }}
+                >
+                  🎵
+                </div>
+                <audio
+                  ref={audioRef}
+                  controls
+                  autoPlay
+                  preload="metadata"
+                  src={streamUrl}
+                  onError={handleMediaError}
+                  style={{ width: "80%", maxWidth: "500px" }}
+                />
+              </div>
+            ) : (
+              <video
+                ref={videoRef}
                 controls
                 autoPlay
                 preload="metadata"
                 src={streamUrl}
                 onError={handleMediaError}
-                style={{ width: "80%", maxWidth: "500px" }}
-              />
-            </div>
-          ) : (
-            <video
-              ref={videoRef}
-              controls
-              autoPlay
-              preload="metadata"
-              src={streamUrl}
-              onError={handleMediaError}
-              style={{
-                width: "100%",
-                height: "100%",
-                maxHeight: "65vh",
-                backgroundColor: "#000",
-                outline: "none",
-              }}
-            >
-              {Array.isArray(resolvedSubtitles) &&
-                resolvedSubtitles.map((track) => (
-                  <track
-                    key={track.trackId}
-                    kind="subtitles"
-                    label={
-                      track.title ||
-                      `${track.language || "Subtitle"} (${track.twoLetterCode || track.format || `Track ${track.trackId}`})`
-                    }
-                    src={track.url}
-                    srcLang={track.twoLetterCode || "en"}
-                    default={track.isDefault}
-                  />
-                ))}
-            </video>
-          )}
-        </div>
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  maxHeight: "65vh",
+                  backgroundColor: "#000",
+                  outline: "none",
+                }}
+              >
+                {Array.isArray(resolvedSubtitles) &&
+                  resolvedSubtitles.map((track) => (
+                    <track
+                      key={track.trackId}
+                      kind="subtitles"
+                      label={
+                        track.title ||
+                        `${track.language || "Subtitle"} (${track.twoLetterCode || track.format || `Track ${track.trackId}`})`
+                      }
+                      src={track.url}
+                      srcLang={track.twoLetterCode || "en"}
+                      default={track.isDefault}
+                    />
+                  ))}
+              </video>
+            )}
+          </div>
         )}
 
         {/* Footer Toolbar: Subtitles, Size, & External Links */}
@@ -1271,7 +1289,10 @@ update-desktop-database ~/.local/share/applications/`;
               href={playlistUrl}
               download={`${fileName}.m3u`}
               className="btn btn-xs btn-default"
-              title={t("mediaPlayer.tooltipPlaylist", "Download M3U playlist for desktop media players")}
+              title={t(
+                "mediaPlayer.tooltipPlaylist",
+                "Download M3U playlist for desktop media players",
+              )}
               style={{ textDecoration: "none" }}
             >
               {t("mediaPlayer.playlist", "Playlist (.m3u)")}

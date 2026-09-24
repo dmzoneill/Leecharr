@@ -10,9 +10,7 @@ import {
 import { useToast } from "../../context/ToastContext";
 import { SectionCard, SaveBar } from "./shared";
 import {
-  SparklesIcon,
   BotIcon,
-  ShieldCheckIcon,
   RefreshIcon,
   CheckCircleIcon,
   AlertIcon,
@@ -87,10 +85,11 @@ export function AiTab() {
       });
       if (res.success) {
         setFormData((prev) => ({ ...prev, activeAiProvider: providerId }));
-        showToast(
-          t("settingsTabs.ai.switchSuccess", { provider: providerId }),
-          "success",
-        );
+        const successMsg = t("settingsTabs.ai.switchSuccess", {
+          provider: providerId,
+        });
+        setSwitchSuccessMsg(successMsg);
+        showToast(successMsg, "success");
       } else {
         showToast(
           t("settingsTabs.ai.switchError", {

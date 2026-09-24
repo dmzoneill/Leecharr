@@ -7,8 +7,6 @@ import { useToast } from "../context/ToastContext";
 import { ConfirmModal } from "../components/ConfirmModal";
 
 function DownloadIcon() {
-  const { t } = useTranslation();
-
   return (
     <svg
       width="14"

@@ -65,14 +65,14 @@ export function SubsystemsTab() {
       });
 
       if (res.success) {
-        showToast(
+        const successMsg =
           res.message ||
-            t("settingsTabs.subsystems.switchSuccess", {
-              subsystem: selectedForSwitch.subsystem.name,
-              provider: selectedForSwitch.provider.displayName,
-            }),
-          "success",
-        );
+          t("settingsTabs.subsystems.switchSuccess", {
+            subsystem: selectedForSwitch.subsystem.name,
+            provider: selectedForSwitch.provider.displayName,
+          });
+        setSuccessMessage(successMsg);
+        showToast(successMsg, "success");
         setSelectedForSwitch(null);
       } else {
         showToast(

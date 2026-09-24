@@ -2,8 +2,6 @@ import { useTranslation } from "../i18n";
 import { useUpdates } from "../api/hooks";
 
 function CheckIcon() {
-  const { t } = useTranslation();
-
   return (
     <svg
       width="18"

@@ -1,9 +1,6 @@
 import { useRef, useEffect, useState, useMemo, useId } from "react";
 import { useSpeedHistory, useSeedingStats, useTorrents } from "../api/hooks";
-import {
-  useTorrentStore,
-  useAggregatedTorrentMetrics,
-} from "../stores/useTorrentStore";
+import { useAggregatedTorrentMetrics } from "../stores/useTorrentStore";
 import { formatSpeed } from "../utils/formatters";
 import { useTranslation } from "../i18n";
 

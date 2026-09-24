@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { I18nTranslations } from "./types";
-import { languages, Language } from "./languages";
+import { languages } from "./languages";
 import { localeMap, en } from "./locales";
 
 interface I18nStore {
@@ -61,7 +61,7 @@ export function getInitialLanguage(): string {
         if (prefixMatch) return prefixMatch.code;
       }
     }
-  } catch (err) {
+  } catch {
     // Ignore access errors (e.g. sandboxed iframe or strict privacy)
   }
 

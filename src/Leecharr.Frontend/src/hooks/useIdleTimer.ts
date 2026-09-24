@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 export const IDLE_TIMEOUT_STORAGE_KEY = "leecharr-idle-timeout";
-export const DEFAULT_IDLE_TIMEOUT_SECONDS = 900; // 15 minutes
-export const DEFAULT_WARNING_SECONDS = 60; // 60 seconds warning countdown
+export const DEFAULT_IDLE_TIMEOUT_SECONDS = 15 * 60;
+export const DEFAULT_WARNING_SECONDS = 60;
 
 export interface TimeoutOption {
   value: number;

@@ -11,7 +11,6 @@ import {
   useInstallMarketplaceTemplate,
   useTorrents,
   useCategories,
-  useTags,
 } from "../api/hooks";
 import type {
   AutomationScript,
@@ -1414,12 +1413,6 @@ function tAction(
   });
 }
 
-function tCommand(t: any, name: string, defaultDesc: string) {
-  return t(["automation", "commands", name].join("."), {
-    defaultValue: defaultDesc,
-  });
-}
-
 export function AutomationPage() {
   const { t } = useTranslation();
   const confirm = useConfirm();
@@ -1429,7 +1422,6 @@ export function AutomationPage() {
     useAutomationMarketplace();
   const { data: torrents } = useTorrents();
   const { data: categories } = useCategories();
-  const { data: tags } = useTags();
 
   const createScript = useCreateAutomationScript();
   const updateScript = useUpdateAutomationScript();

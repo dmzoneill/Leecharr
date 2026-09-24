@@ -8,17 +8,9 @@ import {
   Navigate,
 } from "react-router";
 import { api } from "./api/client";
-import { signalRManager, useSignalR } from "./api/signalr";
+import { useSignalR } from "./api/signalr";
 import SignalRProvider from "./components/SignalRProvider";
-import { Torrent, Category } from "./api/types";
-import {
-  useIndexers,
-  useGeneralConfig,
-  useRefetchInterval,
-  useTorrents,
-  useCategories,
-  useDownloadClients,
-} from "./api/hooks";
+import { useGeneralConfig, useTorrents, useDownloadClients } from "./api/hooks";
 import { useTorrentStore } from "./stores/useTorrentStore";
 import { LeecharrLogo } from "./components/icons/LeecharrLogo";
 import { LeecharrText } from "./components/icons/LeecharrText";
@@ -134,7 +126,6 @@ export function App() {
 
   const queryClient = useQueryClient();
   const { data: torrents = [] } = useTorrents();
-  const { data: categories = [] } = useCategories();
   const { connected, isReconnecting, reconnect } = useSignalR(queryClient);
   const [currentUser, setCurrentUser] = useState<
     import("./api/types").CurrentUser | null
@@ -148,14 +139,13 @@ export function App() {
     [setStoreCurrentUser],
   );
 
-  const { data: indexersList } = useIndexers();
   const { data: generalConfig } = useGeneralConfig();
 
   const loadUser = async () => {
     try {
       const user = await api.getCurrentUser();
       updateCurrentUser(user);
-    } catch (_err: unknown) {
+    } catch {
       // Auth might not be enabled or user not logged in
     }
   };
