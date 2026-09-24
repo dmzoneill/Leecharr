@@ -19,7 +19,7 @@ public class TorrentFile : ModelBase
     public int Priority { get; set; } = 3;
 
     public double Progress { get; set; }
- 
+
     [Ignore]
     public bool IsPaddingFile { get; set; }
 
