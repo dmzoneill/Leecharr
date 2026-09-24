@@ -4,7 +4,6 @@ import { Torrent } from "../api/types";
 import { PlayIcon, StopIcon } from "./icons/UIIcons";
 import { MediaArtworkImage } from "./common/MediaArtworkImage";
 import {
-  extractTrackerDomain,
   formatFileSize,
   formatSpeed,
   formatRatio,

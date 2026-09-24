@@ -184,7 +184,11 @@ export function EngineSettingsTab() {
       const targetEngine = selectedEngineForSwitch.engineId;
       const targetVersion = selectedEngineForSwitch.version;
       switchMutation.mutate(
-        { engineId: targetEngine, version: targetVersion, preserveTransfers: true },
+        {
+          engineId: targetEngine,
+          version: targetVersion,
+          preserveTransfers: true,
+        },
         {
           onSuccess: (res: any) => {
             setSelectedEngineForSwitch(null);
@@ -473,9 +477,7 @@ export function EngineSettingsTab() {
                         {supportedVersions.map((v) => (
                           <option key={v} value={v}>
                             v{v}
-                            {isActive && v === activeVersion
-                              ? " (Active)"
-                              : ""}
+                            {isActive && v === activeVersion ? " (Active)" : ""}
                           </option>
                         ))}
                       </select>
@@ -616,9 +618,7 @@ export function EngineSettingsTab() {
                             version: currentSelectedVersion,
                           })
                         }
-                        disabled={
-                          !eng.isAvailable || switchMutation.isPending
-                        }
+                        disabled={!eng.isAvailable || switchMutation.isPending}
                         style={{ flex: 1, fontSize: "0.75rem" }}
                       >
                         {t("settingsTabs.batch2.hotSwap")}
@@ -1020,7 +1020,8 @@ export function EngineSettingsTab() {
               }}
             >
               Are you sure you want to switch the active{" "}
-              <strong>{selectedVersionForSwitch.engineId}</strong> engine version from{" "}
+              <strong>{selectedVersionForSwitch.engineId}</strong> engine
+              version from{" "}
               <strong>v{selectedVersionForSwitch.fromVersion}</strong> to{" "}
               <strong>v{selectedVersionForSwitch.toVersion}</strong>?
             </p>
@@ -1031,8 +1032,9 @@ export function EngineSettingsTab() {
                 lineHeight: 1.4,
               }}
             >
-              The engine session will be gracefully re-initialized with target version
-              capabilities. Active torrent bitfields and transfer states are preserved.
+              The engine session will be gracefully re-initialized with target
+              version capabilities. Active torrent bitfields and transfer states
+              are preserved.
             </p>
             <div
               style={{

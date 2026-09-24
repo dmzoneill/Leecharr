@@ -8,8 +8,6 @@ import {
   RefreshIcon,
   AlertIcon,
   CheckCircleIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
   CloseIcon,
 } from "./icons/AiIcons";
 import {

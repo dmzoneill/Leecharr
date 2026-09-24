@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React from "react";
 import {
   useSeedingStats,
   useNetworkStatus,
@@ -13,10 +13,7 @@ import {
   formatUptime,
 } from "../utils/formatters";
 import { useTranslation } from "../i18n";
-import {
-  useTorrentStore,
-  useAggregatedTorrentMetrics,
-} from "../stores/useTorrentStore";
+import { useAggregatedTorrentMetrics } from "../stores/useTorrentStore";
 import {
   SeedingIcon,
   UploadIcon,

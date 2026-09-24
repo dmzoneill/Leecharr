@@ -8,10 +8,7 @@ import {
   useDiskSpace,
   useSeedingStats,
 } from "../api/hooks";
-import {
-  useTorrentStore,
-  useAggregatedTorrentMetrics,
-} from "../stores/useTorrentStore";
+import { useAggregatedTorrentMetrics } from "../stores/useTorrentStore";
 import { extractTrackerDomain } from "../utils/formatters";
 import { calculateAchievements } from "../utils/milestones";
 import { useTranslation } from "../i18n";

@@ -43,8 +43,6 @@ import { useTranslation } from "../i18n";
 export { useSettingsDirty, SettingsDirtyContext, SettingsDirtyProvider };
 
 export function Settings() {
-  const { t } = useTranslation();
-
   const dirtyCtx = useContext(SettingsDirtyContext);
   if (dirtyCtx === defaultSettingsDirtyContext) {
     return (
@@ -154,16 +152,6 @@ function SettingsContent() {
       setSearchQuery("");
       navigate(`/settings/${pageId}`);
     });
-  };
-
-  const handleSelectGroup = (groupId: SettingsGroupId) => {
-    const targetGroup = SETTINGS_GROUPS.find((g) => g.id === groupId);
-    if (targetGroup) {
-      confirmIfDirty(() => {
-        setSearchQuery("");
-        navigate(`/settings/${targetGroup.pages[0].id}`);
-      });
-    }
   };
 
   // Render the appropriate component for the active focused page
