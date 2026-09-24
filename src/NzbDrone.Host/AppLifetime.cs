@@ -246,8 +246,9 @@ public class AppLifetime : IHostedService, IDisposable
                 await Task.WhenAny(Task.WhenAll(tasksToWait), Task.Delay(5000, cancellationToken));
             }
         }
-        catch
+        catch (Exception ex)
         {
+            this.logger.Trace(ex, "Error while waiting for integration tasks to finish during shutdown");
         }
 
         try
@@ -255,8 +256,9 @@ public class AppLifetime : IHostedService, IDisposable
             this.activeSleepInhibitToken?.Dispose();
             this.activeSleepInhibitToken = null;
         }
-        catch
+        catch (Exception ex)
         {
+            this.logger.Trace(ex, "Error disposing sleep inhibition token during shutdown");
         }
 
         try

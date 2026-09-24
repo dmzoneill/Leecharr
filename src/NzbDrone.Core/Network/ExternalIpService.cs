@@ -106,6 +106,7 @@ public class ExternalIpService : BackgroundService, IExternalIpService
         }
         catch (OperationCanceledException)
         {
+            // Expected during clean background service shutdown
         }
         finally
         {

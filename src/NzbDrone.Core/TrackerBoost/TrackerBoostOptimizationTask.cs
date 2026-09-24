@@ -59,6 +59,7 @@ public class TrackerBoostOptimizationTask : IHandle<ApplicationStartedEvent>, ID
         }
         catch (OperationCanceledException)
         {
+            // Expected when task is cancelled
         }
         catch (Exception ex)
         {
@@ -92,8 +93,9 @@ public class TrackerBoostOptimizationTask : IHandle<ApplicationStartedEvent>, ID
             this.cts.Cancel();
             this.cts.Dispose();
         }
-        catch
+        catch (Exception ex)
         {
+            this.logger.Trace(ex, "Error cancelling TrackerBoost token on dispose");
         }
 
         this.executionLock.Dispose();
