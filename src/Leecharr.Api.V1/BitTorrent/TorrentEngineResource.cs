@@ -14,6 +14,10 @@ public class TorrentEngineResource : RestResource
 
     public string Version { get; set; }
 
+    public string ActiveVersion { get; set; }
+
+    public List<string> SupportedVersions { get; set; } = new();
+
     public bool IsActive { get; set; }
 
     public bool IsAvailable { get; set; }
@@ -23,6 +27,8 @@ public class TorrentEngineResource : RestResource
     public string Description { get; set; }
 
     public TorrentEngineCapabilities Capabilities { get; set; }
+
+    public Dictionary<string, TorrentEngineCapabilities> VersionCapabilities { get; set; } = new();
 
     public List<string> Warnings { get; set; } = new();
 }
@@ -34,6 +40,8 @@ public class ActiveEngineStatusResource : RestResource
     public string DisplayName { get; set; }
 
     public string Version { get; set; }
+
+    public string ActiveVersion { get; set; }
 
     public int ActiveTorrentsCount { get; set; }
 
@@ -50,6 +58,15 @@ public class SwitchEngineRequest
 {
     public string EngineId { get; set; }
 
+    public string Version { get; set; }
+
+    public bool PreserveTransfers { get; set; } = true;
+}
+
+public class SwitchEngineVersionRequest
+{
+    public string Version { get; set; }
+
     public bool PreserveTransfers { get; set; } = true;
 }
 
@@ -59,7 +76,11 @@ public class SwitchEngineResultResource
 
     public string PreviousEngine { get; set; }
 
+    public string PreviousVersion { get; set; }
+
     public string ActiveEngine { get; set; }
+
+    public string ActiveVersion { get; set; }
 
     public int TorrentsMigrated { get; set; }
 
@@ -71,6 +92,8 @@ public class SwitchEngineResultResource
 public class EngineProbeResultResource
 {
     public string EngineId { get; set; }
+
+    public string Version { get; set; }
 
     public bool IsHealthy { get; set; }
 
@@ -84,4 +107,6 @@ public class EngineProbeResultResource
 public class EngineProbeRequest
 {
     public string EngineId { get; set; }
+
+    public string Version { get; set; }
 }

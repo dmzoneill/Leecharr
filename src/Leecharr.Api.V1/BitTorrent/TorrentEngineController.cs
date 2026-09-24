@@ -42,11 +42,14 @@ public class TorrentEngineController : Controller
             EngineId = e.EngineId,
             DisplayName = e.DisplayName,
             Version = e.Version,
+            ActiveVersion = e.ActiveVersion,
+            SupportedVersions = e.SupportedVersions?.ToList() ?? new List<string>(),
             IsActive = string.Equals(e.EngineId, activeId, StringComparison.OrdinalIgnoreCase),
             IsAvailable = e.IsAvailable,
             Status = string.Equals(e.EngineId, activeId, StringComparison.OrdinalIgnoreCase) ? "Running" : (e.IsAvailable ? "Ready" : "Unavailable"),
             Description = e.Description,
             Capabilities = e.Capabilities,
+            VersionCapabilities = e.SupportedVersions?.ToDictionary(v => v, v => e.GetCapabilitiesForVersion(v)) ?? new Dictionary<string, TorrentEngineCapabilities>(),
         }).ToList();
 
         return this.Ok(resources);
@@ -67,6 +70,7 @@ public class TorrentEngineController : Controller
             EngineId = active?.EngineId ?? "MonoTorrent",
             DisplayName = active?.DisplayName ?? "MonoTorrent",
             Version = active?.Version ?? "3.0.2",
+            ActiveVersion = active?.ActiveVersion ?? "3.0.2",
             ActiveTorrentsCount = allTasks.Count,
             ConnectedPeersCount = totalPeers,
             DownloadSpeedBytes = totalDownloadSpeed,
@@ -87,14 +91,19 @@ public class TorrentEngineController : Controller
             });
         }
 
-        var result = await this.engineManager.SwitchEngineAsync(request.EngineId, request.PreserveTransfers);
+        var result = !string.IsNullOrWhiteSpace(request.Version)
+            ? await this.engineManager.SwitchEngineAsync(request.EngineId, request.Version, request.PreserveTransfers)
+            : await this.engineManager.SwitchEngineAsync(request.EngineId, request.PreserveTransfers);
+
         if (!result.Success)
         {
             return this.BadRequest(new SwitchEngineResultResource
             {
                 Success = false,
                 PreviousEngine = result.PreviousEngine,
+                PreviousVersion = result.PreviousVersion,
                 ActiveEngine = result.ActiveEngine,
+                ActiveVersion = result.ActiveVersion,
                 Error = result.Error,
             });
         }
@@ -103,7 +112,47 @@ public class TorrentEngineController : Controller
         {
             Success = true,
             PreviousEngine = result.PreviousEngine,
+            PreviousVersion = result.PreviousVersion,
             ActiveEngine = result.ActiveEngine,
+            ActiveVersion = result.ActiveVersion,
+            TorrentsMigrated = result.TorrentsMigrated,
+            Message = result.Message,
+        });
+    }
+
+    [HttpPost("version")]
+    public async Task<ActionResult<SwitchEngineResultResource>> SwitchEngineVersion([FromBody] SwitchEngineVersionRequest request)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.Version))
+        {
+            return this.BadRequest(new SwitchEngineResultResource
+            {
+                Success = false,
+                Error = "Version is required.",
+            });
+        }
+
+        var result = await this.engineManager.SwitchVersionAsync(request.Version, request.PreserveTransfers);
+        if (!result.Success)
+        {
+            return this.BadRequest(new SwitchEngineResultResource
+            {
+                Success = false,
+                PreviousEngine = result.PreviousEngine,
+                PreviousVersion = result.PreviousVersion,
+                ActiveEngine = result.ActiveEngine,
+                ActiveVersion = result.ActiveVersion,
+                Error = result.Error,
+            });
+        }
+
+        return this.Ok(new SwitchEngineResultResource
+        {
+            Success = true,
+            PreviousEngine = result.PreviousEngine,
+            PreviousVersion = result.PreviousVersion,
+            ActiveEngine = result.ActiveEngine,
+            ActiveVersion = result.ActiveVersion,
             TorrentsMigrated = result.TorrentsMigrated,
             Message = result.Message,
         });
@@ -111,12 +160,16 @@ public class TorrentEngineController : Controller
 
     [HttpPost("{engineId}/probe")]
     [HttpPost("probe/{engineId}")]
-    public async Task<ActionResult<EngineProbeResultResource>> ProbeEngine(string engineId)
+    public async Task<ActionResult<EngineProbeResultResource>> ProbeEngine(string engineId, [FromQuery] string version = null)
     {
-        var probe = await this.engineManager.ProbeEngineAsync(engineId);
+        var probe = !string.IsNullOrWhiteSpace(version)
+            ? await this.engineManager.ProbeEngineAsync(engineId, version)
+            : await this.engineManager.ProbeEngineAsync(engineId);
+
         return this.Ok(new EngineProbeResultResource
         {
             EngineId = engineId,
+            Version = version,
             IsHealthy = probe.IsHealthy,
             StatusMessage = probe.StatusMessage,
             DependencyChecks = probe.DependencyChecks,
@@ -127,6 +180,7 @@ public class TorrentEngineController : Controller
     [HttpPost("probe")]
     public async Task<ActionResult<EngineProbeResultResource>> ProbeEnginePost(
         [FromQuery] string engineId = null,
+        [FromQuery] string version = null,
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] EngineProbeRequest request = null)
     {
         var targetEngine = !string.IsNullOrWhiteSpace(engineId)
@@ -135,17 +189,22 @@ public class TorrentEngineController : Controller
                 ? request.EngineId
                 : (this.engineManager.ActiveEngineId ?? "MonoTorrent"));
 
-        return await this.ProbeEngine(targetEngine);
+        var targetVersion = !string.IsNullOrWhiteSpace(version)
+            ? version
+            : request?.Version;
+
+        return await this.ProbeEngine(targetEngine, targetVersion);
     }
 
     [HttpGet("probe")]
     public async Task<ActionResult<EngineProbeResultResource>> ProbeEngineGet(
-        [FromQuery] string engineId = null)
+        [FromQuery] string engineId = null,
+        [FromQuery] string version = null)
     {
         var targetEngine = !string.IsNullOrWhiteSpace(engineId)
             ? engineId
             : (this.engineManager.ActiveEngineId ?? "MonoTorrent");
 
-        return await this.ProbeEngine(targetEngine);
+        return await this.ProbeEngine(targetEngine, version);
     }
 }

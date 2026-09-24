@@ -47,36 +47,85 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
     private bool isRunning;
     private bool disposed;
     private bool isHaltedByKillSwitch;
+    private string activeVersion;
 
     public string ProtocolName => "BitTorrent";
 
     public string EngineId => "LibTorrent";
 
-    public string DisplayName => "libtorrent (Rasterbar C++)";
+    public string DisplayName => $"libtorrent {this.ActiveVersion} (Rasterbar C++)";
 
-    public string Version => "2.0.10 (libtorrent-rasterbar)";
+    public string Version => $"{this.ActiveVersion} (libtorrent-rasterbar)";
 
-    public string Description => "High-performance C++20 BitTorrent engine with memory-mapped file I/O, BitTorrent v2 Merkle trees, and LEDBAT uTP.";
+    public string ActiveVersion => this.activeVersion;
+
+    public IReadOnlyList<string> SupportedVersions { get; } = new[] { "1.2.20", "2.1.1" };
+
+    public string Description => this.ActiveVersion.StartsWith("1.2")
+        ? "Stable, low-overhead C++ BitTorrent engine with traditional POSIX multithreaded I/O and clamped memory cache. Ideal for low-RAM devices, spinning HDDs, and network storage."
+        : "High-performance C++20 BitTorrent engine with modern asynchronous disk I/O, BitTorrent v2 Merkle trees, and LEDBAT uTP.";
 
     public bool IsAvailable => CheckNativeAvailability() || IsRpcEndpointConfigured();
 
     public bool IsHaltedByKillSwitch => this.isHaltedByKillSwitch;
 
-    public TorrentEngineCapabilities Capabilities { get; } = new()
+    public TorrentEngineCapabilities Capabilities => this.GetCapabilitiesForVersion(this.ActiveVersion);
+
+    public TorrentEngineCapabilities GetCapabilitiesForVersion(string version)
     {
-        SupportsUtp = true,
-        SupportsDht = true,
-        SupportsPex = true,
-        SupportsLpd = true,
-        SupportsV2Torrents = true,
-        SupportsSequentialDownload = true,
-        SupportsFastResume = true,
-        SupportsCustomPiecePickers = false,
-        SupportsDynamicRateLimits = true,
-        SupportsSparseAllocation = true,
-        SupportsMemoryMappedIo = true,
-        SupportsEncryptionToggle = true,
-    };
+        var isV2 = !string.IsNullOrWhiteSpace(version) && (version.StartsWith("2.") || version.StartsWith("2"));
+        return new TorrentEngineCapabilities
+        {
+            SupportsUtp = true,
+            SupportsDht = true,
+            SupportsPex = true,
+            SupportsLpd = true,
+            SupportsV2Torrents = isV2,
+            SupportsSequentialDownload = true,
+            SupportsFastResume = true,
+            SupportsCustomPiecePickers = false,
+            SupportsDynamicRateLimits = true,
+            SupportsSparseAllocation = true,
+            SupportsMemoryMappedIo = isV2,
+            SupportsEncryptionToggle = true,
+        };
+    }
+
+    public async Task<bool> SwitchVersionAsync(string targetVersion, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(targetVersion))
+        {
+            return false;
+        }
+
+        var normalized = NormalizeVersion(targetVersion);
+        if (!this.SupportedVersions.Contains(normalized))
+        {
+            return false;
+        }
+
+        if (string.Equals(this.activeVersion, normalized, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        this.logger.Info("Switching LibTorrent engine version from {0} to {1}", this.activeVersion, normalized);
+
+        var wasRunning = this.isRunning;
+        if (wasRunning)
+        {
+            await this.StopAsync();
+        }
+
+        this.activeVersion = normalized;
+
+        if (wasRunning)
+        {
+            await this.StartAsync();
+        }
+
+        return true;
+    }
 
     public LibTorrentDownloadEngine(
         IConfigService configService,
@@ -92,6 +141,9 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         this.diskProvider = diskProvider;
         this.eventAggregator = eventAggregator;
         this.logger = LogManager.GetCurrentClassLogger();
+
+        var cfgVer = this.configService.ActiveTorrentEngineVersion;
+        this.activeVersion = !string.IsNullOrWhiteSpace(cfgVer) ? NormalizeVersion(cfgVer) : "2.1.1";
 
         if (httpClient != null)
         {
@@ -790,6 +842,27 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         return content.FromJson<Dictionary<string, object>>() ?? new Dictionary<string, object>();
     }
 
+    public static string NormalizeVersion(string version)
+    {
+        if (string.IsNullOrWhiteSpace(version))
+        {
+            return "2.1.1";
+        }
+
+        var trimmed = version.Trim().TrimStart('v', 'V');
+        if (trimmed.StartsWith("1.2") || trimmed.StartsWith("1."))
+        {
+            return "1.2.20";
+        }
+
+        if (trimmed.StartsWith("2.1") || trimmed.StartsWith("2.0") || trimmed.StartsWith("2."))
+        {
+            return "2.1.1";
+        }
+
+        return "2.1.1";
+    }
+
     private string GetRpcUrl()
     {
         var envUrl = Environment.GetEnvironmentVariable("LIBTORRENT_RPC_URL");
@@ -798,7 +871,24 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             return envUrl;
         }
 
-        return "http://127.0.0.1:58846";
+        if (!string.IsNullOrWhiteSpace(this.ActiveVersion) && this.ActiveVersion.StartsWith("1.2"))
+        {
+            var v1Url = Environment.GetEnvironmentVariable("LIBTORRENT_1_2_RPC_URL");
+            if (!string.IsNullOrWhiteSpace(v1Url))
+            {
+                return v1Url;
+            }
+
+            return "http://127.0.0.1:58846";
+        }
+
+        var v2Url = Environment.GetEnvironmentVariable("LIBTORRENT_2_1_RPC_URL");
+        if (!string.IsNullOrWhiteSpace(v2Url))
+        {
+            return v2Url;
+        }
+
+        return "http://127.0.0.1:58847";
     }
 
     private static bool IsRpcEndpointConfigured()
@@ -866,7 +956,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
 
         try
         {
-            var pythonBinary = FindPythonBinary();
+            var pythonBinary = FindPythonBinary(this.activeVersion);
             if (string.IsNullOrWhiteSpace(pythonBinary))
             {
                 this.logger.Warn("python3 not found; unable to automatically spawn libtorrent daemon sidecar.");
@@ -881,7 +971,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             }
 
             var rpcUrl = this.GetRpcUrl();
-            var port = 58846;
+            var port = (!string.IsNullOrWhiteSpace(this.ActiveVersion) && this.ActiveVersion.StartsWith("1.2")) ? 58846 : 58847;
             if (Uri.TryCreate(rpcUrl, UriKind.Absolute, out var uri) && uri.Port > 0)
             {
                 port = uri.Port;
@@ -890,7 +980,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             var startInfo = new ProcessStartInfo
             {
                 FileName = pythonBinary,
-                Arguments = $"\"{scriptPath}\" --port {port} --bind 127.0.0.1",
+                Arguments = $"\"{scriptPath}\" --port {port} --bind 127.0.0.1 --version-target {this.ActiveVersion}",
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -927,9 +1017,24 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         }
     }
 
-    private static string FindPythonBinary()
+    private static string FindPythonBinary(string version = null)
     {
-        var candidates = new[] { "python3", "python", "/usr/bin/python3", "/usr/local/bin/python3" };
+        var venvCandidates = new List<string>();
+        if (!string.IsNullOrWhiteSpace(version))
+        {
+            if (version.StartsWith("1.2"))
+            {
+                venvCandidates.Add("/opt/venvs/libtorrent-1.2/bin/python3");
+                venvCandidates.Add("/opt/venvs/libtorrent-1.2/bin/python");
+            }
+            else if (version.StartsWith("2."))
+            {
+                venvCandidates.Add("/opt/venvs/libtorrent-2.1/bin/python3");
+                venvCandidates.Add("/opt/venvs/libtorrent-2.1/bin/python");
+            }
+        }
+
+        var candidates = venvCandidates.Concat(new[] { "python3", "python", "/usr/bin/python3", "/usr/local/bin/python3" });
         foreach (var c in candidates)
         {
             try

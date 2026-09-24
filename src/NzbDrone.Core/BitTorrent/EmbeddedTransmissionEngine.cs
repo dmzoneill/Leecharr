@@ -64,9 +64,20 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
 
     public string Version => "4.0.5 (transmission-daemon)";
 
+    public string ActiveVersion => this.Version;
+
+    public IReadOnlyList<string> SupportedVersions { get; } = new[] { "4.0.5" };
+
     public string Description => "Isolated, lightweight Transmission daemon running on a local loopback socket. Maximum process isolation and low memory footprint.";
 
     public bool IsAvailable => CheckDaemonAvailability() || IsRpcEndpointConfigured();
+
+    public TorrentEngineCapabilities GetCapabilitiesForVersion(string version) => this.Capabilities;
+
+    public Task<bool> SwitchVersionAsync(string targetVersion, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(string.IsNullOrWhiteSpace(targetVersion) || targetVersion.StartsWith("4."));
+    }
 
     public bool IsHaltedByKillSwitch => this.isHaltedByKillSwitch;
 
@@ -1151,7 +1162,7 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
 
         var proxyType = this.configService?.ProxyType?.ToLowerInvariant();
         var proxyConfigured = !string.IsNullOrWhiteSpace(proxyType) &&
-                              !string.Equals(proxyType, "none", StringComparison.OrdinalIgnoreCase);
+            !string.Equals(proxyType, "none", StringComparison.OrdinalIgnoreCase);
 
         if (proxyConfigured)
         {
