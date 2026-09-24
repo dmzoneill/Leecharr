@@ -634,8 +634,9 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
                 return (host, domain, proto, port);
             }
         }
-        catch
+        catch (UriFormatException)
         {
+            // Fall back to raw url default if URI format is invalid
         }
 
         return (url, url, "http", 80);
@@ -882,6 +883,7 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
         }
         catch (OperationCanceledException)
         {
+            // Expected during clean processor shutdown
         }
         catch (Exception ex)
         {

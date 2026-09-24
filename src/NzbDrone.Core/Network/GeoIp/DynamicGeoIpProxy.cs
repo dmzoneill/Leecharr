@@ -232,8 +232,9 @@ public class DynamicGeoIpProxy : IGeoIpService, IGeoIpManager, IHandle<ConfigSav
                 {
                     await this.LookupAsync(ipAddress);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    this.logger.Trace(ex, "Background GeoIP lookup failed for {0}", ipAddress);
                 }
             });
         }

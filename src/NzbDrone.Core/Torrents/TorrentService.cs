@@ -2350,8 +2350,9 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                     roots.Add(catSavePath);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Trace(ex, "Unable to query save path for category {Category}", category);
             }
 
             try
@@ -2376,15 +2377,17 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                                     roots.Add(dir);
                                 }
                             }
-                            catch
+                            catch (Exception ex)
                             {
+                                this.logger.Trace(ex, "Unable to query completed directory for category {Category}", cat.Name);
                             }
                         }
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Trace(ex, "Unable to query all categories for allowed roots");
             }
         }
 
@@ -2397,8 +2400,9 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                     roots.Add(this.configService.DownloadDir);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Trace(ex, "Unable to query configured download directory");
             }
         }
 
