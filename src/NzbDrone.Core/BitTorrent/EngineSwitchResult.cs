@@ -8,7 +8,11 @@ public class EngineSwitchResult
 
     public string PreviousEngine { get; set; }
 
+    public string PreviousVersion { get; set; }
+
     public string ActiveEngine { get; set; }
+
+    public string ActiveVersion { get; set; }
 
     public int TorrentsMigrated { get; set; }
 

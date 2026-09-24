@@ -155,9 +155,20 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
     public string Version => typeof(ClientEngine).Assembly.GetName().Version?.ToString() ?? "3.0.2";
 
+    public string ActiveVersion => this.Version;
+
+    public IReadOnlyList<string> SupportedVersions { get; } = new[] { "3.0.2" };
+
     public string Description => "Pure managed C# BitTorrent engine powered by MonoTorrent. Zero native dependencies, runs anywhere.";
 
     public bool IsAvailable => true;
+
+    public TorrentEngineCapabilities GetCapabilitiesForVersion(string version) => this.Capabilities;
+
+    public Task<bool> SwitchVersionAsync(string targetVersion, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(string.IsNullOrWhiteSpace(targetVersion) || targetVersion.StartsWith("3."));
+    }
 
     public int DhtNodeCount
     {

@@ -224,6 +224,78 @@ public class TorrentEngineControllerTest
     }
 
     [Test]
+    public async Task SwitchEngine_WithVersion_CallsVersionedOverload()
+    {
+        this.engineManager.SwitchEngineAsync("LibTorrent", "1.2.20", true)
+            .Returns(Task.FromResult(new EngineSwitchResult
+            {
+                Success = true,
+                PreviousEngine = "MonoTorrent",
+                PreviousVersion = "3.0.2",
+                ActiveEngine = "LibTorrent",
+                ActiveVersion = "1.2.20",
+                TorrentsMigrated = 2,
+                Message = "Switched to LibTorrent 1.2.20 successfully.",
+            }));
+
+        var result = await this.controller.SwitchEngine(new SwitchEngineRequest
+        {
+            EngineId = "LibTorrent",
+            Version = "1.2.20",
+            PreserveTransfers = true,
+        });
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        var ok = (OkObjectResult)result.Result!;
+        var res = ok.Value as SwitchEngineResultResource;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
+        res.ActiveEngine.Should().Be("LibTorrent");
+        res.ActiveVersion.Should().Be("1.2.20");
+        res.PreviousVersion.Should().Be("3.0.2");
+    }
+
+    [Test]
+    public async Task SwitchEngineVersion_WhenRequestNullOrEmpty_ReturnsBadRequest()
+    {
+        var res1 = await this.controller.SwitchEngineVersion(null!);
+        res1.Result.Should().BeOfType<BadRequestObjectResult>();
+
+        var res2 = await this.controller.SwitchEngineVersion(new SwitchEngineVersionRequest { Version = "   " });
+        res2.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Test]
+    public async Task SwitchEngineVersion_WhenValid_ReturnsOkWithResult()
+    {
+        this.engineManager.SwitchVersionAsync("1.2.20", true)
+            .Returns(Task.FromResult(new EngineSwitchResult
+            {
+                Success = true,
+                PreviousEngine = "LibTorrent",
+                PreviousVersion = "2.1.1",
+                ActiveEngine = "LibTorrent",
+                ActiveVersion = "1.2.20",
+                TorrentsMigrated = 0,
+                Message = "Switched to version 1.2.20.",
+            }));
+
+        var result = await this.controller.SwitchEngineVersion(new SwitchEngineVersionRequest
+        {
+            Version = "1.2.20",
+            PreserveTransfers = true,
+        });
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        var ok = (OkObjectResult)result.Result!;
+        var res = ok.Value as SwitchEngineResultResource;
+        res.Should().NotBeNull();
+        res!.Success.Should().BeTrue();
+        res.PreviousVersion.Should().Be("2.1.1");
+        res.ActiveVersion.Should().Be("1.2.20");
+    }
+
+    [Test]
     public async Task ProbeEngine_ReturnsProbeResult()
     {
         this.engineManager.ProbeEngineAsync("MonoTorrent")

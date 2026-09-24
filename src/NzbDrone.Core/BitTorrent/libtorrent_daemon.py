@@ -20,8 +20,9 @@ except ImportError:
 
 
 class LibTorrentManager:
-    def __init__(self, listen_interfaces="0.0.0.0:6882"):
+    def __init__(self, listen_interfaces="0.0.0.0:6882", version_target="2.1.1"):
         self.lock = threading.Lock()
+        self.version_target = version_target
         settings = {
             "listen_interfaces": listen_interfaces,
             "alert_mask": lt.alert.category_t.error_notification
@@ -58,7 +59,7 @@ class LibTorrentManager:
             st = self.session.status()
             return {
                 "status": "ok",
-                "version": getattr(lt, "__version__", "2.0.10"),
+                "version": getattr(lt, "__version__", self.version_target),
                 "dht_nodes": getattr(st, "dht_nodes", 0),
                 "download_rate": getattr(st, "download_rate", 0),
                 "upload_rate": getattr(st, "upload_rate", 0),
@@ -413,10 +414,17 @@ def main():
         default=6882,
         help="BitTorrent swarm port (default: 6882)",
     )
+    parser.add_argument(
+        "--version-target",
+        default="2.1.1",
+        help="Target version profile (default: 2.1.1)",
+    )
     args = parser.parse_args()
 
     listen_iface = f"{args.bind}:{args.torrent_port}"
-    manager = LibTorrentManager(listen_interfaces=listen_iface)
+    manager = LibTorrentManager(
+        listen_interfaces=listen_iface, version_target=args.version_target
+    )
 
     server = HTTPServer((args.bind, args.port), RpcHandler)
     sys.stdout.write(

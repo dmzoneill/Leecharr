@@ -31,6 +31,8 @@ public interface IConfigService
     // General
     string ActiveTorrentEngine { get; }
 
+    string ActiveTorrentEngineVersion { get; }
+
     string ActiveArchiveExtractor { get; }
 
     bool AutoExtractArchives { get; }
@@ -740,6 +742,8 @@ public class ConfigService : IConfigService
 
     // General
     public string ActiveTorrentEngine => this.GetValue("ActiveTorrentEngine", "MonoTorrent");
+
+    public string ActiveTorrentEngineVersion => this.GetValue("ActiveTorrentEngineVersion", string.Empty);
 
     public string ActiveArchiveExtractor => this.GetValue("ActiveArchiveExtractor", "SharpCompress");
 
