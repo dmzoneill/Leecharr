@@ -21,6 +21,13 @@ import { formatBytes } from "../utils/formatters";
 import { useConfirm } from "../context/ConfirmContext";
 import { useToast } from "../context/ToastContext";
 import { useI18nStore, useTranslation, languages } from "../i18n";
+import { MediaPlayerModal } from "../components/MediaPlayerModal";
+import {
+  isPlayableFile,
+  buildFileStreamUrl,
+  buildFileDownloadUrl,
+  buildFilePlaylistUrl,
+} from "../utils/mediaPlayer";
 
 interface FileManagerFile {
   name: string;
@@ -56,29 +63,10 @@ export function FileBrowser() {
 
   const currentPath = searchParams.get("path") || "";
   const [previewPath, setPreviewPath] = useState<string | null>(null);
+  const [playingMediaFile, setPlayingMediaFile] = useState<FileManagerFile | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<FileManagerFile[]>([]);
+  const lastContextMenuFileRef = useRef<FileManagerFile | null>(null);
   const fileManagerContainerRef = useRef<HTMLDivElement>(null);
-
-  // Automatically bypass Cubone react-file-manager's internal delete modal
-  // so only Leecharr's styled ConfirmModal appears to the user
-  useEffect(() => {
-    const container = fileManagerContainerRef.current;
-    if (!container) return;
-
-    const observer = new MutationObserver(() => {
-      const deleteDangerBtn = container.querySelector<HTMLButtonElement>(
-        ".file-delete-confirm-actions .fm-button-danger",
-      );
-      if (deleteDangerBtn) {
-        deleteDangerBtn.click();
-      }
-    });
-
-    observer.observe(container, { childList: true, subtree: true });
-
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
 
   const {
     data: listing,
@@ -189,13 +177,166 @@ export function FileBrowser() {
     navigateTo(newPath || "/");
   };
 
+  const handlePlayFile = useCallback((file: FileManagerFile) => {
+    setPlayingMediaFile(file);
+  }, []);
+
+  const handlePreviewFile = useCallback((file: FileManagerFile) => {
+    setPreviewPath(file.path);
+  }, []);
+
+  const handleDownloadM3u = useCallback((file: FileManagerFile) => {
+    window.open(buildFilePlaylistUrl(file.path), "_blank");
+  }, []);
+
   const handleFileOpen = (file: FileManagerFile) => {
     if (file.isDirectory) {
       navigateTo(file.path);
+    } else if (isPlayableFile(file.name)) {
+      handlePlayFile(file);
     } else {
-      setPreviewPath(file.path);
+      handlePreviewFile(file);
     }
   };
+
+  // Enhance context menu & bypass internal delete modal
+  useEffect(() => {
+    const container = fileManagerContainerRef.current;
+    if (!container) return;
+
+    const onContextMenuCapture = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      const itemEl = target?.closest<HTMLElement>("[title]");
+      const title = itemEl?.getAttribute("title");
+      if (title) {
+        const found = files.find((f) => f.name === title && !f.isDirectory);
+        if (found) {
+          lastContextMenuFileRef.current = found;
+          return;
+        }
+      }
+      if (selectedFiles.length === 1 && !selectedFiles[0].isDirectory) {
+        lastContextMenuFileRef.current = selectedFiles[0];
+      } else {
+        lastContextMenuFileRef.current = null;
+      }
+    };
+
+    container.addEventListener("contextmenu", onContextMenuCapture, true);
+
+    const observer = new MutationObserver(() => {
+      // 1. Automatically bypass Cubone react-file-manager's internal delete modal
+      const deleteDangerBtn = container.querySelector<HTMLButtonElement>(
+        ".file-delete-confirm-actions .fm-button-danger",
+      );
+      if (deleteDangerBtn) {
+        deleteDangerBtn.click();
+      }
+
+      // 2. Enhance file context menu with Play / Stream and Preview actions
+      const contextMenuUl = container.querySelector<HTMLUListElement>(
+        ".fm-context-menu.visible .file-context-menu-list ul",
+      );
+
+      if (contextMenuUl && !contextMenuUl.dataset.leecharrEnhanced) {
+        const targetFile =
+          lastContextMenuFileRef.current ||
+          (selectedFiles.length === 1 && !selectedFiles[0].isDirectory
+            ? selectedFiles[0]
+            : null);
+
+        if (targetFile && !targetFile.isDirectory) {
+          contextMenuUl.dataset.leecharrEnhanced = "true";
+
+          const isPlayable = isPlayableFile(targetFile.name);
+          const frag = document.createDocumentFragment();
+
+          const closeMenu = () => {
+            const contextMenuEl = container.querySelector<HTMLElement>(".fm-context-menu");
+            if (contextMenuEl) {
+              contextMenuEl.classList.remove("visible");
+              contextMenuEl.classList.add("hidden");
+            }
+          };
+
+          if (isPlayable) {
+            // Play item
+            const playLi = document.createElement("li");
+            playLi.className = "leecharr-ctx-item leecharr-ctx-play";
+            playLi.style.cursor = "pointer";
+            playLi.style.fontWeight = "600";
+            playLi.style.color = "var(--accent, #ffd166)";
+            playLi.innerHTML = `<span style="font-size: 15px; width: 18px; display: inline-flex; align-items: center; justify-content: center;">▶</span> <span>${t("common.play", "Play / Stream")}</span>`;
+            playLi.addEventListener("click", (ev) => {
+              ev.stopPropagation();
+              closeMenu();
+              handlePlayFile(targetFile);
+            });
+            frag.appendChild(playLi);
+
+            // M3U Playlist item
+            const m3uLi = document.createElement("li");
+            m3uLi.className = "leecharr-ctx-item leecharr-ctx-m3u";
+            m3uLi.style.cursor = "pointer";
+            m3uLi.innerHTML = `<span style="font-size: 15px; width: 18px; display: inline-flex; align-items: center; justify-content: center;">📥</span> <span>${t("filebrowser.downloadM3u", "Download M3U Playlist")}</span>`;
+            m3uLi.addEventListener("click", (ev) => {
+              ev.stopPropagation();
+              closeMenu();
+              handleDownloadM3u(targetFile);
+            });
+            frag.appendChild(m3uLi);
+
+            // Quick Preview item
+            const previewLi = document.createElement("li");
+            previewLi.className = "leecharr-ctx-item leecharr-ctx-preview";
+            previewLi.style.cursor = "pointer";
+            previewLi.innerHTML = `<span style="font-size: 15px; width: 18px; display: inline-flex; align-items: center; justify-content: center;">👁</span> <span>${t("common.preview", "Quick Preview")}</span>`;
+            previewLi.addEventListener("click", (ev) => {
+              ev.stopPropagation();
+              closeMenu();
+              handlePreviewFile(targetFile);
+            });
+            frag.appendChild(previewLi);
+
+            // Divider
+            const divider = document.createElement("div");
+            divider.className = "divider";
+            frag.appendChild(divider);
+          } else {
+            // Preview item
+            const previewLi = document.createElement("li");
+            previewLi.className = "leecharr-ctx-item leecharr-ctx-preview";
+            previewLi.style.cursor = "pointer";
+            previewLi.style.fontWeight = "600";
+            previewLi.style.color = "var(--accent, #ffd166)";
+            previewLi.innerHTML = `<span style="font-size: 15px; width: 18px; display: inline-flex; align-items: center; justify-content: center;">👁</span> <span>${t("common.preview", "Preview File")}</span>`;
+            previewLi.addEventListener("click", (ev) => {
+              ev.stopPropagation();
+              closeMenu();
+              handlePreviewFile(targetFile);
+            });
+            frag.appendChild(previewLi);
+
+            // Divider
+            const divider = document.createElement("div");
+            divider.className = "divider";
+            frag.appendChild(divider);
+          }
+
+          contextMenuUl.insertBefore(frag, contextMenuUl.firstChild);
+        }
+      } else if (!container.querySelector(".fm-context-menu.visible") && contextMenuUl?.dataset.leecharrEnhanced) {
+        delete contextMenuUl.dataset.leecharrEnhanced;
+      }
+    });
+
+    observer.observe(container, { childList: true, subtree: true });
+
+    return () => {
+      container.removeEventListener("contextmenu", onContextMenuCapture, true);
+      observer.disconnect();
+    };
+  }, [files, selectedFiles, handlePlayFile, handlePreviewFile, handleDownloadM3u, t]);
 
   const handleCreateFolder = async (
     nameOrParent?: any,
@@ -513,6 +654,63 @@ export function FileBrowser() {
             flexWrap: "wrap",
           }}
         >
+          {selectedFiles.length === 1 && !selectedFiles[0].isDirectory && (
+            <>
+              {isPlayableFile(selectedFiles[0].name) ? (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{
+                      fontSize: "0.85rem",
+                      padding: "0.35rem 0.75rem",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.35rem",
+                    }}
+                    onClick={() => handlePlayFile(selectedFiles[0])}
+                    title={t("common.play", "Play / Stream")}
+                  >
+                    <span>▶</span> {t("common.play", "Play")}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    style={{ fontSize: "0.85rem", padding: "0.35rem 0.75rem" }}
+                    onClick={() => handleDownloadM3u(selectedFiles[0])}
+                    title={t("filebrowser.downloadM3u", "Download M3U Playlist")}
+                  >
+                    📥 M3U
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    style={{ fontSize: "0.85rem", padding: "0.35rem 0.75rem" }}
+                    onClick={() => handlePreviewFile(selectedFiles[0])}
+                    title={t("common.preview", "Quick Preview")}
+                  >
+                    👁 {t("common.preview", "Preview")}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{
+                    fontSize: "0.85rem",
+                    padding: "0.35rem 0.75rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.35rem",
+                  }}
+                  onClick={() => handlePreviewFile(selectedFiles[0])}
+                  title={t("common.preview", "Preview File")}
+                >
+                  <span>👁</span> {t("common.preview", "Preview")}
+                </button>
+              )}
+            </>
+          )}
           <button
             type="button"
             className="btn btn-outline"
@@ -687,6 +885,7 @@ export function FileBrowser() {
           onCopy={handleCopy}
           onPaste={handlePaste}
           onFileUploaded={handleFileUploaded}
+          onSelectionChange={(selected) => setSelectedFiles(selected || [])}
           onRefresh={() => refetch()}
         />
       </div>
@@ -769,6 +968,69 @@ export function FileBrowser() {
               <div
                 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
               >
+                {(previewData?.type === "video" ||
+                  previewData?.type === "audio") && (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{
+                        fontSize: "0.8rem",
+                        padding: "0.3rem 0.65rem",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.35rem",
+                      }}
+                      onClick={() => {
+                        setPlayingMediaFile({
+                          name: previewData.name,
+                          path: previewData.path,
+                          size: previewData.size,
+                          isDirectory: false,
+                        });
+                        setPreviewPath(null);
+                      }}
+                      title={t("player.openInPlayer", "Open in Media Player")}
+                    >
+                      <span>▶</span> {t("player.openInPlayer", "Open in Player")}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      style={{ fontSize: "0.8rem", padding: "0.3rem 0.65rem" }}
+                      onClick={() =>
+                        window.open(
+                          previewData.playlistUrl ||
+                            buildFilePlaylistUrl(previewPath),
+                          "_blank",
+                        )
+                      }
+                      title={t(
+                        "filebrowser.downloadM3u",
+                        "Download M3U Playlist",
+                      )}
+                    >
+                      📥 M3U
+                    </button>
+                  </>
+                )}
+                {previewData?.type === "text" && previewData.content && (
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    style={{ fontSize: "0.8rem", padding: "0.3rem 0.65rem" }}
+                    onClick={() => {
+                      navigator.clipboard.writeText(previewData.content || "");
+                      showToast(
+                        t("common.copiedToClipboard", "Copied to clipboard"),
+                        "info",
+                      );
+                    }}
+                    title={t("common.copy", "Copy content")}
+                  >
+                    📋 {t("common.copy", "Copy")}
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn btn-outline"
@@ -951,6 +1213,21 @@ export function FileBrowser() {
             </div>
           </div>
         </div>
+      )}
+
+      {playingMediaFile && (
+        <MediaPlayerModal
+          isOpen={true}
+          onClose={() => setPlayingMediaFile(null)}
+          file={{
+            path: playingMediaFile.path,
+            name: playingMediaFile.name,
+            size: playingMediaFile.size,
+          }}
+          streamUrl={buildFileStreamUrl(playingMediaFile.path)}
+          downloadUrl={buildFileDownloadUrl(playingMediaFile.path)}
+          playlistUrl={buildFilePlaylistUrl(playingMediaFile.path)}
+        />
       )}
     </div>
   );

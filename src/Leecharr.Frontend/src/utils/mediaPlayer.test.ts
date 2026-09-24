@@ -7,6 +7,9 @@ import {
   buildStreamUrl,
   buildDownloadUrl,
   buildPlaylistUrl,
+  buildFileStreamUrl,
+  buildFileDownloadUrl,
+  buildFilePlaylistUrl,
   buildExternalPlayerUrl,
   getAbsoluteUrl,
   cleanUpMediaElement,
@@ -99,6 +102,18 @@ describe("mediaPlayer: URL builders", () => {
     assert.equal(
       buildPlaylistUrl(42, 7),
       "/api/v1/torrent/42/files/7/stream.m3u",
+    );
+    assert.equal(
+      buildFileStreamUrl("/downloads/movie.mkv"),
+      "/api/v1/files/stream?path=%2Fdownloads%2Fmovie.mkv",
+    );
+    assert.equal(
+      buildFileDownloadUrl("/downloads/movie.mkv"),
+      "/api/v1/files/download?path=%2Fdownloads%2Fmovie.mkv",
+    );
+    assert.equal(
+      buildFilePlaylistUrl("/downloads/movie.mkv"),
+      "/api/v1/files/stream.m3u?path=%2Fdownloads%2Fmovie.mkv",
     );
   });
 

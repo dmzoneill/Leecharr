@@ -218,6 +218,7 @@ public class FileBrowserController : Controller
     }
 
     [HttpGet("download")]
+    [HttpHead("download")]
     public IActionResult Download([FromQuery] string path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -247,7 +248,90 @@ public class FileBrowserController : Controller
 
         var fileName = Path.GetFileName(fullPath);
         var ext = Path.GetExtension(fullPath)?.TrimStart('.').ToLowerInvariant();
-        var contentType = ext switch
+        var contentType = GetContentType(ext);
+
+        return this.PhysicalFile(fullPath, contentType, fileName, enableRangeProcessing: true);
+    }
+
+    [HttpGet("stream")]
+    [HttpHead("stream")]
+    public IActionResult Stream([FromQuery] string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return this.BadRequest(new { Message = "A path is required." });
+        }
+
+        string fullPath;
+        try
+        {
+            fullPath = this.fileBrowserService.ResolvePath(path);
+        }
+        catch (Exception ex)
+        {
+            return this.BadRequest(new { Message = ex.Message });
+        }
+
+        if (this.fileBrowserService.IsRootPath(fullPath) || this.fileBrowserService.IsRootOrSystemDirectory(fullPath))
+        {
+            return this.BadRequest(new { Message = $"Access to root or system path '{fullPath}' is denied." });
+        }
+
+        if (!global::System.IO.File.Exists(fullPath))
+        {
+            return this.NotFound(new { Message = "File not found." });
+        }
+
+        var ext = Path.GetExtension(fullPath)?.TrimStart('.').ToLowerInvariant();
+        var contentType = GetContentType(ext);
+
+        return this.PhysicalFile(fullPath, contentType, enableRangeProcessing: true);
+    }
+
+    [HttpGet("stream.m3u")]
+    [HttpGet("playlist.m3u")]
+    [HttpHead("stream.m3u")]
+    [HttpHead("playlist.m3u")]
+    public IActionResult GetPlaylistM3u([FromQuery] string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return this.BadRequest(new { Message = "A path is required." });
+        }
+
+        string fullPath;
+        try
+        {
+            fullPath = this.fileBrowserService.ResolvePath(path);
+        }
+        catch (Exception ex)
+        {
+            return this.BadRequest(new { Message = ex.Message });
+        }
+
+        if (this.fileBrowserService.IsRootPath(fullPath) || this.fileBrowserService.IsRootOrSystemDirectory(fullPath))
+        {
+            return this.BadRequest(new { Message = $"Access to root or system path '{fullPath}' is denied." });
+        }
+
+        if (!global::System.IO.File.Exists(fullPath))
+        {
+            return this.NotFound(new { Message = "File not found." });
+        }
+
+        var host = this.Request?.Host.Value ?? "localhost:7889";
+        var scheme = this.Request?.Scheme ?? "http";
+        var fullStreamUrl = $"{scheme}://{host}/api/v1/files/stream?path={Uri.EscapeDataString(path)}";
+        var fileName = Path.GetFileName(fullPath);
+
+        var m3uContent = $"#EXTM3U\n#EXTINF:-1,{fileName}\n{fullStreamUrl}\n";
+        var bytes = Encoding.UTF8.GetBytes(m3uContent);
+        return this.File(bytes, "audio/x-mpegurl", $"{fileName}.m3u");
+    }
+
+    private static string GetContentType(string ext)
+    {
+        return ext switch
         {
             "mp4" => "video/mp4",
             "mkv" => "video/x-matroska",
@@ -266,10 +350,8 @@ public class FileBrowserController : Controller
             "gif" => "image/gif",
             "webp" => "image/webp",
             "svg" => "image/svg+xml",
-            _ => "application/octet-stream"
+            _ => "application/octet-stream",
         };
-
-        return this.PhysicalFile(fullPath, contentType, fileName, enableRangeProcessing: true);
     }
 
     [HttpGet("preview")]
@@ -354,6 +436,8 @@ public class FileBrowserController : Controller
                 Size = fileInfo.Length,
                 Extension = ext,
                 DownloadUrl = $"/api/v1/files/download?path={Uri.EscapeDataString(path)}",
+                StreamUrl = $"/api/v1/files/stream?path={Uri.EscapeDataString(path)}",
+                PlaylistUrl = $"/api/v1/files/stream.m3u?path={Uri.EscapeDataString(path)}",
             });
         }
 
@@ -367,6 +451,8 @@ public class FileBrowserController : Controller
                 Size = fileInfo.Length,
                 Extension = ext,
                 DownloadUrl = $"/api/v1/files/download?path={Uri.EscapeDataString(path)}",
+                StreamUrl = $"/api/v1/files/stream?path={Uri.EscapeDataString(path)}",
+                PlaylistUrl = $"/api/v1/files/stream.m3u?path={Uri.EscapeDataString(path)}",
             });
         }
 
