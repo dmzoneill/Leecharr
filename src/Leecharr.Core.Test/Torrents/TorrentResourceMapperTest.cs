@@ -3,7 +3,9 @@
 using FluentAssertions;
 using Leecharr.Api.V1.Media;
 using Leecharr.Api.V1.Torrents;
+using NSubstitute;
 using NUnit.Framework;
+using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Torrents;
 
@@ -132,5 +134,41 @@ public class TorrentResourceMapperTest
         resource.TrackerUrl.Should().Be(publicUrl);
         resource.Trackers.Should().ContainSingle();
         resource.Trackers[0].Should().Be(publicUrl);
+    }
+
+    [Test]
+    public void ToResource_WithActiveDownloadTask_OverridesTelemetryFromTask()
+    {
+        var torrent = new Torrent
+        {
+            Id = 300,
+            Name = "Live Sync Torrent",
+            Status = TorrentStatus.Downloading,
+            Progress = 0.1,
+            Downloaded = 1000,
+            DownloadSpeed = 500,
+            UploadSpeed = 100,
+            Seeders = 1,
+            Leechers = 2,
+        };
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.Progress.Returns(0.45);
+        mockTask.DownloadedBytes.Returns(45000);
+        mockTask.DownloadSpeed.Returns(10000);
+        mockTask.UploadSpeed.Returns(2000);
+        mockTask.ConnectedSeeders.Returns(12);
+        mockTask.ConnectedLeechers.Returns(8);
+        mockTask.Status.Returns(TorrentStatus.Downloading);
+
+        var resource = TorrentResourceMapper.ToResource(torrent, task: mockTask);
+
+        resource.Should().NotBeNull();
+        resource.Progress.Should().Be(0.45);
+        resource.Downloaded.Should().Be(45000);
+        resource.DownloadSpeed.Should().Be(10000);
+        resource.UploadSpeed.Should().Be(2000);
+        resource.Seeders.Should().Be(12);
+        resource.Leechers.Should().Be(8);
     }
 }
