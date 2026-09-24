@@ -396,6 +396,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     }
 
     [HttpGet("{id:int}/files/{fileId:int}/stream")]
+    [HttpHead("{id:int}/files/{fileId:int}/stream")]
     [SuppressMessage("Security", "CA3003:Review code for file path injection vulnerabilities", Justification = "File path is validated against torrent save directory")]
     public ActionResult StreamFile(int id, int fileId)
     {
@@ -416,6 +417,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     }
 
     [HttpGet("{id:int}/files/{fileId:int}/download")]
+    [HttpHead("{id:int}/files/{fileId:int}/download")]
     [SuppressMessage("Security", "CA3003:Review code for file path injection vulnerabilities", Justification = "File path is validated against torrent save directory")]
     public ActionResult DownloadFile(int id, int fileId)
     {
@@ -473,6 +475,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
     [HttpGet("{id:int}/files/{fileId:int}/subtitles/{trackId}.vtt")]
     [HttpGet("{id:int}/files/{fileId:int}/subtitles/{trackId}")]
+    [HttpHead("{id:int}/files/{fileId:int}/subtitles/{trackId}.vtt")]
+    [HttpHead("{id:int}/files/{fileId:int}/subtitles/{trackId}")]
     [SuppressMessage("Security", "CA3003:Review code for file path injection vulnerabilities", Justification = "File path is validated against torrent save directory")]
     public ActionResult GetSubtitleTrack(int id, int fileId, string trackId)
     {
@@ -566,6 +570,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
     [HttpGet("{id:int}/subtitles/{trackId}.vtt")]
     [HttpGet("{id:int}/subtitles/{trackId}")]
+    [HttpHead("{id:int}/subtitles/{trackId}.vtt")]
+    [HttpHead("{id:int}/subtitles/{trackId}")]
     public ActionResult GetTorrentSubtitleTrack(int id, string trackId)
     {
         var torrent = this.torrentService.Get(id);
@@ -590,6 +596,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
     [HttpGet("{id:int}/files/{fileId:int}/stream.m3u")]
     [HttpGet("{id:int}/files/{fileId:int}/playlist.m3u")]
+    [HttpHead("{id:int}/files/{fileId:int}/stream.m3u")]
+    [HttpHead("{id:int}/files/{fileId:int}/playlist.m3u")]
     public ActionResult GetPlaylistM3u(int id, int fileId)
     {
         var torrent = this.torrentService.Get(id);
@@ -617,6 +625,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
     [HttpGet("{id:int}/stream.m3u")]
     [HttpGet("{id:int}/playlist.m3u")]
+    [HttpHead("{id:int}/stream.m3u")]
+    [HttpHead("{id:int}/playlist.m3u")]
     public ActionResult GetTorrentPlaylistM3u(int id)
     {
         var torrent = this.torrentService.Get(id);
