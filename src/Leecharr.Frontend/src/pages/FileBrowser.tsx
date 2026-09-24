@@ -221,7 +221,9 @@ export function FileBrowser() {
       );
       const title =
         selectedEl?.getAttribute("title") ||
-        selectedEl?.querySelector<HTMLElement>(".file-name")?.textContent?.trim();
+        selectedEl
+          ?.querySelector<HTMLElement>(".file-name")
+          ?.textContent?.trim();
       if (title) {
         const found = files.find((f) => f.name === title && !f.isDirectory);
         if (found) return found;
@@ -682,23 +684,35 @@ export function FileBrowser() {
   if (isLoading && !listing) {
     return (
       <div
-        className="card"
+        className="content-area"
         style={{
-          padding: "3rem 1.5rem",
-          textAlign: "center",
-          color: "var(--text-muted)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+          padding: "1.5rem",
+          boxSizing: "border-box",
         }}
       >
-        <span
+        <div
+          className="card"
           style={{
-            fontSize: "2rem",
-            display: "block",
-            marginBottom: "0.75rem",
+            padding: "3rem 1.5rem",
+            textAlign: "center",
+            color: "var(--text-muted)",
           }}
         >
-          ⏳
-        </span>
-        {t("filebrowser.loadingBrowser", "Loading file browser...")}
+          <span
+            style={{
+              fontSize: "2rem",
+              display: "block",
+              marginBottom: "0.75rem",
+            }}
+          >
+            ⏳
+          </span>
+          {t("filebrowser.loadingBrowser", "Loading file browser...")}
+        </div>
       </div>
     );
   }
@@ -706,37 +720,52 @@ export function FileBrowser() {
   if (isError) {
     return (
       <div
-        className="card"
+        className="content-area"
         style={{
-          padding: "2rem 1.5rem",
-          textAlign: "center",
-          color: "var(--danger, #ef4444)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+          padding: "1.5rem",
+          boxSizing: "border-box",
         }}
       >
-        <span
+        <div
+          className="card"
           style={{
-            fontSize: "2rem",
-            display: "block",
-            marginBottom: "0.75rem",
+            padding: "2rem 1.5rem",
+            textAlign: "center",
+            color: "var(--danger, #ef4444)",
           }}
         >
-          ⚠️
-        </span>
-        {t(
-          "filebrowser.failedToLoadDirectory",
-          "Failed to load directory listing.",
-        )}
+          <span
+            style={{
+              fontSize: "2rem",
+              display: "block",
+              marginBottom: "0.75rem",
+            }}
+          >
+            ⚠️
+          </span>
+          {t(
+            "filebrowser.failedToLoadDirectory",
+            "Failed to load directory listing.",
+          )}
+        </div>
       </div>
     );
   }
 
   return (
     <div
+      className="content-area"
       style={{
         display: "flex",
         flexDirection: "column",
         height: "100%",
-        gap: "0.85rem",
+        gap: "1rem",
+        padding: "1.5rem",
+        boxSizing: "border-box",
       }}
     >
       {/* Header Banner */}
@@ -772,8 +801,7 @@ export function FileBrowser() {
             }}
           >
             {dirStats.folderCount} {t("filebrowser.folderCount", "folder(s)")}{" "}
-            &bull;{" "}
-            {dirStats.fileCount} {t("filebrowser.fileCount", "file(s)")}{" "}
+            &bull; {dirStats.fileCount} {t("filebrowser.fileCount", "file(s)")}{" "}
             &bull; {formatBytes(dirStats.totalSize)}{" "}
             {t("common.total", "total")}
           </p>

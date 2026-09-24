@@ -44,10 +44,9 @@ export function TrackerMetrics() {
     isLoading: isLoadingMetrics,
     refetch: refetchMetrics,
   } = useTrackerMetrics(isLive ? 4000 : false);
-  const {
-    data: summary,
-    refetch: refetchSummary,
-  } = useTrackerMetricsSummary(isLive ? 4000 : false);
+  const { data: summary, refetch: refetchSummary } = useTrackerMetricsSummary(
+    isLive ? 4000 : false,
+  );
 
   const resetMetric = useResetTrackerMetric();
   const deleteMetric = useDeleteTrackerMetric();
