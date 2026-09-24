@@ -81,6 +81,28 @@ public class FileBrowserControllerTest
     }
 
     [Test]
+    public void Stream_WhenPathIsRootOrSystemDirectory_ReturnsBadRequest()
+    {
+        this.fileBrowserService.ResolvePath("/etc/shadow").Returns("/etc/shadow");
+        this.fileBrowserService.IsRootOrSystemDirectory("/etc/shadow").Returns(true);
+
+        var result = this.controller.Stream("/etc/shadow");
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Test]
+    public void GetPlaylistM3u_WhenPathIsRootOrSystemDirectory_ReturnsBadRequest()
+    {
+        this.fileBrowserService.ResolvePath("/etc/shadow").Returns("/etc/shadow");
+        this.fileBrowserService.IsRootOrSystemDirectory("/etc/shadow").Returns(true);
+
+        var result = this.controller.GetPlaylistM3u("/etc/shadow");
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Test]
     public void GetPreview_WhenPathIsRootOrSystemDirectory_ReturnsBadRequest()
     {
         this.fileBrowserService.ResolvePath("/etc/passwd").Returns("/etc/passwd");

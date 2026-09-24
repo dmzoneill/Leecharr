@@ -16,6 +16,9 @@ import {
   buildStreamUrl,
   buildDownloadUrl,
   buildPlaylistUrl,
+  buildFileStreamUrl,
+  buildFileDownloadUrl,
+  buildFilePlaylistUrl,
   buildExternalPlayerUrl,
   getAbsoluteUrl,
   cleanUpMediaElement,
@@ -27,14 +30,17 @@ import { trackMediaPreview } from "../utils/analytics";
 export interface MediaPlayerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  torrent: Pick<Torrent, "id" | "name"> & Partial<Pick<Torrent, "mediaTitle">>;
+  torrent?: Pick<Torrent, "id" | "name"> & Partial<Pick<Torrent, "mediaTitle">>;
   file: {
-    id: number;
+    id?: number;
     path: string;
     name?: string;
     size?: number;
   };
   subtitles?: SubtitleTrack[];
+  streamUrl?: string;
+  downloadUrl?: string;
+  playlistUrl?: string;
 }
 
 export type SubtitleSize = "small" | "medium" | "large" | "x-large";
@@ -45,6 +51,9 @@ export function MediaPlayerModal({
   torrent,
   file,
   subtitles: propSubtitles,
+  streamUrl: propStreamUrl,
+  downloadUrl: propDownloadUrl,
+  playlistUrl: propPlaylistUrl,
 }: MediaPlayerModalProps) {
   const { t } = useTranslation();
   const modalRef = useRef<HTMLDivElement>(null);
@@ -71,8 +80,8 @@ export function MediaPlayerModal({
 
   const isAudio = useMemo(() => isAudioFile(fileName), [fileName]);
   const mediaBadges = useMemo(
-    () => parseMediaBadges(fileName, torrent.name),
-    [fileName, torrent.name],
+    () => parseMediaBadges(fileName, torrent?.name),
+    [fileName, torrent?.name],
   );
 
   useEffect(() => {
@@ -89,24 +98,27 @@ export function MediaPlayerModal({
     }
   }, [isOpen, isAudio, fileName]);
 
-  const streamUrl = useMemo(
-    () => buildStreamUrl(torrent.id, file.id),
-    [torrent.id, file.id],
-  );
+  const streamUrl = useMemo(() => {
+    if (propStreamUrl) return propStreamUrl;
+    if (torrent?.id != null && file.id != null) return buildStreamUrl(torrent.id, file.id);
+    return buildFileStreamUrl(file.path);
+  }, [propStreamUrl, torrent?.id, file.id, file.path]);
 
-  const downloadUrl = useMemo(
-    () => buildDownloadUrl(torrent.id, file.id),
-    [torrent.id, file.id],
-  );
+  const downloadUrl = useMemo(() => {
+    if (propDownloadUrl) return propDownloadUrl;
+    if (torrent?.id != null && file.id != null) return buildDownloadUrl(torrent.id, file.id);
+    return buildFileDownloadUrl(file.path);
+  }, [propDownloadUrl, torrent?.id, file.id, file.path]);
 
-  const playlistUrl = useMemo(
-    () => buildPlaylistUrl(torrent.id, file.id),
-    [torrent.id, file.id],
-  );
+  const playlistUrl = useMemo(() => {
+    if (propPlaylistUrl) return propPlaylistUrl;
+    if (torrent?.id != null && file.id != null) return buildPlaylistUrl(torrent.id, file.id);
+    return buildFilePlaylistUrl(file.path);
+  }, [propPlaylistUrl, torrent?.id, file.id, file.path]);
 
   const { data: fetchedSubtitles } = useTorrentFileSubtitles(
-    isOpen ? torrent.id : undefined,
-    isOpen ? file.id : undefined,
+    isOpen && torrent?.id != null ? torrent.id : undefined,
+    isOpen && file.id != null ? file.id : undefined,
   );
 
   const resolvedSubtitles = useMemo<SubtitleTrack[]>(() => {
@@ -131,7 +143,7 @@ export function MediaPlayerModal({
         : undefined;
       setActiveSubtitleTrackId(defaultSub ? defaultSub.trackId : "off");
     }
-  }, [isOpen, file.id, torrent.id, resolvedSubtitles]);
+  }, [isOpen, file.id, torrent?.id, resolvedSubtitles]);
 
   // Stream Lifecycle Cleanup on Unmount / Close:
   useEffect(() => {
@@ -372,7 +384,7 @@ export function MediaPlayerModal({
 
   if (!isOpen) return null;
 
-  const titleText = torrent.mediaTitle || torrent.name;
+  const titleText = torrent?.mediaTitle || torrent?.name || fileName;
   const vlcUrl = buildExternalPlayerUrl("vlc", streamUrl);
   const mpvUrl = buildExternalPlayerUrl("mpv", streamUrl);
 
