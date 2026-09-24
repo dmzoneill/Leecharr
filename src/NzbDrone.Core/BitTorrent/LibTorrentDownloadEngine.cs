@@ -266,8 +266,9 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                     await Task.WhenAny(this.syncLoopTask, Task.Delay(2000));
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Trace(ex, "Exception while awaiting libtorrent sync loop task on shutdown");
             }
 
             this.syncCts.Dispose();
@@ -283,8 +284,9 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                     this.daemonProcess.CancelOutputRead();
                     this.daemonProcess.CancelErrorRead();
                 }
-                catch
+                catch (InvalidOperationException)
                 {
+                    // Asynchronous read operations were not active or already canceled
                 }
 
                 this.daemonProcess.Kill(entireProcessTree: true);
@@ -461,8 +463,9 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             {
                 await this.SendRpcRequestAsync("pause_session", new Dictionary<string, object>());
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Trace(ex, "Failed to pause libtorrent session during killswitch halt");
             }
         });
     }
@@ -500,8 +503,9 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                     ["newProvider"] = message.NewProvider,
                 });
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Trace(ex, "Failed to rebind network interfaces in libtorrent session");
             }
         });
     }
@@ -704,8 +708,9 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                     this.daemonProcess.Kill(entireProcessTree: true);
                     this.daemonProcess.Dispose();
                 }
-                catch
+                catch (Exception ex)
                 {
+                    this.logger.Trace(ex, "Failed to kill daemon process during libtorrent disposal");
                 }
                 finally
                 {
@@ -1105,8 +1110,9 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                     }
                 }
             }
-            catch
+            catch (Exception)
             {
+                // Candidate python executable failed to start or probe
             }
         }
 

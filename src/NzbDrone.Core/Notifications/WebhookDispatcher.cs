@@ -330,8 +330,9 @@ public class WebhookDispatcher : IWebhookDispatcher
                         stream = s;
                     }
                 }
-                catch
+                catch (Exception)
                 {
+                    // Response stream unreadable or not backed by memory stream
                 }
 
                 if (stream is MemoryStream memStream && memStream.Length > 0 && memStream.Length <= 16384)
@@ -377,15 +378,16 @@ public class WebhookDispatcher : IWebhookDispatcher
                             }
                         }
                     }
-                    catch
+                    catch (Exception)
                     {
                         memStream.Position = currentPos;
                     }
                 }
             }
         }
-        catch
+        catch (Exception)
         {
+            // Response header or content inspection failed; fallback to default retry policy
         }
 
         return null;
@@ -665,8 +667,9 @@ public class WebhookDispatcher : IWebhookDispatcher
                     return dictFromJson;
                 }
             }
-            catch
+            catch (Exception)
             {
+                // Fallback to JSON serialization-based parsing if raw object conversion fails
             }
         }
 
@@ -688,8 +691,9 @@ public class WebhookDispatcher : IWebhookDispatcher
                 return dictFromJson;
             }
         }
-        catch
+        catch (Exception)
         {
+            // If serialization or parsing fails, return original payload untouched
         }
 
         return payload;
@@ -716,8 +720,9 @@ public class WebhookDispatcher : IWebhookDispatcher
                 return bodySnippet;
             }
         }
-        catch
+        catch (Exception)
         {
+            // Content read error or cancellation; return empty snippet
         }
 
         return string.Empty;

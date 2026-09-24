@@ -67,8 +67,10 @@ public static class NzbDroneLogger
             config.AddTarget(fileTarget);
             config.AddRule(LogLevel.Debug, LogLevel.Fatal, fileTarget);
         }
-        catch
+        catch (Exception ex)
         {
+            // If the log directory cannot be created or file target cannot be initialized (e.g. read-only filesystem), fallback to console and memory targets
+            Console.Error.WriteLine($"Failed to configure file logging target in '{logDir}': {ex.Message}");
         }
 
         LogManager.Configuration = config;
@@ -96,8 +98,10 @@ public static class NzbDroneLogger
 
                 config.AddRule(lvl, LogLevel.Fatal, consoleTarget);
             }
-            catch
+            catch (ArgumentException ex)
             {
+                // Invalid or unrecognized console log level specified, retain previous rule
+                Console.Error.WriteLine($"Invalid console log level '{consoleLevelStr}': {ex.Message}");
             }
         }
 
@@ -115,8 +119,10 @@ public static class NzbDroneLogger
 
                 config.AddRule(lvl, LogLevel.Fatal, fileTarget);
             }
-            catch
+            catch (ArgumentException ex)
             {
+                // Invalid or unrecognized file log level specified, retain previous rule
+                Console.Error.WriteLine($"Invalid file log level '{fileLevelStr}': {ex.Message}");
             }
         }
 

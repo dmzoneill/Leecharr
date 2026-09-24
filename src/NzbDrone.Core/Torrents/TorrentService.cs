@@ -2323,8 +2323,9 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                     roots.Add(completedCat);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Trace(ex, "Unable to query completed directory for category {Category}", category);
             }
 
             try
@@ -2335,8 +2336,9 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                     roots.Add(completedDefault);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Trace(ex, "Unable to query default completed directory");
             }
         }
 

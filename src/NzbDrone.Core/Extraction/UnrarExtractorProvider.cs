@@ -210,8 +210,9 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
                             process.Kill(true);
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        this.logger.Trace(ex, "Failed to kill UnRAR process on cancellation");
                     }
 
                     this.RollbackExtractedFiles(normalizedDest, existingFiles, existingDirectories);
@@ -260,8 +261,9 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
                             process.Kill(true);
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        this.logger.Trace(ex, "Failed to kill UnRAR process during disposal");
                     }
 
                     process.Dispose();
@@ -309,8 +311,9 @@ public class UnrarExtractorProvider : IArchiveExtractorProvider
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Trace(ex, "Failed to recurse into directory '{Directory}' during snapshot", current);
             }
         }
 
