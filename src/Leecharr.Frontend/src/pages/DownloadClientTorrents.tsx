@@ -1879,7 +1879,7 @@ export default function DownloadClientTorrents() {
               }}
             >
               Are you sure you want to remove{" "}
-              <strong>"{deleteTarget.title}"</strong>
+              <strong>&ldquo;{deleteTarget.title}&rdquo;</strong>
               {deleteTarget.clientName
                 ? ` from ${deleteTarget.clientName}`
                 : ""}

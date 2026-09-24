@@ -381,8 +381,9 @@ public class TrackerServerConfigController : ConfigController<TrackerServerConfi
                     {
                         await this.udpTrackerService.RestartAsync();
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        this.logger.Error(ex, "Failed to restart UDP tracker service");
                     }
                 });
             }
@@ -394,8 +395,9 @@ public class TrackerServerConfigController : ConfigController<TrackerServerConfi
                     {
                         await this.udpTrackerService.StopAsync();
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        this.logger.Error(ex, "Failed to stop UDP tracker service");
                     }
                 });
             }

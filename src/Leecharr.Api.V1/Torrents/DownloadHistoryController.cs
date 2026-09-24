@@ -21,6 +21,7 @@ public class DownloadHistoryController : Controller
     private readonly IMediaEnrichmentService mediaEnrichmentService;
     private readonly IDownloadHistoryRepository downloadHistoryRepository;
     private readonly ITorrentRepository torrentRepository;
+    private readonly NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
 
     public DownloadHistoryController(
         IDownloadHistoryService historyService,
@@ -150,8 +151,9 @@ public class DownloadHistoryController : Controller
                         }
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    this.logger.Debug(ex, "Failed to enrich download history record {RecordId}", record.Id);
                 }
             }
         }
@@ -193,8 +195,9 @@ public class DownloadHistoryController : Controller
                             }
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        this.logger.Debug(ex, "Failed to enrich reconciled torrent {TorrentId}", record.TorrentId);
                     }
                 }
             }
