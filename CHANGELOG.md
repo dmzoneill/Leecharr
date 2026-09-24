@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.26.8](https://github.com/dmzoneill/Leecharr/releases/tag/v1.26.8) - 2026-09-24
+
+### ✨ Features
+- feat(engine): add multi-version torrent engine architecture and LibTorrent 1.2 and 2.1 support with unit and integration tests
+
+### 🐛 Bug Fixes
+- fix(test): add missing using directive NzbDrone.Core.Download in LibTorrentVersionSupportTest
+- fix(ci): revert undeclared workflow inputs
+- fix(lint): format python sidecar and align workflow linter configuration
+
 ## [v1.26.7](https://github.com/dmzoneill/Leecharr/releases/tag/v1.26.7) - 2026-09-24
 
 ### ✨ Features
