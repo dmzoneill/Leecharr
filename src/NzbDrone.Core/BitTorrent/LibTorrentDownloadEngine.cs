@@ -745,6 +745,11 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                             task.DownloadedBytes = item.TryGetProperty("total_done", out var td) ? td.GetInt64() : task.DownloadedBytes;
                             task.UploadedBytes = item.TryGetProperty("total_uploaded", out var tu) ? tu.GetInt64() : task.UploadedBytes;
 
+                            if (task.Progress <= 0.0 && task.DownloadedBytes > 0 && task.TotalSize > 0)
+                            {
+                                task.Progress = Math.Min(1.0, (double)task.DownloadedBytes / task.TotalSize);
+                            }
+
                             var state = item.TryGetProperty("state", out var s) ? s.GetString() : string.Empty;
                             task.Status = state.ToLowerInvariant() switch
                             {
@@ -818,9 +823,9 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Libtorrent poll error, will retry on next tick
+                this.logger.Trace(ex, "Libtorrent poll error, will retry on next tick");
             }
 
             try

@@ -317,10 +317,25 @@ class LibTorrentManager:
                 if "." in state_str:
                     state_str = state_str.split(".")[-1]
 
+                prog = float(getattr(st, "progress", 0.0))
+                if prog == 0.0:
+                    ppm = getattr(st, "progress_ppm", 0)
+                    total_wanted = getattr(st, "total_wanted", 0)
+                    total_wanted_done = getattr(st, "total_wanted_done", 0)
+                    if ppm > 0:
+                        prog = float(ppm) / 1000000.0
+                    elif total_wanted > 0 and total_wanted_done > 0:
+                        prog = min(1.0, float(total_wanted_done) / float(total_wanted))
+                    elif (
+                        getattr(st, "total_done", 0) > 0
+                        and getattr(st, "total_size", 0) > 0
+                    ):
+                        prog = min(1.0, float(st.total_done) / float(st.total_size))
+
                 torrents.append(
                     {
                         "info_hash": ih,
-                        "progress": float(st.progress),
+                        "progress": prog,
                         "download_rate": int(st.download_rate),
                         "upload_rate": int(st.upload_rate),
                         "total_done": int(st.total_done),
