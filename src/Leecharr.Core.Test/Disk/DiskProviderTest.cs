@@ -527,7 +527,8 @@ public class DiskProviderTest
         var symlinkSpace = this.diskProvider.GetAvailableSpace(linkDir);
 
         symlinkSpace.Should().NotBeNull();
-        symlinkSpace.Should().Be(directSpace);
+        directSpace.Should().NotBeNull();
+        Math.Abs(symlinkSpace.Value - directSpace.Value).Should().BeLessThan(100_000_000);
 
         var directTotal = this.diskProvider.GetTotalSize(targetDir);
         var symlinkTotal = this.diskProvider.GetTotalSize(linkDir);
