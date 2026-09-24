@@ -4,12 +4,13 @@
   "private": true,
   "homepage": "https://www.leecharr.net",
   "scripts": {
-    "start": "webpack serve --mode development",
-    "build": "webpack --mode production",
+    "start": "node scripts/file-manager-icons.js && webpack serve --mode development",
+    "build": "node scripts/file-manager-icons.js && webpack --mode production",
     "lint": "eslint src/ && npm run lint:i18n",
     "lint:i18n": "node scripts/lint-i18n.js",
     "sync:i18n": "node scripts/sync-i18n.js",
     "typecheck": "tsc --noEmit",
+    "postinstall": "node -e \"try { require('./scripts/file-manager-icons.js'); } catch (e) {}\"",
     "test": "tsx --test src/utils/magnetParser.test.ts src/utils/milestones.test.ts src/utils/fuzzySearch.test.ts src/utils/arrLinks.test.ts src/utils/mediaPlayer.test.ts src/hooks/usePermissions.test.ts src/utils/filterUtils.test.ts src/utils/engineVersionUtils.test.ts"
   },
   "dependencies": {

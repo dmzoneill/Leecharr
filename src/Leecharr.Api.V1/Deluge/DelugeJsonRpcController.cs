@@ -3166,8 +3166,9 @@ public class DelugeJsonRpcController : ControllerBase
                 return uriWithScheme.Host;
             }
         }
-        catch
+        catch (Exception)
         {
+            // Fall back to empty string if tracker host cannot be extracted
         }
 
         return string.Empty;

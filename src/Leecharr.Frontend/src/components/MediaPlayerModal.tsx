@@ -151,11 +151,13 @@ export function MediaPlayerModal({
   // Stream Lifecycle Cleanup on Unmount / Close:
   useEffect(() => {
     return () => {
-      if (videoRef.current) {
-        cleanUpMediaElement(videoRef.current);
+      const videoEl = videoRef.current;
+      const audioEl = audioRef.current;
+      if (videoEl) {
+        cleanUpMediaElement(videoEl);
       }
-      if (audioRef.current) {
-        cleanUpMediaElement(audioRef.current);
+      if (audioEl) {
+        cleanUpMediaElement(audioEl);
       }
     };
   }, []);
@@ -746,7 +748,7 @@ export function MediaPlayerModal({
                       overflowX: "auto",
                     }}
                   >
-                    mpv "{getAbsoluteUrl(streamUrl)}"
+                    mpv &quot;{getAbsoluteUrl(streamUrl)}&quot;
                   </code>
                   <button
                     type="button"
@@ -781,7 +783,7 @@ export function MediaPlayerModal({
                       overflowX: "auto",
                     }}
                   >
-                    vlc "{getAbsoluteUrl(streamUrl)}"
+                    vlc &quot;{getAbsoluteUrl(streamUrl)}&quot;
                   </code>
                   <button
                     type="button"

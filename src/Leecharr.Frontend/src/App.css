@@ -5070,6 +5070,264 @@ input[type="number"]::-webkit-inner-spin-button {
   transform: translateY(-1px);
 }
 
+/* ============================================
+   File Manager Extension Colors & Badges
+   ============================================ */
+
+/* Video Files */
+.leecharr-file-manager .file-item-container[title$=".mkv" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".mp4" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".avi" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".mov" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".m4v" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".webm" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".flv" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".wmv" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".ts" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".m2ts" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".mpg" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".mpeg" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".vob" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".iso" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[data-file-category="video"] .file-item > svg {
+  color: #38bdf8 !important;
+  filter: drop-shadow(0 2px 5px rgba(56, 189, 248, 0.3));
+}
+
+/* Audio Files */
+.leecharr-file-manager .file-item-container[title$=".mp3" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".flac" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".wav" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".m4a" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".aac" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".ogg" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".opus" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".wma" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".alac" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".ape" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".mka" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[data-file-category="audio"] .file-item > svg {
+  color: #fbbf24 !important;
+  filter: drop-shadow(0 2px 5px rgba(251, 191, 36, 0.3));
+}
+
+/* Subtitles */
+.leecharr-file-manager .file-item-container[title$=".srt" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".vtt" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".ass" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".ssa" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".sub" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".idx" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[data-file-category="subtitle"] .file-item > svg {
+  color: #c084fc !important;
+  filter: drop-shadow(0 2px 5px rgba(192, 132, 252, 0.25));
+}
+
+/* NFO & Release Info */
+.leecharr-file-manager .file-item-container[title$=".nfo" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".diz" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".sfv" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[data-file-category="nfo"] .file-item > svg {
+  color: #34d399 !important;
+  filter: drop-shadow(0 2px 5px rgba(52, 211, 153, 0.35));
+}
+
+/* Archives */
+.leecharr-file-manager .file-item-container[title$=".zip" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".rar" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".7z" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".tar" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".gz" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".bz2" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".xz" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".zst" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".tgz" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[data-file-category="archive"] .file-item > svg {
+  color: #fb923c !important;
+  filter: drop-shadow(0 2px 5px rgba(251, 146, 60, 0.3));
+}
+
+/* Torrent Files */
+.leecharr-file-manager .file-item-container[title$=".torrent" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[data-file-category="torrent"] .file-item > svg {
+  color: #4ade80 !important;
+  filter: drop-shadow(0 2px 6px rgba(74, 222, 128, 0.35));
+}
+
+/* PDF Files */
+.leecharr-file-manager .file-item-container[title$=".pdf" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[data-file-category="pdf"] .file-item > svg {
+  color: #f87171 !important;
+  filter: drop-shadow(0 2px 5px rgba(248, 113, 113, 0.25));
+}
+
+/* Executables & Binaries */
+.leecharr-file-manager .file-item-container[title$=".exe" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".msi" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".bin" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".apk" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".deb" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".rpm" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".app" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[data-file-category="executable"] .file-item > svg {
+  color: #f43f5e !important;
+  filter: drop-shadow(0 2px 5px rgba(244, 63, 94, 0.3));
+}
+
+/* Documents & Books */
+.leecharr-file-manager .file-item-container[title$=".doc" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".docx" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".epub" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".mobi" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".rtf" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".odt" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[data-file-category="document"] .file-item > svg {
+  color: #60a5fa !important;
+}
+
+/* Spreadsheets */
+.leecharr-file-manager .file-item-container[title$=".xls" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".xlsx" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".csv" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".tsv" i] .file-item > svg {
+  color: #10b981 !important;
+}
+
+/* Images */
+.leecharr-file-manager .file-item-container[title$=".png" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".jpg" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".jpeg" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".webp" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".gif" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".bmp" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".svg" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[data-file-category="image"] .file-item > svg {
+  color: #f472b6 !important;
+}
+
+/* Code, Config & Scripts */
+.leecharr-file-manager .file-item-container[title$=".json" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".xml" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".yaml" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".yml" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".toml" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".ini" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".conf" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".sh" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".bash" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".bat" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".ps1" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[data-file-category="code"] .file-item > svg {
+  color: #a78bfa !important;
+}
+
+/* Plain Text & Markdown */
+.leecharr-file-manager .file-item-container[title$=".txt" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".md" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[title$=".log" i] .file-item > svg,
+.leecharr-file-manager .file-item-container[data-file-category="text"] .file-item > svg {
+  color: #94a3b8 !important;
+}
+
+/* Sleek file-type badge indicators */
+.leecharr-file-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  line-height: 1.2;
+  margin-right: 6px;
+  flex-shrink: 0;
+  user-select: none;
+  border: 1px solid transparent;
+}
+
+.leecharr-badge-video {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.leecharr-badge-audio {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.35);
+}
+
+.leecharr-badge-nfo {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.35);
+}
+
+.leecharr-badge-subtitle {
+  background: rgba(192, 132, 252, 0.15);
+  color: #c084fc;
+  border-color: rgba(192, 132, 252, 0.35);
+}
+
+.leecharr-badge-archive {
+  background: rgba(251, 146, 60, 0.15);
+  color: #fb923c;
+  border-color: rgba(251, 146, 60, 0.35);
+}
+
+.leecharr-badge-torrent {
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.35);
+}
+
+.leecharr-badge-executable {
+  background: rgba(244, 63, 94, 0.15);
+  color: #f43f5e;
+  border-color: rgba(244, 63, 94, 0.35);
+}
+
+.leecharr-badge-document {
+  background: rgba(96, 165, 250, 0.15);
+  color: #60a5fa;
+  border-color: rgba(96, 165, 250, 0.35);
+}
+
+.leecharr-badge-image {
+  background: rgba(244, 114, 182, 0.15);
+  color: #f472b6;
+  border-color: rgba(244, 114, 182, 0.35);
+}
+
+.leecharr-badge-code {
+  background: rgba(167, 139, 250, 0.15);
+  color: #a78bfa;
+  border-color: rgba(167, 139, 250, 0.35);
+}
+
+.leecharr-badge-text {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+/* In Grid view, place badge cleanly at top right of the card */
+.leecharr-file-manager .files:not(.list) .file-item-container {
+  position: relative;
+}
+
+.leecharr-file-manager .files:not(.list) .leecharr-file-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  margin: 0;
+  font-size: 0.58rem;
+  padding: 1px 4px;
+}
+
 .leecharr-file-manager .rename-file {
   background-color: var(--bg-primary, #0e131d) !important;
   color: var(--text-primary, #f1f5f9) !important;

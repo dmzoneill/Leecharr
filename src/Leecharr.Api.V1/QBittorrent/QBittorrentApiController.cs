@@ -3301,8 +3301,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                         result.Add(torrent);
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    this.logger.Trace(ex, "Torrent with id {TorrentId} not found", id);
                 }
             }
         }

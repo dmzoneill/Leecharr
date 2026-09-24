@@ -732,15 +732,16 @@ function visualStepsToYaml(
       if (step.http.json) {
         yaml += `      json: true\n`;
       }
-      if (step.http.body?.trim()) {
+      const httpBody = step.http.body?.trim();
+      if (httpBody) {
         try {
-          const parsed = JSON.parse(step.http.body!);
+          const parsed = JSON.parse(httpBody);
           yaml += `      body:\n`;
           for (const [k, v] of Object.entries(parsed)) {
             yaml += `        ${k}: '${String(v).replace(/'/g, "''")}'\n`;
           }
         } catch {
-          yaml += `      body: '${step.http.body!.replace(/'/g, "''")}'\n`;
+          yaml += `      body: '${httpBody.replace(/'/g, "''")}'\n`;
         }
       }
       if (step.http.register?.trim()) {
@@ -1243,10 +1244,10 @@ function yamlToVisualSteps(code: string): VisualStep[] {
     ) {
       const v = trimmed.match(/url:\s*['"]?([^'"]+)['"]?/);
       if (v) {
-        currentStep.actions[currentStep.actions.length - 1].value = v[1];
-        if (!currentStep.actions[currentStep.actions.length - 1].extra)
-          currentStep.actions[currentStep.actions.length - 1].extra = {};
-        currentStep.actions[currentStep.actions.length - 1].extra!.url = v[1];
+        const lastAction = currentStep.actions[currentStep.actions.length - 1];
+        lastAction.value = v[1];
+        const extra = lastAction.extra ?? (lastAction.extra = {});
+        extra.url = v[1];
       }
     } else if (
       currentStep &&
@@ -1257,10 +1258,9 @@ function yamlToVisualSteps(code: string): VisualStep[] {
     ) {
       const v = trimmed.match(/method:\s*['"]?([^'"]+)['"]?/);
       if (v) {
-        if (!currentStep.actions[currentStep.actions.length - 1].extra)
-          currentStep.actions[currentStep.actions.length - 1].extra = {};
-        currentStep.actions[currentStep.actions.length - 1].extra!.method =
-          v[1];
+        const lastAction = currentStep.actions[currentStep.actions.length - 1];
+        const extra = lastAction.extra ?? (lastAction.extra = {});
+        extra.method = v[1];
       }
     } else if (
       currentStep &&
@@ -1271,9 +1271,9 @@ function yamlToVisualSteps(code: string): VisualStep[] {
     ) {
       const v = trimmed.match(/body:\s*['"]?([^'"]+)['"]?/);
       if (v) {
-        if (!currentStep.actions[currentStep.actions.length - 1].extra)
-          currentStep.actions[currentStep.actions.length - 1].extra = {};
-        currentStep.actions[currentStep.actions.length - 1].extra!.body = v[1];
+        const lastAction = currentStep.actions[currentStep.actions.length - 1];
+        const extra = lastAction.extra ?? (lastAction.extra = {});
+        extra.body = v[1];
       }
     } else if (
       currentStep &&
@@ -1284,10 +1284,9 @@ function yamlToVisualSteps(code: string): VisualStep[] {
     ) {
       const v = trimmed.match(/register:\s*['"]?([^'"]+)['"]?/);
       if (v) {
-        if (!currentStep.actions[currentStep.actions.length - 1].extra)
-          currentStep.actions[currentStep.actions.length - 1].extra = {};
-        currentStep.actions[currentStep.actions.length - 1].extra!.register =
-          v[1];
+        const lastAction = currentStep.actions[currentStep.actions.length - 1];
+        const extra = lastAction.extra ?? (lastAction.extra = {});
+        extra.register = v[1];
       }
     } else if (currentStep && inActions && trimmed.startsWith("- pause:")) {
       currentStep.actions.push({
@@ -1527,6 +1526,7 @@ export function AutomationPage() {
         setEditorMode("code");
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingScript?.id, editingScript?.language]);
 
   // Sync visual steps back to YAML code
@@ -1539,6 +1539,21 @@ export function AutomationPage() {
         newSteps,
       );
       setEditingScript({ ...editingScript, code: generatedYaml });
+    }
+  }
+
+  function updateActionExtra(
+    stepIdx: number,
+    actIdx: number,
+    updater: (extra: Record<string, any>) => void,
+  ) {
+    const copy = [...visualSteps];
+    const step = copy[stepIdx];
+    if (step && step.actions && step.actions[actIdx]) {
+      const act = step.actions[actIdx];
+      if (!act.extra) act.extra = {};
+      updater(act.extra);
+      updateVisualSteps(copy);
     }
   }
 
@@ -2208,11 +2223,13 @@ if (torrent) {
                   </tr>
                 ) : (
                   scriptList
-                    .filter((s) => s.lastExecutedAt)
+                    .filter((s): s is typeof s & { lastExecutedAt: string } =>
+                      Boolean(s.lastExecutedAt),
+                    )
                     .sort(
                       (a, b) =>
-                        new Date(b.lastExecutedAt!).getTime() -
-                        new Date(a.lastExecutedAt!).getTime(),
+                        new Date(b.lastExecutedAt).getTime() -
+                        new Date(a.lastExecutedAt).getTime(),
                     )
                     .map((s) => (
                       <tr
@@ -3399,7 +3416,7 @@ if (torrent) {
                                             onClick={() => {
                                               const copy = [...visualSteps];
                                               copy[stepIdx].conditionRight =
-                                                presetOptions![0].value;
+                                                presetOptions?.[0]?.value ?? "";
                                               updateVisualSteps(copy);
                                             }}
                                           >
@@ -3809,11 +3826,13 @@ if (torrent) {
                                       type="checkbox"
                                       checked={act.extra?.deleteData || false}
                                       onChange={(e) => {
-                                        const copy = [...visualSteps];
-                                        copy[stepIdx].actions[
-                                          actIdx
-                                        ].extra!.deleteData = e.target.checked;
-                                        updateVisualSteps(copy);
+                                        updateActionExtra(
+                                          stepIdx,
+                                          actIdx,
+                                          (extra) => {
+                                            extra.deleteData = e.target.checked;
+                                          },
+                                        );
                                       }}
                                     />
                                     {t(
@@ -3868,17 +3887,13 @@ if (torrent) {
                                         }}
                                         value={act.extra?.method || "POST"}
                                         onChange={(e) => {
-                                          const copy = [...visualSteps];
-                                          if (
-                                            !copy[stepIdx].actions[actIdx].extra
-                                          )
-                                            copy[stepIdx].actions[
-                                              actIdx
-                                            ].extra = {};
-                                          copy[stepIdx].actions[
-                                            actIdx
-                                          ].extra!.method = e.target.value;
-                                          updateVisualSteps(copy);
+                                          updateActionExtra(
+                                            stepIdx,
+                                            actIdx,
+                                            (extra) => {
+                                              extra.method = e.target.value;
+                                            },
+                                          );
                                         }}
                                       >
                                         <option
@@ -3924,18 +3939,16 @@ if (torrent) {
                                         )}
                                         onChange={(e) => {
                                           const copy = [...visualSteps];
-                                          copy[stepIdx].actions[actIdx].value =
-                                            e.target.value;
-                                          if (
-                                            !copy[stepIdx].actions[actIdx].extra
-                                          )
-                                            copy[stepIdx].actions[
-                                              actIdx
-                                            ].extra = {};
-                                          copy[stepIdx].actions[
-                                            actIdx
-                                          ].extra!.url = e.target.value;
-                                          updateVisualSteps(copy);
+                                          const targetAct =
+                                            copy[stepIdx]?.actions[actIdx];
+                                          if (targetAct) {
+                                            targetAct.value = e.target.value;
+                                            if (!targetAct.extra)
+                                              targetAct.extra = {};
+                                            targetAct.extra.url =
+                                              e.target.value;
+                                            updateVisualSteps(copy);
+                                          }
                                         }}
                                       />
                                     </div>
@@ -3949,16 +3962,13 @@ if (torrent) {
                                       placeholder={`{"event": "complete", "torrent": "\${torrent.name}", "size": \${torrent.size}}`}
                                       value={act.extra?.body || ""}
                                       onChange={(e) => {
-                                        const copy = [...visualSteps];
-                                        if (
-                                          !copy[stepIdx].actions[actIdx].extra
-                                        )
-                                          copy[stepIdx].actions[actIdx].extra =
-                                            {};
-                                        copy[stepIdx].actions[
-                                          actIdx
-                                        ].extra!.body = e.target.value;
-                                        updateVisualSteps(copy);
+                                        updateActionExtra(
+                                          stepIdx,
+                                          actIdx,
+                                          (extra) => {
+                                            extra.body = e.target.value;
+                                          },
+                                        );
                                       }}
                                     />
                                     <div
@@ -3978,18 +3988,14 @@ if (torrent) {
                                         )}
                                         onClick={(e) => {
                                           e.preventDefault();
-                                          const copy = [...visualSteps];
-                                          if (
-                                            !copy[stepIdx].actions[actIdx].extra
-                                          )
-                                            copy[stepIdx].actions[
-                                              actIdx
-                                            ].extra = {};
-                                          copy[stepIdx].actions[
-                                            actIdx
-                                          ].extra!.body =
-                                            '{\n  "event": "complete",\n  "torrent": "${torrent.name}",\n  "size": ${torrent.size},\n  "hash": "${torrent.infoHash}"\n}';
-                                          updateVisualSteps(copy);
+                                          updateActionExtra(
+                                            stepIdx,
+                                            actIdx,
+                                            (extra) => {
+                                              extra.body =
+                                                '{\n  "event": "complete",\n  "torrent": "${torrent.name}",\n  "size": ${torrent.size},\n  "hash": "${torrent.infoHash}"\n}';
+                                            },
+                                          );
                                         }}
                                       >
                                         {t("automation.ui.template")}
@@ -4005,36 +4011,23 @@ if (torrent) {
                                         onChange={(e) => {
                                           const v = e.target.value;
                                           if (!v) return;
-                                          const copy = [...visualSteps];
-                                          if (
-                                            !copy[stepIdx].actions[actIdx].extra
-                                          )
-                                            copy[stepIdx].actions[
-                                              actIdx
-                                            ].extra = {};
-                                          if (
-                                            !copy[stepIdx].actions[actIdx]
-                                              .extra!.headers
-                                          )
-                                            copy[stepIdx].actions[
-                                              actIdx
-                                            ].extra!.headers = {};
-                                          if (v === "bearer")
-                                            copy[stepIdx].actions[
-                                              actIdx
-                                            ].extra!.headers["Authorization"] =
-                                              "Bearer ${inputs.apiToken}";
-                                          if (v === "apikey")
-                                            copy[stepIdx].actions[
-                                              actIdx
-                                            ].extra!.headers["X-Api-Key"] =
-                                              "${inputs.apiKey}";
-                                          if (v === "basic")
-                                            copy[stepIdx].actions[
-                                              actIdx
-                                            ].extra!.headers["Authorization"] =
-                                              "Basic ${inputs.basicAuth}";
-                                          updateVisualSteps(copy);
+                                          updateActionExtra(
+                                            stepIdx,
+                                            actIdx,
+                                            (extra) => {
+                                              if (!extra.headers)
+                                                extra.headers = {};
+                                              if (v === "bearer")
+                                                extra.headers["Authorization"] =
+                                                  "Bearer ${inputs.apiToken}";
+                                              if (v === "apikey")
+                                                extra.headers["X-Api-Key"] =
+                                                  "${inputs.apiKey}";
+                                              if (v === "basic")
+                                                extra.headers["Authorization"] =
+                                                  "Basic ${inputs.basicAuth}";
+                                            },
+                                          );
                                         }}
                                       >
                                         <option value="">
@@ -4064,19 +4057,14 @@ if (torrent) {
                                             act.extra?.allowInsecure || false
                                           }
                                           onChange={(e) => {
-                                            const copy = [...visualSteps];
-                                            if (
-                                              !copy[stepIdx].actions[actIdx]
-                                                .extra
-                                            )
-                                              copy[stepIdx].actions[
-                                                actIdx
-                                              ].extra = {};
-                                            copy[stepIdx].actions[
-                                              actIdx
-                                            ].extra!.allowInsecure =
-                                              e.target.checked;
-                                            updateVisualSteps(copy);
+                                            updateActionExtra(
+                                              stepIdx,
+                                              actIdx,
+                                              (extra) => {
+                                                extra.allowInsecure =
+                                                  e.target.checked;
+                                              },
+                                            );
                                           }}
                                         />{" "}
                                         {t("automation.ui.allowInsecure")}
@@ -4095,19 +4083,14 @@ if (torrent) {
                                             act.extra?.continueOnError || false
                                           }
                                           onChange={(e) => {
-                                            const copy = [...visualSteps];
-                                            if (
-                                              !copy[stepIdx].actions[actIdx]
-                                                .extra
-                                            )
-                                              copy[stepIdx].actions[
-                                                actIdx
-                                              ].extra = {};
-                                            copy[stepIdx].actions[
-                                              actIdx
-                                            ].extra!.continueOnError =
-                                              e.target.checked;
-                                            updateVisualSteps(copy);
+                                            updateActionExtra(
+                                              stepIdx,
+                                              actIdx,
+                                              (extra) => {
+                                                extra.continueOnError =
+                                                  e.target.checked;
+                                              },
+                                            );
                                           }}
                                         />{" "}
                                         {t("automation.ui.continueOnError")}
@@ -4125,17 +4108,13 @@ if (torrent) {
                                         )}
                                         value={act.extra?.register || ""}
                                         onChange={(e) => {
-                                          const copy = [...visualSteps];
-                                          if (
-                                            !copy[stepIdx].actions[actIdx].extra
-                                          )
-                                            copy[stepIdx].actions[
-                                              actIdx
-                                            ].extra = {};
-                                          copy[stepIdx].actions[
-                                            actIdx
-                                          ].extra!.register = e.target.value;
-                                          updateVisualSteps(copy);
+                                          updateActionExtra(
+                                            stepIdx,
+                                            actIdx,
+                                            (extra) => {
+                                              extra.register = e.target.value;
+                                            },
+                                          );
                                         }}
                                       />
                                       <input
@@ -4151,20 +4130,16 @@ if (torrent) {
                                         )}
                                         value={act.extra?.timeoutSeconds || ""}
                                         onChange={(e) => {
-                                          const copy = [...visualSteps];
-                                          if (
-                                            !copy[stepIdx].actions[actIdx].extra
-                                          )
-                                            copy[stepIdx].actions[
-                                              actIdx
-                                            ].extra = {};
-                                          copy[stepIdx].actions[
-                                            actIdx
-                                          ].extra!.timeoutSeconds = parseInt(
-                                            e.target.value,
-                                            10,
+                                          updateActionExtra(
+                                            stepIdx,
+                                            actIdx,
+                                            (extra) => {
+                                              extra.timeoutSeconds = parseInt(
+                                                e.target.value,
+                                                10,
+                                              );
+                                            },
                                           );
-                                          updateVisualSteps(copy);
                                         }}
                                       />
                                     </div>

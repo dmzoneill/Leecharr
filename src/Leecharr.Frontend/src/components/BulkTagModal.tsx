@@ -337,7 +337,7 @@ export function BulkTagModal({
                     <span>➕</span>
                     <span>
                       {t("tags.createTag", undefined, "Create tag")}:{" "}
-                      <strong>"{trimmedSearch}"</strong>
+                      <strong>&ldquo;{trimmedSearch}&rdquo;</strong>
                     </span>
                   </div>
                   <button

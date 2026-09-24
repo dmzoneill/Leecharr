@@ -129,7 +129,7 @@ export function getTorrentBadges(
     badges.push({
       label: "100d+",
       icon: "👑",
-      title: `Century Seeder: Seeded for ${formatSeconds(torrent.seedingTime!)} continuously!`,
+      title: `Century Seeder: Seeded for ${formatSeconds(torrent.seedingTime ?? 0)} continuously!`,
       color: "#9b59b6",
     });
   } else if ((torrent.seedingTime ?? 0) >= 2592000) {
@@ -137,7 +137,7 @@ export function getTorrentBadges(
     badges.push({
       label: "30d+",
       icon: "💎",
-      title: `Perma-Seeder: Seeded for ${formatSeconds(torrent.seedingTime!)}!`,
+      title: `Perma-Seeder: Seeded for ${formatSeconds(torrent.seedingTime ?? 0)}!`,
       color: "#3498db",
     });
   }

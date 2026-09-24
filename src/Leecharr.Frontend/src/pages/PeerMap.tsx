@@ -275,8 +275,11 @@ function PeerMap() {
     }
 
     // Re-apply existing zoom transform to graph container
-    const currentTransform = d3.zoomTransform(svg.node()!);
-    g.attr("transform", currentTransform.toString());
+    const svgElement = svg.node();
+    if (svgElement) {
+      const currentTransform = d3.zoomTransform(svgElement);
+      g.attr("transform", currentTransform.toString());
+    }
 
     // Warm-start force simulation: reuse existing simulation if present
     let simulation = simRef.current;

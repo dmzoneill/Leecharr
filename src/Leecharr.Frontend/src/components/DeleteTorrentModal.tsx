@@ -246,7 +246,7 @@ export function DeleteTorrentModal({
                 "Are you sure you want to delete",
               )}{" "}
               <strong style={{ wordBreak: "break-all" }}>
-                "{effectiveTorrentName}"
+                &ldquo;{effectiveTorrentName}&rdquo;
               </strong>
               ?
             </span>

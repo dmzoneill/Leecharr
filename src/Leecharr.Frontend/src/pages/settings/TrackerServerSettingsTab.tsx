@@ -50,7 +50,7 @@ export function TrackerServerSettingsTab() {
       });
       setDirty(false);
     }
-  }, [config]);
+  }, [config, t]);
 
   const update = <K extends keyof typeof form>(
     key: K,

@@ -369,8 +369,9 @@ public class NotificationController : Controller
                     return obj.ToJsonString();
                 }
             }
-            catch
+            catch (Exception)
             {
+                // Fall back to unmasked settings if JSON parsing fails
             }
         }
 
@@ -423,8 +424,9 @@ public class NotificationController : Controller
                     return newObj.ToJsonString();
                 }
             }
-            catch
+            catch (Exception)
             {
+                // Fall back to newSettings if JSON parsing fails
             }
         }
 
@@ -470,8 +472,9 @@ public class NotificationController : Controller
                     }
                 }
             }
-            catch
+            catch (Exception)
             {
+                // Fall back to key-value parsing if JSON document parsing fails
             }
         }
 

@@ -15,7 +15,7 @@ namespace Leecharr.Api.V1.Config;
 public abstract class ConfigController<TResource> : Controller
     where TResource : RestResource, new()
 {
-    private readonly Logger logger = LogManager.GetCurrentClassLogger();
+    protected readonly Logger logger = LogManager.GetCurrentClassLogger();
     protected readonly IConfigService configService;
 
     protected ResourceValidator<TResource> SharedValidator { get; set; }

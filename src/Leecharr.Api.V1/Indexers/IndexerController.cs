@@ -1198,8 +1198,9 @@ public class IndexerController : Controller
                     return parsed.InfoHash.ToLowerInvariant();
                 }
             }
-            catch
+            catch (Exception)
             {
+                // Fall back to regex parsing if structured magnet parsing fails
             }
 
             var match = MagnetBtihRegex.Match(magnetUrl);

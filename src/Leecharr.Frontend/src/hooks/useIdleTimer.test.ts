@@ -65,7 +65,7 @@ describe("useIdleTimer / IdleTimerTracker", () => {
           if (!windowListeners.has(type)) {
             windowListeners.set(type, new Set());
           }
-          windowListeners.get(type)!.add(listener);
+          windowListeners.get(type)?.add(listener);
         }
       },
       removeEventListener: (type: string, listener: any) => {

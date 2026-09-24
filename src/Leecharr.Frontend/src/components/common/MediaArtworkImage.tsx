@@ -75,7 +75,7 @@ export const MediaArtworkImage: React.FC<MediaArtworkImageProps> = ({
     >
       {hasValidSrc ? (
         <img
-          src={src!}
+          src={src ?? undefined}
           alt={alt}
           loading={loading}
           onError={() => setHasError(true)}

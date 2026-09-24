@@ -70,8 +70,8 @@ export const ConfirmProvider: React.FC<{ children: React.ReactNode }> = ({
       activeItemRef.current = null;
     }
 
-    if (queueRef.current.length > 0) {
-      const nextItem = queueRef.current.shift()!;
+    const nextItem = queueRef.current.shift();
+    if (nextItem) {
       activeItemRef.current = nextItem;
       setModalState({
         isOpen: true,
