@@ -6004,3 +6004,77 @@ input[type="number"]::-webkit-inner-spin-button {
     transform: scale(1);
   }
 }
+
+/* ============================================
+   Getting Started Wizard Controls & Tabs
+   ============================================ */
+
+.wizard-mode-selector {
+  display: inline-flex;
+  background: var(--bg-primary, #101322);
+  padding: 2px;
+  border-radius: 20px;
+  border: 1px solid var(--border-light);
+  font-size: 0.75rem;
+}
+
+.wizard-mode-btn {
+  background: transparent;
+  color: var(--text-muted, #94a3b8);
+  border: 1px solid transparent;
+  padding: 3px 10px;
+  border-radius: 16px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+  line-height: 1.4;
+}
+
+.wizard-mode-btn:hover:not(.active) {
+  color: var(--text-primary);
+  background: var(--bg-hover, rgba(255, 255, 255, 0.05));
+}
+
+.wizard-mode-btn.active {
+  background: var(--accent, #5b8def) !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  border-color: transparent !important;
+}
+
+.wizard-step-tab {
+  background: transparent;
+  color: var(--text-muted, #64748b);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 400;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  outline: none;
+}
+
+.wizard-step-tab:hover:not(.active) {
+  color: var(--text-primary);
+  background: var(--bg-hover, rgba(255, 255, 255, 0.05));
+}
+
+.wizard-step-tab.active {
+  background: var(--accent, #5b8def) !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  border-color: transparent !important;
+}
+
+.wizard-step-tab.completed {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary, #cbd5e1);
+  border: 1px solid var(--border-light, #222f46);
+  font-weight: 500;
+}
