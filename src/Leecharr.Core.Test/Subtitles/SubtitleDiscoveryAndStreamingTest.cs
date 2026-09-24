@@ -226,4 +226,32 @@ public class SubtitleDiscoveryAndStreamingTest
         var result = this.controller.GetSubtitleTrack(1, 10, "999");
         result.Should().BeOfType<NotFoundObjectResult>();
     }
+
+    [Test]
+    public void GetPlaylistM3u_WhenTorrentNotFound_ReturnsNotFound()
+    {
+        this.torrentService.Get(999).Returns((Torrent)null!);
+
+        var result = this.controller.GetPlaylistM3u(999, 1);
+        result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Test]
+    public void GetPlaylistM3u_WhenFileExists_ReturnsM3uFile()
+    {
+        var torrent = new Torrent { Id = 1, Name = "BMS" };
+        var videoFile = new TorrentFile { Id = 10, Path = "BMS.S01E02.mkv" };
+
+        this.torrentService.Get(1).Returns(torrent);
+        this.torrentFileService.GetFiles(1).Returns(new List<TorrentFile> { videoFile });
+
+        var result = this.controller.GetPlaylistM3u(1, 10);
+        var fileResult = result.Should().BeOfType<FileContentResult>().Subject;
+
+        fileResult.ContentType.Should().Be("audio/x-mpegurl");
+        fileResult.FileDownloadName.Should().Be("BMS.S01E02.mkv.m3u");
+        var content = Encoding.UTF8.GetString(fileResult.FileContents);
+        content.Should().StartWith("#EXTM3U");
+        content.Should().Contain("/api/v1/torrent/1/files/10/stream");
+    }
 }

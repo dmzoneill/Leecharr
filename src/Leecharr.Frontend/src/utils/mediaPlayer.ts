@@ -149,6 +149,10 @@ export function buildDownloadUrl(torrentId: number, fileId: number): string {
   return `/api/v1/torrent/${torrentId}/files/${fileId}/download`;
 }
 
+export function buildPlaylistUrl(torrentId: number, fileId: number): string {
+  return `/api/v1/torrent/${torrentId}/files/${fileId}/stream.m3u`;
+}
+
 export function getAbsoluteUrl(url: string, origin?: string): string {
   if (/^https?:\/\//i.test(url)) {
     return url;
