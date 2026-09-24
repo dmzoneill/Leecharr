@@ -217,7 +217,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             var bitfield = task?.PieceBitfield != null && task.PieceBitfield.Length > 0
                 ? TorrentResourceMapper.EncodeBitfield(task.PieceBitfield)
                 : null;
-            var res = TorrentResourceMapper.ToResource(t, meta, bitfield);
+            var res = TorrentResourceMapper.ToResource(t, meta, bitfield, task);
             res.QueuePosition = t.QueuePosition > 0 ? t.QueuePosition : idx + 1;
             if (allDbTrackers.TryGetValue(t.Id, out var trackerEntries) && trackerEntries.Count > 0)
             {
@@ -1581,7 +1581,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         var bitfield = task?.PieceBitfield != null && task.PieceBitfield.Length > 0
             ? TorrentResourceMapper.EncodeBitfield(task.PieceBitfield)
             : null;
-        var res = TorrentResourceMapper.ToResource(model, meta, bitfield);
+        var res = TorrentResourceMapper.ToResource(model, meta, bitfield, task);
         var dbTrackers = this.trackerEntryRepository?.GetByTorrentId(model.Id)?.ToList();
         if (dbTrackers != null && dbTrackers.Count > 0)
         {

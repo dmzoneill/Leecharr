@@ -771,7 +771,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
 
                             if (item.TryGetProperty("num_peers", out var peers))
                             {
-                                task.ConnectedLeechers = Math.Max(0, peers.GetInt32() - task.ConnectedSeeders);
+                                task.ConnectedLeechers = peers.GetInt32();
                             }
 
                             if (item.TryGetProperty("peers", out var peersArray) && peersArray.ValueKind == JsonValueKind.Array)
@@ -815,6 +815,12 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                                         IsIncoming = isIncoming,
                                         IsUtp = isUtp,
                                     });
+                                }
+
+                                if (peerList.Count > 0)
+                                {
+                                    task.ConnectedSeeders = Math.Max(task.ConnectedSeeders, peerList.Count(p => p.Progress >= 1.0));
+                                    task.ConnectedLeechers = Math.Max(task.ConnectedLeechers, peerList.Count(p => p.Progress < 1.0));
                                 }
 
                                 task.SetPeers(peerList);

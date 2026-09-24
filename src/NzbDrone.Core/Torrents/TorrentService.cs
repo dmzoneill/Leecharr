@@ -1464,19 +1464,24 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 torrent.InitialSeeding = task.IsSuperSeeding;
             }
 
+            if (torrent.TotalSize <= 0 && task.TotalBytes > 0)
+            {
+                torrent.TotalSize = task.TotalBytes;
+            }
+
             if (torrent.Status != TorrentStatus.Checking)
             {
                 if (torrent.Progress >= 1.0 && torrent.TotalSize > 0)
                 {
                     torrent.Downloaded = torrent.TotalSize;
                 }
+                else if (task.DownloadedBytes > 0)
+                {
+                    torrent.Downloaded = task.DownloadedBytes;
+                }
                 else if (torrent.TotalSize > 0)
                 {
                     torrent.Downloaded = Math.Max(torrent.Downloaded, (long)(torrent.TotalSize * torrent.Progress));
-                }
-                else if (task.DownloadedBytes > 0)
-                {
-                    torrent.Downloaded = Math.Max(torrent.Downloaded, task.DownloadedBytes);
                 }
             }
 
