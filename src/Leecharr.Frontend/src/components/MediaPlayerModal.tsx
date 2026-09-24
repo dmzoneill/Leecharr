@@ -844,14 +844,42 @@ export function MediaPlayerModal({
 
 cat << 'EOF' > ~/.local/bin/vlc-stream-handler
 #!/usr/bin/env bash
-url="\${1#vlc://}"; url="\${url#vlc:}"
+set -e
+raw_url="$1"
+[[ -z "$raw_url" ]] && exit 0
+url=$(python3 -c '
+import sys, urllib.parse, re
+raw = sys.argv[1]
+cleaned = re.sub(r"^(vlc|web\\+mpv|mpv):/{0,2}", "", raw, flags=re.IGNORECASE)
+if cleaned.startswith("http//"):
+    cleaned = "http://" + cleaned[6:]
+elif cleaned.startswith("https//"):
+    cleaned = "https://" + cleaned[7:]
+elif not cleaned.startswith("http://") and not cleaned.startswith("https://"):
+    cleaned = "http://" + cleaned
+print(urllib.parse.unquote(cleaned))
+' "$raw_url")
 [[ -n "$url" ]] && exec /usr/bin/vlc "$url"
 EOF
 chmod +x ~/.local/bin/vlc-stream-handler
 
 cat << 'EOF' > ~/.local/bin/mpv-stream-handler
 #!/usr/bin/env bash
-url="\${1#web+mpv://}"; url="\${url#mpv://}"; url="\${url#web+mpv:}"; url="\${url#mpv:}"
+set -e
+raw_url="$1"
+[[ -z "$raw_url" ]] && exit 0
+url=$(python3 -c '
+import sys, urllib.parse, re
+raw = sys.argv[1]
+cleaned = re.sub(r"^(vlc|web\\+mpv|mpv):/{0,2}", "", raw, flags=re.IGNORECASE)
+if cleaned.startswith("http//"):
+    cleaned = "http://" + cleaned[6:]
+elif cleaned.startswith("https//"):
+    cleaned = "https://" + cleaned[7:]
+elif not cleaned.startswith("http://") and not cleaned.startswith("https://"):
+    cleaned = "http://" + cleaned
+print(urllib.parse.unquote(cleaned))
+' "$raw_url")
 [[ -n "$url" ]] && exec /usr/bin/mpv "$url"
 EOF
 chmod +x ~/.local/bin/mpv-stream-handler

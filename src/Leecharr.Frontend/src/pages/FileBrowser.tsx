@@ -72,8 +72,24 @@ export function getFileCategory(fileName: string): FileCategory {
 
   if (
     [
-      "mkv", "mp4", "avi", "mov", "m4v", "webm", "flv", "wmv", "ts",
-      "m2ts", "mpg", "mpeg", "vob", "ogv", "3gp", "divx", "rmvb", "asf",
+      "mkv",
+      "mp4",
+      "avi",
+      "mov",
+      "m4v",
+      "webm",
+      "flv",
+      "wmv",
+      "ts",
+      "m2ts",
+      "mpg",
+      "mpeg",
+      "vob",
+      "ogv",
+      "3gp",
+      "divx",
+      "rmvb",
+      "asf",
     ].includes(ext)
   ) {
     return "video";
@@ -81,8 +97,23 @@ export function getFileCategory(fileName: string): FileCategory {
 
   if (
     [
-      "mp3", "flac", "wav", "m4a", "aac", "ogg", "opus", "wma", "alac",
-      "ape", "mka", "mid", "midi", "ac3", "dts", "eac3", "aiff",
+      "mp3",
+      "flac",
+      "wav",
+      "m4a",
+      "aac",
+      "ogg",
+      "opus",
+      "wma",
+      "alac",
+      "ape",
+      "mka",
+      "mid",
+      "midi",
+      "ac3",
+      "dts",
+      "eac3",
+      "aiff",
     ].includes(ext)
   ) {
     return "audio";
@@ -90,8 +121,20 @@ export function getFileCategory(fileName: string): FileCategory {
 
   if (
     [
-      "zip", "rar", "7z", "tar", "gz", "bz2", "xz", "zst", "tgz",
-      "tbz2", "cab", "iso", "img", "dmg",
+      "zip",
+      "rar",
+      "7z",
+      "tar",
+      "gz",
+      "bz2",
+      "xz",
+      "zst",
+      "tgz",
+      "tbz2",
+      "cab",
+      "iso",
+      "img",
+      "dmg",
     ].includes(ext)
   ) {
     return "archive";
@@ -111,25 +154,51 @@ export function getFileCategory(fileName: string): FileCategory {
 
   if (
     [
-      "pdf", "doc", "docx", "epub", "mobi", "azw", "azw3", "cbz",
-      "cbr", "rtf", "odt", "xls", "xlsx", "csv", "tsv", "ppt", "pptx",
+      "pdf",
+      "doc",
+      "docx",
+      "epub",
+      "mobi",
+      "azw",
+      "azw3",
+      "cbz",
+      "cbr",
+      "rtf",
+      "odt",
+      "xls",
+      "xlsx",
+      "csv",
+      "tsv",
+      "ppt",
+      "pptx",
     ].includes(ext)
   ) {
     return "document";
   }
 
   if (
-    [
-      "exe", "msi", "bin", "apk", "deb", "rpm", "run", "app", "pkg",
-    ].includes(ext)
+    ["exe", "msi", "bin", "apk", "deb", "rpm", "run", "app", "pkg"].includes(
+      ext,
+    )
   ) {
     return "executable";
   }
 
   if (
     [
-      "png", "jpg", "jpeg", "webp", "gif", "bmp", "ico", "tiff",
-      "tif", "heic", "heif", "avif", "svg",
+      "png",
+      "jpg",
+      "jpeg",
+      "webp",
+      "gif",
+      "bmp",
+      "ico",
+      "tiff",
+      "tif",
+      "heic",
+      "heif",
+      "avif",
+      "svg",
     ].includes(ext)
   ) {
     return "image";
@@ -137,10 +206,38 @@ export function getFileCategory(fileName: string): FileCategory {
 
   if (
     [
-      "js", "ts", "jsx", "tsx", "py", "json", "xml", "html", "css",
-      "yaml", "yml", "toml", "ini", "conf", "config", "env", "sql",
-      "c", "cpp", "h", "cs", "java", "go", "rs", "php", "rb", "sh",
-      "bash", "zsh", "bat", "cmd", "ps1",
+      "js",
+      "ts",
+      "jsx",
+      "tsx",
+      "py",
+      "json",
+      "xml",
+      "html",
+      "css",
+      "yaml",
+      "yml",
+      "toml",
+      "ini",
+      "conf",
+      "config",
+      "env",
+      "sql",
+      "c",
+      "cpp",
+      "h",
+      "cs",
+      "java",
+      "go",
+      "rs",
+      "php",
+      "rb",
+      "sh",
+      "bash",
+      "zsh",
+      "bat",
+      "cmd",
+      "ps1",
     ].includes(ext)
   ) {
     return "code";
@@ -562,8 +659,9 @@ export function FileBrowser() {
     });
 
     const enhanceFileItems = () => {
-      const items =
-        container.querySelectorAll<HTMLElement>(".file-item-container");
+      const items = container.querySelectorAll<HTMLElement>(
+        ".file-item-container",
+      );
       items.forEach((itemEl) => {
         const title =
           itemEl.getAttribute("title") ||
