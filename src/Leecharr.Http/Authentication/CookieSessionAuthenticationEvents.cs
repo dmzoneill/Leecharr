@@ -1,6 +1,5 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
-using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;

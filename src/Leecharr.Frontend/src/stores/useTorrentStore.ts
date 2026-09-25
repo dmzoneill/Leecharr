@@ -28,16 +28,24 @@ export interface PieceMapData {
   lastUpdated: number;
 }
 
+export interface PieceMapUpdatePayload {
+  bitfield?: string | Uint8Array | null;
+  ranges?: Array<[number, number]> | number[][];
+  pieceIndices?: number[];
+  pieceIndex?: number;
+  version?: number;
+}
+
 export interface TorrentStoreState {
   // Ephemeral Telemetry per torrent ID (from high-frequency speedPulse SignalR events)
   telemetry: Record<number, TorrentTelemetry>;
-  updateTelemetry: (updates: Array<{ id: number; [key: string]: any }>) => void;
+  updateTelemetry: (updates: Array<{ id: number; [key: string]: unknown }>) => void;
   clearTelemetry: () => void;
   purgeStaleTelemetry: (maxAgeMs?: number) => void;
 
   // Real-time piece map updates per torrent ID (from pieceMapUpdated SignalR events)
   pieceMaps: Record<number, PieceMapData>;
-  updatePieceMap: (torrentId: number, data: any) => void;
+  updatePieceMap: (torrentId: number, data: PieceMapUpdatePayload | null | undefined) => void;
   clearPieceMaps: () => void;
 
   // Active Selection State

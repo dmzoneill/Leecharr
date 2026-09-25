@@ -671,7 +671,7 @@ function PeerMap() {
         }
       }
     });
-  }, [graphData, dimensions, selectedTorrentFilter]);
+  }, [graphData, dimensions, selectedTorrentFilter, t]);
 
   const handleZoomIn = () => {
     if (svgRef.current && zoomRef.current) {

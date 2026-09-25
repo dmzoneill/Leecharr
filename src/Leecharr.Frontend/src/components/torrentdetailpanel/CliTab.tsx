@@ -1,4 +1,3 @@
-import React from "react";
 import { useTranslation } from "../../i18n";
 import { TerminalView } from "../terminal/TerminalView";
 import type { Torrent } from "../../api/types";

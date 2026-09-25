@@ -1,7 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
-using System.IO;
 using System.Text;
 using FluentAssertions;
 using MonoTorrent.BEncoding;

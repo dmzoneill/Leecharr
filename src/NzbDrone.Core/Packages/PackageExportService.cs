@@ -11,7 +11,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Common.EnvironmentInfo;
-using NzbDrone.Common.Serializer;
 using NzbDrone.Core.Tags;
 using NzbDrone.Core.Torrents;
 

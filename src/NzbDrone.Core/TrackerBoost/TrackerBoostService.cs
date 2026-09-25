@@ -1842,9 +1842,10 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                 port = uri.Port > 0 ? uri.Port : (protocol == TrackerProtocol.Https ? 443 : 80);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // fallback
+            // Malformed URI string; fallback to cleanUrl without parsed host/port
+            this.logger.Trace(ex, "Failed to parse tracker URI '{0}' for host/port extraction", cleanUrl);
         }
 
         var tracker = new TrackerBoostTracker

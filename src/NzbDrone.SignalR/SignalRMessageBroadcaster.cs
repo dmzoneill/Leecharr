@@ -271,18 +271,12 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
             {
                 case ModelAction.Created:
                     list.Add("TorrentAdded");
-                    list.Add("torrent_added");
-                    list.Add("torrentAdded");
                     break;
                 case ModelAction.Updated:
                     list.Add("TorrentUpdated");
-                    list.Add("torrent_updated");
-                    list.Add("torrentUpdated");
                     break;
                 case ModelAction.Deleted:
                     list.Add("TorrentDeleted");
-                    list.Add("torrent_deleted");
-                    list.Add("torrentDeleted");
                     break;
             }
         }
@@ -291,24 +285,18 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
                  string.Equals(name, "torrent_added", StringComparison.OrdinalIgnoreCase))
         {
             list.Add("TorrentAdded");
-            list.Add("torrent_added");
-            list.Add("torrentAdded");
         }
         else if (string.Equals(name, "TorrentUpdated", StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(name, "torrentUpdated", StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(name, "torrent_updated", StringComparison.OrdinalIgnoreCase))
         {
             list.Add("TorrentUpdated");
-            list.Add("torrent_updated");
-            list.Add("torrentUpdated");
         }
         else if (string.Equals(name, "TorrentDeleted", StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(name, "torrentDeleted", StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(name, "torrent_deleted", StringComparison.OrdinalIgnoreCase))
         {
             list.Add("TorrentDeleted");
-            list.Add("torrent_deleted");
-            list.Add("torrentDeleted");
         }
         else if (string.Equals(name, "speedPulse", StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(name, "speed_update", StringComparison.OrdinalIgnoreCase) ||
@@ -317,9 +305,6 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
                  string.Equals(name, "SeedingStatsUpdated", StringComparison.OrdinalIgnoreCase))
         {
             list.Add("speedPulse");
-            list.Add("speed_update");
-            list.Add("speedUpdate");
-            list.Add("SeedingStatsUpdated");
         }
         else if (string.Equals(name, "Health", StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(name, "HealthCheckCompleted", StringComparison.OrdinalIgnoreCase) ||
@@ -327,8 +312,6 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
                  string.Equals(name, "healthWarning", StringComparison.OrdinalIgnoreCase))
         {
             list.Add("HealthCheckCompleted");
-            list.Add("health_warning");
-            list.Add("healthWarning");
         }
         else if (string.Equals(name, "Task", StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(name, "TaskStarted", StringComparison.OrdinalIgnoreCase) ||
@@ -340,8 +323,6 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
                  string.Equals(name, "CommandCompleted", StringComparison.OrdinalIgnoreCase))
         {
             list.Add(name);
-            list.Add("task_progress");
-            list.Add("taskProgress");
         }
         else if (string.Equals(name, "pieceMapUpdated", StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(name, "piece_map_updated", StringComparison.OrdinalIgnoreCase) ||
@@ -349,7 +330,6 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
                  string.Equals(name, "PieceBatchCompleted", StringComparison.OrdinalIgnoreCase))
         {
             list.Add("pieceMapUpdated");
-            list.Add("piece_map_updated");
         }
         else if (string.Equals(name, "Tracker", StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(name, "trackerUpdated", StringComparison.OrdinalIgnoreCase) ||
@@ -357,14 +337,12 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
                  string.Equals(name, "tracker_updated", StringComparison.OrdinalIgnoreCase))
         {
             list.Add("trackerUpdated");
-            list.Add("tracker_updated");
         }
         else if (string.Equals(name, "trackerAnnounced", StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(name, "TrackerAnnounced", StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(name, "tracker_announced", StringComparison.OrdinalIgnoreCase))
         {
             list.Add("trackerAnnounced");
-            list.Add("tracker_announced");
         }
         else
         {

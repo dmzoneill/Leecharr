@@ -1,7 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System.IO;
-using System.Net;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Http.Security;

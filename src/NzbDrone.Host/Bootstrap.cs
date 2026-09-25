@@ -12,6 +12,7 @@ using NLog;
 using NzbDrone.Common.Composition;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Ai;
+using NzbDrone.Core.ArrIntegration.Webhook;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore;
@@ -67,6 +68,8 @@ public static class Bootstrap
         container.RegisterSingletonWithInterfaces<DynamicAiProxy>();
         container.RegisterSingletonWithInterfaces<AppLifetimeServices>();
         container.RegisterSingletonWithInterfaces<PeerConnectionHistoryService>();
+        container.RegisterSingletonWithInterfaces<ArrWebhookRegistration>();
+        container.RegisterSingletonWithInterfaces<ArrWebhookMaintenanceTask>();
 
         var builder = WebApplication.CreateBuilder();
         var configProvider = container.Resolve<IConfigFileProvider>();

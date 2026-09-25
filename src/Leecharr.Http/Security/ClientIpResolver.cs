@@ -1,6 +1,5 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
-using System;
 using System.Net;
 using System.Net.Sockets;
 using Microsoft.AspNetCore.Http;

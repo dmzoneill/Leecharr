@@ -364,12 +364,14 @@ export function useIdleTimer(
   const trackerRef = useRef<IdleTimerTracker | null>(null);
   const callbacksRef = useRef({ onIdle, onWarning, onActive });
   callbacksRef.current = { onIdle, onWarning, onActive };
+  const enabledRef = useRef(enabled);
+  enabledRef.current = enabled;
 
   useEffect(() => {
     const tracker = new IdleTimerTracker({
       timeoutSeconds: explicitTimeout,
       warningSeconds,
-      enabled,
+      enabled: enabledRef.current,
       onIdle: () => callbacksRef.current.onIdle?.(),
       onWarning: (sec) => callbacksRef.current.onWarning?.(sec),
       onActive: () => callbacksRef.current.onActive?.(),

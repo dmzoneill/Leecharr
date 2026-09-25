@@ -19,6 +19,7 @@ using NzbDrone.Core.Torrents;
 namespace Leecharr.Api.V1.Webhooks;
 
 [V1ApiController("webhook")]
+[Route("api/v1/webhooks")]
 public class ArrWebhookController : Controller
 {
     private readonly ITorrentRepository torrentRepository;

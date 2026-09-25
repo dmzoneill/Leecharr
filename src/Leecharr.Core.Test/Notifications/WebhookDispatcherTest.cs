@@ -11,7 +11,6 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
 using NzbDrone.Core.Notifications;
-using Polly;
 using Polly.Retry;
 
 namespace Leecharr.Core.Test.Notifications;

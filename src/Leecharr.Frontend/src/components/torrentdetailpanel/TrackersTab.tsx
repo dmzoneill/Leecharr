@@ -172,7 +172,7 @@ export function TrackersTab({
   const [selectedUrls, setSelectedUrls] = useState<Set<string>>(new Set());
   const [isAddingBatch, setIsAddingBatch] = useState(false);
   const isPrivate = Boolean(
-    torrent?.isPrivate || (inspection as any)?.isPrivate,
+    torrent?.isPrivate || inspection?.isPrivate,
   );
 
   const handleBoostSwarm = () => {
@@ -267,7 +267,7 @@ export function TrackersTab({
         statusLabel,
       };
     });
-  }, [availableTrackers, detectionMap, attachedUrls]);
+  }, [availableTrackers, detectionMap, attachedUrls, t]);
 
   const handleToggleUrl = (url: string) => {
     setSelectedUrls((prev) => {
@@ -300,13 +300,19 @@ export function TrackersTab({
       try {
         await addTracker.mutateAsync({ torrentId: effectiveId, url });
         addedCount++;
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const errObj = err as {
+          response?: { data?: { message?: string } | string };
+          message?: string;
+        };
         const rawMsg =
-          err?.response?.data?.message ||
-          (typeof err?.response?.data === "string" && err.response.data.trim()
-            ? err.response.data.trim()
+          (typeof errObj?.response?.data === "object"
+            ? errObj.response.data?.message
             : null) ||
-          err?.message ||
+          (typeof errObj?.response?.data === "string" && errObj.response.data.trim()
+            ? errObj.response.data.trim()
+            : null) ||
+          errObj?.message ||
           t("torrents.detail.failedToAddTracker", "Failed to add tracker");
         errors.push(selectedUrls.size > 1 ? `${rawMsg} (${url})` : rawMsg);
       }
@@ -384,7 +390,7 @@ export function TrackersTab({
           padding: "0.5rem 0.75rem",
         }}
       >
-        {(torrent?.isPrivate || (inspection as any)?.isPrivate) && (
+        {(torrent?.isPrivate || inspection?.isPrivate) && (
           <div
             style={{
               padding: "0.45rem 0.65rem",

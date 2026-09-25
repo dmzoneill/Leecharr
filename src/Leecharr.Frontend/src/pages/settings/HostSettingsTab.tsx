@@ -1,5 +1,5 @@
 import { useTranslation } from "../../i18n";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useGeneralConfig, useSaveGeneralConfig } from "../../api/hooks";
 import { api } from "../../api/client";
 import { SslCertificateValidationResult } from "../../api/types";

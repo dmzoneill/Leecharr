@@ -1,5 +1,5 @@
 import { useTranslation } from "../../i18n";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useGeneralConfig, useSaveGeneralConfig } from "../../api/hooks";
 import { api } from "../../api/client";
@@ -140,6 +140,9 @@ export function SecuritySettingsTab() {
     hostHeaderValidationEnabled: false,
     allowedHosts: "",
     terminalAccessEnabled: true,
+    allowPrivateNetworkRequests: true,
+    allowedSsrfHostnames: "",
+    allowedSsrfSubnets: "",
   });
 
   const [providers, setProviders] = useState<IdentityProviderDefinition[]>([]);
@@ -217,9 +220,10 @@ export function SecuritySettingsTab() {
       await updateBlocklistMutation.mutateAsync(blocklistForm);
       setBlocklistDirty(false);
       showToast("Peer blocklist configuration saved", "success");
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errObj = err as Error | null;
       showToast(
-        err?.message || "Failed to save blocklist configuration",
+        errObj?.message || "Failed to save blocklist configuration",
         "error",
       );
     }
@@ -239,8 +243,9 @@ export function SecuritySettingsTab() {
           "info",
         );
       }
-    } catch (err: any) {
-      showToast(err?.message || "Failed to synchronize blocklist", "error");
+    } catch (err: unknown) {
+      const errObj = err as Error | null;
+      showToast(errObj?.message || "Failed to synchronize blocklist", "error");
     }
   };
 
@@ -251,9 +256,10 @@ export function SecuritySettingsTab() {
       setIpTestResult(null);
       const res = await testBlocklistIp(testIpInput.trim());
       setIpTestResult(res);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errObj = err as Error | null;
       showToast(
-        err?.message || "Failed to verify IP against blocklist",
+        errObj?.message || "Failed to verify IP against blocklist",
         "error",
       );
     } finally {
@@ -271,6 +277,9 @@ export function SecuritySettingsTab() {
           config.hostHeaderValidationEnabled ?? false,
         allowedHosts: config.allowedHosts ?? "",
         terminalAccessEnabled: config.terminalAccessEnabled ?? true,
+        allowPrivateNetworkRequests: config.allowPrivateNetworkRequests ?? true,
+        allowedSsrfHostnames: config.allowedSsrfHostnames ?? "",
+        allowedSsrfSubnets: config.allowedSsrfSubnets ?? "",
       });
 
       setDirty(false);
@@ -393,6 +402,9 @@ export function SecuritySettingsTab() {
         hostHeaderValidationEnabled: form.hostHeaderValidationEnabled,
         allowedHosts: form.allowedHosts,
         terminalAccessEnabled: form.terminalAccessEnabled,
+        allowPrivateNetworkRequests: form.allowPrivateNetworkRequests,
+        allowedSsrfHostnames: form.allowedSsrfHostnames,
+        allowedSsrfSubnets: form.allowedSsrfSubnets,
       },
 
       {
@@ -443,9 +455,10 @@ export function SecuritySettingsTab() {
         t("settingsTabs.batch2.identityProviderSavedSuccessfully"),
         "success",
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errObj = err as Error | null;
       showToast(
-        err?.message || t("settingsTabs.batch2.failedToSaveIdentityProvider"),
+        errObj?.message || t("settingsTabs.batch2.failedToSaveIdentityProvider"),
         "error",
       );
     }
@@ -464,9 +477,10 @@ export function SecuritySettingsTab() {
       await api.deleteIdProvider(id);
       await loadProviders();
       showToast(t("settingsTabs.batch2.identityProviderRemoved"), "success");
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errObj = err as Error | null;
       showToast(
-        err?.message || t("settingsTabs.batch2.failedToDeleteIdentityProvider"),
+        errObj?.message || t("settingsTabs.batch2.failedToDeleteIdentityProvider"),
         "error",
       );
     }
@@ -479,11 +493,12 @@ export function SecuritySettingsTab() {
       setTestResult(null);
       const res = await api.testIdProvider(editingProvider);
       setTestResult(res);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errObj = err as Error | null;
       setTestResult({
         success: false,
         message:
-          err?.message || t("settingsTabs.notifications.connectionFailed"),
+          errObj?.message || t("settingsTabs.notifications.connectionFailed"),
       });
     } finally {
       setTesting(false);
@@ -576,6 +591,30 @@ export function SecuritySettingsTab() {
             onChange={(v) => update("terminalAccessEnabled", v)}
             hint={t("terminal.executeCommands")}
           />
+
+          <Toggle
+            label="Allow Private / LAN Network Requests"
+            checked={form.allowPrivateNetworkRequests}
+            onChange={(v) => update("allowPrivateNetworkRequests", v)}
+            hint="Permits connections to local and private IP addresses (localhost, Prowlarr, Sonarr, Radarr, LAN). Cloud metadata endpoints remain strictly blocked."
+          />
+
+          {!form.allowPrivateNetworkRequests && (
+            <>
+              <TextInput
+                label="Allowed SSRF Hostnames"
+                value={form.allowedSsrfHostnames}
+                onChange={(v) => update("allowedSsrfHostnames", v)}
+                hint="Comma-separated hostnames or wildcards permitted when private network requests are restricted (e.g. prowlarr, *.local, sonarr.lan)."
+              />
+              <TextInput
+                label="Allowed SSRF Subnets"
+                value={form.allowedSsrfSubnets}
+                onChange={(v) => update("allowedSsrfSubnets", v)}
+                hint="Comma-separated IP addresses or CIDR blocks permitted when private network requests are restricted (e.g. 192.168.1.0/24, 10.0.0.5)."
+              />
+            </>
+          )}
 
           {form.hostHeaderValidationEnabled && (
             <TextInput

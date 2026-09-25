@@ -15,7 +15,6 @@ using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.BitTorrent.Creation;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.MediaEnrichment;
-using NzbDrone.Core.Network;
 using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Network.GeoIp;
 using NzbDrone.Core.Tags;

@@ -3,13 +3,11 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Common.Disk;
 using NzbDrone.Core.Organizer;
-using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Core.Test.OrganizerTests;
 

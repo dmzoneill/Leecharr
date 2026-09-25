@@ -728,7 +728,7 @@ export function FileBrowser() {
   ]);
 
   const handleCreateFolder = async (
-    nameOrParent?: any,
+    nameOrParent?: string | FileManagerFile | { path?: string } | null,
     parentFolder?: FileManagerFile,
   ) => {
     let name = typeof nameOrParent === "string" ? nameOrParent : "";
@@ -758,9 +758,9 @@ export function FileBrowser() {
         "success",
       );
       refetch();
-    } catch (err: any) {
+    } catch (err: unknown) {
       showToast(
-        err?.message ||
+        (err as Error)?.message ||
           t("filebrowser.failedToCreateFolder", "Failed to create folder"),
         "error",
       );
@@ -782,9 +782,9 @@ export function FileBrowser() {
         "success",
       );
       refetch();
-    } catch (err: any) {
+    } catch (err: unknown) {
       showToast(
-        err?.message || t("filebrowser.failedToRename", "Failed to rename"),
+        (err as Error)?.message || t("filebrowser.failedToRename", "Failed to rename"),
         "error",
       );
     }
@@ -840,9 +840,9 @@ export function FileBrowser() {
         );
       }
       refetch();
-    } catch (err: any) {
+    } catch (err: unknown) {
       showToast(
-        err?.message ||
+        (err as Error)?.message ||
           t("filebrowser.failedToDelete", "Failed to delete item(s)"),
         "error",
       );
@@ -907,9 +907,9 @@ export function FileBrowser() {
         "success",
       );
       refetch();
-    } catch (err: any) {
+    } catch (err: unknown) {
       showToast(
-        err?.message ||
+        (err as Error)?.message ||
           t("filebrowser.failedToPaste", "Failed to paste item(s)"),
         "error",
       );

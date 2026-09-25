@@ -43,9 +43,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       setError(null);
       await api.login({ username: username.trim(), password, rememberMe });
       onLoginSuccess();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(
-        err?.message ||
+        (err as Error)?.message ||
           t("login.invalidCredentials", "Invalid username or password"),
       );
     } finally {

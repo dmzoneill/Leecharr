@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using NUnit.Framework;
 using NzbDrone.Core.Automation;
 using NzbDrone.Core.Torrents;

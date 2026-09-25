@@ -41,11 +41,12 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
         ...updates,
       },
       {
-        onError: (err: any) => {
+        onError: (err: unknown) => {
+          const msg = (err as Error)?.message || "";
           showToast(
             t("quickSettings.failedToUpdateSeeding", {
-              error: err.message,
-              0: err.message,
+              error: msg,
+              0: msg,
             }),
             "error",
           );
@@ -64,11 +65,12 @@ export const SeedingAutomationCard: React.FC<SeedingAutomationCardProps> = ({
         ...updates,
       },
       {
-        onError: (err: any) => {
+        onError: (err: unknown) => {
+          const msg = (err as Error)?.message || "";
           showToast(
             t("quickSettings.failedToUpdatePiecePicker", {
-              error: err.message,
-              0: err.message,
+              error: msg,
+              0: msg,
             }),
             "error",
           );

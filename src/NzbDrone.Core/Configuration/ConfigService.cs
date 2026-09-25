@@ -1307,7 +1307,7 @@ public class ConfigService : IConfigService
     public int UiRefreshRateSec => this.GetValueInt("UiRefreshRateSec", 2);
 
     // SSRF & Security
-    public bool AllowPrivateNetworkRequests => this.GetValueBoolean("AllowPrivateNetworkRequests", false);
+    public bool AllowPrivateNetworkRequests => this.GetValueBoolean("AllowPrivateNetworkRequests", true);
 
     public string AllowedSsrfHostnames => this.GetValue("AllowedSsrfHostnames", string.Empty);
 

@@ -571,7 +571,7 @@ function WeeklyCalendar({
   };
 
   const handleTouchStart = (
-    e: React.TouchEvent,
+    _e: React.TouchEvent,
     dayIdx: number,
     hour: number,
   ) => {
@@ -966,9 +966,9 @@ export function SpeedSchedule() {
           );
           setModal(null);
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
           showToast(
-            err?.message ||
+            (err as Error)?.message ||
               t("speedSchedule.updateError", "Failed to update speed schedule"),
             "error",
           );
@@ -983,9 +983,9 @@ export function SpeedSchedule() {
           );
           setModal(null);
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
           showToast(
-            err?.message ||
+            (err as Error)?.message ||
               t("speedSchedule.createError", "Failed to create speed schedule"),
             "error",
           );
@@ -1013,9 +1013,9 @@ export function SpeedSchedule() {
           t("speedSchedule.deletedToast", "Speed schedule deleted"),
           "info",
         ),
-      onError: (err: any) =>
+      onError: (err: unknown) =>
         showToast(
-          err?.message ||
+          (err as Error)?.message ||
             t("speedSchedule.deleteError", "Failed to delete schedule"),
           "error",
         ),

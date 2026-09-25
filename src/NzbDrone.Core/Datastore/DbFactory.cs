@@ -1,7 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using System.Reflection;

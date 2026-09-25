@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useTrackerBoostLogs, useClearTrackerBoostLogs } from "../../api/hooks";
 import { useToast } from "../../context/ToastContext";
 import TrackerFavicon from "../../components/TrackerFavicon";
