@@ -275,9 +275,7 @@ export type I18nTranslations = {body};
 
 
 def main():
-    print(
-        "🚀 Starting Leecharr Deep Localization Synchronization (Google Dict Engine)..."
-    )
+    print("🚀 Starting Leecharr Deep Localization Synchronization (Google Dict Engine)...")
 
     # 1. Scan codebase for referenced keys
     used_keys = set()
@@ -288,14 +286,10 @@ def main():
         if "node_modules" in rel_parts or "dist" in rel_parts or "locales" in rel_parts:
             continue
         if p.suffix == ".tsx" or (
-            p.suffix == ".ts"
-            and not p.name.endswith("types.ts")
-            and not p.name.endswith(".d.ts")
+            p.suffix == ".ts" and not p.name.endswith("types.ts") and not p.name.endswith(".d.ts")
         ):
             code = p.read_text(encoding="utf-8", errors="ignore")
-            matches = re.findall(
-                r'\b(?:t|translate)\(\s*["\'`]([a-zA-Z0-9_.]+)["\'`]', code
-            )
+            matches = re.findall(r'\b(?:t|translate)\(\s*["\'`]([a-zA-Z0-9_.]+)["\'`]', code)
             for m in matches:
                 used_keys.add(m)
     print(f"ℹ️  Found {len(used_keys)} distinct translation key references in codebase.")
@@ -347,16 +341,10 @@ def main():
             cur_val = existing_flat.get(key)
 
             if cached_trans and (
-                is_technical(en_val)
-                or cached_trans.strip() != en_val.strip()
-                or len(en_val.strip()) <= 3
+                is_technical(en_val) or cached_trans.strip() != en_val.strip() or len(en_val.strip()) <= 3
             ):
                 result_flat[key] = cached_trans
-            elif cur_val and (
-                is_technical(en_val)
-                or cur_val.strip() != en_val.strip()
-                or len(en_val.strip()) <= 3
-            ):
+            elif cur_val and (is_technical(en_val) or cur_val.strip() != en_val.strip() or len(en_val.strip()) <= 3):
                 result_flat[key] = cur_val
                 memory[lang][en_hash] = cur_val
             elif is_technical(en_val):
@@ -373,26 +361,20 @@ def main():
                 return h, text, translate_phrase(text, lang)
 
             with ThreadPoolExecutor(max_workers=32) as executor:
-                futures = [
-                    executor.submit(task, h, t) for h, t in phrases_to_translate.items()
-                ]
+                futures = [executor.submit(task, h, t) for h, t in phrases_to_translate.items()]
                 completed = 0
                 for fut in as_completed(futures):
                     h, orig_text, trans_text = fut.result()
                     memory[lang][h] = trans_text
                     completed += 1
                     if completed % 500 == 0 or completed == missing_count:
-                        print(
-                            f"   [{lang}] Progress: {completed}/{missing_count} phrases translated"
-                        )
+                        print(f"   [{lang}] Progress: {completed}/{missing_count} phrases translated")
 
             for key, en_val in clean_flat_en.items():
                 en_hash = hash_text(en_val)
                 result_flat[key] = memory[lang].get(en_hash, en_val)
         else:
-            print(
-                f"✅ [{lang}] 100% up-to-date and fully translated ({total_keys} keys)"
-            )
+            print(f"✅ [{lang}] 100% up-to-date and fully translated ({total_keys} keys)")
 
         # Unflatten and save .ts file
         new_tree = unflatten_keys(result_flat)
@@ -400,13 +382,9 @@ def main():
         lang_file.write_text(ts_content, encoding="utf-8")
 
     # 5. Save updated translation memory cache
-    CACHE_FILE.write_text(
-        json.dumps(memory, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
+    CACHE_FILE.write_text(json.dumps(memory, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    print(
-        "\n🎉 Full Deep Translation Synchronization Complete Across All 20 Languages!"
-    )
+    print("\n🎉 Full Deep Translation Synchronization Complete Across All 20 Languages!")
 
 
 if __name__ == "__main__":
