@@ -7,7 +7,61 @@ import type {
   DatabaseTableSchema,
   DatabaseSchemaResponse,
   DatabaseQueryResult,
+  DatabaseStorageResponse,
+  DatabaseStorageItem,
+  QueryPlanNode,
 } from "../api/types";
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+}
+
+interface PlanTreeNode extends QueryPlanNode {
+  children: PlanTreeNode[];
+}
+
+function parseQueryPlanNodes(nodes: QueryPlanNode[]): PlanTreeNode[] {
+  const nodeMap = new Map<number, PlanTreeNode>();
+  nodes.forEach((n) => {
+    nodeMap.set(n.id, { ...n, children: [] });
+  });
+
+  const roots: PlanTreeNode[] = [];
+  nodes.forEach((n) => {
+    const item = nodeMap.get(n.id)!;
+    if (n.parentId !== 0 && nodeMap.has(n.parentId)) {
+      nodeMap.get(n.parentId)!.children.push(item);
+    } else {
+      roots.push(item);
+    }
+  });
+
+  return roots;
+}
+
+function getPlanBadge(detail: string): { label: string; bg: string; color: string; icon: string } {
+  const d = detail.toUpperCase();
+  if (d.includes("SCAN")) {
+    return { label: "FULL SCAN", bg: "rgba(245, 158, 11, 0.15)", color: "#f59e0b", icon: "⚠️" };
+  }
+  if (d.includes("USING INDEX") || d.includes("USING COVERING INDEX")) {
+    return { label: "INDEX SEARCH", bg: "rgba(16, 185, 129, 0.15)", color: "#10b981", icon: "⚡" };
+  }
+  if (d.includes("INTEGER PRIMARY KEY") || d.includes("ROWID")) {
+    return { label: "PRIMARY KEY", bg: "rgba(59, 130, 246, 0.15)", color: "#3b82f6", icon: "🎯" };
+  }
+  if (d.includes("TEMP B-TREE") || d.includes("TEMP TABLE")) {
+    return { label: "TEMP B-TREE", bg: "rgba(139, 92, 246, 0.15)", color: "#8b5cf6", icon: "🔄" };
+  }
+  if (d.includes("SUBQUERY") || d.includes("COMPOUND")) {
+    return { label: "SUBQUERY", bg: "rgba(6, 182, 212, 0.15)", color: "#06b6d4", icon: "📦" };
+  }
+  return { label: "QUERY STEP", bg: "rgba(255, 255, 255, 0.08)", color: "var(--text-secondary)", icon: "▶" };
+}
 
 interface NodePosition {
   x: number;
@@ -18,7 +72,22 @@ export default function DatabaseExplorer() {
   const { t } = useTranslation();
 
   // Navigation tabs
-  const [activeTab, setActiveTab] = useState<"diagram" | "console" | "inspector">("diagram");
+  const [activeTab, setActiveTab] = useState<"diagram" | "treemap" | "console" | "inspector">("diagram");
+
+  // Storage Treemap state
+  const [storageData, setStorageData] = useState<DatabaseStorageResponse | null>(null);
+  const [isLoadingStorage, setIsLoadingStorage] = useState<boolean>(false);
+  const [storageFilter, setStorageFilter] = useState<"all" | "table" | "index">("all");
+  const [storageMetric, setStorageMetric] = useState<"bytes" | "rows" | "pages">("bytes");
+  const [treemapSearch, setTreemapSearch] = useState<string>("");
+  const [selectedStorageItem, setSelectedStorageItem] = useState<DatabaseStorageItem | null>(null);
+  const [hoveredStorageItem, setHoveredStorageItem] = useState<DatabaseStorageItem | null>(null);
+  const treemapContainerRef = useRef<HTMLDivElement | null>(null);
+  const [treemapDimensions, setTreemapDimensions] = useState<{ width: number; height: number }>({ width: 800, height: 500 });
+
+  // SQL Console Plan state
+  const [consoleView, setConsoleView] = useState<"data" | "plan">("data");
+  const [planViewMode, setPlanViewMode] = useState<"tree" | "table">("tree");
 
   // Schema state
   const [tables, setTables] = useState<DatabaseTable[]>([]);
@@ -46,6 +115,19 @@ export default function DatabaseExplorer() {
   const [showMermaidModal, setShowMermaidModal] = useState<boolean>(false);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
+  // Fetch storage stats
+  const fetchStorage = useCallback(async () => {
+    setIsLoadingStorage(true);
+    try {
+      const data = await apiClient.get<DatabaseStorageResponse>("/system/database/storage");
+      setStorageData(data || null);
+    } catch (err: any) {
+      console.error("Failed to load storage data", err);
+    } finally {
+      setIsLoadingStorage(false);
+    }
+  }, []);
+
   // Fetch tables and schema
   const fetchSchema = useCallback(async () => {
     setIsLoadingSchema(true);
@@ -61,16 +143,72 @@ export default function DatabaseExplorer() {
       if (tablesData && tablesData.length > 0 && !selectedTable) {
         setSelectedTable(tablesData[0].name);
       }
+      fetchStorage();
     } catch (err: any) {
       setSchemaError(err?.message || "Failed to load database schema.");
     } finally {
       setIsLoadingSchema(false);
     }
-  }, [selectedTable]);
+  }, [selectedTable, fetchStorage]);
 
   useEffect(() => {
     fetchSchema();
   }, [fetchSchema]);
+
+  // Treemap ResizeObserver
+  useEffect(() => {
+    if (!treemapContainerRef.current) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        if (width > 50 && height > 50) {
+          setTreemapDimensions({ width: Math.floor(width), height: Math.floor(height) });
+        }
+      }
+    });
+    ro.observe(treemapContainerRef.current);
+    return () => ro.disconnect();
+  }, [activeTab]);
+
+  // Compute Treemap layout
+  const treemapLeaves = useMemo(() => {
+    if (!storageData?.items || storageData.items.length === 0) return [];
+    const filtered = storageData.items.filter((item) => {
+      if (storageFilter === "table" && item.type !== "table") return false;
+      if (storageFilter === "index" && item.type !== "index") return false;
+      if (treemapSearch.trim()) {
+        const q = treemapSearch.toLowerCase().trim();
+        return item.name.toLowerCase().includes(q) || item.tableName.toLowerCase().includes(q);
+      }
+      return true;
+    });
+
+    if (filtered.length === 0) return [];
+
+    const rootData = {
+      name: "root",
+      children: filtered.map((item) => ({
+        ...item,
+        value: Math.max(
+          storageMetric === "bytes" ? item.bytes : (storageMetric === "rows" ? item.rowCount : item.pageCount),
+          1
+        ),
+      })),
+    };
+
+    const root = d3
+      .hierarchy<any>(rootData)
+      .sum((d) => d.value || 0)
+      .sort((a, b) => (b.value || 0) - (a.value || 0));
+
+    d3
+      .treemap<any>()
+      .tile(d3.treemapSquarify)
+      .size([Math.max(treemapDimensions.width, 300), Math.max(treemapDimensions.height, 300)])
+      .padding(3)(root);
+
+    return root.leaves();
+  }, [storageData, storageFilter, storageMetric, treemapSearch, treemapDimensions]);
 
   // Initial grid layout for tables on visual canvas
   useEffect(() => {
@@ -411,6 +549,16 @@ export default function DatabaseExplorer() {
           <span>📊</span> Relational ER Diagram
         </button>
         <button
+          className={`btn ${activeTab === "treemap" ? "btn-primary" : "btn-outline"}`}
+          style={{ borderRadius: "6px 6px 0 0", borderBottom: "none" }}
+          onClick={() => {
+            setActiveTab("treemap");
+            if (!storageData) fetchStorage();
+          }}
+        >
+          <span>🗺️</span> Storage Treemap
+        </button>
+        <button
           className={`btn ${activeTab === "console" ? "btn-primary" : "btn-outline"}`}
           style={{ borderRadius: "6px 6px 0 0", borderBottom: "none" }}
           onClick={() => setActiveTab("console")}
@@ -740,7 +888,374 @@ export default function DatabaseExplorer() {
         </div>
       )}
 
-      {/* TAB 2: SQL CONSOLE */}
+      {/* TAB: STORAGE TREEMAP */}
+      {activeTab === "treemap" && (
+        <div
+          className="card"
+          style={{
+            padding: 0,
+            overflow: "hidden",
+            flex: 1,
+            minHeight: 0,
+            display: "flex",
+            flexDirection: "column",
+            position: "relative",
+            boxSizing: "border-box",
+          }}
+        >
+          {/* Treemap Toolbar */}
+          <div
+            style={{
+              padding: "0.6rem 1rem",
+              borderBottom: "1px solid var(--border-light)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "0.75rem",
+              flexShrink: 0,
+            }}
+          >
+            {/* Filters */}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>Show:</span>
+              <button
+                className={`btn btn-small ${storageFilter === "all" ? "btn-primary" : "btn-outline"}`}
+                onClick={() => setStorageFilter("all")}
+              >
+                All Objects
+              </button>
+              <button
+                className={`btn btn-small ${storageFilter === "table" ? "btn-primary" : "btn-outline"}`}
+                onClick={() => setStorageFilter("table")}
+              >
+                Tables Only
+              </button>
+              <button
+                className={`btn btn-small ${storageFilter === "index" ? "btn-primary" : "btn-outline"}`}
+                onClick={() => setStorageFilter("index")}
+              >
+                Indexes Only
+              </button>
+
+              <span style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginLeft: "0.5rem" }}>Metric:</span>
+              <select
+                className="select"
+                value={storageMetric}
+                onChange={(e) => setStorageMetric(e.target.value as any)}
+                style={{ padding: "0.25rem 0.5rem", fontSize: "0.85rem" }}
+              >
+                <option value="bytes">Disk Size (Bytes)</option>
+                <option value="rows">Row Count</option>
+                <option value="pages">Page Count</option>
+              </select>
+            </div>
+
+            {/* Search & Actions */}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <input
+                type="text"
+                placeholder="Filter table or index..."
+                value={treemapSearch}
+                onChange={(e) => setTreemapSearch(e.target.value)}
+                style={{
+                  padding: "0.3rem 0.6rem",
+                  fontSize: "0.85rem",
+                  borderRadius: "4px",
+                  border: "1px solid var(--border-light)",
+                  backgroundColor: "var(--bg-primary)",
+                  color: "var(--text-primary)",
+                  width: "180px",
+                }}
+              />
+              <button
+                className="btn btn-outline btn-small"
+                onClick={fetchStorage}
+                disabled={isLoadingStorage}
+                title="Refresh Storage Treemap"
+              >
+                {isLoadingStorage ? "Refreshing..." : "↻ Refresh"}
+              </button>
+            </div>
+          </div>
+
+          {/* Stats Bar */}
+          {storageData && (
+            <div
+              style={{
+                display: "flex",
+                gap: "1.5rem",
+                padding: "0.5rem 1rem",
+                backgroundColor: "rgba(255, 255, 255, 0.02)",
+                borderBottom: "1px solid var(--border-light)",
+                fontSize: "0.85rem",
+                flexWrap: "wrap",
+                flexShrink: 0,
+              }}
+            >
+              <div>
+                <span style={{ color: "var(--text-muted)" }}>Total Database Size: </span>
+                <span style={{ fontWeight: 600, color: "var(--accent)" }}>{formatBytes(storageData.totalSizeBytes)}</span>
+              </div>
+              <div>
+                <span style={{ color: "var(--text-muted)" }}>Allocated Pages: </span>
+                <span>{storageData.pageCount.toLocaleString()} ({storageData.pageSize.toLocaleString()} B/page)</span>
+              </div>
+              <div>
+                <span style={{ color: "var(--text-muted)" }}>Free Space: </span>
+                <span style={{ color: storageData.freeSizeBytes > 0 ? "var(--warning, #ffc107)" : "var(--text-muted)" }}>
+                  {formatBytes(storageData.freeSizeBytes)}
+                </span>
+              </div>
+              <div>
+                <span style={{ color: "var(--text-muted)" }}>Objects: </span>
+                <span>{storageData.items.filter((i) => i.type === "table").length} tables, {storageData.items.filter((i) => i.type === "index").length} indexes</span>
+              </div>
+            </div>
+          )}
+
+          {/* Canvas Area */}
+          <div
+            ref={treemapContainerRef}
+            style={{
+              flex: 1,
+              minHeight: 0,
+              position: "relative",
+              overflow: "hidden",
+              backgroundColor: "var(--bg-primary, #0c0e14)",
+            }}
+          >
+            {isLoadingStorage && (
+              <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", color: "var(--text-muted)" }}>
+                Computing SQLite Storage Treemap...
+              </div>
+            )}
+
+            {!isLoadingStorage && treemapLeaves.length === 0 && (
+              <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", color: "var(--text-muted)" }}>
+                No database objects match current filter.
+              </div>
+            )}
+
+            <svg
+              width="100%"
+              height="100%"
+              style={{ display: "block" }}
+            >
+              <g>
+                {treemapLeaves.map((leaf, idx) => {
+                  const item = leaf.data as DatabaseStorageItem;
+                  const w = Math.max(0, leaf.x1 - leaf.x0);
+                  const h = Math.max(0, leaf.y1 - leaf.y0);
+                  const isHovered = hoveredStorageItem?.name === item.name;
+                  const isSelected = selectedStorageItem?.name === item.name;
+
+                  let fill = "rgba(14, 165, 233, 0.2)";
+                  let stroke = "rgba(14, 165, 233, 0.4)";
+                  if (item.type === "index") {
+                    fill = isHovered ? "rgba(139, 92, 246, 0.35)" : "rgba(139, 92, 246, 0.2)";
+                    stroke = isSelected ? "var(--accent, #ffd166)" : "rgba(139, 92, 246, 0.45)";
+                  } else if (item.type === "free") {
+                    fill = isHovered ? "rgba(245, 158, 11, 0.35)" : "rgba(245, 158, 11, 0.2)";
+                    stroke = isSelected ? "var(--accent, #ffd166)" : "rgba(245, 158, 11, 0.45)";
+                  } else {
+                    fill = isHovered ? "rgba(14, 165, 233, 0.35)" : "rgba(14, 165, 233, 0.2)";
+                    stroke = isSelected ? "var(--accent, #ffd166)" : "rgba(14, 165, 233, 0.45)";
+                  }
+
+                  return (
+                    <g
+                      key={`${item.name}-${idx}`}
+                      transform={`translate(${leaf.x0}, ${leaf.y0})`}
+                      style={{ cursor: "pointer" }}
+                      onClick={() => setSelectedStorageItem(item)}
+                      onMouseEnter={() => setHoveredStorageItem(item)}
+                      onMouseLeave={() => setHoveredStorageItem(null)}
+                    >
+                      <rect
+                        width={w}
+                        height={h}
+                        fill={fill}
+                        stroke={stroke}
+                        strokeWidth={isSelected ? 2 : 1}
+                        strokeDasharray={item.type === "free" ? "4 2" : undefined}
+                        rx={3}
+                      />
+
+                      {w > 45 && h > 22 && (
+                        <text
+                          x={6}
+                          y={16}
+                          fill="var(--text-primary, #ffffff)"
+                          fontSize={w > 120 ? "12" : "10"}
+                          fontWeight="600"
+                          style={{ pointerEvents: "none" }}
+                        >
+                          {item.name.length * 7 > w ? `${item.name.slice(0, Math.max(3, Math.floor(w / 8)))}…` : item.name}
+                        </text>
+                      )}
+
+                      {w > 75 && h > 40 && (
+                        <text
+                          x={6}
+                          y={32}
+                          fill="var(--text-muted)"
+                          fontSize="10"
+                          style={{ pointerEvents: "none" }}
+                        >
+                          {storageMetric === "bytes"
+                            ? formatBytes(item.bytes)
+                            : storageMetric === "rows"
+                            ? `${item.rowCount.toLocaleString()} rows`
+                            : `${item.pageCount.toLocaleString()} pages`}
+                        </text>
+                      )}
+
+                      {w > 90 && h > 56 && (
+                        <text
+                          x={6}
+                          y={46}
+                          fill="var(--accent, #ffd166)"
+                          fontSize="10"
+                          fontWeight="500"
+                          style={{ pointerEvents: "none" }}
+                        >
+                          {item.percentage}%
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
+              </g>
+            </svg>
+
+            {/* Hover Tooltip */}
+            {hoveredStorageItem && (
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: "1rem",
+                  right: "1rem",
+                  backgroundColor: "rgba(16, 17, 26, 0.95)",
+                  border: "1px solid var(--border-light)",
+                  borderRadius: "6px",
+                  padding: "0.75rem 1rem",
+                  pointerEvents: "none",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+                  zIndex: 20,
+                  maxWidth: "320px",
+                  fontSize: "0.85rem",
+                }}
+              >
+                <div style={{ fontWeight: 600, color: "var(--accent)", marginBottom: "0.35rem" }}>
+                  {hoveredStorageItem.name}
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", color: "var(--text-muted)" }}>
+                  <span>Type:</span>
+                  <span style={{ color: "var(--text-primary)", textTransform: "capitalize" }}>{hoveredStorageItem.type}</span>
+                </div>
+                {hoveredStorageItem.tableName !== hoveredStorageItem.name && (
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", color: "var(--text-muted)" }}>
+                    <span>Table:</span>
+                    <span style={{ color: "var(--text-primary)" }}>{hoveredStorageItem.tableName}</span>
+                  </div>
+                )}
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", color: "var(--text-muted)" }}>
+                  <span>Size:</span>
+                  <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>{formatBytes(hoveredStorageItem.bytes)}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", color: "var(--text-muted)" }}>
+                  <span>Percentage:</span>
+                  <span style={{ color: "var(--text-primary)" }}>{hoveredStorageItem.percentage}% of DB</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", color: "var(--text-muted)" }}>
+                  <span>Pages:</span>
+                  <span style={{ color: "var(--text-primary)" }}>{hoveredStorageItem.pageCount.toLocaleString()}</span>
+                </div>
+                {hoveredStorageItem.rowCount > 0 && (
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", color: "var(--text-muted)" }}>
+                    <span>Rows:</span>
+                    <span style={{ color: "var(--text-primary)" }}>{hoveredStorageItem.rowCount.toLocaleString()}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Selected Item Drawer */}
+          {selectedStorageItem && (
+            <div
+              style={{
+                padding: "0.75rem 1rem",
+                borderTop: "1px solid var(--border-light)",
+                backgroundColor: "rgba(255, 255, 255, 0.03)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "0.75rem",
+                flexShrink: 0,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                <span style={{ fontWeight: 600, fontSize: "0.95rem" }}>
+                  Selected: {selectedStorageItem.name}
+                </span>
+                <span
+                  style={{
+                    fontSize: "0.75rem",
+                    padding: "0.15rem 0.45rem",
+                    borderRadius: "4px",
+                    backgroundColor: selectedStorageItem.type === "table" ? "rgba(14, 165, 233, 0.2)" : "rgba(139, 92, 246, 0.2)",
+                    color: selectedStorageItem.type === "table" ? "#0ea5e9" : "#8b5cf6",
+                    textTransform: "uppercase",
+                    fontWeight: 600,
+                  }}
+                >
+                  {selectedStorageItem.type}
+                </span>
+                <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                  {formatBytes(selectedStorageItem.bytes)} ({selectedStorageItem.percentage}%) • {selectedStorageItem.pageCount} pages
+                  {selectedStorageItem.rowCount > 0 ? ` • ${selectedStorageItem.rowCount.toLocaleString()} rows` : ""}
+                </span>
+              </div>
+
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                {selectedStorageItem.type === "table" && (
+                  <>
+                    <button
+                      className="btn btn-outline btn-small"
+                      onClick={() => {
+                        setSelectedTable(selectedStorageItem.tableName);
+                        setActiveTab("inspector");
+                      }}
+                    >
+                      🔍 Inspect Schema
+                    </button>
+                    <button
+                      className="btn btn-primary btn-small"
+                      onClick={() => {
+                        handleSelectTableForQuery(selectedStorageItem.tableName);
+                        setActiveTab("console");
+                      }}
+                    >
+                      💻 Query Table
+                    </button>
+                  </>
+                )}
+                <button
+                  className="btn btn-outline btn-small"
+                  onClick={() => setSelectedStorageItem(null)}
+                >
+                  ✕ Close
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 3: SQL CONSOLE */}
       {activeTab === "console" && (
         <div
           style={{
@@ -922,7 +1437,7 @@ export default function DatabaseExplorer() {
                   flexShrink: 0,
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
                   <h3 style={{ fontSize: "1rem", fontWeight: 600, margin: 0 }}>Results</h3>
                   {queryResult && (
                     <span
@@ -945,9 +1460,28 @@ export default function DatabaseExplorer() {
                       {queryResult.message}
                     </span>
                   )}
+
+                  {queryResult?.queryPlan && queryResult.queryPlan.length > 0 && (
+                    <div style={{ display: "flex", gap: "0.25rem", marginLeft: "0.5rem" }}>
+                      <button
+                        className={`btn btn-small ${consoleView === "data" ? "btn-primary" : "btn-outline"}`}
+                        style={{ padding: "0.15rem 0.5rem", fontSize: "0.75rem" }}
+                        onClick={() => setConsoleView("data")}
+                      >
+                        📊 Data Grid ({queryResult.rows?.length ?? 0})
+                      </button>
+                      <button
+                        className={`btn btn-small ${consoleView === "plan" ? "btn-primary" : "btn-outline"}`}
+                        style={{ padding: "0.15rem 0.5rem", fontSize: "0.75rem" }}
+                        onClick={() => setConsoleView("plan")}
+                      >
+                        ⚡ Query Plan DAG ({queryResult.queryPlan.length})
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                {queryResult?.columns && queryResult.columns.length > 0 && (
+                {queryResult?.columns && queryResult.columns.length > 0 && consoleView === "data" && (
                   <button className="btn btn-outline btn-small" onClick={exportCsv}>
                     📥 Export CSV
                   </button>
@@ -972,7 +1506,8 @@ export default function DatabaseExplorer() {
                 </div>
               )}
 
-              {queryResult?.columns && queryResult.rows && (
+              {/* Data Grid View */}
+              {consoleView === "data" && queryResult?.columns && queryResult.rows && (
                 <div style={{ flex: 1, minHeight: 0, overflowX: "auto", overflowY: "auto" }}>
                   <table
                     className="torrent-table"
@@ -1037,6 +1572,113 @@ export default function DatabaseExplorer() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+
+              {/* Query Plan DAG View */}
+              {consoleView === "plan" && queryResult?.queryPlan && (
+                <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", flexShrink: 0 }}>
+                    <div style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                      SQLite Execution Plan DAG (EXPLAIN QUERY PLAN)
+                    </div>
+                    <div style={{ display: "flex", gap: "0.25rem" }}>
+                      <button
+                        className={`btn btn-small ${planViewMode === "tree" ? "btn-primary" : "btn-outline"}`}
+                        style={{ padding: "0.15rem 0.5rem", fontSize: "0.75rem" }}
+                        onClick={() => setPlanViewMode("tree")}
+                      >
+                        Visual Tree
+                      </button>
+                      <button
+                        className={`btn btn-small ${planViewMode === "table" ? "btn-primary" : "btn-outline"}`}
+                        style={{ padding: "0.15rem 0.5rem", fontSize: "0.75rem" }}
+                        onClick={() => setPlanViewMode("table")}
+                      >
+                        Raw Plan Table
+                      </button>
+                    </div>
+                  </div>
+
+                  {planViewMode === "tree" ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "0.5rem 0" }}>
+                      {(() => {
+                        const roots = parseQueryPlanNodes(queryResult.queryPlan);
+                        const renderNode = (node: PlanTreeNode, depth: number) => {
+                          const badge = getPlanBadge(node.detail);
+                          return (
+                            <div key={node.id} style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                              <div
+                                style={{
+                                  marginLeft: depth > 0 ? `${depth * 28}px` : "0px",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "0.6rem",
+                                  padding: "0.5rem 0.75rem",
+                                  borderRadius: "6px",
+                                  backgroundColor: "rgba(255, 255, 255, 0.03)",
+                                  border: "1px solid var(--border-light)",
+                                  borderLeft: `3px solid ${badge.color}`,
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    fontSize: "0.75rem",
+                                    fontFamily: "monospace",
+                                    color: "var(--text-muted)",
+                                    backgroundColor: "rgba(255, 255, 255, 0.06)",
+                                    padding: "0.1rem 0.35rem",
+                                    borderRadius: "3px",
+                                  }}
+                                >
+                                  #{node.id}
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: "0.75rem",
+                                    fontWeight: 600,
+                                    padding: "0.15rem 0.45rem",
+                                    borderRadius: "4px",
+                                    backgroundColor: badge.bg,
+                                    color: badge.color,
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "0.3rem",
+                                  }}
+                                >
+                                  <span>{badge.icon}</span> {badge.label}
+                                </span>
+                                <span style={{ fontSize: "0.85rem", fontFamily: "monospace", color: "var(--text-primary)" }}>
+                                  {node.detail}
+                                </span>
+                              </div>
+                              {node.children.map((child) => renderNode(child, depth + 1))}
+                            </div>
+                          );
+                        };
+                        return roots.map((r) => renderNode(r, 0));
+                      })()}
+                    </div>
+                  ) : (
+                    <table className="torrent-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
+                      <thead>
+                        <tr>
+                          <th style={{ padding: "0.4rem 0.6rem", textAlign: "left" }}>ID</th>
+                          <th style={{ padding: "0.4rem 0.6rem", textAlign: "left" }}>Parent ID</th>
+                          <th style={{ padding: "0.4rem 0.6rem", textAlign: "left" }}>Detail</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {queryResult.queryPlan.map((node) => (
+                          <tr key={node.id}>
+                            <td style={{ padding: "0.4rem 0.6rem", fontFamily: "monospace" }}>{node.id}</td>
+                            <td style={{ padding: "0.4rem 0.6rem", fontFamily: "monospace" }}>{node.parentId}</td>
+                            <td style={{ padding: "0.4rem 0.6rem", fontFamily: "monospace" }}>{node.detail}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
               )}
             </div>
