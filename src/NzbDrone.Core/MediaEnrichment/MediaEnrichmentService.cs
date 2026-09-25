@@ -64,6 +64,7 @@ public class MediaEnrichmentService : IMediaEnrichmentService, IHandle<TorrentDo
     private readonly ITorrentFileRepository torrentFileRepository;
     private readonly ITorrentFileService torrentFileService;
     private readonly Logger logger;
+    private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
 
     private static readonly HashSet<string> MediaExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -598,9 +599,9 @@ public class MediaEnrichmentService : IMediaEnrichmentService, IHandle<TorrentDo
                 File.Delete(path);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Suppress cleanup failure
+            StaticLogger.Trace(ex, "Failed to delete local file '{0}'", path);
         }
     }
 
@@ -712,9 +713,9 @@ public class MediaEnrichmentService : IMediaEnrichmentService, IHandle<TorrentDo
                 Directory.Delete(dir, recursive: true);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Suppress cleanup failure
+            StaticLogger.Trace(ex, "Failed to delete parent directory for '{0}'", filePath);
         }
     }
 }
