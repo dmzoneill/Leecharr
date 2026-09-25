@@ -59,7 +59,7 @@ public class PieceState
 
 public class PiecePicker
 {
-    public const int DefaultBlockSize = 16384; // 16 KB standard BitTorrent block size
+    public const int DefaultBlockSize = 16 * 1024;
 
     private readonly object syncLock = new();
     private readonly int pieceCount;
