@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Web;
+using NLog;
 using NzbDrone.Core.MediaEnrichment;
 using NzbDrone.Core.Torrents;
 
@@ -14,6 +15,7 @@ namespace NzbDrone.Core.Notifications;
 
 public static class NotificationPayloadBuilder
 {
+    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     public static (string ChatId, string Token, string User, string Sound) ExtractProviderSettings(string settings)
     {
         var chatId = string.Empty;
@@ -52,9 +54,9 @@ public static class NotificationPayloadBuilder
                     sound = s.GetString() ?? s.ToString();
                 }
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
-                // Fall back to query-string extraction when JSON parsing fails
+                Logger.Trace(ex, "Settings payload is not valid JSON, falling back to alternative format");
             }
         }
 
@@ -138,9 +140,9 @@ public static class NotificationPayloadBuilder
                     }
                 }
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
-                // Fall back to query-string extraction when JSON parsing fails
+                Logger.Trace(ex, "Settings payload is not valid JSON, falling back to alternative format");
             }
         }
         else
@@ -213,9 +215,9 @@ public static class NotificationPayloadBuilder
                     }
                 }
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
-                // Fall back to alternative parsing strategy when JSON parsing fails
+                Logger.Trace(ex, "Settings payload is not valid JSON, falling back to alternative format");
             }
         }
 
@@ -292,9 +294,9 @@ public static class NotificationPayloadBuilder
                     }
                 }
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
-                // Fall back to alternative parsing strategy when JSON parsing fails
+                Logger.Trace(ex, "Settings payload is not valid JSON, falling back to alternative format");
             }
         }
 
@@ -360,9 +362,9 @@ public static class NotificationPayloadBuilder
                     }
                 }
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
-                // Fall back to alternative parsing strategy when JSON parsing fails
+                Logger.Trace(ex, "Settings payload is not valid JSON, falling back to alternative format");
             }
         }
 
@@ -488,9 +490,9 @@ public static class NotificationPayloadBuilder
                     }
                 }
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
-                // Fall back to alternative parsing strategy when JSON parsing fails
+                Logger.Trace(ex, "Settings payload is not valid JSON, falling back to alternative format");
             }
         }
         else
@@ -580,9 +582,9 @@ public static class NotificationPayloadBuilder
                     }
                 }
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
-                // Fall back to alternative parsing strategy when JSON parsing fails
+                Logger.Trace(ex, "Settings payload is not valid JSON, falling back to alternative format");
             }
         }
         else
@@ -660,9 +662,9 @@ public static class NotificationPayloadBuilder
                     candidateUrl = u.GetString() ?? trimmed;
                 }
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
-                // Fall back to alternative parsing strategy when JSON parsing fails
+                Logger.Trace(ex, "Settings payload is not valid JSON, falling back to alternative format");
             }
         }
         else if (trimmed.Contains("url="))
@@ -732,9 +734,9 @@ public static class NotificationPayloadBuilder
                     }
                 }
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
-                // Fall back to alternative parsing strategy when JSON parsing fails
+                Logger.Trace(ex, "Settings payload is not valid JSON, falling back to alternative format");
             }
         }
 
