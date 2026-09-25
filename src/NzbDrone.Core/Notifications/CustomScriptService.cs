@@ -30,6 +30,7 @@ public class CustomScriptService : ICustomScriptService
     private readonly TimeSpan scriptTimeout;
     private readonly TimeSpan streamDrainTimeout;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
+    private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
 
     public CustomScriptService(
         IMediaEnrichmentService mediaEnrichmentService = null,
@@ -429,9 +430,9 @@ public class CustomScriptService : ICustomScriptService
                     return (cleanPath, string.IsNullOrWhiteSpace(arguments) ? null : arguments.Trim());
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Fall back to query string / raw string
+                StaticLogger.Trace(ex, "Failed to parse script settings as JSON, falling back to query string");
             }
         }
 
@@ -580,9 +581,9 @@ public class CustomScriptService : ICustomScriptService
                         await process.WaitForExitAsync(reapCts.Token);
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Ignore kill exception
+                    this.logger.Trace(ex, "Failed to kill process during execution timeout");
                 }
 
                 return false;
