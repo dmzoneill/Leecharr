@@ -4,11 +4,13 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using NLog;
 
 namespace NzbDrone.Core.Torrents;
 
 public static class TorrentPathValidator
 {
+    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     public static readonly char[] UniversalInvalidPathChars = new[]
     {
         ':', '*', '?', '"', '<', '>', '|',
@@ -160,9 +162,9 @@ public static class TorrentPathValidator
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore errors for individual segment resolution
+            Logger.Trace(ex, "Failed to resolve link target for segment '{0}'", currentPath);
         }
 
         return currentPath;

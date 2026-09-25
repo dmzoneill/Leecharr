@@ -5,12 +5,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using NLog;
 using NzbDrone.Common.EnvironmentInfo;
 
 namespace NzbDrone.Core.HealthCheck.Checks;
 
 public class AppFolderPermissionsCheck : IHealthCheck
 {
+    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private readonly IAppFolderInfo appFolderInfo;
     private readonly Func<string, bool> isWritableCheck;
 
@@ -117,9 +119,9 @@ public class AppFolderPermissionsCheck : IHealthCheck
                         File.Delete(testFile);
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Ignore best-effort cleanup failure
+                    Logger.Trace(ex, "Failed to clean up permission test file '{0}'", testFile);
                 }
             }
         }

@@ -5,12 +5,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using NLog;
 using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.Subtitles;
 
 public class SubtitleDiscoveryService : ISubtitleDiscoveryService
 {
+    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private static readonly HashSet<string> SubtitleExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".srt",
@@ -200,9 +202,9 @@ public class SubtitleDiscoveryService : ISubtitleDiscoveryService
                 candidateFiles.AddRange(Directory.GetFiles(subtitlesDir, "*.*", SearchOption.AllDirectories));
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore directory enumeration failures
+            Logger.Trace(ex, "Failed to enumerate candidate subtitle files in '{0}'", dir);
         }
 
         return DiscoverSubtitles(videoFilePath, candidateFiles);
