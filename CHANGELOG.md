@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.27.4](https://github.com/dmzoneill/Leecharr/releases/tag/v1.27.4) - 2026-09-25
+
+### 🐛 Bug Fixes
+- fix(ui): remove redundant terminal under system menu and expand database explorer to full width/height
+
 ## [v1.27.3](https://github.com/dmzoneill/Leecharr/releases/tag/v1.27.3) - 2026-09-25
 
 ### ✨ Features
