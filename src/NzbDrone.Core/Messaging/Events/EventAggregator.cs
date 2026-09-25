@@ -11,11 +11,15 @@ public class EventAggregator : IEventAggregator
 {
     private readonly Logger logger;
     private readonly IServiceProvider serviceProvider;
+    private readonly NzbDrone.Core.Developer.IDeveloperEventStore developerEventStore;
 
-    public EventAggregator(IServiceProvider serviceProvider)
+    public EventAggregator(
+        IServiceProvider serviceProvider,
+        NzbDrone.Core.Developer.IDeveloperEventStore developerEventStore = null)
     {
         this.logger = LogManager.GetCurrentClassLogger();
         this.serviceProvider = serviceProvider;
+        this.developerEventStore = developerEventStore;
     }
 
     public void PublishEvent<TEvent>(TEvent @event)
@@ -27,6 +31,15 @@ public class EventAggregator : IEventAggregator
         }
 
         this.logger.Trace("Publishing {0}", @event.GetType().Name);
+
+        try
+        {
+            this.developerEventStore?.RecordEvent(@event);
+        }
+        catch
+        {
+            // Ignore developer event recording failures to protect business flow
+        }
 
         var handlerType = typeof(IHandle<>).MakeGenericType(@event.GetType());
         var handlers = this.serviceProvider.GetServices(handlerType).DistinctBy(h => h.GetType());

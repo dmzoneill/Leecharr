@@ -70,6 +70,9 @@ public static class Bootstrap
         container.RegisterSingletonWithInterfaces<PeerConnectionHistoryService>();
         container.RegisterSingletonWithInterfaces<ArrWebhookRegistration>();
         container.RegisterSingletonWithInterfaces<ArrWebhookMaintenanceTask>();
+        container.RegisterSingletonWithInterfaces<NzbDrone.Core.Developer.DeveloperEventStore>();
+        container.RegisterSingletonWithInterfaces<NzbDrone.Core.Developer.DeveloperHttpTrafficStore>();
+        container.RegisterSingletonWithInterfaces<NzbDrone.Core.Developer.DeveloperWebhookStore>();
 
         var builder = WebApplication.CreateBuilder();
         var configProvider = container.Resolve<IConfigFileProvider>();

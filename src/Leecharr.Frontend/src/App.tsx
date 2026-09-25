@@ -63,6 +63,11 @@ import SystemLogs from "./pages/SystemLogs";
 import SystemNetwork from "./pages/SystemNetwork";
 import DatabaseExplorer from "./pages/DatabaseExplorer";
 import DeveloperDiagnostics from "./pages/DeveloperDiagnostics";
+import DeveloperEvents from "./pages/DeveloperEvents";
+import DeveloperCommands from "./pages/DeveloperCommands";
+import DeveloperNetwork from "./pages/DeveloperNetwork";
+import DeveloperWebhooks from "./pages/DeveloperWebhooks";
+import DeveloperConfig from "./pages/DeveloperConfig";
 import { ApiDocsPage } from "./pages/ApiDocsPage";
 import TrackerBoost from "./pages/TrackerBoost";
 import TrackerServer from "./pages/TrackerServer";
@@ -124,9 +129,14 @@ function getSystemSubItems(t: (key: string, defaultValue?: string) => string) {
 function getDeveloperSubItems(t: (key: string, defaultValue?: string) => string) {
   return [
     { id: "database", label: t("developer.database", "Database Explorer") },
+    { id: "events", label: t("developer.events", "Event Bus") },
+    { id: "commands", label: t("developer.commands", "Command Console") },
+    { id: "network", label: t("developer.network", "Network Wiretap") },
+    { id: "webhooks", label: t("developer.webhooks", "Webhook Sandbox") },
+    { id: "config", label: t("developer.config", "Config & Env") },
+    { id: "diagnostics", label: t("developer.diagnostics", "Diagnostics") },
     { id: "terminal", label: t("developer.terminal", "Terminal CLI") },
     { id: "api", label: t("developer.apiReference", "API Reference") },
-    { id: "diagnostics", label: t("developer.diagnostics", "Diagnostics") },
   ];
 }
 
@@ -1864,6 +1874,46 @@ export function App() {
                 element={
                   <ErrorBoundary title="Database Explorer">
                     <DatabaseExplorer />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/developer/events"
+                element={
+                  <ErrorBoundary title="Event Bus Wiretap">
+                    <DeveloperEvents />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/developer/commands"
+                element={
+                  <ErrorBoundary title="Command Console">
+                    <DeveloperCommands />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/developer/network"
+                element={
+                  <ErrorBoundary title="Network Wiretap">
+                    <DeveloperNetwork />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/developer/webhooks"
+                element={
+                  <ErrorBoundary title="Webhook Sandbox">
+                    <DeveloperWebhooks />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/developer/config"
+                element={
+                  <ErrorBoundary title="Config & Environment">
+                    <DeveloperConfig />
                   </ErrorBoundary>
                 }
               />

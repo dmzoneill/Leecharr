@@ -21,6 +21,7 @@ public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportMan
     private readonly IConfigService configService;
     private readonly IEventAggregator eventAggregator;
     private readonly IVpnKillSwitchService vpnKillSwitchService;
+    private readonly NzbDrone.Core.Developer.IDeveloperHttpTrafficStore developerHttpTrafficStore;
     private readonly Logger logger;
     private readonly SemaphoreSlim switchLock = new(1, 1);
     private IHttpTransportProvider activeProvider;
@@ -34,18 +35,20 @@ public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportMan
         IEnumerable<IHttpTransportProvider> availableProviders,
         IConfigService configService,
         IEventAggregator eventAggregator,
-        IVpnKillSwitchService vpnKillSwitchService = null)
+        IVpnKillSwitchService vpnKillSwitchService = null,
+        NzbDrone.Core.Developer.IDeveloperHttpTrafficStore developerHttpTrafficStore = null)
     {
         this.availableProviders = availableProviders ?? Enumerable.Empty<IHttpTransportProvider>();
         this.configService = configService;
         this.eventAggregator = eventAggregator;
         this.vpnKillSwitchService = vpnKillSwitchService;
+        this.developerHttpTrafficStore = developerHttpTrafficStore;
         this.logger = LogManager.GetCurrentClassLogger();
 
         var desiredProviderId = this.configService?.ActiveHttpTransportProvider;
         this.activeProvider = this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals(desiredProviderId, StringComparison.OrdinalIgnoreCase))
-                          ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("SocketsHttpHandler", StringComparison.OrdinalIgnoreCase))
-                          ?? this.availableProviders.FirstOrDefault();
+            ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("SocketsHttpHandler", StringComparison.OrdinalIgnoreCase))
+            ?? this.availableProviders.FirstOrDefault();
 
         if (this.activeProvider == null)
         {
@@ -180,6 +183,36 @@ public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportMan
     }
 
     public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken = default)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        HttpResponseMessage response = null;
+        Exception error = null;
+
+        try
+        {
+            response = await this.SendInternalAsync(request, cancellationToken);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            error = ex;
+            throw;
+        }
+        finally
+        {
+            sw.Stop();
+            try
+            {
+                this.developerHttpTrafficStore?.Record(request, response, sw.Elapsed.TotalMilliseconds, this.ActiveProviderId, null, error);
+            }
+            catch
+            {
+                // Protect core transport pipeline
+            }
+        }
+    }
+
+    private async Task<HttpResponseMessage> SendInternalAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         if (request == null)
         {

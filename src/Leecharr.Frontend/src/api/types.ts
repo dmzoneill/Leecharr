@@ -1958,3 +1958,142 @@ export interface DatabaseDiagnosticsResponse {
   dotNetVersion: string;
 }
 
+// --- Developer Tools Types ---
+
+export interface DeveloperEventItem {
+  id: string;
+  timestampUtc: string;
+  eventName: string;
+  eventType: string;
+  sourceNamespace: string;
+  payloadJson: string;
+}
+
+export interface DeveloperEventsResponse {
+  events: DeveloperEventItem[];
+  totalRecorded: number;
+}
+
+export interface DeveloperCommandProperty {
+  name: string;
+  type: string;
+  isNullable: boolean;
+  defaultValue?: string | null;
+}
+
+export interface DeveloperCommandDescriptor {
+  name: string;
+  fullName: string;
+  description: string;
+  properties: DeveloperCommandProperty[];
+}
+
+export interface DeveloperCommandHistoryItem {
+  id: number;
+  name: string;
+  status: string;
+  queuedAt: string;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  durationMs: number;
+  message?: string | null;
+  trigger: number;
+}
+
+export interface DeveloperCommandsResponse {
+  commands: DeveloperCommandDescriptor[];
+  recentHistory: DeveloperCommandHistoryItem[];
+}
+
+export interface DeveloperHttpTrafficItem {
+  id: string;
+  timestampUtc: string;
+  method: string;
+  url: string;
+  host: string;
+  statusCode: number;
+  durationMs: number;
+  isSuccess: boolean;
+  transportEngine: string;
+  requestHeaders: Record<string, string>;
+  responseHeaders: Record<string, string>;
+  responseBodyPreview: string;
+  errorMessage?: string | null;
+}
+
+export interface DeveloperHttpTrafficResponse {
+  items: DeveloperHttpTrafficItem[];
+  totalRecorded: number;
+}
+
+export interface DeveloperWebhookTemplate {
+  id: string;
+  name: string;
+  source: string;
+  eventType: string;
+  description: string;
+  payloadJson: string;
+}
+
+export interface DeveloperWebhookHistoryItem {
+  id: string;
+  timestampUtc: string;
+  source: string;
+  eventType: string;
+  sourceIp: string;
+  userAgent: string;
+  statusCode: number;
+  rawPayload: string;
+  resultMessage: string;
+  success: boolean;
+}
+
+export interface DeveloperWebhookSimulateResponse {
+  success: boolean;
+  statusCode: number;
+  message: string;
+  executionTimeMs: number;
+  traceLogs: string[];
+}
+
+export interface DeveloperConfigEntry {
+  key: string;
+  value: string;
+  source: string;
+  isSecret: boolean;
+}
+
+export interface DeveloperHostEnvironment {
+  operatingSystem: string;
+  osArchitecture: string;
+  processArchitecture: string;
+  frameworkDescription: string;
+  hostName: string;
+  processId: number;
+  processStartTimeUtc: string;
+  processUptimeSeconds: number;
+  workingSetBytes: number;
+  appDataDirectory: string;
+  tempDirectory: string;
+  currentDirectory: string;
+  environmentVariables: Record<string, string>;
+}
+
+export interface DeveloperConfigResponse {
+  entries: DeveloperConfigEntry[];
+  environment: DeveloperHostEnvironment;
+}
+
+export interface DeveloperSimulationResponse {
+  isRunning: boolean;
+  activeAlgorithm: string;
+  activeSimulatedTorrents: number;
+  totalUploadedBytes: number;
+  totalDownloadedBytes: number;
+  currentUploadRateBytesPerSec: number;
+  currentDownloadRateBytesPerSec: number;
+  clientProfiles: string[];
+  mcpEnabled: boolean;
+  mcpTools: string[];
+}
+
