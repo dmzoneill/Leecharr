@@ -6,6 +6,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.27.3](https://github.com/dmzoneill/Leecharr/releases/tag/v1.27.3) - 2026-09-25
+
+### ✨ Features
+- feat: add SQLite database explorer with interactive ERD visualizer and Arr webhook integration tests
+- feat(filebrowser): add distinct icons and badges for media, text, nfo, archives, and executables
+
+### 🐛 Bug Fixes
+- fix(ci): format master_sync_i18n.py with ruff line-length 120 and add .ruff.toml
+- fix(lint): fix indentation to multiple of 4 and format master_sync_i18n.py
+- fix(media-player): standardize mpv URI protocol across player utilities and tests
+- fix(quality): eliminate silent catches and ensure strict formatting parity
+
+### 🔧 Maintenance & Improvements
+- ci: disable python ruff format in super-linter workflow
+- refactor: eliminate all remaining silent empty catches across backend engines and services (O-15)
+- refactor: eliminate silent catches in TorrentCreationService and LocalNfoMetadataProvider (O-15)
+- refactor: eliminate silent catches and add structured logging across backend services (O-15)
+- refactor: document protocol exceptions in SignalR broadcaster and extract modal CSS (O-15, CC-1)
+- refactor: specify JsonException and document protocol fallbacks in NotificationPayloadBuilder (O-15)
+- refactor: eliminate Captain Obvious comments (S-1) and silent catches in StoragePathService (O-15)
+- style: format GettingStartedModal.tsx with prettier
+- refactor: use properties instead of public fields in RadixNode (CC-19)
+- refactor: modernize string formatting in ExternalIpService (O-9)
+- style(media-player): apply Prettier formatting
+
 ## [v1.27.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.27.2) - 2026-09-24
 
 ### ✨ Features
