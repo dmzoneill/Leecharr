@@ -34,7 +34,6 @@ export function setTelemetryEnabled(enabled: boolean): void {
     /* ignore localStorage errors */
   }
 
-  // Set standard GA4 opt-out window property
   (window as Record<string, unknown>)[`ga-disable-${GA_MEASUREMENT_ID}`] =
     !enabled;
 }

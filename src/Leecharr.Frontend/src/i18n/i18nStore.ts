@@ -72,7 +72,6 @@ export function getInitialLanguage(): string {
 const initialLang = getInitialLanguage();
 const initialTranslations = localeMap[initialLang] || en;
 
-// Set initial DOM attributes
 if (typeof document !== "undefined") {
   const langConfig = languages.find((l) => l.code === initialLang);
   document.documentElement.lang = initialLang;

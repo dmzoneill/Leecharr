@@ -58,7 +58,7 @@ export const AiCopilotDrawer: React.FC = () => {
           return parsed;
         }
       } catch {
-        // ignore
+        /* storage read error */
       }
     }
     return null;
@@ -78,7 +78,6 @@ export const AiCopilotDrawer: React.FC = () => {
   });
   const hasMovedRef = useRef(false);
 
-  // Parse release tab state
   const [releaseInput, setReleaseInput] = useState("");
   const [parsedResult, setParsedResult] = useState<AiParsedRelease | null>(
     null,
@@ -132,7 +131,7 @@ export const AiCopilotDrawer: React.FC = () => {
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {
-      // ignore
+      /* pointer capture unsupported */
     }
   };
 
@@ -160,7 +159,7 @@ export const AiCopilotDrawer: React.FC = () => {
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {
-      // ignore
+      /* pointer release unsupported */
     }
     if (!hasMovedRef.current) {
       setIsOpen(true);

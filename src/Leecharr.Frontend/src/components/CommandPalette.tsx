@@ -593,7 +593,6 @@ export function CommandPalette({
     });
   }, [allCommands, query]);
 
-  // Handle keyboard navigation inside command palette
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
