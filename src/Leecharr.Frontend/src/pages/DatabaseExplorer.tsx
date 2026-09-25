@@ -120,7 +120,6 @@ export default function DatabaseExplorer() {
   const [showMermaidModal, setShowMermaidModal] = useState<boolean>(false);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
-  // Fetch storage stats
   const fetchStorage = useCallback(async () => {
     setIsLoadingStorage(true);
     try {
@@ -133,7 +132,6 @@ export default function DatabaseExplorer() {
     }
   }, []);
 
-  // Fetch tables and schema
   const fetchSchema = useCallback(async () => {
     setIsLoadingSchema(true);
     setSchemaError(null);

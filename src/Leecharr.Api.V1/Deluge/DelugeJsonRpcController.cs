@@ -1797,9 +1797,9 @@ public class DelugeJsonRpcController : ControllerBase
                                 global::System.IO.File.Delete(torrentPath);
                             }
                         }
-                        catch
+                        catch (Exception ex)
                         {
-                            // Ignore cleanup error
+                            this.logger.Trace(ex, "Failed to clean up temporary upload file '{0}'", torrentPath);
                         }
                     }
                 }

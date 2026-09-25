@@ -1765,9 +1765,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             {
                 decodedUrls = Uri.UnescapeDataString(urls);
             }
-            catch
+            catch (Exception ex)
             {
-                // Fallback to raw urls
+                this.logger.Trace(ex, "Failed to unescape tracker URLs, using raw");
             }
 
             var rawLines = decodedUrls.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
@@ -1807,9 +1807,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                     {
                         trimmed = Uri.UnescapeDataString(trimmed).Trim();
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Fallback to raw trimmed line
+                        this.logger.Trace(ex, "Failed to unescape tracker line, using raw");
                     }
 
                     if (string.IsNullOrWhiteSpace(trimmed))
@@ -1886,9 +1886,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                         urlSet.Add(unescaped);
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Fallback to raw trimmed line
+                    this.logger.Trace(ex, "Failed to unescape tracker line for removal, using raw");
                 }
             }
 
@@ -2803,9 +2803,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore reflection errors
+            this.logger.Trace(ex, "Failed to reflect MonoTorrent piece state");
         }
 
         if (bitfield == null || bitfield.Length == 0)
