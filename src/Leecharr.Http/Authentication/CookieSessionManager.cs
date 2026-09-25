@@ -250,9 +250,9 @@ public class CookieSessionManager : ICookieSessionManager
                             return false;
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Ignore JSON parsing errors
+                        this.logger.Trace(ex, "Failed to parse user roles JSON in session validation");
                     }
                 }
             }
@@ -293,9 +293,9 @@ public class CookieSessionManager : ICookieSessionManager
                         return false;
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Ignore JSON parsing errors
+                    this.logger.Trace(ex, "Failed to parse user roles JSON in cached session validation");
                 }
             }
         }
@@ -373,9 +373,9 @@ public class CookieSessionManager : ICookieSessionManager
                 await context.HttpContext.SignOutAsync("Cookies");
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Suppress if IAuthenticationService is not registered in unit test harness
+            this.logger.Trace(ex, "SignOutAsync failed (authentication service may not be registered in test harness)");
         }
     }
 }

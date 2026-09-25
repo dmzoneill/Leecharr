@@ -208,9 +208,9 @@ public class BackupService : IBackupService, IExecute<BackupCommand>, IExecuteAs
                 {
                     global::System.IO.File.Delete(tempDumpFile);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Ignore temp file cleanup error
+                    this.logger.Trace(ex, "Failed to clean up temporary database dump file '{0}'", tempDumpFile);
                 }
             }
         }
