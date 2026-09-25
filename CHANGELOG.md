@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.28.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.28.0) - 2026-09-25
+
+### ✨ Features
+- feat(developer): add Developer tools section, storage treemap, and query plan DAG
+
 ## [v1.27.5](https://github.com/dmzoneill/Leecharr/releases/tag/v1.27.5) - 2026-09-25
 
 ### 🐛 Bug Fixes
