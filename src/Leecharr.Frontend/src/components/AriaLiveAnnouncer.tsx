@@ -113,7 +113,7 @@ export default function AriaLiveAnnouncer() {
         torrent.status === "Error" || (Boolean(currError) && !prevError);
 
       if (!hadError && hasError) {
-        const errorDetail = currError || "an error occurred";
+        const errorDetail = currError || "download interrupted";
         announce(
           `Torrent "${torrent.name}" encountered error: ${errorDetail}`,
           "assertive",
