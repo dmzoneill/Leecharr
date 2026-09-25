@@ -21,6 +21,7 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
 ) {
   const containerRef = useRef<T | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const wasOpenRef = useRef<boolean>(false);
 
   const normalizedOptions: UseFocusTrapOptions =
     typeof options === "boolean"
@@ -34,40 +35,73 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
     restoreFocus = true,
   } = normalizedOptions;
 
-  useEffect(() => {
-    if (!isOpen) return;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
-    // Save previous active element to restore focus when closing
-    previousFocusRef.current = document.activeElement as HTMLElement | null;
+  const restoreFocusRef = useRef(restoreFocus);
+  restoreFocusRef.current = restoreFocus;
+
+  const initialFocusRefRef = useRef(initialFocusRef);
+  initialFocusRefRef.current = initialFocusRef;
+
+  useEffect(() => {
+    if (!isOpen) {
+      if (wasOpenRef.current) {
+        wasOpenRef.current = false;
+        if (
+          restoreFocusRef.current &&
+          previousFocusRef.current &&
+          typeof previousFocusRef.current.focus === "function"
+        ) {
+          try {
+            previousFocusRef.current.focus();
+          } catch {
+            // Ignore if previous element is no longer attached
+          }
+          previousFocusRef.current = null;
+        }
+      }
+      return;
+    }
+
+    // Modal is opening: save previous active element once
+    if (!wasOpenRef.current) {
+      wasOpenRef.current = true;
+      if (
+        typeof document !== "undefined" &&
+        document.activeElement instanceof HTMLElement
+      ) {
+        previousFocusRef.current = document.activeElement;
+      }
+    }
 
     const container = containerRef.current;
     if (!container) return;
 
-    // Initial focus placement
+    // Initial focus placement only when opening, not when focus is already inside container
     const timer = setTimeout(() => {
       if (!containerRef.current) return;
       const currentContainer = containerRef.current;
 
-      if (initialFocusRef?.current) {
-        initialFocusRef.current.focus();
-        return;
-      }
-
-      // Check if there is an autofocus element inside the container
-      const autoFocusEl =
-        currentContainer.querySelector<HTMLElement>("[autofocus]");
-      if (autoFocusEl && typeof autoFocusEl.focus === "function") {
-        autoFocusEl.focus();
-        return;
-      }
-
-      // Check if an element inside the container is already focused
+      // If document.activeElement is ALREADY inside the container, DO NOT steal focus
       if (
         document.activeElement &&
         currentContainer.contains(document.activeElement) &&
         document.activeElement !== currentContainer &&
         document.activeElement !== document.body
       ) {
+        return;
+      }
+
+      if (initialFocusRefRef.current?.current) {
+        initialFocusRefRef.current.current.focus();
+        return;
+      }
+
+      const autoFocusEl =
+        currentContainer.querySelector<HTMLElement>("[autofocus]");
+      if (autoFocusEl && typeof autoFocusEl.focus === "function") {
+        autoFocusEl.focus();
         return;
       }
 
@@ -124,10 +158,10 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
             return;
           }
         }
-        if (onClose) {
+        if (onCloseRef.current) {
           event.stopPropagation();
           event.stopImmediatePropagation();
-          onClose();
+          onCloseRef.current();
         }
         return;
       }
@@ -192,8 +226,15 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
     return () => {
       clearTimeout(timer);
       window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
+  // Unmount cleanup: restore focus if modal is unmounted while still open
+  useEffect(() => {
+    return () => {
       if (
-        restoreFocus &&
+        wasOpenRef.current &&
+        restoreFocusRef.current &&
         previousFocusRef.current &&
         typeof previousFocusRef.current.focus === "function"
       ) {
@@ -202,9 +243,10 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
         } catch {
           // Ignore if previous element is no longer attached
         }
+        previousFocusRef.current = null;
       }
     };
-  }, [isOpen, onClose, initialFocusRef, restoreFocus]);
+  }, []);
 
   return containerRef;
 }

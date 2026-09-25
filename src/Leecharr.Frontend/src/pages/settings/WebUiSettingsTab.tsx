@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useGeneralConfig, useSaveGeneralConfig } from "../../api/hooks";
 import { SaveBar, SectionCard, SelectInput, Toggle } from "./shared";
 import { LanguageSelector } from "../../components/LanguageSelector";

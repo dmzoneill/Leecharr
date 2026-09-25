@@ -111,9 +111,9 @@ export function ConnectionsTab() {
           );
           setEditing(null);
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
           showToast(
-            err?.message ||
+            (err as Error)?.message ||
               t(
                 "settingsTabs.connections.updateFailed",
                 "Failed to update connection",
@@ -134,9 +134,9 @@ export function ConnectionsTab() {
           );
           setEditing(null);
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
           showToast(
-            err?.message ||
+            (err as Error)?.message ||
               t(
                 "settingsTabs.connections.createFailed",
                 "Failed to create connection",
@@ -311,9 +311,9 @@ export function ConnectionsTab() {
                           }),
                           "info",
                         ),
-                      onError: (err: any) =>
+                      onError: (err: unknown) =>
                         showToast(
-                          err?.message ||
+                          (err as Error)?.message ||
                             t("settingsTabs.connections.deleteFailed"),
                           "error",
                         ),

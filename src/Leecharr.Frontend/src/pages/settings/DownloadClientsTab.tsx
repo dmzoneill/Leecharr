@@ -127,9 +127,9 @@ export function DownloadClientsTab() {
           );
           setEditing(null);
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
           showToast(
-            err?.message ||
+            (err as Error)?.message ||
               t(
                 "settingsTabs.downloadClients.updateFailed",
                 "Failed to update download client",
@@ -151,9 +151,9 @@ export function DownloadClientsTab() {
           );
           setEditing(null);
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
           showToast(
-            err?.message ||
+            (err as Error)?.message ||
               t(
                 "settingsTabs.downloadClients.createFailed",
                 "Failed to create download client",
@@ -232,9 +232,9 @@ export function DownloadClientsTab() {
                     }),
                     "success",
                   ),
-                onError: (err: any) =>
+                onError: (err: unknown) =>
                   showToast(
-                    `${t("settingsTabs.downloadClients.syncFailed")}${err?.message || t("settingsTabs.notifications.unknownError")}`,
+                    `${t("settingsTabs.downloadClients.syncFailed")}${(err as Error)?.message || t("settingsTabs.notifications.unknownError")}`,
                     "error",
                   ),
               });
@@ -305,9 +305,9 @@ export function DownloadClientsTab() {
                           }),
                           "info",
                         ),
-                      onError: (err: any) =>
+                      onError: (err: unknown) =>
                         showToast(
-                          err?.message ||
+                          (err as Error)?.message ||
                             t("settingsTabs.downloadClients.deleteFailed"),
                           "error",
                         ),

@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { useToast } from "../context/ToastContext";
 import { ConfirmModal } from "../components/ConfirmModal";
+import { getUrlBase } from "../api/client";
 
 function DownloadIcon() {
   return (
@@ -329,7 +330,7 @@ export function SystemLogFiles({ embedded = false }: SystemLogFilesProps) {
                     <td>{formatFileSize(file.size)}</td>
                     <td style={{ textAlign: "right" }}>
                       <a
-                        href={`${typeof window !== "undefined" && (window as any).Leecharr?.urlBase ? (window as any).Leecharr.urlBase.replace(/\/+$/, "") : ""}/api/v1/logfile/${file.filename}`}
+                        href={`${getUrlBase()}/api/v1/logfile/${file.filename}`}
                         className="btn btn-outline btn-small"
                         download
                         style={{

@@ -1,5 +1,5 @@
 import { useTranslation } from "../../i18n";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useBitTorrentConfig, useSaveBitTorrentConfig } from "../../api/hooks";
 import {
   SaveBar,

@@ -1,8 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
-using System;
 using System.Collections.Generic;
-using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Torrents;

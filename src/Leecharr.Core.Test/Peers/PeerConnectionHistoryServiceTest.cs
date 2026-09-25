@@ -11,7 +11,6 @@ using NUnit.Framework;
 using NzbDrone.Common.Composition;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Messaging.Events;
-using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Network.GeoIp;
 using NzbDrone.Core.Peers;
 using Arg = NSubstitute.Arg;

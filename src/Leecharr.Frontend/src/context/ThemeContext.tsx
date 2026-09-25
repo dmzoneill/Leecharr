@@ -1,4 +1,4 @@
-import React, {
+import {
   createContext,
   useContext,
   useState,
@@ -106,13 +106,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   // Sync with server generalConfig when it loads
   useEffect(() => {
-    if (generalConfig) {
-      if (generalConfig.themeStyle) {
-        setThemeStyleState(generalConfig.themeStyle as ThemeStyle);
-      }
-      if (generalConfig.colorScheme) {
-        setColorSchemeState(generalConfig.colorScheme as ColorScheme);
-      }
+    if (generalConfig?.themeStyle) {
+      setThemeStyleState(generalConfig.themeStyle as ThemeStyle);
+    }
+    if (generalConfig?.colorScheme) {
+      setColorSchemeState(generalConfig.colorScheme as ColorScheme);
     }
   }, [generalConfig?.themeStyle, generalConfig?.colorScheme]);
 

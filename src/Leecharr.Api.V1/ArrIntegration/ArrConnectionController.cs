@@ -10,7 +10,9 @@ using System.Threading.Tasks;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using NzbDrone.Core.ArrIntegration;
+using NzbDrone.Core.ArrIntegration.Webhook;
 
 namespace Leecharr.Api.V1.ArrIntegration;
 
@@ -25,12 +27,23 @@ public class ArrConnectionController : Controller
     };
 
     private readonly IArrConnectionRepository repository;
+    private readonly IArrWebhookRegistration webhookRegistration;
     private readonly HttpClient httpClient;
 
-    public ArrConnectionController(IArrConnectionRepository repository, HttpClient httpClient = null)
+    [ActivatorUtilitiesConstructor]
+    public ArrConnectionController(
+        IArrConnectionRepository repository,
+        IArrWebhookRegistration webhookRegistration = null,
+        HttpClient httpClient = null)
     {
         this.repository = repository;
+        this.webhookRegistration = webhookRegistration;
         this.httpClient = httpClient;
+    }
+
+    public ArrConnectionController(IArrConnectionRepository repository, HttpClient httpClient)
+        : this(repository, null, httpClient)
+    {
     }
 
     [HttpGet]
@@ -72,6 +85,12 @@ public class ArrConnectionController : Controller
 
         var model = ToModel(resource);
         var created = this.repository.Insert(model);
+
+        if (this.webhookRegistration != null && created.Enable)
+        {
+            this.webhookRegistration.Register(created);
+        }
+
         return this.Ok(ToResource(created));
     }
 
@@ -106,13 +125,43 @@ public class ArrConnectionController : Controller
             model.ApiKey = existing.ApiKey;
         }
 
+        var shouldUnregisterWebhook = (existing.WebhookEnabled && !model.WebhookEnabled) ||
+                                      (existing.Enable && !model.Enable) ||
+                                      (!string.Equals(existing.Url?.TrimEnd('/'), model.Url?.TrimEnd('/'), StringComparison.OrdinalIgnoreCase));
+
+        var shouldUnregisterDownloadClient = (existing.EnableAutomaticAdd && !model.EnableAutomaticAdd) ||
+                                             (existing.Enable && !model.Enable) ||
+                                             (!string.Equals(existing.Url?.TrimEnd('/'), model.Url?.TrimEnd('/'), StringComparison.OrdinalIgnoreCase));
+
+        if (shouldUnregisterWebhook && this.webhookRegistration != null)
+        {
+            this.webhookRegistration.UnregisterWebhook(existing);
+        }
+
+        if (shouldUnregisterDownloadClient && this.webhookRegistration != null)
+        {
+            this.webhookRegistration.UnregisterDownloadClient(existing);
+        }
+
         this.repository.Update(model);
+
+        if (model.Enable && this.webhookRegistration != null)
+        {
+            this.webhookRegistration.Register(model);
+        }
+
         return this.Ok(ToResource(model));
     }
 
     [HttpDelete("{id:int}")]
     public ActionResult Delete(int id)
     {
+        var existing = this.repository.Get(id);
+        if (existing != null)
+        {
+            this.webhookRegistration?.Unregister(existing);
+        }
+
         this.repository.Delete(id);
         return this.Ok();
     }
@@ -206,6 +255,12 @@ public class ArrConnectionController : Controller
             ExternalUrl = ResolveExternalUrl(model.ExternalUrl, model.ArrType, model.Name),
             ApiKey = string.IsNullOrEmpty(model.ApiKey) ? string.Empty : "********",
             Enabled = model.Enable,
+            SyncEnabled = model.SyncEnabled,
+            EnableAutomaticAdd = model.EnableAutomaticAdd,
+            WebhookEnabled = model.WebhookEnabled,
+            WebhookHost = model.WebhookHost,
+            Category = model.Category,
+            SavePath = model.SavePath,
             SyncCategories = model.SyncCategories,
             RefreshIntervalMinutes = model.SyncIntervalMinutes,
         };
@@ -223,9 +278,14 @@ public class ArrConnectionController : Controller
             ExternalUrl = resource.ExternalUrl,
             ApiKey = resource.ApiKey,
             Enable = resource.Enabled,
+            SyncEnabled = resource.SyncEnabled,
+            EnableAutomaticAdd = resource.EnableAutomaticAdd,
+            WebhookEnabled = resource.WebhookEnabled,
+            WebhookHost = resource.WebhookHost,
+            Category = resource.Category,
+            SavePath = resource.SavePath,
             SyncCategories = resource.SyncCategories,
             SyncIntervalMinutes = resource.RefreshIntervalMinutes > 0 ? resource.RefreshIntervalMinutes : 15,
-            SyncEnabled = resource.Enabled,
         };
     }
 
@@ -358,6 +418,18 @@ public class ArrConnectionController : Controller
 
         var client = this.httpClient ?? DefaultHttpClient;
         var baseUrl = resource.Url.TrimEnd('/');
+        if (baseUrl.EndsWith("/api/v3", StringComparison.OrdinalIgnoreCase))
+        {
+            baseUrl = baseUrl.Substring(0, baseUrl.Length - 7).TrimEnd('/');
+        }
+        else if (baseUrl.EndsWith("/api/v1", StringComparison.OrdinalIgnoreCase))
+        {
+            baseUrl = baseUrl.Substring(0, baseUrl.Length - 7).TrimEnd('/');
+        }
+        else if (baseUrl.EndsWith("/api", StringComparison.OrdinalIgnoreCase))
+        {
+            baseUrl = baseUrl.Substring(0, baseUrl.Length - 4).TrimEnd('/');
+        }
         var endpoints = new[] { "/api/v3/system/status", "/api/v1/system/status" };
         string lastError = null;
 

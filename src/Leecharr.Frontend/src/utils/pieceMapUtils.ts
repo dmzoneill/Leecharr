@@ -122,6 +122,18 @@ export function setPieceBitsInPlace(
   }
 }
 
+function allocateExpandedBuffer(
+  current: Uint8Array | undefined,
+  requiredBytes: number,
+): Uint8Array {
+  const targetLen = Math.max(requiredBytes, current ? current.length : 0);
+  const target = new Uint8Array(targetLen);
+  if (current) {
+    target.set(current);
+  }
+  return target;
+}
+
 /**
  * Sets multiple piece ranges in a Uint8Array bitfield (allocating new buffer if necessary).
  */
@@ -142,11 +154,7 @@ export function setPieceRanges(
   }
 
   const requiredBytes = maxIdx >= 0 ? (maxIdx >> 3) + 1 : 0;
-  const targetLen = Math.max(requiredBytes, current ? current.length : 0);
-  const target = new Uint8Array(targetLen);
-  if (current) {
-    target.set(current);
-  }
+  const target = allocateExpandedBuffer(current, requiredBytes);
 
   setPieceRangesInPlace(target, ranges);
   return target;
@@ -167,17 +175,10 @@ export function setPieceBit(
   const bitOffset = 7 - (pieceIndex & 7);
   const requiredBytes = byteIdx + 1;
 
-  let target: Uint8Array;
-  if (!current || current.length < requiredBytes) {
-    target = new Uint8Array(
-      Math.max(requiredBytes, current ? current.length : 0),
-    );
-    if (current) {
-      target.set(current);
-    }
-  } else {
-    target = new Uint8Array(current);
-  }
+  const target =
+    !current || current.length < requiredBytes
+      ? allocateExpandedBuffer(current, requiredBytes)
+      : new Uint8Array(current);
 
   target[byteIdx] |= 1 << bitOffset;
   return target;
@@ -203,11 +204,7 @@ export function setPieceBits(
   }
 
   const requiredBytes = maxIdx >= 0 ? (maxIdx >> 3) + 1 : 0;
-  const targetLen = Math.max(requiredBytes, current ? current.length : 0);
-  const target = new Uint8Array(targetLen);
-  if (current) {
-    target.set(current);
-  }
+  const target = allocateExpandedBuffer(current, requiredBytes);
 
   setPieceBitsInPlace(target, pieceIndices);
   return target;

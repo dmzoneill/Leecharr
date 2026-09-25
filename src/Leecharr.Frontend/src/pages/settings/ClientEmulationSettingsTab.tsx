@@ -1,5 +1,5 @@
 import { useTranslation } from "../../i18n";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   useBitTorrentConfig,
   useSaveBitTorrentConfig,
@@ -172,10 +172,10 @@ export function ClientEmulationSettingsTab() {
       }
     };
 
-    const handleError = (err: any) => {
+    const handleError = (err: unknown) => {
       hasError = true;
       showToast(
-        err?.message || t("settingsTabs.clientEmulation.saveError"),
+        (err as Error)?.message || t("settingsTabs.clientEmulation.saveError"),
         "error",
       );
     };

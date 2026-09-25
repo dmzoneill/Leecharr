@@ -234,7 +234,15 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
         await this.syncLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            var baseUri = prowlarrUrl.TrimEnd('/');
+            var baseUri = prowlarrUrl?.Trim().TrimEnd('/') ?? string.Empty;
+            if (baseUri.EndsWith("/api/v1", StringComparison.OrdinalIgnoreCase))
+            {
+                baseUri = baseUri.Substring(0, baseUri.Length - 7).TrimEnd('/');
+            }
+            else if (baseUri.EndsWith("/api", StringComparison.OrdinalIgnoreCase))
+            {
+                baseUri = baseUri.Substring(0, baseUri.Length - 4).TrimEnd('/');
+            }
 
             var shouldSyncCategories = syncCategories;
             if (!shouldSyncCategories.HasValue && this.arrRepository != null)

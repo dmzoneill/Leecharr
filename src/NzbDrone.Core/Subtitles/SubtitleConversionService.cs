@@ -104,7 +104,6 @@ public class SubtitleConversionService : ISubtitleConversionService
                 continue;
             }
 
-            // Check if current line is an integer cue identifier
             string timecodeLine = null;
             if (int.TryParse(line, out _))
             {
@@ -148,7 +147,7 @@ public class SubtitleConversionService : ISubtitleConversionService
                     break;
                 }
 
-                // Check if next cue began without blank line (numeric index followed by timecode)
+                // Subsequent cue without blank line separator
                 if (int.TryParse(textLine.Trim(), out _) && i + 1 < lineCount && TimecodeLineRegex.IsMatch(normalizedLines[i + 1]))
                 {
                     break;
@@ -250,7 +249,7 @@ public class SubtitleConversionService : ISubtitleConversionService
                 continue;
             }
 
-            // Check if first line defines custom FPS, e.g. {1}{1}25.000
+            // MicroDVD FPS header definition, e.g. {1}{1}25.000
             if (startFrame == 1 && endFrame == 1)
             {
                 var fpsStr = match.Groups["text"].Value.Trim();

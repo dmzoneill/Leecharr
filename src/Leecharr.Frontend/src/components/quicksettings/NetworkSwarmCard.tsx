@@ -31,11 +31,12 @@ export const NetworkSwarmCard: React.FC = () => {
         ...updates,
       },
       {
-        onError: (err: any) => {
+        onError: (err: unknown) => {
+          const msg = (err as Error)?.message || "";
           showToast(
             t("quickSettings.failedToUpdateNetwork", {
-              error: err.message,
-              0: err.message,
+              error: msg,
+              0: msg,
             }),
             "error",
           );
@@ -54,11 +55,12 @@ export const NetworkSwarmCard: React.FC = () => {
         ...updates,
       },
       {
-        onError: (err: any) => {
+        onError: (err: unknown) => {
+          const msg = (err as Error)?.message || "";
           showToast(
             t("quickSettings.failedToUpdateProtocol", {
-              error: err.message,
-              0: err.message,
+              error: msg,
+              0: msg,
             }),
             "error",
           );

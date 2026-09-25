@@ -1,7 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
-using System.Collections.Generic;
 using System.Formats.Tar;
 using System.IO;
 using System.IO.Compression;

@@ -19,6 +19,9 @@ import {
 } from "../api/hooks";
 import { useColumnPreferences } from "./torrentindex/columnPreferences";
 import { useToast } from "../context/ToastContext";
+import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "../i18n";
+import { getErrorMessage } from "../utils/errorUtils";
 import {
   trackViewModeChange,
   trackBulkAction,
@@ -115,6 +118,8 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   const [deleteModalState, setDeleteModalState] = useState<{
     isOpen: boolean;
     torrent?: Torrent | null;
+    torrentName?: string;
+    targetIds?: number[];
     count?: number;
   }>({ isOpen: false });
   const [showImportPackageModal, setShowImportPackageModal] = useState(false);
@@ -130,6 +135,8 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   }, [selectedIds]);
 
   const { showToast } = useToast();
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const handleConfirmBulkTag = useCallback(
     async (tagIds: number[]) => {
       if (!bulkTagModalState || selectedIds.size === 0 || tagIds.length === 0)
@@ -239,8 +246,14 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     };
     for (const t of torrents) {
       const st = (t.status || "").toLowerCase();
-      if (st === "downloading") counts.Downloading++;
-      else if (st === "seeding" || st === "completed") counts.Seeding++;
+      if (st === "downloading" || st === "stalled" || st === "stalleddl")
+        counts.Downloading++;
+      else if (
+        st === "seeding" ||
+        st === "completed" ||
+        st === "stalledup"
+      )
+        counts.Seeding++;
       else if (st === "paused" || st === "stopped" || st === "idle")
         counts.Paused++;
       else if (st === "queued") counts.Queued++;
@@ -348,28 +361,29 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   }) => {
     const ids =
       payload.ids && payload.ids.length > 0 ? payload.ids : [payload.id];
-    if (ids.length > 1) {
-      const activeIds = new Set(torrents.map((t) => t.id));
-      const validIds = ids.filter((id) => activeIds.has(id));
-      if (validIds.length > 1) {
-        selectAllIds(validIds);
-        setDeleteModalState({
-          isOpen: true,
-          count: validIds.length,
-        });
-        return;
-      }
-    }
-    if (selectedIds.size > 1 && selectedIds.has(payload.id)) {
-      handleBulkDelete();
+    const activeIds = new Set(torrents.map((t) => t.id));
+    const validIds = ids.filter((id) => activeIds.has(id));
+    if (validIds.length === 0) return;
+
+    if (validIds.length > 1) {
+      selectAllIds(validIds);
+      setDeleteModalState({
+        isOpen: true,
+        count: validIds.length,
+        targetIds: validIds,
+      });
       return;
     }
-    const targetTorrent = torrents.find((t) => t.id === payload.id);
+
+    const targetTorrent = torrents.find((t) => t.id === validIds[0]);
     setDeleteModalState({
       isOpen: true,
       torrent:
         targetTorrent ||
-        ({ id: payload.id, name: `Torrent #${payload.id}` } as Torrent),
+        ({ id: validIds[0], name: `Torrent #${validIds[0]}` } as Torrent),
+      torrentName: targetTorrent?.name ?? `Torrent #${validIds[0]}`,
+      count: 1,
+      targetIds: validIds,
     });
   };
 
@@ -378,15 +392,17 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     const validSelectedIds = Array.from(selectedIds).filter((id) =>
       activeIds.has(id),
     );
-    for (const id of selectedIds) {
-      if (!activeIds.has(id)) {
-        removeTorrent(id);
-      }
-    }
+    const targetIds =
+      validSelectedIds.length > 0
+        ? validSelectedIds
+        : selectedTorrentId != null && activeIds.has(selectedTorrentId)
+          ? [selectedTorrentId]
+          : [];
+    if (targetIds.length === 0) return;
     setBulkPending(true);
     try {
-      trackBulkAction("start", validSelectedIds.length);
-      await Promise.all(validSelectedIds.map((id) => onResume(id)));
+      trackBulkAction("start", targetIds.length);
+      await Promise.all(targetIds.map((id) => onResume(id)));
     } finally {
       setBulkPending(false);
     }
@@ -397,15 +413,17 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     const validSelectedIds = Array.from(selectedIds).filter((id) =>
       activeIds.has(id),
     );
-    for (const id of selectedIds) {
-      if (!activeIds.has(id)) {
-        removeTorrent(id);
-      }
-    }
+    const targetIds =
+      validSelectedIds.length > 0
+        ? validSelectedIds
+        : selectedTorrentId != null && activeIds.has(selectedTorrentId)
+          ? [selectedTorrentId]
+          : [];
+    if (targetIds.length === 0) return;
     setBulkPending(true);
     try {
-      trackBulkAction("stop", validSelectedIds.length);
-      await Promise.all(validSelectedIds.map((id) => onPause(id)));
+      trackBulkAction("stop", targetIds.length);
+      await Promise.all(targetIds.map((id) => onPause(id)));
     } finally {
       setBulkPending(false);
     }
@@ -421,39 +439,93 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
         removeTorrent(id);
       }
     }
-    if (validSelectedIds.length === 0) {
+    const targetIds =
+      validSelectedIds.length > 0
+        ? validSelectedIds
+        : selectedTorrentId != null && activeIds.has(selectedTorrentId)
+          ? [selectedTorrentId]
+          : [];
+
+    if (targetIds.length === 0) {
       clearSelection();
       return;
     }
 
+    const singleTorrent =
+      targetIds.length === 1
+        ? torrents.find((t) => t.id === targetIds[0])
+        : undefined;
+
     setDeleteModalState({
       isOpen: true,
-      count: validSelectedIds.length,
+      torrent: singleTorrent,
+      torrentName: singleTorrent?.name,
+      count: targetIds.length,
+      targetIds,
     });
   };
 
-  const handleConfirmDelete = (deleteFiles: boolean) => {
-    if (deleteModalState.count && deleteModalState.count > 1) {
-      const activeIds = new Set(torrents.map((t) => t.id));
-      const validSelectedIds = Array.from(selectedIds).filter((id) =>
-        activeIds.has(id),
-      );
-      setBulkPending(true);
-      try {
-        validSelectedIds.forEach((id) => {
-          removeTorrent(id);
-          onDelete({ id, deleteFiles });
-        });
-        clearSelection();
-      } finally {
-        setBulkPending(false);
-      }
-    } else if (deleteModalState.torrent) {
-      const id = deleteModalState.torrent.id;
-      removeTorrent(id);
-      onDelete({ id, deleteFiles });
+  const handleConfirmDelete = async (deleteFiles: boolean) => {
+    const targetIds =
+      deleteModalState.targetIds && deleteModalState.targetIds.length > 0
+        ? deleteModalState.targetIds
+        : deleteModalState.torrent
+          ? [deleteModalState.torrent.id]
+          : Array.from(selectedIds);
+
+    if (targetIds.length === 0) {
+      setDeleteModalState({ isOpen: false });
+      return;
     }
-    setDeleteModalState({ isOpen: false });
+
+    setBulkPending(true);
+    try {
+      if (targetIds.length === 1) {
+        onDelete({ id: targetIds[0], deleteFiles });
+      } else {
+        const res = await bulkAction.mutateAsync({
+          torrentIds: targetIds,
+          action: "delete",
+          deleteFiles,
+        });
+        const succeeded = res.succeededIds ?? targetIds;
+        succeeded.forEach((id) => removeTorrent(id));
+        trackBulkAction("delete", succeeded.length);
+        if (deleteFiles) {
+          showToast(
+            t(
+              "torrents.bulkDeleteFilesSuccess",
+              { count: succeeded.length },
+              `${succeeded.length} torrents and files deleted`,
+            ),
+            "info",
+          );
+        } else {
+          showToast(
+            t(
+              "torrents.bulkDeleteSuccess",
+              { count: succeeded.length },
+              `${succeeded.length} torrents removed`,
+            ),
+            "info",
+          );
+        }
+        clearSelection();
+        queryClient.invalidateQueries({ queryKey: ["torrents"] });
+        queryClient.invalidateQueries({ queryKey: ["diskspace"] });
+      }
+    } catch (err: unknown) {
+      showToast(
+        getErrorMessage(
+          err,
+          t("torrents.failedToDelete", "Failed to delete torrent"),
+        ),
+        "error",
+      );
+    } finally {
+      setBulkPending(false);
+      setDeleteModalState({ isOpen: false });
+    }
   };
 
   const moveTorrentQueue = useMoveTorrentQueue();
@@ -508,7 +580,13 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
         onSearchIndexers={onOpenSearchModal}
         onStartAll={handleStartAll}
         onStopAll={handleStopAll}
-        selectedCount={selectedIds.size}
+        selectedCount={
+          selectedIds.size > 0
+            ? selectedIds.size
+            : selectedTorrentId != null
+              ? 1
+              : 0
+        }
         bulkPending={bulkPending}
         onBulkStart={handleBulkStart}
         onBulkStop={handleBulkStop}
@@ -624,6 +702,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
                 onClose={() => setSelectedTorrentId(null)}
                 onResume={onResume}
                 onPause={onPause}
+                onDelete={(id) => handleRequestDelete({ id })}
               />
             )}
           </div>
@@ -632,7 +711,9 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
       <DeleteTorrentModal
         isOpen={deleteModalState.isOpen}
         torrent={deleteModalState.torrent}
+        torrentName={deleteModalState.torrentName}
         count={deleteModalState.count}
+        isPending={bulkPending}
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteModalState({ isOpen: false })}
       />

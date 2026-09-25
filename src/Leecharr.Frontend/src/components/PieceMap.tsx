@@ -89,10 +89,10 @@ export function PieceMap({
 
   // Fetch torrent files if not passed
   const { data: fetchedFiles } = useTorrentFiles(torrentId ?? 0);
-  const files = propFiles || fetchedFiles || [];
 
   // Compute file boundaries
   const fileBoundaries = useMemo<FileBoundary[]>(() => {
+    const files = propFiles || fetchedFiles;
     if (!files || files.length === 0) return [];
     let curByte = 0;
     return files.map((file, idx) => {
@@ -113,7 +113,7 @@ export function PieceMap({
         colorIndex: idx,
       };
     });
-  }, [files, pieceLength]);
+  }, [propFiles, fetchedFiles, pieceLength]);
 
   const activeFileIndex =
     hoveredFileIndex !== null ? hoveredFileIndex : selectedFileIndex;
@@ -436,10 +436,14 @@ export function PieceMap({
       ctx.fillStyle = fillColor;
       ctx.strokeStyle = strokeColor;
 
+      const roundRectCtx = ctx as CanvasRenderingContext2D & {
+        roundRect?(x: number, y: number, w: number, h: number, radii?: number): void;
+      };
+
       const radius = 2;
       ctx.beginPath();
-      if (typeof (ctx as any).roundRect === "function") {
-        (ctx as any).roundRect(x, y, blockSize, blockSize, radius);
+      if (typeof roundRectCtx.roundRect === "function") {
+        roundRectCtx.roundRect(x, y, blockSize, blockSize, radius);
       } else {
         ctx.rect(x, y, blockSize, blockSize);
       }
@@ -451,8 +455,8 @@ export function PieceMap({
         ctx.strokeStyle = "#ffd166";
         ctx.lineWidth = 2;
         ctx.beginPath();
-        if (typeof (ctx as any).roundRect === "function") {
-          (ctx as any).roundRect(x - 1, y - 1, blockSize + 2, blockSize + 2, 3);
+        if (typeof roundRectCtx.roundRect === "function") {
+          roundRectCtx.roundRect(x - 1, y - 1, blockSize + 2, blockSize + 2, 3);
         } else {
           ctx.rect(x - 1, y - 1, blockSize + 2, blockSize + 2);
         }

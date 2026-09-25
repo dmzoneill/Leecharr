@@ -42,7 +42,7 @@ export function calculateTagUsageCounts(
         const cat = t.category?.trim() || "Uncategorized";
         if (cat !== selectedCategory) continue;
       }
-      const ids = t.tagIds ?? (t as any).tags ?? [];
+      const ids = t.tagIds ?? (t as unknown as { tags?: number[] }).tags ?? [];
       for (const id of ids) {
         counts[id] = (counts[id] ?? 0) + 1;
       }

@@ -1,6 +1,5 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Ai;

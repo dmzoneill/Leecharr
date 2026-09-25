@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useArrConnections, useDownloadHistory } from "../api/hooks";
 import { getMediaDeepLink } from "../utils/arrLinks";
 import { PromptModal } from "./PromptModal";
@@ -225,8 +225,12 @@ export function TorrentContextMenu({
   const handleDeleteAll = (deleteFiles: boolean) => {
     if (isMulti && onBatchDelete) {
       onBatchDelete({ ids: effectiveTorrents.map((t) => t.id), deleteFiles });
-    } else {
-      effectiveTorrents.forEach((t) => onDelete({ id: t.id, deleteFiles }));
+    } else if (effectiveTorrents.length > 0) {
+      onDelete({
+        id: effectiveTorrents[0].id,
+        deleteFiles,
+        ids: effectiveTorrents.map((t) => t.id),
+      });
     }
     onClose();
   };

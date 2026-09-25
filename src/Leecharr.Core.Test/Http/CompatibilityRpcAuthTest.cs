@@ -2,10 +2,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
-using Leecharr.Api.V1.Aria2;
 using Leecharr.Api.V1.Flood;
 using Leecharr.Api.V1.Freebox;
 using Leecharr.Api.V1.Hadouken;

@@ -619,7 +619,7 @@ function TrackerServer() {
             const arrLink = getMediaDeepLink(
               {
                 source: t.source,
-                metadata: { title: t.mediaTitle, mediaId: 0 } as any,
+                metadata: { title: t.mediaTitle, mediaId: 0 },
                 title: t.name,
               },
               arrConnections,

@@ -6,7 +6,6 @@ using System.Linq;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
-using NzbDrone.Core.Download;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Core.Test.Torrents;

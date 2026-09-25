@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
-using System.Threading;
 using FluentAssertions;
 using MonoTorrent.BEncoding;
 using NSubstitute;
@@ -14,7 +13,6 @@ using NUnit.Framework;
 using NzbDrone.Core.BitTorrent.Tracker;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Lifecycle;
-using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Torrents;
 
 namespace Leecharr.Core.Test.BitTorrent;

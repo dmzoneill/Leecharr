@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useGeneralConfig } from "../api/hooks";
 import { api } from "../api/client";
 import { useToast } from "../context/ToastContext";

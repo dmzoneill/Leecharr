@@ -12,7 +12,6 @@ using NLog;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
-using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.BitTorrent.Creation;
 
