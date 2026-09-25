@@ -115,14 +115,13 @@ export function TorrentContextMenu({
 
   useEffect(() => {
     if (promptConfig !== null) return;
-    const handleClick = () => onClose();
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
-    document.addEventListener("click", handleClick);
+    document.addEventListener("click", onClose);
     document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener("click", handleClick);
+      document.removeEventListener("click", onClose);
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [onClose, promptConfig]);
