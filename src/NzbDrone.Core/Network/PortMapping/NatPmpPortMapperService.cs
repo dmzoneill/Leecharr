@@ -145,8 +145,8 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         var candidateList = candidates.ToList();
 
         var hasSpecificBound = !string.IsNullOrWhiteSpace(boundInterface) &&
-                               !string.Equals(boundInterface, "any", StringComparison.OrdinalIgnoreCase) &&
-                               !string.Equals(boundInterface, "all", StringComparison.OrdinalIgnoreCase);
+                                !string.Equals(boundInterface, "any", StringComparison.OrdinalIgnoreCase) &&
+                                !string.Equals(boundInterface, "all", StringComparison.OrdinalIgnoreCase);
 
         // 1. If a specific bound interface is provided and active, prioritize its gateway
         if (hasSpecificBound)
@@ -255,10 +255,10 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
     public static bool IsPhysicalInterfaceType(NetworkInterfaceType type)
     {
         return type == NetworkInterfaceType.Ethernet ||
-               type == NetworkInterfaceType.Wireless80211 ||
-               type == NetworkInterfaceType.GigabitEthernet ||
-               type == NetworkInterfaceType.FastEthernetFx ||
-               type == NetworkInterfaceType.FastEthernetT;
+                type == NetworkInterfaceType.Wireless80211 ||
+                type == NetworkInterfaceType.GigabitEthernet ||
+                type == NetworkInterfaceType.FastEthernetFx ||
+                type == NetworkInterfaceType.FastEthernetT;
     }
 
     public static bool IsValidIpv4UnicastAddress(IPAddress address)
@@ -359,11 +359,11 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         }
 
         return name.StartsWith("tun", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("wg", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("ppp", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("tap", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("vpn", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("utun", StringComparison.OrdinalIgnoreCase);
+                name.StartsWith("wg", StringComparison.OrdinalIgnoreCase) ||
+                name.StartsWith("ppp", StringComparison.OrdinalIgnoreCase) ||
+                name.StartsWith("tap", StringComparison.OrdinalIgnoreCase) ||
+                name.StartsWith("vpn", StringComparison.OrdinalIgnoreCase) ||
+                name.StartsWith("utun", StringComparison.OrdinalIgnoreCase);
     }
 
     public static IPAddress GetGatewayFromInterface(NetworkInterface ni)
@@ -381,8 +381,8 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
             // VPN and point-to-point tunnels on Linux omit GatewayAddresses; derive subnet gateway (.1) from unicast IPv4
             var isVpnOrPointToPoint = ni.NetworkInterfaceType == NetworkInterfaceType.Ppp ||
-                                      ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel ||
-                                      IsVpnInterfaceName(ni.Name);
+                                        ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel ||
+                                        IsVpnInterfaceName(ni.Name);
 
             if (isVpnOrPointToPoint)
             {
@@ -453,8 +453,8 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                     if (gateways.Count == 0 && unicasts.Count > 0)
                     {
                         var isVpnOrPointToPoint = ni.NetworkInterfaceType == NetworkInterfaceType.Ppp ||
-                                                  ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel ||
-                                                  IsVpnInterfaceName(ni.Name);
+                                                ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel ||
+                                                IsVpnInterfaceName(ni.Name);
 
                         if (isVpnOrPointToPoint)
                         {
@@ -529,7 +529,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             var match = candidates.FirstOrDefault(c =>
                 c.OperationalStatus == OperationalStatus.Up &&
                 (string.Equals(c.Name, iface, StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(c.Id, iface, StringComparison.OrdinalIgnoreCase)));
+                string.Equals(c.Id, iface, StringComparison.OrdinalIgnoreCase)));
 
             if (match != null && match.UnicastAddresses.Count > 0)
             {
@@ -728,8 +728,8 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
             var iface = this.GetEffectiveBoundInterface();
             var hasSpecificBound = !string.IsNullOrWhiteSpace(iface) &&
-                                   !string.Equals(iface, "any", StringComparison.OrdinalIgnoreCase) &&
-                                   !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
+                                    !string.Equals(iface, "any", StringComparison.OrdinalIgnoreCase) &&
+                                    !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
             var failClosed = this.configService?.EnableVpnKillSwitch ?? false;
             var localEp = this.GetLocalEndPointForBoundInterface();
 
@@ -953,8 +953,8 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
             var iface = this.GetEffectiveBoundInterface();
             var hasSpecificBound = !string.IsNullOrWhiteSpace(iface) &&
-                                   !string.Equals(iface, "any", StringComparison.OrdinalIgnoreCase) &&
-                                   !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
+                                    !string.Equals(iface, "any", StringComparison.OrdinalIgnoreCase) &&
+                                    !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
             var failClosed = this.configService?.EnableVpnKillSwitch ?? false;
             var localEp = this.GetLocalEndPointForBoundInterface();
 
@@ -974,8 +974,8 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             }
 
             var gatewayChanged = currentGateway != null &&
-                                 this.lastKnownGateway != null &&
-                                 !currentGateway.Equals(this.lastKnownGateway);
+                                this.lastKnownGateway != null &&
+                                !currentGateway.Equals(this.lastKnownGateway);
 
             if (currentGateway != null)
             {
@@ -1022,8 +1022,8 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 var targetGateway = (gatewayChanged && mapping.GatewayAddress != null && mapping.GatewayAddress.Equals(this.lastKnownGateway)) ? currentGateway : (mapping.GatewayAddress ?? currentGateway);
                 var currentLocalIp = this.GetLocalIpAddressForGateway(targetGateway);
                 var localIpChanged = currentLocalIp != null &&
-                                     mapping.LocalIpAddress != null &&
-                                     !currentLocalIp.Equals(mapping.LocalIpAddress);
+                                    mapping.LocalIpAddress != null &&
+                                    !currentLocalIp.Equals(mapping.LocalIpAddress);
 
                 if (now >= mapping.NextRenewalUtc || gatewayChanged || localIpChanged)
                 {
@@ -1230,8 +1230,8 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
         var iface = this.GetEffectiveBoundInterface();
         var hasSpecificBound = !string.IsNullOrWhiteSpace(iface) &&
-                               !string.Equals(iface, "any", StringComparison.OrdinalIgnoreCase) &&
-                               !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
+                                !string.Equals(iface, "any", StringComparison.OrdinalIgnoreCase) &&
+                                !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
         var failClosed = this.configService?.EnableVpnKillSwitch ?? false;
         var localEp = this.GetLocalEndPointForBoundInterface();
 
@@ -1431,8 +1431,8 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
         var iface = this.GetEffectiveBoundInterface();
         var hasSpecificBound = !string.IsNullOrWhiteSpace(iface) &&
-                               !string.Equals(iface, "any", StringComparison.OrdinalIgnoreCase) &&
-                               !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
+                                !string.Equals(iface, "any", StringComparison.OrdinalIgnoreCase) &&
+                                !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
         var failClosed = this.configService?.EnableVpnKillSwitch ?? false;
 
         if (hasSpecificBound && failClosed)

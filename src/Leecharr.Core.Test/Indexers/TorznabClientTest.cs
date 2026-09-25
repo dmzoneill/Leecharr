@@ -33,42 +33,42 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"" xmlns:newznab=""http://www.newznab.com/DTD/2010/feeds/attributes/"">
-  <channel>
+<channel>
     <title>Torznab Indexer Feed</title>
     <item>
-      <title>Dune.Part.Two.2024.2160p.UHD.HDR.TrueHD.Atmos.7.1-FLUX</title>
-      <guid>https://indexer.local/details/12345</guid>
-      <link>https://indexer.local/download/12345.torrent</link>
-      <pubDate>Mon, 01 Jan 2024 12:00:00 GMT</pubDate>
-      <category>Movies &gt; UHD</category>
-      <enclosure url=""https://indexer.local/download/12345.torrent"" length=""45000000000"" type=""application/x-bittorrent"" />
-      <torznab:attr name=""seeders"" value=""150""/>
-      <torznab:attr name=""peers"" value=""175""/>
-      <torznab:attr name=""downloadvolumefactor"" value=""0""/>
-      <torznab:attr name=""uploadvolumefactor"" value=""2.0""/>
-      <torznab:attr name=""infohash"" value=""0123456789ABCDEF0123456789ABCDEF01234567""/>
-      <torznab:attr name=""magneturl"" value=""magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567""/>
+        <title>Dune.Part.Two.2024.2160p.UHD.HDR.TrueHD.Atmos.7.1-FLUX</title>
+        <guid>https://indexer.local/details/12345</guid>
+        <link>https://indexer.local/download/12345.torrent</link>
+        <pubDate>Mon, 01 Jan 2024 12:00:00 GMT</pubDate>
+        <category>Movies &gt; UHD</category>
+        <enclosure url=""https://indexer.local/download/12345.torrent"" length=""45000000000"" type=""application/x-bittorrent"" />
+        <torznab:attr name=""seeders"" value=""150""/>
+        <torznab:attr name=""peers"" value=""175""/>
+        <torznab:attr name=""downloadvolumefactor"" value=""0""/>
+        <torznab:attr name=""uploadvolumefactor"" value=""2.0""/>
+        <torznab:attr name=""infohash"" value=""0123456789ABCDEF0123456789ABCDEF01234567""/>
+        <torznab:attr name=""magneturl"" value=""magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567""/>
     </item>
     <item>
-      <title>Severance.S02E01.1080p.WEB-DL.x265</title>
-      <guid>https://indexer.local/details/12346</guid>
-      <link>https://indexer.local/download/12346.torrent</link>
-      <size>2500000000</size>
-      <newznab:attr name=""seeders"" value=""50""/>
-      <newznab:attr name=""leechers"" value=""5""/>
-      <newznab:attr name=""downloadvolumefactor"" value=""1""/>
-      <newznab:attr name=""category"" value=""5040""/>
+        <title>Severance.S02E01.1080p.WEB-DL.x265</title>
+        <guid>https://indexer.local/details/12346</guid>
+        <link>https://indexer.local/download/12346.torrent</link>
+        <size>2500000000</size>
+        <newznab:attr name=""seeders"" value=""50""/>
+        <newznab:attr name=""leechers"" value=""5""/>
+        <newznab:attr name=""downloadvolumefactor"" value=""1""/>
+        <newznab:attr name=""category"" value=""5040""/>
     </item>
     <item>
-      <title>Half.Leech.Release.2024.1080p</title>
-      <guid>https://indexer.local/details/12347</guid>
-      <link>https://indexer.local/download/12347.torrent</link>
-      <size>1000000000</size>
-      <torznab:attr name=""seeders"" value=""10""/>
-      <torznab:attr name=""peers"" value=""2""/>
-      <torznab:attr name=""downloadvolumefactor"" value=""0.5""/>
+        <title>Half.Leech.Release.2024.1080p</title>
+        <guid>https://indexer.local/details/12347</guid>
+        <link>https://indexer.local/download/12347.torrent</link>
+        <size>1000000000</size>
+        <torznab:attr name=""seeders"" value=""10""/>
+        <torznab:attr name=""peers"" value=""2""/>
+        <torznab:attr name=""downloadvolumefactor"" value=""0.5""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var indexer = new IndexerDefinition { Id = 1, Name = "TrackerAlpha", FreeleechOnly = false, MinSeeders = 1 };
@@ -112,23 +112,23 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>Release 1 (Freeleech)</title>
-      <torznab:attr name=""seeders"" value=""10""/>
-      <torznab:attr name=""downloadvolumefactor"" value=""0""/>
+        <title>Release 1 (Freeleech)</title>
+        <torznab:attr name=""seeders"" value=""10""/>
+        <torznab:attr name=""downloadvolumefactor"" value=""0""/>
     </item>
     <item>
-      <title>Release 2 (Normal)</title>
-      <torznab:attr name=""seeders"" value=""10""/>
-      <torznab:attr name=""downloadvolumefactor"" value=""1""/>
+        <title>Release 2 (Normal)</title>
+        <torznab:attr name=""seeders"" value=""10""/>
+        <torznab:attr name=""downloadvolumefactor"" value=""1""/>
     </item>
     <item>
-      <title>Release 3 (50% Leech)</title>
-      <torznab:attr name=""seeders"" value=""10""/>
-      <torznab:attr name=""downloadvolumefactor"" value=""0.5""/>
+        <title>Release 3 (50% Leech)</title>
+        <torznab:attr name=""seeders"" value=""10""/>
+        <torznab:attr name=""downloadvolumefactor"" value=""0.5""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var indexer = new IndexerDefinition { Name = "TrackerBeta", FreeleechOnly = true, MinSeeders = 1 };
@@ -144,25 +144,25 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>Freeleech.Release.With.Explicit.Factor</title>
-      <torznab:attr name=""seeders"" value=""10""/>
-      <torznab:attr name=""downloadvolumefactor"" value=""1""/>
-      <torznab:attr name=""freeleech"" value=""1""/>
+        <title>Freeleech.Release.With.Explicit.Factor</title>
+        <torznab:attr name=""seeders"" value=""10""/>
+        <torznab:attr name=""downloadvolumefactor"" value=""1""/>
+        <torznab:attr name=""freeleech"" value=""1""/>
     </item>
     <item>
-      <title>Freeleech.Tag.Release</title>
-      <freeleech>1</freeleech>
-      <torznab:attr name=""seeders"" value=""10""/>
-      <torznab:attr name=""downloadvolumefactor"" value=""1""/>
+        <title>Freeleech.Tag.Release</title>
+        <freeleech>1</freeleech>
+        <torznab:attr name=""seeders"" value=""10""/>
+        <torznab:attr name=""downloadvolumefactor"" value=""1""/>
     </item>
     <item>
-      <title>Standard.Release</title>
-      <torznab:attr name=""seeders"" value=""10""/>
-      <torznab:attr name=""downloadvolumefactor"" value=""1""/>
+        <title>Standard.Release</title>
+        <torznab:attr name=""seeders"" value=""10""/>
+        <torznab:attr name=""downloadvolumefactor"" value=""1""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var indexer = new IndexerDefinition { Name = "TrackerTest", FreeleechOnly = true, MinSeeders = 1 };
@@ -184,16 +184,16 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>High Seeds</title>
-      <torznab:attr name=""seeders"" value=""50""/>
+        <title>High Seeds</title>
+        <torznab:attr name=""seeders"" value=""50""/>
     </item>
     <item>
-      <title>Low Seeds</title>
-      <torznab:attr name=""seeders"" value=""3""/>
+        <title>Low Seeds</title>
+        <torznab:attr name=""seeders"" value=""3""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var indexer = new IndexerDefinition { Name = "TrackerGamma", MinSeeders = 10 };
@@ -208,14 +208,14 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>Movies.HD.Sample</title>
-      <category>Movies/HD</category>
-      <torznab:attr name=""category"" value=""2000""/>
-      <torznab:attr name=""category"" value=""2040""/>
+        <title>Movies.HD.Sample</title>
+        <category>Movies/HD</category>
+        <torznab:attr name=""category"" value=""2000""/>
+        <torznab:attr name=""category"" value=""2040""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml);
@@ -245,13 +245,13 @@ public class TorznabClientTest
     {
         var xml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>Freeleech Item</title>
-      <torznab:attr name=""freeleech"" value=""{freeleechValue}""/>
-      <torznab:attr name=""seeders"" value=""10""/>
+        <title>Freeleech Item</title>
+        <torznab:attr name=""freeleech"" value=""{freeleechValue}""/>
+        <torznab:attr name=""seeders"" value=""10""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition());
@@ -265,16 +265,16 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>Item with CDATA and whitespace</title>
-      <size><![CDATA[ 1048576 ]]></size>
-      <torznab:attr name=""seeders"" value=""
+        <title>Item with CDATA and whitespace</title>
+        <size><![CDATA[ 1048576 ]]></size>
+        <torznab:attr name=""seeders"" value=""
         42
-      ""/>
-      <torznab:attr name=""leechers"" value=""  15  ""/>
+        ""/>
+        <torznab:attr name=""leechers"" value=""  15  ""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition());
@@ -290,12 +290,12 @@ public class TorznabClientTest
         var badChars = "\x01\x02\x08\x0B\x0C\x1F";
         var xml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>Item{badChars} With Bad Control Chars</title>
-      <torznab:attr name=""seeders"" value=""10""/>
+        <title>Item{badChars} With Bad Control Chars</title>
+        <torznab:attr name=""seeders"" value=""10""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition());
@@ -308,12 +308,12 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>Tom & Jerry The Movie 2021</title>
-      <torznab:attr name=""seeders"" value=""25""/>
+        <title>Tom & Jerry The Movie 2021</title>
+        <torznab:attr name=""seeders"" value=""25""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition());
@@ -326,18 +326,18 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>Magnet Enclosure Release</title>
-      <enclosure url=""magnet:?xt=urn:btih:ABCDEF0123456789ABCDEF0123456789ABCDEF01&amp;dn=Release1"" length=""1000"" type=""application/x-bittorrent"" />
-      <torznab:attr name=""seeders"" value=""10""/>
+        <title>Magnet Enclosure Release</title>
+        <enclosure url=""magnet:?xt=urn:btih:ABCDEF0123456789ABCDEF0123456789ABCDEF01&amp;dn=Release1"" length=""1000"" type=""application/x-bittorrent"" />
+        <torznab:attr name=""seeders"" value=""10""/>
     </item>
     <item>
-      <title>Magnet Link Release</title>
-      <link>magnet:?xt=urn:btih:1234567890ABCDEF1234567890ABCDEF12345678&amp;dn=Release2</link>
-      <torznab:attr name=""seeders"" value=""10""/>
+        <title>Magnet Link Release</title>
+        <link>magnet:?xt=urn:btih:1234567890ABCDEF1234567890ABCDEF12345678&amp;dn=Release2</link>
+        <torznab:attr name=""seeders"" value=""10""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition());
@@ -351,29 +351,29 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>Empty.Enclosure.Url.Release.1080p</title>
-      <guid>https://indexer.example.com/details/101</guid>
-      <link>https://indexer.example.com/download/101.torrent</link>
-      <enclosure url="""" length=""0"" type=""application/x-bittorrent"" />
-      <torznab:attr name=""seeders"" value=""20""/>
+        <title>Empty.Enclosure.Url.Release.1080p</title>
+        <guid>https://indexer.example.com/details/101</guid>
+        <link>https://indexer.example.com/download/101.torrent</link>
+        <enclosure url="""" length=""0"" type=""application/x-bittorrent"" />
+        <torznab:attr name=""seeders"" value=""20""/>
     </item>
     <item>
-      <title>Whitespace.Enclosure.Url.Release.1080p</title>
-      <guid>https://indexer.example.com/details/102</guid>
-      <link>https://indexer.example.com/download/102.torrent</link>
-      <enclosure url=""   "" length=""1000"" type=""application/x-bittorrent"" />
-      <torznab:attr name=""seeders"" value=""15""/>
+        <title>Whitespace.Enclosure.Url.Release.1080p</title>
+        <guid>https://indexer.example.com/details/102</guid>
+        <link>https://indexer.example.com/download/102.torrent</link>
+        <enclosure url=""   "" length=""1000"" type=""application/x-bittorrent"" />
+        <torznab:attr name=""seeders"" value=""15""/>
     </item>
     <item>
-      <title>Missing.Enclosure.Url.Attr.Release.1080p</title>
-      <guid>https://indexer.example.com/details/103</guid>
-      <link>https://indexer.example.com/download/103.torrent</link>
-      <enclosure length=""2000"" type=""application/x-bittorrent"" />
-      <torznab:attr name=""seeders"" value=""10""/>
+        <title>Missing.Enclosure.Url.Attr.Release.1080p</title>
+        <guid>https://indexer.example.com/details/103</guid>
+        <link>https://indexer.example.com/download/103.torrent</link>
+        <enclosure length=""2000"" type=""application/x-bittorrent"" />
+        <torznab:attr name=""seeders"" value=""10""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition());
@@ -389,19 +389,19 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>Spider-Man:&amp;nbsp;No&amp;nbsp;Way&amp;nbsp;Home&amp;quot;2021&amp;quot;&amp;amp;Friends</title>
-      <guid>https://indexer.local/details?id=123&amp;amp;passkey=xyz</guid>
-      <link>https://indexer.local/download?id=123&amp;amp;auth=token</link>
-      <description>4K&amp;nbsp;UHD&amp;nbsp;&amp;amp;&amp;nbsp;HDR10&amp;nbsp;Release</description>
-      <comments>https://indexer.local/comments?id=123&amp;amp;view=all</comments>
-      <category>&amp;lt;Movies&amp;gt;&amp;nbsp;&amp;amp;&amp;nbsp;TV</category>
-      <torznab:attr name=""category"" value=""Movies&amp;nbsp;&amp;amp;&amp;nbsp;TV""/>
-      <torznab:attr name=""seeders"" value=""50""/>
-      <torznab:attr name=""leechers"" value=""10""/>
+        <title>Spider-Man:&amp;nbsp;No&amp;nbsp;Way&amp;nbsp;Home&amp;quot;2021&amp;quot;&amp;amp;Friends</title>
+        <guid>https://indexer.local/details?id=123&amp;amp;passkey=xyz</guid>
+        <link>https://indexer.local/download?id=123&amp;amp;auth=token</link>
+        <description>4K&amp;nbsp;UHD&amp;nbsp;&amp;amp;&amp;nbsp;HDR10&amp;nbsp;Release</description>
+        <comments>https://indexer.local/comments?id=123&amp;amp;view=all</comments>
+        <category>&amp;lt;Movies&amp;gt;&amp;nbsp;&amp;amp;&amp;nbsp;TV</category>
+        <torznab:attr name=""category"" value=""Movies&amp;nbsp;&amp;amp;&amp;nbsp;TV""/>
+        <torznab:attr name=""seeders"" value=""50""/>
+        <torznab:attr name=""leechers"" value=""10""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition());
@@ -422,38 +422,38 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>Explicit.Leechers.Release</title>
-      <torznab:attr name=""seeders"" value=""40""/>
-      <torznab:attr name=""peers"" value=""100""/>
-      <torznab:attr name=""leechers"" value=""12""/>
+        <title>Explicit.Leechers.Release</title>
+        <torznab:attr name=""seeders"" value=""40""/>
+        <torznab:attr name=""peers"" value=""100""/>
+        <torznab:attr name=""leechers"" value=""12""/>
     </item>
     <item>
-      <title>Computed.Leechers.From.Peers.Release</title>
-      <torznab:attr name=""seeders"" value=""40""/>
-      <torznab:attr name=""peers"" value=""60""/>
+        <title>Computed.Leechers.From.Peers.Release</title>
+        <torznab:attr name=""seeders"" value=""40""/>
+        <torznab:attr name=""peers"" value=""60""/>
     </item>
     <item>
-      <title>Peers.LessThan.Seeders.Release</title>
-      <torznab:attr name=""seeders"" value=""40""/>
-      <torznab:attr name=""peers"" value=""10""/>
+        <title>Peers.LessThan.Seeders.Release</title>
+        <torznab:attr name=""seeders"" value=""40""/>
+        <torznab:attr name=""peers"" value=""10""/>
     </item>
     <item>
-      <title>Only.Seeders.Release</title>
-      <torznab:attr name=""seeders"" value=""40""/>
+        <title>Only.Seeders.Release</title>
+        <torznab:attr name=""seeders"" value=""40""/>
     </item>
     <item>
-      <title>Peers.And.Leechers.Only.Release</title>
-      <torznab:attr name=""peers"" value=""80""/>
-      <torznab:attr name=""leechers"" value=""15""/>
+        <title>Peers.And.Leechers.Only.Release</title>
+        <torznab:attr name=""peers"" value=""80""/>
+        <torznab:attr name=""leechers"" value=""15""/>
     </item>
     <item>
-      <title>Direct.Elements.Release</title>
-      <seeders>75</seeders>
-      <peers>100</peers>
+        <title>Direct.Elements.Release</title>
+        <seeders>75</seeders>
+        <peers>100</peers>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition());
@@ -495,24 +495,24 @@ public class TorznabClientTest
     {
         var peersFirstXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>Peers.First</title>
-      <torznab:attr name=""peers"" value=""100""/>
-      <torznab:attr name=""seeders"" value=""70""/>
+        <title>Peers.First</title>
+        <torznab:attr name=""peers"" value=""100""/>
+        <torznab:attr name=""seeders"" value=""70""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var seedersFirstXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>Seeders.First</title>
-      <torznab:attr name=""seeders"" value=""70""/>
-      <torznab:attr name=""peers"" value=""100""/>
+        <title>Seeders.First</title>
+        <torznab:attr name=""seeders"" value=""70""/>
+        <torznab:attr name=""peers"" value=""100""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var resultsPeersFirst = this.client.ParseTorznabFeedXml(peersFirstXml);
@@ -535,18 +535,18 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>Ratio.And.SeedTime.Release</title>
-      <torznab:attr name=""seeders"" value=""20""/>
-      <torznab:attr name=""minimumratio"" value=""1.5""/>
-      <torznab:attr name=""minimumseedtime"" value=""172800""/>
+        <title>Ratio.And.SeedTime.Release</title>
+        <torznab:attr name=""seeders"" value=""20""/>
+        <torznab:attr name=""minimumratio"" value=""1.5""/>
+        <torznab:attr name=""minimumseedtime"" value=""172800""/>
     </item>
     <item>
-      <title>Default.Release</title>
-      <torznab:attr name=""seeders"" value=""10""/>
+        <title>Default.Release</title>
+        <torznab:attr name=""seeders"" value=""10""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition());
@@ -564,15 +564,15 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>TV.HD.Release</title>
-      <category id=""5040"">TV/HD</category>
-      <category domain=""2000"">Movies/HD</category>
-      <category id=""3000"" name=""Audio/Lossless"" />
-      <torznab:attr name=""seeders"" value=""15""/>
+        <title>TV.HD.Release</title>
+        <category id=""5040"">TV/HD</category>
+        <category domain=""2000"">Movies/HD</category>
+        <category id=""3000"" name=""Audio/Lossless"" />
+        <torznab:attr name=""seeders"" value=""15""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition());
@@ -595,26 +595,26 @@ public class TorznabClientTest
     {
         var capsXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <caps>
-  <server version=""1.0"" title=""TestTracker"" />
-  <limits default=""50"" max=""100"" />
-  <searching>
+<server version=""1.0"" title=""TestTracker"" />
+<limits default=""50"" max=""100"" />
+<searching>
     <search available=""yes"" supportedParams=""q"" />
     <tv-search available=""yes"" supportedParams=""q,season,ep,imdbid,tvdbid"" />
     <movie-search available=""yes"" supportedParams=""q,imdbid,tmdbid"" />
     <music-search available=""no"" supportedParams=""q"" />
-  </searching>
-  <categories>
+</searching>
+<categories>
     <category id=""2000"" name=""Movies"">
-      <subcat id=""2010"" name=""Movies/Foreign"" />
-      <subcat id=""2040"" name=""Movies/HD"" />
-      <subcat id=""2045"" name=""Movies/UHD"" />
+        <subcat id=""2010"" name=""Movies/Foreign"" />
+        <subcat id=""2040"" name=""Movies/HD"" />
+        <subcat id=""2045"" name=""Movies/UHD"" />
     </category>
     <category id=""5000"" name=""TV"">
-      <subcat id=""5030"" name=""TV/SD"" />
-      <subcat id=""5040"" name=""TV/HD"" />
+        <subcat id=""5030"" name=""TV/SD"" />
+        <subcat id=""5040"" name=""TV/HD"" />
     </category>
     <category id=""3000"" name=""Audio"" />
-  </categories>
+</categories>
 </caps>";
 
         var caps = this.client.ParseCapabilitiesXml(capsXml);
@@ -663,16 +663,16 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <title>Torznab Feed</title>
     <item>
-      <title>Test.Release.2026.1080p</title>
-      <guid>https://indexer.local/details/999</guid>
-      <link>https://indexer.local/download/999.torrent</link>
-      <pubDate>Sun, 06 Sep 2026 18:30:00 +0200</pubDate>
-      <torznab:attr name=""seeders"" value=""5""/>
+        <title>Test.Release.2026.1080p</title>
+        <guid>https://indexer.local/details/999</guid>
+        <link>https://indexer.local/download/999.torrent</link>
+        <pubDate>Sun, 06 Sep 2026 18:30:00 +0200</pubDate>
+        <torznab:attr name=""seeders"" value=""5""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var indexer = new IndexerDefinition { Id = 1, Name = "TrackerTest", MinSeeders = 1 };
@@ -904,13 +904,13 @@ public class TorznabClientTest
     {
         var xml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>Timezone Test Release</title>
-      <pubDate>{pubDateInput}</pubDate>
-      <torznab:attr name=""seeders"" value=""10""/>
+        <title>Timezone Test Release</title>
+        <pubDate>{pubDateInput}</pubDate>
+        <torznab:attr name=""seeders"" value=""10""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml);
@@ -951,13 +951,13 @@ public class TorznabClientTest
 
         var xml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>Base32 Infohash Release</title>
-      <torznab:attr name=""infohash"" value=""{base32Hash}""/>
-      <torznab:attr name=""seeders"" value=""10""/>
+        <title>Base32 Infohash Release</title>
+        <torznab:attr name=""infohash"" value=""{base32Hash}""/>
+        <torznab:attr name=""seeders"" value=""10""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml);
@@ -971,13 +971,13 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>Omitted Infohash Release</title>
-      <torznab:attr name=""magneturl"" value=""magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01&amp;dn=Release""/>
-      <torznab:attr name=""seeders"" value=""10""/>
+        <title>Omitted Infohash Release</title>
+        <torznab:attr name=""magneturl"" value=""magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01&amp;dn=Release""/>
+        <torznab:attr name=""seeders"" value=""10""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml);
@@ -990,20 +990,20 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:content=""http://purl.org/rss/1.0/modules/content/"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>Description HTML Magnet Release</title>
-      <link>https://indexer.local/viewtopic.php?t=12345</link>
-      <description>&lt;p&gt;Download: &lt;a href=""magnet:?xt=urn:btih:1111111111222222222233333333334444444444&amp;amp;dn=Test1""&gt;Magnet&lt;/a&gt;&lt;/p&gt;</description>
-      <torznab:attr name=""seeders"" value=""10""/>
+        <title>Description HTML Magnet Release</title>
+        <link>https://indexer.local/viewtopic.php?t=12345</link>
+        <description>&lt;p&gt;Download: &lt;a href=""magnet:?xt=urn:btih:1111111111222222222233333333334444444444&amp;amp;dn=Test1""&gt;Magnet&lt;/a&gt;&lt;/p&gt;</description>
+        <torznab:attr name=""seeders"" value=""10""/>
     </item>
     <item>
-      <title>Content Encoded HTML Magnet Release</title>
-      <link>https://indexer.local/details.php?id=999</link>
-      <content:encoded><![CDATA[<div>Direct magnet: magnet:?xt=urn:btih:5555555555666666666677777777778888888888&dn=Test2</div>]]></content:encoded>
-      <torznab:attr name=""seeders"" value=""5""/>
+        <title>Content Encoded HTML Magnet Release</title>
+        <link>https://indexer.local/details.php?id=999</link>
+        <content:encoded><![CDATA[<div>Direct magnet: magnet:?xt=urn:btih:5555555555666666666677777777778888888888&dn=Test2</div>]]></content:encoded>
+        <torznab:attr name=""seeders"" value=""5""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml);
@@ -1026,15 +1026,15 @@ public class TorznabClientTest
         var requestCount = 0;
         var capsXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <caps>
-  <server version=""1.0"" title=""CachedTracker"" />
-  <limits default=""25"" max=""75"" />
-  <searching>
+<server version=""1.0"" title=""CachedTracker"" />
+<limits default=""25"" max=""75"" />
+<searching>
     <search available=""yes"" />
     <tv-search available=""yes"" supportedParams=""q,season,ep"" />
-  </searching>
-  <categories>
+</searching>
+<categories>
     <category id=""5000"" name=""TV"" />
-  </categories>
+</categories>
 </caps>";
 
         var handler = new TestHttpMessageHandler(req =>
@@ -1082,8 +1082,8 @@ public class TorznabClientTest
 
         var capsXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <caps>
-  <server version=""1.0"" title=""ExpiredTracker"" />
-  <limits default=""10"" max=""20"" />
+<server version=""1.0"" title=""ExpiredTracker"" />
+<limits default=""10"" max=""20"" />
 </caps>";
 
         var handler = new TestHttpMessageHandler(req => new HttpResponseMessage(HttpStatusCode.OK)
@@ -1124,7 +1124,7 @@ public class TorznabClientTest
         var requestCount = 0;
         var capsXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <caps>
-  <limits default=""25"" max=""100"" />
+<limits default=""25"" max=""100"" />
 </caps>";
 
         var handler = new TestHttpMessageHandler(req =>
@@ -1159,7 +1159,7 @@ public class TorznabClientTest
         var requestCount = 0;
         var capsXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <caps>
-  <limits default=""30"" max=""100"" />
+<limits default=""30"" max=""100"" />
 </caps>";
 
         var handler = new TestHttpMessageHandler(req =>
@@ -1200,27 +1200,27 @@ public class TorznabClientTest
     {
         var xmlWithNamespaces = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <Caps xmlns=""http://torznab.com/schemas/2015/feed"" xmlns:newznab=""http://www.newznab.com/DTD/2010/feeds/attributes/"" xmlns:custom=""http://custom.namespace/org"">
-  <Server version=""2.0"" title=""NamespacedTracker"" />
-  <Limits Default=""30"" Max=""150"" />
-  <Searching>
+<Server version=""2.0"" title=""NamespacedTracker"" />
+<Limits Default=""30"" Max=""150"" />
+<Searching>
     <Search Available=""yes"" SupportedParams=""q"" />
     <Tv-Search Available=""yes"" SupportedParams=""q,season,ep,tvdbid,rid"" />
     <Movie-Search Available=""yes"" SupportedParams=""q,imdbid,tmdbid,year"" />
     <Music-Search Available=""yes"" SupportedParams=""q,artist,album"" />
     <Book-Search Available=""yes"" SupportedParams=""q,author,isbn"" />
-  </Searching>
-  <Categories>
+</Searching>
+<Categories>
     <Category Id=""2000"" Name=""Movies"">
-      <SubCat Id=""2040"" Name=""Movies/HD"" />
-      <SubCategory Id=""2050"" Name=""Movies/3D"" />
+        <SubCat Id=""2040"" Name=""Movies/HD"" />
+        <SubCategory Id=""2050"" Name=""Movies/3D"" />
     </Category>
     <Category Id=""5000"" Name=""TV"">
-      <SubCat Id=""5040"" Name=""TV/HD"" />
+        <SubCat Id=""5040"" Name=""TV/HD"" />
     </Category>
     <Category Id=""7000"" Name=""Books"">
-      <SubCat Id=""7020"" Name=""EBook"" />
+        <SubCat Id=""7020"" Name=""EBook"" />
     </Category>
-  </Categories>
+</Categories>
 </Caps>";
 
         var caps = this.client.ParseCapabilitiesXml(xmlWithNamespaces);
@@ -1251,29 +1251,29 @@ public class TorznabClientTest
     {
         var torznabNamespaceXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <caps xmlns=""http://torznab.com/schemas/2015/feed"">
-  <server version=""1.0"" title=""TorznabTracker"" />
-  <limits default=""100"" max=""250"" />
-  <searching>
+<server version=""1.0"" title=""TorznabTracker"" />
+<limits default=""100"" max=""250"" />
+<searching>
     <search available=""yes"" supportedParams=""q"" />
     <tv-search available=""yes"" supportedParams=""q,season,ep,imdbid,tvdbid"" />
     <movie-search available=""yes"" supportedParams=""q,imdbid,tmdbid"" />
     <music-search available=""no"" supportedParams=""q"" />
     <book-search available=""yes"" supportedParams=""q,author"" />
-  </searching>
-  <categories>
+</searching>
+<categories>
     <category id=""2000"" name=""Movies"">
-      <subcat id=""2010"" name=""Movies/Foreign"" />
-      <subcat id=""2040"" name=""Movies/HD"" />
-      <subcat id=""2045"" name=""Movies/UHD"" />
+        <subcat id=""2010"" name=""Movies/Foreign"" />
+        <subcat id=""2040"" name=""Movies/HD"" />
+        <subcat id=""2045"" name=""Movies/UHD"" />
     </category>
     <category id=""5000"" name=""TV"">
-      <subcat id=""5030"" name=""TV/SD"" />
-      <subcat id=""5040"" name=""TV/HD"" />
+        <subcat id=""5030"" name=""TV/SD"" />
+        <subcat id=""5040"" name=""TV/HD"" />
     </category>
     <category id=""7000"" name=""Books"">
-      <subcat id=""7020"" name=""EBook"" />
+        <subcat id=""7020"" name=""EBook"" />
     </category>
-  </categories>
+</categories>
 </caps>";
 
         var caps = this.client.ParseCapabilitiesXml(torznabNamespaceXml);
@@ -1316,21 +1316,21 @@ public class TorznabClientTest
     {
         var newznabNamespaceXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <caps xmlns=""http://www.newznab.com/DTD/2010/feeds/attributes/"">
-  <limits default=""40"" max=""120"" />
-  <searching>
+<limits default=""40"" max=""120"" />
+<searching>
     <search available=""yes"" />
     <tv-search available=""yes"" supportedParams=""q,season,ep"" />
     <movie-search available=""no"" />
-  </searching>
-  <categories>
+</searching>
+<categories>
     <category id=""1000"" name=""Console"">
-      <subcategory id=""1010"" name=""NDS"" />
-      <subcategory id=""1020"" name=""PSP"" />
+        <subcategory id=""1010"" name=""NDS"" />
+        <subcategory id=""1020"" name=""PSP"" />
     </category>
     <category id=""4000"" name=""PC"">
-      <subcategory id=""4010"" name=""0day"" />
+        <subcategory id=""4010"" name=""0day"" />
     </category>
-  </categories>
+</categories>
 </caps>";
 
         var caps = this.client.ParseCapabilitiesXml(newznabNamespaceXml);
@@ -1359,20 +1359,20 @@ public class TorznabClientTest
     {
         var envelopedXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <response xmlns=""http://torznab.com/schemas/2015/feed"">
-  <caps>
+<caps>
     <server version=""1.0"" title=""EnvelopedTracker"" />
     <limits default=""25"" max=""75"" />
     <searching>
-      <search available=""1"" />
-      <audio-search available=""1"" supportedParams=""q,artist"" />
+        <search available=""1"" />
+        <audio-search available=""1"" supportedParams=""q,artist"" />
     </searching>
     <categories>
-      <category id=""3000"" name=""Audio"">
+        <category id=""3000"" name=""Audio"">
         <subcat id=""3010"" name=""MP3"" />
         <subcat id=""3040"" name=""Lossless"" />
-      </category>
+        </category>
     </categories>
-  </caps>
+</caps>
 </response>";
 
         var caps = this.client.ParseCapabilitiesXml(envelopedXml);
@@ -1690,19 +1690,19 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>Case Insensitive Attr Test</title>
-      <guid>12345</guid>
-      <enclosure URL=""https://tracker.local/dl.torrent"" LENGTH=""5000000000"" TYPE=""application/x-bittorrent"" />
-      <category ID=""2000"" NAME=""Movies/HD"" />
-      <torznab:attr NAME=""Seeders"" VALUE=""88""/>
-      <torznab:attr NAME=""LEECHERS"" VALUE=""12""/>
-      <torznab:attr Name=""DOWNLOADVOLUMEFACTOR"" Value=""0.5""/>
-      <torznab:attr Name=""UploadVolumeFactor"" Value=""2.0""/>
-      <torznab:attr Name=""INFOHASH"" Value=""0123456789ABCDEF0123456789ABCDEF01234567""/>
+        <title>Case Insensitive Attr Test</title>
+        <guid>12345</guid>
+        <enclosure URL=""https://tracker.local/dl.torrent"" LENGTH=""5000000000"" TYPE=""application/x-bittorrent"" />
+        <category ID=""2000"" NAME=""Movies/HD"" />
+        <torznab:attr NAME=""Seeders"" VALUE=""88""/>
+        <torznab:attr NAME=""LEECHERS"" VALUE=""12""/>
+        <torznab:attr Name=""DOWNLOADVOLUMEFACTOR"" Value=""0.5""/>
+        <torznab:attr Name=""UploadVolumeFactor"" Value=""2.0""/>
+        <torznab:attr Name=""INFOHASH"" Value=""0123456789ABCDEF0123456789ABCDEF01234567""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml);
@@ -1725,21 +1725,21 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>Precedence Test 1</title>
-      <freeleech>1</freeleech>
-      <torznab:attr name=""seeders"" value=""10""/>
-      <torznab:attr name=""freeleech"" value=""1""/>
-      <torznab:attr name=""downloadvolumefactor"" value=""0.5""/>
+        <title>Precedence Test 1</title>
+        <freeleech>1</freeleech>
+        <torznab:attr name=""seeders"" value=""10""/>
+        <torznab:attr name=""freeleech"" value=""1""/>
+        <torznab:attr name=""downloadvolumefactor"" value=""0.5""/>
     </item>
     <item>
-      <title>Precedence Test 2</title>
-      <torznab:attr name=""seeders"" value=""10""/>
-      <torznab:attr name=""downloadvolumefactor"" value=""1""/>
-      <torznab:attr name=""freeleech"" value=""1""/>
+        <title>Precedence Test 2</title>
+        <torznab:attr name=""seeders"" value=""10""/>
+        <torznab:attr name=""downloadvolumefactor"" value=""1""/>
+        <torznab:attr name=""freeleech"" value=""1""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml);
@@ -1757,15 +1757,15 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>Comma Decimal Separator Test</title>
-      <torznab:attr name=""seeders"" value=""20""/>
-      <torznab:attr name=""downloadvolumefactor"" value=""0,5""/>
-      <torznab:attr name=""uploadvolumefactor"" value=""1,5""/>
-      <torznab:attr name=""minimumratio"" value=""1,25""/>
+        <title>Comma Decimal Separator Test</title>
+        <torznab:attr name=""seeders"" value=""20""/>
+        <torznab:attr name=""downloadvolumefactor"" value=""0,5""/>
+        <torznab:attr name=""uploadvolumefactor"" value=""1,5""/>
+        <torznab:attr name=""minimumratio"" value=""1,25""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml);
@@ -1801,23 +1801,23 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title><![CDATA[Bob&#039;s.Burgers.S12E01.1080p.WEB-DL.DDP5.1.H.264-FLUX]]></title>
-      <guid>https://indexer.local/details/101</guid>
-      <torznab:attr name=""seeders"" value=""10""/>
+        <title><![CDATA[Bob&#039;s.Burgers.S12E01.1080p.WEB-DL.DDP5.1.H.264-FLUX]]></title>
+        <guid>https://indexer.local/details/101</guid>
+        <torznab:attr name=""seeders"" value=""10""/>
     </item>
     <item>
-      <title><![CDATA[Tom &amp; Jerry 2021 1080p Bluray x264-SPARKS]]></title>
-      <guid>https://indexer.local/details/102</guid>
-      <torznab:attr name=""seeders"" value=""15""/>
+        <title><![CDATA[Tom &amp; Jerry 2021 1080p Bluray x264-SPARKS]]></title>
+        <guid>https://indexer.local/details/102</guid>
+        <torznab:attr name=""seeders"" value=""15""/>
     </item>
     <item>
-      <title><![CDATA[&quot;The.Great&#39;s.Show&quot; &lt;Special Edition&gt;]]></title>
-      <guid>https://indexer.local/details/103</guid>
-      <torznab:attr name=""seeders"" value=""5""/>
+        <title><![CDATA[&quot;The.Great&#39;s.Show&quot; &lt;Special Edition&gt;]]></title>
+        <guid>https://indexer.local/details/103</guid>
+        <torznab:attr name=""seeders"" value=""5""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml);
@@ -1833,16 +1833,16 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title><![CDATA[Marvel&#39;s Agents of S.H.I.E.L.D. S01E01]]></title>
-      <description><![CDATA[High-Definition 1080p &amp; 5.1 Audio &lt;HDTV&gt;]]></description>
-      <comments><![CDATA[https://indexer.local/details?id=123&amp;page=1]]></comments>
-      <category><![CDATA[TV &gt; HD &amp; UHD]]></category>
-      <torznab:attr name=""seeders"" value=""10""/>
-      <torznab:attr name=""category"" value=""TV &amp; Series""/>
+        <title><![CDATA[Marvel&#39;s Agents of S.H.I.E.L.D. S01E01]]></title>
+        <description><![CDATA[High-Definition 1080p &amp; 5.1 Audio &lt;HDTV&gt;]]></description>
+        <comments><![CDATA[https://indexer.local/details?id=123&amp;page=1]]></comments>
+        <category><![CDATA[TV &gt; HD &amp; UHD]]></category>
+        <torznab:attr name=""seeders"" value=""10""/>
+        <torznab:attr name=""category"" value=""TV &amp; Series""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml);
@@ -1860,16 +1860,16 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"" xmlns:newznab=""http://www.newznab.com/DTD/2010/feeds/attributes/"">
-  <channel>
+<channel>
     <item>
-      <title>Movie.Release.2024.1080p</title>
-      <guid>https://indexer.local/details/101</guid>
-      <link>https://indexer.local/download/101.torrent</link>
-      <torznab:attr name=""seeders"" value=""25""/>
-      <torznab:attr name=""cat"" value=""2000,2040""/>
-      <newznab:attr name=""cat"" value=""5000; 5040 | 7000""/>
+        <title>Movie.Release.2024.1080p</title>
+        <guid>https://indexer.local/details/101</guid>
+        <link>https://indexer.local/download/101.torrent</link>
+        <torznab:attr name=""seeders"" value=""25""/>
+        <torznab:attr name=""cat"" value=""2000,2040""/>
+        <newznab:attr name=""cat"" value=""5000; 5040 | 7000""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml);
@@ -1888,14 +1888,14 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <item>
-      <title>TV.Episode.S01E01</title>
-      <torznab:attr name=""seeders"" value=""10""/>
-      <torznab:attr name=""cat"" value=""5000, 5040""/>
-      <torznab:attr name=""category"" value=""5040, 5000""/>
+        <title>TV.Episode.S01E01</title>
+        <torznab:attr name=""seeders"" value=""10""/>
+        <torznab:attr name=""cat"" value=""5000, 5040""/>
+        <torznab:attr name=""category"" value=""5040, 5000""/>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml);
@@ -1911,13 +1911,13 @@ public class TorznabClientTest
     {
         var xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <torznab:response offset=""25"" total=""350""/>
     <item>
-      <title>Test.Item</title>
-      <link>http://indexer/dl</link>
+        <title>Test.Item</title>
+        <link>http://indexer/dl</link>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml);
@@ -2090,16 +2090,16 @@ public class TorznabClientTest
     public void ParseTorznabFeedXml_WhenEnclosureLengthIsZero_FallsBackToSizeElement()
     {
         var xml = @"<rss version=""2.0"">
-  <channel>
+<channel>
     <title>Test Feed</title>
     <item>
-      <title>Show.S01E01.1080p</title>
-      <guid>12345</guid>
-      <link>http://tracker.local/details/12345</link>
-      <enclosure url=""http://tracker.local/download/12345.torrent"" length=""0"" type=""application/x-bittorrent"" />
-      <size>1073741824</size>
+        <title>Show.S01E01.1080p</title>
+        <guid>12345</guid>
+        <link>http://tracker.local/details/12345</link>
+        <enclosure url=""http://tracker.local/download/12345.torrent"" length=""0"" type=""application/x-bittorrent"" />
+        <size>1073741824</size>
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition { MinSeeders = 0 });
@@ -2115,15 +2115,15 @@ public class TorznabClientTest
     public void ParseTorznabFeedXml_WhenFreeleechAttributeHasNonStandardValue_SetsFreeleechTrue(string freeleechVal)
     {
         var xml = $@"<rss version=""2.0"" xmlns:torznab=""http://torznab.com/schemas/2015/feed"">
-  <channel>
+<channel>
     <title>Test Feed</title>
     <item>
-      <title>Show.S01E01.Freeleech</title>
-      <guid>12346</guid>
-      <link>http://tracker.local/details/12346</link>
-      <torznab:attr name=""freeleech"" value=""{freeleechVal}"" />
+        <title>Show.S01E01.Freeleech</title>
+        <guid>12346</guid>
+        <link>http://tracker.local/details/12346</link>
+        <torznab:attr name=""freeleech"" value=""{freeleechVal}"" />
     </item>
-  </channel>
+</channel>
 </rss>";
 
         var results = this.client.ParseTorznabFeedXml(xml, new IndexerDefinition { MinSeeders = 0 });

@@ -405,8 +405,8 @@ public class TorrentCreationService : ITorrentCreationService
             {
                 if (!string.IsNullOrEmpty(sensitive) &&
                     (fullPath.Equals(sensitive, comparison) ||
-                     fullPath.StartsWith(sensitive + "\\", comparison) ||
-                     fullPath.StartsWith(sensitive + "/", comparison)))
+                    fullPath.StartsWith(sensitive + "\\", comparison) ||
+                    fullPath.StartsWith(sensitive + "/", comparison)))
                 {
                     error = $"{paramName} resides within a restricted system directory: '{path}'.";
                     return false;

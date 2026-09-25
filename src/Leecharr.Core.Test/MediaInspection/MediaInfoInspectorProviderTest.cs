@@ -50,29 +50,29 @@ public class MediaInfoInspectorProviderTest
 dd if=/dev/zero bs=1024 count=128 2>/dev/null | tr '\000' 'E' >&2
 cat << 'EOF'
 {
-  ""media"": {
+""media"": {
     ""track"": [
-      {
+        {
         ""@type"": ""General"",
         ""Format"": ""Matroska"",
         ""Duration"": ""120.500"",
         ""OverallBitRate"": ""10000000""
-      },
-      {
+        },
+        {
         ""@type"": ""Video"",
         ""Format"": ""HEVC"",
         ""Width"": ""3840"",
         ""Height"": ""2160"",
         ""FrameRate"": ""24.000""
-      },
-      {
+        },
+        {
         ""@type"": ""Audio"",
         ""Format"": ""E-AC-3"",
         ""Channels"": ""6"",
         ""SamplingRate"": ""48000""
-      }
+        }
     ]
-  }
+}
 }
 EOF
 exit 0
@@ -105,20 +105,20 @@ exit 0
 dd if=/dev/zero bs=1024 count=128 2>/dev/null | tr '\000' 'X' >&2
 cat << 'EOF'
 {
-  ""media"": {
+""media"": {
     ""track"": [
-      {
+        {
         ""@type"": ""General"",
         ""Format"": ""Matroska""
-      },
-      {
+        },
+        {
         ""@type"": ""Video"",
         ""Format"": ""AVC"",
         ""Width"": ""1920"",
         ""Height"": ""1080""
-      }
+        }
     ]
-  }
+}
 }
 EOF
 exit 0
@@ -197,15 +197,15 @@ sleep 300
     {
         var json = @"
 {
-  ""media"": {
+""media"": {
     ""track"": [
-      {
+        {
         ""@type"": ""General"",
         ""Format"": ""Matroska"",
         ""Duration"": ""7200.0"",
         ""OverallBitRate"": ""25000000""
-      },
-      {
+        },
+        {
         ""@type"": ""Video"",
         ""Format"": ""HEVC"",
         ""Width"": ""3840"",
@@ -213,23 +213,23 @@ sleep 300
         ""BitDepth"": ""10"",
         ""HDR_Format"": ""Dolby Vision / HDR10"",
         ""FrameRate"": ""23.976""
-      },
-      {
+        },
+        {
         ""@type"": ""Audio"",
         ""Format"": ""TrueHD"",
         ""Format_Commercial"": ""Dolby TrueHD with Dolby Atmos"",
         ""Channels"": ""8"",
         ""SamplingRate"": ""48000"",
         ""BitDepth"": ""24""
-      },
-      {
+        },
+        {
         ""@type"": ""Text"",
         ""Language"": ""en"",
         ""Title"": ""Full English SDH"",
         ""Format"": ""SubRip""
-      }
+        }
     ]
-  }
+}
 }";
         var info = MediaInfoInspectorProvider.ParseMediaInfoJson(json, "Movie.2160p.UHD.mkv");
 
@@ -252,15 +252,15 @@ sleep 300
     {
         var json = @"
 {
-  ""media"": {
+""media"": {
     ""track"": [
-      {
+        {
         ""@type"": ""General"",
         ""Format"": ""Matroska"",
         ""Duration"": 7200.0,
         ""OverallBitRate"": 25000000
-      },
-      {
+        },
+        {
         ""@type"": ""Video"",
         ""Format"": ""HEVC"",
         ""Width"": 3840,
@@ -268,23 +268,23 @@ sleep 300
         ""BitDepth"": 10,
         ""HDR_Format"": ""Dolby Vision / HDR10"",
         ""FrameRate"": 23.976
-      },
-      {
+        },
+        {
         ""@type"": ""Audio"",
         ""Format"": ""TrueHD"",
         ""Format_Commercial"": ""Dolby TrueHD with Dolby Atmos"",
         ""Channels"": 8,
         ""SamplingRate"": 48000,
         ""BitDepth"": 24
-      },
-      {
+        },
+        {
         ""@type"": ""Text"",
         ""Language"": ""en"",
         ""Title"": ""Full English SDH"",
         ""Format"": ""SubRip""
-      }
+        }
     ]
-  }
+}
 }";
         var info = MediaInfoInspectorProvider.ParseMediaInfoJson(json, "Movie.2160p.UHD.mkv");
 
@@ -309,21 +309,21 @@ sleep 300
     {
         var json = $@"
 {{
-  ""media"": {{
+""media"": {{
     ""track"": [
-      {{
+        {{
         ""@type"": ""General"",
         ""Format"": ""Matroska"",
         ""Duration"": 3600.0
-      }},
-      {{
+        }},
+        {{
         ""@type"": ""Video"",
         ""Format"": ""AVC"",
         ""Width"": {width},
         ""Height"": {height}
-      }}
+        }}
     ]
-  }}
+}}
 }}";
         var info = MediaInfoInspectorProvider.ParseMediaInfoJson(json, "sample.mkv");
         info.Should().NotBeNull();
@@ -338,21 +338,21 @@ sleep 300
     {
         var json = $@"
 {{
-  ""media"": {{
+""media"": {{
     ""track"": [
-      {{
+        {{
         ""@type"": ""General"",
         ""Format"": ""Matroska"",
         ""Duration"": 3600.0
-      }},
-      {{
+        }},
+        {{
         ""@type"": ""Video"",
         ""Format"": ""AVC"",
         ""Width"": {width},
         ""Height"": {height}
-      }}
+        }}
     ]
-  }}
+}}
 }}";
         var info = MediaInfoInspectorProvider.ParseMediaInfoJson(json, "sample.mkv");
         info.Should().NotBeNull();

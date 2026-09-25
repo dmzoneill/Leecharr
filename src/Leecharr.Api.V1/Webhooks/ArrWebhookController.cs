@@ -195,9 +195,9 @@ public class ArrWebhookController : Controller
                 this.logger.Info("Updated import state for torrent {0} (InfoHash: {1}) by {2}", torrent.Name, torrent.InfoHash, resolvedArr);
             }
             else if (string.Equals(eventType, "ImportFailed", StringComparison.OrdinalIgnoreCase) ||
-                     string.Equals(eventType, "DownloadFolderImportFailed", StringComparison.OrdinalIgnoreCase) ||
-                     string.Equals(eventType, "EpisodeImportFailed", StringComparison.OrdinalIgnoreCase) ||
-                     string.Equals(eventType, "MovieImportFailed", StringComparison.OrdinalIgnoreCase))
+                    string.Equals(eventType, "DownloadFolderImportFailed", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(eventType, "EpisodeImportFailed", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(eventType, "MovieImportFailed", StringComparison.OrdinalIgnoreCase))
             {
                 torrent.IsImported = false;
                 updated = true;
@@ -205,7 +205,7 @@ public class ArrWebhookController : Controller
                 this.logger.Warn("Import failed for torrent {0} (InfoHash: {1})", torrent.Name, torrent.InfoHash);
             }
             else if (string.Equals(eventType, "Grab", StringComparison.OrdinalIgnoreCase) ||
-                     string.Equals(eventType, "ReleaseGrabbed", StringComparison.OrdinalIgnoreCase))
+                    string.Equals(eventType, "ReleaseGrabbed", StringComparison.OrdinalIgnoreCase))
             {
                 this.logger.Info("Grabbed event received for torrent {0} (InfoHash: {1})", torrent.Name, torrent.InfoHash);
             }
@@ -218,7 +218,7 @@ public class ArrWebhookController : Controller
                 this.logger.Info("Media/file deleted in Arr for torrent {0} (InfoHash: {1})", torrent.Name, torrent.InfoHash);
             }
             else if (string.Equals(eventType, "DownloadFailed", StringComparison.OrdinalIgnoreCase) ||
-                     string.Equals(eventType, "DownloadWarning", StringComparison.OrdinalIgnoreCase))
+                    string.Equals(eventType, "DownloadWarning", StringComparison.OrdinalIgnoreCase))
             {
                 this.logger.Warn("Download failed/warning event received for torrent {0} (InfoHash: {1})", torrent.Name, torrent.InfoHash);
             }
@@ -263,12 +263,12 @@ public class ArrWebhookController : Controller
         }
 
         return string.Equals(eventType, "IndexerSync", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "IndexerUpdated", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "IndexerDeleted", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "IndexerAdded", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "Sync", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "SyncAll", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "IndexerStatusChanged", StringComparison.OrdinalIgnoreCase);
+                string.Equals(eventType, "IndexerUpdated", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "IndexerDeleted", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "IndexerAdded", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "Sync", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "SyncAll", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "IndexerStatusChanged", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string NormalizeCandidateInfoHash(string candidate)
@@ -646,7 +646,7 @@ public class ArrWebhookController : Controller
                 var sourceNoExt = Path.GetFileNameWithoutExtension(normalizedSource);
                 if (string.Equals(sourceNoExt, nameWithoutExt, StringComparison.OrdinalIgnoreCase) &&
                     (normalizedSource.EndsWith("/" + sourceFileName, StringComparison.OrdinalIgnoreCase) ||
-                     string.Equals(normalizedSource, sourceFileName, StringComparison.OrdinalIgnoreCase)))
+                    string.Equals(normalizedSource, sourceFileName, StringComparison.OrdinalIgnoreCase)))
                 {
                     return true;
                 }
@@ -736,15 +736,15 @@ public class ArrWebhookController : Controller
         }
 
         return string.Equals(eventType, "EpisodeFileDelete", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "MovieFileDelete", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "SeriesDelete", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "MovieDelete", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "TrackFileDelete", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "BookFileDelete", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "ArtistDelete", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "AuthorDelete", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "FileDelete", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "Delete", StringComparison.OrdinalIgnoreCase);
+                string.Equals(eventType, "MovieFileDelete", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "SeriesDelete", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "MovieDelete", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "TrackFileDelete", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "BookFileDelete", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "ArtistDelete", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "AuthorDelete", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "FileDelete", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "Delete", StringComparison.OrdinalIgnoreCase);
     }
 
     private bool IsImportEvent(string eventType)
@@ -755,17 +755,17 @@ public class ArrWebhookController : Controller
         }
 
         return string.Equals(eventType, "Import", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "Upgrade", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "Rename", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "DownloadFolderImported", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "EpisodeImport", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "MovieImport", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "EpisodeFileUpgrade", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "MovieFileUpgrade", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "SeriesRename", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "MovieRename", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "TrackImport", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(eventType, "BookImport", StringComparison.OrdinalIgnoreCase);
+                string.Equals(eventType, "Upgrade", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "Rename", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "DownloadFolderImported", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "EpisodeImport", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "MovieImport", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "EpisodeFileUpgrade", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "MovieFileUpgrade", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "SeriesRename", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "MovieRename", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "TrackImport", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(eventType, "BookImport", StringComparison.OrdinalIgnoreCase);
     }
 
     private string ExtractImportPath(ArrWebhookPayload payload)

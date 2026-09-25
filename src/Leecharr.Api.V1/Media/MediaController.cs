@@ -80,7 +80,7 @@ public class MediaController : RestController<MediaMetadataResource>
             path = meta.PosterLocalPath;
         }
         else if (string.Equals(type, "backdrop", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(type, "fanart", StringComparison.OrdinalIgnoreCase))
+                string.Equals(type, "fanart", StringComparison.OrdinalIgnoreCase))
         {
             path = meta.BackdropLocalPath;
         }

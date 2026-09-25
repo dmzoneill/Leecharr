@@ -565,32 +565,32 @@ public class SamlSecurityTest
             {
                 extraGroupsXml.AppendLine($@"      <saml:Attribute Name=""group"">
         <saml:AttributeValue>{g}</saml:AttributeValue>
-      </saml:Attribute>");
+        </saml:Attribute>");
             }
         }
 
         var xml = $@"<samlp:Response xmlns:samlp=""urn:oasis:names:tc:SAML:2.0:protocol""
-                                   xmlns:saml=""urn:oasis:names:tc:SAML:2.0:assertion""
-                                   ID=""_resp_{Guid.NewGuid():N}"" Version=""2.0"" IssueInstant=""{now}""{inResponseToAttr}>
-  <saml:Issuer>https://idp.example.com</saml:Issuer>
-  <samlp:Status>
+                                    xmlns:saml=""urn:oasis:names:tc:SAML:2.0:assertion""
+                                    ID=""_resp_{Guid.NewGuid():N}"" Version=""2.0"" IssueInstant=""{now}""{inResponseToAttr}>
+<saml:Issuer>https://idp.example.com</saml:Issuer>
+<samlp:Status>
     <samlp:StatusCode Value=""urn:oasis:names:tc:SAML:2.0:status:Success""/>
-  </samlp:Status>
-  <saml:Assertion ID=""{assertionId}"" Version=""2.0"" IssueInstant=""{now}"">
+</samlp:Status>
+<saml:Assertion ID=""{assertionId}"" Version=""2.0"" IssueInstant=""{now}"">
     <saml:Issuer>https://idp.example.com</saml:Issuer>
     <saml:Subject>
-      <saml:NameID Format=""urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"">{nameId}</saml:NameID>
+        <saml:NameID Format=""urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"">{nameId}</saml:NameID>
     </saml:Subject>
     <saml:Conditions NotBefore=""{notBefore}"" NotOnOrAfter=""{notOnOrAfter}""/>
     <saml:AttributeStatement>
-      <saml:Attribute Name=""email"">
+        <saml:Attribute Name=""email"">
         <saml:AttributeValue>{nameId}</saml:AttributeValue>
-      </saml:Attribute>
-      <saml:Attribute Name=""role"">
+        </saml:Attribute>
+        <saml:Attribute Name=""role"">
         <saml:AttributeValue>{role}</saml:AttributeValue>
-      </saml:Attribute>
+        </saml:Attribute>
 {extraGroupsXml}    </saml:AttributeStatement>
-  </saml:Assertion>
+</saml:Assertion>
 </samlp:Response>";
 
         var xmlDoc = new XmlDocument { PreserveWhitespace = true };
@@ -619,7 +619,7 @@ public class SamlSecurityTest
             forgedAssertion.SetAttribute("ID", "_forged_assertion");
             forgedAssertion.InnerXml = @"<saml:Issuer xmlns:saml=""urn:oasis:names:tc:SAML:2.0:assertion"">https://idp.example.com</saml:Issuer>
 <saml:Subject xmlns:saml=""urn:oasis:names:tc:SAML:2.0:assertion"">
-  <saml:NameID>admin@evil.com</saml:NameID>
+<saml:NameID>admin@evil.com</saml:NameID>
 </saml:Subject>";
             xmlDoc.DocumentElement.AppendChild(forgedAssertion);
         }

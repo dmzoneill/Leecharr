@@ -228,7 +228,7 @@ public class FloodApiController : ControllerBase, IActionFilter
 
             if (!string.IsNullOrWhiteSpace(masterKey) &&
                 ((!string.IsNullOrWhiteSpace(password) && RpcAuthenticationHelper.FixedTimeEquals(password, masterKey)) ||
-                 (!string.IsNullOrWhiteSpace(username) && RpcAuthenticationHelper.FixedTimeEquals(username, masterKey))))
+                (!string.IsNullOrWhiteSpace(username) && RpcAuthenticationHelper.FixedTimeEquals(username, masterKey))))
             {
                 authenticated = true;
             }

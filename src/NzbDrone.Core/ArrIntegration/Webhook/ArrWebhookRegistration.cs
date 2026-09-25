@@ -63,7 +63,7 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
         try
         {
             var apiVersion = string.Equals(connection.ArrType, "Lidarr", StringComparison.OrdinalIgnoreCase) ||
-                             string.Equals(connection.ArrType, "Readarr", StringComparison.OrdinalIgnoreCase) ? "v1" : "v3";
+                            string.Equals(connection.ArrType, "Readarr", StringComparison.OrdinalIgnoreCase) ? "v1" : "v3";
             var leecharrUrl = this.GetLeecharrBaseUrl(connection);
             var webhookUrl = $"{leecharrUrl}/api/v1/webhook/arr";
             var currentApiKey = this.configFileProvider?.ApiKey ?? string.Empty;
@@ -158,7 +158,7 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
         try
         {
             var apiVersion = string.Equals(connection.ArrType, "Lidarr", StringComparison.OrdinalIgnoreCase) ||
-                             string.Equals(connection.ArrType, "Readarr", StringComparison.OrdinalIgnoreCase) ? "v1" : "v3";
+                            string.Equals(connection.ArrType, "Readarr", StringComparison.OrdinalIgnoreCase) ? "v1" : "v3";
             var existing = this.FindExistingWebhook(connection, apiVersion);
             if (existing == null)
             {
@@ -205,7 +205,7 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
         try
         {
             var apiVersion = string.Equals(connection.ArrType, "Lidarr", StringComparison.OrdinalIgnoreCase) ||
-                             string.Equals(connection.ArrType, "Readarr", StringComparison.OrdinalIgnoreCase) ? "v1" : "v3";
+                            string.Equals(connection.ArrType, "Readarr", StringComparison.OrdinalIgnoreCase) ? "v1" : "v3";
 
             var existingId = this.FindExistingDownloadClientId(connection, apiVersion);
             if (existingId.HasValue)
@@ -281,7 +281,7 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
         try
         {
             var apiVersion = string.Equals(connection.ArrType, "Lidarr", StringComparison.OrdinalIgnoreCase) ||
-                             string.Equals(connection.ArrType, "Readarr", StringComparison.OrdinalIgnoreCase) ? "v1" : "v3";
+                            string.Equals(connection.ArrType, "Readarr", StringComparison.OrdinalIgnoreCase) ? "v1" : "v3";
             var existingId = this.FindExistingDownloadClientId(connection, apiVersion);
             if (!existingId.HasValue)
             {
@@ -366,8 +366,8 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
 
                 var isLeecharr = string.Equals(name, "Leecharr", StringComparison.OrdinalIgnoreCase) ||
                                 (url != null && url.Contains("leecharr", StringComparison.OrdinalIgnoreCase) &&
-                                 (url.Contains("/api/v1/webhook/arr", StringComparison.OrdinalIgnoreCase) ||
-                                  url.Contains("/api/v1/webhooks/arr", StringComparison.OrdinalIgnoreCase)));
+                                (url.Contains("/api/v1/webhook/arr", StringComparison.OrdinalIgnoreCase) ||
+                                url.Contains("/api/v1/webhooks/arr", StringComparison.OrdinalIgnoreCase)));
 
                 if (isLeecharr && notification.TryGetProperty("id", out var idProp))
                 {
@@ -470,7 +470,7 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
         }
 
         var envHost = Environment.GetEnvironmentVariable("LEECHARR_HOST") ??
-                      Environment.GetEnvironmentVariable("SEEDARR_HOST");
+                        Environment.GetEnvironmentVariable("SEEDARR_HOST");
         if (!string.IsNullOrWhiteSpace(envHost))
         {
             return envHost.Trim();
@@ -500,7 +500,7 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
         var urlBase = NormalizeUrlBase(this.configFileProvider?.UrlBase);
 
         var envUrl = Environment.GetEnvironmentVariable("LEECHARR_URL") ??
-                     Environment.GetEnvironmentVariable("SEEDARR_URL");
+                    Environment.GetEnvironmentVariable("SEEDARR_URL");
         if (!string.IsNullOrWhiteSpace(envUrl))
         {
             return AppendUrlBase(envUrl, urlBase);
@@ -523,7 +523,7 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
         }
 
         var envHost = Environment.GetEnvironmentVariable("LEECHARR_HOST") ??
-                      Environment.GetEnvironmentVariable("SEEDARR_HOST");
+                        Environment.GetEnvironmentVariable("SEEDARR_HOST");
         if (!string.IsNullOrWhiteSpace(envHost))
         {
             if (envHost.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||

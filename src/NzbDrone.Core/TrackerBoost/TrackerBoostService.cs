@@ -658,7 +658,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                 !string.IsNullOrWhiteSpace(i.Url) &&
                 !string.IsNullOrWhiteSpace(i.ApiKey) &&
                 ((i.Implementation != null && i.Implementation.Contains("Prowlarr", StringComparison.OrdinalIgnoreCase)) ||
-                 (!string.IsNullOrWhiteSpace(i.Name) && i.Name.Contains("Prowlarr", StringComparison.OrdinalIgnoreCase)))).ToList();
+                (!string.IsNullOrWhiteSpace(i.Name) && i.Name.Contains("Prowlarr", StringComparison.OrdinalIgnoreCase)))).ToList();
 
             foreach (var prowlarr in prowlarrIndexers)
             {
@@ -2530,7 +2530,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                     var keyBytes = entry.Key?.Value.ToArray();
                     var keyHex = entry.Key?.ToString();
                     var isMatch = (keyBytes != null && keyBytes.SequenceEqual(hashBytes)) ||
-                                  string.Equals(keyHex, hexHash, StringComparison.OrdinalIgnoreCase);
+                                string.Equals(keyHex, hexHash, StringComparison.OrdinalIgnoreCase);
 
                     if (isMatch && entry.Value is BDictionary fileStats)
                     {

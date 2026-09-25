@@ -602,7 +602,7 @@ public class DelugeJsonRpcController : ControllerBase
             loginSuccess = true;
         }
         else if (!string.IsNullOrWhiteSpace(this.configFileProvider.ApiKey) &&
-                 RpcAuthenticationHelper.FixedTimeEquals(providedPassword, this.configFileProvider.ApiKey))
+                RpcAuthenticationHelper.FixedTimeEquals(providedPassword, this.configFileProvider.ApiKey))
         {
             loginSuccess = true;
         }
@@ -2595,14 +2595,14 @@ public class DelugeJsonRpcController : ControllerBase
                 rawSavePath = completedDir;
             }
             else if (trimmedRaw.StartsWith("/downloads/incomplete/", StringComparison.OrdinalIgnoreCase) ||
-                     trimmedRaw.StartsWith("/downloads/incomplete\\", StringComparison.OrdinalIgnoreCase))
+                    trimmedRaw.StartsWith("/downloads/incomplete\\", StringComparison.OrdinalIgnoreCase))
             {
                 var relative = trimmedRaw.Substring("/downloads/incomplete".Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 rawSavePath = !string.IsNullOrWhiteSpace(relative) ? Path.Combine(completedDir, relative) : completedDir;
             }
             else if (!string.IsNullOrWhiteSpace(inc) &&
-                     (trimmedRaw.StartsWith(inc + "/", StringComparison.OrdinalIgnoreCase) ||
-                      trimmedRaw.StartsWith(inc + "\\", StringComparison.OrdinalIgnoreCase)))
+                    (trimmedRaw.StartsWith(inc + "/", StringComparison.OrdinalIgnoreCase) ||
+                        trimmedRaw.StartsWith(inc + "\\", StringComparison.OrdinalIgnoreCase)))
             {
                 var relative = trimmedRaw.Substring(inc.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 rawSavePath = !string.IsNullOrWhiteSpace(relative) ? Path.Combine(completedDir, relative) : completedDir;
@@ -3264,8 +3264,8 @@ public class DelugeJsonRpcController : ControllerBase
                 encPolicy = 0; // Forced
             }
             else if (encMode.Equals("Disabled", StringComparison.OrdinalIgnoreCase) ||
-                     encMode.Equals("Plaintext", StringComparison.OrdinalIgnoreCase) ||
-                     encMode.Equals("None", StringComparison.OrdinalIgnoreCase))
+                    encMode.Equals("Plaintext", StringComparison.OrdinalIgnoreCase) ||
+                    encMode.Equals("None", StringComparison.OrdinalIgnoreCase))
             {
                 encPolicy = 2; // Disabled
             }
@@ -3274,7 +3274,7 @@ public class DelugeJsonRpcController : ControllerBase
         var isStopAtRatio = this.configService.GlobalSeedRatioLimit > 0;
         var stopRatio = this.configService.GlobalSeedRatioLimit > 0 ? this.configService.GlobalSeedRatioLimit : 2.0;
         var isRemoveAtRatio = string.Equals(this.configService.GlobalShareLimitAction, "Delete", StringComparison.OrdinalIgnoreCase) ||
-                              string.Equals(this.configService.GlobalShareLimitAction, "Remove", StringComparison.OrdinalIgnoreCase);
+                                string.Equals(this.configService.GlobalShareLimitAction, "Remove", StringComparison.OrdinalIgnoreCase);
 
         var listenPort = this.configService.ListeningPort > 0 ? this.configService.ListeningPort : 58846;
 

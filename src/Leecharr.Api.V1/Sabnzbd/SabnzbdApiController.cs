@@ -358,7 +358,7 @@ public class SabnzbdApiController : ControllerBase
         var totalRemainingBytes = allTorrents.Sum(t => Math.Max(0, t.TotalSize - t.Downloaded));
 
         var isAllPaused = allTorrents.Count > 0 &&
-                          allTorrents.All(t => t.Status is TorrentStatus.Paused or TorrentStatus.Stopped);
+                        allTorrents.All(t => t.Status is TorrentStatus.Paused or TorrentStatus.Stopped);
         var isAnyDownloading = allTorrents.Any(t => t.Status == TorrentStatus.Downloading && t.DownloadSpeed > 0);
         var queueStatus = isAllPaused ? "Paused" : (isAnyDownloading ? "Downloading" : "Idle");
 

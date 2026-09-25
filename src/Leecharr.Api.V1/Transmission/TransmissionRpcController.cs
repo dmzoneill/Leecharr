@@ -603,11 +603,11 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
         else if (isRecentlyActive)
         {
             torrents = torrents.Where(t => t.Status == TorrentStatus.Downloading ||
-                                           t.Status == TorrentStatus.Seeding ||
-                                           t.Status == TorrentStatus.Checking ||
-                                           t.DownloadSpeed > 0 ||
-                                           t.UploadSpeed > 0 ||
-                                           !string.IsNullOrWhiteSpace(t.ErrorMessage));
+                                            t.Status == TorrentStatus.Seeding ||
+                                            t.Status == TorrentStatus.Checking ||
+                                            t.DownloadSpeed > 0 ||
+                                            t.UploadSpeed > 0 ||
+                                            !string.IsNullOrWhiteSpace(t.ErrorMessage));
         }
 
         HashSet<string> requestedFields = null;
@@ -1376,7 +1376,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
         var files = this.torrentFileService?.GetFiles(targetId)?.ToList() ?? new List<TorrentFile>();
         var matchingFile = files.FirstOrDefault(f => f.Path != null &&
             (f.Path.Replace('\\', '/').TrimStart('/').Equals(normalizedOldPath, StringComparison.OrdinalIgnoreCase) ||
-             f.Path.Replace('\\', '/').TrimStart('/').Equals(relativePath, StringComparison.OrdinalIgnoreCase)));
+            f.Path.Replace('\\', '/').TrimStart('/').Equals(relativePath, StringComparison.OrdinalIgnoreCase)));
 
         bool renameSuccess;
         if (matchingFile != null)
@@ -1397,14 +1397,14 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
             renameSuccess = await this.torrentService.RenameFileAsync(targetId, fileToRename, newRelativePath);
             if (renameSuccess && !string.IsNullOrWhiteSpace(normalizedTorrentName) &&
                 (normalizedOldPath.Equals(normalizedTorrentName, StringComparison.OrdinalIgnoreCase) ||
-                 fileToRename.Equals(normalizedTorrentName, StringComparison.OrdinalIgnoreCase)))
+                fileToRename.Equals(normalizedTorrentName, StringComparison.OrdinalIgnoreCase)))
             {
                 torrent.Name = newName;
                 await this.torrentService.UpdateAsync(torrent);
             }
         }
         else if (!string.IsNullOrWhiteSpace(normalizedTorrentName) &&
-                 normalizedOldPath.Equals(normalizedTorrentName, StringComparison.OrdinalIgnoreCase))
+                normalizedOldPath.Equals(normalizedTorrentName, StringComparison.OrdinalIgnoreCase))
         {
             torrent.Name = newName;
             await this.torrentService.UpdateAsync(torrent);
@@ -2054,14 +2054,14 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
                 rawSavePath = completedDir;
             }
             else if (trimmedRaw.StartsWith("/downloads/incomplete/", StringComparison.OrdinalIgnoreCase) ||
-                     trimmedRaw.StartsWith("/downloads/incomplete\\", StringComparison.OrdinalIgnoreCase))
+                    trimmedRaw.StartsWith("/downloads/incomplete\\", StringComparison.OrdinalIgnoreCase))
             {
                 var relative = trimmedRaw.Substring("/downloads/incomplete".Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 rawSavePath = !string.IsNullOrWhiteSpace(relative) ? Path.Combine(completedDir, relative) : completedDir;
             }
             else if (!string.IsNullOrWhiteSpace(inc) &&
-                     (trimmedRaw.StartsWith(inc + "/", StringComparison.OrdinalIgnoreCase) ||
-                      trimmedRaw.StartsWith(inc + "\\", StringComparison.OrdinalIgnoreCase)))
+                    (trimmedRaw.StartsWith(inc + "/", StringComparison.OrdinalIgnoreCase) ||
+                        trimmedRaw.StartsWith(inc + "\\", StringComparison.OrdinalIgnoreCase)))
             {
                 var relative = trimmedRaw.Substring(inc.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 rawSavePath = !string.IsNullOrWhiteSpace(relative) ? Path.Combine(completedDir, relative) : completedDir;
