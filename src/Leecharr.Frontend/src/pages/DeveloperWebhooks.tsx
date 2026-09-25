@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { apiClient } from "../api/client";
-import { DeveloperNav } from "../components/DeveloperNav";
 import type {
   DeveloperWebhookTemplate,
   DeveloperWebhookHistoryItem,
@@ -64,9 +63,7 @@ export default function DeveloperWebhooks() {
   };
 
   return (
-    <div style={{ padding: "20px", maxWidth: "1600px", margin: "0 auto" }}>
-      <DeveloperNav />
-
+    <div className="content-area" style={{ padding: "1.5rem" }}>
       {/* Top Banner */}
       <div style={{ marginBottom: "16px" }}>
         <h2 style={{ margin: "0 0 4px 0", fontSize: "1.4rem", fontWeight: 700 }}>
