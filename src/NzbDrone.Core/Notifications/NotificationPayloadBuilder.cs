@@ -789,9 +789,9 @@ public static class NotificationPayloadBuilder
                             return JsonSerializer.Serialize(dict);
                         }
                     }
-                    catch (JsonException)
+                    catch (JsonException ex)
                     {
-                        // Fall back to alternative parsing strategy when JSON parsing fails
+                        Logger.Trace(ex, "Failed to parse Gotify headers JSON, falling back to header append");
                     }
                 }
 
@@ -1090,9 +1090,9 @@ public static class NotificationPayloadBuilder
                     return prop.GetValue((object)meta) as string;
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Ignore missing dynamic Overview property fallback
+                Logger.Trace(ex, "Failed to reflect dynamic Overview property");
             }
 
             return null;
@@ -1776,9 +1776,9 @@ public static class NotificationPayloadBuilder
                 return parsed;
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Ignore reflection errors on non-compliant metadata models
+            Logger.Trace(ex, "Failed to reflect metadata model property");
         }
 
         return null;
