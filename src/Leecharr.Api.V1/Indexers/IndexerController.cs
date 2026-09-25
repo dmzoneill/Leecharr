@@ -37,6 +37,7 @@ public class IndexerController : Controller
     private readonly IIndexerStatusService indexerStatusService;
     private readonly ITorrentRepository torrentRepository;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
+    private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
 
     public IndexerController(
         IIndexerRepository indexerRepository,
@@ -636,9 +637,9 @@ public class IndexerController : Controller
                                         }
                                     }
                                 }
-                                catch
+                                catch (Exception ex)
                                 {
-                                    // Ignore settings deserialization failure
+                                    this.logger.Trace(ex, "Failed to deserialize indexer settings for cookie/userAgent");
                                 }
                             }
                         }
@@ -918,9 +919,9 @@ public class IndexerController : Controller
                         {
                             existingSettings = JsonSerializer.Deserialize<IndexerSettings>(indexer.Settings, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new IndexerSettings();
                         }
-                        catch
+                        catch (Exception ex)
                         {
-                            // Ignore deserialize error
+                            this.logger.Trace(ex, "Failed to deserialize existing indexer settings");
                         }
                     }
 
@@ -1038,9 +1039,9 @@ public class IndexerController : Controller
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore settings parsing errors
+                StaticLogger.Trace(ex, "Failed to parse indexer settings for resource");
             }
         }
 
@@ -1219,9 +1220,9 @@ public class IndexerController : Controller
                     return parsed.InfoHash.ToLowerInvariant();
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Fall back to regex parsing if structured magnet parsing fails
+                StaticLogger.Trace(ex, "Structured magnet parse failed, falling back to regex");
             }
 
             var match = MagnetBtihRegex.Match(magnetUrl);

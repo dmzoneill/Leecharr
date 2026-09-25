@@ -11,6 +11,7 @@ using Leecharr.Http;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
+using NLog;
 using NzbDrone.Core.ArrIntegration;
 using NzbDrone.Core.ArrIntegration.Webhook;
 
@@ -21,6 +22,7 @@ namespace Leecharr.Api.V1.ArrIntegration;
 [Authorize(Policy = "RequireOperator")]
 public class ArrConnectionController : Controller
 {
+    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private static readonly HttpClient DefaultHttpClient = new(new SocketsHttpHandler())
     {
         Timeout = TimeSpan.FromSeconds(10),
@@ -353,9 +355,9 @@ public class ArrConnectionController : Controller
                     }
                 }
             }
-            catch (SocketException)
+            catch (SocketException ex)
             {
-                // DNS resolution failure (e.g. offline or mock host)
+                Logger.Trace(ex, "DNS resolution failure during host validation for '{0}'", host);
             }
         }
 
