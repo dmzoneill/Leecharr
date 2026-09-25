@@ -402,7 +402,7 @@ public class RTorrentController : ControllerBase
                                     pRowData.Add(new XElement("value", new XElement("i4", (int)(peer.Progress * 100))));
                                 }
                                 else if (cleanField.Equals("p.down_rate", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("p.get_down_rate", StringComparison.OrdinalIgnoreCase) ||
-                                         cleanField.Equals("p.peer_rate", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("p.get_peer_rate", StringComparison.OrdinalIgnoreCase))
+                                        cleanField.Equals("p.peer_rate", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("p.get_peer_rate", StringComparison.OrdinalIgnoreCase))
                                 {
                                     pRowData.Add(new XElement("value", new XElement("i8", peer.DownloadSpeed)));
                                 }
@@ -411,7 +411,7 @@ public class RTorrentController : ControllerBase
                                     pRowData.Add(new XElement("value", new XElement("i8", peer.UploadSpeed)));
                                 }
                                 else if (cleanField.Equals("p.down_total", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("p.get_down_total", StringComparison.OrdinalIgnoreCase) ||
-                                         cleanField.Equals("p.peer_total", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("p.get_peer_total", StringComparison.OrdinalIgnoreCase))
+                                        cleanField.Equals("p.peer_total", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("p.get_peer_total", StringComparison.OrdinalIgnoreCase))
                                 {
                                     pRowData.Add(new XElement("value", new XElement("i8", peer.Downloaded)));
                                 }
@@ -420,7 +420,7 @@ public class RTorrentController : ControllerBase
                                     pRowData.Add(new XElement("value", new XElement("i8", peer.Uploaded)));
                                 }
                                 else if (cleanField.Equals("p.is_encrypted", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("p.get_is_encrypted", StringComparison.OrdinalIgnoreCase) ||
-                                         cleanField.Equals("p.is_obfuscated", StringComparison.OrdinalIgnoreCase))
+                                        cleanField.Equals("p.is_obfuscated", StringComparison.OrdinalIgnoreCase))
                                 {
                                     pRowData.Add(new XElement("value", new XElement("i4", peer.IsEncrypted ? 1 : 0)));
                                 }
@@ -445,14 +445,14 @@ public class RTorrentController : ControllerBase
                                     pRowData.Add(new XElement("value", new XElement("i4", peer.ClientIsInterested ? 1 : 0)));
                                 }
                                 else if (cleanField.Equals("p.is_snubbed", StringComparison.OrdinalIgnoreCase) ||
-                                         cleanField.Equals("p.is_unwanted", StringComparison.OrdinalIgnoreCase) ||
-                                         cleanField.Equals("p.is_preferred", StringComparison.OrdinalIgnoreCase) ||
-                                         cleanField.Equals("p.banned", StringComparison.OrdinalIgnoreCase))
+                                        cleanField.Equals("p.is_unwanted", StringComparison.OrdinalIgnoreCase) ||
+                                        cleanField.Equals("p.is_preferred", StringComparison.OrdinalIgnoreCase) ||
+                                        cleanField.Equals("p.banned", StringComparison.OrdinalIgnoreCase))
                                 {
                                     pRowData.Add(new XElement("value", new XElement("i4", 0)));
                                 }
                                 else if (cleanField.Equals("p.options_str", StringComparison.OrdinalIgnoreCase) || cleanField.Equals("p.get_options_str", StringComparison.OrdinalIgnoreCase) ||
-                                         cleanField.Equals("p.flags", StringComparison.OrdinalIgnoreCase))
+                                        cleanField.Equals("p.flags", StringComparison.OrdinalIgnoreCase))
                                 {
                                     pRowData.Add(new XElement("value", new XElement("string", peer.Flags ?? string.Empty)));
                                 }
@@ -975,9 +975,9 @@ public class RTorrentController : ControllerBase
 
         if (paramValues.Count > 0 && paramValues[0] is string firstField &&
             (firstField.StartsWith("d.", StringComparison.OrdinalIgnoreCase) ||
-             firstField.StartsWith("f.", StringComparison.OrdinalIgnoreCase) ||
-             firstField.StartsWith("t.", StringComparison.OrdinalIgnoreCase) ||
-             firstField.StartsWith("p.", StringComparison.OrdinalIgnoreCase)))
+            firstField.StartsWith("f.", StringComparison.OrdinalIgnoreCase) ||
+            firstField.StartsWith("t.", StringComparison.OrdinalIgnoreCase) ||
+            firstField.StartsWith("p.", StringComparison.OrdinalIgnoreCase)))
         {
             view = string.Empty;
             foreach (var item in paramValues)

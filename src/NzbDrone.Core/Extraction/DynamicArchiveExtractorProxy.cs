@@ -49,8 +49,8 @@ public class DynamicArchiveExtractorProxy : IArchiveExtractorService, IArchiveEx
 
         var desiredProviderId = this.configService?.ActiveArchiveExtractor;
         this.activeProvider = this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals(desiredProviderId, StringComparison.OrdinalIgnoreCase))
-                          ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("SharpCompress", StringComparison.OrdinalIgnoreCase))
-                          ?? this.availableProviders.FirstOrDefault();
+                        ?? this.availableProviders.FirstOrDefault(p => p.ProviderId.Equals("SharpCompress", StringComparison.OrdinalIgnoreCase))
+                        ?? this.availableProviders.FirstOrDefault();
 
         if (this.activeProvider == null)
         {

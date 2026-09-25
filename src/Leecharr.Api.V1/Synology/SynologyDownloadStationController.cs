@@ -105,9 +105,9 @@ public class SynologyDownloadStationController : ControllerBase
         {
             var masterKey = this.configFileProvider.ApiKey;
             var isAuth = (!string.IsNullOrWhiteSpace(masterKey) &&
-                          (RpcAuthenticationHelper.FixedTimeEquals(passwd, masterKey) ||
-                           RpcAuthenticationHelper.FixedTimeEquals(account, masterKey))) ||
-                         RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider);
+                        (RpcAuthenticationHelper.FixedTimeEquals(passwd, masterKey) ||
+                            RpcAuthenticationHelper.FixedTimeEquals(account, masterKey))) ||
+                        RpcAuthenticationHelper.IsAuthenticated(this.HttpContext, this.configFileProvider);
 
             if (!isAuth)
             {

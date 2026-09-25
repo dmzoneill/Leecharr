@@ -116,7 +116,7 @@ public class HadoukenRpcController : ControllerBase
                     success = true;
                 }
                 else if (!string.IsNullOrWhiteSpace(this.configFileProvider.ApiKey) &&
-                         RpcAuthenticationHelper.FixedTimeEquals(password, this.configFileProvider.ApiKey))
+                        RpcAuthenticationHelper.FixedTimeEquals(password, this.configFileProvider.ApiKey))
                 {
                     success = true;
                 }
