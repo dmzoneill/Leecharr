@@ -4,7 +4,6 @@ import { apiClient } from "../api/client";
 import { useTranslation } from "../i18n";
 import type {
   DatabaseTable,
-  DatabaseTableSchema,
   DatabaseSchemaResponse,
   DatabaseQueryResult,
   DatabaseStorageResponse,
@@ -32,9 +31,15 @@ function parseQueryPlanNodes(nodes: QueryPlanNode[]): PlanTreeNode[] {
 
   const roots: PlanTreeNode[] = [];
   nodes.forEach((n) => {
-    const item = nodeMap.get(n.id)!;
+    const item = nodeMap.get(n.id);
+    if (!item) return;
     if (n.parentId !== 0 && nodeMap.has(n.parentId)) {
-      nodeMap.get(n.parentId)!.children.push(item);
+      const parent = nodeMap.get(n.parentId);
+      if (parent) {
+        parent.children.push(item);
+      } else {
+        roots.push(item);
+      }
     } else {
       roots.push(item);
     }
@@ -121,7 +126,7 @@ export default function DatabaseExplorer() {
     try {
       const data = await apiClient.get<DatabaseStorageResponse>("/system/database/storage");
       setStorageData(data || null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to load storage data", err);
     } finally {
       setIsLoadingStorage(false);
@@ -144,8 +149,9 @@ export default function DatabaseExplorer() {
         setSelectedTable(tablesData[0].name);
       }
       fetchStorage();
-    } catch (err: any) {
-      setSchemaError(err?.message || "Failed to load database schema.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setSchemaError(msg || "Failed to load database schema.");
     } finally {
       setIsLoadingSchema(false);
     }
@@ -185,7 +191,13 @@ export default function DatabaseExplorer() {
 
     if (filtered.length === 0) return [];
 
-    const rootData = {
+    interface StorageTreemapDatum extends Partial<DatabaseStorageItem> {
+      name: string;
+      value?: number;
+      children?: StorageTreemapDatum[];
+    }
+
+    const rootData: StorageTreemapDatum = {
       name: "root",
       children: filtered.map((item) => ({
         ...item,
@@ -197,17 +209,17 @@ export default function DatabaseExplorer() {
     };
 
     const root = d3
-      .hierarchy<any>(rootData)
+      .hierarchy<StorageTreemapDatum>(rootData)
       .sum((d) => d.value || 0)
       .sort((a, b) => (b.value || 0) - (a.value || 0));
 
     d3
-      .treemap<any>()
+      .treemap<StorageTreemapDatum>()
       .tile(d3.treemapSquarify)
       .size([Math.max(treemapDimensions.width, 300), Math.max(treemapDimensions.height, 300)])
       .padding(3)(root);
 
-    return root.leaves();
+    return root.leaves() as d3.HierarchyRectangularNode<StorageTreemapDatum>[];
   }, [storageData, storageFilter, storageMetric, treemapSearch, treemapDimensions]);
 
   // Initial grid layout for tables on visual canvas
@@ -311,6 +323,10 @@ export default function DatabaseExplorer() {
         errorMessage: "Safe Mode (Read-Only) is enabled. Disable Safe Mode to execute write queries.",
         executionTimeMs: 0,
         isQuery: false,
+        columns: [],
+        rows: [],
+        totalRows: 0,
+        rowsAffected: 0,
       });
       return;
     }
@@ -333,12 +349,17 @@ export default function DatabaseExplorer() {
       if (isWrite) {
         fetchSchema();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
       setQueryResult({
         success: false,
-        errorMessage: err?.message || "Execution failed.",
+        errorMessage: msg || "Execution failed.",
         executionTimeMs: 0,
         isQuery: false,
+        columns: [],
+        rows: [],
+        totalRows: 0,
+        rowsAffected: 0,
       });
     } finally {
       setIsExecuting(false);
@@ -939,7 +960,7 @@ export default function DatabaseExplorer() {
               <select
                 className="select"
                 value={storageMetric}
-                onChange={(e) => setStorageMetric(e.target.value as any)}
+                onChange={(e) => setStorageMetric(e.target.value as "bytes" | "rows" | "pages")}
                 style={{ padding: "0.25rem 0.5rem", fontSize: "0.85rem" }}
               >
                 <option value="bytes">Disk Size (Bytes)</option>
