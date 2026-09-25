@@ -1898,6 +1898,12 @@ export interface DatabaseQueryRequest {
   readOnly: boolean;
 }
 
+export interface QueryPlanNode {
+  id: number;
+  parentId: number;
+  detail: string;
+}
+
 export interface DatabaseQueryResult {
   success: boolean;
   errorMessage?: string;
@@ -1908,4 +1914,47 @@ export interface DatabaseQueryResult {
   totalRows: number;
   rowsAffected: number;
   message?: string;
+  queryPlan?: QueryPlanNode[];
 }
+
+export interface DatabaseStorageItem {
+  name: string;
+  type: "table" | "index" | "free";
+  tableName: string;
+  bytes: number;
+  pageCount: number;
+  rowCount: number;
+  percentage: number;
+}
+
+export interface DatabaseStorageResponse {
+  totalSizeBytes: number;
+  pageSize: number;
+  pageCount: number;
+  freeSizeBytes: number;
+  items: DatabaseStorageItem[];
+}
+
+export interface DatabaseDiagnosticsResponse {
+  databasePath: string;
+  fileSizeBytes: number;
+  pageSize: number;
+  pageCount: number;
+  freelistCount: number;
+  journalMode: string;
+  synchronous: string;
+  cacheSize: number;
+  encoding: string;
+  integrityCheck: string;
+  gcTotalMemoryBytes: number;
+  gcGen0Collections: number;
+  gcGen1Collections: number;
+  gcGen2Collections: number;
+  threadPoolAvailableWorkerThreads: number;
+  threadPoolAvailableCompletionPortThreads: number;
+  threadPoolMaxWorkerThreads: number;
+  processUptimeSeconds: number;
+  workingSetBytes: number;
+  dotNetVersion: string;
+}
+
