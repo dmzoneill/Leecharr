@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
 using Microsoft.Data.Sqlite;
+using NLog;
 using Npgsql;
 using NzbDrone.Core.Datastore.Events;
 using NzbDrone.Core.Messaging.Events;
@@ -87,6 +88,7 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
             3,
             retryAttempt => TimeSpan.FromMilliseconds(50 * Math.Pow(2, retryAttempt - 1)));
 
+    protected static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     protected readonly IDatabase database;
     private readonly IEventAggregator eventAggregator;
     protected readonly string table;
@@ -236,9 +238,9 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
                 {
                     transaction.Rollback();
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Ignore rollback exceptions if transaction is already completed
+                    Logger.Trace(ex, "Transaction rollback failed during batch insert on {0}", this.table);
                 }
 
                 throw;

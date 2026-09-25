@@ -39,6 +39,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
     private readonly ITorznabClient torznabClient;
     private readonly IConfigService configService;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
+    private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
     private readonly ConcurrentDictionary<int, QBittorrentSearchJob> activeJobs = new();
     private readonly Timer cleanupTimer;
     private readonly int maxJobs;
@@ -314,13 +315,13 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
                                 });
                             }
                         }
-                        catch (OperationCanceledException)
+                        catch (OperationCanceledException ex)
                         {
-                            // Search cancelled gracefully
+                            this.logger.Trace(ex, "Search cancelled gracefully on indexer {0}", indexer.Name);
                         }
-                        catch (ObjectDisposedException)
+                        catch (ObjectDisposedException ex)
                         {
-                            // CTS disposed during cancellation
+                            this.logger.Trace(ex, "CTS disposed during cancellation on indexer {0}", indexer.Name);
                         }
                         catch (Exception ex)
                         {
@@ -330,13 +331,13 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
 
                     await Task.WhenAll(tasks);
                 }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException ex)
                 {
-                    // Search job cancelled gracefully
+                    this.logger.Trace(ex, "Search job {0} cancelled gracefully", id);
                 }
-                catch (ObjectDisposedException)
+                catch (ObjectDisposedException ex)
                 {
-                    // CTS disposed during cancellation
+                    this.logger.Trace(ex, "Search job {0} CTS disposed during cancellation", id);
                 }
                 catch (Exception ex)
                 {
@@ -565,18 +566,18 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
             {
                 job.Cts.Cancel();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Cancellation token source may already be canceled or disposed
+                StaticLogger.Trace(ex, "Search job CTS cancellation failed (already canceled/disposed)");
             }
 
             try
             {
                 job.Cts.Dispose();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Token source already disposed during concurrent cleanup
+                StaticLogger.Trace(ex, "Search job CTS disposal failed (already disposed)");
             }
         }
 

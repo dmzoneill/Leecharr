@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using Dapper;
 using NzbDrone.Core.Datastore;
@@ -110,9 +111,9 @@ public class TorrentRepository : BasicRepository<Torrent>, ITorrentRepository
                 {
                     transaction.Rollback();
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Ignore rollback exceptions if transaction is already completed
+                    Logger.Trace(ex, "Transaction rollback failed during delete on {0}", this.table);
                 }
 
                 throw;
