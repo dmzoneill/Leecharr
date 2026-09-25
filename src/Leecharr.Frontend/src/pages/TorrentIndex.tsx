@@ -190,6 +190,9 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   };
 
   const [isFilterCollapsed, setIsFilterCollapsed] = useState<boolean>(() => {
+    if (typeof window !== "undefined" && window.innerWidth <= 768) {
+      return true;
+    }
     return localStorage.getItem("leecharr_filter_collapsed") === "true";
   });
 
