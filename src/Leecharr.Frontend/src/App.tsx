@@ -24,6 +24,7 @@ import {
   TerminalIcon,
   AutomationIcon,
   DownloadAgentIcon,
+  CodeIcon,
 } from "./components/icons/NavIcons";
 import { ActivityIcon } from "./components/icons/UIIcons";
 import {
@@ -61,6 +62,7 @@ import SystemEvents from "./pages/SystemEvents";
 import SystemLogs from "./pages/SystemLogs";
 import SystemNetwork from "./pages/SystemNetwork";
 import DatabaseExplorer from "./pages/DatabaseExplorer";
+import DeveloperDiagnostics from "./pages/DeveloperDiagnostics";
 import { ApiDocsPage } from "./pages/ApiDocsPage";
 import TrackerBoost from "./pages/TrackerBoost";
 import TrackerServer from "./pages/TrackerServer";
@@ -106,18 +108,25 @@ import {
   trackConfigAdoption,
 } from "./utils/analytics";
 
-function getSystemSubItems(t: (key: string) => string) {
+function getSystemSubItems(t: (key: string, defaultValue?: string) => string) {
   return [
-    { id: "status", label: t("system.status") },
-    { id: "resources", label: t("system.resources") },
-    { id: "database", label: t("system.database") },
-    { id: "tasks", label: t("system.tasks") },
-    { id: "backup", label: t("system.backup") },
-    { id: "updates", label: t("system.updates") },
-    { id: "events", label: t("system.events") },
-    { id: "logs", label: t("system.logs") },
-    { id: "network", label: t("system.network") },
-    { id: "api", label: t("system.apiReference") },
+    { id: "status", label: t("system.status", "Status") },
+    { id: "resources", label: t("system.resources", "Resources") },
+    { id: "tasks", label: t("system.tasks", "Tasks") },
+    { id: "backup", label: t("system.backup", "Backup & Restore") },
+    { id: "updates", label: t("system.updates", "Updates") },
+    { id: "events", label: t("system.events", "Events") },
+    { id: "logs", label: t("system.logs", "Logs") },
+    { id: "network", label: t("system.network", "Network") },
+  ];
+}
+
+function getDeveloperSubItems(t: (key: string, defaultValue?: string) => string) {
+  return [
+    { id: "database", label: t("developer.database", "Database Explorer") },
+    { id: "terminal", label: t("developer.terminal", "Terminal CLI") },
+    { id: "api", label: t("developer.apiReference", "API Reference") },
+    { id: "diagnostics", label: t("developer.diagnostics", "Diagnostics") },
   ];
 }
 
@@ -330,7 +339,12 @@ export function App() {
       activeSubNav = foundPageId;
     }
   } else if (pathname.startsWith("/terminal")) {
-    activeNav = "terminal";
+    activeNav = "developer";
+    activeSubNav = "terminal";
+  } else if (pathname.startsWith("/developer")) {
+    activeNav = "developer";
+    const parts = pathname.split("/");
+    activeSubNav = parts[2] || "database";
   } else if (pathname.startsWith("/files")) {
     activeNav = "files";
   } else if (pathname.startsWith("/system")) {
@@ -592,7 +606,7 @@ export function App() {
             return;
           } else if (nextKey === "c") {
             e.preventDefault();
-            guardedNavigate("/terminal");
+            guardedNavigate("/developer/terminal");
             return;
           } else if (nextKey === "i") {
             e.preventDefault();
@@ -967,17 +981,6 @@ export function App() {
             </>
           )}
 
-          {/* Terminal CLI */}
-          <div
-            className={`sidebar-nav-item ${activeNav === "terminal" ? "active" : ""}`}
-            onClick={() => guardedNavigate("/terminal")}
-            style={{ cursor: "pointer" }}
-            title="Interactive Download Shell & File Inspector"
-          >
-            <TerminalIcon size={16} />
-            <span>{t("nav.terminalCli")}</span>
-          </div>
-
           {/* File Browser */}
           <div
             className={`sidebar-nav-item ${activeNav === "files" ? "active" : ""}`}
@@ -1125,6 +1128,29 @@ export function App() {
                 key={item.id}
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === item.id ? "active" : ""}`}
                 onClick={() => guardedNavigate(`/system/${item.id}`)}
+                style={{ cursor: "pointer" }}
+                title={item.label}
+              >
+                <span>{item.label}</span>
+              </div>
+            ))}
+
+          {/* Developer Tools */}
+          <div
+            className={`sidebar-nav-item ${activeNav === "developer" ? "active" : ""}`}
+            onClick={() => guardedNavigate("/developer/database")}
+            style={{ cursor: "pointer" }}
+            title={t("nav.developer", "Developer Tools")}
+          >
+            <CodeIcon size={16} />
+            <span>{t("nav.developer", "Developer")}</span>
+          </div>
+          {activeNav === "developer" &&
+            getDeveloperSubItems(t).map((item) => (
+              <div
+                key={item.id}
+                className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === item.id ? "active" : ""}`}
+                onClick={() => guardedNavigate(`/developer/${item.id}`)}
                 style={{ cursor: "pointer" }}
                 title={item.label}
               >
@@ -1828,30 +1854,21 @@ export function App() {
                   </ErrorBoundary>
                 }
               />
+              {/* Developer Tools */}
               <Route
-                path="/system/api"
+                path="/developer"
+                element={<Navigate to="/developer/database" replace />}
+              />
+              <Route
+                path="/developer/database"
                 element={
-                  <ErrorBoundary title={t("errors.apiReference")}>
-                    <ApiDocsPage />
+                  <ErrorBoundary title="Database Explorer">
+                    <DatabaseExplorer />
                   </ErrorBoundary>
                 }
               />
               <Route
-                path="/system/api-docs"
-                element={<Navigate to="/system/api" replace />}
-              />
-              <Route
-                path="/system/swagger"
-                element={<Navigate to="/system/api" replace />}
-              />
-              <Route
-                path="/api-docs"
-                element={<Navigate to="/system/api" replace />}
-              />
-
-              {/* Terminal CLI */}
-              <Route
-                path="/terminal"
+                path="/developer/terminal"
                 element={
                   <ErrorBoundary title={t("errors.terminal")}>
                     <TerminalPage />
@@ -1859,16 +1876,50 @@ export function App() {
                 }
               />
               <Route
+                path="/developer/api"
+                element={
+                  <ErrorBoundary title={t("errors.apiReference")}>
+                    <ApiDocsPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/developer/diagnostics"
+                element={
+                  <ErrorBoundary title={t("developer.diagnostics", "Diagnostics")}>
+                    <DeveloperDiagnostics />
+                  </ErrorBoundary>
+                }
+              />
+
+              {/* Legacy Navigation Redirects */}
+              <Route
+                path="/terminal"
+                element={<Navigate to="/developer/terminal" replace />}
+              />
+              <Route
                 path="/system/terminal"
-                element={<Navigate to="/terminal" replace />}
+                element={<Navigate to="/developer/terminal" replace />}
               />
               <Route
                 path="/system/database"
-                element={
-                  <ErrorBoundary title="Database Explorer">
-                    <DatabaseExplorer />
-                  </ErrorBoundary>
-                }
+                element={<Navigate to="/developer/database" replace />}
+              />
+              <Route
+                path="/system/api"
+                element={<Navigate to="/developer/api" replace />}
+              />
+              <Route
+                path="/system/api-docs"
+                element={<Navigate to="/developer/api" replace />}
+              />
+              <Route
+                path="/system/swagger"
+                element={<Navigate to="/developer/api" replace />}
+              />
+              <Route
+                path="/api-docs"
+                element={<Navigate to="/developer/api" replace />}
               />
 
               {/* File Browser */}
