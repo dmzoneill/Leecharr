@@ -134,8 +134,8 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
             !string.IsNullOrWhiteSpace(i.Url) &&
             !string.IsNullOrWhiteSpace(i.ApiKey) &&
             ((i.Implementation != null && i.Implementation.Contains("Prowlarr", StringComparison.OrdinalIgnoreCase)) ||
-             (!string.IsNullOrWhiteSpace(i.Name) && i.Name.Contains("Prowlarr", StringComparison.OrdinalIgnoreCase)) ||
-             i.Url.Contains("9696", StringComparison.OrdinalIgnoreCase)));
+            (!string.IsNullOrWhiteSpace(i.Name) && i.Name.Contains("Prowlarr", StringComparison.OrdinalIgnoreCase)) ||
+            i.Url.Contains("9696", StringComparison.OrdinalIgnoreCase)));
 
         if (hasIndexer)
         {
@@ -166,8 +166,8 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
             !string.IsNullOrWhiteSpace(i.Url) &&
             !string.IsNullOrWhiteSpace(i.ApiKey) &&
             ((i.Implementation != null && i.Implementation.Contains("Prowlarr", StringComparison.OrdinalIgnoreCase)) ||
-             (!string.IsNullOrWhiteSpace(i.Name) && i.Name.Contains("Prowlarr", StringComparison.OrdinalIgnoreCase)) ||
-             i.Url.Contains("9696", StringComparison.OrdinalIgnoreCase))).ToList();
+            (!string.IsNullOrWhiteSpace(i.Name) && i.Name.Contains("Prowlarr", StringComparison.OrdinalIgnoreCase)) ||
+            i.Url.Contains("9696", StringComparison.OrdinalIgnoreCase))).ToList();
 
         foreach (var idx in indexers)
         {
@@ -250,8 +250,8 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
                 var arr = this.arrRepository.GetEnabled().FirstOrDefault(c =>
                     string.Equals(c.ArrType, "Prowlarr", StringComparison.OrdinalIgnoreCase) &&
                     (string.Equals(c.Url?.TrimEnd('/'), baseUri, StringComparison.OrdinalIgnoreCase) ||
-                     (Uri.TryCreate(c.Url, UriKind.Absolute, out var cu) && Uri.TryCreate(baseUri, UriKind.Absolute, out var bu) &&
-                      string.Equals(cu.Authority, bu.Authority, StringComparison.OrdinalIgnoreCase))));
+                    (Uri.TryCreate(c.Url, UriKind.Absolute, out var cu) && Uri.TryCreate(baseUri, UriKind.Absolute, out var bu) &&
+                        string.Equals(cu.Authority, bu.Authority, StringComparison.OrdinalIgnoreCase))));
                 if (arr != null)
                 {
                     shouldSyncCategories = arr.SyncCategories;

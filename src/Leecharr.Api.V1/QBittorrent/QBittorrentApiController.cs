@@ -179,7 +179,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
             if (!string.IsNullOrWhiteSpace(masterApiKey) &&
                 ((!string.IsNullOrWhiteSpace(password) && RpcAuthenticationHelper.FixedTimeEquals(password, masterApiKey)) ||
-                 (!string.IsNullOrWhiteSpace(username) && RpcAuthenticationHelper.FixedTimeEquals(username, masterApiKey))))
+                (!string.IsNullOrWhiteSpace(username) && RpcAuthenticationHelper.FixedTimeEquals(username, masterApiKey))))
             {
                 authenticated = true;
             }
@@ -256,8 +256,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 encryptionPref = 1;
             }
             else if (encMode.Equals("Disabled", StringComparison.OrdinalIgnoreCase) ||
-                     encMode.Equals("Plaintext", StringComparison.OrdinalIgnoreCase) ||
-                     encMode.Equals("None", StringComparison.OrdinalIgnoreCase))
+                    encMode.Equals("Plaintext", StringComparison.OrdinalIgnoreCase) ||
+                    encMode.Equals("None", StringComparison.OrdinalIgnoreCase))
             {
                 encryptionPref = 2;
             }
@@ -3344,14 +3344,14 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 rawSavePath = completedDir;
             }
             else if (trimmedRaw.StartsWith("/downloads/incomplete/", StringComparison.OrdinalIgnoreCase) ||
-                     trimmedRaw.StartsWith("/downloads/incomplete\\", StringComparison.OrdinalIgnoreCase))
+                    trimmedRaw.StartsWith("/downloads/incomplete\\", StringComparison.OrdinalIgnoreCase))
             {
                 var relative = trimmedRaw.Substring("/downloads/incomplete".Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 rawSavePath = !string.IsNullOrWhiteSpace(relative) ? Path.Combine(completedDir, relative) : completedDir;
             }
             else if (!string.IsNullOrWhiteSpace(inc) &&
-                     (trimmedRaw.StartsWith(inc + "/", StringComparison.OrdinalIgnoreCase) ||
-                      trimmedRaw.StartsWith(inc + "\\", StringComparison.OrdinalIgnoreCase)))
+                    (trimmedRaw.StartsWith(inc + "/", StringComparison.OrdinalIgnoreCase) ||
+                        trimmedRaw.StartsWith(inc + "\\", StringComparison.OrdinalIgnoreCase)))
             {
                 var relative = trimmedRaw.Substring(inc.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 rawSavePath = !string.IsNullOrWhiteSpace(relative) ? Path.Combine(completedDir, relative) : completedDir;
@@ -3507,9 +3507,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
             var type = MapLogLevelToQBitType(entry.Level);
             var include = (type == 1 && normal) ||
-                          (type == 2 && info) ||
-                          (type == 4 && warning) ||
-                          (type == 8 && critical);
+                        (type == 2 && info) ||
+                        (type == 4 && warning) ||
+                        (type == 8 && critical);
 
             if (!include)
             {

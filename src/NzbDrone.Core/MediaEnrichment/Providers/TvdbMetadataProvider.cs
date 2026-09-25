@@ -86,9 +86,9 @@ public class TvdbMetadataProvider : IMediaMetadataProvider
         var parsedYear = year.HasValue && year.Value > 0 ? year.Value : ExtractYear(title);
 
         var isMovie = ((category ?? string.Empty).Contains("movie", StringComparison.OrdinalIgnoreCase) ||
-                       (category ?? string.Empty).Contains("radarr", StringComparison.OrdinalIgnoreCase)) &&
-                      !(category ?? string.Empty).Contains("tv", StringComparison.OrdinalIgnoreCase) &&
-                      !(category ?? string.Empty).Contains("series", StringComparison.OrdinalIgnoreCase);
+                        (category ?? string.Empty).Contains("radarr", StringComparison.OrdinalIgnoreCase)) &&
+                        !(category ?? string.Empty).Contains("tv", StringComparison.OrdinalIgnoreCase) &&
+                        !(category ?? string.Empty).Contains("series", StringComparison.OrdinalIgnoreCase);
 
         var apiKey = this.GetApiKey();
         if (!string.IsNullOrWhiteSpace(apiKey))
@@ -224,8 +224,8 @@ public class TvdbMetadataProvider : IMediaMetadataProvider
     private async Task<MediaMetadata> QueryTvdbApiAsync(string token, string title, int year, bool isMovie)
     {
         var searchEndpoint = $"https://api4.thetvdb.com/v4/search?query={Uri.EscapeDataString(title)}" +
-                             (isMovie ? "&type=movie" : "&type=series") +
-                             (year > 0 ? $"&year={year}" : string.Empty);
+                            (isMovie ? "&type=movie" : "&type=series") +
+                            (year > 0 ? $"&year={year}" : string.Empty);
 
         using var searchReq = new HttpRequestMessage(HttpMethod.Get, searchEndpoint);
         searchReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);

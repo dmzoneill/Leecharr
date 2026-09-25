@@ -151,27 +151,27 @@ public class MessageHub : Hub
                         isAuth = true;
                     }
                     else if (!isAuth && httpContext.Request.Headers.TryGetValue("ApiKey", out var customApiKey) &&
-                             FixedTimeEquals(customApiKey.ToString(), masterApiKey))
+                            FixedTimeEquals(customApiKey.ToString(), masterApiKey))
                     {
                         isAuth = true;
                     }
                     else if (!isAuth && httpContext.Request.Query.TryGetValue("access_token", out var queryToken) &&
-                             FixedTimeEquals(queryToken.ToString(), masterApiKey))
+                            FixedTimeEquals(queryToken.ToString(), masterApiKey))
                     {
                         isAuth = true;
                     }
                     else if (!isAuth && httpContext.Request.Query.TryGetValue("apikey", out var queryApiKey) &&
-                             FixedTimeEquals(queryApiKey.ToString(), masterApiKey))
+                            FixedTimeEquals(queryApiKey.ToString(), masterApiKey))
                     {
                         isAuth = true;
                     }
                     else if (!isAuth && httpContext.Request.Query.TryGetValue("api_key", out var queryApiKey2) &&
-                             FixedTimeEquals(queryApiKey2.ToString(), masterApiKey))
+                            FixedTimeEquals(queryApiKey2.ToString(), masterApiKey))
                     {
                         isAuth = true;
                     }
                     else if (!isAuth && httpContext.Request.Query.TryGetValue("token", out var queryToken2) &&
-                             FixedTimeEquals(queryToken2.ToString(), masterApiKey))
+                            FixedTimeEquals(queryToken2.ToString(), masterApiKey))
                     {
                         isAuth = true;
                     }

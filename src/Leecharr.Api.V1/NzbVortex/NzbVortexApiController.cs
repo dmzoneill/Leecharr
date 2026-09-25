@@ -283,7 +283,7 @@ public class NzbVortexApiController : ControllerBase, IActionFilter
                     addedId = added?.Id ?? addedId;
                 }
                 else if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-                         url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                        url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                 {
                     var maxTorrentBytes = this.configService?.MaxTorrentFileSizeBytes ?? (this.configFileProvider?.MaxTorrentFileSizeBytes ?? 250L * 1024 * 1024);
                     var bytes = await this.safeHttpClientService.DownloadBytesAsync(url, maxSizeBytes: maxTorrentBytes);

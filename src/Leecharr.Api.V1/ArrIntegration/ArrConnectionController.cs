@@ -126,12 +126,12 @@ public class ArrConnectionController : Controller
         }
 
         var shouldUnregisterWebhook = (existing.WebhookEnabled && !model.WebhookEnabled) ||
-                                      (existing.Enable && !model.Enable) ||
-                                      (!string.Equals(existing.Url?.TrimEnd('/'), model.Url?.TrimEnd('/'), StringComparison.OrdinalIgnoreCase));
+                                        (existing.Enable && !model.Enable) ||
+                                        (!string.Equals(existing.Url?.TrimEnd('/'), model.Url?.TrimEnd('/'), StringComparison.OrdinalIgnoreCase));
 
         var shouldUnregisterDownloadClient = (existing.EnableAutomaticAdd && !model.EnableAutomaticAdd) ||
-                                             (existing.Enable && !model.Enable) ||
-                                             (!string.Equals(existing.Url?.TrimEnd('/'), model.Url?.TrimEnd('/'), StringComparison.OrdinalIgnoreCase));
+                                            (existing.Enable && !model.Enable) ||
+                                            (!string.Equals(existing.Url?.TrimEnd('/'), model.Url?.TrimEnd('/'), StringComparison.OrdinalIgnoreCase));
 
         if (shouldUnregisterWebhook && this.webhookRegistration != null)
         {

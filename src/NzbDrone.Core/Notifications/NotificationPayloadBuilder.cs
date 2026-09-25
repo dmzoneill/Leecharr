@@ -1790,13 +1790,13 @@ public static class NotificationPayloadBuilder
         }
 
         var val = ExtractPropertyString(payload, "error") ??
-                  ExtractPropertyString(payload, "Error") ??
-                  ExtractPropertyString(payload, "errorMessage") ??
-                  ExtractPropertyString(payload, "ErrorMessage") ??
-                  ExtractPropertyString(payload, "exception") ??
-                  ExtractPropertyString(payload, "Exception") ??
-                  ExtractPropertyString(payload, "message") ??
-                  ExtractPropertyString(payload, "Message");
+                ExtractPropertyString(payload, "Error") ??
+                ExtractPropertyString(payload, "errorMessage") ??
+                ExtractPropertyString(payload, "ErrorMessage") ??
+                ExtractPropertyString(payload, "exception") ??
+                ExtractPropertyString(payload, "Exception") ??
+                ExtractPropertyString(payload, "message") ??
+                ExtractPropertyString(payload, "Message");
 
         return string.IsNullOrWhiteSpace(val) ? null : val.Trim();
     }
