@@ -279,7 +279,6 @@ public class DownloadClientController : Controller
         var savePath = !string.IsNullOrWhiteSpace(remoteItem?.SavePath) ? remoteItem.SavePath : null;
         var category = !string.IsNullOrWhiteSpace(remoteItem?.Category) ? remoteItem.Category : client.Category;
 
-        // Add magnet by hash to engine
         var magnetUri = MagnetLinkParser.BuildMagnetUri(hash);
         var added = await this.torrentService.AddFromMagnetAsync(magnetUri, category, savePath, false);
         return this.Ok(TorrentResourceMapper.ToResource(added));

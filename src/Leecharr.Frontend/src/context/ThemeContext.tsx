@@ -152,7 +152,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         style === "light" ? "light" : "dark",
       );
     } catch {
-      // ignore
+      /* storage quota exceeded or restricted */
     }
   }, []);
 
@@ -161,7 +161,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     try {
       localStorage.setItem(STORAGE_KEY_ACCENT, scheme);
     } catch {
-      // ignore
+      /* storage quota exceeded or restricted */
     }
   }, []);
 
@@ -180,7 +180,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(STORAGE_KEY_THEME, next);
         localStorage.setItem("leecharr-theme", next);
       } catch {
-        // ignore
+        /* storage quota exceeded or restricted */
       }
       return next;
     });

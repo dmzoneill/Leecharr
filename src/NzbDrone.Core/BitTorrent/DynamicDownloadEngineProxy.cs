@@ -228,7 +228,6 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
 
             var rehydrated = 0;
 
-            // Set up migration gating
             this.migrationTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             Volatile.Write(ref this.migratingTargetEngine, targetEngine);
 
