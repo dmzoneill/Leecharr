@@ -110,7 +110,6 @@ function getSystemSubItems(t: (key: string) => string) {
   return [
     { id: "status", label: t("system.status") },
     { id: "resources", label: t("system.resources") },
-    { id: "terminal", label: t("system.terminal") },
     { id: "database", label: t("system.database") },
     { id: "tasks", label: t("system.tasks") },
     { id: "backup", label: t("system.backup") },
@@ -1861,11 +1860,7 @@ export function App() {
               />
               <Route
                 path="/system/terminal"
-                element={
-                  <ErrorBoundary title={t("errors.terminal")}>
-                    <TerminalPage />
-                  </ErrorBoundary>
-                }
+                element={<Navigate to="/terminal" replace />}
               />
               <Route
                 path="/system/database"
