@@ -121,9 +121,9 @@ public class DiskSpaceService : IDiskSpaceService
                         }
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Ignore inaccessible virtual filesystem mounts
+                    this.logger.Trace(ex, "Failed to read drive properties for '{0}'", drive.Name);
                 }
             }
         }

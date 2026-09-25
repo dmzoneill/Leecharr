@@ -12,7 +12,7 @@ export default function DeveloperCommands() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedCommand, setSelectedCommand] = useState<DeveloperCommandDescriptor | null>(null);
-  const [formParams, setFormParams] = useState<Record<string, any>>({});
+  const [formParams, setFormParams] = useState<Record<string, unknown>>({});
   const [isExecuting, setIsExecuting] = useState(false);
   const [actionMessage, setActionMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
@@ -36,7 +36,7 @@ export default function DeveloperCommands() {
 
   const openExecuteModal = (cmd: DeveloperCommandDescriptor) => {
     setSelectedCommand(cmd);
-    const initialParams: Record<string, any> = {};
+    const initialParams: Record<string, unknown> = {};
     cmd.properties.forEach((p) => {
       initialParams[p.name] = p.defaultValue ?? (p.type === "Boolean" ? false : p.type === "Int32" || p.type === "Int64" ? 0 : "");
     });
@@ -56,8 +56,9 @@ export default function DeveloperCommands() {
       setActionMessage({ text: `Command '${selectedCommand.name}' dispatched successfully to queue.`, type: "success" });
       setSelectedCommand(null);
       fetchCommands();
-    } catch (err: any) {
-      setActionMessage({ text: err?.message || "Failed to execute command.", type: "error" });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setActionMessage({ text: msg || "Failed to execute command.", type: "error" });
     } finally {
       setIsExecuting(false);
     }

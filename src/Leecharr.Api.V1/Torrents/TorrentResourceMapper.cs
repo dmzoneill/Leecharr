@@ -13,6 +13,7 @@ namespace Leecharr.Api.V1.Torrents;
 
 public static class TorrentResourceMapper
 {
+    private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
     public static string EncodeBitfield(bool[] pieces)
     {
         if (pieces == null || pieces.Length == 0)
@@ -163,9 +164,9 @@ public static class TorrentResourceMapper
                         resource.HdrFormat = info.HdrFormat;
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Ignore parse errors
+                    Logger.Trace(ex, "Failed to deserialize MediaInfoJson for torrent resource mapping");
                 }
             }
         }

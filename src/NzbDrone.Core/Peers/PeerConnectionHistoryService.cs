@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using NLog;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Network.GeoIp;
 
@@ -15,12 +16,14 @@ public class PeerConnectionHistoryService : IPeerConnectionHistoryService, IHand
     private const int MaxRecords = 10000;
     private readonly ConcurrentQueue<PeerConnectionEvent> eventQueue = new();
     private readonly IGeoIpService geoIpService;
+    private readonly Logger logger;
     private readonly object syncRoot = new();
     private long idSequence;
 
     public PeerConnectionHistoryService(IGeoIpService geoIpService = null)
     {
         this.geoIpService = geoIpService;
+        this.logger = LogManager.GetCurrentClassLogger();
     }
 
     public void RecordEvent(PeerConnectionEvent connectionEvent)
@@ -50,9 +53,9 @@ public class PeerConnectionHistoryService : IPeerConnectionHistoryService, IHand
                     connectionEvent.City = geo.City ?? string.Empty;
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore geo lookup errors
+                this.logger.Trace(ex, "Failed to resolve GeoIP for IP '{0}'", connectionEvent.RemoteIp);
             }
         }
 
