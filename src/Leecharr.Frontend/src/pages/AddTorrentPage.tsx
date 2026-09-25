@@ -9,13 +9,11 @@ export function AddTorrentPage({ onSuccess }: AddTorrentPageProps) {
   const { t } = useTranslation();
   return (
     <div
-      className="content-area"
+      className="content-area add-torrent-page"
       style={{
         display: "flex",
         flexDirection: "column",
-        height: "100%",
         minHeight: 0,
-        overflow: "hidden",
       }}
     >
       <div
@@ -70,7 +68,6 @@ export function AddTorrentPage({ onSuccess }: AddTorrentPageProps) {
           display: "flex",
           flexDirection: "column",
           minHeight: 0,
-          overflow: "hidden",
           width: "100%",
         }}
       >

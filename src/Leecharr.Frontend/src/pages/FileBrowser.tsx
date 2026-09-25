@@ -1005,11 +1005,10 @@ export function FileBrowser() {
 
   return (
     <div
-      className="content-area"
+      className="content-area file-browser-page"
       style={{
         display: "flex",
         flexDirection: "column",
-        height: "100%",
         gap: "1rem",
         padding: "1.5rem",
         boxSizing: "border-box",
