@@ -183,13 +183,11 @@ function TrackerServer() {
 
   return (
     <div
-      className="content-area"
+      className="content-area tracker-server-page"
       style={{
         display: "flex",
         flexDirection: "column",
-        height: "100%",
         minHeight: 0,
-        overflow: "hidden",
         padding: "1.5rem",
         boxSizing: "border-box",
       }}

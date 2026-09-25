@@ -430,16 +430,13 @@ export default function DatabaseExplorer() {
 
   return (
     <div
-      className="content-area"
+      className="content-area database-explorer-page"
       style={{
         padding: "1.5rem",
         width: "100%",
-        height: "100%",
-        maxHeight: "100%",
         boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",
-        overflow: "hidden",
         minHeight: 0,
       }}
     >

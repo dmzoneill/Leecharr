@@ -296,7 +296,9 @@ body {
 .app {
   display: flex;
   height: 100vh;
+  height: 100dvh;
   max-height: 100vh;
+  max-height: 100dvh;
   overflow: hidden;
   --sidebar-width: 245px;
 }
@@ -632,7 +634,9 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   max-height: 100vh;
+  max-height: 100dvh;
   overflow: hidden;
   max-width: calc(100vw - var(--sidebar-width));
   background-color: var(--bg-primary);
@@ -2914,6 +2918,54 @@ input[type="number"]::-webkit-inner-spin-button {
     margin-left: 0 !important;
     max-width: 100vw !important;
     width: 100% !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* Make .app-main the dedicated primary scrolling viewport on mobile */
+  .app-main {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-y: contain;
+  }
+
+  /* Page root wrappers inside .app-main must expand naturally */
+  .app-main > * {
+    min-height: min-content !important;
+    height: auto !important;
+    overflow-y: visible !important;
+  }
+
+  /* Ensure content areas allow natural vertical scrolling without clipping */
+  .content-area,
+  .content,
+  div[class*="content-area"],
+  div[class*="content"] {
+    overflow-y: visible !important;
+    overflow-x: hidden !important;
+    height: auto !important;
+    min-height: min-content !important;
+    max-height: none !important;
+  }
+
+  /* Torrent Index and Split Pane on mobile */
+  .torrent-index-page,
+  .torrent-content-layout,
+  .torrent-split-pane,
+  .torrent-split-top {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: min-content !important;
+    max-height: none !important;
   }
 
   /* Topbar responsive */
@@ -3070,7 +3122,15 @@ input[type="number"]::-webkit-inner-spin-button {
 
   /* Split Pane & Detail Panel */
   .torrent-split-pane {
-    height: 100%;
+    height: auto !important;
+  }
+
+  .torrent-table-wrapper,
+  .peer-table-wrapper {
+    max-height: 55vh !important;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 
   .detail-panel {
