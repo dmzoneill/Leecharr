@@ -11,7 +11,6 @@ using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Backup;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
-using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;

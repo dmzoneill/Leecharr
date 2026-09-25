@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using NLog;
 using NSubstitute;
-using NSubstitute.ExceptionExtensions;
 using NUnit.Framework;
 using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Http;

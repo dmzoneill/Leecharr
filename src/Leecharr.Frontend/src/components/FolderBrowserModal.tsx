@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useFileListing, useCreateDirectory } from "../api/hooks";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useModalRegistration } from "./ModalProvider";
@@ -87,8 +87,8 @@ export function FolderBrowserModal({
       setNewFolderName("");
       setShowNewFolderInput(false);
       refetch();
-    } catch (err: any) {
-      showToast(err?.message || "Failed to create folder", "error");
+    } catch (err: unknown) {
+      showToast((err as Error)?.message || "Failed to create folder", "error");
     }
   };
 

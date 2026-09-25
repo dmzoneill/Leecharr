@@ -1,6 +1,5 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
-using System;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Datastore.Events;

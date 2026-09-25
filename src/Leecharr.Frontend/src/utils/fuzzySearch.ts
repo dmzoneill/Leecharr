@@ -138,7 +138,6 @@ export function scoreItem(
     tokenScores.push(s);
   }
 
-  // Check if the full contiguous query matches directly
   const fullScore = scoreSingleToken(item.title, item.subtitle, trimmedQuery);
   if (fullScore === 100) return 100;
   if (fullScore === 80) return 90;

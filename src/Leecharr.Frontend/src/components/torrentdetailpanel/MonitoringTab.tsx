@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "../../i18n";
 import { useTorrentSpeedHistory } from "../../api/hooks";
 import { formatBytes, formatSpeed } from "../../utils/formatters";

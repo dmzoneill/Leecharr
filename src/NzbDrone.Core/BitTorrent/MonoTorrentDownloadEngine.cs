@@ -2826,14 +2826,24 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     {
         if (this.tasks.TryGetValue(torrentId, out var task) && task.Manager != null)
         {
+            var targetDl = maxDownloadKbps > 0
+                ? (int)Math.Min((long)maxDownloadKbps * 1024, int.MaxValue)
+                : 0;
+            var targetUl = maxUploadKbps > 0
+                ? (int)Math.Min((long)maxUploadKbps * 1024, int.MaxValue)
+                : 0;
+
+            if (task.Manager.Settings != null &&
+                task.Manager.Settings.MaximumDownloadRate == targetDl &&
+                task.Manager.Settings.MaximumUploadRate == targetUl)
+            {
+                return;
+            }
+
             var settingsBuilder = new TorrentSettingsBuilder(task.Manager.Settings)
             {
-                MaximumDownloadRate = maxDownloadKbps > 0
-                    ? (int)Math.Min((long)maxDownloadKbps * 1024, int.MaxValue)
-                    : 0,
-                MaximumUploadRate = maxUploadKbps > 0
-                    ? (int)Math.Min((long)maxUploadKbps * 1024, int.MaxValue)
-                    : 0,
+                MaximumDownloadRate = targetDl,
+                MaximumUploadRate = targetUl,
             };
             await task.Manager.UpdateSettingsAsync(settingsBuilder.ToSettings());
             this.logger.Info("Updated MonoTorrent per-torrent rate limits for {0}: Download = {1} KB/s, Upload = {2} KB/s", task.InfoHash, maxDownloadKbps, maxUploadKbps);

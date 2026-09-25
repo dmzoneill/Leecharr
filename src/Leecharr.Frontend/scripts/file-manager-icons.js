@@ -14,7 +14,6 @@ if (!fs.existsSync(targetFile)) {
 
 let content = fs.readFileSync(targetFile, 'utf8');
 
-// Check if already patched
 if (content.includes('mkv: /* @__PURE__ */ c(Nt,')) {
   console.log('[patch-file-manager] @cubone/react-file-manager already patched.');
   process.exit(0);

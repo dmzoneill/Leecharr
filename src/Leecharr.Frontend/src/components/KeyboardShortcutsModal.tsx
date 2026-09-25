@@ -1,4 +1,3 @@
-import React from "react";
 import { useTranslation } from "../i18n";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useModalRegistration } from "./ModalProvider";

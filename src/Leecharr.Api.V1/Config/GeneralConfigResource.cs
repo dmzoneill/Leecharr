@@ -58,7 +58,7 @@ public class GeneralConfigResource : RestResource
 
     public bool TerminalAccessEnabled { get; set; } = true;
 
-    public bool AllowPrivateNetworkRequests { get; set; }
+    public bool AllowPrivateNetworkRequests { get; set; } = true;
 
     public string AllowedSsrfHostnames { get; set; } = string.Empty;
 
@@ -103,7 +103,7 @@ public static class GeneralConfigResourceMapper
             CsrfProtectionEnabled = config?.CsrfProtectionEnabled ?? true,
             HostHeaderValidationEnabled = config?.HostHeaderValidationEnabled ?? false,
             AllowedHosts = config?.AllowedHosts ?? string.Empty,
-            AllowPrivateNetworkRequests = config?.AllowPrivateNetworkRequests ?? fileProvider?.AllowPrivateNetworkRequests ?? false,
+            AllowPrivateNetworkRequests = config?.AllowPrivateNetworkRequests ?? fileProvider?.AllowPrivateNetworkRequests ?? true,
             AllowedSsrfHostnames = config?.AllowedSsrfHostnames ?? fileProvider?.AllowedSsrfHostnames ?? string.Empty,
             AllowedSsrfSubnets = config?.AllowedSsrfSubnets ?? fileProvider?.AllowedSsrfSubnets ?? string.Empty,
         };

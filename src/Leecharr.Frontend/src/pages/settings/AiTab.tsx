@@ -1,5 +1,5 @@
 import { useTranslation } from "../../i18n";
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   useAiConfig,
   useSaveAiConfig,
@@ -98,10 +98,10 @@ export function AiTab() {
           "error",
         );
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       showToast(
         t("settingsTabs.ai.switchError", {
-          error: err.message || t("settingsTabs.notifications.unknownError"),
+          error: (err as Error)?.message || t("settingsTabs.notifications.unknownError"),
         }),
         "error",
       );
@@ -116,10 +116,10 @@ export function AiTab() {
         providerId,
       });
       setProbeResult(res);
-    } catch (err: any) {
+    } catch (err: unknown) {
       showToast(
         t("settingsTabs.ai.probeFailed", {
-          error: err.message || t("settingsTabs.notifications.unknownError"),
+          error: (err as Error)?.message || t("settingsTabs.notifications.unknownError"),
         }),
         "error",
       );

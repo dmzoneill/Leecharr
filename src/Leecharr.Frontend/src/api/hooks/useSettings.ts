@@ -44,7 +44,7 @@ function useConfigMutation<T>(section: string) {
       queryClient.setQueryData<T>(["config", section], newConfig);
       return { previous };
     },
-    onError: (_err, _newConfig, context: any) => {
+    onError: (_err, _newConfig, context: { previous?: T } | undefined) => {
       if (context?.previous) {
         queryClient.setQueryData<T>(["config", section], context.previous);
       }

@@ -139,6 +139,31 @@ services:
         aliases:
           - prowlarr.local
 
+  jackett:
+    image: lscr.io/linuxserver/jackett:latest
+    container_name: jackett
+    hostname: jackett.local
+    ports:
+      - "9117:9117"
+    volumes:
+      - ./config/jackett:/config:z
+      - ./config/leecharr/downloads:/downloads:z
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9117/UI/Dashboard"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      arr-network:
+        aliases:
+          - jackett.local
+
   configure:
     image: docker.io/curlimages/curl:latest
     container_name: arr-configure
@@ -152,6 +177,8 @@ services:
       radarr:
         condition: service_healthy
       prowlarr:
+        condition: service_healthy
+      jackett:
         condition: service_healthy
     environment:
       - LEECHARR_AUTH=${LEECHARR_AUTH:-}
@@ -200,7 +227,8 @@ services:
           prowlarr_ok=$$(curl -sf "http://prowlarr.local:9696/api/v1/system/status" -H "X-Api-Key: $$PROWLARR_KEY" > /dev/null 2>&1 && echo 1 || echo 0)
           leecharr_ok=$$(curl -sf "http://leecharr.local:7889/ping" > /dev/null 2>&1 && echo 1 || echo 0)
           seedarr_ok=$$(curl -sf "http://seedarr.local:9898/api/v1/system/status" -H "X-Api-Key: $$SEEDARR_KEY" > /dev/null 2>&1 && echo 1 || echo 0)
-          if [ "$$sonarr_ok$$radarr_ok$$prowlarr_ok$$leecharr_ok$$seedarr_ok" = "11111" ]; then
+          jackett_ok=$$(curl -sf "http://jackett.local:9117/UI/Dashboard" > /dev/null 2>&1 && echo 1 || echo 0)
+          if [ "$$sonarr_ok$$radarr_ok$$prowlarr_ok$$leecharr_ok$$seedarr_ok$$jackett_ok" = "111111" ]; then
             echo "  All APIs ready after $${i}s"
             break
           fi
@@ -659,6 +687,7 @@ services:
         echo "  Sonarr:        http://localhost:8989 (API Key: $$SONARR_KEY)"
         echo "  Radarr:        http://localhost:7878 (API Key: $$RADARR_KEY)"
         echo "  Prowlarr:      http://localhost:9696 (API Key: $$PROWLARR_KEY)"
+        echo "  Jackett:       http://localhost:9117"
         echo "  Shared Media:  /downloads, /movies, /series"
 
 networks:

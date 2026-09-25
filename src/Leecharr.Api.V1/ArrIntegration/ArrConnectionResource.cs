@@ -57,6 +57,18 @@ public class ArrConnectionResource : RestResource
 
     public bool SyncCategories { get; set; } = true;
 
+    public bool SyncEnabled { get; set; } = true;
+
+    public bool EnableAutomaticAdd { get; set; } = true;
+
+    public bool WebhookEnabled { get; set; } = true;
+
+    public string WebhookHost { get; set; }
+
+    public string Category { get; set; }
+
+    public string SavePath { get; set; }
+
     public bool AutoTag { get; set; } = true;
 
     [Range(1, int.MaxValue)]

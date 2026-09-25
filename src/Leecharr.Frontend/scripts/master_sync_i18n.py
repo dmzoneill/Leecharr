@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
-import os
-import sys
 import json
 import re
+import sys
 import time
 import hashlib
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import urllib.request
 import urllib.parse
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-FRONTEND_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
-SRC_DIR = os.path.join(FRONTEND_DIR, "src")
-LOCALES_DIR = os.path.join(SRC_DIR, "i18n", "locales")
-CACHE_FILE = os.path.join(SRC_DIR, "i18n", ".translation-memory.json")
-TYPES_FILE = os.path.join(SRC_DIR, "i18n", "types.ts")
+SCRIPT_DIR = Path(__file__).resolve().parent
+FRONTEND_DIR = SCRIPT_DIR.parent
+SRC_DIR = FRONTEND_DIR / "src"
+LOCALES_DIR = SRC_DIR / "i18n" / "locales"
+CACHE_FILE = SRC_DIR / "i18n" / ".translation-memory.json"
+TYPES_FILE = SRC_DIR / "i18n" / "types.ts"
 
 LANGS = [
     "zh-CN", "hi", "es", "ar", "fr", "bn", "pt", "ru", "ur",
@@ -47,25 +47,24 @@ def hash_text(text):
     return hashlib.sha256(str(text).strip().encode("utf-8")).hexdigest()[:16]
 
 def parse_ts_dict(file_path):
-    if not os.path.exists(file_path):
+    p = Path(file_path)
+    if not p.is_file():
         return {}
-    with open(file_path, "r", encoding="utf-8") as f:
-        content = f.read()
+    content = p.read_text(encoding="utf-8")
     m = re.search(r"=\s*(\{[\s\S]*\});\s*export default", content)
     if not m:
         return {}
     raw_js = m.group(1)
-    tmp_file = file_path + ".tmp.cjs"
+    tmp_file = p.with_name(p.name + ".tmp.cjs")
     try:
-        with open(tmp_file, "w", encoding="utf-8") as f:
-            f.write(f"const obj = ({raw_js}); process.stdout.write(JSON.stringify(obj));")
+        tmp_file.write_text(f"const obj = ({raw_js}); process.stdout.write(JSON.stringify(obj));", encoding="utf-8")
         import subprocess
-        res = subprocess.run(["node", tmp_file], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        res = subprocess.run(["node", str(tmp_file)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if res.returncode == 0 and res.stdout:
             return json.loads(res.stdout)
     finally:
-        if os.path.exists(tmp_file):
-            os.unlink(tmp_file)
+        if tmp_file.exists():
+            tmp_file.unlink()
     return {}
 
 def flatten_keys(obj, prefix=""):
@@ -159,30 +158,28 @@ def generate_types_file(tree):
 
 export type I18nTranslations = {body};
 """
-    with open(TYPES_FILE, "w", encoding="utf-8") as f:
-        f.write(content)
+    TYPES_FILE.write_text(content, encoding="utf-8")
 
 def main():
     print("🚀 Starting Leecharr Deep Localization Synchronization (Google Dict Engine)...")
     
     # 1. Scan codebase for referenced keys
     used_keys = set()
-    for root, dirs, files in os.walk(SRC_DIR):
-        if "node_modules" in dirs: dirs.remove("node_modules")
-        if "dist" in dirs: dirs.remove("dist")
-        if "locales" in dirs: dirs.remove("locales")
-        for file in files:
-            if file.endswith(".tsx") or (file.endswith(".ts") and not file.endswith("types.ts") and not file.endswith(".d.ts")):
-                fp = os.path.join(root, file)
-                with open(fp, "r", encoding="utf-8", errors="ignore") as f:
-                    code = f.read()
-                matches = re.findall(r'\b(?:t|translate)\(\s*["\'`]([a-zA-Z0-9_.]+)["\'`]', code)
-                for m in matches:
-                    used_keys.add(m)
+    for p in SRC_DIR.rglob("*"):
+        if not p.is_file():
+            continue
+        rel_parts = p.relative_to(SRC_DIR).parts
+        if "node_modules" in rel_parts or "dist" in rel_parts or "locales" in rel_parts:
+            continue
+        if p.suffix == ".tsx" or (p.suffix == ".ts" and not p.name.endswith("types.ts") and not p.name.endswith(".d.ts")):
+            code = p.read_text(encoding="utf-8", errors="ignore")
+            matches = re.findall(r'\b(?:t|translate)\(\s*["\'`]([a-zA-Z0-9_.]+)["\'`]', code)
+            for m in matches:
+                used_keys.add(m)
     print(f"ℹ️  Found {len(used_keys)} distinct translation key references in codebase.")
 
     # 2. Load en.ts
-    en_file = os.path.join(LOCALES_DIR, "en.ts")
+    en_file = LOCALES_DIR / "en.ts"
     en_tree = parse_ts_dict(en_file)
     if not en_tree:
         print("❌ Failed to parse en.ts")
@@ -195,18 +192,16 @@ def main():
     print(f"📖 Canonical English dictionary: {total_keys} keys")
     
     clean_en_tree = unflatten_keys(clean_flat_en)
-    with open(en_file, "w", encoding="utf-8") as f:
-        f.write(format_ts_file(clean_en_tree, "en"))
+    en_file.write_text(format_ts_file(clean_en_tree, "en"), encoding="utf-8")
 
     generate_types_file(clean_en_tree)
     print("✅ types.ts regenerated.")
 
     # 3. Load / Reset Translation Memory Cache
     memory = {}
-    if os.path.exists(CACHE_FILE):
+    if CACHE_FILE.is_file():
         try:
-            with open(CACHE_FILE, "r", encoding="utf-8") as f:
-                memory = json.load(f)
+            memory = json.loads(CACHE_FILE.read_text(encoding="utf-8"))
         except Exception:
             memory = {}
             
@@ -217,11 +212,11 @@ def main():
     # 4. Process each language
     for lang in LANGS:
         var_name = "zhCN" if lang == "zh-CN" else lang
-        lang_file = os.path.join(LOCALES_DIR, f"{lang}.ts")
+        lang_file = LOCALES_DIR / f"{lang}.ts"
         existing_tree = parse_ts_dict(lang_file)
         existing_flat = flatten_keys(existing_tree)
         
-        phrases_to_translate = {}  # hash -> en_val
+        phrases_to_translate = {}
         result_flat = {}
         
         for key, en_val in clean_flat_en.items():
@@ -229,7 +224,6 @@ def main():
             cached_trans = memory[lang].get(en_hash)
             cur_val = existing_flat.get(key)
             
-            # Check if cached translation is genuine non-English translation
             if cached_trans and (is_technical(en_val) or cached_trans.strip() != en_val.strip() or len(en_val.strip()) <= 3):
                 result_flat[key] = cached_trans
             elif cur_val and (is_technical(en_val) or cur_val.strip() != en_val.strip() or len(en_val.strip()) <= 3):
@@ -267,12 +261,10 @@ def main():
         # Unflatten and save .ts file
         new_tree = unflatten_keys(result_flat)
         ts_content = format_ts_file(new_tree, var_name)
-        with open(lang_file, "w", encoding="utf-8") as f:
-            f.write(ts_content)
+        lang_file.write_text(ts_content, encoding="utf-8")
 
     # 5. Save updated translation memory cache
-    with open(CACHE_FILE, "w", encoding="utf-8") as f:
-        json.dump(memory, f, indent=2, ensure_ascii=False)
+    CACHE_FILE.write_text(json.dumps(memory, indent=2, ensure_ascii=False), encoding="utf-8")
         
     print("\n🎉 Full Deep Translation Synchronization Complete Across All 20 Languages!")
 

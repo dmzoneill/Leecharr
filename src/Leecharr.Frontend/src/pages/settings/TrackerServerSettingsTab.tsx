@@ -1,5 +1,5 @@
 import { useTranslation } from "../../i18n";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   useTrackerServerConfig,
   useSaveTrackerServerConfig,
@@ -137,7 +137,7 @@ export function TrackerServerSettingsTab() {
                 color: "var(--accent)",
               }}
             >
-              {stats.totalTorrents ?? (stats as any).activeSwarms ?? 0}
+              {stats.totalTorrents ?? (stats as { activeSwarms?: number }).activeSwarms ?? 0}
             </div>
           </div>
           <div
@@ -165,7 +165,7 @@ export function TrackerServerSettingsTab() {
                 color: "var(--text-primary)",
               }}
             >
-              {stats.totalPeers ?? (stats as any).activePeers ?? 0}
+              {stats.totalPeers ?? (stats as { activePeers?: number }).activePeers ?? 0}
             </div>
           </div>
           <div

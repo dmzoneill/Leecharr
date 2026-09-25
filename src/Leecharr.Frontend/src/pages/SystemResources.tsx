@@ -29,10 +29,10 @@ export function SystemResources() {
   const host = snapshot?.host;
   const engine = snapshot?.torrentEngine;
   const subsystems = snapshot?.subsystems ?? [];
-  const perTorrent = snapshot?.perTorrent ?? [];
 
   const filteredTorrents = useMemo(() => {
-    return perTorrent.filter((torrent) => {
+    const list = snapshot?.perTorrent ?? [];
+    return list.filter((torrent) => {
       const matchesSearch =
         !searchQuery ||
         (torrent.name || "")
@@ -51,7 +51,7 @@ export function SystemResources() {
 
       return matchesSearch && matchesStatus;
     });
-  }, [perTorrent, searchQuery, statusFilter]);
+  }, [snapshot?.perTorrent, searchQuery, statusFilter]);
 
   // Status color mapper
   const getStatusBadge = (status?: string | null) => {

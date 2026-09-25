@@ -30,6 +30,16 @@ public class ArrConnectionDefinition : ModelBase
 
     public bool SyncEnabled { get; set; } = true;
 
+    public bool EnableAutomaticAdd { get; set; } = true;
+
+    public bool WebhookEnabled { get; set; } = true;
+
+    public string WebhookHost { get; set; }
+
+    public string Category { get; set; }
+
+    public string SavePath { get; set; }
+
     public bool AutoEnrichMetadata { get; set; } = true;
 
     public bool SyncCategories { get; set; } = true;

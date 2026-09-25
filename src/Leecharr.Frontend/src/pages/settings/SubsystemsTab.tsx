@@ -1,5 +1,5 @@
 import { useTranslation } from "../../i18n";
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   useSubsystems,
   useSwitchSubsystem,
@@ -46,9 +46,10 @@ export function SubsystemsTab() {
     try {
       const res = await probeProvider.mutateAsync({ subsystemId, providerId });
       setProbeResult(res);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errObj = err as Error | null;
       showToast(
-        `${t("settingsTabs.subsystems.probeFailed")}${err.message || t("settingsTabs.notifications.unknownError")}`,
+        `${t("settingsTabs.subsystems.probeFailed")}${errObj?.message || t("settingsTabs.notifications.unknownError")}`,
         "error",
       );
     } finally {
@@ -80,9 +81,10 @@ export function SubsystemsTab() {
           "error",
         );
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errObj = err as Error | null;
       showToast(
-        `${t("settingsTabs.subsystems.switchFailed")}${err.message || t("settingsTabs.notifications.unknownError")}`,
+        `${t("settingsTabs.subsystems.switchFailed")}${errObj?.message || t("settingsTabs.notifications.unknownError")}`,
         "error",
       );
     }

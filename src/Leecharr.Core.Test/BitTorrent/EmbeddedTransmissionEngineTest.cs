@@ -1,7 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
-using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
@@ -17,7 +16,6 @@ using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Messaging.Events;
-using NzbDrone.Core.Network;
 using NzbDrone.Core.Network.Binding;
 using NzbDrone.Core.Network.Blocklist;
 using NzbDrone.Core.Network.Vpn;
