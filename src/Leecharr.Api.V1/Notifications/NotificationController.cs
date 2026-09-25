@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NLog;
 using NzbDrone.Core.Notifications;
 
 namespace Leecharr.Api.V1.Notifications;
@@ -16,6 +17,7 @@ namespace Leecharr.Api.V1.Notifications;
 [Authorize(Policy = "RequireAdmin")]
 public class NotificationController : Controller
 {
+    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private readonly INotificationRepository notificationRepository;
     private readonly IWebhookDispatcher webhookDispatcher;
     private readonly ICustomScriptService customScriptService;
@@ -369,9 +371,9 @@ public class NotificationController : Controller
                     return obj.ToJsonString();
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Fall back to unmasked settings if JSON parsing fails
+                Logger.Trace(ex, "Failed to parse notification settings JSON during masking");
             }
         }
 
@@ -424,9 +426,9 @@ public class NotificationController : Controller
                     return newObj.ToJsonString();
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Fall back to newSettings if JSON parsing fails
+                Logger.Trace(ex, "Failed to parse notification settings JSON during unmasking");
             }
         }
 
@@ -472,9 +474,9 @@ public class NotificationController : Controller
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Fall back to key-value parsing if JSON document parsing fails
+                Logger.Trace(ex, "Failed to parse JSON document while extracting notification properties");
             }
         }
 

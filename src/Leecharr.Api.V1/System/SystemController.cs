@@ -8,6 +8,7 @@ using Dapper;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
+using NLog;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore;
@@ -78,6 +79,7 @@ public class SystemStatusResource
 [V1ApiController("system/status")]
 public class SystemController : ControllerBase
 {
+    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     internal static readonly DateTime AppStartTime = DateTime.UtcNow;
     private readonly IAppFolderInfo appFolderInfo;
     private readonly IDatabase database;
@@ -150,9 +152,9 @@ public class SystemController : ControllerBase
                     migration = currentMigration.Value.ToString();
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Fallback to latest migration if VersionInfo table is not queryable
+                Logger.Trace(ex, "Failed to query VersionInfo table, falling back to latest migration");
             }
         }
 
@@ -191,9 +193,9 @@ public class SystemController : ControllerBase
                 return remainder.StartsWith('/') || remainder.StartsWith('\\') ? "~" + remainder : "~/" + remainder;
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore environment query exceptions
+            Logger.Trace(ex, "Failed to query user profile environment variable");
         }
 
         var homeRegex = new Regex(@"^(/home/[^/\\]+|/Users/[^/\\]+|[a-zA-Z]:\\Users\\[^/\\]+)", RegexOptions.IgnoreCase);

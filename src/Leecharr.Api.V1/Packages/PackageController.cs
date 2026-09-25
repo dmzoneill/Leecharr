@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.Primitives;
+using NLog;
 using NzbDrone.Core.Packages;
 using NzbDrone.Core.Torrents;
 
@@ -35,6 +36,7 @@ public class PackageController : Controller
     private readonly IPackageExportService packageExportService;
     private readonly ITorrentService torrentService;
     private readonly IPackageImportService packageImportService;
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public PackageController(
         IPackageExportService packageExportService,
@@ -103,9 +105,9 @@ public class PackageController : Controller
                     existingTorrents.Add(torrent);
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignored - will validate count below
+                this.logger.Trace(ex, "Failed to retrieve torrent with ID {0} for package export", id);
             }
         }
 

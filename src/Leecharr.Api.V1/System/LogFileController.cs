@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
+using NLog;
 using NzbDrone.Common.EnvironmentInfo;
 
 namespace Leecharr.Api.V1.System;
@@ -14,6 +15,7 @@ namespace Leecharr.Api.V1.System;
 [V1ApiController("logfile")]
 public class LogFileController : ControllerBase
 {
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private readonly IAppFolderInfo appFolderInfo;
 
     public LogFileController(IAppFolderInfo appFolderInfo)
@@ -87,9 +89,9 @@ public class LogFileController : ControllerBase
                 {
                     global::System.IO.File.Delete(f);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Ignore open files
+                    this.logger.Trace(ex, "Failed to delete log file '{0}' (likely in use)", f);
                 }
             }
         }

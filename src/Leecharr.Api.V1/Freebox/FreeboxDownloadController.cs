@@ -293,9 +293,9 @@ public class FreeboxDownloadController : ControllerBase
                     effectiveDest = decoded;
                 }
             }
-            catch (FormatException)
+            catch (FormatException ex)
             {
-                // download_dir was plain text
+                this.logger.Trace(ex, "download_dir is plain text, not base64");
             }
         }
 
@@ -411,9 +411,9 @@ public class FreeboxDownloadController : ControllerBase
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore parse errors
+                this.logger.Trace(ex, "Failed to parse Freebox download update JSON");
             }
         }
 
