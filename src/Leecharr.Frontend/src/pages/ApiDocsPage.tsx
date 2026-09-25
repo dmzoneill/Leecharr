@@ -146,11 +146,11 @@ export function ApiDocsPage() {
         className="card"
         style={{
           padding: 0,
-          overflow: "hidden",
           borderRadius: "8px",
           border: "1px solid var(--border-light)",
           backgroundColor: "var(--bg-primary)",
           boxShadow: "0 8px 24px rgba(0, 0, 0, 0.4)",
+          minHeight: "450px",
         }}
       >
         <iframe

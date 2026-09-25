@@ -79,13 +79,11 @@ export default function DownloadHistory() {
 
   return (
     <div
-      className="content-area"
+      className="content-area download-history-page"
       style={{
         display: "flex",
         flexDirection: "column",
-        height: "100%",
         minHeight: 0,
-        overflow: "hidden",
         boxSizing: "border-box",
         padding: "1.5rem",
       }}
