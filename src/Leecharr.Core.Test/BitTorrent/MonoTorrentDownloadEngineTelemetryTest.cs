@@ -4,7 +4,6 @@ using System;
 using System.IO;
 using System.Reflection;
 using FluentAssertions;
-using MonoTorrent.Client;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Common.Disk;

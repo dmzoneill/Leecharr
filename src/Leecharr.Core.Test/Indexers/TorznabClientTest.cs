@@ -781,7 +781,7 @@ public class TorznabClientTest
         {
             if (req.RequestUri!.Query.Contains("t=caps"))
             {
-                // Return something that is not caps and not error, so fallback to search is triggered
+                // Non-caps payload triggers search fallback
                 return new HttpResponseMessage(HttpStatusCode.OK)
                 {
                     Content = new StringContent("<unknown></unknown>"),

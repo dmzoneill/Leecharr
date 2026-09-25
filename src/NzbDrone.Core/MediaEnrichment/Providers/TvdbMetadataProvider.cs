@@ -13,7 +13,6 @@ using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.ArrIntegration;
 using NzbDrone.Core.Configuration;
-using NzbDrone.Core.Http;
 
 namespace NzbDrone.Core.MediaEnrichment.Providers;
 

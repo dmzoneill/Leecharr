@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "../i18n";
 import { useAddTorrent, useCategories, AddTorrentResult } from "../api/hooks";
 import { useToast } from "../context/ToastContext";

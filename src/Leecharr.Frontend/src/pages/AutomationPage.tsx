@@ -1,5 +1,5 @@
 import { useTranslation } from "../i18n";
-import React, { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   useAutomationScripts,
   useCreateAutomationScript,
@@ -62,7 +62,7 @@ export interface VisualAction {
   id: string;
   type: VisualActionType;
   value: string;
-  extra?: Record<string, any>;
+  extra?: Record<string, unknown>;
   deleteData?: boolean;
 }
 
@@ -97,7 +97,7 @@ export interface ActionGroup {
   items: ActionDef[];
 }
 
-export const getCommonCommands = (t: any) => [
+export const getCommonCommands = (t: (key: string) => string) => [
   {
     name: "Backup",
     desc: t("automation.commands.createFullDatabaseConfigBackup"),
@@ -128,7 +128,7 @@ export const getCommonCommands = (t: any) => [
   },
 ];
 
-export const getActionGroups = (t: any): ActionGroup[] => [
+export const getActionGroups = (t: (key: string) => string): ActionGroup[] => [
   {
     group: t("automation.actions.tagsCategories"),
     items: [
@@ -337,7 +337,7 @@ export interface PropertyDef {
   presets?: { label: string; value: string }[];
 }
 
-export const getConditionProperties = (t: any): PropertyDef[] => [
+export const getConditionProperties = (t: (key: string) => string): PropertyDef[] => [
   // Booleans & Flags
   {
     value: "${torrent.isPrivate}",
@@ -650,7 +650,7 @@ export const getConditionProperties = (t: any): PropertyDef[] => [
   },
 ];
 
-const getTriggerLabels = (t: any): Record<string, string> => ({
+const getTriggerLabels = (t: (key: string) => string): Record<string, string> => ({
   // Torrent Lifecycle & Goals
   TorrentAdded: t("automation.triggers.onTorrentAdded"),
   TorrentCompleted: t("automation.triggers.onDownloadCompleted"),
@@ -917,7 +917,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
         const expr = condMatch[1].trim();
         const opMatch = expr.match(/(>=|<=|==|!=|>|<)/);
         if (opMatch) {
-          const op = opMatch[1] as any;
+          const op = opMatch[1] as VisualStep["conditionOp"];
           const parts = expr.split(op);
           currentStep.conditionLeft = parts[0]?.trim() || "${torrent.size}";
           currentStep.conditionOp = op;
@@ -940,7 +940,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       inActions = false;
     } else if (currentStep && inHttp && trimmed.startsWith("method:")) {
       const m = trimmed.match(/method:\s*['"]?([^'"]+)['"]?/);
-      if (m && currentStep) currentStep.http.method = m[1] as any;
+      if (m && currentStep) currentStep.http.method = m[1].toUpperCase() as VisualStep["http"]["method"];
     } else if (currentStep && inHttp && trimmed.startsWith("url:")) {
       const u = trimmed.match(/url:\s*['"]?([^'"]+)['"]?/);
       if (u && currentStep) currentStep.http.url = u[1];
@@ -1353,7 +1353,10 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       ];
 }
 
-function tGroup(t: any, label: string) {
+function tGroup(
+  t: (key: string, options?: { defaultValue?: string }) => string,
+  label: string,
+) {
   if (label.includes("Tags & Categories"))
     return t("automation.groups.tagsAndCategories", { defaultValue: label });
   if (label.includes("Torrent State"))
@@ -1379,8 +1382,12 @@ function tGroup(t: any, label: string) {
   return t(label, { defaultValue: label });
 }
 
-function tTrigger(t: any, key: string, defaultLabel: string) {
-  const map: any = {
+function tTrigger(
+  t: (key: string, options?: { defaultValue?: string }) => string,
+  key: string,
+  defaultLabel: string,
+) {
+  const map: Record<string, string> = {
     TorrentAdded: "torrentAdded",
     TorrentCompleted: "torrentFinished",
     RatioReached: "ratioReached",
@@ -1401,7 +1408,7 @@ function tTrigger(t: any, key: string, defaultLabel: string) {
 }
 
 function tAction(
-  t: any,
+  t: (key: string, options?: { defaultValue?: string }) => string,
   type: string,
   field: "label" | "placeholder" | "extraHelp",
   defaultText?: string,
@@ -1472,8 +1479,8 @@ export function AutomationPage() {
   const [isTesting, setIsTesting] = useState(false);
   const [isRunningId, setIsRunningId] = useState<number | null>(null);
 
-  const scriptList = scripts || [];
-  const templateList = templates || [];
+  const scriptList = useMemo(() => scripts || [], [scripts]);
+  const templateList = useMemo(() => templates || [], [templates]);
 
   const filteredScripts = useMemo(() => {
     return scriptList.filter((s) => {
@@ -1545,7 +1552,7 @@ export function AutomationPage() {
   function updateActionExtra(
     stepIdx: number,
     actIdx: number,
-    updater: (extra: Record<string, any>) => void,
+    updater: (extra: Record<string, unknown>) => void,
   ) {
     const copy = [...visualSteps];
     const step = copy[stepIdx];
@@ -3193,7 +3200,7 @@ if (torrent) {
                                       onChange={(e) => {
                                         const copy = [...visualSteps];
                                         copy[stepIdx].conditionOp = e.target
-                                          .value as any;
+                                          .value as VisualStep["conditionOp"];
                                         updateVisualSteps(copy);
                                       }}
                                     >
@@ -4431,7 +4438,7 @@ if (torrent) {
                         {testResult.newCategory}
                       </div>
                     )}
-                    {(testResult as any).shouldRecheck && (
+                    {testResult.shouldRecheck && (
                       <div style={{ marginBottom: "0.25rem" }}>
                         <strong>{t("automation.ui.torrentAction")}</strong>{" "}
                         {t("automation.ui.forceHashRecheck")}

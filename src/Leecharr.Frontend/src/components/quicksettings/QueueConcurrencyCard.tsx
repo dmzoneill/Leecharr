@@ -20,11 +20,12 @@ export const QueueConcurrencyCard: React.FC = () => {
         ...updates,
       },
       {
-        onError: (err: any) => {
+        onError: (err: unknown) => {
+          const msg = (err as Error)?.message || "";
           showToast(
             t("quickSettings.failedToUpdateQueue", {
-              error: err.message,
-              0: err.message,
+              error: msg,
+              0: msg,
             }),
             "error",
           );

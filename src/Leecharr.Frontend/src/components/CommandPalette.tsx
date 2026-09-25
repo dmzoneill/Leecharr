@@ -574,7 +574,6 @@ export function CommandPalette({
   // Filter commands by fuzzy keyword matching
   const filteredCommands = useMemo(() => {
     if (!query.trim()) {
-      // Return top priority items when search is empty
       return allCommands.filter((cmd) => cmd.category !== "torrents");
     }
 

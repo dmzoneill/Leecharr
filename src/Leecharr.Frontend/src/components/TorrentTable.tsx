@@ -31,7 +31,7 @@ import { getTorrentBadges } from "../utils/milestones";
 import TorrentContextMenu from "./TorrentContextMenu";
 import TrackerFavicon from "./TrackerFavicon";
 import { MediaArtworkImage } from "./common/MediaArtworkImage";
-import type { Torrent, DownloadHistoryEntry } from "../api/types";
+import type { Torrent, DownloadHistoryEntry, ArrConnection } from "../api/types";
 import { filterTorrents } from "../utils/filterUtils";
 import { useTranslation } from "../i18n";
 import {
@@ -176,6 +176,9 @@ export const TorrentStatusCell: React.FC<{
     if (st === "downloading") {
       color = "var(--accent, #ffd166)";
       bg = "rgba(255, 209, 102, 0.15)";
+    } else if (st === "stalled" || st === "stalleddl" || st === "stalledup") {
+      color = "#f97316";
+      bg = "rgba(249, 115, 22, 0.15)";
     } else if (st === "seeding" || st === "completed") {
       color = "var(--success, #22c55e)";
       bg = "rgba(34, 197, 94, 0.15)";
@@ -377,7 +380,7 @@ export const TorrentNameCell: React.FC<{
   torrent: Torrent;
   historyByHash: Map<string, DownloadHistoryEntry>;
   historyByTitle: Map<string, DownloadHistoryEntry>;
-  arrConnections?: any;
+  arrConnections?: ArrConnection[] | null;
 }> = React.memo(
   ({ torrent: tTorrent, historyByHash, historyByTitle, arrConnections }) => {
     const { t } = useTranslation();
@@ -542,7 +545,7 @@ export interface TorrentCellProps {
   rowIndex: number;
   historyByHash: Map<string, DownloadHistoryEntry>;
   historyByTitle: Map<string, DownloadHistoryEntry>;
-  arrConnections?: any;
+  arrConnections?: ArrConnection[] | null;
 }
 
 export const TorrentCell: React.FC<TorrentCellProps> = React.memo(
@@ -816,19 +819,21 @@ export const TorrentCell: React.FC<TorrentCellProps> = React.memo(
       case "label":
         return <span>{t.label || "-"}</span>;
 
-      case "superSeeding":
+      case "superSeeding": {
+        const legacySuper = (t as unknown as { superSeeding?: boolean }).superSeeding;
         return (
           <span>
-            {((t as any).superSeeding ?? t.initialSeeding)
+            {(legacySuper ?? t.initialSeeding)
               ? translate("common.yes")
               : translate("common.no")}
           </span>
         );
+      }
 
       case "forceStart":
         return (
           <span>
-            {(t as any).forceStart
+            {t.forceStart
               ? translate("common.yes")
               : translate("common.no")}
           </span>
@@ -837,7 +842,7 @@ export const TorrentCell: React.FC<TorrentCellProps> = React.memo(
       case "active":
         return (
           <span>
-            {(t as any).active
+            {t.active
               ? translate("common.yes")
               : translate("common.no")}
           </span>
@@ -846,37 +851,39 @@ export const TorrentCell: React.FC<TorrentCellProps> = React.memo(
       case "availability":
         return (
           <span>
-            {typeof (t as any).availability === "number"
-              ? ((t as any).availability as number).toFixed(2)
+            {typeof t.availability === "number"
+              ? t.availability.toFixed(2)
               : "-"}
           </span>
         );
 
       case "sessionUploaded":
-        return <span>{formatBytes((t as any).sessionUploaded ?? 0)}</span>;
+        return <span>{formatBytes(t.sessionUploaded ?? 0)}</span>;
 
       case "sessionDownloaded":
-        return <span>{formatBytes((t as any).sessionDownloaded ?? 0)}</span>;
+        return <span>{formatBytes(t.sessionDownloaded ?? 0)}</span>;
 
       case "announceInterval":
         return (
           <span>
-            {(t as any).announceInterval
-              ? formatSeconds((t as any).announceInterval)
+            {t.announceInterval
+              ? formatSeconds(t.announceInterval)
               : "-"}
           </span>
         );
 
-      case "nextUpdate":
+      case "nextUpdate": {
+        const legacyNextAnnounce = (t as unknown as { nextAnnounce?: string | number }).nextAnnounce;
         return (
           <span>
-            {(t as any).nextAnnounce
-              ? formatDate((t as any).nextAnnounce)
-              : (t as any).nextUpdate
-                ? formatDate((t as any).nextUpdate)
+            {legacyNextAnnounce
+              ? formatDate(legacyNextAnnounce)
+              : t.nextUpdate
+                ? formatDate(t.nextUpdate)
                 : "-"}
           </span>
         );
+      }
 
       case "creationDate":
         return <span>{t.creationDate ? formatDate(t.creationDate) : "-"}</span>;
@@ -884,8 +891,8 @@ export const TorrentCell: React.FC<TorrentCellProps> = React.memo(
       case "threshold":
         return (
           <span>
-            {(t as any).threshold !== undefined
-              ? `${(t as any).threshold}%`
+            {t.threshold !== undefined
+              ? `${t.threshold}%`
               : "-"}
           </span>
         );
@@ -893,14 +900,14 @@ export const TorrentCell: React.FC<TorrentCellProps> = React.memo(
       case "smallTorrentLimit":
         return (
           <span>
-            {(t as any).smallTorrentLimit
-              ? formatBytes((t as any).smallTorrentLimit)
+            {t.smallTorrentLimit
+              ? formatBytes(t.smallTorrentLimit)
               : "-"}
           </span>
         );
 
       default:
-        return <span>{String((t as any)[columnKey] ?? "-")}</span>;
+        return <span>{String((t as unknown as Record<string, unknown>)[columnKey] ?? "-")}</span>;
     }
   },
 );
@@ -927,7 +934,7 @@ interface TorrentTableRowProps {
   onContextMenu: (e: React.MouseEvent, torrent: Torrent | null) => void;
   historyByHash: Map<string, DownloadHistoryEntry>;
   historyByTitle: Map<string, DownloadHistoryEntry>;
-  arrConnections?: any;
+  arrConnections?: ArrConnection[] | null;
   measureElement?: (node: HTMLElement | null) => void;
 }
 
@@ -1285,7 +1292,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
       dragOverColRef.current = null;
       setDragOverKey(null);
     },
-    [columns],
+    [columns, setColumnOrder],
   );
 
   const handleColDragEnd = useCallback(() => {
@@ -1313,15 +1320,16 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
       resizeStateRef.current = { key, startX: e.clientX, startWidth };
 
       const onMouseMove = (ev: MouseEvent) => {
-        if (!resizeStateRef.current) return;
-        const delta = ev.clientX - resizeStateRef.current.startX;
+        const state = resizeStateRef.current;
+        if (!state) return;
+        const delta = ev.clientX - state.startX;
         const newWidth = Math.max(
           48,
-          resizeStateRef.current.startWidth + delta,
+          state.startWidth + delta,
         );
         setColumnWidths((prev) => ({
           ...prev,
-          [resizeStateRef.current!.key]: newWidth,
+          [state.key]: newWidth,
         }));
       };
 
@@ -1342,7 +1350,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
       document.addEventListener("mousemove", onMouseMove);
       document.addEventListener("mouseup", onMouseUp);
     },
-    [],
+    [setColumnWidths],
   );
 
   const handleContextMenu = (e: React.MouseEvent, torrent: Torrent | null) => {
@@ -1381,10 +1389,9 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     }
   };
 
-  const sourceTorrents = propTorrents || [];
-
   const filteredTorrents = useMemo(() => {
-    return filterTorrents(sourceTorrents, {
+    const list = propTorrents || [];
+    return filterTorrents(list, {
       filter,
       stateFilter,
       trackerFilter,
@@ -1394,7 +1401,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
       tagFilter: selectedTag,
     });
   }, [
-    sourceTorrents,
+    propTorrents,
     filter,
     stateFilter,
     trackerFilter,
@@ -1450,8 +1457,8 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
       const mergedA = applyTelemetry(a, telA);
       const mergedB = applyTelemetry(b, telB);
 
-      let valA: any = (mergedA as any)[sortKey];
-      let valB: any = (mergedB as any)[sortKey];
+      let valA: unknown = (mergedA as unknown as Record<string, unknown>)[sortKey];
+      let valB: unknown = (mergedB as unknown as Record<string, unknown>)[sortKey];
 
       if (sortKey === "#" || sortKey === "queuePosition") {
         valA =
@@ -1484,19 +1491,23 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
       if (valA === undefined || valA === null) return 1;
       if (valB === undefined || valB === null) return -1;
 
-      if (typeof valA === "string") {
+      if (typeof valA === "string" || typeof valB === "string") {
+        const strA = String(valA ?? "");
+        const strB = String(valB ?? "");
         return sortAsc
-          ? valA.localeCompare(valB, undefined, {
+          ? strA.localeCompare(strB, undefined, {
               numeric: true,
               sensitivity: "base",
             })
-          : valB.localeCompare(valA, undefined, {
+          : strB.localeCompare(strA, undefined, {
               numeric: true,
               sensitivity: "base",
             });
       }
 
-      return sortAsc ? valA - valB : valB - valA;
+      const numA = Number(valA);
+      const numB = Number(valB);
+      return sortAsc ? numA - numB : numB - numA;
     });
 
     frozenOrderRef.current = sorted.map((t) => t.id);
@@ -1595,25 +1606,19 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
       } else {
         selectionAnchorIndexRef.current = index;
         lastClickedIndexRef.current = index;
-        if (
-          selectedIds.size > 0 &&
-          (!selectedIds.has(torrent.id) || selectedIds.size > 1)
-        ) {
-          if (onSelectAll) {
-            onSelectAll([torrent.id]);
-          } else {
-            useTorrentStore.getState().setSelectedIds(new Set([torrent.id]));
-          }
+        if (onSelectAll) {
+          onSelectAll([torrent.id]);
+        } else {
+          useTorrentStore.getState().setSelectedIds(new Set([torrent.id]));
         }
         onSelect?.(torrent);
       }
     },
-    [sortedTorrents, selectedIds, onSelectAll, onSelect, onToggleSelect],
+    [sortedTorrents, onSelectAll, onSelect, onToggleSelect],
   );
 
   useEffect(() => {
     const handleTableKeyDown = (e: KeyboardEvent) => {
-      // Return early if any modal or dialog is open so keys don't hijack dialog controls
       const isModalOpen = !!document.querySelector(
         'dialog[open], [role="dialog"], [aria-modal="true"], .modal-overlay, .modal-backdrop',
       );
@@ -1626,7 +1631,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
         tagName === "textarea" ||
         tagName === "select" ||
         target?.isContentEditable;
-      if (isInput || target?.closest(".detail-panel")) return;
+      if (isInput) return;
 
       // Ctrl+A / Cmd+A: Select all filtered torrents
       if (

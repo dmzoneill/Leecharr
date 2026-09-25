@@ -9,6 +9,7 @@ import {
   useGeneralConfig,
 } from "../api/hooks";
 import { useToast } from "../context/ToastContext";
+import { getUrlBase } from "../api/client";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import { formatBytes, formatDate } from "../utils/formatters";
 import { trackSystemMaintenanceAction } from "../utils/analytics";
@@ -100,11 +101,7 @@ function SystemBackup() {
   const [confirmRestore, setConfirmRestore] = useState<Backup | null>(null);
 
   const getDownloadUrl = (backupId: number) => {
-    const urlBase = (
-      generalConfig?.urlBase ||
-      (typeof window !== "undefined" && (window as any).Leecharr?.urlBase) ||
-      ""
-    ).replace(/\/+$/, "");
+    const urlBase = (generalConfig?.urlBase || getUrlBase()).replace(/\/+$/, "");
     const apiKey = generalConfig?.apiKey || "";
     const base = `${urlBase}/api/v1/backup/${backupId}/download`;
     return apiKey ? `${base}?apikey=${encodeURIComponent(apiKey)}` : base;

@@ -379,8 +379,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 return gw.Address;
             }
 
-            // For VPN / point-to-point interfaces where GatewayAddresses is empty in Linux,
-            // check if there is a unicast IPv4 address and resolve the default subnet gateway (e.g. .1)
+            // VPN and point-to-point tunnels on Linux omit GatewayAddresses; derive subnet gateway (.1) from unicast IPv4
             var isVpnOrPointToPoint = ni.NetworkInterfaceType == NetworkInterfaceType.Ppp ||
                                       ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel ||
                                       IsVpnInterfaceName(ni.Name);
@@ -450,8 +449,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                         }
                     }
 
-                    // For VPN / point-to-point interfaces where GatewayAddresses is empty in Linux,
-                    // check if there is a unicast IPv4 address and resolve default subnet gateway (.1)
+                    // VPN and point-to-point tunnels on Linux omit GatewayAddresses; derive subnet gateway (.1) from unicast IPv4
                     if (gateways.Count == 0 && unicasts.Count > 0)
                     {
                         var isVpnOrPointToPoint = ni.NetworkInterfaceType == NetworkInterfaceType.Ppp ||

@@ -75,11 +75,12 @@ export const BandwidthCard: React.FC = () => {
         ...updates,
       },
       {
-        onError: (err: any) => {
+        onError: (err: unknown) => {
+          const msg = (err as Error)?.message || "";
           showToast(
             t("quickSettings.failedToUpdateSpeed", {
-              error: err.message,
-              0: err.message,
+              error: msg,
+              0: msg,
             }),
             "error",
           );

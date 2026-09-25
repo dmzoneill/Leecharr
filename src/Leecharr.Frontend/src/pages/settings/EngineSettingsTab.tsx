@@ -1,5 +1,5 @@
 import { useTranslation } from "../../i18n";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   useBitTorrentConfig,
   useSaveBitTorrentConfig,
@@ -167,10 +167,11 @@ export function EngineSettingsTab() {
             "success",
           );
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
+          const anyErr = err as { response?: { data?: { message?: string } }; message?: string } | null;
           showToast(
-            err?.response?.data?.message ||
-              err?.message ||
+            anyErr?.response?.data?.message ||
+              anyErr?.message ||
               t("settingsTabs.batch2.failedToSaveEngineSettings"),
             "error",
           );
@@ -190,7 +191,7 @@ export function EngineSettingsTab() {
           preserveTransfers: true,
         },
         {
-          onSuccess: (res: any) => {
+          onSuccess: (res: { message?: string } | null) => {
             setSelectedEngineForSwitch(null);
             update("activeTorrentEngine", targetEngine);
             trackEngineSwitch(targetEngine);
@@ -205,11 +206,12 @@ export function EngineSettingsTab() {
               "success",
             );
           },
-          onError: (err: any) => {
+          onError: (err: unknown) => {
+            const anyErr = err as { response?: { data?: { error?: string; message?: string } }; message?: string } | null;
             const errorMsg =
-              err?.response?.data?.error ||
-              err?.response?.data?.message ||
-              err?.message ||
+              anyErr?.response?.data?.error ||
+              anyErr?.response?.data?.message ||
+              anyErr?.message ||
               t("settingsTabs.batch2.failedToSwitchTorrentEngine");
             showToast(errorMsg, "error");
             setSelectedEngineForSwitch(null);
@@ -225,7 +227,7 @@ export function EngineSettingsTab() {
       switchVersionMutation.mutate(
         { version: targetVersion, preserveTransfers: true },
         {
-          onSuccess: (res: any) => {
+          onSuccess: (res: { message?: string } | null) => {
             setSelectedVersionForSwitch(null);
             showToast(
               res?.message ||
@@ -233,11 +235,12 @@ export function EngineSettingsTab() {
               "success",
             );
           },
-          onError: (err: any) => {
+          onError: (err: unknown) => {
+            const anyErr = err as { response?: { data?: { error?: string; message?: string } }; message?: string } | null;
             const errorMsg =
-              err?.response?.data?.error ||
-              err?.response?.data?.message ||
-              err?.message ||
+              anyErr?.response?.data?.error ||
+              anyErr?.response?.data?.message ||
+              anyErr?.message ||
               "Failed to switch engine version";
             showToast(errorMsg, "error");
             setSelectedVersionForSwitch(null);
@@ -271,12 +274,13 @@ export function EngineSettingsTab() {
           "error",
         );
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errObj = err as Error | null;
       showToast(
         t("settingsTabs.engine.probeFailed", {
           engine: version ? `${engineId} (v${version})` : engineId,
-          error: err?.message || t("settingsTabs.notifications.unknownError"),
-          defaultValue: `Probe failed for ${engineId}${version ? ` (v${version})` : ""}: ${err?.message || ""}`,
+          error: errObj?.message || t("settingsTabs.notifications.unknownError"),
+          defaultValue: `Probe failed for ${engineId}${version ? ` (v${version})` : ""}: ${errObj?.message || ""}`,
         }),
         "error",
       );
@@ -323,7 +327,8 @@ export function EngineSettingsTab() {
           }}
         >
           {engines?.map((eng) => {
-            const engineId = eng.engineId || (eng as any).engineType || "";
+            const engineId =
+              eng.engineId || (eng as { engineType?: string }).engineType || "";
             const isActive = engineId.toLowerCase() === currentActiveEngine;
             const supportedVersions =
               eng.supportedVersions && eng.supportedVersions.length > 0

@@ -155,7 +155,7 @@ public static class ContainerExtensions
         var handleInterfaces = interfaces.Where(i => i.IsGenericType && i.Name.StartsWith("IHandle`1", StringComparison.Ordinal)).ToArray();
         foreach (var hi in handleInterfaces)
         {
-            container.Register(hi, type, Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.AppendNotKeyed);
+            container.Register(hi, type, Reuse.Singleton, ifAlreadyRegistered: IfAlreadyRegistered.Keep);
         }
     }
 

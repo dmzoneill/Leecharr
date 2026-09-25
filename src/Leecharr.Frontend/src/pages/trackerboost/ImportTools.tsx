@@ -75,13 +75,14 @@ export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
         ),
         "success",
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errObj = err as Error | null;
       showToast(
         t(
           "trackerBoost.settings.bulkImportFailed",
           "Failed to bulk import trackers: {error}",
           {
-            error: err?.message || t("common.unknownError", "Unknown error"),
+            error: errObj?.message || t("common.unknownError", "Unknown error"),
           },
         ),
         "error",

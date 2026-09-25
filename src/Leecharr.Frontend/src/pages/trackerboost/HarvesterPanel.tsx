@@ -23,6 +23,8 @@ export interface HarvesterPanelProps {
   onSelectKey: (key: string) => void;
 }
 
+export type DownloadFilterMode = "all" | "public" | "private" | "real" | "leecharr";
+
 export function HarvesterPanel({
   unifiedItems,
   torrentsLoading,
@@ -32,9 +34,8 @@ export function HarvesterPanel({
   const { t } = useTranslation();
   const { showToast } = useToast();
 
-  const [downloadFilter, setDownloadFilter] = useState<
-    "all" | "public" | "private" | "real" | "leecharr"
-  >("all");
+  const [downloadFilter, setDownloadFilter] =
+    useState<DownloadFilterMode>("all");
   const [downloadSearch, setDownloadSearch] = useState("");
 
   const scanTrackers = useScanTrackerBoostTrackers();
@@ -344,7 +345,9 @@ export function HarvesterPanel({
               fontSize: "0.82rem",
             }}
             value={downloadFilter}
-            onChange={(e) => setDownloadFilter(e.target.value as any)}
+            onChange={(e) =>
+              setDownloadFilter(e.target.value as DownloadFilterMode)
+            }
           >
             <option value="all">
               {t("trackerBoost.filterAllSwarms", "All Swarms ({count})", {

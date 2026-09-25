@@ -5,7 +5,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 
@@ -62,7 +61,7 @@ public class OnlineApiGeoIpProvider : IGeoIpProvider, IDisposable
     {
         try
         {
-            var probeUrl = string.Format(this.apiEndpointTemplate, "8.8.8.8");
+            var probeUrl = this.apiEndpointTemplate.Replace("{0}", "8.8.8.8");
             using var request = new HttpRequestMessage(HttpMethod.Get, probeUrl);
             using var response = await this.httpClient.SendAsync(request);
 
@@ -150,7 +149,7 @@ public class OnlineApiGeoIpProvider : IGeoIpProvider, IDisposable
         // 4. Perform outbound HTTP request
         try
         {
-            var endpoint = string.Format(this.apiEndpointTemplate, Uri.EscapeDataString(ipAddress));
+            var endpoint = this.apiEndpointTemplate.Replace("{0}", Uri.EscapeDataString(ipAddress));
             using var response = await this.httpClient.GetAsync(endpoint);
 
             if (!response.IsSuccessStatusCode)

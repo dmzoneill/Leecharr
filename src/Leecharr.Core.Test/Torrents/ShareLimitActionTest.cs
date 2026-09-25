@@ -1,6 +1,5 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
-using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;

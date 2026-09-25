@@ -31,7 +31,7 @@ interface CommandItem {
 
 function formatTaskName(
   typeName: string,
-  t?: (k: string, p?: any) => string,
+  t?: (k: string, p?: Record<string, unknown>) => string,
 ): string {
   if (!typeName) return "";
   const shortName = typeName.includes(".")
@@ -53,7 +53,7 @@ function formatTaskName(
 
 function formatInterval(
   minutes: number,
-  t?: (k: string, p?: any) => string,
+  t?: (k: string, p?: Record<string, unknown>) => string,
 ): string {
   if (minutes < 1) {
     const secs = Math.round(minutes * 60);
@@ -89,7 +89,7 @@ function formatInterval(
 
 function formatRelativeTime(
   dateStr?: string | null,
-  t?: (k: string, p?: any) => string,
+  t?: (k: string, p?: Record<string, unknown>) => string,
 ): string {
   if (!dateStr) return "-";
   const date = new Date(dateStr);

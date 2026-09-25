@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using NLog;
 
@@ -28,7 +29,7 @@ public class EventAggregator : IEventAggregator
         this.logger.Trace("Publishing {0}", @event.GetType().Name);
 
         var handlerType = typeof(IHandle<>).MakeGenericType(@event.GetType());
-        var handlers = this.serviceProvider.GetServices(handlerType);
+        var handlers = this.serviceProvider.GetServices(handlerType).DistinctBy(h => h.GetType());
 
         foreach (var handler in handlers)
         {

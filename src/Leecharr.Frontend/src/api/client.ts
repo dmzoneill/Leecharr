@@ -106,7 +106,7 @@ class ApiClient {
 
     if (!response.ok) {
       let message = `API error: ${response.status} ${response.statusText}`;
-      let data: any = null;
+      let data: unknown = null;
       try {
         const text = await response.text();
         if (text) {
@@ -122,7 +122,10 @@ class ApiClient {
       } catch {
         // ignore
       }
-      const error: any = new Error(message);
+      const error = new Error(message) as Error & {
+        status?: number;
+        response?: { status: number; statusText: string; data: unknown };
+      };
       error.status = response.status;
       error.response = {
         status: response.status,
@@ -286,9 +289,9 @@ export const api = {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         return await api.login(credentials);
-      } catch (err: any) {
+      } catch (err: unknown) {
         lastError = err;
-        const msg = String(err?.message || "");
+        const msg = String((err as Error)?.message || "");
         // Do not retry client/auth errors like invalid password
         if (
           msg.includes("401") ||
@@ -315,8 +318,8 @@ export const api = {
       try {
         const user = await api.getCurrentUser();
         return user;
-      } catch (err: any) {
-        if (err?.message?.includes("401")) {
+      } catch (err: unknown) {
+        if ((err as Error)?.message?.includes("401")) {
           throw err;
         }
         if (attempt === maxRetries) {

@@ -153,9 +153,9 @@ export function CategorySettingsTab({
             );
             setEditingCategory(null);
           },
-          onError: (err: any) => {
+          onError: (err: unknown) => {
             setModalError(
-              err?.message || t("settingsTabs.categories.updateFailed"),
+              (err as Error)?.message || t("settingsTabs.categories.updateFailed"),
             );
           },
         },
@@ -172,9 +172,9 @@ export function CategorySettingsTab({
           );
           setEditingCategory(null);
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
           setModalError(
-            err?.message || t("settingsTabs.categories.createFailed"),
+            (err as Error)?.message || t("settingsTabs.categories.createFailed"),
           );
         },
       });
@@ -199,9 +199,9 @@ export function CategorySettingsTab({
           "info",
         );
       },
-      onError: (err: any) => {
+      onError: (err: unknown) => {
         showToast(
-          err?.message || t("settingsTabs.categories.deleteFailed"),
+          (err as Error)?.message || t("settingsTabs.categories.deleteFailed"),
           "error",
         );
       },

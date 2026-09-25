@@ -42,7 +42,7 @@ export function filterTorrents(
     if (filter) {
       const q = filter.toLowerCase();
       const matchName = (t.name || "").toLowerCase().includes(q);
-      const matchMedia = ((t as any).mediaTitle || "")
+      const matchMedia = (t.mediaTitle || "")
         .toLowerCase()
         .includes(q);
       if (!matchName && !matchMedia) return false;
@@ -53,6 +53,10 @@ export function filterTorrents(
       const target = stateFilter.toLowerCase();
       if (target === "stopped" || target === "paused") {
         if (st !== "paused" && st !== "stopped" && st !== "idle") return false;
+      } else if (target === "downloading") {
+        if (st !== "downloading" && st !== "stalled" && st !== "stalleddl") return false;
+      } else if (target === "seeding") {
+        if (st !== "seeding" && st !== "completed" && st !== "stalledup") return false;
       } else if (st !== target) {
         return false;
       }
@@ -94,21 +98,14 @@ export function filterTorrents(
         const matches = tagIdsArray.some((id) => tTags.includes(id));
         if (!matches) return false;
       }
-    } else if (untaggedOnly) {
+    } else if (untaggedOnly || tagFilter === "Untagged") {
       const isUntagged =
         (t.tagIds == null || t.tagIds.length === 0) &&
         (!t.label || t.label.trim() === "" || t.label.trim() === "Untagged");
       if (!isUntagged) return false;
     } else if (tagFilter && tagFilter !== "All") {
-      if (tagFilter === "Untagged") {
-        const isUntagged =
-          (t.tagIds == null || t.tagIds.length === 0) &&
-          (!t.label || t.label.trim() === "" || t.label.trim() === "Untagged");
-        if (!isUntagged) return false;
-      } else {
-        const tag = t.label?.trim() || "Untagged";
-        if (tag !== tagFilter) return false;
-      }
+      const tag = t.label?.trim() || "Untagged";
+      if (tag !== tagFilter) return false;
     }
 
     return true;

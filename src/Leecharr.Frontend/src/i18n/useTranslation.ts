@@ -2,11 +2,11 @@ import { useCallback } from "react";
 import { useI18nStore } from "./i18nStore";
 import en from "./locales/en";
 
-function lookupKey(obj: any, keys: string[]): string | null {
-  let value: any = obj;
+function lookupKey(obj: unknown, keys: string[]): string | null {
+  let value: unknown = obj;
   for (const k of keys) {
     if (value && typeof value === "object" && k in value) {
-      value = value[k];
+      value = (value as Record<string, unknown>)[k];
     } else {
       return null;
     }
@@ -45,9 +45,9 @@ function extractArgs(
     if (
       !Array.isArray(arg1) &&
       "defaultValue" in arg1 &&
-      typeof (arg1 as any).defaultValue === "string"
+      typeof arg1.defaultValue === "string"
     ) {
-      defaultValue = (arg1 as any).defaultValue;
+      defaultValue = arg1.defaultValue;
     }
   }
   return { defaultValue, params };

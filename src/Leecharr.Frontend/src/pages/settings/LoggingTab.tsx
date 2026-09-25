@@ -1,5 +1,5 @@
 import { useTranslation } from "../../i18n";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useAdvancedConfig, useSaveAdvancedConfig } from "../../api/hooks";
 import { apiClient } from "../../api/client";
 import {
@@ -69,10 +69,11 @@ export function LoggingTab() {
     try {
       await apiClient.post("/system/maintenance/vacuum", {});
       setVacuumMsg(t("settingsTabs.logging.vacuumSuccess"));
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errObj = err as Error | null;
       setVacuumMsg(
         t("settingsTabs.logging.vacuumError", {
-          error: err?.message || t("settingsTabs.logging.internalServerError"),
+          error: errObj?.message || t("settingsTabs.logging.internalServerError"),
         }),
       );
     } finally {

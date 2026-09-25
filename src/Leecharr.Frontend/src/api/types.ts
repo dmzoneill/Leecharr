@@ -1629,7 +1629,7 @@ export interface SubsystemTelemetryReport {
   activeProvider: string;
   status: string;
   resourceLoad: string;
-  metrics: Record<string, any>;
+  metrics: Record<string, unknown>;
 }
 
 export interface SystemResourceTelemetrySnapshot {
@@ -1767,6 +1767,7 @@ export interface AutomationExecutionResult {
   shouldResume: boolean;
   shouldRemove: boolean;
   deleteDataOnRemove: boolean;
+  shouldRecheck?: boolean;
   newUploadLimitKbps?: number | null;
   newDownloadLimitKbps?: number | null;
 }
@@ -1846,5 +1847,65 @@ export interface PackageImportResult {
   skippedDuplicates: string[];
   extractedFiles: string[];
   totalBytesExtracted: number;
+  message?: string;
+}
+
+export interface DatabaseColumn {
+  cid: number;
+  name: string;
+  type: string;
+  notNull: boolean;
+  defaultValue?: string | null;
+  isPrimaryKey: boolean;
+}
+
+export interface DatabaseForeignKey {
+  id: number;
+  fromColumn: string;
+  toTable: string;
+  toColumn: string;
+  onUpdate: string;
+  onDelete: string;
+}
+
+export interface DatabaseIndex {
+  name: string;
+  unique: boolean;
+  columns: string[];
+}
+
+export interface DatabaseTable {
+  name: string;
+  rowCount: number;
+  columnCount: number;
+}
+
+export interface DatabaseTableSchema {
+  name: string;
+  rowCount: number;
+  columns: DatabaseColumn[];
+  foreignKeys: DatabaseForeignKey[];
+  indexes: DatabaseIndex[];
+}
+
+export interface DatabaseSchemaResponse {
+  tables: DatabaseTableSchema[];
+  mermaidErd: string;
+}
+
+export interface DatabaseQueryRequest {
+  query: string;
+  readOnly: boolean;
+}
+
+export interface DatabaseQueryResult {
+  success: boolean;
+  errorMessage?: string;
+  executionTimeMs: number;
+  isQuery: boolean;
+  columns: string[];
+  rows: Array<Array<unknown>>;
+  totalRows: number;
+  rowsAffected: number;
   message?: string;
 }

@@ -1,6 +1,5 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
-using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 using FluentAssertions;

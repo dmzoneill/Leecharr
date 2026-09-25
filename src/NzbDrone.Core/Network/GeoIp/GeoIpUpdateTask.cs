@@ -181,8 +181,6 @@ public class GeoIpUpdateTask : IGeoIpUpdateTask, IHandle<ApplicationStartedEvent
             }
 
             var decompressedBytes = decompressedStream.ToArray();
-
-            // Check if decompressed stream contains a TAR archive
             try
             {
                 decompressedStream.Position = 0;

@@ -450,8 +450,8 @@ export function FilesTab({
       showToast(`Successfully renamed to '${renameInput.trim()}'`, "success");
       setRenamingNode(null);
       await refetchFiles();
-    } catch (err: any) {
-      showToast(err?.message || "Failed to rename item", "error");
+    } catch (err: unknown) {
+      showToast((err as Error)?.message || "Failed to rename item", "error");
     } finally {
       setIsRenaming(false);
     }

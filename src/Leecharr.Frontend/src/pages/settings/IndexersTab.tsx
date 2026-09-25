@@ -52,12 +52,22 @@ export function normalizeIndexerPayload(
   }
 
   let url = editing.url?.trim() || "";
-  if (editing.apiPath && !url.includes(editing.apiPath)) {
+  const isProwlarr =
+    editing.indexerType === "Prowlarr" ||
+    editing.implementation?.includes("Prowlarr") ||
+    editing.name?.toLowerCase().includes("prowlarr");
+
+  if (!isProwlarr && editing.apiPath && !url.includes(editing.apiPath)) {
     const baseUrl = url.replace(/\/+$/, "");
     const path = editing.apiPath.replace(/^\/+/, "");
     if (path) {
       url = `${baseUrl}/${path}`;
     }
+  } else if (isProwlarr) {
+    url = url
+      .replace(/\/api\/v1\/?$/i, "")
+      .replace(/\/api\/?$/i, "")
+      .replace(/\/+$/, "");
   }
 
   const name = editing.name?.trim() || editing.indexerType || "Indexer";
@@ -246,10 +256,11 @@ export function IndexersTab() {
           setEditing(null);
           setModalTestResult(null);
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
           trackIndexerAction("edit", payload.indexerType || "Prowlarr", false);
+          const errObj = err as Error | null;
           showToast(
-            err?.message ||
+            errObj?.message ||
               t(
                 "settingsTabs.indexers.updateFailed",
                 "Failed to update indexer",
@@ -272,10 +283,11 @@ export function IndexersTab() {
           setEditing(null);
           setModalTestResult(null);
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
           trackIndexerAction("add", payload.indexerType || "Prowlarr", false);
+          const errObj = err as Error | null;
           showToast(
-            err?.message ||
+            errObj?.message ||
               t(
                 "settingsTabs.indexers.createFailed",
                 "Failed to create indexer",
@@ -322,9 +334,10 @@ export function IndexersTab() {
           );
           setEditingRule(null);
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
+          const errObj = err as Error | null;
           showToast(
-            err?.message || t("settingsTabs.indexers.rssRuleUpdateFailed"),
+            errObj?.message || t("settingsTabs.indexers.rssRuleUpdateFailed"),
             "error",
           );
         },
@@ -338,9 +351,10 @@ export function IndexersTab() {
           );
           setEditingRule(null);
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
+          const errObj = err as Error | null;
           showToast(
-            err?.message || t("settingsTabs.indexers.rssRuleCreateFailed"),
+            errObj?.message || t("settingsTabs.indexers.rssRuleCreateFailed"),
             "error",
           );
         },
@@ -396,9 +410,10 @@ export function IndexersTab() {
           "success",
         );
       },
-      onError: (err: any) => {
+      onError: (err: unknown) => {
+        const errObj = err as Error | null;
         showToast(
-          err?.message || t("settingsTabs.indexers.rssSyncFailed"),
+          errObj?.message || t("settingsTabs.indexers.rssSyncFailed"),
           "error",
         );
       },
@@ -483,14 +498,15 @@ export function IndexersTab() {
                           "info",
                         );
                       },
-                      onError: (err: any) => {
+                      onError: (err: unknown) => {
                         trackIndexerAction(
                           "delete",
                           idx.indexerType || "indexer",
                           false,
                         );
+                        const errObj = err as Error | null;
                         showToast(
-                          err?.message ||
+                          errObj?.message ||
                             t("settingsTabs.indexers.deleteIndexerFailed"),
                           "error",
                         );
@@ -610,12 +626,14 @@ export function IndexersTab() {
                           }),
                           "info",
                         ),
-                      onError: (err: any) =>
+                      onError: (err: unknown) => {
+                        const errObj = err as Error | null;
                         showToast(
-                          err?.message ||
+                          errObj?.message ||
                             t("settingsTabs.indexers.deleteRssRuleFailed"),
                           "error",
-                        ),
+                        );
+                      },
                     });
                   }}
                 >

@@ -9,6 +9,20 @@ import {
   TIMEOUT_OPTIONS,
 } from "./useIdleTimer";
 
+interface MockWindow {
+  localStorage: MockLocalStorage;
+  addEventListener: (type: string, listener: EventListener | ((e: StorageEvent) => void)) => void;
+  removeEventListener: (type: string, listener: EventListener | ((e: StorageEvent) => void)) => void;
+  dispatchEvent: (e: Event | { type: string; [key: string]: unknown }) => boolean;
+}
+
+interface TestGlobal {
+  window?: MockWindow | unknown;
+  __storageListeners?: Array<(e: StorageEvent) => void>;
+}
+
+const testGlobal = globalThis as unknown as TestGlobal;
+
 class MockLocalStorage {
   private store = new Map<string, string>();
 
@@ -20,14 +34,14 @@ class MockLocalStorage {
     const oldValue = this.store.get(key) ?? null;
     this.store.set(key, value);
 
-    if (typeof (globalThis as any).window !== "undefined") {
+    if (typeof testGlobal.window !== "undefined") {
       const storageEvent = {
         key,
         newValue: value,
         oldValue,
       } as StorageEvent;
 
-      const listeners = (globalThis as any).__storageListeners || [];
+      const listeners = testGlobal.__storageListeners || [];
       for (const listener of listeners) {
         listener(storageEvent);
       }
@@ -44,52 +58,52 @@ class MockLocalStorage {
 }
 
 describe("useIdleTimer / IdleTimerTracker", () => {
-  let originalWindow: any;
+  let originalWindow: unknown;
   let mockStorage: MockLocalStorage;
   let storageListeners: Array<(e: StorageEvent) => void>;
   let windowListeners: Map<string, Set<EventListener>>;
 
   beforeEach(() => {
-    originalWindow = (globalThis as any).window;
+    originalWindow = testGlobal.window;
     mockStorage = new MockLocalStorage();
     storageListeners = [];
     windowListeners = new Map();
 
-    (globalThis as any).__storageListeners = storageListeners;
-    (globalThis as any).window = {
+    testGlobal.__storageListeners = storageListeners;
+    testGlobal.window = {
       localStorage: mockStorage,
-      addEventListener: (type: string, listener: any) => {
+      addEventListener: (type: string, listener: EventListener | ((e: StorageEvent) => void)) => {
         if (type === "storage") {
-          storageListeners.push(listener);
+          storageListeners.push(listener as (e: StorageEvent) => void);
         } else {
           if (!windowListeners.has(type)) {
             windowListeners.set(type, new Set());
           }
-          windowListeners.get(type)?.add(listener);
+          windowListeners.get(type)?.add(listener as EventListener);
         }
       },
-      removeEventListener: (type: string, listener: any) => {
+      removeEventListener: (type: string, listener: EventListener | ((e: StorageEvent) => void)) => {
         if (type === "storage") {
-          const idx = storageListeners.indexOf(listener);
+          const idx = storageListeners.indexOf(listener as (e: StorageEvent) => void);
           if (idx !== -1) storageListeners.splice(idx, 1);
         } else {
-          windowListeners.get(type)?.delete(listener);
+          windowListeners.get(type)?.delete(listener as EventListener);
         }
       },
-      dispatchEvent: (e: any) => {
+      dispatchEvent: (e: Event | { type: string; [key: string]: unknown }) => {
         if (e.type === "storage") {
           for (const l of storageListeners) {
-            l(e);
+            l(e as StorageEvent);
           }
         }
         return true;
       },
-    };
+    } as MockWindow;
   });
 
   afterEach(() => {
-    (globalThis as any).window = originalWindow;
-    delete (globalThis as any).__storageListeners;
+    testGlobal.window = originalWindow;
+    delete testGlobal.__storageListeners;
   });
 
   it("loads default timeout when localStorage is empty", () => {
@@ -114,7 +128,7 @@ describe("useIdleTimer / IdleTimerTracker", () => {
 
   it("setStoredIdleTimeout saves to localStorage and dispatches storage event", () => {
     let receivedEvent: StorageEvent | null = null;
-    (globalThis as any).window.addEventListener(
+    (testGlobal.window as MockWindow).addEventListener(
       "storage",
       (e: StorageEvent) => {
         receivedEvent = e;

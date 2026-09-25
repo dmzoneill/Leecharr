@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from "react";
+import { Component, ErrorInfo, ReactNode } from "react";
 import { ErrorIcon } from "./icons/UIIcons";
 import { translate } from "../i18n/useTranslation";
 import { trackException } from "../utils/analytics";

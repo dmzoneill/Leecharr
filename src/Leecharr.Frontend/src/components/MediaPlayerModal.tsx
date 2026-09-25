@@ -150,9 +150,9 @@ export function MediaPlayerModal({
 
   // Stream Lifecycle Cleanup on Unmount / Close:
   useEffect(() => {
+    const videoEl = videoRef.current;
+    const audioEl = audioRef.current;
     return () => {
-      const videoEl = videoRef.current;
-      const audioEl = audioRef.current;
       if (videoEl) {
         cleanUpMediaElement(videoEl);
       }

@@ -319,15 +319,15 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
     private struct EbmlParserContext
     {
-        public ulong TimecodeScale;
-        public double DurationRaw;
-        public bool IsCurrentAudioTrackAccepted;
-        public int CurrentTrackChannels;
-        public string CurrentTrackName;
-        public bool HasHdr10Plus;
-        public bool HasDolbyVision;
-        public long SegmentDataStart;
-        public long TracksSeekPosition;
+        public ulong TimecodeScale { get; set; }
+        public double DurationRaw { get; set; }
+        public bool IsCurrentAudioTrackAccepted { get; set; }
+        public int CurrentTrackChannels { get; set; }
+        public string CurrentTrackName { get; set; }
+        public bool HasHdr10Plus { get; set; }
+        public bool HasDolbyVision { get; set; }
+        public long SegmentDataStart { get; set; }
+        public long TracksSeekPosition { get; set; }
     }
 
     private static MediaContainerInfo InspectMatroska(byte[] header, string fileName)

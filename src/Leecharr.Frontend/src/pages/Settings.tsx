@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect, useContext } from "react";
+import { useState, useMemo, useRef, useEffect, useContext } from "react";
 import { useParams, useNavigate } from "react-router";
 import {
   SETTINGS_GROUPS,

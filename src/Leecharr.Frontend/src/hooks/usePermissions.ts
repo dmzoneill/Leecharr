@@ -25,13 +25,17 @@ export function getPermissions(
   const roles = user?.roles ?? [];
   const normalizedRoles = roles.map((r) => r.toLowerCase().trim());
 
-  const isAuthenticated = user?.isAuthenticated ?? false;
-  const isAdmin = isAuthenticated && normalizedRoles.includes("admin");
+  // When authentication is disabled, grant all permissions
+  const isAuthDisabled = user?.authenticationEnabled === false;
+  const isAuthenticated = (user?.isAuthenticated ?? false) || isAuthDisabled;
+  const isAdmin =
+    isAuthDisabled || (isAuthenticated && normalizedRoles.includes("admin"));
   const isOperator =
-    isAuthenticated &&
-    (isAdmin ||
-      normalizedRoles.includes("user") ||
-      normalizedRoles.includes("operator"));
+    isAuthDisabled ||
+    (isAuthenticated &&
+      (isAdmin ||
+        normalizedRoles.includes("user") ||
+        normalizedRoles.includes("operator")));
   const isReadOnly = !isOperator;
 
   return {

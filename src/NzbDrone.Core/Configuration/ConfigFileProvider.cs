@@ -87,7 +87,7 @@ public class ConfigFileProvider : IConfigFileProvider
 
     public string PostgresPassword => this.GetValue("PostgresPassword", string.Empty);
 
-    public bool AllowPrivateNetworkRequests => this.GetValueBool("AllowPrivateNetworkRequests", false);
+    public bool AllowPrivateNetworkRequests => this.GetValueBool("AllowPrivateNetworkRequests", true);
 
     public string AllowedSsrfHostnames => this.GetValue("AllowedSsrfHostnames", string.Empty);
 

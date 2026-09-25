@@ -2,12 +2,9 @@
 
 using System;
 using System.Linq;
-using System.Reflection;
 using FluentAssertions;
-using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.BitTorrent;
-using NzbDrone.Core.Configuration;
 
 namespace Leecharr.Core.Test.BitTorrent;
 

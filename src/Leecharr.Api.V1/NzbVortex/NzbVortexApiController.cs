@@ -1,10 +1,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
-using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Threading.Tasks;
 using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Authorization;

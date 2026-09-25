@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useLocation,
@@ -60,6 +60,7 @@ import SystemUpdates from "./pages/SystemUpdates";
 import SystemEvents from "./pages/SystemEvents";
 import SystemLogs from "./pages/SystemLogs";
 import SystemNetwork from "./pages/SystemNetwork";
+import DatabaseExplorer from "./pages/DatabaseExplorer";
 import { ApiDocsPage } from "./pages/ApiDocsPage";
 import TrackerBoost from "./pages/TrackerBoost";
 import TrackerServer from "./pages/TrackerServer";
@@ -81,6 +82,7 @@ import { KeyboardShortcutsModal } from "./components/KeyboardShortcutsModal";
 import {
   GettingStartedModal,
   STORAGE_KEY_HIDE_GUIDE,
+  getHideGuideKey,
 } from "./components/GettingStartedModal";
 import {
   SETTINGS_GROUPS,
@@ -109,6 +111,7 @@ function getSystemSubItems(t: (key: string) => string) {
     { id: "status", label: t("system.status") },
     { id: "resources", label: t("system.resources") },
     { id: "terminal", label: t("system.terminal") },
+    { id: "database", label: t("system.database") },
     { id: "tasks", label: t("system.tasks") },
     { id: "backup", label: t("system.backup") },
     { id: "updates", label: t("system.updates") },
@@ -141,18 +144,18 @@ export function App() {
 
   const { data: generalConfig } = useGeneralConfig();
 
-  const loadUser = async () => {
+  const loadUser = useCallback(async () => {
     try {
       const user = await api.getCurrentUser();
       updateCurrentUser(user);
     } catch {
       // Auth might not be enabled or user not logged in
     }
-  };
+  }, [updateCurrentUser]);
 
   useEffect(() => {
     loadUser();
-  }, []);
+  }, [loadUser]);
 
   useEffect(() => {
     if (generalConfig?.instanceUuid) {
@@ -186,6 +189,15 @@ export function App() {
     useState<boolean>(() => {
       return localStorage.getItem(STORAGE_KEY_HIDE_GUIDE) !== "true";
     });
+
+  useEffect(() => {
+    if (!generalConfig?.instanceUuid) return;
+    const instanceKey = getHideGuideKey(generalConfig.instanceUuid);
+    const isDismissed = localStorage.getItem(instanceKey);
+    if (isDismissed !== null) {
+      setShowGettingStartedModal(isDismissed !== "true");
+    }
+  }, [generalConfig?.instanceUuid]);
   const [openSettingsGroups, setOpenSettingsGroups] = useState<
     Record<string, boolean>
   >({});
@@ -218,6 +230,10 @@ export function App() {
   const openShortcutsModal = useCallback(() => {
     trackModalOpen("keyboard_shortcuts");
     setShowShortcutsModal(true);
+  }, []);
+
+  const closeGettingStartedModal = useCallback(() => {
+    setShowGettingStartedModal(false);
   }, []);
 
   useEffect(() => {
@@ -380,7 +396,7 @@ export function App() {
       t("auth.sessionUnlocked", "Session unlocked successfully"),
       "success",
     );
-  }, [unlockSession, showToast, t]);
+  }, [unlockSession, loadUser, showToast, t]);
 
   const handleStayLoggedIn = useCallback(async () => {
     resetTimer();
@@ -602,7 +618,7 @@ export function App() {
 
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [guardedNavigate]);
+  }, [guardedNavigate, openShortcutsModal]);
 
   useEffect(() => {
     const staleInterval = setInterval(() => {
@@ -1851,6 +1867,14 @@ export function App() {
                   </ErrorBoundary>
                 }
               />
+              <Route
+                path="/system/database"
+                element={
+                  <ErrorBoundary title="Database Explorer">
+                    <DatabaseExplorer />
+                  </ErrorBoundary>
+                }
+              />
 
               {/* File Browser */}
               <Route
@@ -1900,10 +1924,11 @@ export function App() {
       <ErrorBoundary title={t("errors.setupGuide")}>
         <GettingStartedModal
           isOpen={showGettingStartedModal}
-          onClose={() => setShowGettingStartedModal(false)}
+          onClose={closeGettingStartedModal}
           onNavigateSettings={(tab) => guardedNavigate(`/settings/${tab}`)}
           onNavigateTorrents={() => guardedNavigate("/torrents")}
           onNavigateIndexers={() => guardedNavigate("/indexers")}
+          instanceUuid={generalConfig?.instanceUuid}
         />
       </ErrorBoundary>
 

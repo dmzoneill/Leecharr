@@ -293,7 +293,8 @@ public class IndexerController : Controller
 
             if (targetUrl != null && targetApiKey != null)
             {
-                var count = await this.prowlarrSyncService.SyncFromProwlarrAsync(targetUrl, targetApiKey);
+                var cleanedUrl = CleanProwlarrBaseUrl(targetUrl);
+                var count = await this.prowlarrSyncService.SyncFromProwlarrAsync(cleanedUrl, targetApiKey);
                 return this.Ok(new { success = true, syncedCount = count });
             }
 
@@ -736,6 +737,26 @@ public class IndexerController : Controller
         return this.Ok(TorrentResourceMapper.ToResource(torrent));
     }
 
+    public static string CleanProwlarrBaseUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return string.Empty;
+        }
+
+        var baseUri = url.Trim().TrimEnd('/');
+        if (baseUri.EndsWith("/api/v1", StringComparison.OrdinalIgnoreCase))
+        {
+            baseUri = baseUri.Substring(0, baseUri.Length - 7).TrimEnd('/');
+        }
+        else if (baseUri.EndsWith("/api", StringComparison.OrdinalIgnoreCase))
+        {
+            baseUri = baseUri.Substring(0, baseUri.Length - 4).TrimEnd('/');
+        }
+
+        return baseUri;
+    }
+
     private async Task<ActionResult<IndexerTestResult>> TestDirectInternal(IndexerDefinition indexer)
     {
         if (indexer == null || string.IsNullOrWhiteSpace(indexer.Url))
@@ -773,7 +794,7 @@ public class IndexerController : Controller
         {
             try
             {
-                var baseUri = indexer.Url.TrimEnd('/');
+                var baseUri = CleanProwlarrBaseUrl(indexer.Url);
                 using var request = new HttpRequestMessage(HttpMethod.Get, $"{baseUri}/api/v1/indexer");
                 if (!string.IsNullOrWhiteSpace(indexer.ApiKey))
                 {

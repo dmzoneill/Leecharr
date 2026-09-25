@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTorrents } from "../api/hooks";
 import type { Torrent } from "../api/types";
 

@@ -1,5 +1,5 @@
 import { useTranslation } from "../../i18n";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   useBitTorrentConfig,
   useSaveBitTorrentConfig,
@@ -130,10 +130,11 @@ export function ProtocolsSettingsTab() {
       }
     };
 
-    const handleError = (err: any) => {
+    const handleError = (err: unknown) => {
       hasError = true;
+      const errObj = err as Error | null;
       showToast(
-        err?.message || t("settingsTabs.protocols.failedToSave"),
+        errObj?.message || t("settingsTabs.protocols.failedToSave"),
         "error",
       );
     };

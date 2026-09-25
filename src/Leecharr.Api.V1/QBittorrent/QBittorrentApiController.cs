@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Leecharr.Http.Security;
@@ -1913,9 +1912,10 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                             {
                                 unescapedTrackerUrl = Uri.UnescapeDataString(trackerUrl).Trim();
                             }
-                            catch
+                            catch (Exception ex)
                             {
-                                // Ignore
+                                // Malformed percent-encoding in tracker URI; fallback to original trackerUrl
+                                this.logger.Trace(ex, "Failed to unescape tracker URL '{0}'", trackerUrl);
                             }
                         }
 

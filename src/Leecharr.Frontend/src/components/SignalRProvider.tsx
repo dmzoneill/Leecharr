@@ -67,23 +67,12 @@ export function useSignalRContext(): SignalRContextValue {
 
 export const EVENT_INVALIDATION_MAP: Record<string, string[][]> = {
   TorrentAdded: [["torrents"], ["trackerboost"]],
-  torrent_added: [["torrents"], ["trackerboost"]],
-  torrentAdded: [["torrents"], ["trackerboost"]],
   TorrentUpdated: [["torrents"], ["trackerboost"]],
-  torrent_updated: [["torrents"], ["trackerboost"]],
-  torrentUpdated: [["torrents"], ["trackerboost"]],
   TorrentDeleted: [["torrents"], ["trackerboost"]],
-  torrent_deleted: [["torrents"], ["trackerboost"]],
-  torrentDeleted: [["torrents"], ["trackerboost"]],
   TorrentRecheckProgress: [["torrents"]],
-  torrent_recheck_progress: [["torrents"]],
   SeedingStatsUpdated: [["seeding", "stats"]],
-  speed_update: [["seeding", "stats"]],
   speedPulse: [["seeding", "stats"]],
-  speedUpdate: [["seeding", "stats"]],
   HealthCheckCompleted: [["health"]],
-  health_warning: [["health"]],
-  healthWarning: [["health"]],
   CommandStarted: [
     ["system", "status"],
     ["system", "commands"],
@@ -100,25 +89,12 @@ export const EVENT_INVALIDATION_MAP: Record<string, string[][]> = {
     ["system", "tasks"],
     ["system", "status"],
   ],
-  task_progress: [
-    ["system", "tasks"],
-    ["system", "status"],
-  ],
-  taskProgress: [
-    ["system", "tasks"],
-    ["system", "status"],
-  ],
   AutomationExecuted: [["automation", "scripts"], ["automation"]],
   AutomationTriggerEvaluated: [["automation", "scripts"], ["automation"]],
   TrackerUpdated: [["trackerboost"]],
   TrackerAnnounced: [["trackerboost"]],
-  trackerUpdated: [["trackerboost"]],
-  trackerAnnounced: [["trackerboost"]],
-  tracker_updated: [["trackerboost"]],
-  tracker_announced: [["trackerboost"]],
   TrackerAnnounceEvent: [["trackerboost"]],
   subsystemSwitched: [["subsystems"], ["torrentengine"]],
-  subsystem_switched: [["subsystems"], ["torrentengine"]],
 };
 
 export const RECONNECT_QUERY_KEYS: string[][] = [
@@ -177,6 +153,7 @@ export default function SignalRProvider({
   const { showToast } = useToast();
   const showToastRef = useRef(showToast);
   showToastRef.current = showToast;
+  const recentToastsRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     const handleTelemetryPayload = (body: unknown) => {
@@ -348,21 +325,44 @@ export default function SignalRProvider({
           }
         }
 
-        // Fire toast notifications for key events
+        // Fire toast notifications for key events (deduplicated by entity ID to prevent duplicate toast storms)
+        const getTorrentIdFromData = (): number | undefined => {
+          const bodyObj = data as Record<string, unknown> | undefined;
+          return typeof bodyObj?.id === "number"
+            ? bodyObj.id
+            : typeof bodyObj?.torrentId === "number"
+              ? bodyObj.torrentId
+              : typeof bodyObj?.TorrentId === "number"
+                ? bodyObj.TorrentId
+                : undefined;
+        };
+
         if (lowerEvent === "torrentadded" || lowerEvent === "torrent_added") {
-          const name =
-            data && typeof data === "object" && "name" in data
-              ? String((data as Record<string, unknown>).name)
-              : undefined;
-          showToastRef.current(
-            name ? `Torrent added: ${name}` : "Torrent added",
-            "success",
-          );
+          const torrentId = getTorrentIdFromData();
+          const dedupeKey = `torrentadded-${torrentId ?? "all"}`;
+          const now = Date.now();
+          if (now - (recentToastsRef.current.get(dedupeKey) ?? 0) > 3000) {
+            recentToastsRef.current.set(dedupeKey, now);
+            const name =
+              data && typeof data === "object" && "name" in data
+                ? String((data as Record<string, unknown>).name)
+                : undefined;
+            showToastRef.current(
+              name ? `Torrent added: ${name}` : "Torrent added",
+              "success",
+            );
+          }
         } else if (
           lowerEvent === "torrentdeleted" ||
           lowerEvent === "torrent_deleted"
         ) {
-          showToastRef.current("Torrent removed", "info");
+          const torrentId = getTorrentIdFromData();
+          const dedupeKey = `torrentdeleted-${torrentId ?? "all"}`;
+          const now = Date.now();
+          if (now - (recentToastsRef.current.get(dedupeKey) ?? 0) > 3000) {
+            recentToastsRef.current.set(dedupeKey, now);
+            showToastRef.current("Torrent removed", "info");
+          }
         } else if (lowerEvent.includes("automationexecuted")) {
           const body = data as Record<string, unknown> | undefined;
           const isSuccess = body?.success !== false && body?.Success !== false;

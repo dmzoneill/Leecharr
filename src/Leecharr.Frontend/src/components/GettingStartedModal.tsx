@@ -1,10 +1,12 @@
 import { useTranslation } from "../i18n";
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   useCreateIndexer,
   useSyncProwlarr,
   useTestDirectIndexer,
+  useArrConnections,
   useCreateArrConnection,
+  useUpdateArrConnection,
   useTestDirectArrConnection,
 } from "../api/hooks";
 import type {
@@ -23,12 +25,19 @@ import { LanguageSelector } from "./LanguageSelector";
 
 export const STORAGE_KEY_HIDE_GUIDE = "leecharr_hide_getting_started";
 
+export function getHideGuideKey(instanceUuid?: string): string {
+  return instanceUuid
+    ? `${STORAGE_KEY_HIDE_GUIDE}_${instanceUuid}`
+    : STORAGE_KEY_HIDE_GUIDE;
+}
+
 interface GettingStartedModalProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigateSettings?: (tab: string) => void;
   onNavigateTorrents?: () => void;
   onNavigateIndexers?: () => void;
+  instanceUuid?: string;
 }
 
 type GuideMode = "readonly" | "interactive";
@@ -85,6 +94,7 @@ export function GettingStartedModal({
   onNavigateSettings,
   onNavigateTorrents,
   onNavigateIndexers,
+  instanceUuid,
 }: GettingStartedModalProps) {
   const { t } = useTranslation();
   const trapRef = useFocusTrap<HTMLDivElement>({ isOpen, onClose });
@@ -99,8 +109,16 @@ export function GettingStartedModal({
   const [currentStep, setCurrentStep] = useState(0);
   const [mode, setMode] = useState<GuideMode>("readonly");
   const [dontShowAgain, setDontShowAgain] = useState<boolean>(() => {
-    return localStorage.getItem(STORAGE_KEY_HIDE_GUIDE) === "true";
+    return localStorage.getItem(getHideGuideKey(instanceUuid)) === "true";
   });
+
+  useEffect(() => {
+    if (instanceUuid) {
+      setDontShowAgain(
+        localStorage.getItem(getHideGuideKey(instanceUuid)) === "true",
+      );
+    }
+  }, [instanceUuid]);
 
   // Prowlarr Indexer Form State (Full Real Form)
   const [indexerForm, setIndexerForm] = useState<Partial<IndexerDefinition>>({
@@ -128,7 +146,7 @@ export function GettingStartedModal({
     syncEnabled: true,
     enableAutomaticAdd: true,
     webhookEnabled: true,
-    webhookHost: "leecharr",
+    webhookHost: "",
   });
   const [sonarrTestResult, setSonarrTestResult] =
     useState<ArrTestResult | null>(null);
@@ -144,7 +162,7 @@ export function GettingStartedModal({
     syncEnabled: true,
     enableAutomaticAdd: true,
     webhookEnabled: true,
-    webhookHost: "leecharr",
+    webhookHost: "",
   });
   const [radarrTestResult, setRadarrTestResult] =
     useState<ArrTestResult | null>(null);
@@ -160,25 +178,52 @@ export function GettingStartedModal({
     syncEnabled: true,
     enableAutomaticAdd: true,
     webhookEnabled: true,
-    webhookHost: "leecharr",
+    webhookHost: "",
   });
   const [lidarrTestResult, setLidarrTestResult] =
     useState<ArrTestResult | null>(null);
 
-  // API Mutations
+  // API Hooks & Mutations
+  const { data: existingConnections } = useArrConnections();
   const testIndexerMutation = useTestDirectIndexer();
   const createIndexerMutation = useCreateIndexer();
   const syncProwlarrMutation = useSyncProwlarr();
 
   const testArrMutation = useTestDirectArrConnection();
   const createArrMutation = useCreateArrConnection();
+  const updateArrMutation = useUpdateArrConnection();
+  const isSavingArr = createArrMutation.isPending || updateArrMutation.isPending;
+
+  useEffect(() => {
+    if (existingConnections && existingConnections.length > 0) {
+      const sonarr = existingConnections.find(
+        (c) => c.arrType?.toLowerCase() === "sonarr",
+      );
+      if (sonarr) {
+        setSonarrForm((prev) => ({ ...prev, ...sonarr }));
+      }
+      const radarr = existingConnections.find(
+        (c) => c.arrType?.toLowerCase() === "radarr",
+      );
+      if (radarr) {
+        setRadarrForm((prev) => ({ ...prev, ...radarr }));
+      }
+      const lidarr = existingConnections.find(
+        (c) => c.arrType?.toLowerCase() === "lidarr",
+      );
+      if (lidarr) {
+        setLidarrForm((prev) => ({ ...prev, ...lidarr }));
+      }
+    }
+  }, [existingConnections]);
 
   const handleClose = useCallback(() => {
     if (dontShowAgain) {
+      localStorage.setItem(getHideGuideKey(instanceUuid), "true");
       localStorage.setItem(STORAGE_KEY_HIDE_GUIDE, "true");
     }
     onClose();
-  }, [dontShowAgain, onClose]);
+  }, [dontShowAgain, onClose, instanceUuid]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -195,11 +240,9 @@ export function GettingStartedModal({
 
   const handleDontShowChange = (checked: boolean) => {
     setDontShowAgain(checked);
-    if (checked) {
-      localStorage.setItem(STORAGE_KEY_HIDE_GUIDE, "true");
-    } else {
-      localStorage.setItem(STORAGE_KEY_HIDE_GUIDE, "false");
-    }
+    const val = checked ? "true" : "false";
+    localStorage.setItem(getHideGuideKey(instanceUuid), val);
+    localStorage.setItem(STORAGE_KEY_HIDE_GUIDE, val);
   };
 
   const handleNext = () => {
@@ -231,9 +274,14 @@ export function GettingStartedModal({
 
   const handleSaveIndexer = () => {
     if (indexerForm.indexerType === "Prowlarr") {
+      const prowlarrUrl = (indexerForm.url || "http://prowlarr:9696")
+        .replace(/\/api\/v1\/?$/i, "")
+        .replace(/\/api\/?$/i, "")
+        .replace(/\/+$/, "");
+
       syncProwlarrMutation.mutate(
         {
-          url: indexerForm.url || "http://localhost:9696",
+          url: prowlarrUrl,
           apiKey: indexerForm.apiKey || "",
         },
         {
@@ -269,20 +317,42 @@ export function GettingStartedModal({
     });
   };
 
-  const handleSaveArr = (form: Partial<ArrConnection>) => {
-    createArrMutation.mutate(
-      {
-        ...form,
-        name: form.name?.trim() || form.arrType || "Arr Connection",
-        implementation: `${form.arrType || "Sonarr"}Connection`,
-        configContract: "ArrConnectionDefinition",
-      },
-      {
+  const handleSaveArr = (
+    form: Partial<ArrConnection>,
+    setResult?: (res: ArrTestResult | null) => void,
+  ) => {
+    const payload = {
+      ...form,
+      name: form.name?.trim() || form.arrType || "Arr Connection",
+      implementation: `${form.arrType || "Sonarr"}Connection`,
+      configContract: "ArrConnectionDefinition",
+    };
+
+    if (payload.id) {
+      updateArrMutation.mutate(payload as ArrConnection, {
         onSuccess: () => {
           handleNext();
         },
-      },
-    );
+        onError: (err) => {
+          setResult?.({
+            success: false,
+            message: `Save failed: ${err.message}`,
+          });
+        },
+      });
+    } else {
+      createArrMutation.mutate(payload, {
+        onSuccess: () => {
+          handleNext();
+        },
+        onError: (err) => {
+          setResult?.({
+            success: false,
+            message: `Save failed: ${err.message}`,
+          });
+        },
+      });
+    }
   };
 
   return (
@@ -660,6 +730,7 @@ export function GettingStartedModal({
                       setIndexerTestResult(null);
                     }}
                     placeholder="http://localhost:9696"
+                    hint="Local: http://localhost:9696 | Docker / Podman: http://prowlarr:9696"
                   />
                   <TextInput
                     label={t("settings.apiKey")}
@@ -670,15 +741,17 @@ export function GettingStartedModal({
                     }}
                     type="password"
                   />
-                  <TextInput
-                    label={t("settingsTabs.indexers.apiPathLabel")}
-                    value={indexerForm.apiPath || "/api"}
-                    onChange={(v) => {
-                      setIndexerForm({ ...indexerForm, apiPath: v });
-                      setIndexerTestResult(null);
-                    }}
-                    placeholder="/api"
-                  />
+                  {indexerForm.indexerType !== "Prowlarr" && (
+                    <TextInput
+                      label={t("settingsTabs.indexers.apiPathLabel")}
+                      value={indexerForm.apiPath || "/api"}
+                      onChange={(v) => {
+                        setIndexerForm({ ...indexerForm, apiPath: v });
+                        setIndexerTestResult(null);
+                      }}
+                      placeholder="/api"
+                    />
+                  )}
                   <TextInput
                     label={t("settingsTabs.indexers.categoriesLabel")}
                     value={
@@ -877,6 +950,7 @@ export function GettingStartedModal({
                       setSonarrTestResult(null);
                     }}
                     placeholder="http://localhost:8989"
+                    hint="Local: http://localhost:8989 | Docker / Podman: http://sonarr:8989"
                   />
                   <TextInput
                     label={t(
@@ -999,10 +1073,10 @@ export function GettingStartedModal({
                     </button>
                     <button
                       className="btn btn-primary"
-                      onClick={() => handleSaveArr(sonarrForm)}
-                      disabled={createArrMutation.isPending}
+                      onClick={() => handleSaveArr(sonarrForm, setSonarrTestResult)}
+                      disabled={isSavingArr}
                     >
-                      {createArrMutation.isPending
+                      {isSavingArr
                         ? t("gettingStarted.saving")
                         : t("gettingStarted.saveAndContinue")}
                     </button>
@@ -1116,6 +1190,7 @@ export function GettingStartedModal({
                       setRadarrTestResult(null);
                     }}
                     placeholder="http://localhost:7878"
+                    hint="Local: http://localhost:7878 | Docker / Podman: http://radarr:7878"
                   />
                   <TextInput
                     label={t(
@@ -1238,10 +1313,10 @@ export function GettingStartedModal({
                     </button>
                     <button
                       className="btn btn-primary"
-                      onClick={() => handleSaveArr(radarrForm)}
-                      disabled={createArrMutation.isPending}
+                      onClick={() => handleSaveArr(radarrForm, setRadarrTestResult)}
+                      disabled={isSavingArr}
                     >
-                      {createArrMutation.isPending
+                      {isSavingArr
                         ? t("gettingStarted.saving")
                         : t("gettingStarted.saveAndContinue")}
                     </button>
@@ -1355,6 +1430,7 @@ export function GettingStartedModal({
                       setLidarrTestResult(null);
                     }}
                     placeholder="http://localhost:8686"
+                    hint="Local: http://localhost:8686 | Docker / Podman: http://lidarr:8686"
                   />
                   <TextInput
                     label={t(
@@ -1477,10 +1553,10 @@ export function GettingStartedModal({
                     </button>
                     <button
                       className="btn btn-primary"
-                      onClick={() => handleSaveArr(lidarrForm)}
-                      disabled={createArrMutation.isPending}
+                      onClick={() => handleSaveArr(lidarrForm, setLidarrTestResult)}
+                      disabled={isSavingArr}
                     >
-                      {createArrMutation.isPending
+                      {isSavingArr
                         ? t("gettingStarted.saving")
                         : t("gettingStarted.saveAndContinue")}
                     </button>

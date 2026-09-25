@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.ArrIntegration;
+using NzbDrone.Core.ArrIntegration.Webhook;
 
 namespace Leecharr.Core.Test.ArrIntegration;
 
@@ -21,13 +22,15 @@ namespace Leecharr.Core.Test.ArrIntegration;
 public class ArrConnectionControllerTest
 {
     private IArrConnectionRepository repository = null!;
+    private IArrWebhookRegistration webhookRegistration = null!;
     private ArrConnectionController controller = null!;
 
     [SetUp]
     public void SetUp()
     {
         this.repository = Substitute.For<IArrConnectionRepository>();
-        this.controller = new ArrConnectionController(this.repository);
+        this.webhookRegistration = Substitute.For<IArrWebhookRegistration>();
+        this.controller = new ArrConnectionController(this.repository, this.webhookRegistration);
     }
 
     [TearDown]
@@ -505,5 +508,89 @@ public class ArrConnectionControllerTest
             c.Id == 1 &&
             c.ApiKey == "secret_sonarr_api_key_12345" &&
             c.Name == "Updated Sonarr"));
+    }
+
+    [Test]
+    public void Create_CallsWebhookRegistration_WhenEnabled()
+    {
+        var resource = new ArrConnectionResource
+        {
+            Name = "Sonarr",
+            ArrType = "Sonarr",
+            Url = "http://sonarr:8989",
+            ApiKey = "key",
+            Enabled = true,
+            EnableAutomaticAdd = true,
+            WebhookEnabled = true,
+            WebhookHost = "leecharr.local",
+        };
+
+        this.repository.Insert(Arg.Any<ArrConnectionDefinition>()).Returns(ci =>
+        {
+            var def = ci.Arg<ArrConnectionDefinition>();
+            def.Id = 12;
+            return def;
+        });
+
+        var result = this.controller.Create(resource);
+        result.Result.Should().BeOfType<OkObjectResult>();
+
+        this.webhookRegistration.Received(1).Register(Arg.Is<ArrConnectionDefinition>(c =>
+            c.Id == 12 &&
+            c.Name == "Sonarr" &&
+            c.EnableAutomaticAdd == true &&
+            c.WebhookEnabled == true &&
+            c.WebhookHost == "leecharr.local"));
+    }
+
+    [Test]
+    public void Update_CallsWebhookRegistration_WhenEnabled()
+    {
+        var existing = new ArrConnectionDefinition
+        {
+            Id = 3,
+            Name = "Radarr",
+            ArrType = "Radarr",
+            Url = "http://radarr:7878",
+            Enable = true,
+            WebhookEnabled = true,
+            EnableAutomaticAdd = true,
+        };
+        this.repository.Get(3).Returns(existing);
+
+        var resource = new ArrConnectionResource
+        {
+            Id = 3,
+            Name = "Radarr",
+            ArrType = "Radarr",
+            Url = "http://radarr:7878",
+            Enabled = true,
+            EnableAutomaticAdd = true,
+            WebhookEnabled = true,
+        };
+
+        var result = this.controller.Update(3, resource);
+        result.Result.Should().BeOfType<OkObjectResult>();
+
+        this.webhookRegistration.Received(1).Register(Arg.Is<ArrConnectionDefinition>(c => c.Id == 3));
+    }
+
+    [Test]
+    public void Delete_CallsWebhookRegistration_Unregister()
+    {
+        var existing = new ArrConnectionDefinition
+        {
+            Id = 44,
+            Name = "Sonarr",
+            ArrType = "Sonarr",
+            Url = "http://sonarr:8989",
+        };
+        this.repository.Get(44).Returns(existing);
+
+        var result = this.controller.Delete(44);
+        result.Should().BeOfType<OkResult>();
+
+        this.webhookRegistration.Received(1).Unregister(existing);
+        this.repository.Received(1).Delete(44);
     }
 }

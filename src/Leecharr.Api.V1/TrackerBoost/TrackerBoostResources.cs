@@ -1,7 +1,5 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
-using System.Collections.Generic;
-
 namespace Leecharr.Api.V1.TrackerBoost;
 
 public class AddTrackerResource

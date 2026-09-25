@@ -92,6 +92,8 @@ public class CommandWorker : BackgroundService
                             }
                             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                             {
+                                // Expected when CommandWorker is shutting down or cancelled via stoppingToken
+                                this.logger.Trace("Command {0} execution cancelled during shutdown", command.Name);
                             }
                             catch (Exception ex)
                             {

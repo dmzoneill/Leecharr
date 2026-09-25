@@ -85,9 +85,9 @@ export function TorrentCreationTab({
           "error",
         );
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       showToast(
-        err?.message ||
+        (err as Error)?.message ||
           t("addTorrent.failedToCreateTorrent", "Failed to create torrent"),
         "error",
       );

@@ -513,7 +513,7 @@ public class PowerManagementServiceTest
             {
                 executedCommand = cmd;
                 executedArgs = args;
-                // Return a dummy stopped process or mock
+                // Dummy process instance for sleep inhibitor lifecycle test
                 return new System.Diagnostics.Process();
             },
         };

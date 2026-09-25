@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 using NLog;
 using NzbDrone.Common.Serializer;
 using NzbDrone.Core.Configuration;

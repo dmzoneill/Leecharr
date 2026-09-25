@@ -50,6 +50,7 @@ export interface TorrentDetailPanelProps {
   onClose: () => void;
   onResume?: (id: number) => void;
   onPause?: (id: number) => void;
+  onDelete?: (id: number) => void;
 }
 
 const TAB_ICONS: Record<DetailTab, React.ReactNode> = {
@@ -167,6 +168,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
   onClose,
   onResume,
   onPause,
+  onDelete,
 }) => {
   const { t } = useTranslation();
   const targetId = initialTorrent?.id ?? initialTorrentId ?? 0;
@@ -340,6 +342,19 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
           >
             {t("torrents.actions.announce")}
           </button>
+
+          {onDelete && (
+            <button
+              type="button"
+              className="btn btn-small btn-danger"
+              onClick={() => onDelete(currentTorrent.id)}
+              title={t("torrents.actions.delete", {
+                defaultValue: "Delete Torrent",
+              })}
+            >
+              🗑 {t("common.delete", { defaultValue: "Delete" })}
+            </button>
+          )}
 
           <button
             type="button"

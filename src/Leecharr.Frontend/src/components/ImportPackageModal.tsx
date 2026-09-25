@@ -57,7 +57,7 @@ export function ImportPackageModal({
     setIsUploading(false);
   }, []);
 
-  const handleFileSelect = (file: File) => {
+  const handleFileSelect = useCallback((file: File) => {
     const lowerName = file.name.toLowerCase();
     const isPackage =
       lowerName.endsWith(".tar.gz") ||
@@ -77,7 +77,7 @@ export function ImportPackageModal({
     setSelectedFile(file);
     setErrorMessage(null);
     setImportResult(null);
-  };
+  }, [showToast]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -95,7 +95,7 @@ export function ImportPackageModal({
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       handleFileSelect(e.dataTransfer.files[0]);
     }
-  }, []);
+  }, [handleFileSelect]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {

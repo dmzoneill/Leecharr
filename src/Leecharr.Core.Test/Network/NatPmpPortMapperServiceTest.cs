@@ -758,8 +758,7 @@ public class NatPmpPortMapperServiceTest
                     var resp = new byte[16];
                     resp[0] = 0x00;
                     resp[1] = (byte)(0x80 + opcode);
-                    BinaryPrimitives.WriteUInt16BigEndian(resp.AsSpan(2, 2), 0);
-                    // Return current epoch
+                    // Epoch timestamp since router boot
                     BinaryPrimitives.WriteUInt32BigEndian(resp.AsSpan(4, 4), Volatile.Read(ref returnedEpoch));
                     BinaryPrimitives.WriteUInt16BigEndian(resp.AsSpan(8, 2), internalPort);
                     BinaryPrimitives.WriteUInt16BigEndian(resp.AsSpan(10, 2), internalPort);
@@ -837,7 +836,7 @@ public class NatPmpPortMapperServiceTest
                     resp[0] = 0x00;
                     resp[1] = (byte)(0x80 + opcode);
                     BinaryPrimitives.WriteUInt16BigEndian(resp.AsSpan(2, 2), 0);
-                    // Return low epoch indicating reboot
+                    // Reduced epoch value simulates router reboot
                     BinaryPrimitives.WriteUInt32BigEndian(resp.AsSpan(4, 4), 20);
                     BinaryPrimitives.WriteUInt16BigEndian(resp.AsSpan(8, 2), internalPort);
                     BinaryPrimitives.WriteUInt16BigEndian(resp.AsSpan(10, 2), internalPort);

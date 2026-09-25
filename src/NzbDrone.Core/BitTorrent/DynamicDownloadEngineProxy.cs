@@ -314,9 +314,9 @@ public class DynamicDownloadEngineProxy : IDownloadEngine, ITorrentEngineManager
                 {
                     await targetEngine.StopAsync();
                 }
-                catch
+                catch (Exception stopEx)
                 {
-                    // ignore
+                    this.logger.Trace(stopEx, "Failed to stop target engine during migration rollback");
                 }
             }
 

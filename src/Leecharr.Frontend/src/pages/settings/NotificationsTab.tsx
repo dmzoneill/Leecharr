@@ -143,7 +143,7 @@ function getDefaultFormForImplementation(impl: string): NotificationFormState {
 function parseNotificationToForm(
   notif: NotificationResource,
 ): NotificationFormState {
-  let parsed: Record<string, any> = {};
+  let parsed: Record<string, unknown> = {};
   if (notif.settings) {
     try {
       parsed = JSON.parse(notif.settings);
@@ -201,7 +201,7 @@ function parseNotificationToForm(
 function buildNotificationPayload(
   form: NotificationFormState,
 ): NotificationResource {
-  let settingsObj: Record<string, any> = {};
+  let settingsObj: Record<string, unknown> = {};
 
   switch (form.implementation) {
     case "Discord":
@@ -269,7 +269,7 @@ function buildNotificationPayload(
 
     case "Webhook":
     default: {
-      let headers: any = undefined;
+      let headers: unknown = undefined;
       if (form.customHeaders.trim()) {
         try {
           headers = JSON.parse(form.customHeaders);
@@ -359,7 +359,7 @@ function validateNotificationForm(form: NotificationFormState): string | null {
 
 function getNotificationSummary(
   notif: NotificationResource,
-  tParam?: (key: string, ...args: any[]) => string,
+  tParam?: (key: string, ...args: unknown[]) => string,
 ): string {
   const t = tParam || translate;
   try {
@@ -450,9 +450,10 @@ export function NotificationsTab() {
       setDirty(false);
       setSaved(true);
       showToast(t("settingsTabs.notifications.toastSaved"), "success");
-    } catch (err: any) {
+    } catch (err: unknown) {
       showToast(
-        err?.message || t("settingsTabs.notifications.toastSaveFailed"),
+        (err as Error)?.message ||
+          t("settingsTabs.notifications.toastSaveFailed"),
         "error",
       );
     }
@@ -521,9 +522,9 @@ export function NotificationsTab() {
             );
           }
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
           const msg =
-            err?.message || t("settingsTabs.notifications.testFailed");
+            (err as Error)?.message || t("settingsTabs.notifications.testFailed");
           setTestResults((prev) => ({
             ...prev,
             [id]: { success: false, message: msg },
@@ -537,8 +538,8 @@ export function NotificationsTab() {
           );
         },
       });
-    } catch (err: any) {
-      const msg = err?.message || t("settingsTabs.notifications.testFailed");
+    } catch (err: unknown) {
+      const msg = (err as Error)?.message || t("settingsTabs.notifications.testFailed");
       setTestResults((prev) => ({
         ...prev,
         [id]: { success: false, message: msg },
@@ -579,9 +580,9 @@ export function NotificationsTab() {
             );
           }
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
           const msg =
-            err?.message || t("settingsTabs.notifications.testFailed");
+            (err as Error)?.message || t("settingsTabs.notifications.testFailed");
           setModalTestResult({ success: false, message: msg });
           showToast(
             t("settingsTabs.notifications.testFailedWithError", { error: msg }),
@@ -589,8 +590,8 @@ export function NotificationsTab() {
           );
         },
       });
-    } catch (err: any) {
-      const msg = err?.message || t("settingsTabs.notifications.testFailed");
+    } catch (err: unknown) {
+      const msg = (err as Error)?.message || t("settingsTabs.notifications.testFailed");
       setModalTestResult({ success: false, message: msg });
       showToast(
         t("settingsTabs.notifications.testFailedWithError", { error: msg }),
@@ -623,16 +624,16 @@ export function NotificationsTab() {
             "info",
           );
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
           showToast(
-            err?.message || t("settingsTabs.notifications.deleteFailed"),
+            (err as Error)?.message || t("settingsTabs.notifications.deleteFailed"),
             "error",
           );
         },
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       showToast(
-        err?.message || t("settingsTabs.notifications.deleteFailed"),
+        (err as Error)?.message || t("settingsTabs.notifications.deleteFailed"),
         "error",
       );
     }
@@ -663,9 +664,9 @@ export function NotificationsTab() {
             setEditing(null);
             setModalTestResult(null);
           },
-          onError: (err: any) => {
+          onError: (err: unknown) => {
             showToast(
-              err?.message || t("settingsTabs.notifications.updateFailed"),
+              (err as Error)?.message || t("settingsTabs.notifications.updateFailed"),
               "error",
             );
           },
@@ -680,17 +681,17 @@ export function NotificationsTab() {
             setEditing(null);
             setModalTestResult(null);
           },
-          onError: (err: any) => {
+          onError: (err: unknown) => {
             showToast(
-              err?.message || t("settingsTabs.notifications.createFailed"),
+              (err as Error)?.message || t("settingsTabs.notifications.createFailed"),
               "error",
             );
           },
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       showToast(
-        err?.message || t("settingsTabs.notifications.saveFailed"),
+        (err as Error)?.message || t("settingsTabs.notifications.saveFailed"),
         "error",
       );
     }

@@ -153,9 +153,9 @@ describe("mediaPlayer: cleanUpMediaElement stream lifecycle cleanup", () => {
     let loaded = false;
 
     const childSource = { tagName: "SOURCE" };
-    const children: any[] = [childSource];
+    const children: unknown[] = [childSource];
 
-    const mockMediaElement: any = {
+    const mockMediaElement = {
       pause: () => {
         paused = true;
       },
@@ -165,14 +165,14 @@ describe("mediaPlayer: cleanUpMediaElement stream lifecycle cleanup", () => {
       get firstChild() {
         return children[0] ?? null;
       },
-      removeChild: (child: any) => {
+      removeChild: (child: unknown) => {
         const idx = children.indexOf(child);
         if (idx !== -1) children.splice(idx, 1);
       },
       load: () => {
         loaded = true;
       },
-    };
+    } as unknown as HTMLMediaElement;
 
     cleanUpMediaElement(mockMediaElement);
 
@@ -186,23 +186,23 @@ describe("mediaPlayer: cleanUpMediaElement stream lifecycle cleanup", () => {
     assert.doesNotThrow(() => cleanUpMediaElement(null));
     assert.doesNotThrow(() => cleanUpMediaElement(undefined));
 
-    const brokenElement: any = {
+    const brokenElement = {
       pause: () => {
         throw new Error("AbortError");
       },
       removeAttribute: () => {},
       load: () => {},
-    };
+    } as unknown as HTMLMediaElement;
     assert.doesNotThrow(() => cleanUpMediaElement(brokenElement));
   });
 });
 
 describe("mediaPlayer: Subtitle track switching and textTracks synchronization", () => {
   it("should disable all text tracks when subtitle mode is set to off", () => {
-    const textTracks: any = [
+    const textTracks = [
       { mode: "showing", label: "English", language: "en" },
       { mode: "disabled", label: "Spanish", language: "es" },
-    ];
+    ] as unknown as TextTrackList;
 
     setSubtitleTrackActive(textTracks, "off");
 
@@ -211,11 +211,11 @@ describe("mediaPlayer: Subtitle track switching and textTracks synchronization",
   });
 
   it("should activate the selected subtitle track and disable all other tracks", () => {
-    const textTracks: any = [
+    const textTracks = [
       { mode: "showing", label: "English", language: "en" },
       { mode: "disabled", label: "French", language: "fr" },
       { mode: "disabled", label: "German", language: "de" },
-    ];
+    ] as unknown as TextTrackList;
 
     const subtitles: SubtitleTrack[] = [
       {

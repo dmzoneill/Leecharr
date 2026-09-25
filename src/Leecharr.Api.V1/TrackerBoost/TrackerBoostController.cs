@@ -1,7 +1,5 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
-using System;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Authorization;

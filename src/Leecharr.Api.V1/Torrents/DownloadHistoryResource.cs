@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using Leecharr.Api.V1.Media;
-using NzbDrone.Core.MediaEnrichment;
 
 namespace Leecharr.Api.V1.Torrents;
 

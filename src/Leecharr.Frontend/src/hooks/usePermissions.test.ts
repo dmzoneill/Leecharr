@@ -132,4 +132,22 @@ describe("usePermissions / getPermissions", () => {
     assert.strictEqual(perms.canSaveSettings, false);
     assert.strictEqual(perms.canMutateTorrents, false);
   });
+
+  it("grants full permissions when authenticationEnabled is false", () => {
+    const authDisabledUser: CurrentUser = {
+      isAuthenticated: false,
+      username: "anonymous",
+      roles: [],
+      authenticationEnabled: false,
+    };
+
+    const perms = getPermissions(authDisabledUser);
+    assert.strictEqual(perms.isAdmin, true);
+    assert.strictEqual(perms.isOperator, true);
+    assert.strictEqual(perms.isReadOnly, false);
+    assert.strictEqual(perms.canManageSettings, true);
+    assert.strictEqual(perms.canDeleteTorrent, true);
+    assert.strictEqual(perms.canAddTorrent, true);
+    assert.strictEqual(perms.canMutateTorrents, true);
+  });
 });

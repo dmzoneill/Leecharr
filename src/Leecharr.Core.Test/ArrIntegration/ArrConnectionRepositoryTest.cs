@@ -2,7 +2,6 @@
 
 using System;
 using System.IO;
-using System.Linq;
 using FluentAssertions;
 using FluentMigrator.Runner;
 using Microsoft.Data.Sqlite;
