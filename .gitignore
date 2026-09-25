@@ -67,5 +67,5 @@ scratch/
 *.translation-memory.json
 
 # Code review tracker
-.code-review-tracker*.md
+.code-review-tracker*
 

@@ -55,8 +55,9 @@ export default function DeveloperWebhooks() {
       setActionMessage({ text: "Simulation executed successfully.", type: "success" });
       const hList = await apiClient.get<DeveloperWebhookHistoryItem[]>("/system/developer/webhooks/history");
       setHistory(hList || []);
-    } catch (err: any) {
-      setActionMessage({ text: err?.message || "Simulation failed.", type: "error" });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setActionMessage({ text: msg || "Simulation failed.", type: "error" });
     } finally {
       setIsSimulating(false);
     }
@@ -246,7 +247,7 @@ export default function DeveloperWebhooks() {
               </div>
             ) : (
               <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "40px 10px" }}>
-                Click "Dispatch Simulation" to execute the payload against the local webhook ingestion pipeline.
+                Click &quot;Dispatch Simulation&quot; to execute the payload against the local webhook ingestion pipeline.
               </div>
             )}
           </div>
