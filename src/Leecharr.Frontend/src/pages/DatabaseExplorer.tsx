@@ -296,10 +296,13 @@ export default function DatabaseExplorer() {
       style={{
         padding: "1.5rem",
         width: "100%",
+        height: "100%",
+        maxHeight: "100%",
         boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",
-        minHeight: "calc(100vh - 65px)",
+        overflow: "hidden",
+        minHeight: 0,
       }}
     >
       {/* Page Header */}
@@ -308,9 +311,10 @@ export default function DatabaseExplorer() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: "1.25rem",
+          marginBottom: "1rem",
           flexWrap: "wrap",
           gap: "1rem",
+          flexShrink: 0,
         }}
       >
         <div>
@@ -394,8 +398,9 @@ export default function DatabaseExplorer() {
         style={{
           display: "flex",
           borderBottom: "1px solid var(--border-light)",
-          marginBottom: "1.25rem",
+          marginBottom: "1rem",
           gap: "0.5rem",
+          flexShrink: 0,
         }}
       >
         <button
@@ -428,12 +433,11 @@ export default function DatabaseExplorer() {
           style={{
             padding: 0,
             overflow: "hidden",
-            height: "calc(100vh - 220px)",
-            minHeight: "750px",
+            flex: 1,
+            minHeight: 0,
             display: "flex",
             flexDirection: "column",
             position: "relative",
-            flex: "1 1 auto",
           }}
         >
           {/* Canvas Toolbar */}
@@ -738,13 +742,42 @@ export default function DatabaseExplorer() {
 
       {/* TAB 2: SQL CONSOLE */}
       {activeTab === "console" && (
-        <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: "1.25rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "260px 1fr",
+            gap: "1.25rem",
+            flex: 1,
+            minHeight: 0,
+            overflow: "hidden",
+          }}
+        >
           {/* Left Table Sidebar */}
-          <div className="card" style={{ padding: "1rem" }}>
-            <h3 style={{ fontSize: "1rem", fontWeight: 600, margin: "0 0 0.75rem" }}>
+          <div
+            className="card"
+            style={{
+              padding: "1rem",
+              display: "flex",
+              flexDirection: "column",
+              minHeight: 0,
+              height: "100%",
+              overflow: "hidden",
+              boxSizing: "border-box",
+            }}
+          >
+            <h3 style={{ fontSize: "1rem", fontWeight: 600, margin: "0 0 0.75rem", flexShrink: 0 }}>
               Tables ({tables.length})
             </h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", maxHeight: "calc(100vh - 320px)", minHeight: "500px", overflowY: "auto" }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.35rem",
+                flex: 1,
+                minHeight: 0,
+                overflowY: "auto",
+              }}
+            >
               {tables.map((t) => (
                 <div
                   key={t.name}
@@ -779,9 +812,19 @@ export default function DatabaseExplorer() {
           </div>
 
           {/* Right Editor & Results */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "1rem",
+              flex: 1,
+              minHeight: 0,
+              height: "100%",
+              overflow: "hidden",
+            }}
+          >
             {/* Editor Card */}
-            <div className="card" style={{ padding: "1rem" }}>
+            <div className="card" style={{ padding: "1rem", flexShrink: 0 }}>
               <div
                 style={{
                   display: "flex",
@@ -841,7 +884,7 @@ export default function DatabaseExplorer() {
                     runQuery();
                   }
                 }}
-                rows={5}
+                rows={4}
                 style={{
                   width: "100%",
                   fontFamily: "monospace",
@@ -852,18 +895,31 @@ export default function DatabaseExplorer() {
                   color: "var(--text-primary, #fff)",
                   border: "1px solid var(--border-light)",
                   resize: "vertical",
+                  boxSizing: "border-box",
                 }}
               />
             </div>
 
             {/* Results Card */}
-            <div className="card" style={{ padding: "1rem", minHeight: "350px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            <div
+              className="card"
+              style={{
+                padding: "1rem",
+                flex: 1,
+                minHeight: 0,
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
+                boxSizing: "border-box",
+              }}
+            >
               <div
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
                   marginBottom: "0.75rem",
+                  flexShrink: 0,
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
@@ -908,6 +964,8 @@ export default function DatabaseExplorer() {
                     border: "1px solid rgba(220, 53, 69, 0.3)",
                     fontSize: "0.85rem",
                     fontFamily: "monospace",
+                    flexShrink: 0,
+                    marginBottom: "0.5rem",
                   }}
                 >
                   {queryResult.errorMessage}
@@ -915,7 +973,7 @@ export default function DatabaseExplorer() {
               )}
 
               {queryResult?.columns && queryResult.rows && (
-                <div style={{ flex: 1, overflowX: "auto", overflowY: "auto", maxHeight: "calc(100vh - 480px)", minHeight: "350px" }}>
+                <div style={{ flex: 1, minHeight: 0, overflowX: "auto", overflowY: "auto" }}>
                   <table
                     className="torrent-table"
                     style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}
@@ -988,7 +1046,7 @@ export default function DatabaseExplorer() {
 
       {/* TAB 3: TABLE INSPECTOR */}
       {activeTab === "inspector" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem", flex: 1, minHeight: 0, overflowY: "auto" }}>
           <div
             style={{
               display: "flex",
