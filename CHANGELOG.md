@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.29.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.1) - 2026-09-25
+
+### 🐛 Bug Fixes
+- fix(developer): remove duplicate top tabbed menu and align page content to full width
+
 ## [v1.29.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.0) - 2026-09-25
 
 ### ✨ Features
