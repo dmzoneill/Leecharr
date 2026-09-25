@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -222,6 +223,282 @@ public class SystemDatabaseController : Controller
         return this.Ok(response);
     }
 
+    [HttpGet("storage")]
+    public ActionResult<DatabaseStorageResponse> GetStorage()
+    {
+        using var connection = this.mainDatabase.OpenConnection();
+        var response = new DatabaseStorageResponse();
+
+        long pageSize = 4096;
+        long pageCount = 0;
+        long freelistCount = 0;
+
+        try
+        {
+            using var pragmaCmd = connection.CreateCommand();
+            pragmaCmd.CommandText = "PRAGMA page_size;";
+            pageSize = Convert.ToInt64(pragmaCmd.ExecuteScalar());
+
+            pragmaCmd.CommandText = "PRAGMA page_count;";
+            pageCount = Convert.ToInt64(pragmaCmd.ExecuteScalar());
+
+            pragmaCmd.CommandText = "PRAGMA freelist_count;";
+            freelistCount = Convert.ToInt64(pragmaCmd.ExecuteScalar());
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to fetch SQLite page info PRAGMAs");
+        }
+
+        response.PageSize = pageSize;
+        response.PageCount = pageCount;
+        response.TotalSizeBytes = pageSize * pageCount;
+        response.FreeSizeBytes = pageSize * freelistCount;
+
+        var items = new List<DatabaseStorageItem>();
+        var dbstatSucceeded = false;
+
+        try
+        {
+            using var dbstatCmd = connection.CreateCommand();
+            dbstatCmd.CommandText = "SELECT name, sum(pgsize) as total_bytes, count(*) as pages FROM dbstat GROUP BY name ORDER BY total_bytes DESC;";
+            using var reader = dbstatCmd.ExecuteReader();
+            while (reader.Read())
+            {
+                var name = reader.GetString(0);
+                var bytes = reader.GetInt64(1);
+                var pages = reader.GetInt64(2);
+                items.Add(new DatabaseStorageItem
+                {
+                    Name = name,
+                    Type = name.StartsWith("sqlite_autoindex_") ? "index" : "table",
+                    TableName = name,
+                    Bytes = bytes,
+                    PageCount = pages,
+                    Percentage = response.TotalSizeBytes > 0 ? Math.Round((double)bytes / response.TotalSizeBytes * 100, 2) : 0
+                });
+            }
+
+            dbstatSucceeded = true;
+        }
+        catch
+        {
+            dbstatSucceeded = false;
+        }
+
+        if (!dbstatSucceeded)
+        {
+            using var tablesCmd = connection.CreateCommand();
+            tablesCmd.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;";
+            var tableNames = new List<string>();
+            using (var reader = tablesCmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    tableNames.Add(reader.GetString(0));
+                }
+            }
+
+            foreach (var tableName in tableNames)
+            {
+                long rowCount = 0;
+                long payloadBytes = 0;
+                var columns = new List<string>();
+
+                try
+                {
+                    using var colCmd = connection.CreateCommand();
+                    colCmd.CommandText = $"PRAGMA table_info(\"{EscapeIdentifier(tableName)}\");";
+                    using var colReader = colCmd.ExecuteReader();
+                    while (colReader.Read())
+                    {
+                        columns.Add(colReader.GetString(1));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to read columns for storage estimation: {0}", tableName);
+                }
+
+                try
+                {
+                    using var calcCmd = connection.CreateCommand();
+                    if (columns.Count > 0)
+                    {
+                        var lenExprs = string.Join(" + ", columns.Select(c => $"COALESCE(LENGTH(\"{EscapeIdentifier(c)}\"), 0)"));
+                        calcCmd.CommandText = $"SELECT COUNT(*), COALESCE(SUM({lenExprs}), 0) FROM \"{EscapeIdentifier(tableName)}\";";
+                    }
+                    else
+                    {
+                        calcCmd.CommandText = $"SELECT COUNT(*), 0 FROM \"{EscapeIdentifier(tableName)}\";";
+                    }
+
+                    using var calcReader = calcCmd.ExecuteReader();
+                    if (calcReader.Read())
+                    {
+                        rowCount = calcReader.GetInt64(0);
+                        payloadBytes = calcReader.GetInt64(1);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to estimate size for table: {0}", tableName);
+                }
+
+                var estimatedRecordOverhead = rowCount * (8 + (columns.Count * 2));
+                var totalTableBytes = payloadBytes + estimatedRecordOverhead;
+                var pages = (long)Math.Ceiling((double)Math.Max(totalTableBytes, rowCount > 0 ? pageSize : 0) / pageSize);
+
+                items.Add(new DatabaseStorageItem
+                {
+                    Name = tableName,
+                    Type = "table",
+                    TableName = tableName,
+                    Bytes = totalTableBytes,
+                    RowCount = rowCount,
+                    PageCount = pages,
+                    Percentage = response.TotalSizeBytes > 0 ? Math.Round((double)totalTableBytes / response.TotalSizeBytes * 100, 2) : 0
+                });
+
+                try
+                {
+                    using var idxCmd = connection.CreateCommand();
+                    idxCmd.CommandText = $"PRAGMA index_list(\"{EscapeIdentifier(tableName)}\");";
+                    using var idxReader = idxCmd.ExecuteReader();
+                    var indexNames = new List<string>();
+                    while (idxReader.Read())
+                    {
+                        indexNames.Add(idxReader.GetString(1));
+                    }
+
+                    foreach (var idxName in indexNames)
+                    {
+                        var idxBytes = rowCount * 16;
+                        var idxPages = (long)Math.Ceiling((double)Math.Max(idxBytes, rowCount > 0 ? pageSize : 0) / pageSize);
+                        items.Add(new DatabaseStorageItem
+                        {
+                            Name = idxName,
+                            Type = "index",
+                            TableName = tableName,
+                            Bytes = idxBytes,
+                            RowCount = rowCount,
+                            PageCount = idxPages,
+                            Percentage = response.TotalSizeBytes > 0 ? Math.Round((double)idxBytes / response.TotalSizeBytes * 100, 2) : 0
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to inspect indexes for storage: {0}", tableName);
+                }
+            }
+        }
+
+        if (response.FreeSizeBytes > 0)
+        {
+            items.Add(new DatabaseStorageItem
+            {
+                Name = "[Free Space]",
+                Type = "free",
+                TableName = "[Free Space]",
+                Bytes = response.FreeSizeBytes,
+                PageCount = freelistCount,
+                RowCount = 0,
+                Percentage = response.TotalSizeBytes > 0 ? Math.Round((double)response.FreeSizeBytes / response.TotalSizeBytes * 100, 2) : 0
+            });
+        }
+
+        response.Items = items.OrderByDescending(i => i.Bytes).ToList();
+        return this.Ok(response);
+    }
+
+    [HttpGet("diagnostics")]
+    public ActionResult<DatabaseDiagnosticsResponse> GetDiagnostics()
+    {
+        using var connection = this.mainDatabase.OpenConnection();
+        var diag = new DatabaseDiagnosticsResponse();
+
+        try
+        {
+            using var cmd = connection.CreateCommand();
+
+            cmd.CommandText = "PRAGMA database_list;";
+            using (var reader = cmd.ExecuteReader())
+            {
+                if (reader.Read())
+                {
+                    diag.DatabasePath = reader.FieldCount > 2 ? reader.GetString(2) : string.Empty;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(diag.DatabasePath) && global::System.IO.File.Exists(diag.DatabasePath))
+            {
+                diag.FileSizeBytes = new global::System.IO.FileInfo(diag.DatabasePath).Length;
+            }
+
+            cmd.CommandText = "PRAGMA page_size;";
+            diag.PageSize = Convert.ToInt64(cmd.ExecuteScalar());
+
+            cmd.CommandText = "PRAGMA page_count;";
+            diag.PageCount = Convert.ToInt64(cmd.ExecuteScalar());
+
+            cmd.CommandText = "PRAGMA freelist_count;";
+            diag.FreelistCount = Convert.ToInt64(cmd.ExecuteScalar());
+
+            cmd.CommandText = "PRAGMA journal_mode;";
+            diag.JournalMode = Convert.ToString(cmd.ExecuteScalar()) ?? string.Empty;
+
+            cmd.CommandText = "PRAGMA synchronous;";
+            var syncVal = Convert.ToInt32(cmd.ExecuteScalar());
+            diag.Synchronous = syncVal switch
+            {
+                0 => "OFF (0)",
+                1 => "NORMAL (1)",
+                2 => "FULL (2)",
+                3 => "EXTRA (3)",
+                _ => syncVal.ToString()
+            };
+
+            cmd.CommandText = "PRAGMA cache_size;";
+            diag.CacheSize = Convert.ToInt64(cmd.ExecuteScalar());
+
+            cmd.CommandText = "PRAGMA encoding;";
+            diag.Encoding = Convert.ToString(cmd.ExecuteScalar()) ?? string.Empty;
+
+            cmd.CommandText = "PRAGMA quick_check(1);";
+            diag.IntegrityCheck = Convert.ToString(cmd.ExecuteScalar()) ?? "ok";
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to read SQLite diagnostics PRAGMAs");
+        }
+
+        try
+        {
+            diag.GcTotalMemoryBytes = GC.GetTotalMemory(false);
+            diag.GcGen0Collections = GC.CollectionCount(0);
+            diag.GcGen1Collections = GC.CollectionCount(1);
+            diag.GcGen2Collections = GC.CollectionCount(2);
+
+            ThreadPool.GetAvailableThreads(out var workerThreads, out var completionPortThreads);
+            ThreadPool.GetMaxThreads(out var maxWorkerThreads, out _);
+            diag.ThreadPoolAvailableWorkerThreads = workerThreads;
+            diag.ThreadPoolAvailableCompletionPortThreads = completionPortThreads;
+            diag.ThreadPoolMaxWorkerThreads = maxWorkerThreads;
+
+            using var process = Process.GetCurrentProcess();
+            diag.WorkingSetBytes = process.WorkingSet64;
+            diag.ProcessUptimeSeconds = (DateTime.UtcNow - process.StartTime.ToUniversalTime()).TotalSeconds;
+            diag.DotNetVersion = Environment.Version.ToString();
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Failed to gather CLR diagnostics");
+        }
+
+        return this.Ok(diag);
+    }
+
     [HttpPost("query")]
     public async Task<ActionResult<DatabaseQueryResult>> ExecuteQuery([FromBody] DatabaseQueryRequest request)
     {
@@ -328,6 +605,37 @@ public class SystemDatabaseController : Controller
                 rows.Add(row);
             }
 
+            reader.Close();
+
+            // Run EXPLAIN QUERY PLAN for query operations to provide visual query plan DAG
+            var queryPlan = new List<QueryPlanNode>();
+            if (!isWrite)
+            {
+                try
+                {
+                    using var planCmd = connection.CreateCommand();
+                    planCmd.CommandText = $"EXPLAIN QUERY PLAN {trimmedQuery}";
+                    planCmd.CommandTimeout = 10;
+                    using var planReader = planCmd.ExecuteReader();
+                    while (planReader.Read())
+                    {
+                        var planId = planReader.GetInt32(0);
+                        var parentId = planReader.GetInt32(1);
+                        var detail = planReader.IsDBNull(3) ? string.Empty : planReader.GetString(3);
+                        queryPlan.Add(new QueryPlanNode
+                        {
+                            Id = planId,
+                            ParentId = parentId,
+                            Detail = detail
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Debug(ex, "Could not generate EXPLAIN QUERY PLAN for query: {0}", trimmedQuery);
+                }
+            }
+
             sw.Stop();
 
             return this.Ok(new DatabaseQueryResult
@@ -338,7 +646,8 @@ public class SystemDatabaseController : Controller
                 Rows = rows,
                 TotalRows = rows.Count,
                 ExecutionTimeMs = sw.Elapsed.TotalMilliseconds,
-                Message = truncated ? $"Showing first {maxRows} rows (truncated)." : $"Returned {rows.Count} row(s)."
+                Message = truncated ? $"Showing first {maxRows} rows (truncated)." : $"Returned {rows.Count} row(s).",
+                QueryPlan = queryPlan
             });
         }
         catch (Exception ex)

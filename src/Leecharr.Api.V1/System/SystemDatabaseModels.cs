@@ -98,4 +98,89 @@ public class DatabaseQueryResult
     public int RowsAffected { get; set; }
 
     public string Message { get; set; }
+
+    public List<QueryPlanNode> QueryPlan { get; set; } = new();
 }
+
+public class QueryPlanNode
+{
+    public int Id { get; set; }
+
+    public int ParentId { get; set; }
+
+    public string Detail { get; set; } = string.Empty;
+}
+
+public class DatabaseStorageItem
+{
+    public string Name { get; set; } = string.Empty;
+
+    public string Type { get; set; } = "table";
+
+    public string TableName { get; set; } = string.Empty;
+
+    public long Bytes { get; set; }
+
+    public long PageCount { get; set; }
+
+    public long RowCount { get; set; }
+
+    public double Percentage { get; set; }
+}
+
+public class DatabaseStorageResponse
+{
+    public long TotalSizeBytes { get; set; }
+
+    public long PageSize { get; set; }
+
+    public long PageCount { get; set; }
+
+    public long FreeSizeBytes { get; set; }
+
+    public List<DatabaseStorageItem> Items { get; set; } = new();
+}
+
+public class DatabaseDiagnosticsResponse
+{
+    public string DatabasePath { get; set; } = string.Empty;
+
+    public long FileSizeBytes { get; set; }
+
+    public long PageSize { get; set; }
+
+    public long PageCount { get; set; }
+
+    public long FreelistCount { get; set; }
+
+    public string JournalMode { get; set; } = string.Empty;
+
+    public string Synchronous { get; set; } = string.Empty;
+
+    public long CacheSize { get; set; }
+
+    public string Encoding { get; set; } = string.Empty;
+
+    public string IntegrityCheck { get; set; } = string.Empty;
+
+    public long GcTotalMemoryBytes { get; set; }
+
+    public int GcGen0Collections { get; set; }
+
+    public int GcGen1Collections { get; set; }
+
+    public int GcGen2Collections { get; set; }
+
+    public int ThreadPoolAvailableWorkerThreads { get; set; }
+
+    public int ThreadPoolAvailableCompletionPortThreads { get; set; }
+
+    public int ThreadPoolMaxWorkerThreads { get; set; }
+
+    public double ProcessUptimeSeconds { get; set; }
+
+    public long WorkingSetBytes { get; set; }
+
+    public string DotNetVersion { get; set; } = string.Empty;
+}
+
