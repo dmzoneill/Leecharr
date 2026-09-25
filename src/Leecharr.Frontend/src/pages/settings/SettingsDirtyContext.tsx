@@ -17,9 +17,9 @@ export interface SettingsDirtyContextType {
 export const defaultSettingsDirtyContext: SettingsDirtyContextType = {
   isDirty: false,
   setDirty: () => {},
-  confirmIfDirty: async (navigateFn) => {
+  confirmIfDirty: (navigateFn) => {
     navigateFn();
-    return true;
+    return Promise.resolve(true);
   },
 };
 

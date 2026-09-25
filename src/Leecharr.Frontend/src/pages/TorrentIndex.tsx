@@ -221,19 +221,18 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
       }
     };
 
-    const handleCustomToggle = () => handleToggleQuickSettings();
     const handleCustomClose = () => {
       setShowQuickSettings(false);
       localStorage.setItem("leecharr_quick_settings_open", "false");
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("toggle-quick-settings", handleCustomToggle);
+    window.addEventListener("toggle-quick-settings", handleToggleQuickSettings);
     window.addEventListener("close-modals", handleCustomClose);
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("toggle-quick-settings", handleCustomToggle);
+      window.removeEventListener("toggle-quick-settings", handleToggleQuickSettings);
       window.removeEventListener("close-modals", handleCustomClose);
     };
   }, [selectedTorrentId, setSelectedTorrentId]);

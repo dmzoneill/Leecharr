@@ -491,7 +491,7 @@ export function NotificationsTab() {
     setModalTestResult(null);
   };
 
-  const handleTest = async (id: number, name: string) => {
+  const handleTest = (id: number, name: string) => {
     try {
       setTestResults((prev) => ({ ...prev, [id]: null }));
       const notif = notifications?.find((n) => n.id === id);
@@ -554,7 +554,7 @@ export function NotificationsTab() {
     }
   };
 
-  const handleModalTest = async () => {
+  const handleModalTest = () => {
     if (!editing) return;
     const validationError = validateNotificationForm(editing);
     if (validationError) {
@@ -639,7 +639,7 @@ export function NotificationsTab() {
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!editing) return;
     const validationError = validateNotificationForm(editing);
     if (validationError) {

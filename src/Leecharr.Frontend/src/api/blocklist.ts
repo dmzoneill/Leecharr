@@ -45,21 +45,21 @@ export interface BlocklistTestResponse {
   rule: string | null;
 }
 
-export async function getBlocklistStatus(): Promise<BlocklistResource> {
+export function getBlocklistStatus(): Promise<BlocklistResource> {
   return apiClient.get<BlocklistResource>("/blocklist");
 }
 
-export async function updateBlocklistConfig(
+export function updateBlocklistConfig(
   config: BlocklistConfigRequest,
 ): Promise<BlocklistResource> {
   return apiClient.put<BlocklistResource>("/blocklist", config);
 }
 
-export async function syncBlocklist(): Promise<BlocklistSyncResponse> {
+export function syncBlocklist(): Promise<BlocklistSyncResponse> {
   return apiClient.post<BlocklistSyncResponse>("/blocklist/sync");
 }
 
-export async function testBlocklistIp(
+export function testBlocklistIp(
   ip: string,
 ): Promise<BlocklistTestResponse> {
   return apiClient.post<BlocklistTestResponse>("/blocklist/test", { ip });

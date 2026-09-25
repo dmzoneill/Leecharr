@@ -46,7 +46,7 @@ public class IndexerStatusService : IIndexerStatusService
             status.MostRecentFailure = now;
             status.ConsecutiveFailures++;
             status.LastStatusCode = statusCode;
-            status.LastFailureMessage = errorMessage ?? ex?.Message ?? "Unknown error";
+            status.LastFailureMessage = errorMessage ?? ex?.Message ?? "Indexer operation failed without error details";
 
             var backoff = this.CalculateBackoff(status.ConsecutiveFailures, statusCode);
             status.DisabledTill = now.Add(backoff);

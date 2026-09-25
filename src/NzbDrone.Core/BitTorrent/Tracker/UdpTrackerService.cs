@@ -447,7 +447,7 @@ public class UdpTrackerService : IUdpTrackerService
 
     private static byte[] BuildErrorResponse(int transactionId, string message)
     {
-        var msgBytes = Encoding.UTF8.GetBytes(message ?? "Unknown error");
+        var msgBytes = Encoding.UTF8.GetBytes(message ?? "UDP tracker transaction error");
         var response = new byte[8 + msgBytes.Length];
         BinaryPrimitives.WriteInt32BigEndian(response.AsSpan(0, 4), 3);
         BinaryPrimitives.WriteInt32BigEndian(response.AsSpan(4, 4), transactionId);
