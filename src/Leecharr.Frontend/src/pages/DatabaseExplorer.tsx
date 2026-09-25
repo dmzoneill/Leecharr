@@ -291,7 +291,17 @@ export default function DatabaseExplorer() {
   };
 
   return (
-    <div className="container" style={{ maxWidth: "1600px", padding: "1.5rem" }}>
+    <div
+      className="content-area"
+      style={{
+        padding: "1.5rem",
+        width: "100%",
+        boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: "calc(100vh - 65px)",
+      }}
+    >
       {/* Page Header */}
       <div
         style={{
@@ -418,10 +428,12 @@ export default function DatabaseExplorer() {
           style={{
             padding: 0,
             overflow: "hidden",
-            height: "750px",
+            height: "calc(100vh - 220px)",
+            minHeight: "750px",
             display: "flex",
             flexDirection: "column",
             position: "relative",
+            flex: "1 1 auto",
           }}
         >
           {/* Canvas Toolbar */}
@@ -732,7 +744,7 @@ export default function DatabaseExplorer() {
             <h3 style={{ fontSize: "1rem", fontWeight: 600, margin: "0 0 0.75rem" }}>
               Tables ({tables.length})
             </h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", maxHeight: "650px", overflowY: "auto" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", maxHeight: "calc(100vh - 320px)", minHeight: "500px", overflowY: "auto" }}>
               {tables.map((t) => (
                 <div
                   key={t.name}
@@ -903,7 +915,7 @@ export default function DatabaseExplorer() {
               )}
 
               {queryResult?.columns && queryResult.rows && (
-                <div style={{ flex: 1, overflowX: "auto", overflowY: "auto", maxHeight: "450px" }}>
+                <div style={{ flex: 1, overflowX: "auto", overflowY: "auto", maxHeight: "calc(100vh - 480px)", minHeight: "350px" }}>
                   <table
                     className="torrent-table"
                     style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}
