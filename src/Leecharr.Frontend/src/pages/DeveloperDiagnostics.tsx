@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { apiClient } from "../api/client";
 import { useTranslation } from "../i18n";
+import { DeveloperNav } from "../components/DeveloperNav";
 import type { DatabaseDiagnosticsResponse } from "../api/types";
 
 function formatBytes(bytes: number): string {
@@ -97,6 +98,7 @@ export default function DeveloperDiagnostics() {
         boxSizing: "border-box",
       }}
     >
+      <DeveloperNav />
       {/* Header */}
       <div
         style={{
