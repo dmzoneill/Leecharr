@@ -348,9 +348,9 @@ public class CertificateManager : ICertificateManager
         {
             sanBuilder.AddDnsName(Environment.MachineName);
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore invalid hostname characters
+            Logger.Trace(ex, "Failed to add machine name '{0}' to certificate SAN DNS names", Environment.MachineName);
         }
 
         sanBuilder.AddIpAddress(IPAddress.Loopback);
@@ -374,9 +374,9 @@ public class CertificateManager : ICertificateManager
                 {
                     sanBuilder.AddDnsName(config.BindAddress);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Ignore invalid DNS name characters
+                    Logger.Trace(ex, "Failed to add bind address '{0}' to certificate SAN DNS names", config.BindAddress);
                 }
             }
         }
