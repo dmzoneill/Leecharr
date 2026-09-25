@@ -222,6 +222,7 @@ export function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     return localStorage.getItem("leecharr_sidebar_collapsed") === "true";
   });
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState<boolean>(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
@@ -267,13 +268,21 @@ export function App() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const toggleSidebar = () => {
-    setIsSidebarCollapsed((prev) => {
-      const next = !prev;
-      localStorage.setItem("leecharr_sidebar_collapsed", String(next));
-      return next;
-    });
-  };
+  const toggleSidebar = useCallback(() => {
+    if (typeof window !== "undefined" && window.innerWidth <= 768) {
+      setIsMobileMenuOpen((prev) => !prev);
+    } else {
+      setIsSidebarCollapsed((prev) => {
+        const next = !prev;
+        localStorage.setItem("leecharr_sidebar_collapsed", String(next));
+        return next;
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const pathname = location.pathname;
 
@@ -536,6 +545,7 @@ export function App() {
       // Global Esc dismissal: dismiss open modals, palette, and quick settings (only when not in input)
       if (e.key === "Escape") {
         if (isInput) return;
+        setIsMobileMenuOpen(false);
         setShowCommandPalette(false);
         setShowShortcutsModal(false);
         setShowAddModal(false);
@@ -768,7 +778,9 @@ export function App() {
 
   return (
     <div
-      className={`app nav-${activeNav} ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`}
+      className={`app nav-${activeNav} ${isSidebarCollapsed ? "sidebar-collapsed" : ""} ${
+        isMobileMenuOpen ? "mobile-sidebar-open" : ""
+      }`}
     >
       {/* Sidebar Navigation */}
       <aside className={`sidebar sidebar-${activeNav}`}>
@@ -803,6 +815,14 @@ export function App() {
             ) : (
               <ChevronsLeftIcon size={14} />
             )}
+          </button>
+          <button
+            type="button"
+            className="mobile-sidebar-close-btn"
+            onClick={() => setIsMobileMenuOpen(false)}
+            aria-label="Close navigation"
+          >
+            ✕
           </button>
         </div>
 
@@ -1170,6 +1190,14 @@ export function App() {
         </nav>
       </aside>
 
+      {isMobileMenuOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={() => setIsMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Main Content Area */}
       <div className="main-wrapper">
         {/* Topbar Header */}
@@ -1226,6 +1254,7 @@ export function App() {
                 style={{ cursor: "pointer" }}
               />
               <kbd
+                className="topbar-search-kbd"
                 style={{
                   backgroundColor: "rgba(255, 255, 255, 0.08)",
                   border: "1px solid var(--border)",
@@ -1248,7 +1277,7 @@ export function App() {
             <LanguageSelector />
             <button
               type="button"
-              className="topbar-btn"
+              className="topbar-btn topbar-shortcuts-btn"
               onClick={openShortcutsModal}
               title={t("topbar.keyboardShortcuts", "Keyboard Shortcuts (?)")}
               aria-label={t(

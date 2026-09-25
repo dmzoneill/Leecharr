@@ -2815,34 +2815,171 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 /* ============================================
+  Mobile Drawer & Overlay
+  ============================================ */
+
+.sidebar-backdrop {
+  display: none;
+}
+
+.mobile-sidebar-close-btn {
+  display: none;
+}
+
+/* ============================================
   Responsive Layout
   ============================================ */
 
 @media (width <= 768px) {
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 998;
+    cursor: pointer;
+  }
+
+  .mobile-sidebar-close-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: transparent;
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    cursor: pointer;
+    margin-left: auto;
+  }
+
+  .sidebar-toggle-btn {
+    display: none !important;
+  }
+
   .sidebar {
-    width: 56px;
-    min-width: 56px;
+    position: fixed !important;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 280px !important;
+    min-width: 0 !important;
+    max-width: 85vw !important;
+    height: 100vh !important;
+    z-index: 999 !important;
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease;
+    box-shadow: none;
+    display: flex !important;
+    flex-direction: column;
+    background-color: var(--sidebar-bg);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .app.mobile-sidebar-open .sidebar {
+    transform: translateX(0);
+    box-shadow: 4px 0 28px rgba(0, 0, 0, 0.75);
   }
 
   .sidebar-nav-item span {
-    display: none;
+    display: inline-block !important;
   }
 
   .sidebar-nav-item {
-    padding: 0.6rem;
-    justify-content: center;
+    padding: 0.75rem 1rem !important;
+    justify-content: flex-start !important;
+    min-height: 44px;
+    font-size: 0.95rem;
   }
 
   .sidebar-nav-sub {
-    padding-left: 0;
+    padding-left: 2.2rem !important;
+    min-height: 40px;
+  }
+
+  .sidebar-settings-tree {
+    display: block !important;
   }
 
   .sidebar-logo {
-    padding: 0.5rem;
+    padding: 0.75rem;
   }
 
   .main-wrapper {
-    margin-left: 56px;
+    margin-left: 0 !important;
+    max-width: 100vw !important;
+    width: 100% !important;
+  }
+
+  /* Topbar responsive */
+  .topbar {
+    height: 48px;
+    min-height: 48px;
+    max-height: 48px;
+    padding: 0 0.6rem;
+  }
+
+  .topbar-sidebar-toggle {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+  }
+
+  .topbar-search-kbd,
+  .topbar-search kbd,
+  .topbar-shortcuts-btn,
+  .topbar-apikey-btn,
+  .topbar-api-key,
+  .topbar-getting-started-text {
+    display: none !important;
+  }
+
+  .topbar-getting-started {
+    padding: 0.3rem 0.5rem;
+  }
+
+  .topbar-actions {
+    gap: 0.35rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .topbar-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .topbar-search-input {
+    width: 110px;
+    font-size: 0.8rem;
+  }
+
+  /* Page headers & toolbar */
+  .page-header {
+    padding: 0.5rem 0.75rem;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .page-header-group {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    width: 100%;
+  }
+
+  .page-heading {
+    font-size: 1.25rem;
+  }
+
+  .toolbar {
+    flex-wrap: wrap;
+    padding: 0.5rem 0.75rem;
+    gap: 0.4rem;
   }
 
   .stats-grid {
@@ -2881,9 +3018,37 @@ input[type="number"]::-webkit-inner-spin-button {
     position: static;
   }
 
+  /* Filter Panel on Tablet & Mobile */
+  .filter-panel {
+    position: fixed;
+    top: 48px;
+    bottom: 0;
+    left: 0;
+    width: 270px;
+    max-width: 85vw;
+    height: calc(100vh - 48px);
+    z-index: 950;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
+    background-color: var(--bg-secondary);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .filter-panel.collapsed {
+    display: none !important;
+  }
+
+  /* Tables & Lists */
   .torrent-table-wrapper,
   .peer-table-wrapper {
     position: relative;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+  }
+
+  .torrent-table {
+    min-width: 680px;
   }
 
   .torrent-table-wrapper::after,
@@ -2903,38 +3068,115 @@ input[type="number"]::-webkit-inner-spin-button {
     z-index: 1;
   }
 
-  .filter-panel {
-    width: 160px;
-    min-width: 160px;
+  /* Split Pane & Detail Panel */
+  .torrent-split-pane {
+    height: 100%;
+  }
+
+  .detail-panel {
+    max-height: 55vh !important;
+    height: auto !important;
+    min-height: 180px;
+    position: relative;
+    z-index: 20;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.4);
+  }
+
+  .detail-panel-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+  .detail-panel-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .detail-panel-tab {
+    white-space: nowrap;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+  }
+
+  /* Status Bar */
+  .status-bar {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.75rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+
+  .status-bar-content {
+    gap: 0.75rem;
+    width: max-content;
   }
 }
 
 @media (width <= 480px) {
   .sidebar {
-    display: none;
+    width: 280px !important;
+    max-width: 85vw !important;
+    display: flex !important;
   }
 
-  .main-wrapper {
-    margin-left: 0;
+  .topbar-search-input {
+    display: none !important;
+  }
+
+  .topbar-search {
+    padding: 0.35rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-light);
+    min-width: 36px;
+    min-height: 36px;
+    justify-content: center;
+  }
+
+  .topbar-actions {
+    gap: 0.2rem;
+  }
+
+  .content-area {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .card {
+    padding: 0.85rem;
+    margin-bottom: 0.65rem;
+    border-radius: 6px;
+  }
+
+  .page-heading {
+    font-size: 1.15rem;
   }
 
   .stats-grid {
     grid-template-columns: 1fr;
+    gap: 0.5rem;
   }
 
   .torrent-table-row td {
-    padding: 0.35rem 0.5rem;
+    padding: 0.45rem 0.5rem;
     font-size: 0.8rem;
   }
 
   .btn {
-    padding: 0.4rem 0.7rem;
+    min-height: 38px;
+    padding: 0.45rem 0.75rem;
     font-size: 0.85rem;
   }
 
-  .status-bar-content {
+  .bulk-actions {
     flex-wrap: wrap;
-    gap: 0.4rem 0.75rem;
+    width: 100%;
+    gap: 0.3rem;
+  }
+
+  .bulk-actions-count {
+    width: 100%;
+    margin-bottom: 0.2rem;
+    font-size: 0.8rem;
   }
 
   .search-input {
@@ -2967,10 +3209,19 @@ input[type="number"]::-webkit-inner-spin-button {
     }
   }
 
+  .modal-overlay {
+    padding: 0.5rem;
+    align-items: flex-end;
+  }
+
   .modal {
-    max-width: 100%;
-    margin: 0.5rem;
-    padding: 0.75rem;
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: 92vh !important;
+    margin: 0 !important;
+    padding: 1rem 0.85rem !important;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
   }
 
   .form-group {
@@ -2980,30 +3231,37 @@ input[type="number"]::-webkit-inner-spin-button {
   }
 
   .form-label {
-    font-size: 0.8rem;
+    font-size: 0.82rem;
+    width: 100%;
+    max-width: none;
+    text-align: left;
   }
 
-  .form-input {
+  .form-input,
+  .form-select {
     width: 100%;
+    min-height: 38px;
+    font-size: 0.9rem;
     text-align: left;
   }
 
   .tab-btn {
     font-size: 0.8rem;
-    padding: 0.5rem 0.75rem;
+    padding: 0.5rem 0.65rem;
   }
 
   .torrent-grid {
     grid-template-columns: 1fr;
-    padding: 0.5rem;
+    padding: 0.5rem 0.25rem;
   }
 
   .stat-value {
-    font-size: 1.2rem;
+    font-size: 1.15rem;
   }
 
   .filter-panel {
-    display: none;
+    width: 280px !important;
+    max-width: 85vw !important;
   }
 
   .torrent-content-layout {
