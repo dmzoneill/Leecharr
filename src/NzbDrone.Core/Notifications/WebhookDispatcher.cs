@@ -46,6 +46,7 @@ public class WebhookDispatcher : IWebhookDispatcher
     private readonly HttpClient httpClient;
     private readonly AsyncRetryPolicy<HttpResponseMessage> retryPolicy;
     private readonly Logger logger;
+    private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
     private readonly TimeSpan timeout;
     private readonly bool allowLoopback;
 
@@ -140,9 +141,9 @@ public class WebhookDispatcher : IWebhookDispatcher
                     return false;
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // DNS lookup failure (e.g. offline, mock hostname in test)
+                StaticLogger.Trace(ex, "DNS lookup failed during validation for host '{0}'", host);
             }
         }
 
@@ -330,9 +331,9 @@ public class WebhookDispatcher : IWebhookDispatcher
                         stream = s;
                     }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    // Response stream unreadable or not backed by memory stream
+                    StaticLogger.Trace(ex, "Response stream unreadable or not backed by memory stream");
                 }
 
                 if (stream is MemoryStream memStream && memStream.Length > 0 && memStream.Length <= 16384)
@@ -667,9 +668,9 @@ public class WebhookDispatcher : IWebhookDispatcher
                     return dictFromJson;
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Fallback to JSON serialization-based parsing if raw object conversion fails
+                StaticLogger.Trace(ex, "Failed to parse JSON string in SanitizeTelegramPayload");
             }
         }
 
@@ -691,9 +692,9 @@ public class WebhookDispatcher : IWebhookDispatcher
                 return dictFromJson;
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // If serialization or parsing fails, return original payload untouched
+            StaticLogger.Trace(ex, "Failed to serialize/deserialize payload in SanitizeTelegramPayload");
         }
 
         return payload;
@@ -720,9 +721,9 @@ public class WebhookDispatcher : IWebhookDispatcher
                 return bodySnippet;
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Content read error or cancellation; return empty snippet
+            StaticLogger.Trace(ex, "Content read error or cancellation while extracting body snippet");
         }
 
         return string.Empty;
