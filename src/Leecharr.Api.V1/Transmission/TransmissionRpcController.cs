@@ -1172,9 +1172,9 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
                 freeBytes = this.diskProvider.GetAvailableSpace(freePath);
                 totalBytes = this.diskProvider.GetTotalSize(freePath);
             }
-            catch
+            catch (Exception ex)
             {
-                // Fall through to fallback
+                this.logger.Trace(ex, "Failed to get available space for path '{0}', using fallback", freePath);
             }
         }
 
@@ -1645,9 +1645,9 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
                         {
                             parsedMagnet = MagnetLinkParser.Parse(fn);
                         }
-                        catch
+                        catch (Exception ex)
                         {
-                            // Ignore magnet parsing error, defer to AddFromMagnetAsync
+                            this.logger.Trace(ex, "Failed to parse magnet link '{0}', deferring to AddFromMagnetAsync", fn);
                         }
 
                         var existing = !string.IsNullOrWhiteSpace(parsedMagnet?.InfoHash)
