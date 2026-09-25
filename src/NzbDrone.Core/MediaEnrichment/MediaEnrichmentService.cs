@@ -402,7 +402,6 @@ public class MediaEnrichmentService : IMediaEnrichmentService, IHandle<TorrentDo
             var cacheDir = Path.Combine(this.appFolderInfo.AppDataFolder, "MediaCache", folderKey);
             Directory.CreateDirectory(cacheDir);
 
-            // Handle local file path
             if (File.Exists(url) || Path.IsPathRooted(url))
             {
                 if (File.Exists(url))

@@ -1899,7 +1899,6 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
         return;
       }
 
-      // Delete key
       if (
         e.key === "Delete" ||
         (e.key === "Backspace" && (e.metaKey || e.ctrlKey))

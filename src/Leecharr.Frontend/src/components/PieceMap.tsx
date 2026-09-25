@@ -87,10 +87,8 @@ export function PieceMap({
   const barCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const layoutRef = useRef({ cols: 0, blockSize: 0, gap: 0 });
 
-  // Fetch torrent files if not passed
   const { data: fetchedFiles } = useTorrentFiles(torrentId ?? 0);
 
-  // Compute file boundaries
   const fileBoundaries = useMemo<FileBoundary[]>(() => {
     const files = propFiles || fetchedFiles;
     if (!files || files.length === 0) return [];

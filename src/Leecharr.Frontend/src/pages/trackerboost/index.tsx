@@ -35,7 +35,6 @@ export function TrackerBoost() {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [showBulkImportModal, setShowBulkImportModal] = useState(false);
 
-  // Build unified items list
   const unifiedItems = useMemo<UnifiedDownloadItem[]>(() => {
     const list: UnifiedDownloadItem[] = [];
     const seenHashes = new Set<string>();
