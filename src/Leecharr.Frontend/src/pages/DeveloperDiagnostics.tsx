@@ -38,8 +38,9 @@ export default function DeveloperDiagnostics() {
     try {
       const data = await apiClient.get<DatabaseDiagnosticsResponse>("/system/database/diagnostics");
       setDiag(data);
-    } catch (err: any) {
-      setError(err?.message || "Failed to load runtime diagnostics.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg || "Failed to load runtime diagnostics.");
     } finally {
       setIsLoading(false);
     }
@@ -59,8 +60,9 @@ export default function DeveloperDiagnostics() {
       });
       setActionMessage({ text: "PRAGMA optimize completed successfully.", type: "success" });
       fetchDiagnostics();
-    } catch (err: any) {
-      setActionMessage({ text: err?.message || "PRAGMA optimize failed.", type: "error" });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setActionMessage({ text: msg || "PRAGMA optimize failed.", type: "error" });
     } finally {
       setIsActionRunning(false);
     }
@@ -77,8 +79,9 @@ export default function DeveloperDiagnostics() {
       });
       setActionMessage({ text: "Database VACUUM completed successfully.", type: "success" });
       fetchDiagnostics();
-    } catch (err: any) {
-      setActionMessage({ text: err?.message || "VACUUM failed.", type: "error" });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setActionMessage({ text: msg || "VACUUM failed.", type: "error" });
     } finally {
       setIsActionRunning(false);
     }

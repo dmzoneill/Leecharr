@@ -480,9 +480,9 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
             {
                 candidateHash = MagnetLinkParser.Parse(release.MagnetUrl)?.InfoHash;
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore parse errors
+                this.logger.Trace(ex, "Failed to parse infohash from release MagnetUrl for '{0}'", release?.Title);
             }
         }
 
@@ -492,9 +492,9 @@ public class RssSyncService : IRssSyncService, IExecute<RssSyncCommand>, IExecut
             {
                 candidateHash = MagnetLinkParser.Parse(release.DownloadUrl)?.InfoHash;
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore parse errors
+                this.logger.Trace(ex, "Failed to parse infohash from release DownloadUrl magnet for '{0}'", release?.Title);
             }
         }
 

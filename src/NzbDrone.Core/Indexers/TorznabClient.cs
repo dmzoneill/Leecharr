@@ -125,6 +125,7 @@ public class TorznabClient : ITorznabClient
     private readonly IConfigService configService;
     private readonly HttpClient httpClient;
     private readonly Logger logger;
+    private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
 
     public static TimeSpan CapabilitiesTtl { get; set; } = TimeSpan.FromHours(24);
 
@@ -839,9 +840,9 @@ public class TorznabClient : ITorznabClient
                             infoHash = MagnetLinkParser.NormalizeInfoHash(parsedMagnet.InfoHash);
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Ignore parse failure
+                        this.logger.Trace(ex, "Failed to parse magnet URL '{0}'", magnetUrl);
                     }
                 }
                 else if (!string.IsNullOrWhiteSpace(infoHash))
@@ -920,9 +921,9 @@ public class TorznabClient : ITorznabClient
 
                 return DateTimeOffset.FromUnixTimeSeconds(unixTimestamp).UtcDateTime;
             }
-            catch
+            catch (Exception ex)
             {
-                // If out of range, fall through
+                StaticLogger.Trace(ex, "Failed to parse Unix timestamp '{0}'", unixTimestamp);
             }
         }
 
