@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import * as d3 from "d3";
 import { apiClient } from "../api/client";
 import { useTranslation } from "../i18n";
-import { DeveloperNav } from "../components/DeveloperNav";
 import type {
   DatabaseTable,
   DatabaseTableSchema,
@@ -444,7 +443,6 @@ export default function DatabaseExplorer() {
         minHeight: 0,
       }}
     >
-      <DeveloperNav />
       {/* Page Header */}
       <div
         style={{

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { apiClient } from "../api/client";
-import { DeveloperNav } from "../components/DeveloperNav";
 import type { DeveloperConfigResponse, DeveloperConfigEntry, DeveloperHostEnvironment } from "../api/types";
 
 export default function DeveloperConfig() {
@@ -58,9 +57,7 @@ export default function DeveloperConfig() {
     : [];
 
   return (
-    <div style={{ padding: "20px", maxWidth: "1600px", margin: "0 auto" }}>
-      <DeveloperNav />
-
+    <div className="content-area" style={{ padding: "1.5rem" }}>
       {/* Top Banner */}
       <div
         style={{
