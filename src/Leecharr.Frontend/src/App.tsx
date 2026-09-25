@@ -21,7 +21,6 @@ import {
   SystemIcon,
   FolderIcon,
   TrackerBoostIcon,
-  TerminalIcon,
   AutomationIcon,
   DownloadAgentIcon,
   CodeIcon,
