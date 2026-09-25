@@ -981,8 +981,8 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
         if (!string.IsNullOrEmpty(info.AudioCodec) &&
             (info.AudioCodec.Contains("E-AC3", StringComparison.OrdinalIgnoreCase) ||
-             info.AudioCodec.Contains("DD+", StringComparison.OrdinalIgnoreCase) ||
-             info.AudioCodec.Contains("Dolby Digital Plus", StringComparison.OrdinalIgnoreCase)))
+            info.AudioCodec.Contains("DD+", StringComparison.OrdinalIgnoreCase) ||
+            info.AudioCodec.Contains("Dolby Digital Plus", StringComparison.OrdinalIgnoreCase)))
         {
             var headerText = Encoding.UTF8.GetString(header);
             if (Regex.IsMatch(headerText, @"\b(ATMOS|JOC)\b", RegexOptions.IgnoreCase))
@@ -991,7 +991,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             }
         }
         else if (!string.IsNullOrEmpty(info.AudioCodec) &&
-                 string.Equals(info.AudioCodec, "Dolby TrueHD", StringComparison.OrdinalIgnoreCase))
+                string.Equals(info.AudioCodec, "Dolby TrueHD", StringComparison.OrdinalIgnoreCase))
         {
             var headerText = Encoding.UTF8.GetString(header);
             if (Regex.IsMatch(headerText, @"\bATMOS\b", RegexOptions.IgnoreCase) ||
@@ -1594,7 +1594,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             return false;
         }
         else if (codecId.StartsWith("S_TEXT/WEBVTT", StringComparison.OrdinalIgnoreCase) ||
-                 codecId.StartsWith("S_TEXT/VTT", StringComparison.OrdinalIgnoreCase))
+                codecId.StartsWith("S_TEXT/VTT", StringComparison.OrdinalIgnoreCase))
         {
             AddSubtitleTrack(info, "WebVTT");
             return false;
@@ -1662,7 +1662,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             return false;
         }
         else if (codecId.StartsWith("V_MPEG4/ISO/ASP", StringComparison.OrdinalIgnoreCase) ||
-                 codecId.StartsWith("V_MS/VFW/FOURCC", StringComparison.OrdinalIgnoreCase))
+                codecId.StartsWith("V_MS/VFW/FOURCC", StringComparison.OrdinalIgnoreCase))
         {
             if (string.IsNullOrEmpty(info.VideoCodec))
             {
@@ -1672,7 +1672,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             return false;
         }
         else if (codecId.StartsWith("V_MPEG2", StringComparison.OrdinalIgnoreCase) ||
-                 codecId.StartsWith("V_MPEG1", StringComparison.OrdinalIgnoreCase))
+                codecId.StartsWith("V_MPEG1", StringComparison.OrdinalIgnoreCase))
         {
             if (string.IsNullOrEmpty(info.VideoCodec))
             {
@@ -1684,7 +1684,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
 
         // Audio Codec Identifiers (Guarded with priority / fidelity score)
         else if (codecId.StartsWith("A_TRUEHD", StringComparison.OrdinalIgnoreCase) ||
-                 codecId.StartsWith("A_MLP", StringComparison.OrdinalIgnoreCase))
+                codecId.StartsWith("A_MLP", StringComparison.OrdinalIgnoreCase))
         {
             var isAtmos = !string.IsNullOrEmpty(trackName) && Regex.IsMatch(trackName, @"\bATMOS\b", RegexOptions.IgnoreCase);
             return ApplyAudioCodec(info, isAtmos ? "Dolby TrueHD / Atmos" : "Dolby TrueHD", null, 50);
@@ -1694,19 +1694,19 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             return ApplyAudioCodec(info, "DTS:X", null, 46);
         }
         else if (codecId.StartsWith("A_DTS/HD", StringComparison.OrdinalIgnoreCase) ||
-                 codecId.StartsWith("A_DTS-HD", StringComparison.OrdinalIgnoreCase) ||
-                 codecId.StartsWith("A_DTS/LOSSLESS", StringComparison.OrdinalIgnoreCase))
+                codecId.StartsWith("A_DTS-HD", StringComparison.OrdinalIgnoreCase) ||
+                codecId.StartsWith("A_DTS/LOSSLESS", StringComparison.OrdinalIgnoreCase))
         {
             return ApplyAudioCodec(info, "DTS-HD MA", null, 45);
         }
         else if (codecId.StartsWith("A_EAC3/JOC", StringComparison.OrdinalIgnoreCase) ||
-                 codecId.StartsWith("A_EAC3-JOC", StringComparison.OrdinalIgnoreCase))
+                codecId.StartsWith("A_EAC3-JOC", StringComparison.OrdinalIgnoreCase))
         {
             return ApplyAudioCodec(info, "Dolby Atmos", null, 48);
         }
         else if (codecId.StartsWith("A_EAC3", StringComparison.OrdinalIgnoreCase) ||
-                 codecId.StartsWith("A_EAC-3", StringComparison.OrdinalIgnoreCase) ||
-                 codecId.StartsWith("A_DDP", StringComparison.OrdinalIgnoreCase))
+                codecId.StartsWith("A_EAC-3", StringComparison.OrdinalIgnoreCase) ||
+                codecId.StartsWith("A_DDP", StringComparison.OrdinalIgnoreCase))
         {
             if (!string.IsNullOrEmpty(trackName) && Regex.IsMatch(trackName, @"\b(ATMOS|JOC)\b", RegexOptions.IgnoreCase))
             {
@@ -1744,9 +1744,9 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             return ApplyAudioCodec(info, "Vorbis", null, 8);
         }
         else if (codecId.StartsWith("A_MPEG/L3", StringComparison.OrdinalIgnoreCase) ||
-                 codecId.StartsWith("A_MPEG/L2", StringComparison.OrdinalIgnoreCase) ||
-                 codecId.StartsWith("A_MPEG/L1", StringComparison.OrdinalIgnoreCase) ||
-                 codecId.StartsWith("A_MP3", StringComparison.OrdinalIgnoreCase))
+                codecId.StartsWith("A_MPEG/L2", StringComparison.OrdinalIgnoreCase) ||
+                codecId.StartsWith("A_MPEG/L1", StringComparison.OrdinalIgnoreCase) ||
+                codecId.StartsWith("A_MP3", StringComparison.OrdinalIgnoreCase))
         {
             return ApplyAudioCodec(info, "MP3", null, 5);
         }
@@ -2050,20 +2050,20 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             score = 50;
         }
         else if (codecId.StartsWith("A_DTS/X", StringComparison.OrdinalIgnoreCase) ||
-                 codecId.StartsWith("A_DTS-X", StringComparison.OrdinalIgnoreCase))
+                codecId.StartsWith("A_DTS-X", StringComparison.OrdinalIgnoreCase))
         {
             codecName = "DTS:X";
             score = 46;
         }
         else if (codecId.StartsWith("A_DTS/HD", StringComparison.OrdinalIgnoreCase) ||
-                 codecId.StartsWith("A_DTS-HD", StringComparison.OrdinalIgnoreCase) ||
-                 codecId.StartsWith("A_DTS/LOSSLESS", StringComparison.OrdinalIgnoreCase))
+                codecId.StartsWith("A_DTS-HD", StringComparison.OrdinalIgnoreCase) ||
+                codecId.StartsWith("A_DTS/LOSSLESS", StringComparison.OrdinalIgnoreCase))
         {
             codecName = "DTS-HD MA";
             score = 45;
         }
         else if (codecId.StartsWith("A_EAC3/JOC", StringComparison.OrdinalIgnoreCase) ||
-                 codecId.StartsWith("A_EAC3-JOC", StringComparison.OrdinalIgnoreCase))
+                codecId.StartsWith("A_EAC3-JOC", StringComparison.OrdinalIgnoreCase))
         {
             codecName = "Dolby Atmos";
             score = 48;
@@ -2164,12 +2164,12 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             info.VideoCodec = "H.264";
         }
         else if (codecId.StartsWith("V_MPEG4/ISO/ASP", StringComparison.OrdinalIgnoreCase) ||
-                 codecId.StartsWith("V_MS/VFW/FOURCC", StringComparison.OrdinalIgnoreCase))
+                codecId.StartsWith("V_MS/VFW/FOURCC", StringComparison.OrdinalIgnoreCase))
         {
             info.VideoCodec = "MPEG-4";
         }
         else if (codecId.StartsWith("V_MPEG2", StringComparison.OrdinalIgnoreCase) ||
-                 codecId.StartsWith("V_MPEG1", StringComparison.OrdinalIgnoreCase))
+                codecId.StartsWith("V_MPEG1", StringComparison.OrdinalIgnoreCase))
         {
             info.VideoCodec = "MPEG-2";
         }
@@ -2254,13 +2254,13 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 }
 
                 var size64 = ((ulong)headerBuf[8] << 56) |
-                               ((ulong)headerBuf[9] << 48) |
-                               ((ulong)headerBuf[10] << 40) |
-                               ((ulong)headerBuf[11] << 32) |
-                               ((ulong)headerBuf[12] << 24) |
-                               ((ulong)headerBuf[13] << 16) |
-                               ((ulong)headerBuf[14] << 8) |
-                               headerBuf[15];
+                                ((ulong)headerBuf[9] << 48) |
+                                ((ulong)headerBuf[10] << 40) |
+                                ((ulong)headerBuf[11] << 32) |
+                                ((ulong)headerBuf[12] << 24) |
+                                ((ulong)headerBuf[13] << 16) |
+                                ((ulong)headerBuf[14] << 8) |
+                                headerBuf[15];
 
                 boxSize = (long)size64;
                 headerSize = 16;
@@ -2362,13 +2362,13 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 }
 
                 var size64 = ((ulong)data[offset + 8] << 56) |
-                               ((ulong)data[offset + 9] << 48) |
-                               ((ulong)data[offset + 10] << 40) |
-                               ((ulong)data[offset + 11] << 32) |
-                               ((ulong)data[offset + 12] << 24) |
-                               ((ulong)data[offset + 13] << 16) |
-                               ((ulong)data[offset + 14] << 8) |
-                               data[offset + 15];
+                                ((ulong)data[offset + 9] << 48) |
+                                ((ulong)data[offset + 10] << 40) |
+                                ((ulong)data[offset + 11] << 32) |
+                                ((ulong)data[offset + 12] << 24) |
+                                ((ulong)data[offset + 13] << 16) |
+                                ((ulong)data[offset + 14] << 8) |
+                                data[offset + 15];
                 boxSize = (long)size64;
                 headerSize = 16;
             }
@@ -2981,10 +2981,10 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             if (header.Length >= 26)
             {
                 var totalSamples = ((ulong)(header[21] & 0x0F) << 32) |
-                                     ((ulong)header[22] << 24) |
-                                     ((ulong)header[23] << 16) |
-                                     ((ulong)header[24] << 8) |
-                                     header[25];
+                                    ((ulong)header[22] << 24) |
+                                    ((ulong)header[23] << 16) |
+                                    ((ulong)header[24] << 8) |
+                                    header[25];
 
                 if (totalSamples > 0 && sampleRate > 0)
                 {
@@ -3021,12 +3021,12 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                     info.VideoCodec = "Xvid / MPEG-4";
                 }
                 else if (text.Contains("H264", StringComparison.OrdinalIgnoreCase) ||
-                         text.Contains("AVC1", StringComparison.OrdinalIgnoreCase))
+                        text.Contains("AVC1", StringComparison.OrdinalIgnoreCase))
                 {
                     info.VideoCodec = "H.264";
                 }
                 else if (text.Contains("HEVC", StringComparison.OrdinalIgnoreCase) ||
-                         text.Contains("H265", StringComparison.OrdinalIgnoreCase))
+                        text.Contains("H265", StringComparison.OrdinalIgnoreCase))
                 {
                     info.VideoCodec = "HEVC (H.265)";
                 }
@@ -3067,9 +3067,9 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
             var chunkId3 = (char)header[offset + 3];
 
             var chunkSize = (uint)(header[offset + 4] |
-                                   (header[offset + 5] << 8) |
-                                   (header[offset + 6] << 16) |
-                                   (header[offset + 7] << 24));
+                                    (header[offset + 5] << 8) |
+                                    (header[offset + 6] << 16) |
+                                    (header[offset + 7] << 24));
 
             if (chunkId0 == 'f' && chunkId1 == 'm' && chunkId2 == 't' && chunkId3 == ' ')
             {
@@ -3331,9 +3331,9 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         if (bytesRead >= 10)
         {
             var tagSize = ((header[6] & 0x7F) << 21) |
-                          ((header[7] & 0x7F) << 14) |
-                          ((header[8] & 0x7F) << 7) |
-                          (header[9] & 0x7F);
+                        ((header[7] & 0x7F) << 14) |
+                        ((header[8] & 0x7F) << 7) |
+                        (header[9] & 0x7F);
 
             var hasFooter = (header[5] & 0x10) != 0;
             tagOffset = 10 + tagSize + (hasFooter ? 10 : 0);
@@ -3674,8 +3674,8 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         // Promote E-AC3 / DD+ to Dolby Atmos if filename hints include ATMOS or JOC (Joint Object Coding)
         if (!string.IsNullOrEmpty(info.AudioCodec) &&
             (info.AudioCodec.Contains("E-AC3", StringComparison.OrdinalIgnoreCase) ||
-             info.AudioCodec.Contains("DD+", StringComparison.OrdinalIgnoreCase) ||
-             info.AudioCodec.Contains("Dolby Digital Plus", StringComparison.OrdinalIgnoreCase)) &&
+            info.AudioCodec.Contains("DD+", StringComparison.OrdinalIgnoreCase) ||
+            info.AudioCodec.Contains("Dolby Digital Plus", StringComparison.OrdinalIgnoreCase)) &&
             Regex.IsMatch(normalized, @"\b(ATMOS|JOC)\b"))
         {
             info.AudioCodec = "Dolby Atmos";
@@ -3756,7 +3756,7 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 info.AudioCodec = hintedCodec;
             }
             else if (string.Equals(info.AudioCodec, "Dolby TrueHD", StringComparison.OrdinalIgnoreCase) &&
-                     Regex.IsMatch(normalized, @"\b(ATMOS|JOC)\b"))
+                    Regex.IsMatch(normalized, @"\b(ATMOS|JOC)\b"))
             {
                 info.AudioCodec = "Dolby TrueHD / Atmos";
             }

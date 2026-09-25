@@ -281,66 +281,66 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
             }
         }
         else if (string.Equals(name, "TorrentAdded", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "torrentAdded", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "torrent_added", StringComparison.OrdinalIgnoreCase))
+                string.Equals(name, "torrentAdded", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "torrent_added", StringComparison.OrdinalIgnoreCase))
         {
             list.Add("TorrentAdded");
         }
         else if (string.Equals(name, "TorrentUpdated", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "torrentUpdated", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "torrent_updated", StringComparison.OrdinalIgnoreCase))
+                string.Equals(name, "torrentUpdated", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "torrent_updated", StringComparison.OrdinalIgnoreCase))
         {
             list.Add("TorrentUpdated");
         }
         else if (string.Equals(name, "TorrentDeleted", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "torrentDeleted", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "torrent_deleted", StringComparison.OrdinalIgnoreCase))
+                string.Equals(name, "torrentDeleted", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "torrent_deleted", StringComparison.OrdinalIgnoreCase))
         {
             list.Add("TorrentDeleted");
         }
         else if (string.Equals(name, "speedPulse", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "speed_update", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "speedUpdate", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "Seeding", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "SeedingStatsUpdated", StringComparison.OrdinalIgnoreCase))
+                string.Equals(name, "speed_update", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "speedUpdate", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "Seeding", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "SeedingStatsUpdated", StringComparison.OrdinalIgnoreCase))
         {
             list.Add("speedPulse");
         }
         else if (string.Equals(name, "Health", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "HealthCheckCompleted", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "health_warning", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "healthWarning", StringComparison.OrdinalIgnoreCase))
+                string.Equals(name, "HealthCheckCompleted", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "health_warning", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "healthWarning", StringComparison.OrdinalIgnoreCase))
         {
             list.Add("HealthCheckCompleted");
         }
         else if (string.Equals(name, "Task", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "TaskStarted", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "TaskCompleted", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "task_progress", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "taskProgress", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "Command", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "CommandStarted", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "CommandCompleted", StringComparison.OrdinalIgnoreCase))
+                string.Equals(name, "TaskStarted", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "TaskCompleted", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "task_progress", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "taskProgress", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "Command", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "CommandStarted", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "CommandCompleted", StringComparison.OrdinalIgnoreCase))
         {
             list.Add(name);
         }
         else if (string.Equals(name, "pieceMapUpdated", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "piece_map_updated", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "PieceCompleted", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "PieceBatchCompleted", StringComparison.OrdinalIgnoreCase))
+                string.Equals(name, "piece_map_updated", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "PieceCompleted", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "PieceBatchCompleted", StringComparison.OrdinalIgnoreCase))
         {
             list.Add("pieceMapUpdated");
         }
         else if (string.Equals(name, "Tracker", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "trackerUpdated", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "TrackerUpdated", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "tracker_updated", StringComparison.OrdinalIgnoreCase))
+                string.Equals(name, "trackerUpdated", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "TrackerUpdated", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "tracker_updated", StringComparison.OrdinalIgnoreCase))
         {
             list.Add("trackerUpdated");
         }
         else if (string.Equals(name, "trackerAnnounced", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "TrackerAnnounced", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "tracker_announced", StringComparison.OrdinalIgnoreCase))
+                string.Equals(name, "TrackerAnnounced", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "tracker_announced", StringComparison.OrdinalIgnoreCase))
         {
             list.Add("trackerAnnounced");
         }

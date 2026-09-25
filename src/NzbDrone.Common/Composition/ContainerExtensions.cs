@@ -147,7 +147,7 @@ public static class ContainerExtensions
     private static bool IsController(Type type)
     {
         return type.Name.EndsWith("Controller", StringComparison.Ordinal) ||
-               (type.BaseType != null && (type.BaseType.Name == "ControllerBase" || type.BaseType.Name == "Controller"));
+                (type.BaseType != null && (type.BaseType.Name == "ControllerBase" || type.BaseType.Name == "Controller"));
     }
 
     private static void RegisterControllerHandlers(IContainer container, Type type, Type[] interfaces)

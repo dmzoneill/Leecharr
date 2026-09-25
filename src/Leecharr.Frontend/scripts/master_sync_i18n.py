@@ -17,21 +17,111 @@ CACHE_FILE = SRC_DIR / "i18n" / ".translation-memory.json"
 TYPES_FILE = SRC_DIR / "i18n" / "types.ts"
 
 LANGS = [
-    "zh-CN", "hi", "es", "ar", "fr", "bn", "pt", "ru", "ur",
-    "id", "de", "ja", "mr", "te", "tr", "ta", "vi", "ko", "it"
+    "zh-CN",
+    "hi",
+    "es",
+    "ar",
+    "fr",
+    "bn",
+    "pt",
+    "ru",
+    "ur",
+    "id",
+    "de",
+    "ja",
+    "mr",
+    "te",
+    "tr",
+    "ta",
+    "vi",
+    "ko",
+    "it",
 ]
 
 BRAND_TERMS = {
-    "leecharr", "sonarr", "radarr", "lidarr", "prowlarr", "readarr", "servarr",
-    "deluge", "qbittorrent", "transmission", "utorrent", "biglybt", "rtorrent", "sabnzbd", "nzbget", "aria2",
-    "docker", "linux", "windows", "macos", "bittorrent", "torznab", "newznab",
-    "http", "https", "tcp", "udp", "utp", "dht", "pex", "lpd", "bep", "upnp", "nat-pmp",
-    "socks5", "socks4", "ipv4", "ipv6", "tls", "ssl", "rc4", "ja3", "jwt",
-    "api", "url", "uri", "ip", "json", "xml", "ebml", "mkv", "mp4", "avi", "flac", "mp3",
-    "sqlite", "postgresql", "dapper", "signalr", "kestrel", "nlog", "dryioc",
-    "uuid", "hash", "infohash", "bep27", "bep29", "bep09", "bep10", "bep11", "bep15",
-    "pwd:", "mb/s", "kb/s", "gb/s", "tb/s", "b/s", "kib/s", "mib/s", "gib/s", "tib/s"
+    "leecharr",
+    "sonarr",
+    "radarr",
+    "lidarr",
+    "prowlarr",
+    "readarr",
+    "servarr",
+    "deluge",
+    "qbittorrent",
+    "transmission",
+    "utorrent",
+    "biglybt",
+    "rtorrent",
+    "sabnzbd",
+    "nzbget",
+    "aria2",
+    "docker",
+    "linux",
+    "windows",
+    "macos",
+    "bittorrent",
+    "torznab",
+    "newznab",
+    "http",
+    "https",
+    "tcp",
+    "udp",
+    "utp",
+    "dht",
+    "pex",
+    "lpd",
+    "bep",
+    "upnp",
+    "nat-pmp",
+    "socks5",
+    "socks4",
+    "ipv4",
+    "ipv6",
+    "tls",
+    "ssl",
+    "rc4",
+    "ja3",
+    "jwt",
+    "api",
+    "url",
+    "uri",
+    "ip",
+    "json",
+    "xml",
+    "ebml",
+    "mkv",
+    "mp4",
+    "avi",
+    "flac",
+    "mp3",
+    "sqlite",
+    "postgresql",
+    "dapper",
+    "signalr",
+    "kestrel",
+    "nlog",
+    "dryioc",
+    "uuid",
+    "hash",
+    "infohash",
+    "bep27",
+    "bep29",
+    "bep09",
+    "bep10",
+    "bep11",
+    "bep15",
+    "pwd:",
+    "mb/s",
+    "kb/s",
+    "gb/s",
+    "tb/s",
+    "b/s",
+    "kib/s",
+    "mib/s",
+    "gib/s",
+    "tib/s",
 }
+
 
 def is_technical(text):
     t = str(text).strip().lower()
@@ -43,8 +133,10 @@ def is_technical(text):
         return True
     return False
 
+
 def hash_text(text):
     return hashlib.sha256(str(text).strip().encode("utf-8")).hexdigest()[:16]
+
 
 def parse_ts_dict(file_path):
     p = Path(file_path)
@@ -57,15 +149,25 @@ def parse_ts_dict(file_path):
     raw_js = m.group(1)
     tmp_file = p.with_name(p.name + ".tmp.cjs")
     try:
-        tmp_file.write_text(f"const obj = ({raw_js}); process.stdout.write(JSON.stringify(obj));", encoding="utf-8")
+        tmp_file.write_text(
+            f"const obj = ({raw_js}); process.stdout.write(JSON.stringify(obj));",
+            encoding="utf-8",
+        )
         import subprocess
-        res = subprocess.run(["node", str(tmp_file)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        res = subprocess.run(
+            ["node", str(tmp_file)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
         if res.returncode == 0 and res.stdout:
             return json.loads(res.stdout)
     finally:
         if tmp_file.exists():
             tmp_file.unlink()
     return {}
+
 
 def flatten_keys(obj, prefix=""):
     res = {}
@@ -76,6 +178,7 @@ def flatten_keys(obj, prefix=""):
         else:
             res[full] = str(v)
     return res
+
 
 def unflatten_keys(flat):
     res = {}
@@ -89,14 +192,18 @@ def unflatten_keys(flat):
         cur[parts[-1]] = val
     return res
 
+
 def mask_variables(text):
     var_map = []
+
     def repl(m):
         idx = len(var_map)
         var_map.append(m.group(0))
         return f"___V{idx}___"
+
     masked = re.sub(r"(\{\{[a-zA-Z0-9_]+\}\}|\{[a-zA-Z0-9_]+\})", repl, text)
     return masked, var_map
+
 
 def unmask_variables(text, var_map):
     res = text
@@ -105,18 +212,22 @@ def unmask_variables(text, var_map):
         res = pattern.sub(orig, res)
     return res
 
+
 def translate_phrase(text, target_lang):
     if is_technical(text):
         return text
-    
+
     masked, var_map = mask_variables(text)
-    
+
     for attempt in range(4):
         try:
             url = f"https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=en&tl={urllib.parse.quote(target_lang)}&q={urllib.parse.quote(masked)}"
-            req = urllib.request.Request(url, headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-            })
+            req = urllib.request.Request(
+                url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+                },
+            )
             with urllib.request.urlopen(req, timeout=8) as response:
                 raw = response.read().decode("utf-8")
                 parsed = json.loads(raw)
@@ -128,17 +239,19 @@ def translate_phrase(text, target_lang):
 
     return unmask_variables(masked, var_map)
 
+
 def format_ts_file(obj, var_name):
     json_str = json.dumps(obj, indent=2, ensure_ascii=False)
     lines = [
         'import { I18nTranslations } from "../types";',
-        '',
+        "",
         f"const {var_name}: I18nTranslations = {json_str};",
         "",
         f"export default {var_name};",
-        ""
+        "",
     ]
     return "\n".join(lines)
+
 
 def generate_types_file(tree):
     def build_interface(obj, indent="  "):
@@ -160,9 +273,12 @@ export type I18nTranslations = {body};
 """
     TYPES_FILE.write_text(content, encoding="utf-8")
 
+
 def main():
-    print("🚀 Starting Leecharr Deep Localization Synchronization (Google Dict Engine)...")
-    
+    print(
+        "🚀 Starting Leecharr Deep Localization Synchronization (Google Dict Engine)..."
+    )
+
     # 1. Scan codebase for referenced keys
     used_keys = set()
     for p in SRC_DIR.rglob("*"):
@@ -171,9 +287,15 @@ def main():
         rel_parts = p.relative_to(SRC_DIR).parts
         if "node_modules" in rel_parts or "dist" in rel_parts or "locales" in rel_parts:
             continue
-        if p.suffix == ".tsx" or (p.suffix == ".ts" and not p.name.endswith("types.ts") and not p.name.endswith(".d.ts")):
+        if p.suffix == ".tsx" or (
+            p.suffix == ".ts"
+            and not p.name.endswith("types.ts")
+            and not p.name.endswith(".d.ts")
+        ):
             code = p.read_text(encoding="utf-8", errors="ignore")
-            matches = re.findall(r'\b(?:t|translate)\(\s*["\'`]([a-zA-Z0-9_.]+)["\'`]', code)
+            matches = re.findall(
+                r'\b(?:t|translate)\(\s*["\'`]([a-zA-Z0-9_.]+)["\'`]', code
+            )
             for m in matches:
                 used_keys.add(m)
     print(f"ℹ️  Found {len(used_keys)} distinct translation key references in codebase.")
@@ -184,13 +306,13 @@ def main():
     if not en_tree:
         print("❌ Failed to parse en.ts")
         sys.exit(1)
-        
+
     flat_en = flatten_keys(en_tree)
     clean_flat_en = dict(flat_en)
 
     total_keys = len(clean_flat_en)
     print(f"📖 Canonical English dictionary: {total_keys} keys")
-    
+
     clean_en_tree = unflatten_keys(clean_flat_en)
     en_file.write_text(format_ts_file(clean_en_tree, "en"), encoding="utf-8")
 
@@ -204,7 +326,7 @@ def main():
             memory = json.loads(CACHE_FILE.read_text(encoding="utf-8"))
         except Exception:
             memory = {}
-            
+
     for lang in LANGS:
         if lang not in memory:
             memory[lang] = {}
@@ -215,18 +337,26 @@ def main():
         lang_file = LOCALES_DIR / f"{lang}.ts"
         existing_tree = parse_ts_dict(lang_file)
         existing_flat = flatten_keys(existing_tree)
-        
+
         phrases_to_translate = {}
         result_flat = {}
-        
+
         for key, en_val in clean_flat_en.items():
             en_hash = hash_text(en_val)
             cached_trans = memory[lang].get(en_hash)
             cur_val = existing_flat.get(key)
-            
-            if cached_trans and (is_technical(en_val) or cached_trans.strip() != en_val.strip() or len(en_val.strip()) <= 3):
+
+            if cached_trans and (
+                is_technical(en_val)
+                or cached_trans.strip() != en_val.strip()
+                or len(en_val.strip()) <= 3
+            ):
                 result_flat[key] = cached_trans
-            elif cur_val and (is_technical(en_val) or cur_val.strip() != en_val.strip() or len(en_val.strip()) <= 3):
+            elif cur_val and (
+                is_technical(en_val)
+                or cur_val.strip() != en_val.strip()
+                or len(en_val.strip()) <= 3
+            ):
                 result_flat[key] = cur_val
                 memory[lang][en_hash] = cur_val
             elif is_technical(en_val):
@@ -238,25 +368,31 @@ def main():
         missing_count = len(phrases_to_translate)
         if missing_count > 0:
             print(f"🌍 [{lang}] Translating {missing_count} authentic phrases...")
-            
+
             def task(h, text):
                 return h, text, translate_phrase(text, lang)
-                
+
             with ThreadPoolExecutor(max_workers=32) as executor:
-                futures = [executor.submit(task, h, t) for h, t in phrases_to_translate.items()]
+                futures = [
+                    executor.submit(task, h, t) for h, t in phrases_to_translate.items()
+                ]
                 completed = 0
                 for fut in as_completed(futures):
                     h, orig_text, trans_text = fut.result()
                     memory[lang][h] = trans_text
                     completed += 1
                     if completed % 500 == 0 or completed == missing_count:
-                        print(f"   [{lang}] Progress: {completed}/{missing_count} phrases translated")
+                        print(
+                            f"   [{lang}] Progress: {completed}/{missing_count} phrases translated"
+                        )
 
             for key, en_val in clean_flat_en.items():
                 en_hash = hash_text(en_val)
                 result_flat[key] = memory[lang].get(en_hash, en_val)
         else:
-            print(f"✅ [{lang}] 100% up-to-date and fully translated ({total_keys} keys)")
+            print(
+                f"✅ [{lang}] 100% up-to-date and fully translated ({total_keys} keys)"
+            )
 
         # Unflatten and save .ts file
         new_tree = unflatten_keys(result_flat)
@@ -264,9 +400,14 @@ def main():
         lang_file.write_text(ts_content, encoding="utf-8")
 
     # 5. Save updated translation memory cache
-    CACHE_FILE.write_text(json.dumps(memory, indent=2, ensure_ascii=False), encoding="utf-8")
-        
-    print("\n🎉 Full Deep Translation Synchronization Complete Across All 20 Languages!")
+    CACHE_FILE.write_text(
+        json.dumps(memory, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+
+    print(
+        "\n🎉 Full Deep Translation Synchronization Complete Across All 20 Languages!"
+    )
+
 
 if __name__ == "__main__":
     main()

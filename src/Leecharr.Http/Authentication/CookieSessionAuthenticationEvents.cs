@@ -31,7 +31,7 @@ public class CookieSessionAuthenticationEvents : CookieAuthenticationEvents
         if (manager == null)
         {
             var repo = this.userSessionRepository ??
-                       context.HttpContext?.RequestServices?.GetService<IUserSessionRepository>();
+                        context.HttpContext?.RequestServices?.GetService<IUserSessionRepository>();
             var userRepo = context.HttpContext?.RequestServices?.GetService<IUserRepository>();
             if (repo != null)
             {
