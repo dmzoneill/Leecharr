@@ -270,7 +270,7 @@ export default function DownloadClientTorrents() {
         onError: (err) => {
           setImportingHash(null);
           showToast(
-            `Failed to import "${title}": ${err.message || "Unknown error"}`,
+            `Failed to import "${title}": ${err.message || "Import operation failed"}`,
             "error",
           );
         },
@@ -313,7 +313,7 @@ export default function DownloadClientTorrents() {
       onError: (err) => {
         setImportingSelected(false);
         showToast(
-          `Bulk import failed: ${err.message || "Unknown error"}`,
+          `Bulk import failed: ${err.message || "Import operation failed"}`,
           "error",
         );
       },
@@ -353,7 +353,7 @@ export default function DownloadClientTorrents() {
       },
       onError: (err) => {
         showToast(
-          `Bulk import failed: ${err.message || "Unknown error"}`,
+          `Bulk import failed: ${err.message || "Import operation failed"}`,
           "error",
         );
       },
