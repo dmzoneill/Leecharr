@@ -2123,11 +2123,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
             }
         }
 
-        var baseDownloadDir = this.configService?.DownloadDir;
-        if (string.IsNullOrWhiteSpace(baseDownloadDir))
-        {
-            baseDownloadDir = "/downloads";
-        }
+        var baseDownloadDir = this.storagePathService?.GetCompletedDirectory(null) ?? this.configService?.DownloadDir ?? "/downloads";
         var trimmedBase = baseDownloadDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
         if (string.Equals(trimmedSave, trimmedBase, StringComparison.OrdinalIgnoreCase) ||
