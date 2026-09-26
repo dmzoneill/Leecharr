@@ -1968,6 +1968,7 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
             { "secondsDownloading", secondsDownloading },
             { "secondsSeeding", secondsSeeding },
             { "addedDate", addedDate },
+            { "dateAdded", addedDate },
             { "doneDate", doneDate },
             { "editDate", editDate },
             { "startDate", startDate },
