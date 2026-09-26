@@ -44,6 +44,8 @@ public class DownloadClientConsistencyIntegrationTests : IntegrationTestBase
             leecharrTorrent!.Name.Should().Be(TestName);
             leecharrTorrent.Category.Should().Be(TestCategory);
 
+            var expectedDownloadDir = leecharrTorrent.SavePath;
+
             // 3. Query Transmission RPC Emulation
             var transInit = await this.PostJsonAsync("/transmission/rpc", new { method = "session-get" });
             transInit.Headers.TryGetValues("X-Transmission-Session-Id", out var sessionIds).Should().BeTrue();
@@ -84,6 +86,7 @@ public class DownloadClientConsistencyIntegrationTests : IntegrationTestBase
 
             foundTrans.Should().BeTrue("Transmission RPC should return the added torrent");
             matchingTrans.GetProperty("name").GetString().Should().Be(TestName);
+            matchingTrans.GetProperty("downloadDir").GetString().Should().Be(expectedDownloadDir);
             var transLabels = matchingTrans.GetProperty("labels").EnumerateArray().Select(l => l.GetString()).ToList();
             transLabels.Should().Contain(TestCategory);
 
@@ -116,6 +119,7 @@ public class DownloadClientConsistencyIntegrationTests : IntegrationTestBase
             foundQbit.Should().BeTrue("qBittorrent API should return the added torrent");
             matchingQbit.GetProperty("name").GetString().Should().Be(TestName);
             matchingQbit.GetProperty("category").GetString().Should().Be(TestCategory);
+            matchingQbit.GetProperty("save_path").GetString().Should().Be(expectedDownloadDir);
 
             // 5. Query Deluge JSON-RPC Emulation
             var delugeReq = new
@@ -136,6 +140,7 @@ public class DownloadClientConsistencyIntegrationTests : IntegrationTestBase
 
             delugeResult.TryGetProperty(TestHash.ToLowerInvariant(), out var matchingDeluge).Should().BeTrue("Deluge JSON-RPC should return the added torrent");
             matchingDeluge.GetProperty("name").GetString().Should().Be(TestName);
+            matchingDeluge.GetProperty("save_path").GetString().Should().Be(expectedDownloadDir);
 
             // 6. Test Tracker Addition Consistency
             var newTracker = "https://tracker2.example.com/announce";

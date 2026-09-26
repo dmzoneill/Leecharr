@@ -80,6 +80,7 @@ public class MonoTorrentDownloadEngineTest
         this.storagePathService = Substitute.For<IStoragePathService>();
         this.storagePathService.GetIncompleteDirectory().Returns(this.testIncompleteDir);
         this.storagePathService.GetCompletedDirectory(Arg.Any<string>()).Returns(this.testDownloadDir);
+        this.storagePathService.NormalizeCompletedSavePath(Arg.Any<string>(), Arg.Any<string>()).Returns(x => x.ArgAt<string>(0));
 
         this.categoryService = Substitute.For<ICategoryService>();
         this.categoryService.GetSavePathForCategory(Arg.Any<string>()).Returns(this.testDownloadDir);

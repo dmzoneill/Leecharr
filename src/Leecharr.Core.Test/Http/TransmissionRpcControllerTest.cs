@@ -1787,6 +1787,46 @@ public class TransmissionRpcControllerTest
     }
 
     [Test]
+    public async Task HandleRpc_TorrentGet_WithCategorySubPath_ReportsDownloadDirAsCompletedDir()
+    {
+        var context = new DefaultHttpContext();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:secret_api_key_123"));
+        context.Request.Headers["Authorization"] = $"Basic {credentials}";
+        context.Request.Headers["X-Transmission-Session-Id"] = "active-session-123";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent = new Torrent
+        {
+            Id = 5,
+            Name = "X-Men.Days.of.Future.Past",
+            InfoHash = "categorytest0123456789abcdef0123456789ab",
+            Status = TorrentStatus.Seeding,
+            Category = "radarr",
+            SavePath = "/downloads/radarr",
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent });
+
+        var args = new Dictionary<string, JsonElement>();
+        using var fieldsDoc = JsonDocument.Parse("[\"id\",\"name\",\"downloadDir\"]");
+        args["fields"] = fieldsDoc.RootElement.Clone();
+
+        var result = await this.controller.HandleRpc(new TransmissionRpcRequest
+        {
+            Method = "torrent-get",
+            Arguments = args,
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var response = okResult.Value as TransmissionRpcResponse;
+        var responseArgs = response!.Arguments as Dictionary<string, object>;
+        var torrents = responseArgs!["torrents"] as List<Dictionary<string, object>>;
+        torrents.Should().NotBeNull();
+        torrents!.Count.Should().Be(1);
+        torrents[0]["downloadDir"].Should().Be("/downloads");
+    }
+
+    [Test]
     public async Task HandleRpc_SessionStats_ReturnsActivePausedSpeedAndNestedCumulativeAndCurrentStats()
     {
         var context = new DefaultHttpContext();

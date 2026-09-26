@@ -3399,9 +3399,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         var customSavePath = existingTask?.SavePath;
         var targetCompletedDir = this.storagePathService.GetCompletedDirectory(category);
         var downloadDir = this.configService?.DownloadDir ?? "/downloads";
-        var seedingSavePath = !string.IsNullOrWhiteSpace(customSavePath)
+        var rawSeedingSavePath = !string.IsNullOrWhiteSpace(customSavePath)
             ? customSavePath
             : (!string.IsNullOrWhiteSpace(targetCompletedDir) ? targetCompletedDir : downloadDir);
+        var seedingSavePath = this.storagePathService?.NormalizeCompletedSavePath(rawSeedingSavePath, category) ?? rawSeedingSavePath;
         string finalDestination = null;
 
         var currentIncompletePath = manager.SavePath ?? this.storagePathService.GetIncompleteDirectory();
@@ -3412,13 +3413,14 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         if (manager.Files != null && manager.Files.Count > 0)
         {
             var isMulti = manager.Files.Count > 1 || (manager.Torrent != null && manager.Torrent.Files.Count > 1);
-            if (isMulti)
+            var folderName = manager.Torrent?.Name ?? torrentName;
+            if (!string.IsNullOrWhiteSpace(folderName) && this.diskProvider.FolderExists(Path.Combine(sourcePath, folderName)))
             {
-                var folderName = manager.Torrent?.Name ?? torrentName;
-                if (!string.IsNullOrWhiteSpace(folderName))
-                {
-                    sourcePath = Path.Combine(sourcePath, folderName);
-                }
+                sourcePath = Path.Combine(sourcePath, folderName);
+            }
+            else if (isMulti && !string.IsNullOrWhiteSpace(folderName))
+            {
+                sourcePath = Path.Combine(sourcePath, folderName);
             }
             else
             {
