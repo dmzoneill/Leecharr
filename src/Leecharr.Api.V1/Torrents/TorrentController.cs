@@ -761,6 +761,12 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     [HttpGet("{id:int}/peers")]
     public async Task<ActionResult<List<PeerResource>>> GetPeers(int id)
     {
+        var torrent = this.torrentService.Get(id);
+        if (torrent == null)
+        {
+            return this.NotFound();
+        }
+
         var task = this.torrentService.GetDownloadTask(id);
         if (task == null)
         {
