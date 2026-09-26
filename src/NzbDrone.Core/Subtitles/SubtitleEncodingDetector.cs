@@ -83,8 +83,9 @@ public class SubtitleEncodingDetector : ISubtitleEncodingDetector
         {
             return Encoding.GetEncoding(1252);
         }
-        catch
+        catch (Exception ex)
         {
+            Logger.Trace(ex, "Code page 1252 unavailable; falling back to Latin1");
             return Encoding.Latin1; // ISO-8859-1
         }
     }
