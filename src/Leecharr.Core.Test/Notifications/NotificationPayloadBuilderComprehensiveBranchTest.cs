@@ -70,7 +70,7 @@ public class NotificationPayloadBuilderComprehensiveBranchTest
 
         var settings = JsonSerializer.Serialize(new
         {
-            url = "https://hooks.slack.com/services/T00/B00/X00",
+            url = "https://example.com/slack/T00/B00/X00",
             username = "LeecharrBot",
             avatarUrl = "https://leecharr.local/icon.png",
             chat_id = "123456789",

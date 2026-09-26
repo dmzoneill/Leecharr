@@ -88,7 +88,14 @@ public class StoragePathService : IStoragePathService
         {
             if (!this.diskProvider.FolderExists(categoryPath))
             {
-                this.diskProvider.CreateFolder(categoryPath);
+                try
+                {
+                    this.diskProvider.CreateFolder(categoryPath);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warn(ex, "Failed to create category directory '{0}'", categoryPath);
+                }
             }
 
             return categoryPath;
@@ -114,7 +121,14 @@ public class StoragePathService : IStoragePathService
 
         if (!this.diskProvider.FolderExists(target))
         {
-            this.diskProvider.CreateFolder(target);
+            try
+            {
+                this.diskProvider.CreateFolder(target);
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to create completed directory '{0}'", target);
+            }
         }
 
         return target;
