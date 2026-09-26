@@ -221,7 +221,8 @@ const ur: I18nTranslations = {
     "themeDark": "ڈارک موڈ پر سوئچ کریں۔",
     "support": "سپورٹ اور عطیہ کریں۔",
     "systemStatus": "سسٹم کی حیثیت",
-    "commandPalette": "کمانڈ پیلیٹ (Ctrl+K)"
+    "commandPalette": "کمانڈ پیلیٹ (Ctrl+K)",
+    "developer": "ڈویلپر"
   },
   "topbar": {
     "searchPlaceholder": "فوری چھلانگ / تلاش کریں... (Ctrl+K)",
@@ -448,6 +449,8 @@ const ur: I18nTranslations = {
     "bulkResume": "منتخب شدہ دوبارہ شروع کریں",
     "bulkPause": "منتخب شدہ روکیں",
     "bulkDelete": "منتخب شدہ حذف کریں",
+    "bulkDeleteFilesSuccess": "{{count}} ٹورینٹ اور فائلیں حذف کر دی گئیں۔",
+    "bulkDeleteSuccess": "{{count}} ٹورینٹ ہٹا دیا گیا۔",
     "bulkSetCategory": "منتخب شدہ کے لیے زمرہ مقرر کریں",
     "states": {
       "downloading": "ڈاؤن لوڈ ہو رہا ہے",
@@ -757,9 +760,7 @@ const ur: I18nTranslations = {
     "failedToResume": "ٹورینٹ کو دوبارہ شروع کرنے میں ناکام",
     "torrentAndFilesDeleted": "ٹورینٹ اور فائلیں حذف کر دی گئیں۔",
     "torrentRemoved": "ٹورینٹ ہٹا دیا گیا۔",
-    "failedToDelete": "ٹورینٹ کو حذف کرنے میں ناکام",
-    "bulkDeleteFilesSuccess": "{{count}} ٹورینٹ اور فائلیں حذف کر دی گئیں۔",
-    "bulkDeleteSuccess": "{{count}} ٹورینٹ ہٹا دیا گیا۔"
+    "failedToDelete": "ٹورینٹ کو حذف کرنے میں ناکام"
   },
   "torrentDetail": {
     "overview": "جائزہ",
@@ -1828,6 +1829,8 @@ const ur: I18nTranslations = {
     "active": "فعال",
     "inactive": "غیر فعال",
     "time": "وقت",
+    "databaseExplorer": "ڈیٹا بیس ایکسپلورر",
+    "databaseExplorerSubtitle": "ایس کیو ایلائٹ ڈیٹا بیس ٹیبلز، اسکیما، اسٹوریج ایلوکیشن کا معائنہ کریں اور ایڈہاک سوالات چلائیں۔",
     "websiteUrl": "www.leecharr.net",
     "tcp": "TCP:",
     "utp": "uTP:",
@@ -4481,6 +4484,17 @@ const ur: I18nTranslations = {
     "reconnecting": "ریئل ٹائم کنکشن ٹوٹ گیا۔ دوبارہ منسلک کرنے کی کوشش کر رہا ہے...",
     "disconnected": "سرور سے منقطع۔ دوبارہ جڑنے کے لیے ابھی دوبارہ کوشش کریں پر کلک کریں۔",
     "retryNow": "ابھی دوبارہ کوشش کریں۔"
+  },
+  "developer": {
+    "database": "ڈیٹا بیس ایکسپلورر",
+    "events": "ایونٹ بس",
+    "commands": "کمانڈ ڈسپیچر",
+    "network": "نیٹ ورک وائر ٹیپ",
+    "webhooks": "آرر ویب ہکس سینڈ باکس",
+    "config": "کنفیگریشن میٹرکس",
+    "diagnostics": "تشخیص اور صحت",
+    "terminal": "انٹرایکٹو ٹرمینل",
+    "apiReference": "API حوالہ (Swagger)"
   }
 };
 

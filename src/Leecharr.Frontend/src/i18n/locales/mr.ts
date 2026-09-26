@@ -221,7 +221,8 @@ const mr: I18nTranslations = {
     "themeDark": "गडद मोडवर स्विच करा",
     "support": "समर्थन आणि देणगी",
     "systemStatus": "सिस्टम स्थिती",
-    "commandPalette": "कमांड पॅलेट (Ctrl+K)"
+    "commandPalette": "कमांड पॅलेट (Ctrl+K)",
+    "developer": "विकसक"
   },
   "topbar": {
     "searchPlaceholder": "द्रुत उडी / शोध... (Ctrl+K)",
@@ -448,6 +449,8 @@ const mr: I18nTranslations = {
     "bulkResume": "निवडलेले पुन्हा सुरू करा",
     "bulkPause": "निवडलेले थांबवा",
     "bulkDelete": "निवडलेले हटवा",
+    "bulkDeleteFilesSuccess": "{{count}} टोरेंट आणि फाइल्स हटवल्या",
+    "bulkDeleteSuccess": "{{count}} टोरेंट काढले",
     "bulkSetCategory": "निवडलेल्यांसाठी श्रेणी सेट करा",
     "states": {
       "downloading": "डाउनलोड होत आहे",
@@ -757,9 +760,7 @@ const mr: I18nTranslations = {
     "failedToResume": "टोरेंट पुन्हा सुरू करण्यात अयशस्वी",
     "torrentAndFilesDeleted": "टोरेंट आणि फाइल्स हटवल्या",
     "torrentRemoved": "टोरेंट काढला",
-    "failedToDelete": "टोरेंट हटवण्यात अयशस्वी",
-    "bulkDeleteFilesSuccess": "{{count}} टोरेंट आणि फाइल्स हटवल्या",
-    "bulkDeleteSuccess": "{{count}} टोरेंट काढले"
+    "failedToDelete": "टोरेंट हटवण्यात अयशस्वी"
   },
   "torrentDetail": {
     "overview": "आढावा",
@@ -1827,6 +1828,8 @@ const mr: I18nTranslations = {
     "active": "सक्रिय",
     "inactive": "निष्क्रिय",
     "time": "वेळ",
+    "databaseExplorer": "डेटाबेस एक्सप्लोरर",
+    "databaseExplorerSubtitle": "SQLite डेटाबेस टेबल्स, स्कीमा, स्टोरेज वाटप आणि तदर्थ क्वेरी रन करा.",
     "websiteUrl": "www.leecharr.net",
     "tcpUtp": "TCP / uTP",
     "tcp": "TCP:",
@@ -4481,6 +4484,17 @@ const mr: I18nTranslations = {
     "reconnecting": "रिअल-टाइम कनेक्शन गमावले. पुन्हा कनेक्ट करण्याचा प्रयत्न करत आहे...",
     "disconnected": "सर्व्हरवरून डिस्कनेक्ट झाले. पुन्हा कनेक्ट करण्यासाठी आता पुन्हा प्रयत्न करा क्लिक करा.",
     "retryNow": "आता पुन्हा प्रयत्न करा"
+  },
+  "developer": {
+    "database": "डेटाबेस एक्सप्लोरर",
+    "events": "कार्यक्रम बस",
+    "commands": "कमांड डिस्पॅचर",
+    "network": "नेटवर्क वायरटॅप",
+    "webhooks": "Arr Webhooks Sandbox",
+    "config": "कॉन्फिगरेशन मॅट्रिक्स",
+    "diagnostics": "निदान आणि आरोग्य",
+    "terminal": "परस्परसंवादी टर्मिनल",
+    "apiReference": "API संदर्भ (स्वॅगर)"
   }
 };
 

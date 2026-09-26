@@ -221,7 +221,8 @@ const fr: I18nTranslations = {
     "support": "Soutenez et faites un don",
     "systemStatus": "État du système",
     "commandPalette": "Palette de commandes (Ctrl+K)",
-    "torrents": "Torrents"
+    "torrents": "Torrents",
+    "developer": "Promoteur"
   },
   "topbar": {
     "searchPlaceholder": "Saut rapide/Recherche... (Ctrl+K)",
@@ -447,6 +448,8 @@ const fr: I18nTranslations = {
     "bulkResume": "Reprendre la sélection",
     "bulkPause": "Mettre en pause la sélection",
     "bulkDelete": "Supprimer la sélection",
+    "bulkDeleteFilesSuccess": "{{count}} torrent(s) et fichiers supprimés",
+    "bulkDeleteSuccess": "{{count}} torrent(s) supprimé(s)",
     "bulkSetCategory": "Définir la catégorie pour la sélection",
     "states": {
       "downloading": "En téléchargement",
@@ -757,9 +760,7 @@ const fr: I18nTranslations = {
     "torrentAndFilesDeleted": "Torrent et fichiers supprimés",
     "torrentRemoved": "Torrent supprimé",
     "failedToDelete": "Échec de la suppression du torrent",
-    "title": "Torrents",
-    "bulkDeleteFilesSuccess": "{{count}} torrent(s) et fichiers supprimés",
-    "bulkDeleteSuccess": "{{count}} torrent(s) supprimé(s)"
+    "title": "Torrents"
   },
   "torrentDetail": {
     "overview": "Aperçu",
@@ -1822,6 +1823,8 @@ const fr: I18nTranslations = {
     "active": "Actif",
     "inactive": "Inactif",
     "time": "Temps",
+    "databaseExplorer": "Explorateur de base de données",
+    "databaseExplorerSubtitle": "Inspectez les tables de base de données SQLite, le schéma, l'allocation de stockage et exécutez des requêtes ad hoc.",
     "version": "Version",
     "message": "Message",
     "usage": "Usage",
@@ -4481,6 +4484,17 @@ const fr: I18nTranslations = {
     "reconnecting": "Connexion en temps réel perdue. Tentative de reconnexion...",
     "disconnected": "Déconnecté du serveur. Cliquez sur Réessayer maintenant pour vous reconnecter.",
     "retryNow": "Réessayez maintenant"
+  },
+  "developer": {
+    "database": "Explorateur de base de données",
+    "events": "Bus événementiel",
+    "commands": "Répartiteur de commandes",
+    "network": "Écoute réseau",
+    "webhooks": "Bac à sable Arr Webhooks",
+    "config": "Matrice de configuration",
+    "diagnostics": "Diagnostic et santé",
+    "terminal": "Borne interactive",
+    "apiReference": "Référence API (Swagger)"
   }
 };
 
