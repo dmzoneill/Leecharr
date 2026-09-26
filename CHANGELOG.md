@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.29.3](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.3) - 2026-09-26
+
+### 🔧 Maintenance & Improvements
+- style: fix indentation in RTorrentAndAria2ComprehensiveIntegrationTests for editorconfig
+- test(coverage): exclude raw vendor media decoders from coverage and add NotificationPayloadBuilder matrix tests
+- test: add branch coverage tests for YamlScriptRunner and FileNameBuilder
+- test: add negative branch and boundary integration tests for TorrentController
+- test(integration): add comprehensive tests for indexers, automation scripts, and notifications
+- test(integration): expand integration test coverage across REST API, qBit, rTorrent, Aria2, and file browser
+
 ## [v1.29.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.2) - 2026-09-26
 
 ### ✨ Features
