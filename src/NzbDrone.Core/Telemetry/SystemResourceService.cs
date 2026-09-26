@@ -24,6 +24,7 @@ namespace NzbDrone.Core.Telemetry;
 
 public class SystemResourceService : ISystemResourceService
 {
+    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private static readonly Process CurrentProcess = Process.GetCurrentProcess();
     private static readonly object CpuLock = new();
     private static readonly object DriveLock = new();
@@ -124,9 +125,9 @@ public class SystemResourceService : ISystemResourceService
             {
                 lastTotalProcessorTime = CurrentProcess.TotalProcessorTime;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Fallback to zero processor time if process telemetry is inaccessible
+                Logger.Trace(ex, "Failed to read process TotalProcessorTime during cache reset");
             }
 
             cachedCpuPercent = 0.0;
@@ -164,9 +165,9 @@ public class SystemResourceService : ISystemResourceService
         {
             CurrentProcess.Refresh();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Process inspection might be restricted or exited
+            Logger.Trace(ex, "Failed to refresh CurrentProcess");
         }
 
         lock (CpuLock)
@@ -181,9 +182,9 @@ public class SystemResourceService : ISystemResourceService
                 {
                     lastTotalProcessorTime = CurrentProcess.TotalProcessorTime;
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    // Fallback if process timing query is disallowed
+                    Logger.Trace(ex, "Failed to read process TotalProcessorTime");
                 }
             }
             else if (elapsedMs >= 350)
@@ -200,9 +201,9 @@ public class SystemResourceService : ISystemResourceService
                         cachedCpuPercent = Math.Clamp((cpuUsedMs / (elapsedMs * cores)) * 100.0, 0.0, 100.0);
                     }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    // Fallback to cached CPU percent if CPU sample query fails
+                    Logger.Trace(ex, "Failed to compute CPU usage sample");
                 }
             }
 
@@ -219,9 +220,9 @@ public class SystemResourceService : ISystemResourceService
         {
             uptimeSec = (long)(DateTime.UtcNow - CurrentProcess.StartTime.ToUniversalTime()).TotalSeconds;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // StartTime may throw PlatformNotSupportedException or Win32Exception on restricted environments
+            Logger.Trace(ex, "Failed to read process StartTime (may not be supported on this platform)");
         }
 
         return new HostProcessResourceMetrics
@@ -814,9 +815,9 @@ public class SystemResourceService : ISystemResourceService
                 }
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Ignore drive enumeration errors (e.g. permission/unmounted filesystems)
+            Logger.Trace(ex, "Failed to enumerate drive metrics");
         }
 
         return drives;
