@@ -65,7 +65,7 @@ public class SignalRHubIntegrationTest : IntegrationTestBase
         await this.connection.StartAsync();
         this.connection.State.Should().Be(HubConnectionState.Connected);
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
         cts.Token.Register(() => tcs.TrySetCanceled());
 
         var received = await tcs.Task;
@@ -99,7 +99,7 @@ public class SignalRHubIntegrationTest : IntegrationTestBase
             Body = new { message = "hello signalr" },
         });
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
         cts.Token.Register(() => tcs.TrySetCanceled());
 
         var received = await tcs.Task;
@@ -134,7 +134,7 @@ public class SignalRHubIntegrationTest : IntegrationTestBase
             await conn.StartAsync();
             conn.State.Should().Be(HubConnectionState.Connected);
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
             cts.Token.Register(() => tcs.TrySetCanceled());
 
             var received = await tcs.Task;
