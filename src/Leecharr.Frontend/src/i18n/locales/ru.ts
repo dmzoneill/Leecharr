@@ -221,7 +221,8 @@ const ru: I18nTranslations = {
     "themeDark": "Переключиться в темный режим",
     "support": "Поддержка и пожертвование",
     "systemStatus": "Статус системы",
-    "commandPalette": "Палитра команд (Ctrl+K)"
+    "commandPalette": "Палитра команд (Ctrl+K)",
+    "developer": "Разработчик"
   },
   "topbar": {
     "searchPlaceholder": "Быстрый переход/Поиск... (Ctrl+K)",
@@ -448,6 +449,8 @@ const ru: I18nTranslations = {
     "bulkResume": "Возобновить выбранные",
     "bulkPause": "Приостановить выбранные",
     "bulkDelete": "Удалить выбранные",
+    "bulkDeleteFilesSuccess": "{{count}} торрент(ы) и файлы удалены",
+    "bulkDeleteSuccess": "{{count}} торрент(ы) удалены",
     "bulkSetCategory": "Установить категорию для выбранных",
     "states": {
       "downloading": "Загрузка",
@@ -757,9 +760,7 @@ const ru: I18nTranslations = {
     "failedToResume": "Не удалось возобновить торрент",
     "torrentAndFilesDeleted": "Торрент и файлы удалены.",
     "torrentRemoved": "Торрент удален",
-    "failedToDelete": "Не удалось удалить торрент",
-    "bulkDeleteFilesSuccess": "{{count}} торрент(ы) и файлы удалены",
-    "bulkDeleteSuccess": "{{count}} торрент(ы) удалены"
+    "failedToDelete": "Не удалось удалить торрент"
   },
   "torrentDetail": {
     "overview": "Обзор",
@@ -1830,6 +1831,8 @@ const ru: I18nTranslations = {
     "active": "Активный",
     "inactive": "Неактивный",
     "time": "Время",
+    "databaseExplorer": "Обозреватель базы данных",
+    "databaseExplorerSubtitle": "Проверяйте таблицы базы данных SQLite, схему, распределение памяти и запускайте специальные запросы.",
     "websiteUrl": "www.leecharr.net",
     "tcpUdp": "TCP/UDP"
   },
@@ -4481,6 +4484,17 @@ const ru: I18nTranslations = {
     "reconnecting": "Потеряно соединение в режиме реального времени. Попытка восстановить соединение...",
     "disconnected": "Отключился от сервера. Нажмите «Повторить сейчас», чтобы повторно подключиться.",
     "retryNow": "Повторить попытку сейчас"
+  },
+  "developer": {
+    "database": "Обозреватель базы данных",
+    "events": "Автобус для мероприятий",
+    "commands": "Командный диспетчер",
+    "network": "Сетевая прослушка",
+    "webhooks": "Песочница Arr Webhooks",
+    "config": "Матрица конфигурации",
+    "diagnostics": "Диагностика и здоровье",
+    "terminal": "Интерактивный терминал",
+    "apiReference": "Справочник API (Swagger)"
   }
 };
 

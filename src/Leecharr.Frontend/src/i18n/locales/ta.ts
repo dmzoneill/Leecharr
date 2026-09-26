@@ -221,7 +221,8 @@ const ta: I18nTranslations = {
     "themeDark": "டார்க் பயன்முறைக்கு மாறவும்",
     "support": "ஆதரவு மற்றும் நன்கொடை",
     "systemStatus": "கணினி நிலை",
-    "commandPalette": "கட்டளை தட்டு (Ctrl+K)"
+    "commandPalette": "கட்டளை தட்டு (Ctrl+K)",
+    "developer": "டெவலப்பர்"
   },
   "topbar": {
     "searchPlaceholder": "விரைவு ஜம்ப் / தேடல்... (Ctrl+K)",
@@ -448,6 +449,8 @@ const ta: I18nTranslations = {
     "bulkResume": "தேர்ந்தெடுத்தவற்றை மீண்டும் தொடங்கு",
     "bulkPause": "தேர்ந்தெடுத்தவற்றை இடைநிறுத்து",
     "bulkDelete": "தேர்ந்தெடுத்தவற்றை நீக்கு",
+    "bulkDeleteFilesSuccess": "{{count}} டொரண்ட்(கள்) மற்றும் கோப்புகள் நீக்கப்பட்டன",
+    "bulkDeleteSuccess": "{{count}} டொரண்ட்(கள்) அகற்றப்பட்டது",
     "bulkSetCategory": "தேர்ந்தெடுத்தவற்றிற்கு வகையை அமை",
     "states": {
       "downloading": "பதிவிறக்குகிறது",
@@ -757,9 +760,7 @@ const ta: I18nTranslations = {
     "failedToResume": "டோரண்டை மீண்டும் தொடங்குவதில் தோல்வி",
     "torrentAndFilesDeleted": "டோரண்ட் மற்றும் கோப்புகள் நீக்கப்பட்டன",
     "torrentRemoved": "டோரண்ட் அகற்றப்பட்டது",
-    "failedToDelete": "டோரண்டை நீக்க முடியவில்லை",
-    "bulkDeleteFilesSuccess": "{{count}} டொரண்ட்(கள்) மற்றும் கோப்புகள் நீக்கப்பட்டன",
-    "bulkDeleteSuccess": "{{count}} டொரண்ட்(கள்) அகற்றப்பட்டது"
+    "failedToDelete": "டோரண்டை நீக்க முடியவில்லை"
   },
   "torrentDetail": {
     "overview": "கண்ணோட்டம்",
@@ -1826,6 +1827,8 @@ const ta: I18nTranslations = {
     "active": "செயலில்",
     "inactive": "செயலற்றது",
     "time": "நேரம்",
+    "databaseExplorer": "டேட்டாபேஸ் எக்ஸ்ப்ளோரர்",
+    "databaseExplorerSubtitle": "SQLite தரவுத்தள அட்டவணைகள், ஸ்கீமா, சேமிப்பக ஒதுக்கீடு மற்றும் தற்காலிக வினவல்களை இயக்கவும்.",
     "websiteUrl": "www.leecharr.net",
     "cacheAlloc": "Cache Alloc",
     "tcpUtp": "TCP / uTP",
@@ -4481,6 +4484,17 @@ const ta: I18nTranslations = {
     "reconnecting": "நிகழ்நேர இணைப்பு துண்டிக்கப்பட்டது. மீண்டும் இணைக்க முயற்சிக்கிறது...",
     "disconnected": "சர்வரில் இருந்து துண்டிக்கப்பட்டது. மீண்டும் இணைக்க இப்போது மீண்டும் முயற்சிக்கவும் என்பதைக் கிளிக் செய்யவும்.",
     "retryNow": "இப்போது மீண்டும் முயற்சிக்கவும்"
+  },
+  "developer": {
+    "database": "டேட்டாபேஸ் எக்ஸ்ப்ளோரர்",
+    "events": "நிகழ்வு பேருந்து",
+    "commands": "கட்டளை அனுப்புபவர்",
+    "network": "நெட்வொர்க் வயர்டேப்",
+    "webhooks": "Arr Webhooks சாண்ட்பாக்ஸ்",
+    "config": "கட்டமைப்பு மேட்ரிக்ஸ்",
+    "diagnostics": "நோய் கண்டறிதல் & ஆரோக்கியம்",
+    "terminal": "ஊடாடும் முனையம்",
+    "apiReference": "API குறிப்பு (Swagger)"
   }
 };
 
