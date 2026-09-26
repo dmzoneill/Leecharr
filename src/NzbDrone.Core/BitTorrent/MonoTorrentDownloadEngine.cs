@@ -1614,6 +1614,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 task.Manager.PieceHashed -= this.OnPieceHashed;
 
                 await task.Manager.StopAsync();
+                await this.CloseDiskManagerFilesAsync(task.Manager).ConfigureAwait(false);
                 if (this.engine != null)
                 {
                     await this.engine.RemoveAsync(task.Manager);

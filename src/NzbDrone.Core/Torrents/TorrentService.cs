@@ -758,6 +758,10 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 if (isDedicatedFolder && !this.IsProtectedRoot(torrent.SavePath))
                 {
                     await DeletePathWithRetryAsync(torrent.SavePath, isDirectory: true);
+                    if (!Directory.Exists(torrent.SavePath))
+                    {
+                        return;
+                    }
                 }
                 else
                 {
