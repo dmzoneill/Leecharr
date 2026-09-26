@@ -11,6 +11,7 @@ namespace Leecharr.Http.Security;
 
 public static class RpcAuthenticationHelper
 {
+    private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
     public static bool FixedTimeEquals(string a, string b)
     {
         if (a == null || b == null)
@@ -130,9 +131,9 @@ public static class RpcAuthenticationHelper
                         return true;
                     }
                 }
-                catch
+                catch (FormatException ex)
                 {
-                    // Invalid base64, fall through
+                    Logger.Trace(ex, "Failed to decode basic authentication header in RPC helper");
                 }
             }
             else if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
