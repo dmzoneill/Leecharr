@@ -93,9 +93,9 @@ public class DownloadHistoryCleanupTask : IDownloadHistoryCleanupTask, IHandle<A
                 await this.ExecuteAsync(this.cts.Token).ConfigureAwait(false);
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            // Clean cancellation
+            this.logger.Trace(ex, "Download history cleanup loop was cancelled");
         }
         catch (Exception ex)
         {

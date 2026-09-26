@@ -3,20 +3,22 @@
 using System;
 using System.IO;
 using System.Text;
+using NLog;
 
 namespace NzbDrone.Core.Subtitles;
 
 public class SubtitleEncodingDetector : ISubtitleEncodingDetector
 {
+    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     static SubtitleEncodingDetector()
     {
         try
         {
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         }
-        catch
+        catch (Exception ex)
         {
-            // Provider may already be registered or unavailable in environment
+            Logger.Trace(ex, "CodePagesEncodingProvider already registered or unavailable");
         }
     }
 

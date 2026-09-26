@@ -8,11 +8,13 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using NLog;
 
 namespace Leecharr.Http.Terminal;
 
 public sealed class LinuxPtySession : ITerminalSession
 {
+    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private readonly int masterFd;
     private readonly int pid;
     private int disposed;
@@ -193,9 +195,9 @@ public sealed class LinuxPtySession : ITerminalSession
         {
             NativePty.Close(this.masterFd);
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignored on teardown
+            Logger.Trace(ex, "Failed to close masterFd during teardown");
         }
 
         if (this.pid <= 0)
@@ -209,9 +211,9 @@ public sealed class LinuxPtySession : ITerminalSession
             {
                 NativePty.Kill(this.pid, 15); // SIGTERM
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Process may have already exited before SIGTERM signal could be delivered
+                Logger.Trace(ex, "Failed to send SIGTERM to process {0}", this.pid);
             }
 
             var sw = Stopwatch.StartNew();
@@ -235,9 +237,9 @@ public sealed class LinuxPtySession : ITerminalSession
                 {
                     NativePty.Kill(this.pid, 9); // SIGKILL
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    // Process may have already exited before SIGKILL signal could be delivered
+                    Logger.Trace(ex, "Failed to send SIGKILL to process {0}", this.pid);
                 }
 
                 var killSw = Stopwatch.StartNew();

@@ -169,9 +169,9 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
                     });
                 }
             }
-            catch (InvalidOperationException)
+            catch (InvalidOperationException ex)
             {
-                // Thrown if the MMDB database is a Country database rather than City
+                this.logger.Trace(ex, "MMDB database is Country-level rather than City for {0}", ipAddress);
             }
 
             if (reader.TryCountry(parsedIp, out var country))
@@ -184,9 +184,9 @@ public class MaxMindGeoIpProvider : IGeoIpProvider, IDisposable
                 });
             }
         }
-        catch (AddressNotFoundException)
+        catch (AddressNotFoundException ex)
         {
-            // Expected when IP is not in database
+            this.logger.Trace(ex, "IP address not found in MaxMind database: {0}", ipAddress);
         }
         catch (GeoIP2Exception ex)
         {

@@ -82,9 +82,9 @@ public class CommandExecutor : ICommandExecutor
                     isAsync = true;
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Fall back to sync handler
+                this.logger.Trace(ex, "Failed to resolve async command handler for {0}, falling back to sync", command.GetType().Name);
             }
 
             if (handler == null)

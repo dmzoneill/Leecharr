@@ -137,9 +137,9 @@ public class CommandWorker : BackgroundService
         {
             await Task.WhenAll(this.activeTasks).ConfigureAwait(false);
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore cancellations during shutdown
+            this.logger.Trace(ex, "Active tasks cancelled during CommandWorker shutdown");
         }
     }
 }

@@ -7,11 +7,13 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using NLog;
 
 namespace Leecharr.Http.Terminal;
 
 public sealed class FallbackProcessSession : ITerminalSession
 {
+    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private readonly Process process;
     private readonly Stream inputStream;
     private readonly Channel<byte[]> outputChannel;
@@ -117,9 +119,9 @@ public sealed class FallbackProcessSession : ITerminalSession
             await this.inputStream.WriteAsync(buffer, cancellationToken).ConfigureAwait(false);
             await this.inputStream.FlushAsync(cancellationToken).ConfigureAwait(false);
         }
-        catch
+        catch (Exception ex)
         {
-            // Shell pipe broken
+            Logger.Trace(ex, "Failed to write to shell input stream");
         }
     }
 
@@ -147,9 +149,9 @@ public sealed class FallbackProcessSession : ITerminalSession
 
             this.process.Dispose();
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignored on teardown
+            Logger.Trace(ex, "Failed to kill process tree during teardown");
         }
     }
 
@@ -177,9 +179,9 @@ public sealed class FallbackProcessSession : ITerminalSession
                 await this.outputChannel.Writer.WriteAsync(chunk, cancellationToken).ConfigureAwait(false);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Stream closed or cancelled
+            Logger.Trace(ex, "Stream pump exited or cancelled");
         }
         finally
         {

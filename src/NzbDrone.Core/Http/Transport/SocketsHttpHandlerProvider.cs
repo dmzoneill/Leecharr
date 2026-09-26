@@ -87,9 +87,9 @@ public class SocketsHttpHandlerProvider : IHttpTransportProvider, IDisposable
                             targetIp = addresses[0];
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Fallback to DnsEndPoint connect if DNS resolution fails
+                        this.logger.Trace(ex, "DNS resolution failed for {0}, falling back to DnsEndPoint connect", host);
                     }
                 }
 
