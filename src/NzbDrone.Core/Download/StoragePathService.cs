@@ -241,7 +241,9 @@ public class StoragePathService : IStoragePathService
                 sanitizedTarget = targetFileName;
             }
 
-            if (!string.IsNullOrWhiteSpace(torrentName) && !Path.HasExtension(torrentName))
+            if (!string.IsNullOrWhiteSpace(torrentName) &&
+                !string.IsNullOrWhiteSpace(sourceExt) &&
+                !torrentName.EndsWith(sourceExt, StringComparison.OrdinalIgnoreCase))
             {
                 var sanitizedFolder = TorrentPathValidator.SanitizeRelativePath(torrentName);
                 if (string.IsNullOrWhiteSpace(sanitizedFolder))
@@ -796,7 +798,7 @@ public class StoragePathService : IStoragePathService
 
         if (!string.IsNullOrWhiteSpace(category) && !string.IsNullOrWhiteSpace(completedDir))
         {
-            var baseDir = this.configService?.DownloadDir ?? "/downloads";
+            var baseDir = this.GetCompletedDirectory(null);
             var trimmedBase = baseDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var catDir1 = trimmedBase + "/" + category;
             var catDir2 = trimmedBase + "\\" + category;

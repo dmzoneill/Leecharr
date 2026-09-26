@@ -2609,12 +2609,7 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
-        var baseDownloadDir = this.configService?.DownloadDir;
-        if (string.IsNullOrWhiteSpace(baseDownloadDir))
-        {
-            baseDownloadDir = "/downloads";
-        }
-
+        var baseDownloadDir = this.storagePathService?.GetCompletedDirectory(null) ?? this.configService?.DownloadDir ?? "/downloads";
         var trimmedBase = baseDownloadDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var savePath = rawSavePath;
         if (!string.IsNullOrWhiteSpace(rawSavePath))
