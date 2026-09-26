@@ -180,6 +180,121 @@ public class DownloadClientConsistencyIntegrationTests : IntegrationTestBase
                     @params = new object[] { new[] { TestHash } },
                 });
             delugeReannounce.StatusCode.Should().Be(HttpStatusCode.OK);
+            // 8. RTorrent XML-RPC d.get_directory
+            var rtorrentXml = $"<?xml version=\"1.0\"?><methodCall><methodName>d.get_directory</methodName><params><param><value><string>{TestHash}</string></value></param></params></methodCall>";
+            var rtorrentContent = new StringContent(rtorrentXml, Encoding.UTF8, "text/xml");
+            var rtorrentResp = await this.Client.PostAsync("/RPC2", rtorrentContent);
+            rtorrentResp.StatusCode.Should().Be(HttpStatusCode.OK);
+            var rtorrentResXml = await rtorrentResp.Content.ReadAsStringAsync();
+            rtorrentResXml.Should().Contain(expectedDownloadDir);
+
+            // 9. Aria2 JSON-RPC aria2.tellStatus
+            var aria2Gid = TestHash[..16];
+            var aria2Req = new
+            {
+                jsonrpc = "2.0",
+                id = 3,
+                method = "aria2.tellStatus",
+                @params = new object[] { aria2Gid },
+            };
+            var aria2Resp = await this.PostJsonAsync("/jsonrpc", aria2Req);
+            aria2Resp.StatusCode.Should().Be(HttpStatusCode.OK);
+            var aria2Doc = JsonDocument.Parse(await aria2Resp.Content.ReadAsStringAsync());
+            var aria2Dir = aria2Doc.RootElement.GetProperty("result").GetProperty("dir").GetString();
+            aria2Dir.Should().Be(expectedDownloadDir);
+
+            // 10. UTorrent WebUI /gui/?list=1
+            var utorrentResp = await this.Client.GetAsync("/gui/?list=1");
+            utorrentResp.StatusCode.Should().Be(HttpStatusCode.OK);
+            var utorrentDoc = JsonDocument.Parse(await utorrentResp.Content.ReadAsStringAsync());
+            var utorrentList = utorrentDoc.RootElement.GetProperty("torrents");
+            var foundUtorrent = false;
+            foreach (var row in utorrentList.EnumerateArray())
+            {
+                if (string.Equals(row[0].GetString(), TestHash, StringComparison.OrdinalIgnoreCase))
+                {
+                    row[26].GetString().Should().Be(expectedDownloadDir);
+                    foundUtorrent = true;
+                    break;
+                }
+            }
+            foundUtorrent.Should().BeTrue("uTorrent WebUI should return the added torrent");
+
+            // 11. Flood API /api/torrents
+            var floodResp = await this.Client.GetAsync("/api/torrents");
+            floodResp.StatusCode.Should().Be(HttpStatusCode.OK);
+            var floodDoc = JsonDocument.Parse(await floodResp.Content.ReadAsStringAsync());
+            var floodTorrents = floodDoc.RootElement.GetProperty("torrents");
+            floodTorrents.TryGetProperty(TestHash.ToLowerInvariant(), out var floodTorrent)
+                .Should().BeTrue("Flood API should return the added torrent");
+            floodTorrent.GetProperty("directory").GetString().Should().Be(expectedDownloadDir);
+
+            // 12. Hadouken JSON-RPC webui.list
+            var hadoukenReq = new
+            {
+                id = 4,
+                method = "webui.list",
+            };
+            var hadoukenResp = await this.PostJsonAsync("/api/hadouken", hadoukenReq);
+            hadoukenResp.StatusCode.Should().Be(HttpStatusCode.OK);
+            var hadoukenDoc = JsonDocument.Parse(await hadoukenResp.Content.ReadAsStringAsync());
+            var hadoukenTorrents = hadoukenDoc.RootElement.GetProperty("result").GetProperty("torrents");
+            var foundHadouken = false;
+            foreach (var row in hadoukenTorrents.EnumerateArray())
+            {
+                if (string.Equals(row[0].GetString(), TestHash, StringComparison.OrdinalIgnoreCase))
+                {
+                    row[26].GetString().Should().Be(expectedDownloadDir);
+                    foundHadouken = true;
+                    break;
+                }
+            }
+            foundHadouken.Should().BeTrue("Hadouken RPC should return the added torrent");
+
+            // 13. Nzbget JSON-RPC listgroups
+            var nzbgetReq = new
+            {
+                id = 5,
+                method = "listgroups",
+                @params = Array.Empty<object>(),
+            };
+            var nzbgetResp = await this.PostJsonAsync("/nzbget/jsonrpc", nzbgetReq);
+            nzbgetResp.StatusCode.Should().Be(HttpStatusCode.OK);
+            var nzbgetDoc = JsonDocument.Parse(await nzbgetResp.Content.ReadAsStringAsync());
+            var nzbgetGroups = nzbgetDoc.RootElement.GetProperty("result");
+            var foundNzbget = false;
+            foreach (var g in nzbgetGroups.EnumerateArray())
+            {
+                var idProp = g.TryGetProperty("nzbid", out var nId) ? nId.GetInt32() : (g.TryGetProperty("NZBID", out var nId2) ? nId2.GetInt32() : -1);
+                if (idProp == created.Id)
+                {
+                    var destDirProp = g.TryGetProperty("destDir", out var dd) ? dd.GetString() : g.GetProperty("DestDir").GetString();
+                    destDirProp.Should().Be(expectedDownloadDir);
+                    foundNzbget = true;
+                    break;
+                }
+            }
+            foundNzbget.Should().BeTrue("Nzbget JSON-RPC should return the added item");
+
+            // 14. Freebox API /api/v4/downloads/
+            await this.Client.GetAsync("/api/v4/login/session");
+            var fbResp = await this.Client.GetAsync("/api/v4/downloads/");
+            fbResp.StatusCode.Should().Be(HttpStatusCode.OK);
+            var fbDoc = JsonDocument.Parse(await fbResp.Content.ReadAsStringAsync());
+            var fbList = fbDoc.RootElement.GetProperty("result");
+            var foundFb = false;
+            foreach (var item in fbList.EnumerateArray())
+            {
+                if (item.GetProperty("id").GetInt32() == created.Id)
+                {
+                    var b64Dir = item.GetProperty("download_dir").GetString();
+                    var decodedDir = Encoding.UTF8.GetString(Convert.FromBase64String(b64Dir!));
+                    decodedDir.Should().Be(expectedDownloadDir);
+                    foundFb = true;
+                    break;
+                }
+            }
+            foundFb.Should().BeTrue("Freebox API should return the added download");
         }
         finally
         {
