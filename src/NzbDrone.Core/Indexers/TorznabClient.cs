@@ -429,19 +429,7 @@ public class TorznabClient : ITorznabClient
             var xml = await response.Content.ReadAsStringAsync(cancellationToken);
             return this.ParseTorznabFeedXml(xml, indexer);
         }
-        catch (HttpRequestException)
-        {
-            throw;
-        }
-        catch (TorznabException)
-        {
-            throw;
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not HttpRequestException and not TorznabException and not OperationCanceledException)
         {
             this.logger.Error(ex, "Failed to search Torznab indexer: {0}", indexer.Name);
             return new List<TorznabSearchResult>();
@@ -490,19 +478,7 @@ public class TorznabClient : ITorznabClient
             var xml = await response.Content.ReadAsStringAsync(cancellationToken);
             return this.ParseTorznabFeedXml(xml, indexer);
         }
-        catch (HttpRequestException)
-        {
-            throw;
-        }
-        catch (TorznabException)
-        {
-            throw;
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not HttpRequestException and not TorznabException and not OperationCanceledException)
         {
             this.logger.Error(ex, "Failed to fetch RSS from Torznab indexer: {0}", indexer.Name);
             return new List<TorznabSearchResult>();
