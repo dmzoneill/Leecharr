@@ -13,6 +13,7 @@ using NzbDrone.Core.Common;
 
 namespace NzbDrone.Core.MediaInspection;
 
+[System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
 public class FFprobeInspectorProvider : IMediaInspectorProvider
 {
     private readonly Logger logger = LogManager.GetCurrentClassLogger();

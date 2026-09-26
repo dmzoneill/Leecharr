@@ -12,6 +12,7 @@ using NLog;
 
 namespace NzbDrone.Core.MediaInspection;
 
+[System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
 public class TagLibInspectorProvider : IMediaInspectorProvider
 {
     private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
