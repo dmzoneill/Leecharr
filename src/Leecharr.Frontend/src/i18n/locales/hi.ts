@@ -197,6 +197,7 @@ const hi: I18nTranslations = {
     "terminalCli": "टर्मिनल CLI",
     "fileBrowser": "फ़ाइल ब्राउज़र",
     "settings": "सेटिंग्स",
+    "developer": "डेवलपर",
     "system": "सिस्टम",
     "status": "स्थिति",
     "resources": "संसाधन",
@@ -221,8 +222,7 @@ const hi: I18nTranslations = {
     "themeDark": "डार्क मोड पर स्विच करें",
     "support": "समर्थन एवं दान करें",
     "systemStatus": "सिस्टम स्थिति",
-    "commandPalette": "कमांड पैलेट (Ctrl+K)",
-    "developer": "डेवलपर"
+    "commandPalette": "कमांड पैलेट (Ctrl+K)"
   },
   "topbar": {
     "searchPlaceholder": "त्वरित छलांग/खोज... (Ctrl+K)",
@@ -1351,7 +1351,8 @@ const hi: I18nTranslations = {
       "bulkImportModalTitle": "थोक आयात मॉडल शीर्षक",
       "bulkImportModalHint": "थोक आयात मॉडल संकेत",
       "importingTrackers": "ट्रैकर्स आयात करना",
-      "importTrackersBtn": "आयात ट्रैकर्स बीटीएन"
+      "importTrackersBtn": "आयात ट्रैकर्स बीटीएन",
+      "importFailedGeneric": "ट्रैकर सूची या अमान्य ट्रैकर प्रतिक्रिया प्रारूप को पार्स करने में विफल"
     },
     "logs": {
       "logsClearedToast": "लॉग साफ़ टोस्ट",
@@ -1539,6 +1540,8 @@ const hi: I18nTranslations = {
     }
   },
   "system": {
+    "databaseExplorer": "डेटाबेस एक्सप्लोरर",
+    "databaseExplorerSubtitle": "SQLite डेटाबेस तालिकाओं, स्कीमा, भंडारण आवंटन का निरीक्षण करें और तदर्थ क्वेरी चलाएँ।",
     "statusTitle": "सिस्टम स्थिति और इंजन स्वास्थ्य",
     "resourcesTitle": "सिस्टम संसाधन और हार्डवेयर",
     "tasksTitle": "अनुसूचित पृष्ठभूमि कार्य",
@@ -1832,9 +1835,18 @@ const hi: I18nTranslations = {
     "active": "सक्रिय",
     "inactive": "निष्क्रिय",
     "time": "समय",
-    "databaseExplorer": "डेटाबेस एक्सप्लोरर",
-    "databaseExplorerSubtitle": "SQLite डेटाबेस तालिकाओं, स्कीमा, भंडारण आवंटन का निरीक्षण करें और तदर्थ क्वेरी चलाएँ।",
     "websiteUrl": "www.leecharr.net"
+  },
+  "developer": {
+    "database": "डेटाबेस एक्सप्लोरर",
+    "events": "इवेंट बस",
+    "commands": "आदेश प्रेषक",
+    "network": "नेटवर्क वायरटैप",
+    "webhooks": "एआर वेबहुक्स सैंडबॉक्स",
+    "config": "कॉन्फ़िगरेशन मैट्रिक्स",
+    "diagnostics": "निदान एवं स्वास्थ्य",
+    "terminal": "इंटरैक्टिव टर्मिनल",
+    "apiReference": "एपीआई संदर्भ (स्वैगर)"
   },
   "settings": {
     "title": "सेटिंग्स और कॉन्फ़िगरेशन",
@@ -4484,17 +4496,6 @@ const hi: I18nTranslations = {
     "reconnecting": "रीयल-टाइम कनेक्शन खो गया. फिर से कनेक्ट करने का प्रयास...",
     "disconnected": "सर्वर से डिस्कनेक्ट हो गया. पुनः कनेक्ट करने के लिए अभी पुनः प्रयास करें पर क्लिक करें।",
     "retryNow": "अभी पुनः प्रयास करें"
-  },
-  "developer": {
-    "database": "डेटाबेस एक्सप्लोरर",
-    "events": "इवेंट बस",
-    "commands": "आदेश प्रेषक",
-    "network": "नेटवर्क वायरटैप",
-    "webhooks": "एआर वेबहुक्स सैंडबॉक्स",
-    "config": "कॉन्फ़िगरेशन मैट्रिक्स",
-    "diagnostics": "निदान एवं स्वास्थ्य",
-    "terminal": "इंटरैक्टिव टर्मिनल",
-    "apiReference": "एपीआई संदर्भ (स्वैगर)"
   }
 };
 

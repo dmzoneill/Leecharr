@@ -197,6 +197,7 @@ const mr: I18nTranslations = {
     "terminalCli": "टर्मिनल CLI",
     "fileBrowser": "फाइल ब्राउझर",
     "settings": "सेटिंग्ज",
+    "developer": "विकसक",
     "system": "सिस्टम",
     "status": "स्थिती",
     "resources": "संसाधने",
@@ -221,8 +222,7 @@ const mr: I18nTranslations = {
     "themeDark": "गडद मोडवर स्विच करा",
     "support": "समर्थन आणि देणगी",
     "systemStatus": "सिस्टम स्थिती",
-    "commandPalette": "कमांड पॅलेट (Ctrl+K)",
-    "developer": "विकसक"
+    "commandPalette": "कमांड पॅलेट (Ctrl+K)"
   },
   "topbar": {
     "searchPlaceholder": "द्रुत उडी / शोध... (Ctrl+K)",
@@ -1351,7 +1351,8 @@ const mr: I18nTranslations = {
       "bulkImportModalTitle": "मोठ्या प्रमाणात आयात मॉडेल शीर्षक",
       "bulkImportModalHint": "मोठ्या प्रमाणात आयात मॉडेल इशारा",
       "importingTrackers": "ट्रॅकर्स आयात करत आहे",
-      "importTrackersBtn": "आयात ट्रॅकर्स Btn"
+      "importTrackersBtn": "आयात ट्रॅकर्स Btn",
+      "importFailedGeneric": "ट्रॅकर सूची किंवा अवैध ट्रॅकर प्रतिसाद स्वरूप पार्स करण्यात अयशस्वी"
     },
     "logs": {
       "logsClearedToast": "लॉग साफ टोस्ट",
@@ -1539,6 +1540,8 @@ const mr: I18nTranslations = {
     }
   },
   "system": {
+    "databaseExplorer": "डेटाबेस एक्सप्लोरर",
+    "databaseExplorerSubtitle": "SQLite डेटाबेस टेबल्स, स्कीमा, स्टोरेज वाटप आणि तदर्थ क्वेरी रन करा.",
     "statusTitle": "सिस्टम स्थिती आणि इंजिन आरोग्य",
     "resourcesTitle": "सिस्टम संसाधने आणि हार्डवेअर",
     "tasksTitle": "अनुसूचित पार्श्वभूमी कार्ये",
@@ -1828,13 +1831,22 @@ const mr: I18nTranslations = {
     "active": "सक्रिय",
     "inactive": "निष्क्रिय",
     "time": "वेळ",
-    "databaseExplorer": "डेटाबेस एक्सप्लोरर",
-    "databaseExplorerSubtitle": "SQLite डेटाबेस टेबल्स, स्कीमा, स्टोरेज वाटप आणि तदर्थ क्वेरी रन करा.",
     "websiteUrl": "www.leecharr.net",
     "tcpUtp": "TCP / uTP",
     "tcp": "TCP:",
     "utp": "uTP:",
     "tcpUdp": "TCP/UDP"
+  },
+  "developer": {
+    "database": "डेटाबेस एक्सप्लोरर",
+    "events": "कार्यक्रम बस",
+    "commands": "कमांड डिस्पॅचर",
+    "network": "नेटवर्क वायरटॅप",
+    "config": "कॉन्फिगरेशन मॅट्रिक्स",
+    "diagnostics": "निदान आणि आरोग्य",
+    "terminal": "परस्परसंवादी टर्मिनल",
+    "apiReference": "API संदर्भ (स्वॅगर)",
+    "webhooks": "Arr Webhooks Sandbox"
   },
   "settings": {
     "title": "सेटिंग्ज आणि कॉन्फिगरेशन",
@@ -4484,17 +4496,6 @@ const mr: I18nTranslations = {
     "reconnecting": "रिअल-टाइम कनेक्शन गमावले. पुन्हा कनेक्ट करण्याचा प्रयत्न करत आहे...",
     "disconnected": "सर्व्हरवरून डिस्कनेक्ट झाले. पुन्हा कनेक्ट करण्यासाठी आता पुन्हा प्रयत्न करा क्लिक करा.",
     "retryNow": "आता पुन्हा प्रयत्न करा"
-  },
-  "developer": {
-    "database": "डेटाबेस एक्सप्लोरर",
-    "events": "कार्यक्रम बस",
-    "commands": "कमांड डिस्पॅचर",
-    "network": "नेटवर्क वायरटॅप",
-    "webhooks": "Arr Webhooks Sandbox",
-    "config": "कॉन्फिगरेशन मॅट्रिक्स",
-    "diagnostics": "निदान आणि आरोग्य",
-    "terminal": "परस्परसंवादी टर्मिनल",
-    "apiReference": "API संदर्भ (स्वॅगर)"
   }
 };
 

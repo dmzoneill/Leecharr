@@ -196,6 +196,7 @@ const de: I18nTranslations = {
     "terminalCli": "Terminal-CLI",
     "fileBrowser": "Dateibrowser",
     "settings": "Einstellungen",
+    "developer": "Entwickler",
     "resources": "Ressourcen",
     "tasks": "Aufgaben",
     "backup": "Sicherung & Wiederherstellung",
@@ -220,7 +221,6 @@ const de: I18nTranslations = {
     "systemStatus": "Systemstatus",
     "commandPalette": "Befehlspalette (Strg+K)",
     "torrents": "Torrents",
-    "developer": "Entwickler",
     "system": "System",
     "status": "Status"
   },
@@ -1349,7 +1349,8 @@ const de: I18nTranslations = {
       "bulkImportModalTitle": "Modaler Titel für den Massenimport",
       "bulkImportModalHint": "Modaler Hinweis zum Massenimport",
       "importingTrackers": "Tracker importieren",
-      "importTrackersBtn": "Tracker importieren Btn"
+      "importTrackersBtn": "Tracker importieren Btn",
+      "importFailedGeneric": "Fehler beim Parsen der Tracker-Liste oder ungültiges Tracker-Antwortformat"
     },
     "logs": {
       "logsClearedToast": "Protokolle gelöscht, Toast",
@@ -1539,6 +1540,8 @@ const de: I18nTranslations = {
     "indexer": "Indexer"
   },
   "system": {
+    "databaseExplorer": "Datenbank-Explorer",
+    "databaseExplorerSubtitle": "Überprüfen Sie SQLite-Datenbanktabellen, Schemata und Speicherzuweisungen und führen Sie Ad-hoc-Abfragen aus.",
     "statusTitle": "Systemstatus & Engine-Zustand",
     "resourcesTitle": "Systemressourcen & Hardware",
     "tasksTitle": "Geplante Hintergrundaufgaben",
@@ -1818,8 +1821,6 @@ const de: I18nTranslations = {
     "active": "Aktiv",
     "inactive": "Inaktiv",
     "time": "Zeit",
-    "databaseExplorer": "Datenbank-Explorer",
-    "databaseExplorerSubtitle": "Überprüfen Sie SQLite-Datenbanktabellen, Schemata und Speicherzuweisungen und führen Sie Ad-hoc-Abfragen aus.",
     "version": "Version",
     "statusCol": "Status",
     "schemaVersion": "Schema #{{version}}",
@@ -1835,6 +1836,17 @@ const de: I18nTranslations = {
     "tcpUdp": "TCP/UDP",
     "terminal": "Terminal",
     "clearing": "Clearing"
+  },
+  "developer": {
+    "database": "Datenbank-Explorer",
+    "events": "Veranstaltungsbus",
+    "commands": "Kommando-Dispatcher",
+    "network": "Netzwerkabhörung",
+    "config": "Konfigurationsmatrix",
+    "diagnostics": "Diagnostik & Gesundheit",
+    "terminal": "Interaktives Terminal",
+    "apiReference": "API-Referenz (Swagger)",
+    "webhooks": "Arr Webhooks Sandbox"
   },
   "settings": {
     "title": "Einstellungen & Konfiguration",
@@ -4484,17 +4496,6 @@ const de: I18nTranslations = {
     "reconnecting": "Echtzeitverbindung verloren. Es wird versucht, die Verbindung wiederherzustellen...",
     "disconnected": "Vom Server getrennt. Klicken Sie auf Jetzt erneut versuchen, um die Verbindung wiederherzustellen.",
     "retryNow": "Jetzt erneut versuchen"
-  },
-  "developer": {
-    "database": "Datenbank-Explorer",
-    "events": "Veranstaltungsbus",
-    "commands": "Kommando-Dispatcher",
-    "network": "Netzwerkabhörung",
-    "webhooks": "Arr Webhooks Sandbox",
-    "config": "Konfigurationsmatrix",
-    "diagnostics": "Diagnostik & Gesundheit",
-    "terminal": "Interaktives Terminal",
-    "apiReference": "API-Referenz (Swagger)"
   }
 };
 

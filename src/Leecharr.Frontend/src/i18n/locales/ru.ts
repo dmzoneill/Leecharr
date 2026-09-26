@@ -197,6 +197,7 @@ const ru: I18nTranslations = {
     "terminalCli": "Терминал CLI",
     "fileBrowser": "Файловый менеджер",
     "settings": "Настройки",
+    "developer": "Разработчик",
     "system": "Система",
     "status": "Статус",
     "resources": "Ресурсы",
@@ -221,8 +222,7 @@ const ru: I18nTranslations = {
     "themeDark": "Переключиться в темный режим",
     "support": "Поддержка и пожертвование",
     "systemStatus": "Статус системы",
-    "commandPalette": "Палитра команд (Ctrl+K)",
-    "developer": "Разработчик"
+    "commandPalette": "Палитра команд (Ctrl+K)"
   },
   "topbar": {
     "searchPlaceholder": "Быстрый переход/Поиск... (Ctrl+K)",
@@ -1351,7 +1351,8 @@ const ru: I18nTranslations = {
       "bulkImportModalTitle": "Массовый импорт модального заголовка",
       "bulkImportModalHint": "Модальная подсказка по массовому импорту",
       "importingTrackers": "Импорт трекеров",
-      "importTrackersBtn": "Импорт трекеров Btn"
+      "importTrackersBtn": "Импорт трекеров Btn",
+      "importFailedGeneric": "Не удалось проанализировать список средств отслеживания или неверный формат ответа средства отслеживания."
     },
     "logs": {
       "logsClearedToast": "Тост об очистке журналов",
@@ -1539,6 +1540,8 @@ const ru: I18nTranslations = {
     }
   },
   "system": {
+    "databaseExplorer": "Обозреватель базы данных",
+    "databaseExplorerSubtitle": "Проверяйте таблицы базы данных SQLite, схему, распределение памяти и запускайте специальные запросы.",
     "statusTitle": "Состояние системы и здоровье движка",
     "resourcesTitle": "Системные ресурсы и оборудование",
     "tasksTitle": "Запланированные фоновые задачи",
@@ -1831,10 +1834,19 @@ const ru: I18nTranslations = {
     "active": "Активный",
     "inactive": "Неактивный",
     "time": "Время",
-    "databaseExplorer": "Обозреватель базы данных",
-    "databaseExplorerSubtitle": "Проверяйте таблицы базы данных SQLite, схему, распределение памяти и запускайте специальные запросы.",
     "websiteUrl": "www.leecharr.net",
     "tcpUdp": "TCP/UDP"
+  },
+  "developer": {
+    "database": "Обозреватель базы данных",
+    "events": "Автобус для мероприятий",
+    "commands": "Командный диспетчер",
+    "network": "Сетевая прослушка",
+    "webhooks": "Песочница Arr Webhooks",
+    "config": "Матрица конфигурации",
+    "diagnostics": "Диагностика и здоровье",
+    "terminal": "Интерактивный терминал",
+    "apiReference": "Справочник API (Swagger)"
   },
   "settings": {
     "title": "Настройки и конфигурация",
@@ -4484,17 +4496,6 @@ const ru: I18nTranslations = {
     "reconnecting": "Потеряно соединение в режиме реального времени. Попытка восстановить соединение...",
     "disconnected": "Отключился от сервера. Нажмите «Повторить сейчас», чтобы повторно подключиться.",
     "retryNow": "Повторить попытку сейчас"
-  },
-  "developer": {
-    "database": "Обозреватель базы данных",
-    "events": "Автобус для мероприятий",
-    "commands": "Командный диспетчер",
-    "network": "Сетевая прослушка",
-    "webhooks": "Песочница Arr Webhooks",
-    "config": "Матрица конфигурации",
-    "diagnostics": "Диагностика и здоровье",
-    "terminal": "Интерактивный терминал",
-    "apiReference": "Справочник API (Swagger)"
   }
 };
 

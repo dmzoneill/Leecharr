@@ -197,6 +197,7 @@ const ja: I18nTranslations = {
     "terminalCli": "ターミナルCLI",
     "fileBrowser": "ファイルブラウザー",
     "settings": "設定",
+    "developer": "開発者",
     "system": "システム",
     "status": "状態",
     "resources": "リソース",
@@ -221,8 +222,7 @@ const ja: I18nTranslations = {
     "themeDark": "ダークモードに切り替える",
     "support": "サポートと寄付",
     "systemStatus": "システムステータス",
-    "commandPalette": "コマンドパレット (Ctrl+K)",
-    "developer": "開発者"
+    "commandPalette": "コマンドパレット (Ctrl+K)"
   },
   "topbar": {
     "searchPlaceholder": "クイックジャンプ/検索... (Ctrl+K)",
@@ -1351,7 +1351,8 @@ const ja: I18nTranslations = {
       "bulkImportModalTitle": "一括インポートモーダルタイトル",
       "bulkImportModalHint": "一括インポートモーダルヒント",
       "importingTrackers": "トラッカーのインポート",
-      "importTrackersBtn": "トラッカーのインポートボタン"
+      "importTrackersBtn": "トラッカーのインポートボタン",
+      "importFailedGeneric": "トラッカー リストの解析に失敗したか、トラッカー応答形式が無効です"
     },
     "logs": {
       "logsClearedToast": "ログクリアトースト",
@@ -1539,6 +1540,8 @@ const ja: I18nTranslations = {
     }
   },
   "system": {
+    "databaseExplorer": "データベースエクスプローラー",
+    "databaseExplorerSubtitle": "SQLite データベース テーブル、スキーマ、ストレージ割り当てを検査し、アドホック クエリを実行します。",
     "statusTitle": "システム状態とエンジンヘルス",
     "resourcesTitle": "システムリソースとハードウェア",
     "tasksTitle": "スケジュール済みバックグラウンドタスク",
@@ -1829,12 +1832,21 @@ const ja: I18nTranslations = {
     "active": "アクティブ",
     "inactive": "非アクティブ",
     "time": "時間",
-    "databaseExplorer": "データベースエクスプローラー",
-    "databaseExplorerSubtitle": "SQLite データベース テーブル、スキーマ、ストレージ割り当てを検査し、アドホック クエリを実行します。",
     "websiteUrl": "www.leecharr.net",
     "tcp": "TCP:",
     "utp": "uTP:",
     "tcpUdp": "TCP/UDP"
+  },
+  "developer": {
+    "database": "データベースエクスプローラー",
+    "events": "イベントバス",
+    "commands": "コマンドディスパッチャ",
+    "network": "ネットワーク盗聴",
+    "webhooks": "Arr Webhook サンドボックス",
+    "config": "構成マトリックス",
+    "diagnostics": "診断と健康",
+    "terminal": "インタラクティブターミナル",
+    "apiReference": "API リファレンス (Swagger)"
   },
   "settings": {
     "title": "設定と構成",
@@ -4484,17 +4496,6 @@ const ja: I18nTranslations = {
     "reconnecting": "リアルタイム接続が失われました。再接続しようとしています...",
     "disconnected": "サーバーから切断されました。 「今すぐ再試行」をクリックして再接続します。",
     "retryNow": "今すぐ再試行してください"
-  },
-  "developer": {
-    "database": "データベースエクスプローラー",
-    "events": "イベントバス",
-    "commands": "コマンドディスパッチャ",
-    "network": "ネットワーク盗聴",
-    "webhooks": "Arr Webhook サンドボックス",
-    "config": "構成マトリックス",
-    "diagnostics": "診断と健康",
-    "terminal": "インタラクティブターミナル",
-    "apiReference": "API リファレンス (Swagger)"
   }
 };
 
