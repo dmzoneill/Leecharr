@@ -43,6 +43,7 @@ public class ExternalIpService : BackgroundService, IExternalIpService
     private readonly INetworkBindingService networkBindingService;
     private readonly IHttpTransportEngine transportEngine;
     private readonly Logger logger;
+    private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
     private readonly SemaphoreSlim fetchLock = new(1, 1);
     private string cachedIp = string.Empty;
     private DateTime lastFetch = DateTime.MinValue;
@@ -103,9 +104,9 @@ public class ExternalIpService : BackgroundService, IExternalIpService
                 }
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            // Expected during clean background service shutdown
+            this.logger.Trace(ex, "External IP refresh loop cancelled during shutdown");
         }
         finally
         {
@@ -356,9 +357,9 @@ public class ExternalIpService : BackgroundService, IExternalIpService
                 }
             }
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
-            // Not valid JSON, proceed to plain text
+            StaticLogger.Trace(ex, "Response body was not JSON, falling back to plain-text IP parse");
         }
 
         // 2. Try parsing plain-text IP

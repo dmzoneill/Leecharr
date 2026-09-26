@@ -55,15 +55,15 @@ public class PieceMapSignalREventHandler : IHandle<PieceVerifiedEvent>, IDisposa
                         {
                             this.flushLock.Release();
                         }
-                        catch (ObjectDisposedException)
+                        catch (ObjectDisposedException ex)
                         {
-                            // Expected if flushLock is disposed during service shutdown
+                            this.logger.Trace(ex, "flushLock disposed during service shutdown");
                         }
                     }
                 }
-                catch (ObjectDisposedException)
+                catch (ObjectDisposedException ex)
                 {
-                    // Expected when handler is disposed during periodic timer callback
+                    this.logger.Trace(ex, "PieceMap handler disposed during periodic timer callback");
                 }
                 catch (Exception ex)
                 {
@@ -212,9 +212,9 @@ public class PieceMapSignalREventHandler : IHandle<PieceVerifiedEvent>, IDisposa
         {
             this.flushLock.Wait(TimeSpan.FromSeconds(2));
         }
-        catch (ObjectDisposedException)
+        catch (ObjectDisposedException ex)
         {
-            // Expected if lock was already disposed
+            this.logger.Trace(ex, "flushLock was already disposed during Dispose");
         }
 
         try
@@ -230,9 +230,9 @@ public class PieceMapSignalREventHandler : IHandle<PieceVerifiedEvent>, IDisposa
         {
             this.flushLock.Dispose();
         }
-        catch (ObjectDisposedException)
+        catch (ObjectDisposedException ex)
         {
-            // Expected if lock was concurrently disposed
+            this.logger.Trace(ex, "flushLock was concurrently disposed during Dispose");
         }
     }
 }
