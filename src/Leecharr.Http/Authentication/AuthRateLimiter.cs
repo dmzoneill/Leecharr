@@ -13,6 +13,7 @@ public class AuthRateLimiter : IDisposable
     private const int DefaultMaxCapacity = 10000;
     private static readonly TimeSpan DefaultAttemptWindow = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan DefaultLockoutDuration = TimeSpan.FromMinutes(15);
+    private readonly NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
 
     private readonly ConcurrentDictionary<string, (int Failures, DateTime WindowStart, DateTime? LockoutUntil)> attempts = new();
     private readonly int maxFailedAttempts;
@@ -46,9 +47,9 @@ public class AuthRateLimiter : IDisposable
                     {
                         this.SweepExpired();
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Suppress timer exceptions to prevent process crash
+                        this.logger.Trace(ex, "Failed to sweep expired rate-limit entries");
                     }
                 },
                 null,
