@@ -241,9 +241,12 @@ public class StoragePathService : IStoragePathService
                 sanitizedTarget = targetFileName;
             }
 
-            if (!string.IsNullOrWhiteSpace(torrentName) &&
+            var isFolderWithSingleFile = !string.IsNullOrWhiteSpace(torrentName) &&
                 !string.IsNullOrWhiteSpace(sourceExt) &&
-                !torrentName.EndsWith(sourceExt, StringComparison.OrdinalIgnoreCase))
+                !torrentName.EndsWith(sourceExt, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(Path.GetFileNameWithoutExtension(cleanFileName), torrentName, StringComparison.OrdinalIgnoreCase);
+
+            if (isFolderWithSingleFile)
             {
                 var sanitizedFolder = TorrentPathValidator.SanitizeRelativePath(torrentName);
                 if (string.IsNullOrWhiteSpace(sanitizedFolder))
