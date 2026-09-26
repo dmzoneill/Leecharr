@@ -1846,11 +1846,35 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
 
     private Dictionary<string, object> MapTorrentToTransmission(Torrent t, ISet<string> requestedFields = null)
     {
-        var statusNum = MapTransmissionStatus(t);
+        var downloadTask = this.torrentService?.GetDownloadTask(t.Id) ?? this.downloadEngine?.GetTask(t.Id);
+        var effectiveProgress = t.Progress;
+        var effectiveStatus = t.Status;
+        if (downloadTask != null)
+        {
+            if (downloadTask.Progress > 0 || t.Progress == 0)
+            {
+                effectiveProgress = downloadTask.Progress;
+            }
+
+            if (downloadTask.Status != TorrentStatus.Downloading || t.Status != TorrentStatus.Checking)
+            {
+                effectiveStatus = downloadTask.Status;
+            }
+
+            if (downloadTask.Progress >= 1.0 || downloadTask.IsFilesMovedToCompleted)
+            {
+                effectiveProgress = 1.0;
+                if (effectiveStatus == TorrentStatus.Downloading)
+                {
+                    effectiveStatus = TorrentStatus.Seeding;
+                }
+            }
+        }
+
+        var statusNum = MapTransmissionStatus(effectiveStatus, effectiveProgress);
         var fileMapping = this.MapTransmissionFiles(t, requestedFields);
         var trackerMapping = this.MapTransmissionTrackers(t);
 
-        var downloadTask = this.torrentService?.GetDownloadTask(t.Id) ?? this.downloadEngine?.GetTask(t.Id);
         var peersList = this.MapTransmissionPeers(t, downloadTask);
 
         var pieceLength = t.PieceLength > 0 ? t.PieceLength : (downloadTask?.PieceLength > 0 ? downloadTask.PieceLength : 0);
@@ -1861,9 +1885,9 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
 
         var downloadDir = MapTransmissionDownloadDir(t);
 
-        var haveValid = (long)(t.TotalSize * t.Progress);
-        var leftUntilDone = Math.Max(0, fileMapping.SizeWhenDone - (long)(fileMapping.SizeWhenDone * t.Progress));
-        var desiredAvailable = t.Progress >= 1.0 ? 0L : Math.Max(0L, fileMapping.SizeWhenDone - haveValid);
+        var haveValid = (long)(t.TotalSize * effectiveProgress);
+        var leftUntilDone = Math.Max(0, fileMapping.SizeWhenDone - (long)(fileMapping.SizeWhenDone * effectiveProgress));
+        var desiredAvailable = effectiveProgress >= 1.0 ? 0L : Math.Max(0L, fileMapping.SizeWhenDone - haveValid);
 
         var labelList = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (!string.IsNullOrWhiteSpace(t.Category))
@@ -2006,15 +2030,15 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
         return dict;
     }
 
-    private static int MapTransmissionStatus(Torrent torrent)
+    private static int MapTransmissionStatus(TorrentStatus status, double progress)
     {
-        return torrent.Status switch
+        return status switch
         {
             TorrentStatus.Stopped => 0,
             TorrentStatus.Paused => 0,
             TorrentStatus.QueuedForChecking => 1,                  // TR_STATUS_CHECK_WAIT
             TorrentStatus.Checking => 2,                           // TR_STATUS_CHECK
-            TorrentStatus.Queued when torrent.Progress >= 1.0 => 5, // TR_STATUS_SEED_WAIT
+            TorrentStatus.Queued when progress >= 1.0 => 5,        // TR_STATUS_SEED_WAIT
             TorrentStatus.Queued => 3,                             // TR_STATUS_DOWNLOAD_WAIT
             TorrentStatus.Downloading => 4,
             TorrentStatus.Seeding => 6,

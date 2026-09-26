@@ -533,24 +533,76 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
         var result = torrentList.Select(t =>
         {
-            var state = MapToQBitState(t.Status, t.Progress, t.DownloadSpeed, t.UploadSpeed);
+            var task = this.downloadEngine?.GetTask(t.Id) ?? this.torrentService?.GetDownloadTask(t.Id);
+            var isInactive = t.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued;
+
+            var effectiveProgress = t.Progress;
+            var effectiveStatus = t.Status;
+            var effectiveDlSpeed = isInactive ? 0 : t.DownloadSpeed;
+            var effectiveUlSpeed = isInactive ? 0 : t.UploadSpeed;
+            var effectiveDownloaded = t.Downloaded;
+            var effectiveTotalSize = t.TotalSize;
+            var effectiveSeeders = isInactive ? 0 : t.Seeders;
+            var effectiveLeechers = isInactive ? 0 : t.Leechers;
+
+            if (task != null)
+            {
+                if (task.Progress > 0 || t.Progress == 0)
+                {
+                    effectiveProgress = task.Progress;
+                }
+
+                if (task.DownloadedBytes > 0)
+                {
+                    effectiveDownloaded = task.DownloadedBytes;
+                }
+
+                if (effectiveTotalSize <= 0 && task.TotalBytes > 0)
+                {
+                    effectiveTotalSize = task.TotalBytes;
+                }
+
+                if (!isInactive)
+                {
+                    effectiveDlSpeed = task.DownloadSpeed;
+                    effectiveUlSpeed = task.UploadSpeed;
+                    effectiveSeeders = task.ConnectedSeeders;
+                    effectiveLeechers = task.ConnectedLeechers;
+                }
+
+                if (task.Status != TorrentStatus.Downloading || t.Status != TorrentStatus.Checking)
+                {
+                    effectiveStatus = task.Status;
+                }
+
+                if (task.Progress >= 1.0 || task.IsFilesMovedToCompleted)
+                {
+                    effectiveProgress = 1.0;
+                    if (effectiveStatus == TorrentStatus.Downloading)
+                    {
+                        effectiveStatus = TorrentStatus.Seeding;
+                    }
+                }
+            }
+
+            var state = MapToQBitState(effectiveStatus, effectiveProgress, effectiveDlSpeed, effectiveUlSpeed);
             var (resolvedSavePath, resolvedContentPath) = this.ResolvePaths(t, filesByTorrent);
             return new Dictionary<string, object>
             {
                 ["hash"] = t.InfoHash,
                 ["name"] = t.Name,
-                ["size"] = t.TotalSize,
-                ["total_size"] = t.TotalSize,
-                ["progress"] = t.Progress,
-                ["dlspeed"] = t.DownloadSpeed,
-                ["upspeed"] = t.UploadSpeed,
+                ["size"] = effectiveTotalSize,
+                ["total_size"] = effectiveTotalSize,
+                ["progress"] = effectiveProgress,
+                ["dlspeed"] = effectiveDlSpeed,
+                ["upspeed"] = effectiveUlSpeed,
                 ["priority"] = t.Priority,
-                ["num_seeds"] = t.Seeders,
-                ["num_leechs"] = t.Leechers,
-                ["num_complete"] = t.Seeders,
-                ["num_incomplete"] = t.Leechers,
+                ["num_seeds"] = effectiveSeeders,
+                ["num_leechs"] = effectiveLeechers,
+                ["num_complete"] = effectiveSeeders,
+                ["num_incomplete"] = effectiveLeechers,
                 ["ratio"] = t.Ratio,
-                ["eta"] = CalculateEta(t),
+                ["eta"] = effectiveProgress >= 1.0 || effectiveStatus == TorrentStatus.Seeding ? 0 : CalculateEta(t),
                 ["state"] = state,
                 ["seq_dl"] = t.SequentialDownload,
                 ["f_l_piece_prio"] = t.FirstLastPiecePriority,
@@ -559,9 +611,9 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 ["save_path"] = resolvedSavePath,
                 ["content_path"] = resolvedContentPath,
                 ["added_on"] = new DateTimeOffset(t.DateAdded).ToUnixTimeSeconds(),
-                ["completion_on"] = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : -1,
-                ["amount_left"] = t.Progress >= 1.0 ? 0L : (long)Math.Max(0, (1.0 - t.Progress) * t.TotalSize),
-                ["downloaded"] = t.Downloaded,
+                ["completion_on"] = t.DateCompleted.HasValue ? new DateTimeOffset(t.DateCompleted.Value).ToUnixTimeSeconds() : (effectiveProgress >= 1.0 ? DateTimeOffset.UtcNow.ToUnixTimeSeconds() : -1),
+                ["amount_left"] = effectiveProgress >= 1.0 ? 0L : (long)Math.Max(0, (1.0 - effectiveProgress) * effectiveTotalSize),
+                ["downloaded"] = effectiveDownloaded,
                 ["uploaded"] = t.Uploaded,
                 ["max_ratio"] = t.TargetRatio,
                 ["max_seeding_time"] = t.TargetSeedTimeMinutes,

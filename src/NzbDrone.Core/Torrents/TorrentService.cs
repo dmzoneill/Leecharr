@@ -687,6 +687,14 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 this.logger.Warn(ex, "Error removing torrent {0} from download engine", id);
             }
 
+            this.fileRepository.DeleteByTorrentId(id);
+            this.trackerEntryRepository?.DeleteByTorrentId(id);
+            this.mediaEnrichmentService.DeleteMetadata(id);
+            this.mediaEnrichmentService.CleanupTorrentCache(id);
+            this.sessionUploadBaselines.TryRemove(id, out _);
+            this.lastSeenSessionUploaded.TryRemove(id, out _);
+            this.torrentRepository.Delete(id);
+
             this.eventAggregator.PublishEvent(new TorrentDeletedEvent { Torrent = torrent, DeleteFiles = deleteFiles });
 
             // Note: Cached .torrent files in AppDataFolder/Torrents are preserved for Download History
@@ -695,14 +703,6 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             {
                 await this.DeleteTorrentDataOnDiskAsync(torrent, torrentFiles);
             }
-
-            this.fileRepository.DeleteByTorrentId(id);
-            this.trackerEntryRepository?.DeleteByTorrentId(id);
-            this.mediaEnrichmentService.DeleteMetadata(id);
-            this.mediaEnrichmentService.CleanupTorrentCache(id);
-            this.sessionUploadBaselines.TryRemove(id, out _);
-            this.lastSeenSessionUploaded.TryRemove(id, out _);
-            this.torrentRepository.Delete(id);
         }
         finally
         {
@@ -1573,7 +1573,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 this.eventAggregator.PublishEvent(new TorrentUpdatedEvent { Torrent = torrent });
                 this.logger.Info("Initial seeding (super seeding) concluded for torrent {0} ({1}); synchronized to normal seeding.", torrent.Id, torrent.Name);
             }
-            else if (initialSeedingChanged || dateCompletedSet || statsChanged)
+            else if (initialSeedingChanged || dateCompletedSet)
             {
                 this.torrentRepository.Update(torrent);
             }

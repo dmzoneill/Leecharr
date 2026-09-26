@@ -157,6 +157,8 @@ public interface IDownloadTask
 
     bool IsOutOfDiskSpace => false;
 
+    bool IsFilesMovedToCompleted => false;
+
     int PieceLength => 0;
 
     IReadOnlyList<string> WebSeeds => System.Array.Empty<string>();
