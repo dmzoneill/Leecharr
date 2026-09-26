@@ -42,7 +42,7 @@ export function useHistoryActions(
         showToast(
           t("history.failedToReAdd", 'Failed to re-add "{title}": {error}', {
             title,
-            error: err.message || "Unknown error",
+            error: err.message || "Re-add failed",
           }),
           "error",
         );

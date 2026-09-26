@@ -90,7 +90,7 @@ export const Indexers: React.FC<IndexersProps> = ({
           setDownloadingGuid(null);
           showToast(
             t("indexers.failedToGrab", "Failed to grab: {error}", {
-              error: err.message || "Unknown error",
+              error: err.message || "Indexer grab request failed",
             }),
             "error",
           );

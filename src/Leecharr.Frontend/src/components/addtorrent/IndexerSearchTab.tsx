@@ -97,8 +97,8 @@ export function IndexerSearchTab({
           setDownloadingGuid(null);
           showToast(
             t("addTorrent.failedToAddRelease", {
-              message: err.message || "Unknown error",
-              defaultValue: `Failed to add release: ${err.message || "Unknown error"}`,
+              message: err.message || "Failed to add release",
+              defaultValue: `Failed to add release: ${err.message || "Release transfer failed"}`,
             }),
             "error",
           );
