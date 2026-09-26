@@ -241,7 +241,26 @@ public class StoragePathService : IStoragePathService
                 sanitizedTarget = targetFileName;
             }
 
-            finalDestination = Path.Combine(completedDir, sanitizedTarget);
+            if (!string.IsNullOrWhiteSpace(torrentName) && !Path.HasExtension(torrentName))
+            {
+                var sanitizedFolder = TorrentPathValidator.SanitizeRelativePath(torrentName);
+                if (string.IsNullOrWhiteSpace(sanitizedFolder))
+                {
+                    sanitizedFolder = torrentName;
+                }
+
+                var targetDir = Path.Combine(completedDir, sanitizedFolder);
+                if (!this.diskProvider.FolderExists(targetDir))
+                {
+                    this.diskProvider.CreateFolder(targetDir);
+                }
+
+                finalDestination = Path.Combine(targetDir, sanitizedTarget);
+            }
+            else
+            {
+                finalDestination = Path.Combine(completedDir, sanitizedTarget);
+            }
         }
         else
         {
@@ -772,6 +791,42 @@ public class StoragePathService : IStoragePathService
             {
                 var relative = trimmedRaw.Substring(inc.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 return !string.IsNullOrWhiteSpace(relative) ? Path.Combine(completedDir, relative) : completedDir;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(category) && !string.IsNullOrWhiteSpace(completedDir))
+        {
+            var baseDir = this.configService?.DownloadDir ?? "/downloads";
+            var trimmedBase = baseDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var catDir1 = trimmedBase + "/" + category;
+            var catDir2 = trimmedBase + "\\" + category;
+
+            if (string.Equals(trimmedRaw, catDir1, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmedRaw, catDir2, StringComparison.OrdinalIgnoreCase))
+            {
+                return completedDir.Equals(catDir1, StringComparison.OrdinalIgnoreCase) || completedDir.Equals(catDir2, StringComparison.OrdinalIgnoreCase)
+                    ? trimmedBase
+                    : completedDir;
+            }
+
+            if (trimmedRaw.StartsWith(catDir1 + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+                trimmedRaw.StartsWith(catDir1 + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                var relative = trimmedRaw.Substring(catDir1.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var targetBase = completedDir.Equals(catDir1, StringComparison.OrdinalIgnoreCase) || completedDir.Equals(catDir2, StringComparison.OrdinalIgnoreCase)
+                    ? trimmedBase
+                    : completedDir;
+                return !string.IsNullOrWhiteSpace(relative) ? Path.Combine(targetBase, relative) : targetBase;
+            }
+
+            if (trimmedRaw.StartsWith(catDir2 + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+                trimmedRaw.StartsWith(catDir2 + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                var relative = trimmedRaw.Substring(catDir2.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var targetBase = completedDir.Equals(catDir1, StringComparison.OrdinalIgnoreCase) || completedDir.Equals(catDir2, StringComparison.OrdinalIgnoreCase)
+                    ? trimmedBase
+                    : completedDir;
+                return !string.IsNullOrWhiteSpace(relative) ? Path.Combine(targetBase, relative) : targetBase;
             }
         }
 
