@@ -234,9 +234,9 @@ public class SharpCompressExtractorProvider : IArchiveExtractorProvider
                             {
                                 File.SetLastWriteTimeUtc(targetFilePath, entry.LastModifiedTime.Value.ToUniversalTime());
                             }
-                            catch
+                            catch (Exception ex)
                             {
-                                // Ignore failure updating file timestamp
+                                this.logger.Trace(ex, "Failed to update extracted file timestamp for '{0}'", targetFilePath);
                             }
                         }
                     }

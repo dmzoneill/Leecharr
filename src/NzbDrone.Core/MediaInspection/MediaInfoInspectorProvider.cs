@@ -126,9 +126,9 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
                         process.Kill(entireProcessTree: true);
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Suppress process kill errors
+                    Logger.Trace(ex, "Failed to kill MediaInfo process on timeout");
                 }
 
                 Logger.Warn("MediaInfo execution timed out after {0} seconds for {1}", this.executionTimeout.TotalSeconds, mediaPath);

@@ -205,9 +205,9 @@ public class DynamicHttpTransportProxy : IHttpTransportEngine, IHttpTransportMan
             {
                 this.developerHttpTrafficStore?.Record(request, response, sw.Elapsed.TotalMilliseconds, this.ActiveProviderId, null, error);
             }
-            catch
+            catch (Exception ex)
             {
-                // Protect core transport pipeline
+                this.logger.Trace(ex, "Failed to record developer HTTP traffic event");
             }
         }
     }
