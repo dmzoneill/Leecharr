@@ -83,13 +83,13 @@ export class ErrorBoundary extends Component<
 
     const {
       fallback,
-      title = translate("common.error", "Something went wrong"),
+      title = translate("common.error", "An unexpected UI error occurred"),
     } = this.props;
     const { error, errorInfo, showDetails } = this.state;
 
     if (fallback) {
       if (typeof fallback === "function") {
-        return fallback(error || new Error("Unknown error"), this.resetError);
+        return fallback(error || new Error("An unexpected error occurred in this view"), this.resetError);
       }
       return fallback;
     }

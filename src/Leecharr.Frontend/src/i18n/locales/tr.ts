@@ -197,6 +197,7 @@ const tr: I18nTranslations = {
     "terminalCli": "Uçbirim CLI",
     "fileBrowser": "Dosya Tarayıcısı",
     "settings": "Ayarlar",
+    "developer": "Geliştirici",
     "system": "Sistem",
     "status": "Durum",
     "resources": "Kaynaklar",
@@ -221,8 +222,7 @@ const tr: I18nTranslations = {
     "themeDark": "Karanlık Moda Geç",
     "support": "Destekleyin ve Bağış Yapın",
     "systemStatus": "Sistem Durumu",
-    "commandPalette": "Komut Paleti (Ctrl+K)",
-    "developer": "Geliştirici"
+    "commandPalette": "Komut Paleti (Ctrl+K)"
   },
   "topbar": {
     "searchPlaceholder": "Hızlı Atla / Ara... (Ctrl+K)",
@@ -1351,7 +1351,8 @@ const tr: I18nTranslations = {
       "bulkImportModalTitle": "Toplu İçe Aktarma Modal Başlığı",
       "bulkImportModalHint": "Toplu İçe Aktarma Modal İpucu",
       "importingTrackers": "İzleyicileri İçe Aktarma",
-      "importTrackersBtn": "İthalat Takipçileri Btn"
+      "importTrackersBtn": "İthalat Takipçileri Btn",
+      "importFailedGeneric": "İzleyici listesi ayrıştırılamadı veya geçersiz izleyici yanıt biçimi"
     },
     "logs": {
       "logsClearedToast": "Günlükler Temizlendi Tost",
@@ -1539,6 +1540,8 @@ const tr: I18nTranslations = {
     "freeleech": "FREELEECH"
   },
   "system": {
+    "databaseExplorer": "Veritabanı Gezgini",
+    "databaseExplorerSubtitle": "SQLite veritabanı tablolarını, şemasını, depolama tahsisini inceleyin ve anlık sorgular çalıştırın.",
     "statusTitle": "Sistem Durumu & Motor Sağlığı",
     "resourcesTitle": "Sistem Kaynakları & Donanım",
     "tasksTitle": "Zamanlanmış Arka Plan Görevleri",
@@ -1826,8 +1829,6 @@ const tr: I18nTranslations = {
     "active": "Aktif",
     "inactive": "Etkin değil",
     "time": "Zaman",
-    "databaseExplorer": "Veritabanı Gezgini",
-    "databaseExplorerSubtitle": "SQLite veritabanı tablolarını, şemasını, depolama tahsisini inceleyin ve anlık sorgular çalıştırın.",
     "websiteUrl": "www.leecharr.net",
     "gcGen2": "GC Gen 2",
     "tcpUtp": "TCP / uTP",
@@ -1835,6 +1836,17 @@ const tr: I18nTranslations = {
     "tcp": "TCP:",
     "utp": "uTP:",
     "tcpUdp": "TCP/UDP"
+  },
+  "developer": {
+    "database": "Veritabanı Gezgini",
+    "events": "Etkinlik Otobüsü",
+    "commands": "Komut Göndericisi",
+    "network": "Ağ Telefon Dinlemesi",
+    "webhooks": "Arr Web Kancaları Korumalı Alanı",
+    "config": "Yapılandırma Matrisi",
+    "diagnostics": "Teşhis ve Sağlık",
+    "terminal": "İnteraktif Terminal",
+    "apiReference": "API Referansı (Swagger)"
   },
   "settings": {
     "title": "Ayarlar & Yapılandırma",
@@ -4484,17 +4496,6 @@ const tr: I18nTranslations = {
     "reconnecting": "Gerçek zamanlı bağlantı kesildi. Yeniden bağlanmaya çalışılıyor...",
     "disconnected": "Sunucuyla bağlantı kesildi. Yeniden bağlanmak için Şimdi Yeniden Dene'yi tıklayın.",
     "retryNow": "Şimdi Yeniden Dene"
-  },
-  "developer": {
-    "database": "Veritabanı Gezgini",
-    "events": "Etkinlik Otobüsü",
-    "commands": "Komut Göndericisi",
-    "network": "Ağ Telefon Dinlemesi",
-    "webhooks": "Arr Web Kancaları Korumalı Alanı",
-    "config": "Yapılandırma Matrisi",
-    "diagnostics": "Teşhis ve Sağlık",
-    "terminal": "İnteraktif Terminal",
-    "apiReference": "API Referansı (Swagger)"
   }
 };
 

@@ -197,6 +197,7 @@ const te: I18nTranslations = {
     "terminalCli": "టెర్మినల్ CLI",
     "fileBrowser": "ఫైల్ బ్రౌజర్",
     "settings": "సెట్టింగ్లు",
+    "developer": "డెవలపర్",
     "system": "సిస్టమ్",
     "status": "స్థితి",
     "resources": "వనరులు",
@@ -221,8 +222,7 @@ const te: I18nTranslations = {
     "themeDark": "డార్క్ మోడ్ కి మారండి",
     "support": "మద్దతు & విరాళం",
     "systemStatus": "సిస్టమ్ స్థితి",
-    "commandPalette": "కమాండ్ పాలెట్ (Ctrl+K)",
-    "developer": "డెవలపర్"
+    "commandPalette": "కమాండ్ పాలెట్ (Ctrl+K)"
   },
   "topbar": {
     "searchPlaceholder": "త్వరిత జంప్ / శోధన... (Ctrl+K)",
@@ -1351,7 +1351,8 @@ const te: I18nTranslations = {
       "bulkImportModalTitle": "బల్క్ ఇంపోర్ట్ మోడల్ టైటిల్",
       "bulkImportModalHint": "బల్క్ దిగుమతి మోడల్ సూచన",
       "importingTrackers": "ట్రాకర్లను దిగుమతి చేస్తోంది",
-      "importTrackersBtn": "Btn ట్రాకర్లను దిగుమతి చేయండి"
+      "importTrackersBtn": "Btn ట్రాకర్లను దిగుమతి చేయండి",
+      "importFailedGeneric": "ట్రాకర్ జాబితా లేదా చెల్లని ట్రాకర్ ప్రతిస్పందన ఆకృతిని అన్వయించడంలో విఫలమైంది"
     },
     "logs": {
       "logsClearedToast": "లాగ్స్ క్లియర్ టోస్ట్",
@@ -1539,6 +1540,8 @@ const te: I18nTranslations = {
     }
   },
   "system": {
+    "databaseExplorer": "డేటాబేస్ ఎక్స్‌ప్లోరర్",
+    "databaseExplorerSubtitle": "SQLite డేటాబేస్ పట్టికలు, స్కీమా, స్టోరేజ్ కేటాయింపులను తనిఖీ చేయండి మరియు తాత్కాలిక ప్రశ్నలను అమలు చేయండి.",
     "statusTitle": "సిస్టమ్ స్థితి & ఇంజిన్ ఆరోగ్యం",
     "resourcesTitle": "సిస్టమ్ వనరులు & హార్డ్వేర్",
     "tasksTitle": "షెడ్యూల్ చేయబడిన బ్యాక్గ్రౌండ్ టాస్క్లు",
@@ -1825,8 +1828,6 @@ const te: I18nTranslations = {
     "active": "చురుకుగా",
     "inactive": "నిష్క్రియ",
     "time": "సమయం",
-    "databaseExplorer": "డేటాబేస్ ఎక్స్‌ప్లోరర్",
-    "databaseExplorerSubtitle": "SQLite డేటాబేస్ పట్టికలు, స్కీమా, స్టోరేజ్ కేటాయింపులను తనిఖీ చేయండి మరియు తాత్కాలిక ప్రశ్నలను అమలు చేయండి.",
     "websiteUrl": "www.leecharr.net",
     "gcGen01": "GC Gen 0/1",
     "gcGen2": "GC Gen 2",
@@ -1835,6 +1836,17 @@ const te: I18nTranslations = {
     "tcp": "TCP:",
     "utp": "uTP:",
     "tcpUdp": "TCP/UDP"
+  },
+  "developer": {
+    "database": "డేటాబేస్ ఎక్స్‌ప్లోరర్",
+    "events": "ఈవెంట్ బస్",
+    "commands": "కమాండ్ డిస్పాచర్",
+    "network": "నెట్‌వర్క్ వైర్‌టాప్",
+    "webhooks": "Arr Webhooks శాండ్‌బాక్స్",
+    "config": "కాన్ఫిగరేషన్ మ్యాట్రిక్స్",
+    "diagnostics": "డయాగ్నోస్టిక్స్ & హెల్త్",
+    "terminal": "ఇంటరాక్టివ్ టెర్మినల్",
+    "apiReference": "API సూచన (స్వాగర్)"
   },
   "settings": {
     "title": "సెట్టింగ్లు & కాన్ఫిగరేషన్",
@@ -4484,17 +4496,6 @@ const te: I18nTranslations = {
     "reconnecting": "రియల్ టైమ్ కనెక్షన్ కోల్పోయింది. మళ్లీ కనెక్ట్ చేయడానికి ప్రయత్నిస్తోంది...",
     "disconnected": "సర్వర్ నుండి డిస్‌కనెక్ట్ చేయబడింది. మళ్లీ కనెక్ట్ చేయడానికి ఇప్పుడు మళ్లీ ప్రయత్నించండి క్లిక్ చేయండి.",
     "retryNow": "ఇప్పుడు మళ్లీ ప్రయత్నించండి"
-  },
-  "developer": {
-    "database": "డేటాబేస్ ఎక్స్‌ప్లోరర్",
-    "events": "ఈవెంట్ బస్",
-    "commands": "కమాండ్ డిస్పాచర్",
-    "network": "నెట్‌వర్క్ వైర్‌టాప్",
-    "webhooks": "Arr Webhooks శాండ్‌బాక్స్",
-    "config": "కాన్ఫిగరేషన్ మ్యాట్రిక్స్",
-    "diagnostics": "డయాగ్నోస్టిక్స్ & హెల్త్",
-    "terminal": "ఇంటరాక్టివ్ టెర్మినల్",
-    "apiReference": "API సూచన (స్వాగర్)"
   }
 };
 

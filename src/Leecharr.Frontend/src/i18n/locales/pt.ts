@@ -196,6 +196,7 @@ const pt: I18nTranslations = {
     "trackerBoost": "Acelerador de Trackers",
     "fileBrowser": "Navegador de arquivos",
     "settings": "Configurações",
+    "developer": "Desenvolvedor",
     "system": "Sistema",
     "resources": "Recursos",
     "tasks": "Tarefas",
@@ -221,7 +222,6 @@ const pt: I18nTranslations = {
     "systemStatus": "Status do sistema",
     "commandPalette": "Paleta de Comandos (Ctrl+K)",
     "terminalCli": "Terminal CLI",
-    "developer": "Desenvolvedor",
     "status": "Status"
   },
   "topbar": {
@@ -1351,7 +1351,8 @@ const pt: I18nTranslations = {
       "bulkImportModalTitle": "Título modal de importação em massa",
       "bulkImportModalHint": "Dica modal de importação em massa",
       "importingTrackers": "Importando Rastreadores",
-      "importTrackersBtn": "Importar rastreadores Btn"
+      "importTrackersBtn": "Importar rastreadores Btn",
+      "importFailedGeneric": "Falha ao analisar a lista de rastreadores ou formato de resposta do rastreador inválido"
     },
     "logs": {
       "logsClearedToast": "Logs limpos do brinde",
@@ -1539,6 +1540,8 @@ const pt: I18nTranslations = {
     "freeleech": "FREELEECH"
   },
   "system": {
+    "databaseExplorer": "Explorador de banco de dados",
+    "databaseExplorerSubtitle": "Inspecione tabelas de banco de dados SQLite, esquema, alocação de armazenamento e execute consultas ad-hoc.",
     "statusTitle": "Status do sistema e saúde do motor",
     "resourcesTitle": "Recursos do sistema e hardware",
     "tasksTitle": "Tarefas agendadas em segundo plano",
@@ -1827,14 +1830,23 @@ const pt: I18nTranslations = {
     "active": "Ativo",
     "inactive": "Inativo",
     "time": "Tempo",
-    "databaseExplorer": "Explorador de banco de dados",
-    "databaseExplorerSubtitle": "Inspecione tabelas de banco de dados SQLite, esquema, alocação de armazenamento e execute consultas ad-hoc.",
     "statusCol": "Status",
     "websiteUrl": "www.leecharr.net",
     "tcp": "TCP:",
     "tcpUdp": "TCP/UDP",
     "interface": "Interface",
     "backup": "Backup"
+  },
+  "developer": {
+    "database": "Explorador de banco de dados",
+    "events": "Ônibus de eventos",
+    "commands": "Despachante de Comando",
+    "network": "Escuta telefônica de rede",
+    "webhooks": "Caixa de areia Arr Webhooks",
+    "config": "Matriz de Configuração",
+    "diagnostics": "Diagnóstico e Saúde",
+    "terminal": "Terminal interativo",
+    "apiReference": "Referência de API (Swagger)"
   },
   "settings": {
     "title": "Configurações & Ajustes",
@@ -4484,17 +4496,6 @@ const pt: I18nTranslations = {
     "reconnecting": "Conexão em tempo real perdida. Tentando reconectar...",
     "disconnected": "Desconectado do servidor. Clique em Tentar novamente agora para reconectar.",
     "retryNow": "Tente novamente agora"
-  },
-  "developer": {
-    "database": "Explorador de banco de dados",
-    "events": "Ônibus de eventos",
-    "commands": "Despachante de Comando",
-    "network": "Escuta telefônica de rede",
-    "webhooks": "Caixa de areia Arr Webhooks",
-    "config": "Matriz de Configuração",
-    "diagnostics": "Diagnóstico e Saúde",
-    "terminal": "Terminal interativo",
-    "apiReference": "Referência de API (Swagger)"
   }
 };
 

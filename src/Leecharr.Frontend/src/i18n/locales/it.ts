@@ -197,6 +197,7 @@ const it: I18nTranslations = {
     "terminalCli": "Terminale CLI",
     "fileBrowser": "Gestione file",
     "settings": "Impostazioni",
+    "developer": "Sviluppatore",
     "system": "Sistema",
     "status": "Stato",
     "resources": "Risorse di sistema",
@@ -221,8 +222,7 @@ const it: I18nTranslations = {
     "themeDark": "Passa alla modalità oscura",
     "support": "Sostieni e dona",
     "systemStatus": "Stato del sistema",
-    "commandPalette": "Tavolozza dei comandi (Ctrl+K)",
-    "developer": "Sviluppatore"
+    "commandPalette": "Tavolozza dei comandi (Ctrl+K)"
   },
   "topbar": {
     "searchPlaceholder": "Salto veloce/Cerca... (Ctrl+K)",
@@ -1351,7 +1351,8 @@ const it: I18nTranslations = {
       "bulkImportModalTitle": "Titolo modale di importazione in blocco",
       "bulkImportModalHint": "Suggerimento modale per l'importazione in blocco",
       "importingTrackers": "Importazione di tracker",
-      "importTrackersBtn": "Importa tracker Btn"
+      "importTrackersBtn": "Importa tracker Btn",
+      "importFailedGeneric": "Impossibile analizzare l'elenco dei tracker o il formato della risposta del tracker non è valido"
     },
     "logs": {
       "logsClearedToast": "Toast cancellato dai registri",
@@ -1539,6 +1540,8 @@ const it: I18nTranslations = {
     }
   },
   "system": {
+    "databaseExplorer": "Esplora database",
+    "databaseExplorerSubtitle": "Esamina le tabelle del database SQLite, lo schema, l'allocazione dello spazio di archiviazione ed esegui query ad hoc.",
     "statusTitle": "Stato del sistema & salute motore",
     "resourcesTitle": "Risorse di sistema & hardware",
     "tasksTitle": "Attività programmate in background",
@@ -1824,8 +1827,6 @@ const it: I18nTranslations = {
     "active": "Attivo",
     "inactive": "Inattivo",
     "time": "Tempo",
-    "databaseExplorer": "Esplora database",
-    "databaseExplorerSubtitle": "Esamina le tabelle del database SQLite, lo schema, l'allocazione dello spazio di archiviazione ed esegui query ad hoc.",
     "timestamp": "Timestamp",
     "schemaVersion": "Schema #{{version}}",
     "websiteUrl": "www.leecharr.net",
@@ -1835,6 +1836,17 @@ const it: I18nTranslations = {
     "tcp": "TCP:",
     "utp": "uTP:",
     "tcpUdp": "TCP/UDP"
+  },
+  "developer": {
+    "database": "Esplora database",
+    "events": "Autobus per eventi",
+    "commands": "Inviatore di comandi",
+    "network": "Intercettazione di rete",
+    "webhooks": "Arr Webhook Sandbox",
+    "config": "Matrice di configurazione",
+    "diagnostics": "Diagnostica e salute",
+    "terminal": "Terminale interattivo",
+    "apiReference": "Riferimento API (spavalderia)"
   },
   "settings": {
     "title": "Impostazioni & Configurazione",
@@ -4484,17 +4496,6 @@ const it: I18nTranslations = {
     "reconnecting": "Connessione in tempo reale persa. Tentativo di riconnessione...",
     "disconnected": "Disconnesso dal server. Fare clic su Riprova ora per riconnettersi.",
     "retryNow": "Riprova ora"
-  },
-  "developer": {
-    "database": "Esplora database",
-    "events": "Autobus per eventi",
-    "commands": "Inviatore di comandi",
-    "network": "Intercettazione di rete",
-    "webhooks": "Arr Webhook Sandbox",
-    "config": "Matrice di configurazione",
-    "diagnostics": "Diagnostica e salute",
-    "terminal": "Terminale interattivo",
-    "apiReference": "Riferimento API (spavalderia)"
   }
 };
 

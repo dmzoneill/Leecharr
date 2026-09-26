@@ -82,7 +82,7 @@ export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
           "trackerBoost.settings.bulkImportFailed",
           "Failed to bulk import trackers: {error}",
           {
-            error: errObj?.message || t("common.unknownError", "Unknown error"),
+            error: errObj?.message || t("trackerBoost.settings.importFailedGeneric", "Failed to parse tracker list or invalid tracker response format"),
           },
         ),
         "error",

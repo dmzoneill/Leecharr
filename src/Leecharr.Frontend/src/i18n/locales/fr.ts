@@ -196,6 +196,7 @@ const fr: I18nTranslations = {
     "terminalCli": "Console CLI",
     "fileBrowser": "Explorateur de fichiers",
     "settings": "Paramètres",
+    "developer": "Promoteur",
     "system": "Système",
     "status": "Statut",
     "resources": "Ressources",
@@ -221,8 +222,7 @@ const fr: I18nTranslations = {
     "support": "Soutenez et faites un don",
     "systemStatus": "État du système",
     "commandPalette": "Palette de commandes (Ctrl+K)",
-    "torrents": "Torrents",
-    "developer": "Promoteur"
+    "torrents": "Torrents"
   },
   "topbar": {
     "searchPlaceholder": "Saut rapide/Recherche... (Ctrl+K)",
@@ -1350,7 +1350,8 @@ const fr: I18nTranslations = {
       "bulkImportModalTitle": "Titre modal d’importation groupée",
       "bulkImportModalHint": "Astuce modale d’importation en masse",
       "importingTrackers": "Importation de trackers",
-      "importTrackersBtn": "Importer des trackers Btn"
+      "importTrackersBtn": "Importer des trackers Btn",
+      "importFailedGeneric": "Échec de l'analyse de la liste des trackers ou format de réponse du tracker non valide"
     },
     "logs": {
       "logsClearedToast": "Journaux effacés Toast",
@@ -1539,6 +1540,8 @@ const fr: I18nTranslations = {
     "action": "Action"
   },
   "system": {
+    "databaseExplorer": "Explorateur de base de données",
+    "databaseExplorerSubtitle": "Inspectez les tables de base de données SQLite, le schéma, l'allocation de stockage et exécutez des requêtes ad hoc.",
     "statusTitle": "Statut du système et santé du moteur",
     "resourcesTitle": "Ressources système et matériel",
     "tasksTitle": "Tâches planifiées en arrière-plan",
@@ -1823,8 +1826,6 @@ const fr: I18nTranslations = {
     "active": "Actif",
     "inactive": "Inactif",
     "time": "Temps",
-    "databaseExplorer": "Explorateur de base de données",
-    "databaseExplorerSubtitle": "Inspectez les tables de base de données SQLite, le schéma, l'allocation de stockage et exécutez des requêtes ad hoc.",
     "version": "Version",
     "message": "Message",
     "usage": "Usage",
@@ -1835,6 +1836,17 @@ const fr: I18nTranslations = {
     "interface": "Interface",
     "description": "Description",
     "terminal": "Terminal"
+  },
+  "developer": {
+    "database": "Explorateur de base de données",
+    "events": "Bus événementiel",
+    "commands": "Répartiteur de commandes",
+    "network": "Écoute réseau",
+    "webhooks": "Bac à sable Arr Webhooks",
+    "config": "Matrice de configuration",
+    "diagnostics": "Diagnostic et santé",
+    "terminal": "Borne interactive",
+    "apiReference": "Référence API (Swagger)"
   },
   "settings": {
     "title": "Paramètres & Configuration",
@@ -4484,17 +4496,6 @@ const fr: I18nTranslations = {
     "reconnecting": "Connexion en temps réel perdue. Tentative de reconnexion...",
     "disconnected": "Déconnecté du serveur. Cliquez sur Réessayer maintenant pour vous reconnecter.",
     "retryNow": "Réessayez maintenant"
-  },
-  "developer": {
-    "database": "Explorateur de base de données",
-    "events": "Bus événementiel",
-    "commands": "Répartiteur de commandes",
-    "network": "Écoute réseau",
-    "webhooks": "Bac à sable Arr Webhooks",
-    "config": "Matrice de configuration",
-    "diagnostics": "Diagnostic et santé",
-    "terminal": "Borne interactive",
-    "apiReference": "Référence API (Swagger)"
   }
 };
 

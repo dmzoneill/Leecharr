@@ -1328,6 +1328,7 @@ const en: I18nTranslations = {
       "noValidUrlsFound": "No Valid Urls Found",
       "processedTrackersToast": "Processed Trackers Toast",
       "bulkImportFailed": "Bulk Import Failed",
+      "importFailedGeneric": "Failed to parse tracker list or invalid tracker response format",
       "automationTitle": "Automation Title",
       "automationDesc": "Automation Desc",
       "autoBoostLabel": "Auto Boost Label",

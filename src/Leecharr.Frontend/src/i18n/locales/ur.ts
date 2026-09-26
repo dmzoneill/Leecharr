@@ -197,6 +197,7 @@ const ur: I18nTranslations = {
     "terminalCli": "ٹرمینل CLI",
     "fileBrowser": "فائل براؤزر",
     "settings": "ترتیبات",
+    "developer": "ڈویلپر",
     "system": "سسٹم",
     "status": "حالت",
     "resources": "وسائل",
@@ -221,8 +222,7 @@ const ur: I18nTranslations = {
     "themeDark": "ڈارک موڈ پر سوئچ کریں۔",
     "support": "سپورٹ اور عطیہ کریں۔",
     "systemStatus": "سسٹم کی حیثیت",
-    "commandPalette": "کمانڈ پیلیٹ (Ctrl+K)",
-    "developer": "ڈویلپر"
+    "commandPalette": "کمانڈ پیلیٹ (Ctrl+K)"
   },
   "topbar": {
     "searchPlaceholder": "فوری چھلانگ / تلاش کریں... (Ctrl+K)",
@@ -1351,7 +1351,8 @@ const ur: I18nTranslations = {
       "bulkImportModalTitle": "بلک امپورٹ موڈل ٹائٹل",
       "bulkImportModalHint": "بلک امپورٹ موڈل اشارہ",
       "importingTrackers": "ٹریکرز درآمد کرنا",
-      "importTrackersBtn": "درآمد ٹریکرز Btn"
+      "importTrackersBtn": "درآمد ٹریکرز Btn",
+      "importFailedGeneric": "ٹریکر لسٹ کو پارس کرنے میں ناکام یا غلط ٹریکر رسپانس فارمیٹ"
     },
     "logs": {
       "logsClearedToast": "لاگز کلیئرڈ ٹوسٹ",
@@ -1539,6 +1540,8 @@ const ur: I18nTranslations = {
     }
   },
   "system": {
+    "databaseExplorer": "ڈیٹا بیس ایکسپلورر",
+    "databaseExplorerSubtitle": "ایس کیو ایلائٹ ڈیٹا بیس ٹیبلز، اسکیما، اسٹوریج ایلوکیشن کا معائنہ کریں اور ایڈہاک سوالات چلائیں۔",
     "statusTitle": "سسٹم کی حالت اور انجن کی صحت",
     "resourcesTitle": "سسٹم کے وسائل اور ہارڈ ویئر",
     "tasksTitle": "شیڈول شدہ پس منظر کے کام",
@@ -1829,12 +1832,21 @@ const ur: I18nTranslations = {
     "active": "فعال",
     "inactive": "غیر فعال",
     "time": "وقت",
-    "databaseExplorer": "ڈیٹا بیس ایکسپلورر",
-    "databaseExplorerSubtitle": "ایس کیو ایلائٹ ڈیٹا بیس ٹیبلز، اسکیما، اسٹوریج ایلوکیشن کا معائنہ کریں اور ایڈہاک سوالات چلائیں۔",
     "websiteUrl": "www.leecharr.net",
     "tcp": "TCP:",
     "utp": "uTP:",
     "tcpUdp": "TCP/UDP"
+  },
+  "developer": {
+    "database": "ڈیٹا بیس ایکسپلورر",
+    "events": "ایونٹ بس",
+    "commands": "کمانڈ ڈسپیچر",
+    "network": "نیٹ ورک وائر ٹیپ",
+    "webhooks": "آرر ویب ہکس سینڈ باکس",
+    "config": "کنفیگریشن میٹرکس",
+    "diagnostics": "تشخیص اور صحت",
+    "terminal": "انٹرایکٹو ٹرمینل",
+    "apiReference": "API حوالہ (Swagger)"
   },
   "settings": {
     "title": "ترتیبات اور تشکیل",
@@ -4484,17 +4496,6 @@ const ur: I18nTranslations = {
     "reconnecting": "ریئل ٹائم کنکشن ٹوٹ گیا۔ دوبارہ منسلک کرنے کی کوشش کر رہا ہے...",
     "disconnected": "سرور سے منقطع۔ دوبارہ جڑنے کے لیے ابھی دوبارہ کوشش کریں پر کلک کریں۔",
     "retryNow": "ابھی دوبارہ کوشش کریں۔"
-  },
-  "developer": {
-    "database": "ڈیٹا بیس ایکسپلورر",
-    "events": "ایونٹ بس",
-    "commands": "کمانڈ ڈسپیچر",
-    "network": "نیٹ ورک وائر ٹیپ",
-    "webhooks": "آرر ویب ہکس سینڈ باکس",
-    "config": "کنفیگریشن میٹرکس",
-    "diagnostics": "تشخیص اور صحت",
-    "terminal": "انٹرایکٹو ٹرمینل",
-    "apiReference": "API حوالہ (Swagger)"
   }
 };
 

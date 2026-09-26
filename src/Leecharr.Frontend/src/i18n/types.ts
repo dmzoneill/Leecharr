@@ -1328,6 +1328,7 @@ export type I18nTranslations = {
       "noValidUrlsFound": string;
       "processedTrackersToast": string;
       "bulkImportFailed": string;
+      "importFailedGeneric": string;
       "automationTitle": string;
       "automationDesc": string;
       "autoBoostLabel": string;
