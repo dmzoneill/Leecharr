@@ -3493,7 +3493,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
                 var parent = Path.GetDirectoryName(saveDir);
                 if (!string.IsNullOrWhiteSpace(parent) &&
                     (string.Equals(parent, trimmedBase, StringComparison.OrdinalIgnoreCase) ||
-                     string.Equals(parent, "/downloads", StringComparison.OrdinalIgnoreCase)))
+                    string.Equals(parent, "/downloads", StringComparison.OrdinalIgnoreCase)))
                 {
                     saveDir = parent.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 }
