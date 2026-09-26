@@ -6,6 +6,52 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.29.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.2) - 2026-09-26
+
+### ✨ Features
+- feat(ui): add mobile off-canvas navigation drawer and responsive styling
+
+### 🐛 Bug Fixes
+- fix(storage): refine folder-with-single-file detection and fallback base directory resolution across download client RPCs
+- fix(deadlock): close disk manager file handles, non-blocking queue lock, and early exit on directory deletion
+- fix(storage): report completed download folder as save_path and preserve folder structure for single-file torrents
+- fix(quality): upgrade generic error fallbacks in ErrorBoundary and ImportTools
+- fix(quality): eliminate comment noise and synchronize localization keys across all languages
+- fix(quality): add trace logging on code page fallback in SubtitleEncodingDetector
+- fix(quality): add structured logging to unlogged catches in HTTP authentication handlers
+- fix(quality): add trace logging on scheduler delay cancellation
+- fix(quality): add structured logging to unlogged catches in TorrentController
+- fix(quality): replace cargo-cult try-catch rethrows with exception filters in TorznabClient
+- fix(quality): add trace logging on reflection type loading in SystemDeveloperController
+- fix(quality): remove unnecessary async and add trace logging in SystemDatabaseController
+- fix(quality): add trace logging in terminal sessions, GeoIP, messaging, and transport
+- fix(quality): add trace logging across MonoTorrent engine and upgrade generic error messages in frontend
+- fix(quality): add diagnostic trace logging across NatPmpPortMapperService
+- fix(quality): add trace logging in network, media inspection, transport, and trackerboost
+- fix(quality): add trace logging in BitTorrent engines, SignalR handlers, and session tasks
+- fix(quality): add trace logging in FileBrowser, SystemResource, GeoIp, TagLib, and Terminal sessions
+- fix(quality): add trace logging in QBittorrentSearch, CustomScript, and transaction rollbacks
+- fix(quality): add diagnostic trace logging across NotificationPayloadBuilder and WebhookDispatcher
+- fix(slop): remove Captain Obvious narration comments and vague catch fillers
+- fix(slop): eliminate unnecessary async, redundant wrappers, magic block comment, and generic error fallbacks
+- fix(quality): add diagnostic logging for session, path, cert, and backup handlers
+- fix(quality): eliminate silent catches across API controllers and add trace logging
+- fix(quality): eliminate silent catches and untyped parameters across backend and frontend
+- fix(quality): resolve smells, JSX entities, and types from code complete review
+- fix(ui): default filter panel to collapsed on mobile
+- fix(ui): eliminate mobile scroll locks and enable dynamic viewport height
+
+### 🔧 Maintenance & Improvements
+- style: standardize comment formatting in App.css for editorconfig
+- style: format App.css with prettier and fix indentation to multiple of 4
+- test(integration): expand download client save_path consistency assertions across 11 protocols
+- test(integration): add holistic integration test suites across core subsystems
+- test(integration): add comprehensive download completion path integration tests for all 5 torrent structures
+- test(integration): add save_path regression tests across Deluge, QBittorrent, and Transmission RPC interfaces
+- perf(threading): eliminate forced GC, sqlite write contention, and completion delay in Arr endpoints
+- test(quality): assert sanitized host path in SystemControllerTest
+- refactor(signalr): consolidate duplicate hub authentication into RpcAuthenticationHelper
+
 ## [v1.29.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.1) - 2026-09-25
 
 ### 🐛 Bug Fixes
