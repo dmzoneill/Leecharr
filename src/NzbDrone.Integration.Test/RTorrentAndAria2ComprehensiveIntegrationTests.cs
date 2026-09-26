@@ -42,17 +42,7 @@ public class RTorrentAndAria2ComprehensiveIntegrationTests : IntegrationTestBase
             upRateResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
             // 3. Call d.multicall2 with main view
-            var multicall2Xml = $@"<?xml version=""1.0""?>
-<methodCall>
-  <methodName>d.multicall2</methodName>
-  <params>
-    <param><value><string></string></value></param>
-    <param><value><string>main</string></value></param>
-    <param><value><string>d.hash=</string></value></param>
-    <param><value><string>d.name=</string></value></param>
-    <param><value><string>d.directory=</string></value></param>
-  </params>
-</methodCall>";
+            var multicall2Xml = "<?xml version=\"1.0\"?><methodCall><methodName>d.multicall2</methodName><params><param><value><string></string></value></param><param><value><string>main</string></value></param><param><value><string>d.hash=</string></value></param><param><value><string>d.name=</string></value></param><param><value><string>d.directory=</string></value></param></params></methodCall>";
             var multiResp = await this.Client.PostAsync("/RPC2", new StringContent(multicall2Xml, Encoding.UTF8, "text/xml"));
             multiResp.StatusCode.Should().Be(HttpStatusCode.OK);
             var multiXml = await multiResp.Content.ReadAsStringAsync();
