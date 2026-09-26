@@ -121,8 +121,9 @@ public class DynamicAuthSchemeManager : IDynamicAuthSchemeManager
                             rolesList = JsonSerializer.Deserialize<List<string>>(user.Roles) ?? new List<string> { "User" };
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        this.logger.Trace(ex, "Failed to deserialize user roles in dynamic scheme; defaulting to User");
                         rolesList = new List<string> { "User" };
                     }
 
