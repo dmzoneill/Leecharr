@@ -217,4 +217,89 @@ public class DelugeRpcTests : IntegrationTestBase
         };
         await this.PostJsonAsync("/json", removeRpc);
     }
+
+    [Test]
+    public async Task AddTorrent_WithCategory_ReportsSavePathAsCompletedDownloadFolder()
+    {
+        const string hash = "112233445566778899aabbccddeeff0011223344";
+        const string name = "SavePathVerificationMovie";
+        const string category = "radarr";
+        var magnet = $"magnet:?xt=urn:btih:{hash}&dn={name}";
+
+        // 1. Add label 'radarr'
+        var labelRpc = new
+        {
+            method = "label.add",
+            @params = new object[] { category },
+            id = 30,
+        };
+        var labelResp = await this.PostJsonAsync("/json", labelRpc);
+        labelResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        try
+        {
+            // 2. Add Torrent Magnet with label 'radarr'
+            var addRpc = new
+            {
+                method = "core.add_torrent_magnet",
+                @params = new object[] { magnet, new { add_paused = true, label = category } },
+                id = 31,
+            };
+            var addResp = await this.PostJsonAsync("/json", addRpc);
+            addResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            // 3. Verify save_path via core.get_torrent_status
+            var statusRpc = new
+            {
+                method = "core.get_torrent_status",
+                @params = new object[] { hash, new[] { "name", "save_path", "download_location", "label" } },
+                id = 32,
+            };
+            var statusResp = await this.PostJsonAsync("/json", statusRpc);
+            statusResp.StatusCode.Should().Be(HttpStatusCode.OK);
+            var statusJson = await statusResp.Content.ReadAsStringAsync();
+            using var statusDoc = JsonDocument.Parse(statusJson);
+            var result = statusDoc.RootElement.GetProperty("result");
+
+            result.GetProperty("name").GetString().Should().Be(name);
+            result.GetProperty("label").GetString().Should().Be(category);
+
+            var savePath = result.GetProperty("save_path").GetString();
+            var downloadLocation = result.GetProperty("download_location").GetString();
+
+            savePath.Should().NotBeNullOrWhiteSpace();
+            savePath.Should().NotContain($"/{category}");
+            savePath.Should().NotEndWith(category);
+            savePath.Should().NotEndWith(name);
+
+            downloadLocation.Should().Be(savePath);
+
+            // 4. Verify save_path via web.update_ui (used by Radarr/Sonarr)
+            var updateUiRpc = new
+            {
+                method = "web.update_ui",
+                @params = new object[] { new[] { "name", "save_path" }, new { } },
+                id = 33,
+            };
+            var updateUiResp = await this.PostJsonAsync("/json", updateUiRpc);
+            updateUiResp.StatusCode.Should().Be(HttpStatusCode.OK);
+            var updateUiJson = await updateUiResp.Content.ReadAsStringAsync();
+            using var updateUiDoc = JsonDocument.Parse(updateUiJson);
+            var torrents = updateUiDoc.RootElement.GetProperty("result").GetProperty("torrents");
+
+            torrents.TryGetProperty(hash.ToLowerInvariant(), out var uiTorrent).Should().BeTrue();
+            var uiSavePath = uiTorrent.GetProperty("save_path").GetString();
+            uiSavePath.Should().Be(savePath);
+        }
+        finally
+        {
+            var removeRpc = new
+            {
+                method = "core.remove_torrent",
+                @params = new object[] { hash, true },
+                id = 34,
+            };
+            await this.PostJsonAsync("/json", removeRpc);
+        }
+    }
 }

@@ -1,8 +1,10 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
@@ -252,5 +254,66 @@ public class QBittorrentApiTests : IntegrationTestBase
             new KeyValuePair<string, string>("deleteFiles", "true"),
         });
         await this.Client.PostAsync("/api/v2/torrents/delete", deleteForm);
+    }
+
+    [Test]
+    public async Task AddTorrent_WithCategory_ReportsSavePathAsCompletedDownloadFolder()
+    {
+        const string hash = "3123456789abcdef0123456789abcdef0123456b";
+        const string name = "QBitSavePathVerificationMovie";
+        const string category = "radarr";
+        var magnet = $"magnet:?xt=urn:btih:{hash}&dn={name}";
+
+        // Login
+        await this.Client.PostAsync(
+            "/api/v2/auth/login",
+            new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("username", "admin"),
+                new KeyValuePair<string, string>("password", "adminadmin"),
+            }));
+
+        // Add Torrent with category
+        var addForm = new FormUrlEncodedContent(new[]
+        {
+            new KeyValuePair<string, string>("urls", magnet),
+            new KeyValuePair<string, string>("category", category),
+            new KeyValuePair<string, string>("paused", "true"),
+        });
+
+        var addResponse = await this.Client.PostAsync("/api/v2/torrents/add", addForm);
+        addResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        try
+        {
+            // Verify save_path does NOT contain category
+            var infoResponse = await this.GetAsync($"/api/v2/torrents/info?hashes={hash}");
+            infoResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            var infoJson = await infoResponse.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(infoJson);
+            var torrent = doc.RootElement.EnumerateArray().FirstOrDefault();
+
+            torrent.GetProperty("name").GetString().Should().Be(name);
+            torrent.GetProperty("category").GetString().Should().Be(category);
+
+            var savePath = torrent.GetProperty("save_path").GetString();
+            var contentPath = torrent.GetProperty("content_path").GetString();
+
+            savePath.Should().NotBeNullOrWhiteSpace();
+            savePath.Should().NotContain($"/{category}");
+            savePath.Should().NotEndWith(category);
+            savePath.Should().NotEndWith(name);
+
+            contentPath.Should().Be(System.IO.Path.Combine(savePath, name));
+        }
+        finally
+        {
+            var deleteForm = new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("hashes", hash),
+                new KeyValuePair<string, string>("deleteFiles", "true"),
+            });
+            await this.Client.PostAsync("/api/v2/torrents/delete", deleteForm);
+        }
     }
 }
