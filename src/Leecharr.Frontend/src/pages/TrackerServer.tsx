@@ -83,7 +83,7 @@ function TrackerServer() {
         );
       },
       onError: (err: unknown) => {
-        const message = err instanceof Error ? err.message : "Unknown error";
+        const message = err instanceof Error ? err.message : "Failed to update tracker daemon status";
         showToast(`Failed to update tracker daemon: ${message}`, "error");
       },
     });
