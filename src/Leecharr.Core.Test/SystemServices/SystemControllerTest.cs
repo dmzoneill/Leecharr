@@ -46,9 +46,9 @@ public class SystemControllerTest
         status.Should().NotBeNull();
         status!.AppName.Should().Be("Leecharr");
         status.RuntimeName.Should().Be(".NET");
-        status.AppDataFolder.Should().Be(this.testTempDir);
-        status.AppDataPath.Should().Be(this.testTempDir);
-        status.StartupPath.Should().Be(this.testStartupDir);
+        status.AppDataFolder.Should().Be(SystemController.SanitizeHostPath(this.testTempDir));
+        status.AppDataPath.Should().Be(SystemController.SanitizeHostPath(this.testTempDir));
+        status.StartupPath.Should().Be(SystemController.SanitizeHostPath(this.testStartupDir));
         status.UptimeSeconds.Should().BeGreaterThanOrEqualTo(0);
         status.DatabaseMigration.Should().Be("18");
         status.DatabaseType.Should().Be("SQLite");
