@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -281,6 +282,97 @@ public class TransmissionRpcTests : IntegrationTestBase
         if (root.TryGetProperty("tag", out var tagProp))
         {
             tagProp.ValueKind.Should().Be(JsonValueKind.Null);
+        }
+    }
+
+    [Test]
+    public async Task TorrentGet_WithCategory_ReportsDownloadDirAsCompletedDownloadFolder()
+    {
+        const string hash = "4123456789abcdef0123456789abcdef0123456c";
+        const string name = "TransmissionSavePathVerificationMovie";
+        const string category = "radarr";
+        var magnet = $"magnet:?xt=urn:btih:{hash}&dn={name}";
+
+        var initial = await this.PostJsonAsync("/transmission/rpc", new { method = "session-get" });
+        var sessionId = initial.Headers.GetValues("X-Transmission-Session-Id");
+
+        var addReq = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/transmission/rpc")
+        {
+            Content = new System.Net.Http.StringContent(
+                JsonSerializer.Serialize(new
+                {
+                    method = "torrent-add",
+                    arguments = new
+                    {
+                        filename = magnet,
+                        paused = true,
+                        labels = new[] { category },
+                    },
+                    tag = 50,
+                }),
+                System.Text.Encoding.UTF8,
+                "application/json"),
+        };
+        addReq.Headers.Add("X-Transmission-Session-Id", sessionId);
+
+        var addResp = await this.Client.SendAsync(addReq);
+        addResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        try
+        {
+            var getReq = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/transmission/rpc")
+            {
+                Content = new System.Net.Http.StringContent(
+                    JsonSerializer.Serialize(new
+                    {
+                        method = "torrent-get",
+                        arguments = new
+                        {
+                            fields = new[] { "id", "name", "downloadDir", "labels" },
+                            ids = new[] { hash },
+                        },
+                        tag = 51,
+                    }),
+                    System.Text.Encoding.UTF8,
+                    "application/json"),
+            };
+            getReq.Headers.Add("X-Transmission-Session-Id", sessionId);
+
+            var getResp = await this.Client.SendAsync(getReq);
+            getResp.StatusCode.Should().Be(HttpStatusCode.OK);
+            var getJson = await getResp.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(getJson);
+            var torrents = doc.RootElement.GetProperty("arguments").GetProperty("torrents");
+
+            var matching = torrents.EnumerateArray().FirstOrDefault();
+            matching.GetProperty("name").GetString().Should().Be(name);
+
+            var downloadDir = matching.GetProperty("downloadDir").GetString();
+            downloadDir.Should().NotBeNullOrWhiteSpace();
+            downloadDir.Should().NotContain($"/{category}");
+            downloadDir.Should().NotEndWith(category);
+            downloadDir.Should().NotEndWith(name);
+        }
+        finally
+        {
+            var removeReq = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/transmission/rpc")
+            {
+                Content = new System.Net.Http.StringContent(
+                    JsonSerializer.Serialize(new
+                    {
+                        method = "torrent-remove",
+                        arguments = new
+                        {
+                            ids = new[] { hash },
+                            delete_local_data = true,
+                        },
+                        tag = 52,
+                    }),
+                    System.Text.Encoding.UTF8,
+                    "application/json"),
+            };
+            removeReq.Headers.Add("X-Transmission-Session-Id", sessionId);
+            await this.Client.SendAsync(removeReq);
         }
     }
 }
