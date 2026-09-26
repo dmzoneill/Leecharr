@@ -197,6 +197,7 @@ const ta: I18nTranslations = {
     "terminalCli": "டெர்மினல் CLI",
     "fileBrowser": "கோப்பு உலாவி",
     "settings": "அமைப்புகள்",
+    "developer": "டெவலப்பர்",
     "system": "கணினி",
     "status": "நிலை",
     "resources": "வளங்கள்",
@@ -221,8 +222,7 @@ const ta: I18nTranslations = {
     "themeDark": "டார்க் பயன்முறைக்கு மாறவும்",
     "support": "ஆதரவு மற்றும் நன்கொடை",
     "systemStatus": "கணினி நிலை",
-    "commandPalette": "கட்டளை தட்டு (Ctrl+K)",
-    "developer": "டெவலப்பர்"
+    "commandPalette": "கட்டளை தட்டு (Ctrl+K)"
   },
   "topbar": {
     "searchPlaceholder": "விரைவு ஜம்ப் / தேடல்... (Ctrl+K)",
@@ -1351,7 +1351,8 @@ const ta: I18nTranslations = {
       "bulkImportModalTitle": "மொத்த இறக்குமதி மாதிரி தலைப்பு",
       "bulkImportModalHint": "மொத்த இறக்குமதி மாதிரி குறிப்பு",
       "importingTrackers": "டிராக்கர்களை இறக்குமதி செய்கிறது",
-      "importTrackersBtn": "இறக்குமதி டிராக்கர்ஸ் Btn"
+      "importTrackersBtn": "இறக்குமதி டிராக்கர்ஸ் Btn",
+      "importFailedGeneric": "டிராக்கர் பட்டியல் அல்லது தவறான டிராக்கர் மறுமொழி வடிவமைப்பை அலசுவதில் தோல்வி"
     },
     "logs": {
       "logsClearedToast": "பதிவுகள் அழிக்கப்பட்ட டோஸ்ட்",
@@ -1539,6 +1540,8 @@ const ta: I18nTranslations = {
     }
   },
   "system": {
+    "databaseExplorer": "டேட்டாபேஸ் எக்ஸ்ப்ளோரர்",
+    "databaseExplorerSubtitle": "SQLite தரவுத்தள அட்டவணைகள், ஸ்கீமா, சேமிப்பக ஒதுக்கீடு மற்றும் தற்காலிக வினவல்களை இயக்கவும்.",
     "statusTitle": "கணினி நிலை & எஞ்சின் ஆரோக்கியம்",
     "resourcesTitle": "கணினி வளங்கள் & வன்பொருள்",
     "tasksTitle": "திட்டமிடப்பட்ட பின்னணிப் பணிகள்",
@@ -1827,14 +1830,23 @@ const ta: I18nTranslations = {
     "active": "செயலில்",
     "inactive": "செயலற்றது",
     "time": "நேரம்",
-    "databaseExplorer": "டேட்டாபேஸ் எக்ஸ்ப்ளோரர்",
-    "databaseExplorerSubtitle": "SQLite தரவுத்தள அட்டவணைகள், ஸ்கீமா, சேமிப்பக ஒதுக்கீடு மற்றும் தற்காலிக வினவல்களை இயக்கவும்.",
     "websiteUrl": "www.leecharr.net",
     "cacheAlloc": "Cache Alloc",
     "tcpUtp": "TCP / uTP",
     "tcp": "TCP:",
     "utp": "uTP:",
     "tcpUdp": "TCP/UDP"
+  },
+  "developer": {
+    "database": "டேட்டாபேஸ் எக்ஸ்ப்ளோரர்",
+    "events": "நிகழ்வு பேருந்து",
+    "commands": "கட்டளை அனுப்புபவர்",
+    "network": "நெட்வொர்க் வயர்டேப்",
+    "webhooks": "Arr Webhooks சாண்ட்பாக்ஸ்",
+    "config": "கட்டமைப்பு மேட்ரிக்ஸ்",
+    "diagnostics": "நோய் கண்டறிதல் & ஆரோக்கியம்",
+    "terminal": "ஊடாடும் முனையம்",
+    "apiReference": "API குறிப்பு (Swagger)"
   },
   "settings": {
     "title": "அமைப்புகள் & கட்டமைப்பு",
@@ -4484,17 +4496,6 @@ const ta: I18nTranslations = {
     "reconnecting": "நிகழ்நேர இணைப்பு துண்டிக்கப்பட்டது. மீண்டும் இணைக்க முயற்சிக்கிறது...",
     "disconnected": "சர்வரில் இருந்து துண்டிக்கப்பட்டது. மீண்டும் இணைக்க இப்போது மீண்டும் முயற்சிக்கவும் என்பதைக் கிளிக் செய்யவும்.",
     "retryNow": "இப்போது மீண்டும் முயற்சிக்கவும்"
-  },
-  "developer": {
-    "database": "டேட்டாபேஸ் எக்ஸ்ப்ளோரர்",
-    "events": "நிகழ்வு பேருந்து",
-    "commands": "கட்டளை அனுப்புபவர்",
-    "network": "நெட்வொர்க் வயர்டேப்",
-    "webhooks": "Arr Webhooks சாண்ட்பாக்ஸ்",
-    "config": "கட்டமைப்பு மேட்ரிக்ஸ்",
-    "diagnostics": "நோய் கண்டறிதல் & ஆரோக்கியம்",
-    "terminal": "ஊடாடும் முனையம்",
-    "apiReference": "API குறிப்பு (Swagger)"
   }
 };
 

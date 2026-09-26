@@ -197,6 +197,7 @@ const vi: I18nTranslations = {
     "terminalCli": "Dòng lệnh CLI",
     "fileBrowser": "Trình duyệt tệp",
     "settings": "Cài đặt",
+    "developer": "Nhà phát triển",
     "system": "Hệ thống",
     "status": "Trạng thái",
     "resources": "Tài nguyên hệ thống",
@@ -221,8 +222,7 @@ const vi: I18nTranslations = {
     "themeDark": "Chuyển sang Chế độ tối",
     "support": "Hỗ trợ & Đóng góp",
     "systemStatus": "Trạng thái hệ thống",
-    "commandPalette": "Bảng lệnh (Ctrl+K)",
-    "developer": "Nhà phát triển"
+    "commandPalette": "Bảng lệnh (Ctrl+K)"
   },
   "topbar": {
     "searchPlaceholder": "Nhảy nhanh / Tìm kiếm... (Ctrl+K)",
@@ -1351,7 +1351,8 @@ const vi: I18nTranslations = {
       "bulkImportModalTitle": "Tiêu đề phương thức nhập số lượng lớn",
       "bulkImportModalHint": "Gợi ý phương thức nhập số lượng lớn",
       "importingTrackers": "Nhập trình theo dõi",
-      "importTrackersBtn": "Công cụ theo dõi nhập khẩu Btn"
+      "importTrackersBtn": "Công cụ theo dõi nhập khẩu Btn",
+      "importFailedGeneric": "Không thể phân tích cú pháp danh sách trình theo dõi hoặc định dạng phản hồi của trình theo dõi không hợp lệ"
     },
     "logs": {
       "logsClearedToast": "Nhật ký đã xóa bánh mì nướng",
@@ -1539,6 +1540,8 @@ const vi: I18nTranslations = {
     }
   },
   "system": {
+    "databaseExplorer": "Trình khám phá cơ sở dữ liệu",
+    "databaseExplorerSubtitle": "Kiểm tra các bảng cơ sở dữ liệu SQLite, lược đồ, phân bổ bộ nhớ và chạy các truy vấn đặc biệt.",
     "statusTitle": "Trạng thái hệ thống & sức khỏe động cơ",
     "resourcesTitle": "Tài nguyên hệ thống & phần cứng",
     "tasksTitle": "Tác vụ nền theo lịch trình",
@@ -1828,13 +1831,22 @@ const vi: I18nTranslations = {
     "active": "Hoạt động",
     "inactive": "Không hoạt động",
     "time": "Thời gian",
-    "databaseExplorer": "Trình khám phá cơ sở dữ liệu",
-    "databaseExplorerSubtitle": "Kiểm tra các bảng cơ sở dữ liệu SQLite, lược đồ, phân bổ bộ nhớ và chạy các truy vấn đặc biệt.",
     "websiteUrl": "www.leecharr.net",
     "tcpUtp": "TCP / uTP",
     "tcp": "TCP:",
     "utp": "uTP:",
     "tcpUdp": "TCP/UDP"
+  },
+  "developer": {
+    "database": "Trình khám phá cơ sở dữ liệu",
+    "events": "Xe buýt sự kiện",
+    "commands": "Bộ điều phối lệnh",
+    "network": "Nghe lén mạng",
+    "webhooks": "Hộp cát Arr Webhooks",
+    "config": "Ma trận cấu hình",
+    "diagnostics": "Chẩn đoán & Sức khỏe",
+    "terminal": "Thiết bị đầu cuối tương tác",
+    "apiReference": "Tham chiếu API (Vênh vang)"
   },
   "settings": {
     "title": "Cài đặt & Cấu hình",
@@ -4484,17 +4496,6 @@ const vi: I18nTranslations = {
     "reconnecting": "Mất kết nối thời gian thực. Đang cố gắng kết nối lại...",
     "disconnected": "Đã ngắt kết nối khỏi máy chủ. Bấm vào Thử lại ngay để kết nối lại.",
     "retryNow": "Thử lại ngay bây giờ"
-  },
-  "developer": {
-    "database": "Trình khám phá cơ sở dữ liệu",
-    "events": "Xe buýt sự kiện",
-    "commands": "Bộ điều phối lệnh",
-    "network": "Nghe lén mạng",
-    "webhooks": "Hộp cát Arr Webhooks",
-    "config": "Ma trận cấu hình",
-    "diagnostics": "Chẩn đoán & Sức khỏe",
-    "terminal": "Thiết bị đầu cuối tương tác",
-    "apiReference": "Tham chiếu API (Vênh vang)"
   }
 };
 

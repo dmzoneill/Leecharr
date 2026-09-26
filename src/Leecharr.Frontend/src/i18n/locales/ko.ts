@@ -197,6 +197,7 @@ const ko: I18nTranslations = {
     "terminalCli": "터미널 CLI",
     "fileBrowser": "파일 탐색기",
     "settings": "설정",
+    "developer": "개발자",
     "system": "시스템",
     "status": "상태",
     "resources": "시스템 자원",
@@ -221,8 +222,7 @@ const ko: I18nTranslations = {
     "themeDark": "다크 모드로 전환",
     "support": "지원 및 기부",
     "systemStatus": "시스템 상태",
-    "commandPalette": "명령 팔레트(Ctrl+K)",
-    "developer": "개발자"
+    "commandPalette": "명령 팔레트(Ctrl+K)"
   },
   "topbar": {
     "searchPlaceholder": "빠른 점프/검색...(Ctrl+K)",
@@ -1351,7 +1351,8 @@ const ko: I18nTranslations = {
       "bulkImportModalTitle": "대량 가져오기 모달 제목",
       "bulkImportModalHint": "대량 가져오기 모달 힌트",
       "importingTrackers": "트래커 가져오기",
-      "importTrackersBtn": "수입 추적기 Btn"
+      "importTrackersBtn": "수입 추적기 Btn",
+      "importFailedGeneric": "추적기 목록을 구문 분석하지 못했거나 추적기 응답 형식이 잘못되었습니다."
     },
     "logs": {
       "logsClearedToast": "로그 삭제 토스트",
@@ -1539,6 +1540,8 @@ const ko: I18nTranslations = {
     }
   },
   "system": {
+    "databaseExplorer": "데이터베이스 탐색기",
+    "databaseExplorerSubtitle": "SQLite 데이터베이스 테이블, 스키마, 스토리지 할당을 검사하고 임시 쿼리를 실행합니다.",
     "statusTitle": "시스템 상태 및 엔진 상태",
     "resourcesTitle": "시스템 리소스 및 하드웨어",
     "tasksTitle": "예약된 백그라운드 작업",
@@ -1828,13 +1831,22 @@ const ko: I18nTranslations = {
     "active": "활성",
     "inactive": "비활성",
     "time": "시간",
-    "databaseExplorer": "데이터베이스 탐색기",
-    "databaseExplorerSubtitle": "SQLite 데이터베이스 테이블, 스키마, 스토리지 할당을 검사하고 임시 쿼리를 실행합니다.",
     "websiteUrl": "www.leecharr.net",
     "tcpUtp": "TCP / uTP",
     "tcp": "TCP:",
     "utp": "uTP:",
     "tcpUdp": "TCP/UDP"
+  },
+  "developer": {
+    "database": "데이터베이스 탐색기",
+    "events": "이벤트 버스",
+    "commands": "명령 디스패처",
+    "network": "네트워크 도청",
+    "webhooks": "웹후크 샌드박스 도착",
+    "config": "구성 매트릭스",
+    "diagnostics": "진단 및 건강",
+    "terminal": "대화형 터미널",
+    "apiReference": "API 참조(Swagger)"
   },
   "settings": {
     "title": "설정 및 구성",
@@ -4484,17 +4496,6 @@ const ko: I18nTranslations = {
     "reconnecting": "실시간 연결이 끊어졌습니다. 다시 연결을 시도하는 중...",
     "disconnected": "서버와의 연결이 끊어졌습니다. 다시 연결하려면 지금 다시 시도를 클릭하세요.",
     "retryNow": "지금 다시 시도"
-  },
-  "developer": {
-    "database": "데이터베이스 탐색기",
-    "events": "이벤트 버스",
-    "commands": "명령 디스패처",
-    "network": "네트워크 도청",
-    "webhooks": "웹후크 샌드박스 도착",
-    "config": "구성 매트릭스",
-    "diagnostics": "진단 및 건강",
-    "terminal": "대화형 터미널",
-    "apiReference": "API 참조(Swagger)"
   }
 };
 

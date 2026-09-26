@@ -196,6 +196,7 @@ const id: I18nTranslations = {
     "trackerBoost": "Peningkat Tracker",
     "fileBrowser": "Peramban Berkas",
     "settings": "Pengaturan",
+    "developer": "Pengembang",
     "system": "Sistem",
     "resources": "Sumber Daya",
     "tasks": "Tugas",
@@ -221,7 +222,6 @@ const id: I18nTranslations = {
     "systemStatus": "Status Sistem",
     "commandPalette": "Palet Perintah (Ctrl+K)",
     "terminalCli": "Terminal CLI",
-    "developer": "Pengembang",
     "status": "Status"
   },
   "topbar": {
@@ -1351,7 +1351,8 @@ const id: I18nTranslations = {
       "bulkImportModalTitle": "Judul Modal Impor Massal",
       "bulkImportModalHint": "Petunjuk Modal Impor Massal",
       "importingTrackers": "Mengimpor Pelacak",
-      "importTrackersBtn": "Impor Pelacak Btn"
+      "importTrackersBtn": "Impor Pelacak Btn",
+      "importFailedGeneric": "Gagal mengurai daftar pelacak atau format respons pelacak tidak valid"
     },
     "logs": {
       "logsClearedToast": "Log Dibersihkan Roti Bakar",
@@ -1539,6 +1540,8 @@ const id: I18nTranslations = {
     "freeleech": "FREELEECH"
   },
   "system": {
+    "databaseExplorer": "Penjelajah Basis Data",
+    "databaseExplorerSubtitle": "Periksa tabel database SQLite, skema, alokasi penyimpanan, dan jalankan kueri ad-hoc.",
     "statusTitle": "Status Sistem & Kesehatan Mesin",
     "resourcesTitle": "Sumber Daya Sistem & Perangkat Keras",
     "tasksTitle": "Tugas Latar Belakang Terjadwal",
@@ -1827,14 +1830,23 @@ const id: I18nTranslations = {
     "active": "Aktif",
     "inactive": "Tidak aktif",
     "time": "Waktu",
-    "databaseExplorer": "Penjelajah Basis Data",
-    "databaseExplorerSubtitle": "Periksa tabel database SQLite, skema, alokasi penyimpanan, dan jalankan kueri ad-hoc.",
     "statusCol": "Status",
     "websiteUrl": "www.leecharr.net",
     "tcp": "TCP:",
     "utp": "uTP:",
     "tcpUdp": "TCP/UDP",
     "terminal": "Terminal"
+  },
+  "developer": {
+    "database": "Penjelajah Basis Data",
+    "events": "Bus Acara",
+    "commands": "Pengirim Perintah",
+    "network": "Penyadapan Jaringan",
+    "webhooks": "Ah Kotak Pasir Webhook",
+    "config": "Matriks Konfigurasi",
+    "diagnostics": "Diagnostik & Kesehatan",
+    "terminal": "Terminal Interaktif",
+    "apiReference": "Referensi API (Kesombongan)"
   },
   "settings": {
     "title": "Pengaturan & Konfigurasi",
@@ -4484,17 +4496,6 @@ const id: I18nTranslations = {
     "reconnecting": "Koneksi real-time terputus. Mencoba menyambung kembali...",
     "disconnected": "Terputus dari server. Klik Coba Lagi Sekarang untuk menyambung kembali.",
     "retryNow": "Coba lagi sekarang"
-  },
-  "developer": {
-    "database": "Penjelajah Basis Data",
-    "events": "Bus Acara",
-    "commands": "Pengirim Perintah",
-    "network": "Penyadapan Jaringan",
-    "webhooks": "Ah Kotak Pasir Webhook",
-    "config": "Matriks Konfigurasi",
-    "diagnostics": "Diagnostik & Kesehatan",
-    "terminal": "Terminal Interaktif",
-    "apiReference": "Referensi API (Kesombongan)"
   }
 };
 

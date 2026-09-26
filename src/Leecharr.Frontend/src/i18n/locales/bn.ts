@@ -197,6 +197,7 @@ const bn: I18nTranslations = {
     "terminalCli": "টার্মিনাল CLI",
     "fileBrowser": "ফাইল ব্রাউজার",
     "settings": "সেটিংস",
+    "developer": "বিকাশকারী",
     "system": "সিস্টেম",
     "status": "অবস্থা",
     "resources": "রিসোর্স",
@@ -221,8 +222,7 @@ const bn: I18nTranslations = {
     "themeDark": "ডার্ক মোডে স্যুইচ করুন",
     "support": "সমর্থন এবং দান",
     "systemStatus": "সিস্টেমের অবস্থা",
-    "commandPalette": "কমান্ড প্যালেট (Ctrl+K)",
-    "developer": "বিকাশকারী"
+    "commandPalette": "কমান্ড প্যালেট (Ctrl+K)"
   },
   "topbar": {
     "searchPlaceholder": "কুইক জাম্প / সার্চ... (Ctrl+K)",
@@ -1351,7 +1351,8 @@ const bn: I18nTranslations = {
       "bulkImportModalTitle": "বাল্ক আমদানি মডেল শিরোনাম",
       "bulkImportModalHint": "বাল্ক আমদানি মডেল ইঙ্গিত",
       "importingTrackers": "ট্র্যাকার আমদানি করা",
-      "importTrackersBtn": "আমদানি ট্র্যাকার Btn"
+      "importTrackersBtn": "আমদানি ট্র্যাকার Btn",
+      "importFailedGeneric": "ট্র্যাকার তালিকা বা অবৈধ ট্র্যাকার প্রতিক্রিয়া বিন্যাস পার্স করতে ব্যর্থ হয়েছে"
     },
     "logs": {
       "logsClearedToast": "লগ সাফ টোস্ট",
@@ -1539,6 +1540,8 @@ const bn: I18nTranslations = {
     }
   },
   "system": {
+    "databaseExplorer": "ডাটাবেস এক্সপ্লোরার",
+    "databaseExplorerSubtitle": "SQLite ডাটাবেস টেবিল, স্কিমা, স্টোরেজ বরাদ্দ পরিদর্শন করুন এবং অ্যাড-হক কোয়েরি চালান।",
     "statusTitle": "সিস্টেম অবস্থা ও ইঞ্জিন স্বাস্থ্য",
     "resourcesTitle": "সিস্টেম রিসোর্স ও হার্ডওয়্যার",
     "tasksTitle": "নির্ধারিত ব্যাকগ্রাউন্ড টাস্ক",
@@ -1829,12 +1832,21 @@ const bn: I18nTranslations = {
     "active": "সক্রিয়",
     "inactive": "নিষ্ক্রিয়",
     "time": "সময়",
-    "databaseExplorer": "ডাটাবেস এক্সপ্লোরার",
-    "databaseExplorerSubtitle": "SQLite ডাটাবেস টেবিল, স্কিমা, স্টোরেজ বরাদ্দ পরিদর্শন করুন এবং অ্যাড-হক কোয়েরি চালান।",
     "websiteUrl": "www.leecharr.net",
     "tcp": "TCP:",
     "utp": "uTP:",
     "tcpUdp": "TCP/UDP"
+  },
+  "developer": {
+    "database": "ডাটাবেস এক্সপ্লোরার",
+    "events": "ইভেন্ট বাস",
+    "commands": "কমান্ড প্রেরণকারী",
+    "network": "নেটওয়ার্ক ওয়্যারট্যাপ",
+    "webhooks": "আরার ওয়েবহুকস স্যান্ডবক্স",
+    "config": "কনফিগারেশন ম্যাট্রিক্স",
+    "diagnostics": "ডায়াগনস্টিকস এবং স্বাস্থ্য",
+    "terminal": "ইন্টারেক্টিভ টার্মিনাল",
+    "apiReference": "API রেফারেন্স (Swagger)"
   },
   "settings": {
     "title": "সেটিংস ও কনফিগারেশন",
@@ -4484,17 +4496,6 @@ const bn: I18nTranslations = {
     "reconnecting": "রিয়েল-টাইম সংযোগ হারিয়েছে। পুনরায় সংযোগ করার চেষ্টা করা হচ্ছে...",
     "disconnected": "সার্ভার থেকে সংযোগ বিচ্ছিন্ন। পুনঃসংযোগ করতে এখনই পুনরায় চেষ্টা করুন ক্লিক করুন৷",
     "retryNow": "এখনই আবার চেষ্টা করুন"
-  },
-  "developer": {
-    "database": "ডাটাবেস এক্সপ্লোরার",
-    "events": "ইভেন্ট বাস",
-    "commands": "কমান্ড প্রেরণকারী",
-    "network": "নেটওয়ার্ক ওয়্যারট্যাপ",
-    "webhooks": "আরার ওয়েবহুকস স্যান্ডবক্স",
-    "config": "কনফিগারেশন ম্যাট্রিক্স",
-    "diagnostics": "ডায়াগনস্টিকস এবং স্বাস্থ্য",
-    "terminal": "ইন্টারেক্টিভ টার্মিনাল",
-    "apiReference": "API রেফারেন্স (Swagger)"
   }
 };
 
