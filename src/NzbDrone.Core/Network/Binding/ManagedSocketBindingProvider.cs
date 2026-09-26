@@ -14,6 +14,7 @@ namespace NzbDrone.Core.Network.Binding;
 public class ManagedSocketBindingProvider : INetworkBindingProvider
 {
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
+    private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
 
     public string ProviderId => "ManagedSocket";
 
@@ -146,9 +147,9 @@ public class ManagedSocketBindingProvider : INetworkBindingProvider
             {
                 scopeIndex = props.GetIPv6Properties()?.Index;
             }
-            catch (NetworkInformationException)
+            catch (NetworkInformationException ex)
             {
-                // IPv6 properties are not available or not supported on this interface
+                StaticLogger.Trace(ex, "IPv6 properties are not available on this interface");
             }
         }
 

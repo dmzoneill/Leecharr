@@ -221,9 +221,9 @@ public class LinuxIpSetBlocklistProvider : IBlocklistProvider
                     process.Kill(entireProcessTree: true);
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Suppress process kill errors
+                this.logger.Trace(ex, "Failed to kill ipset process on cancellation");
             }
 
             throw;
