@@ -1330,6 +1330,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             }
             catch (Exception ex)
             {
+                this.logger.Warn(ex, "Failed to upload torrent file '{0}'", file.FileName);
                 failed.Add(new TorrentUploadFailure(file.FileName, ex.Message));
             }
         }
@@ -1651,6 +1652,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             }
             catch (Exception ex)
             {
+                this.logger.Warn(ex, "Failed bulk action '{0}' for torrent {1}", resource.Action, id);
                 Interlocked.Increment(ref failedCount);
                 errors.Add($"Torrent {id}: {ex.Message}");
                 failedIds.TryAdd(id, ex.Message);
@@ -1859,6 +1861,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             }
             catch (Exception ex)
             {
+                this.logger.Trace(ex, "Invalid base64 payload provided for preview");
                 return this.BadRequest($"Invalid base64 payload: {ex.Message}");
             }
         }
