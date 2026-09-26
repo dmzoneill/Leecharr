@@ -77,7 +77,7 @@ public class NotificationHub : Hub
         var httpContext = this.Context.GetHttpContext();
         var config = this.configFileProvider ?? (httpContext?.RequestServices?.GetService(typeof(IConfigFileProvider)) as IConfigFileProvider);
 
-        if (!RpcAuthenticationHelper.IsAuthenticated(httpContext, config))
+        if (this.Context?.User?.Identity?.IsAuthenticated != true && !RpcAuthenticationHelper.IsAuthenticated(httpContext, config))
         {
             this.logger.Warn("Rejecting unauthenticated NotificationHub connection: {0}", this.Context.ConnectionId);
             this.Context.Abort();
