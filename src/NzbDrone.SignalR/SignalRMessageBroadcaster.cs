@@ -92,13 +92,13 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
                     {
                         await this.guaranteedChannel.Writer.WriteAsync(message, this.cancellationTokenSource.Token).ConfigureAwait(false);
                     }
-                    catch (OperationCanceledException)
+                    catch (OperationCanceledException ex)
                     {
-                        // Expected when broadcaster is being shut down
+                        this.logger.Trace(ex, "Guaranteed channel write cancelled during shutdown for message '{0}'", message.Name);
                     }
-                    catch (ChannelClosedException)
+                    catch (ChannelClosedException ex)
                     {
-                        // Expected if guaranteed channel writer was closed during shutdown
+                        this.logger.Trace(ex, "Guaranteed channel closed during shutdown for message '{0}'", message.Name);
                     }
                     catch (Exception ex)
                     {
@@ -214,9 +214,9 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
                                     {
                                         await this.hubContext.Clients.All.SendAsync(ev, message.Body, sendCts.Token).ConfigureAwait(false);
                                     }
-                                    catch
+                                    catch (Exception ex)
                                     {
-                                        // Ignore individual named event send failure
+                                        this.logger.Trace(ex, "Failed to send individual named event '{0}' for message '{1}'", ev, message.Name);
                                     }
                                 }
                             }
@@ -241,13 +241,13 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
                 }
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            // Expected during clean shutdown of processing loop
+            this.logger.Trace(ex, "SignalR broadcaster channel loop cancelled for {0}", channelName);
         }
-        catch (ObjectDisposedException)
+        catch (ObjectDisposedException ex)
         {
-            // Expected if channels are disposed during shutdown
+            this.logger.Trace(ex, "SignalR broadcaster channel disposed during shutdown for {0}", channelName);
         }
         catch (Exception ex)
         {

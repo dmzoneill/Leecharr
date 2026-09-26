@@ -33,6 +33,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
     private readonly IDiskProvider diskProvider;
     private readonly IEventAggregator eventAggregator;
     private readonly Logger logger;
+    private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
 
     private readonly ConcurrentDictionary<int, LibTorrentDownloadTask> tasks = new();
     private readonly ConcurrentDictionary<string, int> infoHashToId = new(StringComparer.OrdinalIgnoreCase);
@@ -284,9 +285,9 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                     this.daemonProcess.CancelOutputRead();
                     this.daemonProcess.CancelErrorRead();
                 }
-                catch (InvalidOperationException)
+                catch (InvalidOperationException ex)
                 {
-                    // Asynchronous read operations were not active or already canceled
+                    this.logger.Trace(ex, "Daemon read was not active or already cancelled");
                 }
 
                 this.daemonProcess.Kill(entireProcessTree: true);
@@ -979,9 +980,9 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             await this.SendRpcRequestAsync("session_status", new Dictionary<string, object>());
             return;
         }
-        catch
+        catch (Exception ex)
         {
-            // Daemon not running yet, attempt to spawn embedded sidecar
+            this.logger.Trace(ex, "Daemon not running yet, attempting to spawn embedded sidecar");
         }
 
         try
@@ -1053,9 +1054,9 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                     this.logger.Info("Embedded libtorrent daemon sidecar is now responding on {0}.", rpcUrl);
                     return;
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Continue waiting
+                    this.logger.Trace(ex, "Daemon poll failed while waiting for sidecar startup");
                 }
             }
         }
@@ -1110,9 +1111,9 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Candidate python executable failed to start or probe
+                StaticLogger.Trace(ex, "Candidate python executable failed to start or probe");
             }
         }
 

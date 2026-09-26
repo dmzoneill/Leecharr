@@ -91,9 +91,9 @@ public class SessionCleanupTask : ISessionCleanupTask, IHandle<ApplicationStarte
                 this.logger.Info("Purged {0} expired user sessions.", deleted);
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            // Clean cancellation
+            this.logger.Trace(ex, "Session cleanup was cancelled");
         }
         catch (Exception ex)
         {
@@ -114,9 +114,9 @@ public class SessionCleanupTask : ISessionCleanupTask, IHandle<ApplicationStarte
                 await this.ExecuteAsync(this.cts.Token).ConfigureAwait(false);
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            // Clean cancellation
+            this.logger.Trace(ex, "Session cleanup periodic loop was cancelled");
         }
         catch (Exception ex)
         {
