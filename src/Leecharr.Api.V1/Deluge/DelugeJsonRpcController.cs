@@ -795,7 +795,7 @@ public class DelugeJsonRpcController : ControllerBase
                 this.categoryService.Add(new Category
                 {
                     Name = newLabel,
-                    SavePath = global::System.IO.Path.Combine(this.configService.DownloadDir ?? "/downloads", newLabel),
+                    SavePath = string.Empty,
                 });
             }
         }
@@ -2609,24 +2609,55 @@ public class DelugeJsonRpcController : ControllerBase
             }
         }
 
+        var baseDownloadDir = this.configService?.DownloadDir;
+        if (string.IsNullOrWhiteSpace(baseDownloadDir))
+        {
+            baseDownloadDir = "/downloads";
+        }
+
+        var trimmedBase = baseDownloadDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var savePath = rawSavePath;
-        if (!string.IsNullOrWhiteSpace(rawSavePath) && !string.IsNullOrWhiteSpace(t.Name))
+        if (!string.IsNullOrWhiteSpace(rawSavePath))
         {
             var trimmedSave = rawSavePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            if (Path.HasExtension(trimmedSave))
+            if (!string.IsNullOrWhiteSpace(t.Name))
             {
-                var parent = Path.GetDirectoryName(trimmedSave);
-                savePath = !string.IsNullOrWhiteSpace(parent) ? parent : trimmedSave;
-            }
-            else
-            {
-                var dirName = Path.GetFileName(trimmedSave);
-                if (string.Equals(dirName, t.Name, StringComparison.OrdinalIgnoreCase))
+                if (Path.HasExtension(trimmedSave))
                 {
                     var parent = Path.GetDirectoryName(trimmedSave);
-                    savePath = !string.IsNullOrWhiteSpace(parent) ? parent : trimmedSave;
+                    trimmedSave = !string.IsNullOrWhiteSpace(parent) ? parent.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) : trimmedSave;
+                }
+                else
+                {
+                    var dirName = Path.GetFileName(trimmedSave);
+                    if (string.Equals(dirName, t.Name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var parent = Path.GetDirectoryName(trimmedSave);
+                        trimmedSave = !string.IsNullOrWhiteSpace(parent) ? parent.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) : trimmedSave;
+                    }
                 }
             }
+
+            if (!string.IsNullOrWhiteSpace(category))
+            {
+                var dirName = Path.GetFileName(trimmedSave);
+                if (string.Equals(dirName, category, StringComparison.OrdinalIgnoreCase))
+                {
+                    var parent = Path.GetDirectoryName(trimmedSave);
+                    if (!string.IsNullOrWhiteSpace(parent) &&
+                        (string.Equals(parent, trimmedBase, StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(parent, "/downloads", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        trimmedSave = parent.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                    }
+                }
+            }
+
+            savePath = trimmedSave;
+        }
+        else
+        {
+            savePath = trimmedBase;
         }
 
         var needsPieces = requestedKeys == null || requestedKeys.Count == 0 || requestedKeys.Contains("pieces");

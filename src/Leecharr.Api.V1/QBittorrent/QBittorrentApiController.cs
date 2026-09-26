@@ -534,7 +534,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         var result = torrentList.Select(t =>
         {
             var task = this.downloadEngine?.GetTask(t.Id) ?? this.torrentService?.GetDownloadTask(t.Id);
-            var isInactive = t.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error or TorrentStatus.Queued;
+            var isInactive = (t.Status is TorrentStatus.Paused or TorrentStatus.Stopped or TorrentStatus.Error) ||
+                (t.Status == TorrentStatus.Queued && t.DownloadSpeed == 0 && t.UploadSpeed == 0);
 
             var effectiveProgress = t.Progress;
             var effectiveStatus = t.Status;
@@ -564,10 +565,10 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
                 if (!isInactive)
                 {
-                    effectiveDlSpeed = task.DownloadSpeed;
-                    effectiveUlSpeed = task.UploadSpeed;
-                    effectiveSeeders = task.ConnectedSeeders;
-                    effectiveLeechers = task.ConnectedLeechers;
+                    effectiveDlSpeed = task.DownloadSpeed > 0 ? task.DownloadSpeed : t.DownloadSpeed;
+                    effectiveUlSpeed = task.UploadSpeed > 0 ? task.UploadSpeed : t.UploadSpeed;
+                    effectiveSeeders = task.ConnectedSeeders > 0 ? task.ConnectedSeeders : t.Seeders;
+                    effectiveLeechers = task.ConnectedLeechers > 0 ? task.ConnectedLeechers : t.Leechers;
                 }
 
                 if (task.Status != TorrentStatus.Downloading || t.Status != TorrentStatus.Checking)
@@ -3429,14 +3430,36 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             return (savePath, trimmedSave);
         }
 
-        var dirName = Path.GetFileName(trimmedSave);
+        var baseDownloadDir = this.configService?.DownloadDir;
+        if (string.IsNullOrWhiteSpace(baseDownloadDir))
+        {
+            baseDownloadDir = "/downloads";
+        }
+        var trimmedBase = baseDownloadDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
-        if (string.Equals(dirName, t.Name, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(Path.GetFileNameWithoutExtension(dirName), t.Name, StringComparison.OrdinalIgnoreCase))
+        var saveDir = trimmedSave;
+        var dirNameFinal = Path.GetFileName(trimmedSave);
+
+        if (string.Equals(dirNameFinal, t.Name, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Path.GetFileNameWithoutExtension(dirNameFinal), t.Name, StringComparison.OrdinalIgnoreCase))
         {
             var parent = Path.GetDirectoryName(trimmedSave);
-            var savePath = !string.IsNullOrWhiteSpace(parent) ? parent : trimmedSave;
-            return (savePath, trimmedSave);
+            saveDir = !string.IsNullOrWhiteSpace(parent) ? parent : trimmedSave;
+        }
+
+        if (!string.IsNullOrWhiteSpace(category))
+        {
+            var dirName = Path.GetFileName(saveDir);
+            if (string.Equals(dirName, category, StringComparison.OrdinalIgnoreCase))
+            {
+                var parent = Path.GetDirectoryName(saveDir);
+                if (!string.IsNullOrWhiteSpace(parent) &&
+                    (string.Equals(parent, trimmedBase, StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(parent, "/downloads", StringComparison.OrdinalIgnoreCase)))
+                {
+                    saveDir = parent.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                }
+            }
         }
 
         if (this.torrentFileService != null && t.Id > 0)
@@ -3455,8 +3478,8 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
 
                 if (files != null && files.Count == 1 && !string.IsNullOrWhiteSpace(files[0].Path))
                 {
-                    var singleFilePath = Path.Combine(trimmedSave, files[0].Path);
-                    return (trimmedSave, singleFilePath);
+                    var singleFilePath = Path.Combine(saveDir, files[0].Path);
+                    return (saveDir, singleFilePath);
                 }
             }
             catch (Exception ex)
@@ -3465,7 +3488,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
             }
         }
 
-        return (trimmedSave, Path.Combine(trimmedSave, t.Name));
+        return (saveDir, Path.Combine(saveDir, t.Name));
     }
 
     internal static string MapToQBitState(TorrentStatus status, double progress, long downloadSpeed = 0, long uploadSpeed = 0)

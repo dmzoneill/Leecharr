@@ -675,4 +675,101 @@ public class StoragePathServiceTest
             Directory.Delete(tempDir, true);
         }
     }
+
+    [Test]
+    public void NormalizeCompletedSavePath_WhenCategorySubPath_NormalizesToCompletedDir()
+    {
+        this.configService.DownloadDir.Returns("/downloads");
+        this.diskProvider.FolderExists("/downloads").Returns(true);
+        this.categoryService.GetSavePathForCategory("radarr").Returns("/downloads/radarr");
+
+        var result = this.storagePathService.NormalizeCompletedSavePath("/downloads/radarr", "radarr");
+
+        result.Should().Be("/downloads");
+    }
+
+    [Test]
+    public void NormalizeCompletedSavePath_WhenCategoryAndTorrentSubPath_NormalizesToCompletedSubPath()
+    {
+        this.configService.DownloadDir.Returns("/downloads");
+        this.diskProvider.FolderExists("/downloads").Returns(true);
+        this.categoryService.GetSavePathForCategory("radarr").Returns("/downloads/radarr");
+
+        var result = this.storagePathService.NormalizeCompletedSavePath("/downloads/radarr/MyMovie", "radarr");
+
+        result.Should().Be(Path.Combine("/downloads", "MyMovie"));
+    }
+
+    [Test]
+    public void MoveToCompleted_WhenFolderWithSingleFile_CreatesFolderAndPreservesFolderStructure()
+    {
+        var source = "/downloads/incomplete/X-Men_Dark Phoenix 2019 BluRay 10Bit 1080p DD+5.1 H265-d3g.mkv";
+        var completed = "/downloads";
+        var torrentName = "X-Men_Dark Phoenix 2019 10bit hevc-d3g";
+
+        this.configService.DownloadDir.Returns(completed);
+        this.categoryService.GetSavePathForCategory("radarr").Returns(string.Empty);
+        this.diskProvider.FolderExists(completed).Returns(true);
+        this.diskProvider.FileExists(source).Returns(true);
+        this.diskProvider.FolderExists(source).Returns(false);
+
+        var expectedFolder = Path.Combine(completed, torrentName);
+        var expectedFile = Path.Combine(expectedFolder, "X-Men_Dark Phoenix 2019 10bit hevc-d3g.mkv");
+
+        this.diskProvider.FolderExists(expectedFolder).Returns(false);
+        this.diskProvider.FileExists(expectedFile).Returns(false);
+
+        var success = this.storagePathService.MoveToCompleted(source, "radarr", torrentName, out var finalDestination);
+
+        success.Should().BeTrue();
+        finalDestination.Should().Be(expectedFile);
+        this.diskProvider.Received(1).CreateFolder(expectedFolder);
+        this.diskProvider.Received(1).MoveFile(source, expectedFile, false);
+    }
+
+    [Test]
+    public void MoveToCompleted_WhenSingleFileWithExtension_MovesDirectlyToCompletedDir()
+    {
+        var source = "/downloads/incomplete/Movie.2024.1080p.mkv";
+        var completed = "/downloads";
+        var torrentName = "Movie.2024.1080p.mkv";
+
+        this.configService.DownloadDir.Returns(completed);
+        this.categoryService.GetSavePathForCategory("radarr").Returns(string.Empty);
+        this.diskProvider.FolderExists(completed).Returns(true);
+        this.diskProvider.FileExists(source).Returns(true);
+        this.diskProvider.FolderExists(source).Returns(false);
+
+        var expectedFile = Path.Combine(completed, "Movie.2024.1080p.mkv");
+        this.diskProvider.FileExists(expectedFile).Returns(false);
+
+        var success = this.storagePathService.MoveToCompleted(source, "radarr", torrentName, out var finalDestination);
+
+        success.Should().BeTrue();
+        finalDestination.Should().Be(expectedFile);
+        this.diskProvider.Received(1).MoveFile(source, expectedFile, false);
+    }
+
+    [Test]
+    public void MoveToCompleted_WhenFolderWithMultipleFiles_MovesFolderToCompletedDir()
+    {
+        var source = "/downloads/incomplete/MultiFileTorrent";
+        var completed = "/downloads";
+        var torrentName = "MultiFileTorrent";
+
+        this.configService.DownloadDir.Returns(completed);
+        this.categoryService.GetSavePathForCategory("radarr").Returns(string.Empty);
+        this.diskProvider.FolderExists(completed).Returns(true);
+        this.diskProvider.FileExists(source).Returns(false);
+        this.diskProvider.FolderExists(source).Returns(true);
+
+        var expectedFolder = Path.Combine(completed, torrentName);
+        this.diskProvider.FolderExists(expectedFolder).Returns(false);
+
+        var success = this.storagePathService.MoveToCompleted(source, "radarr", torrentName, out var finalDestination);
+
+        success.Should().BeTrue();
+        finalDestination.Should().Be(expectedFolder);
+        this.diskProvider.Received(1).MoveFolder(source, expectedFolder);
+    }
 }
