@@ -93,6 +93,11 @@ public class SignalRHubIntegrationTest : IntegrationTestBase
         var broadcaster = GlobalSetup.Factory.Services.GetService(typeof(IBroadcastSignalRMessage)) as IBroadcastSignalRMessage;
         broadcaster.Should().NotBeNull();
 
+        for (var i = 0; i < 100 && !broadcaster!.IsConnected; i++)
+        {
+            await Task.Delay(50);
+        }
+
         broadcaster!.BroadcastMessage(new SignalRMessage
         {
             Name = "testBroadcast",
