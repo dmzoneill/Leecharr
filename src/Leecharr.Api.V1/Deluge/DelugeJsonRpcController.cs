@@ -2659,7 +2659,7 @@ public class DelugeJsonRpcController : ControllerBase
                     var parent = Path.GetDirectoryName(trimmedSave);
                     if (!string.IsNullOrWhiteSpace(parent) &&
                         (string.Equals(parent, trimmedBase, StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(parent, "/downloads", StringComparison.OrdinalIgnoreCase)))
+                            string.Equals(parent, "/downloads", StringComparison.OrdinalIgnoreCase)))
                     {
                         trimmedSave = parent.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                     }
