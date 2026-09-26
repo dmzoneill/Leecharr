@@ -657,15 +657,17 @@ public class StoragePathServiceTest
             var fileMode = File.GetUnixFileMode(tempFile);
 
             // 0777 & ~022 = 0755
-            dirMode.Should().HaveFlag(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
-                                     UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
-                                     UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+            dirMode.Should().HaveFlag(
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+                UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
             dirMode.Should().NotHaveFlag(UnixFileMode.GroupWrite);
             dirMode.Should().NotHaveFlag(UnixFileMode.OtherWrite);
 
             // 0666 & ~022 = 0644
-            fileMode.Should().HaveFlag(UnixFileMode.UserRead | UnixFileMode.UserWrite |
-                                      UnixFileMode.GroupRead | UnixFileMode.OtherRead);
+            fileMode.Should().HaveFlag(
+                UnixFileMode.UserRead | UnixFileMode.UserWrite |
+                UnixFileMode.GroupRead | UnixFileMode.OtherRead);
             fileMode.Should().NotHaveFlag(UnixFileMode.GroupWrite);
             fileMode.Should().NotHaveFlag(UnixFileMode.OtherWrite);
             fileMode.Should().NotHaveFlag(UnixFileMode.UserExecute);
