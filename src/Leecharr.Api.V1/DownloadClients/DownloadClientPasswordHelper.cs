@@ -4,12 +4,14 @@ using System;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.DataProtection;
+using NLog;
 
 namespace Leecharr.Api.V1.DownloadClients;
 
 public static class DownloadClientPasswordHelper
 {
     private const string Prefix = "enc:";
+    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private static readonly byte[] Key = SHA256.HashData(Encoding.UTF8.GetBytes("Leecharr.DownloadClient.Password.Entropy.Key"));
     private static readonly byte[] Iv = SHA256.HashData(Encoding.UTF8.GetBytes("Leecharr.DownloadClient.Password.Entropy.Iv"))[..16];
 
@@ -26,9 +28,9 @@ public static class DownloadClientPasswordHelper
             {
                 return Prefix + protector.Protect(password);
             }
-            catch
+            catch (Exception ex)
             {
-                // Fall back to Aes
+                Logger.Trace(ex, "IDataProtector.Protect threw, falling back to Aes");
             }
         }
 
@@ -56,9 +58,9 @@ public static class DownloadClientPasswordHelper
             {
                 return protector.Unprotect(cipherText);
             }
-            catch
+            catch (Exception ex)
             {
-                // Fall back to Aes
+                Logger.Trace(ex, "IDataProtector.Unprotect threw, falling back to Aes");
             }
         }
 
