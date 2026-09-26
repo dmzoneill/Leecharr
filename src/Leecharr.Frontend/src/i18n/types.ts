@@ -197,6 +197,7 @@ export type I18nTranslations = {
     "terminalCli": string;
     "fileBrowser": string;
     "settings": string;
+    "developer": string;
     "system": string;
     "status": string;
     "resources": string;
@@ -1538,6 +1539,8 @@ export type I18nTranslations = {
     };
   };
   "system": {
+    "databaseExplorer": string;
+    "databaseExplorerSubtitle": string;
     "statusTitle": string;
     "resourcesTitle": string;
     "tasksTitle": string;
@@ -1804,7 +1807,6 @@ export type I18nTranslations = {
     "plaintext": string;
     "resources": string;
     "terminal": string;
-    "database": string;
     "tasks": string;
     "backup": string;
     "updates": string;
@@ -1833,6 +1835,17 @@ export type I18nTranslations = {
     "active": string;
     "inactive": string;
     "time": string;
+  };
+  "developer": {
+    "database": string;
+    "events": string;
+    "commands": string;
+    "network": string;
+    "webhooks": string;
+    "config": string;
+    "diagnostics": string;
+    "terminal": string;
+    "apiReference": string;
   };
   "settings": {
     "title": string;

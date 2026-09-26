@@ -154,7 +154,6 @@ function SettingsContent() {
     });
   };
 
-  // Render the appropriate component for the active focused page
   const renderTabContent = () => {
     switch (activePage.id) {
       case "host":

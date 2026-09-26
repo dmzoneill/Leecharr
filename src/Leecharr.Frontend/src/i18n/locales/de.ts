@@ -220,6 +220,7 @@ const de: I18nTranslations = {
     "systemStatus": "Systemstatus",
     "commandPalette": "Befehlspalette (Strg+K)",
     "torrents": "Torrents",
+    "developer": "Entwickler",
     "system": "System",
     "status": "Status"
   },
@@ -445,6 +446,8 @@ const de: I18nTranslations = {
     "bulkResume": "Ausgewählte fortsetzen",
     "bulkPause": "Ausgewählte pausieren",
     "bulkDelete": "Ausgewählte löschen",
+    "bulkDeleteFilesSuccess": "{{count}} Torrent(s) und Dateien gelöscht",
+    "bulkDeleteSuccess": "{{count}} Torrent(s) entfernt",
     "bulkSetCategory": "Kategorie für Auswahl festlegen",
     "states": {
       "downloading": "Laden",
@@ -757,9 +760,7 @@ const de: I18nTranslations = {
     "failedToDelete": "Torrent konnte nicht gelöscht werden",
     "title": "Torrents",
     "nameHeader": "Name",
-    "statusHeader": "Status",
-    "bulkDeleteFilesSuccess": "{{count}} Torrent(s) und Dateien gelöscht",
-    "bulkDeleteSuccess": "{{count}} Torrent(s) entfernt"
+    "statusHeader": "Status"
   },
   "torrentDetail": {
     "overview": "Übersicht",
@@ -1817,6 +1818,8 @@ const de: I18nTranslations = {
     "active": "Aktiv",
     "inactive": "Inaktiv",
     "time": "Zeit",
+    "databaseExplorer": "Datenbank-Explorer",
+    "databaseExplorerSubtitle": "Überprüfen Sie SQLite-Datenbanktabellen, Schemata und Speicherzuweisungen und führen Sie Ad-hoc-Abfragen aus.",
     "version": "Version",
     "statusCol": "Status",
     "schemaVersion": "Schema #{{version}}",
@@ -4481,6 +4484,17 @@ const de: I18nTranslations = {
     "reconnecting": "Echtzeitverbindung verloren. Es wird versucht, die Verbindung wiederherzustellen...",
     "disconnected": "Vom Server getrennt. Klicken Sie auf Jetzt erneut versuchen, um die Verbindung wiederherzustellen.",
     "retryNow": "Jetzt erneut versuchen"
+  },
+  "developer": {
+    "database": "Datenbank-Explorer",
+    "events": "Veranstaltungsbus",
+    "commands": "Kommando-Dispatcher",
+    "network": "Netzwerkabhörung",
+    "webhooks": "Arr Webhooks Sandbox",
+    "config": "Konfigurationsmatrix",
+    "diagnostics": "Diagnostik & Gesundheit",
+    "terminal": "Interaktives Terminal",
+    "apiReference": "API-Referenz (Swagger)"
   }
 };
 

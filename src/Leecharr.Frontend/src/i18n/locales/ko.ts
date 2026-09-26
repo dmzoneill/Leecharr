@@ -221,7 +221,8 @@ const ko: I18nTranslations = {
     "themeDark": "다크 모드로 전환",
     "support": "지원 및 기부",
     "systemStatus": "시스템 상태",
-    "commandPalette": "명령 팔레트(Ctrl+K)"
+    "commandPalette": "명령 팔레트(Ctrl+K)",
+    "developer": "개발자"
   },
   "topbar": {
     "searchPlaceholder": "빠른 점프/검색...(Ctrl+K)",
@@ -448,6 +449,8 @@ const ko: I18nTranslations = {
     "bulkResume": "선택 항목 재개",
     "bulkPause": "선택 항목 일시중지",
     "bulkDelete": "선택 항목 삭제",
+    "bulkDeleteFilesSuccess": "_{{count}} 토렌트 및 파일이 삭제되었습니다.",
+    "bulkDeleteSuccess": "_{{count}} 토렌트가 제거되었습니다.",
     "bulkSetCategory": "선택 항목 카테고리 지정",
     "states": {
       "downloading": "다운로드 중",
@@ -757,9 +760,7 @@ const ko: I18nTranslations = {
     "failedToResume": "토렌트를 재개하지 못했습니다.",
     "torrentAndFilesDeleted": "토렌트 및 파일이 삭제되었습니다.",
     "torrentRemoved": "토렌트가 삭제되었습니다",
-    "failedToDelete": "토렌트 삭제 실패",
-    "bulkDeleteFilesSuccess": "_{{count}} 토렌트 및 파일이 삭제되었습니다.",
-    "bulkDeleteSuccess": "_{{count}} 토렌트가 제거되었습니다."
+    "failedToDelete": "토렌트 삭제 실패"
   },
   "torrentDetail": {
     "overview": "개요",
@@ -1827,6 +1828,8 @@ const ko: I18nTranslations = {
     "active": "활성",
     "inactive": "비활성",
     "time": "시간",
+    "databaseExplorer": "데이터베이스 탐색기",
+    "databaseExplorerSubtitle": "SQLite 데이터베이스 테이블, 스키마, 스토리지 할당을 검사하고 임시 쿼리를 실행합니다.",
     "websiteUrl": "www.leecharr.net",
     "tcpUtp": "TCP / uTP",
     "tcp": "TCP:",
@@ -4481,6 +4484,17 @@ const ko: I18nTranslations = {
     "reconnecting": "실시간 연결이 끊어졌습니다. 다시 연결을 시도하는 중...",
     "disconnected": "서버와의 연결이 끊어졌습니다. 다시 연결하려면 지금 다시 시도를 클릭하세요.",
     "retryNow": "지금 다시 시도"
+  },
+  "developer": {
+    "database": "데이터베이스 탐색기",
+    "events": "이벤트 버스",
+    "commands": "명령 디스패처",
+    "network": "네트워크 도청",
+    "webhooks": "웹후크 샌드박스 도착",
+    "config": "구성 매트릭스",
+    "diagnostics": "진단 및 건강",
+    "terminal": "대화형 터미널",
+    "apiReference": "API 참조(Swagger)"
   }
 };
 
