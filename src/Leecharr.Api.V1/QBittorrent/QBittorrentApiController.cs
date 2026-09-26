@@ -1332,6 +1332,30 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         return this.Ok(result);
     }
 
+    [HttpGet("torrents/webseeds")]
+    public ActionResult<List<Dictionary<string, object>>> GetWebSeeds([FromQuery] string hash)
+    {
+        if (string.IsNullOrWhiteSpace(hash))
+        {
+            return this.NotFound();
+        }
+
+        var torrent = this.torrentService.GetByInfoHash(hash);
+        if (torrent == null)
+        {
+            return this.NotFound();
+        }
+
+        var task = this.downloadEngine?.GetTask(torrent.Id) ?? this.torrentService?.GetDownloadTask(torrent.Id);
+        var webSeeds = task?.WebSeeds ?? (IReadOnlyList<string>)Array.Empty<string>();
+        var result = webSeeds.Select(url => new Dictionary<string, object>
+        {
+            ["url"] = url,
+        }).ToList();
+
+        return this.Ok(result);
+    }
+
     [HttpGet("torrents/tags")]
     public ActionResult<List<string>> GetTags()
     {

@@ -253,6 +253,7 @@ public class DelugeJsonRpcController : ControllerBase
             "core.get_config_value" => this.HandleCoreGetConfigValue(args, id),
             "core.set_config" or "core.set_config_values" => await this.HandleCoreSetConfigAsync(args, id),
             "core.get_session_status" => this.HandleCoreGetSessionStatus(id),
+            "core.get_path_size" => this.HandleCoreGetPathSize(args, id),
             "core.get_free_space" or "core.get_path_free_space" or "core.get_free_space_bytes" => this.HandleCoreGetFreeSpace(args, id),
             "core.get_torrents_status" => this.HandleGetTorrentsStatus(args, id, isWeb: false),
             "core.get_torrent_status" => this.HandleGetTorrentStatus(args, id),
@@ -1238,6 +1239,37 @@ public class DelugeJsonRpcController : ControllerBase
         var rawPath = GetFirstStringParam(paramsElem);
         var targetPath = !string.IsNullOrWhiteSpace(rawPath) ? rawPath : (this.configService.DownloadDir ?? "/downloads");
         return this.DelugeResult(new { result = this.GetDriveFreeSpace(targetPath), error = (object)null, id });
+    }
+
+    private IActionResult HandleCoreGetPathSize(JsonElement paramsElem, object id)
+    {
+        var rawPath = GetFirstStringParam(paramsElem);
+        if (string.IsNullOrWhiteSpace(rawPath))
+        {
+            return this.DelugeResult(new { result = -1L, error = (object)null, id });
+        }
+
+        try
+        {
+            if (global::System.IO.File.Exists(rawPath))
+            {
+                var fileInfo = new global::System.IO.FileInfo(rawPath);
+                return this.DelugeResult(new { result = fileInfo.Length, error = (object)null, id });
+            }
+
+            if (global::System.IO.Directory.Exists(rawPath))
+            {
+                var dirInfo = new global::System.IO.DirectoryInfo(rawPath);
+                var totalSize = dirInfo.EnumerateFiles("*", global::System.IO.SearchOption.AllDirectories).Sum(f => f.Length);
+                return this.DelugeResult(new { result = totalSize, error = (object)null, id });
+            }
+
+            return this.DelugeResult(new { result = -1L, error = (object)null, id });
+        }
+        catch
+        {
+            return this.DelugeResult(new { result = -1L, error = (object)null, id });
+        }
     }
 
     private IActionResult HandleGetTorrentsStatus(JsonElement paramsElem, object id, bool isWeb)
@@ -2783,6 +2815,7 @@ public class DelugeJsonRpcController : ControllerBase
             { "all_time_download", t.Downloaded },
             { "active_time", (long)(DateTime.UtcNow - t.DateAdded).TotalSeconds },
             { "seeding_time", t.SeedingTimeSeconds },
+            { "seed_rank", 0 },
             { "message", t.Status == TorrentStatus.Error ? "Error" : "OK" },
             { "is_auto_managed", true },
             { "auto_managed", true },
