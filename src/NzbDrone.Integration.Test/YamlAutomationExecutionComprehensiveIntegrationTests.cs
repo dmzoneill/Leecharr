@@ -18,22 +18,23 @@ public class YamlAutomationExecutionComprehensiveIntegrationTests : IntegrationT
     [Test]
     public async Task YamlWorkflow_VariablesAndLogging_ExecutesSuccessfully()
     {
-        var yamlCode = @"
-name: Basic Variable Test
-steps:
-  - name: Step 1 Set Variables
-    actions:
-      - setVariable:
-          key: customKey
-          value: customValue123
-      - log:
-          message: 'Initialized with ${customKey}'
-          level: info
-  - name: Step 2 Check Condition
-    condition: '${customKey} == customValue123'
-    actions:
-      - log: 'Condition matched successfully'
-";
+        var yamlCode = string.Join("\n", new[]
+        {
+            "name: Basic Variable Test",
+            "steps:",
+            "  - name: Step 1 Set Variables",
+            "    actions:",
+            "      - setVariable:",
+            "          key: customKey",
+            "          value: customValue123",
+            "      - log:",
+            "          message: 'Initialized with ${customKey}'",
+            "          level: info",
+            "  - name: Step 2 Check Condition",
+            "    condition: '${customKey} == customValue123'",
+            "    actions:",
+            "      - log: 'Condition matched successfully'",
+        });
 
         var testReq = new
         {
@@ -65,42 +66,43 @@ steps:
     [Test]
     public async Task YamlWorkflow_ConditionalBranchesAndComparisons_EvaluatesCorrectly()
     {
-        var yamlCode = @"
-name: Branching Test
-steps:
-  - name: True Equal
-    condition: '100 == 100'
-    actions:
-      - log: 'Equal passed'
-  - name: False Equal (Should Skip)
-    condition: '100 == 200'
-    actions:
-      - log: 'Should never run'
-  - name: Greater Than
-    condition: '50 > 10'
-    actions:
-      - log: 'GT passed'
-  - name: Less Than
-    condition: '5 < 10'
-    actions:
-      - log: 'LT passed'
-  - name: Greater Than Or Equal
-    condition: '25 >= 25'
-    actions:
-      - log: 'GTE passed'
-  - name: Less Than Or Equal
-    condition: '30 <= 40'
-    actions:
-      - log: 'LTE passed'
-  - name: Not Equal
-    condition: 'alpha != beta'
-    actions:
-      - log: 'NE passed'
-  - name: Boolean Negation
-    condition: '!false'
-    actions:
-      - log: 'NotFalse passed'
-";
+        var yamlCode = string.Join("\n", new[]
+        {
+            "name: Branching Test",
+            "steps:",
+            "  - name: True Equal",
+            "    condition: '100 == 100'",
+            "    actions:",
+            "      - log: 'Equal passed'",
+            "  - name: False Equal (Should Skip)",
+            "    condition: '100 == 200'",
+            "    actions:",
+            "      - log: 'Should never run'",
+            "  - name: Greater Than",
+            "    condition: '50 > 10'",
+            "    actions:",
+            "      - log: 'GT passed'",
+            "  - name: Less Than",
+            "    condition: '5 < 10'",
+            "    actions:",
+            "      - log: 'LT passed'",
+            "  - name: Greater Than Or Equal",
+            "    condition: '25 >= 25'",
+            "    actions:",
+            "      - log: 'GTE passed'",
+            "  - name: Less Than Or Equal",
+            "    condition: '30 <= 40'",
+            "    actions:",
+            "      - log: 'LTE passed'",
+            "  - name: Not Equal",
+            "    condition: 'alpha != beta'",
+            "    actions:",
+            "      - log: 'NE passed'",
+            "  - name: Boolean Negation",
+            "    condition: '!false'",
+            "    actions:",
+            "      - log: 'NotFalse passed'",
+        });
 
         var testReq = new
         {
@@ -144,33 +146,34 @@ steps:
 
         try
         {
-            var yamlCode = @"
-name: Comprehensive Torrent Mutation Workflow
-steps:
-  - name: Mutate Torrent Properties
-    actions:
-      - addTag: auto-tagged
-      - removeTag: old-tag
-      - setCategory: automated-category
-      - setUploadLimit: 500
-      - setDownloadLimit: 2000
-      - setRatioLimit: 2.5
-      - setSeedingTimeLimit: 120
-      - setPriority: high
-      - setSequentialDownload: true
-      - setSuperSeeding: false
-      - pause: true
-      - resume: true
-      - recheck: true
-      - reannounce: true
-      - notifyArr:
-          appType: radarr
-          instanceId: 1
-      - sendNotification:
-          title: 'Yaml Automation Done'
-          message: 'Processed torrent ${torrent.name}'
-      - log: 'Finished mutator for ${torrent.name}'
-";
+            var yamlCode = string.Join("\n", new[]
+            {
+                "name: Comprehensive Torrent Mutation Workflow",
+                "steps:",
+                "  - name: Mutate Torrent Properties",
+                "    actions:",
+                "      - addTag: auto-tagged",
+                "      - removeTag: old-tag",
+                "      - setCategory: automated-category",
+                "      - setUploadLimit: 500",
+                "      - setDownloadLimit: 2000",
+                "      - setRatioLimit: 2.5",
+                "      - setSeedingTimeLimit: 120",
+                "      - setPriority: high",
+                "      - setSequentialDownload: true",
+                "      - setSuperSeeding: false",
+                "      - pause: true",
+                "      - resume: true",
+                "      - recheck: true",
+                "      - reannounce: true",
+                "      - notifyArr:",
+                "          appType: radarr",
+                "          instanceId: 1",
+                "      - sendNotification:",
+                "          title: 'Yaml Automation Done'",
+                "          message: 'Processed torrent ${torrent.name}'",
+                "      - log: 'Finished mutator for ${torrent.name}'",
+            });
 
             var testReq = new
             {
@@ -205,17 +208,19 @@ steps:
     public async Task YamlWorkflow_StopPipelineAndEmptyWorkflows_HandledCleanly()
     {
         // 1. StopPipeline step stops subsequent steps
-        var stopYaml = @"
-name: Stop Pipeline Test
-steps:
-  - name: Step 1
-    actions:
-      - log: 'Step 1 Ran'
-      - stopPipeline: 'Reached stop condition'
-  - name: Step 2
-    actions:
-      - log: 'Step 2 Should Be Skipped'
-";
+        var stopYaml = string.Join("\n", new[]
+        {
+            "name: Stop Pipeline Test",
+            "steps:",
+            "  - name: Step 1",
+            "    actions:",
+            "      - log: 'Step 1 Ran'",
+            "      - stopPipeline: 'Reached stop condition'",
+            "  - name: Step 2",
+            "    actions:",
+            "      - log: 'Step 2 Should Be Skipped'",
+        });
+
         var stopReq = new
         {
             script = new
