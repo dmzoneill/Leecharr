@@ -4620,9 +4620,7 @@ input[type="number"]::-webkit-inner-spin-button {
   opacity: 1;
 }
 
-/* ============================================
-   Quick Settings Top Drawer & Modular Cards
-   ============================================ */
+/* Quick Settings Top Drawer & Modular Cards */
 
 .quick-settings-drawer {
   background: linear-gradient(180deg, #0c0e1a 0%, #111425 100%);
@@ -5384,9 +5382,7 @@ input[type="number"]::-webkit-inner-spin-button {
   transform: translateY(-1px);
 }
 
-/* ============================================
-   File Manager Extension Colors & Badges
-   ============================================ */
+/* File Manager Extension Colors & Badges */
 
 /* Video Files */
 .leecharr-file-manager .file-item-container[title$=".mkv" i] .file-item > svg,
@@ -5945,9 +5941,7 @@ input[type="number"]::-webkit-inner-spin-button {
   text-align: right;
 }
 
-/* ============================================
-   Column Customizer Modal
-   ============================================ */
+/* Column Customizer Modal */
 
 .column-customizer-modal {
   display: flex;
@@ -6319,9 +6313,7 @@ input[type="number"]::-webkit-inner-spin-button {
   }
 }
 
-/* ============================================
-   Getting Started Wizard Controls & Tabs
-   ============================================ */
+/* Getting Started Wizard Controls & Tabs */
 
 .wizard-mode-selector {
   display: inline-flex;
