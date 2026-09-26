@@ -211,8 +211,9 @@ public class SystemDatabaseController : Controller
                 countCmd.CommandText = $"SELECT COUNT(*) FROM \"{EscapeIdentifier(tableName)}\";";
                 tableSchema.RowCount = Convert.ToInt64(countCmd.ExecuteScalar());
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Trace(ex, "Failed to read row count for table {0}", tableName);
                 tableSchema.RowCount = 0;
             }
 
@@ -281,8 +282,9 @@ public class SystemDatabaseController : Controller
 
             dbstatSucceeded = true;
         }
-        catch
+        catch (Exception ex)
         {
+            this.logger.Trace(ex, "Failed to read dbstat table for storage estimation");
             dbstatSucceeded = false;
         }
 
@@ -500,7 +502,7 @@ public class SystemDatabaseController : Controller
     }
 
     [HttpPost("query")]
-    public async Task<ActionResult<DatabaseQueryResult>> ExecuteQuery([FromBody] DatabaseQueryRequest request)
+    public ActionResult<DatabaseQueryResult> ExecuteQuery([FromBody] DatabaseQueryRequest request)
     {
         if (request == null || string.IsNullOrWhiteSpace(request.Query))
         {
