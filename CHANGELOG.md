@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.29.5](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.5) - 2026-09-26
+
+### 🐛 Bug Fixes
+- fix(test): increase SignalR integration test timeout to prevent CI cancellations
+
+### 🔧 Maintenance & Improvements
+- style: fix indentation on Yaml automation test strings for editorconfig compliance
+- test: expand integration coverage across AI, Yaml automation, RPC clients, webhooks, and media organization
+
 ## [v1.29.4](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.4) - 2026-09-26
 
 ### 🔧 Maintenance & Improvements
