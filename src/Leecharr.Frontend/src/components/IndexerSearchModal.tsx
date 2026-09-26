@@ -160,7 +160,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
           setDownloadingKey(null);
           showToast(
             t("modals.failedToGrab", "Failed to grab release: {error}", {
-              error: err.message || "Unknown error",
+              error: err.message || "Release grab failed",
             }),
             "error",
           );
