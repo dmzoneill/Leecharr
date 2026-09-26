@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.29.4](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.4) - 2026-09-26
+
+### 🔧 Maintenance & Improvements
+- style: fix indentation on line 3496 in QBittorrentApiController for editorconfig
+- test(integration): add 72 new tests across controller matrices, automation, archive extraction, and web sockets
+
 ## [v1.29.3](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.3) - 2026-09-26
 
 ### 🔧 Maintenance & Improvements
