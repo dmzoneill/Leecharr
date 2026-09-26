@@ -156,9 +156,9 @@ public class SystemDeveloperController : Controller
                         .Where(t => typeof(Command).IsAssignableFrom(t) && !t.IsAbstract && t.IsClass);
                     commandTypes.AddRange(types);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Ignore reflection type loading errors for non-matching modules
+                    this.logger.Trace(ex, "Failed to load command types from assembly {0}", asm.FullName);
                 }
             }
         }
