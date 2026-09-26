@@ -125,9 +125,9 @@ public class UdpTrackerService : IUdpTrackerService
             {
                 await tokenSource.CancelAsync();
             }
-            catch (ObjectDisposedException)
+            catch (ObjectDisposedException ex)
             {
-                // Token source already disposed during shutdown
+                this.logger.Trace(ex, "Token source already disposed during UDP tracker shutdown");
             }
             catch (Exception ex)
             {
@@ -141,9 +141,9 @@ public class UdpTrackerService : IUdpTrackerService
             {
                 await Task.WhenAny(task, Task.Delay(2000, cancellationToken));
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException ex)
             {
-                // Shutdown delay or task wait was canceled
+                this.logger.Trace(ex, "Shutdown delay or task wait was cancelled");
             }
             catch (Exception ex)
             {

@@ -1027,9 +1027,9 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Daemon poll sync error, will retry on next tick
+                this.logger.Trace(ex, "Daemon poll sync error, will retry on next tick");
             }
 
             try
@@ -1282,9 +1282,9 @@ public class EmbeddedTransmissionEngine : ITorrentEngine, IDisposable, IHandle<V
             await this.SendRpcRequestAsync("session-get", new Dictionary<string, object>());
             return;
         }
-        catch
+        catch (Exception ex)
         {
-            // Start daemon child process
+            this.logger.Trace(ex, "Transmission daemon probe failed, starting daemon child process");
         }
 
         try
