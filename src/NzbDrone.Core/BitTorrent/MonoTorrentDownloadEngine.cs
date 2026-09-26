@@ -3802,12 +3802,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
             var currentHashed = Interlocked.Increment(ref this.totalPiecesHashed);
 
-            // Reclaim MonoTorrent MassiveBuffers queue and force LOH compaction every 4 pieces during hashing
-            if (currentHashed % 4 == 0 || e.PieceIndex % 4 == 0)
+            // Reclaim MonoTorrent MassiveBuffers queue periodically without forcing blocking full-generation collections
+            if (currentHashed % 64 == 0)
             {
                 TrimMonoTorrentMassiveBuffers();
-                System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
-                GC.Collect(2, GCCollectionMode.Forced, true, true);
             }
 
             if (this.infoHashToId.TryGetValue(infoHash, out var torrentId))
