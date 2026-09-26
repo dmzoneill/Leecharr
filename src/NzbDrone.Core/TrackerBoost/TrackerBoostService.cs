@@ -69,6 +69,7 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
     private readonly SemaphoreSlim globalScrapeThrottle = new(10, 10);
     private readonly ConcurrentDictionary<string, (bool Success, int Seeders, int Leechers, int Downloaded, DateTime CachedUtc)> scrapeCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Logger logger;
+    private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
 
     public TrackerBoostService(
         ITrackerBoostTrackerRepository trackerRepository,
@@ -741,9 +742,9 @@ public class TrackerBoostService : ITrackerBoostService, IHandle<TorrentDeletedE
                 ExtractIndexerUrlsTrackers(indexerElem, sourceName, trackers);
             }
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
-            // Ignore invalid JSON responses
+            StaticLogger.Trace(ex, "Failed to parse Prowlarr indexers JSON response during tracker harvest");
         }
 
         return trackers;

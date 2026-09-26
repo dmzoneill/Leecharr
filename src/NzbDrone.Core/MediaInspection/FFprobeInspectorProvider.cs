@@ -130,9 +130,9 @@ public class FFprobeInspectorProvider : IMediaInspectorProvider
                         process.Kill(entireProcessTree: true);
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Suppress process kill errors
+                    this.logger.Trace(ex, "Failed to kill FFprobe process on timeout");
                 }
 
                 this.logger.Warn("FFprobe execution timed out after {0} seconds for {1}", this.executionTimeout.TotalSeconds, mediaPath);

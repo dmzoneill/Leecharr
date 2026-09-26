@@ -115,9 +115,9 @@ public class FlareSolverrTransportProvider : IHttpTransportProvider, IDisposable
                 };
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Endpoint uncontactable
+            this.logger.Trace(ex, "FlareSolverr endpoint uncontactable at {0}", url);
         }
 
         return new HttpTransportHealthCheckResult
