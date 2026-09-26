@@ -197,6 +197,7 @@ const es: I18nTranslations = {
     "terminalCli": "Consola CLI",
     "fileBrowser": "Explorador de archivos",
     "settings": "Ajustes",
+    "developer": "Revelador",
     "system": "Sistema",
     "status": "Estado",
     "resources": "Recursos",
@@ -221,8 +222,7 @@ const es: I18nTranslations = {
     "themeDark": "Cambiar al modo oscuro",
     "support": "Apoya y dona",
     "systemStatus": "Estado del sistema",
-    "commandPalette": "Paleta de comandos (Ctrl+K)",
-    "developer": "Revelador"
+    "commandPalette": "Paleta de comandos (Ctrl+K)"
   },
   "topbar": {
     "searchPlaceholder": "Salto rápido/Buscar... (Ctrl+K)",
@@ -1350,7 +1350,8 @@ const es: I18nTranslations = {
       "bulkImportModalTitle": "Título modal de importación masiva",
       "bulkImportModalHint": "Sugerencia modal de importación masiva",
       "importingTrackers": "Importación de rastreadores",
-      "importTrackersBtn": "Importar rastreadores Btn"
+      "importTrackersBtn": "Importar rastreadores Btn",
+      "importFailedGeneric": "No se pudo analizar la lista de rastreadores o el formato de respuesta del rastreador no es válido"
     },
     "logs": {
       "logsClearedToast": "Registros eliminados Brindis",
@@ -1539,6 +1540,8 @@ const es: I18nTranslations = {
     }
   },
   "system": {
+    "databaseExplorer": "Explorador de bases de datos",
+    "databaseExplorerSubtitle": "Inspeccione las tablas de la base de datos SQLite, el esquema, la asignación de almacenamiento y ejecute consultas ad hoc.",
     "statusTitle": "Estado del sistema y salud del motor",
     "resourcesTitle": "Recursos del sistema y hardware",
     "tasksTitle": "Tareas programadas en segundo plano",
@@ -1828,13 +1831,22 @@ const es: I18nTranslations = {
     "active": "Activo",
     "inactive": "Inactivo",
     "time": "Tiempo",
-    "databaseExplorer": "Explorador de bases de datos",
-    "databaseExplorerSubtitle": "Inspeccione las tablas de la base de datos SQLite, el esquema, la asignación de almacenamiento y ejecute consultas ad hoc.",
     "websiteUrl": "www.leecharr.net",
     "tcp": "TCP:",
     "utp": "uTP:",
     "tcpUdp": "TCP/UDP",
     "terminal": "Terminal"
+  },
+  "developer": {
+    "database": "Explorador de bases de datos",
+    "events": "Autobús de eventos",
+    "commands": "Despachador de comandos",
+    "network": "Escuchas telefónicas de red",
+    "config": "Matriz de configuración",
+    "diagnostics": "Diagnóstico y Salud",
+    "terminal": "Terminal interactiva",
+    "apiReference": "Referencia API (Swagger)",
+    "webhooks": "Arr Webhooks Sandbox"
   },
   "settings": {
     "title": "Ajustes y configuración",
@@ -4484,17 +4496,6 @@ const es: I18nTranslations = {
     "reconnecting": "Se perdió la conexión en tiempo real. Intentando volver a conectar...",
     "disconnected": "Desconectado del servidor. Haga clic en Reintentar ahora para volver a conectarse.",
     "retryNow": "Reintentar ahora"
-  },
-  "developer": {
-    "database": "Explorador de bases de datos",
-    "events": "Autobús de eventos",
-    "commands": "Despachador de comandos",
-    "network": "Escuchas telefónicas de red",
-    "webhooks": "Arr Webhooks Sandbox",
-    "config": "Matriz de configuración",
-    "diagnostics": "Diagnóstico y Salud",
-    "terminal": "Terminal interactiva",
-    "apiReference": "Referencia API (Swagger)"
   }
 };
 

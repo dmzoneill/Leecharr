@@ -197,6 +197,7 @@ const ar: I18nTranslations = {
     "terminalCli": "سطر الأوامر CLI",
     "fileBrowser": "مستعرض الملفات",
     "settings": "الإعدادات",
+    "developer": "المطور",
     "system": "النظام",
     "status": "الحالة",
     "resources": "الموارد",
@@ -221,8 +222,7 @@ const ar: I18nTranslations = {
     "themeDark": "التبديل إلى الوضع الداكن",
     "support": "الدعم والتبرع",
     "systemStatus": "حالة النظام",
-    "commandPalette": "لوحة الأوامر (Ctrl+K)",
-    "developer": "المطور"
+    "commandPalette": "لوحة الأوامر (Ctrl+K)"
   },
   "topbar": {
     "searchPlaceholder": "الانتقال السريع / البحث... (Ctrl+K)",
@@ -1351,7 +1351,8 @@ const ar: I18nTranslations = {
       "bulkImportModalTitle": "عنوان مشروط للاستيراد المجمع",
       "bulkImportModalHint": "تلميح مشروط للاستيراد المجمع",
       "importingTrackers": "استيراد أجهزة التتبع",
-      "importTrackersBtn": "استيراد تعقب Btn"
+      "importTrackersBtn": "استيراد تعقب Btn",
+      "importFailedGeneric": "فشل تحليل قائمة المتعقب أو تنسيق استجابة المتعقب غير صالح"
     },
     "logs": {
       "logsClearedToast": "سجلات مسح نخب",
@@ -1539,6 +1540,8 @@ const ar: I18nTranslations = {
     }
   },
   "system": {
+    "databaseExplorer": "مستكشف قاعدة البيانات",
+    "databaseExplorerSubtitle": "فحص جداول قاعدة بيانات SQLite والمخطط وتخصيص التخزين وتشغيل الاستعلامات المخصصة.",
     "statusTitle": "حالة النظام وصحة المحرك",
     "resourcesTitle": "موارد النظام والعتاد",
     "tasksTitle": "المهام المجدولة في الخلفية",
@@ -1832,9 +1835,18 @@ const ar: I18nTranslations = {
     "active": "نشيط",
     "inactive": "غير نشط",
     "time": "وقت",
-    "databaseExplorer": "مستكشف قاعدة البيانات",
-    "databaseExplorerSubtitle": "فحص جداول قاعدة بيانات SQLite والمخطط وتخصيص التخزين وتشغيل الاستعلامات المخصصة.",
     "websiteUrl": "www.leecharr.net"
+  },
+  "developer": {
+    "database": "مستكشف قاعدة البيانات",
+    "events": "حافلة الحدث",
+    "commands": "مرسل الأوامر",
+    "network": "التنصت على الشبكة",
+    "config": "مصفوفة التكوين",
+    "diagnostics": "التشخيص والصحة",
+    "terminal": "المحطة التفاعلية",
+    "apiReference": "مرجع واجهة برمجة التطبيقات (Swagger)",
+    "webhooks": "Arr Webhooks Sandbox"
   },
   "settings": {
     "title": "الإعدادات والتكوين",
@@ -4484,17 +4496,6 @@ const ar: I18nTranslations = {
     "reconnecting": "تم فقد الاتصال في الوقت الحقيقي. جارٍ محاولة إعادة الاتصال...",
     "disconnected": "تم قطع الاتصال بالخادم. انقر فوق \"إعادة المحاولة الآن\" لإعادة الاتصال.",
     "retryNow": "أعد المحاولة الآن"
-  },
-  "developer": {
-    "database": "مستكشف قاعدة البيانات",
-    "events": "حافلة الحدث",
-    "commands": "مرسل الأوامر",
-    "network": "التنصت على الشبكة",
-    "webhooks": "Arr Webhooks Sandbox",
-    "config": "مصفوفة التكوين",
-    "diagnostics": "التشخيص والصحة",
-    "terminal": "المحطة التفاعلية",
-    "apiReference": "مرجع واجهة برمجة التطبيقات (Swagger)"
   }
 };
 
