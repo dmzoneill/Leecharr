@@ -151,6 +151,7 @@ public class Scheduler : BackgroundService, IHandle<CommandExecutedEvent>
             }
             catch (OperationCanceledException)
             {
+                this.logger.Trace("Scheduler delay cancelled during shutdown.");
                 break;
             }
         }
