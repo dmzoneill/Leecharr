@@ -19,6 +19,7 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 {
     private const int NatPmpPort = 5351;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
+    private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
 
     private readonly ConcurrentDictionary<(int InternalPort, NatPmpProtocol Protocol), ActivePortMapping> activeMappings = new();
     private readonly Timer renewalTimer;
@@ -77,9 +78,9 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             {
                 this.renewalTimer?.Change(Timeout.Infinite, Timeout.Infinite);
             }
-            catch (ObjectDisposedException)
+            catch (ObjectDisposedException ex)
             {
-                // Timer already disposed during shutdown
+                this.logger.Trace(ex, "Renewal timer already disposed during suspend");
             }
         }
     }
@@ -95,9 +96,9 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 {
                     this.renewalTimer?.Change(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(30));
                 }
-                catch (ObjectDisposedException)
+                catch (ObjectDisposedException ex)
                 {
-                    // Timer already disposed during shutdown
+                    this.logger.Trace(ex, "Renewal timer already disposed during resume");
                 }
             }
         }
@@ -401,9 +402,9 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 }
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Fallback gateway resolution via route table failed
+            StaticLogger.Trace(ex, "Fallback gateway resolution via route table failed");
         }
 
         return null;
@@ -477,15 +478,15 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                         unicasts,
                         gateways));
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    // Ignore interface property read errors during candidate discovery
+                    StaticLogger.Trace(ex, "Interface property read error during candidate discovery");
                 }
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // System network interface enumeration failed
+            StaticLogger.Trace(ex, "System network interface enumeration failed");
         }
 
         return candidates;
@@ -540,9 +541,9 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 }
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Failed to resolve local endpoint for interface
+            this.logger.Trace(ex, "Failed to resolve local endpoint for interface");
         }
 
         return null;
@@ -637,9 +638,9 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                     {
                         this.renewalTimer?.Change(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
                     }
-                    catch (ObjectDisposedException)
+                    catch (ObjectDisposedException ex)
                     {
-                        // Renewal timer disposed during registration
+                        this.logger.Trace(ex, "Renewal timer disposed during registration");
                     }
                 }
 
@@ -774,9 +775,9 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             {
                 this.renewalLock.Release();
             }
-            catch (ObjectDisposedException)
+            catch (ObjectDisposedException ex)
             {
-                // Renewal lock disposed during shutdown
+                this.logger.Trace(ex, "Renewal lock disposed during shutdown");
             }
         }
     }
@@ -792,9 +793,9 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         {
             this.renewalTimer?.Change(Timeout.Infinite, Timeout.Infinite);
         }
-        catch (ObjectDisposedException)
+        catch (ObjectDisposedException ex)
         {
-            // Renewal timer disposed during stop
+            this.logger.Trace(ex, "Renewal timer disposed during stop");
         }
 
         if (this.isSuspended != 0)
@@ -846,18 +847,18 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         {
             NetworkChange.NetworkAddressChanged -= this.OnNetworkAddressChanged;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Ignore unregistration failure during dispose
+            this.logger.Trace(ex, "Failed to unregister address changed handler during dispose");
         }
 
         try
         {
             this.renewalTimer?.Dispose();
         }
-        catch (ObjectDisposedException)
+        catch (ObjectDisposedException ex)
         {
-            // Timer already disposed
+            this.logger.Trace(ex, "Renewal timer already disposed during synchronous dispose");
         }
 
         try
@@ -865,18 +866,18 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             using var cts = new CancellationTokenSource(1000);
             this.StopAsync(cts.Token).GetAwaiter().GetResult();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // StopAsync timed out or threw during synchronous dispose
+            this.logger.Trace(ex, "StopAsync timed out or threw during synchronous dispose");
         }
 
         try
         {
             this.renewalLock?.Dispose();
         }
-        catch (ObjectDisposedException)
+        catch (ObjectDisposedException ex)
         {
-            // Semaphore already disposed
+            this.logger.Trace(ex, "Renewal lock semaphore already disposed during synchronous dispose");
         }
     }
 
@@ -891,18 +892,18 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         {
             NetworkChange.NetworkAddressChanged -= this.OnNetworkAddressChanged;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Ignore unregistration failure during async dispose
+            this.logger.Trace(ex, "Failed to unregister address changed handler during async dispose");
         }
 
         try
         {
             this.renewalTimer?.Dispose();
         }
-        catch (ObjectDisposedException)
+        catch (ObjectDisposedException ex)
         {
-            // Timer already disposed
+            this.logger.Trace(ex, "Renewal timer already disposed during async dispose");
         }
 
         try
@@ -910,18 +911,18 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             using var cts = new CancellationTokenSource(2000);
             await this.StopAsync(cts.Token).ConfigureAwait(false);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // StopAsync timed out or threw during async dispose
+            this.logger.Trace(ex, "StopAsync timed out or threw during async dispose");
         }
 
         try
         {
             this.renewalLock?.Dispose();
         }
-        catch (ObjectDisposedException)
+        catch (ObjectDisposedException ex)
         {
-            // Semaphore already disposed
+            this.logger.Trace(ex, "Renewal lock semaphore already disposed during async dispose");
         }
     }
 
@@ -1056,9 +1057,9 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 }
             }
         }
-        catch (ObjectDisposedException)
+        catch (ObjectDisposedException ex)
         {
-            // Service or renewal lock disposed during renewal check
+            this.logger.Trace(ex, "Service or renewal lock disposed during renewal check");
         }
         catch (Exception ex)
         {
@@ -1070,9 +1071,9 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
             {
                 this.renewalLock.Release();
             }
-            catch (ObjectDisposedException)
+            catch (ObjectDisposedException ex)
             {
-                // Renewal lock disposed during shutdown
+                this.logger.Trace(ex, "Renewal lock disposed during renewal check finally");
             }
         }
     }
@@ -1296,9 +1297,9 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 {
                     udp?.Dispose();
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    // UdpClient already disposed
+                    this.logger.Trace(ex, "UdpClient disposal threw");
                 }
             }
 
@@ -1381,9 +1382,9 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
 
                 await this.RenewAllMappingsAsync(force: true).ConfigureAwait(false);
             }
-            catch (ObjectDisposedException)
+            catch (ObjectDisposedException ex)
             {
-                // Service disposed during reboot renewal
+                this.logger.Trace(ex, "Service disposed during reboot renewal");
             }
             catch (Exception ex)
             {
@@ -1449,9 +1450,9 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 return ep.Address;
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // UDP socket connect probe failed
+            this.logger.Trace(ex, "UDP socket connect probe failed for gateway");
         }
 
         try
@@ -1472,9 +1473,9 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
                 return gwMatch.UnicastAddresses[0].Address;
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Failed to match candidate local IP address for gateway
+            this.logger.Trace(ex, "Failed to match candidate local IP address for gateway");
         }
 
         return null;
