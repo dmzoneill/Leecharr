@@ -221,7 +221,8 @@ const ar: I18nTranslations = {
     "themeDark": "التبديل إلى الوضع الداكن",
     "support": "الدعم والتبرع",
     "systemStatus": "حالة النظام",
-    "commandPalette": "لوحة الأوامر (Ctrl+K)"
+    "commandPalette": "لوحة الأوامر (Ctrl+K)",
+    "developer": "المطور"
   },
   "topbar": {
     "searchPlaceholder": "الانتقال السريع / البحث... (Ctrl+K)",
@@ -448,6 +449,8 @@ const ar: I18nTranslations = {
     "bulkResume": "استئناف المحدد",
     "bulkPause": "إيقاف مؤقت للمحدد",
     "bulkDelete": "حذف المحدد",
+    "bulkDeleteFilesSuccess": "{{count}} السيول (الملفات) والملفات المحذوفة",
+    "bulkDeleteSuccess": "{{count}} تمت إزالة السيل (الملفات).",
     "bulkSetCategory": "تعيين فئة للمحدد",
     "states": {
       "downloading": "جارٍ التنزيل",
@@ -757,9 +760,7 @@ const ar: I18nTranslations = {
     "failedToResume": "فشل في استئناف التورنت",
     "torrentAndFilesDeleted": "تورنت والملفات المحذوفة",
     "torrentRemoved": "تمت إزالة السيل",
-    "failedToDelete": "فشل في حذف التورنت",
-    "bulkDeleteFilesSuccess": "{{count}} السيول (الملفات) والملفات المحذوفة",
-    "bulkDeleteSuccess": "{{count}} تمت إزالة السيل (الملفات)."
+    "failedToDelete": "فشل في حذف التورنت"
   },
   "torrentDetail": {
     "overview": "نظرة عامة",
@@ -1831,6 +1832,8 @@ const ar: I18nTranslations = {
     "active": "نشيط",
     "inactive": "غير نشط",
     "time": "وقت",
+    "databaseExplorer": "مستكشف قاعدة البيانات",
+    "databaseExplorerSubtitle": "فحص جداول قاعدة بيانات SQLite والمخطط وتخصيص التخزين وتشغيل الاستعلامات المخصصة.",
     "websiteUrl": "www.leecharr.net"
   },
   "settings": {
@@ -4481,6 +4484,17 @@ const ar: I18nTranslations = {
     "reconnecting": "تم فقد الاتصال في الوقت الحقيقي. جارٍ محاولة إعادة الاتصال...",
     "disconnected": "تم قطع الاتصال بالخادم. انقر فوق \"إعادة المحاولة الآن\" لإعادة الاتصال.",
     "retryNow": "أعد المحاولة الآن"
+  },
+  "developer": {
+    "database": "مستكشف قاعدة البيانات",
+    "events": "حافلة الحدث",
+    "commands": "مرسل الأوامر",
+    "network": "التنصت على الشبكة",
+    "webhooks": "Arr Webhooks Sandbox",
+    "config": "مصفوفة التكوين",
+    "diagnostics": "التشخيص والصحة",
+    "terminal": "المحطة التفاعلية",
+    "apiReference": "مرجع واجهة برمجة التطبيقات (Swagger)"
   }
 };
 

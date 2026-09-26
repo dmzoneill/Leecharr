@@ -364,7 +364,6 @@ export default function DatabaseExplorer() {
     }
   };
 
-  // Copy Mermaid ERD
   const copyMermaid = () => {
     if (!schema?.mermaidErd) return;
     navigator.clipboard.writeText(schema.mermaidErd);
@@ -372,7 +371,6 @@ export default function DatabaseExplorer() {
     setTimeout(() => setCopyFeedback(null), 3000);
   };
 
-  // Quick query helper
   const handleSelectTableForQuery = (name: string) => {
     const newQuery = `SELECT * FROM "${name}" LIMIT 50;`;
     setQuery(newQuery);

@@ -221,7 +221,8 @@ const it: I18nTranslations = {
     "themeDark": "Passa alla modalità oscura",
     "support": "Sostieni e dona",
     "systemStatus": "Stato del sistema",
-    "commandPalette": "Tavolozza dei comandi (Ctrl+K)"
+    "commandPalette": "Tavolozza dei comandi (Ctrl+K)",
+    "developer": "Sviluppatore"
   },
   "topbar": {
     "searchPlaceholder": "Salto veloce/Cerca... (Ctrl+K)",
@@ -448,6 +449,8 @@ const it: I18nTranslations = {
     "bulkResume": "Riprendi selezionati",
     "bulkPause": "Metti in pausa selezionati",
     "bulkDelete": "Elimina selezionati",
+    "bulkDeleteFilesSuccess": "{{count}} torrent e file eliminati",
+    "bulkDeleteSuccess": "{{count}} torrent rimossi",
     "bulkSetCategory": "Imposta categoria per selezionati",
     "states": {
       "downloading": "In scaricamento",
@@ -757,9 +760,7 @@ const it: I18nTranslations = {
     "failedToResume": "Impossibile riprendere il torrent",
     "torrentAndFilesDeleted": "Torrent e file eliminati",
     "torrentRemoved": "Torrente rimosso",
-    "failedToDelete": "Impossibile eliminare il torrent",
-    "bulkDeleteFilesSuccess": "{{count}} torrent e file eliminati",
-    "bulkDeleteSuccess": "{{count}} torrent rimossi"
+    "failedToDelete": "Impossibile eliminare il torrent"
   },
   "torrentDetail": {
     "overview": "Panoramica",
@@ -1823,6 +1824,8 @@ const it: I18nTranslations = {
     "active": "Attivo",
     "inactive": "Inattivo",
     "time": "Tempo",
+    "databaseExplorer": "Esplora database",
+    "databaseExplorerSubtitle": "Esamina le tabelle del database SQLite, lo schema, l'allocazione dello spazio di archiviazione ed esegui query ad hoc.",
     "timestamp": "Timestamp",
     "schemaVersion": "Schema #{{version}}",
     "websiteUrl": "www.leecharr.net",
@@ -4481,6 +4484,17 @@ const it: I18nTranslations = {
     "reconnecting": "Connessione in tempo reale persa. Tentativo di riconnessione...",
     "disconnected": "Disconnesso dal server. Fare clic su Riprova ora per riconnettersi.",
     "retryNow": "Riprova ora"
+  },
+  "developer": {
+    "database": "Esplora database",
+    "events": "Autobus per eventi",
+    "commands": "Inviatore di comandi",
+    "network": "Intercettazione di rete",
+    "webhooks": "Arr Webhook Sandbox",
+    "config": "Matrice di configurazione",
+    "diagnostics": "Diagnostica e salute",
+    "terminal": "Terminale interattivo",
+    "apiReference": "Riferimento API (spavalderia)"
   }
 };
 

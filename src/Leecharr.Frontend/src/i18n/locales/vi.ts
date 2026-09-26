@@ -221,7 +221,8 @@ const vi: I18nTranslations = {
     "themeDark": "Chuyển sang Chế độ tối",
     "support": "Hỗ trợ & Đóng góp",
     "systemStatus": "Trạng thái hệ thống",
-    "commandPalette": "Bảng lệnh (Ctrl+K)"
+    "commandPalette": "Bảng lệnh (Ctrl+K)",
+    "developer": "Nhà phát triển"
   },
   "topbar": {
     "searchPlaceholder": "Nhảy nhanh / Tìm kiếm... (Ctrl+K)",
@@ -448,6 +449,8 @@ const vi: I18nTranslations = {
     "bulkResume": "Tiếp tục mục đã chọn",
     "bulkPause": "Tạm dừng mục đã chọn",
     "bulkDelete": "Xóa mục đã chọn",
+    "bulkDeleteFilesSuccess": "{{count}} torrent và các tập tin đã bị xóa",
+    "bulkDeleteSuccess": "{{count}} torrent đã bị xóa",
     "bulkSetCategory": "Đặt danh mục cho mục đã chọn",
     "states": {
       "downloading": "Đang tải xuống",
@@ -757,9 +760,7 @@ const vi: I18nTranslations = {
     "failedToResume": "Không thể tiếp tục torrent",
     "torrentAndFilesDeleted": "Torrent và tập tin đã bị xóa",
     "torrentRemoved": "Đã xóa torrent",
-    "failedToDelete": "Không thể xóa torrent",
-    "bulkDeleteFilesSuccess": "{{count}} torrent và các tập tin đã bị xóa",
-    "bulkDeleteSuccess": "{{count}} torrent đã bị xóa"
+    "failedToDelete": "Không thể xóa torrent"
   },
   "torrentDetail": {
     "overview": "Tổng quan",
@@ -1827,6 +1828,8 @@ const vi: I18nTranslations = {
     "active": "Hoạt động",
     "inactive": "Không hoạt động",
     "time": "Thời gian",
+    "databaseExplorer": "Trình khám phá cơ sở dữ liệu",
+    "databaseExplorerSubtitle": "Kiểm tra các bảng cơ sở dữ liệu SQLite, lược đồ, phân bổ bộ nhớ và chạy các truy vấn đặc biệt.",
     "websiteUrl": "www.leecharr.net",
     "tcpUtp": "TCP / uTP",
     "tcp": "TCP:",
@@ -4481,6 +4484,17 @@ const vi: I18nTranslations = {
     "reconnecting": "Mất kết nối thời gian thực. Đang cố gắng kết nối lại...",
     "disconnected": "Đã ngắt kết nối khỏi máy chủ. Bấm vào Thử lại ngay để kết nối lại.",
     "retryNow": "Thử lại ngay bây giờ"
+  },
+  "developer": {
+    "database": "Trình khám phá cơ sở dữ liệu",
+    "events": "Xe buýt sự kiện",
+    "commands": "Bộ điều phối lệnh",
+    "network": "Nghe lén mạng",
+    "webhooks": "Hộp cát Arr Webhooks",
+    "config": "Ma trận cấu hình",
+    "diagnostics": "Chẩn đoán & Sức khỏe",
+    "terminal": "Thiết bị đầu cuối tương tác",
+    "apiReference": "Tham chiếu API (Vênh vang)"
   }
 };
 

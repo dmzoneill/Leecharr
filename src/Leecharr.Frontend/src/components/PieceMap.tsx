@@ -196,7 +196,6 @@ export function PieceMap({
     [fileBoundaries],
   );
 
-  // Render Bar View directly to HTML5 Canvas
   const renderBar = useCallback(() => {
     if (viewMode !== "bar") return;
     const canvas = barCanvasRef.current;
@@ -308,7 +307,6 @@ export function PieceMap({
     ctx.restore();
   }, [viewMode, colorMode, isComplete, activeFileBoundary, fileBoundaries]);
 
-  // Render Matrix Grid View with virtualized Canvas drawing
   const renderGrid = useCallback(() => {
     if (viewMode !== "grid") return;
     const canvas = canvasRef.current;

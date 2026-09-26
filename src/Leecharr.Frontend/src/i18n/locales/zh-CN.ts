@@ -221,7 +221,8 @@ const zhCN: I18nTranslations = {
     "themeDark": "切换到深色模式",
     "support": "支持与捐赠",
     "systemStatus": "系统状态",
-    "commandPalette": "命令面板（Ctrl+K）"
+    "commandPalette": "命令面板（Ctrl+K）",
+    "developer": "开发商"
   },
   "topbar": {
     "searchPlaceholder": "快速跳转/搜索... (Ctrl+K)",
@@ -448,6 +449,8 @@ const zhCN: I18nTranslations = {
     "bulkResume": "继续所选种子",
     "bulkPause": "暂停所选种子",
     "bulkDelete": "删除所选种子",
+    "bulkDeleteFilesSuccess": "{{count}} 种子和文件已删除",
+    "bulkDeleteSuccess": "{{count}} 种子已删除",
     "bulkSetCategory": "设置所选种子分类",
     "states": {
       "downloading": "正在下载",
@@ -757,9 +760,7 @@ const zhCN: I18nTranslations = {
     "failedToResume": "无法恢复 torrent",
     "torrentAndFilesDeleted": "Torrent 和文件已删除",
     "torrentRemoved": "洪流已删除",
-    "failedToDelete": "删除 torrent 失败",
-    "bulkDeleteFilesSuccess": "{{count}} 种子和文件已删除",
-    "bulkDeleteSuccess": "{{count}} 种子已删除"
+    "failedToDelete": "删除 torrent 失败"
   },
   "torrentDetail": {
     "overview": "概述",
@@ -1830,6 +1831,8 @@ const zhCN: I18nTranslations = {
     "active": "积极的",
     "inactive": "已停用",
     "time": "时间",
+    "databaseExplorer": "数据库浏览器",
+    "databaseExplorerSubtitle": "检查 SQLite 数据库表、架构、存储分配并运行即席查询。",
     "websiteUrl": "www.leecharr.net",
     "tcpUdp": "TCP/UDP"
   },
@@ -4481,6 +4484,17 @@ const zhCN: I18nTranslations = {
     "reconnecting": "实时连接丢失。正在尝试重新连接...",
     "disconnected": "与服务器断开连接。单击立即重试重新连接。",
     "retryNow": "立即重试"
+  },
+  "developer": {
+    "database": "数据库浏览器",
+    "events": "活动总线",
+    "commands": "命令调度员",
+    "network": "网络窃听",
+    "webhooks": "Arr Webhooks 沙盒",
+    "config": "配置矩阵",
+    "diagnostics": "诊断与健康",
+    "terminal": "互动终端",
+    "apiReference": "API 参考 (Swagger)"
   }
 };
 

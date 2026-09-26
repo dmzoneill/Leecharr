@@ -221,6 +221,7 @@ const id: I18nTranslations = {
     "systemStatus": "Status Sistem",
     "commandPalette": "Palet Perintah (Ctrl+K)",
     "terminalCli": "Terminal CLI",
+    "developer": "Pengembang",
     "status": "Status"
   },
   "topbar": {
@@ -447,6 +448,8 @@ const id: I18nTranslations = {
     "bulkResume": "Lanjutkan yang Dipilih",
     "bulkPause": "Jeda yang Dipilih",
     "bulkDelete": "Hapus yang Dipilih",
+    "bulkDeleteFilesSuccess": "{{count}} torrent dan file dihapus",
+    "bulkDeleteSuccess": "{{count}} torrent dihapus",
     "bulkSetCategory": "Atur Kategori untuk yang Dipilih",
     "states": {
       "downloading": "Mengunduh",
@@ -757,9 +760,7 @@ const id: I18nTranslations = {
     "torrentAndFilesDeleted": "Torrent dan file dihapus",
     "torrentRemoved": "Torrent dihapus",
     "failedToDelete": "Gagal menghapus torrent",
-    "statusHeader": "Status",
-    "bulkDeleteFilesSuccess": "{{count}} torrent dan file dihapus",
-    "bulkDeleteSuccess": "{{count}} torrent dihapus"
+    "statusHeader": "Status"
   },
   "torrentDetail": {
     "overview": "Ikhtisar",
@@ -1826,6 +1827,8 @@ const id: I18nTranslations = {
     "active": "Aktif",
     "inactive": "Tidak aktif",
     "time": "Waktu",
+    "databaseExplorer": "Penjelajah Basis Data",
+    "databaseExplorerSubtitle": "Periksa tabel database SQLite, skema, alokasi penyimpanan, dan jalankan kueri ad-hoc.",
     "statusCol": "Status",
     "websiteUrl": "www.leecharr.net",
     "tcp": "TCP:",
@@ -4481,6 +4484,17 @@ const id: I18nTranslations = {
     "reconnecting": "Koneksi real-time terputus. Mencoba menyambung kembali...",
     "disconnected": "Terputus dari server. Klik Coba Lagi Sekarang untuk menyambung kembali.",
     "retryNow": "Coba lagi sekarang"
+  },
+  "developer": {
+    "database": "Penjelajah Basis Data",
+    "events": "Bus Acara",
+    "commands": "Pengirim Perintah",
+    "network": "Penyadapan Jaringan",
+    "webhooks": "Ah Kotak Pasir Webhook",
+    "config": "Matriks Konfigurasi",
+    "diagnostics": "Diagnostik & Kesehatan",
+    "terminal": "Terminal Interaktif",
+    "apiReference": "Referensi API (Kesombongan)"
   }
 };
 

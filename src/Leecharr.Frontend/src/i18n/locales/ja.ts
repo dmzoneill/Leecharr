@@ -221,7 +221,8 @@ const ja: I18nTranslations = {
     "themeDark": "ダークモードに切り替える",
     "support": "サポートと寄付",
     "systemStatus": "システムステータス",
-    "commandPalette": "コマンドパレット (Ctrl+K)"
+    "commandPalette": "コマンドパレット (Ctrl+K)",
+    "developer": "開発者"
   },
   "topbar": {
     "searchPlaceholder": "クイックジャンプ/検索... (Ctrl+K)",
@@ -448,6 +449,8 @@ const ja: I18nTranslations = {
     "bulkResume": "選択したトレントを再開",
     "bulkPause": "選択したトレントを一時停止",
     "bulkDelete": "選択したトレントを削除",
+    "bulkDeleteFilesSuccess": "{{count}} torrent とファイルが削除されました",
+    "bulkDeleteSuccess": "{{count}} torrent が削除されました",
     "bulkSetCategory": "選択したトレントのカテゴリーを設定",
     "states": {
       "downloading": "ダウンロード中",
@@ -757,9 +760,7 @@ const ja: I18nTranslations = {
     "failedToResume": "トレントを再開できませんでした",
     "torrentAndFilesDeleted": "Torrent とファイルが削除されました",
     "torrentRemoved": "トレントが削除されました",
-    "failedToDelete": "トレントの削除に失敗しました",
-    "bulkDeleteFilesSuccess": "{{count}} torrent とファイルが削除されました",
-    "bulkDeleteSuccess": "{{count}} torrent が削除されました"
+    "failedToDelete": "トレントの削除に失敗しました"
   },
   "torrentDetail": {
     "overview": "概要",
@@ -1828,6 +1829,8 @@ const ja: I18nTranslations = {
     "active": "アクティブ",
     "inactive": "非アクティブ",
     "time": "時間",
+    "databaseExplorer": "データベースエクスプローラー",
+    "databaseExplorerSubtitle": "SQLite データベース テーブル、スキーマ、ストレージ割り当てを検査し、アドホック クエリを実行します。",
     "websiteUrl": "www.leecharr.net",
     "tcp": "TCP:",
     "utp": "uTP:",
@@ -4481,6 +4484,17 @@ const ja: I18nTranslations = {
     "reconnecting": "リアルタイム接続が失われました。再接続しようとしています...",
     "disconnected": "サーバーから切断されました。 「今すぐ再試行」をクリックして再接続します。",
     "retryNow": "今すぐ再試行してください"
+  },
+  "developer": {
+    "database": "データベースエクスプローラー",
+    "events": "イベントバス",
+    "commands": "コマンドディスパッチャ",
+    "network": "ネットワーク盗聴",
+    "webhooks": "Arr Webhook サンドボックス",
+    "config": "構成マトリックス",
+    "diagnostics": "診断と健康",
+    "terminal": "インタラクティブターミナル",
+    "apiReference": "API リファレンス (Swagger)"
   }
 };
 

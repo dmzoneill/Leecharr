@@ -221,7 +221,8 @@ const tr: I18nTranslations = {
     "themeDark": "Karanlık Moda Geç",
     "support": "Destekleyin ve Bağış Yapın",
     "systemStatus": "Sistem Durumu",
-    "commandPalette": "Komut Paleti (Ctrl+K)"
+    "commandPalette": "Komut Paleti (Ctrl+K)",
+    "developer": "Geliştirici"
   },
   "topbar": {
     "searchPlaceholder": "Hızlı Atla / Ara... (Ctrl+K)",
@@ -448,6 +449,8 @@ const tr: I18nTranslations = {
     "bulkResume": "Seçilenleri Devam Ettir",
     "bulkPause": "Seçilenleri Duraklat",
     "bulkDelete": "Seçilenleri Sil",
+    "bulkDeleteFilesSuccess": "{{count}} torrent(ler) ve dosyalar silindi",
+    "bulkDeleteSuccess": "{{count}}_ torrent(ler) kaldırıldı",
     "bulkSetCategory": "Seçilenlere Kategori Ata",
     "states": {
       "downloading": "İndiriliyor",
@@ -757,9 +760,7 @@ const tr: I18nTranslations = {
     "failedToResume": "Torrent devam ettirilemedi",
     "torrentAndFilesDeleted": "Torrent ve dosyalar silindi",
     "torrentRemoved": "Torrent kaldırıldı",
-    "failedToDelete": "Torrent silinemedi",
-    "bulkDeleteFilesSuccess": "{{count}} torrent(ler) ve dosyalar silindi",
-    "bulkDeleteSuccess": "{{count}}_ torrent(ler) kaldırıldı"
+    "failedToDelete": "Torrent silinemedi"
   },
   "torrentDetail": {
     "overview": "Genel Bakış",
@@ -1825,6 +1826,8 @@ const tr: I18nTranslations = {
     "active": "Aktif",
     "inactive": "Etkin değil",
     "time": "Zaman",
+    "databaseExplorer": "Veritabanı Gezgini",
+    "databaseExplorerSubtitle": "SQLite veritabanı tablolarını, şemasını, depolama tahsisini inceleyin ve anlık sorgular çalıştırın.",
     "websiteUrl": "www.leecharr.net",
     "gcGen2": "GC Gen 2",
     "tcpUtp": "TCP / uTP",
@@ -4481,6 +4484,17 @@ const tr: I18nTranslations = {
     "reconnecting": "Gerçek zamanlı bağlantı kesildi. Yeniden bağlanmaya çalışılıyor...",
     "disconnected": "Sunucuyla bağlantı kesildi. Yeniden bağlanmak için Şimdi Yeniden Dene'yi tıklayın.",
     "retryNow": "Şimdi Yeniden Dene"
+  },
+  "developer": {
+    "database": "Veritabanı Gezgini",
+    "events": "Etkinlik Otobüsü",
+    "commands": "Komut Göndericisi",
+    "network": "Ağ Telefon Dinlemesi",
+    "webhooks": "Arr Web Kancaları Korumalı Alanı",
+    "config": "Yapılandırma Matrisi",
+    "diagnostics": "Teşhis ve Sağlık",
+    "terminal": "İnteraktif Terminal",
+    "apiReference": "API Referansı (Swagger)"
   }
 };
 

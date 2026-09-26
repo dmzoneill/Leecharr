@@ -197,6 +197,7 @@ const en: I18nTranslations = {
     "terminalCli": "Terminal CLI",
     "fileBrowser": "File Browser",
     "settings": "Settings",
+    "developer": "Developer",
     "system": "System",
     "status": "Status",
     "resources": "Resources",
@@ -1538,6 +1539,8 @@ const en: I18nTranslations = {
     }
   },
   "system": {
+    "databaseExplorer": "Database Explorer",
+    "databaseExplorerSubtitle": "Inspect SQLite database tables, schema, storage allocation, and run ad-hoc queries.",
     "statusTitle": "System Status & Engine Health",
     "resourcesTitle": "System Resources & Hardware",
     "tasksTitle": "Scheduled Background Tasks",
@@ -1804,7 +1807,6 @@ const en: I18nTranslations = {
     "plaintext": "Plaintext",
     "resources": "Resources",
     "terminal": "Terminal",
-    "database": "Database",
     "tasks": "Tasks",
     "backup": "Backup",
     "updates": "Updates",
@@ -1833,6 +1835,17 @@ const en: I18nTranslations = {
     "active": "Active",
     "inactive": "Inactive",
     "time": "Time"
+  },
+  "developer": {
+    "database": "Database Explorer",
+    "events": "Event Bus",
+    "commands": "Command Dispatcher",
+    "network": "Network Wiretap",
+    "webhooks": "Arr Webhooks Sandbox",
+    "config": "Configuration Matrix",
+    "diagnostics": "Diagnostics & Health",
+    "terminal": "Interactive Terminal",
+    "apiReference": "API Reference (Swagger)"
   },
   "settings": {
     "title": "Settings & Configuration",

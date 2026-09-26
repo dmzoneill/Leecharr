@@ -221,6 +221,7 @@ const pt: I18nTranslations = {
     "systemStatus": "Status do sistema",
     "commandPalette": "Paleta de Comandos (Ctrl+K)",
     "terminalCli": "Terminal CLI",
+    "developer": "Desenvolvedor",
     "status": "Status"
   },
   "topbar": {
@@ -447,6 +448,8 @@ const pt: I18nTranslations = {
     "bulkResume": "Retomar selecionados",
     "bulkPause": "Pausar selecionados",
     "bulkDelete": "Excluir selecionados",
+    "bulkDeleteFilesSuccess": "{{count}} torrent(es) e arquivos excluídos",
+    "bulkDeleteSuccess": "{{count}} torrent(s) removido(s)",
     "bulkSetCategory": "Definir categoria para selecionados",
     "states": {
       "downloading": "Baixando",
@@ -757,9 +760,7 @@ const pt: I18nTranslations = {
     "torrentAndFilesDeleted": "Torrent e arquivos excluídos",
     "torrentRemoved": "Torrente removida",
     "failedToDelete": "Falha ao excluir torrent",
-    "statusHeader": "Status",
-    "bulkDeleteFilesSuccess": "{{count}} torrent(es) e arquivos excluídos",
-    "bulkDeleteSuccess": "{{count}} torrent(s) removido(s)"
+    "statusHeader": "Status"
   },
   "torrentDetail": {
     "overview": "Visão geral",
@@ -1826,6 +1827,8 @@ const pt: I18nTranslations = {
     "active": "Ativo",
     "inactive": "Inativo",
     "time": "Tempo",
+    "databaseExplorer": "Explorador de banco de dados",
+    "databaseExplorerSubtitle": "Inspecione tabelas de banco de dados SQLite, esquema, alocação de armazenamento e execute consultas ad-hoc.",
     "statusCol": "Status",
     "websiteUrl": "www.leecharr.net",
     "tcp": "TCP:",
@@ -4481,6 +4484,17 @@ const pt: I18nTranslations = {
     "reconnecting": "Conexão em tempo real perdida. Tentando reconectar...",
     "disconnected": "Desconectado do servidor. Clique em Tentar novamente agora para reconectar.",
     "retryNow": "Tente novamente agora"
+  },
+  "developer": {
+    "database": "Explorador de banco de dados",
+    "events": "Ônibus de eventos",
+    "commands": "Despachante de Comando",
+    "network": "Escuta telefônica de rede",
+    "webhooks": "Caixa de areia Arr Webhooks",
+    "config": "Matriz de Configuração",
+    "diagnostics": "Diagnóstico e Saúde",
+    "terminal": "Terminal interativo",
+    "apiReference": "Referência de API (Swagger)"
   }
 };
 

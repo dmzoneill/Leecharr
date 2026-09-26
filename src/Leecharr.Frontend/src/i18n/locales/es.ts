@@ -221,7 +221,8 @@ const es: I18nTranslations = {
     "themeDark": "Cambiar al modo oscuro",
     "support": "Apoya y dona",
     "systemStatus": "Estado del sistema",
-    "commandPalette": "Paleta de comandos (Ctrl+K)"
+    "commandPalette": "Paleta de comandos (Ctrl+K)",
+    "developer": "Revelador"
   },
   "topbar": {
     "searchPlaceholder": "Salto rápido/Buscar... (Ctrl+K)",
@@ -448,6 +449,8 @@ const es: I18nTranslations = {
     "bulkResume": "Reanudar seleccionados",
     "bulkPause": "Pausar seleccionados",
     "bulkDelete": "Eliminar seleccionados",
+    "bulkDeleteFilesSuccess": "{{count}} torrent(s) y archivos eliminados",
+    "bulkDeleteSuccess": "{{count}} torrent(es) eliminado(s)",
     "bulkSetCategory": "Establecer categoría a seleccionados",
     "states": {
       "downloading": "Descargando",
@@ -757,9 +760,7 @@ const es: I18nTranslations = {
     "failedToResume": "No se pudo reanudar el torrent",
     "torrentAndFilesDeleted": "Torrent y archivos eliminados",
     "torrentRemoved": "Torrente eliminado",
-    "failedToDelete": "No se pudo eliminar el torrent",
-    "bulkDeleteFilesSuccess": "{{count}} torrent(s) y archivos eliminados",
-    "bulkDeleteSuccess": "{{count}} torrent(es) eliminado(s)"
+    "failedToDelete": "No se pudo eliminar el torrent"
   },
   "torrentDetail": {
     "overview": "Resumen",
@@ -1827,6 +1828,8 @@ const es: I18nTranslations = {
     "active": "Activo",
     "inactive": "Inactivo",
     "time": "Tiempo",
+    "databaseExplorer": "Explorador de bases de datos",
+    "databaseExplorerSubtitle": "Inspeccione las tablas de la base de datos SQLite, el esquema, la asignación de almacenamiento y ejecute consultas ad hoc.",
     "websiteUrl": "www.leecharr.net",
     "tcp": "TCP:",
     "utp": "uTP:",
@@ -4481,6 +4484,17 @@ const es: I18nTranslations = {
     "reconnecting": "Se perdió la conexión en tiempo real. Intentando volver a conectar...",
     "disconnected": "Desconectado del servidor. Haga clic en Reintentar ahora para volver a conectarse.",
     "retryNow": "Reintentar ahora"
+  },
+  "developer": {
+    "database": "Explorador de bases de datos",
+    "events": "Autobús de eventos",
+    "commands": "Despachador de comandos",
+    "network": "Escuchas telefónicas de red",
+    "webhooks": "Arr Webhooks Sandbox",
+    "config": "Matriz de configuración",
+    "diagnostics": "Diagnóstico y Salud",
+    "terminal": "Terminal interactiva",
+    "apiReference": "Referencia API (Swagger)"
   }
 };
 
