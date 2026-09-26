@@ -2101,17 +2101,44 @@ public class TransmissionRpcController : ControllerBase, IHandle<TorrentDeletedE
         if (Path.HasExtension(trimmedSave))
         {
             var parent = Path.GetDirectoryName(trimmedSave);
-            return NormalizeDownloadPath(!string.IsNullOrWhiteSpace(parent) ? parent : trimmedSave);
+            trimmedSave = !string.IsNullOrWhiteSpace(parent) ? parent.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) : trimmedSave;
         }
-
-        var dirName = Path.GetFileName(trimmedSave);
-        if (string.Equals(dirName, torrent.Name, StringComparison.OrdinalIgnoreCase))
+        else
         {
-            var parent = Path.GetDirectoryName(trimmedSave);
-            return NormalizeDownloadPath(!string.IsNullOrWhiteSpace(parent) ? parent : trimmedSave);
+            var dirName = Path.GetFileName(trimmedSave);
+            if (string.Equals(dirName, torrent.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                var parent = Path.GetDirectoryName(trimmedSave);
+                trimmedSave = !string.IsNullOrWhiteSpace(parent) ? parent.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) : trimmedSave;
+            }
         }
 
-        return NormalizeDownloadPath(rawSavePath);
+        if (!string.IsNullOrWhiteSpace(category))
+        {
+            var dirName = Path.GetFileName(trimmedSave);
+            if (string.Equals(dirName, category, StringComparison.OrdinalIgnoreCase))
+            {
+                var parent = Path.GetDirectoryName(trimmedSave);
+                trimmedSave = !string.IsNullOrWhiteSpace(parent) ? parent.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) : trimmedSave;
+            }
+        }
+
+        var baseDownloadDir = this.configService?.DownloadDir;
+        if (string.IsNullOrWhiteSpace(baseDownloadDir))
+        {
+            baseDownloadDir = "/downloads";
+        }
+        var trimmedBase = baseDownloadDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        if (string.Equals(trimmedSave, trimmedBase, StringComparison.OrdinalIgnoreCase) ||
+            trimmedSave.StartsWith(trimmedBase + "/", StringComparison.OrdinalIgnoreCase) ||
+            trimmedSave.StartsWith(trimmedBase + "\\", StringComparison.OrdinalIgnoreCase) ||
+            trimmedSave.StartsWith("/downloads", StringComparison.OrdinalIgnoreCase))
+        {
+            return NormalizeDownloadPath(trimmedBase);
+        }
+
+        return NormalizeDownloadPath(trimmedSave);
     }
 
     private static string NormalizeDownloadPath(string path)

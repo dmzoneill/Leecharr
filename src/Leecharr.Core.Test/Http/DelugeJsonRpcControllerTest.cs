@@ -1019,6 +1019,69 @@ public class DelugeJsonRpcControllerTest
         json.Should().Contain("\"download_location\":\"/downloads\"");
     }
 
+    [Test]
+    public async Task HandleRpc_GetTorrentsStatus_WithCategorySubPath_ReportsCompletedDownloadDirNotCategoryDir()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var torrent1 = new Torrent
+        {
+            Id = 5,
+            Name = "X-Men.Days.of.Future.Past.2014.THE.ROGUE.CUT.1080p.BluRay.x265-LAMA",
+            InfoHash = "7ef07ecb821b81ea4e5bb69478c7a50b6dbd9e0c",
+            Category = "radarr",
+            SavePath = "/downloads/radarr",
+        };
+        var torrent2 = new Torrent
+        {
+            Id = 6,
+            Name = "X-Men_Dark Phoenix 2019 10bit hevc-d3g",
+            InfoHash = "be3a7dcd15b947f0f49c3c6c1d20cfabc45671f8",
+            Category = "radarr",
+            SavePath = "/downloads/radarr/X-Men_Dark Phoenix 2019 10bit hevc-d3g",
+        };
+        this.torrentService.GetAll().Returns(new List<Torrent> { torrent1, torrent2 });
+
+        using var doc = JsonDocument.Parse("{\"method\":\"core.get_torrents_status\",\"params\":[{},[\"name\",\"save_path\",\"download_location\",\"label\"]],\"id\":1}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        var jsonResult = (JsonResult)result;
+        var json = JsonSerializer.Serialize(jsonResult.Value);
+        using var resDoc = JsonDocument.Parse(json);
+        var res = resDoc.RootElement.GetProperty("result");
+
+        var t1Obj = res.GetProperty("7ef07ecb821b81ea4e5bb69478c7a50b6dbd9e0c");
+        t1Obj.GetProperty("save_path").GetString().Should().Be("/downloads");
+        t1Obj.GetProperty("download_location").GetString().Should().Be("/downloads");
+
+        var t2Obj = res.GetProperty("be3a7dcd15b947f0f49c3c6c1d20cfabc45671f8");
+        t2Obj.GetProperty("save_path").GetString().Should().Be("/downloads");
+        t2Obj.GetProperty("download_location").GetString().Should().Be("/downloads");
+    }
+
+    [Test]
+    public async Task HandleRpc_LabelAdd_CreatesCategoryWithEmptySavePath()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = "deluge_secret_key";
+        this.controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        Category addedCategory = null;
+        this.categoryService.GetByName("radarr").Returns((Category)null);
+        this.categoryService.Add(Arg.Do<Category>(c => addedCategory = c));
+
+        using var doc = JsonDocument.Parse("{\"method\":\"label.add\",\"params\":[\"radarr\"],\"id\":5}");
+        var result = await this.controller.HandleRpc(doc.RootElement);
+
+        result.Should().BeOfType<JsonResult>();
+        addedCategory.Should().NotBeNull();
+        addedCategory!.Name.Should().Be("radarr");
+        addedCategory.SavePath.Should().BeEmpty();
+    }
+
     [TestCase("true", true)]
     [TestCase("false", false)]
     [TestCase("1", true)]
