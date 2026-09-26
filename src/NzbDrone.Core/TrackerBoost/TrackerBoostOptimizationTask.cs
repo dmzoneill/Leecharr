@@ -57,9 +57,9 @@ public class TrackerBoostOptimizationTask : IHandle<ApplicationStartedEvent>, ID
         {
             await this.trackerBoostService.RunOptimizationCycleAsync().ConfigureAwait(false);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            // Expected when task is cancelled
+            this.logger.Trace(ex, "TrackerBoost background optimization task was cancelled");
         }
         catch (Exception ex)
         {

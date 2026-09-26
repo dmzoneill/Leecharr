@@ -21,6 +21,7 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
     private readonly ITorrentRepository torrentRepository;
     private readonly IEventAggregator eventAggregator;
     private readonly Logger logger;
+    private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
     private readonly object syncLock = new();
     private readonly ConcurrentDictionary<string, (long Uploaded, long Downloaded)> lastSeenBytes = new();
 
@@ -634,9 +635,9 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
                 return (host, domain, proto, port);
             }
         }
-        catch (UriFormatException)
+        catch (UriFormatException ex)
         {
-            // Fall back to raw url default if URI format is invalid
+            StaticLogger.Trace(ex, "Invalid tracker URI format for '{0}', using raw fallback", url);
         }
 
         return (url, url, "http", 80);
@@ -881,9 +882,9 @@ public class TrackerMetricService : ITrackerMetricService, IDisposable, IAsyncDi
                 }
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            // Expected during clean processor shutdown
+            this.logger.Trace(ex, "Tracker metric snapshot processor cancelled during shutdown");
         }
         catch (Exception ex)
         {
