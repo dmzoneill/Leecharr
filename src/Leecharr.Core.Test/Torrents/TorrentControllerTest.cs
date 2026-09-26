@@ -561,6 +561,7 @@ public class TorrentControllerTest
     [Test]
     public async Task GetPeers_WhenTaskIsNull_ReturnsEmptyList()
     {
+        this.torrentService.Get(1).Returns(new Torrent { Id = 1 });
         this.torrentService.GetDownloadTask(1).Returns((IDownloadTask)null!);
 
         var result = await this.controller.GetPeers(1);
@@ -609,6 +610,7 @@ public class TorrentControllerTest
         };
 
         downloadTask.GetPeers().Returns(peers);
+        this.torrentService.Get(1).Returns(new Torrent { Id = 1 });
         this.torrentService.GetDownloadTask(1).Returns(downloadTask);
 
         this.geoIpService.LookupAsync("8.8.8.8").Returns(Task.FromResult(new GeoLocationInfo
