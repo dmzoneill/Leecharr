@@ -36,9 +36,9 @@ public class EventAggregator : IEventAggregator
         {
             this.developerEventStore?.RecordEvent(@event);
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore developer event recording failures to protect business flow
+            this.logger.Trace(ex, "Failed to record developer event in developerEventStore");
         }
 
         var handlerType = typeof(IHandle<>).MakeGenericType(@event.GetType());

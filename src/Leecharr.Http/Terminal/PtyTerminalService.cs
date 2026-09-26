@@ -3,12 +3,14 @@
 using System;
 using System.IO;
 using System.Security;
+using NLog;
 using NzbDrone.Core.Configuration;
 
 namespace Leecharr.Http.Terminal;
 
 public class PtyTerminalService : IPtyTerminalService
 {
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private readonly IConfigFileProvider configFileProvider;
 
     public PtyTerminalService(IConfigFileProvider configFileProvider = null)
@@ -62,9 +64,9 @@ public class PtyTerminalService : IPtyTerminalService
             {
                 return PtyProcessSession.Start(sanitizedCwd, clampedCols, clampedRows);
             }
-            catch
+            catch (Exception ex)
             {
-                // Fall back to standard process session
+                this.logger.Trace(ex, "Python PTY session failed to start, falling back");
             }
         }
 
@@ -74,9 +76,9 @@ public class PtyTerminalService : IPtyTerminalService
             {
                 return LinuxPtySession.Start(sanitizedCwd, clampedCols, clampedRows);
             }
-            catch
+            catch (Exception ex)
             {
-                // Fall back to standard process session
+                this.logger.Trace(ex, "Linux PTY session failed to start, falling back");
             }
         }
 
