@@ -40,6 +40,7 @@ public class GeoIpUpdateTask : IGeoIpUpdateTask, IHandle<ApplicationStartedEvent
     private readonly IEnumerable<IGeoIpProvider> geoIpProviders;
     private readonly ISafeHttpClientService safeHttpClientService;
     private readonly Logger logger;
+    private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
     private readonly CancellationTokenSource cts = new();
     private Task loopTask;
 
@@ -145,9 +146,9 @@ public class GeoIpUpdateTask : IGeoIpUpdateTask, IHandle<ApplicationStartedEvent
                     {
                         File.Delete(tempFilePath);
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Ignore cleanup failure of temporary file
+                        this.logger.Trace(ex, "Failed to clean up temporary GeoIP download file '{0}'", tempFilePath);
                     }
                 }
             }
@@ -195,9 +196,9 @@ public class GeoIpUpdateTask : IGeoIpUpdateTask, IHandle<ApplicationStartedEvent
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Not a tar archive; check if decompressed payload itself is .mmdb
+                StaticLogger.Trace(ex, "Decompressed payload is not a tar archive, checking raw mmdb");
             }
 
             if (decompressedBytes.Length > 0 && IsMmdbContent(decompressedBytes))
@@ -224,9 +225,9 @@ public class GeoIpUpdateTask : IGeoIpUpdateTask, IHandle<ApplicationStartedEvent
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Failed zip parsing
+                StaticLogger.Trace(ex, "Failed to parse GeoIP zip archive");
             }
         }
 

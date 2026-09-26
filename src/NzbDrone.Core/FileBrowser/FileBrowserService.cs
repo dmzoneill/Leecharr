@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security;
+using NLog;
 using NzbDrone.Common.Disk;
 using NzbDrone.Core.Configuration;
 
@@ -63,6 +64,7 @@ public interface IFileBrowserService
 
 public class FileBrowserService : IFileBrowserService
 {
+    private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private readonly IDiskProvider diskProvider;
     private readonly IConfigService configService;
     private readonly NzbDrone.Common.EnvironmentInfo.IAppFolderInfo appFolderInfo;
@@ -113,19 +115,19 @@ public class FileBrowserService : IFileBrowserService
                         Modified = info.LastWriteTime == DateTime.MinValue ? (DateTime?)null : info.LastWriteTime,
                     });
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Skip inaccessible directories
+                    this.logger.Trace(ex, "Failed to read directory info for '{0}'", dirPath);
                 }
             }
         }
-        catch (UnauthorizedAccessException)
+        catch (UnauthorizedAccessException ex)
         {
-            // Root path itself is not readable
+            this.logger.Trace(ex, "Unauthorized access enumerating directories in '{0}'", target);
         }
-        catch (SecurityException)
+        catch (SecurityException ex)
         {
-            // Security permission error
+            this.logger.Trace(ex, "Security error enumerating directories in '{0}'", target);
         }
 
         try
@@ -145,19 +147,19 @@ public class FileBrowserService : IFileBrowserService
                         Extension = info.Extension?.TrimStart('.'),
                     });
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Skip inaccessible files
+                    this.logger.Trace(ex, "Failed to read file info for '{0}'", filePath);
                 }
             }
         }
-        catch (UnauthorizedAccessException)
+        catch (UnauthorizedAccessException ex)
         {
-            // Root path itself is not readable
+            this.logger.Trace(ex, "Unauthorized access enumerating files in '{0}'", target);
         }
-        catch (SecurityException)
+        catch (SecurityException ex)
         {
-            // Security permission error
+            this.logger.Trace(ex, "Security error enumerating files in '{0}'", target);
         }
 
         listing.Entries = entries
@@ -380,9 +382,9 @@ public class FileBrowserService : IFileBrowserService
                 canonicalSource = targetInfo.FullName;
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore link resolution errors
+            this.logger.Trace(ex, "Failed to resolve link target for '{0}'", sourceDir);
         }
 
         if (!visited.Add(canonicalSource))

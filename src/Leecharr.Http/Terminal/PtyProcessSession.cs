@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using NLog;
 
 namespace Leecharr.Http.Terminal;
 
@@ -107,6 +108,7 @@ else:
             pass
 ";
 
+    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private readonly Process process;
     private readonly Stream inputStream;
     private readonly Stream outputStream;
@@ -204,9 +206,9 @@ else:
                 {
                     controlPipeStream.Dispose();
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    // Ignore pipe disposal errors during cleanup
+                    Logger.Trace(ex, "Failed to dispose control pipe stream during cleanup");
                 }
             }
 
@@ -216,9 +218,9 @@ else:
                 {
                     File.Delete(controlPipePath);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    // Ignore pipe deletion errors during cleanup
+                    Logger.Trace(ex, "Failed to delete control pipe file during cleanup");
                 }
             }
 
@@ -233,9 +235,9 @@ else:
 
                     proc.Dispose();
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    // Ignore process termination errors during cleanup
+                    Logger.Trace(ex, "Failed to kill/dispose process during cleanup");
                 }
             }
 
@@ -272,9 +274,9 @@ else:
             await this.inputStream.WriteAsync(buffer, cancellationToken).ConfigureAwait(false);
             await this.inputStream.FlushAsync(cancellationToken).ConfigureAwait(false);
         }
-        catch
+        catch (Exception ex)
         {
-            // Shell closed
+            Logger.Trace(ex, "Failed to write to shell input stream (shell may have closed)");
         }
     }
 
@@ -293,9 +295,9 @@ else:
                 this.controlPipeStream.Write(msg, 0, msg.Length);
                 this.controlPipeStream.Flush();
             }
-            catch
+            catch (Exception ex)
             {
-                // Shell or control channel closed
+                Logger.Trace(ex, "Failed to write resize message to control pipe");
             }
         }
     }
@@ -315,9 +317,9 @@ else:
                 {
                     this.controlPipeStream.Dispose();
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    // Ignore pipe disposal errors during session disposal
+                    Logger.Trace(ex, "Failed to dispose control pipe stream during teardown");
                 }
 
                 this.controlPipeStream = null;
@@ -329,9 +331,9 @@ else:
                 {
                     File.Delete(this.controlPipePath);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    // Ignore pipe deletion errors during session disposal
+                    Logger.Trace(ex, "Failed to delete control pipe file during teardown");
                 }
             }
 
@@ -342,9 +344,9 @@ else:
 
             this.process.Dispose();
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignored on teardown
+            Logger.Trace(ex, "Failed to kill/dispose process during teardown");
         }
     }
 
@@ -371,9 +373,9 @@ else:
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Fallback to mkfifo process
+            Logger.Trace(ex, "Native mkfifo failed, falling back to process");
         }
 
         try
@@ -387,9 +389,9 @@ else:
             });
             proc?.WaitForExit(1000);
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignored
+            Logger.Trace(ex, "Failed to execute mkfifo process for pipe '{0}'", path);
         }
     }
 

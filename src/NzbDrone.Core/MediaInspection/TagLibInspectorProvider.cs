@@ -369,9 +369,9 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                             ParseEbmlContainer(tracksBuffer, ref tOffset, read, info, ref context);
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Fallback / ignore seek error
+                        StaticLogger.Trace(ex, "EBML tracks element seek or parse error");
                     }
                     finally
                     {
@@ -2194,9 +2194,9 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 stream.Seek(0, SeekOrigin.Begin);
                 ParseMp4Stream(stream, info);
             }
-            catch
+            catch (Exception ex)
             {
-                // Fallback / ignore corrupted boxes
+                StaticLogger.Trace(ex, "MP4 stream parse failed on corrupted box");
             }
             finally
             {
@@ -2210,9 +2210,9 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
                 using var ms = new MemoryStream(header);
                 ParseMp4Stream(ms, info);
             }
-            catch
+            catch (Exception ex)
             {
-                // Fallback / ignore corrupted boxes
+                StaticLogger.Trace(ex, "MP4 header parse failed on corrupted box");
             }
         }
 

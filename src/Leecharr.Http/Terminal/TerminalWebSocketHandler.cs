@@ -9,12 +9,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Http.Security;
 using Microsoft.AspNetCore.Http;
+using NLog;
 using NzbDrone.Core.Configuration;
 
 namespace Leecharr.Http.Terminal;
 
 public static class TerminalWebSocketHandler
 {
+    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     public static bool IsAuthorized(HttpContext context, IConfigFileProvider configFileProvider)
     {
         if (configFileProvider == null || !configFileProvider.AuthenticationEnabled)
@@ -165,9 +167,9 @@ public static class TerminalWebSocketHandler
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Normal exit on disconnect / stream closed
+                Logger.Trace(ex, "PTY stream closed on client disconnect");
             }
             finally
             {
@@ -241,13 +243,13 @@ public static class TerminalWebSocketHandler
                                 }
                             }
                         }
-                        catch (JsonException)
+                        catch (JsonException ex)
                         {
-                            // Non-JSON input stream fallback
+                            Logger.Trace(ex, "WebSocket message is not JSON, treating as raw terminal input");
                         }
-                        catch (InvalidOperationException)
+                        catch (InvalidOperationException ex)
                         {
-                            // Malformed JSON element extraction fallback
+                            Logger.Trace(ex, "WebSocket JSON element extraction failed, treating as raw terminal input");
                         }
 
                         if (!isHandled && ms.Length > 0)
@@ -258,9 +260,9 @@ public static class TerminalWebSocketHandler
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Normal disconnect
+                Logger.Trace(ex, "WebSocket receive loop exited");
             }
             finally
             {
@@ -274,9 +276,9 @@ public static class TerminalWebSocketHandler
         {
             await Task.WhenAll(readPtyTask, receiveWsTask);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // PTY reading and WebSocket receive tasks are expected to be cancelled upon connection exit
+            Logger.Trace(ex, "Terminal session tasks cancelled during disconnect");
         }
 
         try
@@ -291,9 +293,9 @@ public static class TerminalWebSocketHandler
                     CancellationToken.None);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignored on socket close
+            Logger.Trace(ex, "Failed to send exit message or close WebSocket gracefully");
         }
         finally
         {
