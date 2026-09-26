@@ -119,8 +119,9 @@ public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticat
                             rolesList = JsonSerializer.Deserialize<List<string>>(user.Roles) ?? new List<string> { "User" };
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        this.Logger.LogTrace(ex, "Failed to deserialize user roles; defaulting to User");
                         rolesList = new List<string> { "User" };
                     }
 
