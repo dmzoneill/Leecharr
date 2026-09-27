@@ -80,4 +80,50 @@ public class QBittorrentSearchAndPluginMatrixIntegrationTests : IntegrationTestB
             delResp.StatusCode.Should().Be(HttpStatusCode.OK);
         }
     }
+
+    [Test]
+    public async Task QBittorrentSearch_PluginManagement_InstallEnableUninstall_Succeeds()
+    {
+        // 1. Install plugin: POST /api/v2/search/installPlugin
+        var installResp = await this.Client.PostAsync("/api/v2/search/installPlugin", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            { "sources", "https://example.com/piratebay.py|https://example.com/1337x.py" },
+        }));
+        installResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // 2. Enable / Disable plugin: POST /api/v2/search/enablePlugin
+        var disableResp = await this.Client.PostAsync("/api/v2/search/enablePlugin", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            { "names", "piratebay" },
+            { "enable", "false" },
+        }));
+        disableResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var enableResp = await this.Client.PostAsync("/api/v2/search/enablePlugin", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            { "names", "piratebay" },
+            { "enable", "true" },
+        }));
+        enableResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // 3. Uninstall plugin: POST /api/v2/search/uninstallPlugin
+        var uninstallResp = await this.Client.PostAsync("/api/v2/search/uninstallPlugin", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            { "names", "piratebay|1337x" },
+        }));
+        uninstallResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // 4. Bad request validations
+        var emptyInstall = await this.Client.PostAsync("/api/v2/search/installPlugin", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            { "sources", string.Empty },
+        }));
+        emptyInstall.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var emptyUninstall = await this.Client.PostAsync("/api/v2/search/uninstallPlugin", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            { "names", string.Empty },
+        }));
+        emptyUninstall.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
 }
