@@ -1495,16 +1495,7 @@ public class TorznabClientComprehensiveIntegrationTests : IntegrationTestBase
     public void ParseTorznabFeedXml_SanitizesControlCharactersAndUnescapedAmpersands()
     {
         // XML contains control char \x01 and unescaped '&' in title
-        var xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
-                  "<rss version=\"2.0\">\n" +
-                  "    <channel>\n" +
-                  "        <item>\n" +
-                  "            <title>Rock \x01 & Roll &amp; Metal 2026</title>\n" +
-                  "            <guid>ctrl-1</guid>\n" +
-                  "            <link>http://tracker/1</link>\n" +
-                  "        </item>\n" +
-                  "    </channel>\n" +
-                  "</rss>";
+        var xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><rss version=\"2.0\"><channel><item><title>Rock \x01 & Roll &amp; Metal 2026</title><guid>ctrl-1</guid><link>http://tracker/1</link></item></channel></rss>";
 
         var client = new TorznabClient(this.configService);
         var results = client.ParseTorznabFeedXml(xml);
