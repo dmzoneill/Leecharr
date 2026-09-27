@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.29.19](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.19) - 2026-09-27
+
+### 🐛 Bug Fixes
+- fix(lint): enforce 4-space multiple indentation on Torznab XML test literal
+
+### 🔧 Maintenance & Improvements
+- test(integration): wave 17 coverage surge across torznab, nat-pmp, qbittorrent search plugins, and torrent endpoints
+
 ## [v1.29.18](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.18) - 2026-09-27
 
 ### 🔧 Maintenance & Improvements
