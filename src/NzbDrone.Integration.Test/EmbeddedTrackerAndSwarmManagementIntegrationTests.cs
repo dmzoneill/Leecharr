@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
@@ -128,5 +129,40 @@ public class EmbeddedTrackerAndSwarmManagementIntegrationTests : IntegrationTest
 
         // 3. Prune snapshots
         this.metricService.PruneSnapshots(DateTime.UtcNow.AddDays(-30));
+    }
+
+    [Test]
+    public async Task EmbeddedTrackerController_HttpEndpoints_AnnounceScrapeAndStats_Succeed()
+    {
+        const string hashHex = "8888888888888888888888888888888888888888";
+
+        // 1. GET /announce
+        var announceUrl = $"/announce?info_hash={hashHex}&peer_id=peertest123456789012&port=6881&uploaded=500&downloaded=1000&left=2000&compact=1&event=started";
+        var annResp = await this.Client.GetAsync(announceUrl);
+        annResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var annBytes = await annResp.Content.ReadAsByteArrayAsync();
+        annBytes.Length.Should().BeGreaterThan(0);
+
+        // 2. GET /scrape
+        var scrapeUrl = $"/scrape?info_hash={hashHex}";
+        var scrapeResp = await this.Client.GetAsync(scrapeUrl);
+        scrapeResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var scrapeBytes = await scrapeResp.Content.ReadAsByteArrayAsync();
+        scrapeBytes.Length.Should().BeGreaterThan(0);
+
+        // 3. GET /api/v1/trackerserver/stats and /api/v1/tracker/stats
+        var statsResp = await this.Client.GetAsync("/api/v1/trackerserver/stats");
+        statsResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var altStatsResp = await this.Client.GetAsync("/api/v1/tracker/stats");
+        altStatsResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // 4. GET /api/v1/trackerserver/torrents
+        var torrentsResp = await this.Client.GetAsync("/api/v1/trackerserver/torrents");
+        torrentsResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // 5. GET /api/v1/trackerserver/torrents/{infoHash}/peers
+        var peersResp = await this.Client.GetAsync($"/api/v1/trackerserver/torrents/{hashHex}/peers");
+        peersResp.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 }
