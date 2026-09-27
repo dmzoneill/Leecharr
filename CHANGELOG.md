@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.29.16](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.16) - 2026-09-27
+
+### 🔧 Maintenance & Improvements
+- test(integration): wave 14 coverage surge across download history, backup, deluge, and servarr sync
+
 ## [v1.29.15](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.15) - 2026-09-27
 
 ### 🔧 Maintenance & Improvements
