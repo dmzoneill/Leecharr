@@ -3341,6 +3341,57 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         return this.Ok(this.qbittorrentSearchService.GetPlugins());
     }
 
+    [HttpGet("search/installPlugin")]
+    [HttpPost("search/installPlugin")]
+    public ActionResult InstallPlugin(
+        [FromQuery] string sources = null,
+        [FromForm(Name = "sources")] string formSources = null)
+    {
+        var targetSources = !string.IsNullOrWhiteSpace(formSources) ? formSources : sources;
+        if (string.IsNullOrWhiteSpace(targetSources))
+        {
+            return this.BadRequest("Sources parameter is required.");
+        }
+
+        this.qbittorrentSearchService.InstallPlugin(targetSources);
+        return this.Content("Ok.", "text/plain");
+    }
+
+    [HttpGet("search/uninstallPlugin")]
+    [HttpPost("search/uninstallPlugin")]
+    public ActionResult UninstallPlugin(
+        [FromQuery] string names = null,
+        [FromForm(Name = "names")] string formNames = null)
+    {
+        var targetNames = !string.IsNullOrWhiteSpace(formNames) ? formNames : names;
+        if (string.IsNullOrWhiteSpace(targetNames))
+        {
+            return this.BadRequest("Names parameter is required.");
+        }
+
+        this.qbittorrentSearchService.UninstallPlugin(targetNames);
+        return this.Content("Ok.", "text/plain");
+    }
+
+    [HttpGet("search/enablePlugin")]
+    [HttpPost("search/enablePlugin")]
+    public ActionResult EnablePlugin(
+        [FromQuery] string names = null,
+        [FromQuery] bool? enable = null,
+        [FromForm(Name = "names")] string formNames = null,
+        [FromForm(Name = "enable")] bool? formEnable = null)
+    {
+        var targetNames = !string.IsNullOrWhiteSpace(formNames) ? formNames : names;
+        var targetEnable = formEnable ?? enable ?? true;
+        if (string.IsNullOrWhiteSpace(targetNames))
+        {
+            return this.BadRequest("Names parameter is required.");
+        }
+
+        this.qbittorrentSearchService.EnablePlugin(targetNames, targetEnable);
+        return this.Content("Ok.", "text/plain");
+    }
+
     [HttpGet("search/categories")]
     public ActionResult GetSearchCategories()
     {
