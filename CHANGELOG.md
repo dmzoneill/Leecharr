@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.29.7](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.7) - 2026-09-27
+
+### 🔧 Maintenance & Improvements
+- test: expand integration coverage across TorrentFileParser, P2P blocklist, and UDP tracker
+
 ## [v1.29.6](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.6) - 2026-09-27
 
 ### 🐛 Bug Fixes
