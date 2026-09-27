@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.29.17](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.17) - 2026-09-27
+
+### 🔧 Maintenance & Improvements
+- test(integration): wave 15 coverage surge across nzbget, custom script, and transmission
+
 ## [v1.29.16](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.16) - 2026-09-27
 
 ### 🔧 Maintenance & Improvements
