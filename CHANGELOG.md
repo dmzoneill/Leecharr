@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.29.11](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.11) - 2026-09-27
+
+### 🔧 Maintenance & Improvements
+- test: expand integration coverage across WebhookDispatcher and QBittorrent search service
+
 ## [v1.29.10](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.10) - 2026-09-27
 
 ### 🔧 Maintenance & Improvements
