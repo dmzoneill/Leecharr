@@ -2741,7 +2741,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         try
         {
             Directory.CreateDirectory(newSavePath);
-            await task.Manager.MoveFilesAsync(newSavePath, moveFiles).ConfigureAwait(false);
+            if (task.Manager.Torrent != null)
+            {
+                await task.Manager.MoveFilesAsync(newSavePath, moveFiles).ConfigureAwait(false);
+            }
 
             task.WorkingPath = newSavePath;
             task.SavePath = newSavePath;
@@ -2773,7 +2776,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         catch (Exception ex)
         {
             this.logger.Error(ex, "Failed to move files for torrent {0} to '{1}'", torrentId, newSavePath);
-            if (moveFiles && !string.IsNullOrWhiteSpace(oldSavePath) && !string.Equals(oldSavePath, newSavePath, StringComparison.OrdinalIgnoreCase))
+            if (moveFiles && task.Manager.Torrent != null && !string.IsNullOrWhiteSpace(oldSavePath) && !string.Equals(oldSavePath, newSavePath, StringComparison.OrdinalIgnoreCase))
             {
                 try
                 {
