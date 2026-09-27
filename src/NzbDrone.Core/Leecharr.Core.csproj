@@ -38,5 +38,6 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Leecharr.Core.Test" />
+    <InternalsVisibleTo Include="Leecharr.Integration.Test" />
   </ItemGroup>
 </Project>
