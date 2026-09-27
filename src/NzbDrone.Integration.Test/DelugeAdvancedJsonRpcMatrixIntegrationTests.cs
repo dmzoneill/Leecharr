@@ -166,4 +166,153 @@ public class DelugeAdvancedJsonRpcMatrixIntegrationTests : IntegrationTestBase
             await this.DeleteAsync($"/api/v1/torrents/{torrentId}?deleteFiles=false");
         }
     }
+
+    [Test]
+    public async Task Deluge_StatsAndCoreConfig_ReturnSystemInformation()
+    {
+        var id = 300;
+
+        // 1. stats.get_stats unfiltered
+        var statsReq = new { method = "stats.get_stats", @params = new object[0], id = id++ };
+        var statsResp = await this.PostJsonAsync("/json", statsReq);
+        statsResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var statsDoc = JsonDocument.Parse(await statsResp.Content.ReadAsStringAsync());
+        statsDoc.RootElement.GetProperty("result").GetProperty("free_space").GetInt64().Should().BeGreaterThanOrEqualTo(0);
+
+        // 2. stats.get_stats filtered by specific keys
+        var filteredStatsReq = new
+        {
+            method = "stats.get_stats",
+            @params = new object[] { new string[] { "download_rate", "upload_rate", "free_space" } },
+            id = id++,
+        };
+        var filteredResp = await this.PostJsonAsync("/json", filteredStatsReq);
+        filteredResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var filteredDoc = JsonDocument.Parse(await filteredResp.Content.ReadAsStringAsync());
+        filteredDoc.RootElement.GetProperty("result").TryGetProperty("free_space", out _).Should().BeTrue();
+
+        // 3. core.get_config
+        var getCfgReq = new { method = "core.get_config", @params = new object[0], id = id++ };
+        var getCfgResp = await this.PostJsonAsync("/json", getCfgReq);
+        getCfgResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // 4. core.set_config
+        var setCfgReq = new
+        {
+            method = "core.set_config",
+            @params = new object[]
+            {
+                new Dictionary<string, object>
+                {
+                    { "max_download_speed", 5120 },
+                    { "max_upload_speed", 2048 },
+                },
+            },
+            id = id++,
+        };
+        var setCfgResp = await this.PostJsonAsync("/json", setCfgReq);
+        setCfgResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // 5. core.get_free_space, core.get_path_size, core.get_listen_port, core.get_session_status
+        var freeSpaceReq = new { method = "core.get_free_space", @params = new object[] { "/downloads" }, id = id++ };
+        var freeSpaceResp = await this.PostJsonAsync("/json", freeSpaceReq);
+        freeSpaceResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var listenPortReq = new { method = "core.get_listen_port", @params = new object[0], id = id++ };
+        var listenPortResp = await this.PostJsonAsync("/json", listenPortReq);
+        listenPortResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var sessStatusReq = new { method = "core.get_session_status", @params = new object[] { new string[] { "has_incoming_connections", "upload_rate" } }, id = id++ };
+        var sessStatusResp = await this.PostJsonAsync("/json", sessStatusReq);
+        sessStatusResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // 6. web.update_ui
+        var updateUiReq = new
+        {
+            method = "web.update_ui",
+            @params = new object[]
+            {
+                new string[] { "name", "state", "progress" },
+                new Dictionary<string, object>(),
+            },
+            id = id++,
+        };
+        var updateUiResp = await this.PostJsonAsync("/json", updateUiReq);
+        updateUiResp.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Test]
+    public async Task Deluge_CoreQueueAndStorageManagement_ExecutesSuccessfully()
+    {
+        const string queueHash = "b555555555555555555555555555555555555555";
+        var addResp = await this.PostJsonAsync("/api/v1/torrents", new
+        {
+            magnetLink = $"magnet:?xt=urn:btih:{queueHash}&dn=DelugeQueueTestMovie",
+            category = "deluge-queue-cat",
+            paused = true,
+        });
+        addResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var addDoc = JsonDocument.Parse(await addResp.Content.ReadAsStringAsync());
+        var torrentId = addDoc.RootElement.GetProperty("id").GetInt32();
+
+        try
+        {
+            var id = 400;
+
+            // 1. web.get_torrent_status
+            var getStatusReq = new
+            {
+                method = "web.get_torrent_status",
+                @params = new object[]
+                {
+                    queueHash,
+                    new string[] { "name", "state", "progress", "save_path", "total_size" },
+                },
+                id = id++,
+            };
+            var getStatusResp = await this.PostJsonAsync("/json", getStatusReq);
+            getStatusResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            // 2. web.get_torrent_files
+            var getFilesReq = new { method = "web.get_torrent_files", @params = new object[] { queueHash }, id = id++ };
+            var getFilesResp = await this.PostJsonAsync("/json", getFilesReq);
+            getFilesResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            // 3. Queue operations: queue_top, queue_bottom, queue_up, queue_down
+            var queueMethods = new[] { "core.queue_top", "core.queue_up", "core.queue_down", "core.queue_bottom" };
+            foreach (var qm in queueMethods)
+            {
+                var qReq = new { method = qm, @params = new object[] { new string[] { queueHash } }, id = id++ };
+                var qResp = await this.PostJsonAsync("/json", qReq);
+                qResp.StatusCode.Should().Be(HttpStatusCode.OK);
+            }
+
+            // 4. Force recheck and reannounce
+            var recheckReq = new { method = "core.force_recheck", @params = new object[] { new string[] { queueHash } }, id = id++ };
+            var recheckResp = await this.PostJsonAsync("/json", recheckReq);
+            recheckResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var reannounceReq = new { method = "core.force_reannounce", @params = new object[] { new string[] { queueHash } }, id = id++ };
+            var reannounceResp = await this.PostJsonAsync("/json", reannounceReq);
+            reannounceResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            // 5. Pause and resume
+            var pauseReq = new { method = "core.pause_torrent", @params = new object[] { new string[] { queueHash } }, id = id++ };
+            var pauseResp = await this.PostJsonAsync("/json", pauseReq);
+            pauseResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var resumeReq = new { method = "core.resume_torrent", @params = new object[] { new string[] { queueHash } }, id = id++ };
+            var resumeResp = await this.PostJsonAsync("/json", resumeReq);
+            resumeResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            // 6. Move storage
+            var moveReq = new { method = "core.move_storage", @params = new object[] { new string[] { queueHash }, "/downloads/moved" }, id = id++ };
+            var moveResp = await this.PostJsonAsync("/json", moveReq);
+            moveResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+        finally
+        {
+            await this.DeleteAsync($"/api/v1/torrents/{torrentId}?deleteFiles=true");
+        }
+    }
 }
