@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.29.13](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.13) - 2026-09-27
+
+### 🔧 Maintenance & Improvements
+- test: expand integration coverage across Arr connections, auth providers, and notification event handling
+
 ## [v1.29.12](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.12) - 2026-09-27
 
 ### 🔧 Maintenance & Improvements
