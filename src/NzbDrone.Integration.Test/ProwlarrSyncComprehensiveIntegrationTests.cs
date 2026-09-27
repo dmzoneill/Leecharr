@@ -40,31 +40,31 @@ public class ProwlarrSyncComprehensiveIntegrationTests : IntegrationTestBase
         var indexerRepo = (IIndexerRepository)services.GetService(typeof(IIndexerRepository))!;
 
         var prowlarrJson = @"[
-          {
-            ""id"": 10,
-            ""name"": ""Prowlarr Torrent Indexer A"",
-            ""implementation"": ""Torznab"",
-            ""enable"": true,
-            ""priority"": 15,
-            ""protocol"": ""torrent"",
-            ""fields"": [
-                { ""name"": ""baseUrl"", ""value"": ""https://tracker-a.example.org"" }
-            ],
-            ""capabilities"": {
-                ""categories"": [
-                    { ""id"": 2000, ""name"": ""Movies"" },
-                    { ""id"": 5000, ""name"": ""TV"" }
-                ]
+            {
+                ""id"": 10,
+                ""name"": ""Prowlarr Torrent Indexer A"",
+                ""implementation"": ""Torznab"",
+                ""enable"": true,
+                ""priority"": 15,
+                ""protocol"": ""torrent"",
+                ""fields"": [
+                    { ""name"": ""baseUrl"", ""value"": ""https://tracker-a.example.org"" }
+                ],
+                ""capabilities"": {
+                    ""categories"": [
+                        { ""id"": 2000, ""name"": ""Movies"" },
+                        { ""id"": 5000, ""name"": ""TV"" }
+                    ]
+                }
+            },
+            {
+                ""id"": 20,
+                ""name"": ""Prowlarr Usenet Indexer B"",
+                ""implementation"": ""Newznab"",
+                ""enable"": true,
+                ""priority"": 50,
+                ""protocol"": ""usenet""
             }
-          },
-          {
-            ""id"": 20,
-            ""name"": ""Prowlarr Usenet Indexer B"",
-            ""implementation"": ""Newznab"",
-            ""enable"": true,
-            ""priority"": 50,
-            ""protocol"": ""usenet""
-          }
         ]";
 
         var mockHandler = new MockHttpMessageHandler(req =>
@@ -143,14 +143,14 @@ public class ProwlarrSyncComprehensiveIntegrationTests : IntegrationTestBase
         arrRepo.All().Returns(mockConnections);
 
         var prowlarrJson = @"[
-          {
-            ""id"": 101,
-            ""name"": ""Prowlarr Tracker Alpha"",
-            ""implementation"": ""Torznab"",
-            ""enable"": true,
-            ""protocol"": ""torrent"",
-            ""priority"": 20
-          }
+            {
+                ""id"": 101,
+                ""name"": ""Prowlarr Tracker Alpha"",
+                ""implementation"": ""Torznab"",
+                ""enable"": true,
+                ""protocol"": ""torrent"",
+                ""priority"": 20
+            }
         ]";
 
         var mockHandler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
