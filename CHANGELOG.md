@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.29.21](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.21) - 2026-09-27
+
+### 🐛 Bug Fixes
+- fix(lint): align verbatim JSON string indentation to multiple of 4 spaces
+
+### 🔧 Maintenance & Improvements
+- test(integration): add SignalRAndDiskProviderComprehensiveIntegrationTests driving Leecharr.SignalR to 74.90% and Leecharr.Common to 50.94%
+- test(integration): add HttpPipelineAndTerminalSecurityComprehensiveIntegrationTests boosting Leecharr.Http to 67.91% and overall line coverage to 54.30%
+- test(integration): expand Aria2 XML-RPC methods to cross 60% coverage in Api.V1
+- test(integration): add Wave 31 suite for Transmission RPC and uTorrent WebUI mutations
+- test(integration): add Wave 30 suite for subsystems management controller
+- test(integration): add Wave 29 suite for system database and developer controller
+- test(integration): add Wave 28 suite for Flood WebUI API controller
+- test(integration): add Wave 27 suite for RuleHeuristicAiProvider
+- test(integration): add Wave 26 suite for Prowlarr indexer sync service
+- test(integration): add Wave 25 suites for torrent creation and queue manager service
+- test(integration): add Wave 24 suites for package export and package import service
+- test(integration): add Wave 23 suites for Arr webhooks and indexer management
+- test(integration): add Wave 22 suites for automation marketplace and auth/saml
+- test(integration): add HttpSecurityAndAuthenticationComprehensiveIntegrationTests for Leecharr.Http
+- test(integration): add HadoukenRpcComprehensiveIntegrationTests for Hadouken RPC controller
+- test: add comprehensive integration tests for NotificationEventHandler and Webhook notifications
+- test(integration): add waves 19 and 20 suites for storage, qbit, streaming, rtorrent, and mediainfo
+
 ## [v1.29.20](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.20) - 2026-09-27
 
 ### 🔧 Maintenance & Improvements
