@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.29.8](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.8) - 2026-09-27
+
+### 🔧 Maintenance & Improvements
+- test: add CustomScript and ServarrMetadata tests and enable InternalsVisibleTo for integration tests
+
 ## [v1.29.7](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.7) - 2026-09-27
 
 ### 🔧 Maintenance & Improvements
