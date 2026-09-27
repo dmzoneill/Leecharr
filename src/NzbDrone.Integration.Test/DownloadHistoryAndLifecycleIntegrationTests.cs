@@ -56,6 +56,10 @@ public class DownloadHistoryAndLifecycleIntegrationTests : IntegrationTestBase
             // 6. Test delete with non-existent id
             var delResp = await this.Client.DeleteAsync("/api/v1/downloadhistory/999999");
             delResp.StatusCode.Should().BeOneOf(HttpStatusCode.OK, HttpStatusCode.NotFound, HttpStatusCode.NoContent);
+
+            // 7. Test readd on non-existent id
+            var readdNotFound = await this.PostJsonAsync("/api/v1/downloadhistory/999999/readd", new { });
+            readdNotFound.StatusCode.Should().Be(HttpStatusCode.NotFound);
         }
         finally
         {
