@@ -178,4 +178,49 @@ public class TorrentManagementDeepEndpointsIntegrationTests : IntegrationTestBas
             await this.DeleteAsync($"/api/v1/torrents/{torrentId}?deleteFiles=false");
         }
     }
+
+    [Test]
+    public async Task Torrent_PreviewAndCreationAndGrab_EndpointsSucceed()
+    {
+        // 1. POST /api/v1/torrents/preview with magnet URI
+        var magnetUri = "magnet:?xt=urn:btih:7777777777777777777777777777777777777777&dn=PreviewTestMovie";
+        var previewMagnetResp = await this.PostJsonAsync("/api/v1/torrents/preview", new
+        {
+            magnetLink = magnetUri,
+        });
+        previewMagnetResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var prevDoc = JsonDocument.Parse(await previewMagnetResp.Content.ReadAsStringAsync());
+        prevDoc.RootElement.GetProperty("name").GetString().Should().Be("PreviewTestMovie");
+        prevDoc.RootElement.GetProperty("infoHash").GetString().Should().Be("7777777777777777777777777777777777777777");
+
+        // 2. POST /api/v1/torrents/preview with invalid base64 payload
+        var badBase64Resp = await this.PostJsonAsync("/api/v1/torrents/preview", new
+        {
+            torrentBase64 = "not-valid-base-64!!!",
+        });
+        badBase64Resp.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        // 3. POST /api/v1/torrents/create validation (empty path -> 400)
+        var badCreateResp = await this.PostJsonAsync("/api/v1/torrents/create", new
+        {
+            path = string.Empty,
+        });
+        badCreateResp.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        // 4. POST /api/v1/torrents/grab with magnet link
+        const string grabHash = "9999999999999999999999999999999999999999";
+        var grabResp = await this.PostJsonAsync("/api/v1/torrents/grab", new
+        {
+            magnetLink = $"magnet:?xt=urn:btih:{grabHash}&dn=GrabbedMovieItem",
+            category = "grab-cat",
+            paused = true,
+        });
+        grabResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var grabDoc = JsonDocument.Parse(await grabResp.Content.ReadAsStringAsync());
+        var grabbedId = grabDoc.RootElement.GetProperty("id").GetInt32();
+        grabbedId.Should().BeGreaterThan(0);
+
+        // Cleanup
+        await this.DeleteAsync($"/api/v1/torrents/{grabbedId}?deleteData=true");
+    }
 }

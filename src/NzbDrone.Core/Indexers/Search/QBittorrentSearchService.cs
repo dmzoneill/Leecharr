@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -41,6 +42,8 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
     private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
     private readonly ConcurrentDictionary<int, QBittorrentSearchJob> activeJobs = new();
+    private readonly ConcurrentDictionary<string, (string FullName, string Url, bool Enabled)> installedPlugins = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, bool> pluginEnabledOverrides = new(StringComparer.OrdinalIgnoreCase);
     private readonly Timer cleanupTimer;
     private readonly int maxJobs;
     private readonly TimeSpan jobTtl;
@@ -442,6 +445,7 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
     public List<object> GetPlugins()
     {
         var plugins = new List<object>();
+        var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var indexers = this.indexerRepository != null
             ? this.indexerRepository.GetSearchEnabled().ToList()
             : new List<IndexerDefinition>();
@@ -450,31 +454,129 @@ public class QBittorrentSearchService : IQBittorrentSearchService, IDisposable
         {
             foreach (var idx in indexers)
             {
+                var isEnabled = this.pluginEnabledOverrides.TryGetValue(idx.Name, out var over) ? over : idx.Enable;
+                seenNames.Add(idx.Name);
                 plugins.Add(new
                 {
                     name = idx.Name,
                     fullName = $"{idx.Name} (Torznab)",
                     version = "1.0",
                     url = idx.Url,
-                    enabled = idx.Enable,
+                    enabled = isEnabled,
                     supportedCategories = new[] { "all", "movies", "tv", "music", "anime", "software" },
                 });
             }
         }
         else
         {
+            var isDefaultEnabled = this.pluginEnabledOverrides.TryGetValue("Leecharr Torznab Hub", out var hubOver) ? hubOver : true;
+            seenNames.Add("Leecharr Torznab Hub");
             plugins.Add(new
             {
                 name = "Leecharr Torznab Hub",
                 fullName = "Leecharr Unified Torznab Indexer Hub",
                 version = "1.0",
                 url = "https://github.com/Leecharr/Leecharr",
-                enabled = true,
+                enabled = isDefaultEnabled,
+                supportedCategories = new[] { "all", "movies", "tv", "music", "anime", "software" },
+            });
+        }
+
+        foreach (var kvp in this.installedPlugins)
+        {
+            if (seenNames.Contains(kvp.Key))
+            {
+                continue;
+            }
+
+            var isEnabled = this.pluginEnabledOverrides.TryGetValue(kvp.Key, out var over) ? over : kvp.Value.Enabled;
+            plugins.Add(new
+            {
+                name = kvp.Key,
+                fullName = kvp.Value.FullName,
+                version = "1.0",
+                url = kvp.Value.Url,
+                enabled = isEnabled,
                 supportedCategories = new[] { "all", "movies", "tv", "music", "anime", "software" },
             });
         }
 
         return plugins;
+    }
+
+    public bool InstallPlugin(string sources)
+    {
+        if (string.IsNullOrWhiteSpace(sources))
+        {
+            return false;
+        }
+
+        var sourceList = sources.Split(new[] { '|', ',' }, StringSplitOptions.RemoveEmptyEntries);
+        var installed = false;
+        foreach (var src in sourceList)
+        {
+            var trimmed = src.Trim();
+            if (string.IsNullOrWhiteSpace(trimmed))
+            {
+                continue;
+            }
+
+            var name = Path.GetFileNameWithoutExtension(trimmed);
+            if (string.IsNullOrWhiteSpace(name) || name.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            {
+                name = trimmed;
+            }
+
+            this.installedPlugins[name] = (name, trimmed, true);
+            this.pluginEnabledOverrides[name] = true;
+            installed = true;
+        }
+
+        return installed;
+    }
+
+    public bool UninstallPlugin(string names)
+    {
+        if (string.IsNullOrWhiteSpace(names))
+        {
+            return false;
+        }
+
+        var nameList = names.Split(new[] { '|', ',' }, StringSplitOptions.RemoveEmptyEntries);
+        var anyRemoved = false;
+        foreach (var name in nameList)
+        {
+            var trimmed = name.Trim();
+            if (this.installedPlugins.TryRemove(trimmed, out _))
+            {
+                anyRemoved = true;
+            }
+
+            this.pluginEnabledOverrides.TryRemove(trimmed, out _);
+        }
+
+        return anyRemoved;
+    }
+
+    public bool EnablePlugin(string names, bool enable)
+    {
+        if (string.IsNullOrWhiteSpace(names))
+        {
+            return false;
+        }
+
+        var nameList = names.Split(new[] { '|', ',' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var name in nameList)
+        {
+            var trimmed = name.Trim();
+            this.pluginEnabledOverrides[trimmed] = enable;
+            if (this.installedPlugins.TryGetValue(trimmed, out var existing))
+            {
+                this.installedPlugins[trimmed] = (existing.FullName, existing.Url, enable);
+            }
+        }
+
+        return true;
     }
 
     public List<string> GetCategories()

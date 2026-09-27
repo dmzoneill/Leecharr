@@ -59,4 +59,10 @@ public interface IQBittorrentSearchService
     List<string> GetCategories();
 
     int PruneExpiredJobs(TimeSpan? ttl = null);
+
+    bool InstallPlugin(string sources);
+
+    bool UninstallPlugin(string names);
+
+    bool EnablePlugin(string names, bool enable);
 }
