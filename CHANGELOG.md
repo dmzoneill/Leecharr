@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.29.12](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.12) - 2026-09-27
+
+### 🔧 Maintenance & Improvements
+- test: expand integration coverage across EmbeddedTracker swarms and RTorrent XML-RPC multicalls
+
 ## [v1.29.11](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.11) - 2026-09-27
 
 ### 🔧 Maintenance & Improvements
