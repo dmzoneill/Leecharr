@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text.Json;
@@ -253,5 +254,118 @@ public class YamlAutomationExecutionComprehensiveIntegrationTests : IntegrationT
         emptyResp.StatusCode.Should().Be(HttpStatusCode.OK);
         var emptyDoc = JsonDocument.Parse(await emptyResp.Content.ReadAsStringAsync());
         emptyDoc.RootElement.GetProperty("success").GetBoolean().Should().BeTrue();
+    }
+
+    [Test]
+    public async Task YamlWorkflow_AdvancedMathChecksumAndFileActions_ExecutesSuccessfully()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"chk_{System.Guid.NewGuid():N}.txt");
+        await File.WriteAllTextAsync(tempFile, "checksum test content 12345");
+
+        try
+        {
+            var yamlCode = string.Join("\n", new[]
+            {
+                "name: Math and Checksum Workflow",
+                "steps:",
+                "  - name: Math Evaluation",
+                "    actions:",
+                "      - evalMath:",
+                "          expression: '5 * 10 + 20 / 4'",
+                "          targetVariable: computedMath",
+                "      - calculateChecksum:",
+                $"          path: '{tempFile.Replace("\\", "/")}'",
+                "          targetVariable: fileHash",
+                "      - log: 'Math result: ${computedMath}, Hash: ${fileHash}'",
+                "  - name: Condition On Computed Math",
+                "    condition: '${computedMath} == 55'",
+                "    actions:",
+                "      - log: 'Math verification succeeded'",
+            });
+
+            var req = new
+            {
+                script = new
+                {
+                    name = "Test Math and Checksum",
+                    language = 1,
+                    trigger = 0,
+                    code = yamlCode,
+                },
+            };
+
+            var resp = await this.PostJsonAsync("/api/v1/automation/test", req);
+            resp.StatusCode.Should().Be(HttpStatusCode.OK);
+            var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+            var log = doc.RootElement.GetProperty("outputLog").GetString();
+            log.Should().Contain("Math result: 55");
+            log.Should().Contain("Math verification succeeded");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    [Test]
+    public async Task YamlWorkflow_ComprehensiveConditionOperators_EvaluatesAllBranches()
+    {
+        var yamlCode = string.Join("\n", new[]
+        {
+            "name: Condition Operators Test",
+            "steps:",
+            "  - name: Setup Variables",
+            "    actions:",
+            "      - setVariable:",
+            "          key: sampleText",
+            "          value: 'The quick brown fox jumps over'",
+            "      - setVariable:",
+            "          key: numValue",
+            "          value: 42",
+            "  - name: Contains Check",
+            "    condition: \"contains(${sampleText}, 'brown fox')\"",
+            "    actions:",
+            "      - log: 'Contains passed'",
+            "  - name: StartsWith Check",
+            "    condition: \"startsWith(${sampleText}, 'The quick')\"",
+            "    actions:",
+            "      - log: 'StartsWith passed'",
+            "  - name: EndsWith Check",
+            "    condition: \"endsWith(${sampleText}, 'over')\"",
+            "    actions:",
+            "      - log: 'EndsWith passed'",
+            "  - name: Numeric Range Check",
+            "    condition: '${numValue} >= 40 && ${numValue} <= 50'",
+            "    actions:",
+            "      - log: 'Range passed'",
+            "  - name: Negative Check",
+            "    condition: '${numValue} != 99'",
+            "    actions:",
+            "      - log: 'Inequality passed'",
+        });
+
+        var req = new
+        {
+            script = new
+            {
+                name = "Test Condition Operators",
+                language = 1,
+                trigger = 0,
+                code = yamlCode,
+            },
+        };
+
+        var resp = await this.PostJsonAsync("/api/v1/automation/test", req);
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+        var log = doc.RootElement.GetProperty("outputLog").GetString();
+        log.Should().Contain("Contains passed");
+        log.Should().Contain("StartsWith passed");
+        log.Should().Contain("EndsWith passed");
+        log.Should().Contain("Range passed");
+        log.Should().Contain("Inequality passed");
     }
 }
