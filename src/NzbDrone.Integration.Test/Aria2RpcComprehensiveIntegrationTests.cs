@@ -452,4 +452,62 @@ public class Aria2RpcComprehensiveIntegrationTests : IntegrationTestBase
         var xmlResult = await xmlResp.Content.ReadAsStringAsync();
         xmlResult.Should().Contain("<methodResponse>");
     }
+
+    [Test]
+    public async Task Aria2_XmlRpc_ExtendedMethods_ExecuteSuccessfully()
+    {
+        // 1. XML-RPC aria2.getGlobalStat
+        var statXml = $"<?xml version=\"1.0\"?><methodCall><methodName>aria2.getGlobalStat</methodName><params><param><value><string>token:{this.ApiKey}</string></value></param></params></methodCall>";
+        var statResp = await this.Client.PostAsync("/rpc", new StringContent(statXml, Encoding.UTF8, "text/xml"));
+        statResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var statBody = await statResp.Content.ReadAsStringAsync();
+        statBody.Should().Contain("downloadSpeed");
+
+        // 2. XML-RPC aria2.getGlobalOption
+        var optXml = $"<?xml version=\"1.0\"?><methodCall><methodName>aria2.getGlobalOption</methodName><params><param><value><string>token:{this.ApiKey}</string></value></param></params></methodCall>";
+        var optResp = await this.Client.PostAsync("/rpc", new StringContent(optXml, Encoding.UTF8, "text/xml"));
+        optResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // 3. XML-RPC aria2.tellActive
+        var activeXml = $"<?xml version=\"1.0\"?><methodCall><methodName>aria2.tellActive</methodName><params><param><value><string>token:{this.ApiKey}</string></value></param></params></methodCall>";
+        var activeResp = await this.Client.PostAsync("/rpc", new StringContent(activeXml, Encoding.UTF8, "text/xml"));
+        activeResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // 4. XML-RPC aria2.tellWaiting
+        var waitXml = $"<?xml version=\"1.0\"?><methodCall><methodName>aria2.tellWaiting</methodName><params><param><value><string>token:{this.ApiKey}</string></value></param><param><value><i4>0</i4></param><param><value><i4>10</i4></param></params></methodCall>";
+        var waitResp = await this.Client.PostAsync("/rpc", new StringContent(waitXml, Encoding.UTF8, "text/xml"));
+        waitResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // 5. XML-RPC aria2.tellStopped
+        var stopXml = $"<?xml version=\"1.0\"?><methodCall><methodName>aria2.tellStopped</methodName><params><param><value><string>token:{this.ApiKey}</string></value></param><param><value><i4>0</i4></param><param><value><i4>10</i4></param></params></methodCall>";
+        var stopResp = await this.Client.PostAsync("/rpc", new StringContent(stopXml, Encoding.UTF8, "text/xml"));
+        stopResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // 6. XML-RPC aria2.getServers
+        var srvXml = $"<?xml version=\"1.0\"?><methodCall><methodName>aria2.getServers</methodName><params><param><value><string>token:{this.ApiKey}</string></value></param><param><value><string>0000000000000000</string></value></param></params></methodCall>";
+        var srvResp = await this.Client.PostAsync("/rpc", new StringContent(srvXml, Encoding.UTF8, "text/xml"));
+        srvResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // 7. XML-RPC aria2.purgeDownloadResult
+        var purgeXml = $"<?xml version=\"1.0\"?><methodCall><methodName>aria2.purgeDownloadResult</methodName><params><param><value><string>token:{this.ApiKey}</string></value></param></params></methodCall>";
+        var purgeResp = await this.Client.PostAsync("/rpc", new StringContent(purgeXml, Encoding.UTF8, "text/xml"));
+        purgeResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // 8. XML-RPC aria2.tellStatus and aria2.getOption and aria2.getFiles
+        var statusXml = $"<?xml version=\"1.0\"?><methodCall><methodName>aria2.tellStatus</methodName><params><param><value><string>token:{this.ApiKey}</string></value></param><param><value><string>a2a2a2a2a2a2a2a2</string></value></param></params></methodCall>";
+        var statusResp = await this.Client.PostAsync("/rpc", new StringContent(statusXml, Encoding.UTF8, "text/xml"));
+        statusResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var getOptXml = $"<?xml version=\"1.0\"?><methodCall><methodName>aria2.getOption</methodName><params><param><value><string>token:{this.ApiKey}</string></value></param><param><value><string>a2a2a2a2a2a2a2a2</string></value></param></params></methodCall>";
+        var getOptResp = await this.Client.PostAsync("/rpc", new StringContent(getOptXml, Encoding.UTF8, "text/xml"));
+        getOptResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var getFilesXml = $"<?xml version=\"1.0\"?><methodCall><methodName>aria2.getFiles</methodName><params><param><value><string>token:{this.ApiKey}</string></value></param><param><value><string>a2a2a2a2a2a2a2a2</string></value></param></params></methodCall>";
+        var getFilesResp = await this.Client.PostAsync("/rpc", new StringContent(getFilesXml, Encoding.UTF8, "text/xml"));
+        getFilesResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var getUrisXml = $"<?xml version=\"1.0\"?><methodCall><methodName>aria2.getUris</methodName><params><param><value><string>token:{this.ApiKey}</string></value></param><param><value><string>a2a2a2a2a2a2a2a2</string></value></param></params></methodCall>";
+        var getUrisResp = await this.Client.PostAsync("/rpc", new StringContent(getUrisXml, Encoding.UTF8, "text/xml"));
+        getUrisResp.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
 }
