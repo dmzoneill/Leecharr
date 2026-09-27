@@ -375,4 +375,191 @@ public class TransmissionRpcTests : IntegrationTestBase
             await this.Client.SendAsync(removeReq);
         }
     }
+
+    [Test]
+    public async Task TorrentSet_AllPropertyMutations_Succeeds()
+    {
+        // 1. Get session id
+        var initial = await this.PostJsonAsync("/transmission/rpc", new { method = "session-get" });
+        var sessionId = initial.Headers.GetValues("X-Transmission-Session-Id");
+
+        // 2. Add a torrent for testing mutations
+        const string setHash = "f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1";
+        const string setName = "TransmissionSetTestTorrent";
+        var addResp = await this.PostJsonAsync("/api/v1/torrents", new
+        {
+            magnetLink = $"magnet:?xt=urn:btih:{setHash}&dn={setName}",
+            category = "set-cat",
+            paused = true,
+        });
+        addResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var addDoc = JsonDocument.Parse(await addResp.Content.ReadAsStringAsync());
+        var torrentId = addDoc.RootElement.GetProperty("id").GetInt32();
+
+        try
+        {
+            // Helper to send transmission RPC request
+            async Task SendTransmissionRpcAsync(object body)
+            {
+                var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/transmission/rpc")
+                {
+                    Content = new System.Net.Http.StringContent(JsonSerializer.Serialize(body), System.Text.Encoding.UTF8, "application/json"),
+                };
+                req.Headers.Add("X-Transmission-Session-Id", sessionId);
+                var resp = await this.Client.SendAsync(req);
+                resp.StatusCode.Should().Be(HttpStatusCode.OK);
+                var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+                doc.RootElement.GetProperty("result").GetString().Should().Be("success");
+            }
+
+            // 3. Mutate bandwidthPriority, labels, and limits
+            await SendTransmissionRpcAsync(new
+            {
+                method = "torrent-set",
+                arguments = new Dictionary<string, object>
+                {
+                    ["ids"] = new[] { torrentId },
+                    ["bandwidthPriority"] = 1,
+                    ["labels"] = new[] { "label-alpha", "label-beta" },
+                    ["downloadLimit"] = 10240,
+                    ["downloadLimited"] = true,
+                    ["uploadLimit"] = 5120,
+                    ["uploadLimited"] = true,
+                    ["seedRatioMode"] = 1,
+                    ["seedRatioLimit"] = 2.5,
+                    ["seedIdleMode"] = 1,
+                    ["seedIdleLimit"] = 90,
+                },
+                tag = 100,
+            });
+
+            // 4. Reset limits with downloadLimited = false and uploadLimited = false
+            await SendTransmissionRpcAsync(new
+            {
+                method = "torrent-set",
+                arguments = new Dictionary<string, object>
+                {
+                    ["ids"] = new[] { torrentId },
+                    ["downloadLimited"] = false,
+                    ["uploadLimited"] = false,
+                    ["seedRatioMode"] = 0,
+                    ["seedIdleMode"] = 0,
+                },
+                tag = 101,
+            });
+
+            // 5. Unlimited seedRatioMode = 2 and seedIdleMode = 2
+            await SendTransmissionRpcAsync(new
+            {
+                method = "torrent-set",
+                arguments = new Dictionary<string, object>
+                {
+                    ["ids"] = new[] { torrentId },
+                    ["seedRatioMode"] = 2,
+                    ["seedIdleMode"] = 2,
+                },
+                tag = 102,
+            });
+
+            // 6. Mutate trackers via trackerAdd, trackerList, and trackerReplace
+            await SendTransmissionRpcAsync(new
+            {
+                method = "torrent-set",
+                arguments = new Dictionary<string, object>
+                {
+                    ["ids"] = new[] { torrentId },
+                    ["trackerAdd"] = new[] { "http://tracker.trans-add1.org:80/announce", "http://tracker.trans-add2.org:80/announce" },
+                },
+                tag = 103,
+            });
+
+            await SendTransmissionRpcAsync(new
+            {
+                method = "torrent-set",
+                arguments = new Dictionary<string, object>
+                {
+                    ["ids"] = new[] { torrentId },
+                    ["trackerList"] = "http://tracker.tlist1.org:80/announce\nhttp://tracker.tlist2.org:80/announce",
+                },
+                tag = 104,
+            });
+
+            // 7. Clear labels
+            await SendTransmissionRpcAsync(new
+            {
+                method = "torrent-set",
+                arguments = new Dictionary<string, object>
+                {
+                    ["ids"] = new[] { torrentId },
+                    ["labels"] = new string[0],
+                },
+                tag = 105,
+            });
+        }
+        finally
+        {
+            await this.DeleteAsync($"/api/v1/torrents/{torrentId}?deleteData=true");
+        }
+    }
+
+    [Test]
+    public async Task SessionSet_AllConfigurationProperties_Succeeds()
+    {
+        // 1. Get session id
+        var initial = await this.PostJsonAsync("/transmission/rpc", new { method = "session-get" });
+        var sessionId = initial.Headers.GetValues("X-Transmission-Session-Id");
+
+        // Helper
+        async Task SendTransmissionRpcAsync(object body)
+        {
+            var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/transmission/rpc")
+            {
+                Content = new System.Net.Http.StringContent(JsonSerializer.Serialize(body), System.Text.Encoding.UTF8, "application/json"),
+            };
+            req.Headers.Add("X-Transmission-Session-Id", sessionId);
+            var resp = await this.Client.SendAsync(req);
+            resp.StatusCode.Should().Be(HttpStatusCode.OK);
+            var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+            doc.RootElement.GetProperty("result").GetString().Should().Be("success");
+        }
+
+        // 2. Set full suite of session settings
+        await SendTransmissionRpcAsync(new
+        {
+            method = "session-set",
+            arguments = new Dictionary<string, object>
+            {
+                ["alt-speed-down"] = 512,
+                ["alt-speed-up"] = 256,
+                ["alt-speed-enabled"] = true,
+                ["peer-port"] = 51413,
+                ["speed-limit-down"] = 10240,
+                ["speed-limit-down-enabled"] = true,
+                ["speed-limit-up"] = 5120,
+                ["speed-limit-up-enabled"] = true,
+                ["seedRatioLimit"] = 2.0,
+                ["seedRatioLimited"] = true,
+                ["blocklist-enabled"] = false,
+                ["blocklist-url"] = "http://example.com/blocklist.gz",
+                ["script-torrent-done-filename"] = "/scripts/done.sh",
+                ["script-torrent-added-filename"] = "/scripts/added.sh",
+                ["script-torrent-done-seeding-filename"] = "/scripts/seeding.sh",
+            },
+            tag = 200,
+        });
+
+        // 3. Disable limits and alt-speed
+        await SendTransmissionRpcAsync(new
+        {
+            method = "session-set",
+            arguments = new Dictionary<string, object>
+            {
+                ["alt-speed-enabled"] = false,
+                ["speed-limit-down-enabled"] = false,
+                ["speed-limit-up-enabled"] = false,
+                ["seedRatioLimited"] = false,
+            },
+            tag = 201,
+        });
+    }
 }
