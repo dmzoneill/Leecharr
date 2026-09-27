@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.29.20](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.20) - 2026-09-27
+
+### 🔧 Maintenance & Improvements
+- test(integration): wave 18 expand yaml automation with math, checksums, and condition operators
+
 ## [v1.29.19](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.19) - 2026-09-27
 
 ### 🐛 Bug Fixes
