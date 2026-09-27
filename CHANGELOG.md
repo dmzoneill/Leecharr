@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.29.6](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.6) - 2026-09-27
+
+### 🐛 Bug Fixes
+- fix(test): wait for broadcaster.IsConnected before sending broadcast message to eliminate CI race
+
+### 🔧 Maintenance & Improvements
+- test: expand integration coverage across BitTorrent piece picker, tracker boost, and file browser
+
 ## [v1.29.5](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.5) - 2026-09-26
 
 ### 🐛 Bug Fixes
