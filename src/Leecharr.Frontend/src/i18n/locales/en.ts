@@ -1839,6 +1839,9 @@ const en: I18nTranslations = {
   },
   "developer": {
     "database": "Database Explorer",
+    "testing": "Test Runner",
+    "repl": "REPL Sandbox",
+    "debugger": "Web Debugger",
     "events": "Event Bus",
     "commands": "Command Dispatcher",
     "network": "Network Wiretap",

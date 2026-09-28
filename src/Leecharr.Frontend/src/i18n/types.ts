@@ -1839,6 +1839,9 @@ export type I18nTranslations = {
   };
   "developer": {
     "database": string;
+    "testing"?: string;
+    "repl"?: string;
+    "debugger"?: string;
     "events": string;
     "commands": string;
     "network": string;
