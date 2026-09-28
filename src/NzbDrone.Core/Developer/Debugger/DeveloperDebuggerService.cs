@@ -331,4 +331,245 @@ public class DeveloperDebuggerService : IDeveloperDebuggerService
             return $"\"{variables.ToString().Replace("\"", "\\\"")}\"";
         }
     }
+
+    public IReadOnlyList<DebuggerSourceFileItem> GetKnownSourceFiles()
+    {
+        var list = new List<DebuggerSourceFileItem>();
+        var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // 1. Scan physical source files if available on disk (dev / repo environment)
+        try
+        {
+            var currentDir = Directory.GetCurrentDirectory();
+            var searchDirs = new[]
+            {
+                Path.Combine(currentDir, "src"),
+                Path.Combine(currentDir, "..", "src"),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "src"),
+            };
+
+            foreach (var dir in searchDirs)
+            {
+                if (Directory.Exists(dir))
+                {
+                    var files = Directory.GetFiles(dir, "*.cs", SearchOption.AllDirectories);
+                    foreach (var file in files)
+                    {
+                        var relPath = Path.GetRelativePath(currentDir, file).Replace('\\', '/');
+                        if (!relPath.StartsWith("src/"))
+                        {
+                            relPath = "src/" + Path.GetRelativePath(dir, file).Replace('\\', '/');
+                        }
+
+                        if (relPath.Contains("/obj/") || relPath.Contains("/bin/") || relPath.Contains("/_output/") || relPath.Contains("/_tests/"))
+                        {
+                            continue;
+                        }
+
+                        if (seenPaths.Add(relPath))
+                        {
+                            var className = Path.GetFileNameWithoutExtension(file);
+                            var lines = 0;
+                            try
+                            {
+                                lines = File.ReadLines(file).Count();
+                            }
+                            catch
+                            {
+                                // Ignored
+                            }
+
+                            list.Add(new DebuggerSourceFileItem
+                            {
+                                FilePath = relPath,
+                                ClassName = className,
+                                Namespace = Path.GetDirectoryName(relPath)?.Replace('/', '.') ?? string.Empty,
+                                Subsystem = relPath.Split('/').Skip(1).FirstOrDefault() ?? "Core",
+                                LineCount = lines,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Debug(ex, "Failed to scan physical source files");
+        }
+
+        // 2. Reflection mapping across loaded Leecharr assemblies
+        try
+        {
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies()
+                .Where(a => a.GetName().Name?.StartsWith("Leecharr") == true || a.GetName().Name?.StartsWith("NzbDrone") == true);
+
+            foreach (var assembly in assemblies)
+            {
+                var asmName = assembly.GetName().Name ?? string.Empty;
+                Type[] types;
+                try
+                {
+                    types = assembly.GetTypes();
+                }
+                catch
+                {
+                    continue;
+                }
+
+                foreach (var type in types)
+                {
+                    if (type.IsNested || string.IsNullOrEmpty(type.Namespace) || type.Name.StartsWith("<"))
+                    {
+                        continue;
+                    }
+
+                    var ns = type.Namespace;
+                    var rootFolder = asmName.StartsWith("Leecharr.Api.V1") ? "src/Leecharr.Api.V1"
+                        : asmName.StartsWith("Leecharr.Http") ? "src/Leecharr.Http"
+                        : asmName.StartsWith("Leecharr.Common") || ns.StartsWith("NzbDrone.Common") ? "src/NzbDrone.Common"
+                        : asmName.StartsWith("Leecharr.SignalR") || ns.StartsWith("NzbDrone.SignalR") ? "src/NzbDrone.SignalR"
+                        : asmName.StartsWith("Leecharr.Host") || ns.StartsWith("NzbDrone.Host") ? "src/NzbDrone.Host"
+                        : "src/NzbDrone.Core";
+
+                    var subPath = ns.Replace("NzbDrone.Core.", "")
+                                    .Replace("NzbDrone.Core", "")
+                                    .Replace("Leecharr.Api.V1.", "")
+                                    .Replace("Leecharr.Api.V1", "")
+                                    .Replace("NzbDrone.Common.", "")
+                                    .Replace("NzbDrone.Common", "")
+                                    .Replace("Leecharr.Http.", "")
+                                    .Replace("Leecharr.Http", "")
+                                    .Replace("NzbDrone.Host.", "")
+                                    .Replace("NzbDrone.Host", "")
+                                    .Replace('.', '/');
+
+                    var computedPath = string.IsNullOrWhiteSpace(subPath)
+                        ? $"{rootFolder}/{type.Name}.cs"
+                        : $"{rootFolder}/{subPath}/{type.Name}.cs";
+
+                    if (seenPaths.Add(computedPath))
+                    {
+                        list.Add(new DebuggerSourceFileItem
+                        {
+                            FilePath = computedPath,
+                            ClassName = type.Name,
+                            Namespace = type.Namespace,
+                            Subsystem = rootFolder.Replace("src/", ""),
+                            LineCount = type.GetMethods().Length * 5 + 10,
+                        });
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Debug(ex, "Failed to reflect loaded assemblies for source files");
+        }
+
+        return list.OrderBy(f => f.FilePath).ToList().AsReadOnly();
+    }
+
+    public DebuggerSourceCodeResponse GetSourceCode(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return new DebuggerSourceCodeResponse { FilePath = string.Empty, Exists = false, Content = "// No file path specified" };
+        }
+
+        var normalized = filePath.Replace('\\', '/').TrimStart('/');
+        if (normalized.Contains("..") || Path.IsPathRooted(filePath))
+        {
+            return new DebuggerSourceCodeResponse { FilePath = filePath, Exists = false, Content = "// Invalid or forbidden file path" };
+        }
+
+        var candidates = new[]
+        {
+            Path.Combine(Directory.GetCurrentDirectory(), normalized),
+            Path.Combine(Directory.GetCurrentDirectory(), "src", normalized.StartsWith("src/") ? normalized.Substring(4) : normalized),
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, normalized),
+        };
+
+        foreach (var candidate in candidates)
+        {
+            if (File.Exists(candidate))
+            {
+                try
+                {
+                    var content = File.ReadAllText(candidate);
+                    var lineCount = File.ReadLines(candidate).Count();
+                    return new DebuggerSourceCodeResponse
+                    {
+                        FilePath = normalized,
+                        Content = content,
+                        LineCount = lineCount,
+                        Exists = true,
+                    };
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warn(ex, "Failed to read source file: {0}", candidate);
+                }
+            }
+        }
+
+        // Generate synthetic metadata preview if source file is not physically on disk
+        var className = Path.GetFileNameWithoutExtension(normalized);
+        var type = AppDomain.CurrentDomain.GetAssemblies()
+            .SelectMany(SafeGetTypes)
+            .FirstOrDefault(t => string.Equals(t.Name, className, StringComparison.OrdinalIgnoreCase));
+
+        if (type != null)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"// Runtime Metadata Outline for {type.FullName}");
+            sb.AppendLine($"// Physical source not mounted in container. Showing reflected type signature.\n");
+            sb.AppendLine($"namespace {type.Namespace};\n");
+            sb.AppendLine($"public class {type.Name}");
+            sb.AppendLine("{");
+
+            foreach (var prop in type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly))
+            {
+                sb.AppendLine($"    public {prop.PropertyType.Name} {prop.Name} {{ get; set; }}");
+            }
+
+            sb.AppendLine();
+            foreach (var method in type.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly))
+            {
+                if (method.IsSpecialName) continue;
+                var parameters = string.Join(", ", method.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"));
+                sb.AppendLine($"    public {method.ReturnType.Name} {method.Name}({parameters});");
+            }
+
+            sb.AppendLine("}");
+
+            var genContent = sb.ToString();
+            return new DebuggerSourceCodeResponse
+            {
+                FilePath = normalized,
+                Content = genContent,
+                LineCount = genContent.Split('\n').Length,
+                Exists = true,
+            };
+        }
+
+        return new DebuggerSourceCodeResponse
+        {
+            FilePath = normalized,
+            Content = $"// File '{normalized}' was not found on disk or in loaded assembly metadata.",
+            LineCount = 1,
+            Exists = false,
+        };
+    }
+
+    private static IEnumerable<Type> SafeGetTypes(System.Reflection.Assembly assembly)
+    {
+        try
+        {
+            return assembly.GetTypes();
+        }
+        catch
+        {
+            return Array.Empty<Type>();
+        }
+    }
 }

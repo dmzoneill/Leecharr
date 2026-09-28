@@ -2237,4 +2237,19 @@ export interface DebuggerStatusReport {
   serverTimestampUtc: string;
 }
 
+export interface DebuggerSourceFileItem {
+  filePath: string;
+  className: string;
+  namespace: string;
+  subsystem: string;
+  lineCount: number;
+}
+
+export interface DebuggerSourceCodeResponse {
+  filePath: string;
+  content: string;
+  lineCount: number;
+  exists: boolean;
+}
+
 
