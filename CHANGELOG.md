@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.32.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.32.0) - 2026-09-28
+
+### ✨ Features
+- feat(developer): expand in-app developer test suite to 56 comprehensive diagnostic tests
+
 ## [v1.31.3](https://github.com/dmzoneill/Leecharr/releases/tag/v1.31.3) - 2026-09-28
 
 ### 🐛 Bug Fixes
