@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
 using NzbDrone.Common.EnvironmentInfo;
+using NzbDrone.Core.BitTorrent;
+using NzbDrone.Core.Datastore;
 using NzbDrone.Host;
 
 namespace NzbDrone.Integration.Test;
@@ -27,6 +29,98 @@ public sealed class LeecharrWebApplicationFactory : IDisposable
     public HttpClient Client { get; }
 
     public IServiceProvider Services => this.app.Services;
+
+    private static readonly object DbResetLock = new();
+
+    public void ResetDatabase()
+    {
+        lock (DbResetLock)
+        {
+            try
+            {
+                var downloadEngine = this.app.Services.GetService<IDownloadEngine>();
+                if (downloadEngine != null)
+                {
+                    foreach (var task in downloadEngine.GetAllTasks().ToList())
+                    {
+                        try
+                        {
+                            downloadEngine.RemoveTorrentAsync(task.TorrentId, false).GetAwaiter().GetResult();
+                        }
+                        catch
+                        {
+                            // Best-effort removal of in-memory engine tasks
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Engine cleanup is best-effort
+            }
+
+            try
+            {
+                var database = this.app.Services.GetService<IMainDatabase>();
+                if (database == null)
+                {
+                    return;
+                }
+
+                using var connection = database.OpenConnection();
+                using var cmd = connection.CreateCommand();
+
+                if (database.DatabaseType == DatabaseType.SQLite)
+                {
+                    cmd.CommandText =
+                        "PRAGMA foreign_keys = OFF; " +
+                        "DELETE FROM \"TorrentEventLogs\"; " +
+                        "DELETE FROM \"TorrentFiles\"; " +
+                        "DELETE FROM \"TorrentMediaMetadata\"; " +
+                        "DELETE FROM \"TrackerMetrics\"; " +
+                        "DELETE FROM \"TrackerMetricSnapshots\"; " +
+                        "DELETE FROM \"TrackerEntries\"; " +
+                        "DELETE FROM \"Torrents\"; " +
+                        "DELETE FROM \"Categories\"; " +
+                        "DELETE FROM \"Tags\"; " +
+                        "DELETE FROM \"ArrConnectionDefinitions\"; " +
+                        "DELETE FROM \"SpeedSchedules\"; " +
+                        "DELETE FROM \"DownloadHistory\"; " +
+                        "DELETE FROM \"NetworkSettings\"; " +
+                        "DELETE FROM \"NotificationDefinitions\"; " +
+                        "DELETE FROM \"IndexerDefinitions\"; " +
+                        "DELETE FROM \"RssRules\"; " +
+                        "DELETE FROM \"DownloadClientDefinitions\"; " +
+                        "DELETE FROM \"UserSessions\"; " +
+                        "DELETE FROM \"UserExternalLogins\"; " +
+                        "DELETE FROM \"Users\"; " +
+                        "DELETE FROM \"IdentityProviders\"; " +
+                        "DELETE FROM \"TrackerBoostTrackers\"; " +
+                        "DELETE FROM \"AutomationScripts\"; " +
+                        "DELETE FROM \"Commands\"; " +
+                        "PRAGMA foreign_keys = ON;";
+                    cmd.ExecuteNonQuery();
+                }
+                else
+                {
+                    cmd.CommandText =
+                        "TRUNCATE TABLE \"TorrentEventLogs\", \"TorrentFiles\", \"TorrentMediaMetadata\", " +
+                        "\"TrackerMetrics\", \"TrackerMetricSnapshots\", \"TrackerEntries\", " +
+                        "\"Torrents\", \"Categories\", \"Tags\", \"ArrConnectionDefinitions\", " +
+                        "\"SpeedSchedules\", \"DownloadHistory\", \"NetworkSettings\", " +
+                        "\"NotificationDefinitions\", \"IndexerDefinitions\", \"RssRules\", " +
+                        "\"DownloadClientDefinitions\", \"UserSessions\", \"UserExternalLogins\", " +
+                        "\"Users\", \"IdentityProviders\", \"TrackerBoostTrackers\", " +
+                        "\"AutomationScripts\", \"Commands\" CASCADE;";
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ResetDatabase] Warning: {ex.Message}");
+            }
+        }
+    }
 
     public LeecharrWebApplicationFactory()
     {
