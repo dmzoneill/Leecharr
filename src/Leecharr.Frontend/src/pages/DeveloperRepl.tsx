@@ -29,7 +29,7 @@ export default function DeveloperRepl() {
   const [history, setHistory] = useState<ReplHistoryEntry[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [activeTab, setActiveTab] = useState<"result" | "logs">("result");
-  const [error, setError] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const fetchHistory = useCallback(async () => {
@@ -48,7 +48,7 @@ export default function DeveloperRepl() {
   const handleExecute = async () => {
     if (!code.trim()) return;
     setIsExecuting(true);
-    setError(null);
+    setActionMessage(null);
 
     try {
       const payload: ReplExecutionRequest = {
@@ -65,9 +65,13 @@ export default function DeveloperRepl() {
         setActiveTab("result");
       }
       fetchHistory();
+      setActionMessage({
+        text: res.success ? `Script evaluated successfully in ${res.durationMs}ms.` : `Evaluation failed: ${res.errorMessage}`,
+        type: res.success ? "success" : "error",
+      });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      setError(msg || "REPL execution failed.");
+      setActionMessage({ text: msg || "REPL execution failed.", type: "error" });
     } finally {
       setIsExecuting(false);
     }
@@ -84,8 +88,9 @@ export default function DeveloperRepl() {
     try {
       await apiClient.delete("/system/developer/repl/history");
       setHistory([]);
+      setActionMessage({ text: "Command history cleared.", type: "success" });
     } catch {
-      // Ignored
+      setActionMessage({ text: "Failed to clear history.", type: "error" });
     }
   };
 
@@ -95,132 +100,244 @@ export default function DeveloperRepl() {
       setResponse(null);
       setHistory([]);
       setCode(PRESET_SCRIPTS[0].code);
+      setActionMessage({ text: "REPL session state reset.", type: "success" });
     } catch {
-      // Ignored
+      setActionMessage({ text: "Failed to reset session.", type: "error" });
     }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border pb-4">
+    <div className="content-area" style={{ padding: "1.5rem" }}>
+      {/* Top Banner */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "12px",
+          marginBottom: "16px",
+        }}
+      >
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <span>⚡</span> {t("developer.repl", "Interactive Sandbox REPL")}
-          </h1>
-          <p className="text-sm text-text-secondary mt-1">
-            Execute sandboxed JavaScript scripts and diagnostic probes directly against runtime host objects.
+          <h2 style={{ margin: "0 0 4px 0", fontSize: "1.4rem", fontWeight: 700 }}>
+            ⚡ Interactive Scripting REPL
+          </h2>
+          <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-secondary, #94a3b8)" }}>
+            Execute sandboxed scripts and live diagnostic probes directly against runtime host objects.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
           <button
             onClick={handleResetSession}
-            className="px-3 py-1.5 bg-surface text-rose-400 border border-border rounded-md text-xs hover:bg-rose-500/10 font-medium"
+            style={{
+              padding: "7px 14px",
+              borderRadius: "6px",
+              border: "1px solid var(--border, #334155)",
+              backgroundColor: "var(--bg-surface, #1e293b)",
+              color: "#f87171",
+              cursor: "pointer",
+              fontSize: "0.83rem",
+              fontWeight: 600,
+            }}
           >
             Reset Session
           </button>
         </div>
       </div>
 
-      {error && (
-        <div className="p-3 bg-red-500/15 border border-red-500/30 text-red-400 rounded-md text-sm">
-          {error}
+      {actionMessage && (
+        <div
+          style={{
+            padding: "10px 14px",
+            borderRadius: "6px",
+            marginBottom: "16px",
+            fontSize: "0.85rem",
+            backgroundColor: actionMessage.type === "success" ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
+            border: `1px solid ${actionMessage.type === "success" ? "#10b981" : "#ef4444"}`,
+            color: actionMessage.type === "success" ? "#34d399" : "#f87171",
+          }}
+        >
+          {actionMessage.text}
         </div>
       )}
 
-      {/* Preset Pickers */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-        <span className="text-text-secondary font-medium shrink-0">Sample Templates:</span>
+      {/* Preset Script Pickers */}
+      <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", marginBottom: "16px" }}>
+        <span style={{ fontSize: "0.8rem", color: "var(--text-secondary, #94a3b8)", fontWeight: 600 }}>
+          Sample Templates:
+        </span>
         {PRESET_SCRIPTS.map((preset) => (
           <button
             key={preset.name}
             onClick={() => setCode(preset.code)}
-            className="px-2.5 py-1 bg-surface border border-border hover:border-accent text-text rounded text-xs transition-colors shrink-0"
+            style={{
+              padding: "5px 12px",
+              borderRadius: "6px",
+              border: "1px solid var(--border, #334155)",
+              backgroundColor: "var(--bg-surface, #1e293b)",
+              color: "#fff",
+              cursor: "pointer",
+              fontSize: "0.78rem",
+            }}
           >
             {preset.name}
           </button>
         ))}
       </div>
 
-      {/* Main REPL Workbench */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Editor Column */}
-        <div className="lg:col-span-7 flex flex-col space-y-2">
-          <div className="flex justify-between items-center text-xs text-text-secondary">
-            <span>Script Editor (Ctrl+Enter to evaluate)</span>
-            <span>Timeout: 15s</span>
+      {/* Split Workbench: Editor on Left, Output on Right */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+        {/* Left: Code Editor */}
+        <div
+          style={{
+            backgroundColor: "var(--bg-surface, #1e293b)",
+            border: "1px solid var(--border, #334155)",
+            borderRadius: "8px",
+            padding: "16px",
+            display: "flex",
+            flexDirection: "column",
+            height: "calc(100vh - 350px)",
+            minHeight: "420px",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+            <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#fff" }}>
+              Script Editor
+            </span>
+            <span style={{ fontSize: "0.75rem", color: "var(--text-secondary, #94a3b8)" }}>
+              Shortcut: <strong>Ctrl + Enter</strong>
+            </span>
           </div>
 
-          <div className="relative rounded-lg border border-border bg-black/40 overflow-hidden focus-within:border-accent">
-            <textarea
-              ref={textareaRef}
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              onKeyDown={handleKeyDown}
-              rows={14}
-              className="w-full p-4 bg-transparent text-emerald-400 font-mono text-sm resize-none focus:outline-none leading-relaxed"
-              placeholder="// Write JavaScript expression or script here..."
-              spellCheck={false}
-            />
-          </div>
+          <textarea
+            ref={textareaRef}
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            onKeyDown={handleKeyDown}
+            style={{
+              flex: 1,
+              width: "100%",
+              padding: "12px",
+              borderRadius: "6px",
+              border: "1px solid var(--border, #334155)",
+              backgroundColor: "var(--bg-primary, #0f172a)",
+              color: "#34d399",
+              fontFamily: "monospace",
+              fontSize: "0.83rem",
+              lineHeight: "1.5",
+              resize: "none",
+              boxSizing: "border-box",
+              outline: "none",
+            }}
+            placeholder="// Write script or expression..."
+            spellCheck={false}
+          />
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "12px" }}>
             <button
               onClick={handleExecute}
               disabled={isExecuting || !code.trim()}
-              className="px-5 py-2 bg-accent text-white font-semibold text-sm rounded-md shadow hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "8px 18px",
+                borderRadius: "6px",
+                border: "none",
+                backgroundColor: "var(--accent, #3b82f6)",
+                color: "#fff",
+                cursor: isExecuting || !code.trim() ? "not-allowed" : "pointer",
+                fontSize: "0.83rem",
+                fontWeight: 600,
+                opacity: isExecuting || !code.trim() ? 0.6 : 1,
+              }}
             >
               {isExecuting ? "⏳ Evaluating..." : "▶ Evaluate (Ctrl+Enter)"}
             </button>
           </div>
         </div>
 
-        {/* Output Column */}
-        <div className="lg:col-span-5 flex flex-col space-y-2">
-          <div className="flex justify-between items-center text-xs">
-            <div className="flex gap-2">
+        {/* Right: Output Pane */}
+        <div
+          style={{
+            backgroundColor: "var(--bg-surface, #1e293b)",
+            border: "1px solid var(--border, #334155)",
+            borderRadius: "8px",
+            padding: "16px",
+            display: "flex",
+            flexDirection: "column",
+            height: "calc(100vh - 350px)",
+            minHeight: "420px",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+            <div style={{ display: "flex", gap: "8px" }}>
               <button
                 onClick={() => setActiveTab("result")}
-                className={`px-3 py-1 rounded font-medium ${
-                  activeTab === "result"
-                    ? "bg-accent text-white"
-                    : "text-text-secondary hover:text-text bg-surface"
-                }`}
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: "4px",
+                  border: "none",
+                  backgroundColor: activeTab === "result" ? "var(--accent, #3b82f6)" : "transparent",
+                  color: activeTab === "result" ? "#fff" : "var(--text-secondary, #94a3b8)",
+                  cursor: "pointer",
+                  fontSize: "0.78rem",
+                  fontWeight: 600,
+                }}
               >
                 Result JSON
               </button>
               <button
                 onClick={() => setActiveTab("logs")}
-                className={`px-3 py-1 rounded font-medium ${
-                  activeTab === "logs"
-                    ? "bg-accent text-white"
-                    : "text-text-secondary hover:text-text bg-surface"
-                }`}
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: "4px",
+                  border: "none",
+                  backgroundColor: activeTab === "logs" ? "var(--accent, #3b82f6)" : "transparent",
+                  color: activeTab === "logs" ? "#fff" : "var(--text-secondary, #94a3b8)",
+                  cursor: "pointer",
+                  fontSize: "0.78rem",
+                  fontWeight: 600,
+                }}
               >
-                Console Logs
+                Console Output
               </button>
             </div>
+
             {response && (
-              <span className="text-text-secondary font-mono text-[11px]">
+              <span style={{ fontSize: "0.75rem", color: "var(--text-secondary, #94a3b8)", fontFamily: "monospace" }}>
                 {response.durationMs}ms · {response.resultType}
               </span>
             )}
           </div>
 
-          <div className="flex-1 min-h-[300px] rounded-lg border border-border bg-black/50 p-4 font-mono text-xs overflow-auto">
+          <div
+            style={{
+              flex: 1,
+              padding: "12px",
+              borderRadius: "6px",
+              backgroundColor: "var(--bg-primary, #0f172a)",
+              border: "1px solid var(--border, #334155)",
+              overflowY: "auto",
+              boxSizing: "border-box",
+            }}
+          >
             {!response ? (
-              <div className="h-full flex items-center justify-center text-text-secondary">
-                No expression evaluated yet.
+              <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary, #94a3b8)", fontSize: "0.85rem" }}>
+                No script evaluated yet. Click Evaluate to run.
               </div>
             ) : response.errorMessage ? (
-              <div className="text-rose-400 whitespace-pre-wrap font-semibold">
+              <div style={{ color: "#f87171", fontFamily: "monospace", fontSize: "0.8rem", whiteSpace: "pre-wrap" }}>
                 Error: {response.errorMessage}
               </div>
             ) : activeTab === "result" ? (
-              <pre className="text-cyan-300 whitespace-pre-wrap">{response.resultJson || "undefined"}</pre>
+              <pre style={{ margin: 0, color: "#38bdf8", fontFamily: "monospace", fontSize: "0.8rem", whiteSpace: "pre-wrap" }}>
+                {response.resultJson || "undefined"}
+              </pre>
             ) : (
-              <pre className="text-emerald-300 whitespace-pre-wrap">
+              <pre style={{ margin: 0, color: "#34d399", fontFamily: "monospace", fontSize: "0.8rem", whiteSpace: "pre-wrap" }}>
                 {response.output || "[No console.log output produced]"}
               </pre>
             )}
@@ -228,36 +345,65 @@ export default function DeveloperRepl() {
         </div>
       </div>
 
-      {/* REPL History Drawer */}
+      {/* Execution History */}
       {history.length > 0 && (
-        <div className="mt-8 border-t border-border pt-6">
-          <div className="flex justify-between items-center mb-3">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
+        <div style={{ marginTop: "24px", paddingTop: "16px", borderTop: "1px solid var(--border, #334155)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+            <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, display: "flex", alignItems: "center", gap: "6px" }}>
               <span>📜</span> Command History
-            </h2>
+            </h3>
             <button
               onClick={handleClearHistory}
-              className="text-xs text-text-secondary hover:text-rose-400"
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#f87171",
+                cursor: "pointer",
+                fontSize: "0.78rem",
+              }}
             >
               Clear History
             </button>
           </div>
 
-          <div className="bg-surface rounded-lg border border-border divide-y divide-border/60 overflow-hidden">
-            {history.slice(0, 10).map((h) => (
+          <div
+            style={{
+              backgroundColor: "var(--bg-surface, #1e293b)",
+              border: "1px solid var(--border, #334155)",
+              borderRadius: "8px",
+              overflow: "hidden",
+            }}
+          >
+            {history.slice(0, 8).map((h) => (
               <div
                 key={h.id}
                 onClick={() => setCode(h.code)}
-                className="p-3 text-xs flex items-center justify-between gap-4 cursor-pointer hover:bg-surface-hover transition-colors"
-                title="Click to reload this code into editor"
+                style={{
+                  padding: "8px 14px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  fontSize: "0.78rem",
+                  cursor: "pointer",
+                  borderBottom: "1px solid var(--border, #334155)",
+                }}
+                title="Click to reload this code into the editor"
               >
-                <div className="flex items-center gap-2 truncate font-mono text-emerald-400/90">
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden" }}>
                   <span
-                    className={`w-2 h-2 rounded-full ${h.success ? "bg-emerald-400" : "bg-rose-400"}`}
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "50%",
+                      backgroundColor: h.success ? "#34d399" : "#f87171",
+                      flexShrink: 0,
+                    }}
                   />
-                  <span className="truncate">{h.code.replace(/\n/g, " ")}</span>
+                  <span style={{ fontFamily: "monospace", color: "#e2e8f0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {h.code.replace(/\n/g, " ")}
+                  </span>
                 </div>
-                <div className="flex items-center gap-3 text-text-secondary shrink-0 font-mono text-[11px]">
+                <div style={{ display: "flex", gap: "14px", color: "var(--text-secondary, #94a3b8)", fontFamily: "monospace", flexShrink: 0 }}>
                   <span>{h.durationMs}ms</span>
                   <span>{new Date(h.executedAtUtc).toLocaleTimeString()}</span>
                 </div>
