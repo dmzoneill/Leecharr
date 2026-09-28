@@ -15,6 +15,12 @@ public abstract class IntegrationTestBase
 
     protected string ApiKey => GlobalSetup.Factory.ApiKey;
 
+    [SetUp]
+    public virtual void BaseSetUp()
+    {
+        GlobalSetup.Factory.ResetDatabase();
+    }
+
     protected async Task<T> GetJsonAsync<T>(string path)
     {
         var response = await this.Client.GetAsync(path);

@@ -17,7 +17,7 @@ public class TorrentControllerNegativeBranchIntegrationTests : IntegrationTestBa
 {
     private int existingTorrentId;
 
-    [OneTimeSetUp]
+    [SetUp]
     public async Task SetupExistingTorrent()
     {
         var addPayload = new
@@ -36,7 +36,7 @@ public class TorrentControllerNegativeBranchIntegrationTests : IntegrationTestBa
         this.existingTorrentId.Should().BeGreaterThan(0);
     }
 
-    [OneTimeTearDown]
+    [TearDown]
     public async Task CleanupExistingTorrent()
     {
         if (this.existingTorrentId > 0)
