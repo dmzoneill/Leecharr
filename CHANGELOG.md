@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.31.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.31.2) - 2026-09-28
+
+### ✨ Features
+- feat(debugger): add dynamic file selector, source preview with line numbers, and click-to-break gutter
+- feat(developer): expand diagnostic tests to 24 and add 16 webhook templates, presets, and tracepoints
+
+### 🐛 Bug Fixes
+- fix(test): enforce 4-space multiple indentation on line 452 of PtyTerminalServiceTest
+- fix(test): harden PTY resize timing in PtyTerminalServiceTest
+
 ## [v1.31.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.31.1) - 2026-09-28
 
 ### 🐛 Bug Fixes
