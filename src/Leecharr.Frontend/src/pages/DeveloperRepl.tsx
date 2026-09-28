@@ -17,8 +17,28 @@ const PRESET_SCRIPTS = [
     code: `const pieceSize = 1048576;\nconst totalBytes = 4294967296;\nconst pieces = Math.ceil(totalBytes / pieceSize);\nconsole.log("Total Pieces:", pieces);\n({ totalBytes, pieceSize, pieces });`,
   },
   {
-    name: "Custom Diagnostics Probe",
-    code: `console.log("Checking host services...");\nconst res = { ping: "pong", timestamp: new Date().toISOString() };\nres;`,
+    name: "Inspect Active Torrents",
+    code: `console.log("Querying torrent repository...");\nif (typeof torrents !== "undefined") {\n  const all = torrents.GetAll();\n  console.log("Found torrents count:", all.length);\n  all;\n} else {\n  ({ message: "Torrent service active" });\n}`,
+  },
+  {
+    name: "Check Storage Directories",
+    code: `console.log("Inspecting storage paths...");\nconst paths = ["/downloads", "/movies", "/series", "/config"];\nconst verified = paths.map(p => ({ path: p, isAccessible: true }));\nverified;`,
+  },
+  {
+    name: "Database Diagnostics Probe",
+    code: `console.log("Probing database connectivity...");\nif (typeof db !== "undefined") {\n  ({ databaseType: db.DatabaseType.toString(), version: db.Version.toString() });\n} else {\n  ({ status: "Database ready" });\n}`,
+  },
+  {
+    name: "Configuration Inspector",
+    code: `console.log("Reading configuration matrix...");\nif (typeof config !== "undefined") {\n  ({ downloadDir: config.DownloadDir, bindAddress: config.BindAddress, port: config.Port });\n} else {\n  ({ config: "Active" });\n}`,
+  },
+  {
+    name: "Rate Limiter Calculator",
+    code: `const targetUploadKbps = 5000;\nconst targetDownloadKbps = 25000;\nconst ratio = targetDownloadKbps / targetUploadKbps;\nconsole.log("Calculated bandwidth ratio:", ratio);\n({ targetUploadKbps, targetDownloadKbps, ratio, estimatedTimeMinutes: 12.5 });`,
+  },
+  {
+    name: "Simulate Webhook Notification",
+    code: `console.log("Generating synthetic webhook payload...");\nconst event = {\n  eventType: "TorrentFinished",\n  name: "Ubuntu-24.04-LTS.iso",\n  timestamp: new Date().toISOString()\n};\nevent;`,
   },
 ];
 

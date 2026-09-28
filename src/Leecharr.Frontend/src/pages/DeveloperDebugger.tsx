@@ -7,6 +7,39 @@ import type {
   DebuggerStatusReport,
 } from "../api/types";
 
+const TRACEPOINT_PRESETS = [
+  {
+    name: "TorrentService.GetAll",
+    filePath: "src/NzbDrone.Core/Torrents/TorrentService.cs",
+    lineNumber: 100,
+    condition: "torrents.Count > 0",
+  },
+  {
+    name: "MonoTorrent Engine Init",
+    filePath: "src/NzbDrone.Core/BitTorrent/MonoTorrentDownloadEngine.cs",
+    lineNumber: 592,
+    condition: "this.engine != null",
+  },
+  {
+    name: "Storage Path Resolution",
+    filePath: "src/NzbDrone.Core/Download/StoragePathService.cs",
+    lineNumber: 45,
+    condition: "",
+  },
+  {
+    name: "Tracker Announce Probe",
+    filePath: "src/NzbDrone.Core/Trackers/TrackerBoostService.cs",
+    lineNumber: 70,
+    condition: "",
+  },
+  {
+    name: "RSS Rule Evaluation",
+    filePath: "src/NzbDrone.Core/Indexers/RssSyncService.cs",
+    lineNumber: 90,
+    condition: "",
+  },
+];
+
 export default function DeveloperDebugger() {
   const { t } = useTranslation();
   const [status, setStatus] = useState<DebuggerStatusReport | null>(null);
@@ -539,6 +572,36 @@ export default function DeveloperDebugger() {
             <h3 style={{ margin: "0 0 14px 0", fontSize: "1.15rem", fontWeight: 700 }}>
               Add Source Tracepoint
             </h3>
+
+            <div style={{ marginBottom: "12px" }}>
+              <div style={{ fontSize: "0.75rem", color: "var(--text-secondary, #94a3b8)", marginBottom: "6px", fontWeight: 600 }}>
+                Quick Presets:
+              </div>
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                {TRACEPOINT_PRESETS.map((p) => (
+                  <button
+                    key={p.name}
+                    type="button"
+                    onClick={() => {
+                      setNewFilePath(p.filePath);
+                      setNewLineNumber(p.lineNumber);
+                      setNewCondition(p.condition);
+                    }}
+                    style={{
+                      padding: "3px 8px",
+                      borderRadius: "4px",
+                      fontSize: "0.72rem",
+                      border: "1px solid var(--border, #334155)",
+                      backgroundColor: newFilePath === p.filePath && newLineNumber === p.lineNumber ? "var(--accent, #3b82f6)" : "var(--bg-primary, #0f172a)",
+                      color: "#fff",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <form onSubmit={handleAddTracepoint} style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "0.83rem" }}>
               <div>

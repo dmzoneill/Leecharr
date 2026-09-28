@@ -2,6 +2,73 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { apiClient } from "../api/client";
 import type { DeveloperEventItem, DeveloperEventsResponse } from "../api/types";
 
+const SYNTHETIC_EVENT_PRESETS = [
+  {
+    name: "TorrentAddedEvent",
+    payload: JSON.stringify({
+      torrentId: 42,
+      name: "Ubuntu-24.04-live-server.iso",
+      sizeBytes: 2048576000,
+      category: "operating-systems",
+    }, null, 2),
+  },
+  {
+    name: "TorrentDownloadCompletedEvent",
+    payload: JSON.stringify({
+      torrentId: 42,
+      name: "Ubuntu-24.04-live-server.iso",
+      outputPath: "/downloads/isos/Ubuntu-24.04-live-server.iso",
+      durationSeconds: 124,
+    }, null, 2),
+  },
+  {
+    name: "TorrentPausedEvent",
+    payload: JSON.stringify({
+      torrentId: 42,
+      reason: "UserRequested",
+    }, null, 2),
+  },
+  {
+    name: "TorrentResumedEvent",
+    payload: JSON.stringify({
+      torrentId: 42,
+      resumedAtUtc: new Date().toISOString(),
+    }, null, 2),
+  },
+  {
+    name: "TorrentSpeedUpdatedEvent",
+    payload: JSON.stringify({
+      torrentId: 42,
+      downloadSpeedBytesPerSec: 15420000,
+      uploadSpeedBytesPerSec: 2100000,
+      progressPercent: 68.5,
+    }, null, 2),
+  },
+  {
+    name: "CategoryUpdatedEvent",
+    payload: JSON.stringify({
+      categoryId: 5,
+      name: "movies",
+      savePath: "/data/movies",
+    }, null, 2),
+  },
+  {
+    name: "TagCreatedEvent",
+    payload: JSON.stringify({
+      tagId: 10,
+      label: "4k-hdr",
+    }, null, 2),
+  },
+  {
+    name: "DiskSpaceWarningEvent",
+    payload: JSON.stringify({
+      volumePath: "/downloads",
+      freeSpaceBytes: 1073741824,
+      thresholdPercent: 95.0,
+    }, null, 2),
+  },
+];
+
 export default function DeveloperEvents() {
   const [events, setEvents] = useState<DeveloperEventItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -416,9 +483,37 @@ export default function DeveloperEvents() {
 
             <form onSubmit={handlePublish}>
               <div style={{ marginBottom: "12px" }}>
-                <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, marginBottom: "4px" }}>
-                  Event Name
-                </label>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                  <label style={{ fontSize: "0.82rem", fontWeight: 600 }}>
+                    Event Name
+                  </label>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+                    Presets:
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "8px" }}>
+                  {SYNTHETIC_EVENT_PRESETS.map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => {
+                        setPublishEventName(preset.name);
+                        setPublishPayload(preset.payload);
+                      }}
+                      style={{
+                        padding: "3px 8px",
+                        borderRadius: "4px",
+                        fontSize: "0.72rem",
+                        border: "1px solid var(--border, #334155)",
+                        backgroundColor: publishEventName === preset.name ? "var(--accent, #3b82f6)" : "var(--bg-primary, #0f172a)",
+                        color: "#fff",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {preset.name.replace("Event", "")}
+                    </button>
+                  ))}
+                </div>
                 <input
                   type="text"
                   value={publishEventName}

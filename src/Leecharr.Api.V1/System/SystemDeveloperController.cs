@@ -397,6 +397,196 @@ public class SystemDeveloperController : Controller
                     message = "Testing connection between Prowlarr and Leecharr",
                 }, new JsonSerializerOptions { WriteIndented = true }),
             },
+            new()
+            {
+                Id = "sonarr-rename",
+                Name = "Sonarr File Rename",
+                Source = "Sonarr",
+                EventType = "Rename",
+                Description = "Dispatched when Sonarr renames series media files on disk.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    eventType = "Rename",
+                    series = new { id = 42, title = "Breaking Bad", tvdbId = 81189 },
+                    renamedFiles = new[]
+                    {
+                        new { id = 201, previousRelativePath = "Season 1/ep1.mkv", relativePath = "Season 01/Breaking.Bad.S01E01.Pilot.mkv" },
+                    },
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "radarr-delete",
+                Name = "Radarr Movie Delete",
+                Source = "Radarr",
+                EventType = "MovieDelete",
+                Description = "Dispatched when Radarr deletes a movie and its media files.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    eventType = "MovieDelete",
+                    movie = new { id = 77, title = "Inception", year = 2010 },
+                    deletedFiles = true,
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "lidarr-grab",
+                Name = "Lidarr Album Grab",
+                Source = "Lidarr",
+                EventType = "Grab",
+                Description = "Dispatched when Lidarr grabs a music album release.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    eventType = "Grab",
+                    artist = new { id = 12, name = "Daft Punk" },
+                    album = new { id = 305, title = "Random Access Memories", releaseDate = "2013-05-17" },
+                    release = new { releaseTitle = "Daft Punk - Random Access Memories (2013) [FLAC]", indexer = "Prowlarr", size = 524288000 },
+                    downloadClient = "Leecharr",
+                    downloadId = "9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d",
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "lidarr-download",
+                Name = "Lidarr Track Download",
+                Source = "Lidarr",
+                EventType = "TrackDownload",
+                Description = "Dispatched when Lidarr imports audio tracks.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    eventType = "TrackDownload",
+                    artist = new { id = 12, name = "Daft Punk" },
+                    album = new { id = 305, title = "Random Access Memories" },
+                    trackFiles = new[]
+                    {
+                        new { id = 501, path = "/music/Daft Punk/Random Access Memories/01 - Give Life Back to Music.flac", size = 41943040 },
+                    },
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "readarr-grab",
+                Name = "Readarr Book Grab",
+                Source = "Readarr",
+                EventType = "Grab",
+                Description = "Dispatched when Readarr grabs an ebook or audiobook release.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    eventType = "Grab",
+                    author = new { id = 9, name = "Frank Herbert" },
+                    book = new { id = 88, title = "Dune", releaseDate = "1965-08-01" },
+                    release = new { releaseTitle = "Frank Herbert - Dune [EPUB]", indexer = "Prowlarr", size = 2097152 },
+                    downloadClient = "Leecharr",
+                    downloadId = "0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e",
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "prowlarr-health",
+                Name = "Prowlarr Indexer Health Warning",
+                Source = "Prowlarr",
+                EventType = "HealthIssue",
+                Description = "Notification emitted when an indexer reports rate limits or network degradation.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    eventType = "HealthIssue",
+                    level = "Warning",
+                    source = "IndexerCheck",
+                    message = "Indexer 'PublicTracker' reported 503 Service Unavailable temporarily.",
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "jellyseerr-request",
+                Name = "Jellyseerr Media Request",
+                Source = "Jellyseerr",
+                EventType = "MediaRequest",
+                Description = "Dispatched when a user requests a movie or series via Jellyseerr.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    notification_type = "MEDIA_PENDING",
+                    @event = "New Media Request",
+                    subject = "Inception (2010)",
+                    requestedBy_username = "admin",
+                    media = new { tmdbId = 27205, media_type = "movie", status = "PENDING" },
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "overseerr-approved",
+                Name = "Overseerr Request Auto-Approved",
+                Source = "Overseerr",
+                EventType = "MediaApproved",
+                Description = "Emitted when a media request is automatically approved for download.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    notification_type = "MEDIA_APPROVED",
+                    @event = "Media Request Approved",
+                    subject = "Interstellar (2014)",
+                    media = new { tmdbId = 157336, media_type = "movie", status = "PROCESSING" },
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "discord-webhook",
+                Name = "Discord Webhook Notification",
+                Source = "Discord",
+                EventType = "Notification",
+                Description = "Standard Discord webhook embed format for notifications.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    username = "Leecharr Bot",
+                    avatar_url = "https://leecharr.net/favicon.png",
+                    embeds = new[]
+                    {
+                        new
+                        {
+                            title = "Download Completed: Ubuntu-24.04-live-server.iso",
+                            description = "Torrent successfully completed and verified.",
+                            color = 5814783,
+                            fields = new[]
+                            {
+                                new { name = "Size", value = "2.6 GB", inline = true },
+                                new { name = "Ratio", value = "1.52", inline = true },
+                            },
+                        },
+                    },
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "slack-webhook",
+                Name = "Slack Channel Alert",
+                Source = "Slack",
+                EventType = "Alert",
+                Description = "Slack incoming webhook message payload with block formatting.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    text = "Leecharr Alert: Torrent Download Finished",
+                    blocks = new object[]
+                    {
+                        new { type = "section", text = new { type = "mrkdwn", text = "*Download Finished*: `Debian-12-netinst.iso` (750 MB)" } },
+                    },
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "generic-torrent-completed",
+                Name = "Generic Torrent Completed Webhook",
+                Source = "Generic",
+                EventType = "TorrentCompleted",
+                Description = "Generic JSON payload dispatched on download completion.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    eventType = "TorrentCompleted",
+                    torrentId = 101,
+                    infoHash = "b123456789abcdef0123456789abcdef01234567",
+                    name = "Fedora-Workstation-Live-40.iso",
+                    sizeBytes = 2147483648L,
+                    savePath = "/downloads/isos",
+                    completedAtUtc = "2026-09-28T20:30:00Z",
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
         };
     }
 
