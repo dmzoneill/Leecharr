@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -298,5 +299,115 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
         // 7. Clear snapshots
         var clearSnapsResp = await this.Client.DeleteAsync("/api/v1/system/developer/debugger/snapshots");
         clearSnapsResp.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    // ==========================================
+    // 5. COMPREHENSIVE WEBHOOKS & TEST EXPANSIONS
+    // ==========================================
+
+    [Test]
+    public async Task Testing_GetTests_DiscoversComprehensive24TestLibrary()
+    {
+        var response = await this.Client.GetAsync("/api/v1/system/developer/testing/tests");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync();
+        var tests = JsonSerializer.Deserialize<List<DeveloperTestItem>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+        tests.Should().NotBeNull();
+        tests!.Count.Should().BeGreaterThanOrEqualTo(24);
+
+        var categories = tests.Select(t => t.Category).Distinct().ToList();
+        categories.Should().Contain(new[] { "Database", "Storage", "BitTorrent", "Network", "Scheduler", "Messaging", "System", "Configuration" });
+    }
+
+    [Test]
+    public async Task Testing_RunVariousDiagnosticCategories_ExecutesAndPasses()
+    {
+        var testCategories = new[] { "Storage", "Network", "Configuration", "Messaging" };
+
+        foreach (var category in testCategories)
+        {
+            var request = new TestExecutionRequest { Category = category };
+            var response = await this.PostJsonAsync("/api/v1/system/developer/testing/run", request);
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var json = await response.Content.ReadAsStringAsync();
+            var execResponse = JsonSerializer.Deserialize<TestExecutionResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            execResponse.Should().NotBeNull();
+            execResponse!.Passed.Should().BeGreaterThanOrEqualTo(1);
+            execResponse.Failed.Should().Be(0);
+        }
+    }
+
+    [Test]
+    public async Task Webhooks_GetTemplates_ReturnsComprehensiveLibrary()
+    {
+        var response = await this.Client.GetAsync("/api/v1/system/developer/webhooks/templates");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.ValueKind.Should().Be(JsonValueKind.Array);
+        doc.RootElement.GetArrayLength().Should().BeGreaterThanOrEqualTo(16);
+
+        var templateIds = new List<string>();
+        foreach (var el in doc.RootElement.EnumerateArray())
+        {
+            templateIds.Add(el.GetProperty("id").GetString()!);
+        }
+
+        templateIds.Should().Contain(new[]
+        {
+            "sonarr-grab", "sonarr-download", "sonarr-rename",
+            "radarr-grab", "radarr-download", "radarr-delete",
+            "lidarr-grab", "lidarr-download",
+            "readarr-grab",
+            "prowlarr-health",
+            "jellyseerr-request",
+            "overseerr-approved",
+            "discord-webhook",
+            "slack-webhook",
+            "generic-torrent-completed",
+        });
+    }
+
+    [Test]
+    public async Task Webhooks_SimulateNewTemplates_ExecutesAndValidates()
+    {
+        // 1. Simulate Lidarr grab
+        var lidarrPayload = new
+        {
+            eventType = "Grab",
+            artist = new { id = 12, name = "Daft Punk" },
+            album = new { id = 305, title = "Random Access Memories" },
+            downloadClient = "Leecharr",
+        };
+
+        var simRequest1 = new
+        {
+            eventType = "Grab",
+            payloadJson = JsonSerializer.Serialize(lidarrPayload),
+        };
+
+        var resp1 = await this.PostJsonAsync("/api/v1/system/developer/webhooks/simulate", simRequest1);
+        resp1.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // 2. Simulate Discord webhook notification
+        var discordPayload = new
+        {
+            username = "Leecharr Bot",
+            content = "Download Completed",
+        };
+
+        var simRequest2 = new
+        {
+            eventType = "Notification",
+            payloadJson = JsonSerializer.Serialize(discordPayload),
+        };
+
+        var resp2 = await this.PostJsonAsync("/api/v1/system/developer/webhooks/simulate", simRequest2);
+        resp2.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 }
