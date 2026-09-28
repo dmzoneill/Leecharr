@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.29.28](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.28) - 2026-09-28
+
+### 🔧 Maintenance & Improvements
+- test(integration): add per-test database reset and engine task cleanup for isolation
+
 ## [v1.29.27](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.27) - 2026-09-28
 
 ### 🔧 Maintenance & Improvements
