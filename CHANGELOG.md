@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.29.23](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.23) - 2026-09-28
+
+### 🔧 Maintenance & Improvements
+- test(integration): add Wave 36 deep integration suites for Api.V1 subsystems and Core download engine
+
 ## [v1.29.22](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.22) - 2026-09-28
 
 ### 🐛 Bug Fixes
