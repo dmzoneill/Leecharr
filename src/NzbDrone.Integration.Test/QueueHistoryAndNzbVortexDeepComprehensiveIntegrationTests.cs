@@ -55,15 +55,16 @@ public class QueueHistoryAndNzbVortexDeepComprehensiveIntegrationTests : Integra
         var nzbResp = await this.Client.GetAsync($"/nzbvortex/api/v1/nzb?session={session}");
         nzbResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        // 6. Server and Status
-        var serverResp = await this.Client.GetAsync($"/nzbvortex/api/v1/server?session={session}");
-        serverResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        // 6. Pause and Resume actions
+        var pauseResp = await this.Client.PostAsync($"/nzbvortex/api/v1/nzb/999/pause?session={session}", null);
+        pauseResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var statusResp = await this.Client.GetAsync($"/nzbvortex/api/v1/status?session={session}");
-        statusResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var resumeResp = await this.Client.PostAsync($"/nzbvortex/api/v1/nzb/999/resume?session={session}", null);
+        resumeResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var statResp = await this.Client.GetAsync($"/nzbvortex/api/v1/statistic?session={session}");
-        statResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        // 7. File details
+        var fileResp = await this.Client.GetAsync($"/nzbvortex/api/v1/file/999?session={session}");
+        fileResp.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Test]
