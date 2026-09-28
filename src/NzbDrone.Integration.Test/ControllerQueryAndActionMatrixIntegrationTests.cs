@@ -24,8 +24,8 @@ public class ControllerQueryAndActionMatrixIntegrationTests : IntegrationTestBas
 
     private string transmissionSessionId;
 
-    [OneTimeSetUp]
-    public async Task OneTimeSetUp()
+    [SetUp]
+    public async Task SetUp()
     {
         // 1. Authenticate with qBittorrent emulation
         var loginForm = new FormUrlEncodedContent(new[]
@@ -56,8 +56,8 @@ public class ControllerQueryAndActionMatrixIntegrationTests : IntegrationTestBas
         addResp2.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    [OneTimeTearDown]
-    public async Task OneTimeTearDown()
+    [TearDown]
+    public async Task TearDown()
     {
         var deleteForm = new FormUrlEncodedContent(new[]
         {
