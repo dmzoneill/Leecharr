@@ -75,4 +75,32 @@ public interface IDeveloperDebuggerService
     void ClearSnapshots();
 
     TracepointSnapshot CaptureSnapshot(string tracepointId, object variables = null, string filePath = null, int lineNumber = 0);
+
+    IReadOnlyList<DebuggerSourceFileItem> GetKnownSourceFiles();
+
+    DebuggerSourceCodeResponse GetSourceCode(string filePath);
+}
+
+public class DebuggerSourceFileItem
+{
+    public string FilePath { get; set; } = string.Empty;
+
+    public string ClassName { get; set; } = string.Empty;
+
+    public string Namespace { get; set; } = string.Empty;
+
+    public string Subsystem { get; set; } = string.Empty;
+
+    public int LineCount { get; set; }
+}
+
+public class DebuggerSourceCodeResponse
+{
+    public string FilePath { get; set; } = string.Empty;
+
+    public string Content { get; set; } = string.Empty;
+
+    public int LineCount { get; set; }
+
+    public bool Exists { get; set; }
 }
