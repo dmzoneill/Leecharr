@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.29.27](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.27) - 2026-09-28
+
+### 🔧 Maintenance & Improvements
+- test(integration): add BitTorrentEnginesAndPiecePickerComprehensiveIntegrationTests covering PiecePicker and Sync Controllers
+
 ## [v1.29.26](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.26) - 2026-09-28
 
 ### 🐛 Bug Fixes
