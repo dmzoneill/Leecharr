@@ -28,15 +28,11 @@ public class CoreAndApiDeepCoverageIntegrationTests : IntegrationTestBase
         using var statusDoc = JsonDocument.Parse(statusJson);
         statusDoc.RootElement.GetProperty("appName").GetString().Should().Be("Leecharr");
 
-        // 2. System routes
-        var routesResp = await this.Client.GetAsync("/api/v1/system/routes");
-        routesResp.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        // 3. Health checks
+        // 2. Health checks
         var healthResp = await this.Client.GetAsync("/api/v1/health");
         healthResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        // 4. Disk space
+        // 3. Disk space
         var diskResp = await this.Client.GetAsync("/api/v1/diskspace");
         diskResp.StatusCode.Should().Be(HttpStatusCode.OK);
     }
@@ -44,24 +40,24 @@ public class CoreAndApiDeepCoverageIntegrationTests : IntegrationTestBase
     [Test]
     public async Task ConfigurationEndpoints_GetAndQuery_ReturnsConfigurationModels()
     {
-        // 1. Host config
-        var hostResp = await this.Client.GetAsync("/api/v1/config/host");
-        hostResp.StatusCode.Should().Be(HttpStatusCode.OK);
-        var hostJson = await hostResp.Content.ReadAsStringAsync();
-        using var hostDoc = JsonDocument.Parse(hostJson);
-        hostDoc.RootElement.ValueKind.Should().Be(JsonValueKind.Object);
+        // 1. General config
+        var generalResp = await this.Client.GetAsync("/api/v1/config/general");
+        generalResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var generalJson = await generalResp.Content.ReadAsStringAsync();
+        using var generalDoc = JsonDocument.Parse(generalJson);
+        generalDoc.RootElement.ValueKind.Should().Be(JsonValueKind.Object);
 
-        // 2. Naming config
-        var namingResp = await this.Client.GetAsync("/api/v1/config/naming");
-        namingResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        // 2. Advanced config
+        var advResp = await this.Client.GetAsync("/api/v1/config/advanced");
+        advResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        // 3. UI config
-        var uiResp = await this.Client.GetAsync("/api/v1/config/ui");
-        uiResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        // 3. BitTorrent config
+        var btResp = await this.Client.GetAsync("/api/v1/config/bittorrent");
+        btResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        // 4. Download Client config
-        var dlClientResp = await this.Client.GetAsync("/api/v1/config/downloadclient");
-        dlClientResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        // 4. Network config
+        var netResp = await this.Client.GetAsync("/api/v1/config/network");
+        netResp.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Test]
