@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { apiClient } from "../api/client";
 import { useTranslation } from "../i18n";
-import type { DatabaseDiagnosticsResponse } from "../api/types";
+import type { DatabaseDiagnosticsResponse, ThreadDiagnosticItem, GcCollectionResponse } from "../api/types";
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -31,13 +31,18 @@ export default function DeveloperDiagnostics() {
   const [error, setError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [isActionRunning, setIsActionRunning] = useState(false);
+  const [threads, setThreads] = useState<ThreadDiagnosticItem[]>([]);
 
   const fetchDiagnostics = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await apiClient.get<DatabaseDiagnosticsResponse>("/system/database/diagnostics");
+      const [data, threadData] = await Promise.all([
+        apiClient.get<DatabaseDiagnosticsResponse>("/system/database/diagnostics"),
+        apiClient.get<ThreadDiagnosticItem[]>("/system/developer/diagnostics/threads").catch(() => []),
+      ]);
       setDiag(data);
+      setThreads(threadData || []);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg || "Failed to load runtime diagnostics.");
@@ -63,6 +68,25 @@ export default function DeveloperDiagnostics() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setActionMessage({ text: msg || "PRAGMA optimize failed.", type: "error" });
+    } finally {
+      setIsActionRunning(false);
+    }
+  };
+
+  const handleCollectGarbage = async () => {
+    setIsActionRunning(true);
+    setActionMessage(null);
+    try {
+      const res = await apiClient.post<GcCollectionResponse>("/system/developer/diagnostics/memory/gc", {
+        generation: 2,
+        compact: true,
+        blocking: true,
+      });
+      setActionMessage({ text: res.message || "Garbage collection completed.", type: "success" });
+      fetchDiagnostics();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setActionMessage({ text: msg || "Garbage collection failed.", type: "error" });
     } finally {
       setIsActionRunning(false);
     }
@@ -297,9 +321,63 @@ export default function DeveloperDiagnostics() {
             >
               Run VACUUM
             </button>
+            <button
+              className="btn btn-outline btn-small"
+              onClick={handleCollectGarbage}
+              disabled={isActionRunning}
+              title="Trigger CLR Gen2 Garbage Collection"
+            >
+              Collect Garbage (GC)
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Card 4: Managed Threads Inspector */}
+      {threads.length > 0 && (
+        <div className="card" style={{ padding: "1.25rem", marginTop: "1.5rem" }}>
+          <h3 style={{ margin: "0 0 1rem 0", fontSize: "1.1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span>🧵</span> Active Managed Threads ({threads.length})
+          </h3>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", textAlign: "left", fontSize: "0.82rem", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border-light)", color: "var(--text-muted)" }}>
+                  <th style={{ padding: "0.5rem" }}>Thread ID</th>
+                  <th style={{ padding: "0.5rem" }}>Name</th>
+                  <th style={{ padding: "0.5rem" }}>State</th>
+                  <th style={{ padding: "0.5rem" }}>Priority</th>
+                  <th style={{ padding: "0.5rem" }}>Wait Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {threads.map((t) => (
+                  <tr key={t.threadId} style={{ borderBottom: "1px solid var(--border-light)" }}>
+                    <td style={{ padding: "0.5rem", fontFamily: "monospace" }}>#{t.threadId}</td>
+                    <td style={{ padding: "0.5rem", fontWeight: 600 }}>{t.name}</td>
+                    <td style={{ padding: "0.5rem" }}>
+                      <span
+                        style={{
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          fontSize: "0.75rem",
+                          fontWeight: 600,
+                          backgroundColor: t.state === "Running" ? "rgba(40, 167, 69, 0.2)" : "rgba(108, 117, 125, 0.2)",
+                          color: t.state === "Running" ? "var(--success, #28a745)" : "var(--text-muted)",
+                        }}
+                      >
+                        {t.state}
+                      </span>
+                    </td>
+                    <td style={{ padding: "0.5rem" }}>{t.priority}</td>
+                    <td style={{ padding: "0.5rem", color: "var(--text-muted)" }}>{t.waitReason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

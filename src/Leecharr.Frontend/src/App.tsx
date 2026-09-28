@@ -67,6 +67,9 @@ import DeveloperCommands from "./pages/DeveloperCommands";
 import DeveloperNetwork from "./pages/DeveloperNetwork";
 import DeveloperWebhooks from "./pages/DeveloperWebhooks";
 import DeveloperConfig from "./pages/DeveloperConfig";
+import DeveloperTesting from "./pages/DeveloperTesting";
+import DeveloperRepl from "./pages/DeveloperRepl";
+import DeveloperDebugger from "./pages/DeveloperDebugger";
 import { ApiDocsPage } from "./pages/ApiDocsPage";
 import TrackerBoost from "./pages/TrackerBoost";
 import TrackerServer from "./pages/TrackerServer";
@@ -128,6 +131,9 @@ function getSystemSubItems(t: (key: string, defaultValue?: string) => string) {
 function getDeveloperSubItems(t: (key: string, defaultValue?: string) => string) {
   return [
     { id: "database", label: t("developer.database", "Database Explorer") },
+    { id: "testing", label: t("developer.testing", "Test Runner") },
+    { id: "repl", label: t("developer.repl", "REPL Sandbox") },
+    { id: "debugger", label: t("developer.debugger", "Web Debugger") },
     { id: "events", label: t("developer.events", "Event Bus") },
     { id: "commands", label: t("developer.commands", "Command Console") },
     { id: "network", label: t("developer.network", "Network Wiretap") },
@@ -1902,6 +1908,30 @@ export function App() {
                 element={
                   <ErrorBoundary title="Database Explorer">
                     <DatabaseExplorer />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/developer/testing"
+                element={
+                  <ErrorBoundary title="In-App Test Runner">
+                    <DeveloperTesting />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/developer/repl"
+                element={
+                  <ErrorBoundary title="Interactive REPL">
+                    <DeveloperRepl />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/developer/debugger"
+                element={
+                  <ErrorBoundary title="Web Debugger">
+                    <DeveloperDebugger />
                   </ErrorBoundary>
                 }
               />
