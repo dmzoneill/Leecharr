@@ -117,31 +117,31 @@ import {
 
 function getSystemSubItems(t: (key: string, defaultValue?: string) => string) {
   return [
-    { id: "status", label: t("system.status", "Status") },
-    { id: "resources", label: t("system.resources", "Resources") },
-    { id: "tasks", label: t("system.tasks", "Tasks") },
-    { id: "backup", label: t("system.backup", "Backup & Restore") },
-    { id: "updates", label: t("system.updates", "Updates") },
-    { id: "events", label: t("system.events", "Events") },
-    { id: "logs", label: t("system.logs", "Logs") },
-    { id: "network", label: t("system.network", "Network") },
+    { id: "status", label: t("system.status", "Status"), icon: "🟢" },
+    { id: "resources", label: t("system.resources", "Resources"), icon: "📊" },
+    { id: "tasks", label: t("system.tasks", "Tasks"), icon: "⏱️" },
+    { id: "backup", label: t("system.backup", "Backup & Restore"), icon: "💾" },
+    { id: "updates", label: t("system.updates", "Updates"), icon: "🔄" },
+    { id: "events", label: t("system.events", "Events"), icon: "📜" },
+    { id: "logs", label: t("system.logs", "Logs"), icon: "📋" },
+    { id: "network", label: t("system.network", "Network"), icon: "🌐" },
   ];
 }
 
 function getDeveloperSubItems(t: (key: string, defaultValue?: string) => string) {
   return [
-    { id: "database", label: t("developer.database", "Database Explorer") },
-    { id: "testing", label: t("developer.testing", "Test Runner") },
-    { id: "repl", label: t("developer.repl", "REPL Sandbox") },
-    { id: "debugger", label: t("developer.debugger", "Web Debugger") },
-    { id: "events", label: t("developer.events", "Event Bus") },
-    { id: "commands", label: t("developer.commands", "Command Console") },
-    { id: "network", label: t("developer.network", "Network Wiretap") },
-    { id: "webhooks", label: t("developer.webhooks", "Webhook Sandbox") },
-    { id: "config", label: t("developer.config", "Config & Env") },
-    { id: "diagnostics", label: t("developer.diagnostics", "Diagnostics") },
-    { id: "terminal", label: t("developer.terminal", "Terminal CLI") },
-    { id: "api", label: t("developer.apiReference", "API Reference") },
+    { id: "database", label: t("developer.database", "Database Explorer"), icon: "🗄️" },
+    { id: "testing", label: t("developer.testing", "Test Runner"), icon: "🧪" },
+    { id: "repl", label: t("developer.repl", "REPL Sandbox"), icon: "⚡" },
+    { id: "debugger", label: t("developer.debugger", "Web Debugger"), icon: "🐞" },
+    { id: "events", label: t("developer.events", "Event Bus"), icon: "📡" },
+    { id: "commands", label: t("developer.commands", "Command Console"), icon: "⌨️" },
+    { id: "network", label: t("developer.network", "Network Wiretap"), icon: "🌐" },
+    { id: "webhooks", label: t("developer.webhooks", "Webhook Sandbox"), icon: "🪝" },
+    { id: "config", label: t("developer.config", "Config & Env"), icon: "⚙️" },
+    { id: "diagnostics", label: t("developer.diagnostics", "Diagnostics"), icon: "🛠️" },
+    { id: "terminal", label: t("developer.terminal", "Terminal CLI"), icon: "💻" },
+    { id: "api", label: t("developer.apiReference", "API Reference"), icon: "📖" },
   ];
 }
 
@@ -994,7 +994,7 @@ export function App() {
                 style={{ cursor: "pointer" }}
                 title="Inbuilt Tracker Server & Swarms"
               >
-                <span>Inbuilt</span>
+                <TrackerIcon /> <span>Inbuilt</span>
               </div>
               <div
                 className={`sidebar-nav-item sidebar-nav-sub ${activeSubNav === "boost" ? "active" : ""}`}
@@ -1011,7 +1011,7 @@ export function App() {
                 style={{ cursor: "pointer" }}
                 title="Tracker Live Telemetry & Metrics"
               >
-                <span>Tracker Metrics</span>
+                <StatsIcon size={14} /> <span>Tracker Metrics</span>
               </div>
             </>
           )}
@@ -1166,6 +1166,7 @@ export function App() {
                 style={{ cursor: "pointer" }}
                 title={item.label}
               >
+                {item.icon && <span style={{ marginRight: "6px" }}>{item.icon}</span>}
                 <span>{item.label}</span>
               </div>
             ))}
@@ -1189,6 +1190,7 @@ export function App() {
                 style={{ cursor: "pointer" }}
                 title={item.label}
               >
+                {item.icon && <span style={{ marginRight: "6px" }}>{item.icon}</span>}
                 <span>{item.label}</span>
               </div>
             ))}
