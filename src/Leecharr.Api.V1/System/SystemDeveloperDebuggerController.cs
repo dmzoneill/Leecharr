@@ -100,4 +100,26 @@ public class SystemDeveloperDebuggerController : Controller
         this.debuggerService?.ClearSnapshots();
         return this.NoContent();
     }
+
+    [HttpGet("files")]
+    public ActionResult<IReadOnlyList<DebuggerSourceFileItem>> GetFiles()
+    {
+        if (this.debuggerService == null)
+        {
+            return new List<DebuggerSourceFileItem>();
+        }
+
+        return this.Ok(this.debuggerService.GetKnownSourceFiles());
+    }
+
+    [HttpGet("source")]
+    public ActionResult<DebuggerSourceCodeResponse> GetSource([FromQuery] string path)
+    {
+        if (this.debuggerService == null)
+        {
+            return new DebuggerSourceCodeResponse { FilePath = path, Exists = false, Content = "// Debugger service not registered" };
+        }
+
+        return this.Ok(this.debuggerService.GetSourceCode(path));
+    }
 }
