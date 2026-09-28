@@ -158,22 +158,36 @@ public class PtyTerminalServiceTest
         // Resize to 120 cols x 40 rows
         session.Resize(120, 40);
 
-        // Delay to allow control message & ioctl / SIGWINCH processing
-        await Task.Delay(200, cts.Token);
-
-        var cmd2 = Encoding.UTF8.GetBytes("stty size\n");
-        await session.WriteAsync(cmd2, cts.Token);
-
         var sb2 = new StringBuilder();
         while (!cts.IsCancellationRequested && !sb2.ToString().Contains("40 120"))
         {
-            var bytesRead = await session.ReadAsync(buffer, cts.Token);
-            if (bytesRead <= 0)
-            {
-                break;
-            }
+            var cmd2 = Encoding.UTF8.GetBytes("stty size\n");
+            await session.WriteAsync(cmd2, cts.Token);
+            await Task.Delay(150, cts.Token);
 
-            sb2.Append(Encoding.UTF8.GetString(buffer, 0, bytesRead));
+            while (session.IsActive && !cts.IsCancellationRequested)
+            {
+                using var readCts = new CancellationTokenSource(250);
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, readCts.Token);
+                try
+                {
+                    var bytesRead = await session.ReadAsync(buffer, linkedCts.Token);
+                    if (bytesRead <= 0)
+                    {
+                        break;
+                    }
+
+                    sb2.Append(Encoding.UTF8.GetString(buffer, 0, bytesRead));
+                    if (sb2.ToString().Contains("40 120"))
+                    {
+                        break;
+                    }
+                }
+                catch (OperationCanceledException) when (readCts.IsCancellationRequested && !cts.IsCancellationRequested)
+                {
+                    break;
+                }
+            }
         }
 
         sb2.ToString().Should().Contain("40 120");
