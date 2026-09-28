@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.30.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.30.0) - 2026-09-28
+
+### ✨ Features
+- feat(developer): add in-app test runner, diagnostics inspector, REPL, and web debugger
+
 ## [v1.29.28](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.28) - 2026-09-28
 
 ### 🔧 Maintenance & Improvements
