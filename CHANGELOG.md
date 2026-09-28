@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.29.22](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.22) - 2026-09-28
+
+### 🐛 Bug Fixes
+- fix(integration): use PropertyNameCaseInsensitive for RestResource deserialization
+- fix(integration): align test assertions with DryIoc rules and active API endpoints
+
+### 🔧 Maintenance & Improvements
+- test(integration): add CoreAndApiDeepCoverageIntegrationTests covering System, Config, NotificationPayloadBuilder, YamlScriptRunner, and FileNameBuilder
+- test: add deep integration tests for Common and Http components
+
 ## [v1.29.21](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.21) - 2026-09-27
 
 ### 🐛 Bug Fixes
