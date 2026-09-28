@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.31.3](https://github.com/dmzoneill/Leecharr/releases/tag/v1.31.3) - 2026-09-28
+
+### 🐛 Bug Fixes
+- fix(frontend): add missing icons to Tracker, System, and Developer sidebar submenus
+
 ## [v1.31.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.31.2) - 2026-09-28
 
 ### ✨ Features
