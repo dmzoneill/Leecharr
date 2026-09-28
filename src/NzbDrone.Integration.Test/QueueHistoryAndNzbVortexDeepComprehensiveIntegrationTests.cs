@@ -48,12 +48,12 @@ public class QueueHistoryAndNzbVortexDeepComprehensiveIntegrationTests : Integra
         var groupsResp = await this.Client.GetAsync($"/nzbvortex/api/v1/group?session={session}");
         groupsResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        // 5. Queue and History
+        // 5. Queue and NZBs
         var queueResp = await this.Client.GetAsync($"/nzbvortex/api/v1/queue?session={session}");
         queueResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var histResp = await this.Client.GetAsync($"/nzbvortex/api/v1/history?session={session}");
-        histResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var nzbResp = await this.Client.GetAsync($"/nzbvortex/api/v1/nzb?session={session}");
+        nzbResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
         // 6. Server and Status
         var serverResp = await this.Client.GetAsync($"/nzbvortex/api/v1/server?session={session}");
