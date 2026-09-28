@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.29.25](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.25) - 2026-09-28
+
+### 🔧 Maintenance & Improvements
+- test(integration): add CoreSystemAndMediaServicesComprehensiveIntegrationTests covering AI NLP, PowerManagement, FileBrowser, and MediaEnrichment
+
 ## [v1.29.24](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.24) - 2026-09-28
 
 ### 🔧 Maintenance & Improvements
