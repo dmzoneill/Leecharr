@@ -587,6 +587,295 @@ public class SystemDeveloperController : Controller
                     completedAtUtc = "2026-09-28T20:30:00Z",
                 }, new JsonSerializerOptions { WriteIndented = true }),
             },
+            new()
+            {
+                Id = "whisparr-grab",
+                Name = "Whisparr Media Release Grab",
+                Source = "Whisparr",
+                EventType = "Grab",
+                Description = "Dispatched when Whisparr sends an adult media release to the download client.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    eventType = "Grab",
+                    site = new { id = 15, name = "StudioX", url = "https://studiox.example.com" },
+                    movie = new { id = 401, title = "Summer Vacation", releaseDate = "2024-06-15" },
+                    release = new { releaseTitle = "Summer.Vacation.1080p.MP4", indexer = "Prowlarr", size = 2147483648L },
+                    downloadClient = "Leecharr",
+                    downloadId = "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b",
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "whisparr-download",
+                Name = "Whisparr Media File Imported",
+                Source = "Whisparr",
+                EventType = "Download",
+                Description = "Dispatched when Whisparr successfully imports an adult media file.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    eventType = "Download",
+                    movie = new { id = 401, title = "Summer Vacation" },
+                    movieFile = new { id = 801, path = "/adult/Summer Vacation/Summer Vacation (2024).mp4", size = 2147483648L },
+                    downloadId = "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b",
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "bazarr-subtitle",
+                Name = "Bazarr Subtitle Download Complete",
+                Source = "Bazarr",
+                EventType = "SubtitleDownload",
+                Description = "Dispatched when Bazarr retrieves and applies a new subtitle file.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    eventType = "SubtitleDownload",
+                    mediaType = "episode",
+                    title = "Breaking Bad - S01E01 - Pilot",
+                    language = "en",
+                    provider = "OpenSubtitles",
+                    score = 98.5,
+                    subtitlePath = "/series/Breaking Bad/Season 01/Breaking.Bad.S01E01.Pilot.en.srt",
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "bazarr-sync",
+                Name = "Bazarr Subtitle Verification Sync",
+                Source = "Bazarr",
+                EventType = "SubtitleSync",
+                Description = "Emitted when Bazarr completes audio-sync alignment for subtitles.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    eventType = "SubtitleSync",
+                    mediaType = "movie",
+                    title = "Inception (2010)",
+                    language = "en",
+                    appliedOffsetMs = 450,
+                    syncMethod = "ffsubsync",
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "prowlarr-sync",
+                Name = "Prowlarr App Sync Complete",
+                Source = "Prowlarr",
+                EventType = "AppSync",
+                Description = "Dispatched when Prowlarr pushes updated tracker definitions to Leecharr.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    eventType = "AppSync",
+                    client = "Leecharr",
+                    syncAction = "UpdateTrackers",
+                    syncedIndexers = new[] { "1337x", "EZTV", "Nyaa", "TorrentGalaxy" },
+                    totalIndexers = 4,
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "prowlarr-indexer-down",
+                Name = "Prowlarr Indexer Down Circuit Breaker",
+                Source = "Prowlarr",
+                EventType = "IndexerFailure",
+                Description = "Emitted when Prowlarr temporarily disables a failing tracker.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    eventType = "IndexerFailure",
+                    indexer = "PublicFlakyTracker",
+                    failureReason = "Consecutive HTTP 504 Gateway Timeout errors (threshold: 5)",
+                    disabledUntilUtc = DateTime.UtcNow.AddMinutes(15).ToString("o"),
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "sonarr-series-add",
+                Name = "Sonarr Series Monitored",
+                Source = "Sonarr",
+                EventType = "SeriesAdd",
+                Description = "Dispatched when a new television show is added to Sonarr.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    eventType = "SeriesAdd",
+                    series = new { id = 88, title = "Severance", tvdbId = 371980, year = 2022, path = "/series/Severance" },
+                    monitored = true,
+                    seasonCount = 1,
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "sonarr-health",
+                Name = "Sonarr Storage Health Alert",
+                Source = "Sonarr",
+                EventType = "HealthIssue",
+                Description = "Emitted when Sonarr detects root storage or path permission issues.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    eventType = "HealthIssue",
+                    level = "Error",
+                    source = "RootFolderCheck",
+                    message = "Root folder '/series' is currently inaccessible or read-only.",
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "sonarr-upgrade",
+                Name = "Sonarr File Quality Upgrade",
+                Source = "Sonarr",
+                EventType = "Upgrade",
+                Description = "Dispatched when an existing episode file is replaced with higher quality.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    eventType = "Upgrade",
+                    series = new { id = 42, title = "Breaking Bad" },
+                    episode = new { seasonNumber = 1, episodeNumber = 1, title = "Pilot" },
+                    previousQuality = "720p HDTV",
+                    newQuality = "1080p BluRay Remux",
+                    sizeDifferenceBytes = 2849182720L,
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "radarr-movie-add",
+                Name = "Radarr Movie Monitored",
+                Source = "Radarr",
+                EventType = "MovieAdd",
+                Description = "Dispatched when a new movie is added to Radarr's monitoring list.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    eventType = "MovieAdd",
+                    movie = new { id = 105, title = "Dune: Part Two", year = 2024, tmdbId = 693134, path = "/movies/Dune Part Two (2024)" },
+                    monitored = true,
+                    minimumAvailability = "Released",
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "radarr-health",
+                Name = "Radarr Disk Space Alert",
+                Source = "Radarr",
+                EventType = "HealthIssue",
+                Description = "Emitted when target storage volume free capacity is critically low.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    eventType = "HealthIssue",
+                    level = "Warning",
+                    source = "DiskSpaceCheck",
+                    message = "Drive '/movies' has less than 15 GB of free storage remaining.",
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "radarr-upgrade",
+                Name = "Radarr Movie Quality Upgrade",
+                Source = "Radarr",
+                EventType = "Upgrade",
+                Description = "Dispatched when a movie file is replaced with a higher-definition release.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    eventType = "Upgrade",
+                    movie = new { id = 77, title = "Inception", year = 2010 },
+                    previousQuality = "1080p WebDL",
+                    newQuality = "2160p UHD HDR Remux",
+                    sizeDifferenceBytes = 41284901888L,
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "lidarr-artist-add",
+                Name = "Lidarr Artist Monitored",
+                Source = "Lidarr",
+                EventType = "ArtistAdd",
+                Description = "Dispatched when a music artist is added to Lidarr.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    eventType = "ArtistAdd",
+                    artist = new { id = 44, name = "Pink Floyd", mbId = "83d91898-7763-47d7-b03b-b92132375c47" },
+                    monitored = true,
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "readarr-download",
+                Name = "Readarr Book Imported",
+                Source = "Readarr",
+                EventType = "Download",
+                Description = "Dispatched when Readarr organizes and stores a completed book release.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    eventType = "Download",
+                    author = new { id = 9, name = "Frank Herbert" },
+                    book = new { id = 88, title = "Dune" },
+                    bookFile = new { id = 402, path = "/books/Frank Herbert/Dune (1965)/Dune.epub", format = "EPUB", size = 2097152 },
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "jellyfin-playback",
+                Name = "Jellyfin Playback Started",
+                Source = "Jellyfin",
+                EventType = "PlaybackStart",
+                Description = "Emitted by Jellyfin media server when a client initiates streaming.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    NotificationType = "PlaybackStart",
+                    ServerId = "jellyfin-srv-01",
+                    ItemName = "Breaking Bad - S01E01 - Pilot",
+                    ItemType = "Episode",
+                    UserId = "user_42",
+                    ClientName = "Jellyfin Web",
+                    DeviceName = "Chrome Linux",
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "ntfy-publish",
+                Name = "ntfy.sh Topic Notification",
+                Source = "ntfy",
+                EventType = "Publish",
+                Description = "Standard HTTP POST notification format for ntfy.sh servers.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    topic = "leecharr_downloads",
+                    title = "Download Complete: Arch Linux ISO",
+                    message = "Torrent archlinux-2026.09.01-x86_64.iso finished downloading.",
+                    priority = 3,
+                    tags = new[] { "arrow_down", "package" },
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "gotify-push",
+                Name = "Gotify Server Push Message",
+                Source = "Gotify",
+                EventType = "Message",
+                Description = "Gotify self-hosted push notification message payload.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    title = "Leecharr Alert",
+                    message = "Torrent download speed reached 85 MB/s.",
+                    priority = 5,
+                    extras = new
+                    {
+                        client = new { name = "Leecharr", version = "1.32.0" },
+                    },
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
+            new()
+            {
+                Id = "pushover-alert",
+                Name = "Pushover High Priority Alert",
+                Source = "Pushover",
+                EventType = "Alert",
+                Description = "Pushover push notification API payload with emergency priority.",
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    token = "a1b2c3d4e5f6g7h8",
+                    user = "u1v2w3x4y5z6a7b8",
+                    title = "Leecharr Kill Switch Engaged",
+                    message = "VPN interface dropped. BitTorrent engine immediately halted to prevent IP leak.",
+                    priority = 1,
+                    sound = "siren",
+                }, new JsonSerializerOptions { WriteIndented = true }),
+            },
         };
     }
 
