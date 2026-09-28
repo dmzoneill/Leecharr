@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { apiClient } from "../api/client";
 import { useTranslation } from "../i18n";
 import type {
   TracepointDefinition,
   TracepointSnapshot,
   DebuggerStatusReport,
+  DebuggerSourceFileItem,
+  DebuggerSourceCodeResponse,
 } from "../api/types";
 
 const TRACEPOINT_PRESETS = [
@@ -46,24 +48,51 @@ export default function DeveloperDebugger() {
   const [tracepoints, setTracepoints] = useState<TracepointDefinition[]>([]);
   const [snapshots, setSnapshots] = useState<TracepointSnapshot[]>([]);
   const [selectedSnapshot, setSelectedSnapshot] = useState<TracepointSnapshot | null>(null);
+  const [knownFiles, setKnownFiles] = useState<DebuggerSourceFileItem[]>([]);
+  const [selectedFilePath, setSelectedFilePath] = useState<string>("src/NzbDrone.Core/Torrents/TorrentService.cs");
+  const [sourceCode, setSourceCode] = useState<DebuggerSourceCodeResponse | null>(null);
+  const [isLoadingSource, setIsLoadingSource] = useState(false);
+  const [fileFilter, setFileFilter] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [newFilePath, setNewFilePath] = useState("src/NzbDrone.Core/Torrents/TorrentService.cs");
-  const [newLineNumber, setNewLineNumber] = useState(125);
+  const [newLineNumber, setNewLineNumber] = useState(100);
   const [newCondition, setNewCondition] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [actionMessage, setActionMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
+  const fetchSource = useCallback(async (path: string) => {
+    if (!path) return;
+    setIsLoadingSource(true);
+    try {
+      const data = await apiClient.get<DebuggerSourceCodeResponse>(
+        `/system/developer/debugger/source?path=${encodeURIComponent(path)}`
+      );
+      setSourceCode(data);
+    } catch {
+      setSourceCode({
+        filePath: path,
+        content: "// Failed to load source preview.",
+        lineCount: 1,
+        exists: false,
+      });
+    } finally {
+      setIsLoadingSource(false);
+    }
+  }, []);
+
   const fetchAll = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [statusData, tpData, snapData] = await Promise.all([
+      const [statusData, tpData, snapData, filesData] = await Promise.all([
         apiClient.get<DebuggerStatusReport>("/system/developer/debugger/status"),
         apiClient.get<TracepointDefinition[]>("/system/developer/debugger/tracepoints"),
         apiClient.get<TracepointSnapshot[]>("/system/developer/debugger/snapshots?limit=50"),
+        apiClient.get<DebuggerSourceFileItem[]>("/system/developer/debugger/files").catch(() => []),
       ]);
       setStatus(statusData);
       setTracepoints(tpData || []);
       setSnapshots(snapData || []);
+      setKnownFiles(filesData || []);
       if (snapData && snapData.length > 0 && !selectedSnapshot) {
         setSelectedSnapshot(snapData[0]);
       }
@@ -76,9 +105,65 @@ export default function DeveloperDebugger() {
 
   useEffect(() => {
     fetchAll();
-    const interval = setInterval(fetchAll, 4000);
+    const interval = setInterval(fetchAll, 5000);
     return () => clearInterval(interval);
   }, [fetchAll]);
+
+  useEffect(() => {
+    fetchSource(selectedFilePath);
+  }, [selectedFilePath, fetchSource]);
+
+  const filteredFiles = useMemo(() => {
+    if (!fileFilter) return knownFiles;
+    const q = fileFilter.toLowerCase();
+    return knownFiles.filter(
+      (f) =>
+        f.filePath.toLowerCase().includes(q) ||
+        f.className.toLowerCase().includes(q) ||
+        f.namespace.toLowerCase().includes(q)
+    );
+  }, [knownFiles, fileFilter]);
+
+  const activeBreakpointsForSelectedFile = useMemo(() => {
+    const map = new Map<number, TracepointDefinition>();
+    tracepoints.forEach((tp) => {
+      if (
+        tp.filePath.toLowerCase() === selectedFilePath.toLowerCase() ||
+        selectedFilePath.toLowerCase().endsWith(tp.filePath.toLowerCase()) ||
+        tp.filePath.toLowerCase().endsWith(selectedFilePath.toLowerCase())
+      ) {
+        map.set(tp.lineNumber, tp);
+      }
+    });
+    return map;
+  }, [tracepoints, selectedFilePath]);
+
+  const handleToggleBreakpoint = async (lineNum: number) => {
+    const existing = activeBreakpointsForSelectedFile.get(lineNum);
+    setActionMessage(null);
+
+    if (existing && existing.id) {
+      try {
+        await apiClient.delete(`/system/developer/debugger/tracepoints/${existing.id}`);
+        setActionMessage({ text: `Removed breakpoint at line ${lineNum}`, type: "success" });
+        fetchAll();
+      } catch {
+        setActionMessage({ text: "Failed to remove breakpoint.", type: "error" });
+      }
+    } else {
+      try {
+        await apiClient.post<TracepointDefinition>("/system/developer/debugger/tracepoints", {
+          filePath: selectedFilePath,
+          lineNumber: lineNum,
+        });
+        setActionMessage({ text: `Set breakpoint at line ${lineNum}`, type: "success" });
+        fetchAll();
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setActionMessage({ text: msg || "Failed to set breakpoint.", type: "error" });
+      }
+    }
+  };
 
   const handleAddTracepoint = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,6 +176,7 @@ export default function DeveloperDebugger() {
       });
       setShowAddModal(false);
       setNewCondition("");
+      setSelectedFilePath(newFilePath);
       setActionMessage({ text: `Tracepoint added at ${newFilePath}:${newLineNumber}`, type: "success" });
       fetchAll();
     } catch (err: unknown) {
@@ -125,15 +211,20 @@ export default function DeveloperDebugger() {
       const testTp = tracepoints[0]?.id || "manual-probe";
       await apiClient.post("/system/developer/debugger/snapshots", {
         tracepointId: testTp,
-        filePath: "src/NzbDrone.Core/BitTorrent/MonoTorrentDownloadEngine.cs",
-        lineNumber: 592,
+        filePath: selectedFilePath,
+        lineNumber: 100,
         threadId: 4,
-        callStack: "at MonoTorrentDownloadEngine.InitializeEngine()\n   at MonoTorrentDownloadEngine.StartAsync()",
-        variablesJson: JSON.stringify({
-          activeEngine: "MonoTorrent",
-          dhtNodes: 128,
-          rateLimits: { downloadKbps: 0, uploadKbps: 0 },
-        }, null, 2),
+        callStack: `at ${selectedFilePath.split("/").pop()?.replace(".cs", "")}.Execute()\n   at SystemDeveloperDebuggerController.Simulate()`,
+        variablesJson: JSON.stringify(
+          {
+            activeEngine: "MonoTorrent",
+            dhtNodes: 128,
+            timestamp: new Date().toISOString(),
+            rateLimits: { downloadKbps: 0, uploadKbps: 0 },
+          },
+          null,
+          2
+        ),
       });
       setActionMessage({ text: "Simulated tracepoint snapshot injected.", type: "success" });
       fetchAll();
@@ -141,6 +232,10 @@ export default function DeveloperDebugger() {
       setActionMessage({ text: "Failed to inject test snapshot.", type: "error" });
     }
   };
+
+  const sourceLines = useMemo(() => {
+    return (sourceCode?.content || "").split("\n");
+  }, [sourceCode]);
 
   return (
     <div className="content-area" style={{ padding: "1.5rem" }}>
@@ -157,10 +252,10 @@ export default function DeveloperDebugger() {
       >
         <div>
           <h2 style={{ margin: "0 0 4px 0", fontSize: "1.4rem", fontWeight: 700 }}>
-            🐞 Web Debugger & Flight Recorder
+            🐞 Web Debugger & Source Code Breakpoints
           </h2>
           <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-secondary, #94a3b8)" }}>
-            Non-halting live tracepoints to capture runtime call stacks and local variable snapshots without stopping the server.
+            Select any C# source file, click line numbers in the gutter to toggle breakpoints/tracepoints, and inspect flight snapshots.
           </p>
         </div>
 
@@ -181,7 +276,7 @@ export default function DeveloperDebugger() {
               fontWeight: 600,
             }}
           >
-            <span>➕</span> Add Tracepoint
+            <span>➕</span> Custom Breakpoint
           </button>
 
           <button
@@ -233,170 +328,74 @@ export default function DeveloperDebugger() {
         </div>
       )}
 
-      {/* DAP Status Cards */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: "12px",
-          marginBottom: "16px",
-        }}
-      >
-        <div
-          style={{
-            backgroundColor: "var(--bg-surface, #1e293b)",
-            border: "1px solid var(--border, #334155)",
-            borderRadius: "8px",
-            padding: "14px",
-          }}
-        >
-          <div style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary, #94a3b8)", fontWeight: 600 }}>
-            DAP Engine
-          </div>
-          <div style={{ fontSize: "1.1rem", fontWeight: 700, marginTop: "4px", display: "flex", alignItems: "center", gap: "8px" }}>
-            <span
-              style={{
-                width: "10px",
-                height: "10px",
-                borderRadius: "50%",
-                backgroundColor: status?.isDapAvailable ? "#34d399" : "#fbbf24",
-              }}
-            />
-            {status?.isDapAvailable ? "DAP Ready" : "In-Process Mode"}
-          </div>
-          {status?.dapPath && (
-            <div style={{ fontSize: "0.72rem", color: "var(--text-secondary, #94a3b8)", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {status.dapPath}
-            </div>
-          )}
-        </div>
-
-        <div
-          style={{
-            backgroundColor: "var(--bg-surface, #1e293b)",
-            border: "1px solid var(--border, #334155)",
-            borderRadius: "8px",
-            padding: "14px",
-          }}
-        >
-          <div style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary, #94a3b8)", fontWeight: 600 }}>
-            Active Tracepoints
-          </div>
-          <div style={{ fontSize: "1.5rem", fontWeight: 700, marginTop: "4px" }}>
-            {status?.activeTracepointsCount ?? tracepoints.length}
-          </div>
-        </div>
-
-        <div
-          style={{
-            backgroundColor: "var(--bg-surface, #1e293b)",
-            border: "1px solid var(--border, #334155)",
-            borderRadius: "8px",
-            padding: "14px",
-          }}
-        >
-          <div style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "#38bdf8", fontWeight: 600 }}>
-            Captured Snapshots
-          </div>
-          <div style={{ fontSize: "1.5rem", fontWeight: 700, marginTop: "4px", color: "#38bdf8" }}>
-            {status?.capturedSnapshotsCount ?? snapshots.length}
-          </div>
-        </div>
-
-        <div
-          style={{
-            backgroundColor: "var(--bg-surface, #1e293b)",
-            border: "1px solid var(--border, #334155)",
-            borderRadius: "8px",
-            padding: "14px",
-          }}
-        >
-          <div style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary, #94a3b8)", fontWeight: 600 }}>
-            Protocol Version
-          </div>
-          <div style={{ fontSize: "1.1rem", fontWeight: 700, marginTop: "6px" }}>
-            FlightRecorder v1.0
-          </div>
-        </div>
-      </div>
-
-      {/* Active Tracepoints Table */}
+      {/* Dynamic Source File Selector Toolbar */}
       <div
         style={{
           backgroundColor: "var(--bg-surface, #1e293b)",
           border: "1px solid var(--border, #334155)",
           borderRadius: "8px",
-          overflow: "hidden",
+          padding: "12px 16px",
           marginBottom: "16px",
+          display: "flex",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "12px",
         }}
       >
-        <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border, #334155)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "#fff" }}>
-            Active Tracepoints ({tracepoints.length})
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1, minWidth: "300px" }}>
+          <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "#fff", whiteSpace: "nowrap" }}>
+            📂 Target Source File:
           </span>
+
+          <select
+            value={selectedFilePath}
+            onChange={(e) => setSelectedFilePath(e.target.value)}
+            style={{
+              flex: 1,
+              padding: "7px 12px",
+              borderRadius: "6px",
+              border: "1px solid var(--border, #334155)",
+              backgroundColor: "var(--bg-primary, #0f172a)",
+              color: "#38bdf8",
+              fontFamily: "monospace",
+              fontSize: "0.82rem",
+              outline: "none",
+              cursor: "pointer",
+            }}
+          >
+            {filteredFiles.map((file) => (
+              <option key={file.filePath} value={file.filePath}>
+                {file.className} ({file.filePath})
+              </option>
+            ))}
+          </select>
         </div>
 
-        {tracepoints.length === 0 ? (
-          <div style={{ padding: "24px", textAlign: "center", color: "var(--text-secondary, #94a3b8)", fontSize: "0.83rem" }}>
-            No active tracepoints configured. Click "Add Tracepoint" above to set a watch on any C# source line.
-          </div>
-        ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem", textAlign: "left" }}>
-            <thead>
-              <tr style={{ backgroundColor: "rgba(0,0,0,0.2)", borderBottom: "1px solid var(--border, #334155)", color: "var(--text-secondary, #94a3b8)" }}>
-                <th style={{ padding: "8px 14px" }}>File Path</th>
-                <th style={{ padding: "8px 14px", width: "80px" }}>Line</th>
-                <th style={{ padding: "8px 14px" }}>Hit Condition</th>
-                <th style={{ padding: "8px 14px", width: "90px" }}>Hit Count</th>
-                <th style={{ padding: "8px 14px", textAlign: "right", width: "90px" }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tracepoints.map((tp) => (
-                <tr key={tp.id} style={{ borderBottom: "1px solid var(--border, #334155)" }}>
-                  <td style={{ padding: "8px 14px", fontFamily: "monospace", color: "#fff", fontWeight: 600 }}>{tp.filePath}</td>
-                  <td style={{ padding: "8px 14px", fontFamily: "monospace", color: "var(--accent, #3b82f6)" }}>{tp.lineNumber}</td>
-                  <td style={{ padding: "8px 14px", fontFamily: "monospace", color: "var(--text-secondary, #94a3b8)" }}>{tp.condition || "none"}</td>
-                  <td style={{ padding: "8px 14px" }}>
-                    <span
-                      style={{
-                        padding: "2px 8px",
-                        borderRadius: "4px",
-                        backgroundColor: "rgba(56, 189, 248, 0.2)",
-                        color: "#38bdf8",
-                        fontFamily: "monospace",
-                        fontWeight: 700,
-                        fontSize: "0.75rem",
-                      }}
-                    >
-                      {tp.hitCount ?? 0}
-                    </span>
-                  </td>
-                  <td style={{ padding: "8px 14px", textAlign: "right" }}>
-                    <button
-                      onClick={() => tp.id && handleRemoveTracepoint(tp.id)}
-                      style={{
-                        background: "transparent",
-                        border: "none",
-                        color: "#f87171",
-                        cursor: "pointer",
-                        fontSize: "0.78rem",
-                        fontWeight: 600,
-                      }}
-                    >
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <input
+            type="text"
+            placeholder="Filter files..."
+            value={fileFilter}
+            onChange={(e) => setFileFilter(e.target.value)}
+            style={{
+              padding: "6px 12px",
+              borderRadius: "6px",
+              border: "1px solid var(--border, #334155)",
+              backgroundColor: "var(--bg-primary, #0f172a)",
+              color: "#fff",
+              fontSize: "0.8rem",
+              width: "160px",
+            }}
+          />
+          <span style={{ fontSize: "0.75rem", color: "var(--text-secondary, #94a3b8)", fontFamily: "monospace" }}>
+            {filteredFiles.length} files
+          </span>
+        </div>
       </div>
 
-      {/* Split Snapshots View */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 500px", gap: "16px" }}>
-        {/* Left: Snapshots List */}
+      {/* Main Split Workbench: Source Preview on Left, Tracepoints/Snapshots on Right */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 450px", gap: "16px" }}>
+        {/* Left: Code Viewer with Breakpoint Gutter */}
         <div
           style={{
             backgroundColor: "var(--bg-surface, #1e293b)",
@@ -405,146 +404,331 @@ export default function DeveloperDebugger() {
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
-            height: "calc(100vh - 450px)",
-            minHeight: "350px",
+            height: "calc(100vh - 340px)",
+            minHeight: "500px",
           }}
         >
-          <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--border, #334155)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#fff" }}>
-              Captured Frame Snapshots ({snapshots.length})
+          <div
+            style={{
+              padding: "10px 14px",
+              backgroundColor: "rgba(0,0,0,0.2)",
+              borderBottom: "1px solid var(--border, #334155)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              fontSize: "0.8rem",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontWeight: 700, color: "#fff" }}>
+                {selectedFilePath.split("/").pop()}
+              </span>
+              <span style={{ color: "var(--text-secondary, #94a3b8)", fontFamily: "monospace", fontSize: "0.75rem" }}>
+                ({sourceLines.length} lines)
+              </span>
+            </div>
+
+            <span style={{ color: "var(--text-secondary, #94a3b8)", fontSize: "0.75rem" }}>
+              Tip: Click any line number to toggle a breakpoint 🔴
             </span>
-            {snapshots.length > 0 && (
-              <button
-                onClick={handleClearSnapshots}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: "#f87171",
-                  cursor: "pointer",
-                  fontSize: "0.75rem",
-                }}
-              >
-                Clear
-              </button>
-            )}
           </div>
 
-          <div style={{ flex: 1, overflowY: "auto" }}>
-            {snapshots.length === 0 ? (
-              <div style={{ padding: "24px", textAlign: "center", color: "var(--text-secondary, #94a3b8)", fontSize: "0.83rem" }}>
-                No frame snapshots captured yet.
+          <div
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              overflowX: "auto",
+              backgroundColor: "var(--bg-primary, #0f172a)",
+              fontFamily: "monospace",
+              fontSize: "0.8rem",
+              lineHeight: "1.6",
+            }}
+          >
+            {isLoadingSource ? (
+              <div style={{ padding: "40px", textAlign: "center", color: "var(--text-secondary, #94a3b8)" }}>
+                Loading source code preview...
+              </div>
+            ) : sourceLines.length === 0 ? (
+              <div style={{ padding: "40px", textAlign: "center", color: "var(--text-secondary, #94a3b8)" }}>
+                No source code available for this file.
               </div>
             ) : (
-              snapshots.map((snap) => {
-                const isSelected = selectedSnapshot?.snapshotId === snap.snapshotId;
-                return (
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <tbody>
+                  {sourceLines.map((line, idx) => {
+                    const lineNum = idx + 1;
+                    const bp = activeBreakpointsForSelectedFile.get(lineNum);
+                    const isSnapshotLine =
+                      selectedSnapshot &&
+                      selectedSnapshot.lineNumber === lineNum &&
+                      selectedSnapshot.filePath.toLowerCase().endsWith(selectedFilePath.toLowerCase());
+
+                    return (
+                      <tr
+                        key={lineNum}
+                        style={{
+                          backgroundColor: isSnapshotLine
+                            ? "rgba(59, 130, 246, 0.25)"
+                            : bp
+                            ? "rgba(239, 68, 68, 0.12)"
+                            : "transparent",
+                        }}
+                      >
+                        {/* Gutter: Line Number & Breakpoint Dot */}
+                        <td
+                          onClick={() => handleToggleBreakpoint(lineNum)}
+                          style={{
+                            width: "55px",
+                            padding: "0 8px 0 10px",
+                            textAlign: "right",
+                            userSelect: "none",
+                            cursor: "pointer",
+                            color: bp ? "#f87171" : "var(--text-secondary, #64748b)",
+                            borderRight: "1px solid var(--border, #334155)",
+                            backgroundColor: "rgba(0,0,0,0.15)",
+                            verticalAlign: "top",
+                          }}
+                          title={bp ? `Active Breakpoint (Hits: ${bp.hitCount}). Click to remove.` : `Click to set breakpoint at line ${lineNum}`}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span>{bp ? "🔴" : ""}</span>
+                            <span>{lineNum}</span>
+                          </div>
+                        </td>
+
+                        {/* Code Line Content */}
+                        <td
+                          style={{
+                            padding: "0 14px",
+                            whiteSpace: "pre",
+                            color: isSnapshotLine ? "#93c5fd" : "#e2e8f0",
+                          }}
+                        >
+                          {line || " "}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
+        {/* Right: Tracepoints Roster & Frame Snapshot Inspector */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          {/* Active Tracepoints List */}
+          <div
+            style={{
+              backgroundColor: "var(--bg-surface, #1e293b)",
+              border: "1px solid var(--border, #334155)",
+              borderRadius: "8px",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+              maxHeight: "260px",
+            }}
+          >
+            <div
+              style={{
+                padding: "10px 14px",
+                borderBottom: "1px solid var(--border, #334155)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#fff" }}>
+                Active Breakpoints ({tracepoints.length})
+              </span>
+            </div>
+
+            <div style={{ flex: 1, overflowY: "auto" }}>
+              {tracepoints.length === 0 ? (
+                <div style={{ padding: "20px", textAlign: "center", color: "var(--text-secondary, #94a3b8)", fontSize: "0.8rem" }}>
+                  No active breakpoints. Click any line number in the source preview to set one.
+                </div>
+              ) : (
+                tracepoints.map((tp) => (
                   <div
-                    key={snap.snapshotId}
-                    onClick={() => setSelectedSnapshot(snap)}
+                    key={tp.id}
+                    onClick={() => {
+                      setSelectedFilePath(tp.filePath);
+                    }}
                     style={{
-                      padding: "10px 14px",
+                      padding: "8px 12px",
                       borderBottom: "1px solid var(--border, #334155)",
-                      backgroundColor: isSelected ? "rgba(59, 130, 246, 0.15)" : "transparent",
-                      cursor: "pointer",
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
-                      fontSize: "0.8rem",
+                      fontSize: "0.78rem",
+                      cursor: "pointer",
+                      backgroundColor:
+                        selectedFilePath === tp.filePath ? "rgba(59, 130, 246, 0.15)" : "transparent",
                     }}
                   >
-                    <div>
-                      <div style={{ fontFamily: "monospace", fontWeight: 600, color: "#fff" }}>
-                        {snap.filePath}:{snap.lineNumber}
+                    <div style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                      <div style={{ fontWeight: 600, color: "#fff" }}>
+                        🔴 {tp.filePath.split("/").pop()}:{tp.lineNumber}
                       </div>
-                      <div style={{ fontSize: "0.72rem", color: "var(--text-secondary, #94a3b8)", marginTop: "2px" }}>
-                        Thread #{snap.threadId}
-                      </div>
+                      {tp.condition && (
+                        <div style={{ fontSize: "0.7rem", color: "var(--text-secondary, #94a3b8)" }}>
+                          When: {tp.condition}
+                        </div>
+                      )}
                     </div>
-                    <div style={{ color: "var(--text-secondary, #94a3b8)", fontFamily: "monospace", fontSize: "0.75rem" }}>
-                      {snap.timestampUtc ? new Date(snap.timestampUtc).toLocaleTimeString() : ""}
+
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span
+                        style={{
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          backgroundColor: "rgba(56, 189, 248, 0.2)",
+                          color: "#38bdf8",
+                          fontFamily: "monospace",
+                          fontSize: "0.72rem",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {tp.hitCount ?? 0} hits
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (tp.id) handleRemoveTracepoint(tp.id);
+                        }}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: "#f87171",
+                          cursor: "pointer",
+                          fontSize: "0.78rem",
+                        }}
+                      >
+                        ✕
+                      </button>
                     </div>
                   </div>
-                );
-              })
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Captured Flight Snapshots Inspector */}
+          <div
+            style={{
+              backgroundColor: "var(--bg-surface, #1e293b)",
+              border: "1px solid var(--border, #334155)",
+              borderRadius: "8px",
+              padding: "14px",
+              display: "flex",
+              flexDirection: "column",
+              flex: 1,
+              minHeight: "260px",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "10px",
+                borderBottom: "1px solid var(--border, #334155)",
+                paddingBottom: "8px",
+              }}
+            >
+              <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#fff" }}>
+                Captured Flight Frame
+              </span>
+              {snapshots.length > 0 && (
+                <button
+                  onClick={handleClearSnapshots}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#f87171",
+                    cursor: "pointer",
+                    fontSize: "0.75rem",
+                  }}
+                >
+                  Clear ({snapshots.length})
+                </button>
+              )}
+            </div>
+
+            {!selectedSnapshot ? (
+              <div
+                style={{
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "var(--text-secondary, #94a3b8)",
+                  fontSize: "0.8rem",
+                  textAlign: "center",
+                }}
+              >
+                No captured execution snapshots. Hit a breakpoint to capture flight variables.
+              </div>
+            ) : (
+              <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div style={{ fontSize: "0.75rem", color: "var(--text-secondary, #94a3b8)" }}>
+                  Captured at: {selectedSnapshot.filePath}:{selectedSnapshot.lineNumber} · Thread #{selectedSnapshot.threadId}
+                </div>
+
+                <div>
+                  <div style={{ fontSize: "0.72rem", textTransform: "uppercase", color: "var(--text-secondary, #94a3b8)", fontWeight: 600, marginBottom: "4px" }}>
+                    Variables Scope
+                  </div>
+                  <pre
+                    style={{
+                      margin: 0,
+                      padding: "8px",
+                      borderRadius: "6px",
+                      backgroundColor: "var(--bg-primary, #0f172a)",
+                      border: "1px solid var(--border, #334155)",
+                      fontFamily: "monospace",
+                      fontSize: "0.75rem",
+                      color: "#38bdf8",
+                      whiteSpace: "pre-wrap",
+                      maxHeight: "130px",
+                      overflowY: "auto",
+                    }}
+                  >
+                    {selectedSnapshot.variablesJson}
+                  </pre>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: "0.72rem", textTransform: "uppercase", color: "var(--text-secondary, #94a3b8)", fontWeight: 600, marginBottom: "4px" }}>
+                    Call Stack
+                  </div>
+                  <pre
+                    style={{
+                      margin: 0,
+                      padding: "8px",
+                      borderRadius: "6px",
+                      backgroundColor: "var(--bg-primary, #0f172a)",
+                      border: "1px solid var(--border, #334155)",
+                      fontFamily: "monospace",
+                      fontSize: "0.72rem",
+                      color: "#34d399",
+                      whiteSpace: "pre-wrap",
+                      maxHeight: "100px",
+                      overflowY: "auto",
+                    }}
+                  >
+                    {selectedSnapshot.callStack}
+                  </pre>
+                </div>
+              </div>
             )}
           </div>
         </div>
-
-        {/* Right: Snapshot Detail Frame Inspector */}
-        <div
-          style={{
-            backgroundColor: "var(--bg-surface, #1e293b)",
-            border: "1px solid var(--border, #334155)",
-            borderRadius: "8px",
-            padding: "16px",
-            display: "flex",
-            flexDirection: "column",
-            height: "calc(100vh - 450px)",
-            minHeight: "350px",
-            overflow: "hidden",
-          }}
-        >
-          <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#fff", marginBottom: "12px", borderBottom: "1px solid var(--border, #334155)", paddingBottom: "8px" }}>
-            Frame Inspector
-          </div>
-
-          {!selectedSnapshot ? (
-            <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary, #94a3b8)", fontSize: "0.85rem" }}>
-              Select a snapshot on the left to inspect call stack and variables.
-            </div>
-          ) : (
-            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: "12px" }}>
-              <div>
-                <div style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary, #94a3b8)", fontWeight: 600, marginBottom: "4px" }}>
-                  Local Variables Scope
-                </div>
-                <pre
-                  style={{
-                    margin: 0,
-                    padding: "10px",
-                    borderRadius: "6px",
-                    backgroundColor: "var(--bg-primary, #0f172a)",
-                    border: "1px solid var(--border, #334155)",
-                    fontFamily: "monospace",
-                    fontSize: "0.78rem",
-                    color: "#38bdf8",
-                    whiteSpace: "pre-wrap",
-                    overflowX: "auto",
-                    maxHeight: "160px",
-                  }}
-                >
-                  {selectedSnapshot.variablesJson}
-                </pre>
-              </div>
-
-              <div>
-                <div style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary, #94a3b8)", fontWeight: 600, marginBottom: "4px" }}>
-                  Call Stack
-                </div>
-                <pre
-                  style={{
-                    margin: 0,
-                    padding: "10px",
-                    borderRadius: "6px",
-                    backgroundColor: "var(--bg-primary, #0f172a)",
-                    border: "1px solid var(--border, #334155)",
-                    fontFamily: "monospace",
-                    fontSize: "0.75rem",
-                    color: "#34d399",
-                    whiteSpace: "pre-wrap",
-                    overflowX: "auto",
-                    maxHeight: "140px",
-                  }}
-                >
-                  {selectedSnapshot.callStack}
-                </pre>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
 
-      {/* Add Tracepoint Modal */}
+      {/* Add Custom Tracepoint Modal */}
       {showAddModal && (
         <div
           style={{
@@ -565,12 +749,12 @@ export default function DeveloperDebugger() {
               border: "1px solid var(--border, #334155)",
               borderRadius: "8px",
               padding: "20px",
-              maxWidth: "460px",
+              maxWidth: "480px",
               width: "100%",
             }}
           >
             <h3 style={{ margin: "0 0 14px 0", fontSize: "1.15rem", fontWeight: 700 }}>
-              Add Source Tracepoint
+              Add Breakpoint / Tracepoint
             </h3>
 
             <div style={{ marginBottom: "12px" }}>
@@ -652,7 +836,7 @@ export default function DeveloperDebugger() {
 
               <div>
                 <label style={{ display: "block", color: "var(--text-secondary, #94a3b8)", marginBottom: "4px" }}>
-                  Hit Condition (optional C# expression)
+                  Hit Condition (optional expression)
                 </label>
                 <input
                   type="text"
@@ -702,7 +886,7 @@ export default function DeveloperDebugger() {
                     fontWeight: 600,
                   }}
                 >
-                  Save Tracepoint
+                  Save Breakpoint
                 </button>
               </div>
             </form>

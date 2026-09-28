@@ -301,6 +301,36 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
         clearSnapsResp.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
+    [Test]
+    public async Task Debugger_GetFiles_DiscoversKnownSourceFiles()
+    {
+        var response = await this.Client.GetAsync("/api/v1/system/developer/debugger/files");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync();
+        var files = JsonSerializer.Deserialize<List<DebuggerSourceFileItem>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+        files.Should().NotBeNull();
+        files!.Count.Should().BeGreaterThanOrEqualTo(10);
+        files.Should().Contain(f => f.FilePath.EndsWith(".cs"));
+    }
+
+    [Test]
+    public async Task Debugger_GetSource_ReturnsSourcePreviewOrMetadata()
+    {
+        var testPath = "src/NzbDrone.Core/Torrents/TorrentService.cs";
+        var response = await this.Client.GetAsync($"/api/v1/system/developer/debugger/source?path={testPath}");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync();
+        var sourceResp = JsonSerializer.Deserialize<DebuggerSourceCodeResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+        sourceResp.Should().NotBeNull();
+        sourceResp!.Exists.Should().BeTrue();
+        sourceResp.Content.Should().Contain("TorrentService");
+        sourceResp.LineCount.Should().BeGreaterThan(0);
+    }
+
     // ==========================================
     // 5. COMPREHENSIVE WEBHOOKS & TEST EXPANSIONS
     // ==========================================
