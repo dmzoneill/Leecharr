@@ -448,8 +448,9 @@ public class PtyTerminalServiceTest
                 mode.HasFlag(UnixFileMode.UserWrite).Should().BeTrue("user write permission must be set");
 
                 // Group and others must not have read, write, or execute permissions (0600 mode)
-                var groupAndOtherPermissions = UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.GroupExecute |
-                                               UnixFileMode.OtherRead | UnixFileMode.OtherWrite | UnixFileMode.OtherExecute;
+                var groupAndOtherPermissions =
+                    UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.GroupExecute |
+                    UnixFileMode.OtherRead | UnixFileMode.OtherWrite | UnixFileMode.OtherExecute;
                 (mode & groupAndOtherPermissions).Should().Be(UnixFileMode.None, "FIFO must not have group or other permissions");
             }
             finally
