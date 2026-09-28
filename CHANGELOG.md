@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.29.26](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.26) - 2026-09-28
+
+### 🐛 Bug Fixes
+- fix(integration): use valid NzbVortex actions pause/resume/file routes
+- fix(integration): update NzbVortex API test route from /history to /nzb
+
+### 🔧 Maintenance & Improvements
+- test(integration): add QueueHistoryAndNzbVortexDeepComprehensiveIntegrationTests covering NzbVortex API, QueueManagerService, DownloadHistoryService, and RssSyncService
+
 ## [v1.29.25](https://github.com/dmzoneill/Leecharr/releases/tag/v1.29.25) - 2026-09-28
 
 ### 🔧 Maintenance & Improvements
