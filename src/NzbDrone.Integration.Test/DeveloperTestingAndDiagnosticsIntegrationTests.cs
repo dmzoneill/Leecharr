@@ -336,7 +336,7 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
     // ==========================================
 
     [Test]
-    public async Task Testing_GetTests_DiscoversComprehensive24TestLibrary()
+    public async Task Testing_GetTests_DiscoversComprehensive56TestLibrary()
     {
         var response = await this.Client.GetAsync("/api/v1/system/developer/testing/tests");
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -345,7 +345,7 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
         var tests = JsonSerializer.Deserialize<List<DeveloperTestItem>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
         tests.Should().NotBeNull();
-        tests!.Count.Should().BeGreaterThanOrEqualTo(24);
+        tests!.Count.Should().BeGreaterThanOrEqualTo(56);
 
         var categories = tests.Select(t => t.Category).Distinct().ToList();
         categories.Should().Contain(new[] { "Database", "Storage", "BitTorrent", "Network", "Scheduler", "Messaging", "System", "Configuration" });
@@ -354,7 +354,7 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
     [Test]
     public async Task Testing_RunVariousDiagnosticCategories_ExecutesAndPasses()
     {
-        var testCategories = new[] { "Storage", "Network", "Configuration", "Messaging" };
+        var testCategories = new[] { "Database", "Storage", "BitTorrent", "Network", "Scheduler", "Messaging", "System", "Configuration" };
 
         foreach (var category in testCategories)
         {
