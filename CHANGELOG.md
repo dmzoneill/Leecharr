@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.31.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.31.1) - 2026-09-28
+
+### 🐛 Bug Fixes
+- fix(frontend): update Developer Testing, REPL, and Debugger pages to match Leecharr design system
+
 ## [v1.31.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.31.0) - 2026-09-28
 
 ### ✨ Features
