@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.33.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.0) - 2026-09-28
+
+### ✨ Features
+- feat(developer): expand command dispatcher to 24+ commands and webhook sandbox to 34 templates
+
 ## [v1.32.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.32.0) - 2026-09-28
 
 ### ✨ Features
