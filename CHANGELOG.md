@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.31.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.31.0) - 2026-09-28
+
+### ✨ Features
+- feat(frontend): add Developer Testing, REPL, and Web Debugger UI pages
+
 ## [v1.30.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.30.0) - 2026-09-28
 
 ### ✨ Features
