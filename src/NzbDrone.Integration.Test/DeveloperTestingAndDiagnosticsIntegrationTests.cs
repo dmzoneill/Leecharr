@@ -380,7 +380,7 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
         var json = await response.Content.ReadAsStringAsync();
         using var doc = JsonDocument.Parse(json);
         doc.RootElement.ValueKind.Should().Be(JsonValueKind.Array);
-        doc.RootElement.GetArrayLength().Should().BeGreaterThanOrEqualTo(16);
+        doc.RootElement.GetArrayLength().Should().BeGreaterThanOrEqualTo(30);
 
         var templateIds = new List<string>();
         foreach (var el in doc.RootElement.EnumerateArray())
@@ -400,6 +400,11 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
             "discord-webhook",
             "slack-webhook",
             "generic-torrent-completed",
+            "whisparr-grab",
+            "bazarr-subtitle",
+            "jellyfin-playback",
+            "ntfy-publish",
+            "gotify-push",
         });
     }
 
@@ -439,5 +444,74 @@ public class DeveloperTestingAndDiagnosticsIntegrationTests : IntegrationTestBas
 
         var resp2 = await this.PostJsonAsync("/api/v1/system/developer/webhooks/simulate", simRequest2);
         resp2.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // 3. Simulate Whisparr grab
+        var whisparrPayload = new
+        {
+            eventType = "Grab",
+            movie = new { id = 401, title = "Summer Vacation" },
+            downloadClient = "Leecharr",
+        };
+
+        var simRequest3 = new
+        {
+            eventType = "Grab",
+            payloadJson = JsonSerializer.Serialize(whisparrPayload),
+        };
+
+        var resp3 = await this.PostJsonAsync("/api/v1/system/developer/webhooks/simulate", simRequest3);
+        resp3.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Test]
+    public async Task Commands_GetCatalog_DiscoversExpandedCommandLibrary()
+    {
+        var response = await this.Client.GetAsync("/api/v1/system/developer/commands");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(json);
+        var commandsEl = doc.RootElement.GetProperty("commands");
+        commandsEl.ValueKind.Should().Be(JsonValueKind.Array);
+        commandsEl.GetArrayLength().Should().BeGreaterThanOrEqualTo(20);
+
+        var commandNames = new List<string>();
+        foreach (var cmd in commandsEl.EnumerateArray())
+        {
+            commandNames.Add(cmd.GetProperty("name").GetString()!);
+        }
+
+        commandNames.Should().Contain(new[]
+        {
+            "BackupCommand",
+            "ForceGarbageCollectionCommand",
+            "VacuumDatabaseCommand",
+            "RescanTorrentsCommand",
+            "CheckDiskSpaceCommand",
+            "RotateLogFilesCommand",
+            "ClearDhtCacheCommand",
+        });
+    }
+
+    [Test]
+    public async Task Commands_ExecuteExpandedCommand_QueuesSuccessfully()
+    {
+        var request = new
+        {
+            commandName = "ForceGarbageCollectionCommand",
+            parameters = new Dictionary<string, object>
+            {
+                { "Generation", 2 },
+                { "CompactLargeObjectHeap", true },
+            },
+        };
+
+        var response = await this.PostJsonAsync("/api/v1/system/developer/commands/execute", request);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(json);
+        doc.RootElement.GetProperty("name").GetString().Should().Be("ForceGarbageCollectionCommand");
+        doc.RootElement.GetProperty("status").GetString().Should().Be("Queued");
     }
 }
