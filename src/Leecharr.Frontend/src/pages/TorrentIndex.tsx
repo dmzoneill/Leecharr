@@ -55,9 +55,19 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   onOpenSearchModal,
   onNavigateTab,
 }) => {
+  const [searchParams] = useSearchParams();
+  const trackerParam = searchParams.get("tracker");
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [selectedState, setSelectedState] = useState<string>("All");
-  const [selectedTracker, setSelectedTracker] = useState<string>("All");
+  const [selectedTracker, setSelectedTracker] = useState<string>(
+    () => trackerParam || "All",
+  );
+
+  useEffect(() => {
+    if (trackerParam) {
+      setSelectedTracker(trackerParam);
+    }
+  }, [trackerParam]);
   const [selectedPrivacy, setSelectedPrivacy] = useState<string>("All");
   const [filter, setFilter] = useState<string>("");
   const [selectedTag, setSelectedTag] = useState<string>("All");
