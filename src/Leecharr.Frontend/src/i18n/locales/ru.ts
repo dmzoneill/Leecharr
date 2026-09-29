@@ -172,7 +172,7 @@ const ru: I18nTranslations = {
     "title": "Заголовок",
     "speed": "Скорость",
     "general": "Общие",
-    "languageTitle": "Название языка",
+    "languageTitle": "Язык: {name} ({nativeName})",
     "connecting": "Подключение",
     "unknown": "Неизвестный",
     "default": "По умолчанию",

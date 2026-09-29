@@ -171,7 +171,7 @@ const id: I18nTranslations = {
     "title": "Judul",
     "speed": "Kecepatan",
     "general": "Umum",
-    "languageTitle": "Judul Bahasa",
+    "languageTitle": "Bahasa: {name} ({nativeName})",
     "connecting": "Menghubungkan",
     "unknown": "Tidak dikenal",
     "default": "Bawaan",

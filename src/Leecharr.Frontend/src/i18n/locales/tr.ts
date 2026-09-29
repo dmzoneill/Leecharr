@@ -172,7 +172,7 @@ const tr: I18nTranslations = {
     "title": "Başlık",
     "speed": "Hız",
     "general": "Genel",
-    "languageTitle": "Dil Başlığı",
+    "languageTitle": "Dil: {name} ({nativeName})",
     "connecting": "Bağlanıyor",
     "unknown": "Bilinmiyor",
     "default": "Varsayılan",

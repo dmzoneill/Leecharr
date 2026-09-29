@@ -172,7 +172,7 @@ const zhCN: I18nTranslations = {
     "title": "标题",
     "speed": "速度",
     "general": "一般的",
-    "languageTitle": "语言标题",
+    "languageTitle": "语言: {name} ({nativeName})",
     "connecting": "正在连接",
     "unknown": "未知",
     "default": "默认",
