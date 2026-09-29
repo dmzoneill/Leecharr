@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -829,6 +830,174 @@ public class DownloadHistoryServiceTest
             h.Id == 20 && h.TorrentId == null && h.Status == "Removed"));
 
         this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentAddedEvent>());
+    }
+
+    [Test]
+    public async Task ReAddAsync_WithDataJson_RestoresMediaMetadata()
+    {
+        var mediaMetaRepo = Substitute.For<ITorrentMediaMetadataRepository>();
+        var serviceWithMeta = new DownloadHistoryService(
+            this.historyRepository,
+            this.torrentRepository,
+            this.trackerEntryRepository,
+            this.downloadEngine,
+            this.eventAggregator,
+            this.safeHttpClientService,
+            this.categoryService,
+            this.storagePathService,
+            this.torrentFileParser,
+            this.fileRepository,
+            this.configService,
+            mediaMetadataRepository: mediaMetaRepo);
+
+        var cachedMetadata = new TorrentMediaMetadata
+        {
+            Id = 999,
+            TorrentId = 888,
+            Title = "Fight Club",
+            Year = 1999,
+            Overview = "An insomniac office worker...",
+            PosterUrl = "https://image.tmdb.org/t/p/w500/poster.jpg",
+            BackdropUrl = "https://image.tmdb.org/t/p/w1280/backdrop.jpg",
+            Genres = "Drama, Thriller",
+            TmdbId = "550",
+            ImdbId = "tt0137523",
+        };
+
+        var history = new DownloadHistory
+        {
+            Id = 25,
+            InfoHash = "metadatahash123",
+            Title = "Fight Club 1999 1080p",
+            TotalSize = 5000,
+            PrimaryTracker = "udp://tracker.opentrackr.org:1337/announce",
+            DataJson = JsonSerializer.Serialize(cachedMetadata),
+        };
+
+        this.historyRepository.Get(25).Returns(history);
+        this.torrentRepository.ExistsByInfoHash("metadatahash123").Returns(false);
+        this.torrentRepository.All().Returns(new List<Torrent>());
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
+        {
+            var t = (Torrent)args[0];
+            t.Id = 77;
+            return t;
+        });
+
+        var added = await serviceWithMeta.ReAddAsync(25);
+
+        added.Should().NotBeNull();
+        added.Id.Should().Be(77);
+
+        mediaMetaRepo.Received(1).Insert(Arg.Is<TorrentMediaMetadata>(m =>
+            m.Id == 0 &&
+            m.TorrentId == 77 &&
+            m.Title == "Fight Club" &&
+            m.Year == 1999 &&
+            m.Overview == "An insomniac office worker..." &&
+            m.PosterUrl == "https://image.tmdb.org/t/p/w500/poster.jpg" &&
+            m.BackdropUrl == "https://image.tmdb.org/t/p/w1280/backdrop.jpg" &&
+            m.Genres == "Drama, Thriller" &&
+            m.TmdbId == "550" &&
+            m.ImdbId == "tt0137523"));
+    }
+
+    [Test]
+    public async Task ReAddAsync_WithCorruptDataJson_ContinuesWithoutThrowing()
+    {
+        var mediaMetaRepo = Substitute.For<ITorrentMediaMetadataRepository>();
+        var serviceWithMeta = new DownloadHistoryService(
+            this.historyRepository,
+            this.torrentRepository,
+            this.trackerEntryRepository,
+            this.downloadEngine,
+            this.eventAggregator,
+            this.safeHttpClientService,
+            this.categoryService,
+            this.storagePathService,
+            this.torrentFileParser,
+            this.fileRepository,
+            this.configService,
+            mediaMetadataRepository: mediaMetaRepo);
+
+        var history = new DownloadHistory
+        {
+            Id = 26,
+            InfoHash = "corrupthash123",
+            Title = "Corrupt Metadata Torrent",
+            TotalSize = 5000,
+            DataJson = "{ not valid json ...",
+        };
+
+        this.historyRepository.Get(26).Returns(history);
+        this.torrentRepository.ExistsByInfoHash("corrupthash123").Returns(false);
+        this.torrentRepository.All().Returns(new List<Torrent>());
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
+        {
+            var t = (Torrent)args[0];
+            t.Id = 78;
+            return t;
+        });
+
+        var added = await serviceWithMeta.ReAddAsync(26);
+
+        added.Should().NotBeNull();
+        added.Id.Should().Be(78);
+        mediaMetaRepo.DidNotReceive().Insert(Arg.Any<TorrentMediaMetadata>());
+    }
+
+    [Test]
+    public async Task ReAddAsync_WhenEngineFails_RollsBackMediaMetadata()
+    {
+        var mediaMetaRepo = Substitute.For<ITorrentMediaMetadataRepository>();
+        var serviceWithMeta = new DownloadHistoryService(
+            this.historyRepository,
+            this.torrentRepository,
+            this.trackerEntryRepository,
+            this.downloadEngine,
+            this.eventAggregator,
+            this.safeHttpClientService,
+            this.categoryService,
+            this.storagePathService,
+            this.torrentFileParser,
+            this.fileRepository,
+            this.configService,
+            mediaMetadataRepository: mediaMetaRepo);
+
+        var cachedMetadata = new TorrentMediaMetadata
+        {
+            Title = "Failed Movie",
+        };
+
+        var history = new DownloadHistory
+        {
+            Id = 27,
+            InfoHash = "failhash123",
+            Title = "Failed Release",
+            TotalSize = 5000,
+            DataJson = JsonSerializer.Serialize(cachedMetadata),
+        };
+
+        this.historyRepository.Get(27).Returns(history);
+        this.torrentRepository.ExistsByInfoHash("failhash123").Returns(false);
+        this.torrentRepository.All().Returns(new List<Torrent>());
+        this.torrentRepository.Insert(Arg.Any<Torrent>()).Returns(args =>
+        {
+            var t = (Torrent)args[0];
+            t.Id = 555;
+            return t;
+        });
+
+        this.downloadEngine.AddTorrentAsync(Arg.Any<Torrent>(), Arg.Any<byte[]>(), Arg.Any<string>())
+            .ThrowsAsync(new IOException("Engine crash"));
+
+        Func<Task> act = async () => await serviceWithMeta.ReAddAsync(27);
+
+        await act.Should().ThrowAsync<IOException>().WithMessage("Engine crash");
+
+        mediaMetaRepo.Received(1).Insert(Arg.Is<TorrentMediaMetadata>(m => m.TorrentId == 555));
+        mediaMetaRepo.Received(1).DeleteByTorrentId(555);
+        this.torrentRepository.Received(1).Delete(555);
     }
 
     [Test]
