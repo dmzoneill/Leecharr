@@ -3588,6 +3588,8 @@ const te: I18nTranslations = {
     "dontShowAgain": "మళ్లీ చూపించవద్దు",
     "previous": "మునుపటి",
     "finishAndClose": "ముగించు మరియు మూసివేయి",
+    "skipStep": "ఈ దశను దాటవేయి",
+    "quickFinish": "త్వరిత ముగింపు",
     "startExampleTour": "ఉదాహరణ పర్యటనను ప్రారంభించండి →",
     "startLiveSetup": "లైవ్ సెటప్ ను ప్రారంభించండి",
     "stepCount": "{{total}}లో {{current}} దశ",

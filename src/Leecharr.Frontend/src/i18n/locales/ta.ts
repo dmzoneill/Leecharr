@@ -3588,6 +3588,8 @@ const ta: I18nTranslations = {
     "dontShowAgain": "மீண்டும் காட்ட வேண்டாம்",
     "previous": "முந்தைய",
     "finishAndClose": "முடித்து மூடு",
+    "skipStep": "இந்த படியைத் தவிர்",
+    "quickFinish": "விரைவு முடிவு",
     "startExampleTour": "எடுத்துக்காட்டு சுற்றுப்பயணத்தைத் தொடங்கவும் →",
     "startLiveSetup": "நேரடி அமைப்பைத் தொடங்கவும்",
     "stepCount": "படி {{current}} இன் {{total}}",

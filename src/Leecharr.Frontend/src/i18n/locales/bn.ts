@@ -3588,6 +3588,8 @@ const bn: I18nTranslations = {
     "dontShowAgain": "আবার দেখাবেন না",
     "previous": "আগের",
     "finishAndClose": "শেষ এবং বন্ধ করুন",
+    "skipStep": "এই ধাপটি এড়িয়ে যান",
+    "quickFinish": "দ্রুত সমাপ্তি",
     "startExampleTour": "উদাহরণ ট্যুর শুরু করুন →",
     "startLiveSetup": "লাইভ সেটআপ শুরু করুন",
     "stepCount": "ধাপ {{current}} এর {{total}}",
