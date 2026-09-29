@@ -172,7 +172,7 @@ const ar: I18nTranslations = {
     "title": "عنوان",
     "speed": "السرعة",
     "general": "عام",
-    "languageTitle": "عنوان اللغة",
+    "languageTitle": "اللغة: {name} ({nativeName})",
     "connecting": "الاتصال",
     "unknown": "مجهول",
     "default": "تقصير",

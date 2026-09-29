@@ -170,7 +170,7 @@ const es: I18nTranslations = {
     "deleting": "Eliminando...",
     "title": "Título",
     "speed": "Velocidad",
-    "languageTitle": "Título del idioma",
+    "languageTitle": "Idioma: {name} ({nativeName})",
     "connecting": "Conectando",
     "unknown": "Desconocido",
     "default": "Por defecto",
