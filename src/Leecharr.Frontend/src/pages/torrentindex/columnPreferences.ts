@@ -137,6 +137,7 @@ export const ALL_COLUMNS: ColumnDef[] = [
   { key: "#", label: "#", sortable: true, category: "basic" },
   { key: "queuePosition", label: "Queue #", sortable: true, category: "basic" },
   { key: "name", label: "Name", sortable: true, category: "basic" },
+  { key: "category", label: "Category", sortable: true, category: "basic" },
   { key: "status", label: "Status", sortable: true, category: "basic" },
   { key: "progress", label: "Progress", sortable: true, category: "basic" },
   { key: "totalSize", label: "Size", sortable: true, category: "basic" },
@@ -348,7 +349,6 @@ export function loadVisibleColumns(): Set<string> {
         const parsed = JSON.parse(stored) as string[];
         if (Array.isArray(parsed) && parsed.length > 0) {
           const known = new Set(ALL_COLUMNS.map((c) => c.key as string));
-          known.add("category");
           known.add("initialSeeding");
           const valid = parsed.filter((key) => known.has(key));
           if (valid.length > 0) {
@@ -367,7 +367,6 @@ export function saveVisibleColumns(cols: Set<string>): void {
   try {
     if (typeof localStorage !== "undefined") {
       const known = new Set(ALL_COLUMNS.map((c) => c.key as string));
-      known.add("category");
       known.add("initialSeeding");
       const valid = [...cols].filter((key) => known.has(key));
       const finalCols = valid.length > 0 ? valid : [...DEFAULT_VISIBLE];
@@ -393,7 +392,6 @@ export function loadTableSortPreferences(): {
         const knownSortable = new Set(
           ALL_COLUMNS.filter((c) => c.sortable).map((c) => c.key as string),
         );
-        knownSortable.add("category");
         if (knownSortable.has(storedKey)) {
           sortKey = storedKey as ColumnKey;
         } else {
@@ -482,7 +480,6 @@ export function loadColumnOrder(): ColumnKey[] {
         const parsed = JSON.parse(stored) as ColumnKey[];
         if (Array.isArray(parsed) && parsed.length > 0) {
           const known = new Set(ALL_COLUMNS.map((c) => c.key as string));
-          known.add("category");
           const valid = parsed.filter((key) => known.has(key));
           if (valid.length > 0) {
             const inStored = new Set(valid);
@@ -764,7 +761,6 @@ export function useColumnPreferences(): ColumnPreferencesHook {
           const parsed = JSON.parse(e.newValue) as string[];
           if (Array.isArray(parsed) && parsed.length > 0) {
             const known = new Set(ALL_COLUMNS.map((c) => c.key as string));
-            known.add("category");
             known.add("initialSeeding");
             const valid = parsed.filter((key) => known.has(key));
             if (valid.length > 0) {
