@@ -4499,6 +4499,16 @@ const en: I18nTranslations = {
     "reconnecting": "Real-time connection lost. Attempting to reconnect...",
     "disconnected": "Disconnected from server. Click Retry Now to reconnect.",
     "retryNow": "Retry Now"
+  },
+  "ariaLive": {
+    "torrentCompleted": "Torrent \"{{name}}\" completed, now seeding",
+    "torrentError": "Torrent \"{{name}}\" encountered error: {{error}}",
+    "downloadInterrupted": "download interrupted"
+  },
+  "aria": {
+    "torrentCompleted": "Torrent \"{{name}}\" completed, now seeding",
+    "torrentError": "Torrent \"{{name}}\" encountered error: {{error}}",
+    "downloadInterrupted": "download interrupted"
   }
 };
 

@@ -1327,6 +1327,7 @@ const fr: I18nTranslations = {
       "noValidUrlsFound": "Aucune URL valide trouvée",
       "processedTrackersToast": "Toast des traqueurs traités",
       "bulkImportFailed": "Échec de l'importation groupée",
+      "importFailedGeneric": "Échec de l'analyse de la liste des trackers ou format de réponse du tracker non valide",
       "automationTitle": "Titre d'automatisation",
       "automationDesc": "Description de l'automatisation",
       "autoBoostLabel": "Étiquette de boost automatique",
@@ -1350,8 +1351,7 @@ const fr: I18nTranslations = {
       "bulkImportModalTitle": "Titre modal d’importation groupée",
       "bulkImportModalHint": "Astuce modale d’importation en masse",
       "importingTrackers": "Importation de trackers",
-      "importTrackersBtn": "Importer des trackers Btn",
-      "importFailedGeneric": "Échec de l'analyse de la liste des trackers ou format de réponse du tracker non valide"
+      "importTrackersBtn": "Importer des trackers Btn"
     },
     "logs": {
       "logsClearedToast": "Journaux effacés Toast",
@@ -1839,6 +1839,9 @@ const fr: I18nTranslations = {
   },
   "developer": {
     "database": "Explorateur de base de données",
+    "testing": "Testeur",
+    "repl": "Bac à sable REPL",
+    "debugger": "Débogueur Web",
     "events": "Bus événementiel",
     "commands": "Répartiteur de commandes",
     "network": "Écoute réseau",
@@ -4496,6 +4499,16 @@ const fr: I18nTranslations = {
     "reconnecting": "Connexion en temps réel perdue. Tentative de reconnexion...",
     "disconnected": "Déconnecté du serveur. Cliquez sur Réessayer maintenant pour vous reconnecter.",
     "retryNow": "Réessayez maintenant"
+  },
+  "ariaLive": {
+    "torrentCompleted": "Torrent \"{{name}}\" terminé, en cours de semis",
+    "torrentError": "Le torrent \"{{name}}\" a rencontré une erreur : {{error}}",
+    "downloadInterrupted": "téléchargement interrompu"
+  },
+  "aria": {
+    "torrentCompleted": "Torrent \"{{name}}\" terminé, en cours de semis",
+    "torrentError": "Le torrent \"{{name}}\" a rencontré une erreur : {{error}}",
+    "downloadInterrupted": "téléchargement interrompu"
   }
 };
 

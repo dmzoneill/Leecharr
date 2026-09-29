@@ -55,20 +55,28 @@ class ApiClient {
   private apiKey: string | null = null;
 
   constructor() {
-    this.apiKey = localStorage.getItem("leecharr_apikey");
+    this.apiKey =
+      typeof localStorage !== "undefined"
+        ? localStorage.getItem("leecharr_apikey")
+        : null;
   }
 
   setApiKey(key: string) {
     this.apiKey = key;
-    if (key) {
-      localStorage.setItem("leecharr_apikey", key);
-    } else {
-      localStorage.removeItem("leecharr_apikey");
+    if (typeof localStorage !== "undefined") {
+      if (key) {
+        localStorage.setItem("leecharr_apikey", key);
+      } else {
+        localStorage.removeItem("leecharr_apikey");
+      }
     }
   }
 
   getApiKey(): string | null {
-    return this.apiKey || localStorage.getItem("leecharr_apikey");
+    if (typeof localStorage !== "undefined") {
+      return this.apiKey || localStorage.getItem("leecharr_apikey");
+    }
+    return this.apiKey;
   }
 
   async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {

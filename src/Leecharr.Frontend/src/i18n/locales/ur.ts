@@ -1328,6 +1328,7 @@ const ur: I18nTranslations = {
       "noValidUrlsFound": "کوئی درست یو آر ایل نہیں ملا",
       "processedTrackersToast": "پروسیسڈ ٹریکرز ٹوسٹ",
       "bulkImportFailed": "بلک درآمد ناکام ہو گیا۔",
+      "importFailedGeneric": "ٹریکر لسٹ کو پارس کرنے میں ناکام یا غلط ٹریکر رسپانس فارمیٹ",
       "automationTitle": "آٹومیشن کا عنوان",
       "automationDesc": "آٹومیشن ڈیسک",
       "autoBoostLabel": "آٹو بوسٹ لیبل",
@@ -1351,8 +1352,7 @@ const ur: I18nTranslations = {
       "bulkImportModalTitle": "بلک امپورٹ موڈل ٹائٹل",
       "bulkImportModalHint": "بلک امپورٹ موڈل اشارہ",
       "importingTrackers": "ٹریکرز درآمد کرنا",
-      "importTrackersBtn": "درآمد ٹریکرز Btn",
-      "importFailedGeneric": "ٹریکر لسٹ کو پارس کرنے میں ناکام یا غلط ٹریکر رسپانس فارمیٹ"
+      "importTrackersBtn": "درآمد ٹریکرز Btn"
     },
     "logs": {
       "logsClearedToast": "لاگز کلیئرڈ ٹوسٹ",
@@ -1839,6 +1839,9 @@ const ur: I18nTranslations = {
   },
   "developer": {
     "database": "ڈیٹا بیس ایکسپلورر",
+    "testing": "ٹیسٹ رنر",
+    "repl": "REPL سینڈ باکس",
+    "debugger": "ویب ڈیبگر",
     "events": "ایونٹ بس",
     "commands": "کمانڈ ڈسپیچر",
     "network": "نیٹ ورک وائر ٹیپ",
@@ -4496,6 +4499,16 @@ const ur: I18nTranslations = {
     "reconnecting": "ریئل ٹائم کنکشن ٹوٹ گیا۔ دوبارہ منسلک کرنے کی کوشش کر رہا ہے...",
     "disconnected": "سرور سے منقطع۔ دوبارہ جڑنے کے لیے ابھی دوبارہ کوشش کریں پر کلک کریں۔",
     "retryNow": "ابھی دوبارہ کوشش کریں۔"
+  },
+  "ariaLive": {
+    "torrentCompleted": "ٹورینٹ \"{{name}}\" مکمل ہو گیا، اب بیج ہو رہا ہے۔",
+    "torrentError": "ٹورینٹ \"{{name}}\" کو غلطی کا سامنا کرنا پڑا: {{error}}",
+    "downloadInterrupted": "ڈاؤن لوڈ میں خلل پڑا"
+  },
+  "aria": {
+    "torrentCompleted": "ٹورینٹ \"{{name}}\" مکمل ہو گیا، اب بیج ہو رہا ہے۔",
+    "torrentError": "ٹورینٹ \"{{name}}\" کو غلطی کا سامنا کرنا پڑا: {{error}}",
+    "downloadInterrupted": "ڈاؤن لوڈ میں خلل پڑا"
   }
 };
 

@@ -1328,6 +1328,7 @@ const ta: I18nTranslations = {
       "noValidUrlsFound": "சரியான URLகள் எதுவும் இல்லை",
       "processedTrackersToast": "பதப்படுத்தப்பட்ட டிராக்கர்ஸ் டோஸ்ட்",
       "bulkImportFailed": "மொத்தமாக இறக்குமதி தோல்வியடைந்தது",
+      "importFailedGeneric": "டிராக்கர் பட்டியல் அல்லது தவறான டிராக்கர் மறுமொழி வடிவமைப்பை அலசுவதில் தோல்வி",
       "automationTitle": "ஆட்டோமேஷன் தலைப்பு",
       "automationDesc": "ஆட்டோமேஷன் டெஸ்க்",
       "autoBoostLabel": "ஆட்டோ பூஸ்ட் லேபிள்",
@@ -1351,8 +1352,7 @@ const ta: I18nTranslations = {
       "bulkImportModalTitle": "மொத்த இறக்குமதி மாதிரி தலைப்பு",
       "bulkImportModalHint": "மொத்த இறக்குமதி மாதிரி குறிப்பு",
       "importingTrackers": "டிராக்கர்களை இறக்குமதி செய்கிறது",
-      "importTrackersBtn": "இறக்குமதி டிராக்கர்ஸ் Btn",
-      "importFailedGeneric": "டிராக்கர் பட்டியல் அல்லது தவறான டிராக்கர் மறுமொழி வடிவமைப்பை அலசுவதில் தோல்வி"
+      "importTrackersBtn": "இறக்குமதி டிராக்கர்ஸ் Btn"
     },
     "logs": {
       "logsClearedToast": "பதிவுகள் அழிக்கப்பட்ட டோஸ்ட்",
@@ -1839,6 +1839,9 @@ const ta: I18nTranslations = {
   },
   "developer": {
     "database": "டேட்டாபேஸ் எக்ஸ்ப்ளோரர்",
+    "testing": "டெஸ்ட் ரன்னர்",
+    "repl": "REPL சாண்ட்பாக்ஸ்",
+    "debugger": "வலை பிழைத்திருத்தி",
     "events": "நிகழ்வு பேருந்து",
     "commands": "கட்டளை அனுப்புபவர்",
     "network": "நெட்வொர்க் வயர்டேப்",
@@ -4496,6 +4499,16 @@ const ta: I18nTranslations = {
     "reconnecting": "நிகழ்நேர இணைப்பு துண்டிக்கப்பட்டது. மீண்டும் இணைக்க முயற்சிக்கிறது...",
     "disconnected": "சர்வரில் இருந்து துண்டிக்கப்பட்டது. மீண்டும் இணைக்க இப்போது மீண்டும் முயற்சிக்கவும் என்பதைக் கிளிக் செய்யவும்.",
     "retryNow": "இப்போது மீண்டும் முயற்சிக்கவும்"
+  },
+  "ariaLive": {
+    "torrentCompleted": "டோரண்ட் \"{{name}}\" முடிந்தது, இப்போது விதைக்கப்படுகிறது",
+    "torrentError": "Torrent \"{{name}}\" பிழையை எதிர்கொண்டது: {{error}}",
+    "downloadInterrupted": "பதிவிறக்கம் தடைபட்டது"
+  },
+  "aria": {
+    "torrentCompleted": "டோரண்ட் \"{{name}}\" முடிந்தது, இப்போது விதைக்கப்படுகிறது",
+    "torrentError": "Torrent \"{{name}}\" பிழையை எதிர்கொண்டது: {{error}}",
+    "downloadInterrupted": "பதிவிறக்கம் தடைபட்டது"
   }
 };
 
