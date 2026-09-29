@@ -2479,6 +2479,8 @@ const ja: I18nTranslations = {
       "rssRulesDesc": "RSS フィルター ルール、正規表現パターン、最小シーダー、および自動取得用のカテゴリを構成する",
       "syncRssNow": "🔄 RSS フィードを今すぐ同期",
       "syncingRss": "RSS を同期中...",
+      "syncProwlarr": "🔄 同期プロウラー",
+      "syncingProwlarr": "Prowlarrの同期...",
       "deleteRssRule": "RSSルールの削除",
       "deleteRssRuleConfirmTitle": "RSSルールの削除",
       "deleteRssRuleConfirmMessage": "RSS ルール「{{name}}」を削除してもよろしいですか?",

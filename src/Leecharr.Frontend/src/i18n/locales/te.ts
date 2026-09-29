@@ -2479,6 +2479,8 @@ const te: I18nTranslations = {
       "rssRulesDesc": "RSS ఫిల్టర్ నియమాలు, రీజెక్స్ నమూనాలు, కనీస సీడర్లు మరియు స్వయంచాలక గ్రాబింగ్ కోసం వర్గాలను కాన్ఫిగర్ చేయండి",
       "syncRssNow": "🔄 ఇప్పుడు RSS ఫీడ్లను సమకాలీకరించండి",
       "syncingRss": "RSSని సమకాలీకరిస్తోంది...",
+      "syncProwlarr": "🔄 Prowlarrని సమకాలీకరించండి",
+      "syncingProwlarr": "Prowlarrని సమకాలీకరిస్తోంది...",
       "deleteRssRule": "RSS నియమాన్ని తొలగించండి",
       "deleteRssRuleConfirmTitle": "RSS నియమాన్ని తొలగించండి",
       "deleteRssRuleConfirmMessage": "మీరు ఖచ్చితంగా \"{{name}}\" RSS నియమాన్ని తొలగించాలనుకుంటున్నారా?",

@@ -2479,6 +2479,8 @@ export type I18nTranslations = {
       "rssRulesDesc": string;
       "syncRssNow": string;
       "syncingRss": string;
+      "syncProwlarr": string;
+      "syncingProwlarr": string;
       "deleteRssRule": string;
       "deleteRssRuleConfirmTitle": string;
       "deleteRssRuleConfirmMessage": string;

@@ -2479,6 +2479,8 @@ const tr: I18nTranslations = {
       "rssRulesDesc": "Otomatik yakalama için RSS filtre kurallarını, normal ifade kalıplarını, minimum ekicileri ve kategorileri yapılandırın",
       "syncRssNow": "🔄 RSS Akışlarını Şimdi Eşitle",
       "syncingRss": "RSS senkronize ediliyor...",
+      "syncProwlarr": "🔄 Prowlarr'ı senkronize et",
+      "syncingProwlarr": "Prowlarr senkronize ediliyor...",
       "deleteRssRule": "RSS Kuralını Sil",
       "deleteRssRuleConfirmTitle": "RSS Kuralını Sil",
       "deleteRssRuleConfirmMessage": "\"{{name}}\" RSS kuralını silmek istediğinizden emin misiniz?",

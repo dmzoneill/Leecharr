@@ -2479,6 +2479,8 @@ const ur: I18nTranslations = {
       "rssRulesDesc": "آر ایس ایس فلٹر کے قواعد، ریجیکس پیٹرن، کم از کم سیڈرز، اور خودکار گرابنگ کے لیے زمرے ترتیب دیں",
       "syncRssNow": "🔄 RSS فیڈز کو ابھی سنک کریں۔",
       "syncingRss": "RSS کی مطابقت پذیری...",
+      "syncProwlarr": "🔄 پرولر کو سنک کریں۔",
+      "syncingProwlarr": "پرولر کو سنک کرنا...",
       "deleteRssRule": "آر ایس ایس کے اصول کو حذف کریں۔",
       "deleteRssRuleConfirmTitle": "آر ایس ایس کے اصول کو حذف کریں۔",
       "deleteRssRuleConfirmMessage": "کیا آپ واقعی RSS اصول \"{{name}}\" کو حذف کرنا چاہتے ہیں؟",

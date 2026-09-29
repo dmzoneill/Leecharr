@@ -2479,6 +2479,8 @@ const pt: I18nTranslations = {
       "rssRulesDesc": "Configure regras de filtro RSS, padrões regex, semeadores mínimos e categorias para captura automatizada",
       "syncRssNow": "🔄 Sincronize feeds RSS agora",
       "syncingRss": "Sincronizando RSS...",
+      "syncProwlarr": "🔄 Sincronizar Prowlarr",
+      "syncingProwlarr": "Sincronizando o Prowlarr...",
       "deleteRssRule": "Excluir regra RSS",
       "deleteRssRuleConfirmTitle": "Excluir regra RSS",
       "deleteRssRuleConfirmMessage": "Tem certeza de que deseja excluir a regra RSS \"{{name}}\"?",

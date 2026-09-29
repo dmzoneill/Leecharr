@@ -2479,6 +2479,8 @@ const ko: I18nTranslations = {
       "rssRulesDesc": "자동 가져오기를 위한 RSS 필터 규칙, 정규식 패턴, 최소 시더 및 카테고리 구성",
       "syncRssNow": "🔄 지금 RSS 피드 동기화",
       "syncingRss": "RSS 동기화 중...",
+      "syncProwlarr": "🔄 배회 동기화",
+      "syncingProwlarr": "Prowlarr 동기화 중...",
       "deleteRssRule": "RSS 규칙 삭제",
       "deleteRssRuleConfirmTitle": "RSS 규칙 삭제",
       "deleteRssRuleConfirmMessage": "RSS 규칙 \"{{name}}\"을(를) 삭제하시겠습니까?",

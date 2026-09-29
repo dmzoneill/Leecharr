@@ -2479,6 +2479,8 @@ const ta: I18nTranslations = {
       "rssRulesDesc": "RSS வடிகட்டி விதிகள், ரீஜெக்ஸ் வடிவங்கள், குறைந்தபட்ச விதைகள் மற்றும் தானியங்கு கிராப்பிங்கிற்கான வகைகளை உள்ளமைக்கவும்",
       "syncRssNow": "🔄 RSS ஊட்டங்களை இப்போது ஒத்திசைக்கவும்",
       "syncingRss": "RSS ஐ ஒத்திசைக்கிறது...",
+      "syncProwlarr": "🔄 Prowlarrரை ஒத்திசைக்கவும்",
+      "syncingProwlarr": "Prowlarr ஒத்திசைக்கிறது...",
       "deleteRssRule": "RSS விதியை நீக்கவும்",
       "deleteRssRuleConfirmTitle": "RSS விதியை நீக்கவும்",
       "deleteRssRuleConfirmMessage": "RSS விதி \"{{name}}\" ஐ நிச்சயமாக நீக்க விரும்புகிறீர்களா?",

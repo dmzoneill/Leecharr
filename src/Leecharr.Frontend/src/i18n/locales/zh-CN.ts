@@ -2479,6 +2479,8 @@ const zhCN: I18nTranslations = {
       "rssRulesDesc": "配置 RSS 过滤规则、正则表达式模式、最小播种器和自动抓取的类别",
       "syncRssNow": "🔄 立即同步RSS源",
       "syncingRss": "正在同步 RSS...",
+      "syncProwlarr": "🔄 同步Prowlarr",
+      "syncingProwlarr": "正在同步 Prowlarr...",
       "deleteRssRule": "删除 RSS 规则",
       "deleteRssRuleConfirmTitle": "删除 RSS 规则",
       "deleteRssRuleConfirmMessage": "您确定要删除 RSS 规则“{{name}}”吗？",

@@ -264,6 +264,40 @@ export function IndexersTab() {
             }),
             "success",
           );
+          const isProwlarr =
+            editing.indexerType === "Prowlarr" ||
+            editing.implementation?.includes("Prowlarr") ||
+            editing.name?.toLowerCase().includes("prowlarr");
+          if (isProwlarr) {
+            const syncParams =
+              editing.apiKey && !editing.apiKey.includes("*")
+                ? {
+                    url: payload.url || editing.url || "http://localhost:9696",
+                    apiKey: editing.apiKey,
+                  }
+                : undefined;
+            syncMutation.mutate(syncParams, {
+              onSuccess: (data) => {
+                trackIndexerAction("sync", "Prowlarr", true);
+                showToast(
+                  t("settingsTabs.indexers.syncedProwlarr", {
+                    count: data.syncedCount,
+                    defaultValue: `Synced ${data.syncedCount} indexers from Prowlarr`,
+                  }),
+                  "success",
+                );
+              },
+              onError: (err: unknown) => {
+                trackIndexerAction("sync", "Prowlarr", false);
+                const errObj = err as Error | null;
+                showToast(
+                  errObj?.message ||
+                    t("settingsTabs.indexers.syncProwlarrFailed"),
+                  "error",
+                );
+              },
+            });
+          }
           setEditing(null);
           setModalTestResult(null);
         },
@@ -413,6 +447,29 @@ export function IndexersTab() {
     });
   };
 
+  const handleSyncProwlarrNow = () => {
+    syncMutation.mutate(undefined, {
+      onSuccess: (data) => {
+        trackIndexerAction("sync", "Prowlarr", true);
+        showToast(
+          t("settingsTabs.indexers.syncedProwlarr", {
+            count: data.syncedCount,
+            defaultValue: `Synced ${data.syncedCount} indexers from Prowlarr`,
+          }),
+          "success",
+        );
+      },
+      onError: (err: unknown) => {
+        trackIndexerAction("sync", "Prowlarr", false);
+        const errObj = err as Error | null;
+        showToast(
+          errObj?.message || t("settingsTabs.indexers.syncProwlarrFailed"),
+          "error",
+        );
+      },
+    });
+  };
+
   const handleSyncRssNow = () => {
     syncRssMutation.mutate(undefined, {
       onSuccess: (res) => {
@@ -442,6 +499,25 @@ export function IndexersTab() {
         title={t("settingsTabs.indexers.torznabTitle")}
         description={t("settingsTabs.indexers.torznabDesc")}
       >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            marginBottom: "1rem",
+          }}
+        >
+          <button
+            type="button"
+            className="btn btn-outline btn-small"
+            onClick={handleSyncProwlarrNow}
+            disabled={syncMutation.isPending}
+          >
+            {syncMutation.isPending
+              ? t("settingsTabs.indexers.syncingProwlarr")
+              : t("settingsTabs.indexers.syncProwlarr")}
+          </button>
+        </div>
+
         <div className="provider-cards">
           {indexers?.map((idx) => (
             <div

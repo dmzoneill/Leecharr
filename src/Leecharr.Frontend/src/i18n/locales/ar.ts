@@ -2479,6 +2479,8 @@ const ar: I18nTranslations = {
       "rssRulesDesc": "قم بتكوين قواعد تصفية RSS وأنماط التعبير العادي والحد الأدنى من البذارات والفئات للاستيلاء التلقائي",
       "syncRssNow": "🔄 مزامنة موجزات RSS الآن",
       "syncingRss": "جارٍ مزامنة آر إس إس...",
+      "syncProwlarr": "🔄 مزامنة برولار",
+      "syncingProwlarr": "مزامنة Prowlarr...",
       "deleteRssRule": "حذف قاعدة RSS",
       "deleteRssRuleConfirmTitle": "حذف قاعدة RSS",
       "deleteRssRuleConfirmMessage": "هل أنت متأكد أنك تريد حذف قاعدة RSS \"{{name}}_\"؟",

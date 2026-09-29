@@ -2479,6 +2479,8 @@ const mr: I18nTranslations = {
       "rssRulesDesc": "स्वयंचलित ग्रॅबिंगसाठी RSS फिल्टर नियम, regex पॅटर्न, किमान सीडर्स आणि श्रेणी कॉन्फिगर करा",
       "syncRssNow": "🔄 RSS फीड आता सिंक करा",
       "syncingRss": "RSS समक्रमित करत आहे...",
+      "syncProwlarr": "🔄 Prowlarr समक्रमित करा",
+      "syncingProwlarr": "Prowlarr समक्रमित करत आहे...",
       "deleteRssRule": "RSS नियम हटवा",
       "deleteRssRuleConfirmTitle": "RSS नियम हटवा",
       "deleteRssRuleConfirmMessage": "तुमची खात्री आहे की तुम्ही RSS नियम \"{{name}}\" हटवू इच्छिता?",

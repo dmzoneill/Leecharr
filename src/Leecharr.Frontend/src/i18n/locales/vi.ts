@@ -2479,6 +2479,8 @@ const vi: I18nTranslations = {
       "rssRulesDesc": "Định cấu hình quy tắc bộ lọc RSS, mẫu biểu thức chính quy, trình tạo mầm tối thiểu và danh mục để lấy tự động",
       "syncRssNow": "🔄 Đồng bộ hóa nguồn cấp dữ liệu RSS ngay bây giờ",
       "syncingRss": "Đang đồng bộ hóa RSS...",
+      "syncProwlarr": "🔄 Đồng bộ hóa Prowlarr",
+      "syncingProwlarr": "Đang đồng bộ hóa Prowlarr...",
       "deleteRssRule": "Xóa quy tắc RSS",
       "deleteRssRuleConfirmTitle": "Xóa quy tắc RSS",
       "deleteRssRuleConfirmMessage": "Bạn có chắc chắn muốn xóa quy tắc RSS \"{{name}}\" không?",
