@@ -3588,6 +3588,8 @@ const ur: I18nTranslations = {
     "dontShowAgain": "دوبارہ نہ دکھائیں۔",
     "previous": "پچھلا",
     "finishAndClose": "ختم کریں اور بند کریں۔",
+    "skipStep": "یہ مرحلہ چھوڑیں",
+    "quickFinish": "فوری تکمیل",
     "startExampleTour": "مثالی دورہ شروع کریں →",
     "startLiveSetup": "لائیو سیٹ اپ شروع کریں۔",
     "stepCount": "مرحلہ {{current}} از {{total}}",

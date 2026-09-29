@@ -8,6 +8,7 @@ import {
   useCreateArrConnection,
   useUpdateArrConnection,
   useTestDirectArrConnection,
+  useTestArrConnection,
 } from "../api/hooks";
 import type {
   IndexerDefinition,
@@ -29,6 +30,18 @@ export function getHideGuideKey(instanceUuid?: string): string {
   return instanceUuid
     ? `${STORAGE_KEY_HIDE_GUIDE}_${instanceUuid}`
     : STORAGE_KEY_HIDE_GUIDE;
+}
+
+export function isMaskedApiKey(apiKey?: string): boolean {
+  return !apiKey || apiKey === "********" || apiKey.includes("*");
+}
+
+export function shouldHideGettingStarted(instanceUuid?: string): boolean {
+  if (typeof window === "undefined" || !window.localStorage) return false;
+  return (
+    localStorage.getItem(getHideGuideKey(instanceUuid)) === "true" ||
+    localStorage.getItem(STORAGE_KEY_HIDE_GUIDE) === "true"
+  );
 }
 
 interface GettingStartedModalProps {
@@ -109,14 +122,16 @@ export function GettingStartedModal({
   const [currentStep, setCurrentStep] = useState(0);
   const [mode, setMode] = useState<GuideMode>("readonly");
   const [dontShowAgain, setDontShowAgain] = useState<boolean>(() => {
-    return localStorage.getItem(getHideGuideKey(instanceUuid)) === "true";
+    return shouldHideGettingStarted(instanceUuid);
   });
 
   useEffect(() => {
     if (instanceUuid) {
-      setDontShowAgain(
-        localStorage.getItem(getHideGuideKey(instanceUuid)) === "true",
-      );
+      const isHidden = shouldHideGettingStarted(instanceUuid);
+      setDontShowAgain(isHidden);
+      if (isHidden) {
+        localStorage.setItem(getHideGuideKey(instanceUuid), "true");
+      }
     }
   }, [instanceUuid]);
 
@@ -190,6 +205,9 @@ export function GettingStartedModal({
   const syncProwlarrMutation = useSyncProwlarr();
 
   const testArrMutation = useTestDirectArrConnection();
+  const testArrByIdMutation = useTestArrConnection();
+  const isTestingArr =
+    testArrMutation.isPending || testArrByIdMutation.isPending;
   const createArrMutation = useCreateArrConnection();
   const updateArrMutation = useUpdateArrConnection();
   const isSavingArr = createArrMutation.isPending || updateArrMutation.isPending;
@@ -225,6 +243,13 @@ export function GettingStartedModal({
     onClose();
   }, [dontShowAgain, onClose, instanceUuid]);
 
+  const handleCompleteGuide = useCallback(() => {
+    localStorage.setItem(getHideGuideKey(instanceUuid), "true");
+    localStorage.setItem(STORAGE_KEY_HIDE_GUIDE, "true");
+    setDontShowAgain(true);
+    onClose();
+  }, [instanceUuid, onClose]);
+
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -249,8 +274,12 @@ export function GettingStartedModal({
     if (currentStep < STEPS.length - 1) {
       setCurrentStep((p) => p + 1);
     } else {
-      handleClose();
+      handleCompleteGuide();
     }
+  };
+
+  const handleQuickFinish = () => {
+    setCurrentStep(STEPS.length - 1);
   };
 
   const handlePrev = () => {
@@ -311,10 +340,25 @@ export function GettingStartedModal({
     setResult: (res: ArrTestResult | null) => void,
   ) => {
     setResult(null);
-    testArrMutation.mutate(form, {
-      onSuccess: (data) => setResult(data),
-      onError: (err) => setResult({ success: false, message: err.message }),
-    });
+    if (form.id && isMaskedApiKey(form.apiKey)) {
+      testArrByIdMutation.mutate(form.id, {
+        onSuccess: (data) => setResult(data),
+        onError: (err) =>
+          setResult({
+            success: false,
+            message: err.message || "Connection failed",
+          }),
+      });
+    } else {
+      testArrMutation.mutate(form, {
+        onSuccess: (data) => setResult(data),
+        onError: (err) =>
+          setResult({
+            success: false,
+            message: err.message || "Connection failed",
+          }),
+      });
+    }
   };
 
   const handleSaveArr = (
@@ -439,6 +483,16 @@ export function GettingStartedModal({
           {/* Right Controls */}
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
             <LanguageSelector align="right" />
+            {currentStep < STEPS.length - 1 && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-small"
+                onClick={handleQuickFinish}
+                style={{ fontSize: "0.75rem", padding: "0.25rem 0.6rem" }}
+              >
+                {t("gettingStarted.quickFinish", "Quick Finish")}
+              </button>
+            )}
             <button
               type="button"
               onClick={handleClose}
@@ -682,6 +736,22 @@ export function GettingStartedModal({
                       <li>{t("gettingStarted.prowlarrStep4")}</li>
                     </ol>
                   </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "0.75rem",
+                      marginTop: "0.5rem",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleNext}
+                    >
+                      {t("gettingStarted.skipStep", "Skip this step")}
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div
@@ -840,6 +910,13 @@ export function GettingStartedModal({
                         ? t("gettingStarted.saving")
                         : t("gettingStarted.saveAndContinue")}
                     </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleNext}
+                    >
+                      {t("gettingStarted.skipStep", "Skip this step")}
+                    </button>
                   </div>
                 </div>
               )}
@@ -901,6 +978,22 @@ export function GettingStartedModal({
                       <li>{t("gettingStarted.sonarrStep3")}</li>
                       <li>{t("gettingStarted.sonarrStep4")}</li>
                     </ol>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "0.75rem",
+                      marginTop: "0.5rem",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleNext}
+                    >
+                      {t("gettingStarted.skipStep", "Skip this step")}
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -1065,9 +1158,9 @@ export function GettingStartedModal({
                       onClick={() =>
                         handleTestArr(sonarrForm, setSonarrTestResult)
                       }
-                      disabled={testArrMutation.isPending}
+                      disabled={isTestingArr}
                     >
-                      {testArrMutation.isPending
+                      {isTestingArr
                         ? t("gettingStarted.testing")
                         : t("gettingStarted.testConnection")}
                     </button>
@@ -1079,6 +1172,13 @@ export function GettingStartedModal({
                       {isSavingArr
                         ? t("gettingStarted.saving")
                         : t("gettingStarted.saveAndContinue")}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleNext}
+                    >
+                      {t("gettingStarted.skipStep", "Skip this step")}
                     </button>
                   </div>
                 </div>
@@ -1141,6 +1241,22 @@ export function GettingStartedModal({
                       <li>{t("gettingStarted.radarrStep3")}</li>
                       <li>{t("gettingStarted.radarrStep4")}</li>
                     </ol>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "0.75rem",
+                      marginTop: "0.5rem",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleNext}
+                    >
+                      {t("gettingStarted.skipStep", "Skip this step")}
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -1305,9 +1421,9 @@ export function GettingStartedModal({
                       onClick={() =>
                         handleTestArr(radarrForm, setRadarrTestResult)
                       }
-                      disabled={testArrMutation.isPending}
+                      disabled={isTestingArr}
                     >
-                      {testArrMutation.isPending
+                      {isTestingArr
                         ? t("gettingStarted.testing")
                         : t("gettingStarted.testConnection")}
                     </button>
@@ -1319,6 +1435,13 @@ export function GettingStartedModal({
                       {isSavingArr
                         ? t("gettingStarted.saving")
                         : t("gettingStarted.saveAndContinue")}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleNext}
+                    >
+                      {t("gettingStarted.skipStep", "Skip this step")}
                     </button>
                   </div>
                 </div>
@@ -1381,6 +1504,22 @@ export function GettingStartedModal({
                       <li>{t("gettingStarted.lidarrStep3")}</li>
                       <li>{t("gettingStarted.lidarrStep4")}</li>
                     </ol>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "0.75rem",
+                      marginTop: "0.5rem",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleNext}
+                    >
+                      {t("gettingStarted.skipStep", "Skip this step")}
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -1545,9 +1684,9 @@ export function GettingStartedModal({
                       onClick={() =>
                         handleTestArr(lidarrForm, setLidarrTestResult)
                       }
-                      disabled={testArrMutation.isPending}
+                      disabled={isTestingArr}
                     >
-                      {testArrMutation.isPending
+                      {isTestingArr
                         ? t("gettingStarted.testing")
                         : t("gettingStarted.testConnection")}
                     </button>
@@ -1559,6 +1698,13 @@ export function GettingStartedModal({
                       {isSavingArr
                         ? t("gettingStarted.saving")
                         : t("gettingStarted.saveAndContinue")}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleNext}
+                    >
+                      {t("gettingStarted.skipStep", "Skip this step")}
                     </button>
                   </div>
                 </div>
@@ -1611,7 +1757,7 @@ export function GettingStartedModal({
                   <button
                     className="btn btn-primary"
                     onClick={() => {
-                      handleClose();
+                      handleCompleteGuide();
                       onNavigateTorrents();
                     }}
                     style={{ padding: "0.6rem 1.25rem" }}
@@ -1623,7 +1769,7 @@ export function GettingStartedModal({
                   <button
                     className="btn btn-secondary"
                     onClick={() => {
-                      handleClose();
+                      handleCompleteGuide();
                       onNavigateIndexers();
                     }}
                     style={{ padding: "0.6rem 1.25rem" }}
@@ -1635,7 +1781,7 @@ export function GettingStartedModal({
                   <button
                     className="btn btn-secondary"
                     onClick={() => {
-                      handleClose();
+                      handleCompleteGuide();
                       onNavigateSettings("connections");
                     }}
                     style={{ padding: "0.6rem 1.25rem" }}
@@ -1689,6 +1835,16 @@ export function GettingStartedModal({
                 total: STEPS.length,
               })}
             </span>
+            {currentStep < STEPS.length - 1 && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-small"
+                onClick={handleQuickFinish}
+                style={{ padding: "0.25rem 0.6rem", fontSize: "0.75rem" }}
+              >
+                {t("gettingStarted.quickFinish", "Quick Finish")}
+              </button>
+            )}
             {currentStep > 0 && (
               <button
                 type="button"

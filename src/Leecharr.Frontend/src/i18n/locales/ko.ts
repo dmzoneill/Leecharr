@@ -3588,6 +3588,8 @@ const ko: I18nTranslations = {
     "dontShowAgain": "시작 시 이 가이드 다시 표시하지 않음",
     "previous": "이전",
     "finishAndClose": "완료 및 닫기",
+    "skipStep": "이 단계 건너뛰기",
+    "quickFinish": "빠른 완료",
     "startExampleTour": "예시 둘러보기 시작 →",
     "startLiveSetup": "라이브 설정 시작",
     "stepCount": "_{{total}}의 _{{current}} 단계",

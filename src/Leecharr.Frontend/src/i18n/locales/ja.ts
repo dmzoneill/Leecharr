@@ -3588,6 +3588,8 @@ const ja: I18nTranslations = {
     "dontShowAgain": "二度と表示しないでください",
     "previous": "前の",
     "finishAndClose": "終了して終了",
+    "skipStep": "このステップをスキップ",
+    "quickFinish": "クイック完了",
     "startExampleTour": "サンプルツアーを開始 →",
     "startLiveSetup": "ライブセットアップを開始する",
     "stepCount": "{{total}} のステップ {{current}}",
