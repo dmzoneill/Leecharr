@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.33.4](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.4) - 2026-09-29
+
+### 🐛 Bug Fixes
+- fix(frontend): preserve comma entry for Assigned Indexer IDs in RSS Rules modal (#997)
+- fix(frontend): preserve dontShowAgain preference, add skip/quick finish, and handle masked API keys in GettingStartedModal (#1019)
+- fix(host): sanitize trailing slash in UrlBase to prevent Kestrel startup crash (#999)
+- fix(frontend): add context menu and multi-selection support to TorrentGrid (#1010)
+- fix(bittorrent): support 4096MB disk cache limit and map None cache policy (#1017)
+- fix(frontend): preserve tags on set category, prefix package export with getUrlBase, and use safe clipboard in TorrentContextMenu (#1008)
+- fix(apidocs): prefix Swagger and OpenAPI URLs with getUrlBase and add clipboard fallback (#1018)
+- fix(frontend): connect TorrentTable to persisted columnPreferences sort state (#1006)
+
 ## [v1.33.3](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.3) - 2026-09-29
 
 ### 🐛 Bug Fixes
