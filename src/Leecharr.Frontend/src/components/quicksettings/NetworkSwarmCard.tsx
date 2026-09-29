@@ -10,6 +10,9 @@ import { UsersIcon, WifiIcon } from "../icons/UIIcons";
 import { useToast } from "../../context/ToastContext";
 import { useTranslation } from "../../i18n";
 
+export const GLOBAL_CONN_OPTIONS = [100, 200, 300, 500, 1000];
+export const PER_TORRENT_CONN_OPTIONS = [20, 50, 80, 100, 200];
+
 export const NetworkSwarmCard: React.FC = () => {
   const { t } = useTranslation();
   const { data: netConfig, isLoading: netLoading } = useNetworkConfig();
@@ -145,11 +148,16 @@ export const NetworkSwarmCard: React.FC = () => {
                   })
                 }
               >
-                <option value={100}>100</option>
-                <option value={200}>200</option>
-                <option value={300}>300</option>
-                <option value={500}>500</option>
-                <option value={1000}>1000</option>
+                {!GLOBAL_CONN_OPTIONS.includes(globalConns) && (
+                  <option key={globalConns} value={globalConns}>
+                    {globalConns} (Custom)
+                  </option>
+                )}
+                {GLOBAL_CONN_OPTIONS.map((val) => (
+                  <option key={val} value={val}>
+                    {val}
+                  </option>
+                ))}
               </select>
             </div>
             <div
@@ -168,11 +176,16 @@ export const NetworkSwarmCard: React.FC = () => {
                   })
                 }
               >
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-                <option value={80}>80</option>
-                <option value={100}>100</option>
-                <option value={200}>200</option>
+                {!PER_TORRENT_CONN_OPTIONS.includes(perTorrentConns) && (
+                  <option key={perTorrentConns} value={perTorrentConns}>
+                    {perTorrentConns} (Custom)
+                  </option>
+                )}
+                {PER_TORRENT_CONN_OPTIONS.map((val) => (
+                  <option key={val} value={val}>
+                    {val}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
