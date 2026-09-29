@@ -39,7 +39,7 @@ export function DetailsTab({ torrent }: { torrent: Torrent }) {
     ? getMediaDeepLink(historyMatch, arrConnections)
     : null;
   const imdbUrl = getImdbUrl(meta?.imdbId, meta?.title || torrent.name);
-  const tmdbUrl = getTmdbUrl(meta?.tmdbId, meta?.mediaType);
+  const tmdbUrl = getTmdbUrl(meta?.tmdbId, meta?.mediaType, meta?.arrType);
   const prowlarrUrl = getProwlarrUrl(indexers, meta?.title || torrent.name);
 
   const badges = getTorrentBadges(torrent);
