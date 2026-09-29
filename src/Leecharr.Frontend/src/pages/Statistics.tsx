@@ -843,7 +843,7 @@ function Statistics() {
                   ? stats.totalDownloaded
                   : effectiveTorrents.reduce((acc, t) => acc + t.totalSize, 0)
               }
-              currentRatio={stats?.overallRatio ?? 0}
+              currentRatio={stats?.globalRatio ?? (stats as any)?.overallRatio ?? 0}
               currentUploadSpeed={
                 effectiveTorrents.reduce(
                   (acc, t) => acc + (t.uploadSpeed || 0),
