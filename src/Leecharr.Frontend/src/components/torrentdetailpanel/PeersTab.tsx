@@ -1,5 +1,6 @@
-import { useRef } from "react";
+import { useRef, useState, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "../../i18n";
 import { usePeers } from "../../api/hooks";
 import { formatBytes, formatSpeed } from "../../utils/formatters";
@@ -7,6 +8,8 @@ import { PanelLoading, PanelEmpty } from "./shared";
 import CountryFlag from "../CountryFlag";
 import PeerClientBadge from "../PeerClientBadge";
 import type { Torrent } from "../../api/types";
+import { useToast } from "../../context/ToastContext";
+import { apiClient } from "../../api/client";
 
 const PEER_FLAG_MAP: Record<string, { label: string; desc: string }> = {
   D: {
@@ -87,9 +90,31 @@ export function PeersTab({
   torrentId?: number;
 }) {
   const { t } = useTranslation();
+  const { showToast } = useToast();
+  const queryClient = useQueryClient();
+  const [isUpdatingGeoIp, setIsUpdatingGeoIp] = useState(false);
   const effectiveId = torrentId ?? torrent?.id ?? 0;
-  const { data: peers, isLoading, isError } = usePeers(effectiveId);
+  const { data: peers, isLoading, isError, refetch } = usePeers(effectiveId);
   const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleRefreshGeoIp = useCallback(async () => {
+    setIsUpdatingGeoIp(true);
+    try {
+      await apiClient.post("/system/task/GeoIpUpdate/execute", {});
+      showToast(t("automation.commands.GeoIpUpdate"), "success");
+      await queryClient.invalidateQueries({
+        queryKey: ["torrents", effectiveId, "peers"],
+      });
+      await queryClient.invalidateQueries({ queryKey: ["peerlog"] });
+      refetch();
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Failed to trigger GeoIP update";
+      showToast(msg, "error");
+    } finally {
+      setIsUpdatingGeoIp(false);
+    }
+  }, [effectiveId, queryClient, refetch, showToast, t]);
 
   const peerList = peers || [];
 
@@ -113,7 +138,49 @@ export function PeersTab({
   if (isError)
     return <PanelEmpty>{t("torrents.detail.failedToLoadPeers")}</PanelEmpty>;
   if (!peers || peers.length === 0)
-    return <PanelEmpty>{t("torrents.detail.noPeers")}</PanelEmpty>;
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          height: "100%",
+          minHeight: 0,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            padding: "0.4rem 0.6rem",
+            borderBottom:
+              "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+          }}
+        >
+          <button
+            className="btn btn-small btn-secondary"
+            onClick={handleRefreshGeoIp}
+            disabled={isUpdatingGeoIp}
+            style={{
+              fontSize: "0.75rem",
+              padding: "0.25rem 0.6rem",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.35rem",
+            }}
+            title={t("automation.commands.GeoIpUpdate")}
+          >
+            <i className={`fas fa-sync-alt ${isUpdatingGeoIp ? "fa-spin" : ""}`} />
+            <span>
+              {isUpdatingGeoIp
+                ? t("common.loading")
+                : t("automation.commands.GeoIpUpdate")}
+            </span>
+          </button>
+        </div>
+        <PanelEmpty>{t("torrents.detail.noPeers")}</PanelEmpty>
+      </div>
+    );
 
   return (
     <div
@@ -124,6 +191,41 @@ export function PeersTab({
         minHeight: 0,
       }}
     >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "0.4rem 0.6rem",
+          borderBottom:
+            "1px solid var(--border-light, rgba(255, 255, 255, 0.08))",
+          flexShrink: 0,
+        }}
+      >
+        <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+          {peerList.length} {t("common.peers", "Peers")}
+        </span>
+        <button
+          className="btn btn-small btn-secondary"
+          onClick={handleRefreshGeoIp}
+          disabled={isUpdatingGeoIp}
+          style={{
+            fontSize: "0.75rem",
+            padding: "0.25rem 0.6rem",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.35rem",
+          }}
+          title={t("automation.commands.GeoIpUpdate")}
+        >
+          <i className={`fas fa-sync-alt ${isUpdatingGeoIp ? "fa-spin" : ""}`} />
+          <span>
+            {isUpdatingGeoIp
+              ? t("common.loading")
+              : t("automation.commands.GeoIpUpdate")}
+          </span>
+        </button>
+      </div>
       {torrent?.isPrivate && (
         <div
           style={{

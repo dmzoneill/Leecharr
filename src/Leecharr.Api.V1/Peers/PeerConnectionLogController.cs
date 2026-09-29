@@ -40,20 +40,48 @@ public class PeerConnectionLogController : Controller
         [FromQuery] string infoHash)
     {
         var records = this.historyService.GetRecords(start, end, infoHash);
-        var logs = records.Select(r => new PeerConnectionLogResource
+        var logs = records.Select(r =>
         {
-            Id = (int)r.Id,
-            InfoHash = r.InfoHash,
-            TorrentName = r.TorrentName,
-            RemoteIp = r.RemoteIp,
-            RemotePort = r.RemotePort,
-            PeerId = r.PeerId,
-            IsEncrypted = r.IsEncrypted,
-            CountryCode = r.CountryCode ?? string.Empty,
-            CountryName = r.CountryName ?? string.Empty,
-            City = r.City ?? string.Empty,
-            EventType = r.EventType,
-            Timestamp = r.Timestamp,
+            var countryCode = r.CountryCode;
+            var countryName = r.CountryName;
+            var city = r.City;
+
+            if (string.IsNullOrEmpty(countryCode) &&
+                string.IsNullOrEmpty(countryName) &&
+                !string.IsNullOrEmpty(r.RemoteIp) &&
+                this.geoIpService != null)
+            {
+                try
+                {
+                    var geo = this.geoIpService.Lookup(r.RemoteIp);
+                    if (geo != null)
+                    {
+                        countryCode = geo.CountryCode ?? string.Empty;
+                        countryName = geo.CountryName ?? string.Empty;
+                        city = geo.City ?? string.Empty;
+                    }
+                }
+                catch
+                {
+                    // Ignore lookup errors
+                }
+            }
+
+            return new PeerConnectionLogResource
+            {
+                Id = (int)r.Id,
+                InfoHash = r.InfoHash,
+                TorrentName = r.TorrentName,
+                RemoteIp = r.RemoteIp,
+                RemotePort = r.RemotePort,
+                PeerId = r.PeerId,
+                IsEncrypted = r.IsEncrypted,
+                CountryCode = countryCode ?? string.Empty,
+                CountryName = countryName ?? string.Empty,
+                City = city ?? string.Empty,
+                EventType = r.EventType,
+                Timestamp = r.Timestamp,
+            };
         }).ToList();
 
         return this.Ok(logs);
@@ -139,12 +167,41 @@ public class PeerConnectionLogController : Controller
             var peerKey = $"{record.RemoteIp}:{record.RemotePort}";
             if (seenPeers.Add($"{peerKey}:{hash}"))
             {
+                var countryCode = record.CountryCode;
+                var countryName = record.CountryName;
+                var city = record.City;
+
+                if (string.IsNullOrEmpty(countryCode) &&
+                    string.IsNullOrEmpty(countryName) &&
+                    !string.IsNullOrEmpty(record.RemoteIp) &&
+                    this.geoIpService != null)
+                {
+                    try
+                    {
+                        var geo = this.geoIpService.Lookup(record.RemoteIp);
+                        if (geo != null)
+                        {
+                            countryCode = geo.CountryCode ?? string.Empty;
+                            countryName = geo.CountryName ?? string.Empty;
+                            city = geo.City ?? string.Empty;
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore lookup errors
+                    }
+                }
+
                 nodes.Add(new PeerGraphNode
                 {
                     Id = $"peer:{peerKey}:{hash}",
                     Label = record.RemoteIp,
                     Type = "peer",
                     IsEncrypted = record.IsEncrypted,
+                    InfoHash = record.InfoHash,
+                    CountryCode = countryCode ?? string.Empty,
+                    CountryName = countryName ?? string.Empty,
+                    City = city ?? string.Empty,
                 });
 
                 links.Add(new PeerGraphLink

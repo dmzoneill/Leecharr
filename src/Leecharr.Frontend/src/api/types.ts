@@ -859,6 +859,9 @@ export interface PeerGraphNode {
   type: "center" | "torrent" | "peer";
   infoHash?: string;
   isEncrypted?: boolean;
+  countryCode?: string;
+  countryName?: string;
+  city?: string;
 }
 
 export interface PeerGraphLink {

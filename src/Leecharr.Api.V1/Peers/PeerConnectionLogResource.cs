@@ -49,6 +49,12 @@ public class PeerGraphNode
     public string InfoHash { get; set; }
 
     public bool IsEncrypted { get; set; }
+
+    public string CountryCode { get; set; }
+
+    public string CountryName { get; set; }
+
+    public string City { get; set; }
 }
 
 public class PeerGraphLink
