@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.33.3](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.3) - 2026-09-29
+
+### 🐛 Bug Fixes
+- fix(torrents): map swarm availability into TorrentResource for frontend display (#1009)
+- fix(frontend): include Category column in ALL_COLUMNS master list (#1007)
+- fix(frontend): invalidate queries and request state snapshot on SignalR cold-start and manual reconnection (#1023)
+- fix(frontend): prevent false dirty state on AI provider activation and synchronize probe state (#1048)
+- fix(frontend): allow downloading generated .torrent file in TorrentCreationTab (#1012)
+
 ## [v1.33.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.2) - 2026-09-29
 
 ### ✨ Features
