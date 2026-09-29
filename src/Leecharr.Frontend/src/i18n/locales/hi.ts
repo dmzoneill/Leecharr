@@ -2908,6 +2908,7 @@ const hi: I18nTranslations = {
       "incomingPeerListeningPorts": "इनकमिंग पीयर लिसनिंग पोर्ट और यूपीएनपी",
       "configureListeningPorts": "इनबाउंड बिटटोरेंट पीयर कनेक्शन के लिए श्रवण पोर्ट कॉन्फ़िगर करें।",
       "bitTorrentListeningPort": "बिटटोरेंट लिसनिंग पोर्ट",
+      "testingPort": "परीक्षण...",
       "tcpUdpPort": "आने वाले पीयर कनेक्शन के लिए टीसीपी और यूडीपी पोर्ट (डिफ़ॉल्ट: 51413)",
       "enableUpnpNatPmp": "UPnP/NAT-PMP पोर्ट फ़ॉरवर्डिंग सक्षम करें",
       "automaticallyNegotiatePortForwarding": "अपने राउटर के साथ स्वचालित रूप से पोर्ट फ़ॉरवर्डिंग पर बातचीत करें",
@@ -3075,7 +3076,13 @@ const hi: I18nTranslations = {
       "baseUrlOfIdp": "आईडीपी का बेस यूआरएल (जैसे https://auth.example.com/application/o/leecharr/)",
       "clientId": "ग्राहक आईडी",
       "clientSecret": "ग्राहक रहस्य",
-      "leaveBlankOrMaskedToKeepCurrentSecret": "वर्तमान को गुप्त रखने के लिए खाली छोड़ दें या छिपा दें"
+      "leaveBlankOrMaskedToKeepCurrentSecret": "वर्तमान को गुप्त रखने के लिए खाली छोड़ दें या छिपा दें",
+      "testPort": "टेस्ट पोर्ट",
+      "portCheckFailed": "पोर्ट जाँच विफल",
+      "selectFromDetected": "पता लगाए गए इंटरफ़ेस से चयन करें",
+      "enterManually": "मैन्युअल रूप से दर्ज करें",
+      "allInterfaces": "सभी/कोई भी इंटरफ़ेस (डिफ़ॉल्ट)",
+      "manualEntry": "कस्टम/मैन्युअल प्रविष्टि..."
     },
     "subsystems": {
       "loadingPluggable": "प्लग करने योग्य सबसिस्टम लोड हो रहा है...",

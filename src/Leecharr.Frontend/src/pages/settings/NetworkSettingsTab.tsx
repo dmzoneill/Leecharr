@@ -4,9 +4,12 @@ import {
   useNetworkConfig,
   useSaveNetworkConfig,
   useNetworkStatus,
+  useNetworkInterfaces,
+  useTestPort,
 } from "../../api/hooks";
-import { SaveBar, SectionCard, NumberInput, TextInput, Toggle } from "./shared";
+import { SaveBar, SectionCard, NumberInput, Toggle } from "./shared";
 import { trackNetworkConfigSave } from "../../utils/analytics";
+import type { PortTestResult } from "../../api/types";
 
 export function NetworkSettingsTab() {
   const { t } = useTranslation();
@@ -14,6 +17,11 @@ export function NetworkSettingsTab() {
   const { data: config, isLoading } = useNetworkConfig();
   const saveMutation = useSaveNetworkConfig();
   const { data: netStatus } = useNetworkStatus();
+  const { data: interfaces } = useNetworkInterfaces();
+  const testPortMutation = useTestPort();
+
+  const [portTestResult, setPortTestResult] = useState<PortTestResult | null>(null);
+  const [manualInterface, setManualInterface] = useState(false);
 
   const [form, setForm] = useState({
     listeningPort: 51413,
@@ -33,11 +41,13 @@ export function NetworkSettingsTab() {
 
   useEffect(() => {
     if (config) {
+      const initialBindInterface =
+        config.bindInterface || config.networkInterfaceBinding || "";
       setForm({
         listeningPort: config.listeningPort ?? 51413,
         upnpEnabled: config.upnpEnabled ?? true,
         enableIPv6: config.enableIPv6 ?? true,
-        bindInterface: config.bindInterface || "",
+        bindInterface: initialBindInterface,
         enableVpnKillSwitch: config.enableVpnKillSwitch ?? false,
         maxGlobalConnections: config.maxGlobalConnections ?? 300,
         maxPerTorrentConnections: config.maxPerTorrentConnections ?? 50,
@@ -49,6 +59,16 @@ export function NetworkSettingsTab() {
       setDirty(false);
     }
   }, [config]);
+
+  useEffect(() => {
+    if (
+      interfaces &&
+      form.bindInterface &&
+      !interfaces.includes(form.bindInterface)
+    ) {
+      setManualInterface(true);
+    }
+  }, [interfaces, form.bindInterface]);
 
   const update = <K extends keyof typeof form>(
     key: K,
@@ -73,6 +93,7 @@ export function NetworkSettingsTab() {
         upnpEnabled: form.upnpEnabled,
         enableIPv6: form.enableIPv6,
         bindInterface: form.bindInterface,
+        networkInterfaceBinding: form.bindInterface,
         enableVpnKillSwitch: form.enableVpnKillSwitch,
         maxGlobalConnections: form.maxGlobalConnections,
         maxPerTorrentConnections: form.maxPerTorrentConnections,
@@ -83,6 +104,24 @@ export function NetworkSettingsTab() {
       },
       {
         onSuccess: () => setDirty(false),
+      },
+    );
+  };
+
+  const handleTestPort = () => {
+    setPortTestResult(null);
+    testPortMutation.mutate(
+      { port: form.listeningPort },
+      {
+        onSuccess: (data) => setPortTestResult(data),
+        onError: (err) =>
+          setPortTestResult({
+            port: form.listeningPort,
+            isOpen: false,
+            message:
+              err.message ||
+              t("settingsTabs.batch2.portCheckFailed", "Port check failed"),
+          }),
       },
     );
   };
@@ -174,14 +213,62 @@ export function NetworkSettingsTab() {
             gap: "1rem",
           }}
         >
-          <NumberInput
-            label={t("settingsTabs.batch2.bitTorrentListeningPort")}
-            value={form.listeningPort}
-            onChange={(v) => update("listeningPort", v)}
-            min={1}
-            max={65535}
-            hint={t("settingsTabs.batch2.tcpUdpPort")}
-          />
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start" }}>
+              <div style={{ flex: 1 }}>
+                <NumberInput
+                  label={t("settingsTabs.batch2.bitTorrentListeningPort")}
+                  value={form.listeningPort}
+                  onChange={(v) => {
+                    update("listeningPort", v);
+                    setPortTestResult(null);
+                  }}
+                  min={1}
+                  max={65535}
+                  hint={t("settingsTabs.batch2.tcpUdpPort")}
+                />
+              </div>
+              <div className="form-group" style={{ display: "flex", flexDirection: "column" }}>
+                <label className="form-label" style={{ visibility: "hidden" }}>
+                  Test
+                </label>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={handleTestPort}
+                  disabled={testPortMutation.isPending || !form.listeningPort}
+                  style={{ height: "38px", whiteSpace: "nowrap" }}
+                >
+                  {testPortMutation.isPending
+                    ? t("settingsTabs.batch2.testingPort", "Testing...")
+                    : t("settingsTabs.batch2.testPort", "Test Port")}
+                </button>
+              </div>
+            </div>
+            {portTestResult && (
+              <div
+                style={{
+                  marginTop: "0.25rem",
+                  padding: "0.5rem 0.75rem",
+                  borderRadius: "6px",
+                  fontSize: "0.85rem",
+                  backgroundColor: portTestResult.isOpen
+                    ? "rgba(46, 204, 113, 0.1)"
+                    : "rgba(231, 76, 60, 0.1)",
+                  border: portTestResult.isOpen
+                    ? "1px solid rgba(46, 204, 113, 0.3)"
+                    : "1px solid rgba(231, 76, 60, 0.3)",
+                  color: portTestResult.isOpen ? "#2ecc71" : "#e74c3c",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                }}
+              >
+                <span>{portTestResult.isOpen ? "✓" : "✕"}</span>
+                <span>{portTestResult.message}</span>
+              </div>
+            )}
+          </div>
 
           <div
             style={{
@@ -215,12 +302,108 @@ export function NetworkSettingsTab() {
         description={t("settingsTabs.batch2.bindBitTorrentSockets")}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          <TextInput
-            label={t("settingsTabs.batch2.bindNetworkInterface")}
-            value={form.bindInterface}
-            onChange={(v) => update("bindInterface", v)}
-            hint={t("settingsTabs.batch2.interfaceNameOrIp")}
-          />
+          <div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "0.5rem",
+              }}
+            >
+              <label className="form-label" style={{ marginBottom: 0 }}>
+                {t("settingsTabs.batch2.bindNetworkInterface")}
+              </label>
+              <button
+                type="button"
+                className="btn btn-xs btn-outline"
+                onClick={() => setManualInterface(!manualInterface)}
+                style={{
+                  fontSize: "0.75rem",
+                  padding: "0.2rem 0.5rem",
+                  cursor: "pointer",
+                }}
+              >
+                {manualInterface
+                  ? t(
+                      "settingsTabs.batch2.selectFromDetected",
+                      "Select from detected interfaces",
+                    )
+                  : t("settingsTabs.batch2.enterManually", "Enter manually")}
+              </button>
+            </div>
+
+            {manualInterface || !interfaces || interfaces.length === 0 ? (
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <div className="form-input-wrapper">
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={form.bindInterface}
+                    onChange={(e) => update("bindInterface", e.target.value)}
+                    placeholder="e.g. tun0, wg0, eth0"
+                    style={{ borderRadius: "6px" }}
+                  />
+                  <span className="form-hint">
+                    {t("settingsTabs.batch2.interfaceNameOrIp")}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <div className="form-input-wrapper">
+                  <select
+                    className="form-select"
+                    value={
+                      interfaces.includes(form.bindInterface)
+                        ? form.bindInterface
+                        : form.bindInterface
+                          ? "__custom__"
+                          : ""
+                    }
+                    onChange={(e) => {
+                      if (
+                        e.target.value === "__manual__" ||
+                        e.target.value === "__custom__"
+                      ) {
+                        setManualInterface(true);
+                      } else {
+                        update("bindInterface", e.target.value);
+                      }
+                    }}
+                    style={{ borderRadius: "6px" }}
+                  >
+                    <option value="">
+                      {t(
+                        "settingsTabs.batch2.allInterfaces",
+                        "All / Any interfaces (Default)",
+                      )}
+                    </option>
+                    {interfaces.map((iface) => (
+                      <option key={iface} value={iface}>
+                        {iface}
+                      </option>
+                    ))}
+                    {form.bindInterface &&
+                      !interfaces.includes(form.bindInterface) && (
+                        <option value="__custom__">
+                          {form.bindInterface} (Custom)
+                        </option>
+                      )}
+                    <option value="__manual__">
+                      {t(
+                        "settingsTabs.batch2.manualEntry",
+                        "Custom / Manual entry...",
+                      )}
+                    </option>
+                  </select>
+                  <span className="form-hint">
+                    {t("settingsTabs.batch2.interfaceNameOrIp")}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
 
           <Toggle
             label={t("settingsTabs.batch2.enableAutomatedVpnKillSwitch")}

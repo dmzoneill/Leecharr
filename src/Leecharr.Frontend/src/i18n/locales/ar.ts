@@ -2908,6 +2908,7 @@ const ar: I18nTranslations = {
       "incomingPeerListeningPorts": "منافذ الاستماع للأقران الواردة وUPnP",
       "configureListeningPorts": "قم بتكوين منافذ الاستماع لاتصالات نظير BitTorrent الواردة.",
       "bitTorrentListeningPort": "منفذ الاستماع بت تورنت",
+      "testingPort": "اختبار...",
       "tcpUdpPort": "منفذ TCP وUDP لاتصالات النظراء الواردة (الافتراضي: 51413)",
       "enableUpnpNatPmp": "تمكين إعادة توجيه منفذ UPnP / NAT-PMP",
       "automaticallyNegotiatePortForwarding": "التفاوض تلقائيًا على إعادة توجيه المنفذ مع جهاز التوجيه الخاص بك",
@@ -3075,6 +3076,12 @@ const ar: I18nTranslations = {
       "clientId": "معرف العميل",
       "clientSecret": "سر العميل",
       "leaveBlankOrMaskedToKeepCurrentSecret": "اتركه فارغًا أو مقنعًا للحفاظ على السر الحالي",
+      "testPort": "ميناء الاختبار",
+      "portCheckFailed": "فشل فحص المنفذ",
+      "selectFromDetected": "اختر من الواجهات المكتشفة",
+      "enterManually": "أدخل يدويا",
+      "allInterfaces": "الكل / أي واجهات (افتراضي)",
+      "manualEntry": "إدخال مخصص / يدوي ...",
       "oidc": "OIDC"
     },
     "subsystems": {

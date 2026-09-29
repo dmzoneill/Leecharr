@@ -293,6 +293,12 @@ export interface PortMapping {
   isActive: boolean;
 }
 
+export interface PortTestResult {
+  port: number;
+  isOpen: boolean;
+  message: string;
+}
+
 export interface Peer {
   id: number;
   ip: string;
@@ -411,6 +417,7 @@ export interface NetworkConfig {
   upnpEnabled: boolean;
   enableIPv6?: boolean;
   bindInterface?: string;
+  networkInterfaceBinding?: string;
   enableVpnKillSwitch?: boolean;
   maxGlobalConnections: number;
   maxPerTorrentConnections: number;

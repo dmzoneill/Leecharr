@@ -2908,6 +2908,9 @@ export type I18nTranslations = {
       "incomingPeerListeningPorts": string;
       "configureListeningPorts": string;
       "bitTorrentListeningPort": string;
+      "testPort": string;
+      "testingPort": string;
+      "portCheckFailed": string;
       "tcpUdpPort": string;
       "enableUpnpNatPmp": string;
       "automaticallyNegotiatePortForwarding": string;
@@ -2916,6 +2919,10 @@ export type I18nTranslations = {
       "networkInterfaceBinding": string;
       "bindBitTorrentSockets": string;
       "bindNetworkInterface": string;
+      "selectFromDetected": string;
+      "enterManually": string;
+      "allInterfaces": string;
+      "manualEntry": string;
       "interfaceNameOrIp": string;
       "enableAutomatedVpnKillSwitch": string;
       "immediatelyDropAllBitTorrentTransfers": string;

@@ -235,6 +235,12 @@ public class NetworkConfigController : ConfigController<NetworkConfigResource>
             resource.ProxyPassword = this.configService.ProxyPassword;
         }
 
+        var iface = !string.IsNullOrWhiteSpace(resource.BindInterface)
+            ? resource.BindInterface
+            : resource.NetworkInterfaceBinding ?? string.Empty;
+        resource.BindInterface = iface;
+        resource.NetworkInterfaceBinding = iface;
+
         return await base.SaveConfig(resource);
     }
 
@@ -258,6 +264,24 @@ public class BitTorrentConfigController : ConfigController<BitTorrentConfigResou
 
         this.SharedValidator.RuleFor(c => c.ScrapeIntervalSeconds)
             .GreaterThanOrEqualTo(60);
+    }
+
+    public override async Task<ActionResult<BitTorrentConfigResource>> SaveConfig([FromBody] BitTorrentConfigResource resource)
+    {
+        if (resource == null)
+        {
+            return this.BadRequest("Request body cannot be empty.");
+        }
+
+        if (resource.NetworkInterfaceBinding != null)
+        {
+            this.configService.SaveConfigDictionary(new Dictionary<string, object>
+            {
+                { "BindInterface", resource.NetworkInterfaceBinding },
+            });
+        }
+
+        return await base.SaveConfig(resource);
     }
 
     protected override BitTorrentConfigResource ToResource(IConfigService model)

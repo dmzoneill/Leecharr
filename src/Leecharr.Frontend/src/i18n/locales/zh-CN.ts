@@ -2908,6 +2908,7 @@ const zhCN: I18nTranslations = {
       "incomingPeerListeningPorts": "传入对等侦听端口和 UPnP",
       "configureListeningPorts": "配置入站 BitTorrent 对等连接的侦听端口。",
       "bitTorrentListeningPort": "BitTorrent 监听端口",
+      "testingPort": "测试...",
       "tcpUdpPort": "传入对等连接的TCP和UDP端口（默认值： 51413 ）",
       "enableUpnpNatPmp": "启用 UPnP / NAT-PMP 端口转发",
       "automaticallyNegotiatePortForwarding": "自动与路由器协商端口转发",
@@ -3075,6 +3076,12 @@ const zhCN: I18nTranslations = {
       "clientId": "客户ID",
       "clientSecret": "客户秘密",
       "leaveBlankOrMaskedToKeepCurrentSecret": "留空或屏蔽以保守当前秘密",
+      "testPort": "测试端口",
+      "portCheckFailed": "端口检查失败",
+      "selectFromDetected": "从检测到的接口中选择",
+      "enterManually": "手动输入",
+      "allInterfaces": "所有/任何接口（默认）",
+      "manualEntry": "自定义/手动输入...",
       "saml20": "SAML 2.0"
     },
     "subsystems": {
