@@ -615,6 +615,15 @@ public class ConfigService : IConfigService
             configValues["SeedQueueSize"] = configValues["MaxActiveUploads"];
         }
 
+        if (configValues.ContainsKey("BindInterface") && !configValues.ContainsKey("NetworkInterfaceBinding"))
+        {
+            configValues["NetworkInterfaceBinding"] = configValues["BindInterface"];
+        }
+        else if (configValues.ContainsKey("NetworkInterfaceBinding") && !configValues.ContainsKey("BindInterface"))
+        {
+            configValues["BindInterface"] = configValues["NetworkInterfaceBinding"];
+        }
+
         var urlBaseKey = configValues.Keys.FirstOrDefault(k => string.Equals(k, "UrlBase", StringComparison.OrdinalIgnoreCase));
         if (urlBaseKey != null && configValues[urlBaseKey] != null)
         {

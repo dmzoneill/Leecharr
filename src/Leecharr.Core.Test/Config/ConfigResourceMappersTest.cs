@@ -437,6 +437,7 @@ public class ConfigResourceMappersTest
         resource.UpnpEnabled.Should().BeTrue();
         resource.EnableIPv6.Should().BeTrue();
         resource.BindInterface.Should().Be("192.168.1.100");
+        resource.NetworkInterfaceBinding.Should().Be("192.168.1.100");
         resource.EnableVpnKillSwitch.Should().BeTrue();
         resource.MaxGlobalConnections.Should().Be(200);
         resource.MaxPerTorrentConnections.Should().Be(50);
@@ -458,6 +459,18 @@ public class ConfigResourceMappersTest
         this.configService.ProxyPassword.Returns(string.Empty);
         var emptyPassResource = NetworkConfigResourceMapper.ToResource(this.configService);
         emptyPassResource.ProxyPassword.Should().Be(string.Empty);
+    }
+
+    [Test]
+    public void NetworkConfigResourceMapper_ToResource_WhenBindInterfaceEmpty_UsesNetworkInterfaceBinding()
+    {
+        this.configService.BindInterface.Returns(string.Empty);
+        this.configService.NetworkInterfaceBinding.Returns("tun0");
+
+        var resource = NetworkConfigResourceMapper.ToResource(this.configService);
+
+        resource.BindInterface.Should().Be("tun0");
+        resource.NetworkInterfaceBinding.Should().Be("tun0");
     }
 
     [Test]
