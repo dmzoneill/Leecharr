@@ -12,6 +12,7 @@ import {
   useDeleteNotification,
   useTestNotification,
   useTestDirectNotification,
+  useTags,
 } from "../../api/hooks";
 import {
   Toggle,
@@ -65,7 +66,7 @@ function useNotificationSettings(): [
   return [settings, saveSettings];
 }
 
-interface NotificationFormState {
+export interface NotificationFormState {
   id?: number;
   name: string;
   implementation: string;
@@ -84,6 +85,8 @@ interface NotificationFormState {
   tags: number[];
 
   // Template / provider specific settings
+  path: string;
+  arguments: string;
   url: string;
   token: string;
   chatId: string;
@@ -101,13 +104,17 @@ interface NotificationFormState {
   priority: number;
 }
 
-function getDefaultFormForImplementation(impl: string): NotificationFormState {
+export function getDefaultFormForImplementation(
+  impl: string,
+): NotificationFormState {
   const t = translate;
   return {
     name:
       impl === "Webhook"
         ? t("settingsTabs.notifications.genericWebhook")
-        : impl,
+        : impl === "CustomScript"
+          ? t("settingsTabs.notifications.customScript")
+          : impl,
     implementation: impl,
     configContract: `${impl}Settings`,
     enable: true,
@@ -122,6 +129,8 @@ function getDefaultFormForImplementation(impl: string): NotificationFormState {
     onManualInteractionRequired: true,
     onApplicationUpdate: false,
     tags: [],
+    path: "",
+    arguments: "",
     url: "",
     token: "",
     chatId: "",
@@ -140,7 +149,7 @@ function getDefaultFormForImplementation(impl: string): NotificationFormState {
   };
 }
 
-function parseNotificationToForm(
+export function parseNotificationToForm(
   notif: NotificationResource,
 ): NotificationFormState {
   let parsed: Record<string, unknown> = {};
@@ -148,11 +157,35 @@ function parseNotificationToForm(
     try {
       parsed = JSON.parse(notif.settings);
     } catch {
-      parsed = { url: notif.settings };
+      parsed = { url: notif.settings, path: notif.settings };
     }
   }
 
   const impl = notif.implementation || "Webhook";
+
+  const pathVal =
+    (typeof parsed.path === "string" && parsed.path) ||
+    (typeof parsed.Path === "string" && parsed.Path) ||
+    (typeof parsed.scriptPath === "string" && parsed.scriptPath) ||
+    (typeof parsed.ScriptPath === "string" && parsed.ScriptPath) ||
+    (typeof parsed.script === "string" && parsed.script) ||
+    (typeof parsed.Script === "string" && parsed.Script) ||
+    (typeof parsed.filename === "string" && parsed.filename) ||
+    (typeof parsed.Filename === "string" && parsed.Filename) ||
+    (impl === "CustomScript" &&
+    typeof notif.settings === "string" &&
+    !notif.settings.trim().startsWith("{")
+      ? notif.settings.trim()
+      : "");
+
+  const argsVal =
+    (typeof parsed.arguments === "string" && parsed.arguments) ||
+    (typeof parsed.Arguments === "string" && parsed.Arguments) ||
+    (typeof parsed.args === "string" && parsed.args) ||
+    (typeof parsed.Args === "string" && parsed.Args) ||
+    (typeof parsed.extraArguments === "string" && parsed.extraArguments) ||
+    (typeof parsed.ExtraArguments === "string" && parsed.ExtraArguments) ||
+    "";
 
   return {
     id: notif.id,
@@ -171,6 +204,8 @@ function parseNotificationToForm(
     onManualInteractionRequired: notif.onManualInteractionRequired ?? true,
     onApplicationUpdate: notif.onApplicationUpdate ?? false,
     tags: notif.tags || [],
+    path: pathVal,
+    arguments: argsVal,
 
     url:
       parsed.serverUrl ||
@@ -198,7 +233,7 @@ function parseNotificationToForm(
   };
 }
 
-function buildNotificationPayload(
+export function buildNotificationPayload(
   form: NotificationFormState,
 ): NotificationResource {
   let settingsObj: Record<string, unknown> = {};
@@ -252,6 +287,13 @@ function buildNotificationPayload(
     case "Apprise":
       settingsObj = {
         url: form.url.trim(),
+      };
+      break;
+
+    case "CustomScript":
+      settingsObj = {
+        path: form.path.trim(),
+        arguments: form.arguments.trim(),
       };
       break;
 
@@ -309,7 +351,9 @@ function buildNotificationPayload(
   };
 }
 
-function validateNotificationForm(form: NotificationFormState): string | null {
+export function validateNotificationForm(
+  form: NotificationFormState,
+): string | null {
   const t = translate;
   if (!form.name.trim()) {
     return t("settingsTabs.notifications.nameRequired");
@@ -342,6 +386,10 @@ function validateNotificationForm(form: NotificationFormState): string | null {
       if (!form.url.trim())
         return t("settingsTabs.notifications.appriseUrlRequired");
       break;
+    case "CustomScript":
+      if (!form.path.trim())
+        return t("settingsTabs.notifications.customScriptPathRequired");
+      break;
     case "Webhook":
       if (!form.url.trim())
         return t("settingsTabs.notifications.webhookUrlRequired");
@@ -357,13 +405,31 @@ function validateNotificationForm(form: NotificationFormState): string | null {
   return null;
 }
 
-function getNotificationSummary(
+export function getNotificationSummary(
   notif: NotificationResource,
   tParam?: (key: string, ...args: unknown[]) => string,
 ): string {
   const t = tParam || translate;
   try {
     const s = JSON.parse(notif.settings || "{}");
+    if (notif.implementation === "CustomScript") {
+      const scriptPath =
+        s.path ||
+        s.Path ||
+        s.scriptPath ||
+        s.ScriptPath ||
+        s.script ||
+        s.Script ||
+        s.filename ||
+        s.Filename ||
+        (typeof notif.settings === "string" &&
+        !notif.settings.trim().startsWith("{")
+          ? notif.settings
+          : "");
+      return scriptPath
+        ? String(scriptPath)
+        : t("settingsTabs.notifications.customScript");
+    }
     if (notif.implementation === "Telegram") {
       return s.chat_id || s.chatId
         ? `Chat ID: ${s.chat_id || s.chatId}`
@@ -417,6 +483,7 @@ export function NotificationsTab() {
   // Backend outbound notifications
   const { data: notifications, isLoading: isLoadingNotifications } =
     useNotifications();
+  const { data: allTags = [], isLoading: isLoadingTags } = useTags();
   const createMutation = useCreateNotification();
   const updateMutation = useUpdateNotification();
   const deleteMutation = useDeleteNotification();
@@ -524,7 +591,8 @@ export function NotificationsTab() {
         },
         onError: (err: unknown) => {
           const msg =
-            (err as Error)?.message || t("settingsTabs.notifications.testFailed");
+            (err as Error)?.message ||
+            t("settingsTabs.notifications.testFailed");
           setTestResults((prev) => ({
             ...prev,
             [id]: { success: false, message: msg },
@@ -539,7 +607,8 @@ export function NotificationsTab() {
         },
       });
     } catch (err: unknown) {
-      const msg = (err as Error)?.message || t("settingsTabs.notifications.testFailed");
+      const msg =
+        (err as Error)?.message || t("settingsTabs.notifications.testFailed");
       setTestResults((prev) => ({
         ...prev,
         [id]: { success: false, message: msg },
@@ -582,7 +651,8 @@ export function NotificationsTab() {
         },
         onError: (err: unknown) => {
           const msg =
-            (err as Error)?.message || t("settingsTabs.notifications.testFailed");
+            (err as Error)?.message ||
+            t("settingsTabs.notifications.testFailed");
           setModalTestResult({ success: false, message: msg });
           showToast(
             t("settingsTabs.notifications.testFailedWithError", { error: msg }),
@@ -591,7 +661,8 @@ export function NotificationsTab() {
         },
       });
     } catch (err: unknown) {
-      const msg = (err as Error)?.message || t("settingsTabs.notifications.testFailed");
+      const msg =
+        (err as Error)?.message || t("settingsTabs.notifications.testFailed");
       setModalTestResult({ success: false, message: msg });
       showToast(
         t("settingsTabs.notifications.testFailedWithError", { error: msg }),
@@ -626,7 +697,8 @@ export function NotificationsTab() {
         },
         onError: (err: unknown) => {
           showToast(
-            (err as Error)?.message || t("settingsTabs.notifications.deleteFailed"),
+            (err as Error)?.message ||
+              t("settingsTabs.notifications.deleteFailed"),
             "error",
           );
         },
@@ -666,7 +738,8 @@ export function NotificationsTab() {
           },
           onError: (err: unknown) => {
             showToast(
-              (err as Error)?.message || t("settingsTabs.notifications.updateFailed"),
+              (err as Error)?.message ||
+                t("settingsTabs.notifications.updateFailed"),
               "error",
             );
           },
@@ -683,7 +756,8 @@ export function NotificationsTab() {
           },
           onError: (err: unknown) => {
             showToast(
-              (err as Error)?.message || t("settingsTabs.notifications.createFailed"),
+              (err as Error)?.message ||
+                t("settingsTabs.notifications.createFailed"),
               "error",
             );
           },
@@ -871,6 +945,19 @@ export function NotificationsTab() {
                         {t("settingsTabs.notifications.badgeHealth")}
                       </span>
                     )}
+                    {notif.tags && notif.tags.length > 0 && (
+                      <span
+                        className="provider-card-badge provider-card-badge-amber"
+                        title={
+                          allTags
+                            .filter((tg) => notif.tags?.includes(tg.id))
+                            .map((tg) => tg.label)
+                            .join(", ") || `${notif.tags.length} tags`
+                        }
+                      >
+                        🏷️ {notif.tags.length}
+                      </span>
+                    )}
                   </div>
                   <div className="provider-card-info">{summary}</div>
                   {testResults[notif.id]?.success === true && (
@@ -959,6 +1046,10 @@ export function NotificationsTab() {
                   label: t("settingsTabs.notifications.genericWebhook"),
                 },
                 { value: "Email", label: "Email" },
+                {
+                  value: "CustomScript",
+                  label: t("settingsTabs.notifications.customScript"),
+                },
               ]}
               hint={t("settingsTabs.notifications.templateHint")}
             />
@@ -1154,6 +1245,31 @@ export function NotificationsTab() {
               </>
             )}
 
+            {editing.implementation === "CustomScript" && (
+              <>
+                <TextInput
+                  label={t("settingsTabs.notifications.scriptPath")}
+                  value={editing.path}
+                  onChange={(v) => {
+                    setEditing({ ...editing, path: v });
+                    setModalTestResult(null);
+                  }}
+                  placeholder="/path/to/script.sh"
+                  hint={t("settingsTabs.notifications.scriptPathHint")}
+                />
+                <TextInput
+                  label={t("settingsTabs.notifications.scriptArguments")}
+                  value={editing.arguments}
+                  onChange={(v) => {
+                    setEditing({ ...editing, arguments: v });
+                    setModalTestResult(null);
+                  }}
+                  placeholder="-v --action"
+                  hint={t("settingsTabs.notifications.scriptArgumentsHint")}
+                />
+              </>
+            )}
+
             {editing.implementation === "Email" && (
               <>
                 <TextInput
@@ -1215,6 +1331,140 @@ export function NotificationsTab() {
                 />
               </>
             )}
+
+            <div className="form-group" style={{ marginBottom: "1rem" }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "0.4rem",
+                  fontWeight: 500,
+                  fontSize: "0.875rem",
+                }}
+              >
+                {t("settingsTabs.notifications.tags")}
+              </label>
+              <div
+                style={{
+                  fontSize: "0.75rem",
+                  color: "var(--text-muted, #888)",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                {t("settingsTabs.notifications.tagsHint")}
+              </div>
+              {isLoadingTags ? (
+                <div
+                  style={{
+                    fontSize: "0.85rem",
+                    color: "var(--text-muted, #888)",
+                  }}
+                >
+                  {t("settingsTabs.notifications.loadingTags")}
+                </div>
+              ) : allTags.length === 0 ? (
+                <div
+                  style={{
+                    fontSize: "0.85rem",
+                    color: "var(--text-muted, #888)",
+                    padding: "0.5rem 0.75rem",
+                    backgroundColor: "rgba(255, 255, 255, 0.03)",
+                    borderRadius: "4px",
+                    border:
+                      "1px dashed var(--border-light, rgba(255, 255, 255, 0.1))",
+                  }}
+                >
+                  {t("settingsTabs.notifications.noTagsAvailable")}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "0.5rem",
+                    alignItems: "center",
+                  }}
+                >
+                  {allTags.map((tag) => {
+                    const isSelected = editing.tags.includes(tag.id);
+                    const tagColor = tag.color || "var(--primary, #3b82f6)";
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => {
+                          const newTags = isSelected
+                            ? editing.tags.filter((id) => id !== tag.id)
+                            : [...editing.tags, tag.id];
+                          setEditing({ ...editing, tags: newTags });
+                        }}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "0.4rem",
+                          padding: "0.3rem 0.65rem",
+                          borderRadius: "6px",
+                          fontSize: "0.825rem",
+                          fontWeight: 500,
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                          border: isSelected
+                            ? `1px solid ${tagColor}`
+                            : "1px solid var(--border-light, rgba(255, 255, 255, 0.15))",
+                          backgroundColor: isSelected
+                            ? tag.color
+                              ? `${tag.color}33`
+                              : "rgba(59, 130, 246, 0.25)"
+                            : "rgba(255, 255, 255, 0.04)",
+                          color: isSelected
+                            ? tagColor
+                            : "var(--text-secondary, #ccc)",
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: "8px",
+                            height: "8px",
+                            borderRadius: "50%",
+                            backgroundColor: tagColor,
+                            display: "inline-block",
+                            flexShrink: 0,
+                          }}
+                        />
+                        <span>{tag.label}</span>
+                        {isSelected && (
+                          <span
+                            style={{
+                              marginLeft: "0.15rem",
+                              fontSize: "0.85rem",
+                              fontWeight: "bold",
+                              lineHeight: 1,
+                            }}
+                          >
+                            ✓
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                  {editing.tags.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setEditing({ ...editing, tags: [] })}
+                      className="btn btn-outline btn-small"
+                      style={{
+                        padding: "0.2rem 0.5rem",
+                        fontSize: "0.75rem",
+                        height: "auto",
+                        minHeight: "unset",
+                        lineHeight: "1.2",
+                      }}
+                    >
+                      {t("settingsTabs.notifications.clearTags")}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
 
             <SectionTitle>
               {t("settingsTabs.notifications.triggers")}

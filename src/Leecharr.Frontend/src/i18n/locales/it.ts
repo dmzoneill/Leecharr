@@ -150,6 +150,8 @@ const it: I18nTranslations = {
     "ok": "OK",
     "clear": "Cancella",
     "remove": "Rimuovi",
+    "disconnect": "Disconnetti",
+    "ban": "Divieto",
     "details": "Dettagli",
     "configure": "Configura",
     "connect": "Connetti",
@@ -181,9 +183,7 @@ const it: I18nTranslations = {
     "total": "Totale",
     "testing": "Test in corso...",
     "unknownError": "Errore sconosciuto",
-    "noResults": "Nessun tag corrispondente",
-    "disconnect": "Disconnetti",
-    "ban": "Divieto"
+    "noResults": "Nessun tag corrispondente"
   },
   "nav": {
     "dashboard": "Pannello di controllo",
@@ -658,6 +658,10 @@ const it: I18nTranslations = {
       "failedToLoadPeers": "Impossibile caricare i peer",
       "noPeers": "Nessun pari",
       "peersPrivateBanner": "Banner privato dei colleghi",
+      "disconnectPeer": "Disconnetti peer",
+      "banPeer": "Divieto di peer",
+      "peerDisconnected": "Pari disconnesso",
+      "peerBanned": "Peer bannato e disconnesso",
       "colAddress": "Indirizzo del colonnello",
       "colClient": "Col Cliente",
       "colUpSpeed": "Velocità di col",
@@ -715,10 +719,6 @@ const it: I18nTranslations = {
       "privateTrackerDisabledTitle": "Titolo disabilitato del tracker privato",
       "openTrackerPickerTitle": "Apri il titolo del selettore tracker",
       "live3s": "Live3s",
-      "disconnectPeer": "Disconnetti peer",
-      "banPeer": "Divieto di peer",
-      "peerDisconnected": "Pari disconnesso",
-      "peerBanned": "Peer bannato e disconnesso",
       "colDownSpeed": "Col Down Speed",
       "colUrl": "Col Url",
       "colTier": "Col Tier"
@@ -1218,6 +1218,7 @@ const it: I18nTranslations = {
     "zoomOut": "Rimpicciolisci (-)",
     "resetZoom": "Reimposta zoom (100%)",
     "openInTorrents": "Aperto in Torrent",
+    "torrentNotFound": "Torrente associato non trovato",
     "subtitle": "Mappa visiva dello swarm di peer",
     "swarms": "Swarm",
     "peers": "Peer",
@@ -1226,8 +1227,7 @@ const it: I18nTranslations = {
     "centerTitle": "Titolo centrale",
     "torrentTitle": "Titolo del torrente",
     "peerTitle": "Titolo pari",
-    "peerEncryptedSuffix": "Suffisso crittografato peer",
-    "torrentNotFound": "Torrente associato non trovato"
+    "peerEncryptedSuffix": "Suffisso crittografato peer"
   },
   "trackerBoost": {
     "title": "Ottimizzatore TrackerBoost",
@@ -2446,7 +2446,18 @@ const it: I18nTranslations = {
       "created": "Notifica \"{{name}}\" creata",
       "createFailed": "Impossibile creare la notifica",
       "saveFailed": "Impossibile salvare la notifica",
-      "openEndpoint": "Endpoint aperto ({{url}})"
+      "openEndpoint": "Endpoint aperto ({{url}})",
+      "customScript": "Scrittura personalizzata",
+      "scriptPath": "Percorso dello script",
+      "scriptPathHint": "Percorso del file di script eseguibile sull'host",
+      "scriptArguments": "Argomenti",
+      "scriptArgumentsHint": "Argomenti facoltativi della riga di comando passati allo script",
+      "customScriptPathRequired": "È richiesto il percorso dello script personalizzato",
+      "tags": "Tag",
+      "tagsHint": "Invia notifiche solo per i torrent che corrispondono a questi tag (lascia vuoto per tutti)",
+      "loadingTags": "Caricamento tag...",
+      "noTagsAvailable": "Nessun tag configurato. Crea tag in Impostazioni > Tag.",
+      "clearTags": "Cancella tag"
     },
     "indexers": {
       "newRssRule": "Nuova regola RSS",

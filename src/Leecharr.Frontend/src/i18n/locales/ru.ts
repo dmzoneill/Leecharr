@@ -150,6 +150,8 @@ const ru: I18nTranslations = {
     "ok": "ОК",
     "clear": "Очистить",
     "remove": "Удалить",
+    "disconnect": "Отключить",
+    "ban": "Запретить",
     "details": "Подробности",
     "configure": "Настроить",
     "connect": "Подключить",
@@ -181,9 +183,7 @@ const ru: I18nTranslations = {
     "total": "Общий",
     "testing": "Тестирование",
     "unknownError": "Неизвестная ошибка",
-    "noResults": "Нет соответствующих тегов",
-    "disconnect": "Отключить",
-    "ban": "Запретить"
+    "noResults": "Нет соответствующих тегов"
   },
   "nav": {
     "dashboard": "Панель управления",
@@ -658,6 +658,10 @@ const ru: I18nTranslations = {
       "failedToLoadPeers": "Не удалось загрузить одноранговые узлы",
       "noPeers": "Нет аналогов",
       "peersPrivateBanner": "Частный баннер сверстников",
+      "disconnectPeer": "Отключить пир",
+      "banPeer": "Запретить пир",
+      "peerDisconnected": "Одноранговый узел отключен",
+      "peerBanned": "Пир заблокирован и отключен",
       "colAddress": "Адрес столбца",
       "colClient": "Кол-клиент",
       "colUpSpeed": "Скорость повышения скорости",
@@ -717,10 +721,6 @@ const ru: I18nTranslations = {
       "privateTrackerDisabledTitle": "Название «Частный трекер отключен»",
       "openTrackerPickerTitle": "Открыть заголовок окна выбора трекера",
       "live3s": "Live3s",
-      "disconnectPeer": "Отключить пир",
-      "banPeer": "Запретить пир",
-      "peerDisconnected": "Одноранговый узел отключен",
-      "peerBanned": "Пир заблокирован и отключен",
       "colAction": "Col Action"
     },
     "ratio": "Рейтинг",
@@ -1218,6 +1218,7 @@ const ru: I18nTranslations = {
     "zoomOut": "Уменьшить масштаб (-)",
     "resetZoom": "Сбросить масштаб (100%)",
     "openInTorrents": "Открыть в Торрентах",
+    "torrentNotFound": "Соответствующий торрент не найден",
     "subtitle": "Субтитры",
     "swarms": "Стаи",
     "peers": "Пиры",
@@ -1226,8 +1227,7 @@ const ru: I18nTranslations = {
     "centerTitle": "Название центра",
     "torrentTitle": "Название торрента",
     "peerTitle": "Титул коллеги",
-    "peerEncryptedSuffix": "Суффикс однорангового шифрования",
-    "torrentNotFound": "Соответствующий торрент не найден"
+    "peerEncryptedSuffix": "Суффикс однорангового шифрования"
   },
   "trackerBoost": {
     "title": "Оптимизатор TrackerBoost",
@@ -2446,7 +2446,18 @@ const ru: I18nTranslations = {
       "created": "Уведомление \"{{name}}\" создано.",
       "createFailed": "Не удалось создать уведомление.",
       "saveFailed": "Не удалось сохранить уведомление.",
-      "openEndpoint": "Открытая конечная точка ({{url}})"
+      "openEndpoint": "Открытая конечная точка ({{url}})",
+      "customScript": "Пользовательский скрипт",
+      "scriptPath": "Путь сценария",
+      "scriptPathHint": "Путь к исполняемому файлу сценария на хосте",
+      "scriptArguments": "Аргументы",
+      "scriptArgumentsHint": "Необязательные аргументы командной строки, передаваемые в скрипт",
+      "customScriptPathRequired": "Укажите собственный путь к скрипту.",
+      "tags": "Теги",
+      "tagsHint": "Отправлять уведомления только о торрентах, соответствующих этим тегам (оставьте пустым для всех)",
+      "loadingTags": "Загрузка тегов...",
+      "noTagsAvailable": "Теги не настроены. Создайте теги в меню «Настройки» > «Теги».",
+      "clearTags": "Очистить теги"
     },
     "indexers": {
       "newRssRule": "Новое правило RSS",

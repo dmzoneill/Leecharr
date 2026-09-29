@@ -150,6 +150,8 @@ const ta: I18nTranslations = {
     "ok": "சரி",
     "clear": "அழி",
     "remove": "அகற்று",
+    "disconnect": "துண்டிக்கவும்",
+    "ban": "தடை செய்",
     "details": "விవరங்கள்",
     "configure": "கட்டமை",
     "connect": "இணை",
@@ -181,9 +183,7 @@ const ta: I18nTranslations = {
     "total": "மொத்தம்",
     "testing": "சோதனை",
     "unknownError": "அறியப்படாத பிழை",
-    "noResults": "பொருத்தமான குறிச்சொற்கள் இல்லை",
-    "disconnect": "துண்டிக்கவும்",
-    "ban": "தடை செய்"
+    "noResults": "பொருத்தமான குறிச்சொற்கள் இல்லை"
   },
   "nav": {
     "dashboard": "டாஷ்போர்டு",
@@ -659,6 +659,10 @@ const ta: I18nTranslations = {
       "failedToLoadPeers": "சகாக்களை ஏற்றுவதில் தோல்வி",
       "noPeers": "சகாக்கள் இல்லை",
       "peersPrivateBanner": "பியர்ஸ் தனியார் பேனர்",
+      "disconnectPeer": "பியர் இணைப்பைத் துண்டிக்கவும்",
+      "banPeer": "பீரை தடை செய்யுங்கள்",
+      "peerDisconnected": "பியர் துண்டிக்கப்பட்டது",
+      "peerBanned": "பியர் தடை செய்யப்பட்டு துண்டிக்கப்பட்டது",
       "colAddress": "கோல் முகவரி",
       "colClient": "கோல் கிளையண்ட்",
       "colUpSpeed": "கோல் அப் வேகம்",
@@ -717,10 +721,6 @@ const ta: I18nTranslations = {
       "failedToRemoveTracker": "டிராக்கரை அகற்ற முடியவில்லை",
       "privateTrackerDisabledTitle": "தனிப்பட்ட டிராக்கர் முடக்கப்பட்ட தலைப்பு",
       "openTrackerPickerTitle": "டிராக்கர் பிக்கர் தலைப்பைத் திறக்கவும்",
-      "disconnectPeer": "பியர் இணைப்பைத் துண்டிக்கவும்",
-      "banPeer": "பீரை தடை செய்யுங்கள்",
-      "peerDisconnected": "பியர் துண்டிக்கப்பட்டது",
-      "peerBanned": "பியர் தடை செய்யப்பட்டு துண்டிக்கப்பட்டது",
       "colUrl": "Col Url"
     },
     "ratio": "விகிதம்",
@@ -1218,6 +1218,7 @@ const ta: I18nTranslations = {
     "zoomOut": "பெரிதாக்கு (-)",
     "resetZoom": "பெரிதாக்கு மீட்டமை (100%)",
     "openInTorrents": "டோரண்ட்ஸில் திறக்கவும்",
+    "torrentNotFound": "தொடர்புடைய டோரண்ட் கிடைக்கவில்லை",
     "subtitle": "வசனம்",
     "swarms": "திரள்கள்",
     "peers": "பியர்கள்",
@@ -1226,8 +1227,7 @@ const ta: I18nTranslations = {
     "centerTitle": "மைய தலைப்பு",
     "torrentTitle": "Torrent தலைப்பு",
     "peerTitle": "சக தலைப்பு",
-    "peerEncryptedSuffix": "பியர் என்க்ரிப்ட் செய்யப்பட்ட பின்னொட்டு",
-    "torrentNotFound": "தொடர்புடைய டோரண்ட் கிடைக்கவில்லை"
+    "peerEncryptedSuffix": "பியர் என்க்ரிப்ட் செய்யப்பட்ட பின்னொட்டு"
   },
   "trackerBoost": {
     "title": "TrackerBoost கூட்ட உகப்பாக்கி",
@@ -2446,7 +2446,18 @@ const ta: I18nTranslations = {
       "createFailed": "அறிவிப்பை உருவாக்க முடியவில்லை",
       "saveFailed": "அறிவிப்பைச் சேமிக்க முடியவில்லை",
       "openEndpoint": "திறந்த முனைப்புள்ளி ({{url}})",
-      "webhookUrl": "Webhook URL"
+      "webhookUrl": "Webhook URL",
+      "customScript": "தனிப்பயன் ஸ்கிரிப்ட்",
+      "scriptPath": "ஸ்கிரிப்ட் பாதை",
+      "scriptPathHint": "ஹோஸ்டில் இயங்கக்கூடிய ஸ்கிரிப்ட் கோப்பிற்கான பாதை",
+      "scriptArguments": "வாதங்கள்",
+      "scriptArgumentsHint": "விருப்ப கட்டளை வரி மதிப்புருக்கள் ஸ்கிரிப்ட்டுக்கு அனுப்பப்பட்டன",
+      "customScriptPathRequired": "தனிப்பயன் ஸ்கிரிப்ட் பாதை தேவை",
+      "tags": "குறிச்சொற்கள்",
+      "tagsHint": "இந்த குறிச்சொற்களுடன் பொருந்தக்கூடிய டொரண்ட்களுக்கான அறிவிப்புகளை மட்டும் அனுப்பவும் (அனைவருக்கும் காலியாக விடவும்)",
+      "loadingTags": "குறிச்சொற்களை ஏற்றுகிறது...",
+      "noTagsAvailable": "குறிச்சொற்கள் எதுவும் கட்டமைக்கப்படவில்லை. அமைப்புகள் > குறிச்சொற்களில் குறிச்சொற்களை உருவாக்கவும்.",
+      "clearTags": "குறிச்சொற்களை அழிக்கவும்"
     },
     "indexers": {
       "newRssRule": "புதிய RSS விதி",

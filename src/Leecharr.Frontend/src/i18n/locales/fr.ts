@@ -149,6 +149,8 @@ const fr: I18nTranslations = {
     "ok": "OK",
     "clear": "Effacer",
     "remove": "Retirer",
+    "disconnect": "Déconnecter",
+    "ban": "Interdire",
     "details": "Détails",
     "configure": "Configurer",
     "connect": "Connecter",
@@ -181,8 +183,6 @@ const fr: I18nTranslations = {
     "unknownError": "Erreur inconnue",
     "noResults": "Aucune balise correspondante",
     "date": "Date",
-    "disconnect": "Déconnecter",
-    "ban": "Interdire",
     "total": "Total"
   },
   "nav": {
@@ -656,6 +656,10 @@ const fr: I18nTranslations = {
       "failedToLoadPeers": "Échec du chargement des pairs",
       "noPeers": "Aucun pair",
       "peersPrivateBanner": "Bannière privée des pairs",
+      "disconnectPeer": "Déconnecter le pair",
+      "banPeer": "Interdire les pairs",
+      "peerDisconnected": "Homologue déconnecté",
+      "peerBanned": "Pair banni et déconnecté",
       "colAddress": "Adresse du Col",
       "colClient": "Col-Client",
       "colUpSpeed": "Vitesse d'augmentation",
@@ -715,10 +719,6 @@ const fr: I18nTranslations = {
       "openTrackerPickerTitle": "Ouvrir le titre du sélecteur de suivi",
       "diagTracker": "Diag Tracker",
       "colSource": "Col Source",
-      "disconnectPeer": "Déconnecter le pair",
-      "banPeer": "Interdire les pairs",
-      "peerDisconnected": "Homologue déconnecté",
-      "peerBanned": "Pair banni et déconnecté",
       "colTier": "Col Tier",
       "colAction": "Col Action"
     },
@@ -1218,6 +1218,7 @@ const fr: I18nTranslations = {
     "zoomOut": "Zoom arrière (-)",
     "resetZoom": "Réinitialiser le zoom (100%)",
     "openInTorrents": "Ouvrir dans Torrents",
+    "torrentNotFound": "Torrent associé introuvable",
     "subtitle": "Sous-titre",
     "swarms": "Essaims",
     "peers": "Pairs",
@@ -1226,7 +1227,6 @@ const fr: I18nTranslations = {
     "torrentTitle": "Titre du torrent",
     "peerTitle": "Titre du pair",
     "peerEncryptedSuffix": "Suffixe chiffré par les pairs",
-    "torrentNotFound": "Torrent associé introuvable",
     "torrent": "Torrent"
   },
   "trackerBoost": {
@@ -2446,7 +2446,18 @@ const fr: I18nTranslations = {
       "openEndpoint": "Point de terminaison ouvert ({{url}})",
       "position": "Position",
       "info": "Information",
-      "port": "Port"
+      "port": "Port",
+      "customScript": "Script personnalisé",
+      "scriptPath": "Chemin du script",
+      "scriptPathHint": "Chemin d'accès au fichier de script exécutable sur l'hôte",
+      "scriptArguments": "Arguments",
+      "scriptArgumentsHint": "Arguments de ligne de commande facultatifs transmis au script",
+      "customScriptPathRequired": "Un chemin de script personnalisé est requis",
+      "tags": "Balises",
+      "tagsHint": "Envoyez uniquement des notifications pour les torrents correspondant à ces balises (laissez vide pour tous)",
+      "loadingTags": "Chargement des balises...",
+      "noTagsAvailable": "Aucune balise configurée. Créez des balises dans Paramètres > Balises.",
+      "clearTags": "Effacer les balises"
     },
     "indexers": {
       "newRssRule": "Nouvelle règle RSS",

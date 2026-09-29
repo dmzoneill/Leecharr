@@ -2387,6 +2387,17 @@ export type I18nTranslations = {
       "smtpUsernamePlaceholder": string;
       "smtpPassword": string;
       "smtpPasswordPlaceholder": string;
+      "customScript": string;
+      "scriptPath": string;
+      "scriptPathHint": string;
+      "scriptArguments": string;
+      "scriptArgumentsHint": string;
+      "customScriptPathRequired": string;
+      "tags": string;
+      "tagsHint": string;
+      "loadingTags": string;
+      "noTagsAvailable": string;
+      "clearTags": string;
       "triggers": string;
       "onGrab": string;
       "onGrabHint": string;

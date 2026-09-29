@@ -150,6 +150,8 @@ const tr: I18nTranslations = {
     "ok": "Tamam",
     "clear": "Temizle",
     "remove": "Kaldır",
+    "disconnect": "Bağlantıyı kes",
+    "ban": "Yasak",
     "details": "Ayrıntılar",
     "configure": "Yapılandır",
     "connect": "Bağlan",
@@ -181,9 +183,7 @@ const tr: I18nTranslations = {
     "total": "Toplam",
     "testing": "Test",
     "unknownError": "Bilinmeyen Hata",
-    "noResults": "Eşleşen etiket yok",
-    "disconnect": "Bağlantıyı kes",
-    "ban": "Yasak"
+    "noResults": "Eşleşen etiket yok"
   },
   "nav": {
     "dashboard": "Kontrol Paneli",
@@ -659,6 +659,10 @@ const tr: I18nTranslations = {
       "failedToLoadPeers": "Eşler Yüklenemedi",
       "noPeers": "Arkadaş Yok",
       "peersPrivateBanner": "Akranlara Özel Banner",
+      "disconnectPeer": "Eş Bağlantısını Kes",
+      "banPeer": "Arkadaşı Yasakla",
+      "peerDisconnected": "Eş bağlantısı kesildi",
+      "peerBanned": "Akran yasaklandı ve bağlantısı kesildi",
       "colAddress": "Col Adresi",
       "colClient": "Col İstemci",
       "colUpSpeed": "Col Up Hızı",
@@ -717,11 +721,7 @@ const tr: I18nTranslations = {
       "trackerRemovedSuccess": "Takipçi Başarıyla Kaldırıldı",
       "failedToRemoveTracker": "İzleyici Kaldırılamadı",
       "privateTrackerDisabledTitle": "Özel Takip Devre Dışı Bırakılan Başlık",
-      "openTrackerPickerTitle": "İzleyici Seçici Başlığını Aç",
-      "disconnectPeer": "Eş Bağlantısını Kes",
-      "banPeer": "Arkadaşı Yasakla",
-      "peerDisconnected": "Eş bağlantısı kesildi",
-      "peerBanned": "Akran yasaklandı ve bağlantısı kesildi"
+      "openTrackerPickerTitle": "İzleyici Seçici Başlığını Aç"
     },
     "ratio": "Oran",
     "tabs": {
@@ -1218,6 +1218,7 @@ const tr: I18nTranslations = {
     "zoomOut": "Uzaklaştır (-)",
     "resetZoom": "Yakınlaştırmayı Sıfırla (%100)",
     "openInTorrents": "Torrents'te aç",
+    "torrentNotFound": "İlgili torrent bulunamadı",
     "subtitle": "Altyazı",
     "swarms": "Sürüler",
     "peers": "Eşler",
@@ -1226,7 +1227,6 @@ const tr: I18nTranslations = {
     "torrentTitle": "Torrent Başlığı",
     "peerTitle": "Akran Unvanı",
     "peerEncryptedSuffix": "Eş Şifreli Sonek",
-    "torrentNotFound": "İlgili torrent bulunamadı",
     "torrent": "Torrent"
   },
   "trackerBoost": {
@@ -2446,7 +2446,18 @@ const tr: I18nTranslations = {
       "created": "\"{{name}}\" bildirimi oluşturuldu",
       "createFailed": "Bildirim oluşturulamadı",
       "saveFailed": "Bildirim kaydedilemedi",
-      "openEndpoint": "Açık uç nokta ({{url}})"
+      "openEndpoint": "Açık uç nokta ({{url}})",
+      "customScript": "Özel Komut Dosyası",
+      "scriptPath": "Komut Dosyası Yolu",
+      "scriptPathHint": "Ana bilgisayardaki yürütülebilir komut dosyasının yolu",
+      "scriptArguments": "Argümanlar",
+      "scriptArgumentsHint": "Komut dosyasına iletilen isteğe bağlı komut satırı bağımsız değişkenleri",
+      "customScriptPathRequired": "Özel komut dosyası yolu gerekli",
+      "tags": "Etiketler",
+      "tagsHint": "Yalnızca bu etiketlerle eşleşen torrentler için bildirim gönder (tümü için boş bırakın)",
+      "loadingTags": "Etiketler yükleniyor...",
+      "noTagsAvailable": "Hiçbir etiket yapılandırılmadı. Ayarlar > Etiketler'de etiketler oluşturun.",
+      "clearTags": "Etiketleri Temizle"
     },
     "indexers": {
       "newRssRule": "Yeni RSS Kuralı",

@@ -150,6 +150,8 @@ const te: I18nTranslations = {
     "ok": "సరే",
     "clear": "క్లియర్ చేయి",
     "remove": "తీసివేయి",
+    "disconnect": "డిస్‌కనెక్ట్ చేయండి",
+    "ban": "నిషేధించండి",
     "details": "వివరాలు",
     "configure": "కాన్ఫిగర్ చేయి",
     "connect": "కనెక్ట్ చేయి",
@@ -181,9 +183,7 @@ const te: I18nTranslations = {
     "total": "మొత్తం",
     "testing": "పరీక్షిస్తోంది",
     "unknownError": "తెలియని లోపం",
-    "noResults": "సరిపోలే ట్యాగ్‌లు లేవు",
-    "disconnect": "డిస్‌కనెక్ట్ చేయండి",
-    "ban": "నిషేధించండి"
+    "noResults": "సరిపోలే ట్యాగ్‌లు లేవు"
   },
   "nav": {
     "dashboard": "డాష్బోర్డ్",
@@ -659,6 +659,10 @@ const te: I18nTranslations = {
       "failedToLoadPeers": "సహచరులను లోడ్ చేయడంలో విఫలమైంది",
       "noPeers": "సహచరులు లేరు",
       "peersPrivateBanner": "పీర్స్ ప్రైవేట్ బ్యానర్",
+      "disconnectPeer": "పీర్‌ని డిస్‌కనెక్ట్ చేయండి",
+      "banPeer": "పీర్‌ని నిషేధించండి",
+      "peerDisconnected": "పీర్ డిస్‌కనెక్ట్ చేయబడింది",
+      "peerBanned": "పీర్ నిషేధించబడింది మరియు డిస్‌కనెక్ట్ చేయబడింది",
       "colAddress": "కల్ చిరునామా",
       "colClient": "కల్ క్లయింట్",
       "colUpSpeed": "కల్ అప్ స్పీడ్",
@@ -717,10 +721,6 @@ const te: I18nTranslations = {
       "failedToRemoveTracker": "ట్రాకర్ని తీసివేయడంలో విఫలమైంది",
       "privateTrackerDisabledTitle": "ప్రైవేట్ ట్రాకర్ డిసేబుల్ శీర్షిక",
       "openTrackerPickerTitle": "ట్రాకర్ పిక్కర్ శీర్షికను తెరవండి",
-      "disconnectPeer": "పీర్‌ని డిస్‌కనెక్ట్ చేయండి",
-      "banPeer": "పీర్‌ని నిషేధించండి",
-      "peerDisconnected": "పీర్ డిస్‌కనెక్ట్ చేయబడింది",
-      "peerBanned": "పీర్ నిషేధించబడింది మరియు డిస్‌కనెక్ట్ చేయబడింది",
       "colUrl": "Col Url"
     },
     "ratio": "నిష్పత్తి",
@@ -1218,6 +1218,7 @@ const te: I18nTranslations = {
     "zoomOut": "జూమ్ అవుట్ (-)",
     "resetZoom": "జూమ్ని రీసెట్ చేయండి (100%)",
     "openInTorrents": "టోరెంట్స్లో తెరవండి",
+    "torrentNotFound": "అనుబంధిత టొరెంట్ కనుగొనబడలేదు",
     "subtitle": "ఉపశీర్షిక",
     "swarms": "గుంపులు",
     "peers": "పీర్లు",
@@ -1226,8 +1227,7 @@ const te: I18nTranslations = {
     "centerTitle": "కేంద్రం శీర్షిక",
     "torrentTitle": "టోరెంట్ టైటిల్",
     "peerTitle": "పీర్ టైటిల్",
-    "peerEncryptedSuffix": "పీర్ ఎన్క్రిప్టెడ్ ప్రత్యయం",
-    "torrentNotFound": "అనుబంధిత టొరెంట్ కనుగొనబడలేదు"
+    "peerEncryptedSuffix": "పీర్ ఎన్క్రిప్టెడ్ ప్రత్యయం"
   },
   "trackerBoost": {
     "title": "TrackerBoost సమూహ ఆప్టిమైజర్",
@@ -2446,7 +2446,18 @@ const te: I18nTranslations = {
       "createFailed": "నోటిఫికేషన్ను రూపొందించడంలో విఫలమైంది",
       "saveFailed": "నోటిఫికేషన్ను సేవ్ చేయడంలో విఫలమైంది",
       "openEndpoint": "ఓపెన్ ఎండ్ పాయింట్ ({{url}})",
-      "webhookUrl": "Webhook URL"
+      "webhookUrl": "Webhook URL",
+      "customScript": "కస్టమ్ స్క్రిప్ట్",
+      "scriptPath": "స్క్రిప్ట్ మార్గం",
+      "scriptPathHint": "హోస్ట్‌లో ఎక్జిక్యూటబుల్ స్క్రిప్ట్ ఫైల్‌కి మార్గం",
+      "scriptArguments": "వాదనలు",
+      "scriptArgumentsHint": "ఐచ్ఛిక కమాండ్ లైన్ ఆర్గ్యుమెంట్‌లు స్క్రిప్ట్‌కి పంపబడ్డాయి",
+      "customScriptPathRequired": "అనుకూల స్క్రిప్ట్ మార్గం అవసరం",
+      "tags": "ట్యాగ్‌లు",
+      "tagsHint": "ఈ ట్యాగ్‌లకు సరిపోలే టొరెంట్‌ల కోసం మాత్రమే నోటిఫికేషన్‌లను పంపండి (అందరికీ ఖాళీగా ఉంచండి)",
+      "loadingTags": "ట్యాగ్‌లను లోడ్ చేస్తోంది...",
+      "noTagsAvailable": "ట్యాగ్‌లు ఏవీ కాన్ఫిగర్ చేయబడలేదు. సెట్టింగ్‌లు > ట్యాగ్‌లలో ట్యాగ్‌లను సృష్టించండి.",
+      "clearTags": "ట్యాగ్‌లను క్లియర్ చేయండి"
     },
     "indexers": {
       "newRssRule": "కొత్త RSS రూల్",
