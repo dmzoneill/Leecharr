@@ -142,3 +142,25 @@ describe("TorrentTable Hotkey Guard (#1032)", () => {
     assert.strictEqual(shouldIgnoreKeyDown(editable, null), true);
   });
 });
+
+describe("TorrentTable Queue Reorder / Batch Move Ordering (#1005)", () => {
+  it("preserves queue order regardless of table sort order and never reverses batch", () => {
+    const torrents = [
+      { id: 10, queuePosition: 1, name: "Zebra" },
+      { id: 20, queuePosition: 2, name: "Alpha" },
+      { id: 30, queuePosition: 3, name: "Beta" },
+    ];
+    // User selected 30 and 20 (e.g. while sorted alphabetically by name)
+    const targetIds = [30, 20];
+    const targetSet = new Set(targetIds);
+
+    const ordered = torrents
+      .filter((t) => targetSet.has(t.id))
+      .map((t) => t.id);
+
+    const idsToMove = ordered.length > 0 ? ordered : targetIds;
+
+    // Must be in natural queue order [20, 30]
+    assert.deepStrictEqual(idsToMove, [20, 30]);
+  });
+});

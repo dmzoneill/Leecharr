@@ -21,6 +21,7 @@ import {
   useAnnounceTorrent,
   useRecheckTorrent,
   useMoveTorrentQueue,
+  useMoveTorrentQueueBatch,
 } from "../api/hooks";
 
 export interface TorrentGridCardProps {
@@ -525,6 +526,7 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
   const announceTorrent = useAnnounceTorrent();
   const recheckTorrent = useRecheckTorrent();
   const moveTorrentQueue = useMoveTorrentQueue();
+  const moveTorrentQueueBatch = useMoveTorrentQueueBatch();
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
@@ -834,9 +836,10 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
             batchTorrents.forEach((tor) => updateTorrent.mutate(tor))
           }
           onBatchMoveQueue={(payload) =>
-            payload.ids.forEach((id) =>
-              moveTorrentQueue.mutate({ id, position: payload.position }),
-            )
+            moveTorrentQueueBatch.mutate({
+              ids: payload.ids,
+              position: payload.position,
+            })
           }
           onSearchIndexers={onSearchIndexers}
           onNavigateTab={onNavigateTab}
