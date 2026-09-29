@@ -71,7 +71,6 @@ export const EVENT_INVALIDATION_MAP: Record<string, string[][]> = {
   TorrentDeleted: [["torrents"], ["trackerboost"]],
   TorrentRecheckProgress: [["torrents"]],
   SeedingStatsUpdated: [["seeding", "stats"]],
-  speedPulse: [["seeding", "stats"]],
   HealthCheckCompleted: [["health"]],
   CommandStarted: [
     ["system", "status"],
