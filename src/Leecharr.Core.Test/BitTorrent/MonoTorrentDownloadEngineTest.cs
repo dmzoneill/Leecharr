@@ -6411,4 +6411,56 @@ public class MonoTorrentDownloadEngineTest
         await this.engine.SetSuperSeedingAsync(890, false);
         task.IsSuperSeeding.Should().BeFalse();
     }
+
+    [Test]
+    public void PopulateDynamicEngineSettings_WhenAlternativeSpeedEnabled_AppliesAltRateLimits()
+    {
+        this.configService.AlternativeSpeedEnabled.Returns(true);
+        this.configService.AltDownloadSpeedKbps.Returns(2000);
+        this.configService.AltUploadSpeedKbps.Returns(500);
+        this.configService.MaxDownloadSpeedKbps.Returns(10000);
+        this.configService.MaxUploadSpeedKbps.Returns(5000);
+
+        var builder = new EngineSettingsBuilder();
+        this.engine.PopulateDynamicEngineSettings(builder);
+
+        builder.MaximumDownloadRate.Should().Be(2000 * 1024);
+        builder.MaximumUploadRate.Should().Be(500 * 1024);
+    }
+
+    [Test]
+    public void PopulateDynamicEngineSettings_WhenAlternativeSpeedDisabled_AppliesRegularRateLimits()
+    {
+        this.configService.AlternativeSpeedEnabled.Returns(false);
+        this.configService.AltDownloadSpeedKbps.Returns(2000);
+        this.configService.AltUploadSpeedKbps.Returns(500);
+        this.configService.MaxDownloadSpeedKbps.Returns(10000);
+        this.configService.MaxUploadSpeedKbps.Returns(5000);
+
+        var builder = new EngineSettingsBuilder();
+        this.engine.PopulateDynamicEngineSettings(builder);
+
+        builder.MaximumDownloadRate.Should().Be(10000 * 1024);
+        builder.MaximumUploadRate.Should().Be(5000 * 1024);
+    }
+
+    [Test]
+    public async Task ApplyConfigChangesAsync_WhenAlternativeSpeedEnabled_AppliesAltRateLimitsToEngine()
+    {
+        this.configService.AlternativeSpeedEnabled.Returns(true);
+        this.configService.AltDownloadSpeedKbps.Returns(3000);
+        this.configService.AltUploadSpeedKbps.Returns(750);
+        this.configService.MaxDownloadSpeedKbps.Returns(12000);
+        this.configService.MaxUploadSpeedKbps.Returns(4000);
+
+        await this.engine.StartAsync();
+
+        await this.engine.ApplyConfigChangesAsync();
+
+        var updated = this.engine.BuildEngineSettings();
+        updated.MaximumDownloadRate.Should().Be(3000 * 1024);
+        updated.MaximumUploadRate.Should().Be(750 * 1024);
+
+        await this.engine.StopAsync();
+    }
 }
