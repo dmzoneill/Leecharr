@@ -700,6 +700,11 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
                   onPause={onPause}
                   onResume={onResume}
                   onDelete={handleRequestDelete}
+                  selectedIds={selectedIds}
+                  onToggleSelect={handleToggleSelect}
+                  onSelectAll={handleSelectAll}
+                  onSearchIndexers={onOpenSearchModal}
+                  onNavigateTab={onNavigateTab}
                 />
               )}
             </div>

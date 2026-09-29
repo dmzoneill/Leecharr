@@ -13,16 +13,20 @@ export interface TorrentContextMenuProps {
   y: number;
   torrent: Torrent | null;
   selectedTorrents?: Torrent[];
-  visibleColumns: Set<string>;
-  allColumns: ReadonlyArray<{ key: string; label: string }>;
+  visibleColumns?: Set<string>;
+  allColumns?: ReadonlyArray<{ key: string; label: string }>;
   onClose: () => void;
-  onToggleColumn: (key: string) => void;
+  onToggleColumn?: (key: string) => void;
   onStart: (id: number) => void;
   onStop: (id: number) => void;
   onUpdate: (torrent: Torrent) => void;
   onAnnounce: (id: number) => void;
   onRecheck: (id: number) => void;
-  onDelete: (payload: { id: number; deleteFiles: boolean }) => void;
+  onDelete: (payload: {
+    id: number;
+    deleteFiles: boolean;
+    ids?: number[];
+  }) => void;
   onMoveQueue: (payload: {
     id: number;
     position: "top" | "up" | "down" | "bottom";
@@ -850,30 +854,32 @@ export function TorrentContextMenu({
           </>
         ) : null}
 
-        {/* Columns section - always shown */}
-        <div
-          className="context-menu-item context-menu-submenu-trigger"
-          onMouseEnter={() => setOpenSubmenu("columns")}
-          onMouseLeave={() => setOpenSubmenu(null)}
-        >
-          {t("torrents.contextMenu.columns")} ▶
-          {openSubmenu === "columns" && (
-            <div
-              className={`context-menu context-menu-submenu context-menu-columns ${flipSubmenu ? "flip-left" : ""}`}
-            >
-              {allColumns.map((col) => (
-                <label key={col.key} className="column-menu-item">
-                  <input
-                    type="checkbox"
-                    checked={visibleColumns.has(col.key)}
-                    onChange={() => onToggleColumn(col.key)}
-                  />
-                  {col.label}
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Columns section - shown when columns configuration is provided */}
+        {allColumns && allColumns.length > 0 && onToggleColumn ? (
+          <div
+            className="context-menu-item context-menu-submenu-trigger"
+            onMouseEnter={() => setOpenSubmenu("columns")}
+            onMouseLeave={() => setOpenSubmenu(null)}
+          >
+            {t("torrents.contextMenu.columns")} ▶
+            {openSubmenu === "columns" && (
+              <div
+                className={`context-menu context-menu-submenu context-menu-columns ${flipSubmenu ? "flip-left" : ""}`}
+              >
+                {allColumns.map((col) => (
+                  <label key={col.key} className="column-menu-item">
+                    <input
+                      type="checkbox"
+                      checked={visibleColumns?.has(col.key) ?? false}
+                      onChange={() => onToggleColumn(col.key)}
+                    />
+                    {col.label}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
       </div>
       {promptConfig && (
         <ErrorBoundary title="Prompt Dialog">

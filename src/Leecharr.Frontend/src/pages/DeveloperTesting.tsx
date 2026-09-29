@@ -546,7 +546,7 @@ export default function DeveloperTesting() {
                     </div>
                   ) : (
                     <div style={{ padding: "16px", backgroundColor: "var(--bg-primary, #0f172a)", border: "1px solid var(--border, #334155)", borderRadius: "6px", color: "var(--text-secondary, #94a3b8)", fontSize: "0.8rem", textAlign: "center" }}>
-                      This test has not executed in this session yet. Click "Run Single Test" to run now.
+                      This test has not executed in this session yet. Click &quot;Run Single Test&quot; to run now.
                     </div>
                   )}
                 </div>
