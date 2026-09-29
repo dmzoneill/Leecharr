@@ -2143,6 +2143,7 @@ const fr: I18nTranslations = {
     "engageAlternativeSpeedLimitsHint": "Remplacer manuellement les vitesses standard par des limites étranglées alternatives",
     "alternativeDownloadCap": "Limite de téléchargement alternative (Ko/s)",
     "alternativeUploadCap": "Limite de téléchargement alternative (Ko/s)",
+    "alternativeSpeedHint": "-1 = En pause, 0 = Illimité",
     "swarmBandwidthDistributionCurves": "Courbes de distribution de bande passante en essaim",
     "swarmBandwidthDistributionCurvesDesc": "Algorithmes mathématiques pour répartir la bande passante entre des essaims actifs concurrents.",
     "uploadDistributionCurve": "Télécharger la courbe de distribution",
@@ -2278,7 +2279,8 @@ const fr: I18nTranslations = {
         "saving": "Économie...",
         "saveChanges": "Enregistrer les modifications",
         "createCategory": "Créer une catégorie"
-      }
+      },
+      "cannotDeleteDefault": "Impossible de supprimer la catégorie par défaut."
     },
     "notifications": {
       "chatIdPrefix": "Identifiant de discussion :",
@@ -3432,8 +3434,7 @@ const fr: I18nTranslations = {
       "engineHealthy": "{{engine}} est sain et opérationnel.",
       "engineIssues": "Le contrôle de santé {{engine}} a signalé des problèmes.",
       "probeFailed": "La sonde a échoué pour {{engine}} : {{error}}"
-    },
-    "alternativeSpeedHint": "-1 = En pause, 0 = Illimité"
+    }
   },
   "errors": {
     "defaultTitle": "Une erreur inattendue de l'interface utilisateur s'est produite",

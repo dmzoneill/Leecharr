@@ -2143,6 +2143,7 @@ const pt: I18nTranslations = {
     "engageAlternativeSpeedLimitsHint": "Substituir manualmente as velocidades padrão com limites alternativos de aceleração",
     "alternativeDownloadCap": "Limite de download alternativo (KB/s)",
     "alternativeUploadCap": "Limite de upload alternativo (KB/s)",
+    "alternativeSpeedHint": "-1 = Pausado, 0 = Ilimitado",
     "swarmBandwidthDistributionCurves": "Curvas de distribuição de largura de banda do enxame",
     "swarmBandwidthDistributionCurvesDesc": "Algoritmos matemáticos para distribuir largura de banda entre enxames ativos concorrentes.",
     "uploadDistributionCurve": "Carregar curva de distribuição",
@@ -2278,7 +2279,8 @@ const pt: I18nTranslations = {
         "saving": "Salvando...",
         "saveChanges": "Salvar alterações",
         "createCategory": "Criar categoria"
-      }
+      },
+      "cannotDeleteDefault": "Não é possível excluir a categoria padrão."
     },
     "notifications": {
       "chatIdPrefix": "ID do bate-papo:",
@@ -3432,8 +3434,7 @@ const pt: I18nTranslations = {
       "engineHealthy": "{{engine}} está íntegro e operacional.",
       "engineIssues": "{{engine}} problemas relatados pela verificação de integridade.",
       "probeFailed": "Falha na análise para {{engine}}: {{error}}"
-    },
-    "alternativeSpeedHint": "-1 = Pausado, 0 = Ilimitado"
+    }
   },
   "errors": {
     "defaultTitle": "Ocorreu um erro inesperado na IU",

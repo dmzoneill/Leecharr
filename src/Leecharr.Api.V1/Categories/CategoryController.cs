@@ -163,6 +163,12 @@ public class CategoryController : RestControllerWithSignalR<CategoryResource, Ca
     [HttpDelete("{id:int}")]
     public ActionResult Delete(int id)
     {
+        var category = this.categoryService.Get(id);
+        if (category != null && category.IsDefault)
+        {
+            return this.BadRequest("Cannot delete the default category.");
+        }
+
         this.categoryService.Delete(id);
         return this.NoContent();
     }

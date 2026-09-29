@@ -2143,6 +2143,7 @@ const bn: I18nTranslations = {
     "engageAlternativeSpeedLimitsHint": "বিকল্প থ্রোটল সীমা সহ স্ট্যান্ডার্ড গতি ম্যানুয়ালি ওভাররাইড করুন",
     "alternativeDownloadCap": "বিকল্প ডাউনলোড ক্যাপ (KB/s)",
     "alternativeUploadCap": "বিকল্প আপলোড ক্যাপ (KB/s)",
+    "alternativeSpeedHint": "-1 = বিরতি, 0 = সীমাহীন",
     "swarmBandwidthDistributionCurves": "ঝাঁক ব্যান্ডউইথ বন্টন বক্ররেখা",
     "swarmBandwidthDistributionCurvesDesc": "প্রতিযোগী সক্রিয় ঝাঁক জুড়ে ব্যান্ডউইথ ভাগ করার জন্য গাণিতিক অ্যালগরিদম।",
     "uploadDistributionCurve": "আপলোড বন্টন বক্ররেখা",
@@ -2278,7 +2279,8 @@ const bn: I18nTranslations = {
         "saving": "সংরক্ষণ করা হচ্ছে...",
         "saveChanges": "পরিবর্তন সংরক্ষণ করুন",
         "createCategory": "বিভাগ তৈরি করুন"
-      }
+      },
+      "cannotDeleteDefault": "ডিফল্ট বিভাগ মুছে ফেলা যাবে না."
     },
     "notifications": {
       "chatIdPrefix": "চ্যাট আইডি:",
@@ -3432,8 +3434,7 @@ const bn: I18nTranslations = {
       "engineHealthy": "{{engine}} স্বাস্থ্যকর এবং কর্মক্ষম।",
       "engineIssues": "{{engine}} স্বাস্থ্য পরীক্ষার রিপোর্ট করা সমস্যা।",
       "probeFailed": "{{engine}} এর জন্য তদন্ত ব্যর্থ হয়েছে: {{error}}"
-    },
-    "alternativeSpeedHint": "-1 = বিরতি, 0 = সীমাহীন"
+    }
   },
   "errors": {
     "defaultTitle": "একটি অপ্রত্যাশিত UI ত্রুটি ঘটেছে৷",

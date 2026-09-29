@@ -2143,6 +2143,7 @@ const ur: I18nTranslations = {
     "engageAlternativeSpeedLimitsHint": "متبادل تھروٹل حدود کے ساتھ معیاری رفتار کو دستی طور پر اوور رائیڈ کریں۔",
     "alternativeDownloadCap": "متبادل ڈاؤن لوڈ کیپ (KB/s)",
     "alternativeUploadCap": "متبادل اپ لوڈ کیپ (KB/s)",
+    "alternativeSpeedHint": "-1 = روکا ہوا، 0 = لا محدود",
     "swarmBandwidthDistributionCurves": "سوارم بینڈوتھ کی تقسیم کے منحنی خطوط",
     "swarmBandwidthDistributionCurvesDesc": "مسابقتی فعال بھیڑوں میں بینڈوتھ کو تقسیم کرنے کے لیے ریاضی کے الگورتھم۔",
     "uploadDistributionCurve": "تقسیم کا وکر اپ لوڈ کریں۔",
@@ -2278,7 +2279,8 @@ const ur: I18nTranslations = {
         "saving": "محفوظ کر رہا ہے...",
         "saveChanges": "تبدیلیاں محفوظ کریں",
         "createCategory": "زمرہ بنائیں"
-      }
+      },
+      "cannotDeleteDefault": "پہلے سے طے شدہ زمرہ کو حذف نہیں کیا جا سکتا۔"
     },
     "notifications": {
       "chatIdPrefix": "چیٹ ID:",
@@ -3432,8 +3434,7 @@ const ur: I18nTranslations = {
       "engineHealthy": "{{engine}} صحت مند اور فعال ہے۔",
       "engineIssues": "{{engine}} صحت کی جانچ میں مسائل کی اطلاع دی گئی۔",
       "probeFailed": "{{engine}}: {{error}} کے لیے تحقیقات ناکام ہوگئی"
-    },
-    "alternativeSpeedHint": "-1 = روکا ہوا، 0 = لا محدود"
+    }
   },
   "errors": {
     "defaultTitle": "ایک غیر متوقع UI خرابی پیش آگئی",
