@@ -625,6 +625,7 @@ export function FilesTab({
       // Up / Down navigation
       if (e.key === "ArrowDown") {
         e.preventDefault();
+        e.stopPropagation();
         setFocusedIndex((prev) => {
           const next = Math.min(flatRows.length - 1, prev + 1);
           rowVirtualizer.scrollToIndex(next, { align: "auto" });
@@ -635,6 +636,7 @@ export function FilesTab({
 
       if (e.key === "ArrowUp") {
         e.preventDefault();
+        e.stopPropagation();
         setFocusedIndex((prev) => {
           const next = Math.max(0, prev - 1);
           rowVirtualizer.scrollToIndex(next, { align: "auto" });
@@ -647,6 +649,7 @@ export function FilesTab({
       if (e.key === "ArrowRight") {
         if (currentNode?.isFolder) {
           e.preventDefault();
+          e.stopPropagation();
           if (!expandedPaths.has(currentNode.fullPath)) {
             setExpandedPaths(
               (prev) => new Set([...prev, currentNode.fullPath]),
@@ -666,6 +669,7 @@ export function FilesTab({
       if (e.key === "ArrowLeft") {
         if (currentNode?.isFolder && expandedPaths.has(currentNode.fullPath)) {
           e.preventDefault();
+          e.stopPropagation();
           setExpandedPaths((prev) => {
             const next = new Set(prev);
             next.delete(currentNode.fullPath);
@@ -673,6 +677,7 @@ export function FilesTab({
           });
         } else if (currentNode && currentNode.depth > 0) {
           e.preventDefault();
+          e.stopPropagation();
           const currentDepth = currentNode.depth;
           for (let i = focusedIndex - 1; i >= 0; i--) {
             if (flatRows[i].isFolder && flatRows[i].depth < currentDepth) {
@@ -687,8 +692,9 @@ export function FilesTab({
 
       // Space: toggle selective download checkbox
       if (e.key === " ") {
+        e.preventDefault();
+        e.stopPropagation();
         if (currentNode) {
-          e.preventDefault();
           handleToggleNodeCheckbox(currentNode);
         }
         return;
@@ -698,6 +704,7 @@ export function FilesTab({
       if (["0", "1", "2", "3", "4"].includes(e.key)) {
         if (currentNode) {
           e.preventDefault();
+          e.stopPropagation();
           const pMap: Record<string, number> = {
             "0": 0, // Skip
             "1": 1, // Low
