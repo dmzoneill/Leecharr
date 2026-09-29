@@ -5,6 +5,13 @@ import { api } from "../../api/client";
 import { SslCertificateValidationResult } from "../../api/types";
 import { SaveBar, SectionCard, NumberInput, TextInput, Toggle } from "./shared";
 
+export function normalizeUrlBase(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "/") return "";
+  const withoutTrailing = trimmed.replace(/\/+$/, "");
+  return withoutTrailing.startsWith("/") ? withoutTrailing : `/${withoutTrailing}`;
+}
+
 export function HostSettingsTab() {
   const { t } = useTranslation();
 
@@ -57,12 +64,16 @@ export function HostSettingsTab() {
 
   const handleSave = () => {
     if (!config) return;
+    const normalizedUrlBase = normalizeUrlBase(form.urlBase);
+    if (normalizedUrlBase !== form.urlBase) {
+      setForm((prev) => ({ ...prev, urlBase: normalizedUrlBase }));
+    }
     saveMutation.mutate(
       {
         ...config,
         port: form.port,
         bindAddress: form.bindAddress,
-        urlBase: form.urlBase,
+        urlBase: normalizedUrlBase,
         autoStart: form.autoStart,
         enableSsl: form.enableSsl,
         sslPort: form.sslPort,
@@ -161,6 +172,12 @@ export function HostSettingsTab() {
             label={t("settingsTabs.host.webServer.urlBase.label")}
             value={form.urlBase}
             onChange={(v) => update("urlBase", v)}
+            onBlur={() => {
+              const normalized = normalizeUrlBase(form.urlBase);
+              if (normalized !== form.urlBase) {
+                update("urlBase", normalized);
+              }
+            }}
             hint={t("settingsTabs.host.webServer.urlBase.hint")}
           />
         </div>

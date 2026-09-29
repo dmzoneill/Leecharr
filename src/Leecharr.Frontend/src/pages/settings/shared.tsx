@@ -368,6 +368,7 @@ export function TextInput({
   label,
   value,
   onChange,
+  onBlur,
   placeholder,
   hint,
   helpText,
@@ -378,6 +379,7 @@ export function TextInput({
   label: string;
   value: string;
   onChange: (v: string) => void;
+  onBlur?: () => void;
   placeholder?: string;
   hint?: string;
   helpText?: string;
@@ -404,6 +406,7 @@ export function TextInput({
               className="form-input"
               value={value ?? ""}
               onChange={(e) => onChange(e.target.value)}
+              onBlur={onBlur}
               placeholder={placeholder}
               disabled={disabled}
               style={{ borderRadius: "6px", flex: 1, minWidth: 0 }}
@@ -416,6 +419,7 @@ export function TextInput({
             className="form-input"
             value={value ?? ""}
             onChange={(e) => onChange(e.target.value)}
+            onBlur={onBlur}
             placeholder={placeholder}
             disabled={disabled}
             style={{ borderRadius: "6px" }}

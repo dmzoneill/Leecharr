@@ -158,6 +158,23 @@ public class ConfigServiceTest
             Arg.Is<IEnumerable<ConfigModel>>(upd => upd.Any(c => c.Key == "DownloadDir" && c.Value == "/new/path")));
     }
 
+    [TestCase("/leecharr/", "/leecharr")]
+    [TestCase("leecharr/", "/leecharr")]
+    [TestCase("leecharr", "/leecharr")]
+    [TestCase("/", "")]
+    [TestCase("   ", "")]
+    public void SaveConfigDictionary_SanitizesUrlBase_StripsTrailingSlashesAndEnsuresLeadingSlash(string inputUrlBase, string expectedUrlBase)
+    {
+        var values = new Dictionary<string, object>
+        {
+            { "UrlBase", inputUrlBase },
+        };
+
+        this.service.SaveConfigDictionary(values);
+
+        this.store.Should().ContainSingle(c => c.Key == "UrlBase" && c.Value == expectedUrlBase);
+    }
+
     [Test]
     public void SaveConfigDictionary_WhenRepositoryThrows_PropagatesExceptionWithoutUpdatingCache()
     {

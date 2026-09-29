@@ -272,7 +272,7 @@ public class Startup
         app.UseExceptionHandler();
 
         var configFileProvider = app.Services.GetRequiredService<IConfigFileProvider>();
-        var urlBase = configFileProvider.UrlBase?.Trim() ?? string.Empty;
+        var urlBase = configFileProvider.UrlBase?.Trim().TrimEnd('/') ?? string.Empty;
         if (!string.IsNullOrEmpty(urlBase))
         {
             if (!urlBase.StartsWith('/'))

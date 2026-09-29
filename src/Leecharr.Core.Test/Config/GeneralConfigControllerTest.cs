@@ -140,6 +140,31 @@ public class GeneralConfigControllerTest
         savedDict["AllowedCorsOrigins"].Should().Be("http://localhost:3000, https://dashboard.lan");
     }
 
+    [TestCase("/leecharr/", "/leecharr")]
+    [TestCase("leecharr/", "/leecharr")]
+    [TestCase("leecharr", "/leecharr")]
+    [TestCase("/leecharr/sub/", "/leecharr/sub")]
+    [TestCase("/", "")]
+    [TestCase("   ", "")]
+    public async Task SaveConfig_SanitizesUrlBase_StripsTrailingSlashesAndEnsuresLeadingSlash(string inputUrlBase, string expectedUrlBase)
+    {
+        Dictionary<string, object> savedDict = null!;
+        this.configFileProvider.When(x => x.SaveConfigDictionary(Arg.Any<Dictionary<string, object>>()))
+            .Do(call => savedDict = call.Arg<Dictionary<string, object>>());
+
+        var resource = new GeneralConfigResource
+        {
+            Port = 7889,
+            UrlBase = inputUrlBase,
+        };
+
+        var actionResult = await this.controller.SaveConfig(resource);
+
+        savedDict.Should().NotBeNull();
+        savedDict["UrlBase"].Should().Be(expectedUrlBase);
+        resource.UrlBase.Should().Be(expectedUrlBase);
+    }
+
     [Test]
     public void GetApiKey_WhenUserIsNotAdmin_ReturnsForbid()
     {

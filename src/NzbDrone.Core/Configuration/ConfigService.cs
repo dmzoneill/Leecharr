@@ -613,6 +613,18 @@ public class ConfigService : IConfigService
             configValues["SeedQueueSize"] = configValues["MaxActiveUploads"];
         }
 
+        var urlBaseKey = configValues.Keys.FirstOrDefault(k => string.Equals(k, "UrlBase", StringComparison.OrdinalIgnoreCase));
+        if (urlBaseKey != null && configValues[urlBaseKey] != null)
+        {
+            var urlBaseStr = configValues[urlBaseKey].ToString()?.Trim().TrimEnd('/') ?? string.Empty;
+            if (!string.IsNullOrEmpty(urlBaseStr) && !urlBaseStr.StartsWith('/'))
+            {
+                urlBaseStr = "/" + urlBaseStr;
+            }
+
+            configValues[urlBaseKey] = urlBaseStr;
+        }
+
         var toInsert = new List<ConfigModel>();
         var toUpdate = new List<ConfigModel>();
 
