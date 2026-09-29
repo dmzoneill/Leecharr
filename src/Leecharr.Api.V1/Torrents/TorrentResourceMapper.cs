@@ -34,6 +34,19 @@ public static class TorrentResourceMapper
         return Convert.ToBase64String(bytes);
     }
 
+    public static TorrentResource ToResource(Torrent model, IDownloadTask task)
+    {
+        if (model == null)
+        {
+            return null;
+        }
+
+        var bitfield = task?.PieceBitfield != null && task.PieceBitfield.Length > 0
+            ? EncodeBitfield(task.PieceBitfield)
+            : null;
+        return ToResource(model, null, bitfield, task);
+    }
+
     public static TorrentResource ToResource(Torrent model, TorrentMediaMetadata metadata = null, string bitfield = null, IDownloadTask task = null)
     {
         if (model == null)
@@ -83,6 +96,22 @@ public static class TorrentResourceMapper
             }
         }
 
+        double? availability = null;
+        if (task != null)
+        {
+            availability = task.Metrics?.SwarmAvailability ?? task.SwarmAvailability ?? task.GetResourceMetrics()?.SwarmAvailability;
+            if (availability == null && task.PieceAvailability != null && task.PieceAvailability.Length > 0)
+            {
+                long sum = 0;
+                for (var i = 0; i < task.PieceAvailability.Length; i++)
+                {
+                    sum += task.PieceAvailability[i];
+                }
+
+                availability = Math.Round((double)sum / task.PieceAvailability.Length, 2);
+            }
+        }
+
         var resource = new TorrentResource
         {
             Id = model.Id,
@@ -106,6 +135,7 @@ public static class TorrentResourceMapper
             Eta = isInactive ? 0 : model.Eta,
             Seeders = seeders,
             Leechers = leechers,
+            Availability = availability,
             SavePath = model.SavePath,
             Category = model.Category,
             Label = model.Label,

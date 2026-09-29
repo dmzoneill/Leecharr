@@ -171,4 +171,128 @@ public class TorrentResourceMapperTest
         resource.Seeders.Should().Be(12);
         resource.Leechers.Should().Be(8);
     }
+
+    [Test]
+    public void ToResource_WithActiveDownloadTask_MapsAvailabilityFromMetrics()
+    {
+        var torrent = new Torrent
+        {
+            Id = 301,
+            Name = "Metrics Torrent",
+            Status = TorrentStatus.Downloading,
+        };
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.GetResourceMetrics().Returns(new TorrentResourceMetrics
+        {
+            SwarmAvailability = 3.75,
+        });
+
+        var resource = TorrentResourceMapper.ToResource(torrent, task: mockTask);
+
+        resource.Should().NotBeNull();
+        resource.Availability.Should().Be(3.75);
+    }
+
+    [Test]
+    public void ToResource_WithPieceAvailabilityFallback_CalculatesSwarmAvailability()
+    {
+        var torrent = new Torrent
+        {
+            Id = 302,
+            Name = "Piece Torrent",
+            Status = TorrentStatus.Downloading,
+        };
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.PieceAvailability.Returns(new[] { 2, 2, 2, 4 });
+
+        var resource = TorrentResourceMapper.ToResource(torrent, task: mockTask);
+
+        resource.Should().NotBeNull();
+        resource.Availability.Should().Be(2.5);
+    }
+
+    [Test]
+    public void ToResource_WithTorrentAndTaskOverload_MapsAvailabilityCorrectly()
+    {
+        var torrent = new Torrent
+        {
+            Id = 303,
+            Name = "Overload Torrent",
+            Status = TorrentStatus.Downloading,
+        };
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.GetResourceMetrics().Returns(new TorrentResourceMetrics
+        {
+            SwarmAvailability = 1.82,
+        });
+
+        var resource = TorrentResourceMapper.ToResource(torrent, mockTask);
+
+        resource.Should().NotBeNull();
+        resource.Availability.Should().Be(1.82);
+    }
+
+    [Test]
+    public void ToResource_WithSwarmAvailabilityProperty_MapsAvailability()
+    {
+        var torrent = new Torrent
+        {
+            Id = 305,
+            Name = "Direct Property Torrent",
+            Status = TorrentStatus.Downloading,
+        };
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.SwarmAvailability.Returns(5.12);
+
+        var resource = TorrentResourceMapper.ToResource(torrent, mockTask);
+
+        resource.Should().NotBeNull();
+        resource.Availability.Should().Be(5.12);
+    }
+
+    [Test]
+    public void ToResource_WithMetricsProperty_MapsAvailability()
+    {
+        var torrent = new Torrent
+        {
+            Id = 306,
+            Name = "Metrics Property Torrent",
+            Status = TorrentStatus.Downloading,
+        };
+
+        var mockTask = Substitute.For<IDownloadTask>();
+        mockTask.Metrics.Returns(new TorrentResourceMetrics { SwarmAvailability = 4.25 });
+
+        var resource = TorrentResourceMapper.ToResource(torrent, mockTask);
+
+        resource.Should().NotBeNull();
+        resource.Availability.Should().Be(4.25);
+    }
+
+    [Test]
+    public void ToResource_WithNullModelAndTaskOverload_ReturnsNull()
+    {
+        var mockTask = Substitute.For<IDownloadTask>();
+        TorrentResourceMapper.ToResource(null, mockTask).Should().BeNull();
+    }
+
+    [Test]
+    public void ToResource_WithoutTask_LeavesAvailabilityNull()
+    {
+        var torrent = new Torrent
+        {
+            Id = 304,
+            Name = "No Task Torrent",
+            Status = TorrentStatus.Paused,
+        };
+
+        var resource = TorrentResourceMapper.ToResource(torrent);
+
+        resource.Should().NotBeNull();
+        resource.Availability.Should().BeNull();
+    }
 }

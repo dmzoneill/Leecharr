@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using NzbDrone.Core.Torrents;
@@ -126,6 +127,34 @@ public interface IDownloadTask
     IReadOnlyList<PeerInfo> GetPeers();
 
     TorrentResourceMetrics GetResourceMetrics() => null;
+
+    TorrentResourceMetrics Metrics => this.GetResourceMetrics();
+
+    double? SwarmAvailability
+    {
+        get
+        {
+            var metrics = this.GetResourceMetrics();
+            if (metrics != null)
+            {
+                return metrics.SwarmAvailability;
+            }
+
+            var availabilityList = this.PieceAvailability;
+            if (availabilityList != null && availabilityList.Length > 0)
+            {
+                long sum = 0;
+                for (var i = 0; i < availabilityList.Length; i++)
+                {
+                    sum += availabilityList[i];
+                }
+
+                return Math.Round((double)sum / availabilityList.Length, 2);
+            }
+
+            return null;
+        }
+    }
 
     PiecePicker Picker => null;
 
