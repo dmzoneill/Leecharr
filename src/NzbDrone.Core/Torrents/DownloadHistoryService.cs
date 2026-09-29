@@ -314,6 +314,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         entry.Uploaded = torrent.Uploaded;
         entry.Downloaded = torrent.Downloaded;
         entry.Ratio = torrent.Ratio;
+        entry.SeedingTime = torrent.CumulativeSeedingTimeSeconds;
         entry.IsPrivate = torrent.IsPrivate;
 
         if (this.trackerEntryRepository != null)
@@ -376,7 +377,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                 Uploaded = torrent.Uploaded,
                 Downloaded = torrent.Downloaded,
                 Ratio = torrent.Ratio,
-                SeedingTime = torrent.DateAdded != default ? (long)(DateTime.UtcNow - torrent.DateAdded).TotalSeconds : 0,
+                SeedingTime = torrent.CumulativeSeedingTimeSeconds,
                 PrimaryTracker = tracker,
                 Trackers = dbTrackers,
                 IsPrivate = torrent.IsPrivate,
@@ -414,6 +415,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
         existing.Uploaded = torrent.Uploaded;
         existing.Downloaded = torrent.Downloaded;
         existing.Ratio = torrent.Ratio;
+        existing.SeedingTime = torrent.CumulativeSeedingTimeSeconds;
         existing.Status = "Removed";
         existing.RemovalReason = reason;
         existing.IsPrivate = torrent.IsPrivate;
@@ -1017,6 +1019,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             history.Downloaded = message.Torrent.Downloaded;
             history.Uploaded = message.Torrent.Uploaded;
             history.Ratio = message.Torrent.Ratio;
+            history.SeedingTime = message.Torrent.CumulativeSeedingTimeSeconds;
             this.historyRepository.Update(history);
         }
     }
@@ -1046,6 +1049,7 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
                 history.Uploaded = message.Torrent.Uploaded;
                 history.Downloaded = message.Torrent.Downloaded;
                 history.Ratio = message.Torrent.Ratio;
+                history.SeedingTime = message.Torrent.CumulativeSeedingTimeSeconds;
                 this.historyRepository.Update(history);
             }
         }
