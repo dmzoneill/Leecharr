@@ -171,14 +171,39 @@ export function App() {
     try {
       const user = await api.getCurrentUser();
       updateCurrentUser(user);
-    } catch {
+      if (
+        user &&
+        !user.isAuthenticated &&
+        user.requiresPassword &&
+        window.location.pathname !== "/login"
+      ) {
+        navigate("/login");
+      }
+    } catch (err: unknown) {
       // Auth might not be enabled or user not logged in
+      if (
+        (err as Error)?.message?.includes("401") &&
+        window.location.pathname !== "/login"
+      ) {
+        navigate("/login");
+      }
     }
-  }, [updateCurrentUser]);
+  }, [updateCurrentUser, navigate]);
 
   useEffect(() => {
     loadUser();
   }, [loadUser]);
+
+  useEffect(() => {
+    if (
+      currentUser &&
+      !currentUser.isAuthenticated &&
+      currentUser.requiresPassword &&
+      location.pathname !== "/login"
+    ) {
+      navigate("/login");
+    }
+  }, [currentUser, location.pathname, navigate]);
 
   useEffect(() => {
     if (generalConfig?.instanceUuid) {
@@ -423,7 +448,7 @@ export function App() {
 
   const isLocked =
     (isIdle || isManuallyLocked) &&
-    Boolean(currentUser && location.pathname !== "/login");
+    Boolean((currentUser || isManuallyLocked) && location.pathname !== "/login");
 
   const handleUnlockSession = useCallback(() => {
     setIsManuallyLocked(false);

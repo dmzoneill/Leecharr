@@ -325,9 +325,17 @@ export const api = {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         const user = await api.getCurrentUser();
+        if (user && !user.isAuthenticated && user.requiresPassword) {
+          throw new Error("Session expired or unauthenticated");
+        }
         return user;
       } catch (err: unknown) {
-        if ((err as Error)?.message?.includes("401")) {
+        if (
+          (err as Error)?.message?.includes("401") ||
+          (err as Error)?.message?.includes(
+            "Session expired or unauthenticated",
+          )
+        ) {
           throw err;
         }
         if (attempt === maxRetries) {
