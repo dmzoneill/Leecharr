@@ -150,6 +150,8 @@ const bn: I18nTranslations = {
     "ok": "ঠিক আছে",
     "clear": "পরিষ্কার করুন",
     "remove": "সরান",
+    "disconnect": "সংযোগ বিচ্ছিন্ন করুন",
+    "ban": "নিষেধাজ্ঞা",
     "details": "বিস্তারিত",
     "configure": "কনফিগার করুন",
     "connect": "সংযুক্ত করুন",
@@ -181,9 +183,7 @@ const bn: I18nTranslations = {
     "total": "মোট",
     "testing": "টেস্টিং",
     "unknownError": "অজানা ত্রুটি",
-    "noResults": "কোন মিল ট্যাগ",
-    "disconnect": "সংযোগ বিচ্ছিন্ন করুন",
-    "ban": "নিষেধাজ্ঞা"
+    "noResults": "কোন মিল ট্যাগ"
   },
   "nav": {
     "dashboard": "ড্যাশবোর্ড",
@@ -658,6 +658,10 @@ const bn: I18nTranslations = {
       "failedToLoadPeers": "সহকর্মী লোড করতে ব্যর্থ হয়েছে৷",
       "noPeers": "সমবয়সীদের নেই",
       "peersPrivateBanner": "পিয়ার্স প্রাইভেট ব্যানার",
+      "disconnectPeer": "পিয়ার সংযোগ বিচ্ছিন্ন করুন",
+      "banPeer": "ব্যান পিয়ার",
+      "peerDisconnected": "পিয়ার সংযোগ বিচ্ছিন্ন",
+      "peerBanned": "পিয়ার নিষিদ্ধ এবং সংযোগ বিচ্ছিন্ন",
       "colAddress": "কর্নেল ঠিকানা",
       "colClient": "কর্নেল ক্লায়েন্ট",
       "colUpSpeed": "কল আপ গতি",
@@ -717,11 +721,7 @@ const bn: I18nTranslations = {
       "failedToRemoveTracker": "ট্র্যাকার সরাতে ব্যর্থ হয়েছে৷",
       "privateTrackerDisabledTitle": "ব্যক্তিগত ট্র্যাকার নিষ্ক্রিয় শিরোনাম",
       "openTrackerPickerTitle": "ট্র্যাকার পিকার শিরোনাম খুলুন",
-      "live3s": "Live3s",
-      "disconnectPeer": "পিয়ার সংযোগ বিচ্ছিন্ন করুন",
-      "banPeer": "ব্যান পিয়ার",
-      "peerDisconnected": "পিয়ার সংযোগ বিচ্ছিন্ন",
-      "peerBanned": "পিয়ার নিষিদ্ধ এবং সংযোগ বিচ্ছিন্ন"
+      "live3s": "Live3s"
     },
     "ratio": "অনুপাত",
     "tabs": {
@@ -1218,6 +1218,7 @@ const bn: I18nTranslations = {
     "zoomOut": "জুম আউট (-)",
     "resetZoom": "জুম রিসেট করুন (100%)",
     "openInTorrents": "টরেন্টসে খুলুন",
+    "torrentNotFound": "সংযুক্ত টরেন্ট পাওয়া যায়নি",
     "subtitle": "সাবটাইটেল",
     "swarms": "ঝাঁক",
     "peers": "পিয়ার্স",
@@ -1226,8 +1227,7 @@ const bn: I18nTranslations = {
     "centerTitle": "কেন্দ্র শিরোনাম",
     "torrentTitle": "টরেন্ট শিরোনাম",
     "peerTitle": "পিয়ার শিরোনাম",
-    "peerEncryptedSuffix": "পিয়ার এনক্রিপ্ট করা প্রত্যয়",
-    "torrentNotFound": "সংযুক্ত টরেন্ট পাওয়া যায়নি"
+    "peerEncryptedSuffix": "পিয়ার এনক্রিপ্ট করা প্রত্যয়"
   },
   "trackerBoost": {
     "title": "TrackerBoost ঝাঁক অপ্টিমাইজার",
@@ -2446,7 +2446,18 @@ const bn: I18nTranslations = {
       "created": "বিজ্ঞপ্তি \"{{name}}\" তৈরি করা হয়েছে",
       "createFailed": "বিজ্ঞপ্তি তৈরি করতে ব্যর্থ হয়েছে৷",
       "saveFailed": "বিজ্ঞপ্তি সংরক্ষণ করতে ব্যর্থ হয়েছে",
-      "openEndpoint": "শেষ বিন্দু খুলুন ({{url}})"
+      "openEndpoint": "শেষ বিন্দু খুলুন ({{url}})",
+      "customScript": "কাস্টম স্ক্রিপ্ট",
+      "scriptPath": "স্ক্রিপ্ট পাথ",
+      "scriptPathHint": "হোস্টে এক্সিকিউটেবল স্ক্রিপ্ট ফাইলের পথ",
+      "scriptArguments": "যুক্তি",
+      "scriptArgumentsHint": "ঐচ্ছিক কমান্ড লাইন আর্গুমেন্ট স্ক্রিপ্ট পাস",
+      "customScriptPathRequired": "কাস্টম স্ক্রিপ্ট পাথ প্রয়োজন",
+      "tags": "ট্যাগ",
+      "tagsHint": "শুধুমাত্র এই ট্যাগগুলির সাথে মিলে যাওয়া টরেন্টগুলির জন্য বিজ্ঞপ্তি পাঠান (সকলের জন্য খালি রাখুন)",
+      "loadingTags": "ট্যাগ লোড হচ্ছে...",
+      "noTagsAvailable": "কোন ট্যাগ কনফিগার করা নেই. সেটিংস > ট্যাগ-এ ট্যাগ তৈরি করুন।",
+      "clearTags": "সাফ ট্যাগ"
     },
     "indexers": {
       "newRssRule": "নতুন আরএসএস নিয়ম",

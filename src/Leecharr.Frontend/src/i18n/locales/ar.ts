@@ -150,6 +150,8 @@ const ar: I18nTranslations = {
     "ok": "موافق",
     "clear": "مسح",
     "remove": "إزالة",
+    "disconnect": "قطع الاتصال",
+    "ban": "حظر",
     "details": "التفاصيل",
     "configure": "تكوين",
     "connect": "اتصال",
@@ -181,9 +183,7 @@ const ar: I18nTranslations = {
     "total": "المجموع",
     "testing": "اختبار",
     "unknownError": "خطأ غير معروف",
-    "noResults": "لا توجد علامات مطابقة",
-    "disconnect": "قطع الاتصال",
-    "ban": "حظر"
+    "noResults": "لا توجد علامات مطابقة"
   },
   "nav": {
     "dashboard": "لوحة التحكم",
@@ -658,6 +658,10 @@ const ar: I18nTranslations = {
       "failedToLoadPeers": "فشل في تحميل الأقران",
       "noPeers": "لا أقرانهم",
       "peersPrivateBanner": "الأقران راية خاصة",
+      "disconnectPeer": "افصل النظير",
+      "banPeer": "بان بير",
+      "peerDisconnected": "تم قطع اتصال الأقران",
+      "peerBanned": "الأقران المحظورة وقطع الاتصال",
       "colAddress": "عنوان العقيد",
       "colClient": "العميل العقيد",
       "colUpSpeed": "سرعة العقيد",
@@ -717,11 +721,7 @@ const ar: I18nTranslations = {
       "failedToRemoveTracker": "فشل في إزالة المتعقب",
       "privateTrackerDisabledTitle": "عنوان المتعقب الخاص معطل",
       "openTrackerPickerTitle": "افتح عنوان منتقي المتعقب",
-      "live3s": "Live3s",
-      "disconnectPeer": "افصل النظير",
-      "banPeer": "بان بير",
-      "peerDisconnected": "تم قطع اتصال الأقران",
-      "peerBanned": "الأقران المحظورة وقطع الاتصال"
+      "live3s": "Live3s"
     },
     "ratio": "النسبة",
     "tabs": {
@@ -1218,6 +1218,7 @@ const ar: I18nTranslations = {
     "zoomOut": "تصغير (-)",
     "resetZoom": "إعادة ضبط التكبير/التصغير (100%)",
     "openInTorrents": "فتح في السيول",
+    "torrentNotFound": "لم يتم العثور على السيل المرتبط",
     "subtitle": "الترجمة",
     "swarms": "أسراب",
     "peers": "النظراء",
@@ -1226,8 +1227,7 @@ const ar: I18nTranslations = {
     "centerTitle": "عنوان المركز",
     "torrentTitle": "عنوان تورنت",
     "peerTitle": "عنوان الأقران",
-    "peerEncryptedSuffix": "لاحقة مشفرة نظير",
-    "torrentNotFound": "لم يتم العثور على السيل المرتبط"
+    "peerEncryptedSuffix": "لاحقة مشفرة نظير"
   },
   "trackerBoost": {
     "title": "مُحسِّن TrackerBoost للأسراب",
@@ -2446,7 +2446,18 @@ const ar: I18nTranslations = {
       "created": "تم إنشاء الإشعار \"{{name}}_\".",
       "createFailed": "فشل في إنشاء الإخطار",
       "saveFailed": "فشل في حفظ الإخطار",
-      "openEndpoint": "نقطة النهاية المفتوحة ({{url}})"
+      "openEndpoint": "نقطة النهاية المفتوحة ({{url}})",
+      "customScript": "البرنامج النصي المخصص",
+      "scriptPath": "مسار البرنامج النصي",
+      "scriptPathHint": "المسار إلى ملف البرنامج النصي القابل للتنفيذ على المضيف",
+      "scriptArguments": "الحجج",
+      "scriptArgumentsHint": "تم تمرير وسيطات سطر الأوامر الاختيارية إلى البرنامج النصي",
+      "customScriptPathRequired": "مطلوب مسار البرنامج النصي المخصص",
+      "tags": "العلامات",
+      "tagsHint": "أرسل فقط إشعارات للسيول المطابقة لهذه العلامات (اتركها فارغة للجميع)",
+      "loadingTags": "جارٍ تحميل العلامات...",
+      "noTagsAvailable": "لم يتم تكوين أي علامات. أنشئ علامات في الإعدادات > العلامات.",
+      "clearTags": "مسح العلامات"
     },
     "indexers": {
       "newRssRule": "قاعدة RSS الجديدة",

@@ -149,6 +149,8 @@ const es: I18nTranslations = {
     "ok": "Aceptar",
     "clear": "Limpiar",
     "remove": "Quitar",
+    "disconnect": "Desconectar",
+    "ban": "Prohibición",
     "details": "Detalles",
     "configure": "Configurar",
     "connect": "Conectar",
@@ -180,8 +182,6 @@ const es: I18nTranslations = {
     "unknownError": "Error desconocido",
     "noResults": "No hay etiquetas coincidentes",
     "error": "Error",
-    "disconnect": "Desconectar",
-    "ban": "Prohibición",
     "general": "General",
     "total": "Total"
   },
@@ -656,6 +656,10 @@ const es: I18nTranslations = {
       "failedToLoadPeers": "No se pudieron cargar los pares",
       "noPeers": "Sin compañeros",
       "peersPrivateBanner": "Banner privado de compañeros",
+      "disconnectPeer": "Desconectar par",
+      "banPeer": "Prohibición de pares",
+      "peerDisconnected": "Par desconectado",
+      "peerBanned": "Par prohibido y desconectado",
       "colAddress": "Dirección de la columna",
       "colClient": "Cliente Col",
       "colUpSpeed": "Velocidad de subida de columna",
@@ -717,11 +721,7 @@ const es: I18nTranslations = {
       "openTrackerPickerTitle": "Título del selector de seguimiento abierto",
       "prioNormal": "Prio Normal",
       "prioHigh": "Prio High",
-      "live3s": "Live3s",
-      "disconnectPeer": "Desconectar par",
-      "banPeer": "Prohibición de pares",
-      "peerDisconnected": "Par desconectado",
-      "peerBanned": "Par prohibido y desconectado"
+      "live3s": "Live3s"
     },
     "ratio": "Proporción",
     "tabs": {
@@ -1218,6 +1218,7 @@ const es: I18nTranslations = {
     "zoomOut": "Alejar (-)",
     "resetZoom": "Restablecer zoom (100%)",
     "openInTorrents": "Abierto en Torrentes",
+    "torrentNotFound": "Torrente asociado no encontrado",
     "subtitle": "Subtitular",
     "swarms": "Enjambres",
     "peers": "Pares",
@@ -1226,8 +1227,7 @@ const es: I18nTranslations = {
     "centerTitle": "Título del centro",
     "torrentTitle": "Título del torrente",
     "peerTitle": "Título del compañero",
-    "peerEncryptedSuffix": "Sufijo cifrado de pares",
-    "torrentNotFound": "Torrente asociado no encontrado"
+    "peerEncryptedSuffix": "Sufijo cifrado de pares"
   },
   "trackerBoost": {
     "title": "Optimizador TrackerBoost",
@@ -2446,7 +2446,18 @@ const es: I18nTranslations = {
       "createFailed": "No se pudo crear la notificación",
       "saveFailed": "No se pudo guardar la notificación",
       "openEndpoint": "Punto final abierto ({{url}})",
-      "error": "Error"
+      "error": "Error",
+      "customScript": "Guión personalizado",
+      "scriptPath": "Ruta del guión",
+      "scriptPathHint": "Ruta al archivo de script ejecutable en el host",
+      "scriptArguments": "Argumentos",
+      "scriptArgumentsHint": "Argumentos de línea de comando opcionales pasados ​​al script",
+      "customScriptPathRequired": "Se requiere una ruta de script personalizada",
+      "tags": "Etiquetas",
+      "tagsHint": "Envíe notificaciones únicamente para torrents que coincidan con estas etiquetas (déjelas vacías para todas)",
+      "loadingTags": "Cargando etiquetas...",
+      "noTagsAvailable": "No hay etiquetas configuradas. Cree etiquetas en Configuración > Etiquetas.",
+      "clearTags": "Borrar etiquetas"
     },
     "indexers": {
       "newRssRule": "Nueva regla RSS",

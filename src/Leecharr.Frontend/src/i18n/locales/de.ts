@@ -148,6 +148,8 @@ const de: I18nTranslations = {
     "ok": "OK",
     "clear": "Löschen",
     "remove": "Entfernen",
+    "disconnect": "Trennen",
+    "ban": "Verbot",
     "details": "Einzelheiten",
     "configure": "Konfigurieren",
     "connect": "Verbinden",
@@ -181,8 +183,6 @@ const de: I18nTranslations = {
     "noResults": "Keine passenden Tags",
     "status": "Status",
     "name": "Name",
-    "disconnect": "Trennen",
-    "ban": "Verbot",
     "live": "Live"
   },
   "nav": {
@@ -647,6 +647,9 @@ const de: I18nTranslations = {
       "failedToLoadPeers": "Peers konnten nicht geladen werden",
       "noPeers": "Keine Kollegen",
       "peersPrivateBanner": "Privates Peers-Banner",
+      "disconnectPeer": "Peer trennen",
+      "peerDisconnected": "Peer getrennt",
+      "peerBanned": "Peer gesperrt und getrennt",
       "colAddress": "Col-Adresse",
       "colClient": "Col-Client",
       "colUpSpeed": "Col-Up-Geschwindigkeit",
@@ -712,10 +715,7 @@ const de: I18nTranslations = {
       "prioLow": "Prio Low",
       "prioNormal": "Prio Normal",
       "live3s": "Live3s",
-      "disconnectPeer": "Peer trennen",
       "banPeer": "Ban Peer",
-      "peerDisconnected": "Peer getrennt",
-      "peerBanned": "Peer gesperrt und getrennt",
       "status": "Status",
       "colTier": "Col Tier",
       "colAction": "Col Action"
@@ -1217,6 +1217,7 @@ const de: I18nTranslations = {
     "zoomOut": "Verkleinern (-)",
     "resetZoom": "Zoom zurücksetzen (100 %)",
     "openInTorrents": "In Torrents öffnen",
+    "torrentNotFound": "Zugehöriger Torrent nicht gefunden",
     "subtitle": "Untertitel",
     "swarms": "Schwärme",
     "peers": "Gleichaltrige",
@@ -1226,7 +1227,6 @@ const de: I18nTranslations = {
     "peerTitle": "Peer-Titel",
     "peerEncryptedSuffix": "Peer-verschlüsseltes Suffix",
     "peer": "Peer",
-    "torrentNotFound": "Zugehöriger Torrent nicht gefunden",
     "torrent": "Torrent"
   },
   "trackerBoost": {
@@ -2446,7 +2446,18 @@ const de: I18nTranslations = {
       "openEndpoint": "Offener Endpunkt ({{url}})",
       "position": "Position",
       "info": "Information",
-      "name": "Name"
+      "name": "Name",
+      "customScript": "Benutzerdefiniertes Skript",
+      "scriptPath": "Skriptpfad",
+      "scriptPathHint": "Pfad zur ausführbaren Skriptdatei auf dem Host",
+      "scriptArguments": "Argumente",
+      "scriptArgumentsHint": "Optionale Befehlszeilenargumente, die an das Skript übergeben werden",
+      "customScriptPathRequired": "Ein benutzerdefinierter Skriptpfad ist erforderlich",
+      "tags": "Schlagworte",
+      "tagsHint": "Senden Sie nur Benachrichtigungen für Torrents, die diesen Tags entsprechen (für alle leer lassen)",
+      "loadingTags": "Tags werden geladen...",
+      "noTagsAvailable": "Keine Tags konfiguriert. Erstellen Sie Tags unter „Einstellungen“ > „Tags“.",
+      "clearTags": "Tags löschen"
     },
     "indexers": {
       "newRssRule": "Neue RSS-Regel",

@@ -150,6 +150,8 @@ const mr: I18nTranslations = {
     "ok": "ठीक आहे",
     "clear": "साफ करा",
     "remove": "काढून टाका",
+    "disconnect": "डिस्कनेक्ट करा",
+    "ban": "बंदी",
     "details": "तपशील",
     "configure": "कॉन्फिगर करा",
     "connect": "कनेक्ट करा",
@@ -181,9 +183,7 @@ const mr: I18nTranslations = {
     "total": "एकूण",
     "testing": "चाचणी",
     "unknownError": "अज्ञात त्रुटी",
-    "noResults": "कोणतेही जुळणारे टॅग नाहीत",
-    "disconnect": "डिस्कनेक्ट करा",
-    "ban": "बंदी"
+    "noResults": "कोणतेही जुळणारे टॅग नाहीत"
   },
   "nav": {
     "dashboard": "डॅशबोर्ड",
@@ -657,6 +657,10 @@ const mr: I18nTranslations = {
       "failedToLoadPeers": "समवयस्क लोड करण्यात अयशस्वी",
       "noPeers": "समवयस्क नाहीत",
       "peersPrivateBanner": "पीअर्स प्रायव्हेट बॅनर",
+      "disconnectPeer": "पीअर डिस्कनेक्ट करा",
+      "banPeer": "बॅन पीर",
+      "peerDisconnected": "पीअर डिस्कनेक्ट झाला",
+      "peerBanned": "पीअर बंदी आणि डिस्कनेक्ट",
       "colAddress": "कर्नल पत्ता",
       "colClient": "कर्नल क्लायंट",
       "colUpSpeed": "कर्नल अप स्पीड",
@@ -717,11 +721,7 @@ const mr: I18nTranslations = {
       "privateTrackerDisabledTitle": "खाजगी ट्रॅकर अक्षम केलेले शीर्षक",
       "openTrackerPickerTitle": "ट्रॅकर पिकर शीर्षक उघडा",
       "diagReAnnounceTrackers": "Diag Re Announce Trackers",
-      "live3s": "Live3s",
-      "disconnectPeer": "पीअर डिस्कनेक्ट करा",
-      "banPeer": "बॅन पीर",
-      "peerDisconnected": "पीअर डिस्कनेक्ट झाला",
-      "peerBanned": "पीअर बंदी आणि डिस्कनेक्ट"
+      "live3s": "Live3s"
     },
     "ratio": "गुणोत्तर",
     "tabs": {
@@ -1218,6 +1218,7 @@ const mr: I18nTranslations = {
     "zoomOut": "झूम आउट (-)",
     "resetZoom": "झूम रीसेट करा (100%)",
     "openInTorrents": "Torrents मध्ये उघडा",
+    "torrentNotFound": "संबद्ध टोरेंट आढळले नाही",
     "subtitle": "उपशीर्षक",
     "swarms": "झुंडी",
     "peers": "पीअर्स",
@@ -1226,8 +1227,7 @@ const mr: I18nTranslations = {
     "centerTitle": "केंद्र शीर्षक",
     "torrentTitle": "टोरेंट शीर्षक",
     "peerTitle": "पीअर शीर्षक",
-    "peerEncryptedSuffix": "पीअर एनक्रिप्टेड प्रत्यय",
-    "torrentNotFound": "संबद्ध टोरेंट आढळले नाही"
+    "peerEncryptedSuffix": "पीअर एनक्रिप्टेड प्रत्यय"
   },
   "trackerBoost": {
     "title": "TrackerBoost थवा ऑप्टिमायझर",
@@ -2446,7 +2446,18 @@ const mr: I18nTranslations = {
       "created": "सूचना \"{{name}}\" तयार केली",
       "createFailed": "सूचना तयार करण्यात अयशस्वी",
       "saveFailed": "सूचना जतन करण्यात अयशस्वी",
-      "openEndpoint": "ओपन एंडपॉइंट ({{url}})"
+      "openEndpoint": "ओपन एंडपॉइंट ({{url}})",
+      "customScript": "सानुकूल स्क्रिप्ट",
+      "scriptPath": "स्क्रिप्ट पथ",
+      "scriptPathHint": "होस्टवरील एक्झिक्युटेबल स्क्रिप्ट फाइलचा मार्ग",
+      "scriptArguments": "युक्तिवाद",
+      "scriptArgumentsHint": "पर्यायी कमांड लाइन वितर्क स्क्रिप्टमध्ये पास केले जातात",
+      "customScriptPathRequired": "सानुकूल स्क्रिप्ट पथ आवश्यक आहे",
+      "tags": "टॅग्ज",
+      "tagsHint": "फक्त या टॅग्सशी जुळणाऱ्या टोरेंटसाठी सूचना पाठवा (सर्वांसाठी रिक्त सोडा)",
+      "loadingTags": "टॅग लोड करत आहे...",
+      "noTagsAvailable": "कोणतेही टॅग कॉन्फिगर केलेले नाहीत. सेटिंग्ज > टॅगमध्ये टॅग तयार करा.",
+      "clearTags": "टॅग साफ करा"
     },
     "indexers": {
       "newRssRule": "नवीन RSS नियम",
