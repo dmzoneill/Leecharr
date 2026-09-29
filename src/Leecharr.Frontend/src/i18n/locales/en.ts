@@ -85,7 +85,10 @@ const en: I18nTranslations = {
     "loadingPreview": "Loading Preview",
     "binaryMediaFile": "Binary Media File",
     "binaryPreviewNotice": "Binary Preview Notice",
-    "openInTerminal": "Open In Terminal"
+    "openInTerminal": "Open In Terminal",
+    "folderDownloadNotSupported": "Folder downloading is not supported. Please select individual files to download.",
+    "foldersSkippedWarning": "Folders cannot be downloaded directly and were skipped.",
+    "multiDownloadWarning": "Downloading multiple files. If some downloads fail, check your browser popup blocker settings."
   },
   "common": {
     "time": {

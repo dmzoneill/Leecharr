@@ -141,28 +141,52 @@ export function parseMediaBadges(
   };
 }
 
-export function buildStreamUrl(torrentId: number, fileId: number): string {
-  return `/api/v1/torrent/${torrentId}/files/${fileId}/stream`;
+export function buildStreamUrl(
+  torrentId: number,
+  fileId: number,
+  apiKey?: string | null,
+): string {
+  const base = `/api/v1/torrent/${torrentId}/files/${fileId}/stream`;
+  return apiKey ? `${base}?apikey=${encodeURIComponent(apiKey)}` : base;
 }
 
-export function buildDownloadUrl(torrentId: number, fileId: number): string {
-  return `/api/v1/torrent/${torrentId}/files/${fileId}/download`;
+export function buildDownloadUrl(
+  torrentId: number,
+  fileId: number,
+  apiKey?: string | null,
+): string {
+  const base = `/api/v1/torrent/${torrentId}/files/${fileId}/download`;
+  return apiKey ? `${base}?apikey=${encodeURIComponent(apiKey)}` : base;
 }
 
-export function buildPlaylistUrl(torrentId: number, fileId: number): string {
-  return `/api/v1/torrent/${torrentId}/files/${fileId}/stream.m3u`;
+export function buildPlaylistUrl(
+  torrentId: number,
+  fileId: number,
+  apiKey?: string | null,
+): string {
+  const base = `/api/v1/torrent/${torrentId}/files/${fileId}/stream.m3u`;
+  return apiKey ? `${base}?apikey=${encodeURIComponent(apiKey)}` : base;
 }
 
-export function buildFileStreamUrl(path: string): string {
-  return `/api/v1/files/stream?path=${encodeURIComponent(path)}`;
+export function buildFileStreamUrl(path: string, apiKey?: string | null): string {
+  const base = `/api/v1/files/stream?path=${encodeURIComponent(path)}`;
+  return apiKey ? `${base}&apikey=${encodeURIComponent(apiKey)}` : base;
 }
 
-export function buildFileDownloadUrl(path: string): string {
-  return `/api/v1/files/download?path=${encodeURIComponent(path)}`;
+export function buildFileDownloadUrl(
+  path: string,
+  apiKey?: string | null,
+): string {
+  const base = `/api/v1/files/download?path=${encodeURIComponent(path)}`;
+  return apiKey ? `${base}&apikey=${encodeURIComponent(apiKey)}` : base;
 }
 
-export function buildFilePlaylistUrl(path: string): string {
-  return `/api/v1/files/stream.m3u?path=${encodeURIComponent(path)}`;
+export function buildFilePlaylistUrl(
+  path: string,
+  apiKey?: string | null,
+): string {
+  const base = `/api/v1/files/stream.m3u?path=${encodeURIComponent(path)}`;
+  return apiKey ? `${base}&apikey=${encodeURIComponent(apiKey)}` : base;
 }
 
 export function getAbsoluteUrl(url: string, origin?: string): string {

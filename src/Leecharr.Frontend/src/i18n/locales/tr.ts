@@ -85,7 +85,10 @@ const tr: I18nTranslations = {
     "loadingPreview": "Önizleme yükleniyor",
     "binaryMediaFile": "İkili Medya Dosyası",
     "binaryPreviewNotice": "İkili Önizleme Bildirimi",
-    "openInTerminal": "Terminalde Aç"
+    "openInTerminal": "Terminalde Aç",
+    "folderDownloadNotSupported": "Klasör indirme desteklenmiyor. Lütfen indirilecek dosyaları tek tek seçin.",
+    "foldersSkippedWarning": "Klasörler doğrudan indirilemez ve atlanmıştır.",
+    "multiDownloadWarning": "Birden fazla dosya indiriliyor. Bazı indirmeler başarısız olursa tarayıcınızın açılır pencere engelleyici ayarlarını kontrol edin."
   },
   "common": {
     "time": {

@@ -85,7 +85,10 @@ const bn: I18nTranslations = {
     "loadingPreview": "পূর্বরূপ লোড হচ্ছে",
     "binaryMediaFile": "বাইনারি মিডিয়া ফাইল",
     "binaryPreviewNotice": "বাইনারি পূর্বরূপ বিজ্ঞপ্তি",
-    "openInTerminal": "টার্মিনালে খুলুন"
+    "openInTerminal": "টার্মিনালে খুলুন",
+    "folderDownloadNotSupported": "ফোল্ডার ডাউনলোড সমর্থিত নয়. ডাউনলোড করার জন্য পৃথক ফাইল নির্বাচন করুন.",
+    "foldersSkippedWarning": "ফোল্ডার সরাসরি ডাউনলোড করা যাবে না এবং এড়িয়ে যাওয়া হয়েছে।",
+    "multiDownloadWarning": "একাধিক ফাইল ডাউনলোড করা হচ্ছে। কিছু ডাউনলোড ব্যর্থ হলে, আপনার ব্রাউজার পপআপ ব্লকার সেটিংস চেক করুন।"
   },
   "common": {
     "time": {

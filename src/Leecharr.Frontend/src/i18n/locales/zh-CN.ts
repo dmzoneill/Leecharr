@@ -85,7 +85,10 @@ const zhCN: I18nTranslations = {
     "loadingPreview": "正在加载预览",
     "binaryMediaFile": "二进制媒体文件",
     "binaryPreviewNotice": "二进制预览通知",
-    "openInTerminal": "在终端中打开"
+    "openInTerminal": "在终端中打开",
+    "folderDownloadNotSupported": "不支持文件夹下载。请选择要下载的单个文件。",
+    "foldersSkippedWarning": "文件夹无法直接下载并被跳过。",
+    "multiDownloadWarning": "下载多个文件。如果某些下载失败，请检查浏览器弹出窗口阻止程序设置。"
   },
   "common": {
     "time": {

@@ -86,6 +86,9 @@ export type I18nTranslations = {
     "binaryMediaFile": string;
     "binaryPreviewNotice": string;
     "openInTerminal": string;
+    "folderDownloadNotSupported": string;
+    "foldersSkippedWarning": string;
+    "multiDownloadWarning": string;
   };
   "common": {
     "time": {

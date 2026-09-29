@@ -85,7 +85,10 @@ const id: I18nTranslations = {
     "loadingPreview": "Memuat Pratinjau",
     "binaryMediaFile": "File Media Biner",
     "binaryPreviewNotice": "Pemberitahuan Pratinjau Biner",
-    "openInTerminal": "Buka Di Terminal"
+    "openInTerminal": "Buka Di Terminal",
+    "folderDownloadNotSupported": "Pengunduhan folder tidak didukung. Silakan pilih masing-masing file untuk diunduh.",
+    "foldersSkippedWarning": "Folder tidak dapat diunduh secara langsung dan dilewati.",
+    "multiDownloadWarning": "Mengunduh banyak file. Jika beberapa unduhan gagal, periksa pengaturan pemblokir popup browser Anda."
   },
   "common": {
     "time": {

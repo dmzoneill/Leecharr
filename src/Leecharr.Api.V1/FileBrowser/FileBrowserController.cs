@@ -241,6 +241,11 @@ public class FileBrowserController : Controller
             return this.BadRequest(new { Message = $"Access to root or system path '{fullPath}' is denied." });
         }
 
+        if (global::System.IO.Directory.Exists(fullPath))
+        {
+            return this.BadRequest(new { Message = "Directories cannot be downloaded directly." });
+        }
+
         if (!global::System.IO.File.Exists(fullPath))
         {
             return this.NotFound(new { Message = "File not found." });
@@ -275,6 +280,11 @@ public class FileBrowserController : Controller
         if (this.fileBrowserService.IsRootPath(fullPath) || this.fileBrowserService.IsRootOrSystemDirectory(fullPath))
         {
             return this.BadRequest(new { Message = $"Access to root or system path '{fullPath}' is denied." });
+        }
+
+        if (global::System.IO.Directory.Exists(fullPath))
+        {
+            return this.BadRequest(new { Message = "Directories cannot be streamed." });
         }
 
         if (!global::System.IO.File.Exists(fullPath))
@@ -314,6 +324,11 @@ public class FileBrowserController : Controller
             return this.BadRequest(new { Message = $"Access to root or system path '{fullPath}' is denied." });
         }
 
+        if (global::System.IO.Directory.Exists(fullPath))
+        {
+            return this.BadRequest(new { Message = "Directories cannot be converted to playlist." });
+        }
+
         if (!global::System.IO.File.Exists(fullPath))
         {
             return this.NotFound(new { Message = "File not found." });
@@ -322,6 +337,13 @@ public class FileBrowserController : Controller
         var host = this.Request?.Host.Value ?? "localhost:7889";
         var scheme = this.Request?.Scheme ?? "http";
         var fullStreamUrl = $"{scheme}://{host}/api/v1/files/stream?path={Uri.EscapeDataString(path)}";
+
+        var apiKey = this.GetRequestApiKey();
+        if (!string.IsNullOrWhiteSpace(apiKey))
+        {
+            fullStreamUrl += $"&apikey={Uri.EscapeDataString(apiKey)}";
+        }
+
         var fileName = Path.GetFileName(fullPath);
 
         var m3uContent = $"#EXTM3U\n#EXTINF:-1,{fileName}\n{fullStreamUrl}\n";
@@ -386,6 +408,8 @@ public class FileBrowserController : Controller
 
         var fileInfo = new FileInfo(fullPath);
         var ext = (fileInfo.Extension ?? string.Empty).TrimStart('.').ToLowerInvariant();
+        var apiKey = this.GetRequestApiKey();
+        var apiKeyQuery = !string.IsNullOrWhiteSpace(apiKey) ? $"&apikey={Uri.EscapeDataString(apiKey)}" : string.Empty;
 
         var isText = ext is "txt" or "nfo" or "log" or "srt" or "vtt" or "sub" or "ass" or "json" or "xml" or "yml" or "yaml" or "md" or "ini" or "conf" or "cfg" or "sh" or "bat" or "py" or "csv" or "torrent";
         var isImage = ext is "jpg" or "jpeg" or "png" or "gif" or "webp" or "svg" or "bmp" or "ico";
@@ -422,7 +446,7 @@ public class FileBrowserController : Controller
                 Path = fullPath,
                 Size = fileInfo.Length,
                 Extension = ext,
-                DownloadUrl = $"/api/v1/files/download?path={Uri.EscapeDataString(path)}",
+                DownloadUrl = $"/api/v1/files/download?path={Uri.EscapeDataString(path)}{apiKeyQuery}",
             });
         }
 
@@ -435,9 +459,9 @@ public class FileBrowserController : Controller
                 Path = fullPath,
                 Size = fileInfo.Length,
                 Extension = ext,
-                DownloadUrl = $"/api/v1/files/download?path={Uri.EscapeDataString(path)}",
-                StreamUrl = $"/api/v1/files/stream?path={Uri.EscapeDataString(path)}",
-                PlaylistUrl = $"/api/v1/files/stream.m3u?path={Uri.EscapeDataString(path)}",
+                DownloadUrl = $"/api/v1/files/download?path={Uri.EscapeDataString(path)}{apiKeyQuery}",
+                StreamUrl = $"/api/v1/files/stream?path={Uri.EscapeDataString(path)}{apiKeyQuery}",
+                PlaylistUrl = $"/api/v1/files/stream.m3u?path={Uri.EscapeDataString(path)}{apiKeyQuery}",
             });
         }
 
@@ -450,9 +474,9 @@ public class FileBrowserController : Controller
                 Path = fullPath,
                 Size = fileInfo.Length,
                 Extension = ext,
-                DownloadUrl = $"/api/v1/files/download?path={Uri.EscapeDataString(path)}",
-                StreamUrl = $"/api/v1/files/stream?path={Uri.EscapeDataString(path)}",
-                PlaylistUrl = $"/api/v1/files/stream.m3u?path={Uri.EscapeDataString(path)}",
+                DownloadUrl = $"/api/v1/files/download?path={Uri.EscapeDataString(path)}{apiKeyQuery}",
+                StreamUrl = $"/api/v1/files/stream?path={Uri.EscapeDataString(path)}{apiKeyQuery}",
+                PlaylistUrl = $"/api/v1/files/stream.m3u?path={Uri.EscapeDataString(path)}{apiKeyQuery}",
             });
         }
 
@@ -463,7 +487,7 @@ public class FileBrowserController : Controller
             Path = fullPath,
             Size = fileInfo.Length,
             Extension = ext,
-            DownloadUrl = $"/api/v1/files/download?path={Uri.EscapeDataString(path)}",
+            DownloadUrl = $"/api/v1/files/download?path={Uri.EscapeDataString(path)}{apiKeyQuery}",
         });
     }
 
@@ -589,5 +613,25 @@ public class FileBrowserController : Controller
         }
 
         return this.Ok(new { Success = true, Uploaded = uploaded });
+    }
+
+    private string GetRequestApiKey()
+    {
+        if (this.Request?.Query != null && this.Request.Query.TryGetValue("apikey", out var qKey) && !string.IsNullOrWhiteSpace(qKey))
+        {
+            return qKey.ToString();
+        }
+
+        if (this.Request?.Query != null && this.Request.Query.TryGetValue("api_key", out var qKey2) && !string.IsNullOrWhiteSpace(qKey2))
+        {
+            return qKey2.ToString();
+        }
+
+        if (this.Request?.Headers != null && this.Request.Headers.TryGetValue("X-Api-Key", out var hKey) && !string.IsNullOrWhiteSpace(hKey))
+        {
+            return hKey.ToString();
+        }
+
+        return null;
     }
 }

@@ -85,7 +85,10 @@ const ar: I18nTranslations = {
     "loadingPreview": "جارٍ تحميل المعاينة",
     "binaryMediaFile": "ملف الوسائط الثنائي",
     "binaryPreviewNotice": "إشعار المعاينة الثنائية",
-    "openInTerminal": "فتح في المحطة الطرفية"
+    "openInTerminal": "فتح في المحطة الطرفية",
+    "folderDownloadNotSupported": "تنزيل المجلد غير مدعوم. يرجى تحديد الملفات الفردية للتحميل.",
+    "foldersSkippedWarning": "لا يمكن تنزيل المجلدات مباشرة وتم تخطيها.",
+    "multiDownloadWarning": "تنزيل ملفات متعددة. إذا فشلت بعض التنزيلات، فتحقق من إعدادات مانع النوافذ المنبثقة في المتصفح لديك."
   },
   "common": {
     "time": {
