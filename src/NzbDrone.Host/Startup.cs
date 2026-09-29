@@ -382,10 +382,11 @@ public class Startup
         app.UseSwagger();
         app.UseSwaggerUI(c =>
         {
-            c.SwaggerEndpoint("/swagger/v1/swagger.json", "Leecharr REST API v1");
+            var prefix = string.IsNullOrEmpty(urlBase) ? string.Empty : urlBase.TrimEnd('/');
+            c.SwaggerEndpoint($"{prefix}/swagger/v1/swagger.json", "Leecharr REST API v1");
             c.RoutePrefix = "swagger";
             c.DocumentTitle = "Leecharr - REST API Docs";
-            c.InjectStylesheet("/swagger-custom.css");
+            c.InjectStylesheet($"{prefix}/swagger-custom.css");
         });
 
         app.UseWebSockets(new Microsoft.AspNetCore.Builder.WebSocketOptions

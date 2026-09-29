@@ -27,4 +27,19 @@ public class SwaggerIntegrationTest : IntegrationTestBase
         var response = await this.Client.GetAsync("/swagger/v1/swagger.json");
         response.IsSuccessStatusCode.Should().BeTrue();
     }
+
+    [Test]
+    public async Task GetSwaggerIndex_ReturnsOk()
+    {
+        var response = await this.Client.GetAsync("/swagger/index.html");
+        response.IsSuccessStatusCode.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task GetSwaggerCustomCss_ReturnsOk()
+    {
+        var response = await this.Client.GetAsync("/swagger-custom.css");
+        response.IsSuccessStatusCode.Should().BeTrue();
+        response.Content.Headers.ContentType?.MediaType.Should().Be("text/css");
+    }
 }
