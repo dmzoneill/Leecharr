@@ -1135,6 +1135,7 @@ const en: I18nTranslations = {
     "scheduleName": "Rule Name",
     "namePlaceholder": "e.g. Night Owl Throttle, Peak Work Hours",
     "activeDays": "Active Days",
+    "atLeastOneDay": "At least one day must be selected.",
     "allDays": "All 7 Days",
     "workdays": "Mon - Fri",
     "weekends": "Sat - Sun",

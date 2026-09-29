@@ -62,8 +62,21 @@ export function isScheduleInSlot(
   const startH = timeToHour(s.startTime);
   const endH = timeToHour(s.endTime);
 
-  if (startH === endH) {
+  const isFullDay =
+    startH === 0 &&
+    (endH >= 24 ||
+      s.endTime.startsWith("24:00") ||
+      s.endTime.startsWith("23:59"));
+
+  if (isFullDay) {
     return (s.days & dayValue) !== 0;
+  }
+
+  if (startH === endH) {
+    return (
+      (s.days & dayValue) !== 0 &&
+      (hour === startH || Math.floor(hour) === Math.floor(startH))
+    );
   }
 
   if (startH <= endH) {
@@ -121,6 +134,17 @@ function ScheduleModal({
     setForm({ ...form, days: form.days ^ value });
   }
 
+  const isDaysEmpty = (form.days & 127) === 0;
+  const isNameEmpty = !form.name.trim();
+  const isSaveDisabled = isPending || isNameEmpty || isDaysEmpty;
+
+  function handleSaveClick() {
+    if (isSaveDisabled) {
+      return;
+    }
+    onSave(form);
+  }
+
   return (
     <div className="modal-overlay" onClick={onCancel}>
       <div
@@ -175,6 +199,7 @@ function ScheduleModal({
                 style={{
                   fontWeight: 600,
                   fontSize: "0.82rem",
+                  color: isDaysEmpty ? "var(--danger, #e63946)" : undefined,
                 }}
               >
                 {t("speedSchedule.activeDays")}
@@ -219,6 +244,21 @@ function ScheduleModal({
                 </button>
               ))}
             </div>
+            {isDaysEmpty && (
+              <div
+                role="alert"
+                style={{
+                  fontSize: "0.82rem",
+                  color: "var(--danger, #e63946)",
+                  marginTop: "0.35rem",
+                }}
+              >
+                {t(
+                  "speedSchedule.atLeastOneDay",
+                  "At least one day must be selected.",
+                )}
+              </div>
+            )}
           </div>
 
           <div style={{ display: "flex", gap: 12 }}>
@@ -394,8 +434,8 @@ function ScheduleModal({
             </button>
             <button
               className="btn btn-primary btn-small"
-              onClick={() => onSave(form)}
-              disabled={isPending || !form.name.trim()}
+              onClick={handleSaveClick}
+              disabled={isSaveDisabled}
               type="button"
             >
               {isPending ? t("common.saving") : t("speedSchedule.saveChanges")}
@@ -957,6 +997,13 @@ export function SpeedSchedule() {
   const [modal, setModal] = useState<Partial<SpeedScheduleEntry> | null>(null);
 
   function handleSave(form: Partial<SpeedScheduleEntry>) {
+    if (!form.days || (form.days & 127) === 0) {
+      showToast(
+        t("speedSchedule.atLeastOneDay", "At least one day must be selected."),
+        "error",
+      );
+      return;
+    }
     if (form.id) {
       updateSchedule.mutate(form as SpeedScheduleEntry, {
         onSuccess: () => {
