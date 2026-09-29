@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { Torrent } from "../api/types";
+import { Torrent, SpeedLimits } from "../api/types";
 import {
   useArrConnections,
   useIndexers,
@@ -37,6 +37,37 @@ export function calculateTotalLibrarySize(torrents: Torrent[] = []): number {
   const completedBytes = calculateCompletedLibrarySize(torrents);
   if (completedBytes > 0) return completedBytes;
   return (torrents || []).reduce((acc, t) => acc + (t.totalSize || 0), 0);
+}
+
+export function getActiveSpeedScheduleMode(
+  activeLimits?: Partial<SpeedLimits> | null,
+  schedulerEnabled?: boolean,
+  t: (key: string, defaultValue?: string) => string = (_k, def) => def ?? _k,
+): string {
+  if (activeLimits?.isPaused) {
+    return t("dashboard.paused", "Paused");
+  }
+  if (activeLimits?.isThrottled) {
+    return t("dashboard.modeThrottled", "Mode Throttled");
+  }
+  if (schedulerEnabled) {
+    return t("dashboard.modeScheduled", "Mode Scheduled");
+  }
+  return t("dashboard.modeNormal", "Mode Normal");
+}
+
+export function formatSpeedScheduleLimit(
+  isPaused: boolean | undefined,
+  limitKbps: number | undefined | null,
+  t: (key: string, defaultValue?: string) => string = (_k, def) => def ?? _k,
+): string {
+  if (isPaused) {
+    return t("dashboard.paused", "Paused");
+  }
+  if (limitKbps && limitKbps > 0) {
+    return `${limitKbps} KB/s`;
+  }
+  return t("dashboard.unlimited", "Unlimited");
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -707,11 +738,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 color: "var(--text-secondary, #c7c5d3)",
               }}
             >
-              {activeLimits?.isThrottled
-                ? t("dashboard.modeThrottled")
-                : schedulerConfig?.schedulerEnabled
-                  ? t("dashboard.modeScheduled")
-                  : t("dashboard.modeNormal")}
+              {getActiveSpeedScheduleMode(
+                activeLimits,
+                schedulerConfig?.schedulerEnabled,
+                t,
+              )}
             </span>
           </div>
           <div
@@ -729,9 +760,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <span
               style={{ color: "var(--text-primary, #f8f4ed)", fontWeight: 600 }}
             >
-              {activeLimits?.maxUploadSpeedKbps
-                ? `${activeLimits.maxUploadSpeedKbps} KB/s`
-                : t("dashboard.unlimited")}
+              {formatSpeedScheduleLimit(
+                Boolean(activeLimits?.isPaused || activeLimits?.isUploadPaused),
+                activeLimits?.maxUploadSpeedKbps,
+                t,
+              )}
             </span>
           </div>
           <div
@@ -748,9 +781,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <span
               style={{ color: "var(--text-primary, #f8f4ed)", fontWeight: 600 }}
             >
-              {activeLimits?.maxDownloadSpeedKbps
-                ? `${activeLimits.maxDownloadSpeedKbps} KB/s`
-                : t("dashboard.unlimited")}
+              {formatSpeedScheduleLimit(
+                Boolean(
+                  activeLimits?.isPaused || activeLimits?.isDownloadPaused,
+                ),
+                activeLimits?.maxDownloadSpeedKbps,
+                t,
+              )}
             </span>
           </div>
         </div>

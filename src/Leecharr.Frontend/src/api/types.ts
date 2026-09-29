@@ -881,6 +881,8 @@ export interface SpeedLimits {
   maxUploadSpeedKbps: number;
   isThrottled: boolean;
   isPaused: boolean;
+  isDownloadPaused?: boolean;
+  isUploadPaused?: boolean;
   // Backward-compatible optional accessors
   maxUploadSpeed?: number;
   maxDownloadSpeed?: number;
@@ -2265,5 +2267,3 @@ export interface DebuggerSourceCodeResponse {
   lineCount: number;
   exists: boolean;
 }
-
-
