@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.33.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.1) - 2026-09-29
+
+### 🐛 Bug Fixes
+- fix(frontend): dynamically include custom connection limit options in NetworkSwarmCard (#1030)
+- fix(frontend): add TXT export and include missing metadata fields in history CSV export (#1041)
+- fix(frontend): improve LanguageSelector tooltip interpolation and keyboard accessibility (#1031)
+- fix(history): sync cumulative seeding time to download history and fix short duration formatting (#1035)
+- fix(frontend): normalize download client torrent progress scale and guard search filter against nulls (#1042)
+- fix(frontend): guard DiskStorageBadge against division by zero on empty or unmounted volumes (#1029)
+
 ## [v1.33.0](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.0) - 2026-09-28
 
 ### ✨ Features
