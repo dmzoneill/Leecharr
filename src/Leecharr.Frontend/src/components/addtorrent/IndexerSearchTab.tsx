@@ -37,6 +37,7 @@ export function IndexerSearchTab({
     {
       query: activeSearchTerm,
       indexerId: selectedIndexerId,
+      category: selectedCategory,
     },
     Boolean(activeSearchTerm.trim()),
   );
