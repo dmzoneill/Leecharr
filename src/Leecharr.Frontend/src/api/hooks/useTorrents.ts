@@ -367,6 +367,17 @@ export function useMoveTorrentQueue() {
   });
 }
 
+export function useMoveTorrentQueueBatch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ ids, position }: { ids: number[]; position: string }) =>
+      apiClient.post(`/torrent/queue/batch`, { ids, position }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["torrents"] });
+    },
+  });
+}
+
 export function useResumeTorrent() {
   const queryClient = useQueryClient();
   return useMutation({

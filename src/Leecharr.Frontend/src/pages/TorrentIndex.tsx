@@ -13,7 +13,7 @@ import { ViewMode } from "./torrentindex/types";
 import { extractTrackerDomain } from "../utils/formatters";
 import { useTorrentStore } from "../stores/useTorrentStore";
 import {
-  useMoveTorrentQueue,
+  useMoveTorrentQueueBatch,
   useTags,
   useBulkTorrentAction,
 } from "../api/hooks";
@@ -533,7 +533,7 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     }
   };
 
-  const moveTorrentQueue = useMoveTorrentQueue();
+  const moveTorrentQueueBatch = useMoveTorrentQueueBatch();
 
   const handleBulkMoveQueue = async (
     position: "top" | "up" | "down" | "bottom",
@@ -548,16 +548,10 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
       .filter((t) => validSelectedIds.includes(t.id))
       .map((t) => t.id);
 
-    if (position === "down" || position === "bottom") {
-      orderedIds.reverse();
-    }
-
     trackQueueMove(position, validSelectedIds.length);
     setBulkPending(true);
     try {
-      for (const id of orderedIds) {
-        await moveTorrentQueue.mutateAsync({ id, position });
-      }
+      await moveTorrentQueueBatch.mutateAsync({ ids: orderedIds, position });
     } finally {
       setBulkPending(false);
     }
