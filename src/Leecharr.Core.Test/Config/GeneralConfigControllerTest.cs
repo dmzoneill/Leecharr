@@ -103,6 +103,57 @@ public class GeneralConfigControllerTest
     }
 
     [Test]
+    public void GetConfig_ReturnsBranch_FromConfigFileProvider()
+    {
+        this.configFileProvider.Branch.Returns("develop");
+
+        var resource = this.controller.GetConfig();
+
+        resource.Should().NotBeNull();
+        resource.Branch.Should().Be("develop");
+    }
+
+    [Test]
+    public async Task SaveConfig_SavesBranchToConfigFileProvider()
+    {
+        Dictionary<string, object> savedDict = null!;
+        this.configFileProvider.When(x => x.SaveConfigDictionary(Arg.Any<Dictionary<string, object>>()))
+            .Do(call => savedDict = call.Arg<Dictionary<string, object>>());
+
+        var resource = new GeneralConfigResource
+        {
+            Port = 7889,
+            Branch = "nightly",
+        };
+
+        var actionResult = await this.controller.SaveConfig(resource);
+
+        savedDict.Should().NotBeNull();
+        savedDict["Branch"].Should().Be("nightly");
+        resource.Branch.Should().Be("nightly");
+    }
+
+    [Test]
+    public async Task SaveConfig_WhenBranchIsNullOrWhitespace_DefaultsToMain()
+    {
+        Dictionary<string, object> savedDict = null!;
+        this.configFileProvider.When(x => x.SaveConfigDictionary(Arg.Any<Dictionary<string, object>>()))
+            .Do(call => savedDict = call.Arg<Dictionary<string, object>>());
+
+        var resource = new GeneralConfigResource
+        {
+            Port = 7889,
+            Branch = "   ",
+        };
+
+        var actionResult = await this.controller.SaveConfig(resource);
+
+        savedDict.Should().NotBeNull();
+        savedDict["Branch"].Should().Be("main");
+        resource.Branch.Should().Be("main");
+    }
+
+    [Test]
     public async Task SaveConfig_SavesAuthenticationRequiredToConfigFileProvider()
     {
         Dictionary<string, object> savedDict = null!;
