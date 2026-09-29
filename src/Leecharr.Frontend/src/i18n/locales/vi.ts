@@ -3330,7 +3330,14 @@ const vi: I18nTranslations = {
       "vacuumTitle": "Nén cơ sở dữ liệu SQLite (VACUUM)",
       "vacuumDescription": "Xây dựng lại tệp cơ sở dữ liệu SQLite để lấy lại không gian đĩa chưa sử dụng và các chỉ mục cơ sở dữ liệu chống phân mảnh.",
       "vacuumRunning": "Nén cơ sở dữ liệu...",
-      "vacuumButton": "🧹 Chạy cơ sở dữ liệu VACUUM"
+      "vacuumButton": "🧹 Chạy cơ sở dữ liệu VACUUM",
+      "testLogTitle": "Xác minh nhật ký chẩn đoán",
+      "testLogDescription": "Phát ra mục nhập nhật ký chẩn đoán tổng hợp để xác minh các tệp đĩa cuộn và chụp bộ đệm vòng trực tiếp.",
+      "testLogButton": "🧪 Nhật ký kiểm tra",
+      "testLogRunning": "Đang phát nhật ký...",
+      "testLogSuccess": "Nhật ký kiểm tra {{level}} chẩn đoán được phát thành công",
+      "testLogError": "Không thể phát ra nhật ký kiểm tra chẩn đoán: {{error}}",
+      "testLogLevelLabel": "Cấp nhật ký chẩn đoán"
     },
     "security": {
       "authBannerDesc": "Xác thực được kích hoạt. Người dùng cục bộ truy cập Leecharr qua mạng LAN hoặc proxy ngược sẽ xác thực bằng thông tin xác thực cục bộ hoặc Nhà cung cấp nhận dạng/SSO được định cấu hình bên dưới.",

@@ -3331,6 +3331,13 @@ export type I18nTranslations = {
       "vacuumDescription": string;
       "vacuumRunning": string;
       "vacuumButton": string;
+      "testLogTitle": string;
+      "testLogDescription": string;
+      "testLogButton": string;
+      "testLogRunning": string;
+      "testLogSuccess": string;
+      "testLogError": string;
+      "testLogLevelLabel": string;
     };
     "security": {
       "authBannerDesc": string;

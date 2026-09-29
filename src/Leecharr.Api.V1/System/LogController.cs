@@ -14,6 +14,7 @@ namespace Leecharr.Api.V1.System;
 [V1ApiController("log")]
 public class LogController : ControllerBase
 {
+    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private readonly IConfigService configService;
 
     public LogController(IConfigService configService)
@@ -65,6 +66,25 @@ public class LogController : ControllerBase
         return this.Ok(resources);
     }
 
+    [HttpPost("test")]
+    [HttpPost("emit")]
+    public ActionResult<TestLogResponse> TestLog([FromBody] TestLogRequest request = null)
+    {
+        var level = ParseLogLevel(request?.Level) ?? LogLevel.Info;
+        var message = string.IsNullOrWhiteSpace(request?.Message)
+            ? $"Diagnostic test log message generated from UI ({level})"
+            : request.Message.Trim();
+
+        Logger.Log(level, message);
+
+        return this.Ok(new TestLogResponse
+        {
+            Success = true,
+            Level = level.ToString(),
+            Message = message,
+        });
+    }
+
     private static LogLevel ParseLogLevel(string level)
     {
         if (string.IsNullOrWhiteSpace(level))
@@ -72,15 +92,37 @@ public class LogController : ControllerBase
             return null;
         }
 
+        var trimmed = level.Trim();
+        if (string.Equals(trimmed, "warning", StringComparison.OrdinalIgnoreCase))
+        {
+            return LogLevel.Warn;
+        }
+
         try
         {
-            return LogLevel.FromString(level.Trim());
+            return LogLevel.FromString(trimmed);
         }
         catch (ArgumentException)
         {
             return null;
         }
     }
+}
+
+public class TestLogRequest
+{
+    public string Level { get; set; }
+
+    public string Message { get; set; }
+}
+
+public class TestLogResponse
+{
+    public bool Success { get; set; }
+
+    public string Level { get; set; }
+
+    public string Message { get; set; }
 }
 
 public class LogResource
