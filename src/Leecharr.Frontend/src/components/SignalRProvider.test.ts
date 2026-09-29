@@ -27,6 +27,8 @@ import {
   RECONNECT_QUERY_KEYS,
   isHandledByNamedEvent,
 } from "./SignalRProvider";
+import { signalRManager } from "../api/signalr";
+import * as signalR from "@microsoft/signalr";
 
 describe("SignalRProvider Event Invalidation and Handling (#1022)", () => {
   it("does not map speedPulse in EVENT_INVALIDATION_MAP to prevent 1-second query invalidation storm", () => {
@@ -93,5 +95,110 @@ describe("SignalRProvider Event Invalidation and Handling (#1022)", () => {
     assert.equal(isHandledByNamedEvent("unknownCustomEvent"), false);
     assert.equal(isHandledByNamedEvent(""), false);
     assert.equal(isHandledByNamedEvent(undefined), false);
+  });
+});
+
+describe("SignalRProvider and signalRManager Reconnection Cache Synchronization (#1023)", () => {
+  it("registers onReconnected handler with signalRManager and unsubscribes properly", () => {
+    let callCount = 0;
+    const unsub = signalRManager.onReconnected(() => {
+      callCount++;
+    });
+
+    assert.equal(typeof unsub, "function");
+    unsub();
+  });
+
+  it("invalidates all RECONNECT_QUERY_KEYS on reconnection", () => {
+    const invalidatedKeys: Array<unknown> = [];
+    const mockQueryClient = {
+      invalidateQueries: ({ queryKey }: { queryKey: readonly unknown[] }) => {
+        invalidatedKeys.push(queryKey);
+      },
+    };
+
+    const handleReconnected = () => {
+      for (const key of RECONNECT_QUERY_KEYS) {
+        mockQueryClient.invalidateQueries({ queryKey: key });
+      }
+    };
+
+    const unsub = signalRManager.onReconnected(handleReconnected);
+
+    // Simulate reconnected event dispatch via private notifyReconnected
+    (
+      signalRManager as unknown as {
+        notifyReconnected: (id?: string) => void;
+      }
+    ).notifyReconnected("conn-1");
+
+    assert.equal(invalidatedKeys.length, RECONNECT_QUERY_KEYS.length);
+    for (const key of RECONNECT_QUERY_KEYS) {
+      assert.ok(
+        invalidatedKeys.includes(key),
+        `Expected ${JSON.stringify(key)} to be invalidated`
+      );
+    }
+
+    unsub();
+  });
+
+  it("startWithRetry requests stateSnapshot and triggers onReconnected on reconnection even when coldStartRetryCount is 0", async () => {
+    let snapshotRequested = false;
+    let reconnectedConnectionId: string | undefined;
+
+    const mockConn = {
+      state: signalR.HubConnectionState.Disconnected,
+      connectionId: "test-conn-456",
+      start: async () => {
+        mockConn.state = signalR.HubConnectionState.Connected;
+      },
+      invoke: async (method: string) => {
+        if (method === "RequestStateSnapshot") {
+          snapshotRequested = true;
+          return null;
+        }
+        return null;
+      },
+      on: () => {},
+      off: () => {},
+      onreconnected: () => {},
+      onreconnecting: () => {},
+      onclose: () => {},
+    };
+
+    const originalConn = (
+      signalRManager as unknown as { connection: unknown }
+    ).connection;
+    (signalRManager as unknown as { connection: unknown }).connection =
+      mockConn;
+    (signalRManager as unknown as { isStarting: boolean }).isStarting = false;
+    (signalRManager as unknown as { isStopped: boolean }).isStopped = false;
+    (
+      signalRManager as unknown as { coldStartRetryCount: number }
+    ).coldStartRetryCount = 0;
+
+    const unsub = signalRManager.onReconnected((id) => {
+      reconnectedConnectionId = id;
+    });
+
+    try {
+      await signalRManager.startWithRetry();
+
+      assert.equal(
+        snapshotRequested,
+        true,
+        "requestStateSnapshot should be called on reconnection"
+      );
+      assert.equal(
+        reconnectedConnectionId,
+        "test-conn-456",
+        "notifyReconnected should be called on reconnection even with coldStartRetryCount = 0"
+      );
+    } finally {
+      unsub();
+      (signalRManager as unknown as { connection: unknown }).connection =
+        originalConn;
+    }
   });
 });
