@@ -468,6 +468,8 @@ public class CertificateManager : ICertificateManager
 
         public string UrlBase => string.Empty;
 
+        public string Branch => "main";
+
         public string PostgresHost => string.Empty;
 
         public int PostgresPort => 5432;

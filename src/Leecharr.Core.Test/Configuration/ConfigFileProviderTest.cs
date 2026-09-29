@@ -67,6 +67,7 @@ public class ConfigFileProviderTest
         provider.RedirectHttpToHttps.Should().BeFalse();
         provider.LogLevel.Should().Be("info");
         provider.UrlBase.Should().BeEmpty();
+        provider.Branch.Should().Be("main");
         provider.PostgresPort.Should().Be(5432);
 
         var configFile = Path.Combine(this.tempDir, "config.xml");
@@ -91,6 +92,7 @@ public class ConfigFileProviderTest
                 new XElement("RedirectHttpToHttps", "true"),
                 new XElement("LogLevel", "debug"),
                 new XElement("UrlBase", "/leecharr"),
+                new XElement("Branch", "develop"),
                 new XElement("PostgresHost", "db.example.com"),
                 new XElement("PostgresPort", "5433"),
                 new XElement("PostgresMainDb", "leecharr_db"),
@@ -111,6 +113,7 @@ public class ConfigFileProviderTest
         provider.RedirectHttpToHttps.Should().BeTrue();
         provider.LogLevel.Should().Be("debug");
         provider.UrlBase.Should().Be("/leecharr");
+        provider.Branch.Should().Be("develop");
         provider.PostgresHost.Should().Be("db.example.com");
         provider.PostgresPort.Should().Be(5433);
         provider.PostgresMainDb.Should().Be("leecharr_db");
@@ -128,6 +131,7 @@ public class ConfigFileProviderTest
             { "Port", 9090 },
             { "LogLevel", "trace" },
             { "UrlBase", "/custom" },
+            { "Branch", "nightly" },
             { "EnableSsl", true },
             { "SslPort", 9443 },
             { "SslCertPath", "/custom/cert.pfx" },
@@ -146,12 +150,14 @@ public class ConfigFileProviderTest
         provider.Port.Should().Be(9090);
         provider.LogLevel.Should().Be("trace");
         provider.UrlBase.Should().Be("/custom");
+        provider.Branch.Should().Be("nightly");
 
         // Verify reloaded from new instance
         var reloaded = new ConfigFileProvider(this.appFolderInfo);
         reloaded.Port.Should().Be(9090);
         reloaded.LogLevel.Should().Be("trace");
         reloaded.UrlBase.Should().Be("/custom");
+        reloaded.Branch.Should().Be("nightly");
     }
 
     [Test]

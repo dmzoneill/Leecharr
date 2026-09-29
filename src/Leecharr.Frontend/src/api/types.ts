@@ -335,6 +335,7 @@ export interface GeneralConfig {
   port: number;
   bindAddress: string;
   urlBase: string;
+  branch?: string;
   authenticationEnabled: boolean;
   apiKey: string;
   enableSsl: boolean;
