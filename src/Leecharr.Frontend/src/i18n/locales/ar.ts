@@ -3588,6 +3588,8 @@ const ar: I18nTranslations = {
     "dontShowAgain": "لا تظهر مرة أخرى",
     "previous": "سابق",
     "finishAndClose": "إنهاء وإغلاق",
+    "skipStep": "تخطي هذه الخطوة",
+    "quickFinish": "إنهاء سريع",
     "startExampleTour": "ابدأ جولة المثال →",
     "startLiveSetup": "ابدأ الإعداد المباشر",
     "stepCount": "الخطوة __V0____ من __V1____",

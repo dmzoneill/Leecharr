@@ -3588,6 +3588,8 @@ export type I18nTranslations = {
     "dontShowAgain": string;
     "previous": string;
     "finishAndClose": string;
+    "skipStep": string;
+    "quickFinish": string;
     "startExampleTour": string;
     "startLiveSetup": string;
     "stepCount": string;
