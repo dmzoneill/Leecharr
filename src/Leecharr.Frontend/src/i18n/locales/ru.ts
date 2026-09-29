@@ -1328,6 +1328,7 @@ const ru: I18nTranslations = {
       "noValidUrlsFound": "Действительные URL-адреса не найдены",
       "processedTrackersToast": "Тост за обработанные трекеры",
       "bulkImportFailed": "Массовый импорт не удался",
+      "importFailedGeneric": "Не удалось проанализировать список средств отслеживания или неверный формат ответа средства отслеживания.",
       "automationTitle": "Название автоматизации",
       "automationDesc": "Автоматизация Описание",
       "autoBoostLabel": "Метка автоматического повышения",
@@ -1351,8 +1352,7 @@ const ru: I18nTranslations = {
       "bulkImportModalTitle": "Массовый импорт модального заголовка",
       "bulkImportModalHint": "Модальная подсказка по массовому импорту",
       "importingTrackers": "Импорт трекеров",
-      "importTrackersBtn": "Импорт трекеров Btn",
-      "importFailedGeneric": "Не удалось проанализировать список средств отслеживания или неверный формат ответа средства отслеживания."
+      "importTrackersBtn": "Импорт трекеров Btn"
     },
     "logs": {
       "logsClearedToast": "Тост об очистке журналов",
@@ -1839,6 +1839,9 @@ const ru: I18nTranslations = {
   },
   "developer": {
     "database": "Обозреватель базы данных",
+    "testing": "Тестовый бегун",
+    "repl": "REPL Песочница",
+    "debugger": "Веб-отладчик",
     "events": "Автобус для мероприятий",
     "commands": "Командный диспетчер",
     "network": "Сетевая прослушка",
@@ -4496,6 +4499,16 @@ const ru: I18nTranslations = {
     "reconnecting": "Потеряно соединение в режиме реального времени. Попытка восстановить соединение...",
     "disconnected": "Отключился от сервера. Нажмите «Повторить сейчас», чтобы повторно подключиться.",
     "retryNow": "Повторить попытку сейчас"
+  },
+  "ariaLive": {
+    "torrentCompleted": "Торрент \"{{name}}\" завершен, идет раздача",
+    "torrentError": "Торрент \"{{name}}\" обнаружил ошибку: {{error}}",
+    "downloadInterrupted": "загрузка прервана"
+  },
+  "aria": {
+    "torrentCompleted": "Торрент \"{{name}}\" завершен, идет раздача",
+    "torrentError": "Торрент \"{{name}}\" обнаружил ошибку: {{error}}",
+    "downloadInterrupted": "загрузка прервана"
   }
 };
 

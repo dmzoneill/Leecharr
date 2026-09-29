@@ -1326,6 +1326,7 @@ const de: I18nTranslations = {
       "noValidUrlsFound": "Keine gültigen URLs gefunden",
       "processedTrackersToast": "Verarbeiteter Tracker-Toast",
       "bulkImportFailed": "Massenimport fehlgeschlagen",
+      "importFailedGeneric": "Fehler beim Parsen der Tracker-Liste oder ungültiges Tracker-Antwortformat",
       "automationTitle": "Automatisierungstitel",
       "automationDesc": "Automatisierungsbeschreibung",
       "autoBoostLabel": "Auto-Boost-Label",
@@ -1349,8 +1350,7 @@ const de: I18nTranslations = {
       "bulkImportModalTitle": "Modaler Titel für den Massenimport",
       "bulkImportModalHint": "Modaler Hinweis zum Massenimport",
       "importingTrackers": "Tracker importieren",
-      "importTrackersBtn": "Tracker importieren Btn",
-      "importFailedGeneric": "Fehler beim Parsen der Tracker-Liste oder ungültiges Tracker-Antwortformat"
+      "importTrackersBtn": "Tracker importieren Btn"
     },
     "logs": {
       "logsClearedToast": "Protokolle gelöscht, Toast",
@@ -1839,6 +1839,9 @@ const de: I18nTranslations = {
   },
   "developer": {
     "database": "Datenbank-Explorer",
+    "testing": "Testläufer",
+    "repl": "REPL-Sandbox",
+    "debugger": "Web-Debugger",
     "events": "Veranstaltungsbus",
     "commands": "Kommando-Dispatcher",
     "network": "Netzwerkabhörung",
@@ -4496,6 +4499,16 @@ const de: I18nTranslations = {
     "reconnecting": "Echtzeitverbindung verloren. Es wird versucht, die Verbindung wiederherzustellen...",
     "disconnected": "Vom Server getrennt. Klicken Sie auf Jetzt erneut versuchen, um die Verbindung wiederherzustellen.",
     "retryNow": "Jetzt erneut versuchen"
+  },
+  "ariaLive": {
+    "torrentCompleted": "Torrent „{{name}}“ abgeschlossen, jetzt Seeding",
+    "torrentError": "Beim Torrent „{{name}}“ ist ein Fehler aufgetreten: {{error}}",
+    "downloadInterrupted": "Download unterbrochen"
+  },
+  "aria": {
+    "torrentCompleted": "Torrent „{{name}}“ abgeschlossen, jetzt Seeding",
+    "torrentError": "Beim Torrent „{{name}}“ ist ein Fehler aufgetreten: {{error}}",
+    "downloadInterrupted": "Download unterbrochen"
   }
 };
 
