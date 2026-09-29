@@ -31,6 +31,7 @@ export function ProxySettingsTab() {
 
   useEffect(() => {
     if (config) {
+      const isNone = (config.proxyType || "none") === "none";
       setForm({
         proxyType: config.proxyType || "none",
         proxyHost: config.proxyHost || "",
@@ -39,7 +40,7 @@ export function ProxySettingsTab() {
         proxyUsername: config.proxyUsername || "",
         proxyPassword: config.proxyPassword || "",
         anonymousMode: config.anonymousMode ?? false,
-        forceProxy: config.forceProxy ?? false,
+        forceProxy: isNone ? false : (config.forceProxy ?? false),
       });
       setDirty(false);
     }
@@ -49,7 +50,13 @@ export function ProxySettingsTab() {
     key: K,
     val: (typeof form)[K],
   ) => {
-    setForm((prev) => ({ ...prev, [key]: val }));
+    setForm((prev) => {
+      const updated = { ...prev, [key]: val };
+      if (key === "proxyType" && val === "none") {
+        updated.forceProxy = false;
+      }
+      return updated;
+    });
     setDirty(true);
   };
 
@@ -65,7 +72,7 @@ export function ProxySettingsTab() {
         proxyUsername: form.proxyUsername,
         proxyPassword: form.proxyPassword,
         anonymousMode: form.anonymousMode,
-        forceProxy: form.forceProxy,
+        forceProxy: form.proxyType === "none" ? false : form.forceProxy,
       },
       {
         onSuccess: () => setDirty(false),
