@@ -1,24 +1,24 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSeedingConfig, useSaveSeedingConfig } from "../../api/hooks";
 import { DownloadIcon, UploadIcon } from "../icons/UIIcons";
 import { useToast } from "../../context/ToastContext";
 import { useTranslation } from "../../i18n";
 import { trackSpeedModeChange } from "../../utils/analytics";
 
-const DL_STEPS: number[] = [
+export const DL_STEPS: number[] = [
   0, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 600, 700, 800, 900, 1000,
   1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 9000, 10000,
   12000, 14000, 16000, 18000, 20000, 25000, 30000, 40000, 50000, 60000, 75000,
   100000,
 ];
 
-const UL_STEPS: number[] = [
+export const UL_STEPS: number[] = [
   0, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 600, 700, 800, 900, 1000,
   1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 9000, 10000,
   12000, 15000, 20000, 25000, 30000, 40000, 50000,
 ];
 
-function valueToStepIndex(val: number, steps: number[]): number {
+export function valueToStepIndex(val: number, steps: number[]): number {
   if (val <= 0) return 0;
   let closestIdx = 0;
   let minDiff = Infinity;
@@ -32,7 +32,7 @@ function valueToStepIndex(val: number, steps: number[]): number {
   return closestIdx;
 }
 
-function formatSpeedLimit(kbps: number): string {
+export function formatSpeedLimit(kbps: number): string {
   if (kbps <= 0) return "∞";
   if (kbps < 1000) return `${kbps} KB/s`;
   const mb = kbps / 1000;
@@ -53,15 +53,20 @@ export const BandwidthCard: React.FC = () => {
   const [isDraggingDl, setIsDraggingDl] = useState(false);
   const [isDraggingUl, setIsDraggingUl] = useState(false);
 
+  const localDlRef = useRef<number>(serverDl);
+  const localUlRef = useRef<number>(serverUl);
+
   useEffect(() => {
     if (!isDraggingDl) {
       setLocalDl(serverDl);
+      localDlRef.current = serverDl;
     }
   }, [serverDl, isDraggingDl]);
 
   useEffect(() => {
     if (!isDraggingUl) {
       setLocalUl(serverUl);
+      localUlRef.current = serverUl;
     }
   }, [serverUl, isDraggingUl]);
 
@@ -115,15 +120,28 @@ export const BandwidthCard: React.FC = () => {
   const handleDlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setIsDraggingDl(true);
     const idx = Number(e.target.value);
-    setLocalDl(DL_STEPS[idx] ?? 0);
+    const nextVal = DL_STEPS[idx] ?? 0;
+    localDlRef.current = nextVal;
+    setLocalDl(nextVal);
   };
 
-  const commitDlChange = () => {
+  const commitDlChange = (e?: React.SyntheticEvent<HTMLInputElement>) => {
     setIsDraggingDl(false);
-    handleUpdate({ maxDownloadSpeedKbps: localDl });
+    let val = localDlRef.current;
+    const target = (e?.target || e?.currentTarget) as HTMLInputElement | undefined;
+    if (target && typeof target.value === "string") {
+      const idx = Number(target.value);
+      if (!Number.isNaN(idx) && DL_STEPS[idx] !== undefined) {
+        val = DL_STEPS[idx];
+        localDlRef.current = val;
+        setLocalDl(val);
+      }
+    }
+    handleUpdate({ maxDownloadSpeedKbps: val });
   };
 
   const setDlDirect = (val: number) => {
+    localDlRef.current = val;
     setLocalDl(val);
     handleUpdate({ maxDownloadSpeedKbps: val });
   };
@@ -131,15 +149,28 @@ export const BandwidthCard: React.FC = () => {
   const handleUlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setIsDraggingUl(true);
     const idx = Number(e.target.value);
-    setLocalUl(UL_STEPS[idx] ?? 0);
+    const nextVal = UL_STEPS[idx] ?? 0;
+    localUlRef.current = nextVal;
+    setLocalUl(nextVal);
   };
 
-  const commitUlChange = () => {
+  const commitUlChange = (e?: React.SyntheticEvent<HTMLInputElement>) => {
     setIsDraggingUl(false);
-    handleUpdate({ maxUploadSpeedKbps: localUl });
+    let val = localUlRef.current;
+    const target = (e?.target || e?.currentTarget) as HTMLInputElement | undefined;
+    if (target && typeof target.value === "string") {
+      const idx = Number(target.value);
+      if (!Number.isNaN(idx) && UL_STEPS[idx] !== undefined) {
+        val = UL_STEPS[idx];
+        localUlRef.current = val;
+        setLocalUl(val);
+      }
+    }
+    handleUpdate({ maxUploadSpeedKbps: val });
   };
 
   const setUlDirect = (val: number) => {
+    localUlRef.current = val;
     setLocalUl(val);
     handleUpdate({ maxUploadSpeedKbps: val });
   };
@@ -192,8 +223,36 @@ export const BandwidthCard: React.FC = () => {
               max={DL_STEPS.length - 1}
               value={dlIndex}
               onChange={handleDlChange}
-              onPointerUp={commitDlChange}
+              onPointerDown={(e) => {
+                setIsDraggingDl(true);
+                try {
+                  (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+                } catch {
+                  // ignore in environments without pointer capture support
+                }
+              }}
+              onPointerUp={(e) => {
+                try {
+                  if ((e.target as HTMLElement).hasPointerCapture?.(e.pointerId)) {
+                    (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+                  }
+                } catch {
+                  // ignore
+                }
+                commitDlChange(e);
+              }}
+              onPointerCancel={(e) => {
+                try {
+                  if ((e.target as HTMLElement).hasPointerCapture?.(e.pointerId)) {
+                    (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+                  }
+                } catch {
+                  // ignore
+                }
+                commitDlChange(e);
+              }}
               onKeyUp={commitDlChange}
+              onBlur={commitDlChange}
               className="quick-range-slider"
               style={{
                 background: `linear-gradient(to right, var(--accent, #ffd166) 0%, var(--accent, #ffd166) ${dlPercent}%, rgba(255, 255, 255, 0.12) ${dlPercent}%, rgba(255, 255, 255, 0.12) 100%)`,
@@ -242,8 +301,36 @@ export const BandwidthCard: React.FC = () => {
               max={UL_STEPS.length - 1}
               value={ulIndex}
               onChange={handleUlChange}
-              onPointerUp={commitUlChange}
+              onPointerDown={(e) => {
+                setIsDraggingUl(true);
+                try {
+                  (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+                } catch {
+                  // ignore in environments without pointer capture support
+                }
+              }}
+              onPointerUp={(e) => {
+                try {
+                  if ((e.target as HTMLElement).hasPointerCapture?.(e.pointerId)) {
+                    (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+                  }
+                } catch {
+                  // ignore
+                }
+                commitUlChange(e);
+              }}
+              onPointerCancel={(e) => {
+                try {
+                  if ((e.target as HTMLElement).hasPointerCapture?.(e.pointerId)) {
+                    (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+                  }
+                } catch {
+                  // ignore
+                }
+                commitUlChange(e);
+              }}
               onKeyUp={commitUlChange}
+              onBlur={commitUlChange}
               className="quick-range-slider"
               style={{
                 background: `linear-gradient(to right, var(--accent, #ffd166) 0%, var(--accent, #ffd166) ${ulPercent}%, rgba(255, 255, 255, 0.12) ${ulPercent}%, rgba(255, 255, 255, 0.12) 100%)`,
