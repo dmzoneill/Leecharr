@@ -2143,6 +2143,7 @@ const en: I18nTranslations = {
     "engageAlternativeSpeedLimitsHint": "Manually override standard speeds with alternative throttled limits",
     "alternativeDownloadCap": "Alternative Download Cap (KB/s)",
     "alternativeUploadCap": "Alternative Upload Cap (KB/s)",
+    "alternativeSpeedHint": "-1 = Paused, 0 = Unlimited",
     "swarmBandwidthDistributionCurves": "Swarm Bandwidth Distribution Curves",
     "swarmBandwidthDistributionCurvesDesc": "Mathematical algorithms to apportion bandwidth across competing active swarms.",
     "uploadDistributionCurve": "Upload Distribution Curve",

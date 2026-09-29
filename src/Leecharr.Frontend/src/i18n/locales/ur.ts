@@ -1135,6 +1135,7 @@ const ur: I18nTranslations = {
     "scheduleName": "اصول کا نام",
     "namePlaceholder": "جیسے نائٹ اللو تھروٹل، کام کے چوٹی کے اوقات",
     "activeDays": "فعال دن",
+    "atLeastOneDay": "کم از کم ایک دن کا انتخاب کرنا ضروری ہے۔",
     "allDays": "تمام 7 دن",
     "workdays": "پیر - جمعہ",
     "weekends": "Sat - اتوار",
@@ -1181,8 +1182,7 @@ const ur: I18nTranslations = {
     "toggleSchedule": "شیڈول ٹوگل کریں۔",
     "toggleSchedules": "{{count}} شیڈولز کو ٹوگل کریں۔",
     "clearSelection": "صاف کریں",
-    "hrsPerDay": "{{hours}} گھنٹہ{{plural}} فی دن {{days}} دن{{dayPlural}}",
-    "atLeastOneDay": "کم از کم ایک دن کا انتخاب کرنا ضروری ہے۔"
+    "hrsPerDay": "{{hours}} گھنٹہ{{plural}} فی دن {{days}} دن{{dayPlural}}"
   },
   "peerMap": {
     "title": "عالمی پیئر ہجوم کا نقشہ",
@@ -3432,7 +3432,8 @@ const ur: I18nTranslations = {
       "engineHealthy": "{{engine}} صحت مند اور فعال ہے۔",
       "engineIssues": "{{engine}} صحت کی جانچ میں مسائل کی اطلاع دی گئی۔",
       "probeFailed": "{{engine}}: {{error}} کے لیے تحقیقات ناکام ہوگئی"
-    }
+    },
+    "alternativeSpeedHint": "-1 = روکا ہوا، 0 = لا محدود"
   },
   "errors": {
     "defaultTitle": "ایک غیر متوقع UI خرابی پیش آگئی",

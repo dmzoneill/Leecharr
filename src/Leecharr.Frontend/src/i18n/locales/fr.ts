@@ -3432,7 +3432,8 @@ const fr: I18nTranslations = {
       "engineHealthy": "{{engine}} est sain et opérationnel.",
       "engineIssues": "Le contrôle de santé {{engine}} a signalé des problèmes.",
       "probeFailed": "La sonde a échoué pour {{engine}} : {{error}}"
-    }
+    },
+    "alternativeSpeedHint": "-1 = En pause, 0 = Illimité"
   },
   "errors": {
     "defaultTitle": "Une erreur inattendue de l'interface utilisateur s'est produite",
