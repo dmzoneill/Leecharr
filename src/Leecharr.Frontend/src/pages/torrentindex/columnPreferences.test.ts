@@ -6,6 +6,7 @@ import {
   saveVisibleColumns,
   loadTableSortPreferences,
   saveTableSortPreferences,
+  resetTableSortPreferences,
   loadColumnOrder,
   STORAGE_KEY,
   SORT_KEY_STORAGE,
@@ -101,5 +102,108 @@ describe("columnPreferences - Category column (#1007)", () => {
     assert.equal(order[0], "category");
     assert.ok(order.includes("name"));
     assert.ok(order.includes("#"));
+  });
+});
+
+describe("columnPreferences - Table Sort Persistence & Reset (#1006)", () => {
+  let mockStorage: MockLocalStorage;
+  const originalLocalStorage = globalThis.localStorage;
+
+  beforeEach(() => {
+    mockStorage = new MockLocalStorage();
+    Object.defineProperty(globalThis, "localStorage", {
+      value: mockStorage,
+      writable: true,
+      configurable: true,
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(globalThis, "localStorage", {
+      value: originalLocalStorage,
+      writable: true,
+      configurable: true,
+    });
+  });
+
+  it("returns default sortKey null and sortAsc true when storage is empty", () => {
+    const { sortKey, sortAsc } = loadTableSortPreferences();
+    assert.equal(sortKey, null);
+    assert.equal(sortAsc, true);
+  });
+
+  it("persists sort preferences to localStorage via saveTableSortPreferences", () => {
+    saveTableSortPreferences("totalSize", false);
+    assert.equal(mockStorage.getItem(SORT_KEY_STORAGE), "totalSize");
+    assert.equal(mockStorage.getItem(SORT_ASC_STORAGE), "false");
+
+    const loaded = loadTableSortPreferences();
+    assert.equal(loaded.sortKey, "totalSize");
+    assert.equal(loaded.sortAsc, false);
+  });
+
+  it("clears SORT_KEY_STORAGE when saving null sortKey", () => {
+    mockStorage.setItem(SORT_KEY_STORAGE, "name");
+    mockStorage.setItem(SORT_ASC_STORAGE, "true");
+
+    saveTableSortPreferences(null, true);
+    assert.equal(mockStorage.getItem(SORT_KEY_STORAGE), null);
+    assert.equal(mockStorage.getItem(SORT_ASC_STORAGE), "true");
+
+    const loaded = loadTableSortPreferences();
+    assert.equal(loaded.sortKey, null);
+    assert.equal(loaded.sortAsc, true);
+  });
+
+  it("resets both sortKey and sortAsc via resetTableSortPreferences", () => {
+    mockStorage.setItem(SORT_KEY_STORAGE, "downloadSpeed");
+    mockStorage.setItem(SORT_ASC_STORAGE, "false");
+
+    resetTableSortPreferences();
+    assert.equal(mockStorage.getItem(SORT_KEY_STORAGE), null);
+    assert.equal(mockStorage.getItem(SORT_ASC_STORAGE), null);
+
+    const loaded = loadTableSortPreferences();
+    assert.equal(loaded.sortKey, null);
+    assert.equal(loaded.sortAsc, true);
+  });
+
+  it("sanitizes invalid or unknown sort keys and removes them from localStorage", () => {
+    mockStorage.setItem(SORT_KEY_STORAGE, "non_existent_column_key");
+    mockStorage.setItem(SORT_ASC_STORAGE, "true");
+
+    const loaded = loadTableSortPreferences();
+    assert.equal(loaded.sortKey, null);
+    assert.equal(mockStorage.getItem(SORT_KEY_STORAGE), null);
+  });
+
+  it("accepts all sortable columns in ALL_COLUMNS as valid sort keys", () => {
+    const sortableCols = ALL_COLUMNS.filter((c) => c.sortable);
+    assert.ok(sortableCols.length > 0, "must have sortable columns");
+
+    for (const col of sortableCols) {
+      saveTableSortPreferences(col.key, false);
+      const loaded = loadTableSortPreferences();
+      assert.equal(
+        loaded.sortKey,
+        col.key,
+        `Expected ${col.key} to be valid sortKey`,
+      );
+      assert.equal(loaded.sortAsc, false);
+    }
+  });
+
+  it("rejects non-sortable columns and cleans up localStorage", () => {
+    const nonSortableCols = ALL_COLUMNS.filter((c) => !c.sortable);
+    for (const col of nonSortableCols) {
+      mockStorage.setItem(SORT_KEY_STORAGE, col.key);
+      const loaded = loadTableSortPreferences();
+      assert.equal(
+        loaded.sortKey,
+        null,
+        `Expected non-sortable column ${col.key} to be rejected`,
+      );
+      assert.equal(mockStorage.getItem(SORT_KEY_STORAGE), null);
+    }
   });
 });

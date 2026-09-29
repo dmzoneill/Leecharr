@@ -94,6 +94,9 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
     setColumnOrder,
     columnWidths,
     setColumnWidths,
+    sortKey,
+    sortAsc,
+    setSort,
   } = useColumnPreferences();
   const [isColumnCustomizerOpen, setIsColumnCustomizerOpen] = useState(false);
 
@@ -678,6 +681,9 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
                   onColumnOrderChange={setColumnOrder}
                   columnWidths={columnWidths}
                   onColumnWidthsChange={setColumnWidths}
+                  sortKey={sortKey}
+                  sortAsc={sortAsc}
+                  onSortChange={setSort}
                 />
               ) : (
                 <TorrentGrid
