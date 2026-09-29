@@ -52,6 +52,36 @@ public class MoveQueueRequest
     public string Position { get; set; }
 }
 
+public class MoveQueueBatchRequest
+{
+    private List<int> ids = new();
+
+    [JsonPropertyName("ids")]
+    public List<int> Ids
+    {
+        get => this.ids;
+        set => this.ids = value ?? new();
+    }
+
+    [JsonPropertyName("torrentIds")]
+    public List<int> TorrentIds
+    {
+        get => this.ids;
+        set
+        {
+            if (value != null && this.ids.Count == 0)
+            {
+                this.ids = value;
+            }
+        }
+    }
+
+    [Required]
+    [StringLength(50)]
+    [JsonPropertyName("position")]
+    public string Position { get; set; }
+}
+
 public class SetFilePriorityRequest
 {
     [Range(0, 7)]
@@ -1622,6 +1652,26 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         return this.Ok();
     }
 
+    [HttpPost("queue/batch")]
+    [HttpPut("queue/batch")]
+    [HttpPost("batch/queue")]
+    [HttpPut("batch/queue")]
+    public async Task<ActionResult> MoveQueueBatch([FromBody] MoveQueueBatchRequest request)
+    {
+        if (request == null)
+        {
+            return this.BadRequest("Request body cannot be null");
+        }
+
+        if (request.Ids == null || request.Ids.Count == 0)
+        {
+            return this.Ok();
+        }
+
+        await this.torrentService.MoveQueueBatchAsync(request.Ids, request.Position);
+        return this.Ok();
+    }
+
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> Delete(int id, [FromQuery] bool deleteFiles = false)
     {
@@ -1640,6 +1690,15 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         var result = new BulkActionResult();
         if (resource.TorrentIds == null || resource.TorrentIds.Count == 0)
         {
+            return this.Ok(result);
+        }
+
+        var bulkAction = resource.Action.Trim().ToLowerInvariant();
+        if (bulkAction == "movequeue" || bulkAction == "move_queue")
+        {
+            await this.torrentService.MoveQueueBatchAsync(resource.TorrentIds, resource.Position);
+            result.SuccessCount = resource.TorrentIds.Count;
+            result.SucceededIds = resource.TorrentIds.ToList();
             return this.Ok(result);
         }
 

@@ -919,6 +919,45 @@ public class TorrentControllerTest
     }
 
     [Test]
+    public async Task MoveQueueBatch_WhenPayloadIsNull_ReturnsBadRequest()
+    {
+        var response = await this.controller.MoveQueueBatch(null!);
+
+        var badRequestResult = response.Should().BeOfType<BadRequestObjectResult>().Subject;
+        badRequestResult.Value.Should().Be("Request body cannot be null");
+    }
+
+    [Test]
+    public async Task MoveQueueBatch_WhenIdsAreProvided_CallsMoveQueueBatchAsyncAndReturnsOk()
+    {
+        var request = new MoveQueueBatchRequest
+        {
+            Ids = new List<int> { 1, 2, 3 },
+            Position = "top",
+        };
+
+        var response = await this.controller.MoveQueueBatch(request);
+
+        response.Should().BeOfType<OkResult>();
+        await this.torrentService.Received(1).MoveQueueBatchAsync(Arg.Is<IEnumerable<int>>(x => x.SequenceEqual(new[] { 1, 2, 3 })), "top");
+    }
+
+    [Test]
+    public async Task MoveQueueBatch_WhenIdsAreEmpty_ReturnsOkWithoutCallingService()
+    {
+        var request = new MoveQueueBatchRequest
+        {
+            Ids = new List<int>(),
+            Position = "top",
+        };
+
+        var response = await this.controller.MoveQueueBatch(request);
+
+        response.Should().BeOfType<OkResult>();
+        await this.torrentService.DidNotReceive().MoveQueueBatchAsync(Arg.Any<IEnumerable<int>>(), Arg.Any<string>());
+    }
+
+    [Test]
     public async Task AddTorrentJson_WhenPayloadIsNull_ReturnsBadRequest()
     {
         var response = await this.controller.AddTorrentJson(null!);
@@ -1285,6 +1324,25 @@ public class TorrentControllerTest
         torrent.UploadLimit.Should().Be(1000);
         await this.torrentService.Received(1).UpdateAsync(torrent);
         await this.downloadEngine.DidNotReceive().SetTorrentRateLimitsAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>());
+    }
+
+    [Test]
+    public async Task BulkAction_WithActionMoveQueue_CallsMoveQueueBatchAsync()
+    {
+        var resource = new BulkTorrentActionResource
+        {
+            Action = "moveQueue",
+            TorrentIds = new List<int> { 10, 20 },
+            Position = "down",
+        };
+
+        var response = await this.controller.BulkAction(resource);
+
+        var okResult = response.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var bulkResult = okResult.Value.Should().BeOfType<BulkActionResult>().Subject;
+        bulkResult.SuccessCount.Should().Be(2);
+        bulkResult.SucceededIds.Should().BeEquivalentTo(new[] { 10, 20 });
+        await this.torrentService.Received(1).MoveQueueBatchAsync(Arg.Is<IEnumerable<int>>(x => x.SequenceEqual(new[] { 10, 20 })), "down");
     }
 
     [Test]

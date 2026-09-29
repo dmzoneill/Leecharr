@@ -15,6 +15,7 @@ import {
   useAnnounceTorrent,
   useRecheckTorrent,
   useMoveTorrentQueue,
+  useMoveTorrentQueueBatch,
   useDownloadHistory,
   useArrConnections,
 } from "../api/hooks";
@@ -1131,6 +1132,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   const announceTorrent = useAnnounceTorrent();
   const recheckTorrent = useRecheckTorrent();
   const moveTorrentQueue = useMoveTorrentQueue();
+  const moveTorrentQueueBatch = useMoveTorrentQueueBatch();
 
   const [internalSortState, setInternalSortState] = useState<{
     sortKey: ColumnKey | null;
@@ -1808,16 +1810,13 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
               ? "bottom"
               : "down";
 
-        const ordered = sortedTorrents
-          .filter((t) => targetIds.includes(t.id))
+        const targetSet = new Set(targetIds);
+        const ordered = (propTorrents || [])
+          .filter((t) => targetSet.has(t.id))
           .map((t) => t.id);
-        if (position === "down" || position === "bottom") {
-          ordered.reverse();
-        }
+        const idsToMove = ordered.length > 0 ? ordered : targetIds;
 
-        ordered.forEach((id) => {
-          moveTorrentQueue.mutate({ id, position });
-        });
+        moveTorrentQueueBatch.mutate({ ids: idsToMove, position });
         return;
       }
 
@@ -1982,6 +1981,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
     startSeeding,
     stopSeeding,
     moveTorrentQueue,
+    moveTorrentQueueBatch,
     recheckTorrent,
     announceTorrent,
   ]);
@@ -2295,9 +2295,10 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
             torrents.forEach((tor) => updateTorrent.mutate(tor))
           }
           onBatchMoveQueue={(payload) =>
-            payload.ids.forEach((id) =>
-              moveTorrentQueue.mutate({ id, position: payload.position }),
-            )
+            moveTorrentQueueBatch.mutate({
+              ids: payload.ids,
+              position: payload.position,
+            })
           }
           onSearchIndexers={onSearchIndexers}
           onNavigateTab={onNavigateTab}
