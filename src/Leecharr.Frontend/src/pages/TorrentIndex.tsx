@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router";
 import { Torrent, Category } from "../api/types";
 import { TorrentGrid } from "../components/TorrentGrid";
 import { TorrentTable } from "../components/TorrentTable";
@@ -100,10 +101,21 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   } = useColumnPreferences();
   const [isColumnCustomizerOpen, setIsColumnCustomizerOpen] = useState(false);
 
+  const [searchParams] = useSearchParams();
   const selectedTorrentId = useTorrentStore((state) => state.selectedTorrentId);
   const setSelectedTorrentId = useTorrentStore(
     (state) => state.setSelectedTorrentId,
   );
+
+  useEffect(() => {
+    const idParam = searchParams.get("id");
+    if (idParam) {
+      const parsedId = parseInt(idParam, 10);
+      if (!isNaN(parsedId)) {
+        setSelectedTorrentId(parsedId);
+      }
+    }
+  }, [searchParams, setSelectedTorrentId]);
   const selectedIds = useTorrentStore((state) => state.selectedIds);
   const toggleSelectedId = useTorrentStore((state) => state.toggleSelectedId);
   const selectAllIds = useTorrentStore((state) => state.selectAllIds);
