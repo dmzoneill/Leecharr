@@ -39,6 +39,8 @@ public class TorrentResource : RestResource
 
     public double Progress { get; set; }
 
+    public double? Availability { get; set; }
+
     public long DownloadSpeed { get; set; }
 
     public long UploadSpeed { get; set; }
