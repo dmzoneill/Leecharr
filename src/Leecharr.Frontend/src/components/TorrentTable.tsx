@@ -45,6 +45,10 @@ import {
   saveColumnOrder,
   loadColumnWidths,
   saveColumnWidths,
+  loadTableSortPreferences,
+  saveTableSortPreferences,
+  SORT_KEY_STORAGE,
+  SORT_ASC_STORAGE,
 } from "../pages/torrentindex/columnPreferences";
 
 export type { ColumnKey, ColumnDef };
@@ -1085,6 +1089,9 @@ export interface TorrentTableProps {
       | Record<string, number>
       | ((prev: Record<string, number>) => Record<string, number>),
   ) => void;
+  sortKey?: ColumnKey | null;
+  sortAsc?: boolean;
+  onSortChange?: (key: ColumnKey | null, asc?: boolean) => void;
 }
 
 export const TorrentTable: React.FC<TorrentTableProps> = ({
@@ -1112,6 +1119,9 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   onColumnOrderChange: propOnColumnOrderChange,
   columnWidths: propColumnWidths,
   onColumnWidthsChange: propOnColumnWidthsChange,
+  sortKey: propSortKey,
+  sortAsc: propSortAsc,
+  onSortChange: propOnSortChange,
 }) => {
   const { t } = useTranslation();
   const startSeeding = useStartSeeding();
@@ -1122,8 +1132,27 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   const recheckTorrent = useRecheckTorrent();
   const moveTorrentQueue = useMoveTorrentQueue();
 
-  const [sortKey, setSortKey] = useState<ColumnKey>("name");
-  const [sortAsc, setSortAsc] = useState(true);
+  const [internalSortState, setInternalSortState] = useState<{
+    sortKey: ColumnKey | null;
+    sortAsc: boolean;
+  }>(loadTableSortPreferences);
+
+  const sortKey =
+    propSortKey !== undefined ? propSortKey : internalSortState.sortKey;
+  const sortAsc =
+    propSortAsc !== undefined ? propSortAsc : internalSortState.sortAsc;
+
+  useEffect(() => {
+    if (propSortKey !== undefined) return;
+    function handleStorage(e: StorageEvent) {
+      if (e.key === SORT_KEY_STORAGE || e.key === SORT_ASC_STORAGE) {
+        setInternalSortState(loadTableSortPreferences());
+      }
+    }
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [propSortKey]);
+
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [internalVisibleColumns, setInternalVisibleColumns] =
     useState<Set<string>>(loadVisibleColumns);
@@ -1142,7 +1171,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   // Hover and Sort snapshot tracking for freeze-on-interaction
   const [isHovered, setIsHovered] = useState(false);
   const frozenOrderRef = useRef<number[]>([]);
-  const lastSortKeyRef = useRef<ColumnKey>(sortKey);
+  const lastSortKeyRef = useRef<ColumnKey | null>(sortKey);
   const lastSortAscRef = useRef<boolean>(sortAsc);
   const lastFilterKeyRef = useRef<string>("");
 
@@ -1381,11 +1410,12 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   };
 
   const handleSort = (key: ColumnKey) => {
-    if (sortKey === key) {
-      setSortAsc(!sortAsc);
+    const nextAsc = sortKey === key ? !sortAsc : true;
+    if (propOnSortChange) {
+      propOnSortChange(key, nextAsc);
     } else {
-      setSortKey(key);
-      setSortAsc(true);
+      setInternalSortState({ sortKey: key, sortAsc: nextAsc });
+      saveTableSortPreferences(key, nextAsc);
     }
   };
 
@@ -1414,7 +1444,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   const tagIdsKey = selectedTagIds
     ? Array.from(selectedTagIds).sort().join(",")
     : "";
-  const filterSignature = `${filter || ""}|${stateFilter || ""}|${trackerFilter || ""}|${privacyFilter || ""}|${tagIdsKey}|${tagMatchMode}|${selectedTag || ""}|${sortKey}|${sortAsc}`;
+  const filterSignature = `${filter || ""}|${stateFilter || ""}|${trackerFilter || ""}|${privacyFilter || ""}|${tagIdsKey}|${tagMatchMode}|${selectedTag || ""}|${sortKey || ""}|${sortAsc}`;
 
   const sortedTorrents = useMemo(() => {
     const isExplicitChange =
@@ -1447,6 +1477,11 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
         }
       }
       return preserved;
+    }
+
+    if (!sortKey) {
+      frozenOrderRef.current = filteredTorrents.map((t) => t.id);
+      return filteredTorrents;
     }
 
     // Compute sort using current telemetry snapshot without subscribing to telemetry updates
