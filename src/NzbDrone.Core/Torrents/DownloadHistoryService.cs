@@ -658,6 +658,27 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
 
         var added = this.torrentRepository.Insert(torrent);
 
+        // 4b. Restore media metadata if available
+        if (!string.IsNullOrWhiteSpace(entry.DataJson) && this.mediaMetadataRepository != null)
+        {
+            try
+            {
+                var meta = JsonSerializer.Deserialize<TorrentMediaMetadata>(
+                    entry.DataJson,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (meta != null)
+                {
+                    meta.Id = 0;
+                    meta.TorrentId = added.Id;
+                    this.mediaMetadataRepository.Insert(meta);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to restore media metadata for re-added torrent {0}", added.Id);
+            }
+        }
+
         // 5. Insert torrent file records if parsed
         if (parsed?.Files != null && this.fileRepository != null)
         {
@@ -858,6 +879,15 @@ public class DownloadHistoryService : IDownloadHistoryService, IHandle<TorrentAd
             catch (Exception fileEx)
             {
                 this.logger.Warn(fileEx, "Failed to roll back torrent files for torrent {0}", added.Id);
+            }
+
+            try
+            {
+                this.mediaMetadataRepository?.DeleteByTorrentId(added.Id);
+            }
+            catch (Exception metaEx)
+            {
+                this.logger.Warn(metaEx, "Failed to roll back media metadata for torrent {0}", added.Id);
             }
 
             try
