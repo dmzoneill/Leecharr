@@ -182,13 +182,7 @@ class SignalRManager {
         this.notifyStatus("connected");
         await this.resubscribeActiveGroups();
         await this.requestStateSnapshot();
-        for (const handler of this.reconnectedHandlers) {
-          try {
-            handler(connectionId);
-          } catch (err) {
-            console.error("Error in SignalR onReconnected handler:", err);
-          }
-        }
+        this.notifyReconnected(connectionId);
       });
 
       this.connection.onclose((error) => {
@@ -413,7 +407,6 @@ class SignalRManager {
       if (conn.state === signalR.HubConnectionState.Disconnected) {
         await conn.start();
 
-        const wasRetrying = this.coldStartRetryCount > 0;
         this.coldStartRetryCount = 0;
         this.isStarting = false;
 
@@ -425,10 +418,8 @@ class SignalRManager {
         this.notifyConnectionChange(true);
         this.notifyStatus("connected");
         await this.resubscribeActiveGroups();
-
-        if (wasRetrying) {
-          this.notifyReconnected(conn.connectionId || undefined);
-        }
+        await this.requestStateSnapshot();
+        this.notifyReconnected(conn.connectionId || undefined);
       } else {
         this.isStarting = false;
         if (conn.state === signalR.HubConnectionState.Connected) {
