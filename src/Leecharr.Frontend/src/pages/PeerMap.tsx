@@ -4,6 +4,11 @@ import { useNavigate } from "react-router";
 import * as d3 from "d3";
 import { usePeerGraph, useTorrents } from "../api/hooks";
 import type { PeerGraphNode } from "../api/types";
+import CountryFlag from "../components/CountryFlag";
+import { useTorrentStore } from "../stores/useTorrentStore";
+import { useToast } from "../context/ToastContext";
+import { apiClient } from "../api/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface SimNode extends d3.SimulationNodeDatum, PeerGraphNode {}
 interface SimLink extends d3.SimulationLinkDatum<SimNode> {
@@ -33,6 +38,9 @@ function getTimeRange(hours: number): { start: string; end: string } {
 
 function PeerMap() {
   const { t } = useTranslation();
+  const { showToast } = useToast();
+  const queryClient = useQueryClient();
+  const [isUpdatingGeoIp, setIsUpdatingGeoIp] = useState(false);
 
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -49,7 +57,24 @@ function PeerMap() {
     data: graphData,
     isLoading,
     isError,
+    refetch: refetchGraph,
   } = usePeerGraph(range.start, range.end);
+
+  const handleRefreshGeoIp = useCallback(async () => {
+    setIsUpdatingGeoIp(true);
+    try {
+      await apiClient.post("/system/task/GeoIpUpdate/execute", {});
+      showToast(t("automation.commands.GeoIpUpdate"), "success");
+      await queryClient.invalidateQueries({ queryKey: ["peerlog"] });
+      refetchGraph();
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Failed to trigger GeoIP update";
+      showToast(msg, "error");
+    } finally {
+      setIsUpdatingGeoIp(false);
+    }
+  }, [showToast, t, queryClient, refetchGraph]);
 
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const simRef = useRef<d3.Simulation<SimNode, SimLink> | null>(null);
@@ -799,10 +824,40 @@ function PeerMap() {
           </select>
         </div>
 
-        <span className="peer-map-stats">
-          📊 {torrentCount} {t("peerMap.swarms")} • {peerCount}{" "}
-          {t("peerMap.peers")}
-        </span>
+        <div
+          style={{
+            display: "flex",
+            gap: "0.6rem",
+            alignItems: "center",
+            marginLeft: "auto",
+          }}
+        >
+          <span className="peer-map-stats">
+            📊 {torrentCount} {t("peerMap.swarms")} • {peerCount}{" "}
+            {t("peerMap.peers")}
+          </span>
+          <button
+            className="btn btn-small btn-secondary"
+            onClick={handleRefreshGeoIp}
+            disabled={isUpdatingGeoIp}
+            style={{
+              padding: "0.3rem 0.65rem",
+              fontSize: "0.82rem",
+              borderRadius: "6px",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.35rem",
+            }}
+            title={t("automation.commands.GeoIpUpdate")}
+          >
+            <i className={`fas fa-sync-alt ${isUpdatingGeoIp ? "fa-spin" : ""}`} />
+            <span>
+              {isUpdatingGeoIp
+                ? t("common.loading")
+                : t("automation.commands.GeoIpUpdate")}
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Legend */}
@@ -998,6 +1053,74 @@ function PeerMap() {
               {selectedNode.label}
             </div>
 
+            {selectedNode.type === "peer" && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "0.5rem",
+                  fontSize: "0.85rem",
+                  color: "var(--text-muted)",
+                  marginBottom: "0.75rem",
+                }}
+              >
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                    overflow: "hidden",
+                  }}
+                >
+                  <CountryFlag
+                    ip={selectedNode.label}
+                    countryCode={selectedNode.countryCode}
+                    countryName={selectedNode.countryName}
+                  />
+                  <span
+                    style={{
+                      color: "var(--text-primary, #fff)",
+                      textOverflow: "ellipsis",
+                      overflow: "hidden",
+                      whiteSpace: "nowrap",
+                    }}
+                    title={
+                      [
+                        selectedNode.city,
+                        selectedNode.countryName || selectedNode.countryCode,
+                      ]
+                        .filter(Boolean)
+                        .join(", ") || t("common.unknown", "Unknown")
+                    }
+                  >
+                    {[
+                      selectedNode.city,
+                      selectedNode.countryName || selectedNode.countryCode,
+                    ]
+                      .filter(Boolean)
+                      .join(", ") || t("common.unknown", "Unknown")}
+                  </span>
+                </div>
+                <button
+                  className="btn btn-small btn-outline"
+                  onClick={handleRefreshGeoIp}
+                  disabled={isUpdatingGeoIp}
+                  style={{
+                    padding: "0.15rem 0.4rem",
+                    fontSize: "0.72rem",
+                    borderRadius: "4px",
+                    flexShrink: 0,
+                  }}
+                  title={t("automation.commands.GeoIpUpdate")}
+                >
+                  <i
+                    className={`fas fa-sync-alt ${isUpdatingGeoIp ? "fa-spin" : ""}`}
+                  />
+                </button>
+              </div>
+            )}
+
             {selectedNode.infoHash && (
               <div
                 style={{
@@ -1012,7 +1135,7 @@ function PeerMap() {
               </div>
             )}
 
-            {selectedNode.type === "torrent" && (
+            {(selectedNode.type === "torrent" || selectedNode.infoHash) && (
               <button
                 className="btn btn-small btn-primary"
                 style={{
@@ -1020,7 +1143,24 @@ function PeerMap() {
                   marginTop: "0.5rem",
                   borderRadius: "6px",
                 }}
-                onClick={() => navigate("/torrents")}
+                onClick={() => {
+                  const hash = selectedNode.infoHash;
+                  if (hash) {
+                    const matchedTorrent = torrentsList?.find(
+                      (t) =>
+                        t.infoHash?.toLowerCase() === hash.toLowerCase() ||
+                        t.id.toString() === hash,
+                    );
+                    if (matchedTorrent) {
+                      useTorrentStore
+                        .getState()
+                        .setSelectedTorrentId(matchedTorrent.id);
+                      navigate(`/torrents?id=${matchedTorrent.id}`);
+                      return;
+                    }
+                  }
+                  navigate("/torrents");
+                }}
               >
                 {t("peerMap.openInTorrents")}
               </button>
