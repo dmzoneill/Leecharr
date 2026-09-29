@@ -1053,9 +1053,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 this.logger.Trace(ex, "Failed to create working directory '{WorkingPath}'", workingPath);
             }
 
-            var isProxyConfigured = this.configService.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
-                !string.IsNullOrWhiteSpace(this.configService.ProxyHost);
-            var isProxyActive = isProxyConfigured || this.configService.ForceProxy || (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider);
+            var isProxyActive = this.IsProxyActive();
 
             var torrentSettingsBuilder = new TorrentSettingsBuilder
             {
@@ -2298,9 +2296,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             if (task.Manager.TrackerManager != null)
             {
-                var isProxyConfigured = this.configService.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
-                    !string.IsNullOrWhiteSpace(this.configService.ProxyHost);
-                var isProxyActive = isProxyConfigured || this.configService.ForceProxy || (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider);
+                var isProxyActive = this.IsProxyActive();
 
                 var trackerList = trackers.Where(tr => !string.IsNullOrWhiteSpace(tr)).Select(tr => tr.Trim()).ToList();
                 if (trackerList.Count == 0)
@@ -4517,7 +4513,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     {
         var isProxyConfigured = this.configService.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
             !string.IsNullOrWhiteSpace(this.configService.ProxyHost);
-        return isProxyConfigured || this.configService.ForceProxy || (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider);
+        return isProxyConfigured && (isProxyConfigured || this.configService.ForceProxy || (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider));
     }
 
     private bool IsLocalPeerDiscoveryAllowed()
@@ -7777,7 +7773,7 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
     {
         var isProxyConfigured = this.configService?.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
             !string.IsNullOrWhiteSpace(this.configService?.ProxyHost);
-        var isProxyActive = isProxyConfigured || (this.configService?.ForceProxy ?? false) || (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider);
+        var isProxyActive = isProxyConfigured && (isProxyConfigured || (this.configService?.ForceProxy ?? false) || (this.networkBindingService?.ActiveProvider is IProxyTunnelBindingProvider));
 
         if (isProxyActive)
         {
@@ -7898,7 +7894,7 @@ public class BoundSocketConnector : MonoTorrent.Connections.ISocketConnector
         var activeProvider = this.networkBindingService?.ActiveProvider;
         var isProxyConfigured = this.configService?.ProxyType?.ToLowerInvariant() is "socks5" or "http" &&
             !string.IsNullOrWhiteSpace(this.configService?.ProxyHost);
-        var isProxyActive = isProxyConfigured || (this.configService?.ForceProxy ?? false) || (activeProvider is IProxyTunnelBindingProvider);
+        var isProxyActive = isProxyConfigured && (isProxyConfigured || (this.configService?.ForceProxy ?? false) || (activeProvider is IProxyTunnelBindingProvider));
 
         if (isProxyActive && isDatagram)
         {

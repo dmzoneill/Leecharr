@@ -4559,6 +4559,29 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task StartAsync_WhenProxyDisabledAndForceProxyRemainsTrue_DoesNotDisableDhtOrLpd()
+    {
+        this.configService.ProxyType.Returns("none");
+        this.configService.ProxyHost.Returns(string.Empty);
+        this.configService.ForceProxy.Returns(true);
+        this.configService.EnableDht.Returns(true);
+        this.configService.EnableLpd.Returns(true);
+        this.configService.BindInterface.Returns((string)null!);
+        this.configService.NetworkInterfaceBinding.Returns((string)null!);
+        this.configService.EnableVpnKillSwitch.Returns(false);
+
+        await this.engine.StartAsync();
+
+        var engineProp = typeof(MonoTorrentDownloadEngine).GetField("engine", BindingFlags.NonPublic | BindingFlags.Instance);
+        var monoEngine = engineProp!.GetValue(this.engine) as ClientEngine;
+        monoEngine.Should().NotBeNull();
+        monoEngine!.Settings.AllowLocalPeerDiscovery.Should().BeTrue();
+        monoEngine.Settings.DhtEndPoint.Should().NotBeNull();
+
+        await this.engine.StopAsync();
+    }
+
+    [Test]
     public async Task AddTorrentAsync_WhenSocks5ProxyConfigured_RemovesUdpTrackersToPreventIpLeak()
     {
         this.configService.ProxyType.Returns("socks5");
@@ -4662,6 +4685,24 @@ public class MonoTorrentDownloadEngineTest
         var act = () => connector.CreateDatagramSocket();
         act.Should().Throw<System.Net.Sockets.SocketException>()
             .Which.SocketErrorCode.Should().Be(System.Net.Sockets.SocketError.AccessDenied);
+    }
+
+    [Test]
+    public void BoundSocketConnector_WhenProxyDisabledAndForceProxyIsTrue_AllowsDatagramSocketCreation()
+    {
+        var mockConfig = Substitute.For<IConfigService>();
+        mockConfig.ProxyType.Returns("none");
+        mockConfig.ProxyHost.Returns(string.Empty);
+        mockConfig.ForceProxy.Returns(true);
+        mockConfig.UtpEnabled.Returns(true);
+
+        var connector = new BoundSocketConnector(
+            IPAddress.Any,
+            IPAddress.IPv6Any,
+            configService: mockConfig);
+
+        using var socket = connector.CreateDatagramSocket();
+        socket.Should().NotBeNull();
     }
 
     [Test]
