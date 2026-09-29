@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useGeneralConfig } from "../api/hooks";
-import { api } from "../api/client";
+import { api, getUrlBase } from "../api/client";
 import { useToast } from "../context/ToastContext";
 import { useTranslation } from "../i18n";
 
@@ -21,13 +21,54 @@ export function ApiDocsPage() {
       }
 
       if (keyToCopy) {
-        await navigator.clipboard.writeText(keyToCopy);
-        setCopiedKey(true);
-        setTimeout(() => setCopiedKey(false), 2000);
-        toast.showToast(
-          t("settings.apiKeyCopied", "API key copied to clipboard"),
-          "success",
-        );
+        let copied = false;
+        if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+          try {
+            await navigator.clipboard.writeText(keyToCopy);
+            copied = true;
+          } catch {
+            // Fallback below if navigator.clipboard write fails (e.g. non-secure context or permission denied)
+          }
+        }
+
+        if (!copied && typeof document !== "undefined") {
+          let textarea: HTMLTextAreaElement | null = null;
+          try {
+            textarea = document.createElement("textarea");
+            textarea.value = keyToCopy;
+            textarea.style.position = "fixed";
+            textarea.style.left = "-9999px";
+            textarea.style.top = "0";
+            textarea.style.opacity = "0";
+            textarea.setAttribute("readonly", "");
+
+            document.body.appendChild(textarea);
+            textarea.select();
+            textarea.setSelectionRange(0, textarea.value.length);
+
+            copied = document.execCommand("copy");
+          } catch {
+            copied = false;
+          } finally {
+            if (textarea && textarea.parentNode) {
+              textarea.parentNode.removeChild(textarea);
+            }
+          }
+        }
+
+        if (copied) {
+          setCopiedKey(true);
+          setTimeout(() => setCopiedKey(false), 2000);
+          toast.showToast(
+            t("settings.apiKeyCopied", "API key copied to clipboard"),
+            "success",
+          );
+        } else {
+          toast.showToast(
+            t("settings.failedToCopyApiKey", "Failed to copy API key to clipboard"),
+            "error",
+          );
+        }
       }
     } catch {
       toast.showToast(
@@ -114,7 +155,7 @@ export function ApiDocsPage() {
           )}
 
           <a
-            href="/swagger/v1/swagger.json"
+            href={`${getUrlBase()}/swagger/v1/swagger.json`}
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-outline btn-small"
@@ -127,7 +168,7 @@ export function ApiDocsPage() {
           </a>
 
           <a
-            href="/swagger/index.html"
+            href={`${getUrlBase()}/swagger/index.html`}
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-primary btn-small"
@@ -154,7 +195,7 @@ export function ApiDocsPage() {
         }}
       >
         <iframe
-          src="/swagger/index.html"
+          src={`${getUrlBase()}/swagger/index.html`}
           title={t(
             "apiDocs.swaggerDocTitle",
             "Leecharr REST API Swagger Documentation",
