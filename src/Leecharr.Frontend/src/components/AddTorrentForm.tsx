@@ -141,7 +141,7 @@ export function AddTorrentForm({
     }
   };
 
-  const isMagnetValid = magnetLink.trim().startsWith("magnet:?");
+  const isMagnetValid = magnetLink.trim().toLowerCase().startsWith("magnet:?");
   const canSubmit =
     (mode === "file" && files.length > 0) ||
     (mode === "magnet" && isMagnetValid);

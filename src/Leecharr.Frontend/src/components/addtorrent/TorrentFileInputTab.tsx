@@ -20,7 +20,7 @@ export function TorrentFileInputTab({
   const addFiles = useCallback(
     (incoming: FileList | File[]) => {
       const torrentFiles = Array.from(incoming).filter((f) =>
-        f.name.endsWith(".torrent"),
+        f.name.toLowerCase().endsWith(".torrent"),
       );
       if (torrentFiles.length === 0) return;
       setFiles((prev) => {

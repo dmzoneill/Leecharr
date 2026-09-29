@@ -9,7 +9,7 @@ export interface MagnetInfo {
 
 export function parseMagnetPreview(uri: string): MagnetInfo | null {
   const trimmed = uri.trim();
-  if (!trimmed.startsWith("magnet:?")) return null;
+  if (!trimmed.toLowerCase().startsWith("magnet:?")) return null;
   try {
     const rawParams = trimmed.substring(8);
     const params = new URLSearchParams(rawParams);
@@ -62,7 +62,7 @@ export function MagnetInputTab({
 }: MagnetInputTabProps) {
   const { t } = useTranslation();
 
-  const isMagnetValid = magnetLink.trim().startsWith("magnet:?");
+  const isMagnetValid = magnetLink.trim().toLowerCase().startsWith("magnet:?");
   const magnetPreview = useMemo(
     () => parseMagnetPreview(magnetLink),
     [magnetLink],
