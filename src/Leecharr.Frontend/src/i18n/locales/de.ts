@@ -3330,7 +3330,14 @@ const de: I18nTranslations = {
       "vacuumTitle": "SQLite-Datenbankkomprimierung (VACUUM)",
       "vacuumDescription": "Erstellt die SQLite-Datenbankdatei neu, um ungenutzten Speicherplatz freizugeben und Datenbankindizes zu defragmentieren.",
       "vacuumRunning": "Datenbank wird komprimiert...",
-      "vacuumButton": "🧹 Führen Sie Database VACUUM aus"
+      "vacuumButton": "🧹 Führen Sie Database VACUUM aus",
+      "testLogTitle": "Überprüfung des Diagnoseprotokolls",
+      "testLogDescription": "Geben Sie einen synthetischen Diagnoseprotokolleintrag aus, um rollierende Festplattendateien und die Live-Ringpuffererfassung zu überprüfen.",
+      "testLogButton": "🧪 Testprotokoll",
+      "testLogRunning": "Protokoll wird ausgegeben...",
+      "testLogSuccess": "Diagnose-{{level}}-Testprotokoll erfolgreich ausgegeben",
+      "testLogError": "Fehler beim Senden des Diagnosetestprotokolls: {{error}}",
+      "testLogLevelLabel": "Diagnoseprotokollebene"
     },
     "security": {
       "authBannerDesc": "Die Authentifizierung ist aktiviert. Lokale Benutzer, die über LAN oder Reverse-Proxy auf Leecharr zugreifen, authentifizieren sich mit lokalen Anmeldeinformationen oder den unten konfigurierten SSO-/Identitätsanbietern.",
