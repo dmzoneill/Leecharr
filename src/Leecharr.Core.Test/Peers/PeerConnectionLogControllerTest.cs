@@ -199,4 +199,55 @@ public class PeerConnectionLogControllerTest
         // After calling GetGraph, history remains empty
         this.historyService.GetRecords().Should().BeEmpty();
     }
+
+    [Test]
+    public void GetGraph_PopulatesGeoIpFieldsOnPeerNodes()
+    {
+        var now = DateTime.UtcNow;
+        this.historyService.RecordEvent(new PeerConnectionEvent
+        {
+            InfoHash = "hash1",
+            TorrentName = "Torrent 1",
+            RemoteIp = "1.2.3.4",
+            RemotePort = 6881,
+            CountryCode = "US",
+            CountryName = "United States",
+            City = "New York",
+            Timestamp = now,
+        });
+
+        this.geoIpService.Lookup("5.6.7.8").Returns(new GeoLocationInfo
+        {
+            CountryCode = "DE",
+            CountryName = "Germany",
+            City = "Berlin",
+        });
+
+        this.historyService.RecordEvent(new PeerConnectionEvent
+        {
+            InfoHash = "hash1",
+            TorrentName = "Torrent 1",
+            RemoteIp = "5.6.7.8",
+            RemotePort = 6882,
+            Timestamp = now,
+        });
+
+        var graphResult = this.controller.GetGraph(null, null);
+        graphResult.Result.Should().BeOfType<OkObjectResult>();
+
+        var okResult = (OkObjectResult)graphResult.Result!;
+        var graph = (PeerGraphResource)okResult.Value!;
+
+        var usPeer = graph.Nodes.FirstOrDefault(n => n.Label == "1.2.3.4");
+        usPeer.Should().NotBeNull();
+        usPeer!.CountryCode.Should().Be("US");
+        usPeer.CountryName.Should().Be("United States");
+        usPeer.City.Should().Be("New York");
+
+        var dePeer = graph.Nodes.FirstOrDefault(n => n.Label == "5.6.7.8");
+        dePeer.Should().NotBeNull();
+        dePeer!.CountryCode.Should().Be("DE");
+        dePeer.CountryName.Should().Be("Germany");
+        dePeer.City.Should().Be("Berlin");
+    }
 }
