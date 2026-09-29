@@ -19,6 +19,7 @@ export interface HistoryGridViewProps {
   onSearchItem: (title: string) => void;
   onReAddItem: (id: number, title: string) => void;
   isReAdding: boolean;
+  onDeleteItem?: (id: number, title: string) => void;
   onFilterByGenre: (genre: string) => void;
 }
 
@@ -29,6 +30,7 @@ export const HistoryGridView: React.FC<HistoryGridViewProps> = ({
   onSearchItem,
   onReAddItem,
   isReAdding,
+  onDeleteItem,
   onFilterByGenre,
 }) => {
   const { t } = useTranslation();
@@ -486,6 +488,23 @@ export const HistoryGridView: React.FC<HistoryGridViewProps> = ({
                         >
                           ℹ️
                         </button>
+                        {onDeleteItem && (
+                          <button
+                            className="btn btn-outline"
+                            style={{
+                              fontSize: "0.75rem",
+                              padding: "0.25rem 0.45rem",
+                              color: "var(--danger, #dc3545)",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                            onClick={() => onDeleteItem(item.id, item.title)}
+                            title={t("history.deleteHistoricalRecord")}
+                          >
+                            ✕
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
