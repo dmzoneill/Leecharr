@@ -180,6 +180,8 @@ const es: I18nTranslations = {
     "unknownError": "Error desconocido",
     "noResults": "No hay etiquetas coincidentes",
     "error": "Error",
+    "disconnect": "Desconectar",
+    "ban": "Prohibición",
     "general": "General",
     "total": "Total"
   },
@@ -715,7 +717,11 @@ const es: I18nTranslations = {
       "openTrackerPickerTitle": "Título del selector de seguimiento abierto",
       "prioNormal": "Prio Normal",
       "prioHigh": "Prio High",
-      "live3s": "Live3s"
+      "live3s": "Live3s",
+      "disconnectPeer": "Desconectar par",
+      "banPeer": "Prohibición de pares",
+      "peerDisconnected": "Par desconectado",
+      "peerBanned": "Par prohibido y desconectado"
     },
     "ratio": "Proporción",
     "tabs": {
@@ -1220,7 +1226,8 @@ const es: I18nTranslations = {
     "centerTitle": "Título del centro",
     "torrentTitle": "Título del torrente",
     "peerTitle": "Título del compañero",
-    "peerEncryptedSuffix": "Sufijo cifrado de pares"
+    "peerEncryptedSuffix": "Sufijo cifrado de pares",
+    "torrentNotFound": "Torrente asociado no encontrado"
   },
   "trackerBoost": {
     "title": "Optimizador TrackerBoost",
@@ -2231,6 +2238,7 @@ const es: I18nTranslations = {
       "deleteConfirm": "Eliminar",
       "deleteSuccess": "Categoría \"{{name}}\" eliminada",
       "deleteFailed": "No se pudo eliminar la categoría",
+      "cannotDeleteDefault": "No se puede eliminar la categoría predeterminada.",
       "title": "Gestión de categorías y enrutamiento de directorios",
       "description": "Organice torrents con categorías para enrutar archivos automáticamente a rutas de guardado personalizadas, imponer límites de velocidad y aplicar políticas de parada automática de proporción de uso compartido.",
       "configuredCount": "{{count}} categorías configuradas",
@@ -2279,8 +2287,7 @@ const es: I18nTranslations = {
         "saving": "Ahorro...",
         "saveChanges": "Guardar cambios",
         "createCategory": "Crear categoría"
-      },
-      "cannotDeleteDefault": "No se puede eliminar la categoría predeterminada."
+      }
     },
     "notifications": {
       "chatIdPrefix": "ID de chat:",
@@ -2910,7 +2917,9 @@ const es: I18nTranslations = {
       "incomingPeerListeningPorts": "Puertos de escucha de pares entrantes y UPnP",
       "configureListeningPorts": "Configure puertos de escucha para conexiones de pares BitTorrent entrantes.",
       "bitTorrentListeningPort": "Puerto de escucha BitTorrent",
+      "testPort": "Puerto de prueba",
       "testingPort": "Pruebas...",
+      "portCheckFailed": "La verificación del puerto falló",
       "tcpUdpPort": "Puerto TCP y UDP para conexiones de pares entrantes (predeterminado: 51413)",
       "enableUpnpNatPmp": "Habilitar el reenvío de puertos UPnP/NAT-PMP",
       "automaticallyNegotiatePortForwarding": "Negocie automáticamente el reenvío de puertos con su enrutador",
@@ -2919,6 +2928,10 @@ const es: I18nTranslations = {
       "networkInterfaceBinding": "Enlace de interfaz de red y interruptor de interrupción de VPN",
       "bindBitTorrentSockets": "Vincule sockets BitTorrent a una interfaz de red específica (por ejemplo, tun0, wg0) y detenga el tráfico al desconectarse.",
       "bindNetworkInterface": "Vincular interfaz de red",
+      "selectFromDetected": "Seleccionar entre interfaces detectadas",
+      "enterManually": "Ingresar manualmente",
+      "allInterfaces": "Todas/cualquier interfaz (predeterminada)",
+      "manualEntry": "Entrada personalizada/manual...",
       "interfaceNameOrIp": "Nombre de la interfaz (por ejemplo, tun0, wg0, eth0) o IP específica (dejar en blanco para todos)",
       "enableAutomatedVpnKillSwitch": "Habilitar el interruptor automático de interrupción de VPN",
       "immediatelyDropAllBitTorrentTransfers": "Elimine inmediatamente todas las transferencias BitTorrent si la interfaz VPN vinculada se cae",
@@ -3076,12 +3089,6 @@ const es: I18nTranslations = {
       "clientId": "ID de cliente",
       "clientSecret": "Secreto del cliente",
       "leaveBlankOrMaskedToKeepCurrentSecret": "Déjelo en blanco o enmascarado para mantener el secreto actual",
-      "testPort": "Puerto de prueba",
-      "portCheckFailed": "La verificación del puerto falló",
-      "selectFromDetected": "Seleccionar entre interfaces detectadas",
-      "enterManually": "Ingresar manualmente",
-      "allInterfaces": "Todas/cualquier interfaz (predeterminada)",
-      "manualEntry": "Entrada personalizada/manual...",
       "oidc": "OIDC",
       "saml20": "SAML 2.0",
       "social": "Social"

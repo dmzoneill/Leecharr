@@ -181,7 +181,9 @@ const zhCN: I18nTranslations = {
     "total": "合计",
     "testing": "测试",
     "unknownError": "未知错误",
-    "noResults": "没有匹配的标签"
+    "noResults": "没有匹配的标签",
+    "disconnect": "断开",
+    "ban": "禁止"
   },
   "nav": {
     "dashboard": "仪表盘",
@@ -715,7 +717,11 @@ const zhCN: I18nTranslations = {
       "failedToRemoveTracker": "删除跟踪器失败",
       "privateTrackerDisabledTitle": "私人跟踪器禁用标题",
       "openTrackerPickerTitle": "打开跟踪器选取器标题",
-      "live3s": "Live3s"
+      "live3s": "Live3s",
+      "disconnectPeer": "断开对等点连接",
+      "banPeer": "班佩尔",
+      "peerDisconnected": "对等点已断开连接",
+      "peerBanned": "对等方被禁止并断开连接"
     },
     "ratio": "比率",
     "tabs": {
@@ -1220,7 +1226,8 @@ const zhCN: I18nTranslations = {
     "centerTitle": "标题居中",
     "torrentTitle": "种子标题",
     "peerTitle": "同级头衔",
-    "peerEncryptedSuffix": "对等加密后缀"
+    "peerEncryptedSuffix": "对等加密后缀",
+    "torrentNotFound": "未找到相关种子"
   },
   "trackerBoost": {
     "title": "TrackerBoost 智能加速器",
@@ -2231,6 +2238,7 @@ const zhCN: I18nTranslations = {
       "deleteConfirm": "删除",
       "deleteSuccess": "类别“{{name}}”已删除",
       "deleteFailed": "删除类别失败",
+      "cannotDeleteDefault": "无法删除默认类别。",
       "title": "类别管理和目录路由",
       "description": "按类别组织种子，自动将文件路由到自定义保存路径、实施速率限制并应用共享比率自动停止策略。",
       "configuredCount": "{{count}}配置的类别",
@@ -2279,8 +2287,7 @@ const zhCN: I18nTranslations = {
         "saving": "保存...",
         "saveChanges": "保存更改",
         "createCategory": "创建类别"
-      },
-      "cannotDeleteDefault": "无法删除默认类别。"
+      }
     },
     "notifications": {
       "chatIdPrefix": "聊天ID：",
@@ -2910,7 +2917,9 @@ const zhCN: I18nTranslations = {
       "incomingPeerListeningPorts": "传入对等侦听端口和 UPnP",
       "configureListeningPorts": "配置入站 BitTorrent 对等连接的侦听端口。",
       "bitTorrentListeningPort": "BitTorrent 监听端口",
+      "testPort": "测试端口",
       "testingPort": "测试...",
+      "portCheckFailed": "端口检查失败",
       "tcpUdpPort": "传入对等连接的TCP和UDP端口（默认值： 51413 ）",
       "enableUpnpNatPmp": "启用 UPnP / NAT-PMP 端口转发",
       "automaticallyNegotiatePortForwarding": "自动与路由器协商端口转发",
@@ -2919,6 +2928,10 @@ const zhCN: I18nTranslations = {
       "networkInterfaceBinding": "网络接口绑定和 VPN Kill Switch",
       "bindBitTorrentSockets": "将 BitTorrent 套接字绑定到特定网络接口（例如 tun0、wg0）并在断开连接时停止流量。",
       "bindNetworkInterface": "绑定网络接口",
+      "selectFromDetected": "从检测到的接口中选择",
+      "enterManually": "手动输入",
+      "allInterfaces": "所有/任何接口（默认）",
+      "manualEntry": "自定义/手动输入...",
       "interfaceNameOrIp": "接口名称（例如 tun0、wg0、eth0）或特定 IP（全部留空）",
       "enableAutomatedVpnKillSwitch": "启用自动 VPN Kill Switch",
       "immediatelyDropAllBitTorrentTransfers": "如果绑定的 VPN 接口出现故障，立即删除所有 BitTorrent 传输",
@@ -3078,12 +3091,6 @@ const zhCN: I18nTranslations = {
       "clientId": "客户ID",
       "clientSecret": "客户秘密",
       "leaveBlankOrMaskedToKeepCurrentSecret": "留空或屏蔽以保守当前秘密",
-      "testPort": "测试端口",
-      "portCheckFailed": "端口检查失败",
-      "selectFromDetected": "从检测到的接口中选择",
-      "enterManually": "手动输入",
-      "allInterfaces": "所有/任何接口（默认）",
-      "manualEntry": "自定义/手动输入...",
       "saml20": "SAML 2.0"
     },
     "subsystems": {

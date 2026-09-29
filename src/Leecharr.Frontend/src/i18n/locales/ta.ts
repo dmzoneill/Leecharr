@@ -181,7 +181,9 @@ const ta: I18nTranslations = {
     "total": "மொத்தம்",
     "testing": "சோதனை",
     "unknownError": "அறியப்படாத பிழை",
-    "noResults": "பொருத்தமான குறிச்சொற்கள் இல்லை"
+    "noResults": "பொருத்தமான குறிச்சொற்கள் இல்லை",
+    "disconnect": "துண்டிக்கவும்",
+    "ban": "தடை செய்"
   },
   "nav": {
     "dashboard": "டாஷ்போர்டு",
@@ -715,6 +717,10 @@ const ta: I18nTranslations = {
       "failedToRemoveTracker": "டிராக்கரை அகற்ற முடியவில்லை",
       "privateTrackerDisabledTitle": "தனிப்பட்ட டிராக்கர் முடக்கப்பட்ட தலைப்பு",
       "openTrackerPickerTitle": "டிராக்கர் பிக்கர் தலைப்பைத் திறக்கவும்",
+      "disconnectPeer": "பியர் இணைப்பைத் துண்டிக்கவும்",
+      "banPeer": "பீரை தடை செய்யுங்கள்",
+      "peerDisconnected": "பியர் துண்டிக்கப்பட்டது",
+      "peerBanned": "பியர் தடை செய்யப்பட்டு துண்டிக்கப்பட்டது",
       "colUrl": "Col Url"
     },
     "ratio": "விகிதம்",
@@ -1220,7 +1226,8 @@ const ta: I18nTranslations = {
     "centerTitle": "மைய தலைப்பு",
     "torrentTitle": "Torrent தலைப்பு",
     "peerTitle": "சக தலைப்பு",
-    "peerEncryptedSuffix": "பியர் என்க்ரிப்ட் செய்யப்பட்ட பின்னொட்டு"
+    "peerEncryptedSuffix": "பியர் என்க்ரிப்ட் செய்யப்பட்ட பின்னொட்டு",
+    "torrentNotFound": "தொடர்புடைய டோரண்ட் கிடைக்கவில்லை"
   },
   "trackerBoost": {
     "title": "TrackerBoost கூட்ட உகப்பாக்கி",
@@ -2231,6 +2238,7 @@ const ta: I18nTranslations = {
       "deleteConfirm": "நீக்கு",
       "deleteSuccess": "\"{{name}}\" வகை நீக்கப்பட்டது",
       "deleteFailed": "வகையை நீக்க முடியவில்லை",
+      "cannotDeleteDefault": "இயல்பு வகையை நீக்க முடியாது.",
       "title": "வகை மேலாண்மை & அடைவு ரூட்டிங்",
       "description": "தனிப்பயன் சேமிப்பு பாதைகளுக்கு கோப்புகளை தானாக வழியமைக்கவும், கட்டண வரம்புகளை அமல்படுத்தவும், பங்கு விகித தானாக நிறுத்தும் கொள்கைகளைப் பயன்படுத்தவும் வகைகளுடன் டோரண்ட்களை ஒழுங்கமைக்கவும்.",
       "configuredCount": "{{count}} உள்ளமைக்கப்பட்ட வகைகள்",
@@ -2279,8 +2287,7 @@ const ta: I18nTranslations = {
         "saving": "சேமிக்கிறது...",
         "saveChanges": "மாற்றங்களைச் சேமி",
         "createCategory": "வகையை உருவாக்கவும்"
-      },
-      "cannotDeleteDefault": "இயல்பு வகையை நீக்க முடியாது."
+      }
     },
     "notifications": {
       "chatIdPrefix": "அரட்டை ஐடி:",
@@ -2909,7 +2916,9 @@ const ta: I18nTranslations = {
       "activePortMappings": "செயலில் உள்ள போர்ட் மேப்பிங்ஸ்",
       "incomingPeerListeningPorts": "இன்கமிங் பியர் லிஸ்டனிங் போர்ட்கள் & UPnP",
       "configureListeningPorts": "உள்வரும் BitTorrent பியர் இணைப்புகளுக்கு கேட்கும் துறைமுகங்களை உள்ளமைக்கவும்.",
+      "testPort": "சோதனை துறைமுகம்",
       "testingPort": "சோதனை...",
+      "portCheckFailed": "போர்ட் சோதனை தோல்வியடைந்தது",
       "tcpUdpPort": "உள்வரும் பியர் இணைப்புகளுக்கான TCP & UDP போர்ட் (இயல்புநிலை: 51413)",
       "enableUpnpNatPmp": "UPnP / NAT-PMP போர்ட் பகிர்தலை இயக்கவும்",
       "automaticallyNegotiatePortForwarding": "உங்கள் ரூட்டருடன் போர்ட் பகிர்தலை தானாகவே பேச்சுவார்த்தை நடத்தவும்",
@@ -2918,6 +2927,10 @@ const ta: I18nTranslations = {
       "networkInterfaceBinding": "நெட்வொர்க் இன்டர்ஃபேஸ் பைண்டிங் & VPN கில் ஸ்விட்ச்",
       "bindBitTorrentSockets": "BitTorrent சாக்கெட்டுகளை ஒரு குறிப்பிட்ட பிணைய இடைமுகத்துடன் பிணைக்கவும் (எ.கா. tun0, wg0) மற்றும் துண்டிக்கப்படும் போது போக்குவரத்தை நிறுத்தவும்.",
       "bindNetworkInterface": "பிணைய இடைமுகத்தை பிணைக்கவும்",
+      "selectFromDetected": "கண்டறியப்பட்ட இடைமுகங்களிலிருந்து தேர்ந்தெடுக்கவும்",
+      "enterManually": "கைமுறையாக உள்ளிடவும்",
+      "allInterfaces": "அனைத்து / ஏதேனும் இடைமுகங்கள் (இயல்புநிலை)",
+      "manualEntry": "தனிப்பயன் / கைமுறை நுழைவு...",
       "interfaceNameOrIp": "இடைமுகப் பெயர் (எ.கா. tun0, wg0, eth0) அல்லது குறிப்பிட்ட IP (அனைவருக்கும் காலியாக விடவும்)",
       "enableAutomatedVpnKillSwitch": "தானியங்கு VPN கில் சுவிட்சை இயக்கவும்",
       "immediatelyDropAllBitTorrentTransfers": "பிணைக்கப்பட்ட VPN இடைமுகம் செயலிழந்தால், அனைத்து BitTorrent பரிமாற்றங்களையும் உடனடியாக கைவிடவும்",
@@ -3078,12 +3091,6 @@ const ta: I18nTranslations = {
       "clientSecret": "வாடிக்கையாளர் ரகசியம்",
       "leaveBlankOrMaskedToKeepCurrentSecret": "தற்போதைய ரகசியத்தை வைத்திருக்க வெறுமையாக அல்லது முகமூடியை விடுங்கள்",
       "bitTorrentListeningPort": "BitTorrent Listening Port",
-      "testPort": "சோதனை துறைமுகம்",
-      "portCheckFailed": "போர்ட் சோதனை தோல்வியடைந்தது",
-      "selectFromDetected": "கண்டறியப்பட்ட இடைமுகங்களிலிருந்து தேர்ந்தெடுக்கவும்",
-      "enterManually": "கைமுறையாக உள்ளிடவும்",
-      "allInterfaces": "அனைத்து / ஏதேனும் இடைமுகங்கள் (இயல்புநிலை)",
-      "manualEntry": "தனிப்பயன் / கைமுறை நுழைவு...",
       "saml20": "SAML 2.0"
     },
     "subsystems": {

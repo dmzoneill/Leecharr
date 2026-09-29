@@ -181,6 +181,8 @@ const id: I18nTranslations = {
     "unknownError": "Kesalahan Tidak Diketahui",
     "noResults": "Tidak ada tag yang cocok",
     "status": "Status",
+    "disconnect": "Memutuskan",
+    "ban": "Melarang",
     "total": "Total"
   },
   "nav": {
@@ -714,6 +716,10 @@ const id: I18nTranslations = {
       "openTrackerPickerTitle": "Buka Judul Pemilih Pelacak",
       "pieceMapStatus": "Status",
       "label": "Label",
+      "disconnectPeer": "Putuskan sambungan Rekan",
+      "banPeer": "Larangan Rekan",
+      "peerDisconnected": "Rekan terputus",
+      "peerBanned": "Rekan dilarang dan terputus",
       "status": "Status"
     },
     "ratio": "Rasio",
@@ -1220,7 +1226,8 @@ const id: I18nTranslations = {
     "centerTitle": "Judul Tengah",
     "torrentTitle": "Judul Torrent",
     "peerTitle": "Judul Rekan",
-    "peerEncryptedSuffix": "Akhiran Terenkripsi Sejawat"
+    "peerEncryptedSuffix": "Akhiran Terenkripsi Sejawat",
+    "torrentNotFound": "Torrent terkait tidak ditemukan"
   },
   "trackerBoost": {
     "title": "Pengoptimal TrackerBoost",
@@ -2231,6 +2238,7 @@ const id: I18nTranslations = {
       "deleteConfirm": "Hapus",
       "deleteSuccess": "Kategori \"{{name}}\" dihapus",
       "deleteFailed": "Gagal menghapus kategori",
+      "cannotDeleteDefault": "Tidak dapat menghapus kategori default.",
       "title": "Manajemen Kategori & Perutean Direktori",
       "description": "Atur torrent dengan kategori untuk secara otomatis merutekan file ke jalur penyimpanan khusus, menerapkan batas kecepatan, dan menerapkan kebijakan penghentian otomatis rasio berbagi.",
       "configuredCount": "{{count}} kategori yang dikonfigurasi",
@@ -2279,8 +2287,7 @@ const id: I18nTranslations = {
         "saving": "Penghematan...",
         "saveChanges": "Simpan Perubahan",
         "createCategory": "Buat Kategori"
-      },
-      "cannotDeleteDefault": "Tidak dapat menghapus kategori default."
+      }
     },
     "notifications": {
       "chatIdPrefix": "ID Obrolan:",
@@ -2910,7 +2917,9 @@ const id: I18nTranslations = {
       "incomingPeerListeningPorts": "Port Peer Listening & UPnP yang Masuk",
       "configureListeningPorts": "Konfigurasikan port mendengarkan untuk koneksi rekan BitTorrent masuk.",
       "bitTorrentListeningPort": "Port Mendengarkan BitTorrent",
+      "testPort": "Pelabuhan Uji",
       "testingPort": "Menguji...",
+      "portCheckFailed": "Pemeriksaan port gagal",
       "tcpUdpPort": "Port TCP & UDP untuk koneksi peer masuk (default: 51413)",
       "enableUpnpNatPmp": "Aktifkan Penerusan Port UPnP / NAT-PMP",
       "automaticallyNegotiatePortForwarding": "Negosiasikan penerusan port secara otomatis dengan router Anda",
@@ -2919,6 +2928,10 @@ const id: I18nTranslations = {
       "networkInterfaceBinding": "Pengikatan Antarmuka Jaringan & Saklar Pembunuh VPN",
       "bindBitTorrentSockets": "Ikat soket BitTorrent ke antarmuka jaringan tertentu (misalnya tun0, wg0) dan hentikan lalu lintas saat terputus.",
       "bindNetworkInterface": "Mengikat Antarmuka Jaringan",
+      "selectFromDetected": "Pilih dari antarmuka yang terdeteksi",
+      "enterManually": "Masukkan secara manual",
+      "allInterfaces": "Semua / Semua antarmuka (Default)",
+      "manualEntry": "Entri Kustom / Manual...",
       "interfaceNameOrIp": "Nama antarmuka (misalnya tun0, wg0, eth0) atau IP tertentu (biarkan kosong untuk semua)",
       "enableAutomatedVpnKillSwitch": "Aktifkan Tombol Pemutus VPN Otomatis",
       "immediatelyDropAllBitTorrentTransfers": "Segera batalkan semua transfer BitTorrent jika antarmuka VPN yang terikat tidak berfungsi",
@@ -3076,12 +3089,6 @@ const id: I18nTranslations = {
       "clientId": "ID Klien",
       "clientSecret": "Rahasia Klien",
       "leaveBlankOrMaskedToKeepCurrentSecret": "Biarkan kosong atau tertutupi untuk menjaga rahasia saat ini",
-      "testPort": "Pelabuhan Uji",
-      "portCheckFailed": "Pemeriksaan port gagal",
-      "selectFromDetected": "Pilih dari antarmuka yang terdeteksi",
-      "enterManually": "Masukkan secara manual",
-      "allInterfaces": "Semua / Semua antarmuka (Default)",
-      "manualEntry": "Entri Kustom / Manual...",
       "status": "Status",
       "oidc": "OIDC",
       "saml20": "SAML 2.0"

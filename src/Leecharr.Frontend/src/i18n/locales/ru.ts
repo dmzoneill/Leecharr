@@ -181,7 +181,9 @@ const ru: I18nTranslations = {
     "total": "Общий",
     "testing": "Тестирование",
     "unknownError": "Неизвестная ошибка",
-    "noResults": "Нет соответствующих тегов"
+    "noResults": "Нет соответствующих тегов",
+    "disconnect": "Отключить",
+    "ban": "Запретить"
   },
   "nav": {
     "dashboard": "Панель управления",
@@ -715,6 +717,10 @@ const ru: I18nTranslations = {
       "privateTrackerDisabledTitle": "Название «Частный трекер отключен»",
       "openTrackerPickerTitle": "Открыть заголовок окна выбора трекера",
       "live3s": "Live3s",
+      "disconnectPeer": "Отключить пир",
+      "banPeer": "Запретить пир",
+      "peerDisconnected": "Одноранговый узел отключен",
+      "peerBanned": "Пир заблокирован и отключен",
       "colAction": "Col Action"
     },
     "ratio": "Рейтинг",
@@ -1220,7 +1226,8 @@ const ru: I18nTranslations = {
     "centerTitle": "Название центра",
     "torrentTitle": "Название торрента",
     "peerTitle": "Титул коллеги",
-    "peerEncryptedSuffix": "Суффикс однорангового шифрования"
+    "peerEncryptedSuffix": "Суффикс однорангового шифрования",
+    "torrentNotFound": "Соответствующий торрент не найден"
   },
   "trackerBoost": {
     "title": "Оптимизатор TrackerBoost",
@@ -2231,6 +2238,7 @@ const ru: I18nTranslations = {
       "deleteConfirm": "Удалить",
       "deleteSuccess": "Категория \"{{name}}\" удалена",
       "deleteFailed": "Не удалось удалить категорию",
+      "cannotDeleteDefault": "Невозможно удалить категорию по умолчанию.",
       "title": "Управление категориями и маршрутизация каталогов",
       "description": "Организуйте торренты по категориям, чтобы автоматически перенаправлять файлы по пользовательским путям сохранения, устанавливать ограничения скорости и применять политики автоматической остановки соотношения общего доступа.",
       "configuredCount": "{{count}} настроенные категории",
@@ -2279,8 +2287,7 @@ const ru: I18nTranslations = {
         "saving": "Сохранение...",
         "saveChanges": "Сохранить изменения",
         "createCategory": "Создать категорию"
-      },
-      "cannotDeleteDefault": "Невозможно удалить категорию по умолчанию."
+      }
     },
     "notifications": {
       "chatIdPrefix": "Идентификатор чата:",
@@ -2910,7 +2917,9 @@ const ru: I18nTranslations = {
       "incomingPeerListeningPorts": "Порты прослушивания входящих одноранговых узлов и UPnP",
       "configureListeningPorts": "Настройте порты прослушивания для входящих одноранговых соединений BitTorrent.",
       "bitTorrentListeningPort": "Порт прослушивания BitTorrent",
+      "testPort": "Тестовый порт",
       "testingPort": "Тестирование...",
+      "portCheckFailed": "Проверка порта не удалась",
       "tcpUdpPort": "Порт TCP и UDP для входящих одноранговых соединений (по умолчанию: 51413)",
       "enableUpnpNatPmp": "Включить переадресацию портов UPnP/NAT-PMP",
       "automaticallyNegotiatePortForwarding": "Автоматически согласовывайте переадресацию портов с вашим маршрутизатором",
@@ -2919,6 +2928,10 @@ const ru: I18nTranslations = {
       "networkInterfaceBinding": "Привязка сетевого интерфейса и аварийный переключатель VPN",
       "bindBitTorrentSockets": "Привяжите сокеты BitTorrent к определенному сетевому интерфейсу (например, tun0, wg0) и останавливайте трафик при отключении.",
       "bindNetworkInterface": "Привязать сетевой интерфейс",
+      "selectFromDetected": "Выбор из обнаруженных интерфейсов",
+      "enterManually": "Введите вручную",
+      "allInterfaces": "Все/любые интерфейсы (по умолчанию)",
+      "manualEntry": "Пользовательский/ручной ввод...",
       "interfaceNameOrIp": "Имя интерфейса (например, tun0, wg0, eth0) или конкретный IP-адрес (оставьте пустым для всех)",
       "enableAutomatedVpnKillSwitch": "Включить автоматический аварийный переключатель VPN",
       "immediatelyDropAllBitTorrentTransfers": "Немедленно прекратите все передачи BitTorrent, если связанный VPN-интерфейс выйдет из строя.",
@@ -3077,12 +3090,6 @@ const ru: I18nTranslations = {
       "clientId": "Идентификатор клиента",
       "clientSecret": "Секрет клиента",
       "leaveBlankOrMaskedToKeepCurrentSecret": "Оставьте пустым или замаскированным, чтобы сохранить текущий секрет.",
-      "testPort": "Тестовый порт",
-      "portCheckFailed": "Проверка порта не удалась",
-      "selectFromDetected": "Выбор из обнаруженных интерфейсов",
-      "enterManually": "Введите вручную",
-      "allInterfaces": "Все/любые интерфейсы (по умолчанию)",
-      "manualEntry": "Пользовательский/ручной ввод...",
       "saml20": "SAML 2.0",
       "openIdConnectOidc": "OpenID Connect (OIDC)"
     },

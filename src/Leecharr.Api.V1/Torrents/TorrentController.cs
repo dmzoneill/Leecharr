@@ -7,6 +7,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -40,6 +41,12 @@ public record TorrentUploadFailure(string FileName, string Reason);
 public record TorrentUploadResult(List<TorrentResource> Added, List<TorrentUploadFailure> Failed);
 
 public class BanPeerRequest
+{
+    [Required]
+    public string Ip { get; set; }
+}
+
+public class DisconnectPeerRequest
 {
     [Required]
     public string Ip { get; set; }
@@ -850,8 +857,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         return await this.BanPeerInternalAsync(id, request.Ip.Trim());
     }
 
-    [HttpDelete("{id:int}/peers/{ip}")]
-    public async Task<IActionResult> DisconnectPeer(int id, string ip)
+    [HttpPost("{id:int}/peers/ban/{*ip}")]
+    public async Task<IActionResult> BanPeerByPath(int id, string ip)
     {
         if (string.IsNullOrWhiteSpace(ip))
         {
@@ -859,6 +866,29 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         }
 
         return await this.BanPeerInternalAsync(id, ip.Trim());
+    }
+
+    [HttpPost("{id:int}/peers/disconnect")]
+    public async Task<IActionResult> DisconnectPeerPost(int id, [FromBody] DisconnectPeerRequest request)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.Ip))
+        {
+            return this.BadRequest("IP address is required.");
+        }
+
+        return await this.DisconnectPeerInternalAsync(id, request.Ip.Trim());
+    }
+
+    [HttpDelete("{id:int}/peers/{*ip}")]
+    [HttpDelete("{id:int}/peers")]
+    public async Task<IActionResult> DisconnectPeer(int id, string? ip = null)
+    {
+        if (string.IsNullOrWhiteSpace(ip))
+        {
+            return this.BadRequest("IP address is required.");
+        }
+
+        return await this.DisconnectPeerInternalAsync(id, ip.Trim());
     }
 
     private async Task<IActionResult> BanPeerInternalAsync(int id, string ip)
@@ -869,18 +899,100 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             return this.NotFound();
         }
 
+        var cleanIp = CleanIp(ip);
+        if (string.IsNullOrWhiteSpace(cleanIp))
+        {
+            return this.BadRequest("IP address is invalid.");
+        }
+
         if (this.blocklistService != null)
         {
-            await this.blocklistService.AddRulesAsync(new[] { ip });
+            await this.blocklistService.AddRulesAsync(new[] { cleanIp });
         }
 
         var task = this.torrentService.GetDownloadTask(id);
         if (task != null)
         {
-            await task.DisconnectPeerAsync(ip);
+            await task.DisconnectPeerAsync(cleanIp);
         }
 
-        return this.Ok(new { success = true, ip = ip, message = $"Peer {ip} banned and disconnected." });
+        return this.Ok(new { success = true, ip = cleanIp, message = $"Peer {cleanIp} banned and disconnected." });
+    }
+
+    private async Task<IActionResult> DisconnectPeerInternalAsync(int id, string ip)
+    {
+        var torrent = this.torrentService.Get(id);
+        if (torrent == null)
+        {
+            return this.NotFound();
+        }
+
+        var cleanIp = CleanIp(ip);
+        if (string.IsNullOrWhiteSpace(cleanIp))
+        {
+            return this.BadRequest("IP address is invalid.");
+        }
+
+        var task = this.torrentService.GetDownloadTask(id);
+        if (task != null)
+        {
+            await task.DisconnectPeerAsync(cleanIp);
+        }
+
+        return this.Ok(new { success = true, ip = cleanIp, message = $"Peer {cleanIp} disconnected." });
+    }
+
+    private static string CleanIp(string ip)
+    {
+        if (string.IsNullOrWhiteSpace(ip))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = ip.Trim();
+
+        if (trimmed.Contains('%'))
+        {
+            try
+            {
+                var unescaped = Uri.UnescapeDataString(trimmed);
+                if (!unescaped.Equals(trimmed, StringComparison.Ordinal))
+                {
+                    trimmed = unescaped.Trim();
+                }
+            }
+            catch
+            {
+                // Ignore URL unescape error
+            }
+        }
+
+        if (IPEndPoint.TryParse(trimmed, out var endpoint))
+        {
+            return endpoint.Address.ToString();
+        }
+
+        if (trimmed.StartsWith('[') && trimmed.EndsWith(']'))
+        {
+            trimmed = trimmed[1..^1].Trim();
+        }
+
+        if (IPAddress.TryParse(trimmed, out var address))
+        {
+            return address.ToString();
+        }
+
+        var colonCount = trimmed.Count(c => c == ':');
+        if (colonCount == 1)
+        {
+            var hostPart = trimmed.Substring(0, trimmed.IndexOf(':'));
+            if (IPAddress.TryParse(hostPart, out var ipv4))
+            {
+                return ipv4.ToString();
+            }
+        }
+
+        return trimmed;
     }
 
     [HttpGet("{id:int}/trackers")]

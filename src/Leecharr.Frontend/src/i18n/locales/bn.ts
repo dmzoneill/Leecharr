@@ -181,7 +181,9 @@ const bn: I18nTranslations = {
     "total": "মোট",
     "testing": "টেস্টিং",
     "unknownError": "অজানা ত্রুটি",
-    "noResults": "কোন মিল ট্যাগ"
+    "noResults": "কোন মিল ট্যাগ",
+    "disconnect": "সংযোগ বিচ্ছিন্ন করুন",
+    "ban": "নিষেধাজ্ঞা"
   },
   "nav": {
     "dashboard": "ড্যাশবোর্ড",
@@ -715,7 +717,11 @@ const bn: I18nTranslations = {
       "failedToRemoveTracker": "ট্র্যাকার সরাতে ব্যর্থ হয়েছে৷",
       "privateTrackerDisabledTitle": "ব্যক্তিগত ট্র্যাকার নিষ্ক্রিয় শিরোনাম",
       "openTrackerPickerTitle": "ট্র্যাকার পিকার শিরোনাম খুলুন",
-      "live3s": "Live3s"
+      "live3s": "Live3s",
+      "disconnectPeer": "পিয়ার সংযোগ বিচ্ছিন্ন করুন",
+      "banPeer": "ব্যান পিয়ার",
+      "peerDisconnected": "পিয়ার সংযোগ বিচ্ছিন্ন",
+      "peerBanned": "পিয়ার নিষিদ্ধ এবং সংযোগ বিচ্ছিন্ন"
     },
     "ratio": "অনুপাত",
     "tabs": {
@@ -1220,7 +1226,8 @@ const bn: I18nTranslations = {
     "centerTitle": "কেন্দ্র শিরোনাম",
     "torrentTitle": "টরেন্ট শিরোনাম",
     "peerTitle": "পিয়ার শিরোনাম",
-    "peerEncryptedSuffix": "পিয়ার এনক্রিপ্ট করা প্রত্যয়"
+    "peerEncryptedSuffix": "পিয়ার এনক্রিপ্ট করা প্রত্যয়",
+    "torrentNotFound": "সংযুক্ত টরেন্ট পাওয়া যায়নি"
   },
   "trackerBoost": {
     "title": "TrackerBoost ঝাঁক অপ্টিমাইজার",
@@ -2231,6 +2238,7 @@ const bn: I18nTranslations = {
       "deleteConfirm": "মুছে ফেলুন",
       "deleteSuccess": "বিভাগ \"{{name}}\" মুছে ফেলা হয়েছে",
       "deleteFailed": "বিভাগ মুছে ফেলতে ব্যর্থ হয়েছে৷",
+      "cannotDeleteDefault": "ডিফল্ট বিভাগ মুছে ফেলা যাবে না.",
       "title": "বিভাগ ব্যবস্থাপনা এবং ডিরেক্টরি রাউটিং",
       "description": "স্বয়ংক্রিয়ভাবে ফাইলগুলিকে কাস্টম সেভ পাথগুলিতে রুট করতে, হারের সীমা কার্যকর করতে এবং শেয়ার অনুপাত স্বয়ংক্রিয়-স্টপ নীতিগুলি প্রয়োগ করতে বিভাগগুলির সাথে টরেন্টগুলি সংগঠিত করুন৷",
       "configuredCount": "{{count}} কনফিগার করা বিভাগ",
@@ -2279,8 +2287,7 @@ const bn: I18nTranslations = {
         "saving": "সংরক্ষণ করা হচ্ছে...",
         "saveChanges": "পরিবর্তন সংরক্ষণ করুন",
         "createCategory": "বিভাগ তৈরি করুন"
-      },
-      "cannotDeleteDefault": "ডিফল্ট বিভাগ মুছে ফেলা যাবে না."
+      }
     },
     "notifications": {
       "chatIdPrefix": "চ্যাট আইডি:",
@@ -2910,7 +2917,9 @@ const bn: I18nTranslations = {
       "incomingPeerListeningPorts": "ইনকামিং পিয়ার লিসেনিং পোর্ট এবং UPnP",
       "configureListeningPorts": "ইনবাউন্ড বিটটরেন্ট পিয়ার সংযোগের জন্য শোনার পোর্ট কনফিগার করুন।",
       "bitTorrentListeningPort": "বিটটরেন্ট লিসেনিং পোর্ট",
+      "testPort": "টেস্ট পোর্ট",
       "testingPort": "পরীক্ষা করা হচ্ছে...",
+      "portCheckFailed": "পোর্ট চেক ব্যর্থ হয়েছে",
       "tcpUdpPort": "ইনকামিং পিয়ার সংযোগের জন্য TCP এবং UDP পোর্ট (ডিফল্ট: 51413)",
       "enableUpnpNatPmp": "UPnP/NAT-PMP পোর্ট ফরওয়ার্ডিং সক্ষম করুন",
       "automaticallyNegotiatePortForwarding": "আপনার রাউটারের সাথে স্বয়ংক্রিয়ভাবে পোর্ট ফরওয়ার্ডিং নিয়ে আলোচনা করুন",
@@ -2919,6 +2928,10 @@ const bn: I18nTranslations = {
       "networkInterfaceBinding": "নেটওয়ার্ক ইন্টারফেস বাইন্ডিং এবং ভিপিএন কিল সুইচ",
       "bindBitTorrentSockets": "বিটটরেন্ট সকেটগুলিকে একটি নির্দিষ্ট নেটওয়ার্ক ইন্টারফেসের সাথে আবদ্ধ করুন (যেমন tun0, wg0) এবং সংযোগ বিচ্ছিন্ন করার সময় ট্র্যাফিক বন্ধ করুন।",
       "bindNetworkInterface": "বাইন্ড নেটওয়ার্ক ইন্টারফেস",
+      "selectFromDetected": "সনাক্ত করা ইন্টারফেস থেকে নির্বাচন করুন",
+      "enterManually": "ম্যানুয়ালি প্রবেশ করুন",
+      "allInterfaces": "সমস্ত / যেকোনো ইন্টারফেস (ডিফল্ট)",
+      "manualEntry": "কাস্টম/ম্যানুয়াল এন্ট্রি...",
       "interfaceNameOrIp": "ইন্টারফেসের নাম (যেমন tun0, wg0, eth0) বা নির্দিষ্ট IP (সকলের জন্য ফাঁকা রাখুন)",
       "enableAutomatedVpnKillSwitch": "স্বয়ংক্রিয় VPN কিল সুইচ সক্ষম করুন",
       "immediatelyDropAllBitTorrentTransfers": "আবদ্ধ VPN ইন্টারফেস নিচে গেলে অবিলম্বে সমস্ত BitTorrent স্থানান্তর বাদ দিন",
@@ -3078,12 +3091,6 @@ const bn: I18nTranslations = {
       "clientId": "ক্লায়েন্ট আইডি",
       "clientSecret": "ক্লায়েন্ট সিক্রেট",
       "leaveBlankOrMaskedToKeepCurrentSecret": "বর্তমান গোপন রাখতে ফাঁকা বা মুখোশ রাখুন",
-      "testPort": "টেস্ট পোর্ট",
-      "portCheckFailed": "পোর্ট চেক ব্যর্থ হয়েছে",
-      "selectFromDetected": "সনাক্ত করা ইন্টারফেস থেকে নির্বাচন করুন",
-      "enterManually": "ম্যানুয়ালি প্রবেশ করুন",
-      "allInterfaces": "সমস্ত / যেকোনো ইন্টারফেস (ডিফল্ট)",
-      "manualEntry": "কাস্টম/ম্যানুয়াল এন্ট্রি...",
       "saml20": "SAML 2.0"
     },
     "subsystems": {

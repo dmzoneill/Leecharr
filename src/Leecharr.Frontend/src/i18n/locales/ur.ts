@@ -181,7 +181,9 @@ const ur: I18nTranslations = {
     "total": "کل",
     "testing": "ٹیسٹنگ",
     "unknownError": "نامعلوم خرابی۔",
-    "noResults": "کوئی مماثل ٹیگز نہیں۔"
+    "noResults": "کوئی مماثل ٹیگز نہیں۔",
+    "disconnect": "منقطع کرنا",
+    "ban": "پابندی"
   },
   "nav": {
     "dashboard": "ڈیش بورڈ",
@@ -715,7 +717,11 @@ const ur: I18nTranslations = {
       "diagReEvaluate": "Diag Re Evaluate",
       "taglibParser": "Taglib Parser",
       "prioSkip": "Prio Skip",
-      "live3s": "Live3s"
+      "live3s": "Live3s",
+      "disconnectPeer": "پیر کو منقطع کریں۔",
+      "banPeer": "بان پیر",
+      "peerDisconnected": "پیر منقطع ہو گیا۔",
+      "peerBanned": "پیر پر پابندی لگا دی گئی اور رابطہ منقطع کر دیا گیا۔"
     },
     "ratio": "تناسب",
     "tabs": {
@@ -1220,7 +1226,8 @@ const ur: I18nTranslations = {
     "centerTitle": "مرکز کا عنوان",
     "torrentTitle": "ٹورینٹ ٹائٹل",
     "peerTitle": "پیر ٹائٹل",
-    "peerEncryptedSuffix": "پیر انکرپٹڈ لاحقہ"
+    "peerEncryptedSuffix": "پیر انکرپٹڈ لاحقہ",
+    "torrentNotFound": "وابستہ ٹورینٹ نہیں ملا"
   },
   "trackerBoost": {
     "title": "TrackerBoost ہجوم کا بہترین کارساز",
@@ -2231,6 +2238,7 @@ const ur: I18nTranslations = {
       "deleteConfirm": "حذف کریں",
       "deleteSuccess": "زمرہ \"{{name}}\" حذف کر دیا گیا۔",
       "deleteFailed": "زمرہ حذف کرنے میں ناکام",
+      "cannotDeleteDefault": "پہلے سے طے شدہ زمرہ کو حذف نہیں کیا جا سکتا۔",
       "title": "زمرہ مینجمنٹ اور ڈائرکٹری روٹنگ",
       "description": "فائلوں کو اپنی مرضی کے مطابق محفوظ کرنے والے راستوں پر خود بخود روٹ کرنے، شرح کی حدود کو نافذ کرنے، اور شیئر ریشو آٹو اسٹاپ پالیسیوں کو لاگو کرنے کے لیے ٹورینٹ کو زمرہ جات کے ساتھ منظم کریں۔",
       "configuredCount": "{{count}} ترتیب شدہ زمرہ جات",
@@ -2279,8 +2287,7 @@ const ur: I18nTranslations = {
         "saving": "محفوظ کر رہا ہے...",
         "saveChanges": "تبدیلیاں محفوظ کریں",
         "createCategory": "زمرہ بنائیں"
-      },
-      "cannotDeleteDefault": "پہلے سے طے شدہ زمرہ کو حذف نہیں کیا جا سکتا۔"
+      }
     },
     "notifications": {
       "chatIdPrefix": "چیٹ ID:",
@@ -2910,7 +2917,9 @@ const ur: I18nTranslations = {
       "incomingPeerListeningPorts": "آنے والے پیر سننے والے پورٹس اور UPnP",
       "configureListeningPorts": "ان باؤنڈ BitTorrent ہم مرتبہ کنکشن کے لیے سننے کی بندرگاہوں کو ترتیب دیں۔",
       "bitTorrentListeningPort": "بٹ ٹورینٹ سننے والا پورٹ",
+      "testPort": "ٹیسٹ پورٹ",
       "testingPort": "جانچ ہو رہی ہے...",
+      "portCheckFailed": "پورٹ چیک ناکام ہو گیا۔",
       "tcpUdpPort": "آنے والے ہم مرتبہ کنکشن کے لیے TCP اور UDP پورٹ (پہلے سے طے شدہ: 51413)",
       "enableUpnpNatPmp": "UPnP/NAT-PMP پورٹ فارورڈنگ کو فعال کریں۔",
       "automaticallyNegotiatePortForwarding": "اپنے روٹر کے ساتھ خودکار طور پر پورٹ فارورڈنگ پر بات چیت کریں۔",
@@ -2919,6 +2928,10 @@ const ur: I18nTranslations = {
       "networkInterfaceBinding": "نیٹ ورک انٹرفیس بائنڈنگ اور وی پی این کِل سوئچ",
       "bindBitTorrentSockets": "BitTorrent ساکٹ کو ایک مخصوص نیٹ ورک انٹرفیس (جیسے tun0, wg0) سے باندھیں اور منقطع ہونے پر ٹریفک کو روکیں۔",
       "bindNetworkInterface": "نیٹ ورک انٹرفیس باندھیں۔",
+      "selectFromDetected": "دریافت شدہ انٹرفیس سے منتخب کریں۔",
+      "enterManually": "دستی طور پر درج کریں۔",
+      "allInterfaces": "تمام / کوئی بھی انٹرفیس (پہلے سے طے شدہ)",
+      "manualEntry": "حسب ضرورت / دستی اندراج...",
       "interfaceNameOrIp": "انٹرفیس کا نام (جیسے tun0, wg0, eth0) یا مخصوص IP (سب کے لیے خالی چھوڑ دیں)",
       "enableAutomatedVpnKillSwitch": "خودکار VPN کِل سوئچ کو فعال کریں۔",
       "immediatelyDropAllBitTorrentTransfers": "اگر پابند VPN انٹرفیس نیچے چلا جاتا ہے تو تمام BitTorrent ٹرانسفرز کو فوری طور پر چھوڑ دیں۔",
@@ -3074,12 +3087,6 @@ const ur: I18nTranslations = {
       "clientId": "کلائنٹ ID",
       "clientSecret": "کلائنٹ کا راز",
       "leaveBlankOrMaskedToKeepCurrentSecret": "موجودہ راز رکھنے کے لیے خالی یا نقاب پوش چھوڑ دیں۔",
-      "testPort": "ٹیسٹ پورٹ",
-      "portCheckFailed": "پورٹ چیک ناکام ہو گیا۔",
-      "selectFromDetected": "دریافت شدہ انٹرفیس سے منتخب کریں۔",
-      "enterManually": "دستی طور پر درج کریں۔",
-      "allInterfaces": "تمام / کوئی بھی انٹرفیس (پہلے سے طے شدہ)",
-      "manualEntry": "حسب ضرورت / دستی اندراج...",
       "leecherChokingAlgorithm": "Leecher Choking Algorithm",
       "saml20": "SAML 2.0",
       "forwardAuth": "Forward-Auth",

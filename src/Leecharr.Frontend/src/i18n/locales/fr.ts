@@ -181,6 +181,8 @@ const fr: I18nTranslations = {
     "unknownError": "Erreur inconnue",
     "noResults": "Aucune balise correspondante",
     "date": "Date",
+    "disconnect": "Déconnecter",
+    "ban": "Interdire",
     "total": "Total"
   },
   "nav": {
@@ -713,6 +715,10 @@ const fr: I18nTranslations = {
       "openTrackerPickerTitle": "Ouvrir le titre du sélecteur de suivi",
       "diagTracker": "Diag Tracker",
       "colSource": "Col Source",
+      "disconnectPeer": "Déconnecter le pair",
+      "banPeer": "Interdire les pairs",
+      "peerDisconnected": "Homologue déconnecté",
+      "peerBanned": "Pair banni et déconnecté",
       "colTier": "Col Tier",
       "colAction": "Col Action"
     },
@@ -1220,6 +1226,7 @@ const fr: I18nTranslations = {
     "torrentTitle": "Titre du torrent",
     "peerTitle": "Titre du pair",
     "peerEncryptedSuffix": "Suffixe chiffré par les pairs",
+    "torrentNotFound": "Torrent associé introuvable",
     "torrent": "Torrent"
   },
   "trackerBoost": {
@@ -2231,6 +2238,7 @@ const fr: I18nTranslations = {
       "deleteConfirm": "Supprimer",
       "deleteSuccess": "Catégorie \"{{name}}\" supprimée",
       "deleteFailed": "Échec de la suppression de la catégorie",
+      "cannotDeleteDefault": "Impossible de supprimer la catégorie par défaut.",
       "title": "Gestion des catégories et routage des répertoires",
       "description": "Organisez les torrents avec des catégories pour acheminer automatiquement les fichiers vers des chemins de sauvegarde personnalisés, appliquer des limites de débit et appliquer des politiques d'arrêt automatique de ratio de partage.",
       "configuredCount": "{{count}} catégories configurées",
@@ -2279,8 +2287,7 @@ const fr: I18nTranslations = {
         "saving": "Économie...",
         "saveChanges": "Enregistrer les modifications",
         "createCategory": "Créer une catégorie"
-      },
-      "cannotDeleteDefault": "Impossible de supprimer la catégorie par défaut."
+      }
     },
     "notifications": {
       "chatIdPrefix": "Identifiant de discussion :",
@@ -2910,7 +2917,9 @@ const fr: I18nTranslations = {
       "incomingPeerListeningPorts": "Ports d'écoute homologues entrants et UPnP",
       "configureListeningPorts": "Configurez les ports d'écoute pour les connexions homologues BitTorrent entrantes.",
       "bitTorrentListeningPort": "Port d'écoute BitTorrent",
+      "testPort": "Port d'essai",
       "testingPort": "Essai...",
+      "portCheckFailed": "La vérification du port a échoué",
       "tcpUdpPort": "Port TCP et UDP pour les connexions homologues entrantes (par défaut : 51413)",
       "enableUpnpNatPmp": "Activer la redirection de port UPnP / NAT-PMP",
       "automaticallyNegotiatePortForwarding": "Négociez automatiquement la redirection de port avec votre routeur",
@@ -2919,6 +2928,10 @@ const fr: I18nTranslations = {
       "networkInterfaceBinding": "Liaison d'interface réseau et VPN Kill Switch",
       "bindBitTorrentSockets": "Liez les sockets BitTorrent à une interface réseau spécifique (par exemple tun0, wg0) et arrêtez le trafic lors de la déconnexion.",
       "bindNetworkInterface": "Lier l'interface réseau",
+      "selectFromDetected": "Sélectionner parmi les interfaces détectées",
+      "enterManually": "Entrez manuellement",
+      "allInterfaces": "Toutes / Toutes les interfaces (par défaut)",
+      "manualEntry": "Saisie personnalisée/manuelle...",
       "interfaceNameOrIp": "Nom de l'interface (par exemple tun0, wg0, eth0) ou adresse IP spécifique (laisser vide pour tous)",
       "enableAutomatedVpnKillSwitch": "Activer le Kill Switch VPN automatisé",
       "immediatelyDropAllBitTorrentTransfers": "Supprimez immédiatement tous les transferts BitTorrent si l'interface VPN liée tombe en panne",
@@ -3076,12 +3089,6 @@ const fr: I18nTranslations = {
       "clientId": "Identifiant client",
       "clientSecret": "Secret client",
       "leaveBlankOrMaskedToKeepCurrentSecret": "Laisser vide ou masqué pour garder le secret actuel",
-      "testPort": "Port d'essai",
-      "portCheckFailed": "La vérification du port a échoué",
-      "selectFromDetected": "Sélectionner parmi les interfaces détectées",
-      "enterManually": "Entrez manuellement",
-      "allInterfaces": "Toutes / Toutes les interfaces (par défaut)",
-      "manualEntry": "Saisie personnalisée/manuelle...",
       "version": "Version",
       "oidc": "OIDC",
       "openIdConnectOidc": "OpenID Connect (OIDC)"

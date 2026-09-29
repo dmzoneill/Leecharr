@@ -696,7 +696,7 @@ public class TorrentControllerTest
     }
 
     [Test]
-    public async Task DisconnectPeer_WhenValid_AddsToBlocklistAndDisconnects()
+    public async Task DisconnectPeer_WhenValid_DisconnectsWithoutAddingToBlocklist()
     {
         var torrent = new Torrent { Id = 1, Name = "Test Torrent" };
         this.torrentService.Get(1).Returns(torrent);
@@ -705,6 +705,86 @@ public class TorrentControllerTest
         this.torrentService.GetDownloadTask(1).Returns(downloadTask);
 
         var result = await this.controller.DisconnectPeer(1, "10.0.0.5");
+        result.Should().BeOfType<OkObjectResult>();
+
+        await this.blocklistService.DidNotReceive().AddRulesAsync(Arg.Any<IEnumerable<string>>());
+        await downloadTask.Received(1).DisconnectPeerAsync("10.0.0.5");
+    }
+
+    [Test]
+    public async Task DisconnectPeer_WithPortAndIpv6_StripsPortAndDisconnects()
+    {
+        var torrent = new Torrent { Id = 1, Name = "Test Torrent" };
+        this.torrentService.Get(1).Returns(torrent);
+
+        var downloadTask = Substitute.For<IDownloadTask>();
+        this.torrentService.GetDownloadTask(1).Returns(downloadTask);
+
+        var result = await this.controller.DisconnectPeer(1, "[2001:db8::1]:51413");
+        result.Should().BeOfType<OkObjectResult>();
+
+        await this.blocklistService.DidNotReceive().AddRulesAsync(Arg.Any<IEnumerable<string>>());
+        await downloadTask.Received(1).DisconnectPeerAsync("2001:db8::1");
+    }
+
+    [Test]
+    public async Task DisconnectPeerPost_WhenValid_DisconnectsWithoutAddingToBlocklist()
+    {
+        var torrent = new Torrent { Id = 1, Name = "Test Torrent" };
+        this.torrentService.Get(1).Returns(torrent);
+
+        var downloadTask = Substitute.For<IDownloadTask>();
+        this.torrentService.GetDownloadTask(1).Returns(downloadTask);
+
+        var result = await this.controller.DisconnectPeerPost(1, new DisconnectPeerRequest { Ip = "10.0.0.5:6881" });
+        result.Should().BeOfType<OkObjectResult>();
+
+        await this.blocklistService.DidNotReceive().AddRulesAsync(Arg.Any<IEnumerable<string>>());
+        await downloadTask.Received(1).DisconnectPeerAsync("10.0.0.5");
+    }
+
+    [Test]
+    public async Task BanPeer_WithPort_StripsPortAndAddsToBlocklist()
+    {
+        var torrent = new Torrent { Id = 1, Name = "Test Torrent" };
+        this.torrentService.Get(1).Returns(torrent);
+
+        var downloadTask = Substitute.For<IDownloadTask>();
+        this.torrentService.GetDownloadTask(1).Returns(downloadTask);
+
+        var result = await this.controller.BanPeer(1, new BanPeerRequest { Ip = "10.0.0.5:6881" });
+        result.Should().BeOfType<OkObjectResult>();
+
+        await this.blocklistService.Received(1).AddRulesAsync(Arg.Is<IEnumerable<string>>(r => r.Contains("10.0.0.5")));
+        await downloadTask.Received(1).DisconnectPeerAsync("10.0.0.5");
+    }
+
+    [Test]
+    public async Task BanPeer_WithIpv6AndPort_StripsPortAndAddsToBlocklist()
+    {
+        var torrent = new Torrent { Id = 1, Name = "Test Torrent" };
+        this.torrentService.Get(1).Returns(torrent);
+
+        var downloadTask = Substitute.For<IDownloadTask>();
+        this.torrentService.GetDownloadTask(1).Returns(downloadTask);
+
+        var result = await this.controller.BanPeer(1, new BanPeerRequest { Ip = "[2001:db8::1]:51413" });
+        result.Should().BeOfType<OkObjectResult>();
+
+        await this.blocklistService.Received(1).AddRulesAsync(Arg.Is<IEnumerable<string>>(r => r.Contains("2001:db8::1")));
+        await downloadTask.Received(1).DisconnectPeerAsync("2001:db8::1");
+    }
+
+    [Test]
+    public async Task BanPeerByPath_WhenValid_AddsToBlocklistAndDisconnects()
+    {
+        var torrent = new Torrent { Id = 1, Name = "Test Torrent" };
+        this.torrentService.Get(1).Returns(torrent);
+
+        var downloadTask = Substitute.For<IDownloadTask>();
+        this.torrentService.GetDownloadTask(1).Returns(downloadTask);
+
+        var result = await this.controller.BanPeerByPath(1, "10.0.0.5:6881");
         result.Should().BeOfType<OkObjectResult>();
 
         await this.blocklistService.Received(1).AddRulesAsync(Arg.Is<IEnumerable<string>>(r => r.Contains("10.0.0.5")));

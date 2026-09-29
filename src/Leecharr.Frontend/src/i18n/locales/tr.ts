@@ -181,7 +181,9 @@ const tr: I18nTranslations = {
     "total": "Toplam",
     "testing": "Test",
     "unknownError": "Bilinmeyen Hata",
-    "noResults": "Eşleşen etiket yok"
+    "noResults": "Eşleşen etiket yok",
+    "disconnect": "Bağlantıyı kes",
+    "ban": "Yasak"
   },
   "nav": {
     "dashboard": "Kontrol Paneli",
@@ -715,7 +717,11 @@ const tr: I18nTranslations = {
       "trackerRemovedSuccess": "Takipçi Başarıyla Kaldırıldı",
       "failedToRemoveTracker": "İzleyici Kaldırılamadı",
       "privateTrackerDisabledTitle": "Özel Takip Devre Dışı Bırakılan Başlık",
-      "openTrackerPickerTitle": "İzleyici Seçici Başlığını Aç"
+      "openTrackerPickerTitle": "İzleyici Seçici Başlığını Aç",
+      "disconnectPeer": "Eş Bağlantısını Kes",
+      "banPeer": "Arkadaşı Yasakla",
+      "peerDisconnected": "Eş bağlantısı kesildi",
+      "peerBanned": "Akran yasaklandı ve bağlantısı kesildi"
     },
     "ratio": "Oran",
     "tabs": {
@@ -1220,6 +1226,7 @@ const tr: I18nTranslations = {
     "torrentTitle": "Torrent Başlığı",
     "peerTitle": "Akran Unvanı",
     "peerEncryptedSuffix": "Eş Şifreli Sonek",
+    "torrentNotFound": "İlgili torrent bulunamadı",
     "torrent": "Torrent"
   },
   "trackerBoost": {
@@ -2231,6 +2238,7 @@ const tr: I18nTranslations = {
       "deleteConfirm": "Sil",
       "deleteSuccess": "\"{{name}}\" kategorisi silindi",
       "deleteFailed": "Kategori silinemedi",
+      "cannotDeleteDefault": "Varsayılan kategori silinemiyor.",
       "title": "Kategori Yönetimi ve Dizin Yönlendirme",
       "description": "Dosyaları otomatik olarak özel kaydetme yollarına yönlendirmek, hız sınırlarını uygulamak ve paylaşım oranı otomatik durdurma ilkelerini uygulamak için torrentleri kategorilerle düzenleyin.",
       "configuredCount": "{{count}} yapılandırılmış kategoriler",
@@ -2279,8 +2287,7 @@ const tr: I18nTranslations = {
         "saving": "Kaydediliyor...",
         "saveChanges": "Değişiklikleri Kaydet",
         "createCategory": "Kategori Oluştur"
-      },
-      "cannotDeleteDefault": "Varsayılan kategori silinemiyor."
+      }
     },
     "notifications": {
       "chatIdPrefix": "Sohbet kimliği:",
@@ -2910,7 +2917,9 @@ const tr: I18nTranslations = {
       "incomingPeerListeningPorts": "Gelen Eş Dinleme Bağlantı Noktaları ve UPnP",
       "configureListeningPorts": "Gelen BitTorrent eş bağlantıları için dinleme bağlantı noktalarını yapılandırın.",
       "bitTorrentListeningPort": "BitTorrent Dinleme Bağlantı Noktası",
+      "testPort": "Test Bağlantı Noktası",
       "testingPort": "Test...",
+      "portCheckFailed": "Bağlantı noktası kontrolü başarısız oldu",
       "tcpUdpPort": "Gelen eş bağlantılar için TCP ve UDP bağlantı noktası (varsayılan: 51413)",
       "enableUpnpNatPmp": "UPnP / NAT-PMP Bağlantı Noktası Yönlendirmeyi Etkinleştir",
       "automaticallyNegotiatePortForwarding": "Yönlendiricinizle bağlantı noktası yönlendirmeyi otomatik olarak görüşün",
@@ -2919,6 +2928,10 @@ const tr: I18nTranslations = {
       "networkInterfaceBinding": "Ağ Arayüzü Bağlama ve VPN Kill Switch",
       "bindBitTorrentSockets": "BitTorrent soketlerini belirli bir ağ arayüzüne (örn. tun0, wg0) bağlayın ve bağlantı kesildiğinde trafiği durdurun.",
       "bindNetworkInterface": "Ağ Arayüzünü Bağla",
+      "selectFromDetected": "Algılanan arayüzler arasından seçim yapın",
+      "enterManually": "Manuel olarak girin",
+      "allInterfaces": "Tümü / Herhangi bir arayüz (Varsayılan)",
+      "manualEntry": "Özel / Manuel giriş...",
       "interfaceNameOrIp": "Arayüz adı (örn. tun0, wg0, eth0) veya belirli IP (tümü için boş bırakın)",
       "enableAutomatedVpnKillSwitch": "Otomatik VPN Kill Switch'i Etkinleştir",
       "immediatelyDropAllBitTorrentTransfers": "Bağlı VPN arayüzü çökerse tüm BitTorrent aktarımlarını hemen bırakın",
@@ -3078,12 +3091,6 @@ const tr: I18nTranslations = {
       "clientId": "Müşteri Kimliği",
       "clientSecret": "Müşteri Sırrı",
       "leaveBlankOrMaskedToKeepCurrentSecret": "Mevcut sırrı korumak için boş veya maskelenmiş bırakın",
-      "testPort": "Test Bağlantı Noktası",
-      "portCheckFailed": "Bağlantı noktası kontrolü başarısız oldu",
-      "selectFromDetected": "Algılanan arayüzler arasından seçim yapın",
-      "enterManually": "Manuel olarak girin",
-      "allInterfaces": "Tümü / Herhangi bir arayüz (Varsayılan)",
-      "manualEntry": "Özel / Manuel giriş...",
       "oidc": "OIDC"
     },
     "subsystems": {

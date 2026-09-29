@@ -181,7 +181,9 @@ const vi: I18nTranslations = {
     "total": "Tổng cộng",
     "testing": "Đang kiểm tra...",
     "unknownError": "Lỗi không xác định",
-    "noResults": "Không có thẻ phù hợp"
+    "noResults": "Không có thẻ phù hợp",
+    "disconnect": "Ngắt kết nối",
+    "ban": "Cấm"
   },
   "nav": {
     "dashboard": "Bảng điều khiển",
@@ -715,6 +717,10 @@ const vi: I18nTranslations = {
       "privateTrackerDisabledTitle": "Tiêu đề bị vô hiệu hóa theo dõi riêng tư",
       "openTrackerPickerTitle": "Mở tiêu đề bộ chọn theo dõi",
       "live3s": "Live3s",
+      "disconnectPeer": "Ngắt kết nối ngang hàng",
+      "banPeer": "cấm ngang hàng",
+      "peerDisconnected": "Đã ngắt kết nối ngang hàng",
+      "peerBanned": "Ngang hàng bị cấm và bị ngắt kết nối",
       "colUrl": "Col Url"
     },
     "ratio": "Tỷ lệ",
@@ -1220,6 +1226,7 @@ const vi: I18nTranslations = {
     "torrentTitle": "Tiêu đề torrent",
     "peerTitle": "Tiêu đề ngang hàng",
     "peerEncryptedSuffix": "Hậu tố được mã hóa ngang hàng",
+    "torrentNotFound": "Không tìm thấy torrent liên quan",
     "torrent": "Torrent"
   },
   "trackerBoost": {
@@ -2231,6 +2238,7 @@ const vi: I18nTranslations = {
       "deleteConfirm": "Xóa",
       "deleteSuccess": "Danh mục \"{{name}}\" đã bị xóa",
       "deleteFailed": "Không thể xóa danh mục",
+      "cannotDeleteDefault": "Không thể xóa danh mục mặc định.",
       "title": "Quản lý danh mục & định tuyến thư mục",
       "description": "Sắp xếp các torrent theo danh mục để tự động định tuyến tệp đến đường dẫn lưu tùy chỉnh, thực thi giới hạn tốc độ và áp dụng chính sách tự động dừng tỷ lệ chia sẻ.",
       "configuredCount": "{{count}} danh mục được định cấu hình",
@@ -2279,8 +2287,7 @@ const vi: I18nTranslations = {
         "saving": "Đang lưu...",
         "saveChanges": "Lưu thay đổi",
         "createCategory": "Tạo danh mục"
-      },
-      "cannotDeleteDefault": "Không thể xóa danh mục mặc định."
+      }
     },
     "notifications": {
       "chatIdPrefix": "ID trò chuyện:",
@@ -2910,7 +2917,9 @@ const vi: I18nTranslations = {
       "incomingPeerListeningPorts": "Cổng nghe ngang hàng đến & UPnP",
       "configureListeningPorts": "Định cấu hình các cổng nghe cho các kết nối ngang hàng BitTorrent gửi đến.",
       "bitTorrentListeningPort": "Cổng nghe BitTorrent",
+      "testPort": "Cổng thử nghiệm",
       "testingPort": "Đang thử nghiệm...",
+      "portCheckFailed": "Kiểm tra cổng không thành công",
       "tcpUdpPort": "Cổng TCP & UDP cho các kết nối ngang hàng đến (mặc định: 51413)",
       "enableUpnpNatPmp": "Kích hoạt tính năng chuyển tiếp cổng UPnP / NAT-PMP",
       "automaticallyNegotiatePortForwarding": "Tự động đàm phán chuyển tiếp cổng với bộ định tuyến của bạn",
@@ -2919,6 +2928,10 @@ const vi: I18nTranslations = {
       "networkInterfaceBinding": "Liên kết giao diện mạng & VPN Kill Switch",
       "bindBitTorrentSockets": "Liên kết các ổ cắm BitTorrent với một giao diện mạng cụ thể (ví dụ: tun0, wg0) và tạm dừng lưu lượng truy cập khi ngắt kết nối.",
       "bindNetworkInterface": "Giao diện mạng liên kết",
+      "selectFromDetected": "Chọn từ các giao diện được phát hiện",
+      "enterManually": "Nhập thủ công",
+      "allInterfaces": "Tất cả/Mọi giao diện (Mặc định)",
+      "manualEntry": "Nhập tùy chỉnh/thủ công...",
       "interfaceNameOrIp": "Tên giao diện (ví dụ: tun0, wg0, eth0) hoặc IP cụ thể (để trống tất cả)",
       "enableAutomatedVpnKillSwitch": "Kích hoạt tính năng Kill Switch VPN tự động",
       "immediatelyDropAllBitTorrentTransfers": "Bỏ ngay tất cả các lần chuyển BitTorrent nếu giao diện VPN bị ràng buộc bị hỏng",
@@ -3077,12 +3090,6 @@ const vi: I18nTranslations = {
       "clientId": "ID khách hàng",
       "clientSecret": "Bí mật khách hàng",
       "leaveBlankOrMaskedToKeepCurrentSecret": "Để trống hoặc che đi để giữ bí mật hiện tại",
-      "testPort": "Cổng thử nghiệm",
-      "portCheckFailed": "Kiểm tra cổng không thành công",
-      "selectFromDetected": "Chọn từ các giao diện được phát hiện",
-      "enterManually": "Nhập thủ công",
-      "allInterfaces": "Tất cả/Mọi giao diện (Mặc định)",
-      "manualEntry": "Nhập tùy chỉnh/thủ công...",
       "oidc": "OIDC",
       "saml20": "SAML 2.0"
     },

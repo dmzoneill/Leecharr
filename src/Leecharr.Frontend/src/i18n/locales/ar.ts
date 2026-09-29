@@ -181,7 +181,9 @@ const ar: I18nTranslations = {
     "total": "المجموع",
     "testing": "اختبار",
     "unknownError": "خطأ غير معروف",
-    "noResults": "لا توجد علامات مطابقة"
+    "noResults": "لا توجد علامات مطابقة",
+    "disconnect": "قطع الاتصال",
+    "ban": "حظر"
   },
   "nav": {
     "dashboard": "لوحة التحكم",
@@ -715,7 +717,11 @@ const ar: I18nTranslations = {
       "failedToRemoveTracker": "فشل في إزالة المتعقب",
       "privateTrackerDisabledTitle": "عنوان المتعقب الخاص معطل",
       "openTrackerPickerTitle": "افتح عنوان منتقي المتعقب",
-      "live3s": "Live3s"
+      "live3s": "Live3s",
+      "disconnectPeer": "افصل النظير",
+      "banPeer": "بان بير",
+      "peerDisconnected": "تم قطع اتصال الأقران",
+      "peerBanned": "الأقران المحظورة وقطع الاتصال"
     },
     "ratio": "النسبة",
     "tabs": {
@@ -1220,7 +1226,8 @@ const ar: I18nTranslations = {
     "centerTitle": "عنوان المركز",
     "torrentTitle": "عنوان تورنت",
     "peerTitle": "عنوان الأقران",
-    "peerEncryptedSuffix": "لاحقة مشفرة نظير"
+    "peerEncryptedSuffix": "لاحقة مشفرة نظير",
+    "torrentNotFound": "لم يتم العثور على السيل المرتبط"
   },
   "trackerBoost": {
     "title": "مُحسِّن TrackerBoost للأسراب",
@@ -2231,6 +2238,7 @@ const ar: I18nTranslations = {
       "deleteConfirm": "حذف",
       "deleteSuccess": "تم حذف الفئة \"__V0____\".",
       "deleteFailed": "فشل حذف الفئة",
+      "cannotDeleteDefault": "لا يمكن حذف الفئة الافتراضية.",
       "title": "إدارة الفئة وتوجيه الدليل",
       "description": "تنظيم السيول مع الفئات لتوجيه الملفات تلقائيًا إلى مسارات حفظ مخصصة، وفرض حدود للمعدل، وتطبيق سياسات الإيقاف التلقائي لنسبة المشاركة.",
       "configuredCount": "__V0____ الفئات التي تم تكوينها",
@@ -2279,8 +2287,7 @@ const ar: I18nTranslations = {
         "saving": "توفير...",
         "saveChanges": "حفظ التغييرات",
         "createCategory": "إنشاء فئة"
-      },
-      "cannotDeleteDefault": "لا يمكن حذف الفئة الافتراضية."
+      }
     },
     "notifications": {
       "chatIdPrefix": "معرف الدردشة:",
@@ -2910,7 +2917,9 @@ const ar: I18nTranslations = {
       "incomingPeerListeningPorts": "منافذ الاستماع للأقران الواردة وUPnP",
       "configureListeningPorts": "قم بتكوين منافذ الاستماع لاتصالات نظير BitTorrent الواردة.",
       "bitTorrentListeningPort": "منفذ الاستماع بت تورنت",
+      "testPort": "ميناء الاختبار",
       "testingPort": "اختبار...",
+      "portCheckFailed": "فشل فحص المنفذ",
       "tcpUdpPort": "منفذ TCP وUDP لاتصالات النظراء الواردة (الافتراضي: 51413)",
       "enableUpnpNatPmp": "تمكين إعادة توجيه منفذ UPnP / NAT-PMP",
       "automaticallyNegotiatePortForwarding": "التفاوض تلقائيًا على إعادة توجيه المنفذ مع جهاز التوجيه الخاص بك",
@@ -2919,6 +2928,10 @@ const ar: I18nTranslations = {
       "networkInterfaceBinding": "ربط واجهة الشبكة ومفتاح VPN Kill Switch",
       "bindBitTorrentSockets": "قم بربط مآخذ توصيل BitTorrent بواجهة شبكة محددة (مثل tun0 وwg0) وإيقاف حركة المرور عند قطع الاتصال.",
       "bindNetworkInterface": "ربط واجهة الشبكة",
+      "selectFromDetected": "اختر من الواجهات المكتشفة",
+      "enterManually": "أدخل يدويا",
+      "allInterfaces": "الكل / أي واجهات (افتراضي)",
+      "manualEntry": "إدخال مخصص / يدوي ...",
       "interfaceNameOrIp": "اسم الواجهة (مثل tun0 أو wg0 أو eth0) أو عنوان IP محدد (اتركه فارغًا للجميع)",
       "enableAutomatedVpnKillSwitch": "تمكين مفتاح إيقاف VPN التلقائي",
       "immediatelyDropAllBitTorrentTransfers": "قم بإسقاط جميع عمليات نقل BitTorrent فورًا في حالة تعطل واجهة VPN المقيدة",
@@ -3078,12 +3091,6 @@ const ar: I18nTranslations = {
       "clientId": "معرف العميل",
       "clientSecret": "سر العميل",
       "leaveBlankOrMaskedToKeepCurrentSecret": "اتركه فارغًا أو مقنعًا للحفاظ على السر الحالي",
-      "testPort": "ميناء الاختبار",
-      "portCheckFailed": "فشل فحص المنفذ",
-      "selectFromDetected": "اختر من الواجهات المكتشفة",
-      "enterManually": "أدخل يدويا",
-      "allInterfaces": "الكل / أي واجهات (افتراضي)",
-      "manualEntry": "إدخال مخصص / يدوي ...",
       "oidc": "OIDC"
     },
     "subsystems": {

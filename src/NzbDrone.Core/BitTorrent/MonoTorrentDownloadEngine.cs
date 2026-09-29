@@ -7124,13 +7124,17 @@ public class MonoTorrentDownloadTask : IDownloadTask
             return false;
         }
 
+        var cleanIp = CleanPeerIp(ip);
+
         try
         {
             var peers = await this.Manager.GetPeersAsync().ConfigureAwait(false);
             var matched = false;
             foreach (var peer in peers)
             {
-                if (string.Equals(peer.Uri?.Host, ip, StringComparison.OrdinalIgnoreCase))
+                var host = peer.Uri?.Host;
+                if (string.Equals(host, cleanIp, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(host, ip, StringComparison.OrdinalIgnoreCase))
                 {
                     matched = true;
                     TeardownPeerConnection(peer);
@@ -7150,6 +7154,42 @@ public class MonoTorrentDownloadTask : IDownloadTask
             this.logger.Debug(ex, "Error disconnecting peer {0} in torrent {1}", ip, this.TorrentId);
             return false;
         }
+    }
+
+    private static string CleanPeerIp(string ip)
+    {
+        if (string.IsNullOrWhiteSpace(ip))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = ip.Trim();
+        if (IPEndPoint.TryParse(trimmed, out var endpoint))
+        {
+            return endpoint.Address.ToString();
+        }
+
+        if (trimmed.StartsWith('[') && trimmed.EndsWith(']'))
+        {
+            trimmed = trimmed[1..^1].Trim();
+        }
+
+        if (IPAddress.TryParse(trimmed, out var address))
+        {
+            return address.ToString();
+        }
+
+        var colonCount = trimmed.Count(c => c == ':');
+        if (colonCount == 1)
+        {
+            var hostPart = trimmed.Substring(0, trimmed.IndexOf(':'));
+            if (IPAddress.TryParse(hostPart, out var ipv4))
+            {
+                return ipv4.ToString();
+            }
+        }
+
+        return trimmed;
     }
 
     public TorrentResourceMetrics Metrics => this.GetResourceMetrics();
