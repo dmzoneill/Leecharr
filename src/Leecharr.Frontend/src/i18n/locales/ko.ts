@@ -85,7 +85,10 @@ const ko: I18nTranslations = {
     "loadingPreview": "미리보기 로드 중",
     "binaryMediaFile": "바이너리 미디어 파일",
     "binaryPreviewNotice": "바이너리 미리보기 공지",
-    "openInTerminal": "터미널에서 열기"
+    "openInTerminal": "터미널에서 열기",
+    "folderDownloadNotSupported": "폴더 다운로드는 지원되지 않습니다. 다운로드할 개별 파일을 선택하세요.",
+    "foldersSkippedWarning": "폴더는 직접 다운로드할 수 없으며 건너뛰었습니다.",
+    "multiDownloadWarning": "여러 파일을 다운로드하는 중입니다. 일부 다운로드가 실패하는 경우 브라우저 팝업 차단 설정을 확인하세요."
   },
   "common": {
     "time": {

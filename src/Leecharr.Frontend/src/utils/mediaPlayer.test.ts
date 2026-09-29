@@ -117,6 +117,33 @@ describe("mediaPlayer: URL builders", () => {
     );
   });
 
+  it("should append apikey parameter when provided", () => {
+    assert.equal(
+      buildStreamUrl(42, 7, "secret-key"),
+      "/api/v1/torrent/42/files/7/stream?apikey=secret-key",
+    );
+    assert.equal(
+      buildDownloadUrl(42, 7, "secret-key"),
+      "/api/v1/torrent/42/files/7/download?apikey=secret-key",
+    );
+    assert.equal(
+      buildPlaylistUrl(42, 7, "secret-key"),
+      "/api/v1/torrent/42/files/7/stream.m3u?apikey=secret-key",
+    );
+    assert.equal(
+      buildFileStreamUrl("/downloads/movie.mkv", "secret-key"),
+      "/api/v1/files/stream?path=%2Fdownloads%2Fmovie.mkv&apikey=secret-key",
+    );
+    assert.equal(
+      buildFileDownloadUrl("/downloads/movie.mkv", "secret-key"),
+      "/api/v1/files/download?path=%2Fdownloads%2Fmovie.mkv&apikey=secret-key",
+    );
+    assert.equal(
+      buildFilePlaylistUrl("/downloads/movie.mkv", "secret-key"),
+      "/api/v1/files/stream.m3u?path=%2Fdownloads%2Fmovie.mkv&apikey=secret-key",
+    );
+  });
+
   it("should build absolute URLs with origin", () => {
     const abs = getAbsoluteUrl(
       "/api/v1/torrent/10/files/2/stream",

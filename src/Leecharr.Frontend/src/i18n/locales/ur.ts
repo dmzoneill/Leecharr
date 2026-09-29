@@ -85,7 +85,10 @@ const ur: I18nTranslations = {
     "loadingPreview": "پیش منظر لوڈ ہو رہا ہے۔",
     "binaryMediaFile": "بائنری میڈیا فائل",
     "binaryPreviewNotice": "بائنری پیش نظارہ نوٹس",
-    "openInTerminal": "ٹرمینل میں کھولیں۔"
+    "openInTerminal": "ٹرمینل میں کھولیں۔",
+    "folderDownloadNotSupported": "فولڈر ڈاؤن لوڈ کرنا تعاون یافتہ نہیں ہے۔ براہ کرم ڈاؤن لوڈ کرنے کے لیے انفرادی فائلوں کو منتخب کریں۔",
+    "foldersSkippedWarning": "فولڈرز کو براہ راست ڈاؤن لوڈ نہیں کیا جا سکتا اور انہیں چھوڑ دیا گیا۔",
+    "multiDownloadWarning": "متعدد فائلوں کو ڈاؤن لوڈ کرنا۔ اگر کچھ ڈاؤن لوڈز ناکام ہو جاتے ہیں، تو اپنے براؤزر کے پاپ اپ بلاکر کی ترتیبات کو چیک کریں۔"
   },
   "common": {
     "time": {

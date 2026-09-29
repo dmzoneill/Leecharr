@@ -85,7 +85,10 @@ const de: I18nTranslations = {
     "loadingPreview": "Vorschau wird geladen",
     "binaryMediaFile": "Binäre Mediendatei",
     "binaryPreviewNotice": "Hinweis zur Binärvorschau",
-    "openInTerminal": "Im Terminal öffnen"
+    "openInTerminal": "Im Terminal öffnen",
+    "folderDownloadNotSupported": "Das Herunterladen von Ordnern wird nicht unterstützt. Bitte wählen Sie einzelne Dateien zum Herunterladen aus.",
+    "foldersSkippedWarning": "Ordner können nicht direkt heruntergeladen werden und wurden übersprungen.",
+    "multiDownloadWarning": "Mehrere Dateien werden heruntergeladen. Wenn einige Downloads fehlschlagen, überprüfen Sie die Popup-Blocker-Einstellungen Ihres Browsers."
   },
   "common": {
     "time": {
