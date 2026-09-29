@@ -71,6 +71,8 @@ export const Indexers: React.FC<IndexersProps> = ({
         infoHash: release.infoHash || undefined,
         indexerId: release.indexerId,
         indexerName: release.indexerName || release.indexer || "",
+        minimumRatio: release.minimumRatio,
+        minimumSeedTime: release.minimumSeedTime,
       },
       {
         onSuccess: () => {

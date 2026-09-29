@@ -154,6 +154,8 @@ public class IndexerResourceSerializationAndTest
         testResult.Should().NotBeNull();
         testResult!.Success.Should().BeTrue();
         testResult.Message.Should().Contain("Found 2 indexers");
+        testResult.ResponseTimeMs.Should().NotBeNull();
+        testResult.ResponseTimeMs.Should().BeGreaterThanOrEqualTo(0);
     }
 
     [Test]
@@ -202,6 +204,8 @@ public class IndexerResourceSerializationAndTest
         testResult.Should().NotBeNull();
         testResult!.Success.Should().BeTrue();
         testResult.Message.Should().Contain("capabilities verified");
+        testResult.ResponseTimeMs.Should().NotBeNull();
+        testResult.ResponseTimeMs.Should().BeGreaterThanOrEqualTo(0);
     }
 
     [Test]
@@ -240,6 +244,8 @@ public class IndexerResourceSerializationAndTest
         testResult.Should().NotBeNull();
         testResult!.Success.Should().BeTrue();
         testResult.Message.Should().Be("Connected successfully to FallbackTorznab.");
+        testResult.ResponseTimeMs.Should().NotBeNull();
+        testResult.ResponseTimeMs.Should().BeGreaterThanOrEqualTo(0);
     }
 
     private class MockHttpMessageHandler : HttpMessageHandler

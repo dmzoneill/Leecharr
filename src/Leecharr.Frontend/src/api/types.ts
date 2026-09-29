@@ -1039,6 +1039,8 @@ export interface ReleaseInfo {
   isFreeleech?: boolean;
   downloadVolumeFactor?: number;
   uploadVolumeFactor?: number;
+  minimumRatio?: number;
+  minimumSeedTime?: number;
   link?: string;
   comments?: string;
 }
@@ -1051,6 +1053,8 @@ export interface DownloadReleaseRequest {
   indexerId?: number;
   indexerName?: string;
   category?: string;
+  minimumRatio?: number;
+  minimumSeedTime?: number;
 }
 
 export type TrackerProtocol = "Udp" | "Http" | "Https" | number;

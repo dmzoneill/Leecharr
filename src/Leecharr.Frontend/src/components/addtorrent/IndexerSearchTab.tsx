@@ -81,6 +81,8 @@ export function IndexerSearchTab({
         indexerId: release.indexerId,
         indexerName: release.indexerName || release.indexer || "",
         category: selectedCategory,
+        minimumRatio: release.minimumRatio,
+        minimumSeedTime: release.minimumSeedTime,
       },
       {
         onSuccess: () => {

@@ -140,6 +140,8 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
         infoHash: result.infoHash || undefined,
         indexerId: result.indexerId,
         indexerName: result.indexerName || result.indexer || "",
+        minimumRatio: result.minimumRatio,
+        minimumSeedTime: result.minimumSeedTime,
       },
       {
         onSuccess: () => {
