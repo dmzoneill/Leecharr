@@ -113,6 +113,35 @@ public class WebhookDispatcherTest
     }
 
     [Test]
+    public async Task DispatchAsync_WithHttpMethodPut_SendsPutRequest()
+    {
+        var payload = new { EventType = "OnGrab", TorrentName = "Ubuntu.iso" };
+
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", payload, null, HttpMethod.Put);
+
+        result.Should().BeTrue();
+        this.handler.SentRequests.Should().HaveCount(1);
+
+        var request = this.handler.SentRequests.Single();
+        request.Method.Should().Be(HttpMethod.Put);
+        request.RequestUri.Should().Be(new Uri("https://example.com/webhook"));
+    }
+
+    [Test]
+    public async Task DispatchAsync_WithBasicAuthHeader_AttachesAuthorizationHeader()
+    {
+        var headers = "{\"Authorization\":\"Basic YWRtaW46cGFzc3dvcmQ=\"}";
+
+        var result = await this.dispatcher.DispatchAsync("https://example.com/webhook", new { eventType = "Test" }, headers);
+
+        result.Should().BeTrue();
+        this.handler.SentRequests.Should().HaveCount(1);
+
+        var request = this.handler.SentRequests.Single();
+        request.Headers.GetValues("Authorization").Should().ContainSingle().Which.Should().Be("Basic YWRtaW46cGFzc3dvcmQ=");
+    }
+
+    [Test]
     public async Task DispatchAsync_WhenServerError500_RetriesAndSucceeds()
     {
         var attempts = 0;

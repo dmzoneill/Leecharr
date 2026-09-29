@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.BitTorrent;
@@ -328,6 +329,16 @@ public class NotificationEventHandler :
         return NotificationPayloadBuilder.ResolveCustomHeaders(implementation, settings);
     }
 
+    public static HttpMethod ResolveHttpMethod(string settings)
+    {
+        return NotificationPayloadBuilder.ResolveHttpMethod(null, settings);
+    }
+
+    public static HttpMethod ResolveHttpMethod(string implementation, string settings)
+    {
+        return NotificationPayloadBuilder.ResolveHttpMethod(implementation, settings);
+    }
+
     public static string EscapeMarkdown(string text)
     {
         return EpisodicParser.EscapeMarkdownStatic(text);
@@ -404,11 +415,12 @@ public class NotificationEventHandler :
                 var providerPayload = NotificationPayloadBuilder.BuildProviderPayload(notif.Implementation, eventType, null, null, payload, notif.Settings);
                 var targetUrl = NotificationPayloadBuilder.ResolveTargetUrl(notif.Implementation, notif.Settings);
                 var customHeaders = NotificationPayloadBuilder.ResolveCustomHeaders(notif.Implementation, notif.Settings);
+                var httpMethod = NotificationPayloadBuilder.ResolveHttpMethod(notif.Implementation, notif.Settings);
                 Task.Run(async () =>
                 {
                     try
                     {
-                        await this.webhookDispatcher.DispatchAsync(targetUrl, providerPayload, customHeaders).ConfigureAwait(false);
+                        await this.webhookDispatcher.DispatchAsync(targetUrl, providerPayload, customHeaders, httpMethod).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -554,11 +566,12 @@ public class NotificationEventHandler :
                 var providerPayload = NotificationPayloadBuilder.BuildProviderPayload(notif.Implementation, eventType, torrent, meta, payload, notif.Settings);
                 var targetUrl = NotificationPayloadBuilder.ResolveTargetUrl(notif.Implementation, notif.Settings);
                 var customHeaders = NotificationPayloadBuilder.ResolveCustomHeaders(notif.Implementation, notif.Settings);
+                var httpMethod = NotificationPayloadBuilder.ResolveHttpMethod(notif.Implementation, notif.Settings);
                 Task.Run(async () =>
                 {
                     try
                     {
-                        await this.webhookDispatcher.DispatchAsync(targetUrl, providerPayload, customHeaders).ConfigureAwait(false);
+                        await this.webhookDispatcher.DispatchAsync(targetUrl, providerPayload, customHeaders, httpMethod).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
