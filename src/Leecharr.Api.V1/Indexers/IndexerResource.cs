@@ -190,6 +190,8 @@ public class IndexerTestResult
     public bool Success { get; set; }
 
     public string Message { get; set; }
+
+    public long? ResponseTimeMs { get; set; }
 }
 
 public class DownloadReleaseRequest

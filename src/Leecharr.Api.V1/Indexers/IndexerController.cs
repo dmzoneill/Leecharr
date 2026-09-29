@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
@@ -760,12 +761,14 @@ public class IndexerController : Controller
 
     private async Task<ActionResult<IndexerTestResult>> TestDirectInternal(IndexerDefinition indexer)
     {
+        var sw = Stopwatch.StartNew();
         if (indexer == null || string.IsNullOrWhiteSpace(indexer.Url))
         {
             return this.Ok(new IndexerTestResult
             {
                 Success = false,
                 Message = "Indexer URL is required.",
+                ResponseTimeMs = sw.ElapsedMilliseconds,
             });
         }
 
@@ -784,6 +787,7 @@ public class IndexerController : Controller
             {
                 Success = false,
                 Message = $"URL validation failed: {ex.Message}",
+                ResponseTimeMs = sw.ElapsedMilliseconds,
             });
         }
 
@@ -819,6 +823,7 @@ public class IndexerController : Controller
                         {
                             Success = true,
                             Message = $"Connected successfully to Prowlarr. Found {count} indexers.",
+                            ResponseTimeMs = sw.ElapsedMilliseconds,
                         });
                     }
                     catch
@@ -832,6 +837,7 @@ public class IndexerController : Controller
                         {
                             Success = true,
                             Message = "Connected successfully to Prowlarr.",
+                            ResponseTimeMs = sw.ElapsedMilliseconds,
                         });
                     }
                 }
@@ -854,6 +860,7 @@ public class IndexerController : Controller
                     {
                         Success = true,
                         Message = "Connected successfully to Prowlarr.",
+                        ResponseTimeMs = sw.ElapsedMilliseconds,
                     });
                 }
 
@@ -866,6 +873,7 @@ public class IndexerController : Controller
                 {
                     Success = false,
                     Message = $"Prowlarr returned HTTP {(int)response.StatusCode} {response.StatusCode}.",
+                    ResponseTimeMs = sw.ElapsedMilliseconds,
                 });
             }
             catch (Exception ex)
@@ -879,6 +887,7 @@ public class IndexerController : Controller
                 {
                     Success = false,
                     Message = $"Connection failed: {ex.Message}",
+                    ResponseTimeMs = sw.ElapsedMilliseconds,
                 });
             }
         }
@@ -957,6 +966,7 @@ public class IndexerController : Controller
                 {
                     Success = true,
                     Message = msg,
+                    ResponseTimeMs = sw.ElapsedMilliseconds,
                 });
             }
 
@@ -969,6 +979,7 @@ public class IndexerController : Controller
             {
                 Success = false,
                 Message = $"Connection failed: {testResult.ErrorMessage}",
+                ResponseTimeMs = sw.ElapsedMilliseconds,
             });
         }
         catch (Exception ex)
@@ -982,6 +993,7 @@ public class IndexerController : Controller
             {
                 Success = false,
                 Message = $"Connection failed: {ex.Message}",
+                ResponseTimeMs = sw.ElapsedMilliseconds,
             });
         }
     }
