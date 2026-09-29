@@ -2,6 +2,12 @@ import { useState } from "react";
 import { useHealthChecks } from "../api/hooks";
 import { useTranslation } from "../i18n";
 
+export function isHealthOk(c: { type?: string | number }): boolean {
+  return (
+    c.type?.toLowerCase?.() === "ok" || (c.type as unknown as number) === 0
+  );
+}
+
 function HealthAlerts() {
   const { t } = useTranslation();
   const { data: checks } = useHealthChecks();
@@ -10,7 +16,8 @@ function HealthAlerts() {
   const alerts = (checks ?? []).filter((c) => {
     if (dismissed.includes(c.source)) return false;
     // Handle both string and numeric enum from ASP.NET Core
-    const isOk = c.type === "Ok" || (c.type as unknown as number) === 0;
+    const isOk =
+      c.type?.toLowerCase() === "ok" || (c.type as unknown as number) === 0;
     if (isOk) return false;
     if (!c.message || c.message.trim() === "") return false;
     return true;

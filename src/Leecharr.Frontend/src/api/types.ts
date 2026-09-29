@@ -263,7 +263,15 @@ export interface DiskSpaceInfo {
 }
 
 export interface HealthCheckResult {
-  type: "Ok" | "Notice" | "Warning" | "Error";
+  type:
+    | "ok"
+    | "notice"
+    | "warning"
+    | "error"
+    | "Ok"
+    | "Notice"
+    | "Warning"
+    | "Error";
   source: string;
   message: string | null;
 }
