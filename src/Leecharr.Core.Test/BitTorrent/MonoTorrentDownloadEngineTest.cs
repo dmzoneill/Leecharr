@@ -4339,11 +4339,47 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
-    public void CalculateDynamicDiskCacheBytes_HighDownloadThroughput_ScalesUpTo1GB()
+    public void CalculateDynamicDiskCacheBytes_HighDownloadThroughput_ScalesUpToMemoryLimit()
     {
-        // 500 MB/s download throughput with sufficient RAM (8 GB) scales to 1 GB
-        var cacheBytes = this.engine.CalculateDynamicDiskCacheBytes(500L * 1024L * 1024L, effectiveMemoryOverride: 8L * 1024L * 1024L * 1024L);
-        cacheBytes.Should().Be(1024 * 1024 * 1024);
+        // 500 MB/s download throughput with 4 GB container/host memory scales to 25% (1 GB)
+        var cacheBytes = this.engine.CalculateDynamicDiskCacheBytes(500L * 1024L * 1024L, effectiveMemoryOverride: 4L * 1024L * 1024L * 1024L);
+        cacheBytes.Should().Be(1024L * 1024L * 1024L);
+    }
+
+    [Test]
+    public void CalculateDynamicDiskCacheBytes_WhenConfiguredTo4096MB_AndSufficientMemory_Allows4096MB()
+    {
+        this.configService.DiskWriteCacheSizeMb.Returns(4096);
+        this.configService.DiskCacheBytes.Returns(4096L * 1024L * 1024L);
+
+        // 32 GB memory gives 25% = 8 GB, allowing full 4096 MB allocation
+        var cacheBytes = this.engine.CalculateDynamicDiskCacheBytes(effectiveMemoryOverride: 32L * 1024L * 1024L * 1024L);
+
+        cacheBytes.Should().Be(4096L * 1024L * 1024L);
+    }
+
+    [Test]
+    public void CalculateDynamicDiskCacheBytes_WhenConfiguredAbove4096MB_ClampsToUpperLimitOf4096MB()
+    {
+        this.configService.DiskWriteCacheSizeMb.Returns(8192);
+        this.configService.DiskCacheBytes.Returns(8192L * 1024L * 1024L);
+
+        // 64 GB memory allows up to 16 GB, but engine upperLimit clamps to 4096 MB
+        var cacheBytes = this.engine.CalculateDynamicDiskCacheBytes(effectiveMemoryOverride: 64L * 1024L * 1024L * 1024L);
+
+        cacheBytes.Should().Be(4096L * 1024L * 1024L);
+    }
+
+    [Test]
+    public void CalculateDynamicDiskCacheBytes_WhenConfiguredTo4096MB_WithConstrainedMemory_CapsAt25Percent()
+    {
+        this.configService.DiskWriteCacheSizeMb.Returns(4096);
+        this.configService.DiskCacheBytes.Returns(4096L * 1024L * 1024L);
+
+        // 8 GB host memory enforces 25% safety ceiling (2048 MB)
+        var cacheBytes = this.engine.CalculateDynamicDiskCacheBytes(effectiveMemoryOverride: 8L * 1024L * 1024L * 1024L);
+
+        cacheBytes.Should().Be(2048L * 1024L * 1024L);
     }
 
     [Test]
@@ -4989,7 +5025,35 @@ public class MonoTorrentDownloadEngineTest
         var method = typeof(MonoTorrentDownloadEngine).GetMethod("GetConfiguredCachePolicy", BindingFlags.NonPublic | BindingFlags.Instance);
         method.Should().NotBeNull();
         var result = method!.Invoke(this.engine, null);
-        result.Should().Be(MonoTorrent.PieceWriter.CachePolicy.WritesOnly);
+        result.Should().Be(CachePolicy.WritesOnly);
+    }
+
+    [Test]
+    public void CachePolicy_MapsNone_WhenConfiguredAsNone()
+    {
+        this.configService.DiskCachePolicy.Returns("None");
+        this.engine.GetConfiguredCachePolicy().Should().Be(CachePolicy.None);
+    }
+
+    [Test]
+    public void CachePolicy_MapsNoneCaseInsensitive_WhenConfiguredAsNone()
+    {
+        this.configService.DiskCachePolicy.Returns("none");
+        this.engine.GetConfiguredCachePolicy().Should().Be(CachePolicy.None);
+    }
+
+    [Test]
+    public void CachePolicy_MapsReadsAndWrites_WhenConfiguredAsReadsAndWrites()
+    {
+        this.configService.DiskCachePolicy.Returns("ReadsAndWrites");
+        this.engine.GetConfiguredCachePolicy().Should().Be(CachePolicy.ReadsAndWrites);
+    }
+
+    [Test]
+    public void CachePolicy_DefaultsToWritesOnly_WhenConfiguredWithUnknownValue()
+    {
+        this.configService.DiskCachePolicy.Returns("InvalidPolicy");
+        this.engine.GetConfiguredCachePolicy().Should().Be(CachePolicy.WritesOnly);
     }
 
     private static MonoTorrent.PieceHash CreatePieceHash(Memory<byte> v1, Memory<byte> v2)
