@@ -46,13 +46,18 @@ export const DiskStorageBadge: React.FC<DiskStorageBadgeProps> = ({
         (d.path && d.path.toLowerCase().includes("download")) ||
         (d.label && d.label.toLowerCase().includes("download")),
     ) ?? diskSpaces[0];
-  const freeBytes = primary.freeSpace ?? 0;
-  const totalBytes = primary.totalSpace ?? 1;
+  const freeBytes =
+    primary.freeSpace && primary.freeSpace > 0 ? primary.freeSpace : 0;
+  const totalBytes =
+    primary.totalSpace && primary.totalSpace > 0 ? primary.totalSpace : 0;
   const usedBytes = Math.max(0, totalBytes - freeBytes);
-  const usedPct = Math.min(
-    100,
-    Math.max(0, Math.round((usedBytes / totalBytes) * 100)),
-  );
+  const calculatedUsedPct =
+    totalBytes > 0 ? Math.round((usedBytes / totalBytes) * 100) : 0;
+  const usedPct =
+    !isNaN(calculatedUsedPct) && isFinite(calculatedUsedPct)
+      ? Math.min(100, Math.max(0, calculatedUsedPct))
+      : 0;
+  const freePct = totalBytes > 0 ? Math.max(0, 100 - usedPct) : 0;
   const isLowSpace = freeBytes < 20 * 1024 * 1024 * 1024 || usedPct >= 90; // < 20GB or > 90% full
 
   const displayPath =
@@ -68,7 +73,7 @@ export const DiskStorageBadge: React.FC<DiskStorageBadgeProps> = ({
         displayPath,
         formatBytes(freeBytes),
         formatBytes(totalBytes),
-        (100 - usedPct).toString(),
+        freePct.toString(),
       ])}
       style={{
         display: "inline-flex",
