@@ -150,6 +150,8 @@ const ko: I18nTranslations = {
     "ok": "확인",
     "clear": "지우기",
     "remove": "제거",
+    "disconnect": "연결 끊기",
+    "ban": "반",
     "details": "세부정보",
     "configure": "구성",
     "connect": "연결",
@@ -181,9 +183,7 @@ const ko: I18nTranslations = {
     "total": "총",
     "testing": "테스트 중...",
     "unknownError": "알 수 없는 오류",
-    "noResults": "일치하는 태그가 없습니다.",
-    "disconnect": "연결 끊기",
-    "ban": "반"
+    "noResults": "일치하는 태그가 없습니다."
   },
   "nav": {
     "dashboard": "대시보드",
@@ -658,6 +658,10 @@ const ko: I18nTranslations = {
       "failedToLoadPeers": "피어를 로드하지 못했습니다.",
       "noPeers": "피어 없음",
       "peersPrivateBanner": "피어 개인 배너",
+      "disconnectPeer": "피어 연결 끊기",
+      "banPeer": "피어 금지",
+      "peerDisconnected": "피어 연결이 끊어졌습니다.",
+      "peerBanned": "피어가 금지되고 연결이 끊어졌습니다.",
       "colAddress": "Col 주소",
       "colClient": "Col 클라이언트",
       "colUpSpeed": "Col Up 속도",
@@ -717,11 +721,7 @@ const ko: I18nTranslations = {
       "failedToRemoveTracker": "추적기를 제거하지 못했습니다.",
       "privateTrackerDisabledTitle": "개인 추적기 비활성화됨 제목",
       "openTrackerPickerTitle": "트래커 선택기 제목 열기",
-      "live3s": "Live3s",
-      "disconnectPeer": "피어 연결 끊기",
-      "banPeer": "피어 금지",
-      "peerDisconnected": "피어 연결이 끊어졌습니다.",
-      "peerBanned": "피어가 금지되고 연결이 끊어졌습니다."
+      "live3s": "Live3s"
     },
     "ratio": "비율",
     "tabs": {
@@ -1218,6 +1218,7 @@ const ko: I18nTranslations = {
     "zoomOut": "축소(-)",
     "resetZoom": "확대/축소 재설정(100%)",
     "openInTorrents": "급류에서 열기",
+    "torrentNotFound": "관련 토렌트를 찾을 수 없습니다",
     "subtitle": "피어 스웜 시각화 맵",
     "swarms": "스웜",
     "peers": "피어",
@@ -1226,8 +1227,7 @@ const ko: I18nTranslations = {
     "centerTitle": "센터 제목",
     "torrentTitle": "토렌트 제목",
     "peerTitle": "동료 직함",
-    "peerEncryptedSuffix": "피어 암호화 접미사",
-    "torrentNotFound": "관련 토렌트를 찾을 수 없습니다"
+    "peerEncryptedSuffix": "피어 암호화 접미사"
   },
   "trackerBoost": {
     "title": "TrackerBoost 스웜 최적화기",
@@ -2446,7 +2446,18 @@ const ko: I18nTranslations = {
       "created": "알림 \"{{name}}\"이(가) 생성되었습니다.",
       "createFailed": "알림을 생성하지 못했습니다.",
       "saveFailed": "알림을 저장하지 못했습니다.",
-      "openEndpoint": "열린 끝점({{url}})"
+      "openEndpoint": "열린 끝점({{url}})",
+      "customScript": "사용자 정의 스크립트",
+      "scriptPath": "스크립트 경로",
+      "scriptPathHint": "호스트의 실행 가능한 스크립트 파일 경로",
+      "scriptArguments": "인수",
+      "scriptArgumentsHint": "스크립트에 전달되는 선택적 명령줄 인수",
+      "customScriptPathRequired": "맞춤 스크립트 경로가 필요합니다.",
+      "tags": "태그",
+      "tagsHint": "이 태그와 일치하는 토렌트에 대해서만 알림을 보냅니다(모두 비워 두세요).",
+      "loadingTags": "태그 로드 중...",
+      "noTagsAvailable": "구성된 태그가 없습니다. 설정 > 태그에서 태그를 생성하세요.",
+      "clearTags": "태그 지우기"
     },
     "indexers": {
       "newRssRule": "새로운 RSS 규칙",

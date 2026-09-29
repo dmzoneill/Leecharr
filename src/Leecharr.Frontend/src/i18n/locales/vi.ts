@@ -150,6 +150,8 @@ const vi: I18nTranslations = {
     "ok": "OK",
     "clear": "Xóa sạch",
     "remove": "Xóa",
+    "disconnect": "Ngắt kết nối",
+    "ban": "Cấm",
     "details": "Chi tiết",
     "configure": "Cấu hình",
     "connect": "Kết nối",
@@ -181,9 +183,7 @@ const vi: I18nTranslations = {
     "total": "Tổng cộng",
     "testing": "Đang kiểm tra...",
     "unknownError": "Lỗi không xác định",
-    "noResults": "Không có thẻ phù hợp",
-    "disconnect": "Ngắt kết nối",
-    "ban": "Cấm"
+    "noResults": "Không có thẻ phù hợp"
   },
   "nav": {
     "dashboard": "Bảng điều khiển",
@@ -658,6 +658,10 @@ const vi: I18nTranslations = {
       "failedToLoadPeers": "Không thể tải ngang hàng",
       "noPeers": "Không có đồng nghiệp",
       "peersPrivateBanner": "Biểu ngữ riêng tư ngang hàng",
+      "disconnectPeer": "Ngắt kết nối ngang hàng",
+      "banPeer": "cấm ngang hàng",
+      "peerDisconnected": "Đã ngắt kết nối ngang hàng",
+      "peerBanned": "Ngang hàng bị cấm và bị ngắt kết nối",
       "colAddress": "Địa chỉ Col",
       "colClient": "Khách hàng Col",
       "colUpSpeed": "Tăng tốc độ Col",
@@ -717,10 +721,6 @@ const vi: I18nTranslations = {
       "privateTrackerDisabledTitle": "Tiêu đề bị vô hiệu hóa theo dõi riêng tư",
       "openTrackerPickerTitle": "Mở tiêu đề bộ chọn theo dõi",
       "live3s": "Live3s",
-      "disconnectPeer": "Ngắt kết nối ngang hàng",
-      "banPeer": "cấm ngang hàng",
-      "peerDisconnected": "Đã ngắt kết nối ngang hàng",
-      "peerBanned": "Ngang hàng bị cấm và bị ngắt kết nối",
       "colUrl": "Col Url"
     },
     "ratio": "Tỷ lệ",
@@ -1218,6 +1218,7 @@ const vi: I18nTranslations = {
     "zoomOut": "Thu nhỏ (-)",
     "resetZoom": "Đặt lại thu phóng (100%)",
     "openInTorrents": "Mở trong torrent",
+    "torrentNotFound": "Không tìm thấy torrent liên quan",
     "subtitle": "Bản đồ trực quan mạng peer swarm",
     "swarms": "Swarm",
     "peers": "Peer",
@@ -1226,7 +1227,6 @@ const vi: I18nTranslations = {
     "torrentTitle": "Tiêu đề torrent",
     "peerTitle": "Tiêu đề ngang hàng",
     "peerEncryptedSuffix": "Hậu tố được mã hóa ngang hàng",
-    "torrentNotFound": "Không tìm thấy torrent liên quan",
     "torrent": "Torrent"
   },
   "trackerBoost": {
@@ -2446,7 +2446,18 @@ const vi: I18nTranslations = {
       "createFailed": "Không tạo được thông báo",
       "saveFailed": "Không lưu được thông báo",
       "openEndpoint": "Điểm cuối mở ({{url}})",
-      "telegramBot": "Telegram Bot"
+      "telegramBot": "Telegram Bot",
+      "customScript": "Tập lệnh tùy chỉnh",
+      "scriptPath": "Đường dẫn tập lệnh",
+      "scriptPathHint": "Đường dẫn đến tập lệnh thực thi trên máy chủ",
+      "scriptArguments": "Đối số",
+      "scriptArgumentsHint": "Đối số dòng lệnh tùy chọn được chuyển tới tập lệnh",
+      "customScriptPathRequired": "Đường dẫn tập lệnh tùy chỉnh là bắt buộc",
+      "tags": "Thẻ",
+      "tagsHint": "Chỉ gửi thông báo cho các torrent phù hợp với các thẻ này (để trống tất cả)",
+      "loadingTags": "Đang tải thẻ...",
+      "noTagsAvailable": "Không có thẻ nào được định cấu hình. Tạo thẻ trong Cài đặt > Thẻ.",
+      "clearTags": "Xóa thẻ"
     },
     "indexers": {
       "newRssRule": "Quy tắc RSS mới",

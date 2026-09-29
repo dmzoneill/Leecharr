@@ -150,6 +150,8 @@ const zhCN: I18nTranslations = {
     "ok": "确定",
     "clear": "清空终端",
     "remove": "消除",
+    "disconnect": "断开",
+    "ban": "禁止",
     "details": "细节",
     "configure": "配置",
     "connect": "连接",
@@ -181,9 +183,7 @@ const zhCN: I18nTranslations = {
     "total": "合计",
     "testing": "测试",
     "unknownError": "未知错误",
-    "noResults": "没有匹配的标签",
-    "disconnect": "断开",
-    "ban": "禁止"
+    "noResults": "没有匹配的标签"
   },
   "nav": {
     "dashboard": "仪表盘",
@@ -658,6 +658,10 @@ const zhCN: I18nTranslations = {
       "failedToLoadPeers": "无法加载对等点",
       "noPeers": "没有同行",
       "peersPrivateBanner": "同行私人横幅",
+      "disconnectPeer": "断开对等点连接",
+      "banPeer": "班佩尔",
+      "peerDisconnected": "对等点已断开连接",
+      "peerBanned": "对等方被禁止并断开连接",
       "colAddress": "山口地址",
       "colClient": "上校客户",
       "colUpSpeed": "山口上升速度",
@@ -717,11 +721,7 @@ const zhCN: I18nTranslations = {
       "failedToRemoveTracker": "删除跟踪器失败",
       "privateTrackerDisabledTitle": "私人跟踪器禁用标题",
       "openTrackerPickerTitle": "打开跟踪器选取器标题",
-      "live3s": "Live3s",
-      "disconnectPeer": "断开对等点连接",
-      "banPeer": "班佩尔",
-      "peerDisconnected": "对等点已断开连接",
-      "peerBanned": "对等方被禁止并断开连接"
+      "live3s": "Live3s"
     },
     "ratio": "比率",
     "tabs": {
@@ -1218,6 +1218,7 @@ const zhCN: I18nTranslations = {
     "zoomOut": "缩小 (-)",
     "resetZoom": "重置缩放 (100%)",
     "openInTorrents": "在种子中打开",
+    "torrentNotFound": "未找到相关种子",
     "subtitle": "字幕",
     "swarms": "蜂群",
     "peers": "同行",
@@ -1226,8 +1227,7 @@ const zhCN: I18nTranslations = {
     "centerTitle": "标题居中",
     "torrentTitle": "种子标题",
     "peerTitle": "同级头衔",
-    "peerEncryptedSuffix": "对等加密后缀",
-    "torrentNotFound": "未找到相关种子"
+    "peerEncryptedSuffix": "对等加密后缀"
   },
   "trackerBoost": {
     "title": "TrackerBoost 智能加速器",
@@ -2446,7 +2446,18 @@ const zhCN: I18nTranslations = {
       "created": "通知“{{name}}”已创建",
       "createFailed": "创建通知失败",
       "saveFailed": "保存通知失败",
-      "openEndpoint": "打开端点({{url}})"
+      "openEndpoint": "打开端点({{url}})",
+      "customScript": "自定义脚本",
+      "scriptPath": "脚本路径",
+      "scriptPathHint": "主机上可执行脚本文件的路径",
+      "scriptArguments": "论点",
+      "scriptArgumentsHint": "传递给脚本的可选命令行参数",
+      "customScriptPathRequired": "需要自定义脚本路径",
+      "tags": "标签",
+      "tagsHint": "仅发送与这些标签匹配的种子的通知（全部留空）",
+      "loadingTags": "正在加载标签...",
+      "noTagsAvailable": "没有配置标签。在“设置”>“标签”中创建标签。",
+      "clearTags": "清除标签"
     },
     "indexers": {
       "newRssRule": "新建RSS规则",
