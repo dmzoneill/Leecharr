@@ -33,6 +33,7 @@ export interface HistoryDetailModalProps {
   onSearch: (title: string) => void;
   onReAdd: (id: number, title: string) => void;
   isReAdding: boolean;
+  onDelete?: (id: number, title: string) => void;
   onFilterByTracker: (tracker: string) => void;
 }
 
@@ -46,6 +47,7 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
   onSearch,
   onReAdd,
   isReAdding,
+  onDelete,
   onFilterByTracker,
 }) => {
   const { t } = useTranslation();
@@ -784,15 +786,27 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
               gap: "0.5rem",
             }}
           >
-            <button
-              className="btn btn-outline"
-              onClick={() => onEnrich(item)}
-              disabled={isEnriching}
-              title={t("history.syncMetadata")}
-              style={{ fontSize: "0.85rem" }}
-            >
-              {t("history.syncArrMetadata")}
-            </button>
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+              <button
+                className="btn btn-outline"
+                onClick={() => onEnrich(item)}
+                disabled={isEnriching}
+                title={t("history.syncMetadata")}
+                style={{ fontSize: "0.85rem" }}
+              >
+                {t("history.syncArrMetadata")}
+              </button>
+              {onDelete && (
+                <button
+                  className="btn btn-danger"
+                  onClick={() => onDelete(item.id, item.title)}
+                  title={t("history.deleteHistoricalRecord")}
+                  style={{ fontSize: "0.85rem" }}
+                >
+                  {t("history.deleteHistoricalRecord")}
+                </button>
+              )}
+            </div>
 
             <div style={{ display: "flex", gap: "0.5rem" }}>
               <button
