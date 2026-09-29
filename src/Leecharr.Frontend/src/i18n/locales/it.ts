@@ -1328,6 +1328,7 @@ const it: I18nTranslations = {
       "noValidUrlsFound": "Nessun URL valido trovato",
       "processedTrackersToast": "Tracker elaborati Toast",
       "bulkImportFailed": "Importazione in blocco non riuscita",
+      "importFailedGeneric": "Impossibile analizzare l'elenco dei tracker o il formato della risposta del tracker non è valido",
       "automationTitle": "Titolo dell'automazione",
       "automationDesc": "Automazione Desc",
       "autoBoostLabel": "Etichetta di potenziamento automatico",
@@ -1351,8 +1352,7 @@ const it: I18nTranslations = {
       "bulkImportModalTitle": "Titolo modale di importazione in blocco",
       "bulkImportModalHint": "Suggerimento modale per l'importazione in blocco",
       "importingTrackers": "Importazione di tracker",
-      "importTrackersBtn": "Importa tracker Btn",
-      "importFailedGeneric": "Impossibile analizzare l'elenco dei tracker o il formato della risposta del tracker non è valido"
+      "importTrackersBtn": "Importa tracker Btn"
     },
     "logs": {
       "logsClearedToast": "Toast cancellato dai registri",
@@ -1839,6 +1839,8 @@ const it: I18nTranslations = {
   },
   "developer": {
     "database": "Esplora database",
+    "testing": "Corridore di prova",
+    "debugger": "Debug Web",
     "events": "Autobus per eventi",
     "commands": "Inviatore di comandi",
     "network": "Intercettazione di rete",
@@ -1846,7 +1848,8 @@ const it: I18nTranslations = {
     "config": "Matrice di configurazione",
     "diagnostics": "Diagnostica e salute",
     "terminal": "Terminale interattivo",
-    "apiReference": "Riferimento API (spavalderia)"
+    "apiReference": "Riferimento API (spavalderia)",
+    "repl": "REPL Sandbox"
   },
   "settings": {
     "title": "Impostazioni & Configurazione",
@@ -4122,6 +4125,7 @@ const it: I18nTranslations = {
       "torrentSizeBytes": "💾 Dimensioni del torrent (byte)",
       "numbersMetrics": "Numeri e metriche",
       "eg10737418241Gb": "per esempio. 1073741824 (1 GB)",
+      "500Mb": "500MB",
       "1Gb": "1GB",
       "5Gb": "5GB",
       "10Gb": "10GB",
@@ -4157,7 +4161,6 @@ const it: I18nTranslations = {
       "customVariableExpression": "✏️ Variabile/Espressione personalizzata...",
       "customDynamic": "Personalizzato/Dinamico",
       "egInputsminratioOrSystemfreedi": "per esempio. ${inputs.minRatio} o ${system.freeDiskBytes}",
-      "500Mb": "500 MB",
       "20x": "2.0x",
       "30x": "3.0x",
       "50x": "5.0x"
@@ -4496,6 +4499,16 @@ const it: I18nTranslations = {
     "reconnecting": "Connessione in tempo reale persa. Tentativo di riconnessione...",
     "disconnected": "Disconnesso dal server. Fare clic su Riprova ora per riconnettersi.",
     "retryNow": "Riprova ora"
+  },
+  "ariaLive": {
+    "torrentCompleted": "Torrent \"{{name}}\" completato, ora in seeding",
+    "torrentError": "Il torrent \"{{name}}\" ha riscontrato un errore: {{error}}",
+    "downloadInterrupted": "download interrotto"
+  },
+  "aria": {
+    "torrentCompleted": "Torrent \"{{name}}\" completato, ora in seeding",
+    "torrentError": "Il torrent \"{{name}}\" ha riscontrato un errore: {{error}}",
+    "downloadInterrupted": "download interrotto"
   }
 };
 

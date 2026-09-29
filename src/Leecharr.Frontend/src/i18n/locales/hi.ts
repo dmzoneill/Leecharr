@@ -1328,6 +1328,7 @@ const hi: I18nTranslations = {
       "noValidUrlsFound": "कोई वैध यूआरएल नहीं मिला",
       "processedTrackersToast": "प्रसंस्कृत ट्रैकर्स टोस्ट",
       "bulkImportFailed": "थोक आयात विफल",
+      "importFailedGeneric": "ट्रैकर सूची या अमान्य ट्रैकर प्रतिक्रिया प्रारूप को पार्स करने में विफल",
       "automationTitle": "स्वचालन शीर्षक",
       "automationDesc": "स्वचालन विवरण",
       "autoBoostLabel": "ऑटो बूस्ट लेबल",
@@ -1351,8 +1352,7 @@ const hi: I18nTranslations = {
       "bulkImportModalTitle": "थोक आयात मॉडल शीर्षक",
       "bulkImportModalHint": "थोक आयात मॉडल संकेत",
       "importingTrackers": "ट्रैकर्स आयात करना",
-      "importTrackersBtn": "आयात ट्रैकर्स बीटीएन",
-      "importFailedGeneric": "ट्रैकर सूची या अमान्य ट्रैकर प्रतिक्रिया प्रारूप को पार्स करने में विफल"
+      "importTrackersBtn": "आयात ट्रैकर्स बीटीएन"
     },
     "logs": {
       "logsClearedToast": "लॉग साफ़ टोस्ट",
@@ -1839,6 +1839,9 @@ const hi: I18nTranslations = {
   },
   "developer": {
     "database": "डेटाबेस एक्सप्लोरर",
+    "testing": "परीक्षण धावक",
+    "repl": "आरईपीएल सैंडबॉक्स",
+    "debugger": "वेब डिबगर",
     "events": "इवेंट बस",
     "commands": "आदेश प्रेषक",
     "network": "नेटवर्क वायरटैप",
@@ -4496,6 +4499,16 @@ const hi: I18nTranslations = {
     "reconnecting": "रीयल-टाइम कनेक्शन खो गया. फिर से कनेक्ट करने का प्रयास...",
     "disconnected": "सर्वर से डिस्कनेक्ट हो गया. पुनः कनेक्ट करने के लिए अभी पुनः प्रयास करें पर क्लिक करें।",
     "retryNow": "अभी पुनः प्रयास करें"
+  },
+  "ariaLive": {
+    "torrentCompleted": "टोरेंट \"{{name}}\" पूरा हो गया है, अब सीडिंग हो रही है",
+    "torrentError": "टोरेंट \"{{name}}\" में त्रुटि आई: {{error}}",
+    "downloadInterrupted": "डाउनलोड बाधित"
+  },
+  "aria": {
+    "torrentCompleted": "टोरेंट \"{{name}}\" पूरा हो गया है, अब सीडिंग हो रही है",
+    "torrentError": "टोरेंट \"{{name}}\" में त्रुटि आई: {{error}}",
+    "downloadInterrupted": "डाउनलोड बाधित"
   }
 };
 

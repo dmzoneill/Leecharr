@@ -1839,9 +1839,9 @@ export type I18nTranslations = {
   };
   "developer": {
     "database": string;
-    "testing"?: string;
-    "repl"?: string;
-    "debugger"?: string;
+    "testing": string;
+    "repl": string;
+    "debugger": string;
     "events": string;
     "commands": string;
     "network": string;
@@ -4499,5 +4499,15 @@ export type I18nTranslations = {
     "reconnecting": string;
     "disconnected": string;
     "retryNow": string;
+  };
+  "ariaLive": {
+    "torrentCompleted": string;
+    "torrentError": string;
+    "downloadInterrupted": string;
+  };
+  "aria": {
+    "torrentCompleted": string;
+    "torrentError": string;
+    "downloadInterrupted": string;
   };
 };

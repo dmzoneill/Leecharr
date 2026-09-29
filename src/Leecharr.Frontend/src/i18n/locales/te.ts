@@ -1328,6 +1328,7 @@ const te: I18nTranslations = {
       "noValidUrlsFound": "చెల్లుబాటు అయ్యే URLలు ఏవీ కనుగొనబడలేదు",
       "processedTrackersToast": "ప్రాసెస్ చేయబడిన ట్రాకర్స్ టోస్ట్",
       "bulkImportFailed": "బల్క్ దిగుమతి విఫలమైంది",
+      "importFailedGeneric": "ట్రాకర్ జాబితా లేదా చెల్లని ట్రాకర్ ప్రతిస్పందన ఆకృతిని అన్వయించడంలో విఫలమైంది",
       "automationTitle": "ఆటోమేషన్ శీర్షిక",
       "automationDesc": "ఆటోమేషన్ డెస్క్",
       "autoBoostLabel": "ఆటో బూస్ట్ లేబుల్",
@@ -1351,8 +1352,7 @@ const te: I18nTranslations = {
       "bulkImportModalTitle": "బల్క్ ఇంపోర్ట్ మోడల్ టైటిల్",
       "bulkImportModalHint": "బల్క్ దిగుమతి మోడల్ సూచన",
       "importingTrackers": "ట్రాకర్లను దిగుమతి చేస్తోంది",
-      "importTrackersBtn": "Btn ట్రాకర్లను దిగుమతి చేయండి",
-      "importFailedGeneric": "ట్రాకర్ జాబితా లేదా చెల్లని ట్రాకర్ ప్రతిస్పందన ఆకృతిని అన్వయించడంలో విఫలమైంది"
+      "importTrackersBtn": "Btn ట్రాకర్లను దిగుమతి చేయండి"
     },
     "logs": {
       "logsClearedToast": "లాగ్స్ క్లియర్ టోస్ట్",
@@ -1839,6 +1839,9 @@ const te: I18nTranslations = {
   },
   "developer": {
     "database": "డేటాబేస్ ఎక్స్‌ప్లోరర్",
+    "testing": "టెస్ట్ రన్నర్",
+    "repl": "REPL శాండ్‌బాక్స్",
+    "debugger": "వెబ్ డీబగ్గర్",
     "events": "ఈవెంట్ బస్",
     "commands": "కమాండ్ డిస్పాచర్",
     "network": "నెట్‌వర్క్ వైర్‌టాప్",
@@ -4496,6 +4499,16 @@ const te: I18nTranslations = {
     "reconnecting": "రియల్ టైమ్ కనెక్షన్ కోల్పోయింది. మళ్లీ కనెక్ట్ చేయడానికి ప్రయత్నిస్తోంది...",
     "disconnected": "సర్వర్ నుండి డిస్‌కనెక్ట్ చేయబడింది. మళ్లీ కనెక్ట్ చేయడానికి ఇప్పుడు మళ్లీ ప్రయత్నించండి క్లిక్ చేయండి.",
     "retryNow": "ఇప్పుడు మళ్లీ ప్రయత్నించండి"
+  },
+  "ariaLive": {
+    "torrentCompleted": "టోరెంట్ \"{{name}}\" పూర్తయింది, ఇప్పుడు సీడింగ్",
+    "torrentError": "టోరెంట్ \"{{name}}\" లోపాన్ని ఎదుర్కొంది: {{error}}",
+    "downloadInterrupted": "డౌన్‌లోడ్ అంతరాయం కలిగింది"
+  },
+  "aria": {
+    "torrentCompleted": "టోరెంట్ \"{{name}}\" పూర్తయింది, ఇప్పుడు సీడింగ్",
+    "torrentError": "టోరెంట్ \"{{name}}\" లోపాన్ని ఎదుర్కొంది: {{error}}",
+    "downloadInterrupted": "డౌన్‌లోడ్ అంతరాయం కలిగింది"
   }
 };
 

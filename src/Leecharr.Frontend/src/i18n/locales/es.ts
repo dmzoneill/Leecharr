@@ -1327,6 +1327,7 @@ const es: I18nTranslations = {
       "noValidUrlsFound": "No se encontraron URL válidas",
       "processedTrackersToast": "Tostada de rastreadores procesados",
       "bulkImportFailed": "Error de importación masiva",
+      "importFailedGeneric": "No se pudo analizar la lista de rastreadores o el formato de respuesta del rastreador no es válido",
       "automationTitle": "Título de automatización",
       "automationDesc": "Descripción de automatización",
       "autoBoostLabel": "Etiqueta de impulso automático",
@@ -1350,8 +1351,7 @@ const es: I18nTranslations = {
       "bulkImportModalTitle": "Título modal de importación masiva",
       "bulkImportModalHint": "Sugerencia modal de importación masiva",
       "importingTrackers": "Importación de rastreadores",
-      "importTrackersBtn": "Importar rastreadores Btn",
-      "importFailedGeneric": "No se pudo analizar la lista de rastreadores o el formato de respuesta del rastreador no es válido"
+      "importTrackersBtn": "Importar rastreadores Btn"
     },
     "logs": {
       "logsClearedToast": "Registros eliminados Brindis",
@@ -1839,6 +1839,9 @@ const es: I18nTranslations = {
   },
   "developer": {
     "database": "Explorador de bases de datos",
+    "testing": "Corredor de pruebas",
+    "repl": "Zona de pruebas REPL",
+    "debugger": "Depurador web",
     "events": "Autobús de eventos",
     "commands": "Despachador de comandos",
     "network": "Escuchas telefónicas de red",
@@ -4496,6 +4499,16 @@ const es: I18nTranslations = {
     "reconnecting": "Se perdió la conexión en tiempo real. Intentando volver a conectar...",
     "disconnected": "Desconectado del servidor. Haga clic en Reintentar ahora para volver a conectarse.",
     "retryNow": "Reintentar ahora"
+  },
+  "ariaLive": {
+    "torrentCompleted": "Torrente \"{{name}}\" completado, ahora sembrando",
+    "torrentError": "Error encontrado en el torrente \"{{name}}\": {{error}}",
+    "downloadInterrupted": "descarga interrumpida"
+  },
+  "aria": {
+    "torrentCompleted": "Torrente \"{{name}}\" completado, ahora sembrando",
+    "torrentError": "Error encontrado en el torrente \"{{name}}\": {{error}}",
+    "downloadInterrupted": "descarga interrumpida"
   }
 };
 

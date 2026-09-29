@@ -1328,6 +1328,7 @@ const ko: I18nTranslations = {
       "noValidUrlsFound": "유효한 URL을 찾을 수 없습니다.",
       "processedTrackersToast": "가공된 트래커 토스트",
       "bulkImportFailed": "대량 가져오기 실패",
+      "importFailedGeneric": "추적기 목록을 구문 분석하지 못했거나 추적기 응답 형식이 잘못되었습니다.",
       "automationTitle": "자동화 제목",
       "automationDesc": "자동화 설명",
       "autoBoostLabel": "자동 부스트 라벨",
@@ -1351,8 +1352,7 @@ const ko: I18nTranslations = {
       "bulkImportModalTitle": "대량 가져오기 모달 제목",
       "bulkImportModalHint": "대량 가져오기 모달 힌트",
       "importingTrackers": "트래커 가져오기",
-      "importTrackersBtn": "수입 추적기 Btn",
-      "importFailedGeneric": "추적기 목록을 구문 분석하지 못했거나 추적기 응답 형식이 잘못되었습니다."
+      "importTrackersBtn": "수입 추적기 Btn"
     },
     "logs": {
       "logsClearedToast": "로그 삭제 토스트",
@@ -1839,6 +1839,9 @@ const ko: I18nTranslations = {
   },
   "developer": {
     "database": "데이터베이스 탐색기",
+    "testing": "테스트러너",
+    "repl": "REPL 샌드박스",
+    "debugger": "웹 디버거",
     "events": "이벤트 버스",
     "commands": "명령 디스패처",
     "network": "네트워크 도청",
@@ -4496,6 +4499,16 @@ const ko: I18nTranslations = {
     "reconnecting": "실시간 연결이 끊어졌습니다. 다시 연결을 시도하는 중...",
     "disconnected": "서버와의 연결이 끊어졌습니다. 다시 연결하려면 지금 다시 시도를 클릭하세요.",
     "retryNow": "지금 다시 시도"
+  },
+  "ariaLive": {
+    "torrentCompleted": "토렌트 \"{{name}}\" 완료, 현재 시드 중",
+    "torrentError": "토렌트 \"{{name}}\"에 오류가 발생했습니다: {{error}}",
+    "downloadInterrupted": "다운로드가 중단되었습니다"
+  },
+  "aria": {
+    "torrentCompleted": "토렌트 \"{{name}}\" 완료, 현재 시드 중",
+    "torrentError": "토렌트 \"{{name}}\"에 오류가 발생했습니다: {{error}}",
+    "downloadInterrupted": "다운로드가 중단되었습니다"
   }
 };
 

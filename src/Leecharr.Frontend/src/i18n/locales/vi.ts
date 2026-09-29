@@ -1328,6 +1328,7 @@ const vi: I18nTranslations = {
       "noValidUrlsFound": "Không tìm thấy Url hợp lệ",
       "processedTrackersToast": "Bánh mì nướng theo dõi đã được xử lý",
       "bulkImportFailed": "Nhập hàng loạt không thành công",
+      "importFailedGeneric": "Không thể phân tích cú pháp danh sách trình theo dõi hoặc định dạng phản hồi của trình theo dõi không hợp lệ",
       "automationTitle": "Tiêu đề tự động hóa",
       "automationDesc": "Mô tả tự động hóa",
       "autoBoostLabel": "Nhãn tăng cường tự động",
@@ -1351,8 +1352,7 @@ const vi: I18nTranslations = {
       "bulkImportModalTitle": "Tiêu đề phương thức nhập số lượng lớn",
       "bulkImportModalHint": "Gợi ý phương thức nhập số lượng lớn",
       "importingTrackers": "Nhập trình theo dõi",
-      "importTrackersBtn": "Công cụ theo dõi nhập khẩu Btn",
-      "importFailedGeneric": "Không thể phân tích cú pháp danh sách trình theo dõi hoặc định dạng phản hồi của trình theo dõi không hợp lệ"
+      "importTrackersBtn": "Công cụ theo dõi nhập khẩu Btn"
     },
     "logs": {
       "logsClearedToast": "Nhật ký đã xóa bánh mì nướng",
@@ -1839,6 +1839,9 @@ const vi: I18nTranslations = {
   },
   "developer": {
     "database": "Trình khám phá cơ sở dữ liệu",
+    "testing": "Người chạy thử",
+    "repl": "Hộp cát REPL",
+    "debugger": "Trình gỡ lỗi web",
     "events": "Xe buýt sự kiện",
     "commands": "Bộ điều phối lệnh",
     "network": "Nghe lén mạng",
@@ -4496,6 +4499,16 @@ const vi: I18nTranslations = {
     "reconnecting": "Mất kết nối thời gian thực. Đang cố gắng kết nối lại...",
     "disconnected": "Đã ngắt kết nối khỏi máy chủ. Bấm vào Thử lại ngay để kết nối lại.",
     "retryNow": "Thử lại ngay bây giờ"
+  },
+  "ariaLive": {
+    "torrentCompleted": "Torrent \"{{name}}\" đã hoàn tất, hiện đang gieo hạt",
+    "torrentError": "Torrent \"{{name}}\" gặp lỗi: {{error}}",
+    "downloadInterrupted": "tải xuống bị gián đoạn"
+  },
+  "aria": {
+    "torrentCompleted": "Torrent \"{{name}}\" đã hoàn tất, hiện đang gieo hạt",
+    "torrentError": "Torrent \"{{name}}\" gặp lỗi: {{error}}",
+    "downloadInterrupted": "tải xuống bị gián đoạn"
   }
 };
 

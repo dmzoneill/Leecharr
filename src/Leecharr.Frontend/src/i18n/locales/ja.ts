@@ -1328,6 +1328,7 @@ const ja: I18nTranslations = {
       "noValidUrlsFound": "有効な URL が見つかりません",
       "processedTrackersToast": "処理されたトラッカーのトースト",
       "bulkImportFailed": "一括インポートに失敗しました",
+      "importFailedGeneric": "トラッカー リストの解析に失敗したか、トラッカー応答形式が無効です",
       "automationTitle": "自動化のタイトル",
       "automationDesc": "自動化の説明",
       "autoBoostLabel": "オートブーストラベル",
@@ -1351,8 +1352,7 @@ const ja: I18nTranslations = {
       "bulkImportModalTitle": "一括インポートモーダルタイトル",
       "bulkImportModalHint": "一括インポートモーダルヒント",
       "importingTrackers": "トラッカーのインポート",
-      "importTrackersBtn": "トラッカーのインポートボタン",
-      "importFailedGeneric": "トラッカー リストの解析に失敗したか、トラッカー応答形式が無効です"
+      "importTrackersBtn": "トラッカーのインポートボタン"
     },
     "logs": {
       "logsClearedToast": "ログクリアトースト",
@@ -1839,6 +1839,9 @@ const ja: I18nTranslations = {
   },
   "developer": {
     "database": "データベースエクスプローラー",
+    "testing": "テストランナー",
+    "repl": "REPLサンドボックス",
+    "debugger": "ウェブデバッガー",
     "events": "イベントバス",
     "commands": "コマンドディスパッチャ",
     "network": "ネットワーク盗聴",
@@ -4496,6 +4499,16 @@ const ja: I18nTranslations = {
     "reconnecting": "リアルタイム接続が失われました。再接続しようとしています...",
     "disconnected": "サーバーから切断されました。 「今すぐ再試行」をクリックして再接続します。",
     "retryNow": "今すぐ再試行してください"
+  },
+  "ariaLive": {
+    "torrentCompleted": "トレント「{{name}}」が完了し、現在シード中です",
+    "torrentError": "トレント「{{name}}」でエラーが発生しました: {{error}}",
+    "downloadInterrupted": "ダウンロードが中断されました"
+  },
+  "aria": {
+    "torrentCompleted": "トレント「{{name}}」が完了し、現在シード中です",
+    "torrentError": "トレント「{{name}}」でエラーが発生しました: {{error}}",
+    "downloadInterrupted": "ダウンロードが中断されました"
   }
 };
 

@@ -1328,6 +1328,7 @@ const mr: I18nTranslations = {
       "noValidUrlsFound": "कोणतीही वैध Url आढळली नाही",
       "processedTrackersToast": "प्रक्रिया केलेले ट्रॅकर्स टोस्ट",
       "bulkImportFailed": "मोठ्या प्रमाणात आयात अयशस्वी",
+      "importFailedGeneric": "ट्रॅकर सूची किंवा अवैध ट्रॅकर प्रतिसाद स्वरूप पार्स करण्यात अयशस्वी",
       "automationTitle": "ऑटोमेशन शीर्षक",
       "automationDesc": "ऑटोमेशन वर्णन",
       "autoBoostLabel": "ऑटो बूस्ट लेबल",
@@ -1351,8 +1352,7 @@ const mr: I18nTranslations = {
       "bulkImportModalTitle": "मोठ्या प्रमाणात आयात मॉडेल शीर्षक",
       "bulkImportModalHint": "मोठ्या प्रमाणात आयात मॉडेल इशारा",
       "importingTrackers": "ट्रॅकर्स आयात करत आहे",
-      "importTrackersBtn": "आयात ट्रॅकर्स Btn",
-      "importFailedGeneric": "ट्रॅकर सूची किंवा अवैध ट्रॅकर प्रतिसाद स्वरूप पार्स करण्यात अयशस्वी"
+      "importTrackersBtn": "आयात ट्रॅकर्स Btn"
     },
     "logs": {
       "logsClearedToast": "लॉग साफ टोस्ट",
@@ -1839,6 +1839,9 @@ const mr: I18nTranslations = {
   },
   "developer": {
     "database": "डेटाबेस एक्सप्लोरर",
+    "testing": "चाचणी धावपटू",
+    "repl": "REPL सँडबॉक्स",
+    "debugger": "वेब डीबगर",
     "events": "कार्यक्रम बस",
     "commands": "कमांड डिस्पॅचर",
     "network": "नेटवर्क वायरटॅप",
@@ -4496,6 +4499,16 @@ const mr: I18nTranslations = {
     "reconnecting": "रिअल-टाइम कनेक्शन गमावले. पुन्हा कनेक्ट करण्याचा प्रयत्न करत आहे...",
     "disconnected": "सर्व्हरवरून डिस्कनेक्ट झाले. पुन्हा कनेक्ट करण्यासाठी आता पुन्हा प्रयत्न करा क्लिक करा.",
     "retryNow": "आता पुन्हा प्रयत्न करा"
+  },
+  "ariaLive": {
+    "torrentCompleted": "टोरेंट \"{{name}}\" पूर्ण झाले, आता बीजन",
+    "torrentError": "टोरेंट \"{{name}}\" मध्ये त्रुटी आली: {{error}}",
+    "downloadInterrupted": "डाउनलोड व्यत्यय आला"
+  },
+  "aria": {
+    "torrentCompleted": "टोरेंट \"{{name}}\" पूर्ण झाले, आता बीजन",
+    "torrentError": "टोरेंट \"{{name}}\" मध्ये त्रुटी आली: {{error}}",
+    "downloadInterrupted": "डाउनलोड व्यत्यय आला"
   }
 };
 

@@ -1328,6 +1328,7 @@ const bn: I18nTranslations = {
       "noValidUrlsFound": "কোন বৈধ Urls পাওয়া যায়নি",
       "processedTrackersToast": "প্রক্রিয়াজাত ট্র্যাকার টোস্ট",
       "bulkImportFailed": "বাল্ক আমদানি ব্যর্থ হয়েছে৷",
+      "importFailedGeneric": "ট্র্যাকার তালিকা বা অবৈধ ট্র্যাকার প্রতিক্রিয়া বিন্যাস পার্স করতে ব্যর্থ হয়েছে",
       "automationTitle": "অটোমেশন শিরোনাম",
       "automationDesc": "অটোমেশন বিবরণ",
       "autoBoostLabel": "অটো বুস্ট লেবেল",
@@ -1351,8 +1352,7 @@ const bn: I18nTranslations = {
       "bulkImportModalTitle": "বাল্ক আমদানি মডেল শিরোনাম",
       "bulkImportModalHint": "বাল্ক আমদানি মডেল ইঙ্গিত",
       "importingTrackers": "ট্র্যাকার আমদানি করা",
-      "importTrackersBtn": "আমদানি ট্র্যাকার Btn",
-      "importFailedGeneric": "ট্র্যাকার তালিকা বা অবৈধ ট্র্যাকার প্রতিক্রিয়া বিন্যাস পার্স করতে ব্যর্থ হয়েছে"
+      "importTrackersBtn": "আমদানি ট্র্যাকার Btn"
     },
     "logs": {
       "logsClearedToast": "লগ সাফ টোস্ট",
@@ -1839,6 +1839,9 @@ const bn: I18nTranslations = {
   },
   "developer": {
     "database": "ডাটাবেস এক্সপ্লোরার",
+    "testing": "টেস্ট রানার",
+    "repl": "REPL স্যান্ডবক্স",
+    "debugger": "ওয়েব ডিবাগার",
     "events": "ইভেন্ট বাস",
     "commands": "কমান্ড প্রেরণকারী",
     "network": "নেটওয়ার্ক ওয়্যারট্যাপ",
@@ -4496,6 +4499,16 @@ const bn: I18nTranslations = {
     "reconnecting": "রিয়েল-টাইম সংযোগ হারিয়েছে। পুনরায় সংযোগ করার চেষ্টা করা হচ্ছে...",
     "disconnected": "সার্ভার থেকে সংযোগ বিচ্ছিন্ন। পুনঃসংযোগ করতে এখনই পুনরায় চেষ্টা করুন ক্লিক করুন৷",
     "retryNow": "এখনই আবার চেষ্টা করুন"
+  },
+  "ariaLive": {
+    "torrentCompleted": "টরেন্ট \"{{name}}\" সম্পন্ন হয়েছে, এখন বীজ বপন করা হচ্ছে",
+    "torrentError": "টরেন্ট \"{{name}}\" ত্রুটির সম্মুখীন হয়েছে: {{error}}",
+    "downloadInterrupted": "ডাউনলোড ব্যাহত"
+  },
+  "aria": {
+    "torrentCompleted": "টরেন্ট \"{{name}}\" সম্পন্ন হয়েছে, এখন বীজ বপন করা হচ্ছে",
+    "torrentError": "টরেন্ট \"{{name}}\" ত্রুটির সম্মুখীন হয়েছে: {{error}}",
+    "downloadInterrupted": "ডাউনলোড ব্যাহত"
   }
 };
 

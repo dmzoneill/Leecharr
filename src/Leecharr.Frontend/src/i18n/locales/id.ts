@@ -1328,6 +1328,7 @@ const id: I18nTranslations = {
       "noValidUrlsFound": "Tidak Ditemukan Url yang Valid",
       "processedTrackersToast": "Roti Bakar Pelacak Olahan",
       "bulkImportFailed": "Impor Massal Gagal",
+      "importFailedGeneric": "Gagal mengurai daftar pelacak atau format respons pelacak tidak valid",
       "automationTitle": "Judul Otomasi",
       "automationDesc": "Deskripsi Otomatisasi",
       "autoBoostLabel": "Label Peningkatan Otomatis",
@@ -1351,8 +1352,7 @@ const id: I18nTranslations = {
       "bulkImportModalTitle": "Judul Modal Impor Massal",
       "bulkImportModalHint": "Petunjuk Modal Impor Massal",
       "importingTrackers": "Mengimpor Pelacak",
-      "importTrackersBtn": "Impor Pelacak Btn",
-      "importFailedGeneric": "Gagal mengurai daftar pelacak atau format respons pelacak tidak valid"
+      "importTrackersBtn": "Impor Pelacak Btn"
     },
     "logs": {
       "logsClearedToast": "Log Dibersihkan Roti Bakar",
@@ -1839,6 +1839,9 @@ const id: I18nTranslations = {
   },
   "developer": {
     "database": "Penjelajah Basis Data",
+    "testing": "Pelari Tes",
+    "repl": "Kotak Pasir REPL",
+    "debugger": "Debugger Web",
     "events": "Bus Acara",
     "commands": "Pengirim Perintah",
     "network": "Penyadapan Jaringan",
@@ -4496,6 +4499,16 @@ const id: I18nTranslations = {
     "reconnecting": "Koneksi real-time terputus. Mencoba menyambung kembali...",
     "disconnected": "Terputus dari server. Klik Coba Lagi Sekarang untuk menyambung kembali.",
     "retryNow": "Coba lagi sekarang"
+  },
+  "ariaLive": {
+    "torrentCompleted": "Torrent \"{{name}}\" selesai, sekarang diunggulkan",
+    "torrentError": "Torrent \"{{name}}\" mengalami kesalahan: {{error}}",
+    "downloadInterrupted": "pengunduhan terhenti"
+  },
+  "aria": {
+    "torrentCompleted": "Torrent \"{{name}}\" selesai, sekarang diunggulkan",
+    "torrentError": "Torrent \"{{name}}\" mengalami kesalahan: {{error}}",
+    "downloadInterrupted": "pengunduhan terhenti"
   }
 };
 
