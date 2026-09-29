@@ -150,6 +150,8 @@ const ur: I18nTranslations = {
     "ok": "ٹھیک ہے",
     "clear": "صاف کریں",
     "remove": "ہٹائیں",
+    "disconnect": "منقطع کرنا",
+    "ban": "پابندی",
     "details": "تفصیلات",
     "configure": "ترتیب دیں",
     "connect": "منسلک کریں",
@@ -181,9 +183,7 @@ const ur: I18nTranslations = {
     "total": "کل",
     "testing": "ٹیسٹنگ",
     "unknownError": "نامعلوم خرابی۔",
-    "noResults": "کوئی مماثل ٹیگز نہیں۔",
-    "disconnect": "منقطع کرنا",
-    "ban": "پابندی"
+    "noResults": "کوئی مماثل ٹیگز نہیں۔"
   },
   "nav": {
     "dashboard": "ڈیش بورڈ",
@@ -653,6 +653,10 @@ const ur: I18nTranslations = {
       "failedToLoadPeers": "ساتھیوں کو لوڈ کرنے میں ناکام",
       "noPeers": "کوئی ساتھی نہیں۔",
       "peersPrivateBanner": "پیئر پرائیویٹ بینر",
+      "disconnectPeer": "پیر کو منقطع کریں۔",
+      "banPeer": "بان پیر",
+      "peerDisconnected": "پیر منقطع ہو گیا۔",
+      "peerBanned": "پیر پر پابندی لگا دی گئی اور رابطہ منقطع کر دیا گیا۔",
       "colAddress": "کرنل ایڈریس",
       "colClient": "کرنل کلائنٹ",
       "colUpSpeed": "کرنل اپ سپیڈ",
@@ -717,11 +721,7 @@ const ur: I18nTranslations = {
       "diagReEvaluate": "Diag Re Evaluate",
       "taglibParser": "Taglib Parser",
       "prioSkip": "Prio Skip",
-      "live3s": "Live3s",
-      "disconnectPeer": "پیر کو منقطع کریں۔",
-      "banPeer": "بان پیر",
-      "peerDisconnected": "پیر منقطع ہو گیا۔",
-      "peerBanned": "پیر پر پابندی لگا دی گئی اور رابطہ منقطع کر دیا گیا۔"
+      "live3s": "Live3s"
     },
     "ratio": "تناسب",
     "tabs": {
@@ -1218,6 +1218,7 @@ const ur: I18nTranslations = {
     "zoomOut": "زوم آؤٹ (-)",
     "resetZoom": "زوم کو دوبارہ ترتیب دیں (100%)",
     "openInTorrents": "Torrents میں کھولیں۔",
+    "torrentNotFound": "وابستہ ٹورینٹ نہیں ملا",
     "subtitle": "ذیلی عنوان",
     "swarms": "بھیڑ",
     "peers": "پیئرز",
@@ -1226,8 +1227,7 @@ const ur: I18nTranslations = {
     "centerTitle": "مرکز کا عنوان",
     "torrentTitle": "ٹورینٹ ٹائٹل",
     "peerTitle": "پیر ٹائٹل",
-    "peerEncryptedSuffix": "پیر انکرپٹڈ لاحقہ",
-    "torrentNotFound": "وابستہ ٹورینٹ نہیں ملا"
+    "peerEncryptedSuffix": "پیر انکرپٹڈ لاحقہ"
   },
   "trackerBoost": {
     "title": "TrackerBoost ہجوم کا بہترین کارساز",
@@ -2446,7 +2446,18 @@ const ur: I18nTranslations = {
       "createFailed": "اطلاع بنانے میں ناکام",
       "saveFailed": "اطلاع محفوظ کرنے میں ناکام",
       "openEndpoint": "اختتامی نقطہ کھولیں ({{url}})",
-      "discordUrl": "Discord Webhook URL"
+      "discordUrl": "Discord Webhook URL",
+      "customScript": "حسب ضرورت اسکرپٹ",
+      "scriptPath": "اسکرپٹ کا راستہ",
+      "scriptPathHint": "میزبان پر قابل عمل اسکرپٹ فائل کا راستہ",
+      "scriptArguments": "دلائل",
+      "scriptArgumentsHint": "اختیاری کمانڈ لائن دلائل اسکرپٹ کو بھیجے گئے۔",
+      "customScriptPathRequired": "حسب ضرورت اسکرپٹ کا راستہ درکار ہے۔",
+      "tags": "ٹیگز",
+      "tagsHint": "صرف ان ٹیگز سے ملنے والے ٹورینٹ کے لیے اطلاعات بھیجیں (سب کے لیے خالی چھوڑ دیں)",
+      "loadingTags": "ٹیگز لوڈ ہو رہا ہے...",
+      "noTagsAvailable": "کوئی ٹیگ کنفیگر نہیں ہیں۔ ترتیبات > ٹیگز میں ٹیگز بنائیں۔",
+      "clearTags": "ٹیگز صاف کریں۔"
     },
     "indexers": {
       "newRssRule": "آر ایس ایس کا نیا اصول",

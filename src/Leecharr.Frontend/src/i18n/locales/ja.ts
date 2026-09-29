@@ -150,6 +150,8 @@ const ja: I18nTranslations = {
     "ok": "OK",
     "clear": "クリア",
     "remove": "削除",
+    "disconnect": "切断する",
+    "ban": "禁止",
     "details": "詳細",
     "configure": "構成",
     "connect": "接続",
@@ -181,9 +183,7 @@ const ja: I18nTranslations = {
     "total": "合計",
     "testing": "テスト",
     "unknownError": "不明なエラー",
-    "noResults": "一致するタグがありません",
-    "disconnect": "切断する",
-    "ban": "禁止"
+    "noResults": "一致するタグがありません"
   },
   "nav": {
     "dashboard": "ダッシュボード",
@@ -658,6 +658,10 @@ const ja: I18nTranslations = {
       "failedToLoadPeers": "ピアのロードに失敗しました",
       "noPeers": "ピアがありません",
       "peersPrivateBanner": "ピアのプライベート バナー",
+      "disconnectPeer": "ピアの切断",
+      "banPeer": "禁止ピア",
+      "peerDisconnected": "ピアが切断されました",
+      "peerBanned": "ピアが禁止され、切断されました",
       "colAddress": "列アドレス",
       "colClient": "コルクライアント",
       "colUpSpeed": "列アップ速度",
@@ -717,11 +721,7 @@ const ja: I18nTranslations = {
       "failedToRemoveTracker": "トラッカーの削除に失敗しました",
       "privateTrackerDisabledTitle": "プライベート トラッカーの無効化されたタイトル",
       "openTrackerPickerTitle": "トラッカーピッカーのタイトルを開く",
-      "live3s": "Live3s",
-      "disconnectPeer": "ピアの切断",
-      "banPeer": "禁止ピア",
-      "peerDisconnected": "ピアが切断されました",
-      "peerBanned": "ピアが禁止され、切断されました"
+      "live3s": "Live3s"
     },
     "ratio": "共有比率",
     "tabs": {
@@ -1218,6 +1218,7 @@ const ja: I18nTranslations = {
     "zoomOut": "ズームアウト (-)",
     "resetZoom": "ズームをリセット (100%)",
     "openInTorrents": "トレントで開く",
+    "torrentNotFound": "関連するトレントが見つかりません",
     "subtitle": "字幕",
     "swarms": "群れ",
     "peers": "ピア",
@@ -1226,8 +1227,7 @@ const ja: I18nTranslations = {
     "centerTitle": "センタータイトル",
     "torrentTitle": "トレントタイトル",
     "peerTitle": "ピアタイトル",
-    "peerEncryptedSuffix": "ピア暗号化サフィックス",
-    "torrentNotFound": "関連するトレントが見つかりません"
+    "peerEncryptedSuffix": "ピア暗号化サフィックス"
   },
   "trackerBoost": {
     "title": "TrackerBoost スウォーム最適化",
@@ -2446,7 +2446,18 @@ const ja: I18nTranslations = {
       "saveFailed": "通知を保存できませんでした",
       "openEndpoint": "オープンエンドポイント ({{url}})",
       "discordUrl": "Discord Webhook URL",
-      "webhookUrl": "Webhook URL"
+      "webhookUrl": "Webhook URL",
+      "customScript": "カスタムスクリプト",
+      "scriptPath": "スクリプトパス",
+      "scriptPathHint": "ホスト上の実行可能スクリプト ファイルへのパス",
+      "scriptArguments": "引数",
+      "scriptArgumentsHint": "スクリプトに渡されるオプションのコマンドライン引数",
+      "customScriptPathRequired": "カスタム スクリプト パスが必要です",
+      "tags": "タグ",
+      "tagsHint": "これらのタグに一致するトレントの通知のみを送信します (すべて空のままにします)",
+      "loadingTags": "タグを読み込んでいます...",
+      "noTagsAvailable": "タグが設定されていません。 [設定] > [タグ] でタグを作成します。",
+      "clearTags": "タグをクリアする"
     },
     "indexers": {
       "newRssRule": "新しい RSS ルール",

@@ -149,6 +149,8 @@ const id: I18nTranslations = {
     "ok": "OK",
     "clear": "Bersihkan",
     "remove": "Hapus",
+    "disconnect": "Memutuskan",
+    "ban": "Melarang",
     "details": "Detail",
     "configure": "Konfigurasi",
     "connect": "Hubungkan",
@@ -181,8 +183,6 @@ const id: I18nTranslations = {
     "unknownError": "Kesalahan Tidak Diketahui",
     "noResults": "Tidak ada tag yang cocok",
     "status": "Status",
-    "disconnect": "Memutuskan",
-    "ban": "Melarang",
     "total": "Total"
   },
   "nav": {
@@ -656,6 +656,10 @@ const id: I18nTranslations = {
       "failedToLoadPeers": "Gagal Memuat Rekan",
       "noPeers": "Tidak Ada Rekan",
       "peersPrivateBanner": "Spanduk Pribadi Rekan",
+      "disconnectPeer": "Putuskan sambungan Rekan",
+      "banPeer": "Larangan Rekan",
+      "peerDisconnected": "Rekan terputus",
+      "peerBanned": "Rekan dilarang dan terputus",
       "colAddress": "Alamat Kol",
       "colClient": "Kol Klien",
       "colUpSpeed": "Kecepatan Col Up",
@@ -716,10 +720,6 @@ const id: I18nTranslations = {
       "openTrackerPickerTitle": "Buka Judul Pemilih Pelacak",
       "pieceMapStatus": "Status",
       "label": "Label",
-      "disconnectPeer": "Putuskan sambungan Rekan",
-      "banPeer": "Larangan Rekan",
-      "peerDisconnected": "Rekan terputus",
-      "peerBanned": "Rekan dilarang dan terputus",
       "status": "Status"
     },
     "ratio": "Rasio",
@@ -1218,6 +1218,7 @@ const id: I18nTranslations = {
     "zoomOut": "Perkecil (-)",
     "resetZoom": "Setel Ulang Zoom (100%)",
     "openInTorrents": "Buka di Torrent",
+    "torrentNotFound": "Torrent terkait tidak ditemukan",
     "subtitle": "Subjudul",
     "swarms": "Kawanan",
     "peers": "Peer",
@@ -1226,8 +1227,7 @@ const id: I18nTranslations = {
     "centerTitle": "Judul Tengah",
     "torrentTitle": "Judul Torrent",
     "peerTitle": "Judul Rekan",
-    "peerEncryptedSuffix": "Akhiran Terenkripsi Sejawat",
-    "torrentNotFound": "Torrent terkait tidak ditemukan"
+    "peerEncryptedSuffix": "Akhiran Terenkripsi Sejawat"
   },
   "trackerBoost": {
     "title": "Pengoptimal TrackerBoost",
@@ -2446,7 +2446,18 @@ const id: I18nTranslations = {
       "created": "Pemberitahuan \"{{name}}\" dibuat",
       "createFailed": "Gagal membuat notifikasi",
       "saveFailed": "Gagal menyimpan notifikasi",
-      "openEndpoint": "Buka titik akhir ({{url}})"
+      "openEndpoint": "Buka titik akhir ({{url}})",
+      "customScript": "Skrip Kustom",
+      "scriptPath": "Jalur Skrip",
+      "scriptPathHint": "Jalur ke file skrip yang dapat dieksekusi di host",
+      "scriptArguments": "Argumen",
+      "scriptArgumentsHint": "Argumen baris perintah opsional diteruskan ke skrip",
+      "customScriptPathRequired": "Jalur skrip khusus diperlukan",
+      "tags": "Tag",
+      "tagsHint": "Hanya kirimkan pemberitahuan untuk torrent yang cocok dengan tag ini (biarkan kosong untuk semua)",
+      "loadingTags": "Memuat tag...",
+      "noTagsAvailable": "Tidak ada tag yang dikonfigurasi. Buat tag di Pengaturan > Tag.",
+      "clearTags": "Hapus Tag"
     },
     "indexers": {
       "newRssRule": "Aturan RSS Baru",

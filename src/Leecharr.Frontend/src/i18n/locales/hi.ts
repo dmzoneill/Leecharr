@@ -150,6 +150,8 @@ const hi: I18nTranslations = {
     "ok": "ठीक है",
     "clear": "साफ़ करें",
     "remove": "हटाएं",
+    "disconnect": "डिस्कनेक्ट",
+    "ban": "प्रतिबंध",
     "details": "विवरण",
     "configure": "कॉन्फ़िगर करें",
     "connect": "कनेक्ट करें",
@@ -181,9 +183,7 @@ const hi: I18nTranslations = {
     "total": "कुल",
     "testing": "जाँच करना",
     "unknownError": "अज्ञात गड़बड़ी",
-    "noResults": "कोई मेल खाने वाला टैग नहीं",
-    "disconnect": "डिस्कनेक्ट",
-    "ban": "प्रतिबंध"
+    "noResults": "कोई मेल खाने वाला टैग नहीं"
   },
   "nav": {
     "dashboard": "डैशबोर्ड",
@@ -658,6 +658,10 @@ const hi: I18nTranslations = {
       "failedToLoadPeers": "साथियों को लोड करने में विफल",
       "noPeers": "कोई सहकर्मी नहीं",
       "peersPrivateBanner": "पीयर्स प्राइवेट बैनर",
+      "disconnectPeer": "सहकर्मी को डिस्कनेक्ट करें",
+      "banPeer": "बैन पीर",
+      "peerDisconnected": "पीर ने डिसकनेक्ट कर दिया",
+      "peerBanned": "सहकर्मी पर प्रतिबंध लगा दिया गया और संबंध विच्छेद कर दिया गया",
       "colAddress": "कर्नल का पता",
       "colClient": "कर्नल क्लाइंट",
       "colUpSpeed": "कॉल अप स्पीड",
@@ -717,11 +721,7 @@ const hi: I18nTranslations = {
       "failedToRemoveTracker": "ट्रैकर नहीं हटाया जा सका",
       "privateTrackerDisabledTitle": "निजी ट्रैकर अक्षम शीर्षक",
       "openTrackerPickerTitle": "ट्रैकर पिकर शीर्षक खोलें",
-      "live3s": "Live3s",
-      "disconnectPeer": "सहकर्मी को डिस्कनेक्ट करें",
-      "banPeer": "बैन पीर",
-      "peerDisconnected": "पीर ने डिसकनेक्ट कर दिया",
-      "peerBanned": "सहकर्मी पर प्रतिबंध लगा दिया गया और संबंध विच्छेद कर दिया गया"
+      "live3s": "Live3s"
     },
     "ratio": "अनुपात",
     "tabs": {
@@ -1218,6 +1218,7 @@ const hi: I18nTranslations = {
     "zoomOut": "ज़ूम आउट",
     "resetZoom": "ज़ूम रीसेट करें (100%)",
     "openInTorrents": "Torrents में खोलें",
+    "torrentNotFound": "संबद्ध टोरेंट नहीं मिला",
     "subtitle": "उपशीर्षक",
     "swarms": "छत्तेदार झुंड",
     "peers": "पीयर्स",
@@ -1226,8 +1227,7 @@ const hi: I18nTranslations = {
     "centerTitle": "मध्य शीर्षक",
     "torrentTitle": "टोरेंट शीर्षक",
     "peerTitle": "सहकर्मी का शीर्षक",
-    "peerEncryptedSuffix": "सहकर्मी एन्क्रिप्टेड प्रत्यय",
-    "torrentNotFound": "संबद्ध टोरेंट नहीं मिला"
+    "peerEncryptedSuffix": "सहकर्मी एन्क्रिप्टेड प्रत्यय"
   },
   "trackerBoost": {
     "title": "TrackerBoost झुंड अनुकूलक",
@@ -2446,7 +2446,18 @@ const hi: I18nTranslations = {
       "created": "अधिसूचना \"{{name}}\" बनाई गई",
       "createFailed": "अधिसूचना बनाने में विफल",
       "saveFailed": "अधिसूचना सहेजने में विफल",
-      "openEndpoint": "समापन बिंदु खोलें ({{url}})"
+      "openEndpoint": "समापन बिंदु खोलें ({{url}})",
+      "customScript": "कस्टम स्क्रिप्ट",
+      "scriptPath": "स्क्रिप्ट पथ",
+      "scriptPathHint": "होस्ट पर निष्पादन योग्य स्क्रिप्ट फ़ाइल का पथ",
+      "scriptArguments": "बहस",
+      "scriptArgumentsHint": "वैकल्पिक कमांड लाइन तर्क स्क्रिप्ट को पास कर दिए गए",
+      "customScriptPathRequired": "कस्टम स्क्रिप्ट पथ आवश्यक है",
+      "tags": "टैग",
+      "tagsHint": "केवल इन टैग से मेल खाने वाले टोरेंट के लिए सूचनाएं भेजें (सभी के लिए खाली छोड़ें)",
+      "loadingTags": "टैग लोड हो रहे हैं...",
+      "noTagsAvailable": "कोई टैग कॉन्फ़िगर नहीं किया गया. सेटिंग्स > टैग में टैग बनाएं।",
+      "clearTags": "टैग साफ़ करें"
     },
     "indexers": {
       "newRssRule": "आरएसएस का नया नियम",
