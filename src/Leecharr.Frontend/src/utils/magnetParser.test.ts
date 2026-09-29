@@ -111,6 +111,22 @@ describe("magnetParser: parseMagnetUri", () => {
     assert.equal(result.name, "Debian GNU/Linux 12 [Bookworm]");
   });
 
+  it("should parse uppercase MAGNET:? and mixed-case Magnet:? URIs per RFC 3986", () => {
+    const uppercaseUri =
+      "MAGNET:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Uppercase+Test";
+    const resultUpper = parseMagnetUri(uppercaseUri);
+    assert.equal(resultUpper.valid, true);
+    assert.equal(resultUpper.infoHash, "0123456789abcdef0123456789abcdef01234567");
+    assert.equal(resultUpper.name, "Uppercase Test");
+
+    const mixedCaseUri =
+      "Magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Mixed+Test";
+    const resultMixed = parseMagnetUri(mixedCaseUri);
+    assert.equal(resultMixed.valid, true);
+    assert.equal(resultMixed.infoHash, "0123456789abcdef0123456789abcdef01234567");
+    assert.equal(resultMixed.name, "Mixed Test");
+  });
+
   it("should handle invalid URIs and non-magnet links gracefully", () => {
     assert.deepEqual(parseMagnetUri(""), { valid: false, trackers: [] });
     assert.deepEqual(parseMagnetUri("http://example.com/file.torrent"), {
