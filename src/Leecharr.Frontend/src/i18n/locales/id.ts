@@ -2490,6 +2490,10 @@ const id: I18nTranslations = {
       "deleteConfirmText": "Hapus",
       "indexerDeleted": "Pengindeks \"{{name}}\" dihapus",
       "deleteIndexerFailed": "Gagal menghapus pengindeks",
+      "selectAll": "Pilih Semua",
+      "deselectAll": "Batalkan Semua Pilihan",
+      "deleteSelected": "Hapus yang Dipilih",
+      "deletingSelected": "Menghapus...",
       "badgeRss": "RSS",
       "badgeSearch": "Cari",
       "connectionPassed": "✓ Koneksi berhasil",
@@ -2559,7 +2563,12 @@ const id: I18nTranslations = {
       "indexerUpdated": "Pengindeks \"{{name}}\" diperbarui",
       "indexerCreated": "Pengindeks \"{{name}}\" dibuat",
       "updateFailed": "Gagal memperbarui pengindeks",
-      "createFailed": "Gagal membuat pengindeks"
+      "createFailed": "Gagal membuat pengindeks",
+      "selectedCount": "{{count}} dipilih",
+      "deleteSelectedTitle": "Hapus Pengindeks yang Dipilih",
+      "deleteSelectedConfirmMessage": "Apakah Anda yakin ingin menghapus {{count}} pengindeks yang dipilih?",
+      "bulkDeleteSuccess": "Menghapus {{count}} pengindeks",
+      "bulkDeleteFailed": "Gagal menghapus pengindeks yang dipilih"
     },
     "nav": {
       "groups": {

@@ -408,3 +408,103 @@ public class IndexerSearchRequest
 
     public string Type { get; set; }
 }
+
+[JsonConverter(typeof(BulkDeleteIndexersRequestConverter))]
+public class BulkDeleteIndexersRequest
+{
+    [JsonPropertyName("ids")]
+    public List<int> Ids { get; set; } = new();
+}
+
+public class BulkDeleteIndexersRequestConverter : JsonConverter<BulkDeleteIndexersRequest>
+{
+    public override BulkDeleteIndexersRequest Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.Null)
+        {
+            return new BulkDeleteIndexersRequest();
+        }
+
+        if (reader.TokenType == JsonTokenType.StartArray)
+        {
+            var request = new BulkDeleteIndexersRequest();
+            while (reader.Read())
+            {
+                if (reader.TokenType == JsonTokenType.EndArray)
+                {
+                    break;
+                }
+
+                if (reader.TokenType == JsonTokenType.Number)
+                {
+                    request.Ids.Add(reader.GetInt32());
+                }
+                else if (reader.TokenType == JsonTokenType.String && int.TryParse(reader.GetString(), out var val))
+                {
+                    request.Ids.Add(val);
+                }
+            }
+
+            return request;
+        }
+
+        if (reader.TokenType == JsonTokenType.StartObject)
+        {
+            var request = new BulkDeleteIndexersRequest();
+            while (reader.Read())
+            {
+                if (reader.TokenType == JsonTokenType.EndObject)
+                {
+                    break;
+                }
+
+                if (reader.TokenType == JsonTokenType.PropertyName)
+                {
+                    var propName = reader.GetString();
+                    reader.Read();
+
+                    if (string.Equals(propName, "ids", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(propName, "indexerIds", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (reader.TokenType == JsonTokenType.StartArray)
+                        {
+                            while (reader.Read())
+                            {
+                                if (reader.TokenType == JsonTokenType.EndArray)
+                                {
+                                    break;
+                                }
+
+                                if (reader.TokenType == JsonTokenType.Number)
+                                {
+                                    request.Ids.Add(reader.GetInt32());
+                                }
+                                else if (reader.TokenType == JsonTokenType.String && int.TryParse(reader.GetString(), out var val))
+                                {
+                                    request.Ids.Add(val);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        reader.Skip();
+                    }
+                }
+            }
+
+            return request;
+        }
+
+        return new BulkDeleteIndexersRequest();
+    }
+
+    public override void Write(Utf8JsonWriter writer, BulkDeleteIndexersRequest value, JsonSerializerOptions options)
+    {
+        writer.WriteStartObject();
+        writer.WritePropertyName("ids");
+        JsonSerializer.Serialize(writer, value.Ids, options);
+        writer.WriteEndObject();
+    }
+}
+

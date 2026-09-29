@@ -2490,6 +2490,10 @@ const zhCN: I18nTranslations = {
       "deleteConfirmText": "删除",
       "indexerDeleted": "索引器“{{name}}”已删除",
       "deleteIndexerFailed": "删除索引器失败",
+      "selectAll": "全选",
+      "deselectAll": "取消全选",
+      "deleteSelected": "删除所选种子",
+      "deletingSelected": "正在删除...",
       "badgeRss": "RSS",
       "badgeSearch": "搜索",
       "connectionPassed": "✓ 连接已通过",
@@ -2559,7 +2563,12 @@ const zhCN: I18nTranslations = {
       "indexerUpdated": "索引器“{{name}}”已更新",
       "indexerCreated": "已创建索引器“{{name}}”",
       "updateFailed": "无法更新索引器",
-      "createFailed": "创建索引器失败"
+      "createFailed": "创建索引器失败",
+      "selectedCount": "{{count}} 已选择",
+      "deleteSelectedTitle": "删除选定的索引器",
+      "deleteSelectedConfirmMessage": "您确定要删除 {{count}} 选定的索引器吗？",
+      "bulkDeleteSuccess": "已删除 {{count}} 索引器",
+      "bulkDeleteFailed": "无法删除选定的索引器"
     },
     "nav": {
       "groups": {

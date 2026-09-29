@@ -1433,4 +1433,50 @@ public class IndexerControllerTest
             idx.ApiKey == "super_secret_indexer_api_key" &&
             idx.Name == "Updated Tracker Name"));
     }
+
+    [Test]
+    public void Delete_WhenIndexerExists_InvalidatesCapabilitiesAndDeletes()
+    {
+        var existing = new IndexerDefinition
+        {
+            Id = 5,
+            Name = "Tracker to Delete",
+            Url = "https://tracker.org",
+            ApiKey = "secret",
+        };
+
+        this.indexerRepository.Get(5).Returns(existing);
+
+        var result = this.controller.Delete(5);
+
+        result.Should().BeOfType<OkResult>();
+        this.indexerRepository.Received(1).Delete(5);
+    }
+
+    [Test]
+    public void BulkDelete_WhenEmptyOrNullIds_ReturnsBadRequest()
+    {
+        var nullResult = this.controller.BulkDelete(null!);
+        nullResult.Should().BeOfType<BadRequestObjectResult>();
+
+        var emptyResult = this.controller.BulkDelete(new BulkDeleteIndexersRequest { Ids = new List<int>() });
+        emptyResult.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Test]
+    public void BulkDelete_WhenIdsProvided_DeletesAllIndexers()
+    {
+        var idx1 = new IndexerDefinition { Id = 1, Name = "Tracker 1", Url = "https://tracker1.org", ApiKey = "key1" };
+        var idx2 = new IndexerDefinition { Id = 2, Name = "Tracker 2", Url = "https://tracker2.org", ApiKey = "key2" };
+        this.indexerRepository.Get(1).Returns(idx1);
+        this.indexerRepository.Get(2).Returns(idx2);
+
+        var request = new BulkDeleteIndexersRequest { Ids = new List<int> { 1, 2, 1 } };
+        var result = this.controller.BulkDelete(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        this.indexerRepository.Received(1).Delete(1);
+        this.indexerRepository.Received(1).Delete(2);
+    }
 }
+

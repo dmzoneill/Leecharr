@@ -2490,6 +2490,10 @@ const ur: I18nTranslations = {
       "deleteConfirmText": "حذف کریں",
       "indexerDeleted": "انڈیکسر \"{{name}}\" کو حذف کر دیا گیا۔",
       "deleteIndexerFailed": "اشاریہ حذف کرنے میں ناکام",
+      "selectAll": "سب منتخب کریں",
+      "deselectAll": "سب غیر منتخب کریں",
+      "deleteSelected": "منتخب شدہ حذف کریں",
+      "deletingSelected": "حذف کر رہا ہے...",
       "badgeRss": "RSS",
       "badgeSearch": "تلاش کریں",
       "connectionPassed": "✓ کنکشن گزر گیا۔",
@@ -2559,7 +2563,12 @@ const ur: I18nTranslations = {
       "indexerUpdated": "انڈیکسر \"{{name}}\" اپ ڈیٹ ہو گیا۔",
       "indexerCreated": "انڈیکسر \"{{name}}\" بنایا گیا۔",
       "updateFailed": "انڈیکسر کو اپ ڈیٹ کرنے میں ناکام",
-      "createFailed": "انڈیکسر بنانے میں ناکام"
+      "createFailed": "انڈیکسر بنانے میں ناکام",
+      "selectedCount": "{{count}} منتخب کیا گیا۔",
+      "deleteSelectedTitle": "منتخب انڈیکسرز کو حذف کریں۔",
+      "deleteSelectedConfirmMessage": "کیا آپ واقعی {{count}} منتخب کردہ انڈیکسرز کو حذف کرنا چاہتے ہیں؟",
+      "bulkDeleteSuccess": "حذف شدہ {{count}} انڈیکسر",
+      "bulkDeleteFailed": "منتخب انڈیکسرز کو حذف کرنے میں ناکام"
     },
     "nav": {
       "groups": {

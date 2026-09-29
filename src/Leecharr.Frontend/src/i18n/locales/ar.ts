@@ -2490,6 +2490,10 @@ const ar: I18nTranslations = {
       "deleteConfirmText": "حذف",
       "indexerDeleted": "تم حذف المفهرس \"{{name}}_\".",
       "deleteIndexerFailed": "فشل في حذف المفهرس",
+      "selectAll": "تحديد الكل",
+      "deselectAll": "إلغاء تحديد الكل",
+      "deleteSelected": "حذف المحدد",
+      "deletingSelected": "جارٍ الحذف...",
       "badgeRss": "RSS",
       "badgeSearch": "بحث",
       "connectionPassed": "✓ تم الاتصال",
@@ -2559,7 +2563,12 @@ const ar: I18nTranslations = {
       "indexerUpdated": "تم تحديث المفهرس \"{{name}}\".",
       "indexerCreated": "تم إنشاء المفهرس \"{{name}}_\".",
       "updateFailed": "فشل تحديث المفهرس",
-      "createFailed": "فشل في إنشاء المفهرس"
+      "createFailed": "فشل في إنشاء المفهرس",
+      "selectedCount": "{{count}}_ تم التحديد",
+      "deleteSelectedTitle": "حذف الفهارس المحددة",
+      "deleteSelectedConfirmMessage": "هل أنت متأكد أنك تريد حذف {{count}}_ الفهرس (المفهرسات) المحددة؟",
+      "bulkDeleteSuccess": "تم حذف مفهرس {{count}}_",
+      "bulkDeleteFailed": "فشل حذف الفهارس المحددة"
     },
     "nav": {
       "groups": {

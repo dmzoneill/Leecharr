@@ -2490,6 +2490,10 @@ const mr: I18nTranslations = {
       "deleteConfirmText": "हटवा",
       "indexerDeleted": "इंडेक्सर \"{{name}}\" हटवला",
       "deleteIndexerFailed": "इंडेक्सर हटवण्यात अयशस्वी",
+      "selectAll": "सर्व निवडा",
+      "deselectAll": "सर्व निवड रद्द करा",
+      "deleteSelected": "निवडलेले हटवा",
+      "deletingSelected": "हटवत आहे...",
       "badgeRss": "RSS",
       "badgeSearch": "शोधा",
       "connectionPassed": "✓ कनेक्शन पास झाले",
@@ -2559,7 +2563,12 @@ const mr: I18nTranslations = {
       "indexerUpdated": "इंडेक्सर \"{{name}}\" अद्यतनित केले",
       "indexerCreated": "इंडेक्सर \"{{name}}\" तयार केला",
       "updateFailed": "इंडेक्सर अपडेट करण्यात अयशस्वी",
-      "createFailed": "इंडेक्सर तयार करण्यात अयशस्वी"
+      "createFailed": "इंडेक्सर तयार करण्यात अयशस्वी",
+      "selectedCount": "{{count}} निवडले",
+      "deleteSelectedTitle": "निवडलेले इंडेक्सर्स हटवा",
+      "deleteSelectedConfirmMessage": "तुमची खात्री आहे की तुम्ही {{count}} निवडलेले इंडेक्सर हटवू इच्छिता?",
+      "bulkDeleteSuccess": "{{count}} इंडेक्सर हटवले",
+      "bulkDeleteFailed": "निवडलेले अनुक्रमणिका हटविण्यात अयशस्वी"
     },
     "nav": {
       "groups": {

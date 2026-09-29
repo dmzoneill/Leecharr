@@ -2490,6 +2490,10 @@ const ja: I18nTranslations = {
       "deleteConfirmText": "削除",
       "indexerDeleted": "インデクサー「{{name}}」が削除されました",
       "deleteIndexerFailed": "インデクサーの削除に失敗しました",
+      "selectAll": "すべて選択",
+      "deselectAll": "すべて選択解除",
+      "deleteSelected": "選択したトレントを削除",
+      "deletingSelected": "削除中...",
       "badgeRss": "RSS",
       "badgeSearch": "検索",
       "connectionPassed": "✓ 接続が成功しました",
@@ -2559,7 +2563,12 @@ const ja: I18nTranslations = {
       "indexerUpdated": "インデクサ「{{name}}」が更新されました",
       "indexerCreated": "インデクサ「{{name}}」が作成されました",
       "updateFailed": "インデクサーの更新に失敗しました",
-      "createFailed": "インデクサーの作成に失敗しました"
+      "createFailed": "インデクサーの作成に失敗しました",
+      "selectedCount": "{{count}} が選択されました",
+      "deleteSelectedTitle": "選択したインデクサーを削除",
+      "deleteSelectedConfirmMessage": "{{count}} 選択されたインデクサーを削除してもよろしいですか?",
+      "bulkDeleteSuccess": "{{count}} インデクサーが削除されました",
+      "bulkDeleteFailed": "選択したインデクサーを削除できませんでした"
     },
     "nav": {
       "groups": {

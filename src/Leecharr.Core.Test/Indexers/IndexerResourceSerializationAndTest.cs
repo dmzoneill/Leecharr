@@ -248,6 +248,26 @@ public class IndexerResourceSerializationAndTest
         testResult.ResponseTimeMs.Should().BeGreaterThanOrEqualTo(0);
     }
 
+    [Test]
+    public void BulkDeleteIndexersRequest_Deserializes_From_Array()
+    {
+        var json = "[1, 2, 3]";
+        var res = JsonSerializer.Deserialize<BulkDeleteIndexersRequest>(json, JsonOptions);
+
+        res.Should().NotBeNull();
+        res!.Ids.Should().Equal(1, 2, 3);
+    }
+
+    [Test]
+    public void BulkDeleteIndexersRequest_Deserializes_From_ObjectWithIds()
+    {
+        var json = @"{ ""ids"": [4, 5, 6] }";
+        var res = JsonSerializer.Deserialize<BulkDeleteIndexersRequest>(json, JsonOptions);
+
+        res.Should().NotBeNull();
+        res!.Ids.Should().Equal(4, 5, 6);
+    }
+
     private class MockHttpMessageHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, HttpResponseMessage> handler;

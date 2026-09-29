@@ -2490,6 +2490,10 @@ const es: I18nTranslations = {
       "deleteConfirmText": "Eliminar",
       "indexerDeleted": "Indexador \"{{name}}\" eliminado",
       "deleteIndexerFailed": "No se pudo eliminar el indexador",
+      "selectAll": "Seleccionar todo",
+      "deselectAll": "Deseleccionar todo",
+      "deleteSelected": "Eliminar seleccionados",
+      "deletingSelected": "Eliminando...",
       "badgeRss": "RSS",
       "badgeSearch": "Buscar",
       "connectionPassed": "✓ Conexión pasada",
@@ -2559,7 +2563,12 @@ const es: I18nTranslations = {
       "indexerUpdated": "Indexador \"{{name}}\" actualizado",
       "indexerCreated": "Indexador \"{{name}}\" creado",
       "updateFailed": "No se pudo actualizar el indexador",
-      "createFailed": "No se pudo crear el indexador"
+      "createFailed": "No se pudo crear el indexador",
+      "selectedCount": "{{count}} seleccionado",
+      "deleteSelectedTitle": "Eliminar indexadores seleccionados",
+      "deleteSelectedConfirmMessage": "¿Está seguro de que desea eliminar {{count}} indexadores seleccionados?",
+      "bulkDeleteSuccess": "Se eliminaron {{count}} indexadores",
+      "bulkDeleteFailed": "No se pudieron eliminar los indexadores seleccionados"
     },
     "nav": {
       "groups": {

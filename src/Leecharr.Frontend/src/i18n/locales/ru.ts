@@ -2490,6 +2490,10 @@ const ru: I18nTranslations = {
       "deleteConfirmText": "Удалить",
       "indexerDeleted": "Индексатор \"{{name}}\" удален.",
       "deleteIndexerFailed": "Не удалось удалить индексатор.",
+      "selectAll": "Выбрать все",
+      "deselectAll": "Снять выбор",
+      "deleteSelected": "Удалить выбранные",
+      "deletingSelected": "Удаление...",
       "badgeRss": "RSS",
       "badgeSearch": "Поиск",
       "connectionPassed": "✓ Соединение пройдено",
@@ -2559,7 +2563,12 @@ const ru: I18nTranslations = {
       "indexerUpdated": "Индексатор \"{{name}}\" обновлен.",
       "indexerCreated": "Индексатор \"{{name}}\" создан.",
       "updateFailed": "Не удалось обновить индексатор.",
-      "createFailed": "Не удалось создать индексатор."
+      "createFailed": "Не удалось создать индексатор.",
+      "selectedCount": "{{count}} выбрано",
+      "deleteSelectedTitle": "Удалить выбранные индексаторы",
+      "deleteSelectedConfirmMessage": "Вы уверены, что хотите удалить {{count}} выбранных индексаторов?",
+      "bulkDeleteSuccess": "Удалены индексаторы {{count}}.",
+      "bulkDeleteFailed": "Не удалось удалить выбранные индексаторы."
     },
     "nav": {
       "groups": {
