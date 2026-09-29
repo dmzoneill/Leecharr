@@ -18,7 +18,6 @@ import {
   useFilePreview,
 } from "../api/hooks";
 import { formatBytes } from "../utils/formatters";
-import { useConfirm } from "../context/ConfirmContext";
 import { useToast } from "../context/ToastContext";
 import { useI18nStore, useTranslation, languages } from "../i18n";
 import { MediaPlayerModal } from "../components/MediaPlayerModal";
@@ -37,19 +36,8 @@ interface FileManagerFile {
   updatedAt?: string;
 }
 
-function getPathSegments(path: string): { label: string; fullPath: string }[] {
-  const segments = path.split("/").filter(Boolean);
-  const result: { label: string; fullPath: string }[] = [];
-
-  for (let i = 0; i < segments.length; i++) {
-    result.push({
-      label: segments[i],
-      fullPath: "/" + segments.slice(0, i + 1).join("/"),
-    });
-  }
-
-  return result;
-}
+import { getPathSegments } from "../utils/pathSegments";
+export { getPathSegments };
 
 export type FileCategory =
   | "folder"
@@ -257,7 +245,6 @@ export function FileBrowser() {
   const cuboneLanguage = activeLang?.cuboneLanguage || "en-US";
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const confirm = useConfirm();
   const { showToast } = useToast();
 
   const currentPath = searchParams.get("path") || "";
@@ -645,14 +632,6 @@ export function FileBrowser() {
     container.addEventListener("contextmenu", onContextMenuCapture, true);
 
     const observer = new MutationObserver(() => {
-      // 1. Bypass Cubone delete modal
-      const deleteDangerBtn = container.querySelector<HTMLButtonElement>(
-        ".file-delete-confirm-actions .fm-button-danger",
-      );
-      if (deleteDangerBtn) {
-        deleteDangerBtn.click();
-      }
-
       enhanceContextMenu();
       enhanceToolbar();
       enhanceFileItems();
@@ -793,35 +772,6 @@ export function FileBrowser() {
   const handleDelete = async (selectedFiles: FileManagerFile[]) => {
     if (!selectedFiles || selectedFiles.length === 0) return;
     const count = selectedFiles.length;
-
-    const ok = await confirm({
-      title:
-        count === 1
-          ? selectedFiles[0].isDirectory
-            ? t("filebrowser.deleteFolderTitle", "Delete Folder")
-            : t("filebrowser.deleteFileTitle", "Delete File")
-          : t("filebrowser.deleteSelectedTitle", "Delete Selected Items"),
-      message: (
-        <span>
-          {t("filebrowser.deleteConfirm", "Are you sure you want to delete")}{" "}
-          <strong>
-            {count === 1
-              ? selectedFiles[0].name
-              : t("filebrowser.itemCount", "{count} items", { count })}
-          </strong>
-          ?
-        </span>
-      ),
-      danger: true,
-      confirmText:
-        count === 1
-          ? t("common.delete", "Delete")
-          : t("filebrowser.deleteCountItems", "Delete {count} Items", {
-              count,
-            }),
-    });
-
-    if (!ok) return;
 
     try {
       if (count === 1) {
@@ -1190,50 +1140,65 @@ export function FileBrowser() {
         >
           📁 PWD:
         </span>
-        <button
-          type="button"
-          onClick={() => navigateTo("/")}
-          style={{
-            background: "none",
-            border: "none",
-            color: "var(--accent, #ffd166)",
-            cursor: "pointer",
-            fontSize: "0.85rem",
-            padding: "0.1rem 0.35rem",
-            borderRadius: "3px",
-            fontFamily: "monospace",
-          }}
-        >
-          /
-        </button>
-        {segments.map((seg, idx) => (
-          <React.Fragment key={seg.fullPath}>
-            <span style={{ color: "var(--text-muted, #8a879e)" }}>/</span>
-            <button
-              type="button"
-              onClick={() => navigateTo(seg.fullPath)}
-              style={{
-                background:
-                  idx === segments.length - 1
-                    ? "rgba(255, 209, 102, 0.15)"
-                    : "none",
-                border: "none",
-                color:
-                  idx === segments.length - 1
-                    ? "var(--accent, #ffd166)"
-                    : "var(--text-primary, #f8f4ed)",
-                fontWeight: idx === segments.length - 1 ? 600 : 400,
-                cursor: "pointer",
-                padding: "0.15rem 0.4rem",
-                borderRadius: "4px",
-                fontFamily: "monospace",
-                fontSize: "0.85rem",
-              }}
-            >
-              {seg.label}
-            </button>
-          </React.Fragment>
-        ))}
+        {!/^[a-zA-Z]:/.test(displayPath.replace(/\\/g, "/")) && (
+          <button
+            type="button"
+            onClick={() => navigateTo("/")}
+            style={{
+              background:
+                segments.length === 0
+                  ? "rgba(255, 209, 102, 0.15)"
+                  : "none",
+              border: "none",
+              color:
+                segments.length === 0
+                  ? "var(--accent, #ffd166)"
+                  : "var(--text-primary, #f8f4ed)",
+              fontWeight: segments.length === 0 ? 600 : 400,
+              cursor: "pointer",
+              fontSize: "0.85rem",
+              padding: "0.1rem 0.35rem",
+              borderRadius: "3px",
+              fontFamily: "monospace",
+            }}
+          >
+            /
+          </button>
+        )}
+        {segments.map((seg, idx) => {
+          const isFirstWindowsSegment =
+            idx === 0 && /^[a-zA-Z]:/.test(displayPath.replace(/\\/g, "/"));
+          return (
+            <React.Fragment key={seg.fullPath}>
+              {!isFirstWindowsSegment && (
+                <span style={{ color: "var(--text-muted, #8a879e)" }}>/</span>
+              )}
+              <button
+                type="button"
+                onClick={() => navigateTo(seg.fullPath)}
+                style={{
+                  background:
+                    idx === segments.length - 1
+                      ? "rgba(255, 209, 102, 0.15)"
+                      : "none",
+                  border: "none",
+                  color:
+                    idx === segments.length - 1
+                      ? "var(--accent, #ffd166)"
+                      : "var(--text-primary, #f8f4ed)",
+                  fontWeight: idx === segments.length - 1 ? 600 : 400,
+                  cursor: "pointer",
+                  padding: "0.15rem 0.4rem",
+                  borderRadius: "4px",
+                  fontFamily: "monospace",
+                  fontSize: "0.85rem",
+                }}
+              >
+                {seg.label}
+              </button>
+            </React.Fragment>
+          );
+        })}
       </div>
 
       {listing && !listing.exists && (
@@ -1263,7 +1228,6 @@ export function FileBrowser() {
       >
         <FileManager
           language={cuboneLanguage}
-          key={activePath}
           className="leecharr-file-manager"
           files={files}
           initialPath={activePath}
