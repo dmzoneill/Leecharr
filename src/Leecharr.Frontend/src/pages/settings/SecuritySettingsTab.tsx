@@ -139,6 +139,7 @@ export function SecuritySettingsTab() {
     csrfProtectionEnabled: true,
     hostHeaderValidationEnabled: false,
     allowedHosts: "",
+    allowedCorsOrigins: "",
     terminalAccessEnabled: true,
     allowPrivateNetworkRequests: true,
     allowedSsrfHostnames: "",
@@ -276,6 +277,7 @@ export function SecuritySettingsTab() {
         hostHeaderValidationEnabled:
           config.hostHeaderValidationEnabled ?? false,
         allowedHosts: config.allowedHosts ?? "",
+        allowedCorsOrigins: config.allowedCorsOrigins ?? "",
         terminalAccessEnabled: config.terminalAccessEnabled ?? true,
         allowPrivateNetworkRequests: config.allowPrivateNetworkRequests ?? true,
         allowedSsrfHostnames: config.allowedSsrfHostnames ?? "",
@@ -401,6 +403,7 @@ export function SecuritySettingsTab() {
         csrfProtectionEnabled: form.csrfProtectionEnabled,
         hostHeaderValidationEnabled: form.hostHeaderValidationEnabled,
         allowedHosts: form.allowedHosts,
+        allowedCorsOrigins: form.allowedCorsOrigins,
         terminalAccessEnabled: form.terminalAccessEnabled,
         allowPrivateNetworkRequests: form.allowPrivateNetworkRequests,
         allowedSsrfHostnames: form.allowedSsrfHostnames,
@@ -626,6 +629,13 @@ export function SecuritySettingsTab() {
               )}
             />
           )}
+
+          <TextInput
+            label="Allowed CORS Origins"
+            value={form.allowedCorsOrigins}
+            onChange={(v) => update("allowedCorsOrigins", v)}
+            hint="Comma-separated list of allowed CORS origins (e.g. http://localhost:3000, https://dashboard.lan)."
+          />
         </div>
       </SectionCard>
 

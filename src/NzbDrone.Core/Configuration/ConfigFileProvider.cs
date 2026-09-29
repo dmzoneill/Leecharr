@@ -93,6 +93,8 @@ public class ConfigFileProvider : IConfigFileProvider
 
     public string AllowedSsrfSubnets => this.GetValue("AllowedSsrfSubnets", string.Empty);
 
+    public string AllowedCorsOrigins => this.GetValue("AllowedCorsOrigins", string.Empty);
+
     public int CustomScriptTimeoutSeconds => this.GetValueInt("CustomScriptTimeoutSeconds", 60);
 
     public int ArchiveExtractionTimeoutMinutes => this.GetValueInt("ArchiveExtractionTimeoutMinutes", 30);
