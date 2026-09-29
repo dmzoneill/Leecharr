@@ -3406,7 +3406,13 @@ const en: I18nTranslations = {
       "messageReadTimeoutHint": "Deadline for reading incoming protocol frames",
       "keepAliveIntervalHint": "Frequency of 0-byte keepalive pings",
       "peerContactIntervalHint": "Cooldown before re-connecting to idle peers",
-      "failoverHint": "Switch to secondary tracker tiers when primary is offline"
+      "failoverHint": "Switch to secondary tracker tiers when primary is offline",
+      "failoverMaxConsecutiveFailures": "Maximum Consecutive Failures Before Failover",
+      "failoverMaxConsecutiveFailuresHint": "Number of announce failures before failing over to the next tier",
+      "failoverBackoffBaseSeconds": "Failover Base Backoff Interval",
+      "failoverBackoffBaseSecondsHint": "Initial backoff delay before retrying a failed tracker tier",
+      "failoverMaxBackoffSeconds": "Failover Maximum Backoff Interval",
+      "failoverMaxBackoffSecondsHint": "Maximum backoff interval cap between tier retry attempts"
     },
     "dht": {
       "failedToSave": "Failed to save DHT discovery settings",

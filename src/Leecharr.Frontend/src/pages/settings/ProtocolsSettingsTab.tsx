@@ -420,6 +420,50 @@ export function ProtocolsSettingsTab() {
             onChange={(v) => update("announceToAllInTier", v)}
           />
         </div>
+
+        {form.multiTrackerFailoverEnabled && (
+          <div
+            style={{
+              marginTop: "1rem",
+              borderTop: "1px solid var(--border-light)",
+              paddingTop: "1rem",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: "1rem",
+            }}
+          >
+            <NumberInput
+              label={t("settingsTabs.protocols.failoverMaxConsecutiveFailures")}
+              value={form.failoverMaxConsecutiveFailures}
+              onChange={(v) => update("failoverMaxConsecutiveFailures", v)}
+              min={1}
+              max={100}
+              hint={t(
+                "settingsTabs.protocols.failoverMaxConsecutiveFailuresHint",
+              )}
+            />
+
+            <NumberInput
+              label={t("settingsTabs.protocols.failoverBackoffBaseSeconds")}
+              value={form.failoverBackoffBaseSeconds}
+              onChange={(v) => update("failoverBackoffBaseSeconds", v)}
+              min={1}
+              max={3600}
+              suffix={t("settingsTabs.batch2.sec")}
+              hint={t("settingsTabs.protocols.failoverBackoffBaseSecondsHint")}
+            />
+
+            <NumberInput
+              label={t("settingsTabs.protocols.failoverMaxBackoffSeconds")}
+              value={form.failoverMaxBackoffSeconds}
+              onChange={(v) => update("failoverMaxBackoffSeconds", v)}
+              min={1}
+              max={86400}
+              suffix={t("settingsTabs.batch2.sec")}
+              hint={t("settingsTabs.protocols.failoverMaxBackoffSecondsHint")}
+            />
+          </div>
+        )}
       </SectionCard>
     </div>
   );

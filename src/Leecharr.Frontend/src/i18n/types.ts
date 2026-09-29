@@ -3407,6 +3407,12 @@ export type I18nTranslations = {
       "keepAliveIntervalHint": string;
       "peerContactIntervalHint": string;
       "failoverHint": string;
+      "failoverMaxConsecutiveFailures": string;
+      "failoverMaxConsecutiveFailuresHint": string;
+      "failoverBackoffBaseSeconds": string;
+      "failoverBackoffBaseSecondsHint": string;
+      "failoverMaxBackoffSeconds": string;
+      "failoverMaxBackoffSecondsHint": string;
     };
     "dht": {
       "failedToSave": string;
