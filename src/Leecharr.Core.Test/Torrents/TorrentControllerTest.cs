@@ -128,6 +128,83 @@ public class TorrentControllerTest
     }
 
     [Test]
+    public async Task DeleteTracker_WithValidTrackerId_RemovesTrackerFromEngineAndRepository()
+    {
+        var tracker = new TrackerEntry
+        {
+            Id = 5,
+            TorrentId = 42,
+            Url = "http://tracker.example.com/announce",
+        };
+
+        this.trackerEntryRepository.Get(5).Returns(tracker);
+
+        var result = await this.controller.DeleteTracker(42, 5);
+
+        result.Should().BeOfType<OkResult>();
+        await this.downloadEngine.Received(1).RemoveTrackersAsync(42, Arg.Is<string[]>(urls => urls.Length == 1 && urls[0] == tracker.Url));
+        this.trackerEntryRepository.Received(1).Delete(5);
+    }
+
+    [Test]
+    public async Task DeleteTracker_WithFallbackTrackerIdZero_RemovesTrackerFromEngineAndClearsTorrentTrackerUrl()
+    {
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "Fallback Torrent",
+            TrackerUrl = "http://tracker.example.com/announce",
+        };
+
+        this.trackerEntryRepository.Get(0).Returns((TrackerEntry)null!);
+        this.torrentService.Get(42).Returns(torrent);
+
+        var result = await this.controller.DeleteTracker(42, 0);
+
+        result.Should().BeOfType<OkResult>();
+        await this.downloadEngine.Received(1).RemoveTrackersAsync(42, Arg.Is<string[]>(urls => urls.Length == 1 && urls[0] == "http://tracker.example.com/announce"));
+        torrent.TrackerUrl.Should().BeNull();
+        await this.torrentService.Received(1).UpdateAsync(torrent);
+    }
+
+    [Test]
+    public async Task DeleteTracker_WithFallbackTrackerIdZero_WhenTorrentRepositoryProvided_UpdatesTorrentRepository()
+    {
+        var torrentRepo = Substitute.For<ITorrentRepository>();
+        var controllerWithRepo = new TorrentController(
+            this.torrentService,
+            this.torrentFileService,
+            this.torrentFileParser,
+            this.mediaEnrichmentService,
+            this.trackerEntryRepository,
+            this.signalRBroadcaster,
+            geoIpService: this.geoIpService,
+            downloadEngine: this.downloadEngine,
+            torrentCreationService: this.torrentCreationService,
+            torrentLogService: this.torrentLogService,
+            configService: this.configService,
+            blocklistService: this.blocklistService,
+            torrentRepository: torrentRepo);
+
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "Fallback Torrent",
+            TrackerUrl = "http://tracker.example.com/announce",
+        };
+
+        this.trackerEntryRepository.Get(0).Returns((TrackerEntry)null!);
+        torrentRepo.Get(42).Returns(torrent);
+
+        var result = await controllerWithRepo.DeleteTracker(42, 0);
+
+        result.Should().BeOfType<OkResult>();
+        await this.downloadEngine.Received(1).RemoveTrackersAsync(42, Arg.Is<string[]>(urls => urls.Length == 1 && urls[0] == "http://tracker.example.com/announce"));
+        torrent.TrackerUrl.Should().BeNull();
+        torrentRepo.Received(1).Update(torrent);
+    }
+
+    [Test]
     public async Task Update_PersistsForceStartTargetRatioSeedTimeShareLimitActionCategoryAndLabel()
     {
         var existing = new Torrent

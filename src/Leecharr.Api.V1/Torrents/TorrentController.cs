@@ -206,6 +206,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
     private readonly ITagRepository tagRepository;
     private readonly ISubtitleDiscoveryService subtitleDiscoveryService;
     private readonly ISubtitleConversionService subtitleConversionService;
+    private readonly ITorrentRepository torrentRepository;
     private readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     public TorrentController(
@@ -225,7 +226,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         IBlocklistService blocklistService = null,
         ITagRepository tagRepository = null,
         ISubtitleDiscoveryService subtitleDiscoveryService = null,
-        ISubtitleConversionService subtitleConversionService = null)
+        ISubtitleConversionService subtitleConversionService = null,
+        ITorrentRepository torrentRepository = null)
         : base(signalRBroadcaster)
     {
         this.torrentService = torrentService;
@@ -244,6 +246,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         this.tagRepository = tagRepository;
         this.subtitleDiscoveryService = subtitleDiscoveryService ?? new SubtitleDiscoveryService();
         this.subtitleConversionService = subtitleConversionService ?? new SubtitleConversionService();
+        this.torrentRepository = torrentRepository;
     }
 
     [HttpGet]
@@ -1145,6 +1148,28 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         if (tracker != null && this.downloadEngine != null && !string.IsNullOrWhiteSpace(tracker.Url))
         {
             await this.downloadEngine.RemoveTrackersAsync(id, new[] { tracker.Url });
+        }
+
+        if (trackerId == 0 || (tracker == null && trackerId <= 0))
+        {
+            var torrent = this.torrentRepository?.Get(id) ?? this.torrentService?.Get(id);
+            if (torrent != null && !string.IsNullOrWhiteSpace(torrent.TrackerUrl))
+            {
+                if (this.downloadEngine != null)
+                {
+                    await this.downloadEngine.RemoveTrackersAsync(id, new[] { torrent.TrackerUrl });
+                }
+
+                torrent.TrackerUrl = null;
+                if (this.torrentRepository != null)
+                {
+                    this.torrentRepository.Update(torrent);
+                }
+                else if (this.torrentService != null)
+                {
+                    await this.torrentService.UpdateAsync(torrent);
+                }
+            }
         }
 
         this.trackerEntryRepository?.Delete(trackerId);
