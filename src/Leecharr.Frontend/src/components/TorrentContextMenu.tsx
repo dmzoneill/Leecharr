@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useArrConnections, useDownloadHistory } from "../api/hooks";
+import { getUrlBase } from "../api/client";
 import { getMediaDeepLink } from "../utils/arrLinks";
+import { copyToClipboard } from "../utils/clipboard";
 import { PromptModal } from "./PromptModal";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { useTranslation } from "../i18n";
@@ -39,7 +41,7 @@ export interface TorrentContextMenuProps {
   onNavigateTab?: (nav: string, subNav?: string) => void;
 }
 
-function buildMagnetLink(t: Torrent): string {
+export function buildMagnetLink(t: Torrent): string {
   const hash = t.infoHash?.trim() || "";
   let xt = `urn:btih:${hash}`;
   if (hash.length === 64) {
@@ -50,6 +52,20 @@ function buildMagnetLink(t: Torrent): string {
   let magnet = `magnet:?xt=${xt}&dn=${encodeURIComponent(t.name)}`;
   if (t.trackerUrl) magnet += `&tr=${encodeURIComponent(t.trackerUrl)}`;
   return magnet;
+}
+
+export function getPackageExportUrl(torrentIds: number[]): string {
+  return `${getUrlBase()}/api/v1/packages/export?torrentIds=${torrentIds.join(",")}`;
+}
+
+export function updateTorrentCategory(
+  torrent: Torrent,
+  category: string,
+): Torrent {
+  return {
+    ...torrent,
+    category: category.trim(),
+  };
 }
 
 const getAdjustedPosition = (x: number, y: number) => {
@@ -132,9 +148,9 @@ export function TorrentContextMenu({
   };
 
   function handleCopy(text: string) {
-    navigator.clipboard
-      .writeText(text)
-      .catch((err) => console.warn("Clipboard write failed:", err));
+    copyToClipboard(text).catch((err) =>
+      console.warn("Clipboard write failed:", err),
+    );
     onClose();
   }
 
@@ -754,19 +770,13 @@ export function TorrentContextMenu({
                 setPromptConfig({
                   title: `${t("torrents.contextMenu.setCategory")}${countSuffix}`,
                   message: `${t("torrents.contextMenu.setCategory")}:`,
-                  defaultValue: !isMulti
-                    ? (ct?.category ?? ct?.label ?? "")
-                    : "",
+                  defaultValue: !isMulti ? (ct?.category ?? "") : "",
                   inputType: "text",
                   placeholder: "e.g. movies, tv, music",
                   confirmText: t("common.save"),
                   onConfirm: (l) => {
                     const trimmed = l.trim();
-                    handleUpdateAll((t) => ({
-                      ...t,
-                      category: trimmed,
-                      label: trimmed,
-                    }));
+                    handleUpdateAll((t) => updateTorrentCategory(t, trimmed));
                   },
                 });
               }}
@@ -806,9 +816,9 @@ export function TorrentContextMenu({
               type="button"
               className="context-menu-item"
               onClick={() => {
-                const ids = effectiveTorrents.map((t) => t.id).join(",");
+                const ids = effectiveTorrents.map((t) => t.id);
                 const link = document.createElement("a");
-                link.href = `/api/v1/packages/export?torrentIds=${ids}`;
+                link.href = getPackageExportUrl(ids);
                 link.download =
                   effectiveTorrents.length === 1
                     ? `${effectiveTorrents[0].name}.leecharr`
