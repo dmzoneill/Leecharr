@@ -3330,7 +3330,14 @@ const ja: I18nTranslations = {
       "vacuumTitle": "SQLite データベース圧縮 (VACUUM)",
       "vacuumDescription": "SQLite データベース ファイルを再構築して、未使用のディスク領域を再利用し、データベース インデックスを最適化します。",
       "vacuumRunning": "データベースを圧縮しています...",
-      "vacuumButton": "🧹 データベースVACUUMを実行する"
+      "vacuumButton": "🧹 データベースVACUUMを実行する",
+      "testLogTitle": "診断ログの検証",
+      "testLogDescription": "合成診断ログ エントリを出力して、ローリング ディスク ファイルとライブ リング バッファ キャプチャを検証します。",
+      "testLogButton": "🧪 テストログ",
+      "testLogRunning": "ログを出力中...",
+      "testLogSuccess": "診断 {{level}} テスト ログが正常に出力されました",
+      "testLogError": "診断テスト ログの出力に失敗しました: {{error}}",
+      "testLogLevelLabel": "診断ログレベル"
     },
     "security": {
       "authBannerDesc": "認証が有効になっています。 LAN またはリバース プロキシ経由で Leecharr にアクセスするローカル ユーザーは、ローカル資格情報または以下の設定された SSO / ID プロバイダーを使用して認証します。",

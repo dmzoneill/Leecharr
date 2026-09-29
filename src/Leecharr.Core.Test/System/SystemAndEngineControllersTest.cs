@@ -702,4 +702,60 @@ public class LogControllerTest
 
         result.Result.Should().BeOfType<OkObjectResult>();
     }
+
+    [Test]
+    public void TestLog_WithNullRequest_LogsDefaultInfoMessageAndReturnsOk()
+    {
+        var result = this.controller.TestLog(null);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        var ok = (OkObjectResult)result.Result!;
+        var response = ok.Value as TestLogResponse;
+        response.Should().NotBeNull();
+        response!.Success.Should().BeTrue();
+        response.Level.Should().Be("Info");
+        response.Message.Should().Contain("Diagnostic test log message");
+    }
+
+    [Test]
+    public void TestLog_WithExplicitLevelAndMessage_LogsAndReturnsOk()
+    {
+        var request = new TestLogRequest
+        {
+            Level = "Warn",
+            Message = "Custom warning diagnostic message",
+        };
+
+        var result = this.controller.TestLog(request);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        var ok = (OkObjectResult)result.Result!;
+        var response = ok.Value as TestLogResponse;
+        response.Should().NotBeNull();
+        response!.Success.Should().BeTrue();
+        response.Level.Should().Be("Warn");
+        response.Message.Should().Be("Custom warning diagnostic message");
+    }
+
+    [TestCase("warning", "Warn")]
+    [TestCase("WARNING", "Warn")]
+    [TestCase("Error", "Error")]
+    [TestCase("invalid_level", "Info")]
+    public void TestLog_ParsesLogLevelOrFallsBackToInfo(string inputLevel, string expectedLevel)
+    {
+        var request = new TestLogRequest
+        {
+            Level = inputLevel,
+            Message = "Sample message",
+        };
+
+        var result = this.controller.TestLog(request);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        var ok = (OkObjectResult)result.Result!;
+        var response = ok.Value as TestLogResponse;
+        response.Should().NotBeNull();
+        response!.Success.Should().BeTrue();
+        response.Level.Should().Be(expectedLevel);
+    }
 }

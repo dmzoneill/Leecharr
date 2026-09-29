@@ -3330,7 +3330,14 @@ const ko: I18nTranslations = {
       "vacuumTitle": "SQLite 데이터베이스 압축(VACUUM)",
       "vacuumDescription": "SQLite 데이터베이스 파일을 재구축하여 사용되지 않은 디스크 공간을 회수하고 데이터베이스 인덱스 조각 모음을 수행합니다.",
       "vacuumRunning": "데이터베이스 압축 중...",
-      "vacuumButton": "🧹 데이터베이스 VACUUM 실행"
+      "vacuumButton": "🧹 데이터베이스 VACUUM 실행",
+      "testLogTitle": "진단 로그 확인",
+      "testLogDescription": "롤링 디스크 파일과 라이브 링 버퍼 캡처를 확인하기 위해 종합 진단 로그 항목을 내보냅니다.",
+      "testLogButton": "🧪 테스트 로그",
+      "testLogRunning": "로그를 내보내는 중...",
+      "testLogSuccess": "진단 __V0___ 테스트 로그가 성공적으로 생성되었습니다.",
+      "testLogError": "진단 테스트 로그를 내보내지 못했습니다: __V0___",
+      "testLogLevelLabel": "진단 로그 수준"
     },
     "security": {
       "authBannerDesc": "인증이 활성화되었습니다. LAN 또는 역방향 프록시를 통해 Leecharr에 액세스하는 로컬 사용자는 로컬 자격 증명 또는 아래 구성된 SSO/ID 공급자를 사용하여 인증합니다.",

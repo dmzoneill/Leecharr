@@ -3330,7 +3330,14 @@ const fr: I18nTranslations = {
       "vacuumTitle": "Compactage de la base de données SQLite (VIDE)",
       "vacuumDescription": "Reconstruit le fichier de base de données SQLite pour récupérer l'espace disque inutilisé et défragmenter les index de la base de données.",
       "vacuumRunning": "Compactage de la base de données...",
-      "vacuumButton": "🧹 Exécuter le VACUUM de la base de données"
+      "vacuumButton": "🧹 Exécuter le VACUUM de la base de données",
+      "testLogTitle": "Vérification du journal de diagnostic",
+      "testLogDescription": "Émettez une entrée de journal de diagnostic synthétique pour vérifier les fichiers de disque en cours et la capture du tampon en anneau en direct.",
+      "testLogButton": "🧪 Journal des tests",
+      "testLogRunning": "Journal d'émission...",
+      "testLogSuccess": "Journal de test de diagnostic {{level}} émis avec succès",
+      "testLogError": "Échec de l'émission du journal de test de diagnostic : {{error}}",
+      "testLogLevelLabel": "Niveau du journal de diagnostic"
     },
     "security": {
       "authBannerDesc": "L'authentification est activée. Les utilisateurs locaux accédant à Leecharr via LAN ou proxy inverse s'authentifieront à l'aide d'informations d'identification locales ou de fournisseurs SSO/identité configurés ci-dessous.",

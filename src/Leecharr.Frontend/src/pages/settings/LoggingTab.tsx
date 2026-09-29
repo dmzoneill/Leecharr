@@ -2,6 +2,7 @@ import { useTranslation } from "../../i18n";
 import { useState, useEffect } from "react";
 import { useAdvancedConfig, useSaveAdvancedConfig } from "../../api/hooks";
 import { apiClient } from "../../api/client";
+import { useToast } from "../../context/ToastContext";
 import {
   SaveBar,
   SectionCard,
@@ -26,6 +27,9 @@ export function LoggingTab() {
   const [dirty, setDirty] = useState(false);
   const [vacuuming, setVacuuming] = useState(false);
   const [vacuumMsg, setVacuumMsg] = useState<string | null>(null);
+  const [testingLog, setTestingLog] = useState(false);
+  const [testLogLevel, setTestLogLevel] = useState<string>("Info");
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (config) {
@@ -78,6 +82,34 @@ export function LoggingTab() {
       );
     } finally {
       setVacuuming(false);
+    }
+  };
+
+  const handleTestLog = async () => {
+    setTestingLog(true);
+    try {
+      const res = await apiClient.post<{ success: boolean; level: string; message: string }>("/log/test", {
+        level: testLogLevel,
+        message: `Diagnostic test log event emitted from settings [${testLogLevel}]`,
+      });
+      showToast(
+        t("settingsTabs.logging.testLogSuccess", {
+          defaultValue: `Diagnostic ${res?.level || testLogLevel} test log emitted successfully`,
+          level: res?.level || testLogLevel,
+        }),
+        "success",
+      );
+    } catch (err: unknown) {
+      const errObj = err as Error | null;
+      showToast(
+        t("settingsTabs.logging.testLogError", {
+          defaultValue: `Failed to emit diagnostic test log: ${errObj?.message || "Unknown error"}`,
+          error: errObj?.message || t("settingsTabs.logging.internalServerError"),
+        }),
+        "error",
+      );
+    } finally {
+      setTestingLog(false);
     }
   };
 
@@ -162,6 +194,70 @@ export function LoggingTab() {
             suffix={t("settingsTabs.notifications.timeoutSuffix")}
             hint={t("settingsTabs.logging.uiRefreshRateHint")}
           />
+        </div>
+
+        <div
+          style={{
+            marginTop: "1.25rem",
+            paddingTop: "1.25rem",
+            borderTop: "1px solid var(--border-color, rgba(255, 255, 255, 0.1))",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "1rem",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontWeight: 600,
+                color: "var(--text-primary)",
+                fontSize: "0.95rem",
+              }}
+            >
+              {t("settingsTabs.logging.testLogTitle")}
+            </div>
+            <div
+              style={{
+                fontSize: "0.8rem",
+                color: "var(--text-muted)",
+                marginTop: "0.2rem",
+              }}
+            >
+              {t("settingsTabs.logging.testLogDescription")}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <select
+              className="form-select"
+              value={testLogLevel}
+              aria-label={t("settingsTabs.logging.testLogLevelLabel")}
+              onChange={(e) => setTestLogLevel(e.target.value)}
+              style={{
+                borderRadius: "6px",
+                padding: "0.4rem 0.6rem",
+                fontSize: "0.85rem",
+              }}
+            >
+              <option value="Trace">{t("settingsTabs.logging.logLevels.trace")}</option>
+              <option value="Debug">{t("settingsTabs.logging.logLevels.debug")}</option>
+              <option value="Info">{t("settingsTabs.logging.logLevels.info")}</option>
+              <option value="Warn">{t("settingsTabs.logging.logLevels.warn")}</option>
+              <option value="Error">{t("settingsTabs.logging.logLevels.error")}</option>
+            </select>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={handleTestLog}
+              disabled={testingLog}
+            >
+              {testingLog
+                ? t("settingsTabs.logging.testLogRunning")
+                : t("settingsTabs.logging.testLogButton")}
+            </button>
+          </div>
         </div>
       </SectionCard>
 
