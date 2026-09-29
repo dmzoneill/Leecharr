@@ -172,7 +172,7 @@ const ur: I18nTranslations = {
     "title": "عنوان",
     "speed": "رفتار",
     "general": "عام",
-    "languageTitle": "زبان کا عنوان",
+    "languageTitle": "زبان: {name} ({nativeName})",
     "connecting": "جڑ رہا ہے۔",
     "unknown": "نامعلوم",
     "default": "طے شدہ",

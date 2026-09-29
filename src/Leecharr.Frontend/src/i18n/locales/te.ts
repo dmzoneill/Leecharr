@@ -172,7 +172,7 @@ const te: I18nTranslations = {
     "title": "శీర్షిక",
     "speed": "వేగం",
     "general": "సాధారణ",
-    "languageTitle": "భాష శీర్షిక",
+    "languageTitle": "భాష: {name} ({nativeName})",
     "connecting": "కనెక్ట్ అవుతోంది",
     "unknown": "తెలియదు",
     "default": "డిఫాల్ట్",

@@ -171,7 +171,7 @@ const fr: I18nTranslations = {
     "title": "Titre",
     "speed": "Vitesse",
     "general": "Général",
-    "languageTitle": "Langue Titre",
+    "languageTitle": "Langue : {name} ({nativeName})",
     "connecting": "De liaison",
     "unknown": "Inconnu",
     "default": "Défaut",

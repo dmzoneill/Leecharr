@@ -172,7 +172,7 @@ const ko: I18nTranslations = {
     "title": "Leecharr Copilot",
     "speed": "속도",
     "general": "일반",
-    "languageTitle": "언어 제목",
+    "languageTitle": "언어: {name} ({nativeName})",
     "connecting": "연결 중",
     "unknown": "알려지지 않은",
     "default": "기본",

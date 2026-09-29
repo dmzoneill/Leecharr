@@ -172,7 +172,7 @@ const hi: I18nTranslations = {
     "title": "शीर्षक",
     "speed": "गति",
     "general": "सामान्य",
-    "languageTitle": "भाषा का शीर्षक",
+    "languageTitle": "भाषा: {name} ({nativeName})",
     "connecting": "कनेक्ट हो रहा है",
     "unknown": "अज्ञात",
     "default": "डिफ़ॉल्ट",

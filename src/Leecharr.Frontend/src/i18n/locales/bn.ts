@@ -172,7 +172,7 @@ const bn: I18nTranslations = {
     "title": "শিরোনাম",
     "speed": "গতি",
     "general": "সাধারণ",
-    "languageTitle": "ভাষার শিরোনাম",
+    "languageTitle": "ভাষা: {name} ({nativeName})",
     "connecting": "সংযোগ করা হচ্ছে",
     "unknown": "অজানা",
     "default": "ডিফল্ট",

@@ -169,7 +169,7 @@ const de: I18nTranslations = {
     "title": "Titel",
     "speed": "Geschwindigkeit",
     "general": "Allgemein",
-    "languageTitle": "Sprachtitel",
+    "languageTitle": "Sprache: {name} ({nativeName})",
     "connecting": "Verbinden",
     "unknown": "Unbekannt",
     "default": "Standard",

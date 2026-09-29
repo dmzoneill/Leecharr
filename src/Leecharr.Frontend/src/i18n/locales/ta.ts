@@ -172,7 +172,7 @@ const ta: I18nTranslations = {
     "title": "தலைப்பு",
     "speed": "வேகம்",
     "general": "பொதுவானவை",
-    "languageTitle": "மொழி தலைப்பு",
+    "languageTitle": "மொழி: {name} ({nativeName})",
     "connecting": "இணைக்கிறது",
     "unknown": "தெரியவில்லை",
     "default": "இயல்புநிலை",

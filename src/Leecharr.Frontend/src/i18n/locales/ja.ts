@@ -172,7 +172,7 @@ const ja: I18nTranslations = {
     "title": "タイトル",
     "speed": "転送速度",
     "general": "一般",
-    "languageTitle": "言語タイトル",
+    "languageTitle": "言語: {name} ({nativeName})",
     "connecting": "接続中",
     "unknown": "未知",
     "default": "デフォルト",

@@ -172,7 +172,7 @@ const vi: I18nTranslations = {
     "title": "Leecharr Copilot",
     "speed": "Tốc độ",
     "general": "Chung",
-    "languageTitle": "Tiêu đề ngôn ngữ",
+    "languageTitle": "Ngôn ngữ: {name} ({nativeName})",
     "connecting": "Đang kết nối",
     "unknown": "Không xác định",
     "default": "Mặc định",
