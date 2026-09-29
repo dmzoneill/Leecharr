@@ -92,6 +92,17 @@ public class GeneralConfigControllerTest
     }
 
     [Test]
+    public void GetConfig_ReturnsAllowedCorsOrigins()
+    {
+        this.configService.AllowedCorsOrigins.Returns("http://localhost:3000, https://dashboard.lan");
+
+        var resource = this.controller.GetConfig();
+
+        resource.Should().NotBeNull();
+        resource.AllowedCorsOrigins.Should().Be("http://localhost:3000, https://dashboard.lan");
+    }
+
+    [Test]
     public async Task SaveConfig_SavesAuthenticationRequiredToConfigFileProvider()
     {
         Dictionary<string, object> savedDict = null!;
@@ -108,6 +119,25 @@ public class GeneralConfigControllerTest
 
         savedDict.Should().NotBeNull();
         savedDict["AuthenticationRequired"].Should().Be(AuthenticationRequiredType.DisabledForLocalhost);
+    }
+
+    [Test]
+    public async Task SaveConfig_SavesAllowedCorsOriginsToConfigFileProvider()
+    {
+        Dictionary<string, object> savedDict = null!;
+        this.configFileProvider.When(x => x.SaveConfigDictionary(Arg.Any<Dictionary<string, object>>()))
+            .Do(call => savedDict = call.Arg<Dictionary<string, object>>());
+
+        var resource = new GeneralConfigResource
+        {
+            Port = 7889,
+            AllowedCorsOrigins = "http://localhost:3000, https://dashboard.lan",
+        };
+
+        var actionResult = await this.controller.SaveConfig(resource);
+
+        savedDict.Should().NotBeNull();
+        savedDict["AllowedCorsOrigins"].Should().Be("http://localhost:3000, https://dashboard.lan");
     }
 
     [Test]

@@ -51,6 +51,8 @@ public interface IConfigFileProvider
 
     string AllowedSsrfSubnets { get; }
 
+    string AllowedCorsOrigins { get; }
+
     int CustomScriptTimeoutSeconds { get; }
 
     int ArchiveExtractionTimeoutMinutes { get; }

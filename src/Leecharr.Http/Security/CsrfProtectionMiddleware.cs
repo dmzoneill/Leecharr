@@ -139,23 +139,29 @@ public class CsrfProtectionMiddleware
 
                 if (!hasExplicitAuthHeader && !IsAuthPath(path, context.Request.PathBase.Value) && !IsRpcPath(path, context.Request.PathBase.Value))
                 {
-                    // 1. Check Sec-Fetch-Site (Modern browser defense)
-                    if (context.Request.Headers.TryGetValue("Sec-Fetch-Site", out var secFetchSite) &&
-                        string.Equals(secFetchSite.ToString(), "cross-site", StringComparison.OrdinalIgnoreCase))
-                    {
-                        this.logger.Warn("CSRF blocked: cross-site Sec-Fetch-Site on {0} {1}", method, context.Request.Path);
-                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                        context.Response.ContentType = "text/plain";
-                        await context.Response.WriteAsync("CSRF check failed: cross-site request blocked.");
-                        return;
-                    }
+                    var allowedCorsOrigins = configService?.AllowedCorsOrigins;
 
-                    // 2. Check Origin and Referer headers
                     var hasOrigin = context.Request.Headers.TryGetValue("Origin", out var originHeader) &&
                                     !string.IsNullOrWhiteSpace(originHeader);
                     var hasReferer = context.Request.Headers.TryGetValue("Referer", out var refererHeader) &&
                                      !string.IsNullOrWhiteSpace(refererHeader);
 
+                    // 1. Check Sec-Fetch-Site (Modern browser defense)
+                    if (context.Request.Headers.TryGetValue("Sec-Fetch-Site", out var secFetchSite) &&
+                        string.Equals(secFetchSite.ToString(), "cross-site", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var originCandidate = hasOrigin ? originHeader.ToString() : (hasReferer ? refererHeader.ToString() : null);
+                        if (string.IsNullOrWhiteSpace(originCandidate) || !IsOriginAllowed(originCandidate, context.Request.Host, allowedCorsOrigins))
+                        {
+                            this.logger.Warn("CSRF blocked: cross-site Sec-Fetch-Site on {0} {1}", method, context.Request.Path);
+                            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                            context.Response.ContentType = "text/plain";
+                            await context.Response.WriteAsync("CSRF check failed: cross-site request blocked.");
+                            return;
+                        }
+                    }
+
+                    // 2. Check Origin and Referer headers
                     if (!hasOrigin && !hasReferer)
                     {
                         this.logger.Warn("CSRF blocked: missing both Origin and Referer headers on {0} {1}", method, context.Request.Path);
@@ -167,7 +173,7 @@ public class CsrfProtectionMiddleware
 
                     if (hasOrigin)
                     {
-                        if (!IsOriginAllowed(originHeader.ToString(), context.Request.Host))
+                        if (!IsOriginAllowed(originHeader.ToString(), context.Request.Host, allowedCorsOrigins))
                         {
                             this.logger.Warn("CSRF blocked: invalid Origin '{0}' on {1} {2}", originHeader, method, context.Request.Path);
                             context.Response.StatusCode = StatusCodes.Status403Forbidden;
@@ -178,7 +184,7 @@ public class CsrfProtectionMiddleware
                     }
                     else if (hasReferer)
                     {
-                        if (!IsOriginAllowed(refererHeader.ToString(), context.Request.Host))
+                        if (!IsOriginAllowed(refererHeader.ToString(), context.Request.Host, allowedCorsOrigins))
                         {
                             this.logger.Warn("CSRF blocked: invalid Referer '{0}' on {1} {2}", refererHeader, method, context.Request.Path);
                             context.Response.StatusCode = StatusCodes.Status403Forbidden;
@@ -194,8 +200,139 @@ public class CsrfProtectionMiddleware
         await this.next(context);
     }
 
-    public static bool IsOriginAllowed(string originOrReferer, HostString requestHost)
+    public static bool IsCorsOriginAllowed(string originOrReferer, string allowedCorsOrigins)
     {
+        if (string.IsNullOrWhiteSpace(originOrReferer) || string.IsNullOrWhiteSpace(allowedCorsOrigins))
+        {
+            return false;
+        }
+
+        var cleanOrigin = originOrReferer.Trim().TrimEnd('/');
+        if (!Uri.TryCreate(cleanOrigin, UriKind.Absolute, out var originUri))
+        {
+            return false;
+        }
+
+        var originScheme = originUri.Scheme;
+        var originHost = originUri.Host;
+        var originPort = originUri.Port;
+
+        var patterns = allowedCorsOrigins.Split(new[] { ',', ';', ' ', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var pattern in patterns)
+        {
+            var trimmedPattern = pattern.Trim().TrimEnd('/');
+            if (trimmedPattern == "*")
+            {
+                return true;
+            }
+
+            if (string.Equals(cleanOrigin, trimmedPattern, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            string patternScheme = null;
+            var schemeDelimiterIndex = trimmedPattern.IndexOf("://", StringComparison.Ordinal);
+            var patternRemainder = trimmedPattern;
+            if (schemeDelimiterIndex > 0)
+            {
+                patternScheme = trimmedPattern.Substring(0, schemeDelimiterIndex);
+                patternRemainder = trimmedPattern.Substring(schemeDelimiterIndex + 3);
+            }
+
+            if (!string.IsNullOrEmpty(patternScheme) && !string.Equals(originScheme, patternScheme, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var patternHost = patternRemainder;
+            int? patternPort = null;
+            if (patternHost.StartsWith('['))
+            {
+                var closingBracket = patternHost.IndexOf(']');
+                if (closingBracket > 0)
+                {
+                    if (closingBracket < patternHost.Length - 1 && patternHost[closingBracket + 1] == ':')
+                    {
+                        if (int.TryParse(patternHost.Substring(closingBracket + 2), out var parsedPort))
+                        {
+                            patternPort = parsedPort;
+                        }
+                    }
+
+                    patternHost = patternHost.Substring(0, closingBracket + 1);
+                }
+            }
+            else
+            {
+                var colonIndex = patternHost.LastIndexOf(':');
+                if (colonIndex > 0 && int.TryParse(patternHost.Substring(colonIndex + 1), out var parsedPort))
+                {
+                    patternPort = parsedPort;
+                    patternHost = patternHost.Substring(0, colonIndex);
+                }
+            }
+
+            if (!string.IsNullOrEmpty(patternScheme) && !patternPort.HasValue)
+            {
+                patternPort = string.Equals(patternScheme, "https", StringComparison.OrdinalIgnoreCase) ? 443 :
+                              string.Equals(patternScheme, "http", StringComparison.OrdinalIgnoreCase) ? 80 :
+                              (int?)null;
+            }
+
+            if (patternPort.HasValue && originPort != patternPort.Value)
+            {
+                continue;
+            }
+
+            if (IsHostMatch(originHost, patternHost))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsHostMatch(string host, string pattern)
+    {
+        var cleanHost = host.TrimStart('[').TrimEnd(']');
+        var cleanPattern = pattern.TrimStart('[').TrimEnd(']');
+
+        if (string.Equals(cleanHost, cleanPattern, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (cleanPattern.StartsWith("*.", StringComparison.OrdinalIgnoreCase))
+        {
+            var domain = cleanPattern.Substring(2);
+            if (cleanHost.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(cleanHost, domain, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+        else if (cleanPattern.StartsWith(".", StringComparison.OrdinalIgnoreCase))
+        {
+            var domain = cleanPattern.Substring(1);
+            if (cleanHost.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(cleanHost, domain, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static bool IsOriginAllowed(string originOrReferer, HostString requestHost, string allowedCorsOrigins = null)
+    {
+        if (!string.IsNullOrWhiteSpace(allowedCorsOrigins) && IsCorsOriginAllowed(originOrReferer, allowedCorsOrigins))
+        {
+            return true;
+        }
+
         if (!Uri.TryCreate(originOrReferer, UriKind.Absolute, out var uri))
         {
             return false;
@@ -225,6 +362,11 @@ public class CsrfProtectionMiddleware
         }
 
         return false;
+    }
+
+    public static bool IsOriginAllowed(string originOrReferer, HostString requestHost)
+    {
+        return IsOriginAllowed(originOrReferer, requestHost, null);
     }
 
     private static bool IsLoopbackHost(string host)
