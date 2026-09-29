@@ -1,7 +1,15 @@
 import { useTranslation } from "../../i18n";
 import { useState, useEffect } from "react";
 import { useBitTorrentConfig, useSaveBitTorrentConfig } from "../../api/hooks";
+import { FolderBrowserModal } from "../../components/FolderBrowserModal";
 import { SaveBar, SectionCard, TextInput } from "./shared";
+
+type ScriptField =
+  | "onDownloadCompleteScript"
+  | "onSeedGoalReachedScript"
+  | "scriptTorrentDoneFilename"
+  | "scriptTorrentAddedFilename"
+  | "scriptTorrentDoneSeedingFilename";
 
 export function CustomScriptsTab() {
   const { t } = useTranslation();
@@ -18,6 +26,8 @@ export function CustomScriptsTab() {
   });
 
   const [dirty, setDirty] = useState(false);
+  const [activeBrowserField, setActiveBrowserField] =
+    useState<ScriptField | null>(null);
 
   useEffect(() => {
     if (config) {
@@ -58,6 +68,43 @@ export function CustomScriptsTab() {
     );
   };
 
+  const renderBrowseButton = (field: ScriptField) => (
+    <button
+      type="button"
+      className="btn btn-outline btn-small"
+      onClick={() => setActiveBrowserField(field)}
+      title="Browse filesystem"
+      style={{
+        whiteSpace: "nowrap",
+        padding: "0.4rem 0.65rem",
+        fontSize: "0.8rem",
+        display: "flex",
+        alignItems: "center",
+        gap: "0.35rem",
+      }}
+    >
+      <span>📁</span>
+      <span>Browse...</span>
+    </button>
+  );
+
+  const getFieldTitle = (field: ScriptField | null) => {
+    switch (field) {
+      case "onDownloadCompleteScript":
+        return "Select On Download Complete Script";
+      case "onSeedGoalReachedScript":
+        return "Select On Seed Goal Reached Script";
+      case "scriptTorrentDoneFilename":
+        return "Select Torrent Done Script";
+      case "scriptTorrentAddedFilename":
+        return "Select Torrent Added Script";
+      case "scriptTorrentDoneSeedingFilename":
+        return "Select Torrent Done Seeding Script";
+      default:
+        return "Select Script";
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="loading" style={{ padding: "2rem" }}>
@@ -87,6 +134,7 @@ export function CustomScriptsTab() {
             value={form.onDownloadCompleteScript}
             onChange={(v) => update("onDownloadCompleteScript", v)}
             hint={t("settingsTabs.customScripts.onDownloadCompleteHint")}
+            rightElement={renderBrowseButton("onDownloadCompleteScript")}
           />
 
           <TextInput
@@ -94,6 +142,7 @@ export function CustomScriptsTab() {
             value={form.onSeedGoalReachedScript}
             onChange={(v) => update("onSeedGoalReachedScript", v)}
             hint={t("settingsTabs.customScripts.onSeedGoalReachedHint")}
+            rightElement={renderBrowseButton("onSeedGoalReachedScript")}
           />
 
           <div
@@ -145,6 +194,7 @@ export function CustomScriptsTab() {
             value={form.scriptTorrentDoneFilename}
             onChange={(v) => update("scriptTorrentDoneFilename", v)}
             hint={t("settingsTabs.customScripts.torrentDoneHint")}
+            rightElement={renderBrowseButton("scriptTorrentDoneFilename")}
           />
 
           <TextInput
@@ -152,6 +202,7 @@ export function CustomScriptsTab() {
             value={form.scriptTorrentAddedFilename}
             onChange={(v) => update("scriptTorrentAddedFilename", v)}
             hint={t("settingsTabs.customScripts.torrentAddedHint")}
+            rightElement={renderBrowseButton("scriptTorrentAddedFilename")}
           />
 
           <TextInput
@@ -159,9 +210,24 @@ export function CustomScriptsTab() {
             value={form.scriptTorrentDoneSeedingFilename}
             onChange={(v) => update("scriptTorrentDoneSeedingFilename", v)}
             hint={t("settingsTabs.customScripts.torrentDoneSeedingHint")}
+            rightElement={renderBrowseButton("scriptTorrentDoneSeedingFilename")}
           />
         </div>
       </SectionCard>
+
+      {activeBrowserField && (
+        <FolderBrowserModal
+          isOpen={Boolean(activeBrowserField)}
+          allowFiles={true}
+          initialPath={form[activeBrowserField] || "/scripts"}
+          title={getFieldTitle(activeBrowserField)}
+          onSelect={(selectedPath) => {
+            update(activeBrowserField, selectedPath);
+            setActiveBrowserField(null);
+          }}
+          onClose={() => setActiveBrowserField(null)}
+        />
+      )}
     </div>
   );
 }
