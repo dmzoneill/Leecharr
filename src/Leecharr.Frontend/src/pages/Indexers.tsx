@@ -5,6 +5,7 @@ import {
   useDownloadIndexerRelease,
   useTestIndexer,
   useUpdateIndexer,
+  useCategories,
 } from "../api/hooks";
 import { formatBytes, formatDate } from "../utils/formatters";
 import { useToast } from "../context/ToastContext";
@@ -25,6 +26,7 @@ export const Indexers: React.FC<IndexersProps> = ({
 }) => {
   const { t } = useTranslation();
   const { data: indexers, isLoading: isIndexersLoading } = useIndexers();
+  const { data: categories } = useCategories();
   const testIndexerMutation = useTestIndexer();
   const updateIndexerMutation = useUpdateIndexer();
   const downloadReleaseMutation = useDownloadIndexerRelease();
@@ -32,6 +34,7 @@ export const Indexers: React.FC<IndexersProps> = ({
 
   const [query, setQuery] = useState("");
   const [activeSearchTerm, setActiveSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
   const [freeleechOnly, setFreeleechOnly] = useState(false);
   const [downloadingGuid, setDownloadingGuid] = useState<string | null>(null);
   const [testingId, setTestingId] = useState<number | null>(null);
@@ -47,6 +50,7 @@ export const Indexers: React.FC<IndexersProps> = ({
     {
       query: activeSearchTerm,
       indexerId: currentIndexerId,
+      category: selectedCategory || undefined,
     },
     Boolean(activeSearchTerm.trim()),
   );
@@ -73,6 +77,7 @@ export const Indexers: React.FC<IndexersProps> = ({
         indexerName: release.indexerName || release.indexer || "",
         minimumRatio: release.minimumRatio,
         minimumSeedTime: release.minimumSeedTime,
+        category: selectedCategory || release.category || undefined,
       },
       {
         onSuccess: () => {
@@ -451,6 +456,7 @@ export const Indexers: React.FC<IndexersProps> = ({
             alignItems: "center",
             marginTop: "0.75rem",
             fontSize: "0.85rem",
+            flexWrap: "wrap",
           }}
         >
           <label
@@ -474,6 +480,102 @@ export const Indexers: React.FC<IndexersProps> = ({
               )}
             </span>
           </label>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
+          >
+            <label
+              htmlFor="indexerCategorySelect"
+              style={{
+                color: "var(--text-secondary, #c7c5d3)",
+                fontSize: "0.85rem",
+              }}
+            >
+              {t("tags.category", "Category:")}
+            </label>
+            <select
+              id="indexerCategorySelect"
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="form-input"
+              style={{
+                padding: "0.3rem 0.6rem",
+                fontSize: "0.85rem",
+                borderRadius: "4px",
+                backgroundColor: "var(--bg-primary, #10111a)",
+                color: "inherit",
+                border: "1px solid var(--border-light)",
+              }}
+            >
+              <option value="">
+                {t("tags.allCategories", "All Categories")}
+              </option>
+              <option value="movies">Movies</option>
+              <option value="tv">TV</option>
+              <option value="music">Music</option>
+              <option value="games">Games</option>
+              <option value="apps">Apps / Software</option>
+              <option value="books">Books</option>
+              <option value="anime">Anime</option>
+              <option value="other">Other</option>
+              {categories
+                ?.filter(
+                  (c) =>
+                    ![
+                      "movies",
+                      "tv",
+                      "music",
+                      "games",
+                      "apps",
+                      "books",
+                      "anime",
+                      "other",
+                    ].includes(c.name.toLowerCase()),
+                )
+                .map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              {selectedCategory &&
+                ![
+                  "movies",
+                  "tv",
+                  "music",
+                  "games",
+                  "apps",
+                  "books",
+                  "anime",
+                  "other",
+                  ...(categories?.map((c) => c.name.toLowerCase()) || []),
+                ].includes(selectedCategory.toLowerCase()) && (
+                  <option value={selectedCategory}>{selectedCategory}</option>
+                )}
+            </select>
+            {selectedCategory && (
+              <button
+                type="button"
+                onClick={() => setSelectedCategory("")}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--text-muted, #8e92a4)",
+                  cursor: "pointer",
+                  padding: "0.1rem 0.3rem",
+                  fontSize: "0.85rem",
+                  lineHeight: 1,
+                }}
+                title={t("common.clear", "Clear")}
+                aria-label={t("common.clear", "Clear")}
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
