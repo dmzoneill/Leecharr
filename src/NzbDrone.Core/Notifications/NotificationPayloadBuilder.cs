@@ -799,6 +799,65 @@ public static class NotificationPayloadBuilder
             }
         }
 
+        var isSpecificNonWebhookProvider =
+            string.Equals(implementation, "Discord", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(implementation, "Telegram", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(implementation, "Pushover", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(implementation, "Slack", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(implementation, "Gotify", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(implementation, "Apprise", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(implementation, "Email", StringComparison.OrdinalIgnoreCase);
+
+        if (!isSpecificNonWebhookProvider)
+        {
+            var (authUser, authPass) = ExtractBasicAuthSettings(trimmed);
+            if (!string.IsNullOrEmpty(authUser) || !string.IsNullOrEmpty(authPass))
+            {
+                var rawCredentials = $"{authUser}:{authPass}";
+                var basicAuthHeaderValue = $"Basic {Convert.ToBase64String(Encoding.UTF8.GetBytes(rawCredentials))}";
+
+                if (string.IsNullOrWhiteSpace(explicitHeaders))
+                {
+                    return $"{{\"Authorization\":\"{basicAuthHeaderValue}\"}}";
+                }
+
+                if (explicitHeaders.StartsWith("{"))
+                {
+                    try
+                    {
+                        using var doc = JsonDocument.Parse(explicitHeaders);
+                        if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                        {
+                            var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                            foreach (var p in doc.RootElement.EnumerateObject())
+                            {
+                                dict[p.Name] = p.Value.ValueKind == JsonValueKind.String
+                                    ? p.Value.GetString()
+                                    : p.Value.GetRawText();
+                            }
+
+                            if (!dict.ContainsKey("Authorization"))
+                            {
+                                dict["Authorization"] = basicAuthHeaderValue;
+                            }
+
+                            return JsonSerializer.Serialize(dict);
+                        }
+                    }
+                    catch (JsonException ex)
+                    {
+                        Logger.Trace(ex, "Failed to parse custom headers JSON, falling back to header append");
+                    }
+                }
+
+                if (!explicitHeaders.Contains("Authorization:", StringComparison.OrdinalIgnoreCase) &&
+                    !explicitHeaders.Contains("Authorization=", StringComparison.OrdinalIgnoreCase))
+                {
+                    return $"{explicitHeaders}\nAuthorization: {basicAuthHeaderValue}";
+                }
+            }
+        }
+
         return explicitHeaders;
     }
 

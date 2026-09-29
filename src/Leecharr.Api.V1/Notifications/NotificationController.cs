@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Leecharr.Http;
@@ -157,20 +158,35 @@ public class NotificationController : Controller
         object payload;
         if (string.Equals(notif.Implementation, "Discord", StringComparison.OrdinalIgnoreCase))
         {
-            payload = new
+            var (discordUsername, discordAvatarUrl) = NotificationPayloadBuilder.ExtractDiscordSettings(notif.Settings);
+            var embeds = new object[]
             {
-                username = "Leecharr",
-                embeds = new object[]
+                new
                 {
-                    new
-                    {
-                        title = "[Test] Leecharr Notification Test",
-                        description = "This is a test notification from Leecharr. Your webhook configuration is working properly.",
-                        color = 16765286, // Gold
-                        timestamp = DateTime.UtcNow.ToString("o")
-                    }
+                    title = "[Test] Leecharr Notification Test",
+                    description = "This is a test notification from Leecharr. Your webhook configuration is working properly.",
+                    color = 16765286, // Gold
+                    timestamp = DateTime.UtcNow.ToString("o"),
                 },
             };
+
+            if (!string.IsNullOrWhiteSpace(discordAvatarUrl))
+            {
+                payload = new
+                {
+                    username = !string.IsNullOrWhiteSpace(discordUsername) ? discordUsername : "Leecharr",
+                    avatar_url = discordAvatarUrl,
+                    embeds,
+                };
+            }
+            else
+            {
+                payload = new
+                {
+                    username = !string.IsNullOrWhiteSpace(discordUsername) ? discordUsername : "Leecharr",
+                    embeds,
+                };
+            }
         }
         else if (string.Equals(notif.Implementation, "Telegram", StringComparison.OrdinalIgnoreCase))
         {
@@ -280,7 +296,8 @@ public class NotificationController : Controller
         {
             var targetUrl = NotificationEventHandler.ResolveTargetUrl(notif.Implementation, notif.Settings);
             var customHeaders = NotificationEventHandler.ResolveCustomHeaders(notif.Implementation, notif.Settings);
-            var success = await this.webhookDispatcher.DispatchAsync(targetUrl, payload, customHeaders);
+            var httpMethod = NotificationEventHandler.ResolveHttpMethod(notif.Implementation, notif.Settings);
+            var success = await this.webhookDispatcher.DispatchAsync(targetUrl, payload, customHeaders, httpMethod);
             return this.Ok(new NotificationTestResult
             {
                 Success = success,
