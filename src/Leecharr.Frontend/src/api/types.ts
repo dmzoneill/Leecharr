@@ -977,6 +977,7 @@ export interface MediaMetadata {
   imdbId?: string | null;
   tmdbId?: number | null;
   tvdbId?: number | null;
+  cast?: string[] | null;
 }
 
 export interface DownloadHistoryEntry {

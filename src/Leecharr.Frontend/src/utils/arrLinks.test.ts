@@ -6,6 +6,7 @@ import {
   getDownloadClientUrl,
   getMediaDeepLink,
   getMusicBrainzUrl,
+  getTmdbUrl,
 } from "./arrLinks";
 
 function createMockArrConnection(
@@ -285,6 +286,70 @@ describe("arrLinks: getMusicBrainzUrl", () => {
     assert.equal(
       getMusicBrainzUrl("a1b2c3d4-e5f6-7890-abcd-ef1234567890"),
       "https://musicbrainz.org/release-group/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    );
+  });
+});
+
+describe("arrLinks: getTmdbUrl", () => {
+  it("should return null when tmdbId is null, undefined, 0, or empty", () => {
+    assert.equal(getTmdbUrl(null), null);
+    assert.equal(getTmdbUrl(undefined), null);
+    assert.equal(getTmdbUrl(0), null);
+    assert.equal(getTmdbUrl(""), null);
+    assert.equal(getTmdbUrl("   "), null);
+  });
+
+  it("should return movie URL when mediaType is 'movie'", () => {
+    assert.equal(
+      getTmdbUrl(27205, "movie"),
+      "https://www.themoviedb.org/movie/27205",
+    );
+  });
+
+  it("should return tv URL when mediaType is 'tv'", () => {
+    assert.equal(
+      getTmdbUrl(1399, "tv"),
+      "https://www.themoviedb.org/tv/1399",
+    );
+  });
+
+  it("should infer movie URL when arrType is 'Radarr'", () => {
+    assert.equal(
+      getTmdbUrl(27205, null, "Radarr"),
+      "https://www.themoviedb.org/movie/27205",
+    );
+    assert.equal(
+      getTmdbUrl(27205, undefined, "radarr"),
+      "https://www.themoviedb.org/movie/27205",
+    );
+  });
+
+  it("should infer tv URL when arrType is 'Sonarr'", () => {
+    assert.equal(
+      getTmdbUrl(1399, null, "Sonarr"),
+      "https://www.themoviedb.org/tv/1399",
+    );
+    assert.equal(
+      getTmdbUrl(1399, undefined, "sonarr"),
+      "https://www.themoviedb.org/tv/1399",
+    );
+  });
+
+  it("should infer movie URL when mediaType is passed as 'Radarr'", () => {
+    assert.equal(
+      getTmdbUrl(27205, "Radarr"),
+      "https://www.themoviedb.org/movie/27205",
+    );
+  });
+
+  it("should default to tv URL when neither mediaType nor arrType indicate movie", () => {
+    assert.equal(
+      getTmdbUrl(1399),
+      "https://www.themoviedb.org/tv/1399",
+    );
+    assert.equal(
+      getTmdbUrl(1399, null, null),
+      "https://www.themoviedb.org/tv/1399",
     );
   });
 });
