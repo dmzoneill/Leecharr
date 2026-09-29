@@ -5,6 +5,7 @@ import {
   useCreateIndexer,
   useUpdateIndexer,
   useDeleteIndexer,
+  useBulkDeleteIndexers,
   useTestIndexer,
   useTestDirectIndexer,
   useSyncProwlarr,
@@ -102,6 +103,7 @@ export function IndexersTab() {
   const createMutation = useCreateIndexer();
   const updateMutation = useUpdateIndexer();
   const deleteMutation = useDeleteIndexer();
+  const bulkDeleteMutation = useBulkDeleteIndexers();
   const testMutation = useTestIndexer();
   const testDirectMutation = useTestDirectIndexer();
   const syncMutation = useSyncProwlarr();
@@ -111,6 +113,9 @@ export function IndexersTab() {
   const deleteRuleMutation = useDeleteRssRule();
   const syncRssMutation = useSyncRss();
 
+  const [selectedIndexerIds, setSelectedIndexerIds] = useState<Set<number>>(
+    new Set(),
+  );
   const [editing, setEditing] = useState<Partial<IndexerDefinition> | null>(
     null,
   );
@@ -490,6 +495,80 @@ export function IndexersTab() {
     });
   };
 
+  const allIndexerIds = (indexers ?? []).map((idx) => idx.id);
+  const isAllSelected =
+    allIndexerIds.length > 0 &&
+    allIndexerIds.every((id) => selectedIndexerIds.has(id));
+  const isSomeSelected =
+    allIndexerIds.some((id) => selectedIndexerIds.has(id)) && !isAllSelected;
+
+  const handleToggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIndexerIds(new Set());
+    } else {
+      setSelectedIndexerIds(new Set(allIndexerIds));
+    }
+  };
+
+  const handleToggleSelect = (id: number) => {
+    setSelectedIndexerIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIndexerIds.size === 0) return;
+    const count = selectedIndexerIds.size;
+    const ok = await confirm({
+      title: t(
+        "settingsTabs.indexers.deleteSelectedTitle",
+        "Delete Selected Indexers",
+      ),
+      message: t(
+        "settingsTabs.indexers.deleteSelectedConfirmMessage",
+        { count },
+        `Are you sure you want to delete ${count} selected indexer(s)?`,
+      ),
+      danger: true,
+      confirmText: t("settingsTabs.categories.deleteConfirm", "Delete"),
+    });
+    if (!ok) return;
+
+    const idsToDelete = Array.from(selectedIndexerIds);
+    bulkDeleteMutation.mutate(idsToDelete, {
+      onSuccess: (res) => {
+        setSelectedIndexerIds(new Set());
+        trackIndexerAction("delete", "indexer", true);
+        showToast(
+          t(
+            "settingsTabs.indexers.bulkDeleteSuccess",
+            { count: res?.count ?? count },
+            `Deleted ${res?.count ?? count} indexer(s)`,
+          ),
+          "info",
+        );
+      },
+      onError: (err: unknown) => {
+        trackIndexerAction("delete", "indexer", false);
+        const errObj = err as Error | null;
+        showToast(
+          errObj?.message ||
+            t(
+              "settingsTabs.indexers.bulkDeleteFailed",
+              "Failed to delete selected indexers",
+            ),
+          "error",
+        );
+      },
+    });
+  };
+
   if (isIndexersLoading || isRssRulesLoading)
     return <div className="loading">{t("settingsTabs.indexers.loading")}</div>;
 
@@ -502,111 +581,222 @@ export function IndexersTab() {
         <div
           style={{
             display: "flex",
-            justifyContent: "flex-end",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "0.75rem",
             marginBottom: "1rem",
           }}
         >
-          <button
-            type="button"
-            className="btn btn-outline btn-small"
-            onClick={handleSyncProwlarrNow}
-            disabled={syncMutation.isPending}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.75rem",
+            }}
           >
-            {syncMutation.isPending
-              ? t("settingsTabs.indexers.syncingProwlarr")
-              : t("settingsTabs.indexers.syncProwlarr")}
-          </button>
+            {indexers && indexers.length > 0 && (
+              <>
+                <label
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                    cursor: "pointer",
+                    fontSize: "0.85rem",
+                    userSelect: "none",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    className="torrent-checkbox"
+                    checked={isAllSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = isSomeSelected;
+                    }}
+                    onChange={handleToggleSelectAll}
+                    aria-label={t(
+                      "settingsTabs.indexers.selectAll",
+                      "Select All",
+                    )}
+                  />
+                  <span>
+                    {isAllSelected
+                      ? t("settingsTabs.indexers.deselectAll", "Deselect All")
+                      : t("settingsTabs.indexers.selectAll", "Select All")}
+                  </span>
+                </label>
+                {selectedIndexerIds.size > 0 && (
+                  <>
+                    <span className="bulk-actions-count">
+                      {t("settingsTabs.indexers.selectedCount", {
+                        count: selectedIndexerIds.size,
+                      })}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-small"
+                      onClick={handleBulkDelete}
+                      disabled={bulkDeleteMutation.isPending}
+                    >
+                      {bulkDeleteMutation.isPending
+                        ? t(
+                            "settingsTabs.indexers.deletingSelected",
+                            "Deleting...",
+                          )
+                        : t(
+                            "settingsTabs.indexers.deleteSelected",
+                            "Delete Selected",
+                          )}
+                    </button>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
+          >
+            <button
+              type="button"
+              className="btn btn-outline btn-small"
+              onClick={handleSyncProwlarrNow}
+              disabled={syncMutation.isPending}
+            >
+              {syncMutation.isPending
+                ? t("settingsTabs.indexers.syncingProwlarr")
+                : t("settingsTabs.indexers.syncProwlarr")}
+            </button>
+          </div>
         </div>
 
         <div className="provider-cards">
-          {indexers?.map((idx) => (
-            <div
-              key={idx.id}
-              className="provider-card"
-              onClick={() => {
-                const initial = { ...idx };
-                initialIndexerRef.current = JSON.stringify(initial);
-                setEditing(initial);
-                setModalTestResult(null);
-              }}
-            >
-              <div className="provider-card-actions">
-                {idx.url && (
-                  <a
-                    href={idx.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+          {indexers?.map((idx) => {
+            const isSelected = selectedIndexerIds.has(idx.id);
+            return (
+              <div
+                key={idx.id}
+                className={`provider-card ${isSelected ? "provider-card-selected" : ""}`}
+                onClick={() => {
+                  const initial = { ...idx };
+                  initialIndexerRef.current = JSON.stringify(initial);
+                  setEditing(initial);
+                  setModalTestResult(null);
+                }}
+              >
+                <div className="provider-card-actions">
+                  {idx.url && (
+                    <a
+                      href={idx.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="provider-card-action"
+                      title={t("settingsTabs.indexers.openWebUI", {
+                        name: idx.name,
+                        url: idx.url,
+                      })}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ textDecoration: "none", color: "inherit" }}
+                    >
+                      ↗
+                    </a>
+                  )}
+                  <button
                     className="provider-card-action"
-                    title={t("settingsTabs.indexers.openWebUI", {
-                      name: idx.name,
-                      url: idx.url,
-                    })}
-                    onClick={(e) => e.stopPropagation()}
-                    style={{ textDecoration: "none", color: "inherit" }}
+                    title={t("settingsTabs.indexers.testConnection")}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleTest(idx.id);
+                    }}
                   >
-                    ↗
-                  </a>
-                )}
-                <button
-                  className="provider-card-action"
-                  title={t("settingsTabs.indexers.testConnection")}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleTest(idx.id);
-                  }}
-                >
-                  &#x2713;
-                </button>
-                <button
-                  className="provider-card-action provider-card-action-danger"
-                  title={t("settingsTabs.indexers.deleteIndexer")}
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    const ok = await confirm({
-                      title: t("settingsTabs.indexers.deleteIndexer"),
-                      message: t(
-                        "settingsTabs.indexers.deleteIndexerConfirmMessage",
-                        { name: idx.name },
-                      ),
-                      danger: true,
-                      confirmText: t("settingsTabs.categories.deleteConfirm"),
-                    });
-                    if (!ok) return;
+                    ✓
+                  </button>
+                  <button
+                    className="provider-card-action provider-card-action-danger"
+                    title={t("settingsTabs.indexers.deleteIndexer")}
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      const ok = await confirm({
+                        title: t("settingsTabs.indexers.deleteIndexer"),
+                        message: t(
+                          "settingsTabs.indexers.deleteIndexerConfirmMessage",
+                          { name: idx.name },
+                        ),
+                        danger: true,
+                        confirmText: t("settingsTabs.categories.deleteConfirm"),
+                      });
+                      if (!ok) return;
 
-                    deleteMutation.mutate(idx.id, {
-                      onSuccess: () => {
-                        trackIndexerAction(
-                          "delete",
-                          idx.indexerType || "indexer",
-                          true,
-                        );
-                        showToast(
-                          t("settingsTabs.indexers.indexerDeleted", {
-                            name: idx.name,
-                          }),
-                          "info",
-                        );
-                      },
-                      onError: (err: unknown) => {
-                        trackIndexerAction(
-                          "delete",
-                          idx.indexerType || "indexer",
-                          false,
-                        );
-                        const errObj = err as Error | null;
-                        showToast(
-                          errObj?.message ||
-                            t("settingsTabs.indexers.deleteIndexerFailed"),
-                          "error",
-                        );
-                      },
-                    });
+                      deleteMutation.mutate(idx.id, {
+                        onSuccess: () => {
+                          setSelectedIndexerIds((prev) => {
+                            if (!prev.has(idx.id)) return prev;
+                            const next = new Set(prev);
+                            next.delete(idx.id);
+                            return next;
+                          });
+                          trackIndexerAction(
+                            "delete",
+                            idx.indexerType || "indexer",
+                            true,
+                          );
+                          showToast(
+                            t("settingsTabs.indexers.indexerDeleted", {
+                              name: idx.name,
+                            }),
+                            "info",
+                          );
+                        },
+                        onError: (err: unknown) => {
+                          trackIndexerAction(
+                            "delete",
+                            idx.indexerType || "indexer",
+                            false,
+                          );
+                          const errObj = err as Error | null;
+                          showToast(
+                            errObj?.message ||
+                              t("settingsTabs.indexers.deleteIndexerFailed"),
+                            "error",
+                          );
+                        },
+                      });
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    marginBottom: "0.75rem",
                   }}
                 >
-                  &#x2715;
-                </button>
-              </div>
-              <div className="provider-card-name">{idx.name}</div>
+                  <input
+                    type="checkbox"
+                    className="torrent-checkbox"
+                    checked={isSelected}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleToggleSelect(idx.id);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label={`Select ${idx.name}`}
+                  />
+                  <div
+                    className="provider-card-name"
+                    style={{ margin: 0, paddingRight: "1.5rem", flex: 1 }}
+                  >
+                    {idx.name}
+                  </div>
+                </div>
               <div className="provider-card-badges">
                 <span className="provider-card-badge provider-card-badge-green">
                   {t(
@@ -642,7 +832,8 @@ export function IndexersTab() {
                 </div>
               )}
             </div>
-          ))}
+          );
+        })}
           <div
             className="provider-card-add"
             onClick={() => {

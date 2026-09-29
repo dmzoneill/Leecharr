@@ -4351,6 +4351,13 @@ input[type="number"]::-webkit-inner-spin-button {
   transform: translateY(-2px);
 }
 
+.provider-card-selected {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 4px 14px rgb(0 0 0 / 40%);
+}
+
 .provider-card-name {
   font-size: 1.15rem;
   font-weight: 500;

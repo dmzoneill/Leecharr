@@ -183,6 +183,42 @@ public class IndexerController : Controller
         return this.Ok();
     }
 
+    [HttpPost("bulk-delete")]
+    [HttpPost("bulk")]
+    [HttpDelete("bulk")]
+    [HttpDelete]
+    public ActionResult BulkDelete([FromBody] BulkDeleteIndexersRequest request)
+    {
+        if (request == null || request.Ids == null || request.Ids.Count == 0)
+        {
+            return this.BadRequest(new { message = "No indexer IDs provided." });
+        }
+
+        var deletedCount = 0;
+        var deletedIds = new List<int>();
+
+        foreach (var id in request.Ids.Distinct())
+        {
+            var existing = this.indexerRepository.Get(id);
+            if (existing != null)
+            {
+                TorznabClient.InvalidateCapabilities(existing.Url, existing.ApiKey);
+            }
+
+            this.indexerRepository.Delete(id);
+            this.indexerStatusService?.Reset(id);
+            deletedCount++;
+            deletedIds.Add(id);
+        }
+
+        return this.Ok(new
+        {
+            success = true,
+            count = deletedCount,
+            deletedIds,
+        });
+    }
+
     [HttpPost("{id:int}/test")]
     public async Task<ActionResult<IndexerTestResult>> Test(int id)
     {

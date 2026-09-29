@@ -2490,6 +2490,10 @@ const ta: I18nTranslations = {
       "deleteConfirmText": "நீக்கு",
       "indexerDeleted": "குறியீட்டு \"{{name}}\" நீக்கப்பட்டது",
       "deleteIndexerFailed": "அட்டவணையை நீக்க முடியவில்லை",
+      "selectAll": "அனைத்தையும் தேர்ந்தெடு",
+      "deselectAll": "அனைத்தையும் தேர்வுநீக்கு",
+      "deleteSelected": "தேர்ந்தெடுத்தவற்றை நீக்கு",
+      "deletingSelected": "நீக்குகிறது...",
       "badgeRss": "RSS",
       "badgeSearch": "தேடு",
       "connectionPassed": "✓ இணைப்பு முடிந்தது",
@@ -2559,7 +2563,12 @@ const ta: I18nTranslations = {
       "indexerUpdated": "குறியீட்டு \"{{name}}\" புதுப்பிக்கப்பட்டது",
       "indexerCreated": "குறியீட்டு \"{{name}}\" உருவாக்கப்பட்டது",
       "updateFailed": "அட்டவணையைப் புதுப்பிக்க முடியவில்லை",
-      "createFailed": "அட்டவணையை உருவாக்க முடியவில்லை"
+      "createFailed": "அட்டவணையை உருவாக்க முடியவில்லை",
+      "selectedCount": "{{count}} தேர்ந்தெடுக்கப்பட்டது",
+      "deleteSelectedTitle": "தேர்ந்தெடுக்கப்பட்ட அட்டவணைகளை நீக்கு",
+      "deleteSelectedConfirmMessage": "{{count}} தேர்ந்தெடுக்கப்பட்ட அட்டவணையை(களை) நிச்சயமாக நீக்க விரும்புகிறீர்களா?",
+      "bulkDeleteSuccess": "நீக்கப்பட்ட {{count}} அட்டவணை(கள்)",
+      "bulkDeleteFailed": "தேர்ந்தெடுக்கப்பட்ட அட்டவணைகளை நீக்க முடியவில்லை"
     },
     "nav": {
       "groups": {

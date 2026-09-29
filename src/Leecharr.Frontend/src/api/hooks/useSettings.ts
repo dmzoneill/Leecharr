@@ -430,6 +430,21 @@ export function useDeleteIndexer() {
   });
 }
 
+export function useBulkDeleteIndexers() {
+  const queryClient = useQueryClient();
+  return useMutation<
+    { success: boolean; count: number; deletedIds: number[] },
+    Error,
+    number[] | { ids: number[] }
+  >({
+    mutationFn: (payload) => {
+      const data = Array.isArray(payload) ? { ids: payload } : payload;
+      return apiClient.post("/indexers/bulk-delete", data);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["indexers"] }),
+  });
+}
+
 export function useTestIndexer() {
   return useMutation<IndexerTestResult, Error, number>({
     mutationFn: (id) => apiClient.post(`/indexers/${id}/test`),
