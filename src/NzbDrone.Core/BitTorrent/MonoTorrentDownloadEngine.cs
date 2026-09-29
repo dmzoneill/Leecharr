@@ -505,8 +505,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             DhtEndPoint = (!isAnonymous && !isProxyActive && this.configService.EnableDht) ? new IPEndPoint(listenIp, port) : null,
             CacheDirectory = cacheDir,
             ConnectionTimeout = TimeSpan.FromSeconds(this.configService.TransportConnectionTimeoutSeconds > 0 ? this.configService.TransportConnectionTimeoutSeconds : 30),
-            DiskCacheBytes = dynamicCacheBytes,
-            DiskCachePolicy = cachePolicy,
+            DiskCacheBytes = cachePolicy == CachePolicy.None ? 0 : (int)Math.Min((long)int.MaxValue, dynamicCacheBytes),
+            DiskCachePolicy = (MonoTorrent.PieceWriter.CachePolicy)Math.Max(0, (int)cachePolicy),
             FastResumeMode = fastResumeMode,
             MaximumConnections = this.configService.MaxGlobalConnections > 0 ? this.configService.MaxGlobalConnections : 300,
             MaximumDownloadRate = initialDownloadSpeedKbps > 0
@@ -2818,6 +2818,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
     {
         if (this.engine != null)
         {
+            var cachePolicy = this.GetConfiguredCachePolicy();
             var settingsBuilder = new EngineSettingsBuilder(this.engine.Settings)
             {
                 MaximumDownloadRate = maxDownloadKbps > 0
@@ -2826,8 +2827,8 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 MaximumUploadRate = maxUploadKbps > 0
                     ? (int)Math.Min((long)maxUploadKbps * 1024, int.MaxValue)
                     : 0,
-                DiskCacheBytes = this.CalculateDynamicDiskCacheBytes(this.engine.TotalDownloadRate),
-                DiskCachePolicy = this.GetConfiguredCachePolicy(),
+                DiskCacheBytes = cachePolicy == CachePolicy.None ? 0 : (int)Math.Min((long)int.MaxValue, this.CalculateDynamicDiskCacheBytes(this.engine.TotalDownloadRate)),
+                DiskCachePolicy = (MonoTorrent.PieceWriter.CachePolicy)Math.Max(0, (int)cachePolicy),
                 FastResumeMode = this.GetConfiguredFastResumeMode(),
             };
             await this.engine.UpdateSettingsAsync(settingsBuilder.ToSettings());
@@ -4746,8 +4747,9 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         builder.MaximumHalfOpenConnections = this.configService.MaximumHalfOpenConnections > 0 ? this.configService.MaximumHalfOpenConnections : 50;
         builder.DhtEndPoint = (!isAnonymous && !isProxyActive && this.configService.EnableDht) ? new IPEndPoint(listenIp, port) : null;
         builder.ConnectionTimeout = TimeSpan.FromSeconds(this.configService.TransportConnectionTimeoutSeconds > 0 ? this.configService.TransportConnectionTimeoutSeconds : 30);
-        builder.DiskCacheBytes = this.CalculateDynamicDiskCacheBytes(this.engine?.TotalDownloadRate ?? 0);
-        builder.DiskCachePolicy = this.GetConfiguredCachePolicy();
+        var cachePolicy = this.GetConfiguredCachePolicy();
+        builder.DiskCacheBytes = cachePolicy == CachePolicy.None ? 0 : (int)Math.Min((long)int.MaxValue, this.CalculateDynamicDiskCacheBytes(this.engine?.TotalDownloadRate ?? 0));
+        builder.DiskCachePolicy = (MonoTorrent.PieceWriter.CachePolicy)Math.Max(0, (int)cachePolicy);
         builder.FastResumeMode = this.GetConfiguredFastResumeMode();
         builder.MaximumConnections = this.configService.MaxGlobalConnections > 0 ? this.configService.MaxGlobalConnections : 300;
 
@@ -5451,10 +5453,10 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         return totalSystemRam;
     }
 
-    public int CalculateDynamicDiskCacheBytes(long currentDownloadThroughputBytesPerSec = 0, long? effectiveMemoryOverride = null)
+    public long CalculateDynamicDiskCacheBytes(long currentDownloadThroughputBytesPerSec = 0, long? effectiveMemoryOverride = null)
     {
         var configuredMb = this.configService?.DiskWriteCacheSizeMb ?? 128;
-        var configuredBytes = this.configService?.DiskCacheBytes ?? (128 * 1024 * 1024);
+        var configuredBytes = this.configService?.DiskCacheBytes ?? (128L * 1024L * 1024L);
 
         var effectiveMemory = effectiveMemoryOverride ?? this.GetEffectiveMemoryBytes();
 
@@ -5486,7 +5488,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             dynamicCache = ((long)configuredMb * 1024L * 1024L) + throughputBufferBytes;
         }
-        else if (configuredBytes > 0 && configuredBytes < 128 * 1024 * 1024)
+        else if (configuredBytes > 0 && configuredBytes < 128L * 1024L * 1024L)
         {
             dynamicCache = (long)configuredBytes + throughputBufferBytes;
         }
@@ -5494,26 +5496,31 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         {
             dynamicCache = Math.Max(dynamicCache, (long)configuredMb * 1024L * 1024L);
         }
-        else if (configuredBytes > 128 * 1024 * 1024)
+        else if (configuredBytes > 128L * 1024L * 1024L)
         {
             dynamicCache = Math.Max(dynamicCache, (long)configuredBytes);
         }
 
         var maxAllowedCache = Math.Max(32L * 1024L * 1024L, (long)(effectiveMemory * 0.25));
         var minAllowedCache = Math.Min(32L * 1024L * 1024L, (long)configuredBytes);
-        var upperLimit = Math.Min(1024L * 1024L * 1024L, maxAllowedCache);
+        var upperLimit = Math.Min(4096L * 1024L * 1024L, maxAllowedCache);
         if (minAllowedCache > upperLimit)
         {
             minAllowedCache = upperLimit;
         }
 
-        var clampedBytes = (int)Math.Clamp(dynamicCache, minAllowedCache, upperLimit);
+        var clampedBytes = Math.Clamp(dynamicCache, minAllowedCache, upperLimit);
         return clampedBytes;
     }
 
-    private CachePolicy GetConfiguredCachePolicy()
+    internal CachePolicy GetConfiguredCachePolicy()
     {
         var policy = this.configService?.DiskCachePolicy;
+        if (string.Equals(policy, "None", StringComparison.OrdinalIgnoreCase))
+        {
+            return CachePolicy.None;
+        }
+
         if (string.Equals(policy, "ReadsAndWrites", StringComparison.OrdinalIgnoreCase))
         {
             return CachePolicy.ReadsAndWrites;
@@ -5570,13 +5577,14 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 }
 
                 var currentDownloadRate = this.engine != null ? this.engine.TotalDownloadRate : 0;
-                var targetCacheBytes = this.CalculateDynamicDiskCacheBytes(currentDownloadRate);
-                if (this.engine != null && Math.Abs(this.engine.Settings.DiskCacheBytes - targetCacheBytes) >= 32 * 1024 * 1024)
+                var cachePolicy = this.GetConfiguredCachePolicy();
+                var targetCacheBytes = cachePolicy == CachePolicy.None ? 0L : this.CalculateDynamicDiskCacheBytes(currentDownloadRate);
+                if (this.engine != null && Math.Abs(this.engine.Settings.DiskCacheBytes - (int)Math.Min((long)int.MaxValue, targetCacheBytes)) >= 32 * 1024 * 1024)
                 {
                     var updatedSettings = new EngineSettingsBuilder(this.engine.Settings)
                     {
-                        DiskCacheBytes = targetCacheBytes,
-                        DiskCachePolicy = this.GetConfiguredCachePolicy(),
+                        DiskCacheBytes = (int)Math.Min((long)int.MaxValue, targetCacheBytes),
+                        DiskCachePolicy = (MonoTorrent.PieceWriter.CachePolicy)Math.Max(0, (int)cachePolicy),
                         FastResumeMode = this.GetConfiguredFastResumeMode(),
                     }.ToSettings();
                     await this.engine.UpdateSettingsAsync(updatedSettings).ConfigureAwait(false);
