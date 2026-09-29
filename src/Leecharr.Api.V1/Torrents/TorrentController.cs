@@ -279,6 +279,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             ? TorrentResourceMapper.EncodeBitfield(task.PieceBitfield)
             : null;
         var res = TorrentResourceMapper.ToResource(torrent, meta, bitfield);
+        res.Availability = task?.Metrics?.SwarmAvailability ?? task?.SwarmAvailability;
         res.QueuePosition = torrent.QueuePosition > 0 ? torrent.QueuePosition : 1;
         var dbTrackers = this.trackerEntryRepository?.GetByTorrentId(id).ToList();
 
