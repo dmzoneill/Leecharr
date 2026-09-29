@@ -3462,7 +3462,22 @@ const vi: I18nTranslations = {
     "addTorrentModal": "Lỗi hộp thoại thêm torrent",
     "searchModal": "Lỗi hộp thoại tìm kiếm",
     "setupGuide": "Lỗi hướng dẫn thiết lập",
-    "copilotDrawer": "Lỗi ngăn Copilot"
+    "copilotDrawer": "Lỗi ngăn Copilot",
+    "defaultTitle": "Đã xảy ra lỗi giao diện người dùng không mong muốn",
+    "trackerServer": "Không tải được chế độ xem máy chủ theo dõi. Đã xảy ra lỗi không mong muốn.",
+    "trackerMetrics": "Không tải được chế độ xem số liệu theo dõi. Đã xảy ra lỗi không mong muốn.",
+    "automation": "Không tải được chế độ xem tự động hóa. Đã xảy ra lỗi không mong muốn.",
+    "databaseExplorer": "Không tải được chế độ xem trình khám phá cơ sở dữ liệu. Đã xảy ra lỗi không mong muốn.",
+    "inAppTestRunner": "Không tải được chế độ xem người chạy thử nghiệm trong ứng dụng. Đã xảy ra lỗi không mong muốn.",
+    "interactiveRepl": "Không tải được chế độ xem REPL tương tác. Đã xảy ra lỗi không mong muốn.",
+    "webDebugger": "Không tải được chế độ xem trình gỡ lỗi web. Đã xảy ra lỗi không mong muốn.",
+    "eventBusWiretap": "Không thể tải chế độ xem nghe lén trên xe buýt sự kiện. Đã xảy ra lỗi không mong muốn.",
+    "commandConsole": "Không tải được chế độ xem bảng điều khiển lệnh. Đã xảy ra lỗi không mong muốn.",
+    "networkWiretap": "Không tải được chế độ xem nghe lén mạng. Đã xảy ra lỗi không mong muốn.",
+    "webhookSandbox": "Không tải được chế độ xem hộp cát webhook. Đã xảy ra lỗi không mong muốn.",
+    "configEnvironment": "Không tải được chế độ xem cấu hình và môi trường. Đã xảy ra lỗi không mong muốn.",
+    "commandPalette": "Không tải được chế độ xem bảng lệnh. Đã xảy ra lỗi không mong muốn.",
+    "keyboardShortcuts": "Không tải được chế độ xem phím tắt. Đã xảy ra lỗi không mong muốn."
   },
   "copilot": {
     "welcomeMessage": "Xin chào! Tôi là trợ lý Leecharr Copilot. Tôi có thể giúp gì cho bạn hôm nay về torrent, bản phát hành hoặc cài đặt?",

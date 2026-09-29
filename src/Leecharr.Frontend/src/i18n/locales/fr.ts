@@ -3462,7 +3462,22 @@ const fr: I18nTranslations = {
     "addTorrentModal": "Échec du chargement de la vue addTorrentModal. Une erreur inattendue s'est produite.",
     "searchModal": "Échec du chargement de la vue searchModal. Une erreur inattendue s'est produite.",
     "setupGuide": "Échec du chargement de la vue setupGuide. Une erreur inattendue s'est produite.",
-    "copilotDrawer": "Échec du chargement de la vue copilotDrawer. Une erreur inattendue s'est produite."
+    "copilotDrawer": "Échec du chargement de la vue copilotDrawer. Une erreur inattendue s'est produite.",
+    "defaultTitle": "Une erreur inattendue de l'interface utilisateur s'est produite",
+    "trackerServer": "Échec du chargement de la vue du serveur de suivi. Une erreur inattendue s'est produite.",
+    "trackerMetrics": "Échec du chargement de la vue des métriques du tracker. Une erreur inattendue s'est produite.",
+    "automation": "Échec du chargement de la vue d'automatisation. Une erreur inattendue s'est produite.",
+    "databaseExplorer": "Échec du chargement de la vue de l'explorateur de base de données. Une erreur inattendue s'est produite.",
+    "inAppTestRunner": "Échec du chargement de la vue du lanceur de tests dans l'application. Une erreur inattendue s'est produite.",
+    "interactiveRepl": "Échec du chargement de la vue REPL interactive. Une erreur inattendue s'est produite.",
+    "webDebugger": "Échec du chargement de la vue du débogueur Web. Une erreur inattendue s'est produite.",
+    "eventBusWiretap": "Échec du chargement de la vue d'écoute électronique du bus d'événements. Une erreur inattendue s'est produite.",
+    "commandConsole": "Échec du chargement de la vue de la console de commande. Une erreur inattendue s'est produite.",
+    "networkWiretap": "Échec du chargement de la vue d'écoute réseau. Une erreur inattendue s'est produite.",
+    "webhookSandbox": "Échec du chargement de la vue sandbox du webhook. Une erreur inattendue s'est produite.",
+    "configEnvironment": "Échec du chargement de la vue de configuration et d'environnement. Une erreur inattendue s'est produite.",
+    "commandPalette": "Échec du chargement de la vue de la palette de commandes. Une erreur inattendue s'est produite.",
+    "keyboardShortcuts": "Échec du chargement de la vue des raccourcis clavier. Une erreur inattendue s'est produite."
   },
   "copilot": {
     "welcomeMessage": "Bonjour ! Je suis votre Copilote Leecharr. Comment puis-je vous aider aujourd'hui avec vos torrents, releases ou réglages ?",

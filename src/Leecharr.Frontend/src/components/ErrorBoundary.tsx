@@ -83,7 +83,7 @@ export class ErrorBoundary extends Component<
 
     const {
       fallback,
-      title = translate("common.error", "An unexpected UI error occurred"),
+      title = translate("errors.defaultTitle", "An unexpected UI error occurred"),
     } = this.props;
     const { error, errorInfo, showDetails } = this.state;
 

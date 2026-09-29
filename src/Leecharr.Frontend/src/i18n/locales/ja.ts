@@ -3462,7 +3462,22 @@ const ja: I18nTranslations = {
     "addTorrentModal": "addTorrentModal ビューのロードに失敗しました。予期しないエラーが発生しました。",
     "searchModal": "searchModal ビューの読み込みに失敗しました。予期しないエラーが発生しました。",
     "setupGuide": "setupGuide ビューのロードに失敗しました。予期しないエラーが発生しました。",
-    "copilotDrawer": "copilotDrawer ビューのロードに失敗しました。予期しないエラーが発生しました。"
+    "copilotDrawer": "copilotDrawer ビューのロードに失敗しました。予期しないエラーが発生しました。",
+    "defaultTitle": "予期しない UI エラーが発生しました",
+    "trackerServer": "トラッカー サーバー ビューのロードに失敗しました。予期しないエラーが発生しました。",
+    "trackerMetrics": "トラッカー メトリクス ビューのロードに失敗しました。予期しないエラーが発生しました。",
+    "automation": "オートメーション ビューのロードに失敗しました。予期しないエラーが発生しました。",
+    "databaseExplorer": "データベース エクスプローラー ビューのロードに失敗しました。予期しないエラーが発生しました。",
+    "inAppTestRunner": "アプリ内テスト ランナー ビューの読み込みに失敗しました。予期しないエラーが発生しました。",
+    "interactiveRepl": "対話型 REPL ビューのロードに失敗しました。予期しないエラーが発生しました。",
+    "webDebugger": "Web デバッガ ビューのロードに失敗しました。予期しないエラーが発生しました。",
+    "eventBusWiretap": "イベントバス盗聴ビューのロードに失敗しました。予期しないエラーが発生しました。",
+    "commandConsole": "コマンド コンソール ビューのロードに失敗しました。予期しないエラーが発生しました。",
+    "networkWiretap": "ネットワーク盗聴ビューのロードに失敗しました。予期しないエラーが発生しました。",
+    "webhookSandbox": "Webhook サンドボックス ビューのロードに失敗しました。予期しないエラーが発生しました。",
+    "configEnvironment": "構成および環境ビューのロードに失敗しました。予期しないエラーが発生しました。",
+    "commandPalette": "コマンド パレット ビューのロードに失敗しました。予期しないエラーが発生しました。",
+    "keyboardShortcuts": "キーボード ショートカット ビューの読み込みに失敗しました。予期しないエラーが発生しました。"
   },
   "copilot": {
     "welcomeMessage": "こんにちは！Leecharr Copilot です。トレント、リリース、設定など何でもお気軽にご相談ください。",

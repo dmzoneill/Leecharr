@@ -3462,7 +3462,22 @@ const tr: I18nTranslations = {
     "addTorrentModal": "addTorrentModal görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
     "searchModal": "SearchModal görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
     "setupGuide": "setupGuide görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
-    "copilotDrawer": "CopilotDrawer görünümü yüklenemedi. Beklenmeyen bir hata oluştu."
+    "copilotDrawer": "CopilotDrawer görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
+    "defaultTitle": "Beklenmeyen bir kullanıcı arayüzü hatası oluştu",
+    "trackerServer": "İzleyici sunucusu görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
+    "trackerMetrics": "İzleyici ölçümleri görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
+    "automation": "Otomasyon görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
+    "databaseExplorer": "Veritabanı gezgini görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
+    "inAppTestRunner": "Uygulama içi test çalıştırıcısı görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
+    "interactiveRepl": "Etkileşimli REPL görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
+    "webDebugger": "Web hata ayıklayıcı görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
+    "eventBusWiretap": "Olay veri yolu telefon dinleme görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
+    "commandConsole": "Komut konsolu görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
+    "networkWiretap": "Ağ dinleme görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
+    "webhookSandbox": "Webhook korumalı alan görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
+    "configEnvironment": "Yapılandırma ve ortam görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
+    "commandPalette": "Komut paleti görünümü yüklenemedi. Beklenmeyen bir hata oluştu.",
+    "keyboardShortcuts": "Klavye kısayolları görünümü yüklenemedi. Beklenmeyen bir hata oluştu."
   },
   "copilot": {
     "welcomeMessage": "Merhaba! Ben Leecharr Yardımcınızım. Bugün torrentler, sürümler veya ayarlar konusunda size nasıl yardımcı olabilirim?",

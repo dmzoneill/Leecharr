@@ -3462,7 +3462,22 @@ const it: I18nTranslations = {
     "addTorrentModal": "Errore nella finestra di aggiunta torrent",
     "searchModal": "Errore nella finestra di ricerca",
     "setupGuide": "Errore nella guida di configurazione",
-    "copilotDrawer": "Errore nel pannello Copilot"
+    "copilotDrawer": "Errore nel pannello Copilot",
+    "defaultTitle": "Si è verificato un errore imprevisto dell'interfaccia utente",
+    "trackerServer": "Impossibile caricare la vista del server tracker. Si è verificato un errore imprevisto.",
+    "trackerMetrics": "Impossibile caricare la visualizzazione delle metriche del tracker. Si è verificato un errore imprevisto.",
+    "automation": "Impossibile caricare la vista di automazione. Si è verificato un errore imprevisto.",
+    "databaseExplorer": "Impossibile caricare la vista Explorer del database. Si è verificato un errore imprevisto.",
+    "inAppTestRunner": "Impossibile caricare la visualizzazione del test runner in-app. Si è verificato un errore imprevisto.",
+    "interactiveRepl": "Impossibile caricare la vista REPL interattiva. Si è verificato un errore imprevisto.",
+    "webDebugger": "Impossibile caricare la visualizzazione del debugger web. Si è verificato un errore imprevisto.",
+    "eventBusWiretap": "Impossibile caricare la visualizzazione delle intercettazioni del bus degli eventi. Si è verificato un errore imprevisto.",
+    "commandConsole": "Impossibile caricare la vista della console di comando. Si è verificato un errore imprevisto.",
+    "networkWiretap": "Impossibile caricare la visualizzazione delle intercettazioni di rete. Si è verificato un errore imprevisto.",
+    "webhookSandbox": "Impossibile caricare la visualizzazione sandbox del webhook. Si è verificato un errore imprevisto.",
+    "configEnvironment": "Impossibile caricare la visualizzazione della configurazione e dell'ambiente. Si è verificato un errore imprevisto.",
+    "commandPalette": "Impossibile caricare la vista della tavolozza dei comandi. Si è verificato un errore imprevisto.",
+    "keyboardShortcuts": "Impossibile caricare la visualizzazione delle scorciatoie da tastiera. Si è verificato un errore imprevisto."
   },
   "copilot": {
     "welcomeMessage": "Ciao! Sono il tuo Copilota Leecharr. Come posso aiutarti oggi con torrent, release o impostazioni?",

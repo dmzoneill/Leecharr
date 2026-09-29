@@ -3462,7 +3462,22 @@ const id: I18nTranslations = {
     "addTorrentModal": "Gagal memuat tampilan addTorrentModal. Terjadi kesalahan yang tidak terduga.",
     "searchModal": "Gagal memuat tampilan searchModal. Terjadi kesalahan yang tidak terduga.",
     "setupGuide": "Gagal memuat tampilan setupGuide. Terjadi kesalahan yang tidak terduga.",
-    "copilotDrawer": "Gagal memuat tampilan kopilotDrawer. Terjadi kesalahan yang tidak terduga."
+    "copilotDrawer": "Gagal memuat tampilan kopilotDrawer. Terjadi kesalahan yang tidak terduga.",
+    "defaultTitle": "Terjadi kesalahan UI yang tidak terduga",
+    "trackerServer": "Gagal memuat tampilan server pelacak. Terjadi kesalahan yang tidak terduga.",
+    "trackerMetrics": "Gagal memuat tampilan metrik pelacak. Terjadi kesalahan yang tidak terduga.",
+    "automation": "Gagal memuat tampilan otomatisasi. Terjadi kesalahan yang tidak terduga.",
+    "databaseExplorer": "Gagal memuat tampilan penjelajah basis data. Terjadi kesalahan yang tidak terduga.",
+    "inAppTestRunner": "Gagal memuat tampilan runner pengujian dalam aplikasi. Terjadi kesalahan yang tidak terduga.",
+    "interactiveRepl": "Gagal memuat tampilan REPL interaktif. Terjadi kesalahan yang tidak terduga.",
+    "webDebugger": "Gagal memuat tampilan debugger web. Terjadi kesalahan yang tidak terduga.",
+    "eventBusWiretap": "Gagal memuat tampilan penyadapan bus peristiwa. Terjadi kesalahan yang tidak terduga.",
+    "commandConsole": "Gagal memuat tampilan konsol perintah. Terjadi kesalahan yang tidak terduga.",
+    "networkWiretap": "Gagal memuat tampilan penyadapan jaringan. Terjadi kesalahan yang tidak terduga.",
+    "webhookSandbox": "Gagal memuat tampilan kotak pasir webhook. Terjadi kesalahan yang tidak terduga.",
+    "configEnvironment": "Gagal memuat tampilan konfigurasi & lingkungan. Terjadi kesalahan yang tidak terduga.",
+    "commandPalette": "Gagal memuat tampilan palet perintah. Terjadi kesalahan yang tidak terduga.",
+    "keyboardShortcuts": "Gagal memuat tampilan pintasan keyboard. Terjadi kesalahan yang tidak terduga."
   },
   "copilot": {
     "welcomeMessage": "Halo! Saya Asisten AI Leecharr. Ada yang bisa saya bantu terkait torrent, rilis, atau pengaturan hari ini?",

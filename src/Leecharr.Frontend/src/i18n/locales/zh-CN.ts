@@ -3462,7 +3462,22 @@ const zhCN: I18nTranslations = {
     "addTorrentModal": "无法加载 addTorrentModal 视图。发生意外错误。",
     "searchModal": "无法加载 searchModal 视图。发生意外错误。",
     "setupGuide": "无法加载 setupGuide 视图。发生意外错误。",
-    "copilotDrawer": "无法加载 copilotDrawer 视图。发生意外错误。"
+    "copilotDrawer": "无法加载 copilotDrawer 视图。发生意外错误。",
+    "defaultTitle": "发生意外的 UI 错误",
+    "trackerServer": "无法加载跟踪器服务器视图。发生意外错误。",
+    "trackerMetrics": "无法加载跟踪器指标视图。发生意外错误。",
+    "automation": "无法加载自动化视图。发生意外错误。",
+    "databaseExplorer": "无法加载数据库资源管理器视图。发生意外错误。",
+    "inAppTestRunner": "无法加载应用内测试运行器视图。发生意外错误。",
+    "interactiveRepl": "无法加载交互式 REPL 视图。发生意外错误。",
+    "webDebugger": "无法加载 Web 调试器视图。发生意外错误。",
+    "eventBusWiretap": "无法加载事件总线窃听视图。发生意外错误。",
+    "commandConsole": "无法加载命令控制台视图。发生意外错误。",
+    "networkWiretap": "无法加载网络窃听视图。发生意外错误。",
+    "webhookSandbox": "无法加载 webhook 沙箱视图。发生意外错误。",
+    "configEnvironment": "无法加载配置和环境视图。发生意外错误。",
+    "commandPalette": "无法加载命令选项板视图。发生意外错误。",
+    "keyboardShortcuts": "无法加载键盘快捷键视图。发生意外错误。"
   },
   "copilot": {
     "welcomeMessage": "您好！我是您的 Leecharr 智能副驾驶。今天有什么我可以帮您的（种子、影视发布或设置）？",

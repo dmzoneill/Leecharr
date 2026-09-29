@@ -156,3 +156,66 @@ describe("LanguageSelector & i18n languageTitle", () => {
     assert.ok(filter("nonexistent_lang_12345").length === 0);
   });
 });
+
+describe("ErrorBoundary & route/modal error boundary localization (#1034)", () => {
+  const errorKeys = [
+    "defaultTitle",
+    "trackerServer",
+    "trackerMetrics",
+    "automation",
+    "databaseExplorer",
+    "inAppTestRunner",
+    "interactiveRepl",
+    "webDebugger",
+    "eventBusWiretap",
+    "commandConsole",
+    "networkWiretap",
+    "webhookSandbox",
+    "configEnvironment",
+    "commandPalette",
+    "keyboardShortcuts",
+  ] as const;
+
+  it("all 20 locales define errors.defaultTitle and all 14 route/modal error keys", () => {
+    for (const { code, dict } of allLocales) {
+      assert.ok(dict.errors, `Locale ${code} is missing errors dictionary`);
+      for (const key of errorKeys) {
+        const val = dict.errors[key];
+        assert.ok(
+          typeof val === "string" && val.length > 0,
+          `Locale ${code} is missing errors.${key}`,
+        );
+      }
+    }
+  });
+
+  it("errors.defaultTitle returns descriptive error message without masking by 'common.error'", () => {
+    useI18nStore.setState({ language: "en", translations: en });
+    const enTitle = translate("errors.defaultTitle", "An unexpected UI error occurred");
+    assert.strictEqual(enTitle, "An unexpected UI error occurred");
+    assert.notStrictEqual(enTitle, "Error");
+
+    useI18nStore.setState({ language: "de", translations: de });
+    const deTitle = translate("errors.defaultTitle", "An unexpected UI error occurred");
+    assert.ok(deTitle.length > 0);
+    assert.notStrictEqual(deTitle, "Fehler");
+  });
+
+  it("translates route and modal error boundary titles across locales", () => {
+    useI18nStore.setState({ language: "en", translations: en });
+    assert.strictEqual(
+      translate("errors.trackerServer"),
+      "Failed to load tracker server view. An unexpected error occurred.",
+    );
+    assert.strictEqual(
+      translate("errors.commandPalette"),
+      "Failed to load command palette view. An unexpected error occurred.",
+    );
+
+    useI18nStore.setState({ language: "fr", translations: fr });
+    const frTracker = translate("errors.trackerServer");
+    assert.ok(frTracker.length > 0);
+    assert.notStrictEqual(frTracker, "Tracker Server");
+  });
+});
+

@@ -3462,7 +3462,22 @@ const pt: I18nTranslations = {
     "addTorrentModal": "Falha ao carregar a visualização addTorrentModal. Ocorreu um erro inesperado.",
     "searchModal": "Falha ao carregar a visualização searchModal. Ocorreu um erro inesperado.",
     "setupGuide": "Falha ao carregar a visualização setupGuide. Ocorreu um erro inesperado.",
-    "copilotDrawer": "Falha ao carregar a visualização copilotDrawer. Ocorreu um erro inesperado."
+    "copilotDrawer": "Falha ao carregar a visualização copilotDrawer. Ocorreu um erro inesperado.",
+    "defaultTitle": "Ocorreu um erro inesperado na IU",
+    "trackerServer": "Falha ao carregar a visualização do servidor rastreador. Ocorreu um erro inesperado.",
+    "trackerMetrics": "Falha ao carregar a visualização das métricas do rastreador. Ocorreu um erro inesperado.",
+    "automation": "Falha ao carregar a visualização de automação. Ocorreu um erro inesperado.",
+    "databaseExplorer": "Falha ao carregar a visualização do explorador de banco de dados. Ocorreu um erro inesperado.",
+    "inAppTestRunner": "Falha ao carregar a visualização do executor de teste no aplicativo. Ocorreu um erro inesperado.",
+    "interactiveRepl": "Falha ao carregar a visualização REPL interativa. Ocorreu um erro inesperado.",
+    "webDebugger": "Falha ao carregar a visualização do depurador da Web. Ocorreu um erro inesperado.",
+    "eventBusWiretap": "Falha ao carregar a visualização de escuta telefônica do barramento de eventos. Ocorreu um erro inesperado.",
+    "commandConsole": "Falha ao carregar a visualização do console de comando. Ocorreu um erro inesperado.",
+    "networkWiretap": "Falha ao carregar a visualização de escuta telefônica da rede. Ocorreu um erro inesperado.",
+    "webhookSandbox": "Falha ao carregar a visualização do sandbox do webhook. Ocorreu um erro inesperado.",
+    "configEnvironment": "Falha ao carregar a visualização de configuração e ambiente. Ocorreu um erro inesperado.",
+    "commandPalette": "Falha ao carregar a visualização da paleta de comandos. Ocorreu um erro inesperado.",
+    "keyboardShortcuts": "Falha ao carregar a visualização de atalhos de teclado. Ocorreu um erro inesperado."
   },
   "copilot": {
     "welcomeMessage": "Olá! Sou o seu Copiloto Leecharr. Como posso ajudar com seus torrents, lançamentos ou configurações hoje?",
