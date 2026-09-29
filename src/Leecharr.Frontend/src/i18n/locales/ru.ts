@@ -2479,6 +2479,8 @@ const ru: I18nTranslations = {
       "rssRulesDesc": "Настройте правила фильтрации RSS, шаблоны регулярных выражений, минимальные раздающие и категории для автоматического захвата.",
       "syncRssNow": "🔄 Синхронизируйте RSS-каналы прямо сейчас",
       "syncingRss": "Синхронизация RSS...",
+      "syncProwlarr": "🔄 Синхронизация",
+      "syncingProwlarr": "Синхронизация Prowlarr...",
       "deleteRssRule": "Удалить правило RSS",
       "deleteRssRuleConfirmTitle": "Удалить правило RSS",
       "deleteRssRuleConfirmMessage": "Вы уверены, что хотите удалить правило RSS «{{name}}»?",
