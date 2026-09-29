@@ -2490,6 +2490,10 @@ const te: I18nTranslations = {
       "deleteConfirmText": "తొలగించు",
       "indexerDeleted": "సూచిక \"{{name}}\" తొలగించబడింది",
       "deleteIndexerFailed": "సూచికను తొలగించడంలో విఫలమైంది",
+      "selectAll": "అన్నీ ఎంచుకోండి",
+      "deselectAll": "ఎంపికను తీసివేయండి",
+      "deleteSelected": "ఎంచుకున్నవి తొలగించు",
+      "deletingSelected": "తొలగిస్తోంది...",
       "badgeRss": "RSS",
       "badgeSearch": "శోధించు",
       "connectionPassed": "✓ కనెక్షన్ ఆమోదించబడింది",
@@ -2559,7 +2563,12 @@ const te: I18nTranslations = {
       "indexerUpdated": "సూచిక \"{{name}}\" నవీకరించబడింది",
       "indexerCreated": "సూచిక \"{{name}}\" సృష్టించబడింది",
       "updateFailed": "సూచికను నవీకరించడంలో విఫలమైంది",
-      "createFailed": "సూచికను రూపొందించడంలో విఫలమైంది"
+      "createFailed": "సూచికను రూపొందించడంలో విఫలమైంది",
+      "selectedCount": "{{count}} ఎంచుకోబడింది",
+      "deleteSelectedTitle": "ఎంచుకున్న సూచికలను తొలగించండి",
+      "deleteSelectedConfirmMessage": "మీరు {{count}} ఎంచుకున్న సూచిక(లు)ని ఖచ్చితంగా తొలగించాలనుకుంటున్నారా?",
+      "bulkDeleteSuccess": "తొలగించబడిన {{count}} సూచిక(లు)",
+      "bulkDeleteFailed": "ఎంచుకున్న సూచికలను తొలగించడంలో విఫలమైంది"
     },
     "nav": {
       "groups": {

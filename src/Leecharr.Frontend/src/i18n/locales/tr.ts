@@ -2490,6 +2490,10 @@ const tr: I18nTranslations = {
       "deleteConfirmText": "Sil",
       "indexerDeleted": "Dizin oluşturucu \"{{name}}\" silindi",
       "deleteIndexerFailed": "Dizin oluşturucu silinemedi",
+      "selectAll": "Tümünü Seç",
+      "deselectAll": "Seçimi Kaldır",
+      "deleteSelected": "Seçilenleri Sil",
+      "deletingSelected": "Siliniyor...",
       "badgeRss": "RSS",
       "badgeSearch": "Ara",
       "connectionPassed": "✓ Bağlantı başarılı oldu",
@@ -2559,7 +2563,12 @@ const tr: I18nTranslations = {
       "indexerUpdated": "Dizin oluşturucu \"{{name}}\" güncellendi",
       "indexerCreated": "\"{{name}}\" dizinleyicisi oluşturuldu",
       "updateFailed": "Dizin oluşturucu güncellenemedi",
-      "createFailed": "Dizin oluşturucu oluşturulamadı"
+      "createFailed": "Dizin oluşturucu oluşturulamadı",
+      "selectedCount": "{{count}} seçildi",
+      "deleteSelectedTitle": "Seçili Dizin Oluşturucuları Sil",
+      "deleteSelectedConfirmMessage": "{{count}} seçili indeksleyiciyi/indeksleyicileri silmek istediğinizden emin misiniz?",
+      "bulkDeleteSuccess": "{{count}} indeksleyici(ler) silindi",
+      "bulkDeleteFailed": "Seçilen dizin oluşturucular silinemedi"
     },
     "nav": {
       "groups": {

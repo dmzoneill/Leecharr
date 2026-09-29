@@ -2490,6 +2490,10 @@ const bn: I18nTranslations = {
       "deleteConfirmText": "মুছে ফেলুন",
       "indexerDeleted": "ইনডেক্সার \"{{name}}\" মুছে ফেলা হয়েছে",
       "deleteIndexerFailed": "ইনডেক্সার মুছে ফেলতে ব্যর্থ হয়েছে",
+      "selectAll": "সব নির্বাচন করুন",
+      "deselectAll": "সব অনির্বাচন করুন",
+      "deleteSelected": "নির্বাচিতগুলি মুছে ফেলুন",
+      "deletingSelected": "মুছে ফেলা হচ্ছে...",
       "badgeRss": "RSS",
       "badgeSearch": "অনুসন্ধান",
       "connectionPassed": "✓ সংযোগ পাস হয়েছে",
@@ -2559,7 +2563,12 @@ const bn: I18nTranslations = {
       "indexerUpdated": "ইনডেক্সার \"{{name}}\" আপডেট করা হয়েছে",
       "indexerCreated": "ইনডেক্সার \"{{name}}\" তৈরি করা হয়েছে",
       "updateFailed": "ইনডেক্সার আপডেট করতে ব্যর্থ হয়েছে",
-      "createFailed": "ইনডেক্সার তৈরি করতে ব্যর্থ হয়েছে৷"
+      "createFailed": "ইনডেক্সার তৈরি করতে ব্যর্থ হয়েছে৷",
+      "selectedCount": "{{count}} নির্বাচিত",
+      "deleteSelectedTitle": "নির্বাচিত সূচকগুলি মুছুন",
+      "deleteSelectedConfirmMessage": "আপনি কি {{count}} নির্বাচিত সূচক(গুলি) মুছতে চান?",
+      "bulkDeleteSuccess": "মুছে ফেলা হয়েছে {{count}} সূচক(গুলি)",
+      "bulkDeleteFailed": "নির্বাচিত সূচকগুলি মুছতে ব্যর্থ হয়েছে৷"
     },
     "nav": {
       "groups": {
@@ -3406,13 +3415,13 @@ const bn: I18nTranslations = {
       "keepAliveIntervalHint": "0-বাইট Keepalive pings এর ফ্রিকোয়েন্সি",
       "peerContactIntervalHint": "নিষ্ক্রিয় সহকর্মীদের সাথে পুনরায় সংযোগ করার আগে কুলডাউন করুন৷",
       "failoverHint": "প্রাইমারি অফলাইনে থাকলে সেকেন্ডারি ট্র্যাকার স্তরগুলিতে স্যুইচ করুন৷",
-      "bepSuiteTitle": "BitTorrent Enhancement Proposals (BEP Suite)",
       "failoverMaxConsecutiveFailures": "ফেইলওভারের আগে সর্বাধিক ধারাবাহিক ব্যর্থতা",
       "failoverMaxConsecutiveFailuresHint": "পরবর্তী স্তরে ব্যর্থ হওয়ার আগে ব্যর্থতার ঘোষণার সংখ্যা",
       "failoverBackoffBaseSeconds": "ফেইলওভার বেস ব্যাকঅফ ইন্টারভাল",
       "failoverBackoffBaseSecondsHint": "একটি ব্যর্থ ট্র্যাকার স্তর পুনরায় চেষ্টা করার আগে প্রাথমিক ব্যাকঅফ বিলম্ব",
       "failoverMaxBackoffSeconds": "ফেইলওভার সর্বোচ্চ ব্যাকঅফ ব্যবধান",
-      "failoverMaxBackoffSecondsHint": "স্তর পুনঃপ্রচেষ্টার মধ্যে সর্বাধিক ব্যাকঅফ ব্যবধান ক্যাপ"
+      "failoverMaxBackoffSecondsHint": "স্তর পুনঃপ্রচেষ্টার মধ্যে সর্বাধিক ব্যাকঅফ ব্যবধান ক্যাপ",
+      "bepSuiteTitle": "BitTorrent Enhancement Proposals (BEP Suite)"
     },
     "dht": {
       "failedToSave": "DHT আবিষ্কার সেটিংস সংরক্ষণ করতে ব্যর্থ হয়েছে",
