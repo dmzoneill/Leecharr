@@ -61,6 +61,15 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
   const arrLink = getMediaDeepLink(item, arrConnections);
   const prowlarrLink = getProwlarrUrl(indexers, displayTitle);
   const genresList = normalizeGenres(meta?.genres);
+  const rawCast = Array.isArray(meta?.cast)
+    ? meta.cast
+    : typeof meta?.cast === "string"
+      ? [meta.cast]
+      : [];
+  const castList = rawCast
+    .flatMap((c) => (typeof c === "string" ? c.split(",") : []))
+    .map((c) => c.trim())
+    .filter((c) => c.length > 0);
 
   return (
     <div
@@ -244,7 +253,10 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
                 {/* TMDb link */}
                 {meta?.tmdbId && (
                   <a
-                    href={getTmdbUrl(meta.tmdbId, meta.mediaType) || "#"}
+                    href={
+                      getTmdbUrl(meta.tmdbId, meta.mediaType, meta.arrType) ||
+                      "#"
+                    }
                     target="_blank"
                     rel="noopener noreferrer"
                     className="badge"
@@ -399,7 +411,7 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
           )}
 
           {/* Cast & Actors with Headshots */}
-          {meta?.actors && meta.actors.length > 0 && (
+          {meta?.actors && meta.actors.length > 0 ? (
             <div>
               <h4
                 style={{
@@ -500,7 +512,55 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
                 ))}
               </div>
             </div>
-          )}
+          ) : castList.length > 0 ? (
+            <div>
+              <h4
+                style={{
+                  margin: "0 0 0.6rem 0",
+                  fontSize: "0.9rem",
+                  color: "var(--text-muted, #aaa)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                }}
+              >
+                {t("history.castCharacters")}
+              </h4>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.5rem",
+                  flexWrap: "wrap",
+                }}
+              >
+                {castList.map((actor, i) => (
+                  <a
+                    key={i}
+                    href={getActorSearchUrl(actor)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="badge"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.35rem",
+                      fontSize: "0.78rem",
+                      padding: "0.25rem 0.55rem",
+                      backgroundColor: "rgba(255, 255, 255, 0.08)",
+                      color: "var(--text-primary)",
+                      borderRadius: "6px",
+                      textDecoration: "none",
+                      border: "1px solid var(--border-light, rgba(255,255,255,0.1))",
+                      transition: "background-color 0.15s ease",
+                    }}
+                    title={`Search ${actor} on TMDb`}
+                  >
+                    <span>👤</span>
+                    <span>{actor}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {/* Technical Download Telemetry Grid */}
           <div

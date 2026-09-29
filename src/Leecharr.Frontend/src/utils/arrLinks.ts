@@ -199,12 +199,23 @@ export function getImdbUrl(
 }
 
 export function getTmdbUrl(
-  tmdbId?: number | null,
+  tmdbId?: number | string | null,
   mediaType?: string | null,
+  arrType?: string | null,
 ): string | null {
   if (!tmdbId) return null;
-  const type = mediaType === "movie" ? "movie" : "tv";
-  return `https://www.themoviedb.org/${type}/${tmdbId}`;
+  const cleanId = String(tmdbId).trim();
+  if (!cleanId || cleanId === "0") return null;
+  const normMedia = mediaType?.toLowerCase();
+  const normArr = arrType?.toLowerCase();
+  const isMovie =
+    normMedia === "movie" ||
+    normMedia === "radarr" ||
+    normMedia?.includes("radarr") ||
+    normArr === "radarr" ||
+    normArr?.includes("radarr");
+  const type = isMovie ? "movie" : "tv";
+  return `https://www.themoviedb.org/${type}/${cleanId}`;
 }
 
 export function getTvdbUrl(tvdbId?: number | null): string | null {
