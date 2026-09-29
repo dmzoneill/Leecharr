@@ -1671,6 +1671,7 @@ export interface TorrentCreationResult {
   success: boolean;
   errorMessage?: string;
   outputPath?: string;
+  torrentFileBytes?: string | number[];
   infoHash?: string;
   totalSize: number;
   pieceCount: number;
