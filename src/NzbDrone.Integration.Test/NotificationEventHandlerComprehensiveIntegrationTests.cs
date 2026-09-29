@@ -4,6 +4,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -79,6 +80,27 @@ public class NotificationEventHandlerComprehensiveIntegrationTests : Integration
             Arg.Any<string>(),
             Arg.Any<object>(),
             Arg.Any<string>(),
+            Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                var targetUrl = ci.ArgAt<string>(0);
+                var payload = ci.ArgAt<object>(1);
+                var headers = ci.ArgAt<string>(2);
+                this.recordedDispatches.Enqueue(new WebhookDispatchRecord
+                {
+                    TargetUrl = targetUrl ?? string.Empty,
+                    Payload = payload,
+                    CustomHeaders = headers ?? string.Empty,
+                });
+                this.dispatchSemaphore.Release();
+                return Task.FromResult(true);
+            });
+
+        this.webhookDispatcher.DispatchAsync(
+            Arg.Any<string>(),
+            Arg.Any<object>(),
+            Arg.Any<string>(),
+            Arg.Any<HttpMethod>(),
             Arg.Any<CancellationToken>())
             .Returns(ci =>
             {

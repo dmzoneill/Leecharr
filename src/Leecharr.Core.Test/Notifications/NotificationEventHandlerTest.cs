@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -38,6 +39,12 @@ public class NotificationEventHandlerTest
         this.notificationRepository = Substitute.For<INotificationRepository>();
         this.webhookDispatcher = Substitute.For<IWebhookDispatcher>();
         this.webhookDispatcher.DispatchAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                this.webhookTcs.TrySetResult(true);
+                return Task.FromResult(true);
+            });
+        this.webhookDispatcher.DispatchAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<string>(), Arg.Any<HttpMethod>(), Arg.Any<CancellationToken>())
             .Returns(ci =>
             {
                 this.webhookTcs.TrySetResult(true);
@@ -97,7 +104,9 @@ public class NotificationEventHandlerTest
 
         await this.webhookDispatcher.Received().DispatchAsync(
             "http://test/webhook",
-            Arg.Any<object>());
+            Arg.Any<object>(),
+            Arg.Any<string>(),
+            Arg.Any<HttpMethod>());
     }
 
     [Test]
@@ -133,7 +142,9 @@ public class NotificationEventHandlerTest
 
         await this.webhookDispatcher.Received().DispatchAsync(
             "http://test/webhook",
-            Arg.Any<object>());
+            Arg.Any<object>(),
+            Arg.Any<string>(),
+            Arg.Any<HttpMethod>());
     }
 
     [Test]
@@ -165,7 +176,9 @@ public class NotificationEventHandlerTest
 
         await this.webhookDispatcher.Received().DispatchAsync(
             "http://test/webhook",
-            Arg.Any<object>());
+            Arg.Any<object>(),
+            Arg.Any<string>(),
+            Arg.Any<HttpMethod>());
     }
 
     [Test]
@@ -196,7 +209,9 @@ public class NotificationEventHandlerTest
 
         await this.webhookDispatcher.Received().DispatchAsync(
             "http://test/webhook",
-            Arg.Any<object>());
+            Arg.Any<object>(),
+            Arg.Any<string>(),
+            Arg.Any<HttpMethod>());
     }
 
     [Test]
@@ -287,7 +302,9 @@ public class NotificationEventHandlerTest
 
         await this.webhookDispatcher.Received().DispatchAsync(
             "https://api.telegram.org/botbot-secret-123/sendMessage",
-            Arg.Any<object>());
+            Arg.Any<object>(),
+            Arg.Any<string>(),
+            HttpMethod.Post);
     }
 
     [Test]
@@ -324,7 +341,9 @@ public class NotificationEventHandlerTest
 
         await this.webhookDispatcher.Received().DispatchAsync(
             "https://api.pushover.net/1/messages.json",
-            Arg.Any<object>());
+            Arg.Any<object>(),
+            Arg.Any<string>(),
+            HttpMethod.Post);
     }
 
     [Test]
@@ -478,7 +497,9 @@ public class NotificationEventHandlerTest
 
         await this.webhookDispatcher.Received().DispatchAsync(
             "http://test/seedgoal",
-            Arg.Any<object>());
+            Arg.Any<object>(),
+            Arg.Any<string>(),
+            Arg.Any<HttpMethod>());
 
         await this.customScriptService.Received().ExecuteScriptAsync(
             "/scripts/seed_goal.sh",
@@ -525,7 +546,8 @@ public class NotificationEventHandlerTest
         await this.webhookDispatcher.Received().DispatchAsync(
             "http://test/webhook",
             Arg.Any<object>(),
-            Arg.Is<string>(h => h.Contains("Bearer token-123") && h.Contains("track-abc")));
+            Arg.Is<string>(h => h.Contains("Bearer token-123") && h.Contains("track-abc")),
+            Arg.Any<HttpMethod>());
     }
 
     [Test]
@@ -557,7 +579,8 @@ public class NotificationEventHandlerTest
         await this.webhookDispatcher.Received().DispatchAsync(
             "http://test/webhook",
             Arg.Any<object>(),
-            Arg.Is<string>(h => h.Contains("warning-123")));
+            Arg.Is<string>(h => h.Contains("warning-123")),
+            Arg.Any<HttpMethod>());
     }
 
     [Test]
@@ -582,7 +605,8 @@ public class NotificationEventHandlerTest
         await this.webhookDispatcher.Received().DispatchAsync(
             "http://test/webhook",
             Arg.Any<object>(),
-            Arg.Is<string>(h => h.Contains("ver-2")));
+            Arg.Is<string>(h => h.Contains("ver-2")),
+            Arg.Any<HttpMethod>());
     }
 
     [Test]
@@ -607,7 +631,8 @@ public class NotificationEventHandlerTest
         await this.webhookDispatcher.Received().DispatchAsync(
             "http://test/webhook",
             Arg.Any<object>(),
-            Arg.Is<string>(h => h.Contains("vpn-alert")));
+            Arg.Is<string>(h => h.Contains("vpn-alert")),
+            Arg.Any<HttpMethod>());
     }
 
     [Test]
@@ -639,6 +664,19 @@ public class NotificationEventHandlerTest
         NotificationEventHandler.ResolveCustomHeaders("http://test/plain").Should().BeNull();
         NotificationEventHandler.ResolveCustomHeaders(string.Empty).Should().BeNull();
         NotificationEventHandler.ResolveCustomHeaders(null).Should().BeNull();
+
+        // Basic Auth injection
+        NotificationEventHandler.ResolveCustomHeaders("{\"url\":\"http://test\",\"username\":\"admin\",\"password\":\"secret\"}")
+            .Should().Contain("\"Authorization\":\"Basic YWRtaW46c2VjcmV0\"");
+
+        // Basic Auth injection alongside existing headers object
+        NotificationEventHandler.ResolveCustomHeaders("{\"url\":\"http://test\",\"headers\":{\"X-Custom\":\"123\"},\"username\":\"admin\",\"password\":\"secret\"}")
+            .Should().Contain("\"Authorization\":\"Basic YWRtaW46c2VjcmV0\"")
+            .And.Contain("\"X-Custom\":\"123\"");
+
+        // Discord does not inject Basic Auth
+        NotificationEventHandler.ResolveCustomHeaders("Discord", "{\"url\":\"https://discord.com/api/webhooks/999/token\",\"username\":\"Leecharr\"}")
+            .Should().BeNull();
     }
 
     [TestCase("Movie.Name.(2024).1080p", @"Movie.Name.(2024).1080p")]
@@ -685,7 +723,9 @@ public class NotificationEventHandlerTest
                 payload != null &&
                 ((Dictionary<string, object>)payload)["text"].ToString()!.Contains(@"Movie.Title.(2024).\[1080p\].x264-GROUP") &&
                 ((Dictionary<string, object>)payload)["text"].ToString()!.Contains(@"Movies (HD)") &&
-                ((Dictionary<string, object>)payload)["parse_mode"].ToString() == "Markdown"));
+                ((Dictionary<string, object>)payload)["parse_mode"].ToString() == "Markdown"),
+            Arg.Any<string>(),
+            HttpMethod.Post);
     }
 
     [Test]
@@ -741,7 +781,9 @@ public class NotificationEventHandlerTest
                 payload.GetType().GetProperty("body") != null &&
                 payload.GetType().GetProperty("type") != null &&
                 (string)payload.GetType().GetProperty("title")!.GetValue(payload)! == "Leecharr: OnGrab" &&
-                ((string)payload.GetType().GetProperty("body")!.GetValue(payload)!).Contains("Apprise Linux ISO")));
+                ((string)payload.GetType().GetProperty("body")!.GetValue(payload)!).Contains("Apprise Linux ISO")),
+            Arg.Any<string>(),
+            HttpMethod.Post);
     }
 
     [Test]
@@ -778,7 +820,9 @@ public class NotificationEventHandlerTest
             Arg.Is<object>(payload =>
                 payload != null &&
                 payload.GetType().GetProperty("text") != null &&
-                ((string)payload.GetType().GetProperty("text")!.GetValue(payload)!).Contains("Slack Test Torrent")));
+                ((string)payload.GetType().GetProperty("text")!.GetValue(payload)!).Contains("Slack Test Torrent")),
+            Arg.Any<string>(),
+            HttpMethod.Post);
     }
 
     [Test]
@@ -937,7 +981,9 @@ public class NotificationEventHandlerTest
                 ((string)((object[])payload.GetType().GetProperty("embeds")!.GetValue(payload)!)[0].GetType().GetProperty("description")!.GetValue(((object[])payload.GetType().GetProperty("embeds")!.GetValue(payload)!)[0])!)
                     .Contains("Category: Movies | Status: Downloading | Progress: 10.0% | Size: 4096.00 MB") &&
                 ((string)((object[])payload.GetType().GetProperty("embeds")!.GetValue(payload)!)[0].GetType().GetProperty("description")!.GetValue(((object[])payload.GetType().GetProperty("embeds")!.GetValue(payload)!)[0])!)
-                    .Contains("Paul Atreides unites with Chani and the Fremen while seeking revenge.")));
+                    .Contains("Paul Atreides unites with Chani and the Fremen while seeking revenge.")),
+            Arg.Any<string>(),
+            HttpMethod.Post);
     }
 
     [Test]
@@ -998,6 +1044,16 @@ public class NotificationEventHandlerTest
 
         var multiWebhookTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var dispatchCount = 0;
+        this.webhookDispatcher.DispatchAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<string>(), Arg.Any<HttpMethod>())
+            .Returns(ci =>
+            {
+                if (System.Threading.Interlocked.Increment(ref dispatchCount) >= 2)
+                {
+                    multiWebhookTcs.TrySetResult(true);
+                }
+
+                return Task.FromResult(true);
+            });
         this.webhookDispatcher.DispatchAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<string>())
             .Returns(ci =>
             {
@@ -1006,7 +1062,7 @@ public class NotificationEventHandlerTest
                     multiWebhookTcs.TrySetResult(true);
                 }
 
-                return Task.CompletedTask;
+                return Task.FromResult(true);
             });
 
         var torrent = new Torrent
@@ -1029,11 +1085,15 @@ public class NotificationEventHandlerTest
 
         await this.webhookDispatcher.Received(1).DispatchAsync(
             "http://test/webhook-health",
-            Arg.Any<object>());
+            Arg.Any<object>(),
+            Arg.Any<string>(),
+            Arg.Any<HttpMethod>());
 
         await this.webhookDispatcher.Received(1).DispatchAsync(
             "http://test/webhook-manual",
-            Arg.Any<object>());
+            Arg.Any<object>(),
+            Arg.Any<string>(),
+            Arg.Any<HttpMethod>());
     }
 
     [Test]
@@ -1106,7 +1166,9 @@ public class NotificationEventHandlerTest
                 (int?)payload.GetType().GetProperty("media")!.GetValue(payload)!.GetType().GetProperty("seasonNumber")!.GetValue(payload.GetType().GetProperty("media")!.GetValue(payload)!) == 2 &&
                 (int?)payload.GetType().GetProperty("media")!.GetValue(payload)!.GetType().GetProperty("episodeNumber")!.GetValue(payload.GetType().GetProperty("media")!.GetValue(payload)!) == 8 &&
                 (string)payload.GetType().GetProperty("streamSpecs")!.GetValue(payload)!.GetType().GetProperty("videoCodec")!.GetValue(payload.GetType().GetProperty("streamSpecs")!.GetValue(payload)!)! == "HEVC (H.265)" &&
-                (string)payload.GetType().GetProperty("streamSpecs")!.GetValue(payload)!.GetType().GetProperty("containerFormat")!.GetValue(payload.GetType().GetProperty("streamSpecs")!.GetValue(payload)!)! == "Matroska"));
+                (string)payload.GetType().GetProperty("streamSpecs")!.GetValue(payload)!.GetType().GetProperty("containerFormat")!.GetValue(payload.GetType().GetProperty("streamSpecs")!.GetValue(payload)!)! == "Matroska"),
+            Arg.Any<string>(),
+            Arg.Any<HttpMethod>());
     }
 
     [TestCase(double.PositiveInfinity, 0.0)]
@@ -1146,7 +1208,9 @@ public class NotificationEventHandlerTest
                 payload != null &&
                 payload.GetType().GetProperty("torrent") != null &&
                 (double)payload.GetType().GetProperty("torrent")!.GetValue(payload)!.GetType().GetProperty("ratio")!.GetValue(payload.GetType().GetProperty("torrent")!.GetValue(payload)!)! == expectedRatio &&
-                (double)payload.GetType().GetProperty("torrent")!.GetValue(payload)!.GetType().GetProperty("progress")!.GetValue(payload.GetType().GetProperty("torrent")!.GetValue(payload)!)! == 0.0));
+                (double)payload.GetType().GetProperty("torrent")!.GetValue(payload)!.GetType().GetProperty("progress")!.GetValue(payload.GetType().GetProperty("torrent")!.GetValue(payload)!)! == 0.0),
+            Arg.Any<string>(),
+            Arg.Any<HttpMethod>());
     }
 
     [Test]
@@ -1293,7 +1357,9 @@ public class NotificationEventHandlerTest
                 (string)payload.GetType().GetProperty("EventType")!.GetValue(payload)! == "OnHealthIssue" &&
                 (string)payload.GetType().GetProperty("Source")!.GetValue(payload)! == "DiskSpace" &&
                 (string)payload.GetType().GetProperty("Message")!.GetValue(payload)! == "Disk space is critically low (<5GB free)" &&
-                (bool)payload.GetType().GetProperty("IsResolved")!.GetValue(payload)! == false));
+                (bool)payload.GetType().GetProperty("IsResolved")!.GetValue(payload)! == false),
+            Arg.Any<string>(),
+            Arg.Any<HttpMethod>());
     }
 
     [Test]
@@ -1322,7 +1388,9 @@ public class NotificationEventHandlerTest
                 (string)payload.GetType().GetProperty("EventType")!.GetValue(payload)! == "OnHealthRestored" &&
                 (string)payload.GetType().GetProperty("Source")!.GetValue(payload)! == "DiskSpace" &&
                 (string)payload.GetType().GetProperty("Message")!.GetValue(payload)! == "Disk space has been restored" &&
-                (bool)payload.GetType().GetProperty("IsResolved")!.GetValue(payload)! == true));
+                (bool)payload.GetType().GetProperty("IsResolved")!.GetValue(payload)! == true),
+            Arg.Any<string>(),
+            Arg.Any<HttpMethod>());
     }
 
     [Test]
@@ -1424,7 +1492,8 @@ public class NotificationEventHandlerTest
         await this.webhookDispatcher.Received(1).DispatchAsync(
             "http://gotify-server:8080/message",
             Arg.Is<object>(p => p != null),
-            "{\"X-Gotify-Key\":\"secret-app-token\"}");
+            "{\"X-Gotify-Key\":\"secret-app-token\"}",
+            Arg.Any<HttpMethod>());
     }
 
     [Test]
@@ -1465,7 +1534,9 @@ public class NotificationEventHandlerTest
             "http://test/webhook-seeding",
             Arg.Is<object>(payload =>
                 payload != null &&
-                AssertTorrentPayloadTimes(payload, 600L, 3600L)));
+                AssertTorrentPayloadTimes(payload, 600L, 3600L)),
+            Arg.Any<string>(),
+            Arg.Any<HttpMethod>());
     }
 
     [Test]
@@ -1502,7 +1573,78 @@ public class NotificationEventHandlerTest
             "http://test/webhook-added",
             Arg.Is<object>(payload =>
                 payload != null &&
-                AssertTorrentPayloadTimes(payload, 0L, 0L)));
+                AssertTorrentPayloadTimes(payload, 0L, 0L)),
+            Arg.Any<string>(),
+            Arg.Any<HttpMethod>());
+    }
+
+    [Test]
+    public async Task Handle_TorrentAddedEvent_WhenWebhookConfiguredWithPutMethod_DispatchesUsingPutMethod()
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 94,
+            Name = "PUT Webhook",
+            Implementation = "Webhook",
+            ConfigContract = "WebhookSettings",
+            Settings = "{\"url\":\"http://test/webhook-put\",\"method\":\"PUT\"}",
+            OnGrab = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+
+        var torrent = new Torrent
+        {
+            Id = 95,
+            Name = "Put.Torrent.iso",
+            Category = "ISOs",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.handler.Handle(new TorrentAddedEvent { Torrent = torrent });
+
+        await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        await this.webhookDispatcher.Received(1).DispatchAsync(
+            "http://test/webhook-put",
+            Arg.Any<object>(),
+            Arg.Any<string>(),
+            HttpMethod.Put);
+    }
+
+    [Test]
+    public async Task Handle_TorrentAddedEvent_WhenWebhookConfiguredWithBasicAuth_InjectsBasicAuthHeader()
+    {
+        var notification = new NotificationDefinition
+        {
+            Id = 96,
+            Name = "Auth Webhook",
+            Implementation = "Webhook",
+            ConfigContract = "WebhookSettings",
+            Settings = "{\"url\":\"http://test/webhook-auth\",\"username\":\"basicuser\",\"password\":\"basicpass\"}",
+            OnGrab = true,
+        };
+
+        this.notificationRepository.GetEnabled().Returns(new List<NotificationDefinition> { notification });
+
+        var torrent = new Torrent
+        {
+            Id = 97,
+            Name = "Auth.Torrent.iso",
+            Category = "ISOs",
+            Status = TorrentStatus.Downloading,
+        };
+
+        this.handler.Handle(new TorrentAddedEvent { Torrent = torrent });
+
+        await this.webhookTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        var expectedAuth = "Basic " + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("basicuser:basicpass"));
+        await this.webhookDispatcher.Received(1).DispatchAsync(
+            "http://test/webhook-auth",
+            Arg.Any<object>(),
+            Arg.Is<string>(h => h.Contains(expectedAuth)),
+            HttpMethod.Post);
     }
 
     private static bool AssertTorrentPayloadTimes(object payload, long expectedDownloadTimeSeconds, long expectedSeedingTimeSeconds)
