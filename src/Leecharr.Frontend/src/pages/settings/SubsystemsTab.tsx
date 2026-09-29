@@ -58,7 +58,7 @@ export function SubsystemsTab() {
   };
 
   const handleExecuteSwitch = async () => {
-    if (!selectedForSwitch) return;
+    if (!selectedForSwitch || !selectedForSwitch.provider.isAvailable) return;
     try {
       const res = await switchSubsystem.mutateAsync({
         subsystemId: selectedForSwitch.subsystem.id,
@@ -316,7 +316,7 @@ export function SubsystemsTab() {
                               fontWeight: 600,
                             }}
                           >
-                            {t("settingsTabs.subsystems.statusEmulated")}
+                            {(provider.status || "Unavailable").toUpperCase()}
                           </span>
                         )}
                       </div>
@@ -422,19 +422,35 @@ export function SubsystemsTab() {
                     {!provider.isActive && (
                       <button
                         type="button"
-                        onClick={() =>
-                          setSelectedForSwitch({ subsystem, provider })
+                        disabled={!provider.isAvailable || switchSubsystem.isPending}
+                        onClick={() => {
+                          if (!provider.isAvailable || switchSubsystem.isPending) return;
+                          setSelectedForSwitch({ subsystem, provider });
+                        }}
+                        title={
+                          !provider.isAvailable
+                            ? `${provider.displayName} is unavailable`
+                            : undefined
                         }
                         style={{
                           flex: 1,
                           padding: "0.4rem 0.6rem",
                           fontSize: "0.8rem",
-                          backgroundColor: "var(--accent-gold, #ffd166)",
-                          border: "none",
-                          color: "#10111a",
+                          backgroundColor: !provider.isAvailable
+                            ? "var(--bg-card-hover, #23284b)"
+                            : "var(--accent-gold, #ffd166)",
+                          border: !provider.isAvailable
+                            ? "1px solid var(--border-light, #2a2e4d)"
+                            : "none",
+                          color: !provider.isAvailable
+                            ? "var(--text-muted, #7f8c8d)"
+                            : "#10111a",
                           fontWeight: 600,
                           borderRadius: "4px",
-                          cursor: "pointer",
+                          cursor: !provider.isAvailable
+                            ? "not-allowed"
+                            : "pointer",
+                          opacity: !provider.isAvailable ? 0.6 : 1,
                         }}
                       >
                         {t("settingsTabs.subsystems.switch")}
