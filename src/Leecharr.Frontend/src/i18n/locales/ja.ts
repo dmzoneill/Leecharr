@@ -1135,6 +1135,7 @@ const ja: I18nTranslations = {
     "scheduleName": "ルール名",
     "namePlaceholder": "例えば夜更かしスロットル、ピーク勤務時間",
     "activeDays": "アクティブな日",
+    "atLeastOneDay": "少なくとも 1 日を選択する必要があります。",
     "allDays": "全7日間",
     "workdays": "月～金",
     "weekends": "土～日",
@@ -1181,8 +1182,7 @@ const ja: I18nTranslations = {
     "toggleSchedule": "スケジュールの切り替え",
     "toggleSchedules": "{{count}} スケジュールの切り替え",
     "clearSelection": "クリア",
-    "hrsPerDay": "{{hours}} hr{{plural}} / {{days}}_ 日{{dayPlural}}",
-    "atLeastOneDay": "少なくとも 1 日を選択する必要があります。"
+    "hrsPerDay": "{{hours}} hr{{plural}} / {{days}}_ 日{{dayPlural}}"
   },
   "peerMap": {
     "title": "グローバルピアマップ",
@@ -3432,7 +3432,8 @@ const ja: I18nTranslations = {
       "engineHealthy": "{{engine}} は正常で動作しています。",
       "engineIssues": "{{engine}} ヘルスチェックで問題が報告されました。",
       "probeFailed": "{{engine}} のプローブが失敗しました: {{error}}"
-    }
+    },
+    "alternativeSpeedHint": "-1 = 一時停止、0 = 無制限"
   },
   "errors": {
     "defaultTitle": "予期しない UI エラーが発生しました",

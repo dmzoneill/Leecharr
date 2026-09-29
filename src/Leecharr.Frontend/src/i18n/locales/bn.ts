@@ -1135,6 +1135,7 @@ const bn: I18nTranslations = {
     "scheduleName": "নিয়মের নাম",
     "namePlaceholder": "যেমন নাইট আউল থ্রটল, পিক ওয়ার্ক আওয়ারস",
     "activeDays": "সক্রিয় দিন",
+    "atLeastOneDay": "অন্তত একদিন নির্বাচন করতে হবে।",
     "allDays": "সব 7 দিন",
     "workdays": "সোম - শুক্র",
     "weekends": "শনি-রবি",
@@ -1181,8 +1182,7 @@ const bn: I18nTranslations = {
     "toggleSchedule": "সময়সূচী টগল করুন",
     "toggleSchedules": "{{count}} সময়সূচী টগল করুন",
     "clearSelection": "পরিষ্কার করুন",
-    "hrsPerDay": "{{hours}} hr{{plural}} প্রতিদিন {{days}} দিন{{dayPlural}}",
-    "atLeastOneDay": "অন্তত একদিন নির্বাচন করতে হবে।"
+    "hrsPerDay": "{{hours}} hr{{plural}} প্রতিদিন {{days}} দিন{{dayPlural}}"
   },
   "peerMap": {
     "title": "বিশ্বব্যাপী পিয়ার ঝাঁক মানচিত্র",
@@ -3432,7 +3432,8 @@ const bn: I18nTranslations = {
       "engineHealthy": "{{engine}} স্বাস্থ্যকর এবং কর্মক্ষম।",
       "engineIssues": "{{engine}} স্বাস্থ্য পরীক্ষার রিপোর্ট করা সমস্যা।",
       "probeFailed": "{{engine}} এর জন্য তদন্ত ব্যর্থ হয়েছে: {{error}}"
-    }
+    },
+    "alternativeSpeedHint": "-1 = বিরতি, 0 = সীমাহীন"
   },
   "errors": {
     "defaultTitle": "একটি অপ্রত্যাশিত UI ত্রুটি ঘটেছে৷",

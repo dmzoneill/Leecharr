@@ -1135,6 +1135,7 @@ const hi: I18nTranslations = {
     "scheduleName": "नियम का नाम",
     "namePlaceholder": "जैसे नाइट उल्लू का गला घोंटना, काम के व्यस्ततम घंटे",
     "activeDays": "सक्रिय दिन",
+    "atLeastOneDay": "कम से कम एक दिन का चयन अवश्य करें.",
     "allDays": "सभी 7 दिन",
     "workdays": "सोम - शुक्र",
     "weekends": "शनि - रवि",
@@ -1181,8 +1182,7 @@ const hi: I18nTranslations = {
     "toggleSchedule": "शेड्यूल टॉगल करें",
     "toggleSchedules": "{{count}} अनुसूचियों को टॉगल करें",
     "clearSelection": "साफ़ करें",
-    "hrsPerDay": "{{hours}} घंटा{{plural}} प्रति दिन {{days}} दिन{{dayPlural}}",
-    "atLeastOneDay": "कम से कम एक दिन का चयन अवश्य करें."
+    "hrsPerDay": "{{hours}} घंटा{{plural}} प्रति दिन {{days}} दिन{{dayPlural}}"
   },
   "peerMap": {
     "title": "वैश्विक पीयर झुंड मानचित्र",
@@ -3432,7 +3432,8 @@ const hi: I18nTranslations = {
       "engineHealthy": "{{engine}} स्वस्थ और क्रियाशील है।",
       "engineIssues": "{{engine}} स्वास्थ्य जांच में रिपोर्ट की गई समस्याएं।",
       "probeFailed": "{{engine}} के लिए जांच विफल: {{error}}"
-    }
+    },
+    "alternativeSpeedHint": "-1 = रुका हुआ, 0 = असीमित"
   },
   "errors": {
     "defaultTitle": "एक अप्रत्याशित यूआई त्रुटि उत्पन्न हुई",

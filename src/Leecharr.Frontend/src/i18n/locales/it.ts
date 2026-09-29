@@ -1135,6 +1135,7 @@ const it: I18nTranslations = {
     "scheduleName": "Nome della regola",
     "namePlaceholder": "per esempio. Acceleratore del Night Owl, ore di punta",
     "activeDays": "Giorni attivi",
+    "atLeastOneDay": "È necessario selezionare almeno un giorno.",
     "allDays": "Tutti i 7 giorni",
     "workdays": "Lun - Ven",
     "weekends": "Sab - Dom",
@@ -1181,8 +1182,7 @@ const it: I18nTranslations = {
     "toggleSchedule": "Attiva/disattiva pianificazione",
     "toggleSchedules": "Attiva/disattiva gli orari {{count}}",
     "clearSelection": "Cancella",
-    "hrsPerDay": "{{hours}} ore{{plural}} al giorno per {{days}} giorno{{dayPlural}}",
-    "atLeastOneDay": "È necessario selezionare almeno un giorno."
+    "hrsPerDay": "{{hours}} ore{{plural}} al giorno per {{days}} giorno{{dayPlural}}"
   },
   "peerMap": {
     "title": "Mappa globale dei peer dello swarm",
@@ -3432,7 +3432,8 @@ const it: I18nTranslations = {
       "engineHealthy": "{{engine}} è sano e operativo.",
       "engineIssues": "{{engine}} problemi segnalati dal controllo dello stato.",
       "probeFailed": "Sonda fallita per {{engine}}: {{error}}"
-    }
+    },
+    "alternativeSpeedHint": "-1 = In pausa, 0 = Illimitato"
   },
   "errors": {
     "defaultTitle": "Si è verificato un errore imprevisto dell'interfaccia utente",

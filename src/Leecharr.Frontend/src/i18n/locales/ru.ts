@@ -1135,6 +1135,7 @@ const ru: I18nTranslations = {
     "scheduleName": "Имя правила",
     "namePlaceholder": "например «Ночная сова», часы пиковой работы",
     "activeDays": "Активные дни",
+    "atLeastOneDay": "Необходимо выбрать хотя бы один день.",
     "allDays": "Все 7 дней",
     "workdays": "Пн - Пт",
     "weekends": "Сб - Вс",
@@ -1181,8 +1182,7 @@ const ru: I18nTranslations = {
     "toggleSchedule": "Переключить расписание",
     "toggleSchedules": "Переключить расписания {{count}}",
     "clearSelection": "Очистить",
-    "hrsPerDay": "{{hours}} час{{plural}} в день в течение {{days}} дня{{dayPlural}}",
-    "atLeastOneDay": "Необходимо выбрать хотя бы один день."
+    "hrsPerDay": "{{hours}} час{{plural}} в день в течение {{days}} дня{{dayPlural}}"
   },
   "peerMap": {
     "title": "Глобальная карта пиров роя",
@@ -3432,7 +3432,8 @@ const ru: I18nTranslations = {
       "engineHealthy": "{{engine}} исправен и работоспособен.",
       "engineIssues": "Проверка работоспособности {{engine}} сообщила о проблемах.",
       "probeFailed": "Проверка не удалась для {{engine}}: {{error}}"
-    }
+    },
+    "alternativeSpeedHint": "-1 = приостановлено, 0 = неограниченно"
   },
   "errors": {
     "defaultTitle": "Произошла непредвиденная ошибка пользовательского интерфейса.",

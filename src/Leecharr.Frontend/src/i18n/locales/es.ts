@@ -1135,6 +1135,7 @@ const es: I18nTranslations = {
     "scheduleName": "Nombre de la regla",
     "namePlaceholder": "p.ej. Acelerador nocturno, horas pico de trabajo",
     "activeDays": "Días activos",
+    "atLeastOneDay": "Se debe seleccionar al menos un día.",
     "allDays": "Los 7 días",
     "workdays": "Lun - Vie",
     "weekends": "sábado - domingo",
@@ -1181,8 +1182,7 @@ const es: I18nTranslations = {
     "toggleSchedule": "Alternar horario",
     "toggleSchedules": "Alternar {{count}} Horarios",
     "clearSelection": "Limpiar",
-    "hrsPerDay": "{{hours}} hr{{plural}} por día durante {{days}} día{{dayPlural}}",
-    "atLeastOneDay": "Se debe seleccionar al menos un día."
+    "hrsPerDay": "{{hours}} hr{{plural}} por día durante {{days}} día{{dayPlural}}"
   },
   "peerMap": {
     "title": "Mapa global de pares del enjambre",
@@ -3432,7 +3432,8 @@ const es: I18nTranslations = {
       "engineHealthy": "{{engine}} está en buen estado y operativo.",
       "engineIssues": "{{engine}} problemas reportados en la verificación de estado.",
       "probeFailed": "La sonda falló para {{engine}}: {{error}}"
-    }
+    },
+    "alternativeSpeedHint": "-1 = En pausa, 0 = Ilimitado"
   },
   "errors": {
     "defaultTitle": "Se produjo un error inesperado en la interfaz de usuario",

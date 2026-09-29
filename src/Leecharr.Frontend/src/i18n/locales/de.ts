@@ -1135,6 +1135,7 @@ const de: I18nTranslations = {
     "scheduleName": "Regelname",
     "namePlaceholder": "z.B. Nachtschwärmer-Drossel, Spitzenarbeitszeiten",
     "activeDays": "Aktive Tage",
+    "atLeastOneDay": "Es muss mindestens ein Tag ausgewählt werden.",
     "allDays": "Alle 7 Tage",
     "workdays": "Mo - Fr",
     "weekends": "Sa. – So",
@@ -1181,8 +1182,7 @@ const de: I18nTranslations = {
     "toggleSchedule": "Zeitplan umschalten",
     "toggleSchedules": "Schalten Sie {{count}} Zeitpläne um",
     "clearSelection": "Löschen",
-    "hrsPerDay": "{{hours}} Std.{{plural}} pro Tag über {{days}} Tag{{dayPlural}}",
-    "atLeastOneDay": "Es muss mindestens ein Tag ausgewählt werden."
+    "hrsPerDay": "{{hours}} Std.{{plural}} pro Tag über {{days}} Tag{{dayPlural}}"
   },
   "peerMap": {
     "title": "Globale Schwarm-Peer-Karte",
@@ -3432,7 +3432,8 @@ const de: I18nTranslations = {
       "engineHealthy": "{{engine}} ist fehlerfrei und betriebsbereit.",
       "engineIssues": "{{engine}} Gesundheitsprüfung hat Probleme gemeldet.",
       "probeFailed": "Probe fehlgeschlagen für {{engine}}: {{error}}"
-    }
+    },
+    "alternativeSpeedHint": "-1 = Angehalten, 0 = Unbegrenzt"
   },
   "errors": {
     "defaultTitle": "Es ist ein unerwarteter UI-Fehler aufgetreten",

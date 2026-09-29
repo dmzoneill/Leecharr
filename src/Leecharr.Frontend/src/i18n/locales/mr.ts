@@ -1135,6 +1135,7 @@ const mr: I18nTranslations = {
     "scheduleName": "नियमाचे नाव",
     "namePlaceholder": "उदा. नाईट आऊल थ्रॉटल, पीक वर्क अवर्स",
     "activeDays": "सक्रिय दिवस",
+    "atLeastOneDay": "किमान एक दिवस निवडणे आवश्यक आहे.",
     "allDays": "सर्व 7 दिवस",
     "workdays": "सोम - शुक्र",
     "weekends": "शनि - रवि",
@@ -1181,8 +1182,7 @@ const mr: I18nTranslations = {
     "toggleSchedule": "शेड्यूल टॉगल करा",
     "toggleSchedules": "{{count}} शेड्युल टॉगल करा",
     "clearSelection": "साफ करा",
-    "hrsPerDay": "{{hours}} तास{{plural}} दररोज {{days}} दिवस{{dayPlural}}",
-    "atLeastOneDay": "किमान एक दिवस निवडणे आवश्यक आहे."
+    "hrsPerDay": "{{hours}} तास{{plural}} दररोज {{days}} दिवस{{dayPlural}}"
   },
   "peerMap": {
     "title": "जागतिक पीअर थवा नकाशा",
@@ -3432,7 +3432,8 @@ const mr: I18nTranslations = {
       "engineHealthy": "{{engine}} निरोगी आणि कार्यरत आहे.",
       "engineIssues": "{{engine}} आरोग्य तपासणीत समस्यांची नोंद झाली.",
       "probeFailed": "{{engine}} साठी तपासणी अयशस्वी: {{error}}"
-    }
+    },
+    "alternativeSpeedHint": "-1 = विराम दिला, 0 = अमर्यादित"
   },
   "errors": {
     "defaultTitle": "एक अनपेक्षित UI त्रुटी आली",

@@ -1135,6 +1135,7 @@ const vi: I18nTranslations = {
     "scheduleName": "Tên quy tắc",
     "namePlaceholder": "ví dụ. Bướm Đêm, Giờ Làm Việc Cao Điểm",
     "activeDays": "Ngày hoạt động",
+    "atLeastOneDay": "Phải chọn ít nhất một ngày.",
     "allDays": "Tất cả 7 ngày",
     "workdays": "Thứ Hai - Thứ Sáu",
     "weekends": "Thứ bảy - CN",
@@ -1181,8 +1182,7 @@ const vi: I18nTranslations = {
     "toggleSchedule": "Chuyển đổi lịch trình",
     "toggleSchedules": "Chuyển đổi lịch trình {{count}}",
     "clearSelection": "Xóa sạch",
-    "hrsPerDay": "{{hours}} giờ{{plural}} mỗi ngày trong {{days}} ngày{{dayPlural}}",
-    "atLeastOneDay": "Phải chọn ít nhất một ngày."
+    "hrsPerDay": "{{hours}} giờ{{plural}} mỗi ngày trong {{days}} ngày{{dayPlural}}"
   },
   "peerMap": {
     "title": "Bản đồ phân bố Peer toàn cầu",
@@ -3432,7 +3432,8 @@ const vi: I18nTranslations = {
       "engineHealthy": "{{engine}} khỏe mạnh và hoạt động bình thường.",
       "engineIssues": "{{engine}} báo cáo vấn đề về kiểm tra sức khỏe.",
       "probeFailed": "Thăm dò thất bại đối với {{engine}}: {{error}}"
-    }
+    },
+    "alternativeSpeedHint": "-1 = Tạm dừng, 0 = Không giới hạn"
   },
   "errors": {
     "defaultTitle": "Đã xảy ra lỗi giao diện người dùng không mong muốn",

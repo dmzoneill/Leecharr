@@ -1135,6 +1135,7 @@ const ar: I18nTranslations = {
     "scheduleName": "اسم القاعدة",
     "namePlaceholder": "على سبيل المثال خنق البومة الليلية، ساعات العمل الذروة",
     "activeDays": "الأيام النشطة",
+    "atLeastOneDay": "يجب تحديد يوم واحد على الأقل.",
     "allDays": "كل 7 أيام",
     "workdays": "الإثنين - الجمعة",
     "weekends": "السبت - الشمس",
@@ -1181,8 +1182,7 @@ const ar: I18nTranslations = {
     "toggleSchedule": "تبديل الجدول الزمني",
     "toggleSchedules": "تبديل {{count}}_ الجداول",
     "clearSelection": "مسح",
-    "hrsPerDay": "{{hours}}_ ساعة{{plural}} يوميًا عبر {{days}}_ يوم{{dayPlural}}",
-    "atLeastOneDay": "يجب تحديد يوم واحد على الأقل."
+    "hrsPerDay": "{{hours}}_ ساعة{{plural}} يوميًا عبر {{days}}_ يوم{{dayPlural}}"
   },
   "peerMap": {
     "title": "خريطة نظراء السرب العالمية",
@@ -3432,7 +3432,8 @@ const ar: I18nTranslations = {
       "engineHealthy": "{{engine}}_ سليم وعملي.",
       "engineIssues": "{{engine}}_ مشكلات الفحص الصحي التي تم الإبلاغ عنها.",
       "probeFailed": "فشل المسبار لـ {{engine}}_: {{error}}"
-    }
+    },
+    "alternativeSpeedHint": "-1 = متوقف مؤقتًا، 0 = غير محدود"
   },
   "errors": {
     "defaultTitle": "حدث خطأ غير متوقع في واجهة المستخدم",

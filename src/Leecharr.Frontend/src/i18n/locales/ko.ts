@@ -1135,6 +1135,7 @@ const ko: I18nTranslations = {
     "scheduleName": "규칙 이름",
     "namePlaceholder": "예를 들어 올빼미형 스로틀, 피크 근무 시간",
     "activeDays": "활동일수",
+    "atLeastOneDay": "하루 이상 선택해야 합니다.",
     "allDays": "7일 전체",
     "workdays": "월~금",
     "weekends": "토~일",
@@ -1181,8 +1182,7 @@ const ko: I18nTranslations = {
     "toggleSchedule": "일정 전환",
     "toggleSchedules": "{{count}} 일정 전환",
     "clearSelection": "지우기",
-    "hrsPerDay": "_{{hours}} 시간{{plural}}/일 {{days}}일{{dayPlural}}",
-    "atLeastOneDay": "하루 이상 선택해야 합니다."
+    "hrsPerDay": "_{{hours}} 시간{{plural}}/일 {{days}}일{{dayPlural}}"
   },
   "peerMap": {
     "title": "전 세계 피어 스웜 맵",
@@ -3432,7 +3432,8 @@ const ko: I18nTranslations = {
       "engineHealthy": "_{{engine}}은(는) 정상이며 작동 중입니다.",
       "engineIssues": "_{{engine}} 상태 확인에서 문제가 보고되었습니다.",
       "probeFailed": "_{{engine}}에 대한 프로브 실패: {{error}}"
-    }
+    },
+    "alternativeSpeedHint": "-1 = 일시중지됨, 0 = 무제한"
   },
   "errors": {
     "defaultTitle": "예상치 못한 UI 오류가 발생했습니다.",
