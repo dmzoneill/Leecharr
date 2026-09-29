@@ -176,6 +176,7 @@ export default function DownloadHistory() {
           onSearchItem={setSearchModalQuery}
           onReAddItem={handleReAdd}
           isReAdding={isReAdding}
+          onDeleteItem={handleDelete}
           onFilterByGenre={setSearchTerm}
         />
       )}
@@ -205,6 +206,7 @@ export default function DownloadHistory() {
         onSearch={setSearchModalQuery}
         onReAdd={handleReAdd}
         isReAdding={isReAdding}
+        onDelete={handleDelete}
         onFilterByTracker={setSearchTerm}
       />
 
