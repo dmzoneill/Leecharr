@@ -5845,8 +5845,11 @@ input[type="number"]::-webkit-inner-spin-button {
   list-style-type: none !important;
 }
 
-.language-selector-item:hover {
+.language-selector-item:hover,
+.language-selector-item:focus,
+.language-selector-item.highlighted {
   background: var(--bg-hover, #1e2a3f);
+  outline: none;
 }
 
 .language-selector-item.active {

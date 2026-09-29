@@ -172,7 +172,7 @@ const it: I18nTranslations = {
     "title": "Leecharr Copilot",
     "speed": "Velocità",
     "general": "Generale",
-    "languageTitle": "Titolo della lingua",
+    "languageTitle": "Lingua: {name} ({nativeName})",
     "connecting": "Connessione",
     "unknown": "Sconosciuto",
     "default": "Predefinito",
