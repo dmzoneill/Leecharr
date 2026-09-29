@@ -28,6 +28,8 @@ public class GeneralConfigResource : RestResource
 
     public int Port { get; set; }
 
+    public string Branch { get; set; } = "main";
+
     public string BindAddress { get; set; }
 
     public string UrlBase { get; set; }
@@ -90,6 +92,9 @@ public static class GeneralConfigResourceMapper
             WatchFolderAutoStartTorrents = config?.WatchFolderAutoStartTorrents ?? false,
             WatchFolderDeleteAddedTorrents = config?.WatchFolderDeleteAddedTorrents ?? false,
             Port = fileProvider?.Port ?? 0,
+            Branch = !string.IsNullOrWhiteSpace(fileProvider?.Branch)
+                ? fileProvider.Branch
+                : (!string.IsNullOrWhiteSpace(config?.Branch) ? config.Branch : "main"),
             BindAddress = fileProvider?.BindAddress,
             UrlBase = fileProvider?.UrlBase,
             AuthenticationEnabled = fileProvider?.AuthenticationEnabled ?? false,

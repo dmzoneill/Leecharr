@@ -77,6 +77,8 @@ public class ConfigFileProvider : IConfigFileProvider
 
     public string UrlBase => this.GetValue("UrlBase", string.Empty);
 
+    public string Branch => this.GetValue("Branch", "main");
+
     public string PostgresHost => this.GetValue("PostgresHost", string.Empty);
 
     public int PostgresPort => this.GetValueInt("PostgresPort", 5432);

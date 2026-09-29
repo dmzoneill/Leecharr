@@ -35,6 +35,8 @@ public interface IConfigFileProvider
 
     string UrlBase { get; }
 
+    string Branch { get; }
+
     string PostgresHost { get; }
 
     int PostgresPort { get; }

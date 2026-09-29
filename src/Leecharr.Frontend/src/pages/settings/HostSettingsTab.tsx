@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useGeneralConfig, useSaveGeneralConfig } from "../../api/hooks";
 import { api } from "../../api/client";
 import { SslCertificateValidationResult } from "../../api/types";
-import { SaveBar, SectionCard, NumberInput, TextInput, Toggle } from "./shared";
+import { SaveBar, SectionCard, NumberInput, TextInput, Toggle, SelectInput } from "./shared";
 
 export function normalizeUrlBase(value: string): string {
   const trimmed = value.trim();
@@ -22,6 +22,7 @@ export function HostSettingsTab() {
     port: 7889,
     bindAddress: "0.0.0.0",
     urlBase: "",
+    branch: "main",
     autoStart: true,
     enableSsl: false,
     sslPort: 7890,
@@ -42,6 +43,7 @@ export function HostSettingsTab() {
         port: config.port ?? 7889,
         bindAddress: config.bindAddress ?? "0.0.0.0",
         urlBase: config.urlBase ?? "",
+        branch: config.branch || "main",
         autoStart: config.autoStart ?? true,
         enableSsl: config.enableSsl ?? false,
         sslPort: config.sslPort ?? 7890,
@@ -74,6 +76,7 @@ export function HostSettingsTab() {
         port: form.port,
         bindAddress: form.bindAddress,
         urlBase: normalizedUrlBase,
+        branch: form.branch,
         autoStart: form.autoStart,
         enableSsl: form.enableSsl,
         sslPort: form.sslPort,
@@ -179,6 +182,18 @@ export function HostSettingsTab() {
               }
             }}
             hint={t("settingsTabs.host.webServer.urlBase.hint")}
+          />
+
+          <SelectInput
+            label={t("system.branch", "Branch")}
+            value={form.branch}
+            onChange={(v) => update("branch", v)}
+            options={[
+              { value: "main", label: "main" },
+              { value: "develop", label: "develop" },
+              { value: "nightly", label: "nightly" },
+            ]}
+            hint="Release update channel / branch (main, develop, nightly)"
           />
         </div>
 

@@ -76,11 +76,22 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
             resource.UrlBase = sanitizedUrlBase;
         }
 
+        if (resource.Branch != null)
+        {
+            resource.Branch = resource.Branch.Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(resource.Branch))
+        {
+            resource.Branch = "main";
+        }
+
         var fileUpdates = new Dictionary<string, object>
         {
             ["Port"] = resource.Port,
             ["BindAddress"] = resource.BindAddress,
             ["UrlBase"] = resource.UrlBase,
+            ["Branch"] = resource.Branch,
             ["AuthenticationEnabled"] = resource.AuthenticationEnabled,
             ["AuthenticationRequired"] = resource.AuthenticationRequired,
             ["ApiKey"] = resource.ApiKey,

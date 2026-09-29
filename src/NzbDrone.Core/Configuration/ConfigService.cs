@@ -79,6 +79,8 @@ public interface IConfigService
 
     bool AutoStart { get; }
 
+    string Branch { get; }
+
     string ThemeStyle { get; }
 
     string ColorScheme { get; }
@@ -804,6 +806,8 @@ public class ConfigService : IConfigService
     public bool EnableSwarmDiagnostics => this.GetValueBoolean("EnableSwarmDiagnostics", true);
 
     public bool AutoStart => this.GetValueBoolean("AutoStart", true);
+
+    public string Branch => this.GetValue("Branch", "main");
 
     public string ThemeStyle => this.GetValue("ThemeStyle", "dark");
 
