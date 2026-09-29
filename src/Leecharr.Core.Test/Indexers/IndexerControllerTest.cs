@@ -350,6 +350,8 @@ public class IndexerControllerTest
         var testResult = (IndexerTestResult)okResult.Value!;
         testResult.Success.Should().BeFalse();
         testResult.Message.Should().Contain("HTTP 403 Forbidden");
+        testResult.ResponseTimeMs.Should().NotBeNull();
+        testResult.ResponseTimeMs.Should().BeGreaterThanOrEqualTo(0);
     }
 
     [Test]
@@ -385,6 +387,8 @@ public class IndexerControllerTest
         var testResult = (IndexerTestResult)okResult.Value!;
         testResult.Success.Should().BeTrue();
         testResult.Message.Should().Contain("Connected successfully to LiveIndexer");
+        testResult.ResponseTimeMs.Should().NotBeNull();
+        testResult.ResponseTimeMs.Should().BeGreaterThanOrEqualTo(0);
         this.indexerRepository.Received(1).Update(Arg.Is<IndexerDefinition>(idx => idx.Categories.Contains(2000) && idx.Categories.Contains(5000)));
     }
 
