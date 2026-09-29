@@ -245,10 +245,21 @@ public class Startup
         {
             options.AddDefaultPolicy(builder =>
             {
-                builder.SetIsOriginAllowed(_ => true)
-                    .AllowAnyMethod()
-                    .AllowAnyHeader()
-                    .AllowCredentials();
+                builder.SetIsOriginAllowed(origin =>
+                {
+                    var configService = this.container.IsDisposed ? null : this.container.Resolve<IConfigService>(IfUnresolved.ReturnDefault);
+                    var configFileProvider = this.container.IsDisposed ? null : this.container.Resolve<IConfigFileProvider>(IfUnresolved.ReturnDefault);
+                    var allowedOrigins = configService?.AllowedCorsOrigins;
+                    if (string.IsNullOrWhiteSpace(allowedOrigins))
+                    {
+                        allowedOrigins = configFileProvider?.AllowedCorsOrigins;
+                    }
+
+                    return CsrfProtectionMiddleware.IsCorsOriginAllowed(origin, allowedOrigins);
+                })
+                .AllowAnyMethod()
+                .AllowAnyHeader()
+                .AllowCredentials();
             });
         });
 

@@ -160,6 +160,8 @@ public interface IConfigService
 
     string AllowedHosts { get; }
 
+    string AllowedCorsOrigins { get; }
+
     string AutoShutdownAction { get; }
 
     string AutoShutdownCondition { get; }
@@ -895,6 +897,8 @@ public class ConfigService : IConfigService
     public bool HostHeaderValidationEnabled => this.GetValueBoolean("HostHeaderValidationEnabled", false);
 
     public string AllowedHosts => this.GetValue("AllowedHosts", string.Empty);
+
+    public string AllowedCorsOrigins => this.GetValue("AllowedCorsOrigins", string.Empty);
 
     public string AutoShutdownAction => this.GetValue("AutoShutdownAction", "None");
 

@@ -484,6 +484,8 @@ public class CertificateManager : ICertificateManager
 
         public string AllowedSsrfSubnets => string.Empty;
 
+        public string AllowedCorsOrigins => string.Empty;
+
         public int CustomScriptTimeoutSeconds => 60;
 
         public int ArchiveExtractionTimeoutMinutes => 30;

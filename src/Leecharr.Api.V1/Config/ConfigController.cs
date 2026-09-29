@@ -83,6 +83,7 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
             ["AllowPrivateNetworkRequests"] = resource.AllowPrivateNetworkRequests,
             ["AllowedSsrfHostnames"] = resource.AllowedSsrfHostnames ?? string.Empty,
             ["AllowedSsrfSubnets"] = resource.AllowedSsrfSubnets ?? string.Empty,
+            ["AllowedCorsOrigins"] = resource.AllowedCorsOrigins ?? string.Empty,
         };
 
         this.configFileProvider.SaveConfigDictionary(fileUpdates);
