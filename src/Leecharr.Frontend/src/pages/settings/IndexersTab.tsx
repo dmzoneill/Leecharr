@@ -85,6 +85,13 @@ export function normalizeIndexerPayload(
   } as IndexerDefinition;
 }
 
+export function parseIndexerIds(input: string): number[] {
+  return input
+    .split(",")
+    .map((s) => Number(s.trim()))
+    .filter((n) => !isNaN(n) && n > 0);
+}
+
 export function IndexersTab() {
   const { t } = useTranslation();
 
@@ -108,10 +115,12 @@ export function IndexersTab() {
     null,
   );
   const [editingRule, setEditingRule] = useState<Partial<RssRule> | null>(null);
+  const [rawIndexerIds, setRawIndexerIds] = useState<string>("");
   const confirm = useConfirm();
 
   const initialIndexerRef = useRef<string>("");
   const initialRuleRef = useRef<string>("");
+  const initialRawIndexerIdsRef = useRef<string>("");
 
   const handleCloseIndexerModal = async () => {
     const isDirty = Boolean(
@@ -137,7 +146,8 @@ export function IndexersTab() {
     const isDirty = Boolean(
       editingRule &&
       initialRuleRef.current &&
-      JSON.stringify(editingRule) !== initialRuleRef.current,
+      (JSON.stringify(editingRule) !== initialRuleRef.current ||
+        rawIndexerIds !== initialRawIndexerIdsRef.current),
     );
     if (isDirty) {
       const ok = await confirm({
@@ -150,6 +160,7 @@ export function IndexersTab() {
       if (!ok) return;
     }
     setEditingRule(null);
+    setRawIndexerIds("");
   };
 
   const indexerTrapRef = useFocusTrap<HTMLDivElement>({
@@ -309,6 +320,7 @@ export function IndexersTab() {
       return;
     }
     const name = editingRule.name.trim();
+    const ids = parseIndexerIds(rawIndexerIds);
     const payload: RssRule = {
       id: editingRule.id || 0,
       name,
@@ -320,9 +332,7 @@ export function IndexersTab() {
       maxSizeBytes: Number(editingRule.maxSizeBytes) || 0,
       freeleechOnly: Boolean(editingRule.freeleechOnly),
       categoryId: Number(editingRule.categoryId) || 0,
-      indexerIds: Array.isArray(editingRule.indexerIds)
-        ? editingRule.indexerIds
-        : [],
+      indexerIds: ids,
     };
 
     if (editingRule.id) {
@@ -333,6 +343,7 @@ export function IndexersTab() {
             "success",
           );
           setEditingRule(null);
+          setRawIndexerIds("");
         },
         onError: (err: unknown) => {
           const errObj = err as Error | null;
@@ -350,6 +361,7 @@ export function IndexersTab() {
             "success",
           );
           setEditingRule(null);
+          setRawIndexerIds("");
         },
         onError: (err: unknown) => {
           const errObj = err as Error | null;
@@ -599,8 +611,13 @@ export function IndexersTab() {
               className="provider-card"
               onClick={() => {
                 const initial = { ...rule };
+                const rawIds = Array.isArray(initial.indexerIds)
+                  ? initial.indexerIds.join(", ")
+                  : "";
                 initialRuleRef.current = JSON.stringify(initial);
+                initialRawIndexerIdsRef.current = rawIds;
                 setEditingRule(initial);
+                setRawIndexerIds(rawIds);
               }}
             >
               <div className="provider-card-actions">
@@ -702,8 +719,13 @@ export function IndexersTab() {
             className="provider-card-add"
             onClick={() => {
               const initial = { ...defaultRssRule };
+              const rawIds = Array.isArray(initial.indexerIds)
+                ? initial.indexerIds.join(", ")
+                : "";
               initialRuleRef.current = JSON.stringify(initial);
+              initialRawIndexerIdsRef.current = rawIds;
               setEditingRule(initial);
+              setRawIndexerIds(rawIds);
             }}
             title={t("settingsTabs.indexers.addRssRule")}
           >
@@ -1070,17 +1092,19 @@ export function IndexersTab() {
             />
             <TextInput
               label={t("settings.assignedIndexersIDs")}
-              value={
-                Array.isArray(editingRule.indexerIds)
-                  ? editingRule.indexerIds.join(",")
-                  : ""
-              }
+              value={rawIndexerIds}
               onChange={(v) => {
-                const ids = v
-                  .split(",")
-                  .map((s) => Number(s.trim()))
-                  .filter((n) => !isNaN(n) && n > 0);
-                setEditingRule({ ...editingRule, indexerIds: ids });
+                setRawIndexerIds(v);
+                const ids = parseIndexerIds(v);
+                setEditingRule((prev) =>
+                  prev ? { ...prev, indexerIds: ids } : prev,
+                );
+              }}
+              onBlur={() => {
+                const ids = parseIndexerIds(rawIndexerIds);
+                setEditingRule((prev) =>
+                  prev ? { ...prev, indexerIds: ids } : prev,
+                );
               }}
               placeholder={t(
                 "settingsTabs.indexers.assignedIndexersPlaceholder",
