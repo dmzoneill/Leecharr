@@ -17,6 +17,12 @@ import { formatBytes } from "../utils/formatters";
 import { getMediaDeepLink, getDownloadClientUrl } from "../utils/arrLinks";
 import type { BatchImportItemResult } from "../api/types";
 
+function getProgressPercent(progress: number | undefined | null): number {
+  if (progress == null || isNaN(progress)) return 0;
+  const pct = progress <= 1.0 ? progress * 100 : progress;
+  return Math.min(100, Math.max(0, pct));
+}
+
 export default function DownloadClientTorrents() {
   const { id } = useParams<{ id: string }>();
   const isAll = id === "all";
@@ -196,9 +202,9 @@ export default function DownloadClientTorrents() {
 
       const term = searchTerm.toLowerCase();
       return (
-        item.title.toLowerCase().includes(term) ||
+        item.title?.toLowerCase().includes(term) ||
         (item.category && item.category.toLowerCase().includes(term)) ||
-        item.infoHash.toLowerCase().includes(term) ||
+        item.infoHash?.toLowerCase().includes(term) ||
         (item.outputPath && item.outputPath.toLowerCase().includes(term))
       );
     });
@@ -796,8 +802,9 @@ export default function DownloadClientTorrents() {
                 (h) =>
                   (item.infoHash &&
                     h.infoHash?.toLowerCase() ===
-                      item.infoHash.toLowerCase()) ||
-                  h.title?.toLowerCase() === item.title.toLowerCase(),
+                      item.infoHash?.toLowerCase()) ||
+                  (item.title &&
+                    h.title?.toLowerCase() === item.title?.toLowerCase()),
               );
               const meta = match?.metadata;
               const displayTitle = meta?.title || item.title;
@@ -808,6 +815,7 @@ export default function DownloadClientTorrents() {
               const isImporting =
                 importingHash === item.infoHash ||
                 (importAllMutation.isPending && !item.isInLibrary);
+              const progressPct = getProgressPercent(item.progress);
 
               return (
                 <div
@@ -981,7 +989,7 @@ export default function DownloadClientTorrents() {
                     >
                       <span>{formatBytes(item.totalSize)}</span>
                       <span style={{ fontWeight: 600, color: "var(--accent)" }}>
-                        {item.progress.toFixed(1)}%
+                        {progressPct.toFixed(1)}%
                       </span>
                     </div>
                   </div>
@@ -1337,8 +1345,9 @@ export default function DownloadClientTorrents() {
                       (h) =>
                         (item.infoHash &&
                           h.infoHash?.toLowerCase() ===
-                            item.infoHash.toLowerCase()) ||
-                        h.title?.toLowerCase() === item.title.toLowerCase(),
+                            item.infoHash?.toLowerCase()) ||
+                        (item.title &&
+                          h.title?.toLowerCase() === item.title?.toLowerCase()),
                     );
                     const meta = match?.metadata;
                     const displayTitle = meta?.title || item.title;
@@ -1349,6 +1358,7 @@ export default function DownloadClientTorrents() {
                     const isImporting =
                       importingHash === item.infoHash ||
                       (importAllMutation.isPending && !item.isInLibrary);
+                    const progressPct = getProgressPercent(item.progress);
 
                     return (
                       <tr
@@ -1507,7 +1517,7 @@ export default function DownloadClientTorrents() {
                                 color: "var(--accent)",
                               }}
                             >
-                              {item.progress.toFixed(1)}%
+                              {progressPct.toFixed(1)}%
                             </span>
                           </div>
                           <div
@@ -1522,10 +1532,10 @@ export default function DownloadClientTorrents() {
                           >
                             <div
                               style={{
-                                width: `${Math.min(100, Math.max(0, item.progress))}%`,
+                                width: `${Math.min(100, Math.max(0, progressPct))}%`,
                                 height: "100%",
                                 backgroundColor:
-                                  item.progress >= 100
+                                  progressPct >= 100
                                     ? "var(--success)"
                                     : "var(--accent)",
                                 borderRadius: "3px",
