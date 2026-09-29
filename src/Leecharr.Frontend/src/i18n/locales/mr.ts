@@ -181,7 +181,9 @@ const mr: I18nTranslations = {
     "total": "एकूण",
     "testing": "चाचणी",
     "unknownError": "अज्ञात त्रुटी",
-    "noResults": "कोणतेही जुळणारे टॅग नाहीत"
+    "noResults": "कोणतेही जुळणारे टॅग नाहीत",
+    "disconnect": "डिस्कनेक्ट करा",
+    "ban": "बंदी"
   },
   "nav": {
     "dashboard": "डॅशबोर्ड",
@@ -715,7 +717,11 @@ const mr: I18nTranslations = {
       "privateTrackerDisabledTitle": "खाजगी ट्रॅकर अक्षम केलेले शीर्षक",
       "openTrackerPickerTitle": "ट्रॅकर पिकर शीर्षक उघडा",
       "diagReAnnounceTrackers": "Diag Re Announce Trackers",
-      "live3s": "Live3s"
+      "live3s": "Live3s",
+      "disconnectPeer": "पीअर डिस्कनेक्ट करा",
+      "banPeer": "बॅन पीर",
+      "peerDisconnected": "पीअर डिस्कनेक्ट झाला",
+      "peerBanned": "पीअर बंदी आणि डिस्कनेक्ट"
     },
     "ratio": "गुणोत्तर",
     "tabs": {
@@ -1220,7 +1226,8 @@ const mr: I18nTranslations = {
     "centerTitle": "केंद्र शीर्षक",
     "torrentTitle": "टोरेंट शीर्षक",
     "peerTitle": "पीअर शीर्षक",
-    "peerEncryptedSuffix": "पीअर एनक्रिप्टेड प्रत्यय"
+    "peerEncryptedSuffix": "पीअर एनक्रिप्टेड प्रत्यय",
+    "torrentNotFound": "संबद्ध टोरेंट आढळले नाही"
   },
   "trackerBoost": {
     "title": "TrackerBoost थवा ऑप्टिमायझर",
@@ -2231,6 +2238,7 @@ const mr: I18nTranslations = {
       "deleteConfirm": "हटवा",
       "deleteSuccess": "श्रेणी \"{{name}}\" हटवली",
       "deleteFailed": "श्रेणी हटवण्यात अयशस्वी",
+      "cannotDeleteDefault": "डीफॉल्ट श्रेणी हटवू शकत नाही.",
       "title": "श्रेणी व्यवस्थापन आणि निर्देशिका राउटिंग",
       "description": "फायलींना सानुकूल सेव्ह पाथवर आपोआप रूट करण्यासाठी, दर मर्यादा लागू करण्यासाठी आणि शेअर रेशो ऑटो-स्टॉप पॉलिसी लागू करण्यासाठी श्रेण्यांसह टॉरेंट आयोजित करा.",
       "configuredCount": "{{count}} कॉन्फिगर केलेल्या श्रेण्या",
@@ -2279,8 +2287,7 @@ const mr: I18nTranslations = {
         "saving": "सेव्ह करत आहे...",
         "saveChanges": "बदल जतन करा",
         "createCategory": "श्रेणी तयार करा"
-      },
-      "cannotDeleteDefault": "डीफॉल्ट श्रेणी हटवू शकत नाही."
+      }
     },
     "notifications": {
       "chatIdPrefix": "चॅट आयडी:",
@@ -2910,7 +2917,9 @@ const mr: I18nTranslations = {
       "incomingPeerListeningPorts": "इनकमिंग पीअर लिसनिंग पोर्ट्स आणि UPnP",
       "configureListeningPorts": "इनबाउंड बिटटोरेंट पीअर कनेक्शनसाठी ऐकण्याचे पोर्ट कॉन्फिगर करा.",
       "bitTorrentListeningPort": "BitTorrent ऐकण्याचे पोर्ट",
+      "testPort": "चाचणी पोर्ट",
       "testingPort": "चाचणी करत आहे...",
+      "portCheckFailed": "पोर्ट तपासणी अयशस्वी",
       "tcpUdpPort": "इनकमिंग पीअर कनेक्शनसाठी TCP आणि UDP पोर्ट (डिफॉल्ट: 51413)",
       "enableUpnpNatPmp": "UPnP/NAT-PMP पोर्ट फॉरवर्डिंग सक्षम करा",
       "automaticallyNegotiatePortForwarding": "तुमच्या राउटरसह पोर्ट फॉरवर्डिंगची आपोआप वाटाघाटी करा",
@@ -2919,6 +2928,10 @@ const mr: I18nTranslations = {
       "networkInterfaceBinding": "नेटवर्क इंटरफेस बाइंडिंग आणि VPN किल स्विच",
       "bindBitTorrentSockets": "BitTorrent सॉकेट्स एका विशिष्ट नेटवर्क इंटरफेसवर बांधा (उदा. tun0, wg0) आणि डिस्कनेक्ट झाल्यावर रहदारी थांबवा.",
       "bindNetworkInterface": "नेटवर्क इंटरफेस बांधा",
+      "selectFromDetected": "आढळलेल्या इंटरफेसमधून निवडा",
+      "enterManually": "व्यक्तिचलितपणे प्रविष्ट करा",
+      "allInterfaces": "सर्व / कोणतेही इंटरफेस (डीफॉल्ट)",
+      "manualEntry": "सानुकूल / मॅन्युअल एंट्री...",
       "interfaceNameOrIp": "इंटरफेस नाव (उदा. tun0, wg0, eth0) किंवा विशिष्ट IP (सर्वांसाठी रिक्त सोडा)",
       "enableAutomatedVpnKillSwitch": "स्वयंचलित VPN किल स्विच सक्षम करा",
       "immediatelyDropAllBitTorrentTransfers": "बंधनकारक VPN इंटरफेस खाली गेल्यास सर्व BitTorrent हस्तांतरण ताबडतोब ड्रॉप करा",
@@ -3076,12 +3089,6 @@ const mr: I18nTranslations = {
       "clientId": "क्लायंट आयडी",
       "clientSecret": "क्लायंट सीक्रेट",
       "leaveBlankOrMaskedToKeepCurrentSecret": "वर्तमान गुप्त ठेवण्यासाठी रिक्त किंवा मुखवटा लावा",
-      "testPort": "चाचणी पोर्ट",
-      "portCheckFailed": "पोर्ट तपासणी अयशस्वी",
-      "selectFromDetected": "आढळलेल्या इंटरफेसमधून निवडा",
-      "enterManually": "व्यक्तिचलितपणे प्रविष्ट करा",
-      "allInterfaces": "सर्व / कोणतेही इंटरफेस (डीफॉल्ट)",
-      "manualEntry": "सानुकूल / मॅन्युअल एंट्री...",
       "oidc": "OIDC",
       "saml20": "SAML 2.0",
       "enterpriseSaml20": "Enterprise SAML 2.0"

@@ -232,6 +232,16 @@ export const api = {
     apiClient.post<Torrent>(`/torrents/${id}/recheck`),
   deleteTorrent: (id: number, deleteFiles = false) =>
     apiClient.delete<void>(`/torrents/${id}?deleteFiles=${deleteFiles}`),
+  disconnectPeer: (id: number, ip: string) =>
+    apiClient.post<{ success: boolean; ip: string; message: string }>(
+      `/torrents/${id}/peers/disconnect`,
+      { ip },
+    ),
+  banPeer: (id: number, ip: string) =>
+    apiClient.post<{ success: boolean; ip: string; message: string }>(
+      `/torrents/${id}/peers/ban`,
+      { ip },
+    ),
 
   addTorrentMagnet: (
     magnetUrl: string,

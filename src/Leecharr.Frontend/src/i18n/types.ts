@@ -150,6 +150,8 @@ export type I18nTranslations = {
     "ok": string;
     "clear": string;
     "remove": string;
+    "disconnect": string;
+    "ban": string;
     "details": string;
     "configure": string;
     "connect": string;
@@ -657,6 +659,10 @@ export type I18nTranslations = {
       "failedToLoadPeers": string;
       "noPeers": string;
       "peersPrivateBanner": string;
+      "disconnectPeer": string;
+      "banPeer": string;
+      "peerDisconnected": string;
+      "peerBanned": string;
       "colAddress": string;
       "colClient": string;
       "colUpSpeed": string;
@@ -1212,6 +1218,7 @@ export type I18nTranslations = {
     "zoomOut": string;
     "resetZoom": string;
     "openInTorrents": string;
+    "torrentNotFound": string;
     "subtitle": string;
     "swarms": string;
     "peers": string;

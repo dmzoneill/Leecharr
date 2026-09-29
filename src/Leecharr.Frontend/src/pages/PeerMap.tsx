@@ -2,7 +2,12 @@ import { useTranslation } from "../i18n";
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
 import * as d3 from "d3";
-import { usePeerGraph, useTorrents } from "../api/hooks";
+import {
+  usePeerGraph,
+  useTorrents,
+  useDisconnectPeer,
+  useBanPeer,
+} from "../api/hooks";
 import type { PeerGraphNode } from "../api/types";
 import CountryFlag from "../components/CountryFlag";
 import { useTorrentStore } from "../stores/useTorrentStore";
@@ -52,6 +57,86 @@ function PeerMap() {
   const navigate = useNavigate();
 
   const { data: torrentsList } = useTorrents();
+  const disconnectPeerMutation = useDisconnectPeer();
+  const banPeerMutation = useBanPeer();
+  const [peerActionLoading, setPeerActionLoading] = useState<
+    "disconnect" | "ban" | null
+  >(null);
+
+  const selectedNodeTorrent = useMemo(() => {
+    if (!selectedNode?.infoHash || !torrentsList) return null;
+    const hash = selectedNode.infoHash;
+    return (
+      torrentsList.find(
+        (t) =>
+          t.infoHash?.toLowerCase() === hash.toLowerCase() ||
+          t.id.toString() === hash,
+      ) ?? null
+    );
+  }, [selectedNode?.infoHash, torrentsList]);
+
+  const handleDisconnectPeer = useCallback(() => {
+    if (!selectedNodeTorrent || !selectedNode?.label) return;
+    setPeerActionLoading("disconnect");
+    disconnectPeerMutation.mutate(
+      { torrentId: selectedNodeTorrent.id, ip: selectedNode.label },
+      {
+        onSuccess: (res) => {
+          showToast(
+            res?.message ||
+              t("torrents.detail.peerDisconnected", "Peer disconnected"),
+            "success",
+          );
+          queryClient.invalidateQueries({ queryKey: ["peerlog"] });
+        },
+        onError: (err) => {
+          showToast(err.message || "Failed to disconnect peer", "error");
+        },
+        onSettled: () => {
+          setPeerActionLoading(null);
+        },
+      },
+    );
+  }, [
+    selectedNodeTorrent,
+    selectedNode?.label,
+    disconnectPeerMutation,
+    showToast,
+    t,
+    queryClient,
+  ]);
+
+  const handleBanPeer = useCallback(() => {
+    if (!selectedNodeTorrent || !selectedNode?.label) return;
+    setPeerActionLoading("ban");
+    banPeerMutation.mutate(
+      { torrentId: selectedNodeTorrent.id, ip: selectedNode.label },
+      {
+        onSuccess: (res) => {
+          showToast(
+            res?.message ||
+              t("torrents.detail.peerBanned", "Peer banned and disconnected"),
+            "success",
+          );
+          queryClient.invalidateQueries({ queryKey: ["peerlog"] });
+          queryClient.invalidateQueries({ queryKey: ["blocklist"] });
+        },
+        onError: (err) => {
+          showToast(err.message || "Failed to ban peer", "error");
+        },
+        onSettled: () => {
+          setPeerActionLoading(null);
+        },
+      },
+    );
+  }, [
+    selectedNodeTorrent,
+    selectedNode?.label,
+    banPeerMutation,
+    showToast,
+    t,
+    queryClient,
+  ]);
   const range = useMemo(() => getTimeRange(hours), [hours]);
   const {
     data: graphData,
@@ -1135,6 +1220,88 @@ function PeerMap() {
               </div>
             )}
 
+            {selectedNode.type === "peer" && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.5rem",
+                  marginTop: "0.5rem",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                <button
+                  className="btn btn-small btn-secondary"
+                  style={{
+                    flex: 1,
+                    fontSize: "0.75rem",
+                    padding: "0.3rem 0.5rem",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.35rem",
+                  }}
+                  onClick={handleDisconnectPeer}
+                  disabled={
+                    !selectedNodeTorrent || peerActionLoading === "disconnect"
+                  }
+                  title={
+                    selectedNodeTorrent
+                      ? t("torrents.detail.disconnectPeer", "Disconnect Peer")
+                      : t(
+                          "peerMap.torrentNotFound",
+                          "Associated torrent not found",
+                        )
+                  }
+                >
+                  <i
+                    className={`fas ${
+                      peerActionLoading === "disconnect"
+                        ? "fa-spinner fa-spin"
+                        : "fa-unlink"
+                    }`}
+                  />
+                  <span>
+                    {peerActionLoading === "disconnect"
+                      ? "..."
+                      : t("common.disconnect", "Disconnect")}
+                  </span>
+                </button>
+                <button
+                  className="btn btn-small btn-danger"
+                  style={{
+                    flex: 1,
+                    fontSize: "0.75rem",
+                    padding: "0.3rem 0.5rem",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.35rem",
+                  }}
+                  onClick={handleBanPeer}
+                  disabled={!selectedNodeTorrent || peerActionLoading === "ban"}
+                  title={
+                    selectedNodeTorrent
+                      ? t("torrents.detail.banPeer", "Ban Peer")
+                      : t(
+                          "peerMap.torrentNotFound",
+                          "Associated torrent not found",
+                        )
+                  }
+                >
+                  <i
+                    className={`fas ${
+                      peerActionLoading === "ban"
+                        ? "fa-spinner fa-spin"
+                        : "fa-ban"
+                    }`}
+                  />
+                  <span>
+                    {peerActionLoading === "ban" ? "..." : t("common.ban", "Ban")}
+                  </span>
+                </button>
+              </div>
+            )}
+
             {(selectedNode.type === "torrent" || selectedNode.infoHash) && (
               <button
                 className="btn btn-small btn-primary"
@@ -1144,6 +1311,13 @@ function PeerMap() {
                   borderRadius: "6px",
                 }}
                 onClick={() => {
+                  if (selectedNodeTorrent) {
+                    useTorrentStore
+                      .getState()
+                      .setSelectedTorrentId(selectedNodeTorrent.id);
+                    navigate(`/torrents?id=${selectedNodeTorrent.id}`);
+                    return;
+                  }
                   const hash = selectedNode.infoHash;
                   if (hash) {
                     const matchedTorrent = torrentsList?.find(

@@ -181,7 +181,9 @@ const ja: I18nTranslations = {
     "total": "合計",
     "testing": "テスト",
     "unknownError": "不明なエラー",
-    "noResults": "一致するタグがありません"
+    "noResults": "一致するタグがありません",
+    "disconnect": "切断する",
+    "ban": "禁止"
   },
   "nav": {
     "dashboard": "ダッシュボード",
@@ -715,7 +717,11 @@ const ja: I18nTranslations = {
       "failedToRemoveTracker": "トラッカーの削除に失敗しました",
       "privateTrackerDisabledTitle": "プライベート トラッカーの無効化されたタイトル",
       "openTrackerPickerTitle": "トラッカーピッカーのタイトルを開く",
-      "live3s": "Live3s"
+      "live3s": "Live3s",
+      "disconnectPeer": "ピアの切断",
+      "banPeer": "禁止ピア",
+      "peerDisconnected": "ピアが切断されました",
+      "peerBanned": "ピアが禁止され、切断されました"
     },
     "ratio": "共有比率",
     "tabs": {
@@ -1220,7 +1226,8 @@ const ja: I18nTranslations = {
     "centerTitle": "センタータイトル",
     "torrentTitle": "トレントタイトル",
     "peerTitle": "ピアタイトル",
-    "peerEncryptedSuffix": "ピア暗号化サフィックス"
+    "peerEncryptedSuffix": "ピア暗号化サフィックス",
+    "torrentNotFound": "関連するトレントが見つかりません"
   },
   "trackerBoost": {
     "title": "TrackerBoost スウォーム最適化",
@@ -2231,6 +2238,7 @@ const ja: I18nTranslations = {
       "deleteConfirm": "削除",
       "deleteSuccess": "カテゴリ「{{name}}」を削除しました",
       "deleteFailed": "カテゴリの削除に失敗しました",
+      "cannotDeleteDefault": "デフォルトのカテゴリは削除できません。",
       "title": "カテゴリ管理とディレクトリルーティング",
       "description": "トレントをカテゴリで整理して、ファイルをカスタム保存パスに自動的にルーティングし、レート制限を適用し、シェア率の自動停止ポリシーを適用します。",
       "configuredCount": "{{count}} 設定されたカテゴリ",
@@ -2279,8 +2287,7 @@ const ja: I18nTranslations = {
         "saving": "保存中...",
         "saveChanges": "変更を保存",
         "createCategory": "カテゴリの作成"
-      },
-      "cannotDeleteDefault": "デフォルトのカテゴリは削除できません。"
+      }
     },
     "notifications": {
       "chatIdPrefix": "チャットID:",
@@ -2910,7 +2917,9 @@ const ja: I18nTranslations = {
       "incomingPeerListeningPorts": "受信ピアリスニングポートと UPnP",
       "configureListeningPorts": "受信 BitTorrent ピア接続のリスニング ポートを構成します。",
       "bitTorrentListeningPort": "BitTorrent リスニング ポート",
+      "testPort": "テストポート",
       "testingPort": "テスト中...",
+      "portCheckFailed": "ポートチェックに失敗しました",
       "tcpUdpPort": "受信ピア接続用の TCP および UDP ポート (デフォルト: 51413)",
       "enableUpnpNatPmp": "UPnP / NAT-PMP ポート転送を有効にする",
       "automaticallyNegotiatePortForwarding": "ルーターとのポート転送を自動的にネゴシエートします",
@@ -2919,6 +2928,10 @@ const ja: I18nTranslations = {
       "networkInterfaceBinding": "ネットワークインターフェイスバインディングとVPNキルスイッチ",
       "bindBitTorrentSockets": "BitTorrent ソケットを特定のネットワーク インターフェイス (tun0、wg0 など) にバインドし、切断時にトラフィックを停止します。",
       "bindNetworkInterface": "ネットワークインターフェースのバインド",
+      "selectFromDetected": "検出されたインターフェースから選択",
+      "enterManually": "手動で入力",
+      "allInterfaces": "すべて / 任意のインターフェイス (デフォルト)",
+      "manualEntry": "カスタム/手動入力...",
       "interfaceNameOrIp": "インターフェイス名 (例: tun0、wg0、eth0) または特定の IP (すべて空白のまま)",
       "enableAutomatedVpnKillSwitch": "自動 VPN Kill Switch を有効にする",
       "immediatelyDropAllBitTorrentTransfers": "バインドされた VPN インターフェイスがダウンした場合は、すべての BitTorrent 転送を直ちにドロップします",
@@ -3076,12 +3089,6 @@ const ja: I18nTranslations = {
       "clientId": "クライアントID",
       "clientSecret": "クライアントシークレット",
       "leaveBlankOrMaskedToKeepCurrentSecret": "現在の秘密を保持するには、空白またはマスクのままにしておきます",
-      "testPort": "テストポート",
-      "portCheckFailed": "ポートチェックに失敗しました",
-      "selectFromDetected": "検出されたインターフェースから選択",
-      "enterManually": "手動で入力",
-      "allInterfaces": "すべて / 任意のインターフェイス (デフォルト)",
-      "manualEntry": "カスタム/手動入力...",
       "oidc": "OIDC",
       "saml20": "SAML 2.0",
       "openIdConnectOidc": "OpenID Connect (OIDC)"
