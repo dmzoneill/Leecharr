@@ -2908,6 +2908,7 @@ const bn: I18nTranslations = {
       "incomingPeerListeningPorts": "ইনকামিং পিয়ার লিসেনিং পোর্ট এবং UPnP",
       "configureListeningPorts": "ইনবাউন্ড বিটটরেন্ট পিয়ার সংযোগের জন্য শোনার পোর্ট কনফিগার করুন।",
       "bitTorrentListeningPort": "বিটটরেন্ট লিসেনিং পোর্ট",
+      "testingPort": "পরীক্ষা করা হচ্ছে...",
       "tcpUdpPort": "ইনকামিং পিয়ার সংযোগের জন্য TCP এবং UDP পোর্ট (ডিফল্ট: 51413)",
       "enableUpnpNatPmp": "UPnP/NAT-PMP পোর্ট ফরওয়ার্ডিং সক্ষম করুন",
       "automaticallyNegotiatePortForwarding": "আপনার রাউটারের সাথে স্বয়ংক্রিয়ভাবে পোর্ট ফরওয়ার্ডিং নিয়ে আলোচনা করুন",
@@ -3075,6 +3076,12 @@ const bn: I18nTranslations = {
       "clientId": "ক্লায়েন্ট আইডি",
       "clientSecret": "ক্লায়েন্ট সিক্রেট",
       "leaveBlankOrMaskedToKeepCurrentSecret": "বর্তমান গোপন রাখতে ফাঁকা বা মুখোশ রাখুন",
+      "testPort": "টেস্ট পোর্ট",
+      "portCheckFailed": "পোর্ট চেক ব্যর্থ হয়েছে",
+      "selectFromDetected": "সনাক্ত করা ইন্টারফেস থেকে নির্বাচন করুন",
+      "enterManually": "ম্যানুয়ালি প্রবেশ করুন",
+      "allInterfaces": "সমস্ত / যেকোনো ইন্টারফেস (ডিফল্ট)",
+      "manualEntry": "কাস্টম/ম্যানুয়াল এন্ট্রি...",
       "saml20": "SAML 2.0"
     },
     "subsystems": {

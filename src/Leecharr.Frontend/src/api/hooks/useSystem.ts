@@ -7,6 +7,7 @@ import type {
   DiskSpaceInfo,
   NetworkStatus,
   NetworkDiagnostics,
+  PortTestResult,
   Backup,
   RestoreBackupRequest,
   UpdateEntry,
@@ -97,6 +98,20 @@ export function useNetworkDiagnostics() {
     queryKey: ["network", "diagnostics"],
     queryFn: () => apiClient.get("/network/diagnostics"),
     refetchInterval: interval,
+  });
+}
+
+export function useNetworkInterfaces() {
+  return useQuery<string[]>({
+    queryKey: ["network", "interfaces"],
+    queryFn: () => apiClient.get("/network/interfaces"),
+    staleTime: 30000,
+  });
+}
+
+export function useTestPort() {
+  return useMutation<PortTestResult, Error, { port?: number }>({
+    mutationFn: (data) => apiClient.post("/network/test-port", data),
   });
 }
 

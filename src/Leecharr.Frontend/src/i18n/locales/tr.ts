@@ -2908,6 +2908,7 @@ const tr: I18nTranslations = {
       "incomingPeerListeningPorts": "Gelen Eş Dinleme Bağlantı Noktaları ve UPnP",
       "configureListeningPorts": "Gelen BitTorrent eş bağlantıları için dinleme bağlantı noktalarını yapılandırın.",
       "bitTorrentListeningPort": "BitTorrent Dinleme Bağlantı Noktası",
+      "testingPort": "Test...",
       "tcpUdpPort": "Gelen eş bağlantılar için TCP ve UDP bağlantı noktası (varsayılan: 51413)",
       "enableUpnpNatPmp": "UPnP / NAT-PMP Bağlantı Noktası Yönlendirmeyi Etkinleştir",
       "automaticallyNegotiatePortForwarding": "Yönlendiricinizle bağlantı noktası yönlendirmeyi otomatik olarak görüşün",
@@ -3075,6 +3076,12 @@ const tr: I18nTranslations = {
       "clientId": "Müşteri Kimliği",
       "clientSecret": "Müşteri Sırrı",
       "leaveBlankOrMaskedToKeepCurrentSecret": "Mevcut sırrı korumak için boş veya maskelenmiş bırakın",
+      "testPort": "Test Bağlantı Noktası",
+      "portCheckFailed": "Bağlantı noktası kontrolü başarısız oldu",
+      "selectFromDetected": "Algılanan arayüzler arasından seçim yapın",
+      "enterManually": "Manuel olarak girin",
+      "allInterfaces": "Tümü / Herhangi bir arayüz (Varsayılan)",
+      "manualEntry": "Özel / Manuel giriş...",
       "oidc": "OIDC"
     },
     "subsystems": {
