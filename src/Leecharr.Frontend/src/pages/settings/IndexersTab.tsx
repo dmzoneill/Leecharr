@@ -330,6 +330,7 @@ export function IndexersTab() {
       minSeeders: Number(editingRule.minSeeders) || 0,
       minSizeBytes: Number(editingRule.minSizeBytes) || 0,
       maxSizeBytes: Number(editingRule.maxSizeBytes) || 0,
+      maxAgeDays: Number(editingRule.maxAgeDays) || 0,
       freeleechOnly: Boolean(editingRule.freeleechOnly),
       categoryId: Number(editingRule.categoryId) || 0,
       indexerIds: ids,
