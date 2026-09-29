@@ -5,7 +5,6 @@ import {
   useIndexers,
   useSchedulerConfig,
   useActiveSpeedLimits,
-  useDiskSpace,
   useSeedingStats,
 } from "../api/hooks";
 import { useAggregatedTorrentMetrics } from "../stores/useTorrentStore";
@@ -18,6 +17,26 @@ interface DashboardProps {
   torrents: Torrent[];
   onNavigateTorrents: () => void;
   onNavigateSettings?: (section: string) => void;
+}
+
+export function calculateCompletedLibrarySize(
+  torrents: Torrent[] = [],
+): number {
+  return (torrents || [])
+    .filter(
+      (t) =>
+        t.status?.toLowerCase() === "seeding" ||
+        t.status?.toLowerCase() === "completed" ||
+        Boolean(t.dateCompleted) ||
+        (t.progress ?? 0) >= 1,
+    )
+    .reduce((acc, t) => acc + (t.totalSize || 0), 0);
+}
+
+export function calculateTotalLibrarySize(torrents: Torrent[] = []): number {
+  const completedBytes = calculateCompletedLibrarySize(torrents);
+  if (completedBytes > 0) return completedBytes;
+  return (torrents || []).reduce((acc, t) => acc + (t.totalSize || 0), 0);
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -34,16 +53,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const { data: indexers } = useIndexers();
   const { data: schedulerConfig } = useSchedulerConfig();
   const { data: activeLimits } = useActiveSpeedLimits();
-  const { data: diskSpace } = useDiskSpace();
   const { data: seedingStats } = useSeedingStats();
 
   const achievements = calculateAchievements(torrents, seedingStats);
-  const totalSize = torrents.reduce((acc, t) => acc + (t.totalSize || 0), 0);
-  const totalLibrarySize =
-    (diskSpace || []).reduce(
-      (acc, d) => acc + (d.totalSpace - d.freeSpace),
-      0,
-    ) || totalSize;
+  const totalLibrarySize = calculateTotalLibrarySize(torrents);
 
   const {
     totalDlSpeed,
@@ -52,7 +65,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
     seedingCount,
     pausedCount,
     avgRatio,
-  } = useAggregatedTorrentMetrics(torrents);
+    totalDownloaded,
+  } = useAggregatedTorrentMetrics(torrents, seedingStats);
 
   const [timeframe, setTimeframe] = useState<
     "60s" | "5m" | "15m" | "1h" | "24h"
@@ -418,7 +432,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               color: "var(--accent, #ffd166)",
             }}
           >
-            {formatSize(totalSize)}
+            {formatSize(totalDownloaded)}
           </div>
           <div
             style={{
