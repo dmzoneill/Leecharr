@@ -65,6 +65,17 @@ public class GeneralConfigController : ConfigController<GeneralConfigResource>
             resource.SslCertPassword = this.configFileProvider.SslCertPassword;
         }
 
+        if (resource.UrlBase != null)
+        {
+            var sanitizedUrlBase = resource.UrlBase.Trim().TrimEnd('/');
+            if (!string.IsNullOrEmpty(sanitizedUrlBase) && !sanitizedUrlBase.StartsWith('/'))
+            {
+                sanitizedUrlBase = "/" + sanitizedUrlBase;
+            }
+
+            resource.UrlBase = sanitizedUrlBase;
+        }
+
         var fileUpdates = new Dictionary<string, object>
         {
             ["Port"] = resource.Port,

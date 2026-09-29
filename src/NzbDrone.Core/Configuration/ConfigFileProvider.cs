@@ -146,7 +146,17 @@ public class ConfigFileProvider : IConfigFileProvider
             {
                 if (value != null)
                 {
-                    this.config[key] = value.ToString();
+                    var valStr = value.ToString();
+                    if (string.Equals(key, "UrlBase", StringComparison.OrdinalIgnoreCase))
+                    {
+                        valStr = valStr?.Trim().TrimEnd('/') ?? string.Empty;
+                        if (!string.IsNullOrEmpty(valStr) && !valStr.StartsWith('/'))
+                        {
+                            valStr = "/" + valStr;
+                        }
+                    }
+
+                    this.config[key] = valStr;
                 }
             }
 
