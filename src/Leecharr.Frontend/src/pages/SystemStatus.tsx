@@ -10,6 +10,10 @@ import {
 } from "../api/hooks";
 import { formatBytes, formatUptime } from "../utils/formatters";
 
+export function isHealthError(check: { type?: string }): boolean {
+  return check.type?.toLowerCase() === "error";
+}
+
 function SystemStatus() {
   const { t } = useTranslation();
   const { data: status, isLoading: statusLoading } = useSystemStatus();
@@ -22,7 +26,10 @@ function SystemStatus() {
   const isLoading = statusLoading || healthLoading || diskLoading;
 
   const warningOrErrorChecks =
-    health?.filter((c) => c.type === "Warning" || c.type === "Error") ?? [];
+    health?.filter((c) => {
+      const type = c.type?.toLowerCase();
+      return type === "warning" || type === "error";
+    }) ?? [];
 
   return (
     <div className="content-area" style={{ padding: "1.5rem" }}>
@@ -194,7 +201,7 @@ function SystemStatus() {
             style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}
           >
             {warningOrErrorChecks.map((check, i) => {
-              const isError = check.type === "Error";
+              const isError = check.type?.toLowerCase() === "error";
               return (
                 <div
                   key={i}

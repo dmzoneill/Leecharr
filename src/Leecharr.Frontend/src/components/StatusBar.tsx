@@ -29,6 +29,11 @@ export interface StatusBarProps {
   isReconnecting?: boolean;
 }
 
+export function isHealthIssue(c: { type?: string }): boolean {
+  const type = c.type?.toLowerCase();
+  return type === "warning" || type === "error";
+}
+
 export function StatusBar({ connected, isReconnecting }: StatusBarProps = {}) {
   const { t } = useTranslation();
 
@@ -53,10 +58,15 @@ export function StatusBar({ connected, isReconnecting }: StatusBarProps = {}) {
 
   const hasIssues =
     healthChecks &&
-    healthChecks.some((c) => c.type === "Warning" || c.type === "Error");
+    healthChecks.some((c) => {
+      const type = c.type?.toLowerCase();
+      return type === "warning" || type === "error";
+    });
   const issuesCount = hasIssues
-    ? healthChecks.filter((c) => c.type === "Warning" || c.type === "Error")
-        .length
+    ? healthChecks.filter((c) => {
+        const type = c.type?.toLowerCase();
+        return type === "warning" || type === "error";
+      }).length
     : 0;
 
   return (
