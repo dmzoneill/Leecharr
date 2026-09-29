@@ -189,20 +189,22 @@ export function SpeedSettingsTab() {
               label={t("settingsTabs.alternativeDownloadCap")}
               value={form.altDownloadSpeedKbps}
               onChange={(v) => update("altDownloadSpeedKbps", v)}
-              min={1}
+              min={-1}
               max={10000000}
               step={100}
               suffix="KB/s"
+              hint={t("settingsTabs.alternativeSpeedHint")}
             />
 
             <NumberInput
               label={t("settingsTabs.alternativeUploadCap")}
               value={form.altUploadSpeedKbps}
               onChange={(v) => update("altUploadSpeedKbps", v)}
-              min={1}
+              min={-1}
               max={10000000}
               step={100}
               suffix="KB/s"
+              hint={t("settingsTabs.alternativeSpeedHint")}
             />
           </div>
         </div>

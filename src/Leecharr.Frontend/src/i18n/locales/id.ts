@@ -1135,6 +1135,7 @@ const id: I18nTranslations = {
     "scheduleName": "Nama Aturan",
     "namePlaceholder": "misalnya Throttle Burung Hantu Malam, Jam Kerja Puncak",
     "activeDays": "Hari Aktif",
+    "atLeastOneDay": "Setidaknya satu hari harus dipilih.",
     "allDays": "Semua 7 Hari",
     "workdays": "Senin - Jumat",
     "weekends": "Sabtu - Minggu",
@@ -1181,8 +1182,7 @@ const id: I18nTranslations = {
     "toggleSchedule": "Beralih Jadwal",
     "toggleSchedules": "Alihkan __V0___ Jadwal",
     "clearSelection": "Bersihkan",
-    "hrsPerDay": "{{hours}} jam{{plural}} per hari selama {{days}} hari{{dayPlural}}",
-    "atLeastOneDay": "Setidaknya satu hari harus dipilih."
+    "hrsPerDay": "{{hours}} jam{{plural}} per hari selama {{days}} hari{{dayPlural}}"
   },
   "peerMap": {
     "title": "Peta Peer Swarm Global",
@@ -3432,7 +3432,8 @@ const id: I18nTranslations = {
       "engineHealthy": "{{engine}} sehat dan operasional.",
       "engineIssues": "{{engine}} pemeriksaan kesehatan melaporkan masalah.",
       "probeFailed": "Pemeriksaan gagal untuk {{engine}}: {{error}}"
-    }
+    },
+    "alternativeSpeedHint": "-1 = Dijeda, 0 = Tidak terbatas"
   },
   "errors": {
     "defaultTitle": "Terjadi kesalahan UI yang tidak terduga",
