@@ -1135,6 +1135,7 @@ export type I18nTranslations = {
     "scheduleName": string;
     "namePlaceholder": string;
     "activeDays": string;
+    "atLeastOneDay": string;
     "allDays": string;
     "workdays": string;
     "weekends": string;
