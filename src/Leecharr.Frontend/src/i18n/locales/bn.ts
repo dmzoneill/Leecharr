@@ -2479,6 +2479,8 @@ const bn: I18nTranslations = {
       "rssRulesDesc": "স্বয়ংক্রিয় দখলের জন্য RSS ফিল্টার নিয়ম, রেজেক্স প্যাটার্ন, ন্যূনতম সিডার এবং বিভাগগুলি কনফিগার করুন",
       "syncRssNow": "🔄 এখন আরএসএস ফিড সিঙ্ক করুন",
       "syncingRss": "RSS সিঙ্ক হচ্ছে...",
+      "syncProwlarr": "🔄 Prowlarr সিঙ্ক করুন",
+      "syncingProwlarr": "Prowlarr সিঙ্ক করা হচ্ছে...",
       "deleteRssRule": "RSS নিয়ম মুছুন",
       "deleteRssRuleConfirmTitle": "RSS নিয়ম মুছুন",
       "deleteRssRuleConfirmMessage": "আপনি কি RSS নিয়ম \"{{name}}\" মুছে ফেলার বিষয়ে নিশ্চিত?",
