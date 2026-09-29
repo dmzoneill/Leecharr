@@ -10,6 +10,105 @@ export interface TorrentCreationTabProps {
   onClose?: () => void;
 }
 
+/**
+ * Converts torrent file bytes (base64 string, byte array, or Uint8Array) into a Blob
+ * with MIME type application/x-bittorrent.
+ */
+export function createTorrentBlob(
+  torrentFileBytes: string | number[] | Uint8Array,
+): Blob {
+  if (typeof torrentFileBytes === "string") {
+    const cleanStr = torrentFileBytes.trim();
+    const binary = atob(cleanStr);
+    const len = binary.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return new Blob([bytes], { type: "application/x-bittorrent" });
+  }
+
+  if (torrentFileBytes instanceof Uint8Array) {
+    return new Blob([torrentFileBytes], { type: "application/x-bittorrent" });
+  }
+
+  if (Array.isArray(torrentFileBytes)) {
+    return new Blob([new Uint8Array(torrentFileBytes)], {
+      type: "application/x-bittorrent",
+    });
+  }
+
+  throw new Error("Invalid torrent file bytes format");
+}
+
+/**
+ * Derives a suitable filename for downloading a generated .torrent file.
+ */
+export function getTorrentDownloadFilename(
+  sourcePath?: string,
+  torrentName?: string,
+  infoHash?: string,
+): string {
+  if (torrentName && torrentName.trim()) {
+    const name = torrentName.trim();
+    return name.toLowerCase().endsWith(".torrent") ? name : `${name}.torrent`;
+  }
+
+  if (sourcePath && sourcePath.trim()) {
+    const trimmed = sourcePath.trim().replace(/[\\/]+$/, "");
+    const segments = trimmed.split(/[\\/]/);
+    const last = segments[segments.length - 1];
+    if (last) {
+      return last.toLowerCase().endsWith(".torrent") ? last : `${last}.torrent`;
+    }
+  }
+
+  if (infoHash && infoHash.trim()) {
+    const hash = infoHash.trim();
+    return hash.toLowerCase().endsWith(".torrent") ? hash : `${hash}.torrent`;
+  }
+
+  return "created.torrent";
+}
+
+/**
+ * Triggers a browser download for a Blob.
+ */
+export function triggerBlobDownload(blob: Blob, filename: string): boolean {
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    return false;
+  }
+  if (!window.URL || typeof window.URL.createObjectURL !== "function") {
+    return false;
+  }
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => {
+    try {
+      window.URL.revokeObjectURL(url);
+    } catch {
+      // Ignore cleanup error
+    }
+  }, 1000);
+  return true;
+}
+
+/**
+ * Convenience method to create a blob from bytes and trigger download.
+ */
+export function downloadTorrentFile(
+  torrentFileBytes: string | number[] | Uint8Array,
+  filename: string,
+): boolean {
+  const blob = createTorrentBlob(torrentFileBytes);
+  return triggerBlobDownload(blob, filename);
+}
+
 export function TorrentCreationTab({
   isModal = false,
   onClose,
@@ -29,6 +128,25 @@ export function TorrentCreationTab({
   const [isCreating, setIsCreating] = useState(false);
   const [createResult, setCreateResult] =
     useState<TorrentCreationResult | null>(null);
+
+  const handleDownloadTorrent = (res?: TorrentCreationResult | null) => {
+    const target = res || createResult;
+    if (!target?.torrentFileBytes) return;
+
+    try {
+      const filename = getTorrentDownloadFilename(
+        createPath,
+        createName,
+        target.infoHash,
+      );
+      downloadTorrentFile(target.torrentFileBytes, filename);
+    } catch (err: unknown) {
+      showToast(
+        (err as Error)?.message || "Failed to download torrent file",
+        "error",
+      );
+    }
+  };
 
   const handleCreateTorrent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,6 +196,9 @@ export function TorrentCreationTab({
           ),
           "success",
         );
+        if (res.torrentFileBytes && !createOutputPath.trim()) {
+          handleDownloadTorrent(res);
+        }
       } else {
         showToast(
           res.errorMessage ||
@@ -449,6 +570,32 @@ export function TorrentCreationTab({
                 <div style={{ marginTop: "0.25rem" }}>
                   <strong>{t("addTorrent.savedToLabel", "Saved To:")}</strong>{" "}
                   <code>{createResult.outputPath}</code>
+                </div>
+              )}
+              {createResult.torrentFileBytes && (
+                <div style={{ marginTop: "0.75rem" }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => handleDownloadTorrent(createResult)}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                      fontSize: "0.85rem",
+                      padding: "0.35rem 0.75rem",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <span>⬇</span>
+                    <span>
+                      {t(
+                        "torrents.actions.downloadTorrentFile",
+                        "Download .torrent",
+                      )}
+                    </span>
+                  </button>
                 </div>
               )}
             </div>
