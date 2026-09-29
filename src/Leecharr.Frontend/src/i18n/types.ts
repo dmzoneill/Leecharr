@@ -2490,6 +2490,15 @@ export type I18nTranslations = {
       "deleteConfirmText": string;
       "indexerDeleted": string;
       "deleteIndexerFailed": string;
+      "selectAll": string;
+      "deselectAll": string;
+      "selectedCount": string;
+      "deleteSelected": string;
+      "deletingSelected": string;
+      "deleteSelectedTitle": string;
+      "deleteSelectedConfirmMessage": string;
+      "bulkDeleteSuccess": string;
+      "bulkDeleteFailed": string;
       "badgeRss": string;
       "badgeSearch": string;
       "connectionPassed": string;

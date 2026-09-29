@@ -2490,6 +2490,10 @@ const vi: I18nTranslations = {
       "deleteConfirmText": "Xóa",
       "indexerDeleted": "Người lập chỉ mục \"{{name}}\" đã bị xóa",
       "deleteIndexerFailed": "Không thể xóa bộ chỉ mục",
+      "selectAll": "Chọn tất cả",
+      "deselectAll": "Bỏ chọn tất cả",
+      "deleteSelected": "Xóa mục đã chọn",
+      "deletingSelected": "Đang xóa...",
       "badgeRss": "RSS",
       "badgeSearch": "Tìm kiếm",
       "connectionPassed": "✓ Kết nối đã được thông qua",
@@ -2559,6 +2563,11 @@ const vi: I18nTranslations = {
       "indexerCreated": "Người lập chỉ mục \"{{name}}\" đã được tạo",
       "updateFailed": "Không thể cập nhật bộ chỉ mục",
       "createFailed": "Không tạo được bộ chỉ mục",
+      "selectedCount": "{{count}} đã chọn",
+      "deleteSelectedTitle": "Xóa các bộ chỉ mục đã chọn",
+      "deleteSelectedConfirmMessage": "Bạn có chắc chắn muốn xóa {{count}} người lập chỉ mục đã chọn không?",
+      "bulkDeleteSuccess": "Đã xóa {{count}} người lập chỉ mục",
+      "bulkDeleteFailed": "Không thể xóa người lập chỉ mục đã chọn",
       "freeleech": "Freeleech"
     },
     "nav": {

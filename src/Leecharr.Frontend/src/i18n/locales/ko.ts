@@ -2490,6 +2490,10 @@ const ko: I18nTranslations = {
       "deleteConfirmText": "삭제",
       "indexerDeleted": "인덱서 \"{{name}}\"이(가) 삭제되었습니다.",
       "deleteIndexerFailed": "인덱서를 삭제하지 못했습니다.",
+      "selectAll": "전체 선택",
+      "deselectAll": "선택 해제",
+      "deleteSelected": "선택 항목 삭제",
+      "deletingSelected": "삭제 중...",
       "badgeRss": "RSS",
       "badgeSearch": "검색",
       "connectionPassed": "✓ 연결이 통과되었습니다",
@@ -2559,7 +2563,12 @@ const ko: I18nTranslations = {
       "indexerUpdated": "인덱서 \"{{name}}\" 업데이트됨",
       "indexerCreated": "인덱서 \"{{name}}\"이(가) 생성되었습니다.",
       "updateFailed": "인덱서를 업데이트하지 못했습니다.",
-      "createFailed": "인덱서를 생성하지 못했습니다."
+      "createFailed": "인덱서를 생성하지 못했습니다.",
+      "selectedCount": "_{{count}} 선택됨",
+      "deleteSelectedTitle": "선택한 인덱서 삭제",
+      "deleteSelectedConfirmMessage": "선택한 {{count}} 인덱서를 삭제하시겠습니까?",
+      "bulkDeleteSuccess": "__V0___ 인덱서 삭제됨",
+      "bulkDeleteFailed": "선택한 인덱서를 삭제하지 못했습니다."
     },
     "nav": {
       "groups": {
