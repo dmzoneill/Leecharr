@@ -3409,6 +3409,41 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             }
         }
 
+        if (this.configService != null && this.configService.AutoRecheckOnCompletion)
+        {
+            try
+            {
+                this.logger.Info("Performing auto recheck on completion for torrent #{0} ('{1}')", torrentId, torrentName);
+                this.torrentLogService?.Log(torrentId, "Info", "Storage", "Performing auto rehash verification upon download completion...");
+                await manager.HashCheckAsync(autoStart: true).ConfigureAwait(false);
+
+                var allVerified = manager.Complete || (manager.Bitfield != null && manager.Bitfield.Length > 0 && manager.Bitfield.AllTrue) || manager.Progress >= 100.0;
+                if (!allVerified)
+                {
+                    if (existingTask != null)
+                    {
+                        existingTask.IsFilesMovedToCompleted = false;
+                    }
+
+                    this.logger.Warn(
+                        "Torrent #{0} ('{1}') failed hash verification on completion ({2:F1}% verified). Aborting move to completed directory.",
+                        torrentId,
+                        torrentName,
+                        manager.Progress);
+                    this.torrentLogService?.Log(
+                        torrentId,
+                        "Warn",
+                        "Storage",
+                        $"Hash verification on completion failed ({manager.Progress:F1}% verified). Resuming download to repair missing pieces.");
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Failed to perform auto hash check on completion for torrent {0}", torrentId);
+            }
+        }
+
         var customSavePath = existingTask?.SavePath;
         var targetCompletedDir = this.storagePathService.GetCompletedDirectory(category);
         var downloadDir = this.configService?.DownloadDir ?? "/downloads";

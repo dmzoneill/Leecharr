@@ -1,6 +1,7 @@
 import { useTranslation } from "../../i18n";
 import { useState, useEffect } from "react";
 import { useBitTorrentConfig, useSaveBitTorrentConfig } from "../../api/hooks";
+import { FolderBrowserModal } from "../../components/FolderBrowserModal";
 import {
   SaveBar,
   SectionCard,
@@ -29,6 +30,9 @@ export function StorageSettingsTab() {
   });
 
   const [dirty, setDirty] = useState(false);
+  const [activeBrowserField, setActiveBrowserField] = useState<
+    "downloadDir" | "incompleteDownloadDir" | null
+  >(null);
 
   useEffect(() => {
     if (config) {
@@ -110,6 +114,25 @@ export function StorageSettingsTab() {
             hint={t(
               "settingsTabs.batch2.rootDirectoryWhereCompletedDownloadsArePlaced",
             )}
+            rightElement={
+              <button
+                type="button"
+                className="btn btn-outline btn-small"
+                onClick={() => setActiveBrowserField("downloadDir")}
+                title="Browse filesystem directories"
+                style={{
+                  whiteSpace: "nowrap",
+                  padding: "0.4rem 0.65rem",
+                  fontSize: "0.8rem",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.35rem",
+                }}
+              >
+                <span>📁</span>
+                <span>Browse...</span>
+              </button>
+            }
           />
 
           <Toggle
@@ -129,6 +152,26 @@ export function StorageSettingsTab() {
             hint={t(
               "settingsTabs.batch2.pathWhereInProgressDownloadsAreWritten",
             )}
+            rightElement={
+              <button
+                type="button"
+                className="btn btn-outline btn-small"
+                onClick={() => setActiveBrowserField("incompleteDownloadDir")}
+                disabled={!form.enableIncompleteDir}
+                title="Browse filesystem directories"
+                style={{
+                  whiteSpace: "nowrap",
+                  padding: "0.4rem 0.65rem",
+                  fontSize: "0.8rem",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.35rem",
+                }}
+              >
+                <span>📁</span>
+                <span>Browse...</span>
+              </button>
+            }
           />
 
           <Toggle
@@ -227,6 +270,27 @@ export function StorageSettingsTab() {
           </div>
         </div>
       </SectionCard>
+
+      {activeBrowserField && (
+        <FolderBrowserModal
+          isOpen={Boolean(activeBrowserField)}
+          initialPath={
+            activeBrowserField === "downloadDir"
+              ? form.downloadDir || "/downloads"
+              : form.incompleteDownloadDir || "/downloads/incomplete"
+          }
+          title={
+            activeBrowserField === "downloadDir"
+              ? "Select Completed Download Directory"
+              : "Select Incomplete Download Directory"
+          }
+          onSelect={(selectedPath) => {
+            update(activeBrowserField, selectedPath);
+            setActiveBrowserField(null);
+          }}
+          onClose={() => setActiveBrowserField(null)}
+        />
+      )}
     </div>
   );
 }

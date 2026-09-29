@@ -4976,6 +4976,33 @@ public class MonoTorrentDownloadEngineTest
     }
 
     [Test]
+    public async Task OnTorrentCompletedAsync_WhenAutoRecheckEnabledAndIncomplete_AbortsMoveAndResetsLatch()
+    {
+        var torrentBytes = CreateSampleSingleFileTorrentBytes("recheck_incomplete_test.bin");
+        var parsed = MonoTorrent.Torrent.Load(torrentBytes);
+
+        var torrent = new CoreTorrent
+        {
+            Id = 612,
+            InfoHash = parsed.InfoHashes.V1OrV2.ToHex(),
+            Name = "recheck_incomplete_test.bin",
+            Status = TorrentStatus.Downloading,
+            Category = "movies",
+        };
+
+        var targetDest = "/downloads/completed/movies";
+        this.storagePathService.GetCompletedDirectory("movies").Returns(targetDest);
+        this.configService.AutoRecheckOnCompletion.Returns(true);
+
+        var task = (MonoTorrentDownloadTask)await this.engine.AddTorrentAsync(torrent, torrentFileBytes: torrentBytes);
+        await this.engine.OnTorrentCompletedAsync(612, torrent.InfoHash, task.Manager);
+
+        this.storagePathService.DidNotReceive().MoveToCompleted(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), out var dummy);
+        task.IsFilesMovedToCompleted.Should().BeFalse();
+        this.eventAggregator.DidNotReceive().PublishEvent(Arg.Any<TorrentDownloadCompletedEvent>());
+    }
+
+    [Test]
     public async Task ForceRecheckAsync_WhenFilesLocatedInCompletedFolder_AlignsSavePathBeforeRecheck()
     {
         var torrentBytes = CreateSampleSingleFileTorrentBytes("recheck_completed_test.iso", length: 16384);
