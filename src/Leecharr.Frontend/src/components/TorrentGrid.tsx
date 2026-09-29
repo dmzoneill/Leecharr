@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from "react";
+import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Torrent } from "../api/types";
 import { PlayIcon, StopIcon } from "./icons/UIIcons";
@@ -12,24 +12,44 @@ import {
 import { filterTorrents } from "../utils/filterUtils";
 import { useTorrentStore, applyTelemetry } from "../stores/useTorrentStore";
 import { useTranslation } from "../i18n";
+import TorrentContextMenu from "./TorrentContextMenu";
+import {
+  useStartSeeding,
+  useStopSeeding,
+  useDeleteTorrent,
+  useUpdateTorrent,
+  useAnnounceTorrent,
+  useRecheckTorrent,
+  useMoveTorrentQueue,
+} from "../api/hooks";
 
 export interface TorrentGridCardProps {
   torrent: Torrent;
   isSelected: boolean;
+  isChecked?: boolean;
+  index?: number;
   onSelect: (torrent: Torrent) => void;
+  onClick?: (torrent: Torrent, index: number, e: React.MouseEvent) => void;
   onPause: (id: number) => void;
   onResume: (id: number) => void;
-  onDelete: (payload: { id: number; deleteFiles?: boolean }) => void;
+  onDelete: (payload: { id: number; deleteFiles?: boolean; ids?: number[] }) => void;
+  onContextMenu?: (e: React.MouseEvent, torrent: Torrent) => void;
+  onToggleSelect?: (id: number, multi?: boolean) => void;
 }
 
 export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
   ({
     torrent: tTorrent,
     isSelected,
+    isChecked = false,
+    index,
     onSelect,
+    onClick,
     onPause,
     onResume,
     onDelete,
+    onContextMenu,
+    onToggleSelect,
   }) => {
     const { t } = useTranslation();
     const telemetry = useTorrentStore((state) => state.telemetry[tTorrent.id]);
@@ -37,6 +57,20 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
       () => applyTelemetry(tTorrent, telemetry),
       [tTorrent, telemetry],
     );
+
+    const handleClick = (e: React.MouseEvent) => {
+      if (onClick && index !== undefined) {
+        onClick(mergedTorrent, index, e);
+      } else {
+        onSelect(mergedTorrent);
+      }
+    };
+
+    const handleContextMenu = (e: React.MouseEvent) => {
+      if (onContextMenu) {
+        onContextMenu(e, mergedTorrent);
+      }
+    };
 
     const statusLower = (mergedTorrent.status || "").toLowerCase();
     const isActive =
@@ -55,8 +89,9 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
 
     return (
       <div
-        className={`card torrent-grid-card ${isSelected ? "torrent-grid-card-selected" : ""}`}
-        onClick={() => onSelect(mergedTorrent)}
+        className={`card torrent-grid-card ${isSelected ? "torrent-grid-card-selected" : ""} ${isChecked ? "torrent-grid-card-checked" : ""}`}
+        onClick={handleClick}
+        onContextMenu={handleContextMenu}
         style={{
           display: "flex",
           flexDirection: "column",
@@ -65,8 +100,14 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
           borderRadius: "6px",
           border: isSelected
             ? "1px solid var(--accent)"
-            : "1px solid var(--border)",
-          backgroundColor: "var(--bg-secondary)",
+            : isChecked
+              ? "1px solid var(--accent-light, #ffd166)"
+              : "1px solid var(--border)",
+          backgroundColor: isSelected
+            ? "var(--accent-bg-light, rgba(255, 209, 102, 0.1))"
+            : isChecked
+              ? "rgba(255, 209, 102, 0.05)"
+              : "var(--bg-secondary)",
           transition: "all 0.15s ease-in-out",
           height: "380px",
           boxSizing: "border-box",
@@ -84,6 +125,39 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
             justifyContent: "center",
           }}
         >
+          {onToggleSelect && (
+            <div
+              className="torrent-grid-checkbox-container"
+              onClick={(e) => e.stopPropagation()}
+              onContextMenu={(e) => e.stopPropagation()}
+              style={{
+                position: "absolute",
+                top: "8px",
+                left: "8px",
+                zIndex: 3,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "rgba(16, 17, 26, 0.75)",
+                borderRadius: "4px",
+                padding: "3px 5px",
+                backdropFilter: "blur(4px)",
+              }}
+            >
+              <input
+                type="checkbox"
+                className="torrent-row-checkbox"
+                checked={isChecked}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  onToggleSelect(mergedTorrent.id);
+                }}
+                aria-label={`Select ${mergedTorrent.name}`}
+                style={{ cursor: "pointer", margin: 0 }}
+              />
+            </div>
+          )}
+
           <MediaArtworkImage
             src={mergedTorrent.posterUrl}
             alt={mergedTorrent.name}
@@ -99,7 +173,7 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
             style={{
               position: "absolute",
               top: "8px",
-              left: "8px",
+              left: onToggleSelect ? "38px" : "8px",
               display: "flex",
               gap: "4px",
               flexWrap: "wrap",
@@ -367,6 +441,36 @@ export const TorrentGridCard: React.FC<TorrentGridCardProps> = React.memo(
 );
 TorrentGridCard.displayName = "TorrentGridCard";
 
+export function computeRangeSelection(
+  torrentIds: number[],
+  anchorIndex: number,
+  targetIndex: number,
+): number[] {
+  const start = Math.min(anchorIndex, targetIndex);
+  const end = Math.max(anchorIndex, targetIndex);
+  return torrentIds.slice(start, end + 1);
+}
+
+export function computeEffectiveContextMenuSelection(
+  selectedIds: Set<number>,
+  clickedTorrentId: number | null,
+): Set<number> {
+  if (clickedTorrentId === null) {
+    return selectedIds;
+  }
+  if (!selectedIds.has(clickedTorrentId)) {
+    return new Set([clickedTorrentId]);
+  }
+  return selectedIds;
+}
+
+interface ContextMenuState {
+  x: number;
+  y: number;
+  torrent: Torrent | null;
+  selectedTorrents?: Torrent[];
+}
+
 export interface TorrentGridProps {
   torrents: Torrent[];
   filter?: string;
@@ -380,7 +484,13 @@ export interface TorrentGridProps {
   onSelect: (torrent: Torrent) => void;
   onPause: (id: number) => void;
   onResume: (id: number) => void;
-  onDelete: (payload: { id: number; deleteFiles?: boolean }) => void;
+  onDelete: (payload: { id: number; deleteFiles?: boolean; ids?: number[] }) => void;
+  selectedIds?: Set<number>;
+  onToggleSelect?: (id: number, multi?: boolean) => void;
+  onSelectAll?: (ids: number[]) => void;
+  onContextMenu?: (e: React.MouseEvent, torrent: Torrent) => void;
+  onSearchIndexers?: (name: string) => void;
+  onNavigateTab?: (nav: string, subNav?: string) => void;
 }
 
 export const TorrentGrid: React.FC<TorrentGridProps> = ({
@@ -397,10 +507,33 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
   onPause,
   onResume,
   onDelete,
+  selectedIds: propSelectedIds,
+  onToggleSelect,
+  onSelectAll,
+  onContextMenu: onContextMenuProp,
+  onSearchIndexers,
+  onNavigateTab,
 }) => {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
+
+  const startSeeding = useStartSeeding();
+  const stopSeeding = useStopSeeding();
+  const deleteTorrent = useDeleteTorrent();
+  const updateTorrent = useUpdateTorrent();
+  const announceTorrent = useAnnounceTorrent();
+  const recheckTorrent = useRecheckTorrent();
+  const moveTorrentQueue = useMoveTorrentQueue();
+
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const closeContextMenu = useCallback(() => setContextMenu(null), []);
+
+  const storeSelectedIds = useTorrentStore((state) => state.selectedIds);
+  const selectedIds = propSelectedIds ?? storeSelectedIds;
+
+  const selectionAnchorIndexRef = useRef<number | null>(null);
+  const lastClickedIndexRef = useRef<number | null>(null);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -435,6 +568,79 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
     tagMatchMode,
     selectedTag,
   ]);
+
+  const handleCardClick = useCallback(
+    (torrent: Torrent, index: number, e: React.MouseEvent) => {
+      if (e.shiftKey) {
+        const anchor =
+          selectionAnchorIndexRef.current !== null
+            ? selectionAnchorIndexRef.current
+            : index;
+        selectionAnchorIndexRef.current = anchor;
+        lastClickedIndexRef.current = index;
+        const torrentIds = filteredTorrents.map((r) => r.id);
+        const range = computeRangeSelection(torrentIds, anchor, index);
+        if (onSelectAll) {
+          onSelectAll(range);
+        } else {
+          useTorrentStore.getState().setSelectedIds(new Set(range));
+        }
+        onSelect?.(torrent);
+      } else if (e.ctrlKey || e.metaKey) {
+        selectionAnchorIndexRef.current = index;
+        lastClickedIndexRef.current = index;
+        if (onToggleSelect) {
+          onToggleSelect(torrent.id, true);
+        } else {
+          useTorrentStore.getState().toggleSelectedId(torrent.id);
+        }
+        onSelect?.(torrent);
+      } else {
+        selectionAnchorIndexRef.current = index;
+        lastClickedIndexRef.current = index;
+        if (onSelectAll) {
+          onSelectAll([torrent.id]);
+        } else {
+          useTorrentStore.getState().setSelectedIds(new Set([torrent.id]));
+        }
+        onSelect?.(torrent);
+      }
+    },
+    [filteredTorrents, onSelectAll, onSelect, onToggleSelect],
+  );
+
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent, torrent: Torrent | null) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const effectiveSelectedIds = computeEffectiveContextMenuSelection(
+        selectedIds,
+        torrent?.id ?? null,
+      );
+      if (torrent && !selectedIds.has(torrent.id)) {
+        if (onSelectAll) {
+          onSelectAll([torrent.id]);
+        } else {
+          useTorrentStore.getState().setSelectedIds(effectiveSelectedIds);
+        }
+        onSelect?.(torrent);
+      }
+      const currentTorrents = torrents || [];
+      const selectedTorrents = currentTorrents.filter((t) =>
+        effectiveSelectedIds.has(t.id),
+      );
+      setContextMenu({
+        x: e.clientX,
+        y: e.clientY,
+        torrent,
+        selectedTorrents,
+      });
+      if (torrent && onContextMenuProp) {
+        onContextMenuProp(e, torrent);
+      }
+    },
+    [selectedIds, onSelectAll, onSelect, torrents, onContextMenuProp],
+  );
 
   const gap = 16;
   const minCardWidth = 240;
@@ -506,6 +712,14 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
   return (
     <div
       ref={containerRef}
+      onScroll={() => {
+        if (contextMenu) closeContextMenu();
+      }}
+      onContextMenu={(e) => {
+        if (e.target === containerRef.current) {
+          handleContextMenu(e, null);
+        }
+      }}
       style={{
         flex: "1 1 auto",
         minHeight: 0,
@@ -546,21 +760,88 @@ export const TorrentGrid: React.FC<TorrentGridProps> = ({
                 boxSizing: "border-box",
               }}
             >
-              {rowTorrents.map((tTorrent) => (
-                <TorrentGridCard
-                  key={tTorrent.id}
-                  torrent={tTorrent}
-                  isSelected={tTorrent.id === selectedId}
-                  onSelect={onSelect}
-                  onPause={onPause}
-                  onResume={onResume}
-                  onDelete={onDelete}
-                />
-              ))}
+              {rowTorrents.map((tTorrent, colIndex) => {
+                const cardIndex = startIndex + colIndex;
+                return (
+                  <TorrentGridCard
+                    key={tTorrent.id}
+                    torrent={tTorrent}
+                    isSelected={tTorrent.id === selectedId}
+                    isChecked={selectedIds.has(tTorrent.id)}
+                    index={cardIndex}
+                    onSelect={onSelect}
+                    onClick={handleCardClick}
+                    onPause={onPause}
+                    onResume={onResume}
+                    onDelete={onDelete}
+                    onContextMenu={handleContextMenu}
+                    onToggleSelect={onToggleSelect}
+                  />
+                );
+              })}
             </div>
           );
         })}
       </div>
+
+      {/* Right-Click Context Menu */}
+      {contextMenu && (
+        <TorrentContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          torrent={contextMenu.torrent}
+          selectedTorrents={contextMenu.selectedTorrents}
+          onClose={closeContextMenu}
+          onStart={(id) => (onResume ? onResume(id) : startSeeding.mutate(id))}
+          onStop={(id) => (onPause ? onPause(id) : stopSeeding.mutate(id))}
+          onUpdate={(tor) => updateTorrent.mutate(tor)}
+          onAnnounce={(id) => announceTorrent.mutate(id)}
+          onRecheck={(id) => recheckTorrent.mutate(id)}
+          onDelete={(payload) =>
+            onDelete ? onDelete(payload) : deleteTorrent.mutate(payload)
+          }
+          onMoveQueue={(payload) => moveTorrentQueue.mutate(payload)}
+          onBatchStart={(ids) =>
+            ids.forEach((id) =>
+              onResume ? onResume(id) : startSeeding.mutate(id),
+            )
+          }
+          onBatchStop={(ids) =>
+            ids.forEach((id) =>
+              onPause ? onPause(id) : stopSeeding.mutate(id),
+            )
+          }
+          onBatchAnnounce={(ids) =>
+            ids.forEach((id) => announceTorrent.mutate(id))
+          }
+          onBatchRecheck={(ids) =>
+            ids.forEach((id) => recheckTorrent.mutate(id))
+          }
+          onBatchDelete={(payload) => {
+            if (onDelete && payload.ids.length > 0) {
+              onDelete({
+                id: payload.ids[0],
+                deleteFiles: payload.deleteFiles,
+                ids: payload.ids,
+              });
+            } else {
+              payload.ids.forEach((id) =>
+                deleteTorrent.mutate({ id, deleteFiles: payload.deleteFiles }),
+              );
+            }
+          }}
+          onBatchUpdate={(batchTorrents) =>
+            batchTorrents.forEach((tor) => updateTorrent.mutate(tor))
+          }
+          onBatchMoveQueue={(payload) =>
+            payload.ids.forEach((id) =>
+              moveTorrentQueue.mutate({ id, position: payload.position }),
+            )
+          }
+          onSearchIndexers={onSearchIndexers}
+          onNavigateTab={onNavigateTab}
+        />
+      )}
     </div>
   );
 };
