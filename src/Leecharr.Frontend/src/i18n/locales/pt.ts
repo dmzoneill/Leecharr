@@ -85,7 +85,10 @@ const pt: I18nTranslations = {
     "loadingPreview": "Carregando visualização",
     "binaryMediaFile": "Arquivo de mídia binário",
     "binaryPreviewNotice": "Aviso de visualização binária",
-    "openInTerminal": "Abrir no terminal"
+    "openInTerminal": "Abrir no terminal",
+    "folderDownloadNotSupported": "O download de pastas não é compatível. Selecione arquivos individuais para download.",
+    "foldersSkippedWarning": "As pastas não podem ser baixadas diretamente e foram ignoradas.",
+    "multiDownloadWarning": "Baixando vários arquivos. Se alguns downloads falharem, verifique as configurações do bloqueador de pop-up do navegador."
   },
   "common": {
     "time": {

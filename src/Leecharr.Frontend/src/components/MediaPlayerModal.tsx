@@ -9,6 +9,7 @@ import { useTranslation } from "../i18n";
 import { useModalRegistration } from "./ModalProvider";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useTorrentFileSubtitles } from "../api/hooks";
+import { apiClient } from "../api/client";
 import type { SubtitleTrack, Torrent } from "../api/types";
 import {
   isAudioFile,
@@ -98,26 +99,28 @@ export function MediaPlayerModal({
     }
   }, [isOpen, isAudio, fileName]);
 
+  const apiKey = useMemo(() => apiClient.getApiKey(), []);
+
   const streamUrl = useMemo(() => {
     if (propStreamUrl) return propStreamUrl;
     if (torrent?.id != null && file.id != null)
-      return buildStreamUrl(torrent.id, file.id);
-    return buildFileStreamUrl(file.path);
-  }, [propStreamUrl, torrent?.id, file.id, file.path]);
+      return buildStreamUrl(torrent.id, file.id, apiKey);
+    return buildFileStreamUrl(file.path, apiKey);
+  }, [propStreamUrl, torrent?.id, file.id, file.path, apiKey]);
 
   const downloadUrl = useMemo(() => {
     if (propDownloadUrl) return propDownloadUrl;
     if (torrent?.id != null && file.id != null)
-      return buildDownloadUrl(torrent.id, file.id);
-    return buildFileDownloadUrl(file.path);
-  }, [propDownloadUrl, torrent?.id, file.id, file.path]);
+      return buildDownloadUrl(torrent.id, file.id, apiKey);
+    return buildFileDownloadUrl(file.path, apiKey);
+  }, [propDownloadUrl, torrent?.id, file.id, file.path, apiKey]);
 
   const playlistUrl = useMemo(() => {
     if (propPlaylistUrl) return propPlaylistUrl;
     if (torrent?.id != null && file.id != null)
-      return buildPlaylistUrl(torrent.id, file.id);
-    return buildFilePlaylistUrl(file.path);
-  }, [propPlaylistUrl, torrent?.id, file.id, file.path]);
+      return buildPlaylistUrl(torrent.id, file.id, apiKey);
+    return buildFilePlaylistUrl(file.path, apiKey);
+  }, [propPlaylistUrl, torrent?.id, file.id, file.path, apiKey]);
 
   const { data: fetchedSubtitles } = useTorrentFileSubtitles(
     isOpen && torrent?.id != null ? torrent.id : undefined,

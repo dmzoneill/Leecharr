@@ -85,7 +85,10 @@ const vi: I18nTranslations = {
     "loadingPreview": "Đang tải bản xem trước",
     "binaryMediaFile": "Tệp phương tiện nhị phân",
     "binaryPreviewNotice": "Thông báo xem trước nhị phân",
-    "openInTerminal": "Mở trong Terminal"
+    "openInTerminal": "Mở trong Terminal",
+    "folderDownloadNotSupported": "Tải xuống thư mục không được hỗ trợ. Vui lòng chọn từng file để tải về.",
+    "foldersSkippedWarning": "Các thư mục không thể được tải xuống trực tiếp và đã bị bỏ qua.",
+    "multiDownloadWarning": "Đang tải xuống nhiều tập tin. Nếu một số lần tải xuống không thành công, hãy kiểm tra cài đặt trình chặn cửa sổ bật lên của trình duyệt của bạn."
   },
   "common": {
     "time": {

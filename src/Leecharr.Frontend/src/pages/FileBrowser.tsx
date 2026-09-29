@@ -21,6 +21,7 @@ import { formatBytes } from "../utils/formatters";
 import { useToast } from "../context/ToastContext";
 import { useI18nStore, useTranslation, languages } from "../i18n";
 import { MediaPlayerModal } from "../components/MediaPlayerModal";
+import { apiClient } from "../api/client";
 import {
   isPlayableFile,
   buildFileStreamUrl,
@@ -248,6 +249,17 @@ export function FileBrowser() {
   const { showToast } = useToast();
 
   const currentPath = searchParams.get("path") || "";
+  const apiKey = apiClient.getApiKey();
+
+  const withApiKey = useCallback(
+    (url?: string | null) => {
+      if (!url || !apiKey) return url || "";
+      if (url.includes("apikey=")) return url;
+      const separator = url.includes("?") ? "&" : "?";
+      return `${url}${separator}apikey=${encodeURIComponent(apiKey)}`;
+    },
+    [apiKey],
+  );
   const [previewPath, setPreviewPath] = useState<string | null>(null);
   const [playingMediaFile, setPlayingMediaFile] =
     useState<FileManagerFile | null>(null);
@@ -296,12 +308,12 @@ export function FileBrowser() {
     navigate(`/terminal?path=${encodeURIComponent(target)}`);
   };
 
-  const handleDownloadFile = (filePath: string) => {
-    window.open(
-      `/api/v1/files/download?path=${encodeURIComponent(filePath)}`,
-      "_blank",
-    );
-  };
+  const handleDownloadFile = useCallback(
+    (filePath: string) => {
+      window.open(buildFileDownloadUrl(filePath, apiKey), "_blank");
+    },
+    [apiKey],
+  );
 
   const activePath = useMemo(() => {
     return currentPath || listing?.path || "/downloads";
@@ -372,9 +384,12 @@ export function FileBrowser() {
     setPreviewPath(file.path);
   }, []);
 
-  const handleDownloadM3u = useCallback((file: FileManagerFile) => {
-    window.open(buildFilePlaylistUrl(file.path), "_blank");
-  }, []);
+  const handleDownloadM3u = useCallback(
+    (file: FileManagerFile) => {
+      window.open(buildFilePlaylistUrl(file.path, apiKey), "_blank");
+    },
+    [apiKey],
+  );
 
   const handleFileOpen = (file: FileManagerFile) => {
     if (file.isDirectory) {
@@ -801,10 +816,44 @@ export function FileBrowser() {
 
   const handleDownload = (selectedFiles: FileManagerFile[]) => {
     if (!selectedFiles || selectedFiles.length === 0) return;
-    selectedFiles.forEach((file) => {
-      if (!file.isDirectory) {
+    const filesToDownload = selectedFiles.filter((f) => !f.isDirectory);
+    const directoryCount = selectedFiles.length - filesToDownload.length;
+
+    if (directoryCount > 0 && filesToDownload.length === 0) {
+      showToast(
+        t(
+          "filebrowser.folderDownloadNotSupported",
+          "Folder downloading is not supported. Please select individual files to download.",
+        ),
+        "warning",
+      );
+      return;
+    }
+
+    if (directoryCount > 0) {
+      showToast(
+        t(
+          "filebrowser.foldersSkippedWarning",
+          "Folders cannot be downloaded directly and were skipped.",
+        ),
+        "warning",
+      );
+    }
+
+    if (filesToDownload.length > 1) {
+      showToast(
+        t(
+          "filebrowser.multiDownloadWarning",
+          "Downloading multiple files. If some downloads fail, check your browser popup blocker settings.",
+        ),
+        "info",
+      );
+    }
+
+    filesToDownload.forEach((file, index) => {
+      setTimeout(() => {
         handleDownloadFile(file.path);
-      }
+      }, index * 250);
     });
   };
 
@@ -1246,7 +1295,7 @@ export function FileBrowser() {
             delete: true,
           }}
           fileUploadConfig={{
-            url: `/api/v1/files/upload?path=${encodeURIComponent(activePath)}`,
+            url: `/api/v1/files/upload?path=${encodeURIComponent(activePath)}${apiKey ? `&apikey=${encodeURIComponent(apiKey)}` : ""}`,
             method: "POST",
           }}
           onFolderChange={handleFolderChange}
@@ -1375,8 +1424,8 @@ export function FileBrowser() {
                       style={{ fontSize: "0.8rem", padding: "0.3rem 0.65rem" }}
                       onClick={() =>
                         window.open(
-                          previewData.playlistUrl ||
-                            buildFilePlaylistUrl(previewPath),
+                          withApiKey(previewData.playlistUrl) ||
+                            buildFilePlaylistUrl(previewPath, apiKey),
                           "_blank",
                         )
                       }
@@ -1453,7 +1502,7 @@ export function FileBrowser() {
                   }}
                 >
                   <img
-                    src={previewData.downloadUrl}
+                    src={withApiKey(previewData.downloadUrl)}
                     alt={previewData.name}
                     style={{
                       maxWidth: "100%",
@@ -1474,7 +1523,7 @@ export function FileBrowser() {
                   }}
                 >
                   <video
-                    src={previewData.downloadUrl}
+                    src={withApiKey(previewData.streamUrl || previewData.downloadUrl)}
                     controls
                     autoPlay
                     style={{
@@ -1501,7 +1550,7 @@ export function FileBrowser() {
                 >
                   <span style={{ fontSize: "3.5rem" }}>🎵</span>
                   <audio
-                    src={previewData.downloadUrl}
+                    src={withApiKey(previewData.streamUrl || previewData.downloadUrl)}
                     controls
                     autoPlay
                     style={{ width: "100%", maxWidth: "500px" }}
@@ -1599,9 +1648,9 @@ export function FileBrowser() {
             name: playingMediaFile.name,
             size: playingMediaFile.size,
           }}
-          streamUrl={buildFileStreamUrl(playingMediaFile.path)}
-          downloadUrl={buildFileDownloadUrl(playingMediaFile.path)}
-          playlistUrl={buildFilePlaylistUrl(playingMediaFile.path)}
+          streamUrl={buildFileStreamUrl(playingMediaFile.path, apiKey)}
+          downloadUrl={buildFileDownloadUrl(playingMediaFile.path, apiKey)}
+          playlistUrl={buildFilePlaylistUrl(playingMediaFile.path, apiKey)}
         />
       )}
     </div>

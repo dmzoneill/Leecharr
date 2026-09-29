@@ -85,7 +85,10 @@ const ja: I18nTranslations = {
     "loadingPreview": "プレビューの読み込み中",
     "binaryMediaFile": "バイナリメディアファイル",
     "binaryPreviewNotice": "バイナリ プレビューの通知",
-    "openInTerminal": "ターミナルを開く"
+    "openInTerminal": "ターミナルを開く",
+    "folderDownloadNotSupported": "フォルダーのダウンロードはサポートされていません。ダウンロードする個々のファイルを選択してください。",
+    "foldersSkippedWarning": "フォルダーは直接ダウンロードできないため、スキップされました。",
+    "multiDownloadWarning": "複数のファイルをダウンロードしています。一部のダウンロードが失敗した場合は、ブラウザのポップアップ ブロッカー設定を確認してください。"
   },
   "common": {
     "time": {
