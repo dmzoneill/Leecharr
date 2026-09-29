@@ -3588,6 +3588,8 @@ const es: I18nTranslations = {
     "dontShowAgain": "No mostrar de nuevo",
     "previous": "Anterior",
     "finishAndClose": "Terminar y cerrar",
+    "skipStep": "Omitir este paso",
+    "quickFinish": "Finalización rápida",
     "startExampleTour": "Iniciar recorrido de ejemplo →",
     "startLiveSetup": "Iniciar configuración en vivo",
     "stepCount": "Paso {{current}} de {{total}}",

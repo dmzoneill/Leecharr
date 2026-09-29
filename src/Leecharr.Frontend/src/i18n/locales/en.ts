@@ -3588,6 +3588,8 @@ const en: I18nTranslations = {
     "dontShowAgain": "Don't show this guide on startup",
     "previous": "Previous",
     "finishAndClose": "Finish and Close",
+    "skipStep": "Skip this step",
+    "quickFinish": "Quick Finish",
     "startExampleTour": "Start Example Tour →",
     "startLiveSetup": "Start Live Setup",
     "stepCount": "Step {{current}} of {{total}}",

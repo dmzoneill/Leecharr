@@ -3588,6 +3588,8 @@ const mr: I18nTranslations = {
     "dontShowAgain": "पुन्हा दाखवू नका",
     "previous": "मागील",
     "finishAndClose": "समाप्त आणि बंद करा",
+    "skipStep": "ही पायरी वगळा",
+    "quickFinish": "त्वरित पूर्ण करा",
     "startExampleTour": "उदाहरण टूर सुरू करा →",
     "startLiveSetup": "थेट सेटअप सुरू करा",
     "stepCount": "{{total}} ची पायरी {{current}}",

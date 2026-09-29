@@ -3588,6 +3588,8 @@ const vi: I18nTranslations = {
     "dontShowAgain": "Không hiển thị lại hướng dẫn này khi khởi động",
     "previous": "Trước",
     "finishAndClose": "Hoàn tất và đóng",
+    "skipStep": "Bỏ qua bước này",
+    "quickFinish": "Hoàn tất nhanh",
     "startExampleTour": "Bắt đầu chuyến tham quan mẫu →",
     "startLiveSetup": "Bắt đầu thiết lập trực tiếp",
     "stepCount": "Bước {{current}} của {{total}}",

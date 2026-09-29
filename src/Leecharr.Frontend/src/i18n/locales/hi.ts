@@ -3588,6 +3588,8 @@ const hi: I18nTranslations = {
     "dontShowAgain": "दोबारा मत दिखाओ",
     "previous": "पहले का",
     "finishAndClose": "समाप्त करें और बंद करें",
+    "skipStep": "यह चरण छोड़ें",
+    "quickFinish": "त्वरित समाप्ति",
     "startExampleTour": "उदाहरण यात्रा प्रारंभ करें →",
     "startLiveSetup": "लाइव सेटअप प्रारंभ करें",
     "stepCount": "__V1___ का चरण {{current}}",

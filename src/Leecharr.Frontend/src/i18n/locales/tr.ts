@@ -3588,6 +3588,8 @@ const tr: I18nTranslations = {
     "dontShowAgain": "Bir Daha Gösterme",
     "previous": "Öncesi",
     "finishAndClose": "Bitir ve Kapat",
+    "skipStep": "Bu adımı atla",
+    "quickFinish": "Hızlı Bitir",
     "startExampleTour": "Örnek Turu Başlat →",
     "startLiveSetup": "Canlı Kurulumu Başlat",
     "stepCount": "_{{total}} Adımı {{current}}",

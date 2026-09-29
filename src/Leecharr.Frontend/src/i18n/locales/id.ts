@@ -3588,6 +3588,8 @@ const id: I18nTranslations = {
     "dontShowAgain": "Jangan Tampilkan Lagi",
     "previous": "Sebelumnya",
     "finishAndClose": "Selesai Dan Tutup",
+    "skipStep": "Lewati langkah ini",
+    "quickFinish": "Selesai Cepat",
     "startExampleTour": "Mulai Contoh Tur →",
     "startLiveSetup": "Mulai Pengaturan Langsung",
     "stepCount": "Langkah _{{current}} dari {{total}}",

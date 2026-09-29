@@ -3588,6 +3588,8 @@ const ru: I18nTranslations = {
     "dontShowAgain": "Больше не показывать",
     "previous": "Предыдущий",
     "finishAndClose": "Завершить и закрыть",
+    "skipStep": "Пропустить этот шаг",
+    "quickFinish": "Быстрое завершение",
     "startExampleTour": "Начать примерный тур →",
     "startLiveSetup": "Запустить живую настройку",
     "stepCount": "Шаг {{current}} из {{total}}",

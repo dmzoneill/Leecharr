@@ -3588,6 +3588,8 @@ const zhCN: I18nTranslations = {
     "dontShowAgain": "不再显示",
     "previous": "以前的",
     "finishAndClose": "完成并关闭",
+    "skipStep": "跳过此步骤",
+    "quickFinish": "快速完成",
     "startExampleTour": "开始示例之旅 →",
     "startLiveSetup": "开始实时设置",
     "stepCount": "{{total}} 的步骤 {{current}}",
