@@ -3434,6 +3434,7 @@ export type I18nTranslations = {
     };
   };
   "errors": {
+    "defaultTitle": string;
     "login": string;
     "view": string;
     "dashboard": string;
@@ -3446,7 +3447,10 @@ export type I18nTranslations = {
     "peerMap": string;
     "speedSchedule": string;
     "statistics": string;
+    "trackerServer": string;
     "trackerBoost": string;
+    "trackerMetrics": string;
+    "automation": string;
     "settings": string;
     "systemStatus": string;
     "systemResources": string;
@@ -3456,6 +3460,15 @@ export type I18nTranslations = {
     "systemEvents": string;
     "systemLogs": string;
     "systemNetwork": string;
+    "databaseExplorer": string;
+    "inAppTestRunner": string;
+    "interactiveRepl": string;
+    "webDebugger": string;
+    "eventBusWiretap": string;
+    "commandConsole": string;
+    "networkWiretap": string;
+    "webhookSandbox": string;
+    "configEnvironment": string;
     "apiReference": string;
     "terminal": string;
     "fileBrowser": string;
@@ -3463,6 +3476,8 @@ export type I18nTranslations = {
     "searchModal": string;
     "setupGuide": string;
     "copilotDrawer": string;
+    "commandPalette": string;
+    "keyboardShortcuts": string;
   };
   "copilot": {
     "welcomeMessage": string;

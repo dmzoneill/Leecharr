@@ -3462,7 +3462,22 @@ const de: I18nTranslations = {
     "addTorrentModal": "Die addTorrentModal-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
     "searchModal": "Die searchModal-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
     "setupGuide": "Die setupGuide-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
-    "copilotDrawer": "Die CopilotDrawer-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten."
+    "copilotDrawer": "Die CopilotDrawer-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
+    "defaultTitle": "Es ist ein unerwarteter UI-Fehler aufgetreten",
+    "trackerServer": "Die Tracker-Serveransicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
+    "trackerMetrics": "Die Tracker-Metrikansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
+    "automation": "Die Automatisierungsansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
+    "databaseExplorer": "Die Datenbank-Exploreransicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
+    "inAppTestRunner": "Die In-App-Test-Runner-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
+    "interactiveRepl": "Die interaktive REPL-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
+    "webDebugger": "Web-Debugger-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
+    "eventBusWiretap": "Die Ansicht zum Abhören des Ereignisbusses konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
+    "commandConsole": "Die Befehlskonsolenansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
+    "networkWiretap": "Die Netzwerk-Abhöransicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
+    "webhookSandbox": "Webhook-Sandbox-Ansicht konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
+    "configEnvironment": "Konfigurations- und Umgebungsansicht konnten nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
+    "commandPalette": "Die Ansicht der Befehlspalette konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten.",
+    "keyboardShortcuts": "Die Ansicht mit den Tastaturkürzeln konnte nicht geladen werden. Es ist ein unerwarteter Fehler aufgetreten."
   },
   "copilot": {
     "welcomeMessage": "Hallo! Ich bin dein Leecharr Copilot. Wie kann ich dir heute bei Torrents, Releases oder Einstellungen helfen?",

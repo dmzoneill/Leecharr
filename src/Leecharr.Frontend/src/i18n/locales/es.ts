@@ -3462,7 +3462,22 @@ const es: I18nTranslations = {
     "addTorrentModal": "No se pudo cargar la vista addTorrentModal. Se produjo un error inesperado.",
     "searchModal": "No se pudo cargar la vista searchModal. Se produjo un error inesperado.",
     "setupGuide": "No se pudo cargar la vista de la Guía de configuración. Se produjo un error inesperado.",
-    "copilotDrawer": "No se pudo cargar la vista del cajón del copiloto. Se produjo un error inesperado."
+    "copilotDrawer": "No se pudo cargar la vista del cajón del copiloto. Se produjo un error inesperado.",
+    "defaultTitle": "Se produjo un error inesperado en la interfaz de usuario",
+    "trackerServer": "No se pudo cargar la vista del servidor de seguimiento. Se produjo un error inesperado.",
+    "trackerMetrics": "No se pudo cargar la vista de métricas del rastreador. Se produjo un error inesperado.",
+    "automation": "No se pudo cargar la vista de automatización. Se produjo un error inesperado.",
+    "databaseExplorer": "No se pudo cargar la vista del explorador de bases de datos. Se produjo un error inesperado.",
+    "inAppTestRunner": "No se pudo cargar la vista del ejecutor de pruebas en la aplicación. Se produjo un error inesperado.",
+    "interactiveRepl": "No se pudo cargar la vista REPL interactiva. Se produjo un error inesperado.",
+    "webDebugger": "No se pudo cargar la vista del depurador web. Se produjo un error inesperado.",
+    "eventBusWiretap": "No se pudo cargar la vista de escuchas telefónicas del bus de eventos. Se produjo un error inesperado.",
+    "commandConsole": "No se pudo cargar la vista de la consola de comandos. Se produjo un error inesperado.",
+    "networkWiretap": "No se pudo cargar la vista de escuchas telefónicas de la red. Se produjo un error inesperado.",
+    "webhookSandbox": "No se pudo cargar la vista de zona de pruebas del webhook. Se produjo un error inesperado.",
+    "configEnvironment": "No se pudo cargar la vista de configuración y entorno. Se produjo un error inesperado.",
+    "commandPalette": "No se pudo cargar la vista de la paleta de comandos. Se produjo un error inesperado.",
+    "keyboardShortcuts": "No se pudo cargar la vista de atajos de teclado. Se produjo un error inesperado."
   },
   "copilot": {
     "welcomeMessage": "¡Hola! Soy tu Copiloto Leecharr. ¿En qué puedo ayudarte hoy con torrents, lanzamientos o configuraciones?",
