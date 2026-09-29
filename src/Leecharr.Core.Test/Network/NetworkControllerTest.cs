@@ -1,6 +1,9 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Network;
 using Microsoft.AspNetCore.Mvc;
@@ -8,6 +11,7 @@ using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.Network;
 
 namespace Leecharr.Core.Test.Network;
@@ -18,6 +22,8 @@ public class NetworkControllerTest
     private INetworkStatusService networkStatusService = null!;
     private IConfigService configService = null!;
     private IDownloadEngine downloadEngine = null!;
+    private INetworkSecurityService networkSecurityService = null!;
+    private ISafeHttpClientService safeHttpClientService = null!;
     private NetworkController controller = null!;
 
     [SetUp]
@@ -26,6 +32,10 @@ public class NetworkControllerTest
         this.networkStatusService = Substitute.For<INetworkStatusService>();
         this.configService = Substitute.For<IConfigService>();
         this.downloadEngine = Substitute.For<IDownloadEngine>();
+        this.networkSecurityService = Substitute.For<INetworkSecurityService>();
+        this.safeHttpClientService = Substitute.For<ISafeHttpClientService>();
+
+        this.networkSecurityService.GetAvailableNetworkInterfaces().Returns(new List<string> { "eth0", "tun0", "wg0" });
 
         this.networkStatusService.GetStatus().Returns(new NetworkStatus
         {
@@ -66,7 +76,9 @@ public class NetworkControllerTest
         this.controller = new NetworkController(
             this.networkStatusService,
             this.configService,
-            this.downloadEngine);
+            this.downloadEngine,
+            this.networkSecurityService,
+            this.safeHttpClientService);
     }
 
     [Test]
@@ -155,5 +167,89 @@ public class NetworkControllerTest
         var diag = okResult!.Value as NetworkDiagnosticsResource;
         diag.Should().NotBeNull();
         diag!.ListeningPort.Should().Be(51413);
+    }
+
+    [Test]
+    public void GetInterfaces_ReturnsListOfInterfaces()
+    {
+        var actionResult = this.controller.GetInterfaces();
+
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var interfaces = okResult!.Value as List<string>;
+        interfaces.Should().NotBeNull();
+        interfaces.Should().Contain(new[] { "eth0", "tun0", "wg0" });
+    }
+
+    [Test]
+    public async Task TestPort_WhenPortIsOpen_ReturnsOpen()
+    {
+        this.safeHttpClientService.DownloadStringAsync(
+            Arg.Is<string>(url => url.Contains("51413")),
+            Arg.Any<TimeSpan>(),
+            Arg.Any<CancellationToken>())
+            .Returns("1");
+
+        var actionResult = await this.controller.TestPort(new PortTestRequest { Port = 51413 });
+
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var result = okResult!.Value as PortTestResult;
+        result.Should().NotBeNull();
+        result!.Port.Should().Be(51413);
+        result.IsOpen.Should().BeTrue();
+        result.Message.Should().Contain("open");
+    }
+
+    [Test]
+    public async Task TestPort_WhenPortIsClosed_ReturnsClosed()
+    {
+        this.safeHttpClientService.DownloadStringAsync(
+            Arg.Is<string>(url => url.Contains("51413")),
+            Arg.Any<TimeSpan>(),
+            Arg.Any<CancellationToken>())
+            .Returns("0");
+
+        var actionResult = await this.controller.TestPort(new PortTestRequest { Port = 51413 });
+
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var result = okResult!.Value as PortTestResult;
+        result.Should().NotBeNull();
+        result!.Port.Should().Be(51413);
+        result.IsOpen.Should().BeFalse();
+        result.Message.Should().Contain("closed");
+    }
+
+    [Test]
+    public async Task TestPort_WhenCustomPortProvided_TestsSpecifiedPort()
+    {
+        this.safeHttpClientService.DownloadStringAsync(
+            Arg.Is<string>(url => url.Contains("6881")),
+            Arg.Any<TimeSpan>(),
+            Arg.Any<CancellationToken>())
+            .Returns("1");
+
+        var actionResult = await this.controller.TestPort(new PortTestRequest { Port = 6881 });
+
+        var okResult = actionResult.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+
+        var result = okResult!.Value as PortTestResult;
+        result.Should().NotBeNull();
+        result!.Port.Should().Be(6881);
+        result.IsOpen.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task TestPort_WhenPortOutOfRange_ReturnsBadRequest()
+    {
+        var actionResult = await this.controller.TestPort(new PortTestRequest { Port = 70000 });
+
+        var badRequestResult = actionResult.Result as BadRequestObjectResult;
+        badRequestResult.Should().NotBeNull();
     }
 }

@@ -15,6 +15,8 @@ public class NetworkConfigResource : RestResource
 
     public string BindInterface { get; set; }
 
+    public string NetworkInterfaceBinding { get; set; }
+
     public bool EnableVpnKillSwitch { get; set; }
 
     public int MaxGlobalConnections { get; set; }
@@ -52,12 +54,17 @@ public static class NetworkConfigResourceMapper
 {
     public static NetworkConfigResource ToResource(IConfigService model)
     {
+        var effectiveInterface = !string.IsNullOrWhiteSpace(model.BindInterface)
+            ? model.BindInterface
+            : model.NetworkInterfaceBinding;
+
         return new NetworkConfigResource
         {
             ListeningPort = model.ListeningPort,
             UpnpEnabled = model.UpnpEnabled,
             EnableIPv6 = model.EnableIPv6,
-            BindInterface = model.BindInterface,
+            BindInterface = effectiveInterface,
+            NetworkInterfaceBinding = effectiveInterface,
             EnableVpnKillSwitch = model.EnableVpnKillSwitch,
             MaxGlobalConnections = model.MaxGlobalConnections,
             MaxPerTorrentConnections = model.MaxPerTorrentConnections,

@@ -2907,6 +2907,7 @@ const ta: I18nTranslations = {
       "activePortMappings": "செயலில் உள்ள போர்ட் மேப்பிங்ஸ்",
       "incomingPeerListeningPorts": "இன்கமிங் பியர் லிஸ்டனிங் போர்ட்கள் & UPnP",
       "configureListeningPorts": "உள்வரும் BitTorrent பியர் இணைப்புகளுக்கு கேட்கும் துறைமுகங்களை உள்ளமைக்கவும்.",
+      "testingPort": "சோதனை...",
       "tcpUdpPort": "உள்வரும் பியர் இணைப்புகளுக்கான TCP & UDP போர்ட் (இயல்புநிலை: 51413)",
       "enableUpnpNatPmp": "UPnP / NAT-PMP போர்ட் பகிர்தலை இயக்கவும்",
       "automaticallyNegotiatePortForwarding": "உங்கள் ரூட்டருடன் போர்ட் பகிர்தலை தானாகவே பேச்சுவார்த்தை நடத்தவும்",
@@ -3075,6 +3076,12 @@ const ta: I18nTranslations = {
       "clientSecret": "வாடிக்கையாளர் ரகசியம்",
       "leaveBlankOrMaskedToKeepCurrentSecret": "தற்போதைய ரகசியத்தை வைத்திருக்க வெறுமையாக அல்லது முகமூடியை விடுங்கள்",
       "bitTorrentListeningPort": "BitTorrent Listening Port",
+      "testPort": "சோதனை துறைமுகம்",
+      "portCheckFailed": "போர்ட் சோதனை தோல்வியடைந்தது",
+      "selectFromDetected": "கண்டறியப்பட்ட இடைமுகங்களிலிருந்து தேர்ந்தெடுக்கவும்",
+      "enterManually": "கைமுறையாக உள்ளிடவும்",
+      "allInterfaces": "அனைத்து / ஏதேனும் இடைமுகங்கள் (இயல்புநிலை)",
+      "manualEntry": "தனிப்பயன் / கைமுறை நுழைவு...",
       "saml20": "SAML 2.0"
     },
     "subsystems": {
