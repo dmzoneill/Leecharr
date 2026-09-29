@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { parseIndexerIds } from "./IndexersTab";
+import { parseIndexerIds, normalizeIndexerPayload } from "./IndexersTab";
 
 describe("IndexersTab - parseIndexerIds (#997)", () => {
   it("parses single integer id", () => {
@@ -32,5 +32,27 @@ describe("IndexersTab - parseIndexerIds (#997)", () => {
     assert.deepStrictEqual(parseIndexerIds(""), []);
     assert.deepStrictEqual(parseIndexerIds("   "), []);
     assert.deepStrictEqual(parseIndexerIds(",,,"), []);
+  });
+});
+
+describe("IndexersTab - normalizeIndexerPayload (#988)", () => {
+  it("normalizes Prowlarr indexer payload and removes api path suffix", () => {
+    const payload = normalizeIndexerPayload({
+      name: "My Prowlarr",
+      url: "http://localhost:9696/api/v1/",
+      indexerType: "Prowlarr",
+    });
+    assert.strictEqual(payload.url, "http://localhost:9696");
+    assert.strictEqual(payload.name, "My Prowlarr");
+    assert.strictEqual(payload.implementation, "ProwlarrIndexer");
+  });
+
+  it("sets default Prowlarr name and implementation if omitted", () => {
+    const payload = normalizeIndexerPayload({
+      url: "http://localhost:9696",
+      indexerType: "Prowlarr",
+    });
+    assert.strictEqual(payload.name, "Prowlarr");
+    assert.strictEqual(payload.implementation, "ProwlarrIndexer");
   });
 });

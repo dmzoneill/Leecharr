@@ -447,10 +447,10 @@ export function useSyncProwlarr() {
   return useMutation<
     { success: boolean; syncedCount: number },
     Error,
-    { url: string; apiKey: string }
+    { url?: string; apiKey?: string } | void
   >({
-    mutationFn: (data: { url: string; apiKey: string }) =>
-      apiClient.post("/indexers/sync-prowlarr", data),
+    mutationFn: (data?: { url?: string; apiKey?: string } | void) =>
+      apiClient.post("/indexers/sync-prowlarr", data ?? {}),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["indexers"] }),
   });
 }

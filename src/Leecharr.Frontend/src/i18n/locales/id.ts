@@ -2479,6 +2479,8 @@ const id: I18nTranslations = {
       "rssRulesDesc": "Konfigurasikan aturan filter RSS, pola regex, seeder minimum, dan kategori untuk pengambilan otomatis",
       "syncRssNow": "🔄 Sinkronkan Umpan RSS Sekarang",
       "syncingRss": "Menyinkronkan RSS...",
+      "syncProwlarr": "🔄 Sinkronkan Prowlarr",
+      "syncingProwlarr": "Menyinkronkan Prowlarr...",
       "deleteRssRule": "Hapus Aturan RSS",
       "deleteRssRuleConfirmTitle": "Hapus Aturan RSS",
       "deleteRssRuleConfirmMessage": "Apakah Anda yakin ingin menghapus aturan RSS \"{{name}}\"?",
