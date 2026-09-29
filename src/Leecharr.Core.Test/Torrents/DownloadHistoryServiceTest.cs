@@ -114,6 +114,7 @@ public class DownloadHistoryServiceTest
             Uploaded = 2000,
             Downloaded = 1000,
             Ratio = 2.0,
+            CumulativeSeedingTimeSeconds = 3600,
         };
 
         var existing = new DownloadHistory
@@ -123,6 +124,7 @@ public class DownloadHistoryServiceTest
             InfoHash = "1234567890abcdef",
             Title = "Test.Show.S01E01",
             Status = "Active",
+            SeedingTime = 0,
         };
 
         this.historyRepository.FindByTorrentId(1).Returns(existing);
@@ -132,6 +134,7 @@ public class DownloadHistoryServiceTest
         existing.Status.Should().Be("Removed");
         existing.RemovalReason.Should().Be("Deleted from library");
         existing.TorrentId.Should().BeNull();
+        existing.SeedingTime.Should().Be(3600);
         this.historyRepository.Received(1).Update(existing);
     }
 
@@ -1040,6 +1043,7 @@ public class DownloadHistoryServiceTest
             Uploaded = 5000,
             Downloaded = 2500,
             Ratio = 2.0,
+            CumulativeSeedingTimeSeconds = 7200,
             IsPrivate = true,
             Progress = 1.0,
         };
@@ -1051,6 +1055,7 @@ public class DownloadHistoryServiceTest
             InfoHash = "updatedhash",
             DateCompleted = null,
             Status = "Active",
+            SeedingTime = 0,
         };
 
         this.historyRepository.FindByTorrentId(502).Returns(existing);
@@ -1064,6 +1069,7 @@ public class DownloadHistoryServiceTest
         existing.Uploaded.Should().Be(5000);
         existing.Downloaded.Should().Be(2500);
         existing.Ratio.Should().Be(2.0);
+        existing.SeedingTime.Should().Be(7200);
         existing.IsPrivate.Should().BeTrue();
         existing.DateCompleted.Should().NotBeNull();
         existing.Status.Should().Be("Completed");
@@ -1095,6 +1101,7 @@ public class DownloadHistoryServiceTest
             Uploaded = 18000,
             Downloaded = 9000,
             Ratio = 2.0,
+            CumulativeSeedingTimeSeconds = 1800,
             IsPrivate = true,
         };
 
@@ -1357,6 +1364,7 @@ public class DownloadHistoryServiceTest
             Downloaded = 1000,
             Uploaded = 2000,
             Ratio = 2.0,
+            CumulativeSeedingTimeSeconds = 1200,
         };
         this.historyRepository.FindByInfoHash("handlecompletehash").Returns((DownloadHistory)null!);
 
@@ -1368,6 +1376,7 @@ public class DownloadHistoryServiceTest
             Id = 96,
             InfoHash = "handlecompletehash",
             Status = "Active",
+            SeedingTime = 0,
         };
         this.historyRepository.FindByInfoHash("handlecompletehash").Returns(existing);
 
@@ -1378,6 +1387,7 @@ public class DownloadHistoryServiceTest
         existing.Downloaded.Should().Be(1000);
         existing.Uploaded.Should().Be(2000);
         existing.Ratio.Should().Be(2.0);
+        existing.SeedingTime.Should().Be(1200);
         this.historyRepository.Received(1).Update(existing);
     }
 
@@ -1394,6 +1404,7 @@ public class DownloadHistoryServiceTest
             Uploaded = 100,
             Downloaded = 50,
             Ratio = 2.0,
+            CumulativeSeedingTimeSeconds = 3600,
         };
 
         var existing = new DownloadHistory
@@ -1401,6 +1412,7 @@ public class DownloadHistoryServiceTest
             Id = 97,
             InfoHash = "statuschangehash",
             DateCompleted = null,
+            SeedingTime = 0,
         };
         this.historyRepository.FindByInfoHash("statuschangehash").Returns(existing);
 
@@ -1420,6 +1432,7 @@ public class DownloadHistoryServiceTest
         existing.DateCompleted.Should().NotBeNull();
         existing.RemovalReason.Should().Be("Seeding completed");
         existing.Uploaded.Should().Be(100);
+        existing.SeedingTime.Should().Be(3600);
         this.historyRepository.Received(1).Update(existing);
 
         this.service.Handle(new TorrentStatusChangedEvent
