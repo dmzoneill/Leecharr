@@ -1,5 +1,6 @@
 import { useTranslation } from "../../i18n";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useAiConfig,
   useSaveAiConfig,
@@ -15,17 +16,24 @@ import {
   CheckCircleIcon,
   AlertIcon,
 } from "../../components/icons/AiIcons";
-import type { AiConfig, SubsystemProbeResult } from "../../api/types";
+import type {
+  AiConfig,
+  SubsystemProbeResult,
+  SubsystemOverview,
+} from "../../api/types";
 
 export function AiTab() {
   const { t } = useTranslation();
 
+  const queryClient = useQueryClient();
   const { showToast } = useToast();
   const { data: config, isLoading: configLoading } = useAiConfig();
   const saveConfig = useSaveAiConfig();
   const { data: subsystems } = useSubsystems();
   const switchSubsystem = useSwitchSubsystem();
   const probeProvider = useProbeSubsystemProvider();
+
+  const isInitializedRef = useRef(false);
 
   const [formData, setFormData] = useState<AiConfig>({
     activeAiProvider: "RuleHeuristic",
@@ -45,18 +53,6 @@ export function AiTab() {
   const [probeLoadingId, setProbeLoadingId] = useState<string | null>(null);
   const [switchSuccessMsg, setSwitchSuccessMsg] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (config) {
-      setFormData(config);
-    }
-  }, [config]);
-
-  const aiSubsystem = subsystems?.find((s) => s.id === "ai");
-  const activeProviderId =
-    aiSubsystem?.activeProviderId ||
-    formData.activeAiProvider ||
-    "RuleHeuristic";
-
   const isDirty = useMemo(() => {
     if (!config) return false;
     const keys: (keyof AiConfig)[] = [
@@ -73,8 +69,49 @@ export function AiTab() {
     return keys.some((k) => (config[k] ?? "") !== (formData[k] ?? ""));
   }, [config, formData]);
 
+  useEffect(() => {
+    if (config) {
+      if (!isInitializedRef.current) {
+        setFormData(config);
+        isInitializedRef.current = true;
+      } else if (!isDirty) {
+        setFormData(config);
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          activeAiProvider: config.activeAiProvider || prev.activeAiProvider,
+        }));
+      }
+    }
+  }, [config, isDirty]);
+
+  // Invalidate active probe diagnostic results when connection parameters change
+  useEffect(() => {
+    if (probeResult) {
+      setProbeResult(null);
+    }
+  }, [
+    formData.ollamaHost,
+    formData.ollamaModel,
+    formData.geminiApiKey,
+    formData.geminiModel,
+    formData.onnxModelPath,
+  ]);
+
+  const aiSubsystem = subsystems?.find((s) => s.id === "ai");
+  const activeProviderId =
+    aiSubsystem?.activeProviderId ||
+    formData.activeAiProvider ||
+    "RuleHeuristic";
+
   const handleSave = () => {
-    saveConfig.mutate(formData);
+    saveConfig.mutate(formData, {
+      onSuccess: (saved) => {
+        const resolved = saved || formData;
+        queryClient.setQueryData<AiConfig>(["config", "ai"], resolved);
+        setFormData(resolved);
+      },
+    });
   };
 
   const handleSwitchProvider = async (providerId: string) => {
@@ -84,6 +121,24 @@ export function AiTab() {
         providerId,
       });
       if (res.success) {
+        // Update both formData and query cache synchronously so isDirty does not falsely trigger
+        queryClient.setQueryData<AiConfig>(["config", "ai"], (old) =>
+          old ? { ...old, activeAiProvider: providerId } : old,
+        );
+        queryClient.setQueryData<SubsystemOverview[]>(["subsystems"], (old) =>
+          old?.map((s) =>
+            s.id === "ai"
+              ? {
+                  ...s,
+                  activeProviderId: providerId,
+                  providers: s.providers?.map((p) => ({
+                    ...p,
+                    isActive: p.providerId === providerId,
+                  })),
+                }
+              : s,
+          ),
+        );
         setFormData((prev) => ({ ...prev, activeAiProvider: providerId }));
         const successMsg = t("settingsTabs.ai.switchSuccess", {
           provider: providerId,
@@ -101,16 +156,40 @@ export function AiTab() {
     } catch (err: unknown) {
       showToast(
         t("settingsTabs.ai.switchError", {
-          error: (err as Error)?.message || t("settingsTabs.notifications.unknownError"),
+          error:
+            (err as Error)?.message ||
+            t("settingsTabs.notifications.unknownError"),
         }),
         "error",
       );
     }
   };
 
-  const handleProbe = async (providerId: string) => {
+  const handleProbe = async (
+    providerId: string,
+    overrideParams?: Partial<AiConfig>,
+  ) => {
     setProbeLoadingId(providerId);
     try {
+      const currentData = overrideParams
+        ? { ...formData, ...overrideParams }
+        : formData;
+
+      const hasChanges =
+        Boolean(overrideParams) ||
+        (config &&
+          (Object.keys(currentData) as (keyof AiConfig)[]).some(
+            (k) => (config[k] ?? "") !== (currentData[k] ?? ""),
+          ));
+
+      // Persist unsaved parameters first so backend provider health check tests current inputs
+      if (hasChanges) {
+        const saved = await saveConfig.mutateAsync(currentData);
+        const resolved = saved || currentData;
+        queryClient.setQueryData<AiConfig>(["config", "ai"], resolved);
+        setFormData(resolved);
+      }
+
       const res = await probeProvider.mutateAsync({
         subsystemId: "ai",
         providerId,
@@ -119,7 +198,9 @@ export function AiTab() {
     } catch (err: unknown) {
       showToast(
         t("settingsTabs.ai.probeFailed", {
-          error: (err as Error)?.message || t("settingsTabs.notifications.unknownError"),
+          error:
+            (err as Error)?.message ||
+            t("settingsTabs.notifications.unknownError"),
         }),
         "error",
       );
@@ -131,6 +212,64 @@ export function AiTab() {
   const handleResetButtonPosition = () => {
     localStorage.removeItem("leecharr_copilot_btn_pos");
     showToast(t("settingsTabs.ai.resetSuccess"), "success");
+  };
+
+  const renderProbeBanner = (providerId: string) => {
+    if (
+      !probeResult ||
+      probeResult.providerId?.toLowerCase() !== providerId.toLowerCase()
+    ) {
+      return null;
+    }
+
+    return (
+      <div
+        style={{
+          marginTop: "0.5rem",
+          padding: "0.6rem 0.8rem",
+          borderRadius: "6px",
+          backgroundColor: probeResult.isHealthy
+            ? "rgba(16, 185, 129, 0.12)"
+            : "rgba(225, 29, 72, 0.12)",
+          border: probeResult.isHealthy
+            ? "1px solid rgba(16, 185, 129, 0.3)"
+            : "1px solid rgba(225, 29, 72, 0.3)",
+          fontSize: "0.75rem",
+          display: "flex",
+          flexDirection: "column",
+          gap: "0.3rem",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.4rem",
+          }}
+        >
+          {probeResult.isHealthy ? (
+            <CheckCircleIcon size={14} style={{ color: "#34d399" }} />
+          ) : (
+            <AlertIcon size={14} style={{ color: "#f87171" }} />
+          )}
+          <strong
+            style={{
+              color: probeResult.isHealthy ? "#6ee7b7" : "#fca5a5",
+            }}
+          >
+            {probeResult.statusMessage}
+          </strong>
+        </div>
+        {probeResult.warnings?.map((w, i) => (
+          <div
+            key={i}
+            style={{ color: "#fcd34d", paddingLeft: "1.2rem" }}
+          >
+            &bull; {w}
+          </div>
+        ))}
+      </div>
+    );
   };
 
   if (configLoading) {
@@ -325,59 +464,7 @@ export function AiTab() {
                 </div>
 
                 {/* Probe result banner if applicable */}
-                {probeResult &&
-                  probeResult.providerId === provider.providerId && (
-                    <div
-                      style={{
-                        padding: "0.6rem 0.8rem",
-                        borderRadius: "6px",
-                        backgroundColor: probeResult.isHealthy
-                          ? "rgba(16, 185, 129, 0.12)"
-                          : "rgba(225, 29, 72, 0.12)",
-                        border: probeResult.isHealthy
-                          ? "1px solid rgba(16, 185, 129, 0.3)"
-                          : "1px solid rgba(225, 29, 72, 0.3)",
-                        fontSize: "0.75rem",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "0.3rem",
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.4rem",
-                        }}
-                      >
-                        {probeResult.isHealthy ? (
-                          <CheckCircleIcon
-                            size={14}
-                            style={{ color: "#34d399" }}
-                          />
-                        ) : (
-                          <AlertIcon size={14} style={{ color: "#f87171" }} />
-                        )}
-                        <strong
-                          style={{
-                            color: probeResult.isHealthy
-                              ? "#6ee7b7"
-                              : "#fca5a5",
-                          }}
-                        >
-                          {probeResult.statusMessage}
-                        </strong>
-                      </div>
-                      {probeResult.warnings?.map((w, i) => (
-                        <div
-                          key={i}
-                          style={{ color: "#fcd34d", paddingLeft: "1.2rem" }}
-                        >
-                          &bull; {w}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                {renderProbeBanner(provider.providerId)}
               </div>
             );
           })}
@@ -399,15 +486,55 @@ export function AiTab() {
               border: "1px solid var(--border-light)",
             }}
           >
-            <h4
+            <div
               style={{
-                margin: "0 0 0.5rem",
-                fontSize: "0.85rem",
-                color: "var(--text-primary, #F8F4ED)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "0.5rem",
               }}
             >
-              {t("settingsTabs.ai.ollamaTitle")}
-            </h4>
+              <h4
+                style={{
+                  margin: 0,
+                  fontSize: "0.85rem",
+                  color: "var(--text-primary, #F8F4ED)",
+                }}
+              >
+                {t("settingsTabs.ai.ollamaTitle")}
+              </h4>
+              <button
+                type="button"
+                onClick={() => handleProbe("Ollama")}
+                disabled={probeLoadingId === "Ollama"}
+                className="btn btn-outline btn-small"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.3rem",
+                  fontSize: "0.75rem",
+                }}
+                title={t(
+                  "settingsTabs.ai.runDiagnosticDesc",
+                  "Run live diagnostic probe and model test",
+                )}
+              >
+                <RefreshIcon
+                  size={12}
+                  style={{
+                    animation:
+                      probeLoadingId === "Ollama"
+                        ? "spin 1s linear infinite"
+                        : "none",
+                  }}
+                />
+                <span>
+                  {probeLoadingId === "Ollama"
+                    ? t("settingsTabs.subsystems.probing")
+                    : t("settingsTabs.ai.testHealth")}
+                </span>
+              </button>
+            </div>
             <div
               className="form-row"
               style={{
@@ -445,6 +572,7 @@ export function AiTab() {
                 />
               </div>
             </div>
+            {renderProbeBanner("Ollama")}
           </div>
 
           {/* Google Gemini */}
@@ -456,15 +584,55 @@ export function AiTab() {
               border: "1px solid var(--border-light)",
             }}
           >
-            <h4
+            <div
               style={{
-                margin: "0 0 0.5rem",
-                fontSize: "0.85rem",
-                color: "var(--text-primary, #F8F4ED)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "0.5rem",
               }}
             >
-              {t("settingsTabs.ai.geminiTitle")}
-            </h4>
+              <h4
+                style={{
+                  margin: 0,
+                  fontSize: "0.85rem",
+                  color: "var(--text-primary, #F8F4ED)",
+                }}
+              >
+                {t("settingsTabs.ai.geminiTitle")}
+              </h4>
+              <button
+                type="button"
+                onClick={() => handleProbe("Gemini")}
+                disabled={probeLoadingId === "Gemini"}
+                className="btn btn-outline btn-small"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.3rem",
+                  fontSize: "0.75rem",
+                }}
+                title={t(
+                  "settingsTabs.ai.runDiagnosticDesc",
+                  "Run live diagnostic probe and model test",
+                )}
+              >
+                <RefreshIcon
+                  size={12}
+                  style={{
+                    animation:
+                      probeLoadingId === "Gemini"
+                        ? "spin 1s linear infinite"
+                        : "none",
+                  }}
+                />
+                <span>
+                  {probeLoadingId === "Gemini"
+                    ? t("settingsTabs.subsystems.probing")
+                    : t("settingsTabs.ai.testHealth")}
+                </span>
+              </button>
+            </div>
             <div
               className="form-row"
               style={{
@@ -510,6 +678,7 @@ export function AiTab() {
                 </select>
               </div>
             </div>
+            {renderProbeBanner("Gemini")}
           </div>
 
           {/* Local ONNX */}
@@ -521,15 +690,55 @@ export function AiTab() {
               border: "1px solid var(--border-light)",
             }}
           >
-            <h4
+            <div
               style={{
-                margin: "0 0 0.5rem",
-                fontSize: "0.85rem",
-                color: "var(--text-primary, #F8F4ED)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "0.5rem",
               }}
             >
-              {t("settingsTabs.ai.onnxTitle")}
-            </h4>
+              <h4
+                style={{
+                  margin: 0,
+                  fontSize: "0.85rem",
+                  color: "var(--text-primary, #F8F4ED)",
+                }}
+              >
+                {t("settingsTabs.ai.onnxTitle")}
+              </h4>
+              <button
+                type="button"
+                onClick={() => handleProbe("OnnxLocal")}
+                disabled={probeLoadingId === "OnnxLocal"}
+                className="btn btn-outline btn-small"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.3rem",
+                  fontSize: "0.75rem",
+                }}
+                title={t(
+                  "settingsTabs.ai.runDiagnosticDesc",
+                  "Run live diagnostic probe and model test",
+                )}
+              >
+                <RefreshIcon
+                  size={12}
+                  style={{
+                    animation:
+                      probeLoadingId === "OnnxLocal"
+                        ? "spin 1s linear infinite"
+                        : "none",
+                  }}
+                />
+                <span>
+                  {probeLoadingId === "OnnxLocal"
+                    ? t("settingsTabs.subsystems.probing")
+                    : t("settingsTabs.ai.testHealth")}
+                </span>
+              </button>
+            </div>
             <div className="form-group">
               <label style={{ fontSize: "0.75rem" }}>
                 {t("settingsTabs.ai.onnxPath")}
@@ -544,6 +753,7 @@ export function AiTab() {
                 className="form-control"
               />
             </div>
+            {renderProbeBanner("OnnxLocal")}
           </div>
         </div>
       </SectionCard>
