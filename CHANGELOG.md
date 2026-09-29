@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.33.2](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.2) - 2026-09-29
+
+### ✨ Features
+- feat(logging): add diagnostic test log dispatch endpoint and UI trigger button (#1046)
+
+### 🐛 Bug Fixes
+- fix(history): restore media metadata in ReAddAsync when re-adding historical torrents (#1036)
+- fix(frontend): handle camelCase and PascalCase health check types in StatusBar and SystemStatus (#1011)
+- fix(bittorrent): respect Turtle Mode rate limits during MonoTorrent ApplyConfigChangesAsync (#1027)
+- fix(frontend): localize route and modal ErrorBoundary titles and fix default fallback title (#1034)
+- fix(frontend): permit case-insensitive .torrent extensions and magnet:? URIs in Add Torrent (#1015)
+- fix(frontend): remove speedPulse from EVENT_INVALIDATION_MAP to prevent 1-second query storm (#1022)
+- fix(frontend): eliminate stale closure and dropped pointer releases in BandwidthCard sliders (#1026)
+- fix(frontend): honor backend piece offsets and distinguish missing pieces in PieceMap file boundaries mode (#1024)
+- fix(security): add CORS allowed origins configuration and sync with CSRF protection middleware (#1045)
+- fix(frontend): add individual record delete actions to History Grid View and Detail Modal (#1037)
+- fix(frontend): prevent TorrentTable keydown handler from hijacking DetailPanel and QuickSettings navigation (#1032)
+- fix(frontend): localize AriaLiveAnnouncer telemetry announcements and queue concurrent messages (#1033)
+- fix(frontend): infer TMDb media type from arrType and render cast list in HistoryDetailModal (#1040)
+- fix(frontend): guard SpeedGraph history seeding against empty initial server arrays (#1025)
+
 ## [v1.33.1](https://github.com/dmzoneill/Leecharr/releases/tag/v1.33.1) - 2026-09-29
 
 ### 🐛 Bug Fixes
