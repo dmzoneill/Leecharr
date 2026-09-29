@@ -3330,7 +3330,14 @@ const en: I18nTranslations = {
       "vacuumTitle": "SQLite Database Compaction (VACUUM)",
       "vacuumDescription": "Rebuilds the SQLite database file to reclaim unused disk space and defragment database indices.",
       "vacuumRunning": "Compacting Database...",
-      "vacuumButton": "🧹 Run Database VACUUM"
+      "vacuumButton": "🧹 Run Database VACUUM",
+      "testLogTitle": "Diagnostic Log Verification",
+      "testLogDescription": "Emit a synthetic diagnostic log entry to verify rolling disk files and live ring buffer capture.",
+      "testLogButton": "🧪 Test Log",
+      "testLogRunning": "Emitting Log...",
+      "testLogSuccess": "Diagnostic {{level}} test log emitted successfully",
+      "testLogError": "Failed to emit diagnostic test log: {{error}}",
+      "testLogLevelLabel": "Diagnostic Log Level"
     },
     "security": {
       "authBannerDesc": "Authentication is enabled. Local users accessing Leecharr over LAN or reverse proxy will authenticate using local credentials or configured SSO / Identity Providers below.",

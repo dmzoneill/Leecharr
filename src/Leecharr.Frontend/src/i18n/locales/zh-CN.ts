@@ -3330,7 +3330,14 @@ const zhCN: I18nTranslations = {
       "vacuumTitle": "SQLite数据库压缩（ VACUUM ）",
       "vacuumDescription": "重建 SQLite 数据库文件以回收未使用的磁盘空间并对数据库索引进行碎片整理。",
       "vacuumRunning": "压缩数据库...",
-      "vacuumButton": "🧹 运行数据库VACUUM"
+      "vacuumButton": "🧹 运行数据库VACUUM",
+      "testLogTitle": "诊断日志验证",
+      "testLogDescription": "发出综合诊断日志条目以验证滚动磁盘文件和实时环形缓冲区捕获。",
+      "testLogButton": "🧪 测试日志",
+      "testLogRunning": "正在发出日志...",
+      "testLogSuccess": "诊断 {{level}} 测试日志已成功发出",
+      "testLogError": "无法发出诊断测试日志：{{error}}",
+      "testLogLevelLabel": "诊断日志级别"
     },
     "security": {
       "authBannerDesc": "身份验证已启用。通过LAN或反向代理访问Leecharr的本地用户将使用本地凭据或下面配置的SSO/身份提供程序进行身份验证。",

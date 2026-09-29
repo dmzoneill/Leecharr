@@ -3330,7 +3330,14 @@ const tr: I18nTranslations = {
       "vacuumTitle": "SQLite Veritabanı Sıkıştırma (VACUUM)",
       "vacuumDescription": "Kullanılmayan disk alanını geri kazanmak ve veritabanı dizinlerini birleştirmek için SQLite veritabanı dosyasını yeniden oluşturur.",
       "vacuumRunning": "Veritabanı Sıkıştırılıyor...",
-      "vacuumButton": "🧹 Database VACUUM'u çalıştırın"
+      "vacuumButton": "🧹 Database VACUUM'u çalıştırın",
+      "testLogTitle": "Teşhis Günlüğü Doğrulaması",
+      "testLogDescription": "Dönen disk dosyalarını ve canlı halka arabellek yakalamasını doğrulamak için sentetik bir tanılama günlüğü girişi yayınlayın.",
+      "testLogButton": "🧪 Test Günlüğü",
+      "testLogRunning": "Günlük yayınlanıyor...",
+      "testLogSuccess": "Tanılama {{level}} test günlüğü başarıyla gönderildi",
+      "testLogError": "Tanılama testi günlüğü yayınlanamadı: {{error}}",
+      "testLogLevelLabel": "Teşhis Günlüğü Düzeyi"
     },
     "security": {
       "authBannerDesc": "Kimlik doğrulama etkinleştirildi. Leecharr'a LAN veya ters proxy üzerinden erişen yerel kullanıcılar, yerel kimlik bilgilerini veya aşağıdaki yapılandırılmış SSO / Kimlik Sağlayıcıları kullanarak kimlik doğrulaması yapacaklardır.",

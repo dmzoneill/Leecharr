@@ -3330,7 +3330,14 @@ const id: I18nTranslations = {
       "vacuumTitle": "Pemadatan Basis Data SQLite (VACUUM)",
       "vacuumDescription": "Membangun kembali file database SQLite untuk mendapatkan kembali ruang disk yang tidak terpakai dan mendefrag indeks database.",
       "vacuumRunning": "Memadatkan Basis Data...",
-      "vacuumButton": "🧹 Jalankan VAKUM Basis Data"
+      "vacuumButton": "🧹 Jalankan VAKUM Basis Data",
+      "testLogTitle": "Verifikasi Log Diagnostik",
+      "testLogDescription": "Keluarkan entri log diagnostik sintetis untuk memverifikasi file disk bergulir dan pengambilan buffer ring langsung.",
+      "testLogButton": "🧪 Log Uji",
+      "testLogRunning": "Memancarkan Log...",
+      "testLogSuccess": "Log uji diagnostik {{level}} berhasil dikeluarkan",
+      "testLogError": "Gagal mengeluarkan log uji diagnostik: {{error}}",
+      "testLogLevelLabel": "Tingkat Log Diagnostik"
     },
     "security": {
       "authBannerDesc": "Otentikasi diaktifkan. Pengguna lokal yang mengakses Leecharr melalui LAN atau proksi terbalik akan mengautentikasi menggunakan kredensial lokal atau Penyedia SSO/Identitas yang dikonfigurasi di bawah.",

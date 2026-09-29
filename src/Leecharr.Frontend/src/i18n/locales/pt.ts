@@ -3330,7 +3330,14 @@ const pt: I18nTranslations = {
       "vacuumTitle": "Compactação de banco de dados SQLite (VACUUM)",
       "vacuumDescription": "Reconstrói o arquivo de banco de dados SQLite para recuperar espaço em disco não utilizado e desfragmentar índices de banco de dados.",
       "vacuumRunning": "Compactando banco de dados...",
-      "vacuumButton": "🧹 Execute o banco de dados VACUUM"
+      "vacuumButton": "🧹 Execute o banco de dados VACUUM",
+      "testLogTitle": "Verificação de log de diagnóstico",
+      "testLogDescription": "Emita uma entrada de log de diagnóstico sintético para verificar arquivos de disco contínuos e captura de buffer de anel ativo.",
+      "testLogButton": "🧪 Registro de teste",
+      "testLogRunning": "Emitindo registro...",
+      "testLogSuccess": "Log de teste de diagnóstico {{level}} emitido com sucesso",
+      "testLogError": "Falha ao emitir log de teste de diagnóstico: {{error}}",
+      "testLogLevelLabel": "Nível de log de diagnóstico"
     },
     "security": {
       "authBannerDesc": "A autenticação está habilitada. Os usuários locais que acessam o Leecharr pela LAN ou proxy reverso serão autenticados usando credenciais locais ou SSO/provedores de identidade configurados abaixo.",
