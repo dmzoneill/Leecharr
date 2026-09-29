@@ -139,7 +139,7 @@ export function SpeedGraph({
 
   // Seed initial history from server
   useEffect(() => {
-    if (!serverHistory || seededRef.current) return;
+    if (!serverHistory || serverHistory.length === 0 || seededRef.current) return;
     seededRef.current = true;
 
     const now = Date.now();
