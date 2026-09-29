@@ -182,6 +182,10 @@ export function CategorySettingsTab({
   };
 
   const handleDelete = async (cat: Category) => {
+    if (cat.isDefault) {
+      return;
+    }
+
     const ok = await confirm({
       title: t("settingsTabs.categories.deleteTitle"),
       message: t("settingsTabs.categories.deleteMessage", { name: cat.name }),
@@ -427,8 +431,17 @@ export function CategorySettingsTab({
                           type="button"
                           className="btn btn-danger btn-small"
                           onClick={() => handleDelete(cat)}
-                          disabled={deleteMutation.isPending}
-                          title={`Delete ${cat.name}`}
+                          disabled={
+                            Boolean(cat.isDefault) || deleteMutation.isPending
+                          }
+                          title={
+                            cat.isDefault
+                              ? t(
+                                  "settingsTabs.categories.cannotDeleteDefault",
+                                  "Cannot delete the default category.",
+                                )
+                              : `Delete ${cat.name}`
+                          }
                           style={{
                             padding: "0.2rem 0.5rem",
                             fontSize: "0.75rem",

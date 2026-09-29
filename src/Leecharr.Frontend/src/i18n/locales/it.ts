@@ -2143,6 +2143,7 @@ const it: I18nTranslations = {
     "engageAlternativeSpeedLimitsHint": "Sostituisci manualmente le velocità standard con limiti strozzati alternativi",
     "alternativeDownloadCap": "Limite di download alternativo (KB/s)",
     "alternativeUploadCap": "Limite di caricamento alternativo (KB/s)",
+    "alternativeSpeedHint": "-1 = In pausa, 0 = Illimitato",
     "swarmBandwidthDistributionCurves": "Curve di distribuzione della larghezza di banda dello sciame",
     "swarmBandwidthDistributionCurvesDesc": "Algoritmi matematici per ripartire la larghezza di banda tra sciami attivi concorrenti.",
     "uploadDistributionCurve": "Carica curva di distribuzione",
@@ -2278,7 +2279,8 @@ const it: I18nTranslations = {
         "saving": "Risparmio...",
         "saveChanges": "Salva modifiche",
         "createCategory": "Crea categoria"
-      }
+      },
+      "cannotDeleteDefault": "Impossibile eliminare la categoria predefinita."
     },
     "notifications": {
       "chatIdPrefix": "ID chat:",
@@ -3432,8 +3434,7 @@ const it: I18nTranslations = {
       "engineHealthy": "{{engine}} è sano e operativo.",
       "engineIssues": "{{engine}} problemi segnalati dal controllo dello stato.",
       "probeFailed": "Sonda fallita per {{engine}}: {{error}}"
-    },
-    "alternativeSpeedHint": "-1 = In pausa, 0 = Illimitato"
+    }
   },
   "errors": {
     "defaultTitle": "Si è verificato un errore imprevisto dell'interfaccia utente",

@@ -2143,6 +2143,7 @@ const de: I18nTranslations = {
     "engageAlternativeSpeedLimitsHint": "Überschreiben Sie Standardgeschwindigkeiten manuell mit alternativen gedrosselten Grenzwerten",
     "alternativeDownloadCap": "Alternative Download-Obergrenze (KB/s)",
     "alternativeUploadCap": "Alternative Upload-Obergrenze (KB/s)",
+    "alternativeSpeedHint": "-1 = Angehalten, 0 = Unbegrenzt",
     "swarmBandwidthDistributionCurves": "Schwarmbandbreitenverteilungskurven",
     "swarmBandwidthDistributionCurvesDesc": "Mathematische Algorithmen zur Aufteilung der Bandbreite auf konkurrierende aktive Schwärme.",
     "uploadDistributionCurve": "Verteilungskurve hochladen",
@@ -2278,7 +2279,8 @@ const de: I18nTranslations = {
         "saving": "Sparen...",
         "saveChanges": "Änderungen speichern",
         "createCategory": "Kategorie erstellen"
-      }
+      },
+      "cannotDeleteDefault": "Die Standardkategorie kann nicht gelöscht werden."
     },
     "notifications": {
       "chatIdPrefix": "Chat-ID:",
@@ -3432,8 +3434,7 @@ const de: I18nTranslations = {
       "engineHealthy": "{{engine}} ist fehlerfrei und betriebsbereit.",
       "engineIssues": "{{engine}} Gesundheitsprüfung hat Probleme gemeldet.",
       "probeFailed": "Probe fehlgeschlagen für {{engine}}: {{error}}"
-    },
-    "alternativeSpeedHint": "-1 = Angehalten, 0 = Unbegrenzt"
+    }
   },
   "errors": {
     "defaultTitle": "Es ist ein unerwarteter UI-Fehler aufgetreten",

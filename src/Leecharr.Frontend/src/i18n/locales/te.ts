@@ -2143,6 +2143,7 @@ const te: I18nTranslations = {
     "engageAlternativeSpeedLimitsHint": "ప్రత్యామ్నాయ త్రోటెల్డ్ పరిమితులతో ప్రామాణిక వేగాన్ని మాన్యువల్గా భర్తీ చేయండి",
     "alternativeDownloadCap": "ప్రత్యామ్నాయ డౌన్లోడ్ క్యాప్ (KB/s)",
     "alternativeUploadCap": "ప్రత్యామ్నాయ అప్లోడ్ క్యాప్ (KB/s)",
+    "alternativeSpeedHint": "-1 = పాజ్ చేయబడింది, 0 = అపరిమిత",
     "swarmBandwidthDistributionCurves": "స్వార్మ్ బ్యాండ్విడ్త్ డిస్ట్రిబ్యూషన్ వక్రతలు",
     "swarmBandwidthDistributionCurvesDesc": "పోటీలో ఉన్న యాక్టివ్ స్వర్మ్లలో బ్యాండ్విడ్త్ను విభజించడానికి గణిత అల్గారిథమ్లు.",
     "uploadDistributionCurve": "డిస్ట్రిబ్యూషన్ కర్వ్ని అప్లోడ్ చేయండి",
@@ -2278,7 +2279,8 @@ const te: I18nTranslations = {
         "saving": "సేవ్ చేస్తోంది...",
         "saveChanges": "మార్పులను భద్రపరచు",
         "createCategory": "వర్గాన్ని సృష్టించండి"
-      }
+      },
+      "cannotDeleteDefault": "డిఫాల్ట్ వర్గాన్ని తొలగించలేరు."
     },
     "notifications": {
       "chatIdPrefix": "చాట్ ID:",
@@ -3432,8 +3434,7 @@ const te: I18nTranslations = {
       "engineHealthy": "{{engine}} ఆరోగ్యకరమైనది మరియు కార్యాచరణ.",
       "engineIssues": "{{engine}} ఆరోగ్య తనిఖీ సమస్యలను నివేదించింది.",
       "probeFailed": "{{engine}}: {{error}} కోసం ప్రోబ్ విఫలమైంది"
-    },
-    "alternativeSpeedHint": "-1 = పాజ్ చేయబడింది, 0 = అపరిమిత"
+    }
   },
   "errors": {
     "defaultTitle": "ఊహించని UI లోపం సంభవించింది",
