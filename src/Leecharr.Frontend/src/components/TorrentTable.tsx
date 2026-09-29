@@ -1625,6 +1625,21 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
       if (isModalOpen) return;
 
       const target = e.target as HTMLElement | null;
+      const activeEl =
+        typeof document !== "undefined"
+          ? (document.activeElement as HTMLElement | null)
+          : null;
+      if (
+        target?.closest?.(
+          '.detail-panel, .quick-settings-drawer, [data-panel], [role="dialog"]',
+        ) ||
+        activeEl?.closest?.(
+          '.detail-panel, .quick-settings-drawer, [data-panel], [role="dialog"]',
+        )
+      ) {
+        return;
+      }
+
       const tagName = target?.tagName?.toLowerCase();
       const isInput =
         tagName === "input" ||
