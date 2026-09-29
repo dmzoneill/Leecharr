@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useSignalR,
   getSignalRConnection,
+  signalRManager,
   reconnectSignalR,
   subscribeToTorrent,
   unsubscribeFromTorrent,
@@ -386,8 +387,10 @@ export default function SignalRProvider({
     };
 
     connection.onreconnected(handleReconnected);
+    const unsubManagerReconnected = signalRManager.onReconnected(handleReconnected);
 
     return () => {
+      unsubManagerReconnected();
       connection.off("receiveMessage", onReceiveMessage);
       connection.off("speedPulse", onSpeedPulse);
       connection.off("speed_update", onSpeedPulse);
