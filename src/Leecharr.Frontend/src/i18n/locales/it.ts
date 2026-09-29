@@ -85,7 +85,10 @@ const it: I18nTranslations = {
     "loadingPreview": "Caricamento anteprima",
     "binaryMediaFile": "File multimediale binario",
     "binaryPreviewNotice": "Avviso di anteprima binaria",
-    "openInTerminal": "Apri nel terminale"
+    "openInTerminal": "Apri nel terminale",
+    "folderDownloadNotSupported": "Il download delle cartelle non è supportato. Seleziona i singoli file da scaricare.",
+    "foldersSkippedWarning": "Le cartelle non possono essere scaricate direttamente e sono state saltate.",
+    "multiDownloadWarning": "Download di più file. Se alcuni download falliscono, controlla le impostazioni del blocco popup del browser."
   },
   "common": {
     "time": {

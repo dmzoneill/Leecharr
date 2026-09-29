@@ -85,7 +85,10 @@ const fr: I18nTranslations = {
     "loadingPreview": "Chargement de l'aperçu",
     "binaryMediaFile": "Fichier multimédia binaire",
     "binaryPreviewNotice": "Avis d'aperçu binaire",
-    "openInTerminal": "Ouvrir dans le terminal"
+    "openInTerminal": "Ouvrir dans le terminal",
+    "folderDownloadNotSupported": "Le téléchargement de dossiers n'est pas pris en charge. Veuillez sélectionner des fichiers individuels à télécharger.",
+    "foldersSkippedWarning": "Les dossiers ne peuvent pas être téléchargés directement et ont été ignorés.",
+    "multiDownloadWarning": "Téléchargement de plusieurs fichiers. Si certains téléchargements échouent, vérifiez les paramètres du bloqueur de popup de votre navigateur."
   },
   "common": {
     "time": {

@@ -85,7 +85,10 @@ const mr: I18nTranslations = {
     "loadingPreview": "पूर्वावलोकन लोड करत आहे",
     "binaryMediaFile": "बायनरी मीडिया फाइल",
     "binaryPreviewNotice": "बायनरी पूर्वावलोकन सूचना",
-    "openInTerminal": "टर्मिनलमध्ये उघडा"
+    "openInTerminal": "टर्मिनलमध्ये उघडा",
+    "folderDownloadNotSupported": "फोल्डर डाउनलोड करणे समर्थित नाही. कृपया डाउनलोड करण्यासाठी स्वतंत्र फाइल निवडा.",
+    "foldersSkippedWarning": "फोल्डर थेट डाउनलोड केले जाऊ शकत नाहीत आणि ते वगळले गेले.",
+    "multiDownloadWarning": "एकाधिक फायली डाउनलोड करत आहे. काही डाउनलोड अयशस्वी झाल्यास, तुमच्या ब्राउझरच्या पॉपअप ब्लॉकर सेटिंग्ज तपासा."
   },
   "common": {
     "time": {
