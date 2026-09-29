@@ -483,6 +483,14 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             this.logger.Info("Local Peer Discovery (LPD) disabled to prevent multicast UDP infohash leaks over physical LAN adapters while bound to VPN interface or kill switch.");
         }
 
+        var isAltSpeedInitial = this.configService.AlternativeSpeedEnabled;
+        var initialDownloadSpeedKbps = isAltSpeedInitial
+            ? (this.configService.AltDownloadSpeedKbps < 0 ? 1 : this.configService.AltDownloadSpeedKbps)
+            : this.configService.MaxDownloadSpeedKbps;
+        var initialUploadSpeedKbps = isAltSpeedInitial
+            ? (this.configService.AltUploadSpeedKbps < 0 ? 1 : this.configService.AltUploadSpeedKbps)
+            : this.configService.MaxUploadSpeedKbps;
+
         var engineSettingsBuilder = new EngineSettingsBuilder
         {
             AllowPortForwarding = !isAnonymous && this.configService.UpnpEnabled,
@@ -501,11 +509,11 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             DiskCachePolicy = cachePolicy,
             FastResumeMode = fastResumeMode,
             MaximumConnections = this.configService.MaxGlobalConnections > 0 ? this.configService.MaxGlobalConnections : 300,
-            MaximumDownloadRate = this.configService.MaxDownloadSpeedKbps > 0
-                ? (int)Math.Min((long)this.configService.MaxDownloadSpeedKbps * 1024, int.MaxValue)
+            MaximumDownloadRate = initialDownloadSpeedKbps > 0
+                ? (int)Math.Min((long)initialDownloadSpeedKbps * 1024, int.MaxValue)
                 : 0,
-            MaximumUploadRate = this.configService.MaxUploadSpeedKbps > 0
-                ? (int)Math.Min((long)this.configService.MaxUploadSpeedKbps * 1024, int.MaxValue)
+            MaximumUploadRate = initialUploadSpeedKbps > 0
+                ? (int)Math.Min((long)initialUploadSpeedKbps * 1024, int.MaxValue)
                 : 0,
             WebSeedDelay = TimeSpan.FromSeconds(this.configService.WebSeedDelaySeconds > 0 ? this.configService.WebSeedDelaySeconds : 30),
             ListenEndPoints = isAnonymous ? new Dictionary<string, IPEndPoint>() : listenEndPoints,
@@ -4691,7 +4699,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         return builder.ToSettings();
     }
 
-    private void PopulateDynamicEngineSettings(EngineSettingsBuilder builder, Dictionary<string, IPEndPoint> listenEndPoints = null)
+    internal void PopulateDynamicEngineSettings(EngineSettingsBuilder builder, Dictionary<string, IPEndPoint> listenEndPoints = null)
     {
         var isAnonymous = this.configService.AnonymousMode;
         var isProxyActive = this.IsProxyActive();
@@ -4742,11 +4750,20 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
         builder.DiskCachePolicy = this.GetConfiguredCachePolicy();
         builder.FastResumeMode = this.GetConfiguredFastResumeMode();
         builder.MaximumConnections = this.configService.MaxGlobalConnections > 0 ? this.configService.MaxGlobalConnections : 300;
-        builder.MaximumDownloadRate = this.configService.MaxDownloadSpeedKbps > 0
-            ? (int)Math.Min((long)this.configService.MaxDownloadSpeedKbps * 1024, int.MaxValue)
+
+        var isAltSpeed = this.configService.AlternativeSpeedEnabled;
+        var maxDownloadSpeedKbps = isAltSpeed
+            ? (this.configService.AltDownloadSpeedKbps < 0 ? 1 : this.configService.AltDownloadSpeedKbps)
+            : this.configService.MaxDownloadSpeedKbps;
+        var maxUploadSpeedKbps = isAltSpeed
+            ? (this.configService.AltUploadSpeedKbps < 0 ? 1 : this.configService.AltUploadSpeedKbps)
+            : this.configService.MaxUploadSpeedKbps;
+
+        builder.MaximumDownloadRate = maxDownloadSpeedKbps > 0
+            ? (int)Math.Min((long)maxDownloadSpeedKbps * 1024, int.MaxValue)
             : 0;
-        builder.MaximumUploadRate = this.configService.MaxUploadSpeedKbps > 0
-            ? (int)Math.Min((long)this.configService.MaxUploadSpeedKbps * 1024, int.MaxValue)
+        builder.MaximumUploadRate = maxUploadSpeedKbps > 0
+            ? (int)Math.Min((long)maxUploadSpeedKbps * 1024, int.MaxValue)
             : 0;
         builder.WebSeedDelay = TimeSpan.FromSeconds(this.configService.WebSeedDelaySeconds > 0 ? this.configService.WebSeedDelaySeconds : 30);
         builder.UsePartialFiles = this.configService.AppendIncompleteExtension;
