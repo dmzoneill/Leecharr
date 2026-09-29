@@ -264,6 +264,121 @@ public class SecurityMiddlewareTest
     }
 
     [Test]
+    public async Task CsrfProtectionMiddleware_AllowsConfiguredCorsOrigin_CrossPort()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.CsrfProtectionEnabled.Returns(true);
+        config.AllowedCorsOrigins.Returns("http://localhost:3000, https://dashboard.lan");
+
+        var context = new DefaultHttpContext();
+        context.Request.Method = "POST";
+        context.Request.Host = new HostString("localhost:7889");
+        context.Request.Headers["Origin"] = "http://localhost:3000";
+
+        var nextCalled = false;
+        var middleware = new CsrfProtectionMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+
+        await middleware.InvokeAsync(context, config);
+
+        nextCalled.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task CsrfProtectionMiddleware_AllowsConfiguredCorsOrigin_SecFetchSiteCrossSite()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.CsrfProtectionEnabled.Returns(true);
+        config.AllowedCorsOrigins.Returns("https://dashboard.lan");
+
+        var context = new DefaultHttpContext();
+        context.Request.Method = "POST";
+        context.Request.Host = new HostString("leecharr.local:7889");
+        context.Request.Headers["Origin"] = "https://dashboard.lan";
+        context.Request.Headers["Sec-Fetch-Site"] = "cross-site";
+
+        var nextCalled = false;
+        var middleware = new CsrfProtectionMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+
+        await middleware.InvokeAsync(context, config);
+
+        nextCalled.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task CsrfProtectionMiddleware_BlocksUnconfiguredCorsOrigin_SecFetchSiteCrossSite()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.CsrfProtectionEnabled.Returns(true);
+        config.AllowedCorsOrigins.Returns("https://dashboard.lan");
+
+        var context = new DefaultHttpContext();
+        context.Request.Method = "POST";
+        context.Request.Host = new HostString("leecharr.local:7889");
+        context.Request.Headers["Origin"] = "https://evil-attacker.com";
+        context.Request.Headers["Sec-Fetch-Site"] = "cross-site";
+        context.Response.Body = new MemoryStream();
+
+        var nextCalled = false;
+        var middleware = new CsrfProtectionMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+
+        await middleware.InvokeAsync(context, config);
+
+        nextCalled.Should().BeFalse();
+        context.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+    }
+
+    [Test]
+    public async Task CsrfProtectionMiddleware_AllowsConfiguredCorsOrigin_RefererHeader()
+    {
+        var config = Substitute.For<IConfigService>();
+        config.CsrfProtectionEnabled.Returns(true);
+        config.AllowedCorsOrigins.Returns("https://dashboard.lan");
+
+        var context = new DefaultHttpContext();
+        context.Request.Method = "POST";
+        context.Request.Host = new HostString("leecharr.local:7889");
+        context.Request.Headers["Referer"] = "https://dashboard.lan/settings";
+
+        var nextCalled = false;
+        var middleware = new CsrfProtectionMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+
+        await middleware.InvokeAsync(context, config);
+
+        nextCalled.Should().BeTrue();
+    }
+
+    [TestCase("http://localhost:3000", "http://localhost:3000, https://dashboard.lan", true)]
+    [TestCase("https://dashboard.lan", "http://localhost:3000, https://dashboard.lan", true)]
+    [TestCase("http://localhost:3000/", "http://localhost:3000", true)]
+    [TestCase("http://localhost:8080", "http://localhost:3000", false)]
+    [TestCase("https://other.domain.com", "*", true)]
+    [TestCase("https://app.example.com", "https://*.example.com", true)]
+    [TestCase("http://app.example.com", "https://*.example.com", false)]
+    [TestCase("https://evil.com", "http://localhost:3000", false)]
+    [TestCase("http://localhost:3000", "", false)]
+    [TestCase("http://localhost:3000", null, false)]
+    public void CsrfProtectionMiddleware_IsCorsOriginAllowed_ValidatesPatterns(string origin, string allowedConfig, bool expectedAllowed)
+    {
+        CsrfProtectionMiddleware.IsCorsOriginAllowed(origin, allowedConfig).Should().Be(expectedAllowed);
+    }
+
+    [Test]
     public async Task CsrfProtectionMiddleware_BlocksMissingOriginAndRefererWhenNoAuthHeader()
     {
         var config = Substitute.For<IConfigService>();

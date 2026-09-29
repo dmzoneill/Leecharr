@@ -338,6 +338,10 @@ export interface GeneralConfig {
   csrfProtectionEnabled?: boolean;
   hostHeaderValidationEnabled?: boolean;
   allowedHosts?: string;
+  allowedCorsOrigins?: string;
+  allowPrivateNetworkRequests?: boolean;
+  allowedSsrfHostnames?: string;
+  allowedSsrfSubnets?: string;
   terminalAccessEnabled?: boolean;
   uiLanguage?: string;
 }
