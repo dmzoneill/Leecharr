@@ -2143,6 +2143,7 @@ const mr: I18nTranslations = {
     "engageAlternativeSpeedLimitsHint": "पर्यायी थ्रोटल मर्यादांसह मानक गती मॅन्युअली ओव्हरराइड करा",
     "alternativeDownloadCap": "वैकल्पिक डाउनलोड कॅप (KB/s)",
     "alternativeUploadCap": "पर्यायी अपलोड कॅप (KB/s)",
+    "alternativeSpeedHint": "-1 = विराम दिला, 0 = अमर्यादित",
     "swarmBandwidthDistributionCurves": "झुंड बँडविड्थ वितरण वक्र",
     "swarmBandwidthDistributionCurvesDesc": "प्रतिस्पर्धी सक्रिय झुंडांमध्ये बँडविड्थ विभाजित करण्यासाठी गणिती अल्गोरिदम.",
     "uploadDistributionCurve": "वितरण वक्र अपलोड करा",
@@ -2278,7 +2279,8 @@ const mr: I18nTranslations = {
         "saving": "सेव्ह करत आहे...",
         "saveChanges": "बदल जतन करा",
         "createCategory": "श्रेणी तयार करा"
-      }
+      },
+      "cannotDeleteDefault": "डीफॉल्ट श्रेणी हटवू शकत नाही."
     },
     "notifications": {
       "chatIdPrefix": "चॅट आयडी:",
@@ -3432,8 +3434,7 @@ const mr: I18nTranslations = {
       "engineHealthy": "{{engine}} निरोगी आणि कार्यरत आहे.",
       "engineIssues": "{{engine}} आरोग्य तपासणीत समस्यांची नोंद झाली.",
       "probeFailed": "{{engine}} साठी तपासणी अयशस्वी: {{error}}"
-    },
-    "alternativeSpeedHint": "-1 = विराम दिला, 0 = अमर्यादित"
+    }
   },
   "errors": {
     "defaultTitle": "एक अनपेक्षित UI त्रुटी आली",

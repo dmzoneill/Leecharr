@@ -2231,6 +2231,7 @@ const en: I18nTranslations = {
       "deleteConfirm": "Delete",
       "deleteSuccess": "Category \"{{name}}\" deleted",
       "deleteFailed": "Failed to delete category",
+      "cannotDeleteDefault": "Cannot delete the default category.",
       "title": "Category Management & Directory Routing",
       "description": "Organize torrents with categories to automatically route files to custom save paths, enforce rate limits, and apply share ratio auto-stop policies.",
       "configuredCount": "{{count}} configured categories",

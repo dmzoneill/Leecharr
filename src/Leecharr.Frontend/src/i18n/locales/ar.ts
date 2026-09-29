@@ -2143,6 +2143,7 @@ const ar: I18nTranslations = {
     "engageAlternativeSpeedLimitsHint": "تجاوز السرعات القياسية يدويًا باستخدام حدود الاختناق البديلة",
     "alternativeDownloadCap": "الحد الأقصى للتنزيل البديل (كيلو بايت/ثانية)",
     "alternativeUploadCap": "الحد الأقصى للتحميل البديل (كيلوبايت/ثانية)",
+    "alternativeSpeedHint": "-1 = متوقف مؤقتًا، 0 = غير محدود",
     "swarmBandwidthDistributionCurves": "منحنيات توزيع عرض النطاق الترددي",
     "swarmBandwidthDistributionCurvesDesc": "خوارزميات رياضية لتقسيم عرض النطاق الترددي عبر الأسراب النشطة المتنافسة.",
     "uploadDistributionCurve": "تحميل منحنى التوزيع",
@@ -2278,7 +2279,8 @@ const ar: I18nTranslations = {
         "saving": "توفير...",
         "saveChanges": "حفظ التغييرات",
         "createCategory": "إنشاء فئة"
-      }
+      },
+      "cannotDeleteDefault": "لا يمكن حذف الفئة الافتراضية."
     },
     "notifications": {
       "chatIdPrefix": "معرف الدردشة:",
@@ -3432,8 +3434,7 @@ const ar: I18nTranslations = {
       "engineHealthy": "{{engine}}_ سليم وعملي.",
       "engineIssues": "{{engine}}_ مشكلات الفحص الصحي التي تم الإبلاغ عنها.",
       "probeFailed": "فشل المسبار لـ {{engine}}_: {{error}}"
-    },
-    "alternativeSpeedHint": "-1 = متوقف مؤقتًا، 0 = غير محدود"
+    }
   },
   "errors": {
     "defaultTitle": "حدث خطأ غير متوقع في واجهة المستخدم",
