@@ -31,7 +31,7 @@ export interface PieceMapProps {
 
 export type PieceMapColorMode = "status" | "rarity" | "files";
 
-interface FileBoundary {
+export interface FileBoundary {
   file: TorrentFileInfo;
   startByte: number;
   endByte: number;
@@ -40,7 +40,7 @@ interface FileBoundary {
   colorIndex: number;
 }
 
-const FILE_PALETTE = [
+export const FILE_PALETTE = [
   "#3498db",
   "#9b59b6",
   "#e67e22",
@@ -52,6 +52,78 @@ const FILE_PALETTE = [
   "#00cec9",
   "#6c5ce7",
 ];
+
+export function hexToRgba(hex: string, alpha: number): string {
+  if (!hex.startsWith("#")) return hex;
+  const cleanHex = hex.slice(1);
+  if (cleanHex.length === 3) {
+    const r = parseInt(cleanHex[0] + cleanHex[0], 16);
+    const g = parseInt(cleanHex[1] + cleanHex[1], 16);
+    const b = parseInt(cleanHex[2] + cleanHex[2], 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  const num = parseInt(cleanHex, 16);
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+export function computeFileBoundaries(
+  files: TorrentFileInfo[] | undefined | null,
+  pieceLength: number,
+): FileBoundary[] {
+  if (!files || files.length === 0) return [];
+  let curByte = 0;
+  return files.map((file, idx) => {
+    const startByte = curByte;
+    const endByte = curByte + file.size;
+    curByte = endByte;
+    let startPiece: number;
+    let endPiece: number;
+    if (file.pieceOffset != null && file.pieceCount != null) {
+      startPiece = file.pieceOffset;
+      endPiece = Math.max(
+        startPiece,
+        file.pieceOffset + Math.max(0, file.pieceCount - 1),
+      );
+    } else {
+      startPiece = Math.floor(startByte / Math.max(1, pieceLength));
+      endPiece = Math.max(
+        startPiece,
+        Math.floor(Math.max(0, endByte - 1) / Math.max(1, pieceLength)),
+      );
+    }
+    return {
+      file,
+      startByte,
+      endByte,
+      startPiece,
+      endPiece,
+      colorIndex: idx,
+    };
+  });
+}
+
+export function getFileBlockColor(
+  status: "complete" | "missing" | "active" | number,
+  isComplete: boolean,
+  color: string,
+): { fillColor: string; strokeColor: string } {
+  const complete =
+    isComplete || status === "complete" || (status as unknown) === 2;
+  if (complete) {
+    return { fillColor: color, strokeColor: color };
+  }
+  const active = status === "active" || (status as unknown) === 1;
+  if (active) {
+    return { fillColor: hexToRgba(color, 0.55), strokeColor: color };
+  }
+  return {
+    fillColor: hexToRgba(color, 0.18),
+    strokeColor: hexToRgba(color, 0.35),
+  };
+}
 
 function getRarityColor(count: number): string {
   if (count <= 0) return "rgba(255, 255, 255, 0.05)";
@@ -90,27 +162,7 @@ export function PieceMap({
   const { data: fetchedFiles } = useTorrentFiles(torrentId ?? 0);
 
   const fileBoundaries = useMemo<FileBoundary[]>(() => {
-    const files = propFiles || fetchedFiles;
-    if (!files || files.length === 0) return [];
-    let curByte = 0;
-    return files.map((file, idx) => {
-      const startByte = curByte;
-      const endByte = curByte + file.size;
-      curByte = endByte;
-      const startPiece = Math.floor(startByte / Math.max(1, pieceLength));
-      const endPiece = Math.max(
-        startPiece,
-        Math.floor(Math.max(0, endByte - 1) / Math.max(1, pieceLength)),
-      );
-      return {
-        file,
-        startByte,
-        endByte,
-        startPiece,
-        endPiece,
-        colorIndex: idx,
-      };
-    });
+    return computeFileBoundaries(propFiles || fetchedFiles, pieceLength);
   }, [propFiles, fetchedFiles, pieceLength]);
 
   const activeFileIndex =
@@ -245,21 +297,42 @@ export function PieceMap({
             const overlaps =
               b.startIndex <= activeFileBoundary.endPiece &&
               b.endIndex >= activeFileBoundary.startPiece;
-            fillColor = overlaps
-              ? FILE_PALETTE[
+            if (overlaps) {
+              const fileColor =
+                FILE_PALETTE[
                   activeFileBoundary.colorIndex % FILE_PALETTE.length
-                ]
-              : "#1a1815";
+                ];
+              const { fillColor: fc } = getFileBlockColor(
+                b.status,
+                isComplete,
+                fileColor,
+              );
+              fillColor = fc;
+            } else {
+              fillColor = "#1a1815";
+            }
           } else {
             const containingFb = fileBoundaries.find(
               (fb) =>
                 b.startIndex <= fb.endPiece && b.endIndex >= fb.startPiece,
             );
-            fillColor = containingFb
-              ? FILE_PALETTE[containingFb.colorIndex % FILE_PALETTE.length]
-              : b.status === "complete"
+            if (containingFb) {
+              const fileColor =
+                FILE_PALETTE[containingFb.colorIndex % FILE_PALETTE.length];
+              const { fillColor: fc } = getFileBlockColor(
+                b.status,
+                isComplete,
+                fileColor,
+              );
+              fillColor = fc;
+            } else {
+              const isBlockComplete = isComplete || b.status === "complete";
+              fillColor = isBlockComplete
                 ? "#27ae60"
-                : "rgba(255, 255, 255, 0.04)";
+                : b.status === "active"
+                  ? "#3b82f6"
+                  : "rgba(255, 255, 255, 0.04)";
+            }
           }
         } else if (colorMode === "rarity") {
           const estRarity =
@@ -384,24 +457,46 @@ export function PieceMap({
           const overlaps =
             b.startIndex <= activeFileBoundary.endPiece &&
             b.endIndex >= activeFileBoundary.startPiece;
-          fillColor = overlaps
-            ? FILE_PALETTE[activeFileBoundary.colorIndex % FILE_PALETTE.length]
-            : "#1a1815";
-          strokeColor = overlaps
-            ? FILE_PALETTE[activeFileBoundary.colorIndex % FILE_PALETTE.length]
-            : "#222";
+          if (overlaps) {
+            const fileColor =
+              FILE_PALETTE[activeFileBoundary.colorIndex % FILE_PALETTE.length];
+            const blockColors = getFileBlockColor(
+              b.status,
+              isComplete,
+              fileColor,
+            );
+            fillColor = blockColors.fillColor;
+            strokeColor = blockColors.strokeColor;
+          } else {
+            fillColor = "#1a1815";
+            strokeColor = "#222";
+          }
         } else {
           const containingFb = fileBoundaries.find(
             (fb) => b.startIndex <= fb.endPiece && b.endIndex >= fb.startPiece,
           );
           if (containingFb) {
-            fillColor =
+            const fileColor =
               FILE_PALETTE[containingFb.colorIndex % FILE_PALETTE.length];
-            strokeColor = fillColor;
+            const blockColors = getFileBlockColor(
+              b.status,
+              isComplete,
+              fileColor,
+            );
+            fillColor = blockColors.fillColor;
+            strokeColor = blockColors.strokeColor;
           } else {
-            fillColor =
-              b.status === "complete" ? "#27ae60" : "rgba(255, 255, 255, 0.05)";
-            strokeColor = "rgba(255, 255, 255, 0.12)";
+            const isBlockComplete = isComplete || b.status === "complete";
+            fillColor = isBlockComplete
+              ? "#27ae60"
+              : b.status === "active"
+                ? "#3b82f6"
+                : "rgba(255, 255, 255, 0.05)";
+            strokeColor = isBlockComplete
+              ? "#2ecc71"
+              : b.status === "active"
+                ? "#60a5fa"
+                : "rgba(255, 255, 255, 0.12)";
           }
         }
       } else if (colorMode === "rarity") {
