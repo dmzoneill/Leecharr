@@ -2143,6 +2143,7 @@ export type I18nTranslations = {
     "engageAlternativeSpeedLimitsHint": string;
     "alternativeDownloadCap": string;
     "alternativeUploadCap": string;
+    "alternativeSpeedHint": string;
     "swarmBandwidthDistributionCurves": string;
     "swarmBandwidthDistributionCurvesDesc": string;
     "uploadDistributionCurve": string;

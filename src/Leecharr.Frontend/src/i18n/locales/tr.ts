@@ -1135,6 +1135,7 @@ const tr: I18nTranslations = {
     "scheduleName": "Kural Adı",
     "namePlaceholder": "örneğin Gece Kuşu Kısma, Yoğun Çalışma Saatleri",
     "activeDays": "Aktif Günler",
+    "atLeastOneDay": "En az bir gün seçilmelidir.",
     "allDays": "7 Günün Tamamı",
     "workdays": "Pazartesi - Cuma",
     "weekends": "Cmt - Paz",
@@ -1181,8 +1182,7 @@ const tr: I18nTranslations = {
     "toggleSchedule": "Programı Değiştir",
     "toggleSchedules": "_{{count}} Programları Değiştir",
     "clearSelection": "Temizle",
-    "hrsPerDay": "{{hours}} saat{{plural}} {{days}} gün{{dayPlural}} boyunca günde",
-    "atLeastOneDay": "En az bir gün seçilmelidir."
+    "hrsPerDay": "{{hours}} saat{{plural}} {{days}} gün{{dayPlural}} boyunca günde"
   },
   "peerMap": {
     "title": "Küresel Eş Sürü Haritası",
@@ -3432,7 +3432,8 @@ const tr: I18nTranslations = {
       "engineHealthy": "{{engine}} sağlıklı ve çalışır durumdadır.",
       "engineIssues": "{{engine}} durum kontrolü bildirilen sorunlar.",
       "probeFailed": "{{engine}} için prob başarısız oldu: {{error}}"
-    }
+    },
+    "alternativeSpeedHint": "-1 = Duraklatıldı, 0 = Sınırsız"
   },
   "errors": {
     "defaultTitle": "Beklenmeyen bir kullanıcı arayüzü hatası oluştu",

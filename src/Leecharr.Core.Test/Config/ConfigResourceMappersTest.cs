@@ -637,6 +637,49 @@ public class ConfigResourceMappersTest
             (double)d["GlobalSeedRatioLimit"] == 2.0));
     }
 
+    [Test]
+    public async Task SeedingConfigController_ValidationRules_AllowsPausedLimits()
+    {
+        var controller = new SeedingConfigController(this.configService);
+
+        var pausedAltSpeed = new SeedingConfigResource
+        {
+            MaxUploadSpeedKbps = 100,
+            MaxDownloadSpeedKbps = 100,
+            AltUploadSpeedKbps = -1,
+            AltDownloadSpeedKbps = -1,
+            GlobalSeedRatioLimit = 1.0,
+            UploadDistributionSpreadPercentage = 50,
+            DownloadDistributionSpreadPercentage = 50,
+        };
+        var result = await controller.SaveConfig(pausedAltSpeed);
+        result.Result.Should().BeOfType<AcceptedResult>();
+
+        var invalidAltUpload = new SeedingConfigResource
+        {
+            MaxUploadSpeedKbps = 100,
+            MaxDownloadSpeedKbps = 100,
+            AltUploadSpeedKbps = -2,
+            AltDownloadSpeedKbps = 50,
+            GlobalSeedRatioLimit = 1.0,
+            UploadDistributionSpreadPercentage = 50,
+            DownloadDistributionSpreadPercentage = 50,
+        };
+        (await controller.SaveConfig(invalidAltUpload)).Result.Should().BeOfType<BadRequestObjectResult>();
+
+        var invalidAltDownload = new SeedingConfigResource
+        {
+            MaxUploadSpeedKbps = 100,
+            MaxDownloadSpeedKbps = 100,
+            AltUploadSpeedKbps = 50,
+            AltDownloadSpeedKbps = -2,
+            GlobalSeedRatioLimit = 1.0,
+            UploadDistributionSpreadPercentage = 50,
+            DownloadDistributionSpreadPercentage = 50,
+        };
+        (await controller.SaveConfig(invalidAltDownload)).Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
     // ---------------------------------------------------------
     // General ConfigController<T> Error Handling
     // ---------------------------------------------------------

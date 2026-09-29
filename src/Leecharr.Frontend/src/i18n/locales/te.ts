@@ -1135,6 +1135,7 @@ const te: I18nTranslations = {
     "scheduleName": "నియమం పేరు",
     "namePlaceholder": "ఉదా నైట్ ఔల్ థ్రాటిల్, పీక్ వర్క్ అవర్స్",
     "activeDays": "యాక్టివ్ డేస్",
+    "atLeastOneDay": "కనీసం ఒక రోజు ఎంపిక చేసుకోవాలి.",
     "allDays": "మొత్తం 7 రోజులు",
     "workdays": "సోమ - శుక్ర",
     "weekends": "శని - సూర్యుడు",
@@ -1181,8 +1182,7 @@ const te: I18nTranslations = {
     "toggleSchedule": "షెడ్యూల్‌ను టోగుల్ చేయండి",
     "toggleSchedules": "{{count}} షెడ్యూల్‌లను టోగుల్ చేయండి",
     "clearSelection": "క్లియర్ చేయి",
-    "hrsPerDay": "{{hours}} hr{{plural}} {{days}} రోజు{{dayPlural}} అంతటా",
-    "atLeastOneDay": "కనీసం ఒక రోజు ఎంపిక చేసుకోవాలి."
+    "hrsPerDay": "{{hours}} hr{{plural}} {{days}} రోజు{{dayPlural}} అంతటా"
   },
   "peerMap": {
     "title": "గ్లోబల్ పీర్ సమూహ మ్యాప్",
@@ -3432,7 +3432,8 @@ const te: I18nTranslations = {
       "engineHealthy": "{{engine}} ఆరోగ్యకరమైనది మరియు కార్యాచరణ.",
       "engineIssues": "{{engine}} ఆరోగ్య తనిఖీ సమస్యలను నివేదించింది.",
       "probeFailed": "{{engine}}: {{error}} కోసం ప్రోబ్ విఫలమైంది"
-    }
+    },
+    "alternativeSpeedHint": "-1 = పాజ్ చేయబడింది, 0 = అపరిమిత"
   },
   "errors": {
     "defaultTitle": "ఊహించని UI లోపం సంభవించింది",

@@ -1135,6 +1135,7 @@ const pt: I18nTranslations = {
     "scheduleName": "Nome da regra",
     "namePlaceholder": "por exemplo Acelerador Night Owl, horário de pico de trabalho",
     "activeDays": "Dias Ativos",
+    "atLeastOneDay": "Pelo menos um dia deve ser selecionado.",
     "allDays": "Todos os 7 dias",
     "workdays": "2a. a 6a",
     "weekends": "Sábado - Dom",
@@ -1181,8 +1182,7 @@ const pt: I18nTranslations = {
     "toggleSchedule": "Alternar programação",
     "toggleSchedules": "Alternar programações {{count}}",
     "clearSelection": "Limpar",
-    "hrsPerDay": "{{hours}} horas{{plural}} por dia durante {{days}} dia{{dayPlural}}",
-    "atLeastOneDay": "Pelo menos um dia deve ser selecionado."
+    "hrsPerDay": "{{hours}} horas{{plural}} por dia durante {{days}} dia{{dayPlural}}"
   },
   "peerMap": {
     "title": "Mapa global de pares do enxame",
@@ -3432,7 +3432,8 @@ const pt: I18nTranslations = {
       "engineHealthy": "{{engine}} está íntegro e operacional.",
       "engineIssues": "{{engine}} problemas relatados pela verificação de integridade.",
       "probeFailed": "Falha na análise para {{engine}}: {{error}}"
-    }
+    },
+    "alternativeSpeedHint": "-1 = Pausado, 0 = Ilimitado"
   },
   "errors": {
     "defaultTitle": "Ocorreu um erro inesperado na IU",

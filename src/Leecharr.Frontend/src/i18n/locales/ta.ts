@@ -1135,6 +1135,7 @@ const ta: I18nTranslations = {
     "scheduleName": "விதி பெயர்",
     "namePlaceholder": "எ.கா. இரவு ஆந்தை த்ரோட்டில், உச்ச வேலை நேரம்",
     "activeDays": "செயலில் நாட்கள்",
+    "atLeastOneDay": "குறைந்தபட்சம் ஒரு நாளாவது தேர்ந்தெடுக்கப்பட வேண்டும்.",
     "allDays": "அனைத்து 7 நாட்கள்",
     "workdays": "திங்கள் - வெள்ளி",
     "weekends": "சனி - சூரியன்",
@@ -1181,8 +1182,7 @@ const ta: I18nTranslations = {
     "toggleSchedule": "அட்டவணையை மாற்று",
     "toggleSchedules": "{{count}} அட்டவணைகளை நிலைமாற்று",
     "clearSelection": "அழி",
-    "hrsPerDay": "{{hours}} மணி{{plural}} {{days}} நாள் முழுவதும்{{dayPlural}}",
-    "atLeastOneDay": "குறைந்தபட்சம் ஒரு நாளாவது தேர்ந்தெடுக்கப்பட வேண்டும்."
+    "hrsPerDay": "{{hours}} மணி{{plural}} {{days}} நாள் முழுவதும்{{dayPlural}}"
   },
   "peerMap": {
     "title": "உலகளாவிய பியர் கூட்ட வரைபடம்",
@@ -3432,7 +3432,8 @@ const ta: I18nTranslations = {
       "engineHealthy": "{{engine}} ஆரோக்கியமானது மற்றும் செயல்படக்கூடியது.",
       "engineIssues": "{{engine}} சுகாதார சோதனையில் சிக்கல்கள் பதிவாகியுள்ளன.",
       "probeFailed": "{{engine}}: {{error}}க்கான ஆய்வு தோல்வியடைந்தது"
-    }
+    },
+    "alternativeSpeedHint": "-1 = இடைநிறுத்தப்பட்டது, 0 = வரம்பற்றது"
   },
   "errors": {
     "defaultTitle": "எதிர்பாராத UI பிழை ஏற்பட்டது",

@@ -1135,6 +1135,7 @@ const zhCN: I18nTranslations = {
     "scheduleName": "规则名称",
     "namePlaceholder": "例如：夜枭油门、高峰工作时间",
     "activeDays": "活跃天数",
+    "atLeastOneDay": "必须至少选择一天。",
     "allDays": "全部 7 天",
     "workdays": "周一至周五",
     "weekends": "周六至周日",
@@ -1181,8 +1182,7 @@ const zhCN: I18nTranslations = {
     "toggleSchedule": "切换时间表",
     "toggleSchedules": "切换 {{count}} 时间表",
     "clearSelection": "清空终端",
-    "hrsPerDay": "{{hours}} 小时{{plural}} 每天 {{days}} 天{{dayPlural}}",
-    "atLeastOneDay": "必须至少选择一天。"
+    "hrsPerDay": "{{hours}} 小时{{plural}} 每天 {{days}} 天{{dayPlural}}"
   },
   "peerMap": {
     "title": "全球同伴分布图",
@@ -3432,7 +3432,8 @@ const zhCN: I18nTranslations = {
       "engineHealthy": "{{engine}} 健康且可运行。",
       "engineIssues": "{{engine}} 健康检查报告问题。",
       "probeFailed": "{{engine}} 探测失败：{{error}}"
-    }
+    },
+    "alternativeSpeedHint": "-1 = 暂停，0 = 无限制"
   },
   "errors": {
     "defaultTitle": "发生意外的 UI 错误",
