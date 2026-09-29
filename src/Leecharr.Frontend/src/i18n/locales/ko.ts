@@ -3462,7 +3462,22 @@ const ko: I18nTranslations = {
     "addTorrentModal": "토렌트 추가 대화상자 오류",
     "searchModal": "검색 대화상자 오류",
     "setupGuide": "설정 가이드 오류",
-    "copilotDrawer": "Copilot 서랍 오류"
+    "copilotDrawer": "Copilot 서랍 오류",
+    "defaultTitle": "예상치 못한 UI 오류가 발생했습니다.",
+    "trackerServer": "추적기 서버 보기를 로드하지 못했습니다. 예상치 못한 오류가 발생했습니다.",
+    "trackerMetrics": "추적기 측정항목 보기를 로드하지 못했습니다. 예상치 못한 오류가 발생했습니다.",
+    "automation": "자동화 보기를 로드하지 못했습니다. 예상치 못한 오류가 발생했습니다.",
+    "databaseExplorer": "데이터베이스 탐색기 보기를 로드하지 못했습니다. 예상치 못한 오류가 발생했습니다.",
+    "inAppTestRunner": "인앱 테스트 실행기 보기를 로드하지 못했습니다. 예상치 못한 오류가 발생했습니다.",
+    "interactiveRepl": "대화형 REPL 보기를 로드하지 못했습니다. 예상치 못한 오류가 발생했습니다.",
+    "webDebugger": "웹 디버거 보기를 로드하지 못했습니다. 예상치 못한 오류가 발생했습니다.",
+    "eventBusWiretap": "이벤트 버스 도청 보기를 로드하지 못했습니다. 예상치 못한 오류가 발생했습니다.",
+    "commandConsole": "명령 콘솔 보기를 로드하지 못했습니다. 예상치 못한 오류가 발생했습니다.",
+    "networkWiretap": "네트워크 도청 보기를 로드하지 못했습니다. 예상치 못한 오류가 발생했습니다.",
+    "webhookSandbox": "웹훅 샌드박스 보기를 로드하지 못했습니다. 예상치 못한 오류가 발생했습니다.",
+    "configEnvironment": "구성 및 환경 보기를 로드하지 못했습니다. 예상치 못한 오류가 발생했습니다.",
+    "commandPalette": "명령 팔레트 보기를 로드하지 못했습니다. 예상치 못한 오류가 발생했습니다.",
+    "keyboardShortcuts": "키보드 단축키 보기를 로드하지 못했습니다. 예상치 못한 오류가 발생했습니다."
   },
   "copilot": {
     "welcomeMessage": "안녕하세요! Leecharr 코파일럿입니다. 오늘 토렌트, 릴리스 또는 설정에 대해 무엇을 도와드릴까요?",
