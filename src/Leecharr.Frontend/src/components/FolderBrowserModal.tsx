@@ -9,28 +9,40 @@ export interface FolderBrowserModalProps {
   isOpen: boolean;
   initialPath?: string;
   title?: string;
+  allowFiles?: boolean;
   onSelect: (selectedPath: string) => void;
   onClose: () => void;
 }
+
+const resolveInitialDirectory = (path?: string) => {
+  if (!path) return "/downloads";
+  const normalized = path.replace(/\\/g, "/");
+  if (/\.[a-zA-Z0-9]+$/.test(normalized)) {
+    const lastSlash = normalized.lastIndexOf("/");
+    return lastSlash > 0 ? normalized.substring(0, lastSlash) : "/";
+  }
+  return normalized;
+};
 
 export function FolderBrowserModal({
   isOpen,
   initialPath = "/downloads",
   title = "Select Folder",
+  allowFiles = false,
   onSelect,
   onClose,
 }: FolderBrowserModalProps) {
   const { t } = useTranslation();
   const { showToast } = useToast();
   const [currentPath, setCurrentPath] = useState<string>(
-    (initialPath || "/downloads").replace(/\\/g, "/"),
+    resolveInitialDirectory(initialPath),
   );
   const [newFolderName, setNewFolderName] = useState("");
   const [showNewFolderInput, setShowNewFolderInput] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setCurrentPath((initialPath || "/downloads").replace(/\\/g, "/"));
+      setCurrentPath(resolveInitialDirectory(initialPath));
       setShowNewFolderInput(false);
       setNewFolderName("");
     }
@@ -118,6 +130,9 @@ export function FolderBrowserModal({
   if (!isOpen) return null;
 
   const directories = (listing?.entries || []).filter((e) => e.isDirectory);
+  const files = allowFiles
+    ? (listing?.entries || []).filter((e) => !e.isDirectory)
+    : [];
 
   const isAtRoot =
     !currentPath ||
@@ -351,7 +366,7 @@ export function FolderBrowserModal({
             >
               {t("folderBrowser.failedToLoad", "Failed to load directory.")}
             </div>
-          ) : directories.length === 0 ? (
+          ) : directories.length === 0 && files.length === 0 ? (
             <div
               style={{
                 padding: "2.5rem 1rem",
@@ -434,6 +449,72 @@ export function FolderBrowserModal({
                     }}
                   >
                     ▶
+                  </span>
+                </div>
+              ))}
+              {files.map((file) => (
+                <div
+                  key={file.path}
+                  onClick={() => {
+                    onSelect(file.path.replace(/\\/g, "/"));
+                    onClose();
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "0.5rem 0.75rem",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    backgroundColor: "rgba(255, 255, 255, 0.03)",
+                    border: "1px solid rgba(255, 255, 255, 0.08)",
+                    transition: "all 0.15s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor =
+                      "rgba(0, 204, 150, 0.12)";
+                    e.currentTarget.style.borderColor =
+                      "rgba(0, 204, 150, 0.35)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor =
+                      "rgba(255, 255, 255, 0.03)";
+                    e.currentTarget.style.borderColor =
+                      "rgba(255, 255, 255, 0.08)";
+                  }}
+                  title="Select this file"
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <span>📄</span>
+                    <span
+                      style={{
+                        fontSize: "0.85rem",
+                        fontWeight: 500,
+                        color: "var(--text-primary, #f8f4ed)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {file.name}
+                    </span>
+                  </div>
+
+                  <span
+                    style={{
+                      fontSize: "0.75rem",
+                      color: "var(--accent, #ffd166)",
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    Select
                   </span>
                 </div>
               ))}
