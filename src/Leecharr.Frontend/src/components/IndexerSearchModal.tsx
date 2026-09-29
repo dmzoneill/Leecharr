@@ -23,6 +23,7 @@ interface IndexerSearchModalProps {
   onClose: () => void;
   onTorrentAdded: () => void;
   initialQuery?: string;
+  initialCategory?: string;
   isOpen?: boolean;
 }
 
@@ -30,6 +31,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
   onClose,
   onTorrentAdded,
   initialQuery,
+  initialCategory,
   isOpen,
 }) => {
   const { t } = useTranslation();
@@ -49,6 +51,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
   const [activeSearchTerm, setActiveSearchTerm] = useState<string>(
     initialQuery || "",
   );
+  const [category, setCategory] = useState<string>(initialCategory || "");
   const [freeleechOnly, setFreeleechOnly] = useState<boolean>(false);
   const [minSeedersFilter, setMinSeedersFilter] = useState<number>(0);
   const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
@@ -60,13 +63,22 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
     }
   }, [initialQuery]);
 
+  useEffect(() => {
+    if (initialCategory) {
+      setCategory(initialCategory);
+    }
+  }, [initialCategory]);
+
   // All hooks must be called before any conditional return (Rules of Hooks).
   const { showToast } = useToast();
   const { data: aiConfig } = useAiConfig();
   const isAiSearchEnabled = aiConfig?.enableNaturalSearch !== false;
 
   const searchResultsQuery = useIndexerSearch(
-    { query: activeSearchTerm },
+    {
+      query: activeSearchTerm,
+      category: category || undefined,
+    },
     Boolean(activeSearchTerm.trim()),
   );
   const downloadReleaseMutation = useDownloadIndexerRelease();
@@ -115,6 +127,9 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
     if (aiParams.minSeeders > 0) {
       setMinSeedersFilter(aiParams.minSeeders);
     }
+    if (aiParams.category) {
+      setCategory(aiParams.category);
+    }
     const term = cleanSearch.trim();
     trackIndexerSearch(term);
     setActiveSearchTerm(term);
@@ -142,6 +157,7 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
         indexerName: result.indexerName || result.indexer || "",
         minimumRatio: result.minimumRatio,
         minimumSeedTime: result.minimumSeedTime,
+        category: category || result.category || undefined,
       },
       {
         onSuccess: () => {
@@ -575,7 +591,15 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
             </button>
           </form>
 
-          <div className="filter-bar">
+          <div
+            className="filter-bar"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "1rem",
+              flexWrap: "wrap",
+            }}
+          >
             <label className="checkbox-label">
               <input
                 type="checkbox"
@@ -584,6 +608,80 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
               />
               {t("indexers.freeleechOnly100")}
             </label>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.4rem",
+              }}
+            >
+              <label
+                htmlFor="indexerModalCategorySelect"
+                style={{
+                  fontSize: "0.85rem",
+                  color: "var(--text-secondary)",
+                }}
+              >
+                {t("tags.category", "Category:")}
+              </label>
+              <select
+                id="indexerModalCategorySelect"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                style={{
+                  padding: "0.25rem 0.5rem",
+                  fontSize: "0.8rem",
+                  borderRadius: "4px",
+                  backgroundColor: "var(--bg-secondary)",
+                  color: "inherit",
+                  border: "1px solid var(--border)",
+                }}
+              >
+                <option value="">
+                  {t("tags.allCategories", "All Categories")}
+                </option>
+                <option value="movies">Movies</option>
+                <option value="tv">TV</option>
+                <option value="music">Music</option>
+                <option value="games">Games</option>
+                <option value="apps">Apps / Software</option>
+                <option value="books">Books</option>
+                <option value="anime">Anime</option>
+                <option value="other">Other</option>
+                {category &&
+                  ![
+                    "movies",
+                    "tv",
+                    "music",
+                    "games",
+                    "apps",
+                    "books",
+                    "anime",
+                    "other",
+                  ].includes(category.toLowerCase()) && (
+                    <option value={category}>{category}</option>
+                  )}
+              </select>
+              {category && (
+                <button
+                  type="button"
+                  onClick={() => setCategory("")}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    padding: "0.1rem 0.3rem",
+                    fontSize: "0.85rem",
+                    lineHeight: 1,
+                  }}
+                  title={t("common.clear", "Clear")}
+                  aria-label={t("common.clear", "Clear")}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="results-list">
