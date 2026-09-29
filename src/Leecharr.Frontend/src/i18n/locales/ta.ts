@@ -2143,6 +2143,7 @@ const ta: I18nTranslations = {
     "engageAlternativeSpeedLimitsHint": "மாற்று த்ரோட்டில்ட் வரம்புகளுடன் நிலையான வேகத்தை கைமுறையாக மேலெழுதவும்",
     "alternativeDownloadCap": "மாற்று டவுன்லோட் கேப் (KB/s)",
     "alternativeUploadCap": "மாற்று பதிவேற்ற தொப்பி (KB/s)",
+    "alternativeSpeedHint": "-1 = இடைநிறுத்தப்பட்டது, 0 = வரம்பற்றது",
     "swarmBandwidthDistributionCurves": "திரள் அலைவரிசை விநியோக வளைவுகள்",
     "swarmBandwidthDistributionCurvesDesc": "போட்டியிடும் செயலில் உள்ள திரள்கள் முழுவதும் அலைவரிசையை பகிர்வதற்கான கணித வழிமுறைகள்.",
     "uploadDistributionCurve": "விநியோக வளைவைப் பதிவேற்றவும்",
@@ -2278,7 +2279,8 @@ const ta: I18nTranslations = {
         "saving": "சேமிக்கிறது...",
         "saveChanges": "மாற்றங்களைச் சேமி",
         "createCategory": "வகையை உருவாக்கவும்"
-      }
+      },
+      "cannotDeleteDefault": "இயல்பு வகையை நீக்க முடியாது."
     },
     "notifications": {
       "chatIdPrefix": "அரட்டை ஐடி:",
@@ -3432,8 +3434,7 @@ const ta: I18nTranslations = {
       "engineHealthy": "{{engine}} ஆரோக்கியமானது மற்றும் செயல்படக்கூடியது.",
       "engineIssues": "{{engine}} சுகாதார சோதனையில் சிக்கல்கள் பதிவாகியுள்ளன.",
       "probeFailed": "{{engine}}: {{error}}க்கான ஆய்வு தோல்வியடைந்தது"
-    },
-    "alternativeSpeedHint": "-1 = இடைநிறுத்தப்பட்டது, 0 = வரம்பற்றது"
+    }
   },
   "errors": {
     "defaultTitle": "எதிர்பாராத UI பிழை ஏற்பட்டது",

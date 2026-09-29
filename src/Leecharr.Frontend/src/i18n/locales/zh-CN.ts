@@ -2143,6 +2143,7 @@ const zhCN: I18nTranslations = {
     "engageAlternativeSpeedLimitsHint": "使用替代节流限制手动覆盖标准速度",
     "alternativeDownloadCap": "替代下载上限（KB/秒）",
     "alternativeUploadCap": "替代上传上限（KB/秒）",
+    "alternativeSpeedHint": "-1 = 暂停，0 = 无限制",
     "swarmBandwidthDistributionCurves": "群带宽分布曲线",
     "swarmBandwidthDistributionCurvesDesc": "在竞争的活跃群体之间分配带宽的数学算法。",
     "uploadDistributionCurve": "上传分布曲线",
@@ -2278,7 +2279,8 @@ const zhCN: I18nTranslations = {
         "saving": "保存...",
         "saveChanges": "保存更改",
         "createCategory": "创建类别"
-      }
+      },
+      "cannotDeleteDefault": "无法删除默认类别。"
     },
     "notifications": {
       "chatIdPrefix": "聊天ID：",
@@ -3432,8 +3434,7 @@ const zhCN: I18nTranslations = {
       "engineHealthy": "{{engine}} 健康且可运行。",
       "engineIssues": "{{engine}} 健康检查报告问题。",
       "probeFailed": "{{engine}} 探测失败：{{error}}"
-    },
-    "alternativeSpeedHint": "-1 = 暂停，0 = 无限制"
+    }
   },
   "errors": {
     "defaultTitle": "发生意外的 UI 错误",

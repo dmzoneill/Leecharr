@@ -2143,6 +2143,7 @@ const tr: I18nTranslations = {
     "engageAlternativeSpeedLimitsHint": "Alternatif kısılmış limitlerle standart hızları manuel olarak geçersiz kılın",
     "alternativeDownloadCap": "Alternatif İndirme Sınırı (KB/s)",
     "alternativeUploadCap": "Alternatif Yükleme Sınırı (KB/sn)",
+    "alternativeSpeedHint": "-1 = Duraklatıldı, 0 = Sınırsız",
     "swarmBandwidthDistributionCurves": "Swarm Bant Genişliği Dağıtım Eğrileri",
     "swarmBandwidthDistributionCurvesDesc": "Bant genişliğini rakip aktif sürüler arasında paylaştırmak için matematiksel algoritmalar.",
     "uploadDistributionCurve": "Dağıtım Eğrisini Yükle",
@@ -2278,7 +2279,8 @@ const tr: I18nTranslations = {
         "saving": "Kaydediliyor...",
         "saveChanges": "Değişiklikleri Kaydet",
         "createCategory": "Kategori Oluştur"
-      }
+      },
+      "cannotDeleteDefault": "Varsayılan kategori silinemiyor."
     },
     "notifications": {
       "chatIdPrefix": "Sohbet kimliği:",
@@ -3432,8 +3434,7 @@ const tr: I18nTranslations = {
       "engineHealthy": "{{engine}} sağlıklı ve çalışır durumdadır.",
       "engineIssues": "{{engine}} durum kontrolü bildirilen sorunlar.",
       "probeFailed": "{{engine}} için prob başarısız oldu: {{error}}"
-    },
-    "alternativeSpeedHint": "-1 = Duraklatıldı, 0 = Sınırsız"
+    }
   },
   "errors": {
     "defaultTitle": "Beklenmeyen bir kullanıcı arayüzü hatası oluştu",

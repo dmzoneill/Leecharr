@@ -2231,6 +2231,7 @@ export type I18nTranslations = {
       "deleteConfirm": string;
       "deleteSuccess": string;
       "deleteFailed": string;
+      "cannotDeleteDefault": string;
       "title": string;
       "description": string;
       "configuredCount": string;

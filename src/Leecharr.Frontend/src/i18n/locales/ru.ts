@@ -2143,6 +2143,7 @@ const ru: I18nTranslations = {
     "engageAlternativeSpeedLimitsHint": "Вручную отменять стандартные скорости с помощью альтернативных регулируемых пределов.",
     "alternativeDownloadCap": "Ограничение альтернативной загрузки (КБ/с)",
     "alternativeUploadCap": "Альтернативное ограничение загрузки (КБ/с)",
+    "alternativeSpeedHint": "-1 = приостановлено, 0 = неограниченно",
     "swarmBandwidthDistributionCurves": "Кривые распределения полосы пропускания группы",
     "swarmBandwidthDistributionCurvesDesc": "Математические алгоритмы для распределения пропускной способности между конкурирующими активными группами.",
     "uploadDistributionCurve": "Загрузить кривую распределения",
@@ -2278,7 +2279,8 @@ const ru: I18nTranslations = {
         "saving": "Сохранение...",
         "saveChanges": "Сохранить изменения",
         "createCategory": "Создать категорию"
-      }
+      },
+      "cannotDeleteDefault": "Невозможно удалить категорию по умолчанию."
     },
     "notifications": {
       "chatIdPrefix": "Идентификатор чата:",
@@ -3432,8 +3434,7 @@ const ru: I18nTranslations = {
       "engineHealthy": "{{engine}} исправен и работоспособен.",
       "engineIssues": "Проверка работоспособности {{engine}} сообщила о проблемах.",
       "probeFailed": "Проверка не удалась для {{engine}}: {{error}}"
-    },
-    "alternativeSpeedHint": "-1 = приостановлено, 0 = неограниченно"
+    }
   },
   "errors": {
     "defaultTitle": "Произошла непредвиденная ошибка пользовательского интерфейса.",

@@ -2143,6 +2143,7 @@ const vi: I18nTranslations = {
     "engageAlternativeSpeedLimitsHint": "Ghi đè tốc độ tiêu chuẩn theo cách thủ công bằng các giới hạn điều chỉnh thay thế",
     "alternativeDownloadCap": "Giới hạn tải xuống thay thế (KB/s)",
     "alternativeUploadCap": "Giới hạn tải lên thay thế (KB/s)",
+    "alternativeSpeedHint": "-1 = Tạm dừng, 0 = Không giới hạn",
     "swarmBandwidthDistributionCurves": "Đường cong phân phối băng thông Swarm",
     "swarmBandwidthDistributionCurvesDesc": "Các thuật toán toán học để phân bổ băng thông cho các nhóm hoạt động cạnh tranh.",
     "uploadDistributionCurve": "Đường cong phân phối tải lên",
@@ -2278,7 +2279,8 @@ const vi: I18nTranslations = {
         "saving": "Đang lưu...",
         "saveChanges": "Lưu thay đổi",
         "createCategory": "Tạo danh mục"
-      }
+      },
+      "cannotDeleteDefault": "Không thể xóa danh mục mặc định."
     },
     "notifications": {
       "chatIdPrefix": "ID trò chuyện:",
@@ -3432,8 +3434,7 @@ const vi: I18nTranslations = {
       "engineHealthy": "{{engine}} khỏe mạnh và hoạt động bình thường.",
       "engineIssues": "{{engine}} báo cáo vấn đề về kiểm tra sức khỏe.",
       "probeFailed": "Thăm dò thất bại đối với {{engine}}: {{error}}"
-    },
-    "alternativeSpeedHint": "-1 = Tạm dừng, 0 = Không giới hạn"
+    }
   },
   "errors": {
     "defaultTitle": "Đã xảy ra lỗi giao diện người dùng không mong muốn",

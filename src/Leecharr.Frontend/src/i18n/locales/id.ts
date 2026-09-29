@@ -2143,6 +2143,7 @@ const id: I18nTranslations = {
     "engageAlternativeSpeedLimitsHint": "Ganti kecepatan standar secara manual dengan batas throttle alternatif",
     "alternativeDownloadCap": "Batas Unduhan Alternatif (KB/dtk)",
     "alternativeUploadCap": "Batas Unggah Alternatif (KB/dtk)",
+    "alternativeSpeedHint": "-1 = Dijeda, 0 = Tidak terbatas",
     "swarmBandwidthDistributionCurves": "Kurva Distribusi Bandwidth Swarm",
     "swarmBandwidthDistributionCurvesDesc": "Algoritme matematis untuk membagi bandwidth di seluruh kelompok aktif yang bersaing.",
     "uploadDistributionCurve": "Unggah Kurva Distribusi",
@@ -2278,7 +2279,8 @@ const id: I18nTranslations = {
         "saving": "Penghematan...",
         "saveChanges": "Simpan Perubahan",
         "createCategory": "Buat Kategori"
-      }
+      },
+      "cannotDeleteDefault": "Tidak dapat menghapus kategori default."
     },
     "notifications": {
       "chatIdPrefix": "ID Obrolan:",
@@ -3432,8 +3434,7 @@ const id: I18nTranslations = {
       "engineHealthy": "{{engine}} sehat dan operasional.",
       "engineIssues": "{{engine}} pemeriksaan kesehatan melaporkan masalah.",
       "probeFailed": "Pemeriksaan gagal untuk {{engine}}: {{error}}"
-    },
-    "alternativeSpeedHint": "-1 = Dijeda, 0 = Tidak terbatas"
+    }
   },
   "errors": {
     "defaultTitle": "Terjadi kesalahan UI yang tidak terduga",

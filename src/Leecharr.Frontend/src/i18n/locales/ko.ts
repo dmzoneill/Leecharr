@@ -2143,6 +2143,7 @@ const ko: I18nTranslations = {
     "engageAlternativeSpeedLimitsHint": "대체 조절 제한을 사용하여 표준 속도를 수동으로 재정의",
     "alternativeDownloadCap": "대체 다운로드 용량(KB/초)",
     "alternativeUploadCap": "대체 업로드 용량(KB/초)",
+    "alternativeSpeedHint": "-1 = 일시중지됨, 0 = 무제한",
     "swarmBandwidthDistributionCurves": "스웜 대역폭 분포 곡선",
     "swarmBandwidthDistributionCurvesDesc": "경쟁하는 활성 떼에 대역폭을 할당하는 수학적 알고리즘.",
     "uploadDistributionCurve": "분포 곡선 업로드",
@@ -2278,7 +2279,8 @@ const ko: I18nTranslations = {
         "saving": "절약...",
         "saveChanges": "변경사항 저장",
         "createCategory": "카테고리 생성"
-      }
+      },
+      "cannotDeleteDefault": "기본 카테고리는 삭제할 수 없습니다."
     },
     "notifications": {
       "chatIdPrefix": "채팅 ID:",
@@ -3432,8 +3434,7 @@ const ko: I18nTranslations = {
       "engineHealthy": "_{{engine}}은(는) 정상이며 작동 중입니다.",
       "engineIssues": "_{{engine}} 상태 확인에서 문제가 보고되었습니다.",
       "probeFailed": "_{{engine}}에 대한 프로브 실패: {{error}}"
-    },
-    "alternativeSpeedHint": "-1 = 일시중지됨, 0 = 무제한"
+    }
   },
   "errors": {
     "defaultTitle": "예상치 못한 UI 오류가 발생했습니다.",

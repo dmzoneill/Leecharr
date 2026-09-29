@@ -397,10 +397,35 @@ public class CategoryControllerTest
     [Test]
     public void Delete_CallsCategoryServiceDelete_ReturnsNoContent()
     {
+        this.categoryService.Get(42).Returns(new Category { Id = 42, IsDefault = false });
+
         var result = this.controller.Delete(42);
 
         result.Should().BeOfType<NoContentResult>();
         this.categoryService.Received(1).Delete(42);
+    }
+
+    [Test]
+    public void Delete_WhenCategoryIsDefault_ReturnsBadRequest()
+    {
+        this.categoryService.Get(1).Returns(new Category { Id = 1, IsDefault = true });
+
+        var result = this.controller.Delete(1);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        ((BadRequestObjectResult)result).Value.Should().Be("Cannot delete the default category.");
+        this.categoryService.DidNotReceive().Delete(1);
+    }
+
+    [Test]
+    public void Delete_WhenCategoryNotFound_CallsCategoryServiceDelete_ReturnsNoContent()
+    {
+        this.categoryService.Get(99).Returns((Category)null!);
+
+        var result = this.controller.Delete(99);
+
+        result.Should().BeOfType<NoContentResult>();
+        this.categoryService.Received(1).Delete(99);
     }
 
     [Test]

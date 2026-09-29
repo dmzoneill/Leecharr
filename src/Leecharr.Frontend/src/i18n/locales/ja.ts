@@ -2143,6 +2143,7 @@ const ja: I18nTranslations = {
     "engageAlternativeSpeedLimitsHint": "代替のスロットル制限で標準速度を手動で上書きします",
     "alternativeDownloadCap": "代替ダウンロードの上限 (KB/秒)",
     "alternativeUploadCap": "代替アップロード上限 (KB/秒)",
+    "alternativeSpeedHint": "-1 = 一時停止、0 = 無制限",
     "swarmBandwidthDistributionCurves": "Swarm の帯域幅分布曲線",
     "swarmBandwidthDistributionCurvesDesc": "競合するアクティブな群に帯域幅を配分する数学的アルゴリズム。",
     "uploadDistributionCurve": "分布曲線のアップロード",
@@ -2278,7 +2279,8 @@ const ja: I18nTranslations = {
         "saving": "保存中...",
         "saveChanges": "変更を保存",
         "createCategory": "カテゴリの作成"
-      }
+      },
+      "cannotDeleteDefault": "デフォルトのカテゴリは削除できません。"
     },
     "notifications": {
       "chatIdPrefix": "チャットID:",
@@ -3432,8 +3434,7 @@ const ja: I18nTranslations = {
       "engineHealthy": "{{engine}} は正常で動作しています。",
       "engineIssues": "{{engine}} ヘルスチェックで問題が報告されました。",
       "probeFailed": "{{engine}} のプローブが失敗しました: {{error}}"
-    },
-    "alternativeSpeedHint": "-1 = 一時停止、0 = 無制限"
+    }
   },
   "errors": {
     "defaultTitle": "予期しない UI エラーが発生しました",
