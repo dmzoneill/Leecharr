@@ -1,6 +1,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
+using System.Net.Http;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Leecharr.Api.V1.Notifications;
@@ -25,6 +26,11 @@ public class NotificationControllerTest
         this.notificationRepository = Substitute.For<INotificationRepository>();
         this.webhookDispatcher = Substitute.For<IWebhookDispatcher>();
         this.customScriptService = Substitute.For<ICustomScriptService>();
+
+        this.webhookDispatcher.DispatchAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<string>(), Arg.Any<HttpMethod>())
+            .Returns(Task.FromResult(true));
+        this.webhookDispatcher.DispatchAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<string>())
+            .Returns(Task.FromResult(true));
 
         this.controller = new NotificationController(
             this.notificationRepository,
@@ -57,7 +63,9 @@ public class NotificationControllerTest
 
         await this.webhookDispatcher.Received(1).DispatchAsync(
             "https://api.telegram.org/bot12345:telegram-token/sendMessage",
-            Arg.Any<object>());
+            Arg.Any<object>(),
+            Arg.Any<string>(),
+            HttpMethod.Post);
     }
 
     [Test]
@@ -85,7 +93,9 @@ public class NotificationControllerTest
 
         await this.webhookDispatcher.Received(1).DispatchAsync(
             "https://api.pushover.net/1/messages.json",
-            Arg.Any<object>());
+            Arg.Any<object>(),
+            Arg.Any<string>(),
+            HttpMethod.Post);
     }
 
     [Test]
@@ -111,7 +121,9 @@ public class NotificationControllerTest
 
         await this.webhookDispatcher.Received(1).DispatchAsync(
             "https://discord.com/api/webhooks/999/token",
-            Arg.Any<object>());
+            Arg.Any<object>(),
+            Arg.Any<string>(),
+            HttpMethod.Post);
     }
 
     [Test]
@@ -218,7 +230,8 @@ public class NotificationControllerTest
         await this.webhookDispatcher.Received(1).DispatchAsync(
             "https://example.com/webhook",
             Arg.Any<object>(),
-            Arg.Is<string>(s => s.Contains("Bearer test-secret-token") && s.Contains("header-val")));
+            Arg.Is<string>(s => s.Contains("Bearer test-secret-token") && s.Contains("header-val")),
+            HttpMethod.Post);
     }
 
     [Test]
@@ -245,7 +258,8 @@ public class NotificationControllerTest
         await this.webhookDispatcher.Received(1).DispatchAsync(
             "https://example.com/webhook/direct",
             Arg.Any<object>(),
-            Arg.Is<string>(s => s.Contains("direct-secret-456")));
+            Arg.Is<string>(s => s.Contains("direct-secret-456")),
+            HttpMethod.Post);
     }
 
     [Test]
@@ -274,7 +288,8 @@ public class NotificationControllerTest
         await this.webhookDispatcher.Received(1).DispatchAsync(
             "https://example.com/plain",
             Arg.Any<object>(),
-            null);
+            null,
+            HttpMethod.Post);
     }
 
     [Test]
@@ -303,7 +318,9 @@ public class NotificationControllerTest
         await this.webhookDispatcher.Received(1).DispatchAsync(
             "https://hooks.slack.com/services/T00/B00/X00",
             Arg.Is<object>(p => p.GetType().GetProperty("text") != null &&
-                                p.GetType().GetProperty("username") != null));
+                                p.GetType().GetProperty("username") != null),
+            Arg.Any<string>(),
+            HttpMethod.Post);
     }
 
     [Test]
@@ -388,6 +405,90 @@ public class NotificationControllerTest
         testResult.Should().NotBeNull();
         testResult!.Success.Should().BeFalse();
         testResult.Message.Should().Be("Script execution failed.");
+    }
+
+    [Test]
+    public async Task Test_WhenWebhookWithPutMethod_DispatchesUsingPutMethod()
+    {
+        var notif = new NotificationDefinition
+        {
+            Id = 15,
+            Name = "PUT Webhook",
+            Implementation = "Webhook",
+            Settings = "{\"url\":\"https://example.com/webhook\",\"method\":\"PUT\"}",
+        };
+
+        this.notificationRepository.Get(15).Returns(notif);
+
+        var actionResult = await this.controller.Test(15);
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as NotificationTestResult;
+        testResult.Should().NotBeNull();
+        testResult!.Success.Should().BeTrue();
+
+        await this.webhookDispatcher.Received(1).DispatchAsync(
+            "https://example.com/webhook",
+            Arg.Any<object>(),
+            Arg.Any<string>(),
+            HttpMethod.Put);
+    }
+
+    [Test]
+    public async Task Test_WhenWebhookWithBasicAuth_InjectsAuthorizationBasicHeader()
+    {
+        var notif = new NotificationDefinition
+        {
+            Id = 16,
+            Name = "Basic Auth Webhook",
+            Implementation = "Webhook",
+            Settings = "{\"url\":\"https://example.com/webhook\",\"username\":\"myuser\",\"password\":\"mypassword\"}",
+        };
+
+        this.notificationRepository.Get(16).Returns(notif);
+
+        var actionResult = await this.controller.Test(16);
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as NotificationTestResult;
+        testResult.Should().NotBeNull();
+        testResult!.Success.Should().BeTrue();
+
+        var expectedAuth = "Basic " + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("myuser:mypassword"));
+        await this.webhookDispatcher.Received(1).DispatchAsync(
+            "https://example.com/webhook",
+            Arg.Any<object>(),
+            Arg.Is<string>(h => h.Contains(expectedAuth)),
+            HttpMethod.Post);
+    }
+
+    [Test]
+    public async Task TestDirect_WhenDiscordNotificationWithCustomUsernameAndAvatar_PassesCustomParameters()
+    {
+        var resource = new NotificationResource
+        {
+            Name = "Custom Discord Webhook",
+            Implementation = "Discord",
+            Settings = "{\"url\":\"https://discord.com/api/webhooks/999/token\",\"username\":\"CustomBot\",\"avatarUrl\":\"https://example.com/bot.png\"}",
+        };
+
+        var actionResult = await this.controller.TestDirect(resource);
+        var okResult = actionResult.Result as OkObjectResult;
+
+        okResult.Should().NotBeNull();
+        var testResult = okResult!.Value as NotificationTestResult;
+        testResult.Should().NotBeNull();
+        testResult!.Success.Should().BeTrue();
+
+        await this.webhookDispatcher.Received(1).DispatchAsync(
+            "https://discord.com/api/webhooks/999/token",
+            Arg.Is<object>(p =>
+                (string)p.GetType().GetProperty("username")!.GetValue(p)! == "CustomBot" &&
+                (string)p.GetType().GetProperty("avatar_url")!.GetValue(p)! == "https://example.com/bot.png"),
+            Arg.Any<string>(),
+            HttpMethod.Post);
     }
 
     [Test]
