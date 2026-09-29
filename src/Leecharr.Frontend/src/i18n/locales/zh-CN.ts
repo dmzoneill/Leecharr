@@ -1328,6 +1328,7 @@ const zhCN: I18nTranslations = {
       "noValidUrlsFound": "未找到有效的网址",
       "processedTrackersToast": "加工的跟踪器吐司",
       "bulkImportFailed": "导入失败",
+      "importFailedGeneric": "无法解析跟踪器列表或跟踪器响应格式无效",
       "automationTitle": "自动化标题",
       "automationDesc": "自动化说明",
       "autoBoostLabel": "自动加成标签",
@@ -1351,8 +1352,7 @@ const zhCN: I18nTranslations = {
       "bulkImportModalTitle": "批量导入模态标题",
       "bulkImportModalHint": "批量导入模式提示",
       "importingTrackers": "导入跟踪器",
-      "importTrackersBtn": "导入 Trackers",
-      "importFailedGeneric": "无法解析跟踪器列表或跟踪器响应格式无效"
+      "importTrackersBtn": "导入 Trackers"
     },
     "logs": {
       "logsClearedToast": "日志已清除吐司",
@@ -1839,6 +1839,9 @@ const zhCN: I18nTranslations = {
   },
   "developer": {
     "database": "数据库浏览器",
+    "testing": "测试运行者",
+    "repl": "REPL沙盒",
+    "debugger": "网页调试器",
     "events": "活动总线",
     "commands": "命令调度员",
     "network": "网络窃听",
@@ -4496,6 +4499,16 @@ const zhCN: I18nTranslations = {
     "reconnecting": "实时连接丢失。正在尝试重新连接...",
     "disconnected": "与服务器断开连接。单击立即重试重新连接。",
     "retryNow": "立即重试"
+  },
+  "ariaLive": {
+    "torrentCompleted": "洪流“{{name}}”已完成，正在播种",
+    "torrentError": "种子“{{name}}”遇到错误：{{error}}",
+    "downloadInterrupted": "下载中断"
+  },
+  "aria": {
+    "torrentCompleted": "洪流“{{name}}”已完成，正在播种",
+    "torrentError": "种子“{{name}}”遇到错误：{{error}}",
+    "downloadInterrupted": "下载中断"
   }
 };
 

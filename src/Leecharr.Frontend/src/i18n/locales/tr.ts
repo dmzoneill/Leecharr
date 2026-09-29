@@ -1328,6 +1328,7 @@ const tr: I18nTranslations = {
       "noValidUrlsFound": "Geçerli URL Bulunamadı",
       "processedTrackersToast": "İşlenmiş İzleyici Tostu",
       "bulkImportFailed": "Toplu İçe Aktarma Başarısız Oldu",
+      "importFailedGeneric": "İzleyici listesi ayrıştırılamadı veya geçersiz izleyici yanıt biçimi",
       "automationTitle": "Otomasyon Başlığı",
       "automationDesc": "Otomasyon Açıklaması",
       "autoBoostLabel": "Otomatik Yükseltme Etiketi",
@@ -1351,8 +1352,7 @@ const tr: I18nTranslations = {
       "bulkImportModalTitle": "Toplu İçe Aktarma Modal Başlığı",
       "bulkImportModalHint": "Toplu İçe Aktarma Modal İpucu",
       "importingTrackers": "İzleyicileri İçe Aktarma",
-      "importTrackersBtn": "İthalat Takipçileri Btn",
-      "importFailedGeneric": "İzleyici listesi ayrıştırılamadı veya geçersiz izleyici yanıt biçimi"
+      "importTrackersBtn": "İthalat Takipçileri Btn"
     },
     "logs": {
       "logsClearedToast": "Günlükler Temizlendi Tost",
@@ -1839,6 +1839,9 @@ const tr: I18nTranslations = {
   },
   "developer": {
     "database": "Veritabanı Gezgini",
+    "testing": "Test Çalıştırıcısı",
+    "repl": "REPL Korumalı Alan",
+    "debugger": "Web Hata Ayıklayıcısı",
     "events": "Etkinlik Otobüsü",
     "commands": "Komut Göndericisi",
     "network": "Ağ Telefon Dinlemesi",
@@ -4496,6 +4499,16 @@ const tr: I18nTranslations = {
     "reconnecting": "Gerçek zamanlı bağlantı kesildi. Yeniden bağlanmaya çalışılıyor...",
     "disconnected": "Sunucuyla bağlantı kesildi. Yeniden bağlanmak için Şimdi Yeniden Dene'yi tıklayın.",
     "retryNow": "Şimdi Yeniden Dene"
+  },
+  "ariaLive": {
+    "torrentCompleted": "Torrent \"{{name}}\" tamamlandı, şimdi yayınlanıyor",
+    "torrentError": "Torrent \"{{name}}\" hatayla karşılaştı: {{error}}",
+    "downloadInterrupted": "indirme kesintiye uğradı"
+  },
+  "aria": {
+    "torrentCompleted": "Torrent \"{{name}}\" tamamlandı, şimdi yayınlanıyor",
+    "torrentError": "Torrent \"{{name}}\" hatayla karşılaştı: {{error}}",
+    "downloadInterrupted": "indirme kesintiye uğradı"
   }
 };
 

@@ -1328,6 +1328,7 @@ const pt: I18nTranslations = {
       "noValidUrlsFound": "Nenhum URL válido encontrado",
       "processedTrackersToast": "Brinde de rastreadores processados",
       "bulkImportFailed": "Falha na importação em massa",
+      "importFailedGeneric": "Falha ao analisar a lista de rastreadores ou formato de resposta do rastreador inválido",
       "automationTitle": "Título de automação",
       "automationDesc": "Descrição de automação",
       "autoBoostLabel": "Etiqueta de reforço automático",
@@ -1351,8 +1352,7 @@ const pt: I18nTranslations = {
       "bulkImportModalTitle": "Título modal de importação em massa",
       "bulkImportModalHint": "Dica modal de importação em massa",
       "importingTrackers": "Importando Rastreadores",
-      "importTrackersBtn": "Importar rastreadores Btn",
-      "importFailedGeneric": "Falha ao analisar a lista de rastreadores ou formato de resposta do rastreador inválido"
+      "importTrackersBtn": "Importar rastreadores Btn"
     },
     "logs": {
       "logsClearedToast": "Logs limpos do brinde",
@@ -1839,6 +1839,9 @@ const pt: I18nTranslations = {
   },
   "developer": {
     "database": "Explorador de banco de dados",
+    "testing": "Executor de teste",
+    "repl": "Caixa de areia REPL",
+    "debugger": "Depurador da Web",
     "events": "Ônibus de eventos",
     "commands": "Despachante de Comando",
     "network": "Escuta telefônica de rede",
@@ -4496,6 +4499,16 @@ const pt: I18nTranslations = {
     "reconnecting": "Conexão em tempo real perdida. Tentando reconectar...",
     "disconnected": "Desconectado do servidor. Clique em Tentar novamente agora para reconectar.",
     "retryNow": "Tente novamente agora"
+  },
+  "ariaLive": {
+    "torrentCompleted": "Torrent \"{{name}}\" concluído, agora propagando",
+    "torrentError": "Torrent \"{{name}}\" encontrou erro: {{error}}",
+    "downloadInterrupted": "download interrompido"
+  },
+  "aria": {
+    "torrentCompleted": "Torrent \"{{name}}\" concluído, agora propagando",
+    "torrentError": "Torrent \"{{name}}\" encontrou erro: {{error}}",
+    "downloadInterrupted": "download interrompido"
   }
 };
 

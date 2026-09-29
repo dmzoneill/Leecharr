@@ -1328,6 +1328,7 @@ const ar: I18nTranslations = {
       "noValidUrlsFound": "لم يتم العثور على عناوين URL صالحة",
       "processedTrackersToast": "نخب بتتبع المعالجة",
       "bulkImportFailed": "فشل الاستيراد المجمع",
+      "importFailedGeneric": "فشل تحليل قائمة المتعقب أو تنسيق استجابة المتعقب غير صالح",
       "automationTitle": "عنوان الأتمتة",
       "automationDesc": "وصف الأتمتة",
       "autoBoostLabel": "تسمية التعزيز التلقائي",
@@ -1351,8 +1352,7 @@ const ar: I18nTranslations = {
       "bulkImportModalTitle": "عنوان مشروط للاستيراد المجمع",
       "bulkImportModalHint": "تلميح مشروط للاستيراد المجمع",
       "importingTrackers": "استيراد أجهزة التتبع",
-      "importTrackersBtn": "استيراد تعقب Btn",
-      "importFailedGeneric": "فشل تحليل قائمة المتعقب أو تنسيق استجابة المتعقب غير صالح"
+      "importTrackersBtn": "استيراد تعقب Btn"
     },
     "logs": {
       "logsClearedToast": "سجلات مسح نخب",
@@ -1839,6 +1839,9 @@ const ar: I18nTranslations = {
   },
   "developer": {
     "database": "مستكشف قاعدة البيانات",
+    "testing": "عداء الاختبار",
+    "repl": "REPL رمل",
+    "debugger": "مصحح أخطاء الويب",
     "events": "حافلة الحدث",
     "commands": "مرسل الأوامر",
     "network": "التنصت على الشبكة",
@@ -4496,6 +4499,16 @@ const ar: I18nTranslations = {
     "reconnecting": "تم فقد الاتصال في الوقت الحقيقي. جارٍ محاولة إعادة الاتصال...",
     "disconnected": "تم قطع الاتصال بالخادم. انقر فوق \"إعادة المحاولة الآن\" لإعادة الاتصال.",
     "retryNow": "أعد المحاولة الآن"
+  },
+  "ariaLive": {
+    "torrentCompleted": "اكتمل التورنت \"{{name}}\"، ويتم الآن البذر",
+    "torrentError": "واجه التورنت \"{{name}}\" خطأ: {{error}}",
+    "downloadInterrupted": "تمت مقاطعة التنزيل"
+  },
+  "aria": {
+    "torrentCompleted": "اكتمل التورنت \"{{name}}\"، ويتم الآن البذر",
+    "torrentError": "واجه التورنت \"{{name}}\" خطأ: {{error}}",
+    "downloadInterrupted": "تمت مقاطعة التنزيل"
   }
 };
 
