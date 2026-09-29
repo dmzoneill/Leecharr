@@ -513,6 +513,43 @@ export function usePeers(torrentId: number) {
   });
 }
 
+export function useDisconnectPeer() {
+  const queryClient = useQueryClient();
+  return useMutation<
+    { success: boolean; ip: string; message: string },
+    Error,
+    { torrentId: number; ip: string }
+  >({
+    mutationFn: ({ torrentId, ip }) =>
+      apiClient.post(`/torrent/${torrentId}/peers/disconnect`, { ip }),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({
+        queryKey: ["torrents", vars.torrentId, "peers"],
+      });
+      queryClient.invalidateQueries({ queryKey: ["peerlog"] });
+    },
+  });
+}
+
+export function useBanPeer() {
+  const queryClient = useQueryClient();
+  return useMutation<
+    { success: boolean; ip: string; message: string },
+    Error,
+    { torrentId: number; ip: string }
+  >({
+    mutationFn: ({ torrentId, ip }) =>
+      apiClient.post(`/torrent/${torrentId}/peers/ban`, { ip }),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({
+        queryKey: ["torrents", vars.torrentId, "peers"],
+      });
+      queryClient.invalidateQueries({ queryKey: ["peerlog"] });
+      queryClient.invalidateQueries({ queryKey: ["blocklist"] });
+    },
+  });
+}
+
 export function usePeerGraph(start?: string, end?: string) {
   const interval = useRefetchInterval();
   const params = new URLSearchParams();

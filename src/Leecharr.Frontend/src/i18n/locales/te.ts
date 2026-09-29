@@ -181,7 +181,9 @@ const te: I18nTranslations = {
     "total": "మొత్తం",
     "testing": "పరీక్షిస్తోంది",
     "unknownError": "తెలియని లోపం",
-    "noResults": "సరిపోలే ట్యాగ్‌లు లేవు"
+    "noResults": "సరిపోలే ట్యాగ్‌లు లేవు",
+    "disconnect": "డిస్‌కనెక్ట్ చేయండి",
+    "ban": "నిషేధించండి"
   },
   "nav": {
     "dashboard": "డాష్బోర్డ్",
@@ -715,6 +717,10 @@ const te: I18nTranslations = {
       "failedToRemoveTracker": "ట్రాకర్ని తీసివేయడంలో విఫలమైంది",
       "privateTrackerDisabledTitle": "ప్రైవేట్ ట్రాకర్ డిసేబుల్ శీర్షిక",
       "openTrackerPickerTitle": "ట్రాకర్ పిక్కర్ శీర్షికను తెరవండి",
+      "disconnectPeer": "పీర్‌ని డిస్‌కనెక్ట్ చేయండి",
+      "banPeer": "పీర్‌ని నిషేధించండి",
+      "peerDisconnected": "పీర్ డిస్‌కనెక్ట్ చేయబడింది",
+      "peerBanned": "పీర్ నిషేధించబడింది మరియు డిస్‌కనెక్ట్ చేయబడింది",
       "colUrl": "Col Url"
     },
     "ratio": "నిష్పత్తి",
@@ -1220,7 +1226,8 @@ const te: I18nTranslations = {
     "centerTitle": "కేంద్రం శీర్షిక",
     "torrentTitle": "టోరెంట్ టైటిల్",
     "peerTitle": "పీర్ టైటిల్",
-    "peerEncryptedSuffix": "పీర్ ఎన్క్రిప్టెడ్ ప్రత్యయం"
+    "peerEncryptedSuffix": "పీర్ ఎన్క్రిప్టెడ్ ప్రత్యయం",
+    "torrentNotFound": "అనుబంధిత టొరెంట్ కనుగొనబడలేదు"
   },
   "trackerBoost": {
     "title": "TrackerBoost సమూహ ఆప్టిమైజర్",
@@ -2231,6 +2238,7 @@ const te: I18nTranslations = {
       "deleteConfirm": "తొలగించు",
       "deleteSuccess": "వర్గం \"{{name}}\" తొలగించబడింది",
       "deleteFailed": "వర్గాన్ని తొలగించడంలో విఫలమైంది",
+      "cannotDeleteDefault": "డిఫాల్ట్ వర్గాన్ని తొలగించలేరు.",
       "title": "వర్గం నిర్వహణ & డైరెక్టరీ రూటింగ్",
       "description": "కస్టమ్ సేవ్ పాత్లకు ఫైల్లను ఆటోమేటిక్గా రూట్ చేయడానికి, రేట్ పరిమితులను అమలు చేయడానికి మరియు షేర్ రేషియో ఆటో-స్టాప్ విధానాలను వర్తింపజేయడానికి కేటగిరీలతో టొరెంట్లను నిర్వహించండి.",
       "configuredCount": "{{count}} కాన్ఫిగర్ చేసిన వర్గాలు",
@@ -2279,8 +2287,7 @@ const te: I18nTranslations = {
         "saving": "సేవ్ చేస్తోంది...",
         "saveChanges": "మార్పులను భద్రపరచు",
         "createCategory": "వర్గాన్ని సృష్టించండి"
-      },
-      "cannotDeleteDefault": "డిఫాల్ట్ వర్గాన్ని తొలగించలేరు."
+      }
     },
     "notifications": {
       "chatIdPrefix": "చాట్ ID:",
@@ -2910,7 +2917,9 @@ const te: I18nTranslations = {
       "incomingPeerListeningPorts": "ఇన్కమింగ్ పీర్ లిజనింగ్ పోర్ట్లు & UPnP",
       "configureListeningPorts": "ఇన్బౌండ్ బిట్టొరెంట్ పీర్ కనెక్షన్ల కోసం లిజనింగ్ పోర్ట్లను కాన్ఫిగర్ చేయండి.",
       "bitTorrentListeningPort": "బిట్టొరెంట్ లిజనింగ్ పోర్ట్",
+      "testPort": "టెస్ట్ పోర్ట్",
       "testingPort": "పరీక్షిస్తోంది...",
+      "portCheckFailed": "పోర్ట్ తనిఖీ విఫలమైంది",
       "tcpUdpPort": "ఇన్కమింగ్ పీర్ కనెక్షన్ల కోసం TCP & UDP పోర్ట్ (డిఫాల్ట్: 51413)",
       "enableUpnpNatPmp": "UPnP / NAT-PMP పోర్ట్ ఫార్వార్డింగ్ని ప్రారంభించండి",
       "automaticallyNegotiatePortForwarding": "మీ రూటర్తో పోర్ట్ ఫార్వార్డింగ్ని స్వయంచాలకంగా చర్చలు జరుపుము",
@@ -2919,6 +2928,10 @@ const te: I18nTranslations = {
       "networkInterfaceBinding": "నెట్వర్క్ ఇంటర్ఫేస్ బైండింగ్ & VPN కిల్ స్విచ్",
       "bindBitTorrentSockets": "బిట్టొరెంట్ సాకెట్లను నిర్దిష్ట నెట్వర్క్ ఇంటర్ఫేస్కు (ఉదా. tun0, wg0) బైండ్ చేయండి మరియు డిస్కనెక్ట్ అయినప్పుడు ట్రాఫిక్ను ఆపివేయండి.",
       "bindNetworkInterface": "బైండ్ నెట్వర్క్ ఇంటర్ఫేస్",
+      "selectFromDetected": "గుర్తించబడిన ఇంటర్‌ఫేస్‌ల నుండి ఎంచుకోండి",
+      "enterManually": "మాన్యువల్‌గా నమోదు చేయండి",
+      "allInterfaces": "అన్నీ / ఏదైనా ఇంటర్‌ఫేస్‌లు (డిఫాల్ట్)",
+      "manualEntry": "కస్టమ్ / మాన్యువల్ ఎంట్రీ...",
       "interfaceNameOrIp": "ఇంటర్ఫేస్ పేరు (ఉదా. tun0, wg0, eth0) లేదా నిర్దిష్ట IP (అందరికీ ఖాళీగా ఉంచండి)",
       "enableAutomatedVpnKillSwitch": "స్వయంచాలక VPN కిల్ స్విచ్ని ప్రారంభించండి",
       "immediatelyDropAllBitTorrentTransfers": "కట్టుబడి ఉన్న VPN ఇంటర్ఫేస్ తగ్గితే వెంటనే అన్ని BitTorrent బదిలీలను వదలండి",
@@ -3077,12 +3090,6 @@ const te: I18nTranslations = {
       "clientId": "క్లయింట్ ID",
       "clientSecret": "క్లయింట్ రహస్యం",
       "leaveBlankOrMaskedToKeepCurrentSecret": "ప్రస్తుత రహస్యంగా ఉంచడానికి ఖాళీగా లేదా ముసుగుగా ఉంచండి",
-      "testPort": "టెస్ట్ పోర్ట్",
-      "portCheckFailed": "పోర్ట్ తనిఖీ విఫలమైంది",
-      "selectFromDetected": "గుర్తించబడిన ఇంటర్‌ఫేస్‌ల నుండి ఎంచుకోండి",
-      "enterManually": "మాన్యువల్‌గా నమోదు చేయండి",
-      "allInterfaces": "అన్నీ / ఏదైనా ఇంటర్‌ఫేస్‌లు (డిఫాల్ట్)",
-      "manualEntry": "కస్టమ్ / మాన్యువల్ ఎంట్రీ...",
       "oidc": "OIDC",
       "saml20": "SAML 2.0"
     },

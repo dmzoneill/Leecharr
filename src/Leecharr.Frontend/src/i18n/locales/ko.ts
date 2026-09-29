@@ -181,7 +181,9 @@ const ko: I18nTranslations = {
     "total": "총",
     "testing": "테스트 중...",
     "unknownError": "알 수 없는 오류",
-    "noResults": "일치하는 태그가 없습니다."
+    "noResults": "일치하는 태그가 없습니다.",
+    "disconnect": "연결 끊기",
+    "ban": "반"
   },
   "nav": {
     "dashboard": "대시보드",
@@ -715,7 +717,11 @@ const ko: I18nTranslations = {
       "failedToRemoveTracker": "추적기를 제거하지 못했습니다.",
       "privateTrackerDisabledTitle": "개인 추적기 비활성화됨 제목",
       "openTrackerPickerTitle": "트래커 선택기 제목 열기",
-      "live3s": "Live3s"
+      "live3s": "Live3s",
+      "disconnectPeer": "피어 연결 끊기",
+      "banPeer": "피어 금지",
+      "peerDisconnected": "피어 연결이 끊어졌습니다.",
+      "peerBanned": "피어가 금지되고 연결이 끊어졌습니다."
     },
     "ratio": "비율",
     "tabs": {
@@ -1220,7 +1226,8 @@ const ko: I18nTranslations = {
     "centerTitle": "센터 제목",
     "torrentTitle": "토렌트 제목",
     "peerTitle": "동료 직함",
-    "peerEncryptedSuffix": "피어 암호화 접미사"
+    "peerEncryptedSuffix": "피어 암호화 접미사",
+    "torrentNotFound": "관련 토렌트를 찾을 수 없습니다"
   },
   "trackerBoost": {
     "title": "TrackerBoost 스웜 최적화기",
@@ -2231,6 +2238,7 @@ const ko: I18nTranslations = {
       "deleteConfirm": "삭제",
       "deleteSuccess": "카테고리 \"{{name}}\"이(가) 삭제되었습니다.",
       "deleteFailed": "카테고리를 삭제하지 못했습니다.",
+      "cannotDeleteDefault": "기본 카테고리는 삭제할 수 없습니다.",
       "title": "카테고리 관리 및 디렉터리 라우팅",
       "description": "파일을 사용자 정의 저장 경로로 자동 라우팅하고 속도 제한을 적용하며 공유 비율 자동 중지 정책을 적용하는 카테고리로 토렌트를 구성합니다.",
       "configuredCount": "_{{count}} 구성된 카테고리",
@@ -2279,8 +2287,7 @@ const ko: I18nTranslations = {
         "saving": "절약...",
         "saveChanges": "변경사항 저장",
         "createCategory": "카테고리 생성"
-      },
-      "cannotDeleteDefault": "기본 카테고리는 삭제할 수 없습니다."
+      }
     },
     "notifications": {
       "chatIdPrefix": "채팅 ID:",
@@ -2910,7 +2917,9 @@ const ko: I18nTranslations = {
       "incomingPeerListeningPorts": "들어오는 피어 청취 포트 및 UPnP",
       "configureListeningPorts": "인바운드 BitTorrent 피어 연결을 위한 수신 포트를 구성합니다.",
       "bitTorrentListeningPort": "BitTorrent 청취 포트",
+      "testPort": "테스트 포트",
       "testingPort": "테스트 중...",
+      "portCheckFailed": "포트 확인 실패",
       "tcpUdpPort": "수신 피어 연결을 위한 TCP 및 UDP 포트(기본값: 51413)",
       "enableUpnpNatPmp": "UPnP/NAT-PMP 포트 전달 활성화",
       "automaticallyNegotiatePortForwarding": "라우터와 포트 전달을 자동으로 협상합니다.",
@@ -2919,6 +2928,10 @@ const ko: I18nTranslations = {
       "networkInterfaceBinding": "네트워크 인터페이스 바인딩 및 VPN 킬 스위치",
       "bindBitTorrentSockets": "BitTorrent 소켓을 특정 네트워크 인터페이스(예: tun0, wg0)에 바인딩하고 연결이 끊어지면 트래픽을 중지합니다.",
       "bindNetworkInterface": "네트워크 인터페이스 바인딩",
+      "selectFromDetected": "감지된 인터페이스에서 선택",
+      "enterManually": "수동으로 입력",
+      "allInterfaces": "모두/모든 인터페이스(기본값)",
+      "manualEntry": "사용자 정의/수동 입력...",
       "interfaceNameOrIp": "인터페이스 이름(예: tun0, wg0, eth0) 또는 특정 IP(모두 비워 두세요)",
       "enableAutomatedVpnKillSwitch": "자동화된 VPN 킬 스위치 활성화",
       "immediatelyDropAllBitTorrentTransfers": "바인딩된 VPN 인터페이스가 다운되면 모든 BitTorrent 전송을 즉시 중단합니다.",
@@ -3077,12 +3090,6 @@ const ko: I18nTranslations = {
       "clientId": "클라이언트 ID",
       "clientSecret": "클라이언트 비밀번호",
       "leaveBlankOrMaskedToKeepCurrentSecret": "현재 비밀을 유지하려면 비워두거나 마스크하세요.",
-      "testPort": "테스트 포트",
-      "portCheckFailed": "포트 확인 실패",
-      "selectFromDetected": "감지된 인터페이스에서 선택",
-      "enterManually": "수동으로 입력",
-      "allInterfaces": "모두/모든 인터페이스(기본값)",
-      "manualEntry": "사용자 정의/수동 입력...",
       "oidc": "OIDC",
       "saml20": "SAML 2.0"
     },

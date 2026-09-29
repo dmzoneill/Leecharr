@@ -2,7 +2,7 @@ import { useRef, useState, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "../../i18n";
-import { usePeers } from "../../api/hooks";
+import { usePeers, useDisconnectPeer, useBanPeer } from "../../api/hooks";
 import { formatBytes, formatSpeed } from "../../utils/formatters";
 import { PanelLoading, PanelEmpty } from "./shared";
 import CountryFlag from "../CountryFlag";
@@ -95,6 +95,66 @@ export function PeersTab({
   const [isUpdatingGeoIp, setIsUpdatingGeoIp] = useState(false);
   const effectiveId = torrentId ?? torrent?.id ?? 0;
   const { data: peers, isLoading, isError, refetch } = usePeers(effectiveId);
+  const disconnectPeerMutation = useDisconnectPeer();
+  const banPeerMutation = useBanPeer();
+  const [activeAction, setActiveAction] = useState<{
+    ip: string;
+    action: "disconnect" | "ban";
+  } | null>(null);
+
+  const handleDisconnect = useCallback(
+    (ip: string) => {
+      if (!effectiveId || !ip) return;
+      setActiveAction({ ip, action: "disconnect" });
+      disconnectPeerMutation.mutate(
+        { torrentId: effectiveId, ip },
+        {
+          onSuccess: (res) => {
+            showToast(
+              res?.message ||
+                t("torrents.detail.peerDisconnected", "Peer disconnected"),
+              "success",
+            );
+            refetch();
+          },
+          onError: (err) => {
+            showToast(err.message || "Failed to disconnect peer", "error");
+          },
+          onSettled: () => {
+            setActiveAction(null);
+          },
+        },
+      );
+    },
+    [effectiveId, disconnectPeerMutation, showToast, t, refetch],
+  );
+
+  const handleBan = useCallback(
+    (ip: string) => {
+      if (!effectiveId || !ip) return;
+      setActiveAction({ ip, action: "ban" });
+      banPeerMutation.mutate(
+        { torrentId: effectiveId, ip },
+        {
+          onSuccess: (res) => {
+            showToast(
+              res?.message ||
+                t("torrents.detail.peerBanned", "Peer banned and disconnected"),
+              "success",
+            );
+            refetch();
+          },
+          onError: (err) => {
+            showToast(err.message || "Failed to ban peer", "error");
+          },
+          onSettled: () => {
+            setActiveAction(null);
+          },
+        },
+      );
+    },
+    [effectiveId, banPeerMutation, showToast, t, refetch],
+  );
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
   const handleRefreshGeoIp = useCallback(async () => {
@@ -288,13 +348,19 @@ export function PeersTab({
               <th className="torrent-table-th">
                 {t("torrents.detail.colFlags")}
               </th>
+              <th
+                className="torrent-table-th"
+                style={{ textAlign: "right", minWidth: "150px" }}
+              >
+                {t("common.actions", "Actions")}
+              </th>
             </tr>
           </thead>
           <tbody>
             {paddingTop > 0 && (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={9}
                   style={{ height: `${paddingTop}px`, padding: 0, border: 0 }}
                 />
               </tr>
@@ -379,13 +445,81 @@ export function PeersTab({
                       <span style={{ color: "var(--text-muted)" }}>-</span>
                     )}
                   </td>
+                  <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                    <div
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "flex-end",
+                        gap: "0.35rem",
+                      }}
+                    >
+                      <button
+                        className="btn btn-small btn-secondary"
+                        style={{
+                          padding: "0.2rem 0.5rem",
+                          fontSize: "0.72rem",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "0.3rem",
+                        }}
+                        onClick={() => handleDisconnect(p.ip)}
+                        disabled={
+                          !effectiveId ||
+                          (activeAction?.ip === p.ip &&
+                            activeAction?.action === "disconnect")
+                        }
+                        title={t(
+                          "torrents.detail.disconnectPeer",
+                          "Disconnect Peer",
+                        )}
+                      >
+                        <i
+                          className={`fas ${
+                            activeAction?.ip === p.ip &&
+                            activeAction?.action === "disconnect"
+                              ? "fa-spinner fa-spin"
+                              : "fa-unlink"
+                          }`}
+                        />
+                        <span>{t("common.disconnect", "Disconnect")}</span>
+                      </button>
+                      <button
+                        className="btn btn-small btn-danger"
+                        style={{
+                          padding: "0.2rem 0.5rem",
+                          fontSize: "0.72rem",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "0.3rem",
+                        }}
+                        onClick={() => handleBan(p.ip)}
+                        disabled={
+                          !effectiveId ||
+                          (activeAction?.ip === p.ip &&
+                            activeAction?.action === "ban")
+                        }
+                        title={t("torrents.detail.banPeer", "Ban Peer")}
+                      >
+                        <i
+                          className={`fas ${
+                            activeAction?.ip === p.ip &&
+                            activeAction?.action === "ban"
+                              ? "fa-spinner fa-spin"
+                              : "fa-ban"
+                          }`}
+                        />
+                        <span>{t("common.ban", "Ban")}</span>
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               );
             })}
             {paddingBottom > 0 && (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={9}
                   style={{
                     height: `${paddingBottom}px`,
                     padding: 0,

@@ -181,7 +181,9 @@ const hi: I18nTranslations = {
     "total": "कुल",
     "testing": "जाँच करना",
     "unknownError": "अज्ञात गड़बड़ी",
-    "noResults": "कोई मेल खाने वाला टैग नहीं"
+    "noResults": "कोई मेल खाने वाला टैग नहीं",
+    "disconnect": "डिस्कनेक्ट",
+    "ban": "प्रतिबंध"
   },
   "nav": {
     "dashboard": "डैशबोर्ड",
@@ -715,7 +717,11 @@ const hi: I18nTranslations = {
       "failedToRemoveTracker": "ट्रैकर नहीं हटाया जा सका",
       "privateTrackerDisabledTitle": "निजी ट्रैकर अक्षम शीर्षक",
       "openTrackerPickerTitle": "ट्रैकर पिकर शीर्षक खोलें",
-      "live3s": "Live3s"
+      "live3s": "Live3s",
+      "disconnectPeer": "सहकर्मी को डिस्कनेक्ट करें",
+      "banPeer": "बैन पीर",
+      "peerDisconnected": "पीर ने डिसकनेक्ट कर दिया",
+      "peerBanned": "सहकर्मी पर प्रतिबंध लगा दिया गया और संबंध विच्छेद कर दिया गया"
     },
     "ratio": "अनुपात",
     "tabs": {
@@ -1220,7 +1226,8 @@ const hi: I18nTranslations = {
     "centerTitle": "मध्य शीर्षक",
     "torrentTitle": "टोरेंट शीर्षक",
     "peerTitle": "सहकर्मी का शीर्षक",
-    "peerEncryptedSuffix": "सहकर्मी एन्क्रिप्टेड प्रत्यय"
+    "peerEncryptedSuffix": "सहकर्मी एन्क्रिप्टेड प्रत्यय",
+    "torrentNotFound": "संबद्ध टोरेंट नहीं मिला"
   },
   "trackerBoost": {
     "title": "TrackerBoost झुंड अनुकूलक",
@@ -2231,6 +2238,7 @@ const hi: I18nTranslations = {
       "deleteConfirm": "हटाएं",
       "deleteSuccess": "श्रेणी \"{{name}}\" हटा दी गई",
       "deleteFailed": "श्रेणी हटाने में विफल",
+      "cannotDeleteDefault": "डिफ़ॉल्ट श्रेणी को हटाया नहीं जा सकता.",
       "title": "श्रेणी प्रबंधन एवं निर्देशिका रूटिंग",
       "description": "फ़ाइलों को कस्टम सेव पथों पर स्वचालित रूप से रूट करने, दर सीमा लागू करने और शेयर अनुपात ऑटो-स्टॉप नीतियों को लागू करने के लिए श्रेणियों के साथ टोरेंट व्यवस्थित करें।",
       "configuredCount": "{{count}} कॉन्फ़िगर श्रेणियाँ",
@@ -2279,8 +2287,7 @@ const hi: I18nTranslations = {
         "saving": "सेव हो रही है ...",
         "saveChanges": "परिवर्तन सहेजें",
         "createCategory": "श्रेणी बनाएं"
-      },
-      "cannotDeleteDefault": "डिफ़ॉल्ट श्रेणी को हटाया नहीं जा सकता."
+      }
     },
     "notifications": {
       "chatIdPrefix": "चैट आईडी:",
@@ -2910,7 +2917,9 @@ const hi: I18nTranslations = {
       "incomingPeerListeningPorts": "इनकमिंग पीयर लिसनिंग पोर्ट और यूपीएनपी",
       "configureListeningPorts": "इनबाउंड बिटटोरेंट पीयर कनेक्शन के लिए श्रवण पोर्ट कॉन्फ़िगर करें।",
       "bitTorrentListeningPort": "बिटटोरेंट लिसनिंग पोर्ट",
+      "testPort": "टेस्ट पोर्ट",
       "testingPort": "परीक्षण...",
+      "portCheckFailed": "पोर्ट जाँच विफल",
       "tcpUdpPort": "आने वाले पीयर कनेक्शन के लिए टीसीपी और यूडीपी पोर्ट (डिफ़ॉल्ट: 51413)",
       "enableUpnpNatPmp": "UPnP/NAT-PMP पोर्ट फ़ॉरवर्डिंग सक्षम करें",
       "automaticallyNegotiatePortForwarding": "अपने राउटर के साथ स्वचालित रूप से पोर्ट फ़ॉरवर्डिंग पर बातचीत करें",
@@ -2919,6 +2928,10 @@ const hi: I18nTranslations = {
       "networkInterfaceBinding": "नेटवर्क इंटरफ़ेस बाइंडिंग और वीपीएन किल स्विच",
       "bindBitTorrentSockets": "बिटटोरेंट सॉकेट को एक विशिष्ट नेटवर्क इंटरफ़ेस (जैसे tun0, wg0) से बांधें और डिस्कनेक्ट होने पर ट्रैफ़िक रोकें।",
       "bindNetworkInterface": "बाइंड नेटवर्क इंटरफ़ेस",
+      "selectFromDetected": "पता लगाए गए इंटरफ़ेस से चयन करें",
+      "enterManually": "मैन्युअल रूप से दर्ज करें",
+      "allInterfaces": "सभी/कोई भी इंटरफ़ेस (डिफ़ॉल्ट)",
+      "manualEntry": "कस्टम/मैन्युअल प्रविष्टि...",
       "interfaceNameOrIp": "इंटरफ़ेस नाम (उदा. tun0, wg0, eth0) या विशिष्ट IP (सभी के लिए खाली छोड़ें)",
       "enableAutomatedVpnKillSwitch": "स्वचालित वीपीएन किल स्विच सक्षम करें",
       "immediatelyDropAllBitTorrentTransfers": "यदि बाध्य वीपीएन इंटरफ़ेस नीचे चला जाता है तो तुरंत सभी बिटटोरेंट स्थानांतरण छोड़ दें",
@@ -3078,13 +3091,7 @@ const hi: I18nTranslations = {
       "baseUrlOfIdp": "आईडीपी का बेस यूआरएल (जैसे https://auth.example.com/application/o/leecharr/)",
       "clientId": "ग्राहक आईडी",
       "clientSecret": "ग्राहक रहस्य",
-      "leaveBlankOrMaskedToKeepCurrentSecret": "वर्तमान को गुप्त रखने के लिए खाली छोड़ दें या छिपा दें",
-      "testPort": "टेस्ट पोर्ट",
-      "portCheckFailed": "पोर्ट जाँच विफल",
-      "selectFromDetected": "पता लगाए गए इंटरफ़ेस से चयन करें",
-      "enterManually": "मैन्युअल रूप से दर्ज करें",
-      "allInterfaces": "सभी/कोई भी इंटरफ़ेस (डिफ़ॉल्ट)",
-      "manualEntry": "कस्टम/मैन्युअल प्रविष्टि..."
+      "leaveBlankOrMaskedToKeepCurrentSecret": "वर्तमान को गुप्त रखने के लिए खाली छोड़ दें या छिपा दें"
     },
     "subsystems": {
       "loadingPluggable": "प्लग करने योग्य सबसिस्टम लोड हो रहा है...",
