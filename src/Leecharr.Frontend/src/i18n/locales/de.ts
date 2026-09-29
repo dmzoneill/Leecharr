@@ -181,6 +181,8 @@ const de: I18nTranslations = {
     "noResults": "Keine passenden Tags",
     "status": "Status",
     "name": "Name",
+    "disconnect": "Trennen",
+    "ban": "Verbot",
     "live": "Live"
   },
   "nav": {
@@ -710,6 +712,10 @@ const de: I18nTranslations = {
       "prioLow": "Prio Low",
       "prioNormal": "Prio Normal",
       "live3s": "Live3s",
+      "disconnectPeer": "Peer trennen",
+      "banPeer": "Ban Peer",
+      "peerDisconnected": "Peer getrennt",
+      "peerBanned": "Peer gesperrt und getrennt",
       "status": "Status",
       "colTier": "Col Tier",
       "colAction": "Col Action"
@@ -1220,6 +1226,7 @@ const de: I18nTranslations = {
     "peerTitle": "Peer-Titel",
     "peerEncryptedSuffix": "Peer-verschlüsseltes Suffix",
     "peer": "Peer",
+    "torrentNotFound": "Zugehöriger Torrent nicht gefunden",
     "torrent": "Torrent"
   },
   "trackerBoost": {
@@ -2231,6 +2238,7 @@ const de: I18nTranslations = {
       "deleteConfirm": "Löschen",
       "deleteSuccess": "Kategorie „{{name}}“ gelöscht",
       "deleteFailed": "Kategorie konnte nicht gelöscht werden",
+      "cannotDeleteDefault": "Die Standardkategorie kann nicht gelöscht werden.",
       "title": "Kategorieverwaltung und Verzeichnisweiterleitung",
       "description": "Organisieren Sie Torrents mit Kategorien, um Dateien automatisch an benutzerdefinierte Speicherpfade weiterzuleiten, Ratenbeschränkungen durchzusetzen und Richtlinien zum automatischen Stoppen des Anteilsverhältnisses anzuwenden.",
       "configuredCount": "{{count}} konfigurierte Kategorien",
@@ -2279,8 +2287,7 @@ const de: I18nTranslations = {
         "saving": "Sparen...",
         "saveChanges": "Änderungen speichern",
         "createCategory": "Kategorie erstellen"
-      },
-      "cannotDeleteDefault": "Die Standardkategorie kann nicht gelöscht werden."
+      }
     },
     "notifications": {
       "chatIdPrefix": "Chat-ID:",
@@ -2910,7 +2917,9 @@ const de: I18nTranslations = {
       "incomingPeerListeningPorts": "Eingehende Peer-Listening-Ports und UPnP",
       "configureListeningPorts": "Konfigurieren Sie Überwachungsports für eingehende BitTorrent-Peer-Verbindungen.",
       "bitTorrentListeningPort": "BitTorrent-Abhörport",
+      "testPort": "Testport",
       "testingPort": "Testen...",
+      "portCheckFailed": "Die Portüberprüfung ist fehlgeschlagen",
       "tcpUdpPort": "TCP- und UDP-Port für eingehende Peer-Verbindungen (Standard: 51413)",
       "enableUpnpNatPmp": "Aktivieren Sie die UPnP-/NAT-PMP-Portweiterleitung",
       "automaticallyNegotiatePortForwarding": "Verhandeln Sie die Portweiterleitung automatisch mit Ihrem Router",
@@ -2919,6 +2928,10 @@ const de: I18nTranslations = {
       "networkInterfaceBinding": "Netzwerkschnittstellenbindung und VPN-Kill-Switch",
       "bindBitTorrentSockets": "Binden Sie BitTorrent-Sockets an eine bestimmte Netzwerkschnittstelle (z. B. tun0, wg0) und stoppen Sie den Datenverkehr beim Trennen der Verbindung.",
       "bindNetworkInterface": "Netzwerkschnittstelle binden",
+      "selectFromDetected": "Wählen Sie aus den erkannten Schnittstellen aus",
+      "enterManually": "Geben Sie manuell ein",
+      "allInterfaces": "Alle / Alle Schnittstellen (Standard)",
+      "manualEntry": "Benutzerdefiniert / Manuelle Eingabe...",
       "interfaceNameOrIp": "Schnittstellenname (z. B. tun0, wg0, eth0) oder spezifische IP (für alle leer lassen)",
       "enableAutomatedVpnKillSwitch": "Aktivieren Sie den automatisierten VPN-Kill-Switch",
       "immediatelyDropAllBitTorrentTransfers": "Brechen Sie sofort alle BitTorrent-Übertragungen ab, wenn die gebundene VPN-Schnittstelle ausfällt",
@@ -3072,12 +3085,6 @@ const de: I18nTranslations = {
       "clientId": "Kunden-ID",
       "clientSecret": "Client-Geheimnis",
       "leaveBlankOrMaskedToKeepCurrentSecret": "Lassen Sie das Feld leer oder maskieren Sie es, um das aktuelle Geheimnis zu wahren",
-      "testPort": "Testport",
-      "portCheckFailed": "Die Portüberprüfung ist fehlgeschlagen",
-      "selectFromDetected": "Wählen Sie aus den erkannten Schnittstellen aus",
-      "enterManually": "Geben Sie manuell ein",
-      "allInterfaces": "Alle / Alle Schnittstellen (Standard)",
-      "manualEntry": "Benutzerdefiniert / Manuelle Eingabe...",
       "version": "Version",
       "hotSwap": "⚡ Hot-Swap",
       "status": "Status",

@@ -181,7 +181,9 @@ const it: I18nTranslations = {
     "total": "Totale",
     "testing": "Test in corso...",
     "unknownError": "Errore sconosciuto",
-    "noResults": "Nessun tag corrispondente"
+    "noResults": "Nessun tag corrispondente",
+    "disconnect": "Disconnetti",
+    "ban": "Divieto"
   },
   "nav": {
     "dashboard": "Pannello di controllo",
@@ -713,6 +715,10 @@ const it: I18nTranslations = {
       "privateTrackerDisabledTitle": "Titolo disabilitato del tracker privato",
       "openTrackerPickerTitle": "Apri il titolo del selettore tracker",
       "live3s": "Live3s",
+      "disconnectPeer": "Disconnetti peer",
+      "banPeer": "Divieto di peer",
+      "peerDisconnected": "Pari disconnesso",
+      "peerBanned": "Peer bannato e disconnesso",
       "colDownSpeed": "Col Down Speed",
       "colUrl": "Col Url",
       "colTier": "Col Tier"
@@ -1220,7 +1226,8 @@ const it: I18nTranslations = {
     "centerTitle": "Titolo centrale",
     "torrentTitle": "Titolo del torrente",
     "peerTitle": "Titolo pari",
-    "peerEncryptedSuffix": "Suffisso crittografato peer"
+    "peerEncryptedSuffix": "Suffisso crittografato peer",
+    "torrentNotFound": "Torrente associato non trovato"
   },
   "trackerBoost": {
     "title": "Ottimizzatore TrackerBoost",
@@ -2231,6 +2238,7 @@ const it: I18nTranslations = {
       "deleteConfirm": "Elimina",
       "deleteSuccess": "Categoria \"{{name}}\" eliminata",
       "deleteFailed": "Impossibile eliminare la categoria",
+      "cannotDeleteDefault": "Impossibile eliminare la categoria predefinita.",
       "title": "Gestione delle categorie e instradamento delle directory",
       "description": "Organizza i torrent con categorie per instradare automaticamente i file verso percorsi di salvataggio personalizzati, applicare limiti di velocità e applicare politiche di arresto automatico del rapporto di condivisione.",
       "configuredCount": "{{count}} categorie configurate",
@@ -2279,8 +2287,7 @@ const it: I18nTranslations = {
         "saving": "Risparmio...",
         "saveChanges": "Salva modifiche",
         "createCategory": "Crea categoria"
-      },
-      "cannotDeleteDefault": "Impossibile eliminare la categoria predefinita."
+      }
     },
     "notifications": {
       "chatIdPrefix": "ID chat:",
@@ -2910,7 +2917,9 @@ const it: I18nTranslations = {
       "incomingPeerListeningPorts": "Porte di ascolto peer in entrata e UPnP",
       "configureListeningPorts": "Configura le porte di ascolto per le connessioni peer BitTorrent in entrata.",
       "bitTorrentListeningPort": "Porta di ascolto BitTorrent",
+      "testPort": "Porta di prova",
       "testingPort": "Prova...",
+      "portCheckFailed": "Il controllo della porta non è riuscito",
       "tcpUdpPort": "Porta TCP e UDP per connessioni peer in entrata (impostazione predefinita: 51413)",
       "enableUpnpNatPmp": "Abilita il port forwarding UPnP/NAT-PMP",
       "automaticallyNegotiatePortForwarding": "Negozia automaticamente il port forwarding con il tuo router",
@@ -2919,6 +2928,10 @@ const it: I18nTranslations = {
       "networkInterfaceBinding": "Associazione dell'interfaccia di rete e kill switch VPN",
       "bindBitTorrentSockets": "Associa i socket BitTorrent a un'interfaccia di rete specifica (ad esempio tun0, wg0) e interrompe il traffico alla disconnessione.",
       "bindNetworkInterface": "Associa l'interfaccia di rete",
+      "selectFromDetected": "Seleziona dalle interfacce rilevate",
+      "enterManually": "Inserisci manualmente",
+      "allInterfaces": "Tutte/Qualsiasi interfacce (impostazione predefinita)",
+      "manualEntry": "Inserimento personalizzato/manuale...",
       "interfaceNameOrIp": "Nome dell'interfaccia (ad esempio tun0, wg0, eth0) o IP specifico (lasciare vuoto per tutti)",
       "enableAutomatedVpnKillSwitch": "Abilita il Kill Switch VPN automatizzato",
       "immediatelyDropAllBitTorrentTransfers": "Elimina immediatamente tutti i trasferimenti BitTorrent se l'interfaccia VPN associata non funziona",
@@ -3076,12 +3089,6 @@ const it: I18nTranslations = {
       "clientId": "ID cliente",
       "clientSecret": "Segreto del cliente",
       "leaveBlankOrMaskedToKeepCurrentSecret": "Lascia vuoto o mascherato per mantenere il segreto attuale",
-      "testPort": "Porta di prova",
-      "portCheckFailed": "Il controllo della porta non è riuscito",
-      "selectFromDetected": "Seleziona dalle interfacce rilevate",
-      "enterManually": "Inserisci manualmente",
-      "allInterfaces": "Tutte/Qualsiasi interfacce (impostazione predefinita)",
-      "manualEntry": "Inserimento personalizzato/manuale...",
       "oidc": "OIDC",
       "saml20": "SAML 2.0",
       "openIdConnectOidc": "OpenID Connect (OIDC)"

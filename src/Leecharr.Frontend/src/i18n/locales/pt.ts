@@ -181,6 +181,8 @@ const pt: I18nTranslations = {
     "unknownError": "Erro desconhecido",
     "noResults": "Nenhuma tag correspondente",
     "status": "Status",
+    "disconnect": "Desconectar",
+    "ban": "Proibir",
     "total": "Total"
   },
   "nav": {
@@ -714,6 +716,10 @@ const pt: I18nTranslations = {
       "privateTrackerDisabledTitle": "Título desativado do rastreador privado",
       "openTrackerPickerTitle": "Abrir título do seletor de rastreador",
       "pieceMapStatus": "Status",
+      "disconnectPeer": "Desconectar ponto",
+      "banPeer": "Banir colega",
+      "peerDisconnected": "Par desconectado",
+      "peerBanned": "Peer banido e desconectado",
       "status": "Status"
     },
     "ratio": "Proporção",
@@ -1220,7 +1226,8 @@ const pt: I18nTranslations = {
     "centerTitle": "Título Central",
     "torrentTitle": "Título Torrent",
     "peerTitle": "Título do colega",
-    "peerEncryptedSuffix": "Sufixo criptografado por peer"
+    "peerEncryptedSuffix": "Sufixo criptografado por peer",
+    "torrentNotFound": "Torrent associado não encontrado"
   },
   "trackerBoost": {
     "title": "Otimizador TrackerBoost",
@@ -2231,6 +2238,7 @@ const pt: I18nTranslations = {
       "deleteConfirm": "Excluir",
       "deleteSuccess": "Categoria \"{{name}}\" excluída",
       "deleteFailed": "Falha ao excluir categoria",
+      "cannotDeleteDefault": "Não é possível excluir a categoria padrão.",
       "title": "Gerenciamento de categoria e roteamento de diretório",
       "description": "Organize torrents com categorias para encaminhar arquivos automaticamente para caminhos de salvamento personalizados, impor limites de taxa e aplicar políticas de interrupção automática de taxa de compartilhamento.",
       "configuredCount": "{{count}} categorias configuradas",
@@ -2279,8 +2287,7 @@ const pt: I18nTranslations = {
         "saving": "Salvando...",
         "saveChanges": "Salvar alterações",
         "createCategory": "Criar categoria"
-      },
-      "cannotDeleteDefault": "Não é possível excluir a categoria padrão."
+      }
     },
     "notifications": {
       "chatIdPrefix": "ID do bate-papo:",
@@ -2910,7 +2917,9 @@ const pt: I18nTranslations = {
       "incomingPeerListeningPorts": "Portas de escuta de pares de entrada e UPnP",
       "configureListeningPorts": "Configure portas de escuta para conexões peer BitTorrent de entrada.",
       "bitTorrentListeningPort": "Porta de escuta BitTorrent",
+      "testPort": "Porta de teste",
       "testingPort": "Testando...",
+      "portCheckFailed": "Falha na verificação da porta",
       "tcpUdpPort": "Porta TCP e UDP para conexões peer de entrada (padrão: 51413)",
       "enableUpnpNatPmp": "Habilitar encaminhamento de porta UPnP/NAT-PMP",
       "automaticallyNegotiatePortForwarding": "Negocie automaticamente o encaminhamento de porta com seu roteador",
@@ -2919,6 +2928,10 @@ const pt: I18nTranslations = {
       "networkInterfaceBinding": "Vinculação de interface de rede e kill switch de VPN",
       "bindBitTorrentSockets": "Vincule soquetes BitTorrent a uma interface de rede específica (por exemplo, tun0, wg0) e interrompa o tráfego ao desconectar.",
       "bindNetworkInterface": "Vincular interface de rede",
+      "selectFromDetected": "Selecione entre interfaces detectadas",
+      "enterManually": "Insira manualmente",
+      "allInterfaces": "Todas/qualquer interface (padrão)",
+      "manualEntry": "Entrada personalizada/manual...",
       "interfaceNameOrIp": "Nome da interface (por exemplo, tun0, wg0, eth0) ou IP específico (deixe em branco para todos)",
       "enableAutomatedVpnKillSwitch": "Habilitar Kill Switch Automatizado de VPN",
       "immediatelyDropAllBitTorrentTransfers": "Elimine imediatamente todas as transferências de BitTorrent se a interface VPN vinculada cair",
@@ -3076,12 +3089,6 @@ const pt: I18nTranslations = {
       "clientId": "ID do cliente",
       "clientSecret": "Segredo do cliente",
       "leaveBlankOrMaskedToKeepCurrentSecret": "Deixe em branco ou mascarado para manter o segredo atual",
-      "testPort": "Porta de teste",
-      "portCheckFailed": "Falha na verificação da porta",
-      "selectFromDetected": "Selecione entre interfaces detectadas",
-      "enterManually": "Insira manualmente",
-      "allInterfaces": "Todas/qualquer interface (padrão)",
-      "manualEntry": "Entrada personalizada/manual...",
       "status": "Status",
       "oidc": "OIDC",
       "social": "Social"
