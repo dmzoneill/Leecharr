@@ -1760,7 +1760,7 @@ export function App() {
               <Route
                 path="/tracker/inbuilt"
                 element={
-                  <ErrorBoundary title="Tracker Server">
+                  <ErrorBoundary title={t("errors.trackerServer")}>
                     <TrackerServer />
                   </ErrorBoundary>
                 }
@@ -1792,7 +1792,7 @@ export function App() {
               <Route
                 path="/tracker/metrics"
                 element={
-                  <ErrorBoundary title="Tracker Metrics">
+                  <ErrorBoundary title={t("errors.trackerMetrics")}>
                     <TrackerMetrics />
                   </ErrorBoundary>
                 }
@@ -1806,7 +1806,7 @@ export function App() {
               <Route
                 path="/automation"
                 element={
-                  <ErrorBoundary title="Automation">
+                  <ErrorBoundary title={t("errors.automation")}>
                     <AutomationPage />
                   </ErrorBoundary>
                 }
@@ -1908,7 +1908,7 @@ export function App() {
               <Route
                 path="/developer/database"
                 element={
-                  <ErrorBoundary title="Database Explorer">
+                  <ErrorBoundary title={t("errors.databaseExplorer")}>
                     <DatabaseExplorer />
                   </ErrorBoundary>
                 }
@@ -1916,7 +1916,7 @@ export function App() {
               <Route
                 path="/developer/testing"
                 element={
-                  <ErrorBoundary title="In-App Test Runner">
+                  <ErrorBoundary title={t("errors.inAppTestRunner")}>
                     <DeveloperTesting />
                   </ErrorBoundary>
                 }
@@ -1924,7 +1924,7 @@ export function App() {
               <Route
                 path="/developer/repl"
                 element={
-                  <ErrorBoundary title="Interactive REPL">
+                  <ErrorBoundary title={t("errors.interactiveRepl")}>
                     <DeveloperRepl />
                   </ErrorBoundary>
                 }
@@ -1932,7 +1932,7 @@ export function App() {
               <Route
                 path="/developer/debugger"
                 element={
-                  <ErrorBoundary title="Web Debugger">
+                  <ErrorBoundary title={t("errors.webDebugger")}>
                     <DeveloperDebugger />
                   </ErrorBoundary>
                 }
@@ -1940,7 +1940,7 @@ export function App() {
               <Route
                 path="/developer/events"
                 element={
-                  <ErrorBoundary title="Event Bus Wiretap">
+                  <ErrorBoundary title={t("errors.eventBusWiretap")}>
                     <DeveloperEvents />
                   </ErrorBoundary>
                 }
@@ -1948,7 +1948,7 @@ export function App() {
               <Route
                 path="/developer/commands"
                 element={
-                  <ErrorBoundary title="Command Console">
+                  <ErrorBoundary title={t("errors.commandConsole")}>
                     <DeveloperCommands />
                   </ErrorBoundary>
                 }
@@ -1956,7 +1956,7 @@ export function App() {
               <Route
                 path="/developer/network"
                 element={
-                  <ErrorBoundary title="Network Wiretap">
+                  <ErrorBoundary title={t("errors.networkWiretap")}>
                     <DeveloperNetwork />
                   </ErrorBoundary>
                 }
@@ -1964,7 +1964,7 @@ export function App() {
               <Route
                 path="/developer/webhooks"
                 element={
-                  <ErrorBoundary title="Webhook Sandbox">
+                  <ErrorBoundary title={t("errors.webhookSandbox")}>
                     <DeveloperWebhooks />
                   </ErrorBoundary>
                 }
@@ -1972,7 +1972,7 @@ export function App() {
               <Route
                 path="/developer/config"
                 element={
-                  <ErrorBoundary title="Config & Environment">
+                  <ErrorBoundary title={t("errors.configEnvironment")}>
                     <DeveloperConfig />
                   </ErrorBoundary>
                 }
@@ -2094,7 +2094,7 @@ export function App() {
       </ErrorBoundary>
 
       {/* Command Palette (Ctrl+K / Cmd+K) */}
-      <ErrorBoundary title="Command Palette">
+      <ErrorBoundary title={t("errors.commandPalette")}>
         <CommandPalette
           isOpen={showCommandPalette}
           onClose={() => setShowCommandPalette(false)}
@@ -2106,7 +2106,7 @@ export function App() {
       </ErrorBoundary>
 
       {/* Global Keyboard Shortcuts Cheatsheet Modal (?) */}
-      <ErrorBoundary title="Keyboard Shortcuts">
+      <ErrorBoundary title={t("errors.keyboardShortcuts")}>
         <KeyboardShortcutsModal
           isOpen={showShortcutsModal}
           onClose={() => setShowShortcutsModal(false)}
