@@ -23,14 +23,14 @@ export function FolderBrowserModal({
   const { t } = useTranslation();
   const { showToast } = useToast();
   const [currentPath, setCurrentPath] = useState<string>(
-    initialPath || "/downloads",
+    (initialPath || "/downloads").replace(/\\/g, "/"),
   );
   const [newFolderName, setNewFolderName] = useState("");
   const [showNewFolderInput, setShowNewFolderInput] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setCurrentPath(initialPath || "/downloads");
+      setCurrentPath((initialPath || "/downloads").replace(/\\/g, "/"));
       setShowNewFolderInput(false);
       setNewFolderName("");
     }
@@ -58,29 +58,41 @@ export function FolderBrowserModal({
 
   const handleNavigateUp = () => {
     if (listing?.parent && listing.parent !== listing.path) {
-      setCurrentPath(listing.parent);
+      setCurrentPath(listing.parent.replace(/\\/g, "/"));
     } else {
-      const parts = currentPath.split("/").filter(Boolean);
-      if (parts.length > 1) {
-        parts.pop();
-        setCurrentPath("/" + parts.join("/"));
+      const normalized = currentPath.replace(/\\/g, "/");
+      const parts = normalized.split("/").filter(Boolean);
+      const isWindowsDrive = parts.length > 0 && /^[a-zA-Z]:$/.test(parts[0]);
+      if (isWindowsDrive) {
+        if (parts.length > 1) {
+          parts.pop();
+          setCurrentPath(parts.length === 1 ? `${parts[0]}/` : parts.join("/"));
+        } else {
+          setCurrentPath(`${parts[0]}/`);
+        }
       } else {
-        setCurrentPath("/");
+        if (parts.length > 1) {
+          parts.pop();
+          setCurrentPath("/" + parts.join("/"));
+        } else {
+          setCurrentPath("/");
+        }
       }
     }
   };
 
   const handleNavigateInto = (path: string) => {
-    setCurrentPath(path);
+    setCurrentPath(path.replace(/\\/g, "/"));
   };
 
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return;
     const folderName = newFolderName.trim();
+    const normalized = currentPath.replace(/\\/g, "/");
     const target =
-      currentPath === "/" || currentPath.endsWith("/")
-        ? `${currentPath}${folderName}`
-        : `${currentPath}/${folderName}`;
+      normalized === "/" || normalized.endsWith("/")
+        ? `${normalized}${folderName}`
+        : `${normalized}/${folderName}`;
     try {
       await mkdirMutation.mutateAsync(target);
       showToast(`Created folder "${folderName}"`, "success");
@@ -88,18 +100,30 @@ export function FolderBrowserModal({
       setShowNewFolderInput(false);
       refetch();
     } catch (err: unknown) {
-      showToast((err as Error)?.message || "Failed to create folder", "error");
+      const serverMessage = (
+        err as { response?: { data?: { message?: string } } }
+      )?.response?.data?.message;
+      showToast(
+        serverMessage || (err as Error)?.message || "Failed to create folder",
+        "error",
+      );
     }
   };
 
   const handleConfirmSelect = () => {
-    onSelect(currentPath);
+    onSelect(currentPath.replace(/\\/g, "/"));
     onClose();
   };
 
   if (!isOpen) return null;
 
   const directories = (listing?.entries || []).filter((e) => e.isDirectory);
+
+  const isAtRoot =
+    !currentPath ||
+    currentPath === "/" ||
+    (/^[a-zA-Z]:\/?$/.test(currentPath.replace(/\\/g, "/")) &&
+      (!listing?.parent || listing.parent === listing.path));
 
   return (
     <div
@@ -199,7 +223,7 @@ export function FolderBrowserModal({
               type="button"
               className="btn btn-outline btn-small"
               onClick={handleNavigateUp}
-              disabled={!currentPath || currentPath === "/"}
+              disabled={isAtRoot}
               title={t("folderBrowser.goToParent", "Go to parent directory")}
               style={{
                 padding: "0.3rem 0.6rem",
