@@ -23,7 +23,7 @@ public static class DownloadClientRemoteQuery
         DownloadClientDefinition client,
         HttpClient httpClient = null,
         ISafeHttpClientService safeHttpClientService = null,
-        bool filterByCategory = false)
+        bool filterByCategory = true)
     {
         var items = new List<DownloadClientRemoteItem>();
         if (client == null)
