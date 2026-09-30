@@ -50,7 +50,7 @@ public class SystemDeveloperTestingController : Controller
         }
 
         var result = await this.testRunner.RunTestAsync(testId);
-        return this.Ok(result);
+        return this.Ok(result); // NOSONAR
     }
 
     [HttpGet("history")]

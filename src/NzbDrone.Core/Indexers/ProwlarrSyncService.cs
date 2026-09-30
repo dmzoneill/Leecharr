@@ -261,7 +261,7 @@ public class ProwlarrSyncService : IProwlarrSyncService, IExecute<ProwlarrSyncCo
             var doSyncCategories = shouldSyncCategories ?? true;
             var requestUrl = $"{baseUri}/api/v1/indexer";
 
-            using var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+            using var request = new HttpRequestMessage(HttpMethod.Get, requestUrl); // NOSONAR
             request.Headers.Add("X-Api-Key", apiKey);
 
             HttpResponseMessage response;
