@@ -121,6 +121,59 @@ public class DownloadHistoryRepositoryTest
     }
 
     [Test]
+    public void GetHistory_WithQuery_MatchesSourceTrackersAndDataJson()
+    {
+        var entry1 = new DownloadHistory
+        {
+            Title = "Ubuntu.24.04.LTS.Desktop",
+            InfoHash = "aabbccddeeff00112233445566778899aabbccdd",
+            PrimaryTracker = "https://tracker.ubuntu.com/announce",
+            IndexerName = "Canonical Releases",
+            Source = "Radarr",
+            Trackers = new List<string> { "https://secondary.tracker.ubuntu.com/announce" },
+            DataJson = "{\"genres\":[\"Linux\",\"Action\"]}",
+            Status = "Active",
+            DateAdded = DateTime.UtcNow.AddMinutes(-10),
+        };
+
+        var entry2 = new DownloadHistory
+        {
+            Title = "Debian.12.Bookworm.Netinst",
+            InfoHash = "1122334455667788990011223344556677889900",
+            PrimaryTracker = "https://tracker.debian.org/announce",
+            IndexerName = "Debian Project",
+            Source = "Sonarr",
+            Trackers = new List<string> { "https://secondary.tracker.debian.org/announce" },
+            DataJson = "{\"genres\":[\"Debian\",\"Drama\"]}",
+            Status = "Completed",
+            DateAdded = DateTime.UtcNow.AddMinutes(-5),
+        };
+
+        this.repository.Insert(entry1);
+        this.repository.Insert(entry2);
+
+        // Match Source
+        var sourceMatch = this.repository.GetHistory(query: "radarr");
+        sourceMatch.Should().HaveCount(1);
+        sourceMatch[0].Title.Should().Be("Ubuntu.24.04.LTS.Desktop");
+
+        // Match secondary Trackers
+        var trackerMatch = this.repository.GetHistory(query: "secondary.tracker.ubuntu.com");
+        trackerMatch.Should().HaveCount(1);
+        trackerMatch[0].Title.Should().Be("Ubuntu.24.04.LTS.Desktop");
+
+        // Match DataJson (e.g. genre pill click)
+        var dataJsonMatch = this.repository.GetHistory(query: "action");
+        dataJsonMatch.Should().HaveCount(1);
+        dataJsonMatch[0].Title.Should().Be("Ubuntu.24.04.LTS.Desktop");
+
+        // Match DataJson on entry2
+        var dramaMatch = this.repository.GetHistory(query: "DRAMA");
+        dramaMatch.Should().HaveCount(1);
+        dramaMatch[0].Title.Should().Be("Debian.12.Bookworm.Netinst");
+    }
+
+    [Test]
     public void GetHistory_WithStatusAndLimit_FiltersProperly()
     {
         this.repository.Insert(new DownloadHistory
