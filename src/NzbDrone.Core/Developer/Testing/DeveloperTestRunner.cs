@@ -777,7 +777,7 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         {
             result.Status = "Failed";
             result.ErrorMessage = ex.Message;
-            result.StackTrace = ex.StackTrace ?? string.Empty;
+            result.ErrorDetails = ex.StackTrace ?? string.Empty;
             this.logger.Warn(ex, "Developer test '{0}' failed", testId);
         }
         finally

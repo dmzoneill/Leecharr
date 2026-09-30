@@ -707,17 +707,13 @@ public class AuthController : ControllerBase
                 }
             }
 
-            var safeRedirect = "/";
-            if (!string.IsNullOrWhiteSpace(relayState) &&
-                relayState.StartsWith('/') &&
-                !relayState.StartsWith("//", StringComparison.Ordinal) &&
-                !relayState.StartsWith("/\\", StringComparison.Ordinal) &&
-                IsLocalUrl(relayState))
+            var safeRedirect = SanitizeRedirectUrl(relayState);
+            if (this.Url != null)
             {
-                safeRedirect = relayState;
+                return this.LocalRedirect(safeRedirect);
             }
 
-            return this.Redirect(safeRedirect.StartsWith('/') ? safeRedirect : "/"); // NOSONAR
+            return new LocalRedirectResult(safeRedirect);
         }
         catch (Exception ex)
         {

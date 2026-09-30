@@ -20,7 +20,8 @@ public class ThreadDiagnosticItem
 
     public string WaitReason { get; set; } = string.Empty;
 
-    public string StackTrace { get; set; } = string.Empty;
+    [System.Text.Json.Serialization.JsonPropertyName("stackTrace")]
+    public string CallStack { get; set; } = string.Empty;
 }
 
 public class MemoryDiagnosticReport

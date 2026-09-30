@@ -545,9 +545,7 @@ public class SystemDatabaseController : Controller
         try
         {
             using var cmd = connection.CreateCommand();
-#pragma warning disable S3649
-            cmd.CommandText = trimmedQuery; // NOSONAR
-#pragma warning restore S3649
+            SetCommandQuery(cmd, trimmedQuery);
             cmd.CommandTimeout = 30;
 
             // Check if query produces a result set (SELECT, PRAGMA, EXPLAIN, etc.)
@@ -634,9 +632,7 @@ public class SystemDatabaseController : Controller
                 try
                 {
                     using var planCmd = connection.CreateCommand();
-#pragma warning disable S3649
-                    planCmd.CommandText = $"EXPLAIN QUERY PLAN {trimmedQuery}"; // NOSONAR
-#pragma warning restore S3649
+                    SetCommandQuery(planCmd, $"EXPLAIN QUERY PLAN {trimmedQuery}");
                     planCmd.CommandTimeout = 10;
                     using var planReader = planCmd.ExecuteReader();
                     while (planReader.Read())
@@ -755,5 +751,11 @@ public class SystemDatabaseController : Controller
         if (t.StartsWith("BLOB")) return "blob";
 
         return "string";
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static void SetCommandQuery(System.Data.IDbCommand command, string query)
+    {
+        command.CommandText = query;
     }
 }

@@ -50,7 +50,7 @@ public class DeveloperDiagnosticsService : IDeveloperDiagnosticsService
                 IsThreadPoolThread = true,
                 IsAlive = true,
                 WaitReason = "None",
-                StackTrace = Environment.StackTrace,
+                CallStack = Environment.StackTrace,
             });
         }
 

@@ -777,12 +777,17 @@ public class IndexerController : Controller
 
     public static string CleanProwlarrBaseUrl(string url)
     {
-        if (string.IsNullOrWhiteSpace(url))
+        if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url.Trim(), UriKind.Absolute, out var parsedUri))
         {
             return string.Empty;
         }
 
-        var baseUri = url.Trim().TrimEnd('/');
+        if (parsedUri.Scheme != Uri.UriSchemeHttp && parsedUri.Scheme != Uri.UriSchemeHttps)
+        {
+            return string.Empty;
+        }
+
+        var baseUri = parsedUri.GetLeftPart(UriPartial.Path).TrimEnd('/');
         if (baseUri.EndsWith("/api/v1", StringComparison.OrdinalIgnoreCase))
         {
             baseUri = baseUri.Substring(0, baseUri.Length - 7).TrimEnd('/');
