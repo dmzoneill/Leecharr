@@ -12,12 +12,16 @@ import type { ReleaseInfo } from "../../api/types";
 export interface IndexerSearchTabProps {
   initialQuery?: string;
   selectedCategory?: string;
+  savePath?: string;
+  isPaused?: boolean;
   isModal?: boolean;
 }
 
 export function IndexerSearchTab({
   initialQuery = "",
   selectedCategory = "",
+  savePath = "",
+  isPaused = false,
   isModal = false,
 }: IndexerSearchTabProps) {
   const { t } = useTranslation();
@@ -82,6 +86,8 @@ export function IndexerSearchTab({
         indexerId: release.indexerId,
         indexerName: release.indexerName || release.indexer || "",
         category: selectedCategory,
+        savePath: savePath.trim() || undefined,
+        startPaused: isPaused,
         minimumRatio: release.minimumRatio,
         minimumSeedTime: release.minimumSeedTime,
       },
