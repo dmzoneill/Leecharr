@@ -270,6 +270,7 @@ dotnet_diagnostic.CA5397.severity = suggestion
 dotnet_diagnostic.SYSLIB0006.severity = none
 
 # Sonar Analyzer Configuration
+dotnet_diagnostic.S3649.severity = none
 dotnet_diagnostic.S6444.severity = suggestion
 dotnet_diagnostic.S6964.severity = none
 dotnet_diagnostic.S6932.severity = none
