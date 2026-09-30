@@ -246,6 +246,7 @@ export function TrackerMetrics() {
 
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
           <button
+            type="button"
             className={`btn btn-sm ${isLive ? "btn-outline" : "btn-primary"}`}
             onClick={() => setIsLive(!isLive)}
             title={isLive ? "Pause auto-updates" : "Resume live telemetry"}
@@ -253,6 +254,7 @@ export function TrackerMetrics() {
             {isLive ? "⏸ Pause" : "▶ Resume"}
           </button>
           <button
+            type="button"
             className="btn btn-outline btn-sm"
             onClick={handleRefresh}
             title="Refresh metrics"
@@ -802,6 +804,7 @@ export function TrackerMetrics() {
                 (p) => (
                   <button
                     key={p}
+                    type="button"
                     className={`btn btn-xs ${protocolFilter === p ? "btn-primary" : "btn-outline"}`}
                     style={{ fontSize: "0.72rem", padding: "0.18rem 0.45rem" }}
                     onClick={() => setProtocolFilter(p)}
@@ -824,6 +827,7 @@ export function TrackerMetrics() {
               ).map((s) => (
                 <button
                   key={s}
+                  type="button"
                   className={`btn btn-xs ${statusFilter === s ? "btn-primary" : "btn-outline"}`}
                   style={{ fontSize: "0.72rem", padding: "0.18rem 0.45rem" }}
                   onClick={() => setStatusFilter(s)}
@@ -1056,11 +1060,19 @@ export function TrackerMetrics() {
                     <tr
                       key={m.id}
                       className="torrent-table-row"
+                      role="button"
+                      tabIndex={0}
                       style={{
                         cursor: "pointer",
                         borderBottom: "1px solid var(--border-light)",
                       }}
                       onClick={() => setSelectedMetric(m)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setSelectedMetric(m);
+                        }
+                      }}
                     >
                       {/* Domain / URL */}
                       <td style={{ padding: "0.45rem 0.65rem" }}>
@@ -1280,9 +1292,15 @@ export function TrackerMetrics() {
                           padding: "0.45rem 0.65rem",
                         }}
                         onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.stopPropagation();
+                          }
+                        }}
                       >
                         <div style={{ display: "inline-flex", gap: "0.3rem" }}>
                           <button
+                            type="button"
                             className="btn btn-outline btn-xs"
                             onClick={() => setSelectedMetric(m)}
                             title="Inspect tracker history"
@@ -1294,6 +1312,7 @@ export function TrackerMetrics() {
                             📊
                           </button>
                           <button
+                            type="button"
                             className="btn btn-outline btn-xs"
                             onClick={() => handleReset(m)}
                             title="Reset statistics"
@@ -1305,6 +1324,7 @@ export function TrackerMetrics() {
                             🔄
                           </button>
                           <button
+                            type="button"
                             className="btn btn-danger btn-xs"
                             onClick={() => handleDelete(m)}
                             title="Delete tracker metric"
@@ -1605,6 +1625,8 @@ function TrackerMetricDetailModal({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       style={{
         position: "fixed",
         top: 0,
@@ -1619,9 +1641,17 @@ function TrackerMetricDetailModal({
         padding: "1rem",
       }}
       onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClose();
+        }
+      }}
     >
       <div
         className="card"
+        role="button"
+        tabIndex={0}
         style={{
           width: "100%",
           maxWidth: "760px",
@@ -1634,6 +1664,11 @@ function TrackerMetricDetailModal({
           gap: "1rem",
         }}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.stopPropagation();
+          }
+        }}
       >
         {/* Modal Header */}
         <div
@@ -1661,7 +1696,7 @@ function TrackerMetricDetailModal({
               </div>
             </div>
           </div>
-          <button className="btn btn-outline btn-sm" onClick={onClose}>
+          <button type="button" className="btn btn-outline btn-sm" onClick={onClose}>
             ✕
           </button>
         </div>
@@ -1861,10 +1896,10 @@ function TrackerMetricDetailModal({
             marginTop: "0.5rem",
           }}
         >
-          <button className="btn btn-danger btn-sm" onClick={onReset}>
+          <button type="button" className="btn btn-danger btn-sm" onClick={onReset}>
             Reset Stats
           </button>
-          <button className="btn btn-primary btn-sm" onClick={onClose}>
+          <button type="button" className="btn btn-primary btn-sm" onClick={onClose}>
             Done
           </button>
         </div>
