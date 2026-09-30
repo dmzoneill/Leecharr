@@ -364,6 +364,7 @@ export default function DeveloperCommands() {
               </h3>
               <button
                 onClick={() => setSelectedCommand(null)}
+                aria-label="Close"
                 style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: "1.2rem" }}
               >
                 ✕
