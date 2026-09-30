@@ -270,7 +270,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder={t("auth.adminPlaceholder") || "admin"}
-              autoFocus
               style={{
                 width: "100%",
                 padding: "10px 12px",
