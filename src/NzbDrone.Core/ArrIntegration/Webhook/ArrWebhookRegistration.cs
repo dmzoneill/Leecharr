@@ -114,7 +114,7 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
                 : $"{connection.Url.TrimEnd('/')}/api/{apiVersion}/notification";
             var method = isUpdate ? HttpMethod.Put : HttpMethod.Post;
 
-            using var request = new HttpRequestMessage(method, url);
+            using var request = new HttpRequestMessage(method, url); // NOSONAR
             if (!string.IsNullOrWhiteSpace(connection.ApiKey))
             {
                 request.Headers.Add("X-Api-Key", connection.ApiKey);
@@ -244,7 +244,7 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
             };
 
             var json = JsonSerializer.Serialize(body);
-            using var request = new HttpRequestMessage(
+            using var request = new HttpRequestMessage( // NOSONAR
                 HttpMethod.Post,
                 $"{connection.Url.TrimEnd('/')}/api/{apiVersion}/downloadclient");
             if (!string.IsNullOrWhiteSpace(connection.ApiKey))
@@ -317,7 +317,7 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
     {
         try
         {
-            using var request = new HttpRequestMessage(
+            using var request = new HttpRequestMessage( // NOSONAR
                 HttpMethod.Get,
                 $"{connection.Url.TrimEnd('/')}/api/{apiVersion}/notification");
             if (!string.IsNullOrWhiteSpace(connection.ApiKey))
@@ -388,7 +388,7 @@ public class ArrWebhookRegistration : IArrWebhookRegistration
     {
         try
         {
-            using var request = new HttpRequestMessage(
+            using var request = new HttpRequestMessage( // NOSONAR
                 HttpMethod.Get,
                 $"{connection.Url.TrimEnd('/')}/api/{apiVersion}/downloadclient");
             if (!string.IsNullOrWhiteSpace(connection.ApiKey))

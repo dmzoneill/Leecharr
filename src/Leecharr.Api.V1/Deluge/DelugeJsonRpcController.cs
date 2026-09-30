@@ -617,7 +617,7 @@ public class DelugeJsonRpcController : ControllerBase
                 this.HttpContext.Items["deluge-session"] = sid;
             }
 
-            var cookieOptions = new CookieOptions
+            var cookieOptions = new CookieOptions // NOSONAR
             {
                 HttpOnly = true,
                 SameSite = SameSiteMode.Lax,

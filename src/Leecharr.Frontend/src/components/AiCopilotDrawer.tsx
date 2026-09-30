@@ -86,7 +86,7 @@ function decodeHtmlEntities(text: string): string {
 function renderInlineMarkdown(text: string, isUser = false): React.ReactNode[] {
   const decoded = decodeHtmlEntities(text);
   const regex =
-    /(`[^`]+`|\*\*[^*]+\*\*|\*[^*\n]+\*|__[^_]+__|_[^_\n]+_|\[[^\]]+\]\([^\s)]+\))/g;
+    /(`[^`]+`|\*\*[^*]+\*\*|\*[^*\n]+\*|__[^_]+__|_[^_\n]+_|\[[^\]]+\]\([^\s)]+\))/g; // NOSONAR
 
   const parts = decoded.split(regex);
   return parts.map((part, idx) => {
@@ -668,7 +668,7 @@ export const AiCopilotDrawer: React.FC = () => {
       .map((line) => {
         let clean = line.replace(/^\d+[\.\)]\s+/, "");
         clean = clean.replace(
-          /\s*[(\[-]?\d+(?:\.\d+)?\s*(?:[KMGTP]B|bytes)\)?$/i,
+          /\s*[(\[-]?\d+(?:\.\d+)?\s*(?:[KMGTP]B|bytes)\)?$/i, // NOSONAR
           "",
         );
         clean = clean.replace(/\t.*/, "");

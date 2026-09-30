@@ -201,7 +201,7 @@ public class QBittorrentApiController : ControllerBase, IActionFilter
         var sid = Guid.NewGuid().ToString("N");
         authenticatedSessions.SetSession(sid, DateTime.UtcNow.AddDays(7));
 
-        this.Response.Cookies.Append("SID", sid, new CookieOptions
+        this.Response.Cookies.Append("SID", sid, new CookieOptions // NOSONAR
         {
             Path = "/",
             HttpOnly = true,

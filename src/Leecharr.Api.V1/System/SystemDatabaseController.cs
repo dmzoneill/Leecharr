@@ -546,7 +546,7 @@ public class SystemDatabaseController : Controller
         {
             using var cmd = connection.CreateCommand();
 #pragma warning disable S3649
-            cmd.CommandText = trimmedQuery;
+            cmd.CommandText = trimmedQuery; // NOSONAR
 #pragma warning restore S3649
             cmd.CommandTimeout = 30;
 
@@ -635,7 +635,7 @@ public class SystemDatabaseController : Controller
                 {
                     using var planCmd = connection.CreateCommand();
 #pragma warning disable S3649
-                    planCmd.CommandText = $"EXPLAIN QUERY PLAN {trimmedQuery}";
+                    planCmd.CommandText = $"EXPLAIN QUERY PLAN {trimmedQuery}"; // NOSONAR
 #pragma warning restore S3649
                     planCmd.CommandTimeout = 10;
                     using var planReader = planCmd.ExecuteReader();

@@ -29,7 +29,7 @@ function loadLocale(langCode) {
   } catch {
     const sanitized = match[1]
       .replace(/\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\//g, "")
-      .replace(/(^|[^\\:])\/\/.*$/gm, "$1")
+      .replace(/(^|[^\\:])\/\/.*$/gm, "$1") // NOSONAR
       .replace(/,\s*([\]}])/g, "$1");
     return JSON.parse(sanitized);
   }

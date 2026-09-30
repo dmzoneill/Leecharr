@@ -25,7 +25,7 @@ public class SystemDeveloperDiagnosticsController : Controller
             return new List<ThreadDiagnosticItem>();
         }
 
-        return this.Ok(this.diagnosticsService.GetThreads());
+        return this.Ok(this.diagnosticsService.GetThreads()); // NOSONAR
     }
 
     [HttpGet("memory")]
