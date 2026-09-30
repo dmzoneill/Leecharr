@@ -287,9 +287,7 @@ class LibTorrentManager:
         if "proxy_peer_connections" in params:
             settings["proxy_peer_connections"] = bool(params["proxy_peer_connections"])
         if "proxy_tracker_connections" in params:
-            settings["proxy_tracker_connections"] = bool(
-                params["proxy_tracker_connections"]
-            )
+            settings["proxy_tracker_connections"] = bool(params["proxy_tracker_connections"])
         if "proxy_hostnames" in params:
             settings["proxy_hostnames"] = bool(params["proxy_hostnames"])
 
@@ -314,9 +312,7 @@ class LibTorrentManager:
             settings["listen_interfaces"] = str(params["listen_interfaces"])
         elif "listening_port" in params or "listen_port" in params:
             port = int(params.get("listening_port") or params.get("listen_port"))
-            listen_ip = str(
-                params.get("listen_ip") or params.get("bind_interface") or "0.0.0.0"
-            )
+            listen_ip = str(params.get("listen_ip") or params.get("bind_interface") or "0.0.0.0")
             if listen_ip in ("", "Any", "all"):
                 listen_ip = "0.0.0.0"
             settings["listen_interfaces"] = f"{listen_ip}:{port}"
@@ -325,9 +321,7 @@ class LibTorrentManager:
         if "connections_limit" in params:
             settings["connections_limit"] = int(params["connections_limit"])
         elif "max_connections" in params or "max_global_connections" in params:
-            settings["connections_limit"] = int(
-                params.get("max_connections") or params.get("max_global_connections")
-            )
+            settings["connections_limit"] = int(params.get("max_connections") or params.get("max_global_connections"))
 
         # Discovery protocols (UPnP, NAT-PMP, LSD)
         if "enable_upnp" in params:
@@ -594,7 +588,7 @@ def main():
         version_target=args.version_target,
     )
 
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), RpcHandler)  # NOSONAR
+    server = ThreadingHTTPServer(("127.0.0.1", args.port), RpcHandler)
     sys.stdout.write(
         f"libtorrent_daemon listening on 127.0.0.1:{args.port} (Swarm: {listen_iface})\n"
     )
