@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "../i18n";
-import { useAddTorrent, useCategories, AddTorrentResult } from "../api/hooks";
+import { useAddTorrent, useCategories, useTags, AddTorrentResult } from "../api/hooks";
 import { useToast } from "../context/ToastContext";
 import { trackTorrentAdd } from "../utils/analytics";
 import {
@@ -36,11 +36,17 @@ export function AddTorrentForm({
   const [selectedCategory, setSelectedCategory] = useState("");
   const [savePath, setSavePath] = useState("");
   const [isPaused, setIsPaused] = useState(false);
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const [sequentialDownload, setSequentialDownload] = useState(false);
+  const [firstLastPiecePriority, setFirstLastPiecePriority] = useState(false);
+  const [downloadLimit, setDownloadLimit] = useState<number | "">("");
+  const [uploadLimit, setUploadLimit] = useState<number | "">("");
   const [resultMessage, setResultMessage] = useState<string | null>(null);
 
   const addTorrent = useAddTorrent();
   const { showToast } = useToast();
   const { data: categories } = useCategories();
+  const { data: tags = [] } = useTags();
 
   // Preselect default category if none chosen
   useEffect(() => {
@@ -53,14 +59,31 @@ export function AddTorrentForm({
   }, [categories, selectedCategory]);
 
   const handleSubmit = () => {
+    const dlLimitNum =
+      typeof downloadLimit === "number" && downloadLimit > 0
+        ? downloadLimit
+        : undefined;
+    const ulLimitNum =
+      typeof uploadLimit === "number" && uploadLimit > 0
+        ? uploadLimit
+        : undefined;
+    const commonPayload = {
+      category: selectedCategory,
+      savePath: savePath.trim() || undefined,
+      isPaused,
+      sequentialDownload: sequentialDownload || undefined,
+      firstLastPiecePriority: firstLastPiecePriority || undefined,
+      downloadLimit: dlLimitNum,
+      uploadLimit: ulLimitNum,
+      tags: selectedTagIds.length > 0 ? selectedTagIds : undefined,
+    };
+
     if (mode === "file" && files.length > 0) {
       setResultMessage(null);
       addTorrent.mutate(
         {
           files,
-          category: selectedCategory,
-          savePath: savePath.trim() || undefined,
-          isPaused,
+          ...commonPayload,
         },
         {
           onSuccess: (result: AddTorrentResult) => {
@@ -120,9 +143,7 @@ export function AddTorrentForm({
       addTorrent.mutate(
         {
           magnetLink: magnetLink.trim(),
-          category: selectedCategory,
-          savePath: savePath.trim() || undefined,
-          isPaused,
+          ...commonPayload,
         },
         {
           onSuccess: () => {
@@ -381,6 +402,78 @@ export function AddTorrentForm({
             />
           </div>
 
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <label
+              htmlFor="torrentDlLimitInput"
+              style={{
+                fontSize: "0.85rem",
+                color: "var(--text-secondary, #c7c5d3)",
+              }}
+            >
+              {t("tags.downloadLimit", "Download Limit (KB/s)")}:
+            </label>
+            <input
+              id="torrentDlLimitInput"
+              type="number"
+              min={0}
+              placeholder="0 (unlimited)"
+              value={downloadLimit}
+              onChange={(e) =>
+                setDownloadLimit(
+                  e.target.value === ""
+                    ? ""
+                    : Math.max(0, parseInt(e.target.value, 10) || 0),
+                )
+              }
+              className="form-input"
+              style={{
+                padding: "0.3rem 0.6rem",
+                fontSize: "0.85rem",
+                borderRadius: "4px",
+                backgroundColor: "var(--bg-primary, #10111a)",
+                color: "inherit",
+                border: "1px solid var(--border-light, #1c203b)",
+                width: "110px",
+              }}
+            />
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <label
+              htmlFor="torrentUpLimitInput"
+              style={{
+                fontSize: "0.85rem",
+                color: "var(--text-secondary, #c7c5d3)",
+              }}
+            >
+              {t("tags.uploadLimit", "Upload Limit (KB/s)")}:
+            </label>
+            <input
+              id="torrentUpLimitInput"
+              type="number"
+              min={0}
+              placeholder="0 (unlimited)"
+              value={uploadLimit}
+              onChange={(e) =>
+                setUploadLimit(
+                  e.target.value === ""
+                    ? ""
+                    : Math.max(0, parseInt(e.target.value, 10) || 0),
+                )
+              }
+              className="form-input"
+              style={{
+                padding: "0.3rem 0.6rem",
+                fontSize: "0.85rem",
+                borderRadius: "4px",
+                backgroundColor: "var(--bg-primary, #10111a)",
+                color: "inherit",
+                border: "1px solid var(--border-light, #1c203b)",
+                width: "110px",
+              }}
+            />
+          </div>
+
           <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
             <input
               type="checkbox"
@@ -399,6 +492,126 @@ export function AddTorrentForm({
               {t("addTorrent.startPaused", "Start in paused state")}
             </label>
           </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+            <input
+              type="checkbox"
+              id="sequentialDownloadCheckbox"
+              checked={sequentialDownload}
+              onChange={(e) => setSequentialDownload(e.target.checked)}
+            />
+            <label
+              htmlFor="sequentialDownloadCheckbox"
+              style={{
+                fontSize: "0.85rem",
+                color: "var(--text-secondary, #c7c5d3)",
+                cursor: "pointer",
+              }}
+            >
+              {t("torrents.detail.sequentialDownload", "Sequential Download")}
+            </label>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+            <input
+              type="checkbox"
+              id="firstLastPiecePriorityCheckbox"
+              checked={firstLastPiecePriority}
+              onChange={(e) => setFirstLastPiecePriority(e.target.checked)}
+            />
+            <label
+              htmlFor="firstLastPiecePriorityCheckbox"
+              style={{
+                fontSize: "0.85rem",
+                color: "var(--text-secondary, #c7c5d3)",
+                cursor: "pointer",
+              }}
+            >
+              {t(
+                "quickSettings.sequentialPiecePickingTitle",
+                "Prioritize first and last pieces",
+              )}
+            </label>
+          </div>
+
+          {tags && tags.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                width: "100%",
+                flexWrap: "wrap",
+                paddingTop: "0.25rem",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "0.85rem",
+                  color: "var(--text-secondary, #c7c5d3)",
+                }}
+              >
+                {t("tags.title", "Tags")}:
+              </span>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                {tags.map((tag) => {
+                  const isSelected = selectedTagIds.includes(tag.id);
+                  const tagColor = tag.color || "var(--accent, #ffd166)";
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() =>
+                        setSelectedTagIds((prev) =>
+                          isSelected
+                            ? prev.filter((id) => id !== tag.id)
+                            : [...prev, tag.id],
+                        )
+                      }
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "0.35rem",
+                        padding: "0.2rem 0.55rem",
+                        borderRadius: "4px",
+                        fontSize: "0.8rem",
+                        cursor: "pointer",
+                        border: isSelected
+                          ? `1px solid ${tagColor}`
+                          : "1px solid var(--border-light, #1c203b)",
+                        backgroundColor: isSelected
+                          ? tag.color
+                            ? `${tag.color}33`
+                            : "rgba(255, 209, 102, 0.2)"
+                          : "rgba(255, 255, 255, 0.04)",
+                        color: isSelected
+                          ? tagColor
+                          : "var(--text-secondary, #c7c5d3)",
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: "7px",
+                          height: "7px",
+                          borderRadius: "50%",
+                          backgroundColor: tagColor,
+                          display: "inline-block",
+                        }}
+                      />
+                      <span>{tag.label}</span>
+                      {isSelected && (
+                        <span
+                          style={{ fontSize: "0.75rem", fontWeight: "bold" }}
+                        >
+                          ✓
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
