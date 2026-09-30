@@ -26,8 +26,7 @@ class LibTorrentManager:
         self.version_target = version_target
         settings = {
             "listen_interfaces": listen_interfaces,
-            "alert_mask": lt.alert.category_t.error_notification
-            | lt.alert.category_t.status_notification,
+            "alert_mask": lt.alert.category_t.error_notification | lt.alert.category_t.status_notification,
             "enable_dht": True,
             "enable_lsd": True,
             "enable_upnp": True,
@@ -110,11 +109,7 @@ class LibTorrentManager:
                 pass
 
             st = h.status()
-            ih = (
-                str(st.info_hashes.v1)
-                if hasattr(st, "info_hashes") and st.info_hashes.has_v1()
-                else str(st.info_hash)
-            )
+            ih = str(st.info_hashes.v1) if hasattr(st, "info_hashes") and st.info_hashes.has_v1() else str(st.info_hash)
             return {"status": "added", "info_hash": ih}
 
     def remove_torrent(self, params):
@@ -287,9 +282,7 @@ class LibTorrentManager:
         if "proxy_peer_connections" in params:
             settings["proxy_peer_connections"] = bool(params["proxy_peer_connections"])
         if "proxy_tracker_connections" in params:
-            settings["proxy_tracker_connections"] = bool(
-                params["proxy_tracker_connections"]
-            )
+            settings["proxy_tracker_connections"] = bool(params["proxy_tracker_connections"])
         if "proxy_hostnames" in params:
             settings["proxy_hostnames"] = bool(params["proxy_hostnames"])
 
@@ -314,9 +307,7 @@ class LibTorrentManager:
             settings["listen_interfaces"] = str(params["listen_interfaces"])
         elif "listening_port" in params or "listen_port" in params:
             port = int(params.get("listening_port") or params.get("listen_port"))
-            listen_ip = str(
-                params.get("listen_ip") or params.get("bind_interface") or "0.0.0.0"
-            )
+            listen_ip = str(params.get("listen_ip") or params.get("bind_interface") or "0.0.0.0")
             if listen_ip in ("", "Any", "all"):
                 listen_ip = "0.0.0.0"
             settings["listen_interfaces"] = f"{listen_ip}:{port}"
@@ -325,9 +316,7 @@ class LibTorrentManager:
         if "connections_limit" in params:
             settings["connections_limit"] = int(params["connections_limit"])
         elif "max_connections" in params or "max_global_connections" in params:
-            settings["connections_limit"] = int(
-                params.get("max_connections") or params.get("max_global_connections")
-            )
+            settings["connections_limit"] = int(params.get("max_connections") or params.get("max_global_connections"))
 
         # Discovery protocols (UPnP, NAT-PMP, LSD)
         if "enable_upnp" in params:
@@ -390,15 +379,11 @@ class LibTorrentManager:
                         if isinstance(client_raw, (bytes, bytearray)):
                             client_str = client_raw.decode("utf-8", errors="replace")
                         else:
-                            client_str = (
-                                str(client_raw) if client_raw is not None else ""
-                            )
+                            client_str = str(client_raw) if client_raw is not None else ""
 
                         peer_list.append(
                             {
-                                "ip": pi.ip[0]
-                                if isinstance(pi.ip, tuple)
-                                else str(pi.ip),
+                                "ip": pi.ip[0] if isinstance(pi.ip, tuple) else str(pi.ip),
                                 "port": pi.ip[1] if isinstance(pi.ip, tuple) else 0,
                                 "client": client_str,
                                 "flags": str(getattr(pi, "flags", "")),
@@ -408,17 +393,12 @@ class LibTorrentManager:
                                 "total_download": int(getattr(pi, "total_download", 0)),
                                 "total_upload": int(getattr(pi, "total_upload", 0)),
                                 "is_encrypted": bool(
-                                    getattr(pi, "rc4_encrypted", False)
-                                    or getattr(pi, "plaintext_encrypted", False)
+                                    getattr(pi, "rc4_encrypted", False) or getattr(pi, "plaintext_encrypted", False)
                                 ),
                                 "is_utp": bool(getattr(pi, "connection_type", 0) == 1),
-                                "is_incoming": bool(
-                                    not getattr(pi, "local_connection", True)
-                                ),
+                                "is_incoming": bool(not getattr(pi, "local_connection", True)),
                                 "is_choked": bool(getattr(pi, "choked", False)),
-                                "is_interested": bool(
-                                    getattr(pi, "interesting", False)
-                                ),
+                                "is_interested": bool(getattr(pi, "interesting", False)),
                             }
                         )
                 except Exception:
@@ -437,10 +417,7 @@ class LibTorrentManager:
                         prog = float(ppm) / 1000000.0
                     elif total_wanted > 0 and total_wanted_done > 0:
                         prog = min(1.0, float(total_wanted_done) / float(total_wanted))
-                    elif (
-                        getattr(st, "total_done", 0) > 0
-                        and getattr(st, "total_size", 0) > 0
-                    ):
+                    elif getattr(st, "total_done", 0) > 0 and getattr(st, "total_size", 0) > 0:
                         prog = min(1.0, float(st.total_done) / float(st.total_size))
 
                 torrents.append(
@@ -598,9 +575,7 @@ def main():
     )
 
     server = ThreadingHTTPServer(("127.0.0.1", args.port), RpcHandler)
-    sys.stdout.write(
-        f"libtorrent_daemon listening on 127.0.0.1:{args.port} (Swarm: {listen_iface})\n"
-    )
+    sys.stdout.write(f"libtorrent_daemon listening on 127.0.0.1:{args.port} (Swarm: {listen_iface})\n")
     sys.stdout.flush()
 
     def shutdown(signum, frame):
