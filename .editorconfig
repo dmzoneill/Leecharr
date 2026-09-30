@@ -288,6 +288,7 @@ dotnet_diagnostic.S1313.severity = suggestion
 dotnet_diagnostic.S6776.severity = none
 dotnet_diagnostic.S4036.severity = suggestion
 dotnet_diagnostic.S5693.severity = suggestion
+dotnet_diagnostic.SA1108.severity = none
 
 [*.{js,html,hbs,less,css,ts,tsx}]
 charset = utf-8
