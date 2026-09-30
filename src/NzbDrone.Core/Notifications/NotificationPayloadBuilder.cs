@@ -669,7 +669,7 @@ public static class NotificationPayloadBuilder
         }
         else if (trimmed.Contains("url="))
         {
-            var match = Regex.Match(trimmed, @"url=([^&]+)", RegexOptions.IgnoreCase);
+            var match = Regex.Match(trimmed, @"url=([^&]+)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
             if (match.Success)
             {
                 candidateUrl = Uri.UnescapeDataString(match.Groups[1].Value);
@@ -747,7 +747,7 @@ public static class NotificationPayloadBuilder
             {
                 if (settings.Contains(key, StringComparison.OrdinalIgnoreCase))
                 {
-                    var match = Regex.Match(settings, $@"{key}([^&]+)", RegexOptions.IgnoreCase);
+                    var match = Regex.Match(settings, $@"{key}([^&]+)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
                     if (match.Success)
                     {
                         var val = Uri.UnescapeDataString(match.Groups[1].Value).Trim();
@@ -1616,7 +1616,7 @@ public static class NotificationPayloadBuilder
                 default:
                     return match.Value;
             }
-        });
+        }, RegexOptions.None, TimeSpan.FromSeconds(2));
     }
 
     internal static object GetNestedProperty(object obj, params string[] propertyNames)
