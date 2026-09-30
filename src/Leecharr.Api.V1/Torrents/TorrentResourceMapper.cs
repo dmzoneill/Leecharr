@@ -155,6 +155,8 @@ public static class TorrentResourceMapper
             TargetRatio = model.TargetRatio,
             TargetSeedTimeMinutes = model.TargetSeedTimeMinutes,
             ShareLimitAction = model.ShareLimitAction,
+            Threshold = model.Threshold,
+            SmallTorrentLimit = model.SmallTorrentLimit,
             DateAdded = model.DateAdded,
             DateCompleted = model.DateCompleted,
             LastActive = model.LastActive,

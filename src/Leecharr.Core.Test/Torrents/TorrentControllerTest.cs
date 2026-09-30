@@ -75,7 +75,7 @@ public class TorrentControllerTest
     [Test]
     public void GetAll_BatchLoadsMediaMetadata_DoesNotQueryGetMetadataPerTorrent()
     {
-        var torrent1 = new Torrent { Id = 1, Name = "Torrent 1", InfoHash = "hash1" };
+        var torrent1 = new Torrent { Id = 1, Name = "Torrent 1", InfoHash = "hash1", Threshold = 3, SmallTorrentLimit = 100 };
         var torrent2 = new Torrent { Id = 2, Name = "Torrent 2", InfoHash = "hash2" };
 
         this.torrentService.GetAll().Returns(new List<Torrent> { torrent1, torrent2 });
@@ -90,6 +90,10 @@ public class TorrentControllerTest
         var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
         var list = okResult.Value.Should().BeAssignableTo<List<TorrentResource>>().Subject;
         list.Should().HaveCount(2);
+        list[0].Threshold.Should().Be(3);
+        list[0].SmallTorrentLimit.Should().Be(100);
+        list[1].Threshold.Should().Be(1);
+        list[1].SmallTorrentLimit.Should().Be(50);
 
         // Verify GetAllMetadata was called once
         this.mediaEnrichmentService.Received(1).GetAllMetadata();
@@ -217,6 +221,8 @@ public class TorrentControllerTest
             ShareLimitAction = "Pause",
             Category = "initial-cat",
             Label = "initial-label",
+            Threshold = 1,
+            SmallTorrentLimit = 50,
         };
 
         this.torrentService.Get(10).Returns(existing);
@@ -232,6 +238,8 @@ public class TorrentControllerTest
             ShareLimitAction = "SuperSeeding",
             Category = "movies",
             Label = "4k",
+            Threshold = 3,
+            SmallTorrentLimit = 250,
         };
 
         var response = await this.controller.Update(10, resource);
@@ -242,6 +250,8 @@ public class TorrentControllerTest
         existing.ShareLimitAction.Should().Be("SuperSeeding");
         existing.Category.Should().Be("movies");
         existing.Label.Should().Be("4k");
+        existing.Threshold.Should().Be(3);
+        existing.SmallTorrentLimit.Should().Be(250);
 
         var okResult = response.Result.Should().BeOfType<OkObjectResult>().Subject;
         var resultResource = okResult.Value.Should().BeOfType<TorrentResource>().Subject;
@@ -251,6 +261,29 @@ public class TorrentControllerTest
         resultResource.ShareLimitAction.Should().Be("SuperSeeding");
         resultResource.Category.Should().Be("movies");
         resultResource.Label.Should().Be("4k");
+        resultResource.Threshold.Should().Be(3);
+        resultResource.SmallTorrentLimit.Should().Be(250);
+    }
+
+    [Test]
+    public void GetById_ReturnsTorrentWithPersistedThresholdAndSmallTorrentLimit()
+    {
+        var torrent = new Torrent
+        {
+            Id = 5,
+            Name = "Threshold Torrent",
+            Threshold = 4,
+            SmallTorrentLimit = 200,
+        };
+
+        this.torrentService.Get(5).Returns(torrent);
+
+        var result = this.controller.GetById(5);
+
+        var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var resource = okResult.Value.Should().BeOfType<TorrentResource>().Subject;
+        resource.Threshold.Should().Be(4);
+        resource.SmallTorrentLimit.Should().Be(200);
     }
 
     [Test]

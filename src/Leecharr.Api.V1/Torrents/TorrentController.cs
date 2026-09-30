@@ -295,8 +295,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             }
 
             res.Active = t.Status == TorrentStatus.Downloading || t.Status == TorrentStatus.Seeding;
-            res.Threshold = 1;
-            res.SmallTorrentLimit = 50;
+            res.Threshold = t.Threshold;
+            res.SmallTorrentLimit = t.SmallTorrentLimit;
 
             return res;
         }).ToList();
@@ -348,8 +348,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         }
 
         res.Active = torrent.Status == TorrentStatus.Downloading || torrent.Status == TorrentStatus.Seeding;
-        res.Threshold = 1;
-        res.SmallTorrentLimit = 50;
+        res.Threshold = torrent.Threshold;
+        res.SmallTorrentLimit = torrent.SmallTorrentLimit;
 
         return this.Ok(res);
     }
@@ -1680,6 +1680,9 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
             existing.ShareLimitAction = resource.ShareLimitAction;
         }
 
+        existing.Threshold = resource.Threshold;
+        existing.SmallTorrentLimit = resource.SmallTorrentLimit;
+
         if (!string.IsNullOrWhiteSpace(resource.Name))
         {
             existing.Name = resource.Name;
@@ -1749,8 +1752,8 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         var res = TorrentResourceMapper.ToResource(updated, meta);
         res.AnnounceInterval = resource.AnnounceInterval ?? 1800;
         res.NextUpdate = resource.NextUpdate ?? 1800;
-        res.Threshold = resource.Threshold ?? 1;
-        res.SmallTorrentLimit = resource.SmallTorrentLimit ?? 50;
+        res.Threshold = resource.Threshold;
+        res.SmallTorrentLimit = resource.SmallTorrentLimit;
         res.Active = updated.Status == TorrentStatus.Downloading || updated.Status == TorrentStatus.Seeding;
         return this.Ok(res);
     }
