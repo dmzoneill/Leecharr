@@ -125,4 +125,61 @@ public class SystemTaskControllerTest
         actionResult.Should().BeOfType<OkObjectResult>();
         this.commandQueueManager.Received(1).PushRaw("CustomUnknown", "{}", CommandTrigger.Manual);
     }
+
+    [Test]
+    public void ExecuteTask_InvalidTaskId_ReturnsNotFound()
+    {
+        this.taskManager.Get(999).Returns((ScheduledTask)null!);
+        this.scheduledTaskRepository.Get(999).Returns((ScheduledTask)null!);
+
+        var controller = new SystemTaskController(this.commandQueueManager, this.scheduledTaskRepository, this.taskManager);
+        var actionResult = controller.ExecuteTask(999);
+
+        actionResult.Should().BeOfType<NotFoundObjectResult>();
+        this.commandQueueManager.DidNotReceiveWithAnyArgs().PushRaw(default!, default!, default);
+    }
+
+    [Test]
+    public void ExecuteTaskByName_KnownTask_PushesCommand()
+    {
+        var controller = new SystemTaskController(this.commandQueueManager, this.scheduledTaskRepository, this.taskManager);
+        var actionResult = controller.ExecuteTaskByName("WatchFolderScanTask");
+
+        actionResult.Should().BeOfType<OkObjectResult>();
+        this.commandQueueManager.Received(1).Push(
+            Arg.Any<NzbDrone.Core.WatchFolder.WatchFolderScanCommand>(),
+            CommandTrigger.Manual);
+    }
+
+    [Test]
+    public void ExecuteTaskByName_InvalidTypeName_ReturnsNotFound()
+    {
+        var controller = new SystemTaskController(this.commandQueueManager, this.scheduledTaskRepository, this.taskManager);
+        var actionResult = controller.ExecuteTaskByName("TotallyNonExistentTask");
+
+        actionResult.Should().BeOfType<NotFoundObjectResult>();
+        this.commandQueueManager.DidNotReceiveWithAnyArgs().PushRaw(default!, default!, default);
+    }
+
+    [Test]
+    public void Cancel_QueuedOrRunningCommand_ReturnsOk()
+    {
+        this.commandQueueManager.Cancel(1).Returns(true);
+
+        var controller = new SystemCommandController(this.commandQueueManager);
+        var actionResult = controller.Cancel(1);
+
+        actionResult.Should().BeOfType<OkObjectResult>();
+    }
+
+    [Test]
+    public void Cancel_UnknownOrCompletedCommand_ReturnsNotFound()
+    {
+        this.commandQueueManager.Cancel(999).Returns(false);
+
+        var controller = new SystemCommandController(this.commandQueueManager);
+        var actionResult = controller.Cancel(999);
+
+        actionResult.Should().BeOfType<NotFoundObjectResult>();
+    }
 }
