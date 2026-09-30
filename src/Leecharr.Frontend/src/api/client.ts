@@ -21,7 +21,11 @@ declare global {
 
 export function getUrlBase(): string {
   if (typeof window !== "undefined" && window.Leecharr?.urlBase) {
-    return window.Leecharr.urlBase.replace(/\/+$/, "");
+    let base = window.Leecharr.urlBase;
+    while (base.endsWith("/")) {
+      base = base.slice(0, -1);
+    }
+    return base;
   }
   return "";
 }

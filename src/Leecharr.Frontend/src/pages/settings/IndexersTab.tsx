@@ -59,7 +59,10 @@ export function normalizeIndexerPayload(
     editing.name?.toLowerCase().includes("prowlarr");
 
   if (!isProwlarr && editing.apiPath && !url.includes(editing.apiPath)) {
-    const baseUrl = url.replace(/\/+$/, "");
+    let baseUrl = url;
+    while (baseUrl.endsWith("/")) {
+      baseUrl = baseUrl.slice(0, -1);
+    }
     const path = editing.apiPath.replace(/^\/+/, "");
     if (path) {
       url = `${baseUrl}/${path}`;
@@ -67,8 +70,10 @@ export function normalizeIndexerPayload(
   } else if (isProwlarr) {
     url = url
       .replace(/\/api\/v1\/?$/i, "")
-      .replace(/\/api\/?$/i, "")
-      .replace(/\/+$/, "");
+      .replace(/\/api\/?$/i, "");
+    while (url.endsWith("/")) {
+      url = url.slice(0, -1);
+    }
   }
 
   const name = editing.name?.trim() || editing.indexerType || "Indexer";

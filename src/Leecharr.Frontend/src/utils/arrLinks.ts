@@ -9,7 +9,10 @@ export function applySmartFallback(
   url: string | null | undefined,
 ): string | null {
   if (!url) return null;
-  const trimmed = url.replace(/\/+$/, "");
+  let trimmed = url;
+  while (trimmed.endsWith("/")) {
+    trimmed = trimmed.slice(0, -1);
+  }
 
   if (typeof window !== "undefined" && window.location?.hostname) {
     const currentHost = window.location.hostname;
@@ -21,7 +24,11 @@ export function applySmartFallback(
         currentHost !== "127.0.0.1"
       ) {
         parsed.hostname = currentHost;
-        return parsed.toString().replace(/\/+$/, "");
+        let fallbackUrl = parsed.toString();
+        while (fallbackUrl.endsWith("/")) {
+          fallbackUrl = fallbackUrl.slice(0, -1);
+        }
+        return fallbackUrl;
       }
     } catch {
       if (
@@ -47,7 +54,13 @@ export function getDownloadClientUrl(client: {
   urlBase?: string | null;
 }): string {
   if (!client.host) return "";
-  const urlBase = (client.urlBase || "").replace(/^\/+|\/+$/g, "");
+  let urlBase = client.urlBase || "";
+  while (urlBase.startsWith("/")) {
+    urlBase = urlBase.slice(1);
+  }
+  while (urlBase.endsWith("/")) {
+    urlBase = urlBase.slice(0, -1);
+  }
   return `${client.useSsl ? "https" : "http"}://${client.host}${client.port ? `:${client.port}` : ""}${urlBase ? `/${urlBase}` : ""}`;
 }
 

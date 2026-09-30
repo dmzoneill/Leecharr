@@ -55,7 +55,10 @@ export function getTorrentDownloadFilename(
   }
 
   if (sourcePath && sourcePath.trim()) {
-    const trimmed = sourcePath.trim().replace(/[\\/]+$/, "");
+    let trimmed = sourcePath.trim();
+    while (trimmed.endsWith("/") || trimmed.endsWith("\\")) {
+      trimmed = trimmed.slice(0, -1);
+    }
     const segments = trimmed.split(/[\\/]/);
     const last = segments[segments.length - 1];
     if (last) {

@@ -32,11 +32,11 @@ export function parseSearchQuery(rawQuery: string): ParsedQuery {
   }
 
   const prefixMatch = trimmed.match(
-    /^(tor|torrent|torrents|nav|navigation|act|action|actions|set|setting|settings):\s*(.*)$/i,
+    /^(tor(?:rents?)?|nav(?:igation)?|act(?:ions?)?|set(?:tings?)?):\s*(\S.*)?$/i,
   );
   if (prefixMatch) {
     const prefix = prefixMatch[1].toLowerCase();
-    const rest = prefixMatch[2].trim();
+    const rest = (prefixMatch[2] ?? "").trim();
     let category: string | undefined;
 
     if (prefix.startsWith("tor")) category = "Torrents";

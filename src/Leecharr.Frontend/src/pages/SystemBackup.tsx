@@ -101,7 +101,10 @@ function SystemBackup() {
   const [confirmRestore, setConfirmRestore] = useState<Backup | null>(null);
 
   const getDownloadUrl = (backupId: number) => {
-    const urlBase = (generalConfig?.urlBase || getUrlBase()).replace(/\/+$/, "");
+    let urlBase = generalConfig?.urlBase || getUrlBase();
+    while (urlBase.endsWith("/")) {
+      urlBase = urlBase.slice(0, -1);
+    }
     const apiKey = apiClient.getApiKey();
     const base = `${urlBase}/api/v1/backup/${backupId}/download`;
     return apiKey && !apiKey.includes("*")
