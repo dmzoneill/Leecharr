@@ -1016,6 +1016,7 @@ export function FilesTab({
       {/* Hierarchical File Tree Table */}
       <div
         ref={tableContainerRef}
+        role="button"
         tabIndex={0}
         onKeyDown={handleTableKeyDown}
         className="detail-panel-table-wrap"

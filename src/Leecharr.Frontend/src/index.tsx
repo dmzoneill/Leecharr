@@ -33,10 +33,18 @@ if (!container) {
   throw new Error("Root element not found");
 }
 
-const urlBase =
-  typeof window !== "undefined" && window.Leecharr?.urlBase
-    ? window.Leecharr.urlBase.replace(/\/+$/, "")
-    : "";
+const getInitialUrlBase = (): string => {
+  if (typeof window !== "undefined" && window.Leecharr?.urlBase) {
+    let base = window.Leecharr.urlBase;
+    while (base.endsWith("/")) {
+      base = base.slice(0, -1);
+    }
+    return base;
+  }
+  return "";
+};
+
+const urlBase = getInitialUrlBase();
 
 const root = createRoot(container);
 root.render(
