@@ -405,7 +405,7 @@ export default function DeveloperCommands() {
                                 [p.name]: p.isNullable ? null : (p.type.startsWith("Int") ? 0 : ""),
                               });
                             } else {
-                              const parsed = parseInt(val, 10);
+                              const parsed = Number.parseInt(val, 10);
                               setFormParams({
                                 ...formParams,
                                 [p.name]: p.type.startsWith("Int")

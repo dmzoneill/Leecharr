@@ -442,7 +442,7 @@ export function loadTablePageSize(): number {
     if (typeof localStorage !== "undefined") {
       const stored = localStorage.getItem(PAGE_SIZE_STORAGE);
       if (stored) {
-        const parsed = parseInt(stored, 10);
+        const parsed = Number.parseInt(stored, 10);
         if (!Number.isNaN(parsed) && parsed > 0) return parsed;
       }
     }

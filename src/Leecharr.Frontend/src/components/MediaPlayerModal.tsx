@@ -216,7 +216,7 @@ export function MediaPlayerModal({
           );
         }
       } else {
-        const id = parseInt(val, 10);
+        const id = Number.parseInt(val, 10);
         setActiveSubtitleTrackId(id);
         if (videoRef.current) {
           setSubtitleTrackActive(

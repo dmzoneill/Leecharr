@@ -30,7 +30,7 @@ export function getStoredIdleTimeout(): number {
     if (raw === null || raw === undefined) {
       return DEFAULT_IDLE_TIMEOUT_SECONDS;
     }
-    const parsed = parseInt(raw, 10);
+    const parsed = Number.parseInt(raw, 10);
     return Number.isNaN(parsed) || parsed < 0
       ? DEFAULT_IDLE_TIMEOUT_SECONDS
       : parsed;
@@ -259,7 +259,7 @@ export class IdleTimerTracker {
 
     this.boundStorageHandler = (e: StorageEvent) => {
       if (e.key === IDLE_TIMEOUT_STORAGE_KEY && e.newValue !== null) {
-        const val = parseInt(e.newValue, 10);
+        const val = Number.parseInt(e.newValue, 10);
         if (!Number.isNaN(val) && val >= 0 && val !== this.timeoutSeconds) {
           this.timeoutSeconds = val;
           this.remainingSeconds = val;
