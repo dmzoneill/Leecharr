@@ -13,19 +13,23 @@ public class FileNameBuilder : IFileNameBuilder
 {
     private static readonly Regex TokenRegex = new(
         @"\{(?<token>[a-zA-Z0-9_\-\. ]+?)(?::(?<format>[a-zA-Z0-9_\-]+))?\}",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
 
     private static readonly Regex EmptyBracketRegex = new(
         @"\[\s*[-_.]*\s*\]|\(\s*[-_.]*\s*\)|\{\s*[-_.]*\s*\}",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
 
     private static readonly Regex MultipleSpacesRegex = new(
         @"\s+",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
 
     private static readonly Regex RepeatedDashesRegex = new(
         @"\s*-\s*(?:-\s*)+",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
 
     private readonly IFileNameSanitizer fileNameSanitizer;
     private readonly IPathTruncator pathTruncator;
@@ -528,7 +532,7 @@ public class FileNameBuilder : IFileNameBuilder
             return string.Empty;
         }
 
-        var neutralized = Regex.Replace(value, @"\.{2,}", string.Empty)
+        var neutralized = Regex.Replace(value, @"\.{2,}", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(2))
             .Replace('/', '-')
             .Replace('\\', '-');
 

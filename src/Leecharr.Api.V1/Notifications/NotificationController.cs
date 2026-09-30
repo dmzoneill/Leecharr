@@ -502,7 +502,7 @@ public class NotificationController : Controller
             if (settings.Contains(prop + "="))
             {
                 var escapedProp = global::System.Text.RegularExpressions.Regex.Escape(prop);
-                var match = global::System.Text.RegularExpressions.Regex.Match(settings, $@"{escapedProp}=([^&]+)");
+                var match = global::System.Text.RegularExpressions.Regex.Match(settings, $@"{escapedProp}=([^&]+)", global::System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(2));
                 if (match.Success)
                 {
                     return Uri.UnescapeDataString(match.Groups[1].Value);

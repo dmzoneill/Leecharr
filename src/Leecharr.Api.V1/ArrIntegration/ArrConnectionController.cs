@@ -213,7 +213,7 @@ public class ArrConnectionController : Controller
 
         if (!string.IsNullOrWhiteSpace(name))
         {
-            var cleanName = Regex.Replace(name.Trim(), @"[^a-zA-Z0-9_]", "_").ToUpperInvariant();
+            var cleanName = Regex.Replace(name.Trim(), @"[^a-zA-Z0-9_]", "_", RegexOptions.None, TimeSpan.FromSeconds(2)).ToUpperInvariant();
             candidates.Add($"LEECHARR__ARR_{cleanName}_PUBLIC_URL");
             candidates.Add($"LEECHARR__ARR_{cleanName}_EXTERNAL_URL");
             candidates.Add($"LEECHARR__{cleanName}_PUBLIC_URL");
@@ -224,7 +224,7 @@ public class ArrConnectionController : Controller
 
         if (!string.IsNullOrWhiteSpace(arrType))
         {
-            var cleanType = Regex.Replace(arrType.Trim(), @"[^a-zA-Z0-9_]", "_").ToUpperInvariant();
+            var cleanType = Regex.Replace(arrType.Trim(), @"[^a-zA-Z0-9_]", "_", RegexOptions.None, TimeSpan.FromSeconds(2)).ToUpperInvariant();
             candidates.Add($"LEECHARR__ARR_{cleanType}_PUBLIC_URL");
             candidates.Add($"LEECHARR__ARR_{cleanType}_EXTERNAL_URL");
             candidates.Add($"LEECHARR__{cleanType}_PUBLIC_URL");
