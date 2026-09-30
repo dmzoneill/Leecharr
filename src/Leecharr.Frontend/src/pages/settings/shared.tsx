@@ -330,11 +330,11 @@ export function NumberInput({
     <input
       type="number"
       className="form-input"
-      value={isNaN(value) ? "" : value}
+      value={Number.isNaN(value) ? "" : value}
       onChange={(e) =>
         onChange(
           step && step < 1
-            ? parseFloat(e.target.value) || 0
+            ? Number.parseFloat(e.target.value) || 0
             : Number.parseInt(e.target.value, 10) || 0,
         )
       }

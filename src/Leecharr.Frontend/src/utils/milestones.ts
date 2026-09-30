@@ -149,7 +149,7 @@ export function getTorrentBadges(
   const hasTraffic =
     downloaded >= 10 * 1024 * 1024 || uploaded >= 10 * 1024 * 1024;
 
-  if (Number.isFinite(ratio) && !isNaN(ratio) && hasTraffic) {
+  if (Number.isFinite(ratio) && !Number.isNaN(ratio) && hasTraffic) {
     if (ratio >= 10.0) {
       badges.push({
         label: `${ratio.toFixed(1)}x`,
@@ -205,7 +205,7 @@ export function calculateAchievements(
   const qualifyingRatioTorrents = tList.filter(
     (t) =>
       Number.isFinite(t.ratio) &&
-      !isNaN(t.ratio) &&
+      !Number.isNaN(t.ratio) &&
       ((t.downloaded ?? 0) >= MIN_TRAFFIC_BYTES ||
         (t.uploaded ?? 0) >= MIN_TRAFFIC_BYTES),
   );

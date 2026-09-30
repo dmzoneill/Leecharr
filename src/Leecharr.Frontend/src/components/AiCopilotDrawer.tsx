@@ -73,11 +73,11 @@ function decodeHtmlEntities(text: string): string {
     }
     if (match.startsWith("&#x") || match.startsWith("&#X")) {
       const code = Number.parseInt(match.slice(3, -1), 16);
-      return !isNaN(code) ? String.fromCharCode(code) : match;
+      return !Number.isNaN(code) ? String.fromCharCode(code) : match;
     }
     if (match.startsWith("&#")) {
       const code = Number.parseInt(match.slice(2, -1), 10);
-      return !isNaN(code) ? String.fromCharCode(code) : match;
+      return !Number.isNaN(code) ? String.fromCharCode(code) : match;
     }
     return match;
   });

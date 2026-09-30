@@ -65,7 +65,7 @@ function DownloadIcon() {
 function formatDate(iso: string): string {
   try {
     const d = new Date(iso);
-    return isNaN(d.getTime())
+    return Number.isNaN(d.getTime())
       ? iso
       : d.toLocaleDateString(undefined, {
           year: "numeric",

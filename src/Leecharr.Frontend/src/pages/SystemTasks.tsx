@@ -94,7 +94,7 @@ function formatRelativeTime(
 ): string {
   if (!dateStr) return "-";
   const date = new Date(dateStr);
-  if (isNaN(date.getTime()) || date.getFullYear() < 1970) {
+  if (Number.isNaN(date.getTime()) || date.getFullYear() < 1970) {
     return "-";
   }
   const now = new Date();

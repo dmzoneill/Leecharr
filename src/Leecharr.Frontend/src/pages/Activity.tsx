@@ -9,7 +9,7 @@ import LineChart from "../components/LineChart";
 const MAX_POINTS = 60;
 
 function sanitizeNumber(val: unknown): number {
-  const num = typeof val === "number" ? val : parseFloat(String(val));
+  const num = typeof val === "number" ? val : Number.parseFloat(String(val));
   return Number.isFinite(num) && num > 0 ? num : 0;
 }
 

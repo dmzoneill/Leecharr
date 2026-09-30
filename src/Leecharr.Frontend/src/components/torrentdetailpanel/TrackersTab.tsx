@@ -43,7 +43,7 @@ export function NextAnnounceCountdown({
   }
 
   const target = new Date(nextAnnounce).getTime();
-  if (isNaN(target)) {
+  if (Number.isNaN(target)) {
     return <span>{nextAnnounce}</span>;
   }
 

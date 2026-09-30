@@ -124,13 +124,13 @@ export function OptionsTab({ torrent }: { torrent: Torrent }) {
     (setter: (v: number) => void) =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const parsed = Number.parseInt(e.target.value, 10);
-      mark(setter)(isNaN(parsed) ? 0 : Math.max(0, parsed));
+      mark(setter)(Number.isNaN(parsed) ? 0 : Math.max(0, parsed));
     };
   const floatChange =
     (setter: (v: number) => void) =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const parsed = parseFloat(e.target.value);
-      mark(setter)(isNaN(parsed) ? 0 : Math.max(0, parsed));
+      const parsed = Number.parseFloat(e.target.value);
+      mark(setter)(Number.isNaN(parsed) ? 0 : Math.max(0, parsed));
     };
 
   const priorityOptions = [
