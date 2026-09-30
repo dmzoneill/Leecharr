@@ -23,6 +23,10 @@ import { formatBytes } from "../utils/formatters";
 import { useConfirm } from "../context/ConfirmContext";
 import { trackAutomationAction } from "../utils/analytics";
 
+function secureRandom(): number {
+  return crypto.getRandomValues(new Uint32Array(1))[0] / 0xffffffff;
+}
+
 // Visual Pipeline Interfaces
 export type VisualActionType =
   | "addTag"
@@ -958,7 +962,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       const v = trimmed.match(/- addTag:\s*['"]?([^'"]+)['"]?/);
       if (v)
         currentStep.actions.push({
-          id: `act-${Date.now()}-${Math.random()}`,
+          id: `act-${Date.now()}-${secureRandom()}`,
           type: "addTag",
           value: v[1],
         });
@@ -966,7 +970,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       const v = trimmed.match(/- removeTag:\s*['"]?([^'"]+)['"]?/);
       if (v)
         currentStep.actions.push({
-          id: `act-${Date.now()}-${Math.random()}`,
+          id: `act-${Date.now()}-${secureRandom()}`,
           type: "removeTag",
           value: v[1],
         });
@@ -978,7 +982,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       const v = trimmed.match(/- setCategory:\s*['"]?([^'"]+)['"]?/);
       if (v)
         currentStep.actions.push({
-          id: `act-${Date.now()}-${Math.random()}`,
+          id: `act-${Date.now()}-${secureRandom()}`,
           type: "setCategory",
           value: v[1],
         });
@@ -990,7 +994,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       const v = trimmed.match(/- setUploadLimit:\s*['"]?([^'"]+)['"]?/);
       if (v)
         currentStep.actions.push({
-          id: `act-${Date.now()}-${Math.random()}`,
+          id: `act-${Date.now()}-${secureRandom()}`,
           type: "setUploadLimit",
           value: v[1],
         });
@@ -1002,7 +1006,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       const v = trimmed.match(/- setDownloadLimit:\s*['"]?([^'"]+)['"]?/);
       if (v)
         currentStep.actions.push({
-          id: `act-${Date.now()}-${Math.random()}`,
+          id: `act-${Date.now()}-${secureRandom()}`,
           type: "setDownloadLimit",
           value: v[1],
         });
@@ -1014,7 +1018,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       const v = trimmed.match(/- setRatioLimit:\s*['"]?([^'"]+)['"]?/);
       if (v)
         currentStep.actions.push({
-          id: `act-${Date.now()}-${Math.random()}`,
+          id: `act-${Date.now()}-${secureRandom()}`,
           type: "setRatioLimit",
           value: v[1],
         });
@@ -1026,7 +1030,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       const v = trimmed.match(/- setSeedingTimeLimit:\s*['"]?([^'"]+)['"]?/);
       if (v)
         currentStep.actions.push({
-          id: `act-${Date.now()}-${Math.random()}`,
+          id: `act-${Date.now()}-${secureRandom()}`,
           type: "setSeedingTimeLimit",
           value: v[1],
         });
@@ -1038,7 +1042,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       const v = trimmed.match(/- setPriority:\s*['"]?([^'"]+)['"]?/);
       if (v)
         currentStep.actions.push({
-          id: `act-${Date.now()}-${Math.random()}`,
+          id: `act-${Date.now()}-${secureRandom()}`,
           type: "setPriority",
           value: v[1],
         });
@@ -1053,7 +1057,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       );
       if (v)
         currentStep.actions.push({
-          id: `act-${Date.now()}-${Math.random()}`,
+          id: `act-${Date.now()}-${secureRandom()}`,
           type: "setSequentialDownload",
           value: v[1],
         });
@@ -1065,7 +1069,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       const v = trimmed.match(/- setSuperSeeding:\s*['"]?([^'"]+)['"]?/);
       if (v)
         currentStep.actions.push({
-          id: `act-${Date.now()}-${Math.random()}`,
+          id: `act-${Date.now()}-${secureRandom()}`,
           type: "setSuperSeeding",
           value: v[1],
         });
@@ -1080,7 +1084,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       );
       if (v)
         currentStep.actions.push({
-          id: `act-${Date.now()}-${Math.random()}`,
+          id: `act-${Date.now()}-${secureRandom()}`,
           type: "moveFiles",
           value: v[1],
         });
@@ -1092,7 +1096,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       const v = trimmed.match(/- extractArchive:\s*['"]?([^'"]+)['"]?/);
       const val = v && v[1] !== "true" ? v[1] : "";
       currentStep.actions.push({
-        id: `act-${Date.now()}-${Math.random()}`,
+        id: `act-${Date.now()}-${secureRandom()}`,
         type: "extractArchive",
         value: val,
       });
@@ -1104,7 +1108,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       const v = trimmed.match(/- cleanFiles:\s*['"]?([^'"]+)['"]?/);
       if (v)
         currentStep.actions.push({
-          id: `act-${Date.now()}-${Math.random()}`,
+          id: `act-${Date.now()}-${secureRandom()}`,
           type: "cleanFiles",
           value: v[1],
         });
@@ -1116,7 +1120,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       const v = trimmed.match(/- addTracker:\s*['"]?([^'"]+)['"]?/);
       if (v)
         currentStep.actions.push({
-          id: `act-${Date.now()}-${Math.random()}`,
+          id: `act-${Date.now()}-${secureRandom()}`,
           type: "addTracker",
           value: v[1],
         });
@@ -1128,7 +1132,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       const v = trimmed.match(/- removeTracker:\s*['"]?([^'"]+)['"]?/);
       if (v)
         currentStep.actions.push({
-          id: `act-${Date.now()}-${Math.random()}`,
+          id: `act-${Date.now()}-${secureRandom()}`,
           type: "removeTracker",
           value: v[1],
         });
@@ -1138,7 +1142,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       trimmed.startsWith("- boostTracker:")
     ) {
       currentStep.actions.push({
-        id: `act-${Date.now()}-${Math.random()}`,
+        id: `act-${Date.now()}-${secureRandom()}`,
         type: "boostTracker",
         value: "",
       });
@@ -1146,7 +1150,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       const v = trimmed.match(/- banPeer:\s*['"]?([^'"]+)['"]?/);
       if (v)
         currentStep.actions.push({
-          id: `act-${Date.now()}-${Math.random()}`,
+          id: `act-${Date.now()}-${secureRandom()}`,
           type: "banPeer",
           value: v[1],
         });
@@ -1158,7 +1162,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       const v = trimmed.match(/- sendNotification:\s*['"]?([^'"]+)['"]?/);
       if (v)
         currentStep.actions.push({
-          id: `act-${Date.now()}-${Math.random()}`,
+          id: `act-${Date.now()}-${secureRandom()}`,
           type: "sendNotification",
           value: v[1],
         });
@@ -1170,7 +1174,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       const v = trimmed.match(/- notifyArr:\s*['"]?([^'"]+)['"]?/);
       const val = v && v[1] !== "true" ? v[1] : "";
       currentStep.actions.push({
-        id: `act-${Date.now()}-${Math.random()}`,
+        id: `act-${Date.now()}-${secureRandom()}`,
         type: "notifyArr",
         value: val,
       });
@@ -1182,7 +1186,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       const v = trimmed.match(/- syncArr:\s*['"]?([^'"]+)['"]?/);
       const val = v && v[1] !== "true" ? v[1] : "";
       currentStep.actions.push({
-        id: `act-${Date.now()}-${Math.random()}`,
+        id: `act-${Date.now()}-${secureRandom()}`,
         type: "syncArr",
         value: val,
       });
@@ -1190,7 +1194,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       const v = trimmed.match(/- runScript:\s*['"]?([^'"]+)['"]?/);
       if (v)
         currentStep.actions.push({
-          id: `act-${Date.now()}-${Math.random()}`,
+          id: `act-${Date.now()}-${secureRandom()}`,
           type: "runScript",
           value: v[1],
         });
@@ -1202,7 +1206,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       const v = trimmed.match(/- (?:delay|sleep):\s*['"]?([^'"]+)['"]?/);
       if (v)
         currentStep.actions.push({
-          id: `act-${Date.now()}-${Math.random()}`,
+          id: `act-${Date.now()}-${secureRandom()}`,
           type: "delay",
           value: v[1],
         });
@@ -1210,7 +1214,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       const v = trimmed.match(/- log:\s*['"]?([^'"]+)['"]?/);
       if (v)
         currentStep.actions.push({
-          id: `act-${Date.now()}-${Math.random()}`,
+          id: `act-${Date.now()}-${secureRandom()}`,
           type: "log",
           value: v[1],
         });
@@ -1222,7 +1226,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       const v = trimmed.match(/- stopPipeline:\s*['"]?([^'"]+)['"]?/);
       if (v)
         currentStep.actions.push({
-          id: `act-${Date.now()}-${Math.random()}`,
+          id: `act-${Date.now()}-${secureRandom()}`,
           type: "stopPipeline",
           value: v[1],
         });
@@ -1230,7 +1234,7 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       const v = trimmed.match(/- command:\s*['"]?([^'"]+)['"]?/);
       if (v)
         currentStep.actions.push({
-          id: `act-${Date.now()}-${Math.random()}`,
+          id: `act-${Date.now()}-${secureRandom()}`,
           type: "command",
           value: v[1],
         });
@@ -1238,14 +1242,14 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       const v = trimmed.match(/- http:\s*['"]?([^'"]+)['"]?/);
       if (v) {
         currentStep.actions.push({
-          id: `act-${Date.now()}-${Math.random()}`,
+          id: `act-${Date.now()}-${secureRandom()}`,
           type: "http",
           value: v[1],
           extra: {},
         });
       } else {
         currentStep.actions.push({
-          id: `act-${Date.now()}-${Math.random()}`,
+          id: `act-${Date.now()}-${secureRandom()}`,
           type: "http",
           value: "",
           extra: { method: "POST", url: "", json: true },
@@ -1306,19 +1310,19 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       }
     } else if (currentStep && inActions && trimmed.startsWith("- pause:")) {
       currentStep.actions.push({
-        id: `act-${Date.now()}-${Math.random()}`,
+        id: `act-${Date.now()}-${secureRandom()}`,
         type: "pause",
         value: "",
       });
     } else if (currentStep && inActions && trimmed.startsWith("- resume:")) {
       currentStep.actions.push({
-        id: `act-${Date.now()}-${Math.random()}`,
+        id: `act-${Date.now()}-${secureRandom()}`,
         type: "resume",
         value: "",
       });
     } else if (currentStep && inActions && trimmed.startsWith("- recheck:")) {
       currentStep.actions.push({
-        id: `act-${Date.now()}-${Math.random()}`,
+        id: `act-${Date.now()}-${secureRandom()}`,
         type: "recheck",
         value: "",
       });
@@ -1328,13 +1332,13 @@ function yamlToVisualSteps(code: string): VisualStep[] {
       trimmed.startsWith("- reannounce:")
     ) {
       currentStep.actions.push({
-        id: `act-${Date.now()}-${Math.random()}`,
+        id: `act-${Date.now()}-${secureRandom()}`,
         type: "reannounce",
         value: "",
       });
     } else if (currentStep && inActions && trimmed.startsWith("- remove:")) {
       currentStep.actions.push({
-        id: `act-${Date.now()}-${Math.random()}`,
+        id: `act-${Date.now()}-${secureRandom()}`,
         type: "remove",
         value: "",
         deleteData: undefined,
