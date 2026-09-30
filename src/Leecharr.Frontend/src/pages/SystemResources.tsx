@@ -1189,7 +1189,15 @@ export function SystemResources() {
       {selectedTorrent && (
         <div
           className="modal-backdrop"
+          role="button"
+          tabIndex={0}
           onClick={() => setSelectedTorrent(null)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setSelectedTorrent(null);
+            }
+          }}
           style={{
             position: "fixed",
             top: 0,
@@ -1205,7 +1213,14 @@ export function SystemResources() {
         >
           <div
             className="modal-content"
+            role="button"
+            tabIndex={0}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+              }
+            }}
             style={{
               backgroundColor: "var(--bg-secondary, #171b35)",
               borderRadius: "8px",

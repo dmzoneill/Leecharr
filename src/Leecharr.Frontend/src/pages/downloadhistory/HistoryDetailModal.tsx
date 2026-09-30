@@ -76,14 +76,23 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
   return (
     <div
       className="modal-overlay"
+      role="button"
+      tabIndex={0}
       onClick={onClose}
-      role="dialog"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClose();
+        }
+      }}
       aria-modal="true"
       aria-labelledby="history-detail-modal-title"
     >
       <div
         ref={trapRef}
         className="modal-content"
+        role="button"
+        tabIndex={0}
         style={{
           maxWidth: "860px",
           width: "95%",
@@ -93,6 +102,11 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
           backgroundColor: "var(--bg-card)",
         }}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.stopPropagation();
+          }
+        }}
       >
         {/* Fanart Backdrop Header */}
         <div
@@ -699,6 +713,8 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
                   : ""}
               </div>
               <div
+                role={item.primaryTracker ? "button" : undefined}
+                tabIndex={item.primaryTracker ? 0 : undefined}
                 style={{
                   fontSize: "0.85rem",
                   wordBreak: "break-all",
@@ -706,6 +722,13 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
                 }}
                 onClick={() => {
                   if (item.primaryTracker) {
+                    onFilterByTracker(item.primaryTracker);
+                    onClose();
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (item.primaryTracker && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
                     onFilterByTracker(item.primaryTracker);
                     onClose();
                   }
@@ -730,6 +753,8 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
                   {item.trackers.slice(1, 4).map((tr, idx) => (
                     <span
                       key={idx}
+                      role="button"
+                      tabIndex={0}
                       style={{
                         fontSize: "0.7rem",
                         color: "var(--text-muted)",
@@ -741,6 +766,13 @@ export const HistoryDetailModal: React.FC<HistoryDetailModalProps> = ({
                       onClick={() => {
                         onFilterByTracker(tr);
                         onClose();
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onFilterByTracker(tr);
+                          onClose();
+                        }
                       }}
                       title={tr}
                     >

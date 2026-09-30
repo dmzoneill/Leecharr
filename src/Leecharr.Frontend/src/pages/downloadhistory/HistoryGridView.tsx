@@ -124,6 +124,8 @@ export const HistoryGridView: React.FC<HistoryGridViewProps> = ({
                   <div
                     key={item.id}
                     className="card"
+                    role="button"
+                    tabIndex={0}
                     style={{
                       padding: 0,
                       overflow: "hidden",
@@ -142,6 +144,12 @@ export const HistoryGridView: React.FC<HistoryGridViewProps> = ({
                       cursor: "pointer",
                     }}
                     onClick={() => onSelectItem(item)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onSelectItem(item);
+                      }
+                    }}
                   >
                     {/* Poster Artwork Box */}
                     <div
@@ -191,6 +199,8 @@ export const HistoryGridView: React.FC<HistoryGridViewProps> = ({
                       >
                         {item.source && (
                           <div
+                            role="button"
+                            tabIndex={0}
                             onClick={(e) => {
                               if (arrLink) {
                                 e.stopPropagation();
@@ -199,6 +209,19 @@ export const HistoryGridView: React.FC<HistoryGridViewProps> = ({
                                   "_blank",
                                   "noopener,noreferrer",
                                 );
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                if (arrLink) {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  window.open(
+                                    arrLink.url,
+                                    "_blank",
+                                    "noopener,noreferrer",
+                                  );
+                                }
                               }
                             }}
                           >
@@ -352,6 +375,8 @@ export const HistoryGridView: React.FC<HistoryGridViewProps> = ({
                               <span
                                 key={i}
                                 className="badge badge-secondary"
+                                role="button"
+                                tabIndex={0}
                                 style={{
                                   fontSize: "0.65rem",
                                   padding: "0.1rem 0.35rem",
@@ -363,6 +388,13 @@ export const HistoryGridView: React.FC<HistoryGridViewProps> = ({
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   onFilterByGenre(g);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    onFilterByGenre(g);
+                                  }
                                 }}
                                 title={t(
                                   "history.filterByGenre",
@@ -425,6 +457,8 @@ export const HistoryGridView: React.FC<HistoryGridViewProps> = ({
 
                       {/* Quick Card Action Buttons */}
                       <div
+                        role="button"
+                        tabIndex={0}
                         style={{
                           display: "flex",
                           gap: "0.3rem",
@@ -433,6 +467,11 @@ export const HistoryGridView: React.FC<HistoryGridViewProps> = ({
                           borderTop: "1px solid var(--border-light)",
                         }}
                         onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.stopPropagation();
+                          }
+                        }}
                       >
                         <button
                           className="btn btn-outline"
