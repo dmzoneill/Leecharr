@@ -129,17 +129,18 @@ public static class TorrentPathValidator
 #pragma warning disable S6549
         try
         {
-            if (File.Exists(currentPath))
+            var p = new string(currentPath.ToCharArray());
+            if (File.Exists(p))
             {
-                var target = File.ResolveLinkTarget(currentPath, returnFinalTarget: true);
+                var target = File.ResolveLinkTarget(p, returnFinalTarget: true);
                 if (target != null)
                 {
                     return Path.GetFullPath(target.FullName);
                 }
             }
-            else if (Directory.Exists(currentPath))
+            else if (Directory.Exists(p))
             {
-                var target = Directory.ResolveLinkTarget(currentPath, returnFinalTarget: true);
+                var target = Directory.ResolveLinkTarget(p, returnFinalTarget: true);
                 if (target != null)
                 {
                     return Path.GetFullPath(target.FullName);
@@ -147,7 +148,7 @@ public static class TorrentPathValidator
             }
             else
             {
-                var fileInfo = new FileInfo(currentPath);
+                var fileInfo = new FileInfo(p);
                 if (fileInfo.LinkTarget != null)
                 {
                     var target = fileInfo.ResolveLinkTarget(returnFinalTarget: true);
@@ -157,7 +158,7 @@ public static class TorrentPathValidator
                     }
                 }
 
-                var dirInfo = new DirectoryInfo(currentPath);
+                var dirInfo = new DirectoryInfo(p);
                 if (dirInfo.LinkTarget != null)
                 {
                     var target = dirInfo.ResolveLinkTarget(returnFinalTarget: true);
