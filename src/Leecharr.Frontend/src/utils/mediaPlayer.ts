@@ -1,3 +1,4 @@
+import { getUrlBase } from "../api/client";
 import type { SubtitleTrack } from "../api/types";
 
 export const PLAYABLE_EXTENSIONS = [
@@ -146,7 +147,7 @@ export function buildStreamUrl(
   fileId: number,
   apiKey?: string | null,
 ): string {
-  const base = `/api/v1/torrent/${torrentId}/files/${fileId}/stream`;
+  const base = `${getUrlBase()}/api/v1/torrent/${torrentId}/files/${fileId}/stream`;
   return apiKey ? `${base}?apikey=${encodeURIComponent(apiKey)}` : base;
 }
 
@@ -155,7 +156,7 @@ export function buildDownloadUrl(
   fileId: number,
   apiKey?: string | null,
 ): string {
-  const base = `/api/v1/torrent/${torrentId}/files/${fileId}/download`;
+  const base = `${getUrlBase()}/api/v1/torrent/${torrentId}/files/${fileId}/download`;
   return apiKey ? `${base}?apikey=${encodeURIComponent(apiKey)}` : base;
 }
 
@@ -164,12 +165,12 @@ export function buildPlaylistUrl(
   fileId: number,
   apiKey?: string | null,
 ): string {
-  const base = `/api/v1/torrent/${torrentId}/files/${fileId}/stream.m3u`;
+  const base = `${getUrlBase()}/api/v1/torrent/${torrentId}/files/${fileId}/stream.m3u`;
   return apiKey ? `${base}?apikey=${encodeURIComponent(apiKey)}` : base;
 }
 
 export function buildFileStreamUrl(path: string, apiKey?: string | null): string {
-  const base = `/api/v1/files/stream?path=${encodeURIComponent(path)}`;
+  const base = `${getUrlBase()}/api/v1/files/stream?path=${encodeURIComponent(path)}`;
   return apiKey ? `${base}&apikey=${encodeURIComponent(apiKey)}` : base;
 }
 
@@ -177,7 +178,7 @@ export function buildFileDownloadUrl(
   path: string,
   apiKey?: string | null,
 ): string {
-  const base = `/api/v1/files/download?path=${encodeURIComponent(path)}`;
+  const base = `${getUrlBase()}/api/v1/files/download?path=${encodeURIComponent(path)}`;
   return apiKey ? `${base}&apikey=${encodeURIComponent(apiKey)}` : base;
 }
 
@@ -185,7 +186,7 @@ export function buildFilePlaylistUrl(
   path: string,
   apiKey?: string | null,
 ): string {
-  const base = `/api/v1/files/stream.m3u?path=${encodeURIComponent(path)}`;
+  const base = `${getUrlBase()}/api/v1/files/stream.m3u?path=${encodeURIComponent(path)}`;
   return apiKey ? `${base}&apikey=${encodeURIComponent(apiKey)}` : base;
 }
 
@@ -199,7 +200,11 @@ export function getAbsoluteUrl(url: string, origin?: string): string {
       ? window.location.origin
       : "http://localhost:5000");
   const cleanedBase = base.endsWith("/") ? base.slice(0, -1) : base;
-  const cleanedPath = url.startsWith("/") ? url : `/${url}`;
+  const urlBase = getUrlBase();
+  let cleanedPath = url.startsWith("/") ? url : `/${url}`;
+  if (urlBase && cleanedPath !== urlBase && !cleanedPath.startsWith(`${urlBase}/`)) {
+    cleanedPath = `${urlBase}${cleanedPath}`;
+  }
   return `${cleanedBase}${cleanedPath}`;
 }
 
