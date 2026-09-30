@@ -290,6 +290,33 @@ public class GeneralConfigControllerTest
     }
 
     [Test]
+    public async Task SaveConfig_WhenAuthenticationRequiredChanges_InvalidatesRpcSessionsAndDisconnectsSignalR()
+    {
+        var rpcStore = new RpcSessionStore();
+        rpcStore.SetSession("token-session-authreq", TimeSpan.FromMinutes(10));
+        rpcStore.IsValid("token-session-authreq").Should().BeTrue();
+
+        MessageHub.AddConnectionForTesting("signalr-conn-authreq");
+        MessageHub.IsConnected.Should().BeTrue();
+
+        this.configFileProvider.ApiKey.Returns("unchanged-key");
+        this.configFileProvider.AuthenticationEnabled.Returns(true);
+        this.configFileProvider.AuthenticationRequired.Returns(AuthenticationRequiredType.DisabledForLocalAddresses);
+
+        var resource = new GeneralConfigResource
+        {
+            ApiKey = "unchanged-key",
+            AuthenticationEnabled = true,
+            AuthenticationRequired = AuthenticationRequiredType.Enabled,
+        };
+
+        await this.controller.SaveConfig(resource);
+
+        rpcStore.IsValid("token-session-authreq").Should().BeFalse();
+        MessageHub.IsConnected.Should().BeFalse();
+    }
+
+    [Test]
     public async Task SaveConfig_WhenNeitherApiKeyNorAuthEnabledChanges_PreservesSessionsAndConnections()
     {
         var rpcStore = new RpcSessionStore();

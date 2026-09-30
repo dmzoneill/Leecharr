@@ -348,6 +348,7 @@ export interface GeneralConfig {
   urlBase: string;
   branch?: string;
   authenticationEnabled: boolean;
+  authenticationRequired?: number | string;
   apiKey: string;
   enableSsl: boolean;
   sslPort: number;

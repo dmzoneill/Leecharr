@@ -108,6 +108,17 @@ const PROVIDER_TEMPLATES: Record<
   },
 };
 
+const parseAuthRequired = (val: unknown): number => {
+  if (typeof val === "number") return val;
+  if (typeof val === "string") {
+    const lower = val.toLowerCase();
+    if (lower === "enabled" || lower === "0") return 0;
+    if (lower === "disabledforlocaladdresses" || lower === "1") return 1;
+    if (lower === "disabledforlocalhost" || lower === "2") return 2;
+  }
+  return 1;
+};
+
 export function SecuritySettingsTab() {
   const { t } = useTranslation();
 
@@ -135,6 +146,7 @@ export function SecuritySettingsTab() {
 
   const [form, setForm] = useState({
     authenticationEnabled: false,
+    authenticationRequired: 1,
     apiKey: "",
     csrfProtectionEnabled: true,
     hostHeaderValidationEnabled: false,
@@ -272,6 +284,7 @@ export function SecuritySettingsTab() {
     if (config) {
       setForm({
         authenticationEnabled: config.authenticationEnabled ?? false,
+        authenticationRequired: parseAuthRequired(config.authenticationRequired),
         apiKey: config.apiKey ?? "",
         csrfProtectionEnabled: config.csrfProtectionEnabled ?? true,
         hostHeaderValidationEnabled:
@@ -399,6 +412,7 @@ export function SecuritySettingsTab() {
       {
         ...config,
         authenticationEnabled: form.authenticationEnabled,
+        authenticationRequired: form.authenticationRequired,
         apiKey: form.apiKey,
         csrfProtectionEnabled: form.csrfProtectionEnabled,
         hostHeaderValidationEnabled: form.hostHeaderValidationEnabled,
@@ -539,6 +553,29 @@ export function SecuritySettingsTab() {
             hint={t("settingsTabs.batch2.requireLoginBeforeAccessingWebUi")}
           />
 
+          {form.authenticationEnabled && (
+            <SelectInput
+              label="Authentication Requirement"
+              value={String(form.authenticationRequired)}
+              onChange={(v) => update("authenticationRequired", Number(v))}
+              options={[
+                {
+                  value: "1",
+                  label: "Disabled for Local Addresses (LAN & localhost bypass)",
+                },
+                {
+                  value: "0",
+                  label: "Enabled (Required for all connections)",
+                },
+                {
+                  value: "2",
+                  label: "Disabled for Localhost (Only localhost bypasses)",
+                },
+              ]}
+              hint="Controls which clients bypass login challenges. 'Disabled for Local Addresses' permits LAN clients and companion apps to access Leecharr without authentication."
+            />
+          )}
+
           <SelectInput
             label="Session Inactivity Lock Timeout"
             value={String(idleTimeout)}
@@ -562,7 +599,21 @@ export function SecuritySettingsTab() {
               <div
                 style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}
               >
-                {t("settingsTabs.security.authBannerDesc")}
+                {form.authenticationRequired === 1 && (
+                  <span>
+                    Authentication is enabled for external connections. Clients connecting from local or private networks (LAN) and localhost bypass authentication.
+                  </span>
+                )}
+                {form.authenticationRequired === 2 && (
+                  <span>
+                    Authentication is enabled. Clients connecting from localhost (127.0.0.1 / ::1) bypass authentication, while LAN and external clients must authenticate.
+                  </span>
+                )}
+                {form.authenticationRequired === 0 && (
+                  <span>
+                    Authentication is enabled for all connections. All clients (LAN, local, and external) must authenticate using local credentials or configured SSO / Identity Providers below.
+                  </span>
+                )}
               </div>
             </div>
           )}
