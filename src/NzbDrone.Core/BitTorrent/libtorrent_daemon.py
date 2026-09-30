@@ -568,7 +568,10 @@ def main():
         help="Bind IP address for RPC (default: 127.0.0.1)",
     )
     parser.add_argument(
-        "--port", type=int, default=58846, help="Port to listen on (default: 58846)"
+        "--port",
+        type=int,
+        default=58846,
+        help="Port to listen on (default: 58846)",
     )
     parser.add_argument(
         "--listen-ip",
