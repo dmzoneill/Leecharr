@@ -19,7 +19,7 @@ namespace NzbDrone.Core.Automation;
 
 public class YamlScriptRunner : IScriptRunner
 {
-    private static readonly Regex VariableRegex = new(@"\$\{([^}]+)\}", RegexOptions.Compiled);
+    private static readonly Regex VariableRegex = new(@"\$\{([^}]+)\}", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
     private readonly IManageCommandQueue? _commandQueue;
     private readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
