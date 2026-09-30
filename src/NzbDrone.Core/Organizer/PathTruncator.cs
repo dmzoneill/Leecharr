@@ -20,7 +20,8 @@ public class PathTruncator : IPathTruncator
 
     private static readonly Regex BracketedSuffixRegex = new(
         @"^(?<prefix>.+?)(?<suffix>\s*(?:\[[^\]]+\]|\([^\)]+\))+)$",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
 
     public string TruncateFileName(string fileName, int maxBytes = DefaultMaxFileNameBytes)
     {
