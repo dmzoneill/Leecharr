@@ -1444,7 +1444,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({
   ]);
 
   const tagIdsKey = selectedTagIds
-    ? Array.from(selectedTagIds).sort().join(",")
+    ? Array.from(selectedTagIds).sort((a, b) => a - b).join(",")
     : "";
   const filterSignature = `${filter || ""}|${stateFilter || ""}|${trackerFilter || ""}|${privacyFilter || ""}|${tagIdsKey}|${tagMatchMode}|${selectedTag || ""}|${sortKey || ""}|${sortAsc}`;
 
