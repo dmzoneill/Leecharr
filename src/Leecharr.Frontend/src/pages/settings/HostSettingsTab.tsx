@@ -8,7 +8,11 @@ import { SaveBar, SectionCard, NumberInput, TextInput, Toggle, SelectInput } fro
 export function normalizeUrlBase(value: string): string {
   const trimmed = value.trim();
   if (!trimmed || trimmed === "/") return "";
-  const withoutTrailing = trimmed.replace(/\/+$/, "");
+  let withoutTrailing = trimmed;
+  while (withoutTrailing.endsWith("/")) {
+    withoutTrailing = withoutTrailing.slice(0, -1);
+  }
+  if (!withoutTrailing) return "";
   return withoutTrailing.startsWith("/") ? withoutTrailing : `/${withoutTrailing}`;
 }
 
