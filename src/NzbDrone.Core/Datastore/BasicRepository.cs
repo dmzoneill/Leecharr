@@ -198,9 +198,7 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
             return;
         }
 
-        List<int> insertedIds = null;
-
-        this.ExecuteWithRetry(connection =>
+        var insertedIds = this.ExecuteWithRetry(connection =>
         {
             using var transaction = connection.BeginTransaction();
 
@@ -234,7 +232,7 @@ public class BasicRepository<TModel> : IBasicRepository<TModel>
                 }
 
                 transaction.Commit();
-                insertedIds = localIds;
+                return localIds;
             }
             catch
             {

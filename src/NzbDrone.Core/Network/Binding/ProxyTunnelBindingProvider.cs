@@ -244,7 +244,7 @@ public class ProxyTunnelBindingProvider : IProxyTunnelBindingProvider
             socket.Bind(new IPEndPoint(ip, 0));
             this.logger.Debug("Bound direct socket to interface '{0}' ({1})", iface, ip);
         }
-        else if (this.configService?.EnableVpnKillSwitch ?? false)
+        else if (this.configService.EnableVpnKillSwitch)
         {
             this.logger.Error("Kill-switch activated: interface '{0}' has no valid IP for address family {1}", iface, socket.AddressFamily);
             throw new SocketException((int)SocketError.AccessDenied);

@@ -1333,19 +1333,13 @@ public class NatPmpPortMapperService : INatPmpPortMapperService, IAsyncDisposabl
         var rebootDetected = false;
         uint prevEpoch = 0;
 
-        this.gatewayEpochs.AddOrUpdate(
-            gateway,
-            epoch,
-            (key, oldEpoch) =>
-            {
-                if (epoch < oldEpoch)
-                {
-                    rebootDetected = true;
-                    prevEpoch = oldEpoch;
-                }
+        if (this.gatewayEpochs.TryGetValue(gateway, out var oldEpoch) && epoch < oldEpoch)
+        {
+            rebootDetected = true;
+            prevEpoch = oldEpoch;
+        }
 
-                return epoch;
-            });
+        this.gatewayEpochs[gateway] = epoch;
 
         if (rebootDetected)
         {
