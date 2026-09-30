@@ -13,11 +13,13 @@ public class EpisodicParser : IEpisodicParser
 {
     private static readonly Regex SeasonEpisodeRangeRegex = new(
         @"(?i)\bS(?<season>\d{1,2})E(?<epStart>\d{1,3})(?:-(?:E|EP)?(?<epEnd>\d{1,3})|(?<extraEps>(?:[-._,]?[eE]\d{1,3})+))?\b",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
 
     private static readonly Regex SeasonEpisodeAltRangeRegex = new(
         @"(?i)\b(?<season>\d{1,2})x(?<epStart>\d{1,3})(?:-(?:(?:\d{1,2}x)?(?<epEnd>\d{1,3}))|(?<extraEps>(?:x\d{1,3})+))?\b",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
 
     private static readonly Regex SpecialEpisodeRegex = new(
         @"(?i)\b(?:SP|Special)[.\s_-]*(?<ep>\d{1,3})\b",
@@ -94,7 +96,7 @@ public class EpisodicParser : IEpisodicParser
             }
             else if (extraEpsGroup.Success)
             {
-                var extraMatches = Regex.Matches(extraEpsGroup.Value, @"\d{1,3}");
+                var extraMatches = Regex.Matches(extraEpsGroup.Value, @"\d{1,3}", RegexOptions.None, TimeSpan.FromSeconds(2));
                 foreach (Match m in extraMatches)
                 {
                     if (int.TryParse(m.Value, out var eNum))
@@ -131,7 +133,7 @@ public class EpisodicParser : IEpisodicParser
             }
             else if (extraEpsGroup.Success)
             {
-                var extraMatches = Regex.Matches(extraEpsGroup.Value, @"\d{1,3}");
+                var extraMatches = Regex.Matches(extraEpsGroup.Value, @"\d{1,3}", RegexOptions.None, TimeSpan.FromSeconds(2));
                 foreach (Match m in extraMatches)
                 {
                     if (int.TryParse(m.Value, out var eNum))
