@@ -178,7 +178,6 @@ export function ConfirmModal({
             type="button"
             className="btn btn-outline"
             onClick={onCancel}
-            autoFocus={danger}
             style={{
               padding: "0.5rem 1rem",
               fontSize: "0.9rem",
@@ -195,7 +194,6 @@ export function ConfirmModal({
             type="button"
             className="btn"
             onClick={onConfirm}
-            autoFocus={!danger}
             style={{
               padding: "0.5rem 1.25rem",
               fontSize: "0.9rem",
