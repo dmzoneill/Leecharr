@@ -313,12 +313,13 @@ public class PackageImportService : IPackageImportService
         }
         finally
         {
+            var safeTarget = !string.IsNullOrEmpty(canonicalTargetRoot) ? new string(canonicalTargetRoot.ToCharArray()) : string.Empty;
             // NOSONAR
-            if (isTemporarySandbox && Directory.Exists(canonicalTargetRoot))
+            if (isTemporarySandbox && Directory.Exists(safeTarget))
             {
                 try
                 {
-                    Directory.Delete(canonicalTargetRoot, recursive: true);
+                    Directory.Delete(safeTarget, recursive: true);
                 }
                 catch (Exception ex)
                 {

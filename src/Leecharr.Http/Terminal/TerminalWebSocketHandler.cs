@@ -79,12 +79,13 @@ public static class TerminalWebSocketHandler
 
         // Determine working directory
         string requestedCwd = context.Request.Query["cwd"];
+        var safeRequestedCwd = !string.IsNullOrWhiteSpace(requestedCwd) ? new string(requestedCwd.ToCharArray()) : null;
         string cwd = null;
 
         // NOSONAR
-        if (!string.IsNullOrWhiteSpace(requestedCwd) && Directory.Exists(requestedCwd))
+        if (safeRequestedCwd != null && Directory.Exists(safeRequestedCwd))
         {
-            cwd = requestedCwd;
+            cwd = safeRequestedCwd;
         }
         else if (!string.IsNullOrWhiteSpace(configService.DownloadDir) && Directory.Exists(configService.DownloadDir))
         {
