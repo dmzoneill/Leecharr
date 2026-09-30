@@ -528,7 +528,8 @@ public class SabnzbdApiController : ControllerBase
     {
         var localPath = !string.IsNullOrWhiteSpace(name) ? name : formName;
 
-        if (!string.IsNullOrWhiteSpace(localPath) && global::System.IO.File.Exists(localPath)) // NOSONAR
+        // NOSONAR
+        if (!string.IsNullOrWhiteSpace(localPath) && global::System.IO.File.Exists(localPath))
         {
             var bytes = await global::System.IO.File.ReadAllBytesAsync(localPath);
             var parsed = this.torrentFileParser.Parse(bytes);
