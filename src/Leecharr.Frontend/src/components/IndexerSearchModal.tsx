@@ -592,7 +592,6 @@ export const IndexerSearchModal: React.FC<IndexerSearchModalProps> = ({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="search-input"
-              autoFocus
             />
             <button
               type="submit"
