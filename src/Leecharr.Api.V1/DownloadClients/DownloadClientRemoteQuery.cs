@@ -293,4 +293,273 @@ public static class DownloadClientRemoteQuery
 
         return items;
     }
+
+    public static Task<bool> PauseTorrentAsync(DownloadClientDefinition client, string infoHash, HttpClient httpClient = null, ISafeHttpClientService safeHttpClientService = null)
+    {
+        return ExecuteTorrentActionAsync(client, infoHash, "pause", false, httpClient, safeHttpClientService);
+    }
+
+    public static Task<bool> ResumeTorrentAsync(DownloadClientDefinition client, string infoHash, HttpClient httpClient = null, ISafeHttpClientService safeHttpClientService = null)
+    {
+        return ExecuteTorrentActionAsync(client, infoHash, "resume", false, httpClient, safeHttpClientService);
+    }
+
+    public static Task<bool> DeleteTorrentAsync(DownloadClientDefinition client, string infoHash, bool deleteData = false, HttpClient httpClient = null, ISafeHttpClientService safeHttpClientService = null)
+    {
+        return ExecuteTorrentActionAsync(client, infoHash, "delete", deleteData, httpClient, safeHttpClientService);
+    }
+
+    private static async Task<bool> ExecuteTorrentActionAsync(
+        DownloadClientDefinition client,
+        string infoHash,
+        string action,
+        bool deleteData = false,
+        HttpClient httpClient = null,
+        ISafeHttpClientService safeHttpClientService = null)
+    {
+        if (client == null || string.IsNullOrWhiteSpace(infoHash))
+        {
+            return false;
+        }
+
+        var port = client.Port > 0 ? client.Port : 8080;
+        var scheme = client.UseSsl ? "https" : "http";
+        var baseUrl = $"{scheme}://{client.Host}:{port}";
+
+        if (safeHttpClientService != null)
+        {
+            try
+            {
+                safeHttpClientService.ValidateUrl(baseUrl);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "SSRF blocked action for {0}", baseUrl);
+                return false;
+            }
+        }
+        else if (client.Host != null && client.Host.Trim().StartsWith("169.254.", StringComparison.Ordinal))
+        {
+            Logger.Warn("SSRF blocked action for {0}", baseUrl);
+            return false;
+        }
+
+        var password = DownloadClientPasswordHelper.Unprotect(client.Password);
+
+        HttpClient localHttp = null;
+        if (httpClient == null)
+        {
+            var handler = new SocketsHttpHandler
+            {
+                CookieContainer = new CookieContainer(),
+                UseCookies = true,
+                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+            };
+            localHttp = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(8) };
+        }
+
+        var http = httpClient ?? localHttp;
+
+        try
+        {
+            if (string.Equals(client.ClientType, "qBittorrent", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!string.IsNullOrWhiteSpace(client.Username) || !string.IsNullOrWhiteSpace(password))
+                {
+                    var loginContent = new FormUrlEncodedContent(new Dictionary<string, string>
+                    {
+                        { "username", client.Username ?? string.Empty },
+                        { "password", password ?? string.Empty },
+                    });
+
+                    var loginResp = await http.PostAsync($"{baseUrl}/api/v2/auth/login", loginContent);
+                    if (!loginResp.IsSuccessStatusCode)
+                    {
+                        Logger.Warn("qBittorrent login failed with status {0} for {1}", loginResp.StatusCode, baseUrl);
+                        return false;
+                    }
+
+                    var loginResult = await loginResp.Content.ReadAsStringAsync();
+                    if (string.Equals(loginResult.Trim(), "Fails.", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Logger.Warn("qBittorrent authentication failed (Fails.) for {0}", baseUrl);
+                        return false;
+                    }
+                }
+
+                if (action == "pause")
+                {
+                    var content = new FormUrlEncodedContent(new Dictionary<string, string> { { "hashes", infoHash } });
+                    var resp = await http.PostAsync($"{baseUrl}/api/v2/torrents/pause", content);
+                    if (resp.StatusCode == HttpStatusCode.NotFound)
+                    {
+                        resp = await http.PostAsync($"{baseUrl}/api/v2/torrents/stop", content);
+                    }
+
+                    return resp.IsSuccessStatusCode;
+                }
+                else if (action == "resume")
+                {
+                    var content = new FormUrlEncodedContent(new Dictionary<string, string> { { "hashes", infoHash } });
+                    var resp = await http.PostAsync($"{baseUrl}/api/v2/torrents/resume", content);
+                    if (resp.StatusCode == HttpStatusCode.NotFound)
+                    {
+                        resp = await http.PostAsync($"{baseUrl}/api/v2/torrents/start", content);
+                    }
+
+                    return resp.IsSuccessStatusCode;
+                }
+                else if (action == "delete")
+                {
+                    var content = new FormUrlEncodedContent(new Dictionary<string, string>
+                    {
+                        { "hashes", infoHash },
+                        { "deleteFiles", deleteData ? "true" : "false" },
+                    });
+                    var resp = await http.PostAsync($"{baseUrl}/api/v2/torrents/delete", content);
+                    return resp.IsSuccessStatusCode;
+                }
+
+                return false;
+            }
+            else if (string.Equals(client.ClientType, "Transmission", StringComparison.OrdinalIgnoreCase))
+            {
+                string rpcMethod;
+                string rpcArgs;
+                if (action == "pause")
+                {
+                    rpcMethod = "torrent-stop";
+                    rpcArgs = $"{{\"ids\":[\"{infoHash}\"]}}";
+                }
+                else if (action == "resume")
+                {
+                    rpcMethod = "torrent-start";
+                    rpcArgs = $"{{\"ids\":[\"{infoHash}\"]}}";
+                }
+                else if (action == "delete")
+                {
+                    rpcMethod = "torrent-remove";
+                    rpcArgs = $"{{\"ids\":[\"{infoHash}\"],\"delete-local-data\":{(deleteData ? "true" : "false")}}}";
+                }
+                else
+                {
+                    return false;
+                }
+
+                var rpcContent = $"{{\"method\":\"{rpcMethod}\",\"arguments\":{rpcArgs}}}";
+
+                var req = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/transmission/rpc")
+                {
+                    Content = new StringContent(rpcContent, Encoding.UTF8, "application/json"),
+                };
+
+                if (!string.IsNullOrWhiteSpace(client.Username) || !string.IsNullOrWhiteSpace(password))
+                {
+                    var creds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{client.Username}:{password}"));
+                    req.Headers.Authorization = new AuthenticationHeaderValue("Basic", creds);
+                }
+
+                var resp = await http.SendAsync(req);
+                if (resp.StatusCode == HttpStatusCode.Conflict && resp.Headers.TryGetValues("X-Transmission-Session-Id", out var sessValues))
+                {
+                    var sessionId = sessValues.FirstOrDefault();
+                    using var req2 = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/transmission/rpc")
+                    {
+                        Content = new StringContent(rpcContent, Encoding.UTF8, "application/json"),
+                    };
+
+                    if (!string.IsNullOrWhiteSpace(client.Username) || !string.IsNullOrWhiteSpace(password))
+                    {
+                        var creds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{client.Username}:{password}"));
+                        req2.Headers.Authorization = new AuthenticationHeaderValue("Basic", creds);
+                    }
+
+                    req2.Headers.Add("X-Transmission-Session-Id", sessionId);
+                    resp = await http.SendAsync(req2);
+                }
+
+                return resp.IsSuccessStatusCode;
+            }
+            else if (string.Equals(client.ClientType, "Deluge", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!string.IsNullOrWhiteSpace(password))
+                {
+                    var loginContent = new StringContent(
+                        JsonSerializer.Serialize(new
+                        {
+                            method = "auth.login",
+                            @params = new object[] { password },
+                            id = 1,
+                        }),
+                        Encoding.UTF8,
+                        "application/json");
+
+                    var loginResp = await http.PostAsync($"{baseUrl}/json", loginContent);
+                    if (!loginResp.IsSuccessStatusCode)
+                    {
+                        Logger.Warn("Deluge login failed with status code {0} for {1}", loginResp.StatusCode, baseUrl);
+                        return false;
+                    }
+
+                    var loginJson = await loginResp.Content.ReadAsStringAsync();
+                    using var loginDoc = JsonDocument.Parse(loginJson);
+                    if (loginDoc.RootElement.TryGetProperty("result", out var resElem) &&
+                        resElem.ValueKind == JsonValueKind.False)
+                    {
+                        Logger.Warn("Deluge authentication failed for {0}", baseUrl);
+                        return false;
+                    }
+                }
+
+                string delugeMethod;
+                object[] delugeParams;
+                if (action == "pause")
+                {
+                    delugeMethod = "core.pause_torrent";
+                    delugeParams = new object[] { infoHash };
+                }
+                else if (action == "resume")
+                {
+                    delugeMethod = "core.resume_torrent";
+                    delugeParams = new object[] { infoHash };
+                }
+                else if (action == "delete")
+                {
+                    delugeMethod = "core.remove_torrent";
+                    delugeParams = new object[] { infoHash, deleteData };
+                }
+                else
+                {
+                    return false;
+                }
+
+                var body = new StringContent(
+                    JsonSerializer.Serialize(new
+                    {
+                        method = delugeMethod,
+                        @params = delugeParams,
+                        id = 1,
+                    }),
+                    Encoding.UTF8,
+                    "application/json");
+
+                var resp = await http.PostAsync($"{baseUrl}/json", body);
+                return resp.IsSuccessStatusCode;
+            }
+            else
+            {
+                Logger.Warn("Unsupported client type {0} for torrent action {1}", client.ClientType, action);
+                return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn(ex, "Failed to execute torrent action {0} for client {1} ({2}:{3})", action, client.Name, client.Host, port);
+            return false;
+        }
+        finally
+        {
+            localHttp?.Dispose();
+        }
+    }
 }

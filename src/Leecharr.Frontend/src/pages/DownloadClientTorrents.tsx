@@ -261,8 +261,10 @@ export default function DownloadClientTorrents() {
     targetClientId?: number,
   ) => {
     setImportingHash(hash);
+    const resolvedClientId =
+      targetClientId && targetClientId > 0 ? targetClientId : clientId;
     importOneMutation.mutate(
-      { infoHash: hash, clientId: targetClientId || clientId },
+      { infoHash: hash, clientId: resolvedClientId },
       {
         onSuccess: () => {
           setImportingHash(null);
@@ -284,55 +286,73 @@ export default function DownloadClientTorrents() {
     );
   };
 
-  const handleImportSelected = () => {
+  const handleImportSelected = async () => {
     if (selectedHashes.size === 0) return;
-    const missingHashes = Array.from(selectedHashes).filter((hash) => {
-      const item = items?.find(
-        (i) => i.infoHash?.toLowerCase() === hash.toLowerCase(),
-      );
-      return !item || !item.isInLibrary;
-    });
+    const missingItems =
+      items?.filter((i) => {
+        if (!i.infoHash || i.isInLibrary) return false;
+        return selectedHashes.has(i.infoHash);
+      }) || [];
 
-    if (missingHashes.length === 0) {
+    if (missingItems.length === 0) {
       setSelectedHashes(new Set());
       showToast("All selected torrents are already in the library.", "info");
       return;
     }
 
     setImportingSelected(true);
-    importAllMutation.mutate(missingHashes, {
-      onSuccess: (res) => {
-        const failedCount = res.failed ?? 0;
-        showToast(
-          `Import Complete: ${res.added} added, ${res.skipped} skipped, ${failedCount} failed.`,
-          failedCount > 0 ? "error" : "success",
-        );
-        if (failedCount > 0 && res.items) {
-          const failures = res.items.filter(
-            (i: BatchImportItemResult) => !i.success,
+    const clientGroups = new Map<number, string[]>();
+    for (const it of missingItems) {
+      const cid = it.clientId || clientId || 0;
+      const list = clientGroups.get(cid) || [];
+      list.push(it.infoHash);
+      clientGroups.set(cid, list);
+    }
+
+    try {
+      let totalAdded = 0;
+      let totalSkipped = 0;
+      let totalFailed = 0;
+      const failedItems: BatchImportItemResult[] = [];
+
+      for (const [cId, hashes] of clientGroups.entries()) {
+        const res = await importAllMutation.mutateAsync({
+          infoHashes: hashes,
+          clientId: cId,
+        });
+        totalAdded += res.added ?? 0;
+        totalSkipped += res.skipped ?? 0;
+        totalFailed += res.failed ?? 0;
+        if (res.items) {
+          failedItems.push(
+            ...res.items.filter((i: BatchImportItemResult) => !i.success),
           );
-          if (failures.length > 0) {
-            setFailedImportItems(failures);
-          }
         }
-      },
-      onError: (err) => {
-        setImportingSelected(false);
-        showToast(
-          `Bulk import failed: ${err.message || "Import operation failed"}`,
-          "error",
-        );
-      },
-    });
+      }
+
+      setSelectedHashes(new Set());
+      setImportingSelected(false);
+      showToast(
+        `Import Complete: ${totalAdded} added, ${totalSkipped} skipped, ${totalFailed} failed.`,
+        totalFailed > 0 ? "error" : "success",
+      );
+      if (failedItems.length > 0) {
+        setFailedImportItems(failedItems);
+      }
+    } catch (err: any) {
+      setImportingSelected(false);
+      showToast(
+        `Bulk import failed: ${err.message || "Import operation failed"}`,
+        "error",
+      );
+    }
   };
 
-  const handleImportAllMissing = () => {
+  const handleImportAllMissing = async () => {
     if (!items) return;
-    const missingHashes = items
-      .filter((i) => !i.isInLibrary && i.infoHash)
-      .map((i) => i.infoHash);
+    const missingItems = items.filter((i) => !i.isInLibrary && i.infoHash);
 
-    if (missingHashes.length === 0) {
+    if (missingItems.length === 0) {
       showToast(
         "All torrents from this client are already in the library.",
         "info",
@@ -340,30 +360,49 @@ export default function DownloadClientTorrents() {
       return;
     }
 
-    importAllMutation.mutate(missingHashes, {
-      onSuccess: (res) => {
-        setSelectedHashes(new Set());
-        const failedCount = res.failed ?? 0;
-        showToast(
-          `Import Complete: ${res.added} added, ${res.skipped} skipped, ${failedCount} failed.`,
-          failedCount > 0 ? "error" : "success",
-        );
-        if (failedCount > 0 && res.items) {
-          const failures = res.items.filter(
-            (i: BatchImportItemResult) => !i.success,
+    const clientGroups = new Map<number, string[]>();
+    for (const it of missingItems) {
+      const cid = it.clientId || clientId || 0;
+      const list = clientGroups.get(cid) || [];
+      list.push(it.infoHash);
+      clientGroups.set(cid, list);
+    }
+
+    try {
+      let totalAdded = 0;
+      let totalSkipped = 0;
+      let totalFailed = 0;
+      const failedItems: BatchImportItemResult[] = [];
+
+      for (const [cId, hashes] of clientGroups.entries()) {
+        const res = await importAllMutation.mutateAsync({
+          infoHashes: hashes,
+          clientId: cId,
+        });
+        totalAdded += res.added ?? 0;
+        totalSkipped += res.skipped ?? 0;
+        totalFailed += res.failed ?? 0;
+        if (res.items) {
+          failedItems.push(
+            ...res.items.filter((i: BatchImportItemResult) => !i.success),
           );
-          if (failures.length > 0) {
-            setFailedImportItems(failures);
-          }
         }
-      },
-      onError: (err) => {
-        showToast(
-          `Bulk import failed: ${err.message || "Import operation failed"}`,
-          "error",
-        );
-      },
-    });
+      }
+
+      setSelectedHashes(new Set());
+      showToast(
+        `Import Complete: ${totalAdded} added, ${totalSkipped} skipped, ${totalFailed} failed.`,
+        totalFailed > 0 ? "error" : "success",
+      );
+      if (failedItems.length > 0) {
+        setFailedImportItems(failedItems);
+      }
+    } catch (err: any) {
+      showToast(
+        `Bulk import failed: ${err.message || "Import operation failed"}`,
+        "error",
+      );
+    }
   };
 
   if (clientsLoading) {
@@ -2097,9 +2136,15 @@ export default function DownloadClientTorrents() {
                             importingHash === item.infoHash
                           }
                           onClick={() => {
+                            const matchingItem = items?.find(
+                              (f) =>
+                                f.infoHash?.toLowerCase() ===
+                                item.infoHash.toLowerCase(),
+                            );
                             handleImportOne(
                               item.infoHash,
                               item.title || item.infoHash,
+                              matchingItem?.clientId,
                             );
                             setFailedImportItems((prev) =>
                               prev
