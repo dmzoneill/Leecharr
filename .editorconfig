@@ -280,7 +280,8 @@ dotnet_diagnostic.S8949.severity = suggestion
 dotnet_diagnostic.S6966.severity = suggestion
 dotnet_diagnostic.S2583.severity = suggestion
 dotnet_diagnostic.S2259.severity = suggestion
-dotnet_diagnostic.S5144.severity = suggestion
+# S5144: SSRF on user-configured external service integrations
+dotnet_diagnostic.S5144.severity = none
 dotnet_diagnostic.S5332.severity = suggestion
 dotnet_diagnostic.S2092.severity = suggestion
 dotnet_diagnostic.S6776.severity = suggestion
