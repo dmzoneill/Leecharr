@@ -31,7 +31,7 @@ public class VpnKillSwitchServiceTest
         this.repository = Substitute.For<INetworkSettingsRepository>();
         this.eventAggregator = Substitute.For<IEventAggregator>();
         this.configService = Substitute.For<IConfigService>();
-        this.configService.EnableVpnKillSwitch.Returns(_ => this.repository.GetSettings()?.EnableVpnKillSwitch ?? false);
+        this.configService.EnableVpnKillSwitch.Returns(true);
 
         this.service = new VpnKillSwitchService(this.repository, this.eventAggregator, this.configService);
     }
@@ -51,6 +51,7 @@ public class VpnKillSwitchServiceTest
             BindInterface = "tun0",
         };
         this.repository.GetSettings().Returns(settings);
+        this.configService.EnableVpnKillSwitch.Returns(false);
 
         var isKillSwitchTriggered = this.service.CheckVpnState();
 
