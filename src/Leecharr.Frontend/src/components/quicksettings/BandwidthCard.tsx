@@ -214,6 +214,7 @@ export const BandwidthCard: React.FC = () => {
               className={`quick-slider-bound ${localDl === 0 ? "active" : ""}`}
               onClick={() => setDlDirect(0)}
               title={t("quickSettings.setDownloadToUnlimited")}
+              aria-label={t("quickSettings.setDownloadToUnlimited")}
             >
               ∞
             </button>
@@ -292,6 +293,7 @@ export const BandwidthCard: React.FC = () => {
               className={`quick-slider-bound ${localUl === 0 ? "active" : ""}`}
               onClick={() => setUlDirect(0)}
               title={t("quickSettings.setUploadToUnlimited")}
+              aria-label={t("quickSettings.setUploadToUnlimited")}
             >
               ∞
             </button>

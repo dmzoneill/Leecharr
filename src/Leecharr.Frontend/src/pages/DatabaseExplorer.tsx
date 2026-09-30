@@ -643,6 +643,7 @@ export default function DatabaseExplorer() {
                 className="btn btn-outline btn-small"
                 onClick={() => handleZoom(1.25)}
                 title="Zoom In"
+                aria-label="Zoom In"
               >
                 +
               </button>
@@ -650,6 +651,7 @@ export default function DatabaseExplorer() {
                 className="btn btn-outline btn-small"
                 onClick={() => handleZoom(0.8)}
                 title="Zoom Out"
+                aria-label="Zoom Out"
               >
                 -
               </button>

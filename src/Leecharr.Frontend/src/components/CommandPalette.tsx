@@ -818,6 +818,7 @@ export function CommandPalette({
             <button
               type="button"
               onClick={() => setQuery("")}
+              aria-label={t("common.clear", "Clear")}
               style={{
                 background: "transparent",
                 border: "none",
