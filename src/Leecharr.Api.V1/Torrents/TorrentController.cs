@@ -1355,7 +1355,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
     [HttpPost]
     [Consumes("multipart/form-data", "application/x-www-form-urlencoded")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "S6932:Use model binding instead of accessing the raw request data", Justification = "Fallback form inspection handles multipart uploads and form aliases safely across multiple clients.")]
+    [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "S6932:Use model binding instead of accessing the raw request data", Justification = "Fallback form inspection handles multipart uploads and form aliases safely across multiple clients.")]
     public async Task<ActionResult<TorrentResource>> AddTorrentForm(
         [FromForm] IFormFile file = null,
         [FromForm] string magnetUrl = null,
@@ -1435,7 +1435,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
     [HttpPost("upload")]
     [Consumes("multipart/form-data")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "S6932:Use model binding instead of accessing the raw request data", Justification = "Fallback form inspection handles multipart uploads and form aliases safely across multiple clients.")]
+    [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "S6932:Use model binding instead of accessing the raw request data", Justification = "Fallback form inspection handles multipart uploads and form aliases safely across multiple clients.")]
     public async Task<IActionResult> Upload(
         [FromForm] List<IFormFile> files = null,
         [FromForm] string category = null,
@@ -1559,7 +1559,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         return this.Ok(new TorrentUploadResult(added, failed));
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "S6932:Use model binding instead of accessing the raw request data", Justification = "Fallback form inspection handles multipart uploads and form aliases safely across multiple clients.")]
+    [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "S6932:Use model binding instead of accessing the raw request data", Justification = "Fallback form inspection handles multipart uploads and form aliases safely across multiple clients.")]
     private List<int> ResolveTagsFromForm(List<int> tags, List<int> tagIds)
     {
         var result = new List<int>();
@@ -1601,7 +1601,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
         return result.Distinct().ToList();
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "S6932:Use model binding instead of accessing the raw request data", Justification = "Fallback form inspection handles multipart uploads and form aliases safely across multiple clients.")]
+    [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "S6932:Use model binding instead of accessing the raw request data", Justification = "Fallback form inspection handles multipart uploads and form aliases safely across multiple clients.")]
     private int? ResolveLimitFromForm(int? limit, params string[] formKeys)
     {
         if (limit.HasValue)
@@ -2198,7 +2198,7 @@ public class TorrentController : RestControllerWithSignalR<TorrentResource, Torr
 
     [HttpPost("preview/upload")]
     [Consumes("multipart/form-data")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "S6932:Use model binding instead of accessing the raw request data", Justification = "Fallback form inspection handles multipart uploads and form aliases safely across multiple clients.")]
+    [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "S6932:Use model binding instead of accessing the raw request data", Justification = "Fallback form inspection handles multipart uploads and form aliases safely across multiple clients.")]
     public async Task<ActionResult<TorrentPreviewResource>> PreviewUpload([FromForm] List<IFormFile> files = null)
     {
         var targetFile = files?.FirstOrDefault() ?? (this.Request?.HasFormContentType == true && this.Request.Form.Files.Count > 0 ? this.Request.Form.Files[0] : null);

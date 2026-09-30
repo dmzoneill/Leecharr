@@ -908,7 +908,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             this.logger.Info("Torrent {0} is already being added concurrently; waiting for in-flight operation.", torrent.Id);
             for (var i = 0; i < 100; i++)
             {
-                await Task.Delay(50).ConfigureAwait(false);
+                await Task.Delay(50, CancellationToken.None).ConfigureAwait(false);
                 if (this.tasks.TryGetValue(torrent.Id, out var createdTask))
                 {
                     return createdTask;
@@ -1622,7 +1622,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
 
             for (var i = 0; i < 50 && this.inFlightAdds.ContainsKey(torrentId); i++)
             {
-                await Task.Delay(20).ConfigureAwait(false);
+                await Task.Delay(20, CancellationToken.None).ConfigureAwait(false);
             }
         }
 
@@ -1751,7 +1751,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             catch (IOException ioEx) when (attempt < maxRetries)
             {
                 this.logger.Debug(ioEx, "File '{0}' locked during deletion (attempt {1}/{2}). Retrying in {3}ms...", filePath, attempt, maxRetries, delayMs);
-                await Task.Delay(delayMs);
+                await Task.Delay(delayMs, CancellationToken.None);
                 delayMs *= 2;
             }
         }
@@ -1774,7 +1774,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
             catch (IOException ioEx) when (attempt < maxRetries)
             {
                 this.logger.Debug(ioEx, "Folder '{0}' locked during deletion (attempt {1}/{2}). Retrying in {3}ms...", folderPath, attempt, maxRetries, delayMs);
-                await Task.Delay(delayMs);
+                await Task.Delay(delayMs, CancellationToken.None);
                 delayMs *= 2;
             }
         }
@@ -4952,7 +4952,7 @@ public class MonoTorrentDownloadEngine : ITorrentEngine,
                 else
                 {
                     var dnsTask = Dns.GetHostAddressesAsync(host);
-                    var completed = await Task.WhenAny(dnsTask, Task.Delay(3000)).ConfigureAwait(false);
+                    var completed = await Task.WhenAny(dnsTask, Task.Delay(3000, CancellationToken.None)).ConfigureAwait(false);
                     if (completed != dnsTask)
                     {
                         this.logger.Debug("DNS resolution timed out for DHT bootstrap node '{0}'", host);

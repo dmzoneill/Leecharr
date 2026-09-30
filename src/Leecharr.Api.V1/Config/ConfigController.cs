@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentValidation;
 using Leecharr.Http;
@@ -434,7 +435,7 @@ public class TrackerServerConfigController : ConfigController<TrackerServerConfi
                     {
                         this.logger.Error(ex, "Failed to restart UDP tracker service");
                     }
-                });
+                }, CancellationToken.None);
             }
             else
             {
@@ -448,7 +449,7 @@ public class TrackerServerConfigController : ConfigController<TrackerServerConfi
                     {
                         this.logger.Error(ex, "Failed to stop UDP tracker service");
                     }
-                });
+                }, CancellationToken.None);
             }
         }
 
