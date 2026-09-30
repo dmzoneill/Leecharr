@@ -702,7 +702,7 @@ function WeeklyCalendar({
     ) {
       const d = Number.parseInt(cell.dataset.dayIdx, 10);
       const h = Number.parseInt(cell.dataset.hour, 10);
-      if (!isNaN(d) && !isNaN(h)) {
+      if (!Number.isNaN(d) && !Number.isNaN(h)) {
         if (
           dragStartRef.current &&
           (dragStartRef.current.dayIdx !== d || dragStartRef.current.hour !== h)

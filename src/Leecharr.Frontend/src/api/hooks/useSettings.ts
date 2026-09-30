@@ -282,7 +282,7 @@ export function useDownloadClientItems(clientId: number | string) {
   const isAll = clientId === "all";
   const numId =
     typeof clientId === "number" ? clientId : Number.parseInt(clientId, 10);
-  const isValid = isAll || (!isNaN(numId) && numId > 0);
+  const isValid = isAll || (!Number.isNaN(numId) && numId > 0);
 
   return useQuery<DownloadClientRemoteItem[]>({
     queryKey: ["downloadclients", isAll ? "all" : numId, "items"],

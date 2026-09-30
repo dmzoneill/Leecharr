@@ -39,7 +39,7 @@ export function normalizeIndexerPayload(
   if (Array.isArray(editing.categories)) {
     categories = (editing.categories as (number | string)[])
       .map((c) => Number(c))
-      .filter((n) => !isNaN(n));
+      .filter((n) => !Number.isNaN(n));
   } else if (
     typeof editing.categories === "string" &&
     (editing.categories as string).trim()
@@ -47,7 +47,7 @@ export function normalizeIndexerPayload(
     categories = (editing.categories as string)
       .split(",")
       .map((s) => Number(s.trim()))
-      .filter((n) => !isNaN(n));
+      .filter((n) => !Number.isNaN(n));
   } else if (typeof editing.categories === "number") {
     categories = [editing.categories];
   }
@@ -95,7 +95,7 @@ export function parseIndexerIds(input: string): number[] {
   return input
     .split(",")
     .map((s) => Number(s.trim()))
-    .filter((n) => !isNaN(n) && n > 0);
+    .filter((n) => !Number.isNaN(n) && n > 0);
 }
 
 export function IndexersTab() {

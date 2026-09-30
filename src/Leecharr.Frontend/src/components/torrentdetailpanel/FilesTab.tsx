@@ -1409,7 +1409,7 @@ export function FilesTab({
                       value={currentPriority === -1 ? "" : currentPriority}
                       onChange={(e) => {
                         const val = Number.parseInt(e.target.value, 10);
-                        if (isNaN(val)) return;
+                        if (Number.isNaN(val)) return;
                         if (isFolder) {
                           handleBatchSetPriority(descendantFiles, val);
                         } else if (node.file) {
