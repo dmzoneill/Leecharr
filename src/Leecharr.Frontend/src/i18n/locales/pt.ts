@@ -2023,8 +2023,8 @@ const pt: I18nTranslations = {
     "inactivityWarning": "Aviso de inatividade",
     "inactivityWarningDesc": "Sua sessão será bloqueada automaticamente devido à inatividade em:",
     "activityHint": "Mova o mouse ou pressione qualquer tecla para permanecer ativo.",
-    "passwordPlaceholder": "Digite a senha ou chave API",
-    "passwordRequired": "Senha ou chave API é obrigatória",
+    "passwordPlaceholder": "Digite a senha",
+    "passwordRequired": "Senha é obrigatória",
     "invalidPassword": "Senha ou credenciais inválidas",
     "sessionUnlocked": "Sessão desbloqueada com sucesso",
     "lockScreen": "Tela de bloqueio"

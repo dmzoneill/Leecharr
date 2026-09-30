@@ -2023,8 +2023,8 @@ const te: I18nTranslations = {
     "inactivityWarning": "నిష్క్రియాత్మకత హెచ్చరిక",
     "inactivityWarningDesc": "దీనిలో నిష్క్రియాత్మకత కారణంగా మీ సెషన్ స్వయంచాలకంగా లాక్ చేయబడుతుంది:",
     "activityHint": "సక్రియంగా ఉండటానికి మీ మౌస్‌ని తరలించండి లేదా ఏదైనా కీని నొక్కండి.",
-    "passwordPlaceholder": "పాస్‌వర్డ్ లేదా API కీని నమోదు చేయండి",
-    "passwordRequired": "పాస్‌వర్డ్ లేదా API కీ అవసరం",
+    "passwordPlaceholder": "పాస్‌వర్డ్‌ను నమోదు చేయండి",
+    "passwordRequired": "పాస్‌వర్డ్ అవసరం",
     "invalidPassword": "చెల్లని పాస్‌వర్డ్ లేదా ఆధారాలు",
     "sessionUnlocked": "సెషన్ విజయవంతంగా అన్‌లాక్ చేయబడింది",
     "lockScreen": "లాక్ స్క్రీన్"

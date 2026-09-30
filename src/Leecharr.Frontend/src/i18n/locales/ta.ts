@@ -2023,8 +2023,8 @@ const ta: I18nTranslations = {
     "inactivityWarning": "செயலற்ற எச்சரிக்கை",
     "inactivityWarningDesc": "இதில் செயல்படாததால் உங்கள் அமர்வு தானாகவே பூட்டப்படும்:",
     "activityHint": "செயலில் இருக்க உங்கள் சுட்டியை நகர்த்தவும் அல்லது ஏதேனும் ஒரு விசையை அழுத்தவும்.",
-    "passwordPlaceholder": "கடவுச்சொல் அல்லது API விசையை உள்ளிடவும்",
-    "passwordRequired": "கடவுச்சொல் அல்லது API விசை தேவை",
+    "passwordPlaceholder": "கடவுச்சொல்லை உள்ளிடவும்",
+    "passwordRequired": "கடவுச்சொல் தேவை",
     "invalidPassword": "தவறான கடவுச்சொல் அல்லது சான்றுகள்",
     "sessionUnlocked": "அமர்வு வெற்றிகரமாக திறக்கப்பட்டது",
     "lockScreen": "பூட்டு திரை"

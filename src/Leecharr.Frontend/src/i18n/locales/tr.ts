@@ -2023,8 +2023,8 @@ const tr: I18nTranslations = {
     "inactivityWarning": "Hareketsizlik Uyarısı",
     "inactivityWarningDesc": "Oturumunuz aşağıdaki alanlarda etkinlik olmaması nedeniyle otomatik olarak kilitlenecektir:",
     "activityHint": "Etkin kalmak için farenizi hareket ettirin veya herhangi bir tuşa basın.",
-    "passwordPlaceholder": "Şifreyi veya API anahtarını girin",
-    "passwordRequired": "Şifre veya API anahtarı gerekli",
+    "passwordPlaceholder": "Şifreyi girin",
+    "passwordRequired": "Şifre gerekli",
     "invalidPassword": "Geçersiz şifre veya kimlik bilgileri",
     "sessionUnlocked": "Oturumun kilidi başarıyla açıldı",
     "lockScreen": "Kilit Ekranı"

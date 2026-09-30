@@ -2023,8 +2023,8 @@ const ja: I18nTranslations = {
     "inactivityWarning": "非アクティブの警告",
     "inactivityWarningDesc": "以下のアクティビティがないため、セッションは自動的にロックされます。",
     "activityHint": "アクティブな状態を維持するには、マウスを動かすか任意のキーを押します。",
-    "passwordPlaceholder": "パスワードまたはAPIキーを入力してください",
-    "passwordRequired": "パスワードまたはAPIキーが必要です",
+    "passwordPlaceholder": "パスワードを入力してください",
+    "passwordRequired": "パスワードが必要です",
     "invalidPassword": "無効なパスワードまたは資格情報",
     "sessionUnlocked": "セッションのロックが正常に解除されました",
     "lockScreen": "ロック画面"
