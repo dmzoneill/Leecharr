@@ -16,7 +16,7 @@ import { apiClient } from "../api/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { secureRandom } from "../utils/random";
 
-interface SimNode extends d3.SimulationNodeDatum, PeerGraphNode {}
+type SimNode = d3.SimulationNodeDatum & PeerGraphNode;
 interface SimLink extends d3.SimulationLinkDatum<SimNode> {
   type: string;
 }
@@ -1041,6 +1041,7 @@ function PeerMap() {
             }}
             onClick={handleZoomIn}
             title={t("peerMap.zoomIn")}
+            aria-label={t("peerMap.zoomIn")}
           >
             ➕
           </button>
@@ -1055,6 +1056,7 @@ function PeerMap() {
             }}
             onClick={handleZoomOut}
             title={t("peerMap.zoomOut")}
+            aria-label={t("peerMap.zoomOut")}
           >
             ➖
           </button>
@@ -1069,6 +1071,7 @@ function PeerMap() {
             }}
             onClick={handleResetZoom}
             title={t("peerMap.resetZoom")}
+            aria-label={t("peerMap.resetZoom")}
           >
             ⟲
           </button>
@@ -1123,6 +1126,7 @@ function PeerMap() {
                   color: "var(--text-muted)",
                 }}
                 onClick={() => setSelectedNode(null)}
+                aria-label={t("common.close", "Close")}
               >
                 ✕
               </button>
@@ -1199,6 +1203,7 @@ function PeerMap() {
                     flexShrink: 0,
                   }}
                   title={t("automation.commands.GeoIpUpdate")}
+                  aria-label={t("automation.commands.GeoIpUpdate")}
                 >
                   <i
                     className={`fas fa-sync-alt ${isUpdatingGeoIp ? "fa-spin" : ""}`}

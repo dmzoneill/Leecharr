@@ -241,6 +241,7 @@ export function TorrentFileInputTab({
                     padding: "0.1rem 0.3rem",
                   }}
                   title={t("addTorrent.removeFileTooltip", "Remove file")}
+                  aria-label={t("addTorrent.removeFileTooltip", "Remove file")}
                 >
                   ✕
                 </button>

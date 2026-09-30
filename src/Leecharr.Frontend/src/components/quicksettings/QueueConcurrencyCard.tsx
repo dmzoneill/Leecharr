@@ -89,6 +89,7 @@ export const QueueConcurrencyCard: React.FC = () => {
               onClick={() => changeDl(-1)}
               disabled={activeDl <= 0}
               title={t("quickSettings.decreaseMaxDownloads")}
+              aria-label={t("quickSettings.decreaseMaxDownloads")}
             >
               −
             </button>
@@ -100,6 +101,7 @@ export const QueueConcurrencyCard: React.FC = () => {
               className="stepper-btn"
               onClick={() => changeDl(1)}
               title={t("quickSettings.increaseMaxDownloads")}
+              aria-label={t("quickSettings.increaseMaxDownloads")}
             >
               +
             </button>
@@ -119,6 +121,7 @@ export const QueueConcurrencyCard: React.FC = () => {
               onClick={() => changeSeed(-1)}
               disabled={activeSeed <= 0}
               title={t("quickSettings.decreaseMaxSeeds")}
+              aria-label={t("quickSettings.decreaseMaxSeeds")}
             >
               −
             </button>
@@ -130,6 +133,7 @@ export const QueueConcurrencyCard: React.FC = () => {
               className="stepper-btn"
               onClick={() => changeSeed(1)}
               title={t("quickSettings.increaseMaxSeeds")}
+              aria-label={t("quickSettings.increaseMaxSeeds")}
             >
               +
             </button>

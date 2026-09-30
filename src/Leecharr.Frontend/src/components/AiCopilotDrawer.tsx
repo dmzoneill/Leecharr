@@ -872,6 +872,7 @@ export const AiCopilotDrawer: React.FC = () => {
                   borderRadius: "4px",
                 }}
                 title={isExpanded ? t("copilot.compact") : t("copilot.expand")}
+                aria-label={isExpanded ? t("copilot.compact") : t("copilot.expand")}
               >
                 {isExpanded ? "🗗" : "🗖"}
               </button>
@@ -886,6 +887,7 @@ export const AiCopilotDrawer: React.FC = () => {
                   borderRadius: "4px",
                 }}
                 title={t("copilot.minimize")}
+                aria-label={t("copilot.minimize")}
               >
                 <CloseIcon size={16} />
               </button>
@@ -1205,6 +1207,7 @@ export const AiCopilotDrawer: React.FC = () => {
                 <button
                   type="submit"
                   disabled={!inputMessage.trim() || chatMutation.isPending}
+                  aria-label="Send message"
                   style={{
                     padding: "0.4rem 0.6rem",
                     backgroundColor: "var(--accent-gold, #FFD166)",

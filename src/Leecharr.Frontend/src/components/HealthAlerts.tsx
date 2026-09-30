@@ -82,6 +82,7 @@ function HealthAlerts() {
                 padding: "0.2rem 0.4rem",
               }}
               title={t("alerts.dismiss")}
+              aria-label={t("alerts.dismiss")}
             >
               ✕
             </button>

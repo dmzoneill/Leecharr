@@ -1252,6 +1252,11 @@ export function FilesTab({
                             ? t("torrents.detail.renameFolder")
                             : t("torrents.detail.renameFile")
                         }
+                        aria-label={
+                          node.isFolder
+                            ? t("torrents.detail.renameFolder")
+                            : t("torrents.detail.renameFile")
+                        }
                         style={{
                           background: "none",
                           border: "none",

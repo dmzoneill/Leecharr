@@ -461,6 +461,7 @@ export const TorrentDetailPanel: React.FC<TorrentDetailPanelProps> = ({
             className="btn btn-small"
             onClick={onClose}
             title={t("torrents.actions.close")}
+            aria-label={t("torrents.actions.close")}
           >
             X
           </button>

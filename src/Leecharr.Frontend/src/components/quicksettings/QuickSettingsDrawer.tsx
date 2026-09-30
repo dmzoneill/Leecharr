@@ -50,6 +50,7 @@ export const QuickSettingsDrawer: React.FC<QuickSettingsDrawerProps> = ({
             className="quick-settings-close-btn"
             onClick={onClose}
             title={t("quickSettings.closeTitle")}
+            aria-label={t("quickSettings.closeTitle")}
           >
             ✕
           </button>
