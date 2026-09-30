@@ -21,6 +21,7 @@ using NzbDrone.Core.Notifications;
 using NzbDrone.Core.Tags;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.TrackerBoost;
+using NzbDrone.Core.Trackers;
 
 namespace NzbDrone.Core.Test.Automation;
 
@@ -41,6 +42,7 @@ public class AutomationServiceTest
     private ICustomScriptService _customScriptService;
     private INotificationRepository _notificationRepository;
     private IWebhookDispatcher _webhookDispatcher;
+    private ITrackerEntryRepository _trackerEntryRepository;
 
     [SetUp]
     public void SetUp()
@@ -59,6 +61,7 @@ public class AutomationServiceTest
         _customScriptService = Substitute.For<ICustomScriptService>();
         _notificationRepository = Substitute.For<INotificationRepository>();
         _webhookDispatcher = Substitute.For<IWebhookDispatcher>();
+        _trackerEntryRepository = Substitute.For<ITrackerEntryRepository>();
 
         _tagRepository.All().Returns(new List<Tag>());
         _tagRepository.Insert(Arg.Any<Tag>()).Returns(ci =>
@@ -1867,5 +1870,223 @@ public class AutomationServiceTest
         torrent.TargetSeedTimeMinutes.Should().Be(1440);
         torrent.ShareLimitAction.Should().Be("SuperSeeding");
         _torrentRepository.Received(1).Update(torrent);
+    }
+
+    [Test]
+    public async Task ApplyExecutionResultAsync_ShouldForceRecheck_WhenShouldRecheckIsTrue()
+    {
+        var torrent = new Torrent { Id = 101, Name = "RecheckTorrent" };
+        var result = new AutomationExecutionResult
+        {
+            Success = true,
+            ShouldRecheck = true,
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            torrentService: _torrentService);
+
+        await service.ApplyExecutionResultAsync(torrent, result);
+
+        await _torrentService.Received(1).ForceRecheckAsync(101);
+    }
+
+    [Test]
+    public async Task ApplyExecutionResultAsync_ShouldForceAnnounce_WhenShouldReannounceIsTrue()
+    {
+        var torrent = new Torrent { Id = 102, Name = "ReannounceTorrent" };
+        var result = new AutomationExecutionResult
+        {
+            Success = true,
+            ShouldReannounce = true,
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            torrentService: _torrentService);
+
+        await service.ApplyExecutionResultAsync(torrent, result);
+
+        await _torrentService.Received(1).ForceAnnounceAsync(102);
+    }
+
+    [Test]
+    public async Task ApplyExecutionResultAsync_ShouldForceAnnounce_WhenShouldReannounceAllIsTrue()
+    {
+        var torrent = new Torrent { Id = 103, Name = "ReannounceAllTorrent" };
+        var result = new AutomationExecutionResult
+        {
+            Success = true,
+            ShouldReannounceAll = true,
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            torrentService: _torrentService);
+
+        await service.ApplyExecutionResultAsync(torrent, result);
+
+        await _torrentService.Received(1).ForceAnnounceAsync(103);
+    }
+
+    [Test]
+    public async Task ApplyExecutionResultAsync_ShouldReplaceTrackers_InTorrentTrackerRepositoryAndEngine()
+    {
+        var torrent = new Torrent
+        {
+            Id = 104,
+            Name = "TrackerTorrent",
+            TrackerUrl = "http://tracker.old.com/announce",
+        };
+        var trackerEntry = new TrackerEntry
+        {
+            Id = 55,
+            TorrentId = 104,
+            Url = "http://tracker.old.com/announce",
+        };
+        _trackerEntryRepository.GetByTorrentId(104).Returns(new List<TrackerEntry> { trackerEntry });
+
+        var result = new AutomationExecutionResult
+        {
+            Success = true,
+            TrackersToReplace = new List<Tuple<string, string>>
+            {
+                new Tuple<string, string>("http://tracker.old.com/announce", "http://tracker.new.com/announce"),
+            },
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            downloadEngine: _downloadEngine,
+            torrentService: _torrentService,
+            trackerEntryRepository: _trackerEntryRepository);
+
+        await service.ApplyExecutionResultAsync(torrent, result);
+
+        torrent.TrackerUrl.Should().Be("http://tracker.new.com/announce");
+        _torrentRepository.Received(1).Update(torrent);
+        trackerEntry.Url.Should().Be("http://tracker.new.com/announce");
+        _trackerEntryRepository.Received(1).Update(trackerEntry);
+        await _downloadEngine.Received(1).RemoveTrackersAsync(104, Arg.Is<IEnumerable<string>>(t => t.Contains("http://tracker.old.com/announce")));
+        await _downloadEngine.Received(1).AddTrackersAsync(104, Arg.Is<IEnumerable<string>>(t => t.Contains("http://tracker.new.com/announce")));
+    }
+
+    [Test]
+    public void ExecuteScript_WithRecheckAndReannounceActions_TriggersTorrentService()
+    {
+        var torrent = new Torrent
+        {
+            Id = 105,
+            Name = "ScriptRecheckTorrent",
+        };
+        var script = new AutomationScript
+        {
+            Id = 501,
+            IsEnabled = true,
+            Language = AutomationLanguage.JavaScript,
+            Code = @"
+                torrent.recheck();
+                torrent.reannounce();
+            ",
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            torrentService: _torrentService);
+
+        var result = service.ExecuteScript(script, torrent);
+
+        result.Success.Should().BeTrue();
+        result.ShouldRecheck.Should().BeTrue();
+        result.ShouldReannounce.Should().BeTrue();
+        _torrentService.Received(1).ForceRecheckAsync(105);
+        _torrentService.Received(1).ForceAnnounceAsync(105);
+    }
+
+    [Test]
+    public void ExecuteScript_WithReannounceAll_TriggersForceAnnounce()
+    {
+        var torrent = new Torrent
+        {
+            Id = 106,
+            Name = "ScriptReannounceAllTorrent",
+        };
+        var script = new AutomationScript
+        {
+            Id = 502,
+            IsEnabled = true,
+            Language = AutomationLanguage.JavaScript,
+            Code = "torrent.reannounceAll();",
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            torrentService: _torrentService);
+
+        var result = service.ExecuteScript(script, torrent);
+
+        result.Success.Should().BeTrue();
+        result.ShouldReannounceAll.Should().BeTrue();
+        _torrentService.Received(1).ForceAnnounceAsync(106);
+    }
+
+    [Test]
+    public void ExecuteScript_WithReplaceTracker_UpdatesTrackersAndRepository()
+    {
+        var torrent = new Torrent
+        {
+            Id = 107,
+            Name = "ScriptReplaceTrackerTorrent",
+            TrackerUrl = "http://old-source.org/announce",
+        };
+        var trackerEntry = new TrackerEntry
+        {
+            Id = 77,
+            TorrentId = 107,
+            Url = "http://old-source.org/announce",
+        };
+        _trackerEntryRepository.GetByTorrentId(107).Returns(new List<TrackerEntry> { trackerEntry });
+
+        var script = new AutomationScript
+        {
+            Id = 503,
+            IsEnabled = true,
+            Language = AutomationLanguage.JavaScript,
+            Code = "torrent.replaceTracker('http://old-source.org/announce', 'http://new-source.org/announce');",
+        };
+
+        var service = new AutomationService(
+            _scriptRepository,
+            _torrentRepository,
+            _tagRepository,
+            _eventAggregator,
+            torrentService: _torrentService,
+            trackerEntryRepository: _trackerEntryRepository);
+
+        var result = service.ExecuteScript(script, torrent);
+
+        result.Success.Should().BeTrue();
+        result.TrackersToReplace.Should().HaveCount(1);
+        torrent.TrackerUrl.Should().Be("http://new-source.org/announce");
+        trackerEntry.Url.Should().Be("http://new-source.org/announce");
+        _trackerEntryRepository.Received(1).Update(trackerEntry);
     }
 }

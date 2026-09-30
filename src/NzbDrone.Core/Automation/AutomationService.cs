@@ -20,6 +20,7 @@ using NzbDrone.Core.Notifications;
 using NzbDrone.Core.Tags;
 using NzbDrone.Core.Torrents;
 using NzbDrone.Core.TrackerBoost;
+using NzbDrone.Core.Trackers;
 
 namespace NzbDrone.Core.Automation;
 
@@ -45,6 +46,7 @@ public class AutomationService : IAutomationService
     private readonly IDiskProvider? _diskProvider;
     private readonly IArchiveExtractorService? _archiveExtractorService;
     private readonly ITorrentService? _torrentService;
+    private readonly ITrackerEntryRepository? _trackerEntryRepository;
     private readonly Logger _logger;
     private readonly JintScriptRunner _jintRunner;
     private readonly YamlScriptRunner _yamlRunner;
@@ -65,7 +67,8 @@ public class AutomationService : IAutomationService
         IExtractorService? extractorService = null,
         IDiskProvider? diskProvider = null,
         IArchiveExtractorService? archiveExtractorService = null,
-        ITorrentService? torrentService = null)
+        ITorrentService? torrentService = null,
+        ITrackerEntryRepository? trackerEntryRepository = null)
     {
         _scriptRepository = scriptRepository;
         _torrentRepository = torrentRepository;
@@ -82,6 +85,7 @@ public class AutomationService : IAutomationService
         _diskProvider = diskProvider;
         _archiveExtractorService = archiveExtractorService;
         _torrentService = torrentService;
+        _trackerEntryRepository = trackerEntryRepository;
         _logger = LogManager.GetCurrentClassLogger();
         _jintRunner = new JintScriptRunner(commandQueue, configFileProvider);
         _yamlRunner = new YamlScriptRunner(commandQueue);
@@ -324,10 +328,15 @@ public class AutomationService : IAutomationService
 
     private void ApplyTorrentMutations(Torrent torrent, AutomationExecutionResult result)
     {
-        ApplyTorrentMutationsAsync(torrent, result).GetAwaiter().GetResult();
+        ApplyExecutionResultAsync(torrent, result).GetAwaiter().GetResult();
     }
 
-    private async Task ApplyTorrentMutationsAsync(Torrent torrent, AutomationExecutionResult result)
+    private Task ApplyTorrentMutationsAsync(Torrent torrent, AutomationExecutionResult result)
+    {
+        return ApplyExecutionResultAsync(torrent, result);
+    }
+
+    public async Task ApplyExecutionResultAsync(Torrent torrent, AutomationExecutionResult result)
     {
         ExecuteAutomationActions(torrent, result);
 
@@ -452,6 +461,67 @@ public class AutomationService : IAutomationService
             changed = true;
         }
 
+        // Tracker replacement
+        if (result.TrackersToReplace != null && result.TrackersToReplace.Count > 0)
+        {
+            foreach (var trackerPair in result.TrackersToReplace)
+            {
+                var oldTracker = trackerPair.Item1;
+                var newTracker = trackerPair.Item2;
+
+                if (!string.IsNullOrWhiteSpace(oldTracker) && !string.IsNullOrWhiteSpace(newTracker) && !string.IsNullOrWhiteSpace(torrent.TrackerUrl))
+                {
+                    if (string.Equals(torrent.TrackerUrl, oldTracker, StringComparison.OrdinalIgnoreCase))
+                    {
+                        torrent.TrackerUrl = newTracker;
+                        changed = true;
+                    }
+                    else if (torrent.TrackerUrl.Contains(oldTracker))
+                    {
+                        torrent.TrackerUrl = torrent.TrackerUrl.Replace(oldTracker, newTracker);
+                        changed = true;
+                    }
+                }
+            }
+
+            if (_trackerEntryRepository != null)
+            {
+                var entries = _trackerEntryRepository.GetByTorrentId(torrent.Id).ToList();
+                foreach (var entry in entries)
+                {
+                    foreach (var trackerPair in result.TrackersToReplace)
+                    {
+                        if (!string.IsNullOrWhiteSpace(trackerPair.Item1) &&
+                            !string.IsNullOrWhiteSpace(trackerPair.Item2) &&
+                            string.Equals(entry.Url, trackerPair.Item1, StringComparison.OrdinalIgnoreCase))
+                        {
+                            entry.Url = trackerPair.Item2;
+                            _trackerEntryRepository.Update(entry);
+                        }
+                    }
+                }
+            }
+
+            if (_downloadEngine != null)
+            {
+                foreach (var trackerPair in result.TrackersToReplace)
+                {
+                    if (!string.IsNullOrWhiteSpace(trackerPair.Item1) && !string.IsNullOrWhiteSpace(trackerPair.Item2))
+                    {
+                        try
+                        {
+                            await _downloadEngine.RemoveTrackersAsync(torrent.Id, new[] { trackerPair.Item1 }).ConfigureAwait(false);
+                            await _downloadEngine.AddTrackersAsync(torrent.Id, new[] { trackerPair.Item2 }).ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.Error(ex, "Failed to replace tracker {0} with {1} on torrent {2}", trackerPair.Item1, trackerPair.Item2, torrent.Id);
+                        }
+                    }
+                }
+            }
+        }
+
         // Status mutations (pause, resume, remove)
         if (result.ShouldRemove)
         {
@@ -524,6 +594,32 @@ public class AutomationService : IAutomationService
         {
             _torrentRepository.Update(torrent);
             _eventAggregator.PublishEvent(new ModelEvent<Torrent>(torrent, ModelAction.Updated));
+        }
+
+        // Force recheck
+        if (result.ShouldRecheck)
+        {
+            if (_torrentService != null)
+            {
+                await _torrentService.ForceRecheckAsync(torrent.Id).ConfigureAwait(false);
+            }
+            else if (_downloadEngine != null)
+            {
+                await _downloadEngine.ForceRecheckAsync(torrent.Id).ConfigureAwait(false);
+            }
+        }
+
+        // Force reannounce
+        if (result.ShouldReannounce || result.ShouldReannounceAll)
+        {
+            if (_torrentService != null)
+            {
+                await _torrentService.ForceAnnounceAsync(torrent.Id).ConfigureAwait(false);
+            }
+            else if (_downloadEngine != null)
+            {
+                await _downloadEngine.ForceAnnounceAsync(torrent.Id).ConfigureAwait(false);
+            }
         }
     }
 
