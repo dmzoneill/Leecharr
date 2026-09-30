@@ -65,7 +65,7 @@ public class DeveloperWebhookStoreTest
         }
 
         var items = this.store.GetRecent(200);
-        items.Count.Should().BeLessOrEqualTo(100);
+        items.Count.Should().BeLessThanOrEqualTo(100);
     }
 }
 
