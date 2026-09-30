@@ -56,7 +56,8 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
 
     private static readonly Regex AnimeGroupPattern = new(
         @"(\b(SubsPlease|Erai-raws|HorribleSubs|Judas|Commie|Dame-Desu|ASW|Golumpa|LostYears|PAS|Coalgirls|Anime Time|EMBER|MTBB|Kaleido|Moozzi2|Yameii|Beatrice-Raws|ReinForce|AnimeRG|NC-Raws)\b|\[.*?\]\s*.*?\s*-\s*\d+)",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        RegexOptions.IgnoreCase | RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
 
     private static readonly Regex TvPattern = new(
         @"(\bS\d{1,2}(?:[-._]?(?:E|EP)\d{1,4}(?:(?:[-_~]|e|E|\.E)\d{1,4})*)?\b|\b(?:E|EP)\d{1,4}(?:(?:[-_~]|e|E|\.E)\d{1,4})*\b|\b\d{1,2}x\d{1,4}\b|\b(19\d{2}|20\d{2})[.\-_ ](0[1-9]|1[0-2])[.\-_ ](0[1-9]|[12]\d|3[01])\b|\bSeason[\s\._]*\d+|\bComplete[\s\._]*Series\b|\b(EZTV|ETTV)\b)",
@@ -64,11 +65,13 @@ public class WatchFolderService : IWatchFolderService, IHandle<ConfigSavedEvent>
 
     private static readonly Regex MoviePattern = new(
         @"(\b(19\d{2}|20\d{2})\b.*\b(2160p|1080p|720p|480p|576p|UHD|BluRay|WEB-DL|WEBRip|Remux|HDTV|DVDRip|BDRip|HDR|DV|IMAX)\b|\b(2160p|1080p|720p|480p|576p|UHD|BluRay|WEB-DL|WEBRip|Remux|HDTV|DVDRip|BDRip|HDR|DV|IMAX)\b.*\b(19\d{2}|20\d{2})\b|\b(YTS|YIFY)\b)",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        RegexOptions.IgnoreCase | RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
 
     private static readonly Regex AnimePattern = new(
         @"(\b(SubsPlease|Erai-raws|HorribleSubs|Judas|Commie|Dame-Desu|ASW|Golumpa|LostYears|PAS|Coalgirls|Anime Time|EMBER|MTBB|Kaleido|Moozzi2|Yameii|Beatrice-Raws|ReinForce|AnimeRG|NC-Raws)\b|\[.*?\]\s*.*?\s*-\s*\d+|\b(Batch|Complete)\b.*\b(1080p|720p)\b.*(Subs?|Dual|FLAC)|\b(1080p|720p)\b.*\b(Batch|Complete)\b.*(Subs?|Dual|FLAC)|\b(Batch|Complete)\b.*(Subs?|Dual[\s._-]*Audio|FLAC)|\bDual[\s._-]*Audio\b)",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        RegexOptions.IgnoreCase | RegexOptions.Compiled,
+        TimeSpan.FromSeconds(2));
 
     private static readonly Regex MusicPattern = new(
         @"\b(FLAC|MP3|320kbps|Vinyl|Lossless|CD|Album|Discography|AAC|ALAC|WAV|AIFF|OGG|Opus|24bit|24-bit|Hi-Res|Soundtrack|OST)\b",

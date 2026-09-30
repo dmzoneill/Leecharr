@@ -24,8 +24,8 @@ public class FileNameSanitizer : IFileNameSanitizer
     };
 
     private static readonly Regex MultipleSpacesRegex = new(@"\s+", RegexOptions.Compiled);
-    private static readonly Regex SmartColonRegex = new(@"(?<=\d):(?=\d)", RegexOptions.Compiled);
-    private static readonly Regex CleanTitleIllegalCharsRegex = new(@"[^\w\s\.-]", RegexOptions.Compiled);
+    private static readonly Regex SmartColonRegex = new(@"(?<=\d):(?=\d)", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
+    private static readonly Regex CleanTitleIllegalCharsRegex = new(@"[^\w\s\.-]", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
 
     public string SanitizeFileName(string fileName, ColonReplacementFormat colonFormat = ColonReplacementFormat.SpaceDashSpace, string customColon = null)
     {
