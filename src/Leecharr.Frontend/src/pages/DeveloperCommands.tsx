@@ -38,7 +38,13 @@ export default function DeveloperCommands() {
     setSelectedCommand(cmd);
     const initialParams: Record<string, unknown> = {};
     cmd.properties.forEach((p) => {
-      initialParams[p.name] = p.defaultValue ?? (p.type === "Boolean" ? false : p.type === "Int32" || p.type === "Int64" ? 0 : "");
+      if (p.defaultValue !== null && p.defaultValue !== undefined) {
+        initialParams[p.name] = p.defaultValue;
+      } else if (p.isNullable) {
+        initialParams[p.name] = null;
+      } else {
+        initialParams[p.name] = p.type === "Boolean" ? false : p.type === "Int32" || p.type === "Int64" ? 0 : "";
+      }
     });
     setFormParams(initialParams);
   };
@@ -378,7 +384,7 @@ export default function DeveloperCommands() {
                   {selectedCommand.properties.map((p) => (
                     <div key={p.name}>
                       <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, marginBottom: "4px" }}>
-                        {p.name} <span style={{ color: "var(--text-secondary)", fontWeight: 400 }}>({p.type})</span>
+                        {p.name} <span style={{ color: "var(--text-secondary)", fontWeight: 400 }}>({p.type}{p.isNullable ? ", optional" : ""})</span>
                       </label>
                       {p.type === "Boolean" ? (
                         <input
@@ -389,8 +395,25 @@ export default function DeveloperCommands() {
                       ) : (
                         <input
                           type={p.type === "Int32" || p.type === "Int64" ? "number" : "text"}
+                          placeholder={p.isNullable ? "Optional (null)" : ""}
                           value={formParams[p.name] ?? ""}
-                          onChange={(e) => setFormParams({ ...formParams, [p.name]: p.type.startsWith("Int") ? parseInt(e.target.value, 10) || 0 : e.target.value })}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === "") {
+                              setFormParams({
+                                ...formParams,
+                                [p.name]: p.isNullable ? null : (p.type.startsWith("Int") ? 0 : ""),
+                              });
+                            } else {
+                              const parsed = parseInt(val, 10);
+                              setFormParams({
+                                ...formParams,
+                                [p.name]: p.type.startsWith("Int")
+                                  ? (Number.isNaN(parsed) ? (p.isNullable ? null : 0) : parsed)
+                                  : val,
+                              });
+                            }
+                          }}
                           style={{
                             width: "100%",
                             padding: "8px 10px",
