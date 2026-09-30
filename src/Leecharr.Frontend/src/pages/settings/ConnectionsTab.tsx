@@ -775,7 +775,7 @@ export function ConnectionsTab() {
               onChange={(v) =>
                 setEditing({ ...editing, externalUrl: v, publicUrl: v })
               }
-              placeholder="http://my-domain.com:8989"
+              placeholder="https://my-domain.com:8989"
               hint={t(
                 "settings.externalUrlHint",
                 "Optional public URL for browser deep links (e.g. when accessing Leecharr remotely while using internal container addresses).",
