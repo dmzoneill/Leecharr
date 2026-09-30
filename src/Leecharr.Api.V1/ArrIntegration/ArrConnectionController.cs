@@ -177,7 +177,9 @@ public class ArrConnectionController : Controller
             return this.NotFound();
         }
 
-        return await this.TestDirectInternal(ToResource(definition));
+        var resource = ToResource(definition);
+        resource.ApiKey = definition.ApiKey;
+        return await this.TestDirectInternal(resource);
     }
 
     [HttpPost("test")]

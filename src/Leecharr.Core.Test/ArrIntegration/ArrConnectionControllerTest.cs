@@ -283,6 +283,40 @@ public class ArrConnectionControllerTest
     }
 
     [Test]
+    public async Task Test_WhenFound_UsesUnmaskedApiKey()
+    {
+        var definition = new ArrConnectionDefinition
+        {
+            Id = 42,
+            Name = "Sonarr",
+            ArrType = "Sonarr",
+            Url = "http://localhost:8989",
+            ApiKey = "real_secret_api_key_12345",
+        };
+        this.repository.Get(42).Returns(definition);
+
+        HttpRequestMessage capturedRequest = null;
+        var handler = new MockHttpMessageHandler(req =>
+        {
+            capturedRequest = req;
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+        using var httpClient = new HttpClient(handler);
+        var testController = new ArrConnectionController(this.repository, httpClient);
+
+        var result = await testController.Test(42);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        var testRes = okResult!.Value as ArrTestResult;
+        testRes.Should().NotBeNull();
+        testRes!.Success.Should().BeTrue();
+
+        capturedRequest.Should().NotBeNull();
+        capturedRequest!.Headers.Contains("X-Api-Key").Should().BeTrue();
+        capturedRequest.Headers.GetValues("X-Api-Key").Should().ContainSingle().Which.Should().Be("real_secret_api_key_12345");
+    }
+
+    [Test]
     public async Task TestDirect_WhenUrlEmpty_ReturnsFailResult()
     {
         var resource = new ArrConnectionResource { Url = string.Empty };
