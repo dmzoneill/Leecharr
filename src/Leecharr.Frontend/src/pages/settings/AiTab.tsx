@@ -45,6 +45,8 @@ export function AiTab() {
     enableCopilotButton: true,
     enableNaturalSearch: true,
     enableSwarmDiagnostics: true,
+    malwareRiskThreshold: 0.7,
+    autoQuarantineHighRisk: false,
   });
 
   const [probeResult, setProbeResult] = useState<SubsystemProbeResult | null>(
@@ -65,17 +67,24 @@ export function AiTab() {
       "enableCopilotButton",
       "enableNaturalSearch",
       "enableSwarmDiagnostics",
+      "malwareRiskThreshold",
+      "autoQuarantineHighRisk",
     ];
     return keys.some((k) => (config[k] ?? "") !== (formData[k] ?? ""));
   }, [config, formData]);
 
   useEffect(() => {
     if (config) {
+      const mergedConfig: AiConfig = {
+        ...config,
+        malwareRiskThreshold: config.malwareRiskThreshold ?? 0.7,
+        autoQuarantineHighRisk: config.autoQuarantineHighRisk ?? false,
+      };
       if (!isInitializedRef.current) {
-        setFormData(config);
+        setFormData(mergedConfig);
         isInitializedRef.current = true;
       } else if (!isDirty) {
-        setFormData(config);
+        setFormData(mergedConfig);
       } else {
         setFormData((prev) => ({
           ...prev,
@@ -887,6 +896,116 @@ export function AiTab() {
             Provides 1-click diagnostic bottleneck analysis and remediation in
             the torrent detail panel.
           </span>
+
+          {/* AI Anomaly Detection & Malware Risk */}
+          <div
+            style={{
+              paddingTop: "0.75rem",
+              borderTop: "1px solid var(--border-light)",
+              marginTop: "0.5rem",
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.5rem",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <label
+                htmlFor="malwareRiskThreshold"
+                style={{
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
+                  color: "var(--text-primary, #F8F4ED)",
+                  margin: 0,
+                  cursor: "pointer",
+                }}
+              >
+                Malware Risk Threshold
+              </label>
+              <span
+                style={{
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
+                  color: "var(--accent-color, #7C3AED)",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {Math.round((formData.malwareRiskThreshold ?? 0.7) * 100)}%
+              </span>
+            </div>
+            <input
+              id="malwareRiskThreshold"
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={formData.malwareRiskThreshold ?? 0.7}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  malwareRiskThreshold: parseFloat(e.target.value),
+                })
+              }
+              style={{
+                width: "100%",
+                cursor: "pointer",
+                accentColor: "var(--accent-color, #7C3AED)",
+              }}
+            />
+            <span
+              style={{
+                fontSize: "0.75rem",
+                color: "var(--text-muted, #C7C5D3)",
+              }}
+            >
+              Sensitivity threshold for AI torrent anomaly detection. Torrents scoring at or above this risk level are flagged.
+            </span>
+
+            <label
+              className="checkbox-label"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                cursor: "pointer",
+                marginTop: "0.5rem",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={formData.autoQuarantineHighRisk ?? false}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    autoQuarantineHighRisk: e.target.checked,
+                  })
+                }
+              />
+              <span
+                style={{
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
+                  color: "var(--text-primary, #F8F4ED)",
+                }}
+              >
+                Auto-Quarantine High-Risk Downloads
+              </span>
+            </label>
+            <span
+              style={{
+                fontSize: "0.75rem",
+                color: "var(--text-muted, #C7C5D3)",
+                paddingLeft: "1.5rem",
+              }}
+            >
+              Automatically pause and isolate suspicious downloads when risk score meets or exceeds the threshold.
+            </span>
+          </div>
 
           <div
             style={{
