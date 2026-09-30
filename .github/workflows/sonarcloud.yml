@@ -1,0 +1,94 @@
+name: SonarCloud Analysis
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  sonar:
+    name: SonarCloud Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for SonarCloud Token
+        id: check_token
+        run: |
+          if [ -n "${{ secrets.SONAR_TOKEN }}" ]; then
+            echo "has_token=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_token=false" >> "$GITHUB_OUTPUT"
+            echo "::notice ::SONAR_TOKEN secret is not set. Add SONAR_TOKEN in repository secrets to activate SonarCloud analysis."
+          fi
+
+      - name: Setup Java
+        if: steps.check_token.outputs.has_token == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+
+      - name: Setup .NET
+        if: steps.check_token.outputs.has_token == 'true'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Setup Node.js
+        if: steps.check_token.outputs.has_token == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/Leecharr.Frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        if: steps.check_token.outputs.has_token == 'true'
+        run: |
+          cd src/Leecharr.Frontend
+          npm ci
+
+      - name: Install SonarScanner tool
+        if: steps.check_token.outputs.has_token == 'true'
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      - name: Begin SonarCloud Scanner
+        if: steps.check_token.outputs.has_token == 'true'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          dotnet-sonarscanner begin \
+            /k:"${{ github.repository_owner }}_${{ github.event.repository.name }}" \
+            /o:"${{ github.repository_owner }}" \
+            /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
+            /d:sonar.host.url="https://sonarcloud.io" \
+            /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" \
+            /d:sonar.exclusions="**/bin/**,**/obj/**,src/Leecharr.Frontend/node_modules/**,**/wwwroot/**,_output/**,_temp/**"
+
+      - name: Build & Run Unit Tests with Coverage
+        if: steps.check_token.outputs.has_token == 'true'
+        run: |
+          dotnet restore src/Leecharr.sln
+          dotnet build src/Leecharr.sln --configuration Release --no-restore
+          dotnet test src/Leecharr.Core.Test/Leecharr.Core.Test.csproj \
+            --configuration Release \
+            --no-build \
+            --settings .runsettings \
+            --collect:"XPlat Code Coverage;Format=opencover"
+
+      - name: End SonarCloud Scanner
+        if: steps.check_token.outputs.has_token == 'true'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
