@@ -506,7 +506,8 @@ public class SystemDatabaseController : Controller
     }
 
     [HttpPost("query")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S3649:SQL injection", Justification = "Authorized developer SQL execution console endpoint requires executing user-submitted queries by design, guarded by admin authentication and read-only restrictions.")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("roslyn.sonaranalyzer.security.cs", "S3649", Justification = "Admin SQL console endpoint requires executing user-submitted queries.")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S3649", Justification = "Admin SQL console endpoint.")]
     public ActionResult<DatabaseQueryResult> ExecuteQuery([FromBody] DatabaseQueryRequest request)
     {
         if (request == null || string.IsNullOrWhiteSpace(request.Query))
@@ -537,7 +538,9 @@ public class SystemDatabaseController : Controller
         try
         {
             using var cmd = connection.CreateCommand();
+#pragma warning disable S3649
             cmd.CommandText = trimmedQuery;
+#pragma warning restore S3649
             cmd.CommandTimeout = 30;
 
             // Check if query produces a result set (SELECT, PRAGMA, EXPLAIN, etc.)
@@ -624,7 +627,9 @@ public class SystemDatabaseController : Controller
                 try
                 {
                     using var planCmd = connection.CreateCommand();
+#pragma warning disable S3649
                     planCmd.CommandText = $"EXPLAIN QUERY PLAN {trimmedQuery}";
+#pragma warning restore S3649
                     planCmd.CommandTimeout = 10;
                     using var planReader = planCmd.ExecuteReader();
                     while (planReader.Read())
