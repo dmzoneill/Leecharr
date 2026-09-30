@@ -37,6 +37,334 @@ interface Position {
   y: number;
 }
 
+function decodeHtmlEntities(text: string): string {
+  const entityMap: Record<string, string> = {
+    "&ge;": "≥",
+    "&le;": "≤",
+    "&gt;": ">",
+    "&lt;": "<",
+    "&amp;": "&",
+    "&quot;": '"',
+    "&apos;": "'",
+    "&#39;": "'",
+    "&nbsp;": " ",
+    "&mdash;": "—",
+    "&ndash;": "–",
+    "&bull;": "•",
+    "&deg;": "°",
+    "&plusmn;": "±",
+    "&times;": "×",
+    "&divide;": "÷",
+    "&ne;": "≠",
+    "&infin;": "∞",
+    "&approx;": "≈",
+    "&hellip;": "…",
+    "&euro;": "€",
+    "&pound;": "£",
+    "&yen;": "¥",
+    "&copy;": "©",
+    "&reg;": "®",
+    "&trade;": "™",
+  };
+
+  return text.replace(/&(?:[a-zA-Z]+|#\d+|#x[0-9a-fA-F]+);/g, (match) => {
+    if (entityMap[match]) {
+      return entityMap[match];
+    }
+    if (match.startsWith("&#x") || match.startsWith("&#X")) {
+      const code = parseInt(match.slice(3, -1), 16);
+      return !isNaN(code) ? String.fromCharCode(code) : match;
+    }
+    if (match.startsWith("&#")) {
+      const code = parseInt(match.slice(2, -1), 10);
+      return !isNaN(code) ? String.fromCharCode(code) : match;
+    }
+    return match;
+  });
+}
+
+function renderInlineMarkdown(text: string, isUser = false): React.ReactNode[] {
+  const decoded = decodeHtmlEntities(text);
+  const regex =
+    /(`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*(?:[^*]+)\*|_(?:[^_]+)_|\[(?:[^\]]+)\]\((?:(?:https?:\/\/|\/)[^\s)]+)\))/g;
+
+  const parts = decoded.split(regex);
+  return parts.map((part, idx) => {
+    if (!part) return null;
+
+    if (part.startsWith("`") && part.endsWith("`") && part.length >= 2) {
+      return (
+        <code
+          key={idx}
+          style={{
+            fontFamily: "monospace",
+            backgroundColor: isUser
+              ? "rgba(0, 0, 0, 0.15)"
+              : "rgba(35, 40, 75, 0.8)",
+            color: isUser ? "#10111A" : "#FFD166",
+            padding: "0.1rem 0.3rem",
+            borderRadius: "3px",
+            fontSize: "0.85em",
+          }}
+        >
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+
+    if (
+      (part.startsWith("**") && part.endsWith("**") && part.length >= 4) ||
+      (part.startsWith("__") && part.endsWith("__") && part.length >= 4)
+    ) {
+      return (
+        <strong
+          key={idx}
+          style={{
+            fontWeight: 700,
+            color: isUser ? "#10111A" : "var(--text-primary, #F8F4ED)",
+          }}
+        >
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+
+    if (
+      (part.startsWith("*") && part.endsWith("*") && part.length >= 2) ||
+      (part.startsWith("_") && part.endsWith("_") && part.length >= 2)
+    ) {
+      return <em key={idx}>{part.slice(1, -1)}</em>;
+    }
+
+    const linkMatch = part.match(
+      /^\[([^\]]+)\]\(((?:https?:\/\/|\/)[^\s)]+)\)$/,
+    );
+    if (linkMatch) {
+      return (
+        <a
+          key={idx}
+          href={linkMatch[2]}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: isUser ? "#10111A" : "var(--accent-gold, #FFD166)",
+            textDecoration: "underline",
+          }}
+        >
+          {linkMatch[1]}
+        </a>
+      );
+    }
+
+    return part;
+  });
+}
+
+function renderMarkdownContent(
+  content: string,
+  isUser = false,
+): React.ReactNode {
+  if (!content) return null;
+
+  const lines = content.split("\n");
+  const elements: React.ReactNode[] = [];
+  let inCodeBlock = false;
+  let codeBlockLines: string[] = [];
+  let currentList: { type: "ul" | "ol"; items: string[] } | null = null;
+
+  const flushList = () => {
+    if (!currentList) return;
+    const ListTag = currentList.type;
+    const listKey = `list-${elements.length}`;
+    elements.push(
+      <ListTag
+        key={listKey}
+        style={{
+          margin: "0.3rem 0",
+          paddingLeft: "1.25rem",
+          display: "flex",
+          flexDirection: "column",
+          gap: "0.2rem",
+        }}
+      >
+        {currentList.items.map((item, itemIdx) => (
+          <li key={itemIdx} style={{ lineHeight: 1.45 }}>
+            {renderInlineMarkdown(item, isUser)}
+          </li>
+        ))}
+      </ListTag>,
+    );
+    currentList = null;
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i];
+
+    if (rawLine.trim().startsWith("```")) {
+      flushList();
+      if (inCodeBlock) {
+        const blockKey = `code-${elements.length}`;
+        elements.push(
+          <pre
+            key={blockKey}
+            style={{
+              backgroundColor: isUser ? "rgba(0, 0, 0, 0.1)" : "#0d0e17",
+              border: isUser
+                ? "none"
+                : "1px solid var(--border-light, #23284B)",
+              borderRadius: "6px",
+              padding: "0.5rem 0.65rem",
+              margin: "0.4rem 0",
+              overflowX: "auto",
+              fontFamily: "monospace",
+              fontSize: "0.7rem",
+              lineHeight: 1.4,
+              color: isUser ? "#10111A" : "#C7C5D3",
+            }}
+          >
+            <code>{codeBlockLines.join("\n")}</code>
+          </pre>,
+        );
+        codeBlockLines = [];
+        inCodeBlock = false;
+      } else {
+        inCodeBlock = true;
+      }
+      continue;
+    }
+
+    if (inCodeBlock) {
+      codeBlockLines.push(rawLine);
+      continue;
+    }
+
+    const trimmed = rawLine.trim();
+    if (!trimmed) {
+      flushList();
+      continue;
+    }
+
+    const h3Match = trimmed.match(/^###\s+(.+)$/);
+    if (h3Match) {
+      flushList();
+      elements.push(
+        <div
+          key={`h3-${i}`}
+          style={{
+            fontWeight: 700,
+            fontSize: "0.85rem",
+            color: isUser ? "#10111A" : "var(--accent-gold, #FFD166)",
+            marginTop: elements.length > 0 ? "0.45rem" : "0",
+            marginBottom: "0.2rem",
+          }}
+        >
+          {renderInlineMarkdown(h3Match[1], isUser)}
+        </div>,
+      );
+      continue;
+    }
+
+    const h2Match = trimmed.match(/^##\s+(.+)$/);
+    if (h2Match) {
+      flushList();
+      elements.push(
+        <div
+          key={`h2-${i}`}
+          style={{
+            fontWeight: 700,
+            fontSize: "0.9rem",
+            color: isUser ? "#10111A" : "var(--accent-gold, #FFD166)",
+            marginTop: elements.length > 0 ? "0.5rem" : "0",
+            marginBottom: "0.25rem",
+          }}
+        >
+          {renderInlineMarkdown(h2Match[1], isUser)}
+        </div>,
+      );
+      continue;
+    }
+
+    const h1Match = trimmed.match(/^#\s+(.+)$/);
+    if (h1Match) {
+      flushList();
+      elements.push(
+        <div
+          key={`h1-${i}`}
+          style={{
+            fontWeight: 700,
+            fontSize: "0.95rem",
+            color: isUser ? "#10111A" : "var(--accent-gold, #FFD166)",
+            marginTop: elements.length > 0 ? "0.6rem" : "0",
+            marginBottom: "0.3rem",
+          }}
+        >
+          {renderInlineMarkdown(h1Match[1], isUser)}
+        </div>,
+      );
+      continue;
+    }
+
+    const bulletMatch = trimmed.match(/^[-*•]\s+(.+)$/);
+    if (bulletMatch) {
+      if (!currentList || currentList.type !== "ul") {
+        flushList();
+        currentList = { type: "ul", items: [] };
+      }
+      currentList.items.push(bulletMatch[1]);
+      continue;
+    }
+
+    const numListMatch = trimmed.match(/^\d+[\.\)]\s+(.+)$/);
+    if (numListMatch) {
+      if (!currentList || currentList.type !== "ol") {
+        flushList();
+        currentList = { type: "ol", items: [] };
+      }
+      currentList.items.push(numListMatch[1]);
+      continue;
+    }
+
+    flushList();
+    elements.push(
+      <p
+        key={`p-${i}`}
+        style={{
+          margin: "0.2rem 0",
+          lineHeight: 1.45,
+          whiteSpace: "pre-wrap",
+        }}
+      >
+        {renderInlineMarkdown(rawLine, isUser)}
+      </p>,
+    );
+  }
+
+  if (inCodeBlock && codeBlockLines.length > 0) {
+    elements.push(
+      <pre
+        key="code-end"
+        style={{
+          backgroundColor: isUser ? "rgba(0, 0, 0, 0.1)" : "#0d0e17",
+          border: isUser ? "none" : "1px solid var(--border-light, #23284B)",
+          borderRadius: "6px",
+          padding: "0.5rem 0.65rem",
+          margin: "0.4rem 0",
+          overflowX: "auto",
+          fontFamily: "monospace",
+          fontSize: "0.7rem",
+          lineHeight: 1.4,
+          color: isUser ? "#10111A" : "#C7C5D3",
+        }}
+      >
+        <code>{codeBlockLines.join("\n")}</code>
+      </pre>,
+    );
+  }
+  flushList();
+
+  return elements;
+}
+
 export const AiCopilotDrawer: React.FC = () => {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState<boolean>(() => {
@@ -101,6 +429,7 @@ export const AiCopilotDrawer: React.FC = () => {
   ]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatInputRef = useRef<HTMLInputElement>(null);
 
   const { data: aiStatus } = useAiStatus();
   const { data: aiConfig } = useAiConfig();
@@ -115,11 +444,38 @@ export const AiCopilotDrawer: React.FC = () => {
   useEffect(() => {
     const handleOpen = () => setIsOpen(true);
     const handleToggle = () => setIsOpen((prev) => !prev);
+    const handleClose = () => setIsOpen(false);
+
     window.addEventListener("open-copilot-drawer", handleOpen);
     window.addEventListener("toggle-copilot-drawer", handleToggle);
+    window.addEventListener("close-copilot-drawer", handleClose);
+
+    // Global keyboard shortcut to toggle Copilot drawer: Alt+C
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const tagName = target?.tagName?.toLowerCase();
+      const isInput =
+        tagName === "input" ||
+        tagName === "textarea" ||
+        tagName === "select" ||
+        target?.isContentEditable;
+
+      if (
+        !isInput &&
+        e.altKey &&
+        (e.key.toLowerCase() === "c" || e.code === "KeyC")
+      ) {
+        e.preventDefault();
+        setIsOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+
     return () => {
       window.removeEventListener("open-copilot-drawer", handleOpen);
       window.removeEventListener("toggle-copilot-drawer", handleToggle);
+      window.removeEventListener("close-copilot-drawer", handleClose);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
 
@@ -182,9 +538,8 @@ export const AiCopilotDrawer: React.FC = () => {
     }
   };
 
-  const handleSendMessage = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const query = inputMessage.trim();
+  const sendMessage = (queryText: string) => {
+    const query = queryText.trim();
     if (!query || chatMutation.isPending) return;
 
     const userMsg: Message = {
@@ -230,6 +585,16 @@ export const AiCopilotDrawer: React.FC = () => {
         },
       },
     );
+    chatInputRef.current?.focus();
+  };
+
+  const handleSendMessage = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    sendMessage(inputMessage);
+  };
+
+  const handlePromptPill = (prompt: string) => {
+    sendMessage(prompt);
   };
 
   const handleParseRelease = () => {
@@ -244,14 +609,77 @@ export const AiCopilotDrawer: React.FC = () => {
 
   const handleCheckSecurity = () => {
     if (!securityInput.trim() || malwareMutation.isPending) return;
-    const lines = securityInput
+    const rawLines = securityInput
       .split("\n")
       .map((l) => l.trim())
       .filter(Boolean);
+
+    if (rawLines.length === 0) return;
+
+    let torrentName = "";
+    let fileLines: string[] = [];
+
+    // Check if first line explicitly specifies a torrent/release name (e.g., "Torrent: Name" or "Release: Name")
+    const headerPrefixRegex =
+      /^(?:torrent|release|name|title)\s*[:=-]\s*(.+)$/i;
+    const firstLineMatch = rawLines[0].match(headerPrefixRegex);
+
+    if (firstLineMatch) {
+      torrentName = firstLineMatch[1].trim();
+      fileLines = rawLines.slice(1);
+    } else if (rawLines.length > 1) {
+      // Check if line 0 looks like a torrent/folder header without file extension,
+      // while subsequent lines contain files with extensions.
+      const hasExtension = /\.[a-zA-Z0-9]{2,5}$/.test(
+        rawLines[0].replace(/[:/]$/, ""),
+      );
+      const remainingHaveFiles = rawLines
+        .slice(1)
+        .some((l) => /\.[a-zA-Z0-9]{2,5}(?:\s|\(|$)/.test(l));
+
+      if (!hasExtension && remainingHaveFiles) {
+        torrentName = rawLines[0].replace(/[:/]$/, "").trim();
+        fileLines = rawLines.slice(1);
+      } else {
+        // Line 0 is a filename itself. Derive torrent name from it without extension
+        // so it does not get confused with the filename and matches heuristics,
+        // and keep all lines in fileNames.
+        torrentName =
+          rawLines[0].replace(/\.[a-zA-Z0-9]{2,5}(?:\s|\(|$).*/, "").trim() ||
+          "Sample";
+        fileLines = rawLines;
+      }
+    } else {
+      // Single line input
+      const single = rawLines[0];
+      const hasExt = /\.[a-zA-Z0-9]{2,5}$/.test(single);
+      if (hasExt) {
+        torrentName =
+          single.replace(/\.[a-zA-Z0-9]{2,5}$/, "").trim() || "Sample";
+        fileLines = [single];
+      } else {
+        torrentName = single;
+        fileLines = [single];
+      }
+    }
+
+    // Clean file names: strip list numbers (e.g. "1. "), trailing sizes (e.g. "(1.2 GB)" or "- 500 KB"), etc.
+    const cleanFileNames = fileLines
+      .map((line) => {
+        let clean = line.replace(/^\d+[\.\)]\s+/, "");
+        clean = clean.replace(
+          /\s*[\(\[]?\s*\d+(?:\.\d+)?\s*(?:[KMGTP]?B|bytes)\s*[\)\]]?$/i,
+          "",
+        );
+        clean = clean.replace(/\t.*$/, "");
+        return clean.trim();
+      })
+      .filter(Boolean);
+
     malwareMutation.mutate(
       {
-        torrentName: lines[0] || "Sample",
-        fileNames: lines,
+        torrentName: torrentName || "Sample",
+        fileNames: cleanFileNames.length > 0 ? cleanFileNames : rawLines,
       },
       {
         onSuccess: (data) => setSecurityResult(data),
@@ -558,10 +986,11 @@ export const AiCopilotDrawer: React.FC = () => {
                 </span>
                 <button
                   onClick={() =>
-                    setInputMessage(
+                    handlePromptPill(
                       "How do I optimize my BitTorrent download speeds?",
                     )
                   }
+                  disabled={chatMutation.isPending}
                   style={{
                     fontSize: "0.7rem",
                     padding: "0.15rem 0.5rem",
@@ -569,18 +998,20 @@ export const AiCopilotDrawer: React.FC = () => {
                     backgroundColor: "rgba(35, 40, 75, 0.8)",
                     color: "#C7C5D3",
                     border: "none",
-                    cursor: "pointer",
+                    cursor: chatMutation.isPending ? "not-allowed" : "pointer",
                     whiteSpace: "nowrap",
+                    opacity: chatMutation.isPending ? 0.6 : 1,
                   }}
                 >
                   {t("copilot.speedTips")}
                 </button>
                 <button
                   onClick={() =>
-                    setInputMessage(
+                    handlePromptPill(
                       "Explain what Endgame mode and Rarest-First piece picking do in Leecharr.",
                     )
                   }
+                  disabled={chatMutation.isPending}
                   style={{
                     fontSize: "0.7rem",
                     padding: "0.15rem 0.5rem",
@@ -588,18 +1019,20 @@ export const AiCopilotDrawer: React.FC = () => {
                     backgroundColor: "rgba(35, 40, 75, 0.8)",
                     color: "#C7C5D3",
                     border: "none",
-                    cursor: "pointer",
+                    cursor: chatMutation.isPending ? "not-allowed" : "pointer",
                     whiteSpace: "nowrap",
+                    opacity: chatMutation.isPending ? 0.6 : 1,
                   }}
                 >
                   {t("copilot.piecePickers")}
                 </button>
                 <button
                   onClick={() =>
-                    setInputMessage(
+                    handlePromptPill(
                       "How does VPN kill switch and interface binding work?",
                     )
                   }
+                  disabled={chatMutation.isPending}
                   style={{
                     fontSize: "0.7rem",
                     padding: "0.15rem 0.5rem",
@@ -607,8 +1040,9 @@ export const AiCopilotDrawer: React.FC = () => {
                     backgroundColor: "rgba(35, 40, 75, 0.8)",
                     color: "#C7C5D3",
                     border: "none",
-                    cursor: "pointer",
+                    cursor: chatMutation.isPending ? "not-allowed" : "pointer",
                     whiteSpace: "nowrap",
+                    opacity: chatMutation.isPending ? 0.6 : 1,
                   }}
                 >
                   {t("copilot.vpnSecurity")}
@@ -680,9 +1114,9 @@ export const AiCopilotDrawer: React.FC = () => {
                         fontWeight: msg.sender === "user" ? 600 : 400,
                       }}
                     >
-                      <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>
-                        {msg.text}
-                      </p>
+                      <div style={{ wordBreak: "break-word" }}>
+                        {renderMarkdownContent(msg.text, msg.sender === "user")}
+                      </div>
                       <div
                         style={{
                           display: "flex",
@@ -752,6 +1186,7 @@ export const AiCopilotDrawer: React.FC = () => {
                 }}
               >
                 <input
+                  ref={chatInputRef}
                   type="text"
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
