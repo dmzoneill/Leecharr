@@ -165,6 +165,16 @@ export function TorrentCreationTab({
       setIsCreating(true);
       setCreateResult(null);
 
+      const tiers: string[][] = createTrackers
+        .split(/\r?\n\s*\r?\n/)
+        .map((group) =>
+          group
+            .split(/\r?\n/)
+            .map((t) => t.trim())
+            .filter(Boolean),
+        )
+        .filter((group) => group.length > 0);
+
       const trackersList = createTrackers
         .split("\n")
         .map((tr) => tr.trim())
@@ -183,6 +193,7 @@ export function TorrentCreationTab({
         isPrivate: createIsPrivate,
         pieceLength: createPieceLength > 0 ? createPieceLength : undefined,
         trackers: trackersList.length > 0 ? trackersList : undefined,
+        trackerTiers: tiers.length > 0 ? tiers : undefined,
         webSeeds: webSeedsList.length > 0 ? webSeedsList : undefined,
         outputPath: createOutputPath.trim() || undefined,
       });
