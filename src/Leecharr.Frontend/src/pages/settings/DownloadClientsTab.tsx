@@ -253,7 +253,15 @@ export function DownloadClientsTab() {
             <div
               key={client.id}
               className="provider-card"
+              role="button"
+              tabIndex={0}
               onClick={() => handleOpenModal(client)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleOpenModal(client);
+                }
+              }}
             >
               <div className="provider-card-actions">
                 {client.host && (
@@ -366,7 +374,15 @@ export function DownloadClientsTab() {
           ))}
           <div
             className="provider-card-add"
+            role="button"
+            tabIndex={0}
             onClick={() => handleOpenModal(defaultClient)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleOpenModal(defaultClient);
+              }
+            }}
             title={t("settingsTabs.downloadClients.addClient")}
           >
             <span className="provider-card-add-icon">+</span>

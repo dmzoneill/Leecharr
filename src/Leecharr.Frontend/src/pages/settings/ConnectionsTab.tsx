@@ -552,7 +552,15 @@ export function ConnectionsTab() {
           ))}
           <div
             className="provider-card-add"
+            role="button"
+            tabIndex={0}
             onClick={() => handleOpenModal(defaultConnection)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleOpenModal(defaultConnection);
+              }
+            }}
             title={t("settings.addArrConnection")}
           >
             <span className="provider-card-add-icon">+</span>

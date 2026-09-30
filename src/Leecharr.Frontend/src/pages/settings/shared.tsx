@@ -472,12 +472,22 @@ export function Toggle({
         <span
           id={`${inputId}-text`}
           className="form-label"
+          role="button"
+          tabIndex={0}
           style={{
             cursor: disabled ? "not-allowed" : "pointer",
             userSelect: "none",
             flex: 1,
           }}
           onClick={() => !disabled && onChange(!checked)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              if (!disabled) {
+                onChange(!checked);
+              }
+            }
+          }}
         >
           {label}
         </span>
