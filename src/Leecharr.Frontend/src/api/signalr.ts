@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import * as signalR from "@microsoft/signalr";
 import type { QueryClient } from "@tanstack/react-query";
 import { apiClient, getUrlBase } from "./client";
+import { secureRandom } from "../utils/random";
 
 export type ConnectionStatus = "connected" | "disconnected" | "reconnecting";
 
@@ -104,7 +105,7 @@ export class ExponentialBackoffRetryPolicy implements signalR.IRetryPolicy {
     const baseDelay = Math.min(exponential, this.maxDelayMs);
 
     // Random jitter (up to 1s) to desynchronize concurrent client reconnections
-    const jitter = Math.random() * 1000;
+    const jitter = secureRandom() * 1000;
     const finalDelay = Math.min(this.maxDelayMs, baseDelay + jitter);
 
     // Never return null so reconnect retries continue indefinitely
@@ -480,7 +481,7 @@ class SignalRManager {
 
     const exponent = Math.min(this.coldStartRetryCount, 10);
     const baseDelay = Math.min(1000 * Math.pow(2, exponent), 30000);
-    const jitter = Math.random() * 1000;
+    const jitter = secureRandom() * 1000;
     const delay = Math.min(30000, baseDelay + jitter);
     this.coldStartRetryCount++;
 

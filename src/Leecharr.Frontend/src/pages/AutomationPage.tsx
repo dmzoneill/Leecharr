@@ -22,10 +22,7 @@ import type {
 import { formatBytes } from "../utils/formatters";
 import { useConfirm } from "../context/ConfirmContext";
 import { trackAutomationAction } from "../utils/analytics";
-
-function secureRandom(): number {
-  return crypto.getRandomValues(new Uint32Array(1))[0] / 0xffffffff;
-}
+import { secureRandom } from "../utils/random";
 
 // Visual Pipeline Interfaces
 export type VisualActionType =
