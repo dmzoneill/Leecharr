@@ -384,7 +384,14 @@ export function DownloadClientsTab() {
           <div
             ref={trapRef}
             className="modal"
+            role="button"
+            tabIndex={0}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+              }
+            }}
             style={{
               maxWidth: 520,
               borderRadius: "8px",
