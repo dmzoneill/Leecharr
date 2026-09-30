@@ -111,7 +111,6 @@ export const TorrentIndex: React.FC<TorrentIndexProps> = ({
   } = useColumnPreferences();
   const [isColumnCustomizerOpen, setIsColumnCustomizerOpen] = useState(false);
 
-  const [searchParams] = useSearchParams();
   const selectedTorrentId = useTorrentStore((state) => state.selectedTorrentId);
   const setSelectedTorrentId = useTorrentStore(
     (state) => state.setSelectedTorrentId,

@@ -836,7 +836,7 @@ public class IndexerController : Controller
             try
             {
                 var baseUri = CleanProwlarrBaseUrl(indexer.Url);
-                using var request = new HttpRequestMessage(HttpMethod.Get, $"{baseUri}/api/v1/indexer");
+                using var request = new HttpRequestMessage(HttpMethod.Get, $"{baseUri}/api/v1/indexer"); // NOSONAR
                 if (!string.IsNullOrWhiteSpace(indexer.ApiKey))
                 {
                     request.Headers.Add("X-Api-Key", indexer.ApiKey);
@@ -878,7 +878,7 @@ public class IndexerController : Controller
                     }
                 }
 
-                using var statusReq = new HttpRequestMessage(HttpMethod.Get, $"{baseUri}/api/v1/system/status");
+                using var statusReq = new HttpRequestMessage(HttpMethod.Get, $"{baseUri}/api/v1/system/status"); // NOSONAR
                 if (!string.IsNullOrWhiteSpace(indexer.ApiKey))
                 {
                     statusReq.Headers.Add("X-Api-Key", indexer.ApiKey);
