@@ -173,7 +173,7 @@ public static class TerminalWebSocketHandler
             }
             finally
             {
-                cts.Cancel();
+                await cts.CancelAsync();
             }
         }, context.RequestAborted);
 
@@ -194,7 +194,7 @@ public static class TerminalWebSocketHandler
                             break;
                         }
 
-                        ms.Write(buffer, 0, result.Count);
+                        await ms.WriteAsync(buffer.AsMemory(0, result.Count), cts.Token);
                     }
                     while (!result.EndOfMessage);
 
@@ -266,12 +266,12 @@ public static class TerminalWebSocketHandler
             }
             finally
             {
-                cts.Cancel();
+                await cts.CancelAsync();
             }
         }, context.RequestAborted);
 
         await Task.WhenAny(readPtyTask, receiveWsTask);
-        cts.Cancel();
+        await cts.CancelAsync();
         try
         {
             await Task.WhenAll(readPtyTask, receiveWsTask);
