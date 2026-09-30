@@ -316,7 +316,7 @@ public class CertificateManager : ICertificateManager
             throw new InvalidOperationException($"Certificate file '{validatedCertPath}' does not contain any valid certificates.");
         }
 
-        string effectiveKeyPath = validatedCertPath;
+        var effectiveKeyPath = validatedCertPath;
         var hasExplicitKey = false;
         if (!string.IsNullOrWhiteSpace(keyPath))
         {
