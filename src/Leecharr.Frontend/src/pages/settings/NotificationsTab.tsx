@@ -912,7 +912,7 @@ export function NotificationsTab() {
                       title={t("settingsTabs.notifications.deleteBtnTitle")}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDelete(notif);
+                        void handleDelete(notif);
                       }}
                     >
                       &#x2715;

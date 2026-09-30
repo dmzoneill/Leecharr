@@ -531,7 +531,7 @@ export function App() {
 
   const guardedNavigate = useCallback(
     (to: string) => {
-      confirmIfDirty(() => navigate(to));
+      void confirmIfDirty(() => navigate(to));
     },
     [confirmIfDirty, navigate],
   );

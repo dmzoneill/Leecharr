@@ -485,7 +485,7 @@ export default function DeveloperDebugger() {
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
-                              handleToggleBreakpoint(lineNum);
+                              void handleToggleBreakpoint(lineNum);
                             }
                           }}
                           style={{
@@ -615,7 +615,7 @@ export default function DeveloperDebugger() {
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (tp.id) handleRemoveTracepoint(tp.id);
+                          if (tp.id) void handleRemoveTracepoint(tp.id);
                         }}
                         style={{
                           background: "transparent",

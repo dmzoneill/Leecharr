@@ -299,7 +299,7 @@ export function FileBrowser() {
 
   const handleCopyPath = () => {
     const textToCopy = currentPath || listing?.path || "";
-    navigator.clipboard.writeText(textToCopy);
+    void navigator.clipboard.writeText(textToCopy);
     showToast("Path copied to clipboard", "info");
   };
 
@@ -1444,7 +1444,7 @@ export function FileBrowser() {
                     className="btn btn-outline"
                     style={{ fontSize: "0.8rem", padding: "0.3rem 0.65rem" }}
                     onClick={() => {
-                      navigator.clipboard.writeText(previewData.content || "");
+                      void navigator.clipboard.writeText(previewData.content || "");
                       showToast(
                         t("common.copiedToClipboard", "Copied to clipboard"),
                         "info",

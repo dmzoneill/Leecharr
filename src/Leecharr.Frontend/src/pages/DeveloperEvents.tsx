@@ -401,7 +401,7 @@ export default function DeveloperEvents() {
               <span style={{ fontSize: "0.8rem", fontWeight: 600 }}>Payload JSON</span>
               <button
                 onClick={() => {
-                  navigator.clipboard.writeText(selectedEvent.payloadJson);
+                  void navigator.clipboard.writeText(selectedEvent.payloadJson);
                   setActionMessage({ text: "Payload JSON copied to clipboard!", type: "success" });
                 }}
                 style={{
