@@ -706,16 +706,27 @@ export function useDownloadHistory(params?: {
   query?: string;
   status?: string;
   limit?: number;
+  startDate?: string;
+  endDate?: string;
 }) {
   const interval = useRefetchInterval();
   const searchParams = new URLSearchParams();
   if (params?.query) searchParams.set("query", params.query);
   if (params?.status) searchParams.set("status", params.status);
   if (params?.limit) searchParams.set("limit", String(params.limit));
+  if (params?.startDate) searchParams.set("startDate", params.startDate);
+  if (params?.endDate) searchParams.set("endDate", params.endDate);
   const queryString = searchParams.toString();
 
   return useQuery<DownloadHistoryEntry[]>({
-    queryKey: ["downloadhistory", params?.query, params?.status, params?.limit],
+    queryKey: [
+      "downloadhistory",
+      params?.query,
+      params?.status,
+      params?.limit,
+      params?.startDate,
+      params?.endDate,
+    ],
     queryFn: () =>
       apiClient.get(`/downloadhistory${queryString ? `?${queryString}` : ""}`),
     refetchInterval: interval,

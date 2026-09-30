@@ -7,7 +7,7 @@ namespace NzbDrone.Core.Torrents;
 
 public interface IDownloadHistoryService
 {
-    List<DownloadHistory> GetAll(string query = null, string status = null, int limit = 500, int offset = 0);
+    List<DownloadHistory> GetAll(string query = null, string status = null, int limit = 500, int offset = 0, System.DateTime? startDate = null, System.DateTime? endDate = null);
 
     DownloadHistory Get(int id);
 

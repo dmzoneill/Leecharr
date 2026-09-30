@@ -212,6 +212,49 @@ public class DownloadHistoryRepositoryTest
     }
 
     [Test]
+    public void GetHistory_WithDateRange_FiltersProperly()
+    {
+        var baseDate = new DateTime(2026, 5, 15, 12, 0, 0, DateTimeKind.Utc);
+
+        this.repository.Insert(new DownloadHistory
+        {
+            Title = "Old Item",
+            InfoHash = "1111111111111111111111111111111111111111",
+            Status = "Active",
+            DateAdded = baseDate.AddDays(-10),
+        });
+
+        this.repository.Insert(new DownloadHistory
+        {
+            Title = "Target Item",
+            InfoHash = "2222222222222222222222222222222222222222",
+            Status = "Completed",
+            DateAdded = baseDate,
+        });
+
+        this.repository.Insert(new DownloadHistory
+        {
+            Title = "Future Item",
+            InfoHash = "3333333333333333333333333333333333333333",
+            Status = "Active",
+            DateAdded = baseDate.AddDays(10),
+        });
+
+        // Filter with startDate only
+        var fromTarget = this.repository.GetHistory(startDate: baseDate.AddDays(-1));
+        fromTarget.Should().HaveCount(2);
+
+        // Filter with endDate only (using date-only so it covers end of day)
+        var toTarget = this.repository.GetHistory(endDate: baseDate.Date);
+        toTarget.Should().HaveCount(2);
+
+        // Filter with both startDate and endDate
+        var exactRange = this.repository.GetHistory(startDate: baseDate.Date, endDate: baseDate.Date);
+        exactRange.Should().HaveCount(1);
+        exactRange[0].Title.Should().Be("Target Item");
+    }
+
+    [Test]
     public void FindByInfoHash_NormalizesInputCase()
     {
         var entry = new DownloadHistory

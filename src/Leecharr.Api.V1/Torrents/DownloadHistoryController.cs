@@ -42,9 +42,11 @@ public class DownloadHistoryController : Controller
         [FromQuery] string query = null,
         [FromQuery] string status = null,
         [FromQuery] int limit = 500,
-        [FromQuery] int offset = 0)
+        [FromQuery] int offset = 0,
+        [FromQuery] DateTime? startDate = null,
+        [FromQuery] DateTime? endDate = null)
     {
-        var records = this.historyService.GetAll(query, status, limit, offset);
+        var records = this.historyService.GetAll(query, status, limit, offset, startDate, endDate);
         return this.Ok(records.Select(this.ToResource).ToList());
     }
 

@@ -66,6 +66,29 @@ public class DownloadHistoryControllerTest
     }
 
     [Test]
+    public void GetAll_WithDateRange_PassesDatesToService()
+    {
+        var startDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var endDate = new DateTime(2026, 1, 31, 0, 0, 0, DateTimeKind.Utc);
+        var records = new List<DownloadHistory>
+        {
+            new DownloadHistory
+            {
+                Id = 1,
+                Title = "Severance.S01E01",
+                Status = "Active",
+            },
+        };
+
+        this.historyService.GetAll("sev", "Active", 100, 10, startDate, endDate).Returns(records);
+
+        var result = this.controller.GetAll("sev", "Active", 100, 10, startDate, endDate);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        this.historyService.Received(1).GetAll("sev", "Active", 100, 10, startDate, endDate);
+    }
+
+    [Test]
     public void Get_WhenRecordNotFound_ReturnsNotFound()
     {
         this.historyService.Get(99).Returns((DownloadHistory)null!);
