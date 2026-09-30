@@ -391,7 +391,15 @@ export function ConnectionsTab() {
             <div
               key={conn.id}
               className="provider-card"
+              role="button"
+              tabIndex={0}
               onClick={() => handleOpenModal(conn)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleOpenModal(conn);
+                }
+              }}
             >
               <div className="provider-card-actions">
                 {(conn.externalUrl || conn.url) && (
@@ -697,7 +705,14 @@ export function ConnectionsTab() {
           <div
             ref={trapRef}
             className="modal"
+            role="button"
+            tabIndex={0}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+              }
+            }}
             style={{
               maxWidth: 520,
               borderRadius: "8px",
@@ -959,7 +974,14 @@ export function ConnectionsTab() {
           <div
             ref={mappingTrapRef}
             className="modal"
+            role="button"
+            tabIndex={0}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+              }
+            }}
             style={{
               maxWidth: 520,
               borderRadius: "8px",

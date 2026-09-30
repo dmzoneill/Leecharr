@@ -86,7 +86,7 @@ function decodeHtmlEntities(text: string): string {
 function renderInlineMarkdown(text: string, isUser = false): React.ReactNode[] {
   const decoded = decodeHtmlEntities(text);
   const regex =
-    /(`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*(?:[^*]+)\*|_(?:[^_]+)_|\[(?:[^\]]+)\]\((?:(?:https?:\/\/|\/)[^\s)]+)\))/g;
+    /(`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|_[^_]+_|\[[^\]]+\]\([^\s)]+\))/g;
 
   const parts = decoded.split(regex);
   return parts.map((part, idx) => {
@@ -244,7 +244,7 @@ function renderMarkdownContent(
       continue;
     }
 
-    const h3Match = trimmed.match(/^###\s+(.+)$/);
+    const h3Match = trimmed.match(/^###\s+(\S.*)$/);
     if (h3Match) {
       flushList();
       elements.push(
@@ -264,7 +264,7 @@ function renderMarkdownContent(
       continue;
     }
 
-    const h2Match = trimmed.match(/^##\s+(.+)$/);
+    const h2Match = trimmed.match(/^##\s+(\S.*)$/);
     if (h2Match) {
       flushList();
       elements.push(
@@ -284,7 +284,7 @@ function renderMarkdownContent(
       continue;
     }
 
-    const h1Match = trimmed.match(/^#\s+(.+)$/);
+    const h1Match = trimmed.match(/^#\s+(\S.*)$/);
     if (h1Match) {
       flushList();
       elements.push(
@@ -304,7 +304,7 @@ function renderMarkdownContent(
       continue;
     }
 
-    const bulletMatch = trimmed.match(/^[-*•]\s+(.+)$/);
+    const bulletMatch = trimmed.match(/^[-*•]\s+(\S.*)$/);
     if (bulletMatch) {
       if (!currentList || currentList.type !== "ul") {
         flushList();
@@ -314,7 +314,7 @@ function renderMarkdownContent(
       continue;
     }
 
-    const numListMatch = trimmed.match(/^\d+[\.\)]\s+(.+)$/);
+    const numListMatch = trimmed.match(/^\d+[\.\)]\s+(\S.*)$/);
     if (numListMatch) {
       if (!currentList || currentList.type !== "ol") {
         flushList();
@@ -621,7 +621,7 @@ export const AiCopilotDrawer: React.FC = () => {
 
     // Check if first line explicitly specifies a torrent/release name (e.g., "Torrent: Name" or "Release: Name")
     const headerPrefixRegex =
-      /^(?:torrent|release|name|title)\s*[:=-]\s*(.+)$/i;
+      /^(?:torrent|release|name|title)\s*[:=-]\s*(\S.*)$/i;
     const firstLineMatch = rawLines[0].match(headerPrefixRegex);
 
     if (firstLineMatch) {
@@ -668,10 +668,10 @@ export const AiCopilotDrawer: React.FC = () => {
       .map((line) => {
         let clean = line.replace(/^\d+[\.\)]\s+/, "");
         clean = clean.replace(
-          /\s*[\(\[]?\s*\d+(?:\.\d+)?\s*(?:[KMGTP]?B|bytes)\s*[\)\]]?$/i,
+          /(?:\s*[\(\[]\s*|\s+)\d+(?:\.\d+)?\s*(?:[KMGTP]?B|bytes)(?:\s*[\)\]])?$/i,
           "",
         );
-        clean = clean.replace(/\t.*$/, "");
+        clean = clean.replace(/\t.*/, "");
         return clean.trim();
       })
       .filter(Boolean);

@@ -57,7 +57,7 @@ jobs:
         if: steps.check_token.outputs.has_token == 'true'
         run: |
           cd src/Leecharr.Frontend
-          npm ci
+          npm ci --ignore-scripts
 
       - name: Install SonarScanner tool
         if: steps.check_token.outputs.has_token == 'true'
