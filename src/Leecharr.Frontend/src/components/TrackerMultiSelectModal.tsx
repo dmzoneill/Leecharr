@@ -271,7 +271,6 @@ export function TrackerMultiSelectModal({
           boxShadow: "0 20px 45px rgba(0, 0, 0, 0.6)",
           backgroundColor: "var(--bg-secondary)",
         }}
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div
