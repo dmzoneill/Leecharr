@@ -29,7 +29,7 @@ public static class ArchiveTimeoutCalculator
             }
 
             var fileName = Path.GetFileName(archivePath);
-            var partMatch = Regex.Match(fileName, @"^(.*?)\.part\d+\.(rar|7z|zip)$", RegexOptions.IgnoreCase);
+            var partMatch = Regex.Match(fileName, @"^(.*?)\.part\d+\.(rar|7z|zip)$", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
             if (partMatch.Success)
             {
                 var prefix = partMatch.Groups[1].Value;
@@ -39,7 +39,7 @@ public static class ArchiveTimeoutCalculator
                 foreach (var file in companionFiles)
                 {
                     var fn = Path.GetFileName(file);
-                    if (Regex.IsMatch(fn, $@"^{Regex.Escape(prefix)}\.part\d+\.{Regex.Escape(ext)}$", RegexOptions.IgnoreCase))
+                    if (Regex.IsMatch(fn, $@"^{Regex.Escape(prefix)}\.part\d+\.{Regex.Escape(ext)}$", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2)))
                     {
                         totalVolumeSize += diskProvider.GetFileSize(file);
                     }
@@ -48,7 +48,7 @@ public static class ArchiveTimeoutCalculator
                 return totalVolumeSize > 0 ? totalVolumeSize : Math.Max(0L, baseSize);
             }
 
-            var numMatch = Regex.Match(fileName, @"^(.*?)\.(r\d{2}|\d{3}|z\d{2}|001)$", RegexOptions.IgnoreCase);
+            var numMatch = Regex.Match(fileName, @"^(.*?)\.(r\d{2}|\d{3}|z\d{2}|001)$", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
             if (numMatch.Success)
             {
                 var prefix = numMatch.Groups[1].Value;
@@ -57,7 +57,7 @@ public static class ArchiveTimeoutCalculator
                 foreach (var file in companionFiles)
                 {
                     var fn = Path.GetFileName(file);
-                    if (Regex.IsMatch(fn, $@"^{Regex.Escape(prefix)}\.(r\d{{2}}|\d{{3}}|z\d{{2}}|rar)$", RegexOptions.IgnoreCase))
+                    if (Regex.IsMatch(fn, $@"^{Regex.Escape(prefix)}\.(r\d{{2}}|\d{{3}}|z\d{{2}}|rar)$", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2)))
                     {
                         totalVolumeSize += diskProvider.GetFileSize(file);
                     }
@@ -66,7 +66,7 @@ public static class ArchiveTimeoutCalculator
                 return totalVolumeSize > 0 ? totalVolumeSize : Math.Max(0L, baseSize);
             }
 
-            var splitMatch = Regex.Match(fileName, @"^(.*?)\.(7z|tar|zip|rar)\.\d+$", RegexOptions.IgnoreCase);
+            var splitMatch = Regex.Match(fileName, @"^(.*?)\.(7z|tar|zip|rar)\.\d+$", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
             if (splitMatch.Success)
             {
                 var prefix = splitMatch.Groups[1].Value;
@@ -76,7 +76,7 @@ public static class ArchiveTimeoutCalculator
                 foreach (var file in companionFiles)
                 {
                     var fn = Path.GetFileName(file);
-                    if (Regex.IsMatch(fn, $@"^{Regex.Escape(prefix)}\.{Regex.Escape(ext)}\.\d+$", RegexOptions.IgnoreCase))
+                    if (Regex.IsMatch(fn, $@"^{Regex.Escape(prefix)}\.{Regex.Escape(ext)}\.\d+$", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2)))
                     {
                         totalVolumeSize += diskProvider.GetFileSize(file);
                     }
