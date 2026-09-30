@@ -296,28 +296,31 @@ export function TrackersTab({
     setIsAddingBatch(true);
     let addedCount = 0;
     const errors: string[] = [];
-    for (const url of Array.from(selectedUrls)) {
-      try {
-        await addTracker.mutateAsync({ torrentId: effectiveId, url });
-        addedCount++;
-      } catch (err: unknown) {
-        const errObj = err as {
-          response?: { data?: { message?: string } | string };
-          message?: string;
-        };
-        const rawMsg =
-          (typeof errObj?.response?.data === "object"
-            ? errObj.response.data?.message
-            : null) ||
-          (typeof errObj?.response?.data === "string" && errObj.response.data.trim()
-            ? errObj.response.data.trim()
-            : null) ||
-          errObj?.message ||
-          t("torrents.detail.failedToAddTracker", "Failed to add tracker");
-        errors.push(selectedUrls.size > 1 ? `${rawMsg} (${url})` : rawMsg);
+    try {
+      for (const url of Array.from(selectedUrls)) {
+        try {
+          await addTracker.mutateAsync({ torrentId: effectiveId, url });
+          addedCount++;
+        } catch (err: unknown) {
+          const errObj = err as {
+            response?: { data?: { message?: string } | string };
+            message?: string;
+          };
+          const rawMsg =
+            (typeof errObj?.response?.data === "object"
+              ? errObj.response.data?.message
+              : null) ||
+            (typeof errObj?.response?.data === "string" && errObj.response.data.trim()
+              ? errObj.response.data.trim()
+              : null) ||
+            errObj?.message ||
+            t("torrents.detail.failedToAddTracker", "Failed to add tracker");
+          errors.push(selectedUrls.size > 1 ? `${rawMsg} (${url})` : rawMsg);
+        }
       }
+    } finally {
+      setIsAddingBatch(false);
     }
-    setIsAddingBatch(false);
     setSelectedUrls(new Set());
     if (addedCount > 0) {
       trackTrackerAction("add");

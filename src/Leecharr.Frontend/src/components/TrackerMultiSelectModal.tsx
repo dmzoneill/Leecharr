@@ -17,6 +17,7 @@ export interface TrackerPickerItem {
   seeders?: number;
   leechers?: number;
   statusLabel?: string;
+  isCustom?: boolean;
 }
 
 export interface TrackerMultiSelectModalProps {
@@ -27,7 +28,7 @@ export interface TrackerMultiSelectModalProps {
   onToggleUrl: (url: string) => void;
   onSelectBatch: (urls: string[]) => void;
   onClearSelection: () => void;
-  onAddAndAnnounce: () => void;
+  onAddAndAnnounce: () => void | Promise<void>;
   isAdding?: boolean;
 }
 
@@ -55,12 +56,56 @@ export function TrackerMultiSelectModal({
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [customUrl, setCustomUrl] = useState("");
+  const [customTrackers, setCustomTrackers] = useState<TrackerPickerItem[]>([]);
 
-  // Sort trackers: Active / Verified -> Online -> Slow -> Untested -> Offline, then alphabetically
+  // Combine incoming trackers with any custom URLs entered by the user
+  const allTrackers = useMemo(() => {
+    const existingUrls = new Set(
+      trackers.map((t) => t.url.trim().toLowerCase()),
+    );
+    const result: TrackerPickerItem[] = [...trackers];
+
+    for (const ct of customTrackers) {
+      if (!existingUrls.has(ct.url.trim().toLowerCase())) {
+        result.push(ct);
+        existingUrls.add(ct.url.trim().toLowerCase());
+      }
+    }
+
+    for (const url of selectedUrls) {
+      const cleanUrl = url.trim();
+      if (!cleanUrl) continue;
+      if (!existingUrls.has(cleanUrl.toLowerCase())) {
+        let host = "Unknown";
+        let protocol = "";
+        try {
+          const parsed = new URL(cleanUrl);
+          host = parsed.hostname || "Unknown";
+          protocol = parsed.protocol.replace(":", "").toUpperCase();
+        } catch {
+          const match = cleanUrl.match(/^([a-z0-9+.-]+):\/\//i);
+          if (match) protocol = match[1].toUpperCase();
+        }
+        result.push({
+          url: cleanUrl,
+          host,
+          protocol,
+          isAttached: false,
+          isCustom: true,
+        });
+        existingUrls.add(cleanUrl.toLowerCase());
+      }
+    }
+
+    return result;
+  }, [trackers, customTrackers, selectedUrls]);
+
+  // Sort trackers: Custom -> Active / Verified -> Online -> Slow -> Untested -> Offline, then alphabetically
   const sortedTrackers = useMemo(() => {
-    return [...trackers].sort((a, b) => {
+    return [...allTrackers].sort((a, b) => {
       const getPriority = (item: TrackerPickerItem): number => {
         if (item.isAttached) return 99; // Attached at the bottom
+        if (item.isCustom) return 0;
         if (item.isVerified) return 1;
         if (item.isAlive) return 2;
         if (item.isSlow) return 3;
@@ -76,7 +121,7 @@ export function TrackerMultiSelectModal({
       const hostB = (b.host || b.url).toLowerCase();
       return hostA.localeCompare(hostB);
     });
-  }, [trackers]);
+  }, [allTrackers]);
 
   // Filter trackers by search and status
   const filteredTrackers = useMemo(() => {
@@ -99,16 +144,16 @@ export function TrackerMultiSelectModal({
 
   const verifiedUnattached = useMemo(
     () =>
-      trackers.filter((t) => t.isVerified && !t.isAttached).map((t) => t.url),
-    [trackers],
+      allTrackers.filter((t) => t.isVerified && !t.isAttached).map((t) => t.url),
+    [allTrackers],
   );
 
   const onlineUnattached = useMemo(
     () =>
-      trackers
+      allTrackers
         .filter((t) => (t.isAlive || t.isVerified) && !t.isAttached)
         .map((t) => t.url),
-    [trackers],
+    [allTrackers],
   );
 
   const handleSelectAllFiltered = () => {
@@ -122,13 +167,50 @@ export function TrackerMultiSelectModal({
     e.preventDefault();
     if (!customUrl.trim()) return;
     const clean = customUrl.trim();
+    const lower = clean.toLowerCase();
     if (
-      clean.startsWith("http://") ||
-      clean.startsWith("https://") ||
-      clean.startsWith("udp://")
+      lower.startsWith("http://") ||
+      lower.startsWith("https://") ||
+      lower.startsWith("udp://")
     ) {
-      onToggleUrl(clean);
+      let host = "Unknown";
+      let protocol = "";
+      try {
+        const parsed = new URL(clean);
+        host = parsed.hostname || "Unknown";
+        protocol = parsed.protocol.replace(":", "").toUpperCase();
+      } catch {
+        const match = clean.match(/^([a-z0-9+.-]+):\/\//i);
+        if (match) protocol = match[1].toUpperCase();
+      }
+
+      setCustomTrackers((prev) => {
+        const exists =
+          trackers.some((t) => t.url.trim().toLowerCase() === lower) ||
+          prev.some((t) => t.url.trim().toLowerCase() === lower);
+        if (exists) return prev;
+        return [
+          ...prev,
+          {
+            url: clean,
+            host,
+            protocol,
+            isAttached: false,
+            isCustom: true,
+          },
+        ];
+      });
+
+      if (!selectedUrls.has(clean)) {
+        onToggleUrl(clean);
+      }
       setCustomUrl("");
+      if (statusFilter === "verified" || statusFilter === "online") {
+        setStatusFilter("all");
+      }
+      if (searchTerm && !lower.includes(searchTerm.toLowerCase())) {
+        setSearchTerm("");
+      }
     }
   };
 
@@ -154,7 +236,7 @@ export function TrackerMultiSelectModal({
         zIndex: 9999,
         padding: "1rem",
       }}
-      onClick={onClose}
+      onClick={isAdding ? undefined : onClose}
     >
       <div
         ref={trapRef}
@@ -221,6 +303,7 @@ export function TrackerMultiSelectModal({
             type="button"
             className="btn btn-small btn-outline"
             onClick={onClose}
+            disabled={isAdding}
             aria-label={t("common.close", undefined, "Close")}
             title={t("common.close", undefined, "Close")}
             style={{ padding: "0.2rem 0.5rem" }}
@@ -650,6 +733,7 @@ export function TrackerMultiSelectModal({
               type="button"
               className="btn btn-small btn-outline"
               onClick={onClose}
+              disabled={isAdding}
               style={{ fontSize: "0.82rem" }}
             >
               {t("torrentDetail.doneKeepSelection", "Done / Keep Selection")}
@@ -657,22 +741,40 @@ export function TrackerMultiSelectModal({
             <button
               type="button"
               className="btn btn-small btn-success"
-              onClick={() => {
-                onAddAndAnnounce();
+              onClick={async () => {
+                await onAddAndAnnounce();
                 onClose();
               }}
               disabled={isAdding || selectedUrls.size === 0}
               style={{ fontSize: "0.82rem" }}
             >
-              {isAdding
-                ? t(
+              {isAdding ? (
+                <>
+                  <span
+                    className="spinner"
+                    style={{
+                      display: "inline-block",
+                      width: "0.75rem",
+                      height: "0.75rem",
+                      border: "2px solid rgba(255,255,255,0.3)",
+                      borderTopColor: "#fff",
+                      borderRadius: "50%",
+                      animation: "spin 0.6s linear infinite",
+                      marginRight: "0.35rem",
+                      verticalAlign: "middle",
+                    }}
+                  />
+                  {t(
                     "torrentDetail.addingAndAnnouncing",
                     "Adding & Announcing...",
-                  )
-                : t("torrentDetail.addAndAnnounceCount", {
-                    count: selectedUrls.size,
-                    defaultValue: `+ Add & Announce (${selectedUrls.size})`,
-                  })}
+                  )}
+                </>
+              ) : (
+                t("torrentDetail.addAndAnnounceCount", {
+                  count: selectedUrls.size,
+                  defaultValue: `+ Add & Announce (${selectedUrls.size})`,
+                })
+              )}
             </button>
           </div>
         </div>
