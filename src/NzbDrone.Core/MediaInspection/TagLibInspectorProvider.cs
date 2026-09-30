@@ -3584,10 +3584,10 @@ public class TagLibInspectorProvider : IMediaInspectorProvider
         }
 
         // HDR (support hybrid / dual-layer HDR profiles without discarding base format)
-        var hasDv = Regex.IsMatch(normalized, @"\b(DV|DOVI)\b|\bDOLBY\s*VISION\b");
-        var hasHdr10Plus = Regex.IsMatch(upper, @"\bHDR10\+") || Regex.IsMatch(normalized, @"\bHDR10\s*PLUS\b");
-        var hasHdr10 = Regex.IsMatch(normalized, @"\bHDR10\b") || (!hasHdr10Plus && Regex.IsMatch(normalized, @"\bHDR\b"));
-        var hasHlg = Regex.IsMatch(normalized, @"\bHLG\b");
+        var hasDv = Regex.IsMatch(normalized, @"\b(DV|DOVI)\b|\bDOLBY\s*VISION\b", RegexOptions.None, TimeSpan.FromSeconds(2));
+        var hasHdr10Plus = Regex.IsMatch(upper, @"\bHDR10\+", RegexOptions.None, TimeSpan.FromSeconds(2)) || Regex.IsMatch(normalized, @"\bHDR10\s*PLUS\b", RegexOptions.None, TimeSpan.FromSeconds(2));
+        var hasHdr10 = Regex.IsMatch(normalized, @"\bHDR10\b", RegexOptions.None, TimeSpan.FromSeconds(2)) || (!hasHdr10Plus && Regex.IsMatch(normalized, @"\bHDR\b", RegexOptions.None, TimeSpan.FromSeconds(2)));
+        var hasHlg = Regex.IsMatch(normalized, @"\bHLG\b", RegexOptions.None, TimeSpan.FromSeconds(2));
 
         if (hasDv)
         {

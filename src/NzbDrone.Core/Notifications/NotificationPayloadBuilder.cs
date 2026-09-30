@@ -62,7 +62,7 @@ public static class NotificationPayloadBuilder
 
         if (string.IsNullOrEmpty(chatId) && settings.Contains("chat_id="))
         {
-            var match = Regex.Match(settings, @"chat_id=([^&]+)");
+            var match = Regex.Match(settings, @"chat_id=([^&]+)", RegexOptions.None, TimeSpan.FromSeconds(2));
             if (match.Success)
             {
                 chatId = Uri.UnescapeDataString(match.Groups[1].Value);
@@ -71,7 +71,7 @@ public static class NotificationPayloadBuilder
 
         if (string.IsNullOrEmpty(token))
         {
-            var match = Regex.Match(settings, @"(?:token|appToken|botToken|apiKey)=([^&]+)", RegexOptions.IgnoreCase);
+            var match = Regex.Match(settings, @"(?:token|appToken|botToken|apiKey)=([^&]+)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
             if (match.Success)
             {
                 token = Uri.UnescapeDataString(match.Groups[1].Value);
@@ -80,7 +80,7 @@ public static class NotificationPayloadBuilder
 
         if (string.IsNullOrEmpty(user) && settings.Contains("user="))
         {
-            var match = Regex.Match(settings, @"user=([^&]+)");
+            var match = Regex.Match(settings, @"user=([^&]+)", RegexOptions.None, TimeSpan.FromSeconds(2));
             if (match.Success)
             {
                 user = Uri.UnescapeDataString(match.Groups[1].Value);
@@ -89,7 +89,7 @@ public static class NotificationPayloadBuilder
 
         if (string.IsNullOrEmpty(sound) && settings.Contains("sound=", StringComparison.OrdinalIgnoreCase))
         {
-            var match = Regex.Match(settings, @"sound=([^&]+)", RegexOptions.IgnoreCase);
+            var match = Regex.Match(settings, @"sound=([^&]+)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
             if (match.Success)
             {
                 sound = Uri.UnescapeDataString(match.Groups[1].Value);
@@ -147,7 +147,7 @@ public static class NotificationPayloadBuilder
         }
         else
         {
-            var uMatch = Regex.Match(trimmed, @"(?:^|[&?])(?:username|Username|user)=([^&]+)", RegexOptions.IgnoreCase);
+            var uMatch = Regex.Match(trimmed, @"(?:^|[&?])(?:username|Username|user)=([^&]+)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
             if (uMatch.Success)
             {
                 var val = Uri.UnescapeDataString(uMatch.Groups[1].Value).Trim();
@@ -157,7 +157,7 @@ public static class NotificationPayloadBuilder
                 }
             }
 
-            var aMatch = Regex.Match(trimmed, @"(?:^|[&?])(?:avatarUrl|avatar_url|AvatarUrl|avatar)=([^&]+)", RegexOptions.IgnoreCase);
+            var aMatch = Regex.Match(trimmed, @"(?:^|[&?])(?:avatarUrl|avatar_url|AvatarUrl|avatar)=([^&]+)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
             if (aMatch.Success)
             {
                 var val = Uri.UnescapeDataString(aMatch.Groups[1].Value).Trim();
@@ -223,7 +223,7 @@ public static class NotificationPayloadBuilder
 
         if (string.IsNullOrEmpty(username) && settings.Contains("username=", StringComparison.OrdinalIgnoreCase))
         {
-            var match = Regex.Match(settings, @"(?:^|[&?])(?:username|Username|basicAuthUsername)=([^&]+)", RegexOptions.IgnoreCase);
+            var match = Regex.Match(settings, @"(?:^|[&?])(?:username|Username|basicAuthUsername)=([^&]+)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
             if (match.Success)
             {
                 username = Uri.UnescapeDataString(match.Groups[1].Value).Trim();
@@ -232,7 +232,7 @@ public static class NotificationPayloadBuilder
 
         if (password == null && settings.Contains("password=", StringComparison.OrdinalIgnoreCase))
         {
-            var match = Regex.Match(settings, @"(?:^|[&?])(?:password|Password|basicAuthPassword)=([^&]+)", RegexOptions.IgnoreCase);
+            var match = Regex.Match(settings, @"(?:^|[&?])(?:password|Password|basicAuthPassword)=([^&]+)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
             if (match.Success)
             {
                 password = Uri.UnescapeDataString(match.Groups[1].Value);
@@ -305,7 +305,7 @@ public static class NotificationPayloadBuilder
         {
             if (settings.Contains(key, StringComparison.OrdinalIgnoreCase))
             {
-                var match = Regex.Match(settings, $@"{key}([^&]+)", RegexOptions.IgnoreCase);
+                var match = Regex.Match(settings, $@"{key}([^&]+)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
                 if (match.Success)
                 {
                     var val = Uri.UnescapeDataString(match.Groups[1].Value).Trim().ToUpperInvariant();
@@ -373,7 +373,7 @@ public static class NotificationPayloadBuilder
         {
             if (settings.Contains(key, StringComparison.OrdinalIgnoreCase))
             {
-                var match = Regex.Match(settings, $@"{key}([^&]+)", RegexOptions.IgnoreCase);
+                var match = Regex.Match(settings, $@"{key}([^&]+)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
                 if (match.Success)
                 {
                     var val = Uri.UnescapeDataString(match.Groups[1].Value);
@@ -497,7 +497,7 @@ public static class NotificationPayloadBuilder
         }
         else
         {
-            var match = Regex.Match(trimmed, @"(?:^|[&?])(?:priority|Priority)=(\d+)", RegexOptions.IgnoreCase);
+            var match = Regex.Match(trimmed, @"(?:^|[&?])(?:priority|Priority)=(\d+)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
             if (match.Success && int.TryParse(match.Groups[1].Value, out var val))
             {
                 return val;
@@ -589,31 +589,31 @@ public static class NotificationPayloadBuilder
         }
         else
         {
-            var pMatch = Regex.Match(trimmed, @"(?:^|[&?])(?:priority|Priority)=(-?\d+)", RegexOptions.IgnoreCase);
+            var pMatch = Regex.Match(trimmed, @"(?:^|[&?])(?:priority|Priority)=(-?\d+)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
             if (pMatch.Success && int.TryParse(pMatch.Groups[1].Value, out var pVal))
             {
                 priority = pVal;
             }
 
-            var rMatch = Regex.Match(trimmed, @"(?:^|[&?])(?:retry|Retry|retrySeconds|RetrySeconds)=(\d+)", RegexOptions.IgnoreCase);
+            var rMatch = Regex.Match(trimmed, @"(?:^|[&?])(?:retry|Retry|retrySeconds|RetrySeconds)=(\d+)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
             if (rMatch.Success && int.TryParse(rMatch.Groups[1].Value, out var rVal))
             {
                 retry = rVal;
             }
 
-            var eMatch = Regex.Match(trimmed, @"(?:^|[&?])(?:expire|Expire|expireSeconds|ExpireSeconds)=(\d+)", RegexOptions.IgnoreCase);
+            var eMatch = Regex.Match(trimmed, @"(?:^|[&?])(?:expire|Expire|expireSeconds|ExpireSeconds)=(\d+)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
             if (eMatch.Success && int.TryParse(eMatch.Groups[1].Value, out var eVal))
             {
                 expire = eVal;
             }
 
-            var dMatch = Regex.Match(trimmed, @"(?:^|[&?])(?:device|Device)=([^&]+)", RegexOptions.IgnoreCase);
+            var dMatch = Regex.Match(trimmed, @"(?:^|[&?])(?:device|Device)=([^&]+)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
             if (dMatch.Success)
             {
                 device = Uri.UnescapeDataString(dMatch.Groups[1].Value);
             }
 
-            var sMatch = Regex.Match(trimmed, @"(?:^|[&?])(?:sound|Sound)=([^&]+)", RegexOptions.IgnoreCase);
+            var sMatch = Regex.Match(trimmed, @"(?:^|[&?])(?:sound|Sound)=([^&]+)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2));
             if (sMatch.Success)
             {
                 sound = Uri.UnescapeDataString(sMatch.Groups[1].Value);

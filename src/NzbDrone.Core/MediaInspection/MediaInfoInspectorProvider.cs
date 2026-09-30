@@ -246,7 +246,7 @@ public class MediaInfoInspectorProvider : IMediaInspectorProvider
                     if (!string.IsNullOrWhiteSpace(hdrString))
                     {
                         var hdrUpper = hdrString.ToUpperInvariant();
-                        var hasDv = hdrUpper.Contains("DOLBY VISION") || Regex.IsMatch(hdrUpper, @"\b(DV|DOVI)\b");
+                        var hasDv = hdrUpper.Contains("DOLBY VISION") || Regex.IsMatch(hdrUpper, @"\b(DV|DOVI)\b", RegexOptions.None, TimeSpan.FromSeconds(2));
                         var hasHdr10Plus = hdrUpper.Contains("HDR10+");
                         var hasHdr10 = hdrUpper.Contains("HDR10") || (!hasDv && (hdrUpper.Contains("SMPTE ST 2086") || (!hasHdr10Plus && hdrUpper.Contains("HDR"))));
                         var hasHlg = hdrUpper.Contains("HLG") || hdrUpper.Contains("ARIB STD-B67");
