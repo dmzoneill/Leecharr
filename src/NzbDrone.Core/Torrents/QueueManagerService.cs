@@ -502,12 +502,12 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
             }
         }
 
-        _ = Task.Run(this.ProcessQueueAsync);
+        _ = Task.Run(this.ProcessQueueAsync, CancellationToken.None);
     }
 
     public void Handle(TorrentAddedEvent message)
     {
-        _ = Task.Run(this.ProcessQueueAsync);
+        _ = Task.Run(this.ProcessQueueAsync, CancellationToken.None);
     }
 
     public void Handle(TorrentDeletedEvent message)
@@ -517,12 +517,12 @@ public class QueueManagerService : IQueueManagerService, IHandle<TorrentStatusCh
             this.torrentStates.TryRemove(message.Torrent.Id, out _);
         }
 
-        _ = Task.Run(this.ProcessQueueAsync);
+        _ = Task.Run(this.ProcessQueueAsync, CancellationToken.None);
     }
 
     public void Handle(ConfigSavedEvent message)
     {
-        _ = Task.Run(this.ProcessQueueAsync);
+        _ = Task.Run(this.ProcessQueueAsync, CancellationToken.None);
     }
 
     private sealed class TorrentQueueState

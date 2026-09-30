@@ -763,8 +763,8 @@ public class BackupController : Controller
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
 
             var timeoutSeconds = this.GetBackupTimeoutSeconds();
-            var waitTask = proc.WaitForExitAsync();
-            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(timeoutSeconds));
+            var waitTask = proc.WaitForExitAsync(CancellationToken.None);
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(timeoutSeconds), CancellationToken.None);
 
             var completedTask = await Task.WhenAny(waitTask, timeoutTask);
             if (completedTask == timeoutTask)
@@ -855,8 +855,8 @@ public class BackupController : Controller
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
 
             var timeoutSeconds = this.GetRestoreTimeoutSeconds();
-            var waitTask = proc.WaitForExitAsync();
-            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(timeoutSeconds));
+            var waitTask = proc.WaitForExitAsync(CancellationToken.None);
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(timeoutSeconds), CancellationToken.None);
 
             var completedTask = await Task.WhenAny(waitTask, timeoutTask);
             if (completedTask == timeoutTask)

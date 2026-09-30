@@ -1,5 +1,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 
+using System.Threading;
 using System.Threading.Tasks;
 using Leecharr.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -30,9 +31,9 @@ public class SystemShutdownController : ControllerBase
 
         _ = Task.Run(async () =>
         {
-            await Task.Delay(500);
+            await Task.Delay(500, this.hostApplicationLifetime?.ApplicationStopping ?? CancellationToken.None);
             this.hostApplicationLifetime?.StopApplication();
-        });
+        }, this.hostApplicationLifetime?.ApplicationStopping ?? CancellationToken.None);
 
         return this.Ok(new { message = "Shutting down Leecharr..." });
     }

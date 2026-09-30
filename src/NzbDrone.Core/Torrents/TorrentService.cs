@@ -415,7 +415,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 {
                     this.logger.Warn(ex, "Background media enrichment failed for torrent {0}", inserted.Id);
                 }
-            });
+            }, CancellationToken.None);
         }
 
         return inserted;
@@ -582,7 +582,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 {
                     this.logger.Warn(ex, "Background media enrichment failed for magnet {0}", inserted.Id);
                 }
-            });
+            }, CancellationToken.None);
         }
 
         return inserted;
@@ -1139,7 +1139,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
             }
             catch (IOException) when (attempt < maxRetries)
             {
-                await Task.Delay(delayMs);
+                await Task.Delay(delayMs, CancellationToken.None);
                 delayMs *= 2;
             }
         }
@@ -2167,7 +2167,7 @@ public class TorrentService : ITorrentService, IHandle<TorrentDownloadCompletedE
                 {
                     this.logger.Warn(ex, "Background media enrichment failed for resolved magnet {0}", torrent.Id);
                 }
-            });
+            }, CancellationToken.None);
         }
     }
 

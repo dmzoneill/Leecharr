@@ -10,6 +10,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography.Xml;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
@@ -118,7 +119,7 @@ public class AuthController : ControllerBase
         if (user == null)
         {
             this.RecordFailedLogin(clientIp);
-            await Task.Delay(500);
+            await Task.Delay(500, CancellationToken.None);
             return this.Unauthorized(new { error = "Invalid username or password" });
         }
 
@@ -347,7 +348,7 @@ public class AuthController : ControllerBase
     [HttpPost("callback/saml/{providerId?}")]
     [HttpPost("callback/saml")]
     [AllowAnonymous]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("roslyn.sonaranalyzer.security.cs", "S5146", Justification = "LocalRedirect guarantees only local relative paths are redirected")]
+    [global::System.Diagnostics.CodeAnalysis.SuppressMessage("roslyn.sonaranalyzer.security.cs", "S5146", Justification = "LocalRedirect guarantees only local relative paths are redirected")]
     public async Task<ActionResult> SamlCallback(
         [FromRoute] string providerId = null,
         [FromForm(Name = "SAMLResponse")] string samlResponse = null,
