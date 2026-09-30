@@ -682,11 +682,22 @@ export function IndexersTab() {
               <div
                 key={idx.id}
                 className={`provider-card ${isSelected ? "provider-card-selected" : ""}`}
+                role="button"
+                tabIndex={0}
                 onClick={() => {
                   const initial = { ...idx };
                   initialIndexerRef.current = JSON.stringify(initial);
                   setEditing(initial);
                   setModalTestResult(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    const initial = { ...idx };
+                    initialIndexerRef.current = JSON.stringify(initial);
+                    setEditing(initial);
+                    setModalTestResult(null);
+                  }
                 }}
               >
                 <div className="provider-card-actions">
@@ -836,11 +847,22 @@ export function IndexersTab() {
         })}
           <div
             className="provider-card-add"
+            role="button"
+            tabIndex={0}
             onClick={() => {
               const initial = { ...defaultIndexer };
               initialIndexerRef.current = JSON.stringify(initial);
               setEditing(initial);
               setModalTestResult(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                const initial = { ...defaultIndexer };
+                initialIndexerRef.current = JSON.stringify(initial);
+                setEditing(initial);
+                setModalTestResult(null);
+              }
             }}
             title={t("settingsTabs.indexers.addIndexer")}
           >
@@ -877,6 +899,8 @@ export function IndexersTab() {
             <div
               key={rule.id}
               className="provider-card"
+              role="button"
+              tabIndex={0}
               onClick={() => {
                 const initial = { ...rule };
                 const rawIds = Array.isArray(initial.indexerIds)
@@ -886,6 +910,19 @@ export function IndexersTab() {
                 initialRawIndexerIdsRef.current = rawIds;
                 setEditingRule(initial);
                 setRawIndexerIds(rawIds);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  const initial = { ...rule };
+                  const rawIds = Array.isArray(initial.indexerIds)
+                    ? initial.indexerIds.join(", ")
+                    : "";
+                  initialRuleRef.current = JSON.stringify(initial);
+                  initialRawIndexerIdsRef.current = rawIds;
+                  setEditingRule(initial);
+                  setRawIndexerIds(rawIds);
+                }
               }}
             >
               <div className="provider-card-actions">
@@ -985,6 +1022,8 @@ export function IndexersTab() {
           ))}
           <div
             className="provider-card-add"
+            role="button"
+            tabIndex={0}
             onClick={() => {
               const initial = { ...defaultRssRule };
               const rawIds = Array.isArray(initial.indexerIds)
@@ -994,6 +1033,19 @@ export function IndexersTab() {
               initialRawIndexerIdsRef.current = rawIds;
               setEditingRule(initial);
               setRawIndexerIds(rawIds);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                const initial = { ...defaultRssRule };
+                const rawIds = Array.isArray(initial.indexerIds)
+                  ? initial.indexerIds.join(", ")
+                  : "";
+                initialRuleRef.current = JSON.stringify(initial);
+                initialRawIndexerIdsRef.current = rawIds;
+                setEditingRule(initial);
+                setRawIndexerIds(rawIds);
+              }
             }}
             title={t("settingsTabs.indexers.addRssRule")}
           >
@@ -1012,7 +1064,14 @@ export function IndexersTab() {
           <div
             ref={indexerTrapRef}
             className="modal"
+            role="button"
+            tabIndex={0}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+              }
+            }}
             style={{
               maxWidth: 520,
               borderRadius: "8px",
@@ -1269,7 +1328,14 @@ export function IndexersTab() {
           <div
             ref={ruleTrapRef}
             className="modal"
+            role="button"
+            tabIndex={0}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+              }
+            }}
             style={{
               maxWidth: 520,
               borderRadius: "8px",
