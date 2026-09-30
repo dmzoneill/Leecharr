@@ -348,6 +348,7 @@ public class TorrentControllerTest
 
         resource.Id.Should().Be(99);
         resource.Url.Should().Be("udp://tracker.openbittorrent.com:80/announce");
+        resource.Tier.Should().Be(0);
         resource.Status.Should().Be("Queued");
         resource.TotalAnnounces.Should().Be(0);
         resource.SuccessfulAnnounces.Should().Be(0);
@@ -361,11 +362,49 @@ public class TorrentControllerTest
             .Insert(Arg.Is<TrackerEntry>(t =>
                 t.TorrentId == 42 &&
                 t.Url == "udp://tracker.openbittorrent.com:80/announce" &&
+                t.Tier == 0 &&
                 t.Status == 0 &&
                 t.TotalAnnounces == 0 &&
                 t.SuccessfulAnnounces == 0 &&
                 t.LastAnnounce == null &&
                 t.AnnounceInterval == 1800));
+    }
+
+    [Test]
+    public async Task AddTracker_WithExplicitTier_PreservesTierInRepositoryAndResource()
+    {
+        var torrent = new Torrent
+        {
+            Id = 42,
+            Name = "Valid Torrent",
+            IsPrivate = false,
+        };
+        this.torrentService.Get(42).Returns(torrent);
+        this.trackerEntryRepository.GetByTorrentId(42).Returns(new List<TrackerEntry>());
+        this.trackerEntryRepository.Insert(Arg.Any<TrackerEntry>())
+            .Returns(callInfo =>
+            {
+                var entry = callInfo.Arg<TrackerEntry>();
+                entry.Id = 99;
+                return entry;
+            });
+
+        var request = new AddTrackerRequest { Url = "udp://tracker.openbittorrent.com:80/announce", Tier = 2 };
+        var actionResult = await this.controller.AddTracker(42, request);
+
+        var okResult = actionResult.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var resource = okResult.Value.Should().BeOfType<TrackerResource>().Subject;
+
+        resource.Id.Should().Be(99);
+        resource.Url.Should().Be("udp://tracker.openbittorrent.com:80/announce");
+        resource.Tier.Should().Be(2);
+        resource.Status.Should().Be("Queued");
+
+        this.trackerEntryRepository.Received(1)
+            .Insert(Arg.Is<TrackerEntry>(t =>
+                t.TorrentId == 42 &&
+                t.Url == "udp://tracker.openbittorrent.com:80/announce" &&
+                t.Tier == 2));
     }
 
     [Test]
