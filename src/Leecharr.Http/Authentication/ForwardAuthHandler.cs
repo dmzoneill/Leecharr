@@ -129,9 +129,13 @@ public class ForwardAuthHandler : AuthenticationHandler<ForwardAuthOptions>
         var candidates = headerNames.Split(';', StringSplitOptions.RemoveEmptyEntries);
         foreach (var name in candidates)
         {
-            if (this.Request.Headers.TryGetValue(name.Trim(), out var val) && !string.IsNullOrWhiteSpace(val.FirstOrDefault()))
+            if (this.Request.Headers.TryGetValue(name.Trim(), out var val))
             {
-                return val.FirstOrDefault().Trim();
+                var first = val.FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(first))
+                {
+                    return first.Trim();
+                }
             }
         }
 

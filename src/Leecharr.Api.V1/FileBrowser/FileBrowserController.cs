@@ -560,7 +560,7 @@ public class FileBrowserController : Controller
     }
 
     [HttpPost("upload")]
-    [RequestSizeLimit(1073741824)] // 1 GB
+    [RequestSizeLimit(100_000_000)] // 100 MB
     public async Task<ActionResult> Upload([FromQuery] string path = null)
     {
         string targetDir;
