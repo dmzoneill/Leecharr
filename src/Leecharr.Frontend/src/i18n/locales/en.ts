@@ -2023,8 +2023,8 @@ const en: I18nTranslations = {
     "inactivityWarning": "Inactivity Warning",
     "inactivityWarningDesc": "Your session will automatically lock due to inactivity in:",
     "activityHint": "Move your mouse or press any key to remain active.",
-    "passwordPlaceholder": "Enter password or API key",
-    "passwordRequired": "Password or API key is required",
+    "passwordPlaceholder": "Enter password",
+    "passwordRequired": "Password is required",
     "invalidPassword": "Invalid password or credentials",
     "sessionUnlocked": "Session unlocked successfully",
     "lockScreen": "Lock Screen"
