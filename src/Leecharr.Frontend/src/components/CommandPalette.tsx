@@ -21,6 +21,7 @@ import { useModalRegistration } from "./ModalProvider";
 export interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
+  onNavigate?: (path: string) => void;
   onOpenAddTorrent?: () => void;
   onOpenIndexerSearch?: () => void;
   onOpenShortcuts?: () => void;
@@ -43,6 +44,7 @@ interface CommandItem {
 export function CommandPalette({
   isOpen,
   onClose,
+  onNavigate,
   onOpenAddTorrent,
   onOpenIndexerSearch,
   onOpenShortcuts,
@@ -50,6 +52,7 @@ export function CommandPalette({
 }: CommandPaletteProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const doNavigate = onNavigate || navigate;
   const queryClient = useQueryClient();
   const { theme, toggleTheme } = useTheme();
   const { showToast } = useToast();
@@ -248,6 +251,27 @@ export function CommandPalette({
           onOpenGettingStarted?.();
         },
       },
+      {
+        id: "act-open-copilot",
+        category: "actions",
+        title: t("copilot.title", "AI Copilot"),
+        subtitle: "Open AI Copilot assistant and chat drawer",
+        icon: "✨",
+        badge: "AI",
+        keywords: [
+          "ai",
+          "copilot",
+          "assistant",
+          "chat",
+          "bot",
+          "drawer",
+          "ask",
+        ],
+        action: () => {
+          onClose();
+          window.dispatchEvent(new CustomEvent("open-copilot-drawer"));
+        },
+      },
     );
 
     // --- 2. Main Navigation Pages ---
@@ -261,7 +285,7 @@ export function CommandPalette({
         keywords: ["dashboard", "home", "stats", "overview", "main"],
         action: () => {
           onClose();
-          navigate("/");
+          doNavigate("/");
         },
       },
       {
@@ -280,7 +304,7 @@ export function CommandPalette({
         ],
         action: () => {
           onClose();
-          navigate("/torrents");
+          doNavigate("/torrents");
         },
       },
       {
@@ -292,7 +316,7 @@ export function CommandPalette({
         keywords: ["history", "activity", "downloads", "audit", "completed"],
         action: () => {
           onClose();
-          navigate("/activity/history");
+          doNavigate("/activity/history");
         },
       },
       {
@@ -311,7 +335,7 @@ export function CommandPalette({
         ],
         action: () => {
           onClose();
-          navigate("/activity/metrics");
+          doNavigate("/activity/metrics");
         },
       },
       {
@@ -323,7 +347,7 @@ export function CommandPalette({
         keywords: ["indexers", "search", "prowlarr", "torznab", "feeds"],
         action: () => {
           onClose();
-          navigate("/indexers");
+          doNavigate("/indexers");
         },
       },
       {
@@ -343,7 +367,7 @@ export function CommandPalette({
         ],
         action: () => {
           onClose();
-          navigate("/peermap");
+          doNavigate("/peermap");
         },
       },
       {
@@ -362,7 +386,7 @@ export function CommandPalette({
         ],
         action: () => {
           onClose();
-          navigate("/schedule");
+          doNavigate("/schedule");
         },
       },
       {
@@ -374,7 +398,7 @@ export function CommandPalette({
         keywords: ["statistics", "stats", "ratio", "storage", "analytics"],
         action: () => {
           onClose();
-          navigate("/statistics");
+          doNavigate("/statistics");
         },
       },
       {
@@ -393,7 +417,7 @@ export function CommandPalette({
         ],
         action: () => {
           onClose();
-          navigate("/trackerboost");
+          doNavigate("/trackerboost");
         },
       },
       {
@@ -405,7 +429,7 @@ export function CommandPalette({
         keywords: ["terminal", "cli", "shell", "bash", "command line", "pty"],
         action: () => {
           onClose();
-          navigate("/terminal");
+          doNavigate("/terminal");
         },
       },
       {
@@ -424,7 +448,7 @@ export function CommandPalette({
         ],
         action: () => {
           onClose();
-          navigate("/files");
+          doNavigate("/files");
         },
       },
       {
@@ -445,7 +469,7 @@ export function CommandPalette({
         ],
         action: () => {
           onClose();
-          navigate("/automation");
+          doNavigate("/automation");
         },
       },
       {
@@ -457,7 +481,7 @@ export function CommandPalette({
         keywords: ["system", "status", "health", "uptime", "version", "engine"],
         action: () => {
           onClose();
-          navigate("/system/status");
+          doNavigate("/system/status");
         },
       },
       {
@@ -477,7 +501,7 @@ export function CommandPalette({
         ],
         action: () => {
           onClose();
-          navigate("/system/resources");
+          doNavigate("/system/resources");
         },
       },
       {
@@ -489,7 +513,7 @@ export function CommandPalette({
         keywords: ["backup", "restore", "database", "export", "import"],
         action: () => {
           onClose();
-          navigate("/system/backup");
+          doNavigate("/system/backup");
         },
       },
       {
@@ -508,7 +532,7 @@ export function CommandPalette({
         ],
         action: () => {
           onClose();
-          navigate("/system/logs");
+          doNavigate("/system/logs");
         },
       },
       {
@@ -528,7 +552,80 @@ export function CommandPalette({
         ],
         action: () => {
           onClose();
-          navigate("/system/api");
+          doNavigate("/system/api");
+        },
+      },
+      {
+        id: "nav-dev-database",
+        category: "navigation",
+        title: "Developer: Database Explorer",
+        subtitle: "Inspect SQLite tables, run queries, and optimize storage",
+        icon: "🗄️",
+        keywords: [
+          "developer",
+          "database",
+          "sqlite",
+          "tables",
+          "vacuum",
+          "query",
+        ],
+        action: () => {
+          onClose();
+          doNavigate("/developer/database");
+        },
+      },
+      {
+        id: "nav-dev-commands",
+        category: "navigation",
+        title: "Developer: Commands",
+        subtitle: "Trigger and inspect backend pipeline commands",
+        icon: "⚡",
+        keywords: ["developer", "commands", "pipeline", "queue", "tasks"],
+        action: () => {
+          onClose();
+          doNavigate("/developer/commands");
+        },
+      },
+      {
+        id: "nav-dev-events",
+        category: "navigation",
+        title: "Developer: Event Stream",
+        subtitle: "Inspect real-time EventAggregator subscriptions",
+        icon: "📡",
+        keywords: [
+          "developer",
+          "events",
+          "signalr",
+          "eventaggregator",
+          "stream",
+        ],
+        action: () => {
+          onClose();
+          doNavigate("/developer/events");
+        },
+      },
+      {
+        id: "nav-dev-webhooks",
+        category: "navigation",
+        title: "Developer: Webhook Simulator",
+        subtitle: "Simulate and dispatch synthetic inbound webhooks",
+        icon: "🪝",
+        keywords: ["developer", "webhooks", "arr", "payload", "simulate"],
+        action: () => {
+          onClose();
+          doNavigate("/developer/webhooks");
+        },
+      },
+      {
+        id: "nav-dev-testing",
+        category: "navigation",
+        title: "Developer: Diagnostic Tests",
+        subtitle: "Execute internal diagnostic smoke tests",
+        icon: "🧪",
+        keywords: ["developer", "testing", "smoke", "diagnostics", "tests"],
+        action: () => {
+          onClose();
+          doNavigate("/developer/testing");
         },
       },
     );
@@ -546,7 +643,7 @@ export function CommandPalette({
           keywords: ["settings", "config", page.id, ...(page.keywords || [])],
           action: () => {
             onClose();
-            navigate(`/settings/${page.id}`);
+            doNavigate(`/settings/${page.id}`);
           },
         });
       }
@@ -571,7 +668,7 @@ export function CommandPalette({
         action: () => {
           onClose();
           setSelectedTorrentId(tor.id);
-          navigate("/torrents");
+          doNavigate("/torrents");
         },
       });
     }
@@ -579,7 +676,7 @@ export function CommandPalette({
     return items;
   }, [
     t,
-    navigate,
+    doNavigate,
     theme,
     toggleTheme,
     torrents,

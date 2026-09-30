@@ -113,6 +113,17 @@ export const AiCopilotDrawer: React.FC = () => {
   }, [isOpen]);
 
   useEffect(() => {
+    const handleOpen = () => setIsOpen(true);
+    const handleToggle = () => setIsOpen((prev) => !prev);
+    window.addEventListener("open-copilot-drawer", handleOpen);
+    window.addEventListener("toggle-copilot-drawer", handleToggle);
+    return () => {
+      window.removeEventListener("open-copilot-drawer", handleOpen);
+      window.removeEventListener("toggle-copilot-drawer", handleToggle);
+    };
+  }, []);
+
+  useEffect(() => {
     if (isOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
