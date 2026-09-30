@@ -36,7 +36,7 @@ public class SessionCleanupTask : ISessionCleanupTask, IHandle<ApplicationStarte
     {
     }
 
-    public SessionCleanupTask(IUserSessionRepository userSessionRepository, IUserSessionCache userSessionCache = null)
+    public SessionCleanupTask(IUserSessionRepository userSessionRepository, IUserSessionCache userSessionCache)
     {
         this.userSessionRepository = userSessionRepository;
         this.userSessionCache = userSessionCache;
