@@ -156,7 +156,7 @@ public class CsrfProtectionMiddleware
                             this.logger.Warn("CSRF blocked: cross-site Sec-Fetch-Site on {0} {1}", method, context.Request.Path);
                             context.Response.StatusCode = StatusCodes.Status403Forbidden;
                             context.Response.ContentType = "text/plain";
-                            await context.Response.WriteAsync("CSRF check failed: cross-site request blocked.");
+                            await context.Response.WriteAsync("CSRF check failed: cross-site request blocked.", context.RequestAborted);
                             return;
                         }
                     }
@@ -167,7 +167,7 @@ public class CsrfProtectionMiddleware
                         this.logger.Warn("CSRF blocked: missing both Origin and Referer headers on {0} {1}", method, context.Request.Path);
                         context.Response.StatusCode = StatusCodes.Status403Forbidden;
                         context.Response.ContentType = "text/plain";
-                        await context.Response.WriteAsync("CSRF check failed: missing Origin and Referer.");
+                        await context.Response.WriteAsync("CSRF check failed: missing Origin and Referer.", context.RequestAborted);
                         return;
                     }
 
@@ -178,7 +178,7 @@ public class CsrfProtectionMiddleware
                             this.logger.Warn("CSRF blocked: invalid Origin '{0}' on {1} {2}", originHeader, method, context.Request.Path);
                             context.Response.StatusCode = StatusCodes.Status403Forbidden;
                             context.Response.ContentType = "text/plain";
-                            await context.Response.WriteAsync("CSRF check failed: invalid Origin.");
+                            await context.Response.WriteAsync("CSRF check failed: invalid Origin.", context.RequestAborted);
                             return;
                         }
                     }
@@ -189,7 +189,7 @@ public class CsrfProtectionMiddleware
                             this.logger.Warn("CSRF blocked: invalid Referer '{0}' on {1} {2}", refererHeader, method, context.Request.Path);
                             context.Response.StatusCode = StatusCodes.Status403Forbidden;
                             context.Response.ContentType = "text/plain";
-                            await context.Response.WriteAsync("CSRF check failed: invalid Referer.");
+                            await context.Response.WriteAsync("CSRF check failed: invalid Referer.", context.RequestAborted);
                             return;
                         }
                     }
