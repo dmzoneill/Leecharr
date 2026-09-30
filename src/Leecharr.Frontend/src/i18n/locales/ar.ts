@@ -1846,6 +1846,12 @@ const ar: I18nTranslations = {
     "active": "نشيط",
     "inactive": "غير نشط",
     "time": "وقت",
+    "installUpdate": "تثبيت التحديث",
+    "installingUpdate": "جارٍ تثبيت التحديث...",
+    "confirmInstallUpdate": "هل أنت متأكد أنك تريد تثبيت هذا التحديث؟ سيتم إعادة تشغيل Leecharr لتطبيق التغييرات.",
+    "confirmInstallSpecificUpdate": "هل أنت متأكد أنك تريد تثبيت التحديث v{{version}}؟ سيتم إعادة تشغيل Leecharr لتطبيق التغييرات.",
+    "updateInstallStarted": "بدأ التحديث. إعادة تشغيل ليشار...",
+    "updateInstallFailed": "فشل تثبيت التحديث: {{error}}_",
     "websiteUrl": "www.leecharr.net"
   },
   "developer": {
@@ -2492,8 +2498,13 @@ const ar: I18nTranslations = {
       "deleteIndexerFailed": "فشل في حذف المفهرس",
       "selectAll": "تحديد الكل",
       "deselectAll": "إلغاء تحديد الكل",
+      "selectedCount": "{{count}}_ تم التحديد",
       "deleteSelected": "حذف المحدد",
       "deletingSelected": "جارٍ الحذف...",
+      "deleteSelectedTitle": "حذف الفهارس المحددة",
+      "deleteSelectedConfirmMessage": "هل أنت متأكد أنك تريد حذف {{count}}_ الفهرس (المفهرسات) المحددة؟",
+      "bulkDeleteSuccess": "تم حذف مفهرس {{count}}_",
+      "bulkDeleteFailed": "فشل حذف الفهارس المحددة",
       "badgeRss": "RSS",
       "badgeSearch": "بحث",
       "connectionPassed": "✓ تم الاتصال",
@@ -2563,12 +2574,7 @@ const ar: I18nTranslations = {
       "indexerUpdated": "تم تحديث المفهرس \"{{name}}\".",
       "indexerCreated": "تم إنشاء المفهرس \"{{name}}_\".",
       "updateFailed": "فشل تحديث المفهرس",
-      "createFailed": "فشل في إنشاء المفهرس",
-      "selectedCount": "{{count}}_ تم التحديد",
-      "deleteSelectedTitle": "حذف الفهارس المحددة",
-      "deleteSelectedConfirmMessage": "هل أنت متأكد أنك تريد حذف {{count}}_ الفهرس (المفهرسات) المحددة؟",
-      "bulkDeleteSuccess": "تم حذف مفهرس {{count}}_",
-      "bulkDeleteFailed": "فشل حذف الفهارس المحددة"
+      "createFailed": "فشل في إنشاء المفهرس"
     },
     "nav": {
       "groups": {

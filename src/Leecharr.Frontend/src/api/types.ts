@@ -838,6 +838,12 @@ export interface UpdateEntry {
   changes: UpdateChanges;
 }
 
+export interface InstallUpdateResponse {
+  message: string;
+  version?: string;
+  restartPending?: boolean;
+}
+
 export interface LogFile {
   filename: string;
   lastWriteTime: string;

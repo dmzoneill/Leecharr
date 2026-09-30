@@ -22,6 +22,7 @@ import type {
   AiConfig,
   SystemResourceTelemetrySnapshot,
   HostProcessResourceMetrics,
+  InstallUpdateResponse,
 } from "../types";
 
 export const DEFAULT_REFETCH_MS = 5000;
@@ -167,6 +168,16 @@ export function useUpdates() {
     queryFn: () => apiClient.get("/update"),
     staleTime: 60_000,
     refetchInterval: interval,
+  });
+}
+
+export function useInstallUpdate() {
+  const queryClient = useQueryClient();
+  return useMutation<InstallUpdateResponse, Error, { version?: string } | void>({
+    mutationFn: (data) => apiClient.post("/update", data ?? {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["updates"] });
+    },
   });
 }
 
