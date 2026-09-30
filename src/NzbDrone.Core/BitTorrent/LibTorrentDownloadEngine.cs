@@ -6,7 +6,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -25,13 +27,15 @@ using NzbDrone.Core.Torrents;
 
 namespace NzbDrone.Core.BitTorrent;
 
-public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<VpnKillSwitchTriggeredEvent>, IHandle<VpnInterfaceRestoredEvent>, IHandle<NetworkBindingProviderSwitchedEvent>
+public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<VpnKillSwitchTriggeredEvent>, IHandle<VpnInterfaceRestoredEvent>, IHandle<NetworkBindingProviderSwitchedEvent>, IHandle<ConfigSavedEvent>
 {
     private readonly IConfigService configService;
     private readonly IStoragePathService storagePathService;
     private readonly ICategoryService categoryService;
     private readonly IDiskProvider diskProvider;
     private readonly IEventAggregator eventAggregator;
+    private readonly INetworkBindingService networkBindingService;
+    private readonly IVpnKillSwitchService vpnKillSwitchService;
     private readonly Logger logger;
     private static readonly Logger StaticLogger = LogManager.GetCurrentClassLogger();
 
@@ -135,12 +139,27 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         IDiskProvider diskProvider,
         IEventAggregator eventAggregator,
         HttpClient httpClient = null)
+        : this(configService, storagePathService, categoryService, diskProvider, eventAggregator, null, null, httpClient)
+    {
+    }
+
+    public LibTorrentDownloadEngine(
+        IConfigService configService,
+        IStoragePathService storagePathService,
+        ICategoryService categoryService,
+        IDiskProvider diskProvider,
+        IEventAggregator eventAggregator,
+        INetworkBindingService networkBindingService,
+        IVpnKillSwitchService vpnKillSwitchService,
+        HttpClient httpClient = null)
     {
         this.configService = configService;
         this.storagePathService = storagePathService;
         this.categoryService = categoryService;
         this.diskProvider = diskProvider;
         this.eventAggregator = eventAggregator;
+        this.networkBindingService = networkBindingService;
+        this.vpnKillSwitchService = vpnKillSwitchService;
         this.logger = LogManager.GetCurrentClassLogger();
 
         var cfgVer = this.configService.ActiveTorrentEngineVersion;
@@ -239,6 +258,8 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         this.logger.Info("Starting libtorrent engine session...");
 
         await this.EnsureDaemonRunningAsync();
+
+        await this.ConfigureSessionSettingsAsync();
 
         this.isRunning = true;
         this.syncCts = new CancellationTokenSource();
@@ -440,6 +461,26 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         }
     }
 
+    public void Handle(ConfigSavedEvent message)
+    {
+        if (!this.isRunning)
+        {
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await this.ConfigureSessionSettingsAsync();
+            }
+            catch (Exception ex)
+            {
+                this.logger.Warn(ex, "Error updating libtorrent session settings on config change.");
+            }
+        });
+    }
+
     public void Handle(VpnKillSwitchTriggeredEvent message)
     {
         this.logger.Error("VPN Kill Switch drop detected for interface '{0}'. Halting LibTorrent engine transfers.", message.InterfaceName);
@@ -463,6 +504,7 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
             try
             {
                 await this.SendRpcRequestAsync("pause_session", new Dictionary<string, object>());
+                await this.ConfigureSessionSettingsAsync();
             }
             catch (Exception ex)
             {
@@ -475,6 +517,18 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
     {
         this.logger.Info("VPN interface '{0}' restored. Resuming LibTorrent engine transfers.", message.InterfaceName);
         this.isHaltedByKillSwitch = false;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await this.ConfigureSessionSettingsAsync();
+            }
+            catch (Exception ex)
+            {
+                this.logger.Trace(ex, "Failed to update session settings during killswitch deactivation");
+            }
+        });
 
         lock (this.torrentsHaltedByKillSwitch)
         {
@@ -498,15 +552,11 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
         {
             try
             {
-                await this.SendRpcRequestAsync("rebind_network_interfaces", new Dictionary<string, object>
-                {
-                    ["previousProvider"] = message.PreviousProvider,
-                    ["newProvider"] = message.NewProvider,
-                });
+                await this.ConfigureSessionSettingsAsync();
             }
             catch (Exception ex)
             {
-                this.logger.Trace(ex, "Failed to rebind network interfaces in libtorrent session");
+                this.logger.Warn(ex, "Error updating libtorrent session settings on network binding switch.");
             }
         });
     }
@@ -606,6 +656,154 @@ public class LibTorrentDownloadEngine : ITorrentEngine, IDisposable, IHandle<Vpn
                 this.logger.Warn(ex, "Error setting file priority in libtorrent for {0} (file: {1}, priority: {2})", torrentId, filePath, priority);
             }
         }
+    }
+
+    public async Task<Dictionary<string, object>> ConfigureSessionSettingsAsync()
+    {
+        var boundIp = this.ResolveBoundIpv4Address();
+        var port = this.configService?.ListeningPort > 0 ? this.configService.ListeningPort : 6882;
+        var listenInterfaces = $"{boundIp}:{port}";
+
+        var isAltSpeed = this.configService?.AlternativeSpeedEnabled ?? false;
+        var maxDownloadSpeedKbps = isAltSpeed
+            ? (this.configService.AltDownloadSpeedKbps < 0 ? 1 : this.configService.AltDownloadSpeedKbps)
+            : (this.configService?.MaxDownloadSpeedKbps ?? 0);
+        var maxUploadSpeedKbps = isAltSpeed
+            ? (this.configService.AltUploadSpeedKbps < 0 ? 1 : this.configService.AltUploadSpeedKbps)
+            : (this.configService?.MaxUploadSpeedKbps ?? 0);
+
+        var proxyType = this.configService?.ProxyType?.ToLowerInvariant();
+        var proxyConfigured = !string.IsNullOrWhiteSpace(proxyType) &&
+            !string.Equals(proxyType, "none", StringComparison.OrdinalIgnoreCase);
+
+        var isAnonymous = this.configService?.AnonymousMode ?? false;
+        var enableDht = (this.configService?.EnableDht ?? true) && !isAnonymous;
+
+        var sessionArgs = new Dictionary<string, object>
+        {
+            ["download_rate_limit"] = maxDownloadSpeedKbps > 0 ? maxDownloadSpeedKbps * 1024 : 0,
+            ["upload_rate_limit"] = maxUploadSpeedKbps > 0 ? maxUploadSpeedKbps * 1024 : 0,
+            ["listen_interfaces"] = listenInterfaces,
+            ["listening_port"] = port,
+            ["enable_dht"] = enableDht,
+            ["anonymous_mode"] = isAnonymous,
+            ["enable_upnp"] = (this.configService?.UpnpEnabled ?? false) && !isAnonymous,
+        };
+
+        if (proxyConfigured)
+        {
+            sessionArgs["proxy_type"] = proxyType;
+            sessionArgs["proxy_hostname"] = this.configService?.ProxyHost ?? string.Empty;
+            sessionArgs["proxy_port"] = this.configService?.ProxyPort ?? 0;
+            sessionArgs["proxy_auth_enabled"] = this.configService?.ProxyAuthEnabled ?? false;
+            sessionArgs["proxy_username"] = this.configService?.ProxyUsername ?? string.Empty;
+            sessionArgs["proxy_password"] = this.configService?.ProxyPassword ?? string.Empty;
+            sessionArgs["force_proxy"] = this.configService?.ForceProxy ?? false;
+            sessionArgs["proxy_peer_connections"] = true;
+            sessionArgs["proxy_tracker_connections"] = true;
+            sessionArgs["proxy_hostnames"] = true;
+        }
+        else
+        {
+            sessionArgs["proxy_type"] = "none";
+            sessionArgs["proxy_hostname"] = string.Empty;
+            sessionArgs["proxy_port"] = 0;
+            sessionArgs["proxy_auth_enabled"] = false;
+            sessionArgs["proxy_username"] = string.Empty;
+            sessionArgs["proxy_password"] = string.Empty;
+            sessionArgs["force_proxy"] = false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(this.configService?.DhtBootstrapNodes))
+        {
+            sessionArgs["dht_bootstrap_nodes"] = this.configService.DhtBootstrapNodes;
+        }
+
+        if (this.configService?.MaxGlobalConnections > 0)
+        {
+            sessionArgs["connections_limit"] = this.configService.MaxGlobalConnections;
+        }
+
+        try
+        {
+            var response = await this.SendRpcRequestAsync("set_settings", sessionArgs);
+            this.logger.Info(
+                "libtorrent: Updated session settings (listen={0}, proxy={1}, dht={2}, anonymous={3}, dlLimit={4}, ulLimit={5})",
+                listenInterfaces,
+                sessionArgs["proxy_type"],
+                sessionArgs["enable_dht"],
+                sessionArgs["anonymous_mode"],
+                sessionArgs["download_rate_limit"],
+                sessionArgs["upload_rate_limit"]);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            this.logger.Warn(ex, "Error configuring libtorrent session settings.");
+            return null;
+        }
+    }
+
+    internal string ResolveBoundIpv4Address()
+    {
+        if (this.isHaltedByKillSwitch || this.vpnKillSwitchService?.IsFailClosedActive == true)
+        {
+            return "127.0.0.1";
+        }
+
+        var iface = !string.IsNullOrWhiteSpace(this.configService?.NetworkInterfaceBinding)
+            ? this.configService.NetworkInterfaceBinding
+            : this.configService?.BindInterface;
+
+        var hasSpecificInterface = !string.IsNullOrWhiteSpace(iface) &&
+            !string.Equals(iface, "Any", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(iface, "all", StringComparison.OrdinalIgnoreCase);
+
+        if (!hasSpecificInterface)
+        {
+            return "0.0.0.0";
+        }
+
+        if (IPAddress.TryParse(iface, out var parsedIp) && parsedIp.AddressFamily == AddressFamily.InterNetwork)
+        {
+            return parsedIp.ToString();
+        }
+
+        if (this.vpnKillSwitchService != null)
+        {
+            if (this.vpnKillSwitchService.IsFailClosedActive)
+            {
+                return "127.0.0.1";
+            }
+
+            var vpnIp = this.vpnKillSwitchService.GetVpnInterfaceIpAddress(AddressFamily.InterNetwork);
+            if (vpnIp != null)
+            {
+                return vpnIp.ToString();
+            }
+        }
+
+        if (this.networkBindingService != null)
+        {
+            if (this.networkBindingService.CheckVpnKillSwitch(iface))
+            {
+                return "127.0.0.1";
+            }
+
+            if (!this.networkBindingService.IsInterfaceUp(iface))
+            {
+                return "127.0.0.1";
+            }
+        }
+
+        var resolved = ManagedSocketBindingProvider.GetInterfaceIp(iface, AddressFamily.InterNetwork);
+        if (resolved != null)
+        {
+            return resolved.ToString();
+        }
+
+        // When a specific interface binding is active but cannot be resolved or is down, fail closed.
+        return "127.0.0.1";
     }
 
     public async Task SetRateLimitsAsync(int maxDownloadKbps, int maxUploadKbps)
