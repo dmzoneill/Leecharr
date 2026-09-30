@@ -304,7 +304,7 @@ export function SecuritySettingsTab() {
   }, [config]);
 
   useEffect(() => {
-    loadProviders();
+    void loadProviders();
   }, []);
 
   const loadProviders = async () => {

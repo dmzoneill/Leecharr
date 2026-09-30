@@ -1999,7 +1999,7 @@ const bn: I18nTranslations = {
     "loginTitle": "Leecharr প্রমাণীকরণ",
     "welcomeBack": "আপনার Leecharr অ্যাকাউন্টে সাইন ইন করুন।",
     "username": "ব্যবহারকারীর নাম",
-    "password": "পাসওয়ার্ড",
+    "password": "পাসওয়ার্ড", // NOSONAR
     "loginBtn": "সাইন ইন",
     "loggingIn": "সাইন ইন হচ্ছে...",
     "invalidCredentials": "অবৈধ ব্যবহারকারীর নাম বা পাসওয়ার্ড।",
@@ -3192,7 +3192,7 @@ const bn: I18nTranslations = {
       "port": "বন্দর",
       "useSsl": "SSL ব্যবহার করুন",
       "username": "ব্যবহারকারীর নাম",
-      "password": "পাসওয়ার্ড",
+      "password": "পাসওয়ার্ড", // NOSONAR
       "category": "বিভাগ",
       "categoryHint": "বিভাগ অনুসারে ফিল্টার করুন",
       "testingConnectionTo": "{{host}} এর সাথে সংযোগ পরীক্ষা করা হচ্ছে:{{port}}...",

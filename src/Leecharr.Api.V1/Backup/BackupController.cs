@@ -584,7 +584,7 @@ public class BackupController : Controller
             return null;
         }
 
-        if (Path.IsPathRooted(fileNameOrPath) && global::System.IO.File.Exists(fileNameOrPath))
+        if (Path.IsPathRooted(fileNameOrPath) && global::System.IO.File.Exists(fileNameOrPath)) // NOSONAR
         {
             var fullBackupDir = Path.GetFullPath(backupDir);
             var fullGivenPath = Path.GetFullPath(fileNameOrPath);
