@@ -24,7 +24,14 @@ function loadLocale(langCode) {
   if (!match) {
     throw new Error(`Failed to parse I18nTranslations object from ${filePath}`);
   }
-  return eval("(" + match[1] + ")");
+  try {
+    return JSON.parse(match[1]);
+  } catch {
+    const sanitized = match[1]
+      .replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, "$1")
+      .replace(/,\s*([\]}])/g, "$1");
+    return JSON.parse(sanitized);
+  }
 }
 
 // 2. Flatten object into dot-notated keys

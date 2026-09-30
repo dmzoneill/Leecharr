@@ -93,7 +93,7 @@ export function LogTab({
     for (const log of logs) {
       if (log.source) set.add(log.source);
     }
-    return Array.from(set).sort();
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [logs]);
 
   const filteredLogs = useMemo(() => {

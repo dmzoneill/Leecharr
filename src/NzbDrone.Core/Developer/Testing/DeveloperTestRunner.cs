@@ -1050,9 +1050,23 @@ public class DeveloperTestRunner : IDeveloperTestRunner
     // 2. STORAGE IMPLEMENTATIONS
     // ==========================================
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S5443:Publicly writable directories", Justification = "Secure application subfolder is used for test scratch files.")]
+    private string GetSecureTempDirectory()
+    {
+        var baseDir = this.appFolderInfo?.AppDataFolder
+            ?? Environment.GetEnvironmentVariable("LEECHARR__APP_DATA")
+            ?? Environment.GetEnvironmentVariable("SEEDARR__APP_DATA")
+            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Leecharr");
+
+        var scratchDir = Path.Combine(baseDir, "test-scratch");
+        Directory.CreateDirectory(scratchDir);
+        return scratchDir;
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S5443:Publicly writable directories", Justification = "Secure application subfolder is used for test scratch files.")]
     private async Task<string> ExecuteDiskIoCheckAsync()
     {
-        var tempFolder = Directory.Exists("/tmp") ? "/tmp" : Path.GetTempPath();
+        var tempFolder = this.GetSecureTempDirectory();
         var testFile = Path.Combine(tempFolder, "leecharr_test_io_" + Guid.NewGuid().ToString("N") + ".tmp");
 
         try
@@ -1085,9 +1099,10 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S5443:Publicly writable directories", Justification = "Secure application subfolder is used for test scratch files.")]
     private string ExecuteDiskPermissionsCheck()
     {
-        var tempFolder = Directory.Exists("/tmp") ? "/tmp" : Path.GetTempPath();
+        var tempFolder = this.GetSecureTempDirectory();
         var testDir = Path.Combine(tempFolder, "leecharr_perm_" + Guid.NewGuid().ToString("N"));
 
         try
@@ -1112,9 +1127,10 @@ public class DeveloperTestRunner : IDeveloperTestRunner
         return $"Drive '{drive.Name}' status: {freeGb:F1} GB free out of {totalGb:F1} GB total.";
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S5443:Publicly writable directories", Justification = "Secure application subfolder is used for test scratch files.")]
     private string ExecuteDiskTempDirCheck()
     {
-        var tempDir = Path.GetTempPath();
+        var tempDir = this.GetSecureTempDirectory();
         var exists = Directory.Exists(tempDir);
         return $"System temp directory: '{tempDir}', Accessible={exists}.";
     }
