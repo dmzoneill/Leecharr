@@ -48,7 +48,7 @@ public static class TerminalWebSocketHandler
                 if (!user.IsInRole("Admin") && !user.HasClaim(global::System.Security.Claims.ClaimTypes.Role, "Admin"))
                 {
                     context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                    await context.Response.WriteAsync("Admin role required for terminal access.");
+                    await context.Response.WriteAsync("Admin role required for terminal access.", context.RequestAborted);
                     await context.Response.CompleteAsync();
                     return;
                 }
@@ -56,7 +56,7 @@ public static class TerminalWebSocketHandler
             else if (!RpcAuthenticationHelper.IsAuthenticated(context, configFileProvider))
             {
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                await context.Response.WriteAsync("Authentication required for terminal access.");
+                await context.Response.WriteAsync("Authentication required for terminal access.", context.RequestAborted);
                 await context.Response.CompleteAsync();
                 return;
             }
@@ -65,7 +65,7 @@ public static class TerminalWebSocketHandler
         if (configFileProvider != null && !configFileProvider.TerminalAccessEnabled)
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
-            await context.Response.WriteAsync("Terminal process execution is disabled in security configuration.");
+            await context.Response.WriteAsync("Terminal process execution is disabled in security configuration.", context.RequestAborted);
             await context.Response.CompleteAsync();
             return;
         }
@@ -73,7 +73,7 @@ public static class TerminalWebSocketHandler
         if (!context.WebSockets.IsWebSocketRequest)
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
-            await context.Response.WriteAsync("WebSocket upgrade required.");
+            await context.Response.WriteAsync("WebSocket upgrade required.", context.RequestAborted);
             return;
         }
 
@@ -109,8 +109,8 @@ public static class TerminalWebSocketHandler
             var errBytes = Encoding.UTF8.GetBytes(errPayload);
             if (webSocket.State == WebSocketState.Open)
             {
-                await webSocket.SendAsync(new ArraySegment<byte>(errBytes), WebSocketMessageType.Text, true, CancellationToken.None);
-                await webSocket.CloseAsync(WebSocketCloseStatus.InternalServerError, ex.Message, CancellationToken.None);
+                await webSocket.SendAsync(new ArraySegment<byte>(errBytes), WebSocketMessageType.Text, true, context.RequestAborted);
+                await webSocket.CloseAsync(WebSocketCloseStatus.InternalServerError, ex.Message, context.RequestAborted);
             }
 
             return;
@@ -118,7 +118,7 @@ public static class TerminalWebSocketHandler
 
         await using var sessionDisposer = session;
 
-        using var cts = new CancellationTokenSource();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
         var sendLock = new SemaphoreSlim(1, 1);
 
         async Task SafeSendTextAsync(string text, CancellationToken ct)
@@ -175,7 +175,7 @@ public static class TerminalWebSocketHandler
             {
                 cts.Cancel();
             }
-        });
+        }, context.RequestAborted);
 
         var receiveWsTask = Task.Run(async () =>
         {
@@ -268,7 +268,7 @@ public static class TerminalWebSocketHandler
             {
                 cts.Cancel();
             }
-        });
+        }, context.RequestAborted);
 
         await Task.WhenAny(readPtyTask, receiveWsTask);
         cts.Cancel();

@@ -3,6 +3,7 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
 using Leecharr.Http;
@@ -111,9 +112,9 @@ public class SystemController : ControllerBase
 
         _ = Task.Run(async () =>
         {
-            await Task.Delay(500);
+            await Task.Delay(500, this.hostApplicationLifetime?.ApplicationStopping ?? CancellationToken.None);
             this.hostApplicationLifetime?.StopApplication();
-        });
+        }, this.hostApplicationLifetime?.ApplicationStopping ?? CancellationToken.None);
 
         return this.Ok(new { message = "Restarting Leecharr..." });
     }
@@ -128,9 +129,9 @@ public class SystemController : ControllerBase
 
         _ = Task.Run(async () =>
         {
-            await Task.Delay(500);
+            await Task.Delay(500, this.hostApplicationLifetime?.ApplicationStopping ?? CancellationToken.None);
             this.hostApplicationLifetime?.StopApplication();
-        });
+        }, this.hostApplicationLifetime?.ApplicationStopping ?? CancellationToken.None);
 
         return this.Ok(new { message = "Shutting down Leecharr..." });
     }

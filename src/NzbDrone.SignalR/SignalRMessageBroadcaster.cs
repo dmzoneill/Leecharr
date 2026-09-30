@@ -57,8 +57,8 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
         this.telemetryChannel = System.Threading.Channels.Channel.CreateBounded<SignalRMessage>(telemetryOptions);
         this.guaranteedChannel = System.Threading.Channels.Channel.CreateBounded<SignalRMessage>(guaranteedOptions);
 
-        this.telemetryProcessingTask = Task.Run(() => this.ProcessChannelAsync(this.telemetryChannel, "telemetry"));
-        this.guaranteedProcessingTask = Task.Run(() => this.ProcessChannelAsync(this.guaranteedChannel, "guaranteed"));
+        this.telemetryProcessingTask = Task.Run(() => this.ProcessChannelAsync(this.telemetryChannel, "telemetry"), this.cancellationTokenSource?.Token ?? CancellationToken.None);
+        this.guaranteedProcessingTask = Task.Run(() => this.ProcessChannelAsync(this.guaranteedChannel, "guaranteed"), this.cancellationTokenSource?.Token ?? CancellationToken.None);
     }
 
     public virtual bool IsConnected => MessageHub.IsConnected;
@@ -104,7 +104,7 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
                     {
                         this.logger.Error(ex, "Failed to write guaranteed SignalR message '{0}'", message.Name);
                     }
-                });
+                }, this.cancellationTokenSource?.Token ?? CancellationToken.None);
             }
         }
     }
@@ -122,13 +122,13 @@ public class SignalRMessageBroadcaster : IBroadcastSignalRMessage, IDisposable
             return;
         }
 
-        group.SendAsync("receiveMessage", message)
+        group.SendAsync("receiveMessage", message, this.cancellationTokenSource?.Token ?? CancellationToken.None)
             ?.ContinueWith(t => this.logger.Warn(t.Exception, "SignalR group broadcast failed"), TaskContinuationOptions.OnlyOnFaulted);
 
         var events = GetNamedEvents(message);
         foreach (var ev in events)
         {
-            group.SendAsync(ev, message.Body)
+            group.SendAsync(ev, message.Body, this.cancellationTokenSource?.Token ?? CancellationToken.None)
                 ?.ContinueWith(t => this.logger.Warn(t.Exception, "SignalR group named event broadcast failed"), TaskContinuationOptions.OnlyOnFaulted);
         }
     }
