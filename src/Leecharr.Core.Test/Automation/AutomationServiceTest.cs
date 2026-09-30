@@ -8,6 +8,7 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Common.Disk;
+using NzbDrone.Core.ArrIntegration;
 using NzbDrone.Core.Automation;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Datastore;
@@ -833,7 +834,9 @@ public class AutomationServiceTest
 
         service.ExecuteScript(script, torrent);
 
-        _commandQueue.Received(1).PushRaw("SyncArr", "{}", CommandTrigger.Manual);
+        _commandQueue.Received(1).Push(
+            Arg.Is<SyncArrCommand>(c => c.AppType == "Radarr" && c.InstanceId == 1),
+            CommandTrigger.Manual);
     }
 
     [Test]

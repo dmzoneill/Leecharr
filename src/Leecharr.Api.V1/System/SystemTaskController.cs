@@ -6,6 +6,7 @@ using Leecharr.Http;
 using Leecharr.Http.REST;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NzbDrone.Core.ArrIntegration;
 using NzbDrone.Core.Authentication;
 using NzbDrone.Core.Backup;
 using NzbDrone.Core.Indexers;
@@ -243,6 +244,10 @@ public class SystemTaskController : Controller
         else if (string.Equals(name, "DownloadHistoryCleanup", StringComparison.OrdinalIgnoreCase))
         {
             this.commandQueueManager?.Push(new DownloadHistoryCleanupCommand(), CommandTrigger.Manual);
+        }
+        else if (string.Equals(name, "SyncArr", StringComparison.OrdinalIgnoreCase))
+        {
+            this.commandQueueManager?.Push(new SyncArrCommand(), CommandTrigger.Manual);
         }
         else
         {

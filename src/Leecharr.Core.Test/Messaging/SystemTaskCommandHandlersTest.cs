@@ -8,6 +8,7 @@ using NSubstitute;
 using NUnit.Framework;
 using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
+using NzbDrone.Core.ArrIntegration;
 using NzbDrone.Core.Backup;
 using NzbDrone.Core.Categories;
 using NzbDrone.Core.Configuration;
@@ -125,5 +126,22 @@ public class SystemTaskCommandHandlersTest
                 }
             }
         }
+    }
+
+    [Test]
+    public async Task ArrSyncService_ExecuteAsync_CallsSyncAsync()
+    {
+        var arrRepository = Substitute.For<IArrConnectionRepository>();
+        arrRepository.GetEnabled().Returns(new System.Collections.Generic.List<ArrConnectionDefinition>());
+
+        var service = new ArrSyncService(arrRepository);
+        var asyncExecutor = (IExecuteAsync<SyncArrCommand>)service;
+        var syncExecutor = (IExecute<SyncArrCommand>)service;
+
+        var cmd = new SyncArrCommand { AppType = "Radarr", InstanceId = 1 };
+        await asyncExecutor.ExecuteAsync(cmd, CancellationToken.None);
+        syncExecutor.Execute(cmd);
+
+        arrRepository.Received(2).GetEnabled();
     }
 }

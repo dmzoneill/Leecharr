@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Common.Disk;
+using NzbDrone.Core.ArrIntegration;
 using NzbDrone.Core.BitTorrent;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore;
@@ -174,7 +175,13 @@ public class AutomationService : IAutomationService
         {
             foreach (var sync in result.ArrSyncsToSend)
             {
-                _commandQueue.PushRaw("SyncArr", "{}", CommandTrigger.Manual);
+                _commandQueue.Push(
+                    new SyncArrCommand
+                    {
+                        AppType = sync.AppType,
+                        InstanceId = sync.InstanceId,
+                    },
+                    CommandTrigger.Manual);
             }
         }
 
